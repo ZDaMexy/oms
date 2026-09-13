@@ -26,7 +26,7 @@ C2～C6共用exact package+layout+material+scene publication，script及编译�
 
 ## 当前质量打磨（进行中）
 
-静线按本轮五项明确反馈接入实时判定统计、MIN/BPM/MAX、Score/HiSpeed、曲名/难度与缩短键帽。通过公共只读绑定、Global材质模板和信息区域实现，正常开发启动/构建继续自动更新唯一内置源；验证和实际画面边界见[信息区记录](../../other/SKIN_SIMPLE_INFORMATION_20260913.md)。
+静线接入实时判定统计、MIN/BPM/MAX、Score/HiSpeed、曲名/难度与缩短键帽；图15后独立显示“表名/表内等级”，与作者标级分开，细化顶栏与仪表。通过公共绑定、Global模板和信息区域实现，正常开发/构建继续自动更新唯一内置源；实际验证及画面边界见[信息区记录](../../other/SKIN_SIMPLE_INFORMATION_20260913.md)。
 
 图12后完善键面/支座、切角血槽/仪表外壳并压暗底板。图13实绘与相关作者包矩阵通过；该素材迭代未重跑上轮full，见[此前记录](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md#图12之后的控制区外壳迭代)。
 

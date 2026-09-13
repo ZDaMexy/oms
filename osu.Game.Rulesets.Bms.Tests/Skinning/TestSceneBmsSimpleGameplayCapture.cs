@@ -12,6 +12,7 @@ using osu.Framework.Testing;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Configuration;
+using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Screens.Play;
@@ -84,6 +85,18 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(owner.CurrentPublication, Is.Not.Null);
                 Assert.That(owner.PackageRevision.RetainsExact(skins.CurrentRevision), Is.True);
                 Assert.That(CanonicalSkinPackage.IsCanonicalSkin(skins.CurrentSkin.Value), Is.True);
+                bool receivedInformation = false;
+                using var observer = renderer.GameplaySkinEventRuntime!.EventStream.Subscribe();
+                observer.DrainFrame(envelope =>
+                {
+                    if (envelope.Payload is GameplaySkinStateEventPayload state)
+                    {
+                        receivedInformation = true;
+                        Assert.That(state.State.SongInformation!.TableClassification, Is.EqualTo("Satellite sl4 / 発狂BMS ★8"));
+                        Assert.That(state.State.SongInformation.Level, Is.EqualTo("12"));
+                    }
+                });
+                Assert.That(receivedInformation, Is.True);
             });
             AddWaitStep("allow live notes and draw frames", 12);
             AddStep("capture real desktop framebuffer", () => capture = saveCapture());
@@ -111,7 +124,17 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     text.Append('#').Append(measure.ToString("000")).Append(channels[lane]).Append(':')
                         .Append(lane % 2 == 0 ? "0100000001000000" : "0000010000000100").Append('\n');
             var decoded = new BmsBeatmapDecoder().DecodeText(text.ToString(), "simple-gameplay-capture.bme");
-            return new BmsDecodedBeatmap(decoded) { BeatmapInfo = { Ruleset = ruleset.RulesetInfo } };
+            var beatmap = new BmsDecodedBeatmap(decoded) { BeatmapInfo = { Ruleset = ruleset.RulesetInfo } };
+            // Synthetic offline memberships exercise the same persisted read path as imported enabled tables.
+            beatmap.BeatmapInfo.Metadata.SetRulesetData(new BmsBeatmapMetadataData
+            {
+                DifficultyTableEntries =
+                {
+                    new BmsDifficultyTableEntry("発狂BMS", "★", 8, "★8", "", 1),
+                    new BmsDifficultyTableEntry("Satellite", "sl", 4, "sl4", "", 0),
+                },
+            });
+            return beatmap;
         }
     }
 }

@@ -95,3 +95,23 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File skin-authoring/Build-Ski
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File skin-authoring/Test-Authoring.ps1 -Tool tools/SkinAuthoring/bin/Release/net8.0/SkinAuthoring.exe
 dotnet build osu.Desktop.slnf -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m
 ```
+
+## 难度表归类与信息区细化
+
+图15为随后收到的用户实机反馈：作者声明的NORMAL/LEVEL5不等于已启用难度表的表名与表内等级。当前新增独立 `song.table-classification`，每表保留名称和等级标签，按保存表序、同表取既有代表项，以 ` / ` 连接；作者 `song.difficulty/level` 保持原义，无归类时新绑定为空。共享DTO只携带有界文字，来源读取留在已有BeatmapLocalMetadataDisplayResolver；不写回RulesetData、不改变难度表启停与选歌规则。
+
+实际取证发现BmsBeatmapConverter重建元数据，直接从转换后的游玩谱读取会丢失归类。BMS与转谱mania的producer现在从PlayerLoader已租用锁定的具体Bindable<WorkingBeatmap>读取原谱持久资料，构造一次完整快照；不得以全局IBindable或皮肤自己推算等级替代。无该屏幕依赖的独立宿主使用自身谱面元数据。真实PlayerLoader测试覆盖两种玩法，而非仅手造snapshot。
+
+美术继续使用当前原创材质文件和普通scene：曲目信息改为归类/曲名/作者三行，右侧作者难度及CHART LV独立底框；BPM主读数增加暗底与刻线，MIN/MAX分区，RATE与数值相邻；玩家面板标明EX SCORE并与HI-SPEED分隔。对照来源仍为图04/05，未把外部参考图片作为安装素材。文字裁切沿用既有ellipsis；新绑定沿用256 UTF-16单元预算，不提高场景预算。
+
+下方记录此次实际验证，以上旧验证保持此前版本身份。
+
+图16最终实绘由同一隔离desktop PlayerLoader/ReplayPlayer捕获，exit0，SHA256 `ecaeae9e7181fb7865be25dd97ddff8be881a2aeff1b4788cbc4aa4ce11aced1`，见[实际图像](references/simple-1p-20260912/16-simple-table-information-runtime.png)。首张新图复核发现作者文字贴近下边框，最终仅调整曲名/作者的纵向位置，补元数据文字底边不得越出顶栏的真实字体检查；复验通过。图16使用合成谱与两项演示持久归类，不是用户曲目、实际在线难度表或完整BGA媒体的验收证据。
+
+此次Release验证：core focused146 Passed；初次BMS focused83 Passed；公共实现和信息区主体的BMS full2256 Passed/0 Failed/16 Skipped（12m39s），core Skin1390 Passed/5 Failed。最终曲名/作者坐标微调后，BMS/mania作者包窗口矩阵及真实进歌相关focused22 Passed/0 Failed，真实desktop重新capture exit0。完整BMS套件在该纯坐标微调之前完成，最终使用相关矩阵复验，未把此前full冒充最终坐标版本的重跑。16个跳过延续缺核验备份根15项、headless截图1项；desktop另行执行。
+
+mania full863 Passed/4 Failed（2m46s）；Compare-FailureBaseline.ps1逐项比对本次core与mania失败的名称、类别和完整消息，全部匹配冻结记录，见artifacts/simple-table-baseline.json。作者正常制作、重复打包、错误拒绝和中断保护通过；最终Release构建0警告/0错误。新PlayerLoader测试初次编译缺osu.Framework.Allocation扩展命名空间（CS0308/CS1061），补齐后上述focused/full均重新编译运行；BMS测试项目原有CS8600/CA2007未掩盖。
+
+最终作者包SHA256 `30a7026d966e6093f82ae7b1df90306ffdd8951f98c1805c759feb18e8c57611`，正常Release内置原件SHA256 `f7be7e851eaef14a217bf1a70f80acc01071eea908b6031a4f8101e2c63494b2`。两条既有ZIP封装字节仍不同；逐项核对均为118个文件且全部内容与最终作者源一致，记录artifacts/simple-table-package-content.json。开发启动与构建自动同步路径未更改，玩家不需导入dist。
+
+命令仍使用上节Release工程与作者入口；此次日志前缀为artifacts/simple-table-，TRX分别为simple-table-core-focused、simple-table-focused、simple-table-core-full、simple-table-bms-full、simple-table-final-layout、simple-table-mania-full。最终坐标复验筛选TestAuthoredInformationUsesSafeLayoutAndGameplayValues、TestBuiltInSimplePlaysBmsAndManiaWithoutImport、TestSceneGameplaySkinTableClassification；截图使用同一OMS_SIMPLE_CAPTURE_PATH及--exact-test入口。文档健康与git diff --check另在提交前完成。整体视觉签收仍待用户实际歌曲反馈，不因本次自动检查通过而关闭。

@@ -194,11 +194,15 @@ namespace osu.Game.Rulesets.Mania.UI
             wrapped.Cache(layoutPublication.PreparedScene);
             wrapped.Cache(LayoutRevisionOwner);
 
+            // The leased working source retains table metadata lost during BMS-to-mania conversion.
+            BeatmapMetadata? persistedMetadata = parent.TryGet(out Bindable<WorkingBeatmap> working)
+                ? working.Value.Metadata : Beatmap.BeatmapInfo.Metadata as BeatmapMetadata;
             GameplaySkinEventRuntime = new GameplaySkinEventRuntimeHost(layoutPublication, Beatmap, null, this,
                 new GameplaySkinSongInformation(Beatmap.BeatmapInfo.Metadata.Title, Beatmap.BeatmapInfo.Metadata.Artist,
                     Beatmap.BeatmapInfo.DifficultyName, string.Empty,
                     Beatmap.ControlPointInfo.TimingPoints.Select(point => point.BPM).DefaultIfEmpty(TimingControlPoint.DEFAULT.BPM).Min(),
-                    Beatmap.ControlPointInfo.TimingPoints.Select(point => point.BPM).DefaultIfEmpty(TimingControlPoint.DEFAULT.BPM).Max()),
+                    Beatmap.ControlPointInfo.TimingPoints.Select(point => point.BPM).DefaultIfEmpty(TimingControlPoint.DEFAULT.BPM).Max(),
+                    BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyTableClassificationWithNames(persistedMetadata)),
                 () => configScrollSpeed.Value);
             wrapped.Cache(GameplaySkinEventRuntime);
             wrapped.Cache(GameplaySkinEventRuntime.EventStream);

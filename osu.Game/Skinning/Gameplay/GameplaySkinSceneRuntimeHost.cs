@@ -2231,6 +2231,10 @@ namespace osu.Game.Skinning.Gameplay
                     applyRuntimeStringProperty(target, binding.Property, songInformation?.Difficulty ?? string.Empty);
                     return;
 
+                case GameplaySkinSceneBindingSource.SongTableClassification:
+                    applyRuntimeStringProperty(target, binding.Property, songInformation?.TableClassification ?? string.Empty);
+                    return;
+
                 case GameplaySkinSceneBindingSource.SongLevel:
                     applyRuntimeStringProperty(target, binding.Property, songInformation?.Level ?? string.Empty);
                     return;

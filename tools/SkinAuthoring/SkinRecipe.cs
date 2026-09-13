@@ -866,37 +866,56 @@ namespace SkinAuthoring
                     ["layout-surface"] = "information." + name, ["clip-mode"] = "bounds",
                 }, new[] { stageTemplateNode("still.bms-hud." + name + ".panel", "sprite", new(), resource: "texture.instrument") }.Concat(content).ToArray());
 
-            var judgements = new List<object>();
+            object inset(string name, double x, double y, double width, double height, string colour)
+                => stageTemplateNode("still.bms-hud." + name, "sprite", new()
+                {
+                    ["x"] = x, ["y"] = y, ["width"] = width, ["height"] = height, ["colour"] = colour,
+                }, resource: "texture.white");
+
+            var judgements = new List<object>
+            {
+                text("judge-label", "JUDGE", 0.07, 0.05, 0.84, 0.12, 10, muted),
+                inset("judge-rule", 0.07, 0.185, 0.84, 0.008, "#45616fff"),
+            };
             string[] names = { "perfect", "great", "good", "meh", "miss", "ok", "combo-breaks" };
             string[] labels = { "PG", "GR", "GD", "BD", "PR", "EP", "CB" };
             string[] colours = { cyan, "#f3dd88ff", "#c4e789ff", "#e9aa77ff", "#ed8290ff", muted, ink };
             for (int i = 0; i < names.Length; i++)
             {
-                double y = 0.065 + i * 0.125;
+                double y = 0.21 + i * 0.106;
                 string source = i == 6 ? "combo.breaks" : "judgement.count." + names[i];
-                judgements.Add(text("count-" + names[i] + "-label", labels[i], 0.07, y, 0.23, 0.12, 12, colours[i]));
-                judgements.Add(text("count-" + names[i], "0", 0.32, y, 0.59, 0.12, 12, ink, "right", source));
+                judgements.Add(text("count-" + names[i] + "-label", labels[i], 0.07, y, 0.23, 0.095, 11, colours[i]));
+                judgements.Add(text("count-" + names[i], "0", 0.32, y, 0.59, 0.095, 11, ink, "right", source));
             }
             var root = stageTemplateNode("still.bms-hud", "container", new(), new[]
             {
                 region("song",
-                    text("title", "", 0.035, 0.07, 0.62, 0.47, 24, source: "song.title"),
-                    text("artist", "", 0.035, 0.60, 0.62, 0.26, 13, muted, source: "song.artist"),
-                    text("difficulty", "", 0.67, 0.12, 0.19, 0.32, 14, cyan, "right", "song.difficulty"),
-                    text("level-label", "LEVEL", 0.69, 0.62, 0.09, 0.24, 10, muted),
-                    text("level", "", 0.79, 0.55, 0.07, 0.31, 18, ink, "right", "song.level")),
+                    inset("song-accent", 0.023, 0.15, 0.003, 0.68, cyan),
+                    inset("author-well", 0.695, 0.16, 0.18, 0.67, "#152632ff"),
+                    inset("author-rule", 0.695, 0.16, 0.18, 0.012, "#45616fff"),
+                    text("table-classification", "", 0.04, 0.09, 0.63, 0.21, 14, cyan, source: "song.table-classification"),
+                    text("title", "", 0.04, 0.29, 0.63, 0.35, 24, source: "song.title"),
+                    text("artist", "", 0.04, 0.64, 0.63, 0.20, 12, muted, source: "song.artist"),
+                    text("difficulty", "", 0.71, 0.22, 0.15, 0.25, 13, cyan, "centre", "song.difficulty"),
+                    text("level-label", "CHART LV", 0.71, 0.58, 0.10, 0.20, 10, muted),
+                    text("level", "", 0.81, 0.51, 0.05, 0.28, 18, ink, "right", "song.level")),
                 region("judgements", judgements.ToArray()),
                 region("tempo",
+                    inset("bpm-well", 0.335, 0.13, 0.33, 0.57, "#101d26ff"),
+                    inset("bpm-rule", 0.38, 0.70, 0.24, 0.012, cyan),
+                    inset("min-divider", 0.30, 0.30, 0.0015, 0.33, "#45616fff"),
+                    inset("max-divider", 0.70, 0.30, 0.0015, 0.33, "#45616fff"),
                     text("bpm-min-label", "MIN", 0.04, 0.17, 0.23, 0.18, 10, muted, "centre"),
                     text("bpm-label", "BPM", 0.30, 0.10, 0.40, 0.18, 12, cyan, "centre"),
                     text("bpm-max-label", "MAX", 0.73, 0.17, 0.23, 0.18, 10, muted, "centre"),
                     text("bpm-min", "0", 0.04, 0.40, 0.23, 0.25, 18, muted, "centre", "timing.bpm-min"),
                     text("bpm", "0", 0.30, 0.30, 0.40, 0.37, 30, cyan, "centre", "timing.bpm"),
                     text("bpm-max", "0", 0.73, 0.40, 0.23, 0.25, 18, muted, "centre", "timing.bpm-max"),
-                    text("accuracy-label", "RATE", 0.30, 0.77, 0.14, 0.15, 10, muted),
-                    text("accuracy", "100.00%", 0.46, 0.73, 0.26, 0.20, 14, ink, "right", "score.accuracy")),
+                    text("accuracy-label", "RATE", 0.35, 0.77, 0.11, 0.15, 10, muted, "right"),
+                    text("accuracy", "100.00%", 0.49, 0.73, 0.20, 0.20, 14, ink, "left", "score.accuracy")),
                 region("player",
-                    text("score-label", "SCORE", 0.06, 0.12, 0.50, 0.18, 11, muted),
+                    inset("player-divider", 0.585, 0.23, 0.002, 0.52, "#45616fff"),
+                    text("score-label", "EX SCORE", 0.06, 0.12, 0.50, 0.18, 11, muted),
                     text("score", "0", 0.06, 0.38, 0.50, 0.42, 28, source: "score.value"),
                     text("hispeed-label", "HI-SPEED", 0.62, 0.12, 0.31, 0.18, 11, muted, "right"),
                     text("hispeed", "0.00", 0.62, 0.38, 0.31, 0.42, 28, cyan, "right", "scroll.speed", "fixed-2"),

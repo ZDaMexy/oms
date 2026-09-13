@@ -14,6 +14,28 @@ namespace osu.Game.Tests.NonVisual.Skinning
     public sealed class GameplaySkinEventRuntimeHostTest
     {
         [Test]
+        public void TestTableClassificationKeepsEachNameWithItsOrderedLevelWithoutWritingMetadata()
+        {
+            var metadata = new BeatmapMetadata
+            {
+                RulesetDataJson = """
+                    {"difficulty_table_entries":[
+                      {"TableName":"Second","LevelLabel":"sl4","Level":4,"TableSortOrder":1,"Md5":"retained","Symbol":"sl"},
+                      {"TableName":"First","LevelLabel":"★9","Level":9,"TableSortOrder":0},
+                      {"TableName":"First","LevelLabel":"★8","Level":8,"TableSortOrder":0}]}
+                    """,
+            };
+            string? original = metadata.RulesetDataJson;
+            string classification = BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyTableClassificationWithNames(metadata);
+            Assert.That(classification, Is.EqualTo("First ★8 / Second sl4"));
+            var song = new GameplaySkinSongInformation("Title", "Artist", "ANOTHER", "12", 120, 240, classification);
+            Assert.That(song.Level, Is.EqualTo("12"));
+            Assert.That(song.TableClassification, Is.EqualTo(classification));
+            Assert.That(metadata.RulesetDataJson, Is.EqualTo(original));
+            Assert.That(BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyTableClassificationWithNames(new BeatmapMetadata()), Is.Empty);
+        }
+
+        [Test]
         public void TestStatisticsAndSelectedSpeedSurviveCompactDelivery()
         {
             var statistics = new GameplaySkinJudgementStatistics(10, 9, 8, 7, 6, 5, 4);

@@ -139,11 +139,25 @@ namespace osu.Game.Beatmaps
         }
 
         /// <summary>
-        /// The difficulty-table classification label(s) for a BMS chart, e.g. <c>"sl4"</c>, or <c>"★8/sl4"</c> when the
-        /// chart is indexed by more than one difficulty table. Labels are ordered by the song-select difficulty-table
-        /// order (the table sort order) and joined with <c>'/'</c>, listing one label per indexing table. Returns an empty
-        /// string for non-BMS charts or charts not indexed by any enabled table. Identical between BMS-mode and the
-        /// converted-mania view (the chart stays a BMS beatmap in both). Display-only.
+        /// The persisted table names and rating labels, one pair per table in song-select order.
+        /// Read from the original working metadata because BMS conversion reconstructs chart-only metadata.
+        /// </summary>
+        public static string GetDisplayDifficultyTableClassificationWithNames(BeatmapMetadata? metadata)
+        {
+            var labels = BmsPersistedMetadataResolver.GetDifficultyTableEntries(metadata)
+                .GroupBy(entry => (entry.TableSortOrder, entry.TableName))
+                .OrderBy(group => group.Key.TableSortOrder)
+                .ThenBy(group => group.Key.TableName, StringComparer.Ordinal)
+                .Select(group => group.OrderBy(entry => entry.Level)
+                    .ThenBy(entry => entry.LevelLabel, StringComparer.Ordinal).First())
+                .Where(entry => !string.IsNullOrWhiteSpace(entry.LevelLabel))
+                .Select(entry => string.IsNullOrWhiteSpace(entry.TableName) ? entry.LevelLabel : $"{entry.TableName} {entry.LevelLabel}");
+            return string.Join(" / ", labels);
+        }
+
+        /// <summary>
+        /// Compact classification labels for BMS song-select panels, e.g. <c>"★8/sl4"</c>.
+        /// Returns an empty string for non-BMS charts or charts not indexed by any enabled table.
         /// </summary>
         public static string GetDisplayDifficultyTableClassification(IBeatmapInfo beatmap)
         {

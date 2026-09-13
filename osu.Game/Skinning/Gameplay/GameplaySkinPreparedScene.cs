@@ -691,6 +691,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBindingSource.SongArtist => GameplaySkinSceneStateFamily.Layout,
             GameplaySkinSceneBindingSource.SongDifficulty => GameplaySkinSceneStateFamily.Layout,
             GameplaySkinSceneBindingSource.SongLevel => GameplaySkinSceneStateFamily.Layout,
+            GameplaySkinSceneBindingSource.SongTableClassification => GameplaySkinSceneStateFamily.Layout,
             GameplaySkinSceneBindingSource.TimingBpmMinimum => GameplaySkinSceneStateFamily.Layout,
             GameplaySkinSceneBindingSource.TimingBpmMaximum => GameplaySkinSceneStateFamily.Layout,
             GameplaySkinSceneBindingSource.ScrollSpeed => GameplaySkinSceneStateFamily.Timing,
@@ -1428,6 +1429,7 @@ namespace osu.Game.Skinning.Gameplay
                 if (binding.Property == GameplaySkinSceneProperty.Text && reservations.ContainsKey(binding.TargetNodeId))
                     reserve(binding.TargetNodeId, binding.Source is GameplaySkinSceneBindingSource.SongTitle or GameplaySkinSceneBindingSource.SongArtist
                         or GameplaySkinSceneBindingSource.SongDifficulty or GameplaySkinSceneBindingSource.SongLevel
+                        or GameplaySkinSceneBindingSource.SongTableClassification
                         ? GameplaySkinSongInformation.MAX_TEXT_LENGTH
                         : binding.Source is GameplaySkinSceneBindingSource.JudgementCountPerfect or GameplaySkinSceneBindingSource.JudgementCountGreat
                             or GameplaySkinSceneBindingSource.JudgementCountGood or GameplaySkinSceneBindingSource.JudgementCountOk

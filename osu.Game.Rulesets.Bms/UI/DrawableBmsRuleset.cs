@@ -215,7 +215,12 @@ namespace osu.Game.Rulesets.Bms.UI
                 IGameplaySkinTimingProjection? timingProjection = Beatmap is BmsBeatmap { TimingProfile: not null, ScrollProfile: not null } bmsBeatmap
                     ? new BmsGameplaySkinTimingProjection(bmsBeatmap)
                     : null;
-                GameplaySkinEventRuntime = new GameplaySkinEventRuntimeHost(publication, Beatmap, timingProjection, this, createSongInformation(), () => SelectedHiSpeed.Value);
+                // PlayerLoader leases this concrete bindable; use its persisted metadata rather than the
+                // converter's chart-only metadata or the global interface bindable.
+                BeatmapMetadata? persistedMetadata = parent.TryGet(out Bindable<WorkingBeatmap> working)
+                    ? working.Value.Metadata : Beatmap.BeatmapInfo.Metadata as BeatmapMetadata;
+                GameplaySkinEventRuntime = new GameplaySkinEventRuntimeHost(publication, Beatmap, timingProjection, this,
+                    createSongInformation(persistedMetadata), () => SelectedHiSpeed.Value);
                 dependencies.Cache(GameplaySkinEventRuntime);
                 dependencies.Cache(GameplaySkinEventRuntime.EventStream);
 
@@ -275,7 +280,7 @@ namespace osu.Game.Rulesets.Bms.UI
             }
         }
 
-        private GameplaySkinSongInformation createSongInformation()
+        private GameplaySkinSongInformation createSongInformation(BeatmapMetadata? persistedMetadata)
         {
             string difficulty = Beatmap.BeatmapInfo.DifficultyName;
             string level = string.Empty;
@@ -300,7 +305,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 }
             }
             return new GameplaySkinSongInformation(Beatmap.BeatmapInfo.Metadata.Title, Beatmap.BeatmapInfo.Metadata.Artist,
-                difficulty, level, minimumBpm, maximumBpm);
+                difficulty, level, minimumBpm, maximumBpm,
+                BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyTableClassificationWithNames(persistedMetadata));
         }
 
         private void mountGameplaySkinSceneLayers(GameplaySkinSceneRuntimeHost sceneRuntime)

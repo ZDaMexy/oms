@@ -9,7 +9,7 @@ OMS处于Phase 1.x后段。用户已明确放弃 complex，只继续打磨 simpl
 
 ## 产品与仓库基线
 
-静线演奏信息通过公共绑定和布局区域补齐：曲名/难度、实时判定统计、MIN/BPM/MAX及Score/HiSpeed；内置自动更新与原视觉门保持，见[信息区记录](../other/SKIN_SIMPLE_INFORMATION_20260913.md)。
+静线演奏信息通过公共绑定和布局区域补齐：曲名/作者标级、独立难度表归类、实时判定统计、MIN/BPM/MAX及Score/HiSpeed；内置自动更新与原视觉门保持，见[信息区记录](../other/SKIN_SIMPLE_INFORMATION_20260913.md)。
 
 静线继续按用户图10打磨；公共作者路径增加同源Stage素材模板及血槽高度，保持唯一内置与自动源同步，整体视觉门不变，见[细节记录](../other/SKIN_SIMPLE_STAGE_HUD_20260913.md)。
 

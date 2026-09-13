@@ -12,7 +12,7 @@
 
 ## 皮肤恢复与存储
 
-- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage背景与作者乘色、同源Stage/Global模板、实时信息区、共享字体预算与省略文字、固定血槽裁切、转盘宽度及真实绘制限制。
+- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage背景与作者乘色、实时信息区、原谱难度表资料与转换丢失、共享字体预算与省略文字、固定血槽裁切、转盘宽度及真实绘制限制。
 
 - [内置包构建与冷启动](reference_skin_canonical_installation.md) — source→构建原件/摘要、发行副本同源、PowerShell 空路径，以及已保存星轨的顶层启动线程问题。
 

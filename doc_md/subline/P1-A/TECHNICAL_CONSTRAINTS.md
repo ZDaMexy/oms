@@ -63,6 +63,8 @@
 
 ## 核心 ownership
 
+演奏曲目信息的 `song.table-classification` 独立于 `song.difficulty/level`（作者难度/标级）。从 PlayerLoader 锁定的原谱 WorkingBeatmap 持久资料只读取得已启用表归类，按既有表序、每表一项，显示“表名 等级标签”，多项以 ` / ` 连接，无归类为空。转换器重建的游玩元数据不能替代该来源；BMS与转谱mania共用读侧，原生mania无表资料即空。该文字沿用256 UTF-16单元及ellipsis预算，DTO保持规则中立，不更改难度表导入、启停或选歌归类合同。
+
 ### 引擎必须拥有
 
 1. 谱面、输入、判定、计分、gauge、scroll/STOP/gimmick、BGA timeline/seek/POOR 的真实状态和时钟。

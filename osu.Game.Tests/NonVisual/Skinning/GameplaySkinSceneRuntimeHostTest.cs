@@ -23,6 +23,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
         [TestCase("song.artist", "An artist")]
         [TestCase("song.difficulty", "ANOTHER")]
         [TestCase("song.level", "12")]
+        [TestCase("song.table-classification", "Satellite sl4 / Insane ★8")]
         [TestCase("timing.bpm-min", "120")]
         [TestCase("timing.bpm-max", "240")]
         [TestCase("scroll.speed", "2.25")]
@@ -42,7 +43,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 initial.CurrentJudgements, new GameplaySkinScoreStateSnapshot(29, 0, 19, 0.8, 0.5,
                     new GameplaySkinJudgementStatistics(10, 9, 8, 7, 6, 5, 4)),
                 new GameplaySkinTimingStateSnapshot(0, 0, 150, false, 1, scrollSpeed: 2.25), initial.BgaViewports,
-                new GameplaySkinSongInformation("A song", "An artist", "ANOTHER", "12", 120, 240));
+                new GameplaySkinSongInformation("A song", "An artist", "ANOTHER", "12", 120, 240, "Satellite sl4 / Insane ★8"));
             using var stream = new GameplaySkinEventStream(publication, 0, snapshot);
             for (int i = 0; i < 2; i++)
             {

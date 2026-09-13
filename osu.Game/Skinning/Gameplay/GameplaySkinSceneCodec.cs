@@ -52,7 +52,7 @@ namespace osu.Game.Skinning.Gameplay
         {
             "layout.stage", "layout.group", "layout.lane", "input.pressed", "object.state", "judgement.result", "judgement.offset",
             "score.value", "score.accuracy", "combo.value", "gauge.value", "timing.beat", "timing.measure", "timing.bpm", "timing.progress", "bga.content-state",
-            "song.title", "song.artist", "song.difficulty", "song.level", "timing.bpm-min", "timing.bpm-max", "scroll.speed", "judgement.count.perfect", "judgement.count.great", "judgement.count.good", "judgement.count.ok", "judgement.count.meh", "judgement.count.miss", "combo.breaks",
+            "song.table-classification", "song.title", "song.artist", "song.difficulty", "song.level", "timing.bpm-min", "timing.bpm-max", "scroll.speed", "judgement.count.perfect", "judgement.count.great", "judgement.count.good", "judgement.count.ok", "judgement.count.meh", "judgement.count.miss", "combo.breaks",
         };
 
         private static readonly IReadOnlyDictionary<string, HashSet<string>> variant_source_keys =

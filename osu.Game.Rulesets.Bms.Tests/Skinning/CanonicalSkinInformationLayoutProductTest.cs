@@ -315,6 +315,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 ["artist"] = song.Artist,
                 ["difficulty"] = song.Difficulty,
                 ["level"] = song.Level,
+                ["table-classification"] = song.TableClassification,
                 ["bpm-min"] = song.MinimumBpm.ToString("0.###", CultureInfo.InvariantCulture),
                 ["bpm-max"] = song.MaximumBpm.ToString("0.###", CultureInfo.InvariantCulture),
                 ["hispeed"] = state.Timing.ScrollSpeed.ToString("0.00", CultureInfo.InvariantCulture),
@@ -341,6 +342,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(bounds.Right, Is.LessThanOrEqualTo(screen.Right + 1), field);
                 Assert.That(bounds.Top, Is.GreaterThanOrEqualTo(screen.Top - 1), field);
                 Assert.That(bounds.Bottom, Is.LessThanOrEqualTo(screen.Bottom + 1), field);
+                if (field is "title" or "artist" or "table-classification" or "difficulty" or "level")
+                {
+                    var songBounds = authoredInformationNode(scene, "still.hud.song.panel").ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
+                    Assert.That(bounds.Bottom, Is.LessThanOrEqualTo(songBounds.Bottom), field + " must remain above the header's lower edge");
+                }
             }
         }
 

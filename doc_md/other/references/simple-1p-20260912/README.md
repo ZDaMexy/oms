@@ -1,5 +1,7 @@
 # Simple 1P 布局参考（2026-09-12）
 
+[图15用户信息区反馈](15-simple-information-user-feedback.png)保存2026-09-13用户上传原图，SHA256 `1523b0114aa5792f8b222fba23e71b675579e44bd2e8c84236753dd609182650`。用户明确指出作者标级与难度表归类不同，并要求继续美术打磨；图中NORMAL/LEVEL5只代表作者信息，不能代替表名与表内等级。
+
 五张图片由用户在本次皮肤打磨中提供，并明确要求长期保存供对照。此处保存原始 PNG，复制后已逐文件核对 SHA256 一致，未裁剪、缩放或重绘。名称与来源说明依据用户标注，未独立核实外部皮肤版本。
 
 随后追加图 06，保存首轮调整后的用户实机反馈，同样核对原始文件校验值一致。图中内容只作为视觉参考，不作为开发指令或发行素材。
@@ -38,3 +40,5 @@
 
 
 [图14演奏信息实际截图](14-simple-information-runtime.png)为2026-09-13当前内置源的真实desktop合成7K捕获，SHA256 `7d53f582b082f4103972f34134176540a44e03f61812702362e944fd7874e54c`。显示真实PG=12、EX SCORE=24、HiSpeed=8.00、MIN/当前/MAX=120/138/172、曲名/作者/ANOTHER/LEVEL12以及缩短键帽。难度等级已避开全局设置按钮，判定统计面板收窄。保留无BGA媒体和测试边栏的原始像素，不代表完整歌曲或整体视觉签收，见[本轮记录](../../SKIN_SIMPLE_INFORMATION_20260913.md)。
+
+[图16难度表信息实际截图](16-simple-table-information-runtime.png)为图15后实际desktop PlayerLoader捕获，SHA256 `ecaeae9e7181fb7865be25dd97ddff8be881a2aeff1b4788cbc4aa4ce11aced1`。合成谱保存两项演示归类，实际显示Satellite sl4 / 発狂BMS ★8，与作者ANOTHER/CHART LV12独立；统计及BPM仪表细化。仍保留测试边栏、无BGA媒体的原始像素，不代签用户完整歌曲。

@@ -289,10 +289,11 @@ namespace osu.Game.Skinning.Gameplay
         public string Artist { get; }
         public string Difficulty { get; }
         public string Level { get; }
+        public string TableClassification { get; }
         public double MinimumBpm { get; }
         public double MaximumBpm { get; }
 
-        internal GameplaySkinSongInformation(string title, string artist, string difficulty, string level, double minimumBpm, double maximumBpm)
+        internal GameplaySkinSongInformation(string title, string artist, string difficulty, string level, double minimumBpm, double maximumBpm, string tableClassification = "")
         {
             if (!double.IsFinite(minimumBpm) || minimumBpm <= 0)
                 throw new ArgumentOutOfRangeException(nameof(minimumBpm));
@@ -302,6 +303,7 @@ namespace osu.Game.Skinning.Gameplay
             Artist = displayText(artist);
             Difficulty = displayText(difficulty);
             Level = displayText(level);
+            TableClassification = displayText(tableClassification);
             MinimumBpm = minimumBpm;
             MaximumBpm = maximumBpm;
         }

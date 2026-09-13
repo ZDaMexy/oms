@@ -163,6 +163,12 @@
       "source": "combo.breaks"
     },
     {
+      "id": "still.bms-bind.table-classification",
+      "target": "still.bms-hud.table-classification",
+      "property": "text",
+      "source": "song.table-classification"
+    },
+    {
       "id": "still.bms-bind.title",
       "target": "still.bms-hud.title",
       "property": "text",
@@ -656,6 +662,81 @@
                 "resource": "texture.instrument"
               },
               {
+                "id": "still.bms-hud.song-accent",
+                "type": "sprite",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "x": 0.023,
+                  "y": 0.15,
+                  "width": 0.003,
+                  "height": 0.68,
+                  "colour": "#86d9e7ff"
+                },
+                "effects": [],
+                "children": [],
+                "resource": "texture.white"
+              },
+              {
+                "id": "still.bms-hud.author-well",
+                "type": "sprite",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "x": 0.695,
+                  "y": 0.16,
+                  "width": 0.18,
+                  "height": 0.67,
+                  "colour": "#152632ff"
+                },
+                "effects": [],
+                "children": [],
+                "resource": "texture.white"
+              },
+              {
+                "id": "still.bms-hud.author-rule",
+                "type": "sprite",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "x": 0.695,
+                  "y": 0.16,
+                  "width": 0.18,
+                  "height": 0.012,
+                  "colour": "#45616fff"
+                },
+                "effects": [],
+                "children": [],
+                "resource": "texture.white"
+              },
+              {
+                "id": "still.bms-hud.table-classification",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "",
+                  "x": 0.04,
+                  "y": 0.09,
+                  "width": 0.63,
+                  "height": 0.21,
+                  "font-size": 14,
+                  "colour": "#86d9e7ff",
+                  "alignment": "left",
+                  "text-overflow": "ellipsis"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
                 "id": "still.bms-hud.title",
                 "type": "text",
                 "target": {
@@ -664,10 +745,10 @@
                 "blend": "alpha",
                 "properties": {
                   "text": "",
-                  "x": 0.035,
-                  "y": 0.07,
-                  "width": 0.62,
-                  "height": 0.47,
+                  "x": 0.04,
+                  "y": 0.29,
+                  "width": 0.63,
+                  "height": 0.35,
                   "font-size": 24,
                   "colour": "#eef7ffff",
                   "alignment": "left",
@@ -685,11 +766,11 @@
                 "blend": "alpha",
                 "properties": {
                   "text": "",
-                  "x": 0.035,
-                  "y": 0.6,
-                  "width": 0.62,
-                  "height": 0.26,
-                  "font-size": 13,
+                  "x": 0.04,
+                  "y": 0.64,
+                  "width": 0.63,
+                  "height": 0.2,
+                  "font-size": 12,
                   "colour": "#a7bbcaff",
                   "alignment": "left",
                   "text-overflow": "ellipsis"
@@ -706,13 +787,13 @@
                 "blend": "alpha",
                 "properties": {
                   "text": "",
-                  "x": 0.67,
-                  "y": 0.12,
-                  "width": 0.19,
-                  "height": 0.32,
-                  "font-size": 14,
+                  "x": 0.71,
+                  "y": 0.22,
+                  "width": 0.15,
+                  "height": 0.25,
+                  "font-size": 13,
                   "colour": "#86d9e7ff",
-                  "alignment": "right",
+                  "alignment": "centre",
                   "text-overflow": "ellipsis"
                 },
                 "effects": [],
@@ -726,11 +807,11 @@
                 },
                 "blend": "alpha",
                 "properties": {
-                  "text": "LEVEL",
-                  "x": 0.69,
-                  "y": 0.62,
-                  "width": 0.09,
-                  "height": 0.24,
+                  "text": "CHART LV",
+                  "x": 0.71,
+                  "y": 0.58,
+                  "width": 0.1,
+                  "height": 0.2,
                   "font-size": 10,
                   "colour": "#a7bbcaff",
                   "alignment": "left"
@@ -747,10 +828,10 @@
                 "blend": "alpha",
                 "properties": {
                   "text": "",
-                  "x": 0.79,
-                  "y": 0.55,
-                  "width": 0.07,
-                  "height": 0.31,
+                  "x": 0.81,
+                  "y": 0.51,
+                  "width": 0.05,
+                  "height": 0.28,
                   "font-size": 18,
                   "colour": "#eef7ffff",
                   "alignment": "right",
@@ -787,6 +868,44 @@
                 "resource": "texture.instrument"
               },
               {
+                "id": "still.bms-hud.judge-label",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "JUDGE",
+                  "x": 0.07,
+                  "y": 0.05,
+                  "width": 0.84,
+                  "height": 0.12,
+                  "font-size": 10,
+                  "colour": "#a7bbcaff",
+                  "alignment": "left"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.judge-rule",
+                "type": "sprite",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "x": 0.07,
+                  "y": 0.185,
+                  "width": 0.84,
+                  "height": 0.008,
+                  "colour": "#45616fff"
+                },
+                "effects": [],
+                "children": [],
+                "resource": "texture.white"
+              },
+              {
                 "id": "still.bms-hud.count-perfect-label",
                 "type": "text",
                 "target": {
@@ -796,10 +915,10 @@
                 "properties": {
                   "text": "PG",
                   "x": 0.07,
-                  "y": 0.065,
+                  "y": 0.21,
                   "width": 0.23,
-                  "height": 0.12,
-                  "font-size": 12,
+                  "height": 0.095,
+                  "font-size": 11,
                   "colour": "#86d9e7ff",
                   "alignment": "left"
                 },
@@ -816,10 +935,10 @@
                 "properties": {
                   "text": "0",
                   "x": 0.32,
-                  "y": 0.065,
+                  "y": 0.21,
                   "width": 0.59,
-                  "height": 0.12,
-                  "font-size": 12,
+                  "height": 0.095,
+                  "font-size": 11,
                   "colour": "#eef7ffff",
                   "alignment": "right"
                 },
@@ -836,10 +955,10 @@
                 "properties": {
                   "text": "GR",
                   "x": 0.07,
-                  "y": 0.19,
+                  "y": 0.316,
                   "width": 0.23,
-                  "height": 0.12,
-                  "font-size": 12,
+                  "height": 0.095,
+                  "font-size": 11,
                   "colour": "#f3dd88ff",
                   "alignment": "left"
                 },
@@ -856,10 +975,10 @@
                 "properties": {
                   "text": "0",
                   "x": 0.32,
-                  "y": 0.19,
+                  "y": 0.316,
                   "width": 0.59,
-                  "height": 0.12,
-                  "font-size": 12,
+                  "height": 0.095,
+                  "font-size": 11,
                   "colour": "#eef7ffff",
                   "alignment": "right"
                 },
@@ -876,10 +995,10 @@
                 "properties": {
                   "text": "GD",
                   "x": 0.07,
-                  "y": 0.315,
+                  "y": 0.422,
                   "width": 0.23,
-                  "height": 0.12,
-                  "font-size": 12,
+                  "height": 0.095,
+                  "font-size": 11,
                   "colour": "#c4e789ff",
                   "alignment": "left"
                 },
@@ -896,10 +1015,10 @@
                 "properties": {
                   "text": "0",
                   "x": 0.32,
-                  "y": 0.315,
+                  "y": 0.422,
                   "width": 0.59,
-                  "height": 0.12,
-                  "font-size": 12,
+                  "height": 0.095,
+                  "font-size": 11,
                   "colour": "#eef7ffff",
                   "alignment": "right"
                 },
@@ -916,10 +1035,10 @@
                 "properties": {
                   "text": "BD",
                   "x": 0.07,
-                  "y": 0.44,
+                  "y": 0.528,
                   "width": 0.23,
-                  "height": 0.12,
-                  "font-size": 12,
+                  "height": 0.095,
+                  "font-size": 11,
                   "colour": "#e9aa77ff",
                   "alignment": "left"
                 },
@@ -936,10 +1055,10 @@
                 "properties": {
                   "text": "0",
                   "x": 0.32,
-                  "y": 0.44,
+                  "y": 0.528,
                   "width": 0.59,
-                  "height": 0.12,
-                  "font-size": 12,
+                  "height": 0.095,
+                  "font-size": 11,
                   "colour": "#eef7ffff",
                   "alignment": "right"
                 },
@@ -956,10 +1075,10 @@
                 "properties": {
                   "text": "PR",
                   "x": 0.07,
-                  "y": 0.565,
+                  "y": 0.634,
                   "width": 0.23,
-                  "height": 0.12,
-                  "font-size": 12,
+                  "height": 0.095,
+                  "font-size": 11,
                   "colour": "#ed8290ff",
                   "alignment": "left"
                 },
@@ -976,10 +1095,10 @@
                 "properties": {
                   "text": "0",
                   "x": 0.32,
-                  "y": 0.565,
+                  "y": 0.634,
                   "width": 0.59,
-                  "height": 0.12,
-                  "font-size": 12,
+                  "height": 0.095,
+                  "font-size": 11,
                   "colour": "#eef7ffff",
                   "alignment": "right"
                 },
@@ -996,10 +1115,10 @@
                 "properties": {
                   "text": "EP",
                   "x": 0.07,
-                  "y": 0.69,
+                  "y": 0.74,
                   "width": 0.23,
-                  "height": 0.12,
-                  "font-size": 12,
+                  "height": 0.095,
+                  "font-size": 11,
                   "colour": "#a7bbcaff",
                   "alignment": "left"
                 },
@@ -1016,10 +1135,10 @@
                 "properties": {
                   "text": "0",
                   "x": 0.32,
-                  "y": 0.69,
+                  "y": 0.74,
                   "width": 0.59,
-                  "height": 0.12,
-                  "font-size": 12,
+                  "height": 0.095,
+                  "font-size": 11,
                   "colour": "#eef7ffff",
                   "alignment": "right"
                 },
@@ -1036,10 +1155,10 @@
                 "properties": {
                   "text": "CB",
                   "x": 0.07,
-                  "y": 0.815,
+                  "y": 0.846,
                   "width": 0.23,
-                  "height": 0.12,
-                  "font-size": 12,
+                  "height": 0.095,
+                  "font-size": 11,
                   "colour": "#eef7ffff",
                   "alignment": "left"
                 },
@@ -1056,10 +1175,10 @@
                 "properties": {
                   "text": "0",
                   "x": 0.32,
-                  "y": 0.815,
+                  "y": 0.846,
                   "width": 0.59,
-                  "height": 0.12,
-                  "font-size": 12,
+                  "height": 0.095,
+                  "font-size": 11,
                   "colour": "#eef7ffff",
                   "alignment": "right"
                 },
@@ -1092,6 +1211,78 @@
                 "effects": [],
                 "children": [],
                 "resource": "texture.instrument"
+              },
+              {
+                "id": "still.bms-hud.bpm-well",
+                "type": "sprite",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "x": 0.335,
+                  "y": 0.13,
+                  "width": 0.33,
+                  "height": 0.57,
+                  "colour": "#101d26ff"
+                },
+                "effects": [],
+                "children": [],
+                "resource": "texture.white"
+              },
+              {
+                "id": "still.bms-hud.bpm-rule",
+                "type": "sprite",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "x": 0.38,
+                  "y": 0.7,
+                  "width": 0.24,
+                  "height": 0.012,
+                  "colour": "#86d9e7ff"
+                },
+                "effects": [],
+                "children": [],
+                "resource": "texture.white"
+              },
+              {
+                "id": "still.bms-hud.min-divider",
+                "type": "sprite",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "x": 0.3,
+                  "y": 0.3,
+                  "width": 0.0015,
+                  "height": 0.33,
+                  "colour": "#45616fff"
+                },
+                "effects": [],
+                "children": [],
+                "resource": "texture.white"
+              },
+              {
+                "id": "still.bms-hud.max-divider",
+                "type": "sprite",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "x": 0.7,
+                  "y": 0.3,
+                  "width": 0.0015,
+                  "height": 0.33,
+                  "colour": "#45616fff"
+                },
+                "effects": [],
+                "children": [],
+                "resource": "texture.white"
               },
               {
                 "id": "still.bms-hud.bpm-min-label",
@@ -1222,13 +1413,13 @@
                 "blend": "alpha",
                 "properties": {
                   "text": "RATE",
-                  "x": 0.3,
+                  "x": 0.35,
                   "y": 0.77,
-                  "width": 0.14,
+                  "width": 0.11,
                   "height": 0.15,
                   "font-size": 10,
                   "colour": "#a7bbcaff",
-                  "alignment": "left"
+                  "alignment": "right"
                 },
                 "effects": [],
                 "children": []
@@ -1242,13 +1433,13 @@
                 "blend": "alpha",
                 "properties": {
                   "text": "100.00%",
-                  "x": 0.46,
+                  "x": 0.49,
                   "y": 0.73,
-                  "width": 0.26,
+                  "width": 0.2,
                   "height": 0.2,
                   "font-size": 14,
                   "colour": "#eef7ffff",
-                  "alignment": "right"
+                  "alignment": "left"
                 },
                 "effects": [],
                 "children": []
@@ -1281,6 +1472,24 @@
                 "resource": "texture.instrument"
               },
               {
+                "id": "still.bms-hud.player-divider",
+                "type": "sprite",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "x": 0.585,
+                  "y": 0.23,
+                  "width": 0.002,
+                  "height": 0.52,
+                  "colour": "#45616fff"
+                },
+                "effects": [],
+                "children": [],
+                "resource": "texture.white"
+              },
+              {
                 "id": "still.bms-hud.score-label",
                 "type": "text",
                 "target": {
@@ -1288,7 +1497,7 @@
                 },
                 "blend": "alpha",
                 "properties": {
-                  "text": "SCORE",
+                  "text": "EX SCORE",
                   "x": 0.06,
                   "y": 0.12,
                   "width": 0.5,

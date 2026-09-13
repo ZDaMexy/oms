@@ -403,6 +403,7 @@ namespace osu.Game.Skinning.Gameplay
         JudgementCountMeh = 28,
         JudgementCountMiss = 29,
         ComboBreaks = 30,
+        SongTableClassification = 31,
     }
 
     public enum GameplaySkinSceneEvent
@@ -882,6 +883,7 @@ namespace osu.Game.Skinning.Gameplay
             "song.artist" => GameplaySkinSceneBindingSource.SongArtist,
             "song.difficulty" => GameplaySkinSceneBindingSource.SongDifficulty,
             "song.level" => GameplaySkinSceneBindingSource.SongLevel,
+            "song.table-classification" => GameplaySkinSceneBindingSource.SongTableClassification,
             "timing.bpm-min" => GameplaySkinSceneBindingSource.TimingBpmMinimum,
             "timing.bpm-max" => GameplaySkinSceneBindingSource.TimingBpmMaximum,
             "scroll.speed" => GameplaySkinSceneBindingSource.ScrollSpeed,

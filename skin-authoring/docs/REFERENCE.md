@@ -228,6 +228,7 @@ bindings每项必填id/target/property/source，例如：
 | combo.value / gauge.value | 连击 / 归一化能量 | 数值或text |
 | timing.beat/timing.measure/timing.bpm | 拍、小节索引、BPM | 数值或text |
 | song.title / song.artist / song.difficulty / song.level | 当前曲名、艺术家、难度类别或名称、原始等级文字；每项最多256个UTF-16单元 | text |
+| song.table-classification | 已启用难度表归类，独立于作者标级；每项为“表名 等级标签”，多表按保存顺序以 ` / ` 连接，无归类为空。最多256个UTF-16单元，可使用 ellipsis。BMS及BMS转谱mania从当前游玩锁定的原谱资料读取 | text |
 | timing.bpm-min / timing.bpm-max | 当前谱面实际音乐BPM范围，不含滚速倍率或STOP兼容点 | 数值或text |
 | scroll.speed | 当前玩法已选滚速设置值，不是滚动倍率或绿数；未提供时0 | 数值或text |
 | judgement.count.perfect / great / good / ok / meh / miss | 计分器对应六档判定累计值 | 数值或text |
