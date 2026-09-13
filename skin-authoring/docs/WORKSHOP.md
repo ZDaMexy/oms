@@ -1,8 +1,10 @@
 # 实际制作演练：Aurora Study
 
+当前入口仍为下方复制模板、修改、检查与打包流程。静线是唯一内置，星轨只留仓库历史参考。以下 2026-09-11 的独立、无 SDK 演练与安装验证保留当时工具和作品身份；不证明当前工具已重新完成同一离线演练。当前 [authoring-tool-verification.json](authoring-tool-verification.json) 记录的是 2026-09-13T06:51:34.8670132Z 的静线/Aurora 检查与重复制作，共 19 项，已包含轨宽及 14K 第二侧键序调整；记录不包含星轨，也不等于用户视觉签收。
+
 2026-09-11 已用随默认皮肤提示修复版提供的制作工具 `bin/SkinAuthoring.exe`，在独立复制的套件目录里重新制作 Aurora Study。入口是 Windows PowerShell 5 下的 `Author.ps1`；演练期间 PATH 中没有 Git 或 .NET SDK，使用随包工具即可完成。完整作者文件保留在 `sources/aurora-study/`，成品为 `dist/aurora-study.osk`。
 
-最终演练执行于 `2026-09-11T15:56:22.4589140Z`，工具 SHA-256 为 `be91924141e44c8b4422290430ba8a14998a2c345c1cb2daa242b1e22c8ef2fa`。工具先独立发布并完成本页演练，随后供最终游戏安装包使用；本次记录不声称从尚未生成的最终游戏 ZIP 中抽取工具执行。后续装包须保留同一工具字节，工具身份与实际输出均记在下方两份验证记录中。
+最终演练执行于 `2026-09-11T15:56:22.4589140Z`，工具 SHA-256 为 `be91924141e44c8b4422290430ba8a14998a2c345c1cb2daa242b1e22c8ef2fa`。工具先独立发布并完成本页演练，随后供最终游戏安装包使用；本次记录不声称从尚未生成的最终游戏 ZIP 中抽取工具执行。该次装包使用同一工具字节；后续工具和生成配方已更新，不能把当前包身份与这次历史演练混用。历史演练工具身份与输出见 [authoring-workflow-verification.json](authoring-workflow-verification.json)。
 
 ```powershell
 ./Author.ps1 -Action new -Output ./work/standalone-aurora -Name 'Aurora Study · 作者演练'
@@ -19,7 +21,7 @@
 
 上述制作步骤已实际执行；新作品产生自己的双玩法素材、完整设置和普通包。演练还故意损坏一张音符图片，确认检查准确指出 `bms/note-white.png`，恢复该文件后重新检查通过。随后 `import` 和 `update` 各准备一份可消耗导入副本，正式成品与上一版本均保留。完整命令结果、修改前后的作品资料和发行工具摘要见 [authoring-workflow-verification.json](authoring-workflow-verification.json)。这次制作命令没有启动游戏，也没有执行鼠标拖入。
 
-同一最终工具也实际检查了静线、星轨和 Aurora Study：源文件检查、重复打包、从作品资料重新生成后再打包，均与各自随包成品逐字节一致。这组检查执行于 `2026-09-11T15:56:37.8010969Z`。未知设置会给出文件行号，过大的目录说明文件和损坏图片会被拒绝；未完成的打包文件、已有作品目录及上一版本得到保留。完整结果见 [authoring-tool-verification.json](authoring-tool-verification.json)，成品确切摘要见 `dist/` 中对应的 `.sha256`。Aurora Study 不携带可选脚本权限请求。
+同一最终工具也实际检查了静线、星轨和 Aurora Study：源文件检查、重复打包、从作品资料重新生成后再打包，均与各自随包成品逐字节一致。这组检查执行于 `2026-09-11T15:56:37.8010969Z`。未知设置会给出文件行号，过大的目录说明文件和损坏图片会被拒绝；未完成的打包文件、已有作品目录及上一版本得到保留。该次旧验证文件保存在仓库 `artifacts/skin-startup-warning-20260911/standalone-author/docs/authoring-tool-verification.json`（已核对执行时间相同）；当前同名 JSON 与 `dist/` 的摘要已随后续作者配方更新，不能作为当次三包的字节证明。Aurora Study 不携带可选脚本权限请求。
 
 首次独立复做只编辑作品资料，保留下来的静线 `README.md` 与 Aurora Study 原件不同，因此整包没有逐字节一致。第二次把作品说明也明确列为作者编辑步骤，结果与随包 Aurora Study 完全一致。这是生成工具保留作者文字的既定行为，两次演练的原始记录都保留在仓库验收证据目录；没有通过覆盖作者说明或改变比对要求来消除差异。
 

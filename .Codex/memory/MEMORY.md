@@ -14,8 +14,6 @@
 
 - [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage背景与作者乘色、轨宽/每侧键序、原谱难度表资料与转换丢失、共享字体预算与省略文字、固定血槽裁切及真实绘制限制。
 
-- [内置包构建与冷启动](reference_skin_canonical_installation.md) — source→构建原件/摘要、发行副本同源、PowerShell 空路径，以及已保存星轨的顶层启动线程问题。
-
 - [2026-07-10 皮肤恢复](reference_skin_recovery_20260710.md) — 恢复锚点、归档与重新准入；**皮肤任务先读**。
 - [2026-07-13 schema 56 皮肤清点](reference_skin_schema56_inventory_20260713.md) — 只读取证、失效类型与 Realm mtime 误判。
 - [skin folder authority/path preflight](reference_skin_filesystem_authority_preflight.md) — 声明/path preflight 不等于安全打开或写入授权。
@@ -27,7 +25,7 @@
 - [external Workspace / exact registry / ManagedCopy](reference_skin_external_workspace_managed_copy.md) — external 只读、注册与 ManagedCopy 复核。
 - [managed skin atomic reload/detach](reference_skin_atomic_reload_detach.md) — 三源 publication、lease/retire 与调度竞态。
 - [ordinary `.osk` archive import safety](reference_skin_osk_archive_import_safety.md) — archive 预检、same-hash receipt 与非对称回滚。
-- [canonical 安装与用户数据保护](reference_skin_canonical_installation.md) — 星轨退役与静线唯一保底、缺行修复、旧数据、只读原件与更新；便携误入、缓存隔离、真实启动恢复与取消资源移交。
+- [canonical 构建、安装与用户数据保护](reference_skin_canonical_installation.md) — 静线唯一保底、source→原件/摘要与解压字节核对、星轨退役迁移、缺行修复；便携误入、缓存隔离、冷启动线程、取消资源移交。
 - [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 作者边界、可重复源文件换行、场景定位与零宽进度。
 - [Skin V1 价值与工作预算](project_oms_skin_product_progress.md) — 区分效果能力、成品与创作便利度；星轨实际体验否定、有限反馈与本轮停止边界，当前状态读 P1-A。
 

@@ -16,13 +16,13 @@
 ## 恢复与视觉验收
 
 - [静线 1P 外部参考凭据](references/simple-1p-20260912/README.md)：用户提供的五张原始对照图及来源标识，供布局打磨随时对照。
-- [静线布局调整与验证](SKIN_SIMPLE_LAYOUT_20260912.md)：底部信息、独立键区和 BGA 作者参数，以及当前包的实际检查记录。
+- [静线布局调整与验证](SKIN_SIMPLE_LAYOUT_20260912.md)：底部信息、独立键区和 BGA 作者参数，以及当时包的实际检查记录。
 - [静线机台结构打磨](SKIN_SIMPLE_CABINET_20260912.md)：完整底板、原创材质、分立仪表与实际渲染证据；保留整体视觉未签收边界。
 - [静线判定与血槽细节](SKIN_SIMPLE_STAGE_HUD_20260913.md)：图10之后的薄音符、同源舞台模板、固定血槽外框与真实读数。
 - [静线演奏信息与键区比例](SKIN_SIMPLE_INFORMATION_20260913.md)：实时判定、MIN/BPM/MAX、曲名/难度、Score/HiSpeed，通用信息区域及实际画面验证。
 - [静线黑白轨与皿轨比例](SKIN_SIMPLE_LANE_PROPORTIONS_20260913.md)：参考图测量、独立黑键轨宽、皿旁间隔及音符透明边修正。
 - [内置双皮肤随构建更新](SKIN_BUILTIN_BUILD_20260912.md)：开发启动、build/publish 的源文件同步与发行验证。
-- [两款长期内置选择验证](SKIN_BUILTIN_SELECTION_20260912.md)：无需导入的选择、重启保留、游玩与安装恢复。
+- [历史双内置选择验证](SKIN_BUILTIN_SELECTION_20260912.md)：当时无需导入的选择、重启保留、游玩与安装恢复；当前仅静线内置。
 - [皮肤恢复审计](SKIN_SYSTEM_RECOVERY_20260710.md)：皮肤任务必读；恢复锚点、撤回范围与重新准入。
 - [schema 56 清点](SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)：副本取证与 SV1-0 历史证据，不授权重复操作生产数据。
 - [Skin V1 架构依据](SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)：设计解释；现行合同归 P1-A。

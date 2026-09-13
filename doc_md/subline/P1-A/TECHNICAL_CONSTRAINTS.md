@@ -5,12 +5,6 @@
 
 ## 按任务定位
 
-2026-09-13细节扩展：`instances`的`target`与`material`二选一；后者只按选定包同一ContentRevision的Global/Stage Provide声明及精确slot/resource匹配，模板根slot相同，准备仍复核exact owner，不借用canonical scene/resources。实际展开参与既有节点、帧、事件与文字预算，Stage实例使用实际舞台事实，Global实例只生成一次。`reveal-x`只用于clip，范围0..1，保留完整子坐标；`format`只允许静态percent/uppercase/fixed-2，格式化后继续限制长度，accuracy/progress保留既有专用格式。BMS `GaugeHeight`仅选定包读取，默认0.036、范围0.02..0.12，由唯一solver与键区/BGA/底部信息共同避让。参考[本轮证据](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md)。
-
-2026-09-13信息区扩展：公开只读绑定`song.title/artist/difficulty/level`、`timing.bpm-min/bpm-max`、`scroll.speed`、`judgement.count.perfect/great/good/ok/meh/miss`及`combo.breaks`。静态SongInformation只随完整快照携带，聚合器重附着/epoch替换必须保留。每项元数据最多256个UTF-16单元，截断不能分裂代理对；判定计数字形预留10，其余既有动态数字预留384，总字形预算8192，纹理字节/像素及每帧创建限制不变。计数内联值类型随Score payload传递，每帧和reset屏障从真实ScoreProcessor.Statistics读取，不能以皮肤事件自行累计；BMS中Perfect/Great/Good/Meh/Miss/Ok分别是PG/GR/GD/BD/PR/空POOR，ComboBreak仅真正断连，mania保留自身档位语义。BMS MIN/MAX来自转换器音乐时间线，STOP不改变真实BPM，未使用定义和SCROLL不参与；HiSpeed来自SelectedHiSpeed，mania来自实际ScrollSpeed设置，不以滚动倍率、TimeRange或绿数冒充。
-
-静态`layout-surface`仅接受`information.song/judgements/tempo/player`，且仅限拥有hud.text的节点及其无slot子树；保留选定包exact Provide/content revision与owner校验，禁止绑定/动画/状态/脚本写入，缺失区域必须准备失败。子节点继承当前区域，显式不同区域可重新选区，普通模板仍保留原坐标规则。BMS选定包`BgaInformationHeight`默认0、合法0..0.30，正值由唯一solver在BGA上下预留信息区域并发布四个全局surface，14K须使用Global hud.text模板避免按Stage重复曲目信息；无声明不改旧布局。实现与验证边界见[演奏信息记录](../../other/SKIN_SIMPLE_INFORMATION_20260913.md)，不得据合同文字宣称验证通过。
-
 只读当前任务涉及的章节；原合同编号保持不变。当前完成度见[STATUS](DEVELOPMENT_STATUS.md)，待实现动作与完整campaign门见[PLAN](DEVELOPMENT_PLAN.md)。
 
 | 任务 | 唯一合同落点 |
@@ -62,10 +56,6 @@
 17. playfield 顶边默认贴屏幕顶边；当前默认 `PlayfieldHeight=0.92`，`HitTargetVerticalOffset=0`，保持 `scrollLengthRatio == 1`、TimeRange/GN/判定窗口不受场高改变。不得用整体下移或 HUD safe-area inset 破坏该合同；改变 descriptor 时须同步 lane/layout/GN 测试。
 
 ## 核心 ownership
-
-BMS选定包`BlackLaneWidth`是与NormalLaneWidth同单位的0.25..4横向权重，缺失/非法回到已解析普通宽度，不继承canonical的新黑键权重。5K/7K/14K按每deck规范键序2/4/6识别黑键，不以palette颜色或当前显示位置识别；9K/PMS不应用。该参数不能改变场高、TimeRange、GN、判定或输入身份。静线参考比例与实际验证见[轨道记录](../../other/SKIN_SIMPLE_LANE_PROPORTIONS_20260913.md)。
-
-演奏曲目信息的 `song.table-classification` 独立于 `song.difficulty/level`（作者难度/标级）。从 PlayerLoader 锁定的原谱 WorkingBeatmap 持久资料只读取得已启用表归类，按既有表序、每表一项，显示“表名 等级标签”，多项以 ` / ` 连接，无归类为空。转换器重建的游玩元数据不能替代该来源；BMS与转谱mania共用读侧，原生mania无表资料即空。该文字沿用256 UTF-16单元及ellipsis预算，DTO保持规则中立，不更改难度表导入、启停或选歌归类合同。
 
 ### 引擎必须拥有
 
@@ -194,7 +184,7 @@ L12. lane-resource candidate/snapshot与configuration candidate已经接入BMS e
 5. 程序化`OmsSkin`源代码与`BmsSkinTransformer`内的旧类型对照在parity/完整性/原子恢复/实机门未全部签收前继续保留，但不再作为manager初始、配置失败、current删除/解绑或canonical安装故障的生产authority。新导入旧Oms metadata必须使用普通BMS/mania parser；已有非protected旧Oms用户记录仅按其exact用户files构造普通parser，不能重新借用旧嵌入视觉。物理删除旧代码须满足原人工门，不得以保留对照代码为由恢复旧产品fallback。
 6. 最终产品不得存在主题化程序化 fallback、硬编码色块/辉光或私有默认视觉。引擎代码可以并且必须保留通用 scene renderer、note/LN host、对象池、layout/event bridge、资源隔离与 gameplay truth，但所有具体颜色、素材、节点和动画来自 `.osk`。
 7. `oms-simple.osk` 是不可被用户修改/删除的 canonical fallback：发行构建锁定版本/hash，启动验证并可从只读 canonical copy 原子恢复工作副本。canonical copy 自身失败属于安装完整性故障，应阻止进入 gameplay 并给出修复指引，禁止静默生成程序化视觉。
-7a. 发行原件固定在程序目录`Skins/Canonical/oms-simple.osk`，内容SHA-256锚点嵌入游戏assembly；旁置可改manifest不授予信任。启动先验证只读原件，再读取或恢复当前数据根`skin-canonical/oms-simple.osk`，原件缺失/损坏时不得信任完好工作副本继续进入游玩。所有安装源只读，不更改其内容/属性，不因普通导入自动删除发行原件；两成品的普通作者分发包仍遵守既有`.osk`导入语义。
+7a. 发行原件固定在程序目录`Skins/Canonical/oms-simple.osk`，内容SHA-256锚点嵌入游戏assembly；旁置可改manifest不授予信任。启动先验证只读原件，再读取或恢复当前数据根`skin-canonical/oms-simple.osk`，原件缺失/损坏时不得信任完好工作副本继续进入游玩。所有安装源只读，不更改其内容/属性，不因普通导入自动删除发行原件；独立作者分发包仍遵守既有`.osk`导入语义。
 7b. 原件及工作副本读取使用Windows受支持版本上的held no-follow父链和稳定文件句柄，capsule仍经过普通archive准入、字节预算、CRC与规范路径验证。工作副本恢复先完整写入同目录exclusive临时archive并`Flush(true)`；既存坏件以held no-follow文件句柄no-replace改名到`*.preserved-*`保全，最终新archive以no-replace rename原子发布。中断可留下完整旧件/完整临时件，重启只从原件重建，不按名称、年龄或hash外观清扫未知遗留。目录/reparse/冲突/锁定拒绝并保全，hardlink其它名字对应的内容不变；外部作者目录始终零写入。
 7c. canonical视觉authority只属于完整安装校验、immutable capsule、普通`BmsLegacySkin` factory及共享author-package preparation均成功的具体实例；`CanonicalSkinPackage.IsCanonicalSkin`使用实例信任表，固定ID、`Protected`、名字、CLR类型或record hash均不能伪造该authority。两ruleset与generic public slot provider只在该真实实例存在时移除程序化末端，canonical自身必要件仍无法提供则明确失败；用户缺件继续逐槽补齐，作者合法Suppress先终止可选槽，不能被canonical装饰复活。无manifest第三方包从canonical补齐的公共HUD替代也必须进入同一prepared HUD分区/就绪控制，隐藏被替代的原生命、组合与判定owner，不能仅因来源不是selected declaration而漏接。补齐不改变来源身份、不载入其它作者的整套scene、不扩大权限，原有完整global/stage路由和预算约束继续生效。
 7d. protected记录沿用OMS固定ID，exact新元数据由`CanonicalSkinPackage.CreateInfo()`维护；`Hash=oms.skin.canonical.simple.v1`只表示跨发行稳定记录版本，真实运行内容用capsule revision、发行内容用SHA-256。已有完整旧`OmsSkin.CreateInfo()`记录须先用于受支持旧journal恢复，恢复解决后才显式改为新元数据。unknown同ID记录或带用户files/路径的记录不得覆盖、claim或删除；未解journal原本缺失protected row时也不得新增row制造恢复证据。缺authority字段的旧intent继续Invalid并进入保全/修复指引，不能用canonical迁移补字段或猜删数据。
@@ -206,6 +196,14 @@ L12. lane-resource candidate/snapshot与configuration candidate已经接入BMS e
 8. 静线使用公共 package/scene/script API，保留完整作者源与可重复打包步骤；历史 complex 作者文件仅作参考，不是内置或验收依赖，第三方作者仍可使用相同公开能力。
 
 ## scene、事件与脚本约束
+
+`instances`的`target`与`material`二选一；后者只按选定包同一ContentRevision的Global/Stage Provide声明及精确slot/resource匹配，模板根slot相同，准备仍复核exact owner，不借用canonical scene/resources。实际展开参与既有节点、帧、事件与文字预算，Stage实例使用实际舞台事实，Global实例只生成一次。`reveal-x`只用于clip，范围0..1，保留完整子坐标；`format`只允许静态percent/uppercase/fixed-2，格式化后继续限制长度，accuracy/progress保留既有专用格式。BMS `GaugeHeight`仅选定包读取，默认0.036、范围0.02..0.12，由唯一solver与键区/BGA/底部信息共同避让。参考[模板与血槽证据](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md)。
+
+公开只读绑定`song.title/artist/difficulty/level`、`timing.bpm-min/bpm-max`、`scroll.speed`、`judgement.count.perfect/great/good/ok/meh/miss`及`combo.breaks`。静态SongInformation只随完整快照携带，聚合器重附着/epoch替换必须保留。每项元数据最多256个UTF-16单元，截断不能分裂代理对；判定计数字形预留10，其余既有动态数字预留384，总字形预算8192，纹理字节/像素及每帧创建限制不变。计数内联值类型随Score payload传递，每帧和reset屏障从真实ScoreProcessor.Statistics读取，不能以皮肤事件自行累计；BMS中Perfect/Great/Good/Meh/Miss/Ok分别是PG/GR/GD/BD/PR/空POOR，ComboBreak仅真正断连，mania保留自身档位语义。BMS MIN/MAX来自转换器音乐时间线，STOP不改变真实BPM，未使用定义和SCROLL不参与；HiSpeed来自SelectedHiSpeed，mania来自实际ScrollSpeed设置，不以滚动倍率、TimeRange或绿数冒充。
+
+静态`layout-surface`仅接受`information.song/judgements/tempo/player`，且仅限拥有hud.text的节点及其无slot子树；保留选定包exact Provide/content revision与owner校验，禁止绑定/动画/状态/脚本写入，缺失区域必须准备失败。子节点继承当前区域，显式不同区域可重新选区，普通模板仍保留原坐标规则。BMS选定包`BgaInformationHeight`默认0、合法0..0.30，正值由唯一solver在BGA上下预留信息区域并发布四个全局surface，14K须使用Global hud.text模板避免按Stage重复曲目信息；无声明不改旧布局。实现与验证边界见[演奏信息记录](../../other/SKIN_SIMPLE_INFORMATION_20260913.md)，不得据合同文字宣称验证通过。
+
+演奏曲目信息的 `song.table-classification` 独立于 `song.difficulty/level`（作者难度/标级）。从 PlayerLoader 锁定的原谱 WorkingBeatmap 持久资料只读取得已启用表归类，按既有表序、每表一项，显示“表名 等级标签”，多项以 ` / ` 连接，无归类为空。转换器重建的游玩元数据不能替代该来源；BMS与转谱mania共用读侧，原生mania无表资料即空。该文字沿用256 UTF-16单元及ellipsis预算，DTO保持规则中立，不更改难度表导入、启停或选歌归类合同。
 
 C5声明式scene/animation、只读event及全部适用slot host与C6可选脚本共用production publication；C7 canonical静线与完整Authoring Kit继续使用同一公开合同。以下各节描述现行行为合同，实际自动验证和campaign完成状态只见[STATUS](DEVELOPMENT_STATUS.md)。
 
@@ -279,6 +277,8 @@ C7 必要信息补齐：公开 `score.accuracy` 和 `timing.progress` 数值均�
 用户已明确放弃 complex，只继续打磨 simple。静线是唯一内置、首次默认与正式保底；星轨不再是内置选项、启动依赖或构建对象，历史作者文件仅保留参考。旧内置星轨选择迁回静线，普通用户导入的皮肤不清除；不再要求星轨视觉签收。仅可识别并退役旧固定内置身份，不按名字、内容相似度或历史 complex hash 清除普通用户导入包；不删除用户文件。固定身份不能登记为外部或受管目录。静线继续经同一 publication/lease/detach 协议承担唯一 fallback。
 
 ## playfield 与 BGA 布局约束
+
+BMS选定包`BlackLaneWidth`是与NormalLaneWidth同单位的0.25..4横向权重，缺失/非法回到已解析普通宽度，不继承canonical的新黑键权重。5K/7K/14K按每deck规范键序2/4/6识别黑键，不以palette颜色或当前显示位置识别；9K/PMS不应用。该参数不能改变场高、TimeRange、GN、判定或输入身份。静线参考比例与实际验证见[轨道记录](../../other/SKIN_SIMPLE_LANE_PROPORTIONS_20260913.md)。
 
 1. P1-K parser单点产出的immutable `BmsKeymodeResolution`是BMS keymode唯一authority，并绑定selected keymode、source、evidence、diagnostic code与稳定脱敏token。precedence固定为：兼容性校验后的explicit override → P2 channel evidence（强于`.bme`；`.pms`+P2冲突必须拒绝）→ `.pms` → `.bme` → complete 9K set → distinctive 9K high channel → complete 7K set → complete 5K set。visible、LN、invisible、mine等lane object family贡献同一normalized evidence；普通`.bms/.bml`只有不完整非distinctive evidence、无lane evidence或extension/override/channel冲突时必须fail-closed。显式纠正只经production decoder options进入；converter、manager、layout owner与renderer只携带同一resolution，不得按最高出现channel、hit object、enum ordinal、总lane count或layout宽度二次猜测。
 2. per-lane keysound timeline及相邻mine/armed边界必须使用`BmsRuleset.GetLaneCount()`（keys+scratch），不得使用`GetKeyCount()`。自动gate必须逐类覆盖5K/7K最右键、9K全部lane、14K K14/Scratch2的visible note、LN head/tail armed entry、invisible object与mine；真实player/autoplay必须进入同一`BmsKeysoundStore`并实际发声。Mirror/Random只改变mod后对象目标lane；对象、keysound与skin lookup最终使用同一stable LaneId，不得改固定topology、sample pool、判定或binding。

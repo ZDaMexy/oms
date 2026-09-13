@@ -1,4 +1,4 @@
-﻿---
+---
 name: reference_skin_canonical_installation
 description: canonical 只读原件、工作副本恢复、旧记录与导出 authority 的排查边界
 metadata:
@@ -51,7 +51,7 @@ metadata:
 用户已放弃 complex，仅继续打磨 simple。静线为唯一内置、默认与保底；星轨不再是启动依赖或构建对象。历史作者文件保留参考，旧内置星轨选择迁回静线，普通用户导入皮肤不清除；不再要求星轨视觉签收。此前双内置授权已被最新决定取代，不继续要求其构建或签收。只迁移旧固定内置身份，不按名字删除普通用户包；旧报告只保留历史证据。
 # 2026-09-12 构建同步补充
 
-内置 simple/complex 不能只复制受跟踪 dist：作者文件变化后旧包仍可通过旧内嵌 hash，表现为开发启动没有更新。当前 Game 构建从 sources 生成 obj/canonical/<Configuration> 包与配对摘要；发行作者副本复制本次 publish 原件。不要在 Game target 调用引用 Game 的 SkinAuthoring 工具形成循环，也不要自动 generate 覆盖作者美术。Windows PowerShell 的 File.Replace 需 `[NullString]::Value` 表示空备份路径，`$null` 会转成空字符串报非法路径；哈希用 .NET，避免继承 PSModulePath 时 Get-FileHash 不可用。验证见 [构建更新记录](../../doc_md/other/SKIN_BUILTIN_BUILD_20260912.md)。
+内置 simple 不能只复制受跟踪 dist：作者文件变化后旧包仍可通过旧内嵌 hash，表现为开发启动没有更新。当前 Game 构建从 sources 生成 obj/canonical/<Configuration> 包与配对摘要；发行作者副本复制本次 publish 原件。作者工具与正常构建的 ZIP 包装方式可以不同，整包 hash 不同不直接表示内容漂移，须核 entry 集合与每项解压字节。不要在 Game target 调用引用 Game 的 SkinAuthoring 工具形成循环，也不要自动 generate 覆盖作者美术。Windows PowerShell 的 File.Replace 需 `[NullString]::Value` 表示空备份路径，`$null` 会转成空字符串报非法路径；哈希用 .NET，避免继承 PSModulePath 时 Get-FileHash 不可用。验证见 [构建更新记录](../../doc_md/other/SKIN_BUILTIN_BUILD_20260912.md)。
 
 跨构建器重打包不要用整个 ZIP hash 要求作品相同：PowerShell 5 构建与 .NET 8 作者工具可能产生不同压缩字节，核完整条目集合与逐文件摘要；安装原件自身仍须匹配本次程序集嵌入摘要，两种校验目的不同。
 

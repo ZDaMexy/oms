@@ -1,14 +1,16 @@
 # 静线机台底板与跨拓扑 scene（2026-09-12）
 
-2026-09-13补充：当前公开instances.material可按同一选定包已解析Global/Stage Provide slot/resource挂载模板，解决BMS/mania及单双舞台的有限复用；不是任意条件或跨包scene继承。旧段落“未加条件实例”保留此前迭代身份。血槽现在用独立外框、暗格与clip.reveal-x亮格，GaugeHeight选定包默认0.036，静线0.07。parseInstances的target/material须二选一，不能同时列入validateFields required。真实DrawNode会拒绝未Masking的outline/shadow容器，单纯headless属性检查不能证明绘制成功；outline是矩形边框，不能当字形描边使用。
+当前进度与验收只读 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)，图像及对应迭代见[原图索引](../../doc_md/other/references/simple-1p-20260912/README.md)。以下保留截图暴露的诊断因果，不把历次检查合并成当前验收。
+
+公开instances.material可按同一选定包已解析Global/Stage Provide slot/resource挂载模板，解决BMS/mania及单双舞台的有限复用；不是任意条件或跨包scene继承。血槽用独立外框、暗格与clip.reveal-x亮格，GaugeHeight选定包默认0.036，静线0.07。parseInstances的target/material须二选一，不能同时列入validateFields required。真实DrawNode会拒绝未Masking的outline/shadow容器，单纯headless属性检查不能证明绘制成功；outline是矩形边框，不能当字形描边使用。
 
 material模板无slot子节点须在owner表面定位，不能仅覆盖Stage target后仍用整个playfield矩形，否则血槽会盖满音轨。显式target旧模板不改坐标语义。clip外包transform后必须将子节点挂到content mask，否则裁切只改变空容器；实际内置BMS/mania产品检查与图11共同取证。编辑含非ASCII字面量的测试文件须保持UTF-8，曾误改é为茅导致规范化路径冲突fixture失真，恢复原值后通过，不应放宽生产校验。
 
-图12素材迭代：整体底板过亮可用普通Global `stage.background` sprite的colour乘色，省略resource时使用该玩法已经准备的公开素材；BMS原图保留，mania透明图仍透明。不为单张1P参考硬编码会穿帮的左右控制台底座。本轮键面/切角外壳修改止于离线作者配方，以真实作者包的双玩法/多模式多窗口矩阵和desktop像素验证，不把此前full日志重新计为新执行。
+图12素材迭代：整体底板过亮可用普通Global `stage.background` sprite的colour乘色，省略resource时使用该玩法已经准备的公开素材；BMS原图保留，mania透明图仍透明。不为单张1P参考硬编码会穿帮的左右控制台底座。该次键面/切角外壳修改止于离线作者配方，以真实作者包的双玩法/多模式多窗口矩阵和desktop像素验证，不把此前full日志重新计为新执行。
 
 用户图07显示控制键和BGA周围仍穿透歌曲背景。根因不是stage.png透明：原stage.background只有Stage，其矩形是轨道group union，键区和外侧不在其中。当前扩展Global/Stage独立声明；Global=SafeBounds，在Background层depth2，Stage仍depth1。BGA实际内容在它们前方。不得用全屏decoration（Overlay）盖住音符，也不扩大所有Stage矩形。
 
-普通scene的Stage/Group/Lane目标需要精确id+index；instances无条件准备，variant只换资源，隐藏节点仍解析目标。同包覆盖BMS/mania和单双舞台时，不得无条件引用不存在的deck-2或BMS目标。分段血条不能只换分段PNG：原纯texture缩放整个宽度，会使格距随血量变化。现用固定暗槽+mask裁切满宽亮图解决，未加条件实例ABI；RelativeChildSize补偿mask宽度，0值避免除零并保留底槽。视觉测试必须挂载父容器，检查实际DrawWidth而非只看相对Width。
+普通scene的Stage/Group/Lane目标需要精确id+index；显式target实例无条件准备，variant只换资源，隐藏节点仍解析目标。同包覆盖BMS/mania和单双舞台时，不得无条件引用不存在的deck-2或BMS目标，有限复用使用上述material实例。分段血条不能只换分段PNG：原纯texture缩放整个宽度，会使格距随血量变化。固定暗槽+mask裁切满宽亮图中，RelativeChildSize补偿mask宽度，0值避免除零并保留底槽。视觉测试必须挂载父容器，检查实际DrawWidth而非只看相对Width。
 
 转盘原FillMode.Fit受scratch音轨宽约束，换高质量原图也不会变大。公开ScratchKeyWidth只扩独立KeyAreaHeight内的视觉矩形，solver向普通键外侧求解并避开safe/BGA，native消费者读取同snapshot。不得为放大转盘改ScratchLaneWidth或输入lane；旧包缺字段保持倍率1。精确拼接的键面和50格血槽由离线PNG配方提供，游戏仍只消费包内文件。
 
@@ -21,7 +23,7 @@ simple新仪表各有独立边框，布局测试须逐字段检查对应面板�
 complex退役后历史ordinary import测试从SkinAuthoringSamples取归档，不再从Skins/Canonical取不存在的内置原件；不为测试重新发布complex。
 
 
-本轮信息区：MIN/MAX必须用BMS原生TimingProfile实际segments，排除STOP兼容控制点、SCROLL及未引用BPM定义。统计读取真实ScoreProcessor.Statistics，CB在Combo通知后才更新，须逐帧同步；EventStream聚合器重附着须保留SongInformation。Global材质模板只实例一次以免14K重复；作者信息区通过layout-surface继承，缺失不能猜1P坐标。
+信息区取数：MIN/MAX必须用BMS原生TimingProfile实际segments，排除STOP兼容控制点、SCROLL及未引用BPM定义。统计读取真实ScoreProcessor.Statistics，CB在Combo通知后才更新，须逐帧同步；EventStream聚合器重附着须保留SongInformation。Global材质模板只实例一次以免14K重复；作者信息区通过layout-surface继承，缺失不能猜1P坐标。
 
 完整信息区暴露旧字体预算错误：OsuSpriteText由共享FontStore取得字形，并非每个标签新分配2048图集。保留每glyph保守面积总和与原64MP/256MB上限，统一页对齐一次。OsuSpriteText隐藏的Truncate setter会抛异常；专用省略文本须像既有TruncatingSpriteText一样显式转SpriteText再设置，并在实际产品路径检查RuntimeFaults，不能只等ready超时。长曲名用作者声明text-overflow=ellipsis，不改绑定原文。
 

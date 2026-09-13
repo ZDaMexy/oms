@@ -5,6 +5,28 @@
 
 ---
 
+## 2026-09-13
+
+### 项目事实与文档记忆全量同步
+
+用户认可静线轨宽与底板调整，决定暂时打磨到此，并要求全量同步项目实际进度、文档与记忆。开始时工作区干净，`master`为`234ce1f`；`git fetch origin`成功，HEAD比已记录远端领先14个提交、落后0个。本次不修改产品、素材、作者成品或历史验证数据，不继续开发或代填人工签收。
+
+审阅P1-A～M状态、近14个提交涉及的代码/测试、现有验证日志、当前作者/发行手册及全部记忆索引。具体取证范围：
+
+| 范围 | 代码/证据与核对结论 |
+| --- | --- |
+| P1-A | `CanonicalSkinPackage`、`SkinManager`、`osu.Game.csproj`和构建脚本确认仅simple受保护并从源自动构建；`BmsGameplayLayoutSolver`、scene codec/payload/recipe确认黑白轨、信息区与独立表归类。总纲/路由仍写双内置、星轨待改，已改现行口径；STATUS恢复唯一最近验证段，移除逐轮流水账，仅保留历史链接。 |
+| P1-B/D | `OmsInputRouter`、`BmsInputManager`及控制器捕获/轮询路径存在；独立校准、持续诊断和真实HID门仍未闭合，原状态保留。 |
+| P1-C/E | `GameplaySkinJudgementStatistics`和simple scene已有实时统计，补齐C线和记忆的漏报；`DrawableBmsHoldNote`的HCN regrab/tail/body分工存在，判定语义和真实谱长条门未变。 |
+| P1-F/G | 退役迁移和单内置候选已有隔离启动记录，F标题“待补”与正文相矛盾；G仍要求恢复星轨。修正这两处，并区分旧完整ZIP、当前Release/作者包和局部认可；不把9月13日皮肤变更冒称已重新安装验收。 |
+| P1-H/I | `ExternalLibraryScanner`仍保留缺根跳过、注册移除不卸载记录等边界；`FilterControl`仍三行双端原型，shared搜索fixture仍缺通知依赖注入。删除/重扫、大库/单轨产品门不升级。 |
+| P1-J/K | `BmsToManiaBeatmapConverter`中LN仍普通HoldNote/NodeSamples；`BmsBeatmapConverter`保持唯一lane/time authority。转谱LN、dense profile、特殊谱及人工音频尾项不变。 |
+| P1-L/M | BGA选中包尺寸/位置/信息区已实现，补齐L线和记忆；`BmsBgaPanel`仍逐viewport创建player，未交付单content/decoder。`MusicController`/NowPlaying/Playlist不是规划中的PlayQueue/SMTC播放器，M线继续后置未开工。 |
+
+文档与记忆交叉同步：修正solver缺省值被误作simple配置、旧BGA小窗被误作成品固定窗口、血槽忽略独立键区、早期scene描述覆盖当前material实例、dist摘要被误作Game安装信任输入。作者WORKSHOP将历史三包演练与当前simple/Aurora JSON分开；旧日期报告、原始图片、成品和失败记录保留原身份。memory合并重复canonical索引；合同新增字段从路由开头归入所属章节，不更改实现约束。
+
+最近产品验证仍属于`234ce1f`：full的5项旧素材预期失败与修正后7项复验分开陈述，不冒称单次全绿。纯文档治理按主线验收矩阵执行`CheckDocumentation.ps1`和`git diff --check`，均通过：169个Markdown、1537个相对链接、150个本地锚点、108个memory链接。初检发现总纲含临时暂停话术及清单改名后的两处旧锚点，已改为稳定合同并同步引用；核对改动均为Markdown，无产品/素材/成品变更，不重跑产品测试、构建、安装或实机。当前剩余门见[主线状态](DEVELOPMENT_STATUS.md)和[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)。
+
 ## 2026-09-12
 
 ### 仅保留静线

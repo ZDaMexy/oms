@@ -29,6 +29,6 @@ metadata:
 
 ## 产品面
 
-常驻 FAST/SLOW/pacemaker/summary/GN feedback card 已删除；计数由全局 `JudgementCounterDisplay`。ComboBreak 是 score statistics 派生项，不一定经过真实 judgement event；计数器应从 statistics 同步。
+旧常驻 FAST/SLOW/pacemaker/summary/GN feedback card 已删除；全局 `JudgementCounterDisplay` 与皮肤作者信息区不能混为同一入口。静线已用通用只读绑定显示实时判定统计，并非恢复旧固定反馈卡。ComboBreak 是 score statistics 派生项，不一定经过真实 judgement event；计数器应从 statistics 同步，绑定诊断见 [[reference_skin_cabinet_surfaces]]。
 
 旧 29-case 数字、窗口表与删除史查 P1-C CHANGELOG。相关：[[reference_mania_autoplay_holdnote]]、[[reference_bms_default_skin_geometry]]。

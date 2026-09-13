@@ -15,7 +15,7 @@ metadata:
 - 物理 lane 宽 = `RelativeWidth / TotalRelativeWidth × PlayfieldWidth`。同比缩放所有 relative width 会被归一化抵消。
 - production总物理宽由唯一`BmsGameplayLayoutSolver`读取`BmsGameplayLayoutConfiguration`后结合safe bounds、aspect/DPI求解；scratch:key比例来自该配置的`ScratchLaneRelativeWidth/NormalLaneRelativeWidth`。`BmsPlayfieldLayoutProfile`只是同一solver产出的兼容view，不能另调`CreateDefault()`形成第二几何authority。
 - `BmsRulesetSetting.PlayfieldWidth` 不覆盖 strict profile；不要把已删除的 scale/offset config 接回来。
-- 当前关键值：scratch:key `1.5:1`，playfield height默认`0.92`，LN body width默认`0.5775`；最终像素尺寸服从solver的safe-area/aspect/DPI与BGA/HUD留位。C3已统一geometry字段的finite/range及screen-space/cross-field验证；`LongNoteBodyWidth`保留独立标量规则：finite且`0 < width <= 1`，缺失/非法按typed原因回到默认。
+- 不把 solver 缺省值当内置成品值：scratch:key `1.5:1`、playfield height `0.92` 是未声明配置的兼容默认；静线 5/7/14K 的白/黑/皿轨为参考图测得约 `54:42:92`，皿旁无额外间隔，不是官方像素规格。`BlackLaneWidth` 只读选定包 accepted declaration，缺失/非法回到该次已解析 normal width；9K 不按黑白键分宽。最终像素尺寸服从唯一 solver；`LongNoteBodyWidth` 独立要求 finite 且 `0 < width <= 1`，缺失/非法按 typed 原因回到默认。测量与边界见[轨宽记录](../../doc_md/other/SKIN_SIMPLE_LANE_PROPORTIONS_20260913.md)。
 - playfield 顶边贴屏，`HitTargetVerticalOffset=0`。改变高度只改像素路程，不改 GN/TimeRange；不要重加整体向下 offset。
 
 ## LN 视觉
@@ -25,8 +25,8 @@ metadata:
 
 ## HUD 合同
 
-- groove gauge 是判定线下方、与 playfield 等宽的 HUD child；`IBmsHudLayoutDisplay.SetComponents(wrappedHud,gauge,combo)` 签名不可改。
-- combo 位于 playfield 中心，仅标签+数字，无背景块。
+- groove gauge 使用同一 snapshot 的独立 Gauge surface，与 playfield 对齐；存在独立键区时位于键区下方，不能把“判定线下方”当作贴紧判定线的固定坐标。HUD 装配仍由 `IBmsHudLayoutDisplay.SetComponents(wrappedHud,gauge,combo)` 接入，作者控制其表现。
+- combo 的当前作者布局在 playfield 内与判定文字相邻；不要把早期几何中心位置当作必须恢复的固定坐标。
 - `BmsGaugeBar : HealthDisplay` 会被 `HUDOverlay.ShowHealthBar=false` 淡出；BMS gauge 必须在自身订阅中重申可见。测试必须使用真实 HUDOverlay，裸 DI 容器复现不了。
 - upstream 默认 combo 是 `LegacyDefaultComboCounter`，不是 `ComboCounter`。从 wrapped HUD 配置树移除时要同时匹配它与 leaderboard；用户要求“移除”，不要用 `Alpha=0` 假隐藏。
 
@@ -35,5 +35,5 @@ metadata:
 - 有贴图时贴图主导，不再叠程序化 colour；无贴图才走 ini colour/palette。
 - `BmsGameplayLayoutProvider.TryPrepareExact()`在background owner lease内读取配置、调用唯一solver并准备material/scene；`BmsPlayfield`只消费同一publication的`BmsGameplayLayoutSnapshot`，不重建profile或重读aggregate geometry。
 - `LongNoteBody`素材帧与resolved width和其余geometry/material/scene共同绑定exact publication；selected坏body不能与下层裸同名纹理/裸宽度拼件。完整layout已由C3闭合，C4/C5在其上扩展material与scene/event，不能把早期body纵切的局限当作当前状态。
-- 代码证据：`BmsGameplayLayoutSolver.Solve()`、`BmsGameplayLayoutProvider.TryPrepareExact()`、`BmsPlayfield.initialiseLayoutGraph()`；实际renderer矩阵见`BmsGameplayLayoutCurrentRevisionProductTest`和`BmsAllKeymodeSceneProductionMatrixProductTest`。2026-09-09核对生产链与测试源码；本轮实际测试范围和结果见[项目审查记录](../../doc_md/other/PROJECT_PROGRESS_AUDIT_20260909.md)。
+- 代码证据：`BmsGameplayLayoutSolver.Solve()`、`BmsGameplayLayoutProvider.TryPrepareExact()`、`BmsPlayfield.initialiseLayoutGraph()`；实际renderer矩阵见`BmsGameplayLayoutCurrentRevisionProductTest`和`BmsAllKeymodeSceneProductionMatrixProductTest`。2026-09-09历史核对与测试范围见[项目审查记录](../../doc_md/other/PROJECT_PROGRESS_AUDIT_20260909.md)，不能据此声称后来素材与轨宽改动也已验证。
 - 相关测试：lane layout、skin geometry、LN state、gauge placement/visibility、HUD strip。旧精确数字和演进过程查 P1-A CHANGELOG。

@@ -1,6 +1,6 @@
 # P1-C 当前状态：判定语义与反馈闭环
 
-> 最后更新：2026-09-09（本地代码/测试源码审查；产品验证未刷新）
+> 最后更新：2026-09-13（补齐静线实时统计展示；本次仅源码与文档同步，未刷新判定实测）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，HUD/skin 宿主边界归 [P1-A](../P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 当前阶段
@@ -21,6 +21,7 @@ IIDX/LR2/beatoraja/OD 判定家族与主要边界 parity 已落地并由契约�
 ## 当前反馈产品面
 
 - 全局 `JudgementCounterDisplay` 承担判定计数，COMBO BREAK 已纳入。
+- 静线还通过普通皮肤 scene 绑定通用 `GameplaySkinJudgementStatistics`，在 BGA 下方显示实时 PG/GR/GD/BD/PR/EP/CB。计数来自 score statistics，COMBO BREAK 不要求额外伪造 judgement event；这是只读展示，不恢复已删除的反馈卡或改变判定/计分合同，布局归 [P1-A](../P1-A/DEVELOPMENT_STATUS.md)。
 - GN 仅在调速 toast 与 pre-start overlay 显示，不常驻 HUD。
 - `Sudden/Hidden/Lift` 的 target/cycle/remember-gameplay-changes 基线保留。
 - `UI_PreStartHold` 负责前 5 秒阻止开始和全程调速修饰；视觉流速 preview 不得接入判定链。
@@ -45,5 +46,7 @@ IIDX/LR2/beatoraja/OD 判定家族与主要边界 parity 已落地并由契约�
 3. 若用户重新需要 FAST/SLOW 或 pacemaker，先重新定义产品价值、宿主和最小状态合同，不复活已删 aggregate。
 
 ## 文档治理验证
+
+2026-09-13：核对 `GameplaySkinScoreStateSnapshot.Statistics`、静线 scene 数据绑定与 [信息区产品测试](../../../osu.Game.Rulesets.Bms.Tests/Skinning/CanonicalSkinInformationLayoutProductTest.cs)，补齐已落地的作者化实时统计。此次未运行产品测试、未调整窗口或计分；既有自动结果按原日期查主线与 P1-A，真实谱人工门未关闭。
 
 2026-09-09：核对 [BmsRuleset](../../../osu.Game.Rulesets.Bms/BmsRuleset.cs) 的 judge/score-bucket 入口、[parity 测试源码](../../../osu.Game.Rulesets.Bms.Tests/BmsJudgementSystemParityTest.cs)与长条/计数器消费；当前合同和未登记的真实谱人工门保持。C5 的只读判定事件与 scene host 不代表已恢复 FAST/SLOW/pacemaker 常驻反馈。本节仅记录源码审查；全局实测见主线最新验证。

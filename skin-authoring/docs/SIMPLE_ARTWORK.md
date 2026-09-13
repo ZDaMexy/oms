@@ -37,3 +37,11 @@ Create one production-ready ORIGINAL game UI texture asset, not a mockup or scre
 图12之后继续修改普通作者素材：白键增加底部斜面，黑键增加上部高光和凹入支座，所有键保留原尺寸与连续上下轨。血槽/底部仪表使用同一切角金属外壳配方，分开标签区和暗色读数区；血量标签/数值设为12/22像素。既有Global背景素材通过普通scene的`colour`压暗为`#adb6c0ff`，引用本玩法已准备的素材，mania透明背景继续透明。转盘/底板原图、音符和布局保持已有文件及配置，不按单张1P截图硬画固定左右底座。
 
 BMS普通音符及长条头尾保留24像素画布和最后不透明行21，只收薄上方轮廓并集中高光，避免素材变化移动原落键边缘。长条身体和mania音符保持既有素材。判定采用大写文字，连击向判定靠拢；通过公开同源Stage素材模板绑定实际事实，不在游戏代码中另写静线专属HUD。精确格距、边框和音符仍由离线PNG配方制作，既有原创转盘与底板原图不变。效果与限制见[本轮记录](../../doc_md/other/SKIN_SIMPLE_STAGE_HUD_20260913.md)。
+
+## 当前信息区与轨道比例（2026-09-13）
+
+曲名、作者、作者标级与难度表归类使用独立的公开文字绑定；`song.table-classification` 显示已启用表的“表名 等级标签”，不以作者等级代替，多表以 ` / ` 分隔。实时判定数据、Score/Hi-Speed 与 MIN/BPM/MAX 分别放入普通场景仪表，作者标级与当前 BPM 已移除额外矩形底色。具体字段见[作者参考](REFERENCE.md)，保留素材边框与生成配方即可自定义排版。
+
+5K/7K/14K 当前白、黑、皿轨权重为 `1 / 0.7777778 / 1.7037037`，皿旁间隔为零；这是对照用户 LITONE/IIDX 截图的近似测量，不是官方像素规格。`BlackLaneWidth` 由每侧物理键序决定，14K 第二侧重置键序；9K 不应用黑键宽配置。音符/LN 头尾的透明边距和 `divider/divider-accent/divider-scratch` 普通 PNG 同步补偿，不改变落点，LN 身体继续原独立窄条。
+
+外部参考仍是只读对照凭据，未取用为发行素材；实际捕获见[图17](../../doc_md/other/references/simple-1p-20260912/17-simple-lane-proportions-runtime.png)，测量、验证失败纠正及范围见[轨宽记录](../../doc_md/other/SKIN_SIMPLE_LANE_PROPORTIONS_20260913.md)。用户已要求暂止打磨、进行项目与文档同步；这不等于完整歌曲、设备或整体视觉签收。

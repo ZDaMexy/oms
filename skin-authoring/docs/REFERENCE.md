@@ -1,6 +1,6 @@
 # 普通作者参考：布局、场景、事件与可选脚本
 
-从 [完整制作流程](../README.md)、[静线源文件](../sources/oms-simple/) 或 [星轨源文件](../sources/oms-complex/) 开始。本页用于查具体写法，不替代完整作品。作者只编辑普通 INI、PNG/WAV、JSON 和数值脚本，无须阅读游戏源码、编译游戏或编写插件。
+从 [完整制作流程](../README.md)与[静线源文件](../sources/oms-simple/)开始；仓库中的星轨源只作历史参考，不随当前发行套件携带。本页用于查具体写法，不替代完整作品。作者只编辑普通 INI、PNG/WAV、JSON 和数值脚本，无须阅读游戏源码、编译游戏或编写插件。
 
 本页对应 `oms-gameplay-skin-manifest.v1`、`oms-gameplay-skin-scene.v1`、`oms-gameplay-skin-event.v1` 和 `oms-script 1`。字段区分大小写，不接受自创字段。
 
@@ -72,7 +72,7 @@ id 使用稳定 ASCII 名字，如 `my.hud.score`。场景中的节点、轨迹�
 }
 ```
 
-可见节点必须属于同包明确 `Provide` 的槽。通常在父容器写 `"slot": "hud.text"` 或 `"slot": "decoration"`，子节点沿用；已有槽位所有者的子节点不能再写另一个 slot，也不能切到不同的轨道/舞台身份。分派多个槽位的最外层是无资源、无属性、无效果、无程序控制且 `blend: inherit` 的 container；两款完整源已采用此结构。
+可见节点必须属于同包明确 `Provide` 的槽。通常在父容器写 `"slot": "hud.text"` 或 `"slot": "decoration"`，子节点沿用；已有槽位所有者的子节点不能再写另一个 slot，也不能切到不同的轨道/舞台身份。分派多个槽位的最外层是无资源、无属性、无效果、无程序控制且 `blend: inherit` 的 container；静线完整源已采用此结构。
 
 sprite 可引用资源；省略 resource 时使用所属槽位已提供的普通图片，能沿 INI 为两种玩法选不同图片。其它节点不能写 resource。给 Inherit、Suppress 或无效资源槽添加场景，不会把它变成自己提供的内容。
 
@@ -207,7 +207,7 @@ tween只改变数值属性；frame只给sprite的resource换帧，value必须是
 | set项 | id/target/property/value |
 | transitions项 | id/from/to/event |
 
-initial/from/to引用本状态机已有状态；target引用主场景或模板节点，value匹配属性类型。完整练习 ref.lifecycle 可直接查看准备、运行、暂停写法；星轨还含完成和失败。
+initial/from/to引用本状态机已有状态；target引用主场景或模板节点，value匹配属性类型。完整练习 ref.lifecycle 可直接查看准备、运行、暂停写法；仓库历史星轨示例还含完成和失败。
 
 合法事件字符串为 gameplay.attach/loaded/start/pause/complete/fail、input.key.down/up、object.spawn/state、judgement.hit、timing.stop、bga.state。它是当前完整事实的投影，新加入、跳转、重试会重建，不适合任意历史累计。gameplay.resume不是合法字符串；恢复后的Running由当前状态重建。历史组合使用获准脚本。不要让轨迹、状态机和绑定同时争抢同一属性；例子分别写旋转、状态文字和信息。
 

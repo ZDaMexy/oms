@@ -34,13 +34,13 @@ metadata:
 - BGA 的 scene 外框放大不等于真实播放器 viewport 放大；应从公开尺寸参数进入唯一 solver，再由现有播放宿主消费。外部截图只用于比较视觉关系，不能推导出播放/timeline 新 authority。
 - 原图凭据见[静线 1P 参考](../../doc_md/other/references/simple-1p-20260912/README.md)。底部 HUD 的公共几何变化也会影响未改作者文件的包，回归不能只观察 simple。
 - 作者生成器的 `Complex=false` 同时覆盖静线与旧 Aurora 演练，不能据此把新布局应用到所有旧作品。静线通过 `author.json` 的 `compactLayout` 明确选择新模板；未声明的作品保持旧生成字节。必须实际运行 `Test-Authoring.ps1` 的重新生成与重复打包检查，只有源包一致性检查不足以发现这个问题。
-- `SkinAuthoring pack` 输出普通包与控制台摘要，不替维护安装原件的 `dist/oms-simple.sha256`。更新 canonical 包后必须同步该摘要并重编 `osu.Game`（摘要为 embedded resource）；只复制新包会触发完整性保护，使实际选择及依赖它的异步测试失败。不要把这类失配误判为布局或异步 ownership 回归。
+- `SkinAuthoring pack` 输出普通作者包与控制台摘要，作者交付的 `dist/oms-simple.osk/.sha256` 仍须配对更新。正常 Game 构建已从 sources 另生成 `obj/canonical/<Configuration>` 原件及嵌入摘要，不再把 dist 作为安装信任输入；只手工覆盖运行目录包而不重编配对摘要仍会触发完整性保护。不要把这类失配误判为布局或异步 ownership 回归；两条打包链按解压内容核同源，见 [[reference_skin_canonical_installation]]。
 - 提交前用 `git ls-files --eol` 核作者输入的实际换行。相同 CRLF 工作树重复打包也会通过，但提交按 `.gitattributes` 规范成 LF 后重做不一致；`Test-Authoring.ps1` 的 LF 检查必须包含 `author.json`，不能只检查生成的 manifest/scene。
 
 ## 纹理线宽与共享舞台目标
 
 - 分隔图按整车道缩放，256 像素宽画布中只有 3 像素着色时，在约 56 像素车道上不足 1 像素；转盘更宽还会放大同图线宽。排查先看作者纹理的有色占比、真实 lane rect 与槽位是否已隐藏默认组件，不先改引擎描线。首轮实机反馈见[图 06](../../doc_md/other/references/simple-1p-20260912/06-oms-simple-first-layout.png)。
-- `hud.gauge` 仅支持舞台目标；shared scene 不会自动忽略不存在的 deck 或另一玩法的 group。把 deck-1/deck-2 平铺到共享场景，即使 codec/check 接受，也会在实际单舞台或 mania preparation 返回 019。不能将未适用目标误当可选节点；本次分段罩试验撤回，继续用连续血条，不放宽合同。
+- `hud.gauge` 仅支持舞台目标；把 deck-1/deck-2 无条件平铺到共享场景，即使 codec/check 接受，也会在实际单舞台或 mania preparation 返回 019。早期分段罩因此撤回；现有 `instances.material` 按同一选定包已解析的 Global/Stage Provide 素材实例化，固定暗格与裁切亮格已接入，不能继续沿用“连续血条”结论，也不能放宽不存在目标的合同。诊断见 [[reference_skin_cabinet_surfaces]]。
 
 ## Geometry fallback 与构造边界
 

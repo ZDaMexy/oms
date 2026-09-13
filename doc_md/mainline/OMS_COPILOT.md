@@ -789,8 +789,8 @@ OMS continues to use osu!lazer's `ISkin` / `ISkinSource` / `SkinnableDrawable` a
 
 ### 13.1 Product Direction
 
-- OMS will ship two ordinary first-party `.osk` entries: **`oms-simple`** as the immutable final fallback and **`oms-complex`** as the public-API showcase/default candidate.
-- Showcase/default-candidate is a product role, not visual acceptance: successful importing, automated rendering checks or campaign closure cannot override explicit user rejection of animation, art arrangement or refinement. Record actual feedback and outstanding product changes in [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md); keep unobserved matrix cases unsigned and do not infer approval of the other package.
+- OMS ships **`oms-simple`** as the sole built-in, initial default and immutable final fallback. `oms-complex` is retired; its author files and prior public-API validation remain historical references, not a shipping or acceptance dependency. Migrate only its exact former built-in identity; never remove ordinary user imports by name or visual similarity.
+- Automated rendering, campaign closure and local improvement feedback do not constitute complete visual acceptance. Preserve outstanding matrix/device gates and current product feedback in [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md), without resuming complex or inferring release approval.
 - Each package contains a **global layer plus separate mania and BMS ruleset layers**.
 - Mania and BMS do not need to share the same gameplay asset semantics; they are integrated into each package, but remain independent ruleset skin implementations.
 - `Argon`, `Triangles`, `DefaultLegacy`, `Retro`, and other osu!lazer-native built-in default skins must be removed from OMS's final shipped default selection surface once OMS replacement coverage is complete.
@@ -799,7 +799,7 @@ OMS continues to use osu!lazer's `ISkin` / `ISkinSource` / `SkinnableDrawable` a
 - `SKIN/SimpleTou-Lazer` may remain a mania compatibility/reference source, but it is not the architecture or private resource source for the BMS runtime. Direct-drawn BMS visuals are migration/failure feedback, not proof of release-ready default coverage.
 - `BmsLegacySkin : LegacySkin`, `.osk` routing and F1 static config form the compatibility authoring base. The final fallback is validated `oms-simple.osk`; programmatic themed rendering is migration scaffolding only. Authority lives in [P1-A CONSTRAINTS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md), [P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md) and [SKINNING.md](../other/SKINNING.md).
 - Abnormal-period G1/F2/Lua/mania-adapter/reference-default work may re-enter only as isolated slices with authority-specific tests, path-containment proof and real-device acceptance; never restore it in bulk. Recovery evidence is preserved in the [recovery audit](../other/SKIN_SYSTEM_RECOVERY_20260710.md).
-- **Skin V1 authority:** the first complete version is an external gameplay-skin runtime, not a larger family of fixed BMS C# visuals. The engine owns gameplay truth, playfield/BGA layout, generic rendering, package isolation and fallback resolution; `.osk` packages own every concrete colour, asset, node and animation. Mania/BMS share a neutral ini/asset/animation/event runtime and keep ruleset-specific topology adapters. V1 ships `oms-simple.osk` plus `oms-complex.osk`, both containing mania+BMS, editable source and the same authoring path as third-party skins.
+- **Skin V1 authority:** the first complete version is an external gameplay-skin runtime, not a larger family of fixed BMS C# visuals. The engine owns gameplay truth, playfield/BGA layout, generic rendering, package isolation and fallback resolution; `.osk` packages own every concrete colour, asset, node and animation. Mania/BMS share a neutral ini/asset/animation/event runtime and keep ruleset-specific topology adapters. V1 ships `oms-simple.osk` containing mania+BMS, editable source and the same authoring path as third-party skins. Development builds and publishing regenerate its canonical package and embedded integrity anchor from the author source; manually refreshing the author distribution ZIP is not a runtime prerequisite.
 
 ### 13.1.1 Phase 1.1 implementation boundaries
 
@@ -852,7 +852,7 @@ Existing implementation and remaining package boundaries:
 
 ### 13.4 Shared Visual Contract
 
-Both canonical packages must provide readable gameplay while allowing mania/BMS visuals to differ. Shared application UI and legacy lookups may follow the same visual language, but Song Select/results skinning and `ISerialisableDrawable` editing/serialization are not new public gameplay-author ABI. Non-gameplay hosts participate in revision lifecycle without expanding the author surface.
+The canonical simple package must provide readable gameplay for both mania and BMS while allowing their visuals to differ; third-party authors use the same public contracts. Shared application UI and legacy lookups may follow the same visual language, but Song Select/results skinning and `ISerialisableDrawable` editing/serialization are not new public gameplay-author ABI. Non-gameplay hosts participate in revision lifecycle without expanding the author surface.
 
 - Shared typography/colour language may guide application UI; gameplay HUD uses the versioned public slot contract.
 - Shared colour-token system for package-level surfaces, separators, neutral text, focus/highlight states, and non-ruleset-specific UI.
@@ -998,12 +998,12 @@ The skin system must ship with both non-visual and visual validation:
 - Packaging checks confirming public builds do not expose upstream built-in skins as OMS defaults.
 - Full layout matrix tests for 5K/7K four styles, 9K BMS/PMS and 14K, including lane roles/bounds, shared gauge/combo/BGA descriptor consumption and no timing drift.
 - Tri-state `Provide/Inherit/Suppress`, legacy explicit-presence, G1 authority/containment/atomic reload, event ordering and sandbox capability/budget tests.
-- `oms-simple.osk` and `oms-complex.osk`, each containing mania+BMS and using only public APIs; canonical fallback integrity/recovery and absence of a programmatic product-visual layer are release tests.
+- `oms-simple.osk` containing mania+BMS, plus third-party public-API inputs; canonical fallback integrity/recovery and absence of a programmatic product-visual layer are release tests. Historical complex proof does not require continuing that skin.
 
 ### 13.10 Phase Placement
 
 - Core OMS Skin V1 is a **Phase 1.1** priority, not a deferred Phase 2 polish item.
-- Phase 1.1 completes only when the shared external runtime, safe storage/reload, layout matrix, `oms-simple`/`oms-complex` proof, Authoring Kit and `oms-simple` canonical fallback are usable for mania and BMS, with theme-specific programmatic fallback removed from the product render chain. Additional scene nodes/events may extend in Phase 2 without changing the versioned V1 contract.
+- Phase 1.1 completes only when the shared external runtime, safe storage/reload, layout matrix, `oms-simple` and third-party authoring proof, Authoring Kit and `oms-simple` canonical fallback are usable for mania and BMS, with theme-specific programmatic fallback removed from the product render chain and the outstanding acceptance gates met. Additional scene nodes/events may extend in Phase 2 without changing the versioned V1 contract.
 
 ---
 
@@ -1090,7 +1090,7 @@ If the server is unreachable, OMS runs fully offline:
 
 ### Phase 1.1 — OMS Skin System
 
-mania/BMS 共享外部 ini/asset/scene/event/script runtime、唯一 layout、三态组件解析、安全存储/reload、canonical 双包与 Authoring Kit、程序化主题渲染退出及 release gate。完成定义见 §13.10，当前未完成项见 P1-A PLAN。
+mania/BMS 共享外部 ini/asset/scene/event/script runtime、唯一 layout、三态组件解析、安全存储/reload、唯一 canonical simple 与第三方公开作者路径、Authoring Kit、程序化主题渲染退出及 release gate。完成定义见 §13.10，当前未完成项见 P1-A PLAN。
 
 ### Phase 2 — BMS Feature Complete
 

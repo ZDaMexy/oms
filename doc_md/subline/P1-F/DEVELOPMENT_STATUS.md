@@ -1,6 +1,6 @@
 # P1-F 开发进度：发行后置与离线发布验收
 
-> 最后更新：2026-09-12（静线唯一内置；星轨退役的构建与启动验证待补）
+> 最后更新：2026-09-13（单内置退役迁移已验证；区分旧候选发行证据与后续静线更新）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，当前执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 
 ## 当前阶段
@@ -23,6 +23,8 @@
 
 ## 最近一次验证
 
+以下发行候选与隔离启动结果固定为形成时的快照。9 月 13 日静线信息区、轨道比例和素材已继续更新，其源码、Release 构建与 canonical 内容核对见 [P1-A STATUS](../P1-A/DEVELOPMENT_STATUS.md)；这些后续结果不代表旧 ZIP 已包含新外观，也不刷新旧候选的完整发行或人工验收。本次只进行状态、文档与记忆收尾，没有重新发布候选或运行发行启动矩阵。
+
 验证候选为 release-repo/oms_20260912_4.zip。正常 Release publish/打包、单内置构建 fixture、独立作者套件制作与错误拒绝、集中验收目录组装通过。独立副本在缺少 complex 原件、预先保存旧星轨配置的情况下，首次启动/custom root/损坏副本恢复/同包覆盖四轮正常关闭，配置已保存为 simple；证据 artifacts/simple-only-startup-20260912/results.json。该候选修正了作者脚本 UTF-8 BOM，386 个游戏运行文件逐字节匹配该四轮启动来源，作者检查脚本匹配实际通过的独立套件副本（artifacts/simple-only-final-publication.log）；未再次宣称 ZIP 解包或已有个人库迁移签收。集中目录组装记录 artifacts/simple-only-acceptance.log；制品保持生成时快照，之后仅将组装结束提示改为静线已内置、作者包按需导入，不改变组装或游戏行为。core/mania 失败精确基线与 BMS relevant 结果见 P1-A STATUS。以下为此前发行证据，不计为本轮通过。
 
 此前 C7 ZIP 为 344,240,108 B，SHA256 `76f1e7d91581a8c4aad5f3f0da2e64a3e47930b6259ec9fdc3f8be9105035574`；发行清单 SHA256 为 `5bd05386bdb687774a6a8b295b00581ef3a27b343aaabd8300011649af4b8ac0`。`artifacts/skin-startup-warning-20260911/final-delivery/delivery.json`、同目录的 `release-extracted-extraction.json`、`acceptance-assembly.json` 固定本次来源与实际组装。四轮证据为 `artifacts/skin-c7-evidence/release-startup-startup-fix-final/results.json`（UTC 2026-09-11 16:22:49～16:25:13），均正常退出、退出码 0、无强制终止；两处共享测试根的只读玩法结果见当前证据目录的 `rulesets-portable.log`、`rulesets-custom.log`。
@@ -38,5 +40,7 @@
 2026-05-09 的打包、fresh extract 和八秒 smoke 历史保留，但窗口/进程观察未证明实际保存根，不能作为便携隔离依据。本轮多文件包的明确保存根与正常退出证据替代其当前结论，不抹去事故。
 
 ## 文档治理验证
+
+2026-09-13：对照当前唯一 simple 安装/构建入口，修正标题仍称退役验证待补的矛盾；保留退役迁移已通过与旧制品身份，未扩大为最新代码完整发行签收。
 
 当前发行说明、保存位置、缓存、同包覆盖、真实跨版本更新及人工边界已同步到 [RELEASE](../../other/RELEASE.md)；后续候选包或相关实现改变后，按 [PLAN](DEVELOPMENT_PLAN.md) 重新验证。本次最终制品独立复核已通过，文档及提交记录统一见 C7 报告。

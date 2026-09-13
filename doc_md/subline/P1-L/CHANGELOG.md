@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-09-13
+
+### 补齐静线演奏分区带来的 BGA 布局能力
+
+- 同步 P1-A 已实现的 `BgaWidth/BgaHeight/BgaVerticalPosition/BgaInformationHeight` 与上下信息区；区分选中皮肤声明、无声明兼容默认及静线实际大 BGA，不再漏报作者可配置大小与位置。
+- 这些参数仍消费同一 immutable snapshot，不交付媒体播放 authority。当前每 viewport 一个 player、单 content/decoder 未实现、旧设置措辞与逐谱人工门均保持。
+- 此次仅源码和文档核对，未运行产品构建、逐谱对照或新增 BGA 验收，原结果按日期保留。
+
 ## 2026-09-12
 
 ### 实际内容、文档与记忆对齐

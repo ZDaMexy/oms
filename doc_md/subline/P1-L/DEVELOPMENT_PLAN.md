@@ -1,6 +1,6 @@
 # P1-L 当前计划：BMS Gimmick 与 BGA 视觉
 
-> 最后更新：2026-09-09（区分已交付 layout/scene/event 与待做 content 会话）
+> 最后更新：2026-09-13（纳入已交付皮肤 BGA 几何与信息区；单内容会话仍待实现）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定滚动/BGA 合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，机理背景见 [BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)，已完成阶段按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -15,7 +15,7 @@ P1-L 拥有 BMS Gimmick 的视觉位置旁路、地雷呈现与 BGA decode/timel
 | 地雷视觉 | 已落，保持非判定、随可表示 lane permutation 移动 |
 | 滚动旁路 | BMS-only position integration 与 Off/On/Auto 已落，正常链路隔离 |
 | BGA 主链 | 图序列/视频/POOR、seek、ffmpeg opt-in 转码已落 |
-| Skin V1 接线 | C3 共用 immutable layout/viewports、C5 material/scene 与只读 BGA 状态事件已落 |
+| Skin V1 接线 | C3 共用 immutable layout/viewports、C5 material/scene 与只读 BGA 状态事件已落；选中包可声明 BGA 尺寸/位置及信息区预留 |
 | 转码体验 | 预热等待上限、会话缓存、ultrafast 与扫描线进度已落 |
 
 完成实现、事故诊断和旧测试数字不在 PLAN 重述，统一查 [CHANGELOG](CHANGELOG.md)。
@@ -24,7 +24,7 @@ P1-L 拥有 BMS Gimmick 的视觉位置旁路、地雷呈现与 BGA decode/timel
 
 ### 1. Skin V1 BGA 内容/视图解耦
 
-前置已满足：P1-A C3 已提供 `BmsGameplayLayoutSnapshot` 与 viewport policy，C5 已提供同一 publication 下的 material/scene 与只读 BGA 状态事件。当前仍按 viewport 创建独立 `BmsBgaPlayer`；本项只收口 content/decoder 会话，不重开已完成的布局合同。
+前置已满足：P1-A C3 已提供 `BmsGameplayLayoutSnapshot` 与 viewport policy，C5 已提供同一 publication 下的 material/scene 与只读 BGA 状态事件；选中包 BGA 尺寸/位置和信息区预留已由唯一 solver 接管。当前仍按 viewport 创建独立 `BmsBgaPlayer`；本项只收口 content/decoder 会话，不重开已完成的布局合同，也不把无声明兼容尺寸当作静线固定外观。
 
 1. timeline、texture/video decode、playback clock、seek/retry 与 POOR 切换收敛为一个 engine-owned content session。
 2. skin-facing API 只暴露只读 content handle/proxy、状态事件与 layout snapshot 的 named viewport；不交付 raw timeline、resource store 或可写 clock。

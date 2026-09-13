@@ -15,7 +15,7 @@ metadata:
 - 范围是 gameplay；不移植 LR2/beatoraja runtime，只对齐元素族与表达力。保持 .osk 分发、根 skin.ini、mania 素材/动画命名、目录编辑和拖入导入心智；BMS/scene/script 为版本化扩展，不要求 DLL。
 - mania 普通 .osk 是固定行为宿主 + legacy 素材/参数，不能当作通用作者脚本上限。共享 neutral codec/scene/event/reload/sandbox，ruleset topology adapter 各自保留。
 - 引擎掌握 gameplay truth、layout、滚动/LN 裁剪、池、BGA 内容时钟与安全；作者控制 scene/动画/只读响应。三态按 catalog 的 requirement/applicability 决定，不另列会漂移的 suppress 清单。
-- canonical oms-simple 和公开 API 展示包 oms-complex 同时覆盖 mania/BMS；Authoring Kit 是可编辑源、模板、schema/事件/layout/预算说明、validator/diagnostics 与打包文档，不是第二套 SDK/runtime。
+- canonical oms-simple 是唯一内置、默认与保底，覆盖 mania/BMS；用户已放弃 oms-complex，其文件只作历史作者样本，不再作为启动、构建或视觉签收对象。Authoring Kit 是可编辑源、模板、schema/事件/layout/预算说明、validator/diagnostics 与打包文档，不是第二套 SDK/runtime。
 - canonical 普通包已接管产品渲染保底；程序化 OmsSkin 源码仍保留历史证据与人工对照，物理删除须等原实机 gate，不能把代码保留误读为尚未接管。canonical 损坏走明确安装修复，不暗落另一套程序化主题。
 - 视觉采用集中签收；已获授权的自动可证切片可继续；用户明确暂停时须停止开发，具体边界见 P1-A STATUS。不得把“实现/自动通过，视觉待验收”写成产品/release 完成，或复用 2026-07-14 静态恢复签收。
 
