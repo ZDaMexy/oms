@@ -252,7 +252,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             // accessor above returns the first root only, which can be a panel rather than the accuracy value.
             IEnumerable<Drawable> globalReadouts = globalGate.RoutedNodes.Count == 0
                 ? new[] { globalReadout! }
-                : globalGate.RoutedNodes.Select(node => c6CandidateNode(scene, node.Source.Id).RootDrawable);
+                : globalGate.RoutedNodes.Select(node => c6CandidateNode(scene, node.InstanceId).RootDrawable);
             Assert.That(globalReadouts.SelectMany(root => root.ChildrenOfType<SpriteText>()).Any(text => text.IsPresent && text.Text.ToString().Contains('%')), Is.True,
                 "The actual global readout must replace the hidden native accuracy display with visible percentage text.");
             Assert.That(hud.GameplaySkinHudResidualPartitions

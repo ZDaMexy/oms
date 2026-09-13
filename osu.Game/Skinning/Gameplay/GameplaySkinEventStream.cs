@@ -465,6 +465,7 @@ namespace osu.Game.Skinning.Gameplay
             private readonly Dictionary<GameplaySkinLaneGroupId, GameplaySkinCurrentJudgementStateSnapshot> judgementsByGroup = new Dictionary<GameplaySkinLaneGroupId, GameplaySkinCurrentJudgementStateSnapshot>();
             private GameplaySkinCurrentJudgementStateSnapshot? globalJudgement;
             private GameplaySkinScoreStateSnapshot score;
+            private readonly GameplaySkinSongInformation? songInformation;
             private readonly Dictionary<int, GameplaySkinBgaStateSnapshot> bga;
             private readonly HashSet<int> bgaResynchronisationAllowed;
 
@@ -478,6 +479,7 @@ namespace osu.Game.Skinning.Gameplay
                     : new HashSet<long>();
                 restoreJudgements(snapshot.CurrentJudgements);
                 score = snapshot.Score;
+                songInformation = snapshot.SongInformation;
                 Timing = snapshot.Timing;
                 bga = snapshot.BgaViewports.ToDictionary(viewport => viewport.ViewportIndex);
                 bgaResynchronisationAllowed = allowInitialResynchronisation
@@ -641,7 +643,8 @@ namespace osu.Game.Skinning.Gameplay
                     currentJudgements(gameplayTime),
                     score,
                     Timing,
-                    bga.Values.OrderBy(viewport => viewport.ViewportIndex));
+                    bga.Values.OrderBy(viewport => viewport.ViewportIndex),
+                    songInformation);
 
             private IEnumerable<GameplaySkinCurrentJudgementStateSnapshot> currentJudgements(double gameplayTime)
             {

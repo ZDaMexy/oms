@@ -55,6 +55,51 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 Assert.That(GameplaySkinSceneCodec.DecodeScene(invalid, manifest).Status, Is.Not.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
         }
 
+        [Test]
+        public void TestInformationSurfacesAreStaticAndOwnedByTextHud()
+        {
+            const string json = """
+                {"contract":"oms-gameplay-skin-scene.v1",
+                 "root":{"id":"hud","type":"container","target":{"kind":"global"},"slot":"hud.text","blend":"alpha","properties":{"layout-surface":"information.song"},"effects":[],"children":[
+                   {"id":"value","type":"text","target":{"kind":"global"},"blend":"alpha","properties":{"text":"","layout-surface":"information.tempo","format":"fixed-2"},"effects":[],"children":[]}]},
+                 "templates":[],"instances":[],"tracks":[],"stateMachines":[],"bindings":[{"id":"value.binding","target":"value","property":"text","source":"scroll.speed"}]}
+                """;
+            var manifest = new GameplaySkinSceneManifest(Array.Empty<GameplaySkinSceneResource>());
+            Assert.That(GameplaySkinSceneCodec.DecodeScene(json, manifest).Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+            foreach (string invalid in new[]
+                     {
+                         json.Replace("information.song", "information.arbitrary"),
+                         json.Replace("hud.text", "hud.gauge"),
+                         json.Replace("\"property\":\"text\"", "\"property\":\"layout-surface\""),
+                         json.Replace("\"tracks\":[]", "\"tracks\":[{\"id\":\"bad\",\"type\":\"tween\",\"target\":\"value\",\"property\":\"layout-surface\",\"easing\":\"linear\",\"loop\":false,\"keyframes\":[{\"time\":0,\"value\":\"information.song\"}]}]"),
+                     })
+                Assert.That(GameplaySkinSceneCodec.DecodeScene(invalid, manifest).Status, Is.Not.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+        }
+
+        [Test]
+        public void TestTextOverflowIsStaticEllipsisOnly()
+        {
+            const string json = """
+                {"contract":"oms-gameplay-skin-scene.v1",
+                 "root":{"id":"hud","type":"container","target":{"kind":"global"},"slot":"hud.text","blend":"alpha","properties":{},"effects":[],"children":[
+                   {"id":"title","type":"text","target":{"kind":"global"},"blend":"alpha","properties":{"text":"","text-overflow":"ellipsis"},"effects":[],"children":[]}]},
+                 "templates":[],"instances":[],"tracks":[],"stateMachines":[],"bindings":[{"id":"title.binding","target":"title","property":"text","source":"song.title"}]}
+                """;
+            var manifest = new GameplaySkinSceneManifest(Array.Empty<GameplaySkinSceneResource>());
+            var decoded = GameplaySkinSceneCodec.DecodeScene(json, manifest);
+            Assert.That(decoded.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+            Assert.That(GameplaySkinSceneCodec.DecodeScene(GameplaySkinSceneCodec.EncodeScene(decoded.Value!), manifest).Status,
+                Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+            foreach (string invalid in new[]
+                     {
+                         json.Replace("ellipsis", "scroll"),
+                         json.Replace("\"type\":\"text\"", "\"type\":\"container\""),
+                         json.Replace("\"property\":\"text\"", "\"property\":\"text-overflow\""),
+                         json.Replace("\"tracks\":[]", "\"tracks\":[{\"id\":\"bad\",\"type\":\"tween\",\"target\":\"title\",\"property\":\"text-overflow\",\"easing\":\"linear\",\"loop\":false,\"keyframes\":[{\"time\":0,\"value\":\"ellipsis\"}]}]"),
+                     })
+                Assert.That(GameplaySkinSceneCodec.DecodeScene(invalid, manifest).Status, Is.Not.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+        }
+
         private const string valid_manifest = """
                                               {
                                                 "contract": "oms-gameplay-skin-manifest.v1",

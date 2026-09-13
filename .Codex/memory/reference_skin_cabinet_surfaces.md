@@ -1,6 +1,6 @@
 # 静线机台底板与跨拓扑 scene（2026-09-12）
 
-2026-09-13补充：当前公开instances.material可按同一选定包已解析Stage Provide slot/resource挂载模板，解决BMS/mania及单双舞台的有限复用；不是任意条件或跨包scene继承。旧段落“未加条件实例”保留此前迭代身份。血槽现在用独立外框、暗格与clip.reveal-x亮格，GaugeHeight选定包默认0.036，静线0.07。parseInstances的target/material须二选一，不能同时列入validateFields required。真实DrawNode会拒绝未Masking的outline/shadow容器，单纯headless属性检查不能证明绘制成功；outline是矩形边框，不能当字形描边使用。
+2026-09-13补充：当前公开instances.material可按同一选定包已解析Global/Stage Provide slot/resource挂载模板，解决BMS/mania及单双舞台的有限复用；不是任意条件或跨包scene继承。旧段落“未加条件实例”保留此前迭代身份。血槽现在用独立外框、暗格与clip.reveal-x亮格，GaugeHeight选定包默认0.036，静线0.07。parseInstances的target/material须二选一，不能同时列入validateFields required。真实DrawNode会拒绝未Masking的outline/shadow容器，单纯headless属性检查不能证明绘制成功；outline是矩形边框，不能当字形描边使用。
 
 material模板无slot子节点须在owner表面定位，不能仅覆盖Stage target后仍用整个playfield矩形，否则血槽会盖满音轨。显式target旧模板不改坐标语义。clip外包transform后必须将子节点挂到content mask，否则裁切只改变空容器；实际内置BMS/mania产品检查与图11共同取证。编辑含非ASCII字面量的测试文件须保持UTF-8，曾误改é为茅导致规范化路径冲突fixture失真，恢复原值后通过，不应放宽生产校验。
 
@@ -19,3 +19,8 @@ Global背景仍禁止Suppress；用透明PNG表达透明。旧声明未提供Glo
 simple新仪表各有独立边框，布局测试须逐字段检查对应面板，不能把所有字段都限定在第一块面板内。固定字大小必须覆盖640×480信息带，放大数字时检查标签/值/底框三者不相交。
 
 complex退役后历史ordinary import测试从SkinAuthoringSamples取归档，不再从Skins/Canonical取不存在的内置原件；不为测试重新发布complex。
+
+
+本轮信息区：MIN/MAX必须用BMS原生TimingProfile实际segments，排除STOP兼容控制点、SCROLL及未引用BPM定义。统计读取真实ScoreProcessor.Statistics，CB在Combo通知后才更新，须逐帧同步；EventStream聚合器重附着须保留SongInformation。Global材质模板只实例一次以免14K重复；作者信息区通过layout-surface继承，缺失不能猜1P坐标。
+
+完整信息区暴露旧字体预算错误：OsuSpriteText由共享FontStore取得字形，并非每个标签新分配2048图集。保留每glyph保守面积总和与原64MP/256MB上限，统一页对齐一次。OsuSpriteText隐藏的Truncate setter会抛异常；专用省略文本须像既有TruncatingSpriteText一样显式转SpriteText再设置，并在实际产品路径检查RuntimeFaults，不能只等ready超时。长曲名用作者声明text-overflow=ellipsis，不改绑定原文。

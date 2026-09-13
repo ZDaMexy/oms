@@ -48,6 +48,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             BmsSkinConfigurationLookups.BgaWidth,
             BmsSkinConfigurationLookups.BgaHeight,
             BmsSkinConfigurationLookups.BgaVerticalPosition,
+            BmsSkinConfigurationLookups.BgaInformationHeight,
             BmsSkinConfigurationLookups.KeyAreaHeight,
             BmsSkinConfigurationLookups.GaugeHeight,
             BmsSkinConfigurationLookups.ScratchKeyWidth,

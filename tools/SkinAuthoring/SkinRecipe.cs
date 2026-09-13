@@ -325,7 +325,7 @@ namespace SkinAuthoring
             }
 
             bool dark = role == "accent";
-            int bottom = dark ? h * 3 / 5 : h * 4 / 5;
+            int bottom = dark ? h * 13 / 25 : h * 7 / 10;
             // Matching rails meet across adjacent files; the short keys retain a complete socket and pedestal.
             if (y < 2 || y >= h - 2) return new Rgba32(9, 14, 20);
             if (y < 4 || y >= h - 5) return new Rgba32(162, 178, 188);
@@ -424,7 +424,7 @@ namespace SkinAuthoring
                     .AppendLine("NormalLaneWidth: 1").AppendLine("ScratchLaneWidth: 1.5").AppendLine("ScratchLaneSpacing: 0.12")
                     .AppendLine($"LongNoteBodyWidth: {(profile.Complex ? "0.65" : "0.60")}").AppendLine("BarLineHeight: 2");
                 if (profile.CompactLayout)
-                    ini.AppendLine("KeyAreaHeight: 0.12").AppendLine("ScratchKeyWidth: 2").AppendLine("GaugeHeight: 0.07").AppendLine("BgaWidth: 0.60").AppendLine("BgaHeight: 0.76").AppendLine("BgaVerticalPosition: 0.45");
+                    ini.AppendLine("KeyAreaHeight: 0.12").AppendLine("ScratchKeyWidth: 2").AppendLine("GaugeHeight: 0.07").AppendLine("BgaWidth: 0.60").AppendLine("BgaHeight: 0.76").AppendLine("BgaVerticalPosition: 0.45").AppendLine("BgaInformationHeight: 0.18");
                 IEnumerable<string> lanes = keys == 14 ? new[] { "S" }.Concat(Enumerable.Range(1, 14).Select(n => n.ToString())).Append("S2")
                     : keys == 9 ? Enumerable.Range(0, 9).Select(n => n.ToString()) : new[] { "S" }.Concat(Enumerable.Range(1, keys).Select(n => n.ToString()));
                 foreach (string lane in lanes)
@@ -753,13 +753,20 @@ namespace SkinAuthoring
                     hudElement("still.hud.progress-track", "sprite", new() { ["y"] = 0.94, ["width"] = 1, ["height"] = 0.025, ["colour"] = "#263444ff" }),
                     hudElement("still.hud.progress", "sprite", new() { ["y"] = 0.94, ["width"] = 0, ["height"] = 0.025, ["colour"] = "#86d9e7ff" }),
                 };
-                children.Add(new { id = "still.hud", type = "container", target = new { kind = "global" }, blend = "inherit", properties = new { }, effects = Array.Empty<object>(), children = information });
+                // One exact global material selects each ruleset's information layout, including dual-stage play.
+                // Children of the selected template share its owned HUD area unless they name a published region.
+                var maniaInformation = information.Cast<Dictionary<string, object>>().ToArray();
+                foreach (var node in maniaInformation)
+                    node.Remove("slot");
+                templates.Add(new { id = "still.mania-information-style", root = stageTemplateNode("still.hud", "container", new(), maniaInformation.Cast<object>().ToArray(), slot: "hud.text") });
+                instances.Add(new { id = "still.mania-information", template = "still.mania-information-style", material = new { slot = "hud.text", resource = "mania/hud" } });
                 foreach ((string target, string property, string source) in new[]
                          {
                              ("score", "text", "score.value"), ("accuracy", "text", "score.accuracy"),
                              ("bpm", "text", "timing.bpm"), ("progress", "width", "timing.progress"),
                          })
                     bindings.Add(new { id = "still.bind." + target, target = "still.hud." + target, property, source });
+                addBmsInformation(templates, instances, bindings);
             }
             if (profile.Complex)
             {
@@ -831,6 +838,73 @@ namespace SkinAuthoring
             File.WriteAllText(Path.Combine(root, GameplaySkinSceneContracts.SCENE_FILE_NAME), JsonSerializer.Serialize(scene, json_options).Replace("\r\n", "\n", StringComparison.Ordinal) + "\n", utf8);
             if (profile.Complex)
                 File.WriteAllText(Path.Combine(root, GameplaySkinSceneContracts.SCRIPT_FILE_NAME), script(), utf8);
+        }
+
+        private static void addBmsInformation(List<object> templates, List<object> instances, List<object> bindings)
+        {
+            const string ink = "#eef7ffff";
+            const string muted = "#a7bbcaff";
+            const string cyan = "#86d9e7ff";
+            object text(string name, string value, double x, double y, double width, double height, int size, string colour = ink, string alignment = "left", string? source = null, string? format = null)
+            {
+                string id = "still.bms-hud." + name;
+                if (source != null)
+                    bindings.Add(new { id = "still.bms-bind." + name, target = id, property = "text", source });
+                var properties = new Dictionary<string, object>
+                {
+                    ["text"] = value, ["x"] = x, ["y"] = y, ["width"] = width, ["height"] = height,
+                    ["font-size"] = size, ["colour"] = colour, ["alignment"] = alignment,
+                };
+                if (format != null) properties["format"] = format;
+                if (source?.StartsWith("song.", StringComparison.Ordinal) == true)
+                    properties["text-overflow"] = "ellipsis";
+                return stageTemplateNode(id, "text", properties);
+            }
+            object region(string name, params object[] content)
+                => stageTemplateNode("still.bms-hud." + name, "clip", new()
+                {
+                    ["layout-surface"] = "information." + name, ["clip-mode"] = "bounds",
+                }, new[] { stageTemplateNode("still.bms-hud." + name + ".panel", "sprite", new(), resource: "texture.instrument") }.Concat(content).ToArray());
+
+            var judgements = new List<object>();
+            string[] names = { "perfect", "great", "good", "meh", "miss", "ok", "combo-breaks" };
+            string[] labels = { "PG", "GR", "GD", "BD", "PR", "EP", "CB" };
+            string[] colours = { cyan, "#f3dd88ff", "#c4e789ff", "#e9aa77ff", "#ed8290ff", muted, ink };
+            for (int i = 0; i < names.Length; i++)
+            {
+                double y = 0.065 + i * 0.125;
+                string source = i == 6 ? "combo.breaks" : "judgement.count." + names[i];
+                judgements.Add(text("count-" + names[i] + "-label", labels[i], 0.07, y, 0.23, 0.12, 12, colours[i]));
+                judgements.Add(text("count-" + names[i], "0", 0.32, y, 0.59, 0.12, 12, ink, "right", source));
+            }
+            var root = stageTemplateNode("still.bms-hud", "container", new(), new[]
+            {
+                region("song",
+                    text("title", "", 0.035, 0.07, 0.62, 0.47, 24, source: "song.title"),
+                    text("artist", "", 0.035, 0.60, 0.62, 0.26, 13, muted, source: "song.artist"),
+                    text("difficulty", "", 0.67, 0.12, 0.19, 0.32, 14, cyan, "right", "song.difficulty"),
+                    text("level-label", "LEVEL", 0.69, 0.62, 0.09, 0.24, 10, muted),
+                    text("level", "", 0.79, 0.55, 0.07, 0.31, 18, ink, "right", "song.level")),
+                region("judgements", judgements.ToArray()),
+                region("tempo",
+                    text("bpm-min-label", "MIN", 0.04, 0.17, 0.23, 0.18, 10, muted, "centre"),
+                    text("bpm-label", "BPM", 0.30, 0.10, 0.40, 0.18, 12, cyan, "centre"),
+                    text("bpm-max-label", "MAX", 0.73, 0.17, 0.23, 0.18, 10, muted, "centre"),
+                    text("bpm-min", "0", 0.04, 0.40, 0.23, 0.25, 18, muted, "centre", "timing.bpm-min"),
+                    text("bpm", "0", 0.30, 0.30, 0.40, 0.37, 30, cyan, "centre", "timing.bpm"),
+                    text("bpm-max", "0", 0.73, 0.40, 0.23, 0.25, 18, muted, "centre", "timing.bpm-max"),
+                    text("accuracy-label", "RATE", 0.30, 0.77, 0.14, 0.15, 10, muted),
+                    text("accuracy", "100.00%", 0.46, 0.73, 0.26, 0.20, 14, ink, "right", "score.accuracy")),
+                region("player",
+                    text("score-label", "SCORE", 0.06, 0.12, 0.50, 0.18, 11, muted),
+                    text("score", "0", 0.06, 0.38, 0.50, 0.42, 28, source: "score.value"),
+                    text("hispeed-label", "HI-SPEED", 0.62, 0.12, 0.31, 0.18, 11, muted, "right"),
+                    text("hispeed", "0.00", 0.62, 0.38, 0.31, 0.42, 28, cyan, "right", "scroll.speed", "fixed-2"),
+                    stageTemplateNode("still.bms-hud.progress", "sprite", new() { ["y"] = 0.94, ["width"] = 0, ["height"] = 0.025, ["colour"] = cyan }, resource: "texture.white")),
+            }, slot: "hud.text");
+            bindings.Add(new { id = "still.bms-bind.progress", target = "still.bms-hud.progress", property = "width", source = "timing.progress" });
+            templates.Add(new { id = "still.bms-information-style", root });
+            instances.Add(new { id = "still.bms-information", template = "still.bms-information-style", material = new { slot = "hud.text", resource = "bms/hud" } });
         }
 
         private static object sprite(string id, string resource, Dictionary<string, object> properties)

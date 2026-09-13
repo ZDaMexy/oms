@@ -42,7 +42,7 @@ namespace osu.Game.Skinning.Gameplay
         public const int EFFECT_SURFACES_PER_EFFECT = 3;
         public const long MAX_RUNTIME_EFFECT_SURFACE_PIXELS = 128 * 1024 * 1024;
         public const long MAX_RUNTIME_EFFECT_SURFACE_BYTES = MAX_RUNTIME_EFFECT_SURFACE_PIXELS * 4;
-        public const int MAX_RUNTIME_TEXT_GLYPHS = 4096;
+        public const int MAX_RUNTIME_TEXT_GLYPHS = 8192;
         public const int TEXT_ATLAS_PAGE_SIZE = 2048;
         public const int TEXT_GLYPH_PADDING_PIXELS = 8;
         public const long MAX_RUNTIME_TEXT_GLYPH_PIXELS = 64 * 1024 * 1024;
@@ -687,6 +687,20 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBindingSource.TimingBeat => GameplaySkinSceneStateFamily.Timing,
             GameplaySkinSceneBindingSource.TimingMeasure => GameplaySkinSceneStateFamily.Timing,
             GameplaySkinSceneBindingSource.TimingBpm => GameplaySkinSceneStateFamily.Timing,
+            GameplaySkinSceneBindingSource.SongTitle => GameplaySkinSceneStateFamily.Layout,
+            GameplaySkinSceneBindingSource.SongArtist => GameplaySkinSceneStateFamily.Layout,
+            GameplaySkinSceneBindingSource.SongDifficulty => GameplaySkinSceneStateFamily.Layout,
+            GameplaySkinSceneBindingSource.SongLevel => GameplaySkinSceneStateFamily.Layout,
+            GameplaySkinSceneBindingSource.TimingBpmMinimum => GameplaySkinSceneStateFamily.Layout,
+            GameplaySkinSceneBindingSource.TimingBpmMaximum => GameplaySkinSceneStateFamily.Layout,
+            GameplaySkinSceneBindingSource.ScrollSpeed => GameplaySkinSceneStateFamily.Timing,
+            GameplaySkinSceneBindingSource.JudgementCountPerfect => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.JudgementCountGreat => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.JudgementCountGood => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.JudgementCountOk => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.JudgementCountMeh => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.JudgementCountMiss => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.ComboBreaks => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.TimingProgress => GameplaySkinSceneStateFamily.Timing,
             GameplaySkinSceneBindingSource.BgaContentState => GameplaySkinSceneStateFamily.Bga,
             _ => throw new InvalidOperationException(),
@@ -984,7 +998,10 @@ namespace osu.Game.Skinning.Gameplay
                 long preparedEffectCount = checked(reservation.Effects + HudPlan.ReservedCaptureSurfaces);
                 long preparedEffectSurfacePixels = checked(reservation.EffectSurfacePixels + HudPlan.ReservedCaptureSurfacePixels);
                 long reservedTextGlyphs = reservation.TextGlyphs;
-                long reservedTextGlyphPixels = reservation.TextGlyphPixels;
+                // SpriteText instances resolve the shared FontStore; atlas pages belong to that store, not to
+                // each label. Keep the conservative per-glyph sum and round the scene's total once.
+                long atlasPagePixels = (long)GameplaySkinPreparedSceneBudgets.TEXT_ATLAS_PAGE_SIZE * GameplaySkinPreparedSceneBudgets.TEXT_ATLAS_PAGE_SIZE;
+                long reservedTextGlyphPixels = checked((reservation.TextGlyphPixels + atlasPagePixels - 1) / atlasPagePixels * atlasPagePixels);
 
                 if (preparedNodeCount > GameplaySkinPreparedSceneBudgets.MAX_PREPARED_NODES
                     || preparedVisuals > GameplaySkinPreparedSceneBudgets.MAX_RUNTIME_INSTANCES
@@ -1344,12 +1361,7 @@ namespace osu.Game.Skinning.Gameplay
             long cell = checked((long)Math.Ceiling(fontSize * pixelScale) + GameplaySkinPreparedSceneBudgets.TEXT_GLYPH_PADDING_PIXELS * 2);
             // Four-times cell area covers atlas padding, shelf fragmentation and glyph bearings; byte cost is
             // accounted separately as RGBA in ReservedTextGlyphBytes.
-            long cells = checked(glyphs * cell * cell * 4);
-            // Reserve at least one complete atlas page for every independently rendered text visual. This is
-            // intentionally conservative and keeps framework page padding/allocation inside the hard admission cap.
-            long atlasPage = (long)GameplaySkinPreparedSceneBudgets.TEXT_ATLAS_PAGE_SIZE
-                             * GameplaySkinPreparedSceneBudgets.TEXT_ATLAS_PAGE_SIZE;
-            return Math.Max(cells, atlasPage);
+            return checked(glyphs * cell * cell * 4);
         }
 
         private static long countReservedTextGlyphs(
@@ -1414,7 +1426,15 @@ namespace osu.Game.Skinning.Gameplay
             foreach (GameplaySkinSceneBinding binding in document.Bindings)
             {
                 if (binding.Property == GameplaySkinSceneProperty.Text && reservations.ContainsKey(binding.TargetNodeId))
-                    reserve(binding.TargetNodeId, GameplaySkinPreparedSceneBudgets.MAX_DYNAMIC_TEXT_GLYPHS_PER_NODE);
+                    reserve(binding.TargetNodeId, binding.Source is GameplaySkinSceneBindingSource.SongTitle or GameplaySkinSceneBindingSource.SongArtist
+                        or GameplaySkinSceneBindingSource.SongDifficulty or GameplaySkinSceneBindingSource.SongLevel
+                        ? GameplaySkinSongInformation.MAX_TEXT_LENGTH
+                        : binding.Source is GameplaySkinSceneBindingSource.JudgementCountPerfect or GameplaySkinSceneBindingSource.JudgementCountGreat
+                            or GameplaySkinSceneBindingSource.JudgementCountGood or GameplaySkinSceneBindingSource.JudgementCountOk
+                            or GameplaySkinSceneBindingSource.JudgementCountMeh or GameplaySkinSceneBindingSource.JudgementCountMiss
+                            or GameplaySkinSceneBindingSource.ComboBreaks
+                            ? 10
+                            : GameplaySkinPreparedSceneBudgets.MAX_DYNAMIC_TEXT_GLYPHS_PER_NODE);
             }
 
             return new ReadOnlyDictionary<string, int>(reservations);
@@ -1614,9 +1634,12 @@ namespace osu.Game.Skinning.Gameplay
                         foreach (GameplaySkinResolvedMaterialEntry entry in ResolveMaterialTemplateEntries(
                                      instance, materialSet, selectedDocument.Identity.ContentRevision))
                         {
-                            var target = new GameplaySkinSceneTarget(GameplaySkinSceneTargetKind.Stage,
-                                entry.Target.GroupId!.Value, entry.Target.GroupLogicalIndex);
-                            roots.Add(prepareNode(template.Root, target, $"{instance.Id}/{entry.Target.GroupLogicalIndex}/",
+                            bool global = entry.Target.Kind == GameplaySkinResolvedMaterialTargetKind.Global;
+                            var target = global
+                                ? new GameplaySkinSceneTarget(GameplaySkinSceneTargetKind.Global, null, null)
+                                : new GameplaySkinSceneTarget(GameplaySkinSceneTargetKind.Stage, entry.Target.GroupId!.Value, entry.Target.GroupLogicalIndex);
+                            string prefix = global ? $"{instance.Id}/global/" : $"{instance.Id}/{entry.Target.GroupLogicalIndex}/";
+                            roots.Add(prepareNode(template.Root, target, prefix,
                                 snapshot, materialSet, selectedDocument, resourcesById, programmedNodeIds, ref preparedNodeCount,
                                 null, null, false, cancellationToken, useOwnedSurface: true));
                         }
@@ -1665,7 +1688,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneInstance instance, GameplaySkinResolvedMaterialSet materialSet, string documentRevision)
             => materialSet.Entries.Where(entry =>
                 entry.Slot.Id == instance.MaterialSlot
-                && entry.Target.Kind == GameplaySkinResolvedMaterialTargetKind.Stage
+                && entry.Target.Kind is GameplaySkinResolvedMaterialTargetKind.Stage or GameplaySkinResolvedMaterialTargetKind.Global
                 && entry.State == GameplaySkinResolvedMaterialState.Provide
                 && entry.Source.IsSelectedDocumentDeclaration
                 && entry.Source.ContentRevision == documentRevision
@@ -1686,7 +1709,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinResolvedMaterialKey? inheritedOwner,
             bool parentAllowsLayerDispatch,
             CancellationToken cancellationToken,
-            bool useOwnedSurface = false)
+            bool useOwnedSurface = false,
+            GameplaySkinLayoutRect? inheritedInformationSurface = null)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -1764,6 +1788,19 @@ namespace osu.Game.Skinning.Gameplay
             {
                 throw fail(GameplaySkinSceneDiagnosticCode.InvalidReference);
             }
+            GameplaySkinLayoutRect? informationSurface = inheritedInformationSurface;
+            if (node.Properties.TryGetValue("layout-surface", out GameplaySkinScenePropertyValue? surfaceProperty))
+            {
+                if (owningSlotKey == null || !ReferenceEquals(owningSlotKey.Slot, GameplaySkinSlotCatalog.TextHud))
+                    throw fail(GameplaySkinSceneDiagnosticCode.InvalidReference);
+                GameplaySkinLayoutSurface? surface = snapshot.Surfaces.FirstOrDefault(candidate => candidate.Id == surfaceProperty.StringValue);
+                if (surface == null)
+                    throw fail(GameplaySkinSceneDiagnosticCode.UnknownTarget);
+                informationSurface = surface.Rect;
+            }
+            if (informationSurface.HasValue)
+                rect = informationSurface.Value;
+
             GameplaySkinSceneLayer layer = slot == null
                 ? parentLayer ?? GameplaySkinSceneLayer.Underlay
                 : GameplaySkinSceneHostPolicy.LayerFor(slot);
@@ -1825,7 +1862,8 @@ namespace osu.Game.Skinning.Gameplay
                     owningSlotKey,
                     allowsLayerDispatch,
                     cancellationToken,
-                    useOwnedSurface));
+                    useOwnedSurface,
+                    informationSurface));
             }
 
             return new GameplaySkinPreparedSceneNode(

@@ -52,6 +52,7 @@ namespace osu.Game.Skinning.Gameplay
         {
             "layout.stage", "layout.group", "layout.lane", "input.pressed", "object.state", "judgement.result", "judgement.offset",
             "score.value", "score.accuracy", "combo.value", "gauge.value", "timing.beat", "timing.measure", "timing.bpm", "timing.progress", "bga.content-state",
+            "song.title", "song.artist", "song.difficulty", "song.level", "timing.bpm-min", "timing.bpm-max", "scroll.speed", "judgement.count.perfect", "judgement.count.great", "judgement.count.good", "judgement.count.ok", "judgement.count.meh", "judgement.count.miss", "combo.breaks",
         };
 
         private static readonly IReadOnlyDictionary<string, HashSet<string>> variant_source_keys =
@@ -349,7 +350,7 @@ namespace osu.Game.Skinning.Gameplay
                 addNodeFanout(child, fanout);
         }
 
-        private static GameplaySkinSceneNode? parseNode(JObject node, DecodeContext context, int depth, bool isTemplate = false)
+        private static GameplaySkinSceneNode? parseNode(JObject node, DecodeContext context, int depth, bool isTemplate = false, string? inheritedSlot = null)
         {
             context.TotalNodeCount++;
 
@@ -396,6 +397,8 @@ namespace osu.Game.Skinning.Gameplay
             IReadOnlyDictionary<string, GameplaySkinScenePropertyValue> properties = node["properties"] is JObject propertiesObject
                 ? parseNodeProperties(propertiesObject, type, context)
                 : missingOrInvalidProperties(node, "properties", context);
+            if (properties.ContainsKey("layout-surface") && (slotId ?? inheritedSlot) != "hud.text")
+                context.Add(GameplaySkinSceneDiagnosticCode.InvalidReference);
             List<GameplaySkinSceneEffect> effects = parseEffects(node["effects"], context);
             var children = new List<GameplaySkinSceneNode>();
 
@@ -412,7 +415,7 @@ namespace osu.Game.Skinning.Gameplay
                         continue;
                     }
 
-                    GameplaySkinSceneNode? child = parseNode(childObject, context, depth + 1, isTemplate);
+                    GameplaySkinSceneNode? child = parseNode(childObject, context, depth + 1, isTemplate, slotId ?? inheritedSlot);
 
                     if (child != null)
                         children.Add(child);
@@ -564,6 +567,9 @@ namespace osu.Game.Skinning.Gameplay
                 {
                     context.Add(GameplaySkinSceneDiagnosticCode.UnknownProperty);
                 }
+
+                if (property is "layout-surface" or "format" or "text-overflow")
+                    context.Add(GameplaySkinSceneDiagnosticCode.UnknownProperty);
 
                 if (type == GameplaySkinSceneTrackType.Frame
                     && target != null
@@ -725,7 +731,7 @@ namespace osu.Game.Skinning.Gameplay
 
                                 string? target = getStableId(assignmentObject, "target", context);
                                 string? property = getString(assignmentObject, "property", context);
-                                if (property == "format")
+                                if (property is "format" or "layout-surface" or "text-overflow")
                                     context.Add(GameplaySkinSceneDiagnosticCode.UnknownProperty);
                                 GameplaySkinScenePropertyValue? value = null;
 
@@ -1048,7 +1054,7 @@ namespace osu.Game.Skinning.Gameplay
                     string? slot = getString(material, "slot", context);
                     string? resource = getString(material, "resource", context);
                     if (!GameplaySkinSlotCatalog.TryGet(slot, out GameplaySkinSlotDescriptor? descriptor)
-                        || descriptor == null || (descriptor.AllowedScopes & GameplaySkinSlotScope.Stage) == 0)
+                        || descriptor == null || (descriptor.AllowedScopes & (GameplaySkinSlotScope.Stage | GameplaySkinSlotScope.Global)) == 0)
                         context.Add(GameplaySkinSceneDiagnosticCode.UnknownTarget);
                     if (resource != null)
                     {
@@ -1196,7 +1202,9 @@ namespace osu.Game.Skinning.Gameplay
                 || property == "alignment" && value.StringValue is not ("left" or "centre" or "right")
                 || property == "mask-mode" && value.StringValue != "ellipse"
                 || property == "clip-mode" && value.StringValue is not ("bounds" or "rounded")
-                || property == "format" && value.StringValue is not ("percent" or "uppercase"))
+                || property == "format" && value.StringValue is not ("percent" or "uppercase" or "fixed-2")
+                || property == "text-overflow" && value.StringValue != "ellipsis"
+                || property == "layout-surface" && value.StringValue is not ("information.song" or "information.judgements" or "information.tempo" or "information.player"))
             {
                 context.Add(GameplaySkinSceneDiagnosticCode.InvalidPropertyValue);
                 return null;
@@ -1318,7 +1326,8 @@ namespace osu.Game.Skinning.Gameplay
                 return true;
 
             bool sourceIsNumber = source is "judgement.offset" or "score.value" or "score.accuracy" or "combo.value" or "gauge.value"
-                or "timing.beat" or "timing.measure" or "timing.bpm" or "timing.progress";
+                or "timing.beat" or "timing.measure" or "timing.bpm" or "timing.progress"
+                or "timing.bpm-min" or "timing.bpm-max" or "scroll.speed" or "judgement.count.perfect" or "judgement.count.great" or "judgement.count.good" or "judgement.count.ok" or "judgement.count.meh" or "judgement.count.miss" or "combo.breaks";
             bool sourceIsBoolean = source == "input.pressed";
             return sourceIsNumber && number_properties.Contains(property)
                    || sourceIsBoolean && boolean_properties.Contains(property);
@@ -1327,7 +1336,7 @@ namespace osu.Game.Skinning.Gameplay
         private static bool isAllowedNodeProperty(GameplaySkinSceneNodeType type, string property)
         {
             if (property is "opacity" or "visible" or "x" or "y" or "width" or "height" or "scale-x" or "scale-y"
-                or "rotation" or "z" or "anchor" or "origin" or "colour")
+                or "rotation" or "z" or "anchor" or "origin" or "colour" or "layout-surface")
             {
                 return true;
             }
@@ -1335,7 +1344,7 @@ namespace osu.Game.Skinning.Gameplay
             return type switch
             {
                 GameplaySkinSceneNodeType.Sprite => property == "fill-mode",
-                GameplaySkinSceneNodeType.Text => property is "text" or "font-size" or "alignment" or "format",
+                GameplaySkinSceneNodeType.Text => property is "text" or "font-size" or "alignment" or "format" or "text-overflow",
                 GameplaySkinSceneNodeType.Mask => property == "mask-mode",
                 GameplaySkinSceneNodeType.Clip => property is "clip-mode" or "corner-radius" or "reveal-x",
                 _ => false,

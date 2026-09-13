@@ -107,7 +107,8 @@ id 与非负整数 index 必须同时匹配布局。BMS 舞台/组为 `bms.group
 | `mask-mode` | ellipse | mask |
 | `clip-mode/corner-radius` | bounds或rounded / 0..256 | clip |
 | `reveal-x` | 0..1；从左揭露固定宽度内容，0仍保留作者的独立底槽 | clip |
-| `format` | percent / uppercase；静态声明，不接受绑定或状态赋值 | text |
+| `format` | percent / uppercase / fixed-2；静态声明，不接受绑定、动画或状态赋值 | text |
+| `layout-surface` | information.song / information.judgements / information.tempo / information.player；静态布局区域 | hud.text 所有者及其子树 |
 
 container 不增加专属属性。blend 必填，允许 inherit/alpha/additive/multiply/screen。零进度使用定宽容器里的子图片 width=0；零缩放在绘图矩阵中会夹到极小值，可能留下细线。实际字高需在最小窗口核对。
 
@@ -123,6 +124,7 @@ effects 每项必填 id/type/properties。blur 允许 radius；glow 允许 radiu
 | PlayfieldWidth/PlayfieldHeight | 下落区域整体宽高，屏幕比例 |
 | KeyAreaHeight | 判定线以下独立键盘区高度，安全区高度比例 0..0.18；默认 0，保留原判定区内的键图位置 |
 | ScratchKeyWidth | 独立键盘区中转盘视觉宽度相对于scratch音轨的倍率，1..4，默认1；向普通键之外扩展，受安全区与BGA限制，不改变音轨 |
+| BgaInformationHeight | BGA上下信息区域总高度，安全区高度比例0..0.30，默认0；大于0才发布四个information区域 |
 | GaugeHeight | 血槽区域占安全区高度的比例，0.02..0.12，默认0.036；与独立键区、信息区共同避让 |
 | BgaWidth/BgaHeight | BGA 最大框的安全区宽高比例 0.01..1；指定尺寸后在可用侧区按 4:3 适配。缺省宽为 0.225（14K 为 0.13），高上限 0.30 |
 | BgaVerticalPosition | 单侧单窗在剩余竖直空间中的位置 0..1，0 顶部、0.5 居中、1 底部；14K 上下窗在各半区对称向中间定位，窄屏底窗固定；默认 0 |
@@ -134,7 +136,7 @@ effects 每项必填 id/type/properties。blur 允许 radius；glow 允许 radiu
 
 BMS 不接受 mania 的 HitPosition、逐列 ColumnWidth 或自创 HitTargetVerticalOffset。例如略减新作品每个 BMS 块的 PlayfieldWidth，检查后比较5K/7K四样式与14K，不能只改第一块就当作全键数完成。
 
-BMS 在底部保留 8% 的独立信息区；落键区、独立键盘区、血条与 BGA 共同避让，空间不足时统一缩短落键区。BGA 根据 1P/2P 放在相应旁侧，14K 保留两侧上下四窗，侧边不足时使用底部小窗。KeyAreaHeight、ScratchKeyWidth和三个BGA参数只读取当前选定包的声明，缺项使用表中默认值，不继承默认静线的作者布局。参数只改变显示区域，不改变视频内容、播放时钟或判定。非法字段单独回退并记录诊断。独立转盘键图按原图比例居中；旧键图继续随 Lift 与滚动方向移动，独立控制台保持在落键区下方。
+BMS 在底部保留 8% 的独立信息区；落键区、独立键盘区、血条与 BGA 共同避让，空间不足时统一缩短落键区。BGA 根据 1P/2P 放在相应旁侧，14K 保留两侧上下四窗，侧边不足时使用底部小窗。KeyAreaHeight、ScratchKeyWidth、GaugeHeight、BgaInformationHeight和三个BGA参数只读取当前选定包的声明，缺项使用表中默认值，不继承默认静线的作者布局。参数只改变显示区域，不改变视频内容、播放时钟或判定。非法字段单独回退并记录诊断。独立转盘键图按原图比例居中；旧键图继续随 Lift 与滚动方向移动，独立控制台保持在落键区下方。
 
 纯纹理 `hud.gauge` 资源是一张完整满槽图：引擎固定显示其25%亮度暗槽，再按真实血量从左揭露原色图，不缩放图内格距。零血量仍显示全长暗槽；作者可在文件里绘制分段和边框。有scene节点的血条保持作者自己的绑定表现。
 
@@ -225,10 +227,17 @@ bindings每项必填id/target/property/source，例如：
 | score.accuracy | 0..1；text为两位小数百分比 | 数值或text |
 | combo.value / gauge.value | 连击 / 归一化能量 | 数值或text |
 | timing.beat/timing.measure/timing.bpm | 拍、小节索引、BPM | 数值或text |
+| song.title / song.artist / song.difficulty / song.level | 当前曲名、艺术家、难度类别或名称、原始等级文字；每项最多256个UTF-16单元 | text |
+| timing.bpm-min / timing.bpm-max | 当前谱面实际音乐BPM范围，不含滚速倍率或STOP兼容点 | 数值或text |
+| scroll.speed | 当前玩法已选滚速设置值，不是滚动倍率或绿数；未提供时0 | 数值或text |
+| judgement.count.perfect / great / good / ok / meh / miss | 计分器对应六档判定累计值 | 数值或text |
+| combo.breaks | 计分器断连统计 | 数值或text |
 | timing.progress | 可玩起止间0..1；text为整数百分比 | 数值或text |
 | bga.content-state | empty/ready/playing/paused/failed | text |
 
 字符串不能直接驱动数字或资源；换图用variants。数值限制在目标属性范围内，不修改玩法。首物件前进度0、末物件后1、零时长0；暂停保持、重试和跳转反映新位置。局部对象、轨道和组沿自身范围取值，不应由另一轨道的判定驱动。
+
+BMS统计映射是perfect→PG、great→GR、good→GD、meh→BD、miss→PR、ok→空POOR，combo.breaks为真正断连；mania的ok仍是其自身判定档位，不叫空POOR。统计从真实计分器读取，随撤销、回放跳转和重试恢复，不以judgement.hit自行累计。曲目信息在完整快照中携带，重附着和epoch替换保留；BMS难度来自原始DIFFICULTY类别，等级保留PLAYLEVEL字符串，缺失保持空，不冒用星级。MIN/MAX取实际音乐时间线，未使用的BPM定义不计入范围。BMS scroll.speed为当前NHS/FHS/CHS选中数值，mania为自身ScrollSpeed设置；该绑定不输出模式名称，不把不同玩法数值当作同一物理单位。
 
 没有当前判定或判定显示期结束时，judgement.result投影为miss，judgement.offset为0；这不代表玩家刚发生了一次失误。没有当前对象时object.state为scheduled，没有视频内容时bga.content-state为empty。记录击打发生时的历史应使用获准的真实判定事件，不能把持续显示的miss文字当作新事件。当前数值脚本的判定事件只提供偏差值，没有判定等级输入，也不能据offset为0推断失误。
 
@@ -276,9 +285,11 @@ templates每项必填id/root，root是完整节点；instances每项必填id/tem
 { "id": "my.gauge-stages", "template": "my.gauge-style", "material": { "slot": "hud.gauge", "resource": "bms/gauge" } }
 ```
 
-仅匹配当前选定包同一内容版本、Provide 状态的 Stage 素材及精确资源名。模板根 slot 必须相同；整棵子树按匹配到的实际舞台定位，子元素在根slot区域内排版，每个实例独立读取其舞台事实。显式target模板仍保留原有目标矩形规则。没有匹配时不挂载，仍检查模板语法与资源；不能借用默认包的 scene 或资源，也不支持任意条件表达式。实际展开数量继续受既有预算限制。
+仅匹配当前选定包同一内容版本、Provide状态的Global或Stage素材及精确资源名。模板根slot必须相同；Global只生成一个全局实例，Stage按实际舞台各生成实例。整棵子树按匹配目标定位，子元素默认在根slot区域内排版，局部实例使用其实际舞台事实，全局统计仍来自同一计分器。显式target模板仍保留原有目标矩形规则。没有匹配时不挂载，仍检查模板语法与资源；不能借用默认包的 scene 或资源，也不支持任意条件表达式。实际展开数量继续受既有预算限制。
 
-`format: "percent"`将数值转为整数百分比，适合`gauge.value`；准确率和进度保留原有专用文字格式。`uppercase`将文本转换为大写，格式化后仍执行文字长度限制。`reveal-x`可绑定数值，不会压缩格距；固定外框和暗槽放在clip之外。`GaugeHeight`与独立键区参数一样只读取选定包，缺项使用默认值。
+`format: "percent"`将数值转为整数百分比，适合`gauge.value`；准确率和进度保留原有专用文字格式。`fixed-2`将数值固定显示两位小数（如速度2.50）；`uppercase`将文本转换为大写，格式化后仍执行文字长度限制。`reveal-x`可绑定数值，不会压缩格距；固定外框和暗槽放在clip之外。`GaugeHeight`与独立键区参数一样只读取选定包，缺项使用默认值。
+
+`layout-surface`只选择上述四个已发布的信息矩形，不能填写任意surface ID；只允许hud.text节点或其无slot子树。未声明区域的孩子继承父区域，显式声明可重新选择另一信息区；区域未发布时准备失败，不能自行退回全屏。绑定、动画、状态机和脚本均不能修改它。BMS `BgaInformationHeight`大于0时，由同一布局器为曲名保留BGA上方区域，为判定统计与MIN/BPM/MAX保留下方区域，为Score/HiSpeed保留控制区下方区域；这些是全局区域，14K不应按Stage重复生成整套信息。默认0保留旧布局。
 
 实例target覆盖模板整棵子树目标。动画、绑定、状态机和脚本仍引用模板源节点id，作用到它所有实际实例，不引用内部clone名。展开和真实对象实例均计预算。练习用ref.status-template的一个全局实例显示状态：外层ref.status-owner拥有hud.text，内层无slot的global文字ref.status与顶部面板使用同一安全屏幕位置；状态机继续写ref.status。直接把hud.text放在文字自身上会使用既有信息区域，不能据其y值推断全屏顶部位置。需要独立控制的全局图形应使用不同源节点。
 
@@ -358,8 +369,8 @@ event-value是单一数值：输入强度、对象进度、判定偏差毫秒、
 | 源静态文字总字符 | 65536 |
 | 运行节点 / 效果实例 | 32768 / 8192 |
 | 效果表面像素 / 字节 | 128M / 512MiB |
-| 文字字形 / 像素 / 字节 | 4096 / 64M / 256MiB |
-| 单动态文字字形预留 / 每帧创建 | 384 / 256 |
+| 文字字形 / 像素 / 字节 | 8192 / 64M / 256MiB |
+| 单动态文字字形预留 / 每帧创建 | song元数据256、判定计数与断连10、其他384 / 256 |
 | 每目标专用表现 / 击打效果 | 256 / 16 |
 | 信息原生所有者 / 单槽所有者 | 64 / 32 |
 | 信息分区 / 残余分区 / 工厂实例 | 1280 / 1344 / 512 |
@@ -374,3 +385,6 @@ event-value是单一数值：输入强度、对象进度、判定偏差毫秒、
 最终按 [制作说明的实际核对](AUTHORING.md#每次作品更新后实际核对) 检查键数样式、单/双舞台、音符长条、信息视频、比例缩放、授权和暂停重试。设备、声音、延迟与长时间体验不能由预算或示例工具通过代签。
 
 开发证据：字段逐项核对当前GameplaySkinSceneCodec/Schema/PreparedScene/SceneRuntimeHost、GameplaySkinEventKind、GameplaySkinScriptCompiler/Program和公开目录。作者无需读取这些源码；套件中的完整作品、练习和本页即可查阅。
+
+
+文字节点可静态声明 `text-overflow: ellipsis`，按其作者容器宽度显示省略号，绑定字符串仍保留完整值；缺省维持原行为。该属性不能由轨道、绑定或状态修改。

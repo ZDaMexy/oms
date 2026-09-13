@@ -47,6 +47,8 @@ namespace osu.Game.Skinning.Gameplay
     {
         private readonly IGameplaySkinTimingProjection timingProjection;
         private readonly double firstHitTime;
+        private readonly GameplaySkinSongInformation? songInformation;
+        private readonly Func<double>? scrollSpeed;
         private readonly double lastHitTime;
         private readonly IGameplaySkinEventObjectSnapshotSource? objectSnapshotSource;
         private readonly Dictionary<GameplaySkinLaneId, GameplaySkinInputStateSnapshot> inputs;
@@ -100,13 +102,17 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinLayoutPublication publication,
             IBeatmap beatmap,
             IGameplaySkinTimingProjection? timingProjection,
-            IGameplaySkinEventObjectSnapshotSource? objectSnapshotSource)
+            IGameplaySkinEventObjectSnapshotSource? objectSnapshotSource,
+            GameplaySkinSongInformation? songInformation = null,
+            Func<double>? scrollSpeed = null)
         {
             Publication = publication ?? throw new ArgumentNullException(nameof(publication));
             ArgumentNullException.ThrowIfNull(beatmap);
             this.timingProjection = timingProjection ?? new GameplaySkinBeatmapTimingProjection(beatmap);
             (firstHitTime, lastHitTime) = beatmap.CalculatePlayableBounds();
             this.objectSnapshotSource = objectSnapshotSource;
+            this.songInformation = songInformation;
+            this.scrollSpeed = scrollSpeed;
 
             GameplaySkinEventStateSnapshot initial = publication.PreparedScene.InitialEventState;
             inputs = initial.Inputs.ToDictionary(input => input.LaneId);
@@ -500,6 +506,11 @@ namespace osu.Game.Skinning.Gameplay
                 previousScroll = timing.ScrollMultiplier;
             }
 
+            GameplaySkinJudgementStatistics previousStatistics = score.Statistics;
+            synchroniseScoreState();
+            if (previousStatistics != score.Statistics)
+                publish(time, GameplaySkinEventValue.Score(GameplaySkinEventKind.ScoreChanged, score));
+
             publishTiming(time);
 
             if (pendingReset == GameplaySkinEventResetReason.Unspecified)
@@ -516,6 +527,7 @@ namespace osu.Game.Skinning.Gameplay
         {
             GameplaySkinTimingStateSnapshot next = createTimingState(time);
             bool stoppedChanged = timingStopped != next.IsStopped;
+            bool speedChanged = timing.ScrollSpeed != next.ScrollSpeed;
             timing = next;
             long wholeBeat = (long)Math.Floor(timing.Beat);
 
@@ -525,7 +537,7 @@ namespace osu.Game.Skinning.Gameplay
                 previousBpm = timing.Bpm;
             }
 
-            if (!previousScroll.Equals(timing.ScrollMultiplier))
+            if (!previousScroll.Equals(timing.ScrollMultiplier) || speedChanged)
             {
                 publish(time, GameplaySkinEventValue.Timing(GameplaySkinEventKind.TimingScrollChanged, timing));
                 previousScroll = timing.ScrollMultiplier;
@@ -557,7 +569,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinTimingStateSnapshot sample = timingProjection.Sample(time);
             double duration = lastHitTime - firstHitTime;
             double progress = duration == 0 ? 0 : Math.Clamp((time - firstHitTime) / duration, 0, 1);
-            return new GameplaySkinTimingStateSnapshot(sample.Beat, sample.BarIndex, sample.Bpm, sample.IsStopped, sample.ScrollMultiplier, progress);
+            return new GameplaySkinTimingStateSnapshot(sample.Beat, sample.BarIndex, sample.Bpm, sample.IsStopped, sample.ScrollMultiplier, progress, scrollSpeed?.Invoke() ?? 0);
         }
 
         private void synchroniseActiveObjectsFromEngine(double gameplayTime)
@@ -716,7 +728,17 @@ namespace osu.Game.Skinning.Gameplay
             int maxCombo = Math.Max(combo, scoreProcessor?.HighestCombo.Value ?? score.MaxCombo);
             double accuracy = scoreProcessor?.Accuracy.Value ?? score.Accuracy;
             double gauge = healthProcessor?.Health.Value ?? score.Gauge;
-            score = new GameplaySkinScoreStateSnapshot(total, combo, maxCombo, accuracy, gauge);
+            GameplaySkinJudgementStatistics statistics = score.Statistics;
+            if (scoreProcessor != null)
+            {
+                IReadOnlyDictionary<HitResult, int> counts = scoreProcessor.Statistics;
+                statistics = new GameplaySkinJudgementStatistics(
+                    counts.GetValueOrDefault(HitResult.Perfect), counts.GetValueOrDefault(HitResult.Great),
+                    counts.GetValueOrDefault(HitResult.Good), counts.GetValueOrDefault(HitResult.Ok),
+                    counts.GetValueOrDefault(HitResult.Meh), counts.GetValueOrDefault(HitResult.Miss),
+                    counts.GetValueOrDefault(HitResult.ComboBreak));
+            }
+            score = new GameplaySkinScoreStateSnapshot(total, combo, maxCombo, accuracy, gauge, statistics);
         }
 
         private GameplaySkinEventStateSnapshot buildSnapshot(double gameplayTime)
@@ -727,7 +749,8 @@ namespace osu.Game.Skinning.Gameplay
                 currentJudgements(gameplayTime),
                 score,
                 timing,
-                bga.Values.OrderBy(viewport => viewport.ViewportIndex));
+                bga.Values.OrderBy(viewport => viewport.ViewportIndex),
+                songInformation);
 
         private IEnumerable<GameplaySkinCurrentJudgementStateSnapshot> currentJudgements(double gameplayTime)
         {

@@ -97,6 +97,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
         public float? BgaWidth { get; init; }
         public float? BgaHeight { get; init; }
         public float? BgaVerticalPosition { get; init; }
+        public float? BgaInformationHeight { get; init; }
         public float? HitTargetHeight { get; init; }
         public float? HitTargetBarHeight { get; init; }
         public float? HitTargetLineHeight { get; init; }
@@ -122,6 +123,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 BgaWidth = selectedLayoutValue(BmsSkinConfigurationLookups.BgaWidth),
                 BgaHeight = selectedLayoutValue(BmsSkinConfigurationLookups.BgaHeight),
                 BgaVerticalPosition = selectedLayoutValue(BmsSkinConfigurationLookups.BgaVerticalPosition),
+                BgaInformationHeight = selectedLayoutValue(BmsSkinConfigurationLookups.BgaInformationHeight),
                 HitTargetHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetHeight, keymode)?.Value,
                 HitTargetBarHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetBarHeight, keymode)?.Value,
                 HitTargetLineHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetLineHeight, keymode)?.Value,
@@ -235,7 +237,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
             var playfieldRect = GameplaySkinLayoutRect.Create(fieldX, safe.Top, fieldWidth, fieldHeight);
 
-            var bgaRects = solveBgaViewports(keymode, style, safe, playfieldRect, environment.AspectRatio, gaugeHeight + keyAreaHeight, configuration, diagnostics, ref fieldHeight);
+            float informationHeight = field(configuration.BgaInformationHeight, 0f, 0f, 0.30f, "bga-information-height", diagnostics) * safe.Height;
+            var bgaRects = solveBgaViewports(keymode, style, safe, playfieldRect, environment.AspectRatio, gaugeHeight + keyAreaHeight, configuration, diagnostics, informationHeight, ref fieldHeight);
 
             // A bottom BGA fallback may shorten the field. Recreate the complete snapshot geometry from that one result.
             playfieldRect = GameplaySkinLayoutRect.Create(fieldX, safe.Top, fieldWidth, fieldHeight);
@@ -372,6 +375,24 @@ namespace osu.Game.Rulesets.Bms.Skinning
             surfaces.AddRange(bgaRects.Select((rect, index) => new GameplaySkinLayoutSurface(
                 $"{BmsGameplayLayoutSurfaceIds.BgaPrefix}{index + 1}", rect, 300 + index, true, false)));
 
+            if (informationHeight > 0)
+            {
+                float headerHeight = informationHeight * 0.4f;
+                float footerHeight = informationHeight - headerHeight;
+                GameplaySkinLayoutRect primaryBga = bgaRects[0];
+                float bgaBottom = bgaRects.Max(rect => rect.Bottom);
+                surfaces.Add(new GameplaySkinLayoutSurface("information.song",
+                    GameplaySkinLayoutRect.Create(primaryBga.Left, primaryBga.Top - headerHeight, primaryBga.Width, headerHeight), 690, true, false));
+                // The same footer tracks the full BGA arrangement, including both rows in 14K.
+                float statisticsWidth = Math.Min(primaryBga.Width * 0.44f, safe.Width * 0.14f);
+                surfaces.Add(new GameplaySkinLayoutSurface("information.judgements",
+                    GameplaySkinLayoutRect.Create(primaryBga.Left, bgaBottom, statisticsWidth, footerHeight), 690, true, false));
+                surfaces.Add(new GameplaySkinLayoutSurface("information.tempo",
+                    GameplaySkinLayoutRect.Create(primaryBga.Left + statisticsWidth, bgaBottom, primaryBga.Width - statisticsWidth, footerHeight), 690, true, false));
+                surfaces.Add(new GameplaySkinLayoutSurface("information.player",
+                    GameplaySkinLayoutRect.Create(playfieldRect.Left, hudRect.Top, playfieldRect.Width, hudRect.Height), 690, true, false));
+            }
+
             ensureNonOverlap(playfieldRect, gaugeRect, bgaRects);
 
             GameplaySkinLayoutSnapshot neutral = GameplaySkinLayoutSnapshot.Create(
@@ -394,10 +415,14 @@ namespace osu.Game.Rulesets.Bms.Skinning
             float exactGaugeHeight,
             BmsGameplayLayoutConfiguration configuration,
             ICollection<GameplaySkinLayoutDiagnostic> diagnostics,
+            float informationHeight,
             ref float fieldHeight)
         {
-            float availableHeight = safe.Height * (1 - hud_height);
-            float availableBottom = safe.Top + availableHeight;
+            float headerHeight = informationHeight * 0.4f;
+            float footerHeight = informationHeight - headerHeight;
+            float availableTop = safe.Top + headerHeight;
+            float availableHeight = safe.Height * (1 - hud_height) - informationHeight;
+            float availableBottom = availableTop + availableHeight;
             float horizontalGap = surface_gap * safe.Width;
             float leftSpace = playfield.Left - safe.Left - horizontalGap;
             float rightSpace = safe.Right - playfield.Right - horizontalGap;
@@ -429,7 +454,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     float xLeft = safe.Left;
                     float xRight = safe.Right - width;
                     float verticalInset = Math.Max(0, availableHeight / 2 - height) * verticalPosition;
-                    float yTop = safe.Top + verticalInset;
+                    float yTop = availableTop + verticalInset;
                     float yBottom = availableBottom - height - verticalInset;
                     return new[]
                     {
@@ -442,7 +467,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
                 bool placeLeft = style == BmsPlayfieldStyle.P2 || leftSpace > rightSpace;
                 float x = placeLeft ? safe.Left : safe.Right - width;
-                return new[] { GameplaySkinLayoutRect.Create(x, safe.Top + (availableHeight - height) * verticalPosition, width, height) };
+                return new[] { GameplaySkinLayoutRect.Create(x, availableTop + (availableHeight - height) * verticalPosition, width, height) };
             }
 
             // Extremely narrow matrices cannot fit a useful side viewport. Reserve a deterministic bottom band and
@@ -454,7 +479,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             if (authoredSize)
                 bottomHeight = bottomWidth * aspectRatio / (4f / 3f);
             float gaugeAndGaps = exactGaugeHeight + surface_gap * safe.Height * 2;
-            fieldHeight = Math.Min(fieldHeight, availableHeight - bottomHeight - gaugeAndGaps);
+            fieldHeight = Math.Min(fieldHeight, safe.Height * (1 - hud_height) - footerHeight - bottomHeight - headerHeight - gaugeAndGaps);
             return new[]
             {
                 GameplaySkinLayoutRect.Create(safe.Left + (safe.Width - bottomWidth) / 2, availableBottom - bottomHeight, bottomWidth, bottomHeight),

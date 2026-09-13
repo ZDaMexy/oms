@@ -215,7 +215,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 IGameplaySkinTimingProjection? timingProjection = Beatmap is BmsBeatmap { TimingProfile: not null, ScrollProfile: not null } bmsBeatmap
                     ? new BmsGameplaySkinTimingProjection(bmsBeatmap)
                     : null;
-                GameplaySkinEventRuntime = new GameplaySkinEventRuntimeHost(publication, Beatmap, timingProjection, this);
+                GameplaySkinEventRuntime = new GameplaySkinEventRuntimeHost(publication, Beatmap, timingProjection, this, createSongInformation(), () => SelectedHiSpeed.Value);
                 dependencies.Cache(GameplaySkinEventRuntime);
                 dependencies.Cache(GameplaySkinEventRuntime.EventStream);
 
@@ -273,6 +273,34 @@ namespace osu.Game.Rulesets.Bms.UI
                 mountGameplaySkinSceneLayers(GameplaySkinSceneRuntime);
                 FrameStableComponents.Add(GameplaySkinSceneRuntime);
             }
+        }
+
+        private GameplaySkinSongInformation createSongInformation()
+        {
+            string difficulty = Beatmap.BeatmapInfo.DifficultyName;
+            string level = string.Empty;
+            double minimumBpm = Beatmap.ControlPointInfo.TimingPoints.Select(point => point.BPM).DefaultIfEmpty(TimingControlPoint.DEFAULT.BPM).Min();
+            double maximumBpm = Beatmap.ControlPointInfo.TimingPoints.Select(point => point.BPM).DefaultIfEmpty(TimingControlPoint.DEFAULT.BPM).Max();
+            if (Beatmap is BmsBeatmap bms)
+            {
+                difficulty = bms.BmsInfo.HeaderDifficulty switch
+                {
+                    1 => "BEGINNER",
+                    2 => "NORMAL",
+                    3 => "HYPER",
+                    4 => "ANOTHER",
+                    5 => "INSANE",
+                    _ => string.Empty,
+                };
+                level = bms.BmsInfo.PlayLevel;
+                if (bms.TimingProfile != null)
+                {
+                    minimumBpm = bms.TimingProfile.MinimumBpm;
+                    maximumBpm = bms.TimingProfile.MaximumBpm;
+                }
+            }
+            return new GameplaySkinSongInformation(Beatmap.BeatmapInfo.Metadata.Title, Beatmap.BeatmapInfo.Metadata.Artist,
+                difficulty, level, minimumBpm, maximumBpm);
         }
 
         private void mountGameplaySkinSceneLayers(GameplaySkinSceneRuntimeHost sceneRuntime)

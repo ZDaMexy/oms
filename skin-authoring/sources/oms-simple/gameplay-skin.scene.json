@@ -23,213 +23,6 @@
         "effects": [],
         "children": [],
         "slot": "stage.background"
-      },
-      {
-        "id": "still.hud",
-        "type": "container",
-        "target": {
-          "kind": "global"
-        },
-        "blend": "inherit",
-        "properties": {},
-        "effects": [],
-        "children": [
-          {
-            "id": "still.hud.panel",
-            "type": "sprite",
-            "target": {
-              "kind": "global"
-            },
-            "slot": "hud.text",
-            "blend": "alpha",
-            "properties": {
-              "x": 0.05,
-              "width": 0.25,
-              "height": 0.94
-            },
-            "effects": [],
-            "children": [],
-            "resource": "texture.instrument"
-          },
-          {
-            "id": "still.hud.accuracy-panel",
-            "type": "sprite",
-            "target": {
-              "kind": "global"
-            },
-            "slot": "hud.text",
-            "blend": "alpha",
-            "properties": {
-              "x": 0.375,
-              "width": 0.25,
-              "height": 0.94
-            },
-            "effects": [],
-            "children": [],
-            "resource": "texture.instrument"
-          },
-          {
-            "id": "still.hud.bpm-panel",
-            "type": "sprite",
-            "target": {
-              "kind": "global"
-            },
-            "slot": "hud.text",
-            "blend": "alpha",
-            "properties": {
-              "x": 0.7,
-              "width": 0.25,
-              "height": 0.94
-            },
-            "effects": [],
-            "children": [],
-            "resource": "texture.instrument"
-          },
-          {
-            "id": "still.hud.score-label",
-            "type": "text",
-            "target": {
-              "kind": "global"
-            },
-            "slot": "hud.text",
-            "blend": "alpha",
-            "properties": {
-              "text": "SCORE",
-              "x": 0.067,
-              "y": 0.03,
-              "font-size": 10,
-              "colour": "#9eafbdff"
-            },
-            "effects": [],
-            "children": []
-          },
-          {
-            "id": "still.hud.score",
-            "type": "text",
-            "target": {
-              "kind": "global"
-            },
-            "slot": "hud.text",
-            "blend": "alpha",
-            "properties": {
-              "text": "0",
-              "x": 0.067,
-              "y": 0.32,
-              "font-size": 24,
-              "colour": "#f3f8ffff"
-            },
-            "effects": [],
-            "children": []
-          },
-          {
-            "id": "still.hud.accuracy-label",
-            "type": "text",
-            "target": {
-              "kind": "global"
-            },
-            "slot": "hud.text",
-            "blend": "alpha",
-            "properties": {
-              "text": "ACCURACY",
-              "x": 0.392,
-              "y": 0.03,
-              "font-size": 10,
-              "colour": "#9eafbdff"
-            },
-            "effects": [],
-            "children": []
-          },
-          {
-            "id": "still.hud.accuracy",
-            "type": "text",
-            "target": {
-              "kind": "global"
-            },
-            "slot": "hud.text",
-            "blend": "alpha",
-            "properties": {
-              "text": "100.00%",
-              "x": 0.392,
-              "y": 0.32,
-              "font-size": 24,
-              "colour": "#f3f8ffff"
-            },
-            "effects": [],
-            "children": []
-          },
-          {
-            "id": "still.hud.bpm-label",
-            "type": "text",
-            "target": {
-              "kind": "global"
-            },
-            "slot": "hud.text",
-            "blend": "alpha",
-            "properties": {
-              "text": "BPM",
-              "x": 0.717,
-              "y": 0.03,
-              "font-size": 10,
-              "colour": "#9eafbdff"
-            },
-            "effects": [],
-            "children": []
-          },
-          {
-            "id": "still.hud.bpm",
-            "type": "text",
-            "target": {
-              "kind": "global"
-            },
-            "slot": "hud.text",
-            "blend": "alpha",
-            "properties": {
-              "text": "0",
-              "x": 0.717,
-              "y": 0.32,
-              "font-size": 24,
-              "colour": "#86d9e7ff"
-            },
-            "effects": [],
-            "children": []
-          },
-          {
-            "id": "still.hud.progress-track",
-            "type": "sprite",
-            "target": {
-              "kind": "global"
-            },
-            "slot": "hud.text",
-            "blend": "alpha",
-            "properties": {
-              "y": 0.94,
-              "width": 1,
-              "height": 0.025,
-              "colour": "#263444ff"
-            },
-            "effects": [],
-            "children": [],
-            "resource": "texture.white"
-          },
-          {
-            "id": "still.hud.progress",
-            "type": "sprite",
-            "target": {
-              "kind": "global"
-            },
-            "slot": "hud.text",
-            "blend": "alpha",
-            "properties": {
-              "y": 0.94,
-              "width": 0,
-              "height": 0.025,
-              "colour": "#86d9e7ff"
-            },
-            "effects": [],
-            "children": [],
-            "resource": "texture.white"
-          }
-        ]
       }
     ]
   },
@@ -324,6 +117,114 @@
     {
       "id": "still.bind.progress",
       "target": "still.hud.progress",
+      "property": "width",
+      "source": "timing.progress"
+    },
+    {
+      "id": "still.bms-bind.count-perfect",
+      "target": "still.bms-hud.count-perfect",
+      "property": "text",
+      "source": "judgement.count.perfect"
+    },
+    {
+      "id": "still.bms-bind.count-great",
+      "target": "still.bms-hud.count-great",
+      "property": "text",
+      "source": "judgement.count.great"
+    },
+    {
+      "id": "still.bms-bind.count-good",
+      "target": "still.bms-hud.count-good",
+      "property": "text",
+      "source": "judgement.count.good"
+    },
+    {
+      "id": "still.bms-bind.count-meh",
+      "target": "still.bms-hud.count-meh",
+      "property": "text",
+      "source": "judgement.count.meh"
+    },
+    {
+      "id": "still.bms-bind.count-miss",
+      "target": "still.bms-hud.count-miss",
+      "property": "text",
+      "source": "judgement.count.miss"
+    },
+    {
+      "id": "still.bms-bind.count-ok",
+      "target": "still.bms-hud.count-ok",
+      "property": "text",
+      "source": "judgement.count.ok"
+    },
+    {
+      "id": "still.bms-bind.count-combo-breaks",
+      "target": "still.bms-hud.count-combo-breaks",
+      "property": "text",
+      "source": "combo.breaks"
+    },
+    {
+      "id": "still.bms-bind.title",
+      "target": "still.bms-hud.title",
+      "property": "text",
+      "source": "song.title"
+    },
+    {
+      "id": "still.bms-bind.artist",
+      "target": "still.bms-hud.artist",
+      "property": "text",
+      "source": "song.artist"
+    },
+    {
+      "id": "still.bms-bind.difficulty",
+      "target": "still.bms-hud.difficulty",
+      "property": "text",
+      "source": "song.difficulty"
+    },
+    {
+      "id": "still.bms-bind.level",
+      "target": "still.bms-hud.level",
+      "property": "text",
+      "source": "song.level"
+    },
+    {
+      "id": "still.bms-bind.bpm-min",
+      "target": "still.bms-hud.bpm-min",
+      "property": "text",
+      "source": "timing.bpm-min"
+    },
+    {
+      "id": "still.bms-bind.bpm",
+      "target": "still.bms-hud.bpm",
+      "property": "text",
+      "source": "timing.bpm"
+    },
+    {
+      "id": "still.bms-bind.bpm-max",
+      "target": "still.bms-hud.bpm-max",
+      "property": "text",
+      "source": "timing.bpm-max"
+    },
+    {
+      "id": "still.bms-bind.accuracy",
+      "target": "still.bms-hud.accuracy",
+      "property": "text",
+      "source": "score.accuracy"
+    },
+    {
+      "id": "still.bms-bind.score",
+      "target": "still.bms-hud.score",
+      "property": "text",
+      "source": "score.value"
+    },
+    {
+      "id": "still.bms-bind.hispeed",
+      "target": "still.bms-hud.hispeed",
+      "property": "text",
+      "source": "scroll.speed"
+    },
+    {
+      "id": "still.bms-bind.progress",
+      "target": "still.bms-hud.progress",
       "property": "width",
       "source": "timing.progress"
     }
@@ -516,6 +417,972 @@
         ],
         "slot": "hud.gauge"
       }
+    },
+    {
+      "id": "still.mania-information-style",
+      "root": {
+        "id": "still.hud",
+        "type": "container",
+        "target": {
+          "kind": "global"
+        },
+        "blend": "alpha",
+        "properties": {},
+        "effects": [],
+        "children": [
+          {
+            "id": "still.hud.panel",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "x": 0.05,
+              "width": 0.25,
+              "height": 0.94
+            },
+            "effects": [],
+            "children": [],
+            "resource": "texture.instrument"
+          },
+          {
+            "id": "still.hud.accuracy-panel",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "x": 0.375,
+              "width": 0.25,
+              "height": 0.94
+            },
+            "effects": [],
+            "children": [],
+            "resource": "texture.instrument"
+          },
+          {
+            "id": "still.hud.bpm-panel",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "x": 0.7,
+              "width": 0.25,
+              "height": 0.94
+            },
+            "effects": [],
+            "children": [],
+            "resource": "texture.instrument"
+          },
+          {
+            "id": "still.hud.score-label",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "SCORE",
+              "x": 0.067,
+              "y": 0.03,
+              "font-size": 10,
+              "colour": "#9eafbdff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "still.hud.score",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "0",
+              "x": 0.067,
+              "y": 0.32,
+              "font-size": 24,
+              "colour": "#f3f8ffff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "still.hud.accuracy-label",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "ACCURACY",
+              "x": 0.392,
+              "y": 0.03,
+              "font-size": 10,
+              "colour": "#9eafbdff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "still.hud.accuracy",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "100.00%",
+              "x": 0.392,
+              "y": 0.32,
+              "font-size": 24,
+              "colour": "#f3f8ffff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "still.hud.bpm-label",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "BPM",
+              "x": 0.717,
+              "y": 0.03,
+              "font-size": 10,
+              "colour": "#9eafbdff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "still.hud.bpm",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "0",
+              "x": 0.717,
+              "y": 0.32,
+              "font-size": 24,
+              "colour": "#86d9e7ff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "still.hud.progress-track",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "y": 0.94,
+              "width": 1,
+              "height": 0.025,
+              "colour": "#263444ff"
+            },
+            "effects": [],
+            "children": [],
+            "resource": "texture.white"
+          },
+          {
+            "id": "still.hud.progress",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "y": 0.94,
+              "width": 0,
+              "height": 0.025,
+              "colour": "#86d9e7ff"
+            },
+            "effects": [],
+            "children": [],
+            "resource": "texture.white"
+          }
+        ],
+        "slot": "hud.text"
+      }
+    },
+    {
+      "id": "still.bms-information-style",
+      "root": {
+        "id": "still.bms-hud",
+        "type": "container",
+        "target": {
+          "kind": "global"
+        },
+        "blend": "alpha",
+        "properties": {},
+        "effects": [],
+        "children": [
+          {
+            "id": "still.bms-hud.song",
+            "type": "clip",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "layout-surface": "information.song",
+              "clip-mode": "bounds"
+            },
+            "effects": [],
+            "children": [
+              {
+                "id": "still.bms-hud.song.panel",
+                "type": "sprite",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {},
+                "effects": [],
+                "children": [],
+                "resource": "texture.instrument"
+              },
+              {
+                "id": "still.bms-hud.title",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "",
+                  "x": 0.035,
+                  "y": 0.07,
+                  "width": 0.62,
+                  "height": 0.47,
+                  "font-size": 24,
+                  "colour": "#eef7ffff",
+                  "alignment": "left",
+                  "text-overflow": "ellipsis"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.artist",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "",
+                  "x": 0.035,
+                  "y": 0.6,
+                  "width": 0.62,
+                  "height": 0.26,
+                  "font-size": 13,
+                  "colour": "#a7bbcaff",
+                  "alignment": "left",
+                  "text-overflow": "ellipsis"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.difficulty",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "",
+                  "x": 0.67,
+                  "y": 0.12,
+                  "width": 0.19,
+                  "height": 0.32,
+                  "font-size": 14,
+                  "colour": "#86d9e7ff",
+                  "alignment": "right",
+                  "text-overflow": "ellipsis"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.level-label",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "LEVEL",
+                  "x": 0.69,
+                  "y": 0.62,
+                  "width": 0.09,
+                  "height": 0.24,
+                  "font-size": 10,
+                  "colour": "#a7bbcaff",
+                  "alignment": "left"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.level",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "",
+                  "x": 0.79,
+                  "y": 0.55,
+                  "width": 0.07,
+                  "height": 0.31,
+                  "font-size": 18,
+                  "colour": "#eef7ffff",
+                  "alignment": "right",
+                  "text-overflow": "ellipsis"
+                },
+                "effects": [],
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "still.bms-hud.judgements",
+            "type": "clip",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "layout-surface": "information.judgements",
+              "clip-mode": "bounds"
+            },
+            "effects": [],
+            "children": [
+              {
+                "id": "still.bms-hud.judgements.panel",
+                "type": "sprite",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {},
+                "effects": [],
+                "children": [],
+                "resource": "texture.instrument"
+              },
+              {
+                "id": "still.bms-hud.count-perfect-label",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "PG",
+                  "x": 0.07,
+                  "y": 0.065,
+                  "width": 0.23,
+                  "height": 0.12,
+                  "font-size": 12,
+                  "colour": "#86d9e7ff",
+                  "alignment": "left"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.count-perfect",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "0",
+                  "x": 0.32,
+                  "y": 0.065,
+                  "width": 0.59,
+                  "height": 0.12,
+                  "font-size": 12,
+                  "colour": "#eef7ffff",
+                  "alignment": "right"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.count-great-label",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "GR",
+                  "x": 0.07,
+                  "y": 0.19,
+                  "width": 0.23,
+                  "height": 0.12,
+                  "font-size": 12,
+                  "colour": "#f3dd88ff",
+                  "alignment": "left"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.count-great",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "0",
+                  "x": 0.32,
+                  "y": 0.19,
+                  "width": 0.59,
+                  "height": 0.12,
+                  "font-size": 12,
+                  "colour": "#eef7ffff",
+                  "alignment": "right"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.count-good-label",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "GD",
+                  "x": 0.07,
+                  "y": 0.315,
+                  "width": 0.23,
+                  "height": 0.12,
+                  "font-size": 12,
+                  "colour": "#c4e789ff",
+                  "alignment": "left"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.count-good",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "0",
+                  "x": 0.32,
+                  "y": 0.315,
+                  "width": 0.59,
+                  "height": 0.12,
+                  "font-size": 12,
+                  "colour": "#eef7ffff",
+                  "alignment": "right"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.count-meh-label",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "BD",
+                  "x": 0.07,
+                  "y": 0.44,
+                  "width": 0.23,
+                  "height": 0.12,
+                  "font-size": 12,
+                  "colour": "#e9aa77ff",
+                  "alignment": "left"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.count-meh",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "0",
+                  "x": 0.32,
+                  "y": 0.44,
+                  "width": 0.59,
+                  "height": 0.12,
+                  "font-size": 12,
+                  "colour": "#eef7ffff",
+                  "alignment": "right"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.count-miss-label",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "PR",
+                  "x": 0.07,
+                  "y": 0.565,
+                  "width": 0.23,
+                  "height": 0.12,
+                  "font-size": 12,
+                  "colour": "#ed8290ff",
+                  "alignment": "left"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.count-miss",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "0",
+                  "x": 0.32,
+                  "y": 0.565,
+                  "width": 0.59,
+                  "height": 0.12,
+                  "font-size": 12,
+                  "colour": "#eef7ffff",
+                  "alignment": "right"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.count-ok-label",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "EP",
+                  "x": 0.07,
+                  "y": 0.69,
+                  "width": 0.23,
+                  "height": 0.12,
+                  "font-size": 12,
+                  "colour": "#a7bbcaff",
+                  "alignment": "left"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.count-ok",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "0",
+                  "x": 0.32,
+                  "y": 0.69,
+                  "width": 0.59,
+                  "height": 0.12,
+                  "font-size": 12,
+                  "colour": "#eef7ffff",
+                  "alignment": "right"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.count-combo-breaks-label",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "CB",
+                  "x": 0.07,
+                  "y": 0.815,
+                  "width": 0.23,
+                  "height": 0.12,
+                  "font-size": 12,
+                  "colour": "#eef7ffff",
+                  "alignment": "left"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.count-combo-breaks",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "0",
+                  "x": 0.32,
+                  "y": 0.815,
+                  "width": 0.59,
+                  "height": 0.12,
+                  "font-size": 12,
+                  "colour": "#eef7ffff",
+                  "alignment": "right"
+                },
+                "effects": [],
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "still.bms-hud.tempo",
+            "type": "clip",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "layout-surface": "information.tempo",
+              "clip-mode": "bounds"
+            },
+            "effects": [],
+            "children": [
+              {
+                "id": "still.bms-hud.tempo.panel",
+                "type": "sprite",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {},
+                "effects": [],
+                "children": [],
+                "resource": "texture.instrument"
+              },
+              {
+                "id": "still.bms-hud.bpm-min-label",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "MIN",
+                  "x": 0.04,
+                  "y": 0.17,
+                  "width": 0.23,
+                  "height": 0.18,
+                  "font-size": 10,
+                  "colour": "#a7bbcaff",
+                  "alignment": "centre"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.bpm-label",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "BPM",
+                  "x": 0.3,
+                  "y": 0.1,
+                  "width": 0.4,
+                  "height": 0.18,
+                  "font-size": 12,
+                  "colour": "#86d9e7ff",
+                  "alignment": "centre"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.bpm-max-label",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "MAX",
+                  "x": 0.73,
+                  "y": 0.17,
+                  "width": 0.23,
+                  "height": 0.18,
+                  "font-size": 10,
+                  "colour": "#a7bbcaff",
+                  "alignment": "centre"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.bpm-min",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "0",
+                  "x": 0.04,
+                  "y": 0.4,
+                  "width": 0.23,
+                  "height": 0.25,
+                  "font-size": 18,
+                  "colour": "#a7bbcaff",
+                  "alignment": "centre"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.bpm",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "0",
+                  "x": 0.3,
+                  "y": 0.3,
+                  "width": 0.4,
+                  "height": 0.37,
+                  "font-size": 30,
+                  "colour": "#86d9e7ff",
+                  "alignment": "centre"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.bpm-max",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "0",
+                  "x": 0.73,
+                  "y": 0.4,
+                  "width": 0.23,
+                  "height": 0.25,
+                  "font-size": 18,
+                  "colour": "#a7bbcaff",
+                  "alignment": "centre"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.accuracy-label",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "RATE",
+                  "x": 0.3,
+                  "y": 0.77,
+                  "width": 0.14,
+                  "height": 0.15,
+                  "font-size": 10,
+                  "colour": "#a7bbcaff",
+                  "alignment": "left"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.accuracy",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "100.00%",
+                  "x": 0.46,
+                  "y": 0.73,
+                  "width": 0.26,
+                  "height": 0.2,
+                  "font-size": 14,
+                  "colour": "#eef7ffff",
+                  "alignment": "right"
+                },
+                "effects": [],
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "still.bms-hud.player",
+            "type": "clip",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "layout-surface": "information.player",
+              "clip-mode": "bounds"
+            },
+            "effects": [],
+            "children": [
+              {
+                "id": "still.bms-hud.player.panel",
+                "type": "sprite",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {},
+                "effects": [],
+                "children": [],
+                "resource": "texture.instrument"
+              },
+              {
+                "id": "still.bms-hud.score-label",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "SCORE",
+                  "x": 0.06,
+                  "y": 0.12,
+                  "width": 0.5,
+                  "height": 0.18,
+                  "font-size": 11,
+                  "colour": "#a7bbcaff",
+                  "alignment": "left"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.score",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "0",
+                  "x": 0.06,
+                  "y": 0.38,
+                  "width": 0.5,
+                  "height": 0.42,
+                  "font-size": 28,
+                  "colour": "#eef7ffff",
+                  "alignment": "left"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.hispeed-label",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "HI-SPEED",
+                  "x": 0.62,
+                  "y": 0.12,
+                  "width": 0.31,
+                  "height": 0.18,
+                  "font-size": 11,
+                  "colour": "#a7bbcaff",
+                  "alignment": "right"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.hispeed",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "0.00",
+                  "x": 0.62,
+                  "y": 0.38,
+                  "width": 0.31,
+                  "height": 0.42,
+                  "font-size": 28,
+                  "colour": "#86d9e7ff",
+                  "alignment": "right",
+                  "format": "fixed-2"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.progress",
+                "type": "sprite",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "y": 0.94,
+                  "width": 0,
+                  "height": 0.025,
+                  "colour": "#86d9e7ff"
+                },
+                "effects": [],
+                "children": [],
+                "resource": "texture.white"
+              }
+            ]
+          }
+        ],
+        "slot": "hud.text"
+      }
     }
   ],
   "instances": [
@@ -541,6 +1408,22 @@
       "material": {
         "slot": "hud.gauge",
         "resource": "bms/gauge"
+      }
+    },
+    {
+      "id": "still.mania-information",
+      "template": "still.mania-information-style",
+      "material": {
+        "slot": "hud.text",
+        "resource": "mania/hud"
+      }
+    },
+    {
+      "id": "still.bms-information",
+      "template": "still.bms-information-style",
+      "material": {
+        "slot": "hud.text",
+        "resource": "bms/hud"
       }
     }
   ]

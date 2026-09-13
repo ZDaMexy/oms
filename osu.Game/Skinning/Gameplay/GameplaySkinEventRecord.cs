@@ -36,6 +36,8 @@ namespace osu.Game.Skinning.Gameplay
         private readonly double number1;
         private readonly double number2;
         private readonly double number3;
+        private readonly double number4;
+        private readonly GameplaySkinJudgementStatistics statistics;
         private readonly GameplaySkinLayoutRect rect;
 
         internal GameplaySkinEventPayloadFamily Family { get; }
@@ -63,7 +65,9 @@ namespace osu.Game.Skinning.Gameplay
             double number1 = 0,
             double number2 = 0,
             double number3 = 0,
-            GameplaySkinLayoutRect rect = default)
+            GameplaySkinLayoutRect rect = default,
+            double number4 = 0,
+            GameplaySkinJudgementStatistics statistics = default)
         {
             Family = family;
             DeliveryKind = deliveryKind;
@@ -78,6 +82,8 @@ namespace osu.Game.Skinning.Gameplay
             this.number1 = number1;
             this.number2 = number2;
             this.number3 = number3;
+            this.number4 = number4;
+            this.statistics = statistics;
             this.rect = rect;
         }
 
@@ -146,13 +152,13 @@ namespace osu.Game.Skinning.Gameplay
         internal GameplaySkinScoreStateSnapshot GetScore()
         {
             requireFamily(GameplaySkinEventPayloadFamily.Score);
-            return new GameplaySkinScoreStateSnapshot(integral0, scalar0, scalar1, number0, number1);
+            return new GameplaySkinScoreStateSnapshot(integral0, scalar0, scalar1, number0, number1, statistics);
         }
 
         internal GameplaySkinTimingStateSnapshot GetTiming()
         {
             requireFamily(GameplaySkinEventPayloadFamily.Timing);
-            return new GameplaySkinTimingStateSnapshot(number0, integral0, number1, scalar0 != 0, number2, number3);
+            return new GameplaySkinTimingStateSnapshot(number0, integral0, number1, scalar0 != 0, number2, number3, number4);
         }
 
         internal GameplaySkinBgaStateSnapshot GetBga()
@@ -361,7 +367,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinScoreStateSnapshot state,
             GameplaySkinEventPayload? materialized)
         {
-            _ = new GameplaySkinScoreStateSnapshot(state.Score, state.Combo, state.MaxCombo, state.Accuracy, state.Gauge);
+            _ = new GameplaySkinScoreStateSnapshot(state.Score, state.Combo, state.MaxCombo, state.Accuracy, state.Gauge, state.Statistics);
 
             if (eventKind is not GameplaySkinEventKind.ScoreChanged
                 and not GameplaySkinEventKind.ComboChanged
@@ -377,7 +383,8 @@ namespace osu.Game.Skinning.Gameplay
                 scalar0: state.Combo,
                 scalar1: state.MaxCombo,
                 number0: state.Accuracy,
-                number1: state.Gauge);
+                number1: state.Gauge,
+                statistics: state.Statistics);
         }
 
         private static GameplaySkinEventValue timingValue(
@@ -385,7 +392,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinTimingStateSnapshot state,
             GameplaySkinEventPayload? materialized)
         {
-            _ = new GameplaySkinTimingStateSnapshot(state.Beat, state.BarIndex, state.Bpm, state.IsStopped, state.ScrollMultiplier, state.Progress);
+            _ = new GameplaySkinTimingStateSnapshot(state.Beat, state.BarIndex, state.Bpm, state.IsStopped, state.ScrollMultiplier, state.Progress, state.ScrollSpeed);
 
             if (eventKind is not GameplaySkinEventKind.TimingBeat
                 and not GameplaySkinEventKind.TimingBar
@@ -409,7 +416,8 @@ namespace osu.Game.Skinning.Gameplay
                 number0: state.Beat,
                 number1: state.Bpm,
                 number2: state.ScrollMultiplier,
-                number3: state.Progress);
+                number3: state.Progress,
+                number4: state.ScrollSpeed);
         }
 
         private static GameplaySkinEventValue bgaValue(
@@ -525,7 +533,8 @@ namespace osu.Game.Skinning.Gameplay
                 authoritativeTiming.Bpm,
                 authoritativeTiming.IsStopped,
                 authoritativeTiming.ScrollMultiplier,
-                authoritativeTiming.Progress);
+                authoritativeTiming.Progress,
+                authoritativeTiming.ScrollSpeed);
 
             if (laneId != null && groupId == null)
                 throw new ArgumentException("A lane-targeted gameplay skin event must also carry its stable group ID.", nameof(groupId));

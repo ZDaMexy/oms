@@ -97,6 +97,60 @@ namespace osu.Game.Rulesets.Bms.Tests
             };
         }
 
+        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P1, 1.7777778f, 0.25f)]
+        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P2, 1.7777778f, 0.25f)]
+        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.Center, 1.3333333f, 0.25f)]
+        [TestCase(BmsKeymode.Key14K, BmsPlayfieldStyle.Center, 1.7777778f, 0.5f)]
+        [TestCase(BmsKeymode.Key14K, BmsPlayfieldStyle.Center, 1f, 0.9f)]
+        public void TestAuthoredInformationRegionsAvoidPlayingAndVideoSurfaces(BmsKeymode keymode, BmsPlayfieldStyle style, float aspect, float width)
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(keymode));
+            var environment = new BmsGameplayLayoutEnvironment(
+                GameplaySkinLayoutRect.Create(0, 0, 1, 1), GameplaySkinLayoutRect.Create(0.02f, 0.03f, 0.96f, 0.94f), aspect, 1);
+            BmsGameplayLayoutSnapshot layout = provider.PublishForTesting(style, new BmsGameplayLayoutConfiguration
+            {
+                PlayfieldWidth = width,
+                PlayfieldHeight = 0.70f,
+                KeyAreaHeight = 0.12f,
+                GaugeHeight = 0.07f,
+                BgaWidth = 0.60f,
+                BgaHeight = 0.76f,
+                BgaVerticalPosition = 0.45f,
+                BgaInformationHeight = 0.18f,
+            }, environment);
+            GameplaySkinLayoutSurface[] information = layout.Neutral.Surfaces.Where(surface => surface.Id.StartsWith("information.", StringComparison.Ordinal)).ToArray();
+            Assert.That(information, Has.Length.EqualTo(4));
+            foreach (GameplaySkinLayoutSurface surface in information)
+            {
+                Assert.That(environment.SafeBounds.Contains(surface.Rect), Is.True, surface.Id);
+                Assert.That(surface.Rect.Intersects(layout.PlayfieldRect), Is.False, surface.Id);
+                Assert.That(surface.Rect.Intersects(layout.KeyAreaRect), Is.False, surface.Id);
+                Assert.That(surface.Rect.Intersects(layout.GaugeRect), Is.False, surface.Id);
+                Assert.That(layout.BgaViewports.Any(bga => bga.Intersects(surface.Rect)), Is.False, surface.Id);
+                Assert.That(information.Where(other => other != surface).Any(other => other.Rect.Intersects(surface.Rect)), Is.False, surface.Id);
+            }
+            Assert.That(information.Single(surface => surface.Id == "information.song").Rect.Bottom,
+                Is.EqualTo(layout.BgaViewports[0].Top).Within(0.00001f));
+            Assert.That(information.Single(surface => surface.Id == "information.player").Rect.Width,
+                Is.EqualTo(layout.PlayfieldRect.Width));
+        }
+
+        [TestCase(null)]
+        [TestCase(0f)]
+        [TestCase(-0.1f)]
+        [TestCase(0.31f)]
+        [TestCase(float.NaN)]
+        public void TestUnrequestedInformationDoesNotChangeExistingLayout(float? informationHeight)
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(BmsKeymode.Key7K));
+            BmsGameplayLayoutSnapshot baseline = provider.PublishForTesting(BmsPlayfieldStyle.P1, new BmsGameplayLayoutConfiguration());
+            BmsGameplayLayoutSnapshot actual = provider.PublishForTesting(BmsPlayfieldStyle.P1,
+                new BmsGameplayLayoutConfiguration { BgaInformationHeight = informationHeight });
+            Assert.That(actual.PlayfieldRect, Is.EqualTo(baseline.PlayfieldRect));
+            Assert.That(actual.BgaViewports, Is.EqualTo(baseline.BgaViewports));
+            Assert.That(actual.Neutral.Surfaces.Any(surface => surface.Id.StartsWith("information.", StringComparison.Ordinal)), Is.False);
+        }
+
         [TestCase(null)]
         [TestCase(0f)]
         [TestCase(5f)]

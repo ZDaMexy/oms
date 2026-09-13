@@ -104,7 +104,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
         private static IBeatmap createChart(BmsRuleset ruleset)
         {
-            var text = new StringBuilder("#TITLE Simple actual gameplay capture\n#BPM 138\n#WAV01 note.wav\n");
+            var text = new StringBuilder("#TITLE Simple information / 実機検証\n#ARTIST OMS Offline Studio\n#DIFFICULTY 4\n#PLAYLEVEL 12\n#BPM 138\n#BPM01 172\n#00808:01\n#01603:78\n#WAV01 note.wav\n");
             string[] channels = { "11", "12", "13", "14", "15", "18", "19", "16" };
             for (int measure = 1; measure <= 32; measure++)
                 for (int lane = 0; lane < channels.Length; lane++)

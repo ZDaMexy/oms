@@ -14,6 +14,37 @@ namespace osu.Game.Tests.NonVisual.Skinning
     public sealed class GameplaySkinEventRuntimeHostTest
     {
         [Test]
+        public void TestStatisticsAndSelectedSpeedSurviveCompactDelivery()
+        {
+            var statistics = new GameplaySkinJudgementStatistics(10, 9, 8, 7, 6, 5, 4);
+            var score = new GameplaySkinScoreStateSnapshot(29, 0, 19, 0.75, 0.4, statistics);
+            GameplaySkinEventValue compactScore = GameplaySkinEventValue.Score(GameplaySkinEventKind.ScoreChanged, score);
+            Assert.That(compactScore.GetScore().Statistics, Is.EqualTo(statistics));
+            Assert.That(((GameplaySkinScoreEventPayload)compactScore.Materialize(null, null)).State.Statistics, Is.EqualTo(statistics));
+            var timing = new GameplaySkinTimingStateSnapshot(1, 0, 150, true, 0.0001, 0.5, 2.25);
+            GameplaySkinEventValue compactTiming = GameplaySkinEventValue.Timing(GameplaySkinEventKind.TimingScrollChanged, timing);
+            Assert.That(compactTiming.GetTiming().ScrollSpeed, Is.EqualTo(2.25));
+            Assert.That(((GameplaySkinTimingEventPayload)compactTiming.Materialize(null, null)).State.ScrollSpeed, Is.EqualTo(2.25));
+        }
+
+        [Test]
+        public void TestSongDisplayBoundsPreserveUnicodeBoundary()
+        {
+            var song = new GameplaySkinSongInformation(new string('x', 255) + "\U0001f3b5end", "Artist", "ANOTHER", "12", 120, 240);
+            Assert.That(song.Title, Has.Length.EqualTo(255));
+            Assert.That(song.Artist, Is.EqualTo("Artist"));
+            Assert.That(song.Level, Is.EqualTo("12"));
+            Assert.That(song.MinimumBpm, Is.EqualTo(120));
+            Assert.That(song.MaximumBpm, Is.EqualTo(240));
+        }
+
+        [TestCase(double.NaN)]
+        [TestCase(double.PositiveInfinity)]
+        [TestCase(-1)]
+        public void TestSelectedSpeedRejectsInvalidValues(double speed)
+            => Assert.Throws<ArgumentOutOfRangeException>(() => new GameplaySkinTimingStateSnapshot(0, 0, 120, false, 1, scrollSpeed: speed));
+
+        [Test]
         public void TestTimingProgressSurvivesCompactEventAndPublicPayload()
         {
             var timing = new GameplaySkinTimingStateSnapshot(3.5, 0, 120, false, 1, 0.625);

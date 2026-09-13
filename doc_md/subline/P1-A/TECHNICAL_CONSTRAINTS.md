@@ -1,11 +1,15 @@
 # P1-A 技术约束：Skin V1、产品面与 release gate
 
-> 最后更新：2026-09-13（同源Stage模板、裁切与文字格式、血槽高度；保留既有恢复和验收合同）
+> 最后更新：2026-09-13（同源Global/Stage模板、通用演奏信息与信息区布局；保留既有恢复和验收合同）
 > 本文件是 Skin V1 的硬约束源。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，设计证据见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。若代码与本文冲突，先确认新事实并同步修正文档/代码，不能用历史 CHANGELOG 覆盖当前 authority。
 
 ## 按任务定位
 
-2026-09-13细节扩展：`instances`的`target`与`material`二选一；后者只按选定包同一ContentRevision的Stage Provide声明及精确slot/resource匹配，模板根slot相同，准备仍复核exact owner，不借用canonical scene/resources。实际展开参与既有节点、帧、事件与文字预算，各实例使用实际Stage事实。`reveal-x`只用于clip，范围0..1，保留完整子坐标；`format`只允许静态percent/uppercase，格式化后继续限制长度，accuracy/progress保留既有专用格式。BMS `GaugeHeight`仅选定包读取，默认0.036、范围0.02..0.12，由唯一solver与键区/BGA/底部信息共同避让。参考[本轮证据](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md)。
+2026-09-13细节扩展：`instances`的`target`与`material`二选一；后者只按选定包同一ContentRevision的Global/Stage Provide声明及精确slot/resource匹配，模板根slot相同，准备仍复核exact owner，不借用canonical scene/resources。实际展开参与既有节点、帧、事件与文字预算，Stage实例使用实际舞台事实，Global实例只生成一次。`reveal-x`只用于clip，范围0..1，保留完整子坐标；`format`只允许静态percent/uppercase/fixed-2，格式化后继续限制长度，accuracy/progress保留既有专用格式。BMS `GaugeHeight`仅选定包读取，默认0.036、范围0.02..0.12，由唯一solver与键区/BGA/底部信息共同避让。参考[本轮证据](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md)。
+
+2026-09-13信息区扩展：公开只读绑定`song.title/artist/difficulty/level`、`timing.bpm-min/bpm-max`、`scroll.speed`、`judgement.count.perfect/great/good/ok/meh/miss`及`combo.breaks`。静态SongInformation只随完整快照携带，聚合器重附着/epoch替换必须保留。每项元数据最多256个UTF-16单元，截断不能分裂代理对；判定计数字形预留10，其余既有动态数字预留384，总字形预算8192，纹理字节/像素及每帧创建限制不变。计数内联值类型随Score payload传递，每帧和reset屏障从真实ScoreProcessor.Statistics读取，不能以皮肤事件自行累计；BMS中Perfect/Great/Good/Meh/Miss/Ok分别是PG/GR/GD/BD/PR/空POOR，ComboBreak仅真正断连，mania保留自身档位语义。BMS MIN/MAX来自转换器音乐时间线，STOP不改变真实BPM，未使用定义和SCROLL不参与；HiSpeed来自SelectedHiSpeed，mania来自实际ScrollSpeed设置，不以滚动倍率、TimeRange或绿数冒充。
+
+静态`layout-surface`仅接受`information.song/judgements/tempo/player`，且仅限拥有hud.text的节点及其无slot子树；保留选定包exact Provide/content revision与owner校验，禁止绑定/动画/状态/脚本写入，缺失区域必须准备失败。子节点继承当前区域，显式不同区域可重新选区，普通模板仍保留原坐标规则。BMS选定包`BgaInformationHeight`默认0、合法0..0.30，正值由唯一solver在BGA上下预留信息区域并发布四个全局surface，14K须使用Global hud.text模板避免按Stage重复曲目信息；无声明不改旧布局。实现与验证边界见[演奏信息记录](../../other/SKIN_SIMPLE_INFORMATION_20260913.md)，不得据合同文字宣称验证通过。
 
 只读当前任务涉及的章节；原合同编号保持不变。当前完成度见[STATUS](DEVELOPMENT_STATUS.md)，待实现动作与完整campaign门见[PLAN](DEVELOPMENT_PLAN.md)。
 
@@ -424,3 +428,6 @@ C7 必要信息补齐：公开 `score.accuracy` 和 `timing.progress` 数值均�
 10. ordinary note 与 long-note head/body/tail 的首个产品纵切闭合后，剩余 optional slot 不再通过私有逐件 C# provider/display 扩张；C5 已由 shared scene/runtime 接管全部适用 slot，并继续服从对应 ABI、budget 与 fallback gate。后续新增能力只能进入 C6/C7 的版本化门。
 11. scene/event产品证据必须从ordinary/managed/external source、`SkinManager` current revision、shared codec/catalog/resolver/material、真实BMS/mania producer进入actual renderer；DTO、schema round-trip、graph mock、cursor alone、single drawable或test publisher注入最终snapshot不能替代该证据。beatmap-local public authoring继续不可达。
 12. 既有失败必须逐项比较名称、错误分类和精确消息，不以“失败数量相同”归因。冻结core Skin六项为`TestRetrieveAndLegacyExportJapaneseFilename`、`TestRetrieveAndNonLegacyExportJapaneseFilename`、`TestBackgroundCyclingOnDefaultSkin(True)`、`TestRetrievalWithConflictingFilenames`、`TestSampleUpdatedBeforePlaybackWhenNotPresent`、`TestRetrieveOggAudio`；mania full四项为`TestHoldNoteWithReleasePress`、`TestHoldNoteChord`、`TestSingleHoldNote`、`TestHoldNoteStair`。精确基线证据见[C5交接](../../other/SKIN_SYSTEM_C5_SCENE_EVENT_COMPLETION_HANDOFF_20260903.md)和[CHANGELOG](CHANGELOG.md)，最新实际结果只在[STATUS](DEVELOPMENT_STATUS.md)维护。不得通过NoWarn或删测试隐藏失败。
+
+
+`text-overflow=ellipsis`仅作用于text的可见宽度，保留原始绑定元数据，默认行为不变；该静态属性不可动画、状态或绑定写入。共享FontStore资源应按字形面积合计后统一页对齐，禁止把共享图集页按文字节点重复计费；64MP/256MB准入上限保持，取证与保守估算边界见信息区记录。

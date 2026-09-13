@@ -60,21 +60,23 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     return false;
                 bms ??= renderer.BmsDrawable.ChildrenOfType<GameplaySkinSceneRuntimeHost>().Single();
                 mania ??= renderer.ManiaDrawable.ChildrenOfType<GameplaySkinSceneRuntimeHost>().Single();
+                Assert.That(bms.RuntimeFaults, Is.Empty, "BMS information scene failed while loading");
+                Assert.That(mania.RuntimeFaults, Is.Empty, "mania information scene failed while loading");
                 return new[] { bms, mania }.All(scene => scene.IsSceneReady
-                    && scene.TryGetRuntimeNode(prefix + ".score", out GameplaySkinSceneRuntimeNode? score)
+                    && scene.TryGetRuntimeNode(authoredInformationId(scene, prefix + ".score"), out GameplaySkinSceneRuntimeNode? score)
                     && score!.ContentDrawable.IsLoaded && score.ContentDrawable.DrawWidth > 0);
             });
-            AddStep("before playing every necessary field is visible in the top bar", () =>
+            AddStep("before playing every necessary field is visible in its authored information area", () =>
             {
                 assertAuthoredInformation(bms, prefix, package == "oms-simple");
                 assertAuthoredInformation(mania, prefix, package == "oms-simple");
-                Assert.That(c6CandidateNode(bms, prefix + ".progress").TransformDrawable.Width, Is.Zero);
-                Assert.That(c6CandidateNode(mania, prefix + ".progress").TransformDrawable.Width, Is.Zero);
+                Assert.That(authoredInformationNode(bms, prefix + ".progress").TransformDrawable.Width, Is.Zero);
+                Assert.That(authoredInformationNode(mania, prefix + ".progress").TransformDrawable.Width, Is.Zero);
                 if (package == "oms-complex")
                 {
                     Assert.That(manager.CurrentSkin.Value.PreparedGameplaySkinPackage!.ScriptAuthorization!.RequiredSatisfied, Is.False);
-                    Assert.That(c6CandidateNode(bms, prefix + ".judgement").TransformDrawable.Alpha, Is.Zero);
-                    Assert.That(c6CandidateNode(mania, prefix + ".judgement").TransformDrawable.Alpha, Is.Zero);
+                    Assert.That(authoredInformationNode(bms, prefix + ".judgement").TransformDrawable.Alpha, Is.Zero);
+                    Assert.That(authoredInformationNode(mania, prefix + ".judgement").TransformDrawable.Alpha, Is.Zero);
                 }
             });
             AddStep("advance the actual playfields toward the first notes", () =>
@@ -104,8 +106,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 assertAuthoredInformation(mania, prefix, package == "oms-simple");
                 if (package == "oms-complex")
                 {
-                    Assert.That(c6CandidateNode(bms, prefix + ".judgement").TransformDrawable.Alpha, Is.EqualTo(1));
-                    Assert.That(c6CandidateNode(mania, prefix + ".judgement").TransformDrawable.Alpha, Is.EqualTo(1));
+                    Assert.That(authoredInformationNode(bms, prefix + ".judgement").TransformDrawable.Alpha, Is.EqualTo(1));
+                    Assert.That(authoredInformationNode(mania, prefix + ".judgement").TransformDrawable.Alpha, Is.EqualTo(1));
                 }
                 c6Input(renderer, false);
                 for (int time = 2_040; time <= 3_500; time += 20)
@@ -115,6 +117,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             {
                 assertAuthoredInformation(bms, prefix, package == "oms-simple");
                 assertAuthoredInformation(mania, prefix, package == "oms-simple");
+                if (package == "oms-simple")
+                {
+                    GameplaySkinJudgementStatistics statistics = authoredInformationSnapshot(bms).Score.Statistics;
+                    Assert.That(statistics.Perfect + statistics.Great + statistics.Good, Is.GreaterThan(0), "Real successful input reaches the live judgement counts.");
+                    Assert.That(statistics.Miss, Is.GreaterThan(0), "Unplayed notes reach the live miss count.");
+                }
                 Assert.That(authoredInformationSnapshot(bms).Score.Accuracy, Is.LessThan(1));
                 Assert.That(authoredInformationSnapshot(mania).Score.Accuracy, Is.LessThan(1));
                 if (package == "oms-complex")
@@ -124,11 +132,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                         Assert.That(authoredInformationSnapshot(scene).CurrentJudgements.Any(judgement =>
                             judgement.Scope == GameplaySkinJudgementScope.Global && judgement.Judgement.Grade == GameplaySkinJudgementGrade.Miss), Is.True);
                         Assert.That(authoredInformationValue(scene, prefix + ".judgement"), Is.EqualTo("miss"));
-                        Assert.That(c6CandidateNode(scene, prefix + ".judgement").TransformDrawable.Alpha, Is.EqualTo(1), "A genuine current Miss remains visible without optional script permission.");
+                        Assert.That(authoredInformationNode(scene, prefix + ".judgement").TransformDrawable.Alpha, Is.EqualTo(1), "A genuine current Miss remains visible without optional script permission.");
                     }
                 }
-                bmsProgress = c6CandidateNode(bms, prefix + ".progress").TransformDrawable.Width;
-                maniaProgress = c6CandidateNode(mania, prefix + ".progress").TransformDrawable.Width;
+                bmsProgress = authoredInformationNode(bms, prefix + ".progress").TransformDrawable.Width;
+                maniaProgress = authoredInformationNode(mania, prefix + ".progress").TransformDrawable.Width;
                 Assert.That(bmsProgress, Is.GreaterThan(0));
                 Assert.That(maniaProgress, Is.GreaterThan(0));
                 clock.Stop();
@@ -138,8 +146,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             {
                 assertAuthoredInformation(bms, prefix, package == "oms-simple");
                 assertAuthoredInformation(mania, prefix, package == "oms-simple");
-                Assert.That(c6CandidateNode(bms, prefix + ".progress").TransformDrawable.Width, Is.EqualTo(bmsProgress));
-                Assert.That(c6CandidateNode(mania, prefix + ".progress").TransformDrawable.Width, Is.EqualTo(maniaProgress));
+                Assert.That(authoredInformationNode(bms, prefix + ".progress").TransformDrawable.Width, Is.EqualTo(bmsProgress));
+                Assert.That(authoredInformationNode(mania, prefix + ".progress").TransformDrawable.Width, Is.EqualTo(maniaProgress));
                 clock.SoftUnpause();
                 for (int time = 3_520; time <= 6_000; time += 20)
                     clock.Sample(time);
@@ -152,7 +160,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 {
                     Assert.That(authoredInformationSnapshot(scene).CurrentJudgements.Any(judgement => judgement.Scope == GameplaySkinJudgementScope.Global), Is.False);
                     if (package == "oms-complex")
-                        Assert.That(c6CandidateNode(scene, prefix + ".judgement").TransformDrawable.Alpha, Is.Zero);
+                        Assert.That(authoredInformationNode(scene, prefix + ".judgement").TransformDrawable.Alpha, Is.Zero);
                 }
                 renderer.Expire();
             });
@@ -167,11 +175,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             Assert.That(authoredInformationValue(scene, prefix + ".accuracy"),
                 Is.EqualTo((state.Score.Accuracy * 100).ToString("0.00", CultureInfo.InvariantCulture) + "%"));
             if (compact)
-                Assert.That(scene.TryGetRuntimeNode(prefix + ".combo", out _), Is.False, "The information band must not duplicate the lane combo.");
+                Assert.That(scene.TryGetRuntimeNode(authoredInformationId(scene, prefix + ".combo"), out _), Is.False, "The information band must not duplicate the lane combo.");
             else
                 Assert.That(authoredInformationValue(scene, prefix + ".combo"), Is.EqualTo(state.Score.Combo.ToString(CultureInfo.InvariantCulture)));
             Assert.That(authoredInformationValue(scene, prefix + ".bpm"), Is.EqualTo(state.Timing.Bpm.ToString("0.###", CultureInfo.InvariantCulture)));
-            Assert.That(c6CandidateNode(scene, prefix + ".progress").TransformDrawable.Width, Is.EqualTo(state.Timing.Progress).Within(0.00001));
+            Assert.That(authoredInformationNode(scene, prefix + ".progress").TransformDrawable.Width, Is.EqualTo(state.Timing.Progress).Within(0.00001));
 
             GameplaySkinResolvedMaterialEntry global = scene.MaterialSet.Entries.Single(entry =>
                 ReferenceEquals(entry.Slot, GameplaySkinSlotCatalog.TextHud) && entry.Target.Kind == GameplaySkinResolvedMaterialTargetKind.Global);
@@ -183,7 +191,13 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             Assert.That(gate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Scene));
             Assert.That(gate.IsReplacementReady, Is.True);
 
-            GameplaySkinSceneRuntimeNode panel = c6CandidateNode(scene, prefix + ".panel");
+            if (compact && scene.PreparedScene.Snapshot.Context.RulesetId == "bms")
+            {
+                assertBmsInstrumentInformation(scene, state);
+                return;
+            }
+
+            GameplaySkinSceneRuntimeNode panel = authoredInformationNode(scene, prefix + ".panel");
             var screen = scene.ScreenSpaceDrawQuad.AABBFloat;
             var panelBounds = panel.ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
             if (compact)
@@ -206,12 +220,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             for (int index = 0; index < fields.Length; index++)
             {
                 if (compact)
-                    panelBounds = c6CandidateNode(scene, prefix + (index == 0 ? ".panel" : "." + fields[index] + "-panel"))
+                    panelBounds = authoredInformationNode(scene, prefix + (index == 0 ? ".panel" : "." + fields[index] + "-panel"))
                         .ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
-                GameplaySkinSceneRuntimeNode node = c6CandidateNode(scene, prefix + "." + fields[index]);
+                GameplaySkinSceneRuntimeNode node = authoredInformationNode(scene, prefix + "." + fields[index]);
                 SpriteText text = (SpriteText)node.ContentDrawable;
                 var bounds = text.ScreenSpaceDrawQuad.AABBFloat;
-                var label = c6CandidateNode(scene, prefix + "." + fields[index] + "-label").ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
+                var label = authoredInformationNode(scene, prefix + "." + fields[index] + "-label").ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
                 Assert.That(node.Rect, Is.EqualTo(panel.Rect));
                 Assert.That(text.IsPresent, Is.True);
                 Assert.That(bounds.Width, Is.GreaterThan(0));
@@ -223,14 +237,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(label.Bottom, Is.LessThanOrEqualTo(bounds.Top + 1), fields[index] + " label overlaps its value");
                 if (index + 1 < fields.Length)
                 {
-                    float nextLeft = c6CandidateNode(scene, prefix + "." + fields[index + 1]).ContentDrawable.ScreenSpaceDrawQuad.AABBFloat.Left;
+                    float nextLeft = authoredInformationNode(scene, prefix + "." + fields[index + 1]).ContentDrawable.ScreenSpaceDrawQuad.AABBFloat.Left;
                     Assert.That(bounds.Right, Is.LessThan(nextLeft), fields[index] + " overlaps the next value");
                 }
             }
             if (prefix == "astral.console")
             {
                 bool hasCurrentJudgement = state.CurrentJudgements.Any(judgement => judgement.Scope == GameplaySkinJudgementScope.Global);
-                GameplaySkinSceneRuntimeNode judgementNode = c6CandidateNode(scene, prefix + ".judgement");
+                GameplaySkinSceneRuntimeNode judgementNode = authoredInformationNode(scene, prefix + ".judgement");
                 Assert.That(judgementNode.TransformDrawable.Alpha, Is.EqualTo(hasCurrentJudgement ? 1 : 0));
                 if (hasCurrentJudgement)
                 {
@@ -239,7 +253,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 }
                 foreach (string field in new[] { "brand", "status", "judgement" })
                 {
-                    SpriteText text = (SpriteText)c6CandidateNode(scene, prefix + "." + field).ContentDrawable;
+                    SpriteText text = (SpriteText)authoredInformationNode(scene, prefix + "." + field).ContentDrawable;
                     var bounds = text.ScreenSpaceDrawQuad.AABBFloat;
                     Assert.That(text.Text.ToString(), Is.Not.Empty, field);
                     if (field != "judgement" || hasCurrentJudgement)
@@ -252,19 +266,19 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(bounds.Bottom, Is.LessThanOrEqualTo(panelBounds.Bottom + 1), field);
                 }
 
-                var brand = c6CandidateNode(scene, prefix + ".brand").ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
-                var status = c6CandidateNode(scene, prefix + ".status").ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
-                var score = c6CandidateNode(scene, prefix + ".score").ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
-                var scoreLabel = c6CandidateNode(scene, prefix + ".score-label").ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
-                var bpm = c6CandidateNode(scene, prefix + ".bpm").ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
-                var bpmLabel = c6CandidateNode(scene, prefix + ".bpm-label").ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
-                var judgement = c6CandidateNode(scene, prefix + ".judgement").ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
+                var brand = authoredInformationNode(scene, prefix + ".brand").ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
+                var status = authoredInformationNode(scene, prefix + ".status").ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
+                var score = authoredInformationNode(scene, prefix + ".score").ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
+                var scoreLabel = authoredInformationNode(scene, prefix + ".score-label").ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
+                var bpm = authoredInformationNode(scene, prefix + ".bpm").ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
+                var bpmLabel = authoredInformationNode(scene, prefix + ".bpm-label").ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
+                var judgement = authoredInformationNode(scene, prefix + ".judgement").ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
                 Assert.That(brand.Bottom, Is.LessThanOrEqualTo(status.Top + 1), "The brand overlaps the current playing or paused state.");
                 Assert.That(Math.Max(brand.Right, status.Right), Is.LessThan(Math.Min(score.Left, scoreLabel.Left)), "The brand or state overlaps the score column.");
                 Assert.That(Math.Max(bpm.Right, bpmLabel.Right), Is.LessThan(judgement.Left), "The tempo overlaps the rightmost judgement.");
             }
-            var progress = c6CandidateNode(scene, prefix + ".progress").ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
-            var track = c6CandidateNode(scene, prefix + ".progress-track").ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
+            var progress = authoredInformationNode(scene, prefix + ".progress").ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
+            var track = authoredInformationNode(scene, prefix + ".progress-track").ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
             if (state.Timing.Progress == 0)
                 Assert.That(progress.Width, Is.Zero, "Before the first object the bar has no residual visible progress line.");
             Assert.That(progress.Width, Is.EqualTo(track.Width * state.Timing.Progress).Within(1));
@@ -274,8 +288,64 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             Assert.That(track.Right, Is.LessThanOrEqualTo(screen.Right));
         }
 
+        private static string authoredInformationId(GameplaySkinSceneRuntimeHost scene, string id)
+            => id.StartsWith("still.hud", StringComparison.Ordinal) && !scene.TryGetRuntimeNode(id, out _)
+                ? "still." + scene.PreparedScene.Snapshot.Context.RulesetId + "-information/global/"
+                  + (scene.PreparedScene.Snapshot.Context.RulesetId == "bms" ? id.Replace("still.hud", "still.bms-hud", StringComparison.Ordinal) : id)
+                : id;
+
+        private static GameplaySkinSceneRuntimeNode authoredInformationNode(GameplaySkinSceneRuntimeHost scene, string id)
+            => c6CandidateNode(scene, authoredInformationId(scene, id));
+
+        private static void assertBmsInstrumentInformation(GameplaySkinSceneRuntimeHost scene, GameplaySkinEventStateSnapshot state)
+        {
+            GameplaySkinLayoutSnapshot layout = scene.PreparedScene.Snapshot;
+            foreach (string region in new[] { "player", "song", "judgements", "tempo" })
+            {
+                GameplaySkinSceneRuntimeNode panel = authoredInformationNode(scene, "still.hud." + region + ".panel");
+                Assert.That(panel.Rect, Is.EqualTo(layout.GetSurface("information." + region).Rect), region);
+                Assert.That(panel.Rect.Intersects(layout.GetSurface("bms.playfield").Rect), Is.False, region);
+                Assert.That(layout.BgaViewports.Any(bga => bga.Intersects(panel.Rect)), Is.False, region);
+            }
+            Assert.That(state.SongInformation, Is.Not.Null);
+            GameplaySkinSongInformation song = state.SongInformation!;
+            var expected = new Dictionary<string, string>
+            {
+                ["title"] = song.Title,
+                ["artist"] = song.Artist,
+                ["difficulty"] = song.Difficulty,
+                ["level"] = song.Level,
+                ["bpm-min"] = song.MinimumBpm.ToString("0.###", CultureInfo.InvariantCulture),
+                ["bpm-max"] = song.MaximumBpm.ToString("0.###", CultureInfo.InvariantCulture),
+                ["hispeed"] = state.Timing.ScrollSpeed.ToString("0.00", CultureInfo.InvariantCulture),
+                ["count-perfect"] = state.Score.Statistics.Perfect.ToString(CultureInfo.InvariantCulture),
+                ["count-great"] = state.Score.Statistics.Great.ToString(CultureInfo.InvariantCulture),
+                ["count-good"] = state.Score.Statistics.Good.ToString(CultureInfo.InvariantCulture),
+                ["count-meh"] = state.Score.Statistics.Meh.ToString(CultureInfo.InvariantCulture),
+                ["count-miss"] = state.Score.Statistics.Miss.ToString(CultureInfo.InvariantCulture),
+                ["count-ok"] = state.Score.Statistics.Ok.ToString(CultureInfo.InvariantCulture),
+                ["count-combo-breaks"] = state.Score.Statistics.ComboBreak.ToString(CultureInfo.InvariantCulture),
+            };
+            foreach ((string field, string value) in expected)
+                Assert.That(authoredInformationValue(scene, "still.hud." + field), Is.EqualTo(value), field);
+            Assert.That(state.Timing.ScrollSpeed, Is.GreaterThan(0));
+            var screen = scene.ScreenSpaceDrawQuad.AABBFloat;
+            foreach (string field in expected.Keys.Concat(new[] { "score", "accuracy", "bpm" }))
+            {
+                SpriteText text = (SpriteText)authoredInformationNode(scene, "still.hud." + field).ContentDrawable;
+                if (text.Text.ToString().Length == 0)
+                    continue;
+                Assert.That(text.IsPresent, Is.True, field);
+                var bounds = text.ScreenSpaceDrawQuad.AABBFloat;
+                Assert.That(bounds.Left, Is.GreaterThanOrEqualTo(screen.Left - 1), field);
+                Assert.That(bounds.Right, Is.LessThanOrEqualTo(screen.Right + 1), field);
+                Assert.That(bounds.Top, Is.GreaterThanOrEqualTo(screen.Top - 1), field);
+                Assert.That(bounds.Bottom, Is.LessThanOrEqualTo(screen.Bottom + 1), field);
+            }
+        }
+
         private static string authoredInformationValue(GameplaySkinSceneRuntimeHost scene, string id)
-            => ((SpriteText)c6CandidateNode(scene, id).ContentDrawable).Text.ToString();
+            => ((SpriteText)authoredInformationNode(scene, id).ContentDrawable).Text.ToString();
 
         private static GameplaySkinEventStateSnapshot authoredInformationSnapshot(GameplaySkinSceneRuntimeHost scene)
         {

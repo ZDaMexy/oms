@@ -18,6 +18,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 #TITLE Timing Profile
 #BPM 120
 #BPMAA 240
+#BPMAE 999
 #STOPAB 96
 #SCROLLAC 0.5
 #00102:0.5
@@ -29,6 +30,13 @@ namespace osu.Game.Rulesets.Bms.Tests
 ", "timing-profile.bme");
 
             beatmap = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(decoded), new BmsRuleset()).Convert();
+        }
+
+        [Test]
+        public void TestBpmRangeIgnoresStopScrollAndUnusedDefinitions()
+        {
+            Assert.That(beatmap.TimingProfile!.MinimumBpm, Is.EqualTo(120));
+            Assert.That(beatmap.TimingProfile.MaximumBpm, Is.EqualTo(240));
         }
 
         [Test]

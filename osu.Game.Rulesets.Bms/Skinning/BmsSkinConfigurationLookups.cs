@@ -82,6 +82,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
         BgaWidth,
         BgaHeight,
         BgaVerticalPosition,
+
+        /// <summary>Total screen-relative height reserved for information above and below BGA.</summary>
+        BgaInformationHeight,
         KeyAreaHeight,
         ScratchKeyWidth,
         GaugeHeight,

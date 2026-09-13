@@ -366,6 +366,8 @@ namespace osu.Game.Skinning.Gameplay
         CornerRadius = 21,
         RevealX = 22,
         Format = 23,
+        LayoutSurface = 24,
+        TextOverflow = 25,
     }
 
     public enum GameplaySkinSceneBindingSource
@@ -387,6 +389,20 @@ namespace osu.Game.Skinning.Gameplay
         BgaContentState = 14,
         ScoreAccuracy = 15,
         TimingProgress = 16,
+        SongTitle = 17,
+        SongArtist = 18,
+        SongDifficulty = 19,
+        SongLevel = 20,
+        TimingBpmMinimum = 21,
+        TimingBpmMaximum = 22,
+        ScrollSpeed = 23,
+        JudgementCountPerfect = 24,
+        JudgementCountGreat = 25,
+        JudgementCountGood = 26,
+        JudgementCountOk = 27,
+        JudgementCountMeh = 28,
+        JudgementCountMiss = 29,
+        ComboBreaks = 30,
     }
 
     public enum GameplaySkinSceneEvent
@@ -811,6 +827,8 @@ namespace osu.Game.Skinning.Gameplay
             "corner-radius" => GameplaySkinSceneProperty.CornerRadius,
             "reveal-x" => GameplaySkinSceneProperty.RevealX,
             "format" => GameplaySkinSceneProperty.Format,
+            "layout-surface" => GameplaySkinSceneProperty.LayoutSurface,
+            "text-overflow" => GameplaySkinSceneProperty.TextOverflow,
             _ => GameplaySkinSceneProperty.Unspecified,
         };
 
@@ -839,6 +857,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneProperty.CornerRadius => "corner-radius",
             GameplaySkinSceneProperty.RevealX => "reveal-x",
             GameplaySkinSceneProperty.Format => "format",
+            GameplaySkinSceneProperty.LayoutSurface => "layout-surface",
+            GameplaySkinSceneProperty.TextOverflow => "text-overflow",
             _ => throw new ArgumentOutOfRangeException(nameof(property), property, "Unknown scene property."),
         };
 
@@ -858,6 +878,20 @@ namespace osu.Game.Skinning.Gameplay
             "timing.beat" => GameplaySkinSceneBindingSource.TimingBeat,
             "timing.measure" => GameplaySkinSceneBindingSource.TimingMeasure,
             "timing.bpm" => GameplaySkinSceneBindingSource.TimingBpm,
+            "song.title" => GameplaySkinSceneBindingSource.SongTitle,
+            "song.artist" => GameplaySkinSceneBindingSource.SongArtist,
+            "song.difficulty" => GameplaySkinSceneBindingSource.SongDifficulty,
+            "song.level" => GameplaySkinSceneBindingSource.SongLevel,
+            "timing.bpm-min" => GameplaySkinSceneBindingSource.TimingBpmMinimum,
+            "timing.bpm-max" => GameplaySkinSceneBindingSource.TimingBpmMaximum,
+            "scroll.speed" => GameplaySkinSceneBindingSource.ScrollSpeed,
+            "judgement.count.perfect" => GameplaySkinSceneBindingSource.JudgementCountPerfect,
+            "judgement.count.great" => GameplaySkinSceneBindingSource.JudgementCountGreat,
+            "judgement.count.good" => GameplaySkinSceneBindingSource.JudgementCountGood,
+            "judgement.count.ok" => GameplaySkinSceneBindingSource.JudgementCountOk,
+            "judgement.count.meh" => GameplaySkinSceneBindingSource.JudgementCountMeh,
+            "judgement.count.miss" => GameplaySkinSceneBindingSource.JudgementCountMiss,
+            "combo.breaks" => GameplaySkinSceneBindingSource.ComboBreaks,
             "timing.progress" => GameplaySkinSceneBindingSource.TimingProgress,
             "bga.content-state" => GameplaySkinSceneBindingSource.BgaContentState,
             _ => GameplaySkinSceneBindingSource.Unspecified,

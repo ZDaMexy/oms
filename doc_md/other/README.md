@@ -19,6 +19,7 @@
 - [静线布局调整与验证](SKIN_SIMPLE_LAYOUT_20260912.md)：底部信息、独立键区和 BGA 作者参数，以及当前包的实际检查记录。
 - [静线机台结构打磨](SKIN_SIMPLE_CABINET_20260912.md)：完整底板、原创材质、分立仪表与实际渲染证据；保留整体视觉未签收边界。
 - [静线判定与血槽细节](SKIN_SIMPLE_STAGE_HUD_20260913.md)：图10之后的薄音符、同源舞台模板、固定血槽外框与真实读数。
+- [静线演奏信息与键区比例](SKIN_SIMPLE_INFORMATION_20260913.md)：实时判定、MIN/BPM/MAX、曲名/难度、Score/HiSpeed，通用信息区域及实际画面验证。
 - [内置双皮肤随构建更新](SKIN_BUILTIN_BUILD_20260912.md)：开发启动、build/publish 的源文件同步与发行验证。
 - [两款长期内置选择验证](SKIN_BUILTIN_SELECTION_20260912.md)：无需导入的选择、重启保留、游玩与安装恢复。
 - [皮肤恢复审计](SKIN_SYSTEM_RECOVERY_20260710.md)：皮肤任务必读；恢复锚点、撤回范围与重新准入。

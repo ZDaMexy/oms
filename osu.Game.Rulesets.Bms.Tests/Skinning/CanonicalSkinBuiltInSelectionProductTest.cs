@@ -52,8 +52,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(manager.CurrentRevision.Owner, Is.SameAs(manager.DefaultOmsSkin));
                 Assert.That(bms.PreparedScene.Snapshot, Is.SameAs(renderer.BmsLayoutProbe.Publication!.Snapshot));
                 Assert.That(mania.PreparedScene.Snapshot, Is.SameAs(renderer.ManiaLayoutProbe.Publication!.Snapshot));
-                Assert.That(bms.TryGetRuntimeNode("still.hud.score", out _), Is.True);
-                Assert.That(mania.TryGetRuntimeNode("still.hud.score", out _), Is.True);
+                Assert.That(bms.TryGetRuntimeNode(authoredInformationId(bms, "still.hud.score"), out _), Is.True);
+                Assert.That(mania.TryGetRuntimeNode(authoredInformationId(mania, "still.hud.score"), out _), Is.True);
                 foreach (string id in new[] { "still.judgement", "still.combo", "still.gauge" })
                 {
                     var stage = bms.PreparedScene.Roots.Single(node => node.Source.Id == id);

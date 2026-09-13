@@ -17,6 +17,27 @@ namespace osu.Game.Tests.NonVisual.Skinning
         private static readonly GameplaySkinLaneId lane = GameplaySkinLaneId.Create("stage.primary.key1");
 
         [Test]
+        public void TestSongInformationSurvivesLateAttachAndEpochReplacement()
+        {
+            var firstSong = new GameplaySkinSongInformation("First", "Artist", "HYPER", "9", 120, 180);
+            var secondSong = new GameplaySkinSongInformation("Second", "Other", "ANOTHER", "12", 150, 240);
+            GameplaySkinEventStateSnapshot initial = state();
+            GameplaySkinEventStateSnapshot withSong(GameplaySkinSongInformation song)
+                => new GameplaySkinEventStateSnapshot(initial.LifecycleState, initial.Inputs, initial.ActiveObjects,
+                    initial.CurrentJudgements, initial.Score, initial.Timing, initial.BgaViewports, song);
+            using var stream = new GameplaySkinEventStream(revision(1), 0, withSong(firstSong));
+            GameplaySkinEventProducer producer = stream.CreateProducer();
+            publishScore(stream, producer, 1, GameplaySkinEventKind.ScoreChanged, score(combo: 2));
+            using (GameplaySkinEventSubscription late = stream.Subscribe())
+                Assert.That(((GameplaySkinStateEventPayload)dequeue(late).Payload).State.SongInformation, Is.SameAs(firstSong));
+
+            producer = producer.Reset(0, withSong(secondSong), GameplaySkinEventResetReason.Retry);
+            using (GameplaySkinEventSubscription afterReset = stream.Subscribe())
+                Assert.That(((GameplaySkinStateEventPayload)dequeue(afterReset).Payload).State.SongInformation, Is.SameAs(secondSong));
+            producer.Dispose();
+        }
+
+        [Test]
         public void TestPublicSurfaceIsReadOnlyAndCannotCreateProducerState()
         {
             Type[] engineConstructedTypes =

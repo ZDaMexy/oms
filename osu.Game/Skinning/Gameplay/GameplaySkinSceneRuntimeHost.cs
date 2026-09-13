@@ -258,6 +258,7 @@ namespace osu.Game.Skinning.Gameplay
         private GameplaySkinLifecycleState lifecycleState;
         private GameplaySkinCurrentJudgementStateSnapshot? globalJudgement;
         private GameplaySkinScoreStateSnapshot scoreState;
+        private GameplaySkinSongInformation? songInformation;
         private GameplaySkinTimingStateSnapshot timingState;
         private GameplaySkinInputStateSnapshot? firstInput;
         private GameplaySkinObjectStateSnapshot? firstObject;
@@ -335,6 +336,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinEventStateSnapshot initialState = PreparedScene.InitialEventState;
             lifecycleState = initialState.LifecycleState;
             scoreState = initialState.Score;
+            songInformation = initialState.SongInformation;
             timingState = initialState.Timing;
 
             foreach (GameplaySkinInputStateSnapshot input in initialState.Inputs)
@@ -967,11 +969,12 @@ namespace osu.Game.Skinning.Gameplay
                 throw new InvalidOperationException();
 
             runtimeTextGlyphs += reservation;
-            return new OsuSpriteText
-            {
-                Text = text,
-                Font = FontUsage.Default.With(size: (float)getNumber(source.Properties, "font-size", 16)),
-            };
+            OsuSpriteText drawable = getString(source.Properties, "text-overflow", string.Empty) == "ellipsis"
+                ? new GameplaySkinBoundedSpriteText()
+                : new OsuSpriteText();
+            drawable.Text = text;
+            drawable.Font = FontUsage.Default.With(size: (float)getNumber(source.Properties, "font-size", 16));
+            return drawable;
         }
 
         private Drawable wrapEffects(Drawable content, IReadOnlyList<GameplaySkinSceneEffect> effects)
@@ -1334,6 +1337,7 @@ namespace osu.Game.Skinning.Gameplay
         {
             lifecycleState = state.LifecycleState;
             scoreState = state.Score;
+            songInformation = state.SongInformation;
             timingState = state.Timing;
             inputs.Clear();
             objects.Clear();
@@ -2215,6 +2219,62 @@ namespace osu.Game.Skinning.Gameplay
                     applyRuntimeNumberProperty(target, binding.Property, judgement?.Offset ?? 0);
                     return;
 
+                case GameplaySkinSceneBindingSource.SongTitle:
+                    applyRuntimeStringProperty(target, binding.Property, songInformation?.Title ?? string.Empty);
+                    return;
+
+                case GameplaySkinSceneBindingSource.SongArtist:
+                    applyRuntimeStringProperty(target, binding.Property, songInformation?.Artist ?? string.Empty);
+                    return;
+
+                case GameplaySkinSceneBindingSource.SongDifficulty:
+                    applyRuntimeStringProperty(target, binding.Property, songInformation?.Difficulty ?? string.Empty);
+                    return;
+
+                case GameplaySkinSceneBindingSource.SongLevel:
+                    applyRuntimeStringProperty(target, binding.Property, songInformation?.Level ?? string.Empty);
+                    return;
+
+                case GameplaySkinSceneBindingSource.TimingBpmMinimum:
+                    applyRuntimeNumberProperty(target, binding.Property, songInformation?.MinimumBpm ?? 0);
+                    return;
+
+                case GameplaySkinSceneBindingSource.TimingBpmMaximum:
+                    applyRuntimeNumberProperty(target, binding.Property, songInformation?.MaximumBpm ?? 0);
+                    return;
+
+                case GameplaySkinSceneBindingSource.ScrollSpeed:
+                    applyRuntimeNumberProperty(target, binding.Property, timingState.ScrollSpeed);
+                    return;
+
+                case GameplaySkinSceneBindingSource.JudgementCountPerfect:
+                    applyRuntimeNumberProperty(target, binding.Property, scoreState.Statistics.Perfect);
+                    return;
+
+                case GameplaySkinSceneBindingSource.JudgementCountGreat:
+                    applyRuntimeNumberProperty(target, binding.Property, scoreState.Statistics.Great);
+                    return;
+
+                case GameplaySkinSceneBindingSource.JudgementCountGood:
+                    applyRuntimeNumberProperty(target, binding.Property, scoreState.Statistics.Good);
+                    return;
+
+                case GameplaySkinSceneBindingSource.JudgementCountOk:
+                    applyRuntimeNumberProperty(target, binding.Property, scoreState.Statistics.Ok);
+                    return;
+
+                case GameplaySkinSceneBindingSource.JudgementCountMeh:
+                    applyRuntimeNumberProperty(target, binding.Property, scoreState.Statistics.Meh);
+                    return;
+
+                case GameplaySkinSceneBindingSource.JudgementCountMiss:
+                    applyRuntimeNumberProperty(target, binding.Property, scoreState.Statistics.Miss);
+                    return;
+
+                case GameplaySkinSceneBindingSource.ComboBreaks:
+                    applyRuntimeNumberProperty(target, binding.Property, scoreState.Statistics.ComboBreak);
+                    return;
+
                 case GameplaySkinSceneBindingSource.ScoreValue:
                     applyRuntimeNumberProperty(target, binding.Property, scoreState.Score);
                     return;
@@ -2597,9 +2657,12 @@ namespace osu.Game.Skinning.Gameplay
                     return;
 
                 case GameplaySkinSceneProperty.Text when node.ContentDrawable is SpriteText text:
-                    string display = getString(node.PreparedNode.Source.Properties, "format", string.Empty) == "percent"
-                        ? (value * 100).ToString("0", CultureInfo.InvariantCulture) + "%"
-                        : value.ToString("0.###", CultureInfo.InvariantCulture);
+                    string display = getString(node.PreparedNode.Source.Properties, "format", string.Empty) switch
+                    {
+                        "percent" => (value * 100).ToString("0", CultureInfo.InvariantCulture) + "%",
+                        "fixed-2" => value.ToString("0.00", CultureInfo.InvariantCulture),
+                        _ => value.ToString("0.###", CultureInfo.InvariantCulture),
+                    };
 
                     if (display.Length <= PreparedScene.GetTextGlyphReservation(node.PreparedNode.Source.Id))
                     {
@@ -2700,6 +2763,8 @@ namespace osu.Game.Skinning.Gameplay
                     drawable.Colour = colour(value.StringValue);
                     break;
 
+                case "text-overflow":
+                case "layout-surface":
                 case "format":
                     break;
 

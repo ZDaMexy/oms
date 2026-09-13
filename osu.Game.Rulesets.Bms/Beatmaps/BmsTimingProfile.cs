@@ -15,6 +15,10 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         private readonly BmsTimingSegment[] segments;
         private readonly double[] measureStartTimes;
 
+        public double MinimumBpm { get; }
+
+        public double MaximumBpm { get; }
+
         internal BmsTimingProfile(IEnumerable<BmsTimingSegment> segments, IEnumerable<double> measureStartTimes)
         {
             ArgumentNullException.ThrowIfNull(segments);
@@ -25,6 +29,9 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
             if (this.segments.Length == 0 || this.segments[0].StartTime != 0)
                 throw new ArgumentException("A BMS timing profile must begin at gameplay time zero.", nameof(segments));
+
+            MinimumBpm = this.segments.Min(segment => segment.Bpm);
+            MaximumBpm = this.segments.Max(segment => segment.Bpm);
 
             if (!this.segments.Select(segment => segment.StartTime).SequenceEqual(this.segments.Select(segment => segment.StartTime).Order()))
                 throw new ArgumentException("BMS timing profile segments must be ordered.", nameof(segments));

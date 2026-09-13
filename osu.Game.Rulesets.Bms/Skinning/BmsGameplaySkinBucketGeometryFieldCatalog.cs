@@ -23,6 +23,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     [nameof(BmsSkinConfigurationLookups.BgaWidth)] = BmsSkinConfigurationLookups.BgaWidth,
                     [nameof(BmsSkinConfigurationLookups.BgaHeight)] = BmsSkinConfigurationLookups.BgaHeight,
                     [nameof(BmsSkinConfigurationLookups.BgaVerticalPosition)] = BmsSkinConfigurationLookups.BgaVerticalPosition,
+                    [nameof(BmsSkinConfigurationLookups.BgaInformationHeight)] = BmsSkinConfigurationLookups.BgaInformationHeight,
                     [nameof(BmsSkinConfigurationLookups.KeyAreaHeight)] = BmsSkinConfigurationLookups.KeyAreaHeight,
                     [nameof(BmsSkinConfigurationLookups.GaugeHeight)] = BmsSkinConfigurationLookups.GaugeHeight,
                     [nameof(BmsSkinConfigurationLookups.ScratchKeyWidth)] = BmsSkinConfigurationLookups.ScratchKeyWidth,
@@ -45,6 +46,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             BmsSkinConfigurationLookups.BgaWidth,
             BmsSkinConfigurationLookups.BgaHeight,
             BmsSkinConfigurationLookups.BgaVerticalPosition,
+            BmsSkinConfigurationLookups.BgaInformationHeight,
             BmsSkinConfigurationLookups.KeyAreaHeight,
             BmsSkinConfigurationLookups.GaugeHeight,
             BmsSkinConfigurationLookups.ScratchKeyWidth,
@@ -66,6 +68,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 or BmsSkinConfigurationLookups.BgaWidth
                 or BmsSkinConfigurationLookups.BgaHeight
                 or BmsSkinConfigurationLookups.BgaVerticalPosition
+                or BmsSkinConfigurationLookups.BgaInformationHeight
                 or BmsSkinConfigurationLookups.KeyAreaHeight
                 or BmsSkinConfigurationLookups.GaugeHeight
                 or BmsSkinConfigurationLookups.ScratchKeyWidth

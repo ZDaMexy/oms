@@ -1,4 +1,4 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -194,7 +194,12 @@ namespace osu.Game.Rulesets.Mania.UI
             wrapped.Cache(layoutPublication.PreparedScene);
             wrapped.Cache(LayoutRevisionOwner);
 
-            GameplaySkinEventRuntime = new GameplaySkinEventRuntimeHost(layoutPublication, Beatmap, null, this);
+            GameplaySkinEventRuntime = new GameplaySkinEventRuntimeHost(layoutPublication, Beatmap, null, this,
+                new GameplaySkinSongInformation(Beatmap.BeatmapInfo.Metadata.Title, Beatmap.BeatmapInfo.Metadata.Artist,
+                    Beatmap.BeatmapInfo.DifficultyName, string.Empty,
+                    Beatmap.ControlPointInfo.TimingPoints.Select(point => point.BPM).DefaultIfEmpty(TimingControlPoint.DEFAULT.BPM).Min(),
+                    Beatmap.ControlPointInfo.TimingPoints.Select(point => point.BPM).DefaultIfEmpty(TimingControlPoint.DEFAULT.BPM).Max()),
+                () => configScrollSpeed.Value);
             wrapped.Cache(GameplaySkinEventRuntime);
             wrapped.Cache(GameplaySkinEventRuntime.EventStream);
 

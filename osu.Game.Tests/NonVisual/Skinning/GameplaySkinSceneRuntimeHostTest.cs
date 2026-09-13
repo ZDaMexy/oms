@@ -19,6 +19,112 @@ namespace osu.Game.Tests.NonVisual.Skinning
     [TestFixture]
     public sealed class GameplaySkinSceneRuntimeHostTest
     {
+        [TestCase("song.title", "A song")]
+        [TestCase("song.artist", "An artist")]
+        [TestCase("song.difficulty", "ANOTHER")]
+        [TestCase("song.level", "12")]
+        [TestCase("timing.bpm-min", "120")]
+        [TestCase("timing.bpm-max", "240")]
+        [TestCase("scroll.speed", "2.25")]
+        [TestCase("judgement.count.perfect", "10")]
+        [TestCase("judgement.count.great", "9")]
+        [TestCase("judgement.count.good", "8")]
+        [TestCase("judgement.count.ok", "7")]
+        [TestCase("judgement.count.meh", "6")]
+        [TestCase("judgement.count.miss", "5")]
+        [TestCase("combo.breaks", "4")]
+        public void TestInformationBindingsReadCompleteSnapshotAndReattach(string binding, string expected)
+        {
+            using var texture = new DummyRenderer().CreateTexture(8, 8);
+            GameplaySkinLayoutPublication publication = CreateEssentialInformationPublication(texture, true, bindingSource: binding);
+            GameplaySkinEventStateSnapshot initial = publication.PreparedScene.InitialEventState;
+            var snapshot = new GameplaySkinEventStateSnapshot(initial.LifecycleState, initial.Inputs, initial.ActiveObjects,
+                initial.CurrentJudgements, new GameplaySkinScoreStateSnapshot(29, 0, 19, 0.8, 0.5,
+                    new GameplaySkinJudgementStatistics(10, 9, 8, 7, 6, 5, 4)),
+                new GameplaySkinTimingStateSnapshot(0, 0, 150, false, 1, scrollSpeed: 2.25), initial.BgaViewports,
+                new GameplaySkinSongInformation("A song", "An artist", "ANOTHER", "12", 120, 240));
+            using var stream = new GameplaySkinEventStream(publication, 0, snapshot);
+            for (int i = 0; i < 2; i++)
+            {
+                using var host = new GameplaySkinSceneRuntimeHost(publication, stream);
+                host.ProcessFrame();
+                Assert.That(host.TryGetRuntimeNode("accuracy", out GameplaySkinSceneRuntimeNode? text), Is.True);
+                Assert.That(((SpriteText)text!.ContentDrawable).Text.ToString(), Is.EqualTo(expected));
+            }
+        }
+
+        [TestCase("judgement.count.perfect", "20")]
+        [TestCase("combo.breaks", "3")]
+        [TestCase("scroll.speed", "1.25")]
+        public void TestInformationBindingsRefreshAfterScoreAndTimingEdges(string binding, string expected)
+        {
+            using var texture = new DummyRenderer().CreateTexture(8, 8);
+            GameplaySkinLayoutPublication publication = CreateEssentialInformationPublication(texture, true, bindingSource: binding);
+            using GameplaySkinEventStream stream = createStream(publication);
+            using GameplaySkinEventProducer producer = stream.CreateProducer();
+            using var host = new GameplaySkinSceneRuntimeHost(publication, stream);
+            host.ProcessFrame();
+            publishScore(stream, producer, 1, GameplaySkinEventKind.ScoreChanged,
+                new GameplaySkinScoreStateSnapshot(40, 0, 20, 1, 0.5, new GameplaySkinJudgementStatistics(20, 0, 0, 0, 0, 3, 3)));
+            stream.Publish(producer, 2, GameplaySkinEventValue.Timing(GameplaySkinEventKind.TimingScrollChanged,
+                new GameplaySkinTimingStateSnapshot(0, 0, 120, false, 1, scrollSpeed: 1.25)), null, null);
+            host.ProcessFrame();
+            Assert.That(host.TryGetRuntimeNode("accuracy", out GameplaySkinSceneRuntimeNode? text), Is.True);
+            Assert.That(((SpriteText)text!.ContentDrawable).Text.ToString(), Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void TestFixedTwoDecimalSpeedPresentation()
+        {
+            using var texture = new DummyRenderer().CreateTexture(8, 8);
+            GameplaySkinLayoutPublication publication = CreateEssentialInformationPublication(texture, true, "fixed-2");
+            using GameplaySkinEventStream stream = createStream(publication);
+            using GameplaySkinEventProducer producer = stream.CreateProducer();
+            using var host = new GameplaySkinSceneRuntimeHost(publication, stream);
+            stream.Publish(producer, 1, GameplaySkinEventValue.Timing(GameplaySkinEventKind.TimingScrollChanged,
+                new GameplaySkinTimingStateSnapshot(0, 0, 120, false, 1, scrollSpeed: 2.5)), null, null);
+            host.ProcessFrame();
+            Assert.That(host.TryGetRuntimeNode("accuracy", out GameplaySkinSceneRuntimeNode? text), Is.True);
+            Assert.That(((SpriteText)text!.ContentDrawable).Text.ToString(), Is.EqualTo("2.50"));
+        }
+
+        [Test]
+        public void TestMaterialTemplatesSelectGlobalHudOnce()
+        {
+            using var texture = new DummyRenderer().CreateTexture(8, 8);
+            LayoutFixture layout = createLayout();
+            GameplaySkinResolvedMaterialSet materials = materialSetFor(layout.Snapshot, new[]
+            {
+                provide(GameplaySkinSlotCatalog.TextHud, GameplaySkinResolvedMaterialTarget.Global, texture,
+                    GameplaySkinResolvedMaterialSourceIdentity.CreateSelectedDocument("selected", "v1")),
+            });
+            var instance = new GameplaySkinSceneInstance("hud", "style", "hud.text", "textures/TextHud.png");
+            GameplaySkinResolvedMaterialEntry[] matches = GameplaySkinScenePreparer.ResolveMaterialTemplateEntries(instance, materials, "v1").ToArray();
+            Assert.That(matches, Has.Length.EqualTo(1));
+            Assert.That(matches[0].Target.Kind, Is.EqualTo(GameplaySkinResolvedMaterialTargetKind.Global));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestEllipsisIsOptInAndPreservesBoundMetadata(bool ellipsis)
+        {
+            using var texture = new DummyRenderer().CreateTexture(8, 8);
+            GameplaySkinLayoutPublication publication = CreateEssentialInformationPublication(texture, true, bindingSource: "song.title", ellipsis: ellipsis);
+            GameplaySkinEventStateSnapshot initial = publication.PreparedScene.InitialEventState;
+            string title = new string('T', 200);
+            var snapshot = new GameplaySkinEventStateSnapshot(initial.LifecycleState, initial.Inputs, initial.ActiveObjects,
+                initial.CurrentJudgements, initial.Score, initial.Timing, initial.BgaViewports,
+                new GameplaySkinSongInformation(title, "Artist", "ANOTHER", "12", 120, 240));
+            using var stream = new GameplaySkinEventStream(publication, 0, snapshot);
+            using var host = new GameplaySkinSceneRuntimeHost(publication, stream);
+            host.ProcessFrame();
+            Assert.That(host.TryGetRuntimeNode("accuracy", out GameplaySkinSceneRuntimeNode? node), Is.True);
+            var text = (SpriteText)node!.ContentDrawable;
+            Assert.That(text is GameplaySkinBoundedSpriteText, Is.EqualTo(ellipsis));
+            Assert.That(text.Truncate, Is.EqualTo(ellipsis));
+            Assert.That(text.Text.ToString(), Is.EqualTo(title));
+        }
+
         [TestCase("outline")]
         [TestCase("shadow")]
         public void TestBorderEffectsEnableMaskingRequiredByRenderer(string effectType)
@@ -101,7 +207,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
             }).Publication;
         }
 
-        internal static GameplaySkinLayoutPublication CreateEssentialInformationPublication(Texture texture, bool authorScene, string? presentation = null)
+        internal static GameplaySkinLayoutPublication CreateEssentialInformationPublication(Texture texture, bool authorScene, string? presentation = null, string? bindingSource = null, bool ellipsis = false)
         {
             LayoutFixture layout = createLayout();
             GameplaySkinResolvedMaterialTarget global = GameplaySkinResolvedMaterialTarget.Global;
@@ -134,16 +240,19 @@ namespace osu.Game.Tests.NonVisual.Skinning
                                 }
                                 """;
             var manifest = new GameplaySkinSceneManifest(Array.Empty<GameplaySkinSceneResource>());
-            string sourceJson = json;
+            string sourceJson = ellipsis ? json.Replace("\"font-size\":24", "\"font-size\":24,\"text-overflow\":\"ellipsis\"") : json;
             if (presentation != null)
             {
                 sourceJson = sourceJson.Replace("\"font-size\":24", "\"font-size\":24,\"format\":\"" + presentation + "\"");
                 sourceJson = sourceJson.Replace("\"property\":\"text\",\"source\":\"score.accuracy\"",
-                    "\"property\":\"text\",\"source\":\"" + (presentation == "percent" ? "gauge.value" : "judgement.result") + "\"");
+                    "\"property\":\"text\",\"source\":\"" + (presentation == "percent" ? "gauge.value" : presentation == "fixed-2" ? "scroll.speed" : "judgement.result") + "\"");
                 sourceJson = sourceJson.Replace("\"id\":\"progress-bar\",\"type\":\"container\"", "\"id\":\"progress-bar\",\"type\":\"clip\"");
                 sourceJson = sourceJson.Replace("\"target\":\"progress-bar\",\"property\":\"scale-x\",\"source\":\"timing.progress\"",
                     "\"target\":\"progress-bar\",\"property\":\"reveal-x\",\"source\":\"gauge.value\"");
             }
+            if (bindingSource != null)
+                sourceJson = sourceJson.Replace("\"property\":\"text\",\"source\":\"score.accuracy\"",
+                    "\"property\":\"text\",\"source\":\"" + bindingSource + "\"");
             GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> decoded = GameplaySkinSceneCodec.DecodeScene(sourceJson, manifest);
             Assert.That(decoded.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid), string.Join(", ", decoded.Diagnostics.Select(d => d.Code)));
             GameplaySkinSceneDocument document = decoded.Value!;
