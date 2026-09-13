@@ -113,6 +113,54 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.That(legacy.LanesInLogicalOrder.All(lane => Math.Abs(lane.KeyVisualRect.Width - lane.NeutralLane.Rect.Width) < 0.00001f), Is.True);
         }
 
+        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P1, 1.7777778f)]
+        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P2, 1.7777778f)]
+        [TestCase(BmsKeymode.Key14K, BmsPlayfieldStyle.Center, 1f)]
+        public void TestAuthoredGaugeReservesItsFullHeightAcrossLayouts(BmsKeymode keymode, BmsPlayfieldStyle style, float aspect)
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(keymode));
+            var environment = new BmsGameplayLayoutEnvironment(
+                GameplaySkinLayoutRect.Create(0, 0, 1, 1), GameplaySkinLayoutRect.Create(0, 0, 1, 1), aspect, 1);
+            var layout = provider.PublishForTesting(style, new BmsGameplayLayoutConfiguration
+            {
+                PlayfieldWidth = keymode == BmsKeymode.Key14K ? 0.8f : 0.25f,
+                PlayfieldHeight = 0.70f,
+                KeyAreaHeight = 0.12f,
+                GaugeHeight = 0.07f,
+            }, environment);
+            Assert.That(layout.GaugeRect.Height, Is.EqualTo(0.07f).Within(0.00001f));
+            Assert.That(layout.KeyAreaRect.Bottom, Is.LessThanOrEqualTo(layout.GaugeRect.Top));
+            Assert.That(layout.GaugeRect.Bottom, Is.LessThanOrEqualTo(layout.HudRect.Top));
+            Assert.That(layout.BgaViewports.All(rect => !rect.Intersects(layout.GaugeRect)), Is.True);
+            if (keymode == BmsKeymode.Key7K)
+                Assert.That(layout.PlayfieldRect.Height, Is.EqualTo(0.70f));
+            assertCompleteAndBounded(layout);
+        }
+
+        [TestCase(null, 0.036f)]
+        [TestCase(0.019f, 0.036f)]
+        [TestCase(0.121f, 0.036f)]
+        [TestCase(float.NaN, 0.036f)]
+        [TestCase(0.12f, 0.12f)]
+        public void TestGaugeHeightDefaultAndAuthorMaximum(float? height, float expected)
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(BmsKeymode.Key7K));
+            var layout = provider.PublishForTesting(BmsPlayfieldStyle.P1, new BmsGameplayLayoutConfiguration { GaugeHeight = height });
+            Assert.That(layout.GaugeRect.Height, Is.EqualTo(expected).Within(0.00001f));
+            assertCompleteAndBounded(layout);
+        }
+
+        [Test]
+        public void TestDpiDoesNotReduceAuthoredGaugeToOldCap()
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(BmsKeymode.Key7K));
+            var environment = new BmsGameplayLayoutEnvironment(
+                GameplaySkinLayoutRect.Create(0, 0, 1, 1), GameplaySkinLayoutRect.Create(0, 0, 1, 1), 16f / 9, 2);
+            var layout = provider.PublishForTesting(BmsPlayfieldStyle.P1, new BmsGameplayLayoutConfiguration { GaugeHeight = 0.12f }, environment);
+            Assert.That(layout.GaugeRect.Height, Is.EqualTo(0.12f).Within(0.00001f));
+            assertCompleteAndBounded(layout);
+        }
+
         [TestCase(BmsPlayfieldStyle.P1)]
         [TestCase(BmsPlayfieldStyle.P2)]
         public void TestSeparateKeysReserveSpaceWithoutMovingJudgementOrChangingLaneOrder(BmsPlayfieldStyle style)

@@ -1,5 +1,9 @@
 # 静线机台底板与跨拓扑 scene（2026-09-12）
 
+2026-09-13补充：当前公开instances.material可按同一选定包已解析Stage Provide slot/resource挂载模板，解决BMS/mania及单双舞台的有限复用；不是任意条件或跨包scene继承。旧段落“未加条件实例”保留此前迭代身份。血槽现在用独立外框、暗格与clip.reveal-x亮格，GaugeHeight选定包默认0.036，静线0.07。parseInstances的target/material须二选一，不能同时列入validateFields required。真实DrawNode会拒绝未Masking的outline/shadow容器，单纯headless属性检查不能证明绘制成功；outline是矩形边框，不能当字形描边使用。
+
+material模板无slot子节点须在owner表面定位，不能仅覆盖Stage target后仍用整个playfield矩形，否则血槽会盖满音轨。显式target旧模板不改坐标语义。clip外包transform后必须将子节点挂到content mask，否则裁切只改变空容器；实际内置BMS/mania产品检查与图11共同取证。编辑含非ASCII字面量的测试文件须保持UTF-8，曾误改é为茅导致规范化路径冲突fixture失真，恢复原值后通过，不应放宽生产校验。
+
 用户图07显示控制键和BGA周围仍穿透歌曲背景。根因不是stage.png透明：原stage.background只有Stage，其矩形是轨道group union，键区和外侧不在其中。当前扩展Global/Stage独立声明；Global=SafeBounds，在Background层depth2，Stage仍depth1。BGA实际内容在它们前方。不得用全屏decoration（Overlay）盖住音符，也不扩大所有Stage矩形。
 
 普通scene的Stage/Group/Lane目标需要精确id+index；instances无条件准备，variant只换资源，隐藏节点仍解析目标。同包覆盖BMS/mania和单双舞台时，不得无条件引用不存在的deck-2或BMS目标。分段血条不能只换分段PNG：原纯texture缩放整个宽度，会使格距随血量变化。现用固定暗槽+mask裁切满宽亮图解决，未加条件实例ABI；RelativeChildSize补偿mask宽度，0值避免除零并保留底槽。视觉测试必须挂载父容器，检查实际DrawWidth而非只看相对Width。

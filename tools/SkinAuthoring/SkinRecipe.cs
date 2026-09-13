@@ -36,7 +36,9 @@ namespace SkinAuthoring
                     foreach (string part in new[] { "note", "head", "body", "tail", "key", "pressed" })
                     {
                         draw(Path.Combine(assets, $"{part}-{role}.png"), 128, part == "body" ? 128 : part is "key" or "pressed" ? 72 : 24,
-                            (x, y, w, h) => note(x, y, w, h, part, roleColour, background, profile.Complex, 0));
+                            (x, y, w, h) => profile.CompactLayout && ruleset == "bms" && part is "note" or "head" or "tail"
+                                ? arcadeNote(x, y, w, roleColour)
+                                : note(x, y, w, h, part, roleColour, background, profile.Complex, 0));
                         if (profile.Complex && part is "note" or "head" or "body" or "tail")
                             for (int frame = 0; frame < 12; frame++)
                             {
@@ -106,6 +108,23 @@ namespace SkinAuthoring
             }
 
             Directory.CreateDirectory(Path.Combine(root, "scene"));
+            if (profile.CompactLayout)
+            {
+                draw(Path.Combine(root, "scene", "gauge-frame.png"), 1024, 160, (x, y, w, h) =>
+                {
+                    int edge = Math.Min(Math.Min(x, w - 1 - x), Math.Min(y, h - 1 - y));
+                    if (edge < 3) return new Rgba32(6, 9, 13);
+                    if (edge < 6) return new Rgba32(139, 156, 169);
+                    if (edge < 12) return new Rgba32(46, 60, 73);
+                    if (y is >= 72 and <= 75) return new Rgba32(73, 95, 109);
+                    return y < 72 ? new Rgba32(20, 29, 39) : new Rgba32(6, 10, 15);
+                });
+                draw(Path.Combine(root, "scene", "gauge-cells.png"), 1000, 64, (x, y, _, h) =>
+                {
+                    if (x % 20 < 4 || x % 20 > 15 || y < 2 || y >= h - 2) return default;
+                    return tint(colour(profile.BmsAccent), y < 7 ? 1.25 : y < 28 ? 1.0 : y < 50 ? 0.7 : 0.4);
+                });
+            }
             if (profile.CompactLayout)
                 draw(Path.Combine(root, "scene", "instrument.png"), 640, 128, (x, y, w, h) =>
                 {
@@ -220,6 +239,30 @@ namespace SkinAuthoring
                 for (int x = 0; x < width; x++)
                     image[x, y] = pixel(x, y, width, height);
             image.SaveAsPng(path);
+        }
+
+        private static Rgba32 arcadeNote(int x, int y, int w, Rgba32 accent)
+        {
+            // Preserve the previous lower visible edge at row 21: thinner artwork must not shift the landing edge.
+            if (x < 3 || x >= w - 3 || y < 12 || y > 21)
+                return default;
+            double bevel = y switch
+            {
+                12 => 0.45,
+                13 => 0.90,
+                14 => 1.25,
+                15 => 1.10,
+                16 => 0.95,
+                17 => 0.85,
+                18 => 0.72,
+                19 => 0.58,
+                20 => 0.38,
+                _ => 0.20,
+            };
+            double reflection = 0.82 + 0.18 * Math.Sin(Math.PI * (x - 3) / (w - 6));
+            if (x is >= 20 and <= 25 || x >= w - 26 && x <= w - 21)
+                reflection = 1.10;
+            return tint(accent, bevel * reflection);
         }
 
         private static Rgba32 note(int x, int y, int w, int h, string part, Rgba32 accent, Rgba32 background, bool complex, int frame)
@@ -364,7 +407,7 @@ namespace SkinAuthoring
                     .AppendLine("NormalLaneWidth: 1").AppendLine("ScratchLaneWidth: 1.5").AppendLine("ScratchLaneSpacing: 0.12")
                     .AppendLine($"LongNoteBodyWidth: {(profile.Complex ? "0.65" : "0.60")}").AppendLine("BarLineHeight: 2");
                 if (profile.CompactLayout)
-                    ini.AppendLine("KeyAreaHeight: 0.12").AppendLine("ScratchKeyWidth: 2").AppendLine("BgaWidth: 0.60").AppendLine("BgaHeight: 0.76").AppendLine("BgaVerticalPosition: 0.45");
+                    ini.AppendLine("KeyAreaHeight: 0.12").AppendLine("ScratchKeyWidth: 2").AppendLine("GaugeHeight: 0.07").AppendLine("BgaWidth: 0.60").AppendLine("BgaHeight: 0.76").AppendLine("BgaVerticalPosition: 0.45");
                 IEnumerable<string> lanes = keys == 14 ? new[] { "S" }.Concat(Enumerable.Range(1, 14).Select(n => n.ToString())).Append("S2")
                     : keys == 9 ? Enumerable.Range(0, 9).Select(n => n.ToString()) : new[] { "S" }.Concat(Enumerable.Range(1, keys).Select(n => n.ToString()));
                 foreach (string lane in lanes)
@@ -588,13 +631,15 @@ namespace SkinAuthoring
                 ["scene"] = GameplaySkinSceneContracts.SCENE_FILE_NAME,
                 ["sceneContract"] = GameplaySkinSceneContracts.SCENE_CONTRACT_ID,
                 ["eventContract"] = GameplaySkinSceneContracts.EVENT_CONTRACT_ID,
-                ["resources"] = (profile.Complex ? new[] { "white", "orbit", "prism", "console" } : profile.CompactLayout ? new[] { "white", "instrument" } : new[] { "white" })
+                ["resources"] = (profile.Complex ? new[] { "white", "orbit", "prism", "console" } : profile.CompactLayout ? new[] { "white", "instrument", "gauge-frame", "gauge-cells" } : new[] { "white" })
                     .Select(id => new { id = "texture." + id, type = "texture", path = "scene/" + id + ".png" }).ToArray(),
             };
             var children = new List<object>();
             var tracks = new List<object>();
             var bindings = new List<object>();
             var machines = new List<object>();
+            var templates = new List<object>();
+            var instances = new List<object>();
             if (!profile.Complex && !profile.CompactLayout)
             {
                 var information = new List<object>
@@ -621,6 +666,61 @@ namespace SkinAuthoring
             }
             if (!profile.Complex && profile.CompactLayout)
             {
+                templates.Add(new { id = "still.judgement-style", root = stageTemplateNode("still.judgement", "container", new() { ["opacity"] = 0 }, new object[]
+                {
+                    stageTemplateNode("still.judgement.result", "text", new()
+                    {
+                        ["text"] = "", ["format"] = "uppercase", ["font-size"] = 32, ["alignment"] = "centre", ["colour"] = "#eaf8ffff",
+                    }),
+                }, slot: "hud.judgement") });
+                templates.Add(new { id = "still.combo-style", root = stageTemplateNode("still.combo", "container", new() { ["y"] = -0.8 }, new object[]
+                {
+                    stageTemplateNode("still.combo.value", "text", new()
+                    {
+                        ["text"] = "0", ["font-size"] = 22, ["alignment"] = "centre", ["colour"] = "#a7e6f0ff",
+                    }),
+                }, slot: "hud.combo") });
+                templates.Add(new { id = "still.gauge-style", root = stageTemplateNode("still.gauge", "container", new(), new object[]
+                {
+                    stageTemplateNode("still.gauge.frame", "sprite", new(), resource: "texture.gauge-frame"),
+                    stageTemplateNode("still.gauge.label", "text", new()
+                    {
+                        ["text"] = "GAUGE", ["font-size"] = 10, ["x"] = 0.035, ["y"] = 0.04, ["width"] = 0.5, ["height"] = 0.4,
+                        ["alignment"] = "left", ["colour"] = "#b8cbd6ff",
+                    }),
+                    stageTemplateNode("still.gauge.value", "text", new()
+                    {
+                        ["text"] = "0%", ["font-size"] = 16, ["format"] = "percent", ["x"] = 0.5, ["y"] = 0.04, ["width"] = 0.46, ["height"] = 0.4,
+                        ["alignment"] = "right", ["colour"] = "#f2fbffff",
+                    }),
+                    stageTemplateNode("still.gauge.track", "sprite", new()
+                    {
+                        ["x"] = 0.025, ["y"] = 0.52, ["width"] = 0.95, ["height"] = 0.38, ["colour"] = "#34434bff",
+                    }, resource: "texture.gauge-cells"),
+                    stageTemplateNode("still.gauge.reveal", "clip", new()
+                    {
+                        ["x"] = 0.025, ["y"] = 0.52, ["width"] = 0.95, ["height"] = 0.38, ["clip-mode"] = "bounds", ["reveal-x"] = 1,
+                    }, new[] { stageTemplateNode("still.gauge.fill", "sprite", new(), resource: "texture.gauge-cells") }),
+                }, slot: "hud.gauge") });
+                foreach ((string name, string slot, string resource) in new[]
+                         { ("judgement", "hud.judgement", "bms/hud"), ("combo", "hud.combo", "bms/hud"), ("gauge", "hud.gauge", "bms/gauge") })
+                    instances.Add(new { id = "still." + name + "-stage", template = "still." + name + "-style", material = new { slot, resource } });
+                foreach ((string target, string property, string source) in new[]
+                         {
+                             ("judgement.result", "text", "judgement.result"), ("combo.value", "text", "combo.value"),
+                             ("combo", "opacity", "combo.value"), ("gauge.value", "text", "gauge.value"), ("gauge.reveal", "reveal-x", "gauge.value"),
+                         })
+                    bindings.Add(new { id = "still.stage-bind." + target + "." + property, target = "still." + target, property, source });
+                machines.Add(new
+                {
+                    id = "still.current-judgement", initial = "still.judgement.empty",
+                    states = new[]
+                    {
+                        new { id = "still.judgement.empty", set = new[] { new { id = "still.judgement.hide", target = "still.judgement", property = "opacity", value = 0 } } },
+                        new { id = "still.judgement.active", set = new[] { new { id = "still.judgement.show", target = "still.judgement", property = "opacity", value = 1 } } },
+                    },
+                    transitions = new[] { new { id = "still.judgement.arrive", from = "still.judgement.empty", to = "still.judgement.active", @event = "judgement.hit" } },
+                });
                 var information = new List<object>
                 {
                     hudElement("still.hud.panel", "sprite", new() { ["x"] = 0.05, ["width"] = 0.25, ["height"] = 0.94 }, "instrument"),
@@ -708,7 +808,7 @@ namespace SkinAuthoring
                 }
                 children.Add(new { id = "astral.decoration", type = "container", target = new { kind = "global" }, slot = "decoration", blend = "alpha", properties = new { }, effects = Array.Empty<object>(), children = decorations });
             }
-            var scene = new { contract = GameplaySkinSceneContracts.SCENE_CONTRACT_ID, root = new { id = "skin.root", type = "container", target = new { kind = "global" }, blend = "inherit", properties = new { }, effects = Array.Empty<object>(), children }, tracks, stateMachines = machines, bindings, variants = Array.Empty<object>(), templates = Array.Empty<object>(), instances = Array.Empty<object>() };
+            var scene = new { contract = GameplaySkinSceneContracts.SCENE_CONTRACT_ID, root = new { id = "skin.root", type = "container", target = new { kind = "global" }, blend = "inherit", properties = new { }, effects = Array.Empty<object>(), children }, tracks, stateMachines = machines, bindings, variants = Array.Empty<object>(), templates, instances };
             File.WriteAllText(Path.Combine(root, GameplaySkinSceneContracts.MANIFEST_FILE_NAME), JsonSerializer.Serialize(manifest, json_options).Replace("\r\n", "\n", StringComparison.Ordinal) + "\n", utf8);
             File.WriteAllText(Path.Combine(root, GameplaySkinSceneContracts.SCENE_FILE_NAME), JsonSerializer.Serialize(scene, json_options).Replace("\r\n", "\n", StringComparison.Ordinal) + "\n", utf8);
             if (profile.Complex)
@@ -717,6 +817,19 @@ namespace SkinAuthoring
 
         private static object sprite(string id, string resource, Dictionary<string, object> properties)
             => new { id, type = "sprite", target = new { kind = "global" }, resource = "texture." + resource, blend = "alpha", properties, effects = Array.Empty<object>(), children = Array.Empty<object>() };
+
+        private static object stageTemplateNode(string id, string type, Dictionary<string, object> properties, object[]? children = null,
+                                               string? resource = null, string? slot = null, object[]? effects = null)
+        {
+            var node = new Dictionary<string, object>
+            {
+                ["id"] = id, ["type"] = type, ["target"] = new { kind = "global" }, ["blend"] = "alpha", ["properties"] = properties,
+                ["effects"] = effects ?? Array.Empty<object>(), ["children"] = children ?? Array.Empty<object>(),
+            };
+            if (resource != null) node["resource"] = resource;
+            if (slot != null) node["slot"] = slot;
+            return node;
+        }
 
         // Every element keeps the ruleset's published HUD surface: BMS uses its bottom information area,
         // while mania retains its top band. No full-screen child can drift back over the lanes.

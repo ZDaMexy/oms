@@ -7,6 +7,7 @@ using System.Reflection;
 using NUnit.Framework;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Effects;
 using osu.Framework.Graphics.Rendering.Dummy;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
@@ -18,6 +19,79 @@ namespace osu.Game.Tests.NonVisual.Skinning
     [TestFixture]
     public sealed class GameplaySkinSceneRuntimeHostTest
     {
+        [TestCase("outline")]
+        [TestCase("shadow")]
+        public void TestBorderEffectsEnableMaskingRequiredByRenderer(string effectType)
+        {
+            using var first = new DummyRenderer().CreateTexture(2, 2);
+            using var second = new DummyRenderer().CreateTexture(4, 4);
+            RuntimeFixture fixture = createAuthorFixture(first, second, effectType);
+            using GameplaySkinEventStream stream = createStream(fixture.Publication);
+            using var host = new GameplaySkinSceneRuntimeHost(fixture.Publication, stream);
+            host.ProcessFrame();
+            Assert.That(host.TryGetRuntimeNode("node.sprite", out GameplaySkinSceneRuntimeNode? sprite), Is.True);
+            Container effect = ((Container)sprite!.RootDrawable).ChildrenOfType<Container>()
+                .Single(container => container.EdgeEffect.Type != EdgeEffectType.None);
+            Assert.That(effect.Masking, Is.True, "The actual renderer rejects border effects on an unmasked container.");
+        }
+
+        [TestCase(true, "v1", "textures/GaugeVisual.png", 1)]
+        [TestCase(false, "v1", "textures/GaugeVisual.png", 0)]
+        [TestCase(true, "other", "textures/GaugeVisual.png", 0)]
+        [TestCase(true, "v1", "mania/gauge", 0)]
+        public void TestMaterialTemplatesClaimOnlyMatchingSelectedStage(bool selected, string revision, string resource, int count)
+        {
+            using var texture = new DummyRenderer().CreateTexture(8, 8);
+            LayoutFixture layout = createLayout();
+            GameplaySkinResolvedMaterialSourceIdentity identity = selected
+                ? GameplaySkinResolvedMaterialSourceIdentity.CreateSelectedDocument("selected", "v1")
+                : GameplaySkinResolvedMaterialSourceIdentity.Create(GameplaySkinResolvedMaterialSourceKind.CanonicalPackage, "canonical", "v1");
+            GameplaySkinResolvedMaterialSet materials = materialSetFor(layout.Snapshot, new[]
+            {
+                provide(GameplaySkinSlotCatalog.GaugeVisual, GameplaySkinResolvedMaterialTarget.ForStage(layout.Group), texture, identity),
+            });
+            var instance = new GameplaySkinSceneInstance("gauge", "style", "hud.gauge", resource);
+            Assert.That(GameplaySkinScenePreparer.ResolveMaterialTemplateEntries(instance, materials, revision).Count(), Is.EqualTo(count));
+        }
+
+        [Test]
+        public void TestExplicitPercentAndClipRevealConsumeGaugeWithoutResizingOuterLayout()
+        {
+            using var texture = new DummyRenderer().CreateTexture(8, 8);
+            GameplaySkinLayoutPublication publication = CreateEssentialInformationPublication(texture, true, "percent");
+            using GameplaySkinEventStream stream = createStream(publication);
+            using GameplaySkinEventProducer producer = stream.CreateProducer();
+            using var host = new GameplaySkinSceneRuntimeHost(publication, stream);
+            host.ProcessFrame();
+            int sequence = 0;
+            foreach (double value in new[] { 0, 0.2, 1, 0 })
+            {
+                publishScore(stream, producer, ++sequence, GameplaySkinEventKind.GaugeChanged,
+                    new GameplaySkinScoreStateSnapshot(0, 0, 0, 1, value));
+                host.ProcessFrame();
+                Assert.That(host.TryGetRuntimeNode("accuracy", out GameplaySkinSceneRuntimeNode? number), Is.True);
+                Assert.That(host.TryGetRuntimeNode("progress-bar", out GameplaySkinSceneRuntimeNode? bar), Is.True);
+                Assert.That(((SpriteText)number!.ContentDrawable).Text.ToString(), Is.EqualTo((value * 100).ToString("0", System.Globalization.CultureInfo.InvariantCulture) + "%"));
+                Assert.That(bar!.TransformDrawable.Width, Is.EqualTo(1));
+                Assert.That(bar.ContentDrawable.Width, Is.EqualTo((float)value));
+                Assert.That(((Container)bar.ContentDrawable).RelativeChildSize.X, Is.EqualTo(value > 0 ? (float)value : 1));
+            }
+        }
+
+        [Test]
+        public void TestExplicitUppercaseFormatsBoundJudgementResult()
+        {
+            using var texture = new DummyRenderer().CreateTexture(8, 8);
+            GameplaySkinLayoutPublication publication = CreateEssentialInformationPublication(texture, true, "uppercase");
+            using GameplaySkinEventStream stream = createStream(publication);
+            using var host = new GameplaySkinSceneRuntimeHost(publication, stream);
+            host.ProcessFrame();
+            Assert.That(host.TryGetRuntimeNode("accuracy", out GameplaySkinSceneRuntimeNode? text), Is.True);
+            string display = ((SpriteText)text!.ContentDrawable).Text.ToString();
+            Assert.That(display, Is.Not.Empty);
+            Assert.That(display, Is.EqualTo(display.ToUpperInvariant()));
+        }
+
         internal static GameplaySkinLayoutPublication CreateGaugePublication(Texture texture)
         {
             LayoutFixture layout = createLayout();
@@ -27,7 +101,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
             }).Publication;
         }
 
-        internal static GameplaySkinLayoutPublication CreateEssentialInformationPublication(Texture texture, bool authorScene)
+        internal static GameplaySkinLayoutPublication CreateEssentialInformationPublication(Texture texture, bool authorScene, string? presentation = null)
         {
             LayoutFixture layout = createLayout();
             GameplaySkinResolvedMaterialTarget global = GameplaySkinResolvedMaterialTarget.Global;
@@ -60,7 +134,17 @@ namespace osu.Game.Tests.NonVisual.Skinning
                                 }
                                 """;
             var manifest = new GameplaySkinSceneManifest(Array.Empty<GameplaySkinSceneResource>());
-            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> decoded = GameplaySkinSceneCodec.DecodeScene(json, manifest);
+            string sourceJson = json;
+            if (presentation != null)
+            {
+                sourceJson = sourceJson.Replace("\"font-size\":24", "\"font-size\":24,\"format\":\"" + presentation + "\"");
+                sourceJson = sourceJson.Replace("\"property\":\"text\",\"source\":\"score.accuracy\"",
+                    "\"property\":\"text\",\"source\":\"" + (presentation == "percent" ? "gauge.value" : "judgement.result") + "\"");
+                sourceJson = sourceJson.Replace("\"id\":\"progress-bar\",\"type\":\"container\"", "\"id\":\"progress-bar\",\"type\":\"clip\"");
+                sourceJson = sourceJson.Replace("\"target\":\"progress-bar\",\"property\":\"scale-x\",\"source\":\"timing.progress\"",
+                    "\"target\":\"progress-bar\",\"property\":\"reveal-x\",\"source\":\"gauge.value\"");
+            }
+            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> decoded = GameplaySkinSceneCodec.DecodeScene(sourceJson, manifest);
             Assert.That(decoded.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid), string.Join(", ", decoded.Diagnostics.Select(d => d.Code)));
             GameplaySkinSceneDocument document = decoded.Value!;
             GameplaySkinSceneNode root = document.Root;
@@ -793,11 +877,12 @@ namespace osu.Game.Tests.NonVisual.Skinning
             }
         }
 
-        [Test]
-        public void TestDualStageLaneJudgementProjectionConvergesAcrossLiveLateAttachAndResetWithoutScopeLeakage()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestDualStageLaneJudgementProjectionConvergesAcrossLiveLateAttachAndResetWithoutScopeLeakage(bool materialTemplate)
         {
             using var texture = new DummyRenderer().CreateTexture(8, 8);
-            DualJudgementFixture fixture = createDualJudgementFixture(texture);
+            DualJudgementFixture fixture = createDualJudgementFixture(texture, materialTemplate);
             GameplaySkinJudgementStateSnapshot judgement = new GameplaySkinJudgementStateSnapshot(
                 101,
                 fixture.FirstGroup.Identity.Id,
@@ -894,10 +979,10 @@ namespace osu.Game.Tests.NonVisual.Skinning
                     100,
                     0);
 
-            static ScopedProjection projection(GameplaySkinSceneRuntimeHost host)
+            ScopedProjection projection(GameplaySkinSceneRuntimeHost host)
             {
-                Assert.That(host.TryGetRuntimeNode("scope.first", out GameplaySkinSceneRuntimeNode? first), Is.True);
-                Assert.That(host.TryGetRuntimeNode("scope.second", out GameplaySkinSceneRuntimeNode? second), Is.True);
+                Assert.That(host.TryGetRuntimeNode(materialTemplate ? "scope.instance/0/scope.template" : "scope.first", out GameplaySkinSceneRuntimeNode? first), Is.True);
+                Assert.That(host.TryGetRuntimeNode(materialTemplate ? "scope.instance/1/scope.template" : "scope.second", out GameplaySkinSceneRuntimeNode? second), Is.True);
                 return new ScopedProjection(
                     first!.TransformDrawable.Alpha,
                     first.TransformDrawable.Rotation,
@@ -1692,19 +1777,21 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 => new GameplaySkinSceneTransition($"lifecycle.{id}", from, to, eventId);
         }
 
-        private static DualJudgementFixture createDualJudgementFixture(Texture texture)
+        private static DualJudgementFixture createDualJudgementFixture(Texture texture, bool materialTemplate)
         {
             DualLayoutFixture layout = createDualStageLayout();
             GameplaySkinLaneTopologyGroup firstGroup = layout.Groups[0].TopologyGroup;
             GameplaySkinLaneTopologyGroup secondGroup = layout.Groups[1].TopologyGroup;
             GameplaySkinLaneTopologyEntry firstLane = firstGroup.LanesInLogicalOrder.Single();
             GameplaySkinLaneTopologyEntry secondLane = secondGroup.LanesInLogicalOrder.Single();
-            GameplaySkinResolvedMaterialTarget firstTarget = GameplaySkinResolvedMaterialTarget.ForLane(firstGroup, firstLane);
-            GameplaySkinResolvedMaterialTarget secondTarget = GameplaySkinResolvedMaterialTarget.ForLane(secondGroup, secondLane);
+            GameplaySkinResolvedMaterialTarget firstTarget = materialTemplate ? GameplaySkinResolvedMaterialTarget.ForStage(firstGroup) : GameplaySkinResolvedMaterialTarget.ForLane(firstGroup, firstLane);
+            GameplaySkinResolvedMaterialTarget secondTarget = materialTemplate ? GameplaySkinResolvedMaterialTarget.ForStage(secondGroup) : GameplaySkinResolvedMaterialTarget.ForLane(secondGroup, secondLane);
+            GameplaySkinSlotDescriptor slot = materialTemplate ? GameplaySkinSlotCatalog.JudgementDisplay : GameplaySkinSlotCatalog.KeyFlash;
+            GameplaySkinResolvedMaterialSourceIdentity identity = GameplaySkinResolvedMaterialSourceIdentity.CreateSelectedDocument("selected", "v1");
             GameplaySkinResolvedMaterialEntry[] entries =
             {
-                provide(GameplaySkinSlotCatalog.KeyFlash, firstTarget, texture, source()),
-                provide(GameplaySkinSlotCatalog.KeyFlash, secondTarget, texture, source()),
+                provide(slot, firstTarget, texture, identity),
+                provide(slot, secondTarget, texture, identity),
             };
             GameplaySkinResolvedMaterialSet materialSet = materialSetFor(layout.Snapshot, entries);
             var resource = new GameplaySkinSceneResource("scope.texture", GameplaySkinSceneResourceType.Texture, "textures/scope.png");
@@ -1719,22 +1806,26 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 "scope.first",
                 GameplaySkinSceneNodeType.Sprite,
                 target(GameplaySkinSceneTargetKind.Lane, firstLane.Identity.Id.Value, firstLane.GlobalLogicalIndex),
-                GameplaySkinSlotCatalog.KeyFlash.Id,
+                slot.Id,
                 resource.Id);
             GameplaySkinSceneNode second = node(
                 "scope.second",
                 GameplaySkinSceneNodeType.Sprite,
                 target(GameplaySkinSceneTargetKind.Lane, secondLane.Identity.Id.Value, secondLane.GlobalLogicalIndex),
-                GameplaySkinSlotCatalog.KeyFlash.Id,
+                slot.Id,
                 resource.Id);
-            dispatcher = withChildren(dispatcher, first, second);
+            GameplaySkinSceneNode templateRoot = node("scope.template", GameplaySkinSceneNodeType.Sprite,
+                target(GameplaySkinSceneTargetKind.Global), slot.Id, resource.Id);
+            var instance = new GameplaySkinSceneInstance("scope.instance", "scope.style", slot.Id, $"textures/{slot.StableName}.png");
+            dispatcher = materialTemplate ? dispatcher : withChildren(dispatcher, first, second);
+            string bindingTarget = materialTemplate ? templateRoot.Id : first.Id;
 
             GameplaySkinSceneState state(string id, double opacity)
                 => new GameplaySkinSceneState(id, new[]
                 {
-                    new GameplaySkinSceneStateAssignment($"{id}.first", first.Id, "opacity", GameplaySkinScenePropertyValue.FromNumber(opacity)),
-                    new GameplaySkinSceneStateAssignment($"{id}.second", second.Id, "opacity", GameplaySkinScenePropertyValue.FromNumber(opacity)),
-                });
+                    new GameplaySkinSceneStateAssignment($"{id}.first", bindingTarget, "opacity", GameplaySkinScenePropertyValue.FromNumber(opacity)),
+                    new GameplaySkinSceneStateAssignment($"{id}.second", materialTemplate ? templateRoot.Id : second.Id, "opacity", GameplaySkinScenePropertyValue.FromNumber(opacity)),
+                }.Take(materialTemplate ? 1 : 2));
 
             var machine = new GameplaySkinSceneStateMachine(
                 "scope.machine",
@@ -1750,19 +1841,25 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 new[] { machine },
                 new[]
                 {
-                    new GameplaySkinSceneBinding("scope.first-offset", first.Id, "rotation", "judgement.offset"),
-                    new GameplaySkinSceneBinding("scope.second-offset", second.Id, "rotation", "judgement.offset"),
-                },
-                Array.Empty<GameplaySkinSceneTemplate>(),
-                Array.Empty<GameplaySkinSceneInstance>());
+                    new GameplaySkinSceneBinding("scope.first-offset", bindingTarget, "rotation", "judgement.offset"),
+                    new GameplaySkinSceneBinding("scope.second-offset", materialTemplate ? templateRoot.Id : second.Id, "rotation", "judgement.offset"),
+                }.Take(materialTemplate ? 1 : 2),
+                materialTemplate ? new[] { new GameplaySkinSceneTemplate("scope.style", templateRoot) } : Array.Empty<GameplaySkinSceneTemplate>(),
+                materialTemplate ? new[] { instance } : Array.Empty<GameplaySkinSceneInstance>());
             GameplaySkinPreparedSceneNode preparedRoot = prepared(
                 dispatcher,
                 layout.Snapshot.Context.SafeBounds,
                 GameplaySkinResolvedMaterialTarget.Global,
                 null,
                 null,
-                prepared(first, layout.Groups[0].Rect, firstTarget, GameplaySkinSlotCatalog.KeyFlash, preparedResource),
-                prepared(second, layout.Groups[1].Rect, secondTarget, GameplaySkinSlotCatalog.KeyFlash, preparedResource));
+                prepared(first, layout.Groups[0].Rect, firstTarget, slot, preparedResource),
+                prepared(second, layout.Groups[1].Rect, secondTarget, slot, preparedResource));
+            GameplaySkinPreparedSceneNode[] roots = materialTemplate
+                ? GameplaySkinScenePreparer.ResolveMaterialTemplateEntries(instance, materialSet, "v1")
+                    .Select((entry, index) => prepared(templateRoot, layout.Groups[index].Rect, entry.Target, slot, preparedResource,
+                        $"scope.instance/{entry.Target.GroupLogicalIndex}/{templateRoot.Id}")).ToArray()
+                : new[] { preparedRoot };
+            Assert.That(roots.Length, Is.EqualTo(materialTemplate ? 2 : 1));
             var scene = new GameplaySkinPreparedScene(
                 layout.Snapshot,
                 materialSet,
@@ -1770,7 +1867,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 new GameplaySkinSceneManifest(new[] { resource }),
                 document,
                 new[] { preparedResource },
-                new[] { preparedRoot });
+                roots);
             GameplaySkinLayoutPublication publication = GameplaySkinLayoutPublication.Create(new Adapter(layout.Snapshot), materialSet, scene);
             return new DualJudgementFixture(publication, firstGroup, firstLane, secondGroup, secondLane);
         }
@@ -1876,7 +1973,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
             return new CompiledProgramFixture(scene, preparedResource1, preparedResource2);
         }
 
-        private static RuntimeFixture createAuthorFixture(Texture texture1, Texture texture2)
+        private static RuntimeFixture createAuthorFixture(Texture texture1, Texture texture2, string effectType = "glow")
         {
             LayoutFixture layout = createLayout();
             GameplaySkinResolvedMaterialTarget stageTarget = GameplaySkinResolvedMaterialTarget.ForStage(layout.Group);
@@ -1912,7 +2009,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 {
                     new GameplaySkinSceneEffect(
                         "effect.glow",
-                        "glow",
+                        effectType,
                         new Dictionary<string, GameplaySkinScenePropertyValue>
                         {
                             ["radius"] = GameplaySkinScenePropertyValue.FromNumber(2),

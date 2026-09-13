@@ -14,6 +14,47 @@ namespace osu.Game.Tests.NonVisual.Skinning
     [TestFixture]
     public sealed class GameplaySkinSceneCodecTest
     {
+        [Test]
+        public void TestMaterialTemplateAndExplicitPresentationPropertiesRoundTrip()
+        {
+            const string json = """
+                {"contract":"oms-gameplay-skin-scene.v1",
+                 "root":{"id":"root","type":"container","target":{"kind":"global"},"blend":"inherit","properties":{},"effects":[],"children":[]},
+                 "templates":[{"id":"style","root":{"id":"gauge","type":"container","target":{"kind":"global"},"slot":"hud.gauge","blend":"alpha","properties":{},"effects":[],"children":[
+                   {"id":"value","type":"text","target":{"kind":"global"},"blend":"alpha","properties":{"text":"0%","format":"percent"},"effects":[],"children":[]},
+                   {"id":"fill","type":"clip","target":{"kind":"global"},"blend":"alpha","properties":{"reveal-x":1},"effects":[],"children":[]}]}}],
+                 "instances":[{"id":"bms","template":"style","material":{"slot":"hud.gauge","resource":"bms/gauge"}}],
+                 "tracks":[],"stateMachines":[],"bindings":[{"id":"value.binding","target":"value","property":"text","source":"gauge.value"},{"id":"fill.binding","target":"fill","property":"reveal-x","source":"gauge.value"}]}
+                """;
+            var manifest = new GameplaySkinSceneManifest(Array.Empty<GameplaySkinSceneResource>());
+            var result = GameplaySkinSceneCodec.DecodeScene(json, manifest);
+            Assert.That(result.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid), string.Join(",", result.Diagnostics.Select(d => d.Code)));
+            Assert.That(result.Value!.Instances.Single().Target, Is.Null);
+            Assert.That(result.Value.Instances.Single().MaterialSlot, Is.EqualTo("hud.gauge"));
+            JObject mixed = JObject.Parse(json);
+            ((JArray)mixed["instances"]!).Add(JObject.Parse("""
+                {"id":"explicit","template":"style","target":{"kind":"stage","id":"bms.group.deck-1","index":0}}
+                """));
+            var mixedResult = GameplaySkinSceneCodec.DecodeScene(mixed.ToString(), manifest);
+            Assert.That(mixedResult.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+            var mixedRoundTrip = GameplaySkinSceneCodec.DecodeScene(GameplaySkinSceneCodec.EncodeScene(mixedResult.Value!), manifest);
+            Assert.That(mixedRoundTrip.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+            Assert.That(mixedRoundTrip.Value!.Instances[0].MaterialSlot, Is.EqualTo("hud.gauge"));
+            Assert.That(mixedRoundTrip.Value.Instances[0].Target, Is.Null);
+            Assert.That(mixedRoundTrip.Value.Instances[1].MaterialSlot, Is.Null);
+            Assert.That(mixedRoundTrip.Value.Instances[1].Target!.Kind, Is.EqualTo(GameplaySkinSceneTargetKind.Stage));
+            string encoded = GameplaySkinSceneCodec.EncodeScene(result.Value);
+            Assert.That(GameplaySkinSceneCodec.DecodeScene(encoded, manifest).Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+            foreach (string invalid in new[]
+                     {
+                         json.Replace("\"reveal-x\":1", "\"reveal-x\":1.1"),
+                         json.Replace("\"format\":\"percent\"", "\"format\":\"expression\""),
+                         json.Replace("\"material\":{", "\"target\":{\"kind\":\"global\"},\"material\":{"),
+                         json.Replace("\"slot\":\"hud.gauge\",\"resource\"", "\"slot\":\"object.note\",\"resource\""),
+                     })
+                Assert.That(GameplaySkinSceneCodec.DecodeScene(invalid, manifest).Status, Is.Not.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+        }
+
         private const string valid_manifest = """
                                               {
                                                 "contract": "oms-gameplay-skin-manifest.v1",

@@ -185,6 +185,20 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
+        public void TestGaugeHeightUsesOnlyAcceptedSelectedPackageDeclaration()
+        {
+            using var fallback = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nGaugeHeight: 0.07\n");
+            using var selected = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\n");
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key7K, fallback).GaugeHeight, Is.EqualTo(0.07f));
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key7K, selected).GaugeHeight, Is.Null,
+                "An undeclared selected package must not acquire the fallback package's authored height.");
+            getBmsConfiguration(selected, BmsKeymode.Key7K).Geometry[BmsSkinConfigurationLookups.GaugeHeight] = 0.1f;
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key7K, selected).GaugeHeight, Is.Null,
+                "Compatibility mutations cannot forge an accepted author field.");
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key14K, fallback).GaugeHeight, Is.Null);
+        }
+
+        [Test]
         public void TestAcceptedGeometryUsesExactKeymodeBucketAndPreservesParserValue()
         {
             var skin = new TestBmsLegacySkin(

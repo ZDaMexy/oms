@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后更新：2026-09-13（静线独立转盘比例、连续键座与固定分段血槽；整体视觉仍待签收）
+> 最后更新：2026-09-13（静线薄音符、大写判定与固定血槽读数；整体视觉仍待签收）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，实现合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -26,9 +26,11 @@ C2～C6共用exact package+layout+material+scene publication，script及编译�
 
 ## 当前质量打磨（进行中）
 
-图07推动静线向高质量、合格的 beatmania style 继续打磨，LITONE仅作完成度与分区参考。完整 BMS 底板、键面插槽、独立 BGA 内框、按键/命中光及分立仪表已接入普通作者包；Global `stage.background` 保持mania透明背景。继续对照按键区/gauge后，静线启用公开`ScratchKeyWidth:2`放大独立转盘，重绘连续键座与长白/短黑键；纯纹理gauge改为完整暗槽和满宽亮图裁切，静线使用50格PNG。图09实际desktop合成谱截图确认比例与低血量暗槽改善，未扩条件实例ABI，原创金属/转盘原图及提示词保留。判定字样、血槽读数、外围结构和完整歌曲/整体质量仍待打磨与签收。
+图10后的细节迭代：BMS音符收薄但落键边缘不动，判定大写并收拢连击；同源Stage素材模板将血槽外框、暗格、裁切亮格与百分比独立排版，GaugeHeight预留高度。图11真实desktop合成7K确认24%血量时完整槽体、薄音符及判定位置；无BGA且带测试边栏，不代签完整歌曲或整体质量。core focused90/90，BMS布局/选定包143/143，附加真实表面/裁切1/1；BMS full2242 Passed/0 Failed/16 Skipped，core Skin1359 Passed/5 Failed、mania863 Passed/4 Failed，剩余失败名称、类别及完整消息与冻结基线一致。作者完整制作/错误保护和Release通过，见[细节记录](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md)。下面图09结果属于此前迭代。
 
-当前验证：shared focused53/53、BMS布局/真实按键素材focused58/58；BMS full首次2224 Passed/8 Failed/16 Skipped，四处旧单图检查已改为严格双层素材检查；另有一次安装准入及后续检查失败，原因未据顺序臆断。相关9项独立复验全通过，随后整组皮肤加载/切换684 Passed/0 Failed/15 Skipped，未再出现安装问题（不等同重跑整个BMS full）。core Skin full1349 Passed/5 Failed、mania full863 Passed/4 Failed，剩余失败名称、类别及完整消息与冻结基线逐项一致。Release构建、作者重复制作/打包与错误保护通过；完整命令、首败记录和图09截图边界见[机台记录](../../other/SKIN_SIMPLE_CABINET_20260912.md#按键区与血槽继续打磨)。以下为此前验证，保留历史身份。
+此前图07～09推动底板、键面、BGA内框、按键/命中光和分立仪表接入普通作者包，mania保留透明背景；`ScratchKeyWidth:2`放大独立转盘，连续键座与长白/短黑键改善控制台。纯纹理gauge完整暗槽/亮图裁切继续供兼容路径使用，当前静线模板见上段。原创金属/转盘原图及提示词保留。LITONE仅作完成度和分区参考，整体质量待签收。
+
+图09当时验证：修正四处旧单图检查；安装准入及后续检查曾失败，独立复验和整组加载/切换均未再出现，不按执行顺序臆断原因。core/mania剩余失败匹配基线，Release与作者检查通过。完整计数、命令、首败及截图边界见[机台记录](../../other/SKIN_SIMPLE_CABINET_20260912.md#按键区与血槽继续打磨)。以下均为此前验证，保留历史身份。
 
 ## 最近一次验证
 

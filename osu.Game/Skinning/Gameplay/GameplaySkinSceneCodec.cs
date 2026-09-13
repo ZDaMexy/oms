@@ -33,7 +33,7 @@ namespace osu.Game.Skinning.Gameplay
 
         private static readonly HashSet<string> number_properties = new HashSet<string>(StringComparer.Ordinal)
         {
-            "opacity", "x", "y", "width", "height", "scale-x", "scale-y", "rotation", "z", "font-size", "corner-radius",
+            "opacity", "x", "y", "width", "height", "scale-x", "scale-y", "rotation", "z", "font-size", "corner-radius", "reveal-x",
         };
 
         private static readonly HashSet<string> boolean_properties = new HashSet<string>(StringComparer.Ordinal)
@@ -170,7 +170,8 @@ namespace osu.Game.Skinning.Gameplay
                 {
                     ["id"] = instance.Id,
                     ["template"] = instance.TemplateId,
-                    ["target"] = encodeTarget(instance.Target),
+                    [instance.Target != null ? "target" : "material"] = instance.Target != null ? encodeTarget(instance.Target)
+                        : new JObject { ["slot"] = instance.MaterialSlot, ["resource"] = instance.MaterialResource },
                 })),
             };
 
@@ -307,6 +308,8 @@ namespace osu.Game.Skinning.Gameplay
                     continue;
                 }
 
+                if (instance.MaterialSlot != null && template.Root.SlotId != instance.MaterialSlot)
+                    context.Add(GameplaySkinSceneDiagnosticCode.InvalidReference);
                 expandedNodeCount += countNodes(template.Root);
                 addNodeFanout(template.Root, targetFanout);
 
@@ -722,6 +725,8 @@ namespace osu.Game.Skinning.Gameplay
 
                                 string? target = getStableId(assignmentObject, "target", context);
                                 string? property = getString(assignmentObject, "property", context);
+                                if (property == "format")
+                                    context.Add(GameplaySkinSceneDiagnosticCode.UnknownProperty);
                                 GameplaySkinScenePropertyValue? value = null;
 
                                 if (target != null)
@@ -1025,13 +1030,35 @@ namespace osu.Game.Skinning.Gameplay
                     continue;
                 }
 
-                validateFields(instanceObject, context, new[] { "id", "template", "target" });
+                validateFields(instanceObject, context, new[] { "id", "template" }, new[] { "target", "material" });
                 string? id = getStableId(instanceObject, "id", context);
 
                 if (id != null && !context.AllStableIds.Add(id))
                     context.Add(GameplaySkinSceneDiagnosticCode.DuplicateStableId);
 
                 string? template = getStableId(instanceObject, "template", context);
+                if (instanceObject["material"] != null)
+                {
+                    if (instanceObject["target"] != null || instanceObject["material"] is not JObject material)
+                    {
+                        context.Add(GameplaySkinSceneDiagnosticCode.InvalidReference);
+                        continue;
+                    }
+                    validateFields(material, context, new[] { "slot", "resource" });
+                    string? slot = getString(material, "slot", context);
+                    string? resource = getString(material, "resource", context);
+                    if (!GameplaySkinSlotCatalog.TryGet(slot, out GameplaySkinSlotDescriptor? descriptor)
+                        || descriptor == null || (descriptor.AllowedScopes & GameplaySkinSlotScope.Stage) == 0)
+                        context.Add(GameplaySkinSceneDiagnosticCode.UnknownTarget);
+                    if (resource != null)
+                    {
+                        try { resource = GameplaySkinPublicSlotMaterial.ValidateRelativeResourceName(resource); }
+                        catch (ArgumentException) { context.Add(GameplaySkinSceneDiagnosticCode.InvalidResource); }
+                    }
+                    if (id != null && template != null && slot != null && resource != null)
+                        instances.Add(new GameplaySkinSceneInstance(id, template, slot, resource));
+                    continue;
+                }
                 GameplaySkinSceneTarget? target = instanceObject["target"] is JObject targetObject
                     ? parseTarget(targetObject, context)
                     : missingOrInvalidObject<GameplaySkinSceneTarget>(instanceObject, "target", context);
@@ -1168,7 +1195,8 @@ namespace osu.Game.Skinning.Gameplay
             if (property == "fill-mode" && value.StringValue is not ("stretch" or "fit" or "fill")
                 || property == "alignment" && value.StringValue is not ("left" or "centre" or "right")
                 || property == "mask-mode" && value.StringValue != "ellipse"
-                || property == "clip-mode" && value.StringValue is not ("bounds" or "rounded"))
+                || property == "clip-mode" && value.StringValue is not ("bounds" or "rounded")
+                || property == "format" && value.StringValue is not ("percent" or "uppercase"))
             {
                 context.Add(GameplaySkinSceneDiagnosticCode.InvalidPropertyValue);
                 return null;
@@ -1307,9 +1335,9 @@ namespace osu.Game.Skinning.Gameplay
             return type switch
             {
                 GameplaySkinSceneNodeType.Sprite => property == "fill-mode",
-                GameplaySkinSceneNodeType.Text => property is "text" or "font-size" or "alignment",
+                GameplaySkinSceneNodeType.Text => property is "text" or "font-size" or "alignment" or "format",
                 GameplaySkinSceneNodeType.Mask => property == "mask-mode",
-                GameplaySkinSceneNodeType.Clip => property is "clip-mode" or "corner-radius",
+                GameplaySkinSceneNodeType.Clip => property is "clip-mode" or "corner-radius" or "reveal-x",
                 _ => false,
             };
         }

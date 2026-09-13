@@ -753,7 +753,7 @@ namespace osu.Game.Skinning.Gameplay
                 bySource.Add(runtime);
                 registerStateMachineScopes(runtime);
                 bindingStateFamiliesDirty |= GameplaySkinSceneStateFamily.All;
-                Container childParent = transform;
+                Container childParent = prepared.Source.Type == GameplaySkinSceneNodeType.Clip ? (Container)content : transform;
                 bool dispatcher = prepared.Source.Type == GameplaySkinSceneNodeType.Container
                                   && prepared.AllowsLayerDispatch;
                 enqueueChildren(pending, childParent, prepared.Rect, layer, dispatcher);
@@ -941,7 +941,7 @@ namespace osu.Game.Skinning.Gameplay
         private static Container createNodeTransform(GameplaySkinPreparedSceneNode prepared, Drawable content)
         {
             if (content is Container container
-                && prepared.Source.Type is GameplaySkinSceneNodeType.Container or GameplaySkinSceneNodeType.Mask or GameplaySkinSceneNodeType.Clip)
+                && prepared.Source.Type is GameplaySkinSceneNodeType.Container or GameplaySkinSceneNodeType.Mask)
             {
                 return container;
             }
@@ -1018,6 +1018,7 @@ namespace osu.Game.Skinning.Gameplay
                             current = new Container
                             {
                                 RelativeSizeAxes = Axes.Both,
+                                Masking = true,
                                 EdgeEffect = new EdgeEffectParameters
                                 {
                                     Type = EdgeEffectType.Glow,
@@ -1033,6 +1034,7 @@ namespace osu.Game.Skinning.Gameplay
                             current = new Container
                             {
                                 RelativeSizeAxes = Axes.Both,
+                                Masking = true,
                                 EdgeEffect = new EdgeEffectParameters
                                 {
                                     Type = EdgeEffectType.Shadow,
@@ -2464,6 +2466,8 @@ namespace osu.Game.Skinning.Gameplay
                     throw new InvalidOperationException();
 
                 case GameplaySkinSceneProperty.Text when node.ContentDrawable is SpriteText text:
+                    if (getString(node.PreparedNode.Source.Properties, "format", string.Empty) == "uppercase")
+                        value = value.ToUpperInvariant();
                     if (value.Length <= PreparedScene.GetTextGlyphReservation(node.PreparedNode.Source.Id))
                     {
                         text.Text = value;
@@ -2579,6 +2583,10 @@ namespace osu.Game.Skinning.Gameplay
                     node.ContentDrawable.Depth = (float)value;
                     return;
 
+                case GameplaySkinSceneProperty.RevealX when node.ContentDrawable is Container clip:
+                    applyReveal(clip, (float)value);
+                    return;
+
                 case GameplaySkinSceneProperty.FontSize when node.ContentDrawable is SpriteText text:
                     text.Font = text.Font.With(size: (float)value);
                     return;
@@ -2589,7 +2597,9 @@ namespace osu.Game.Skinning.Gameplay
                     return;
 
                 case GameplaySkinSceneProperty.Text when node.ContentDrawable is SpriteText text:
-                    string display = value.ToString("0.###", CultureInfo.InvariantCulture);
+                    string display = getString(node.PreparedNode.Source.Properties, "format", string.Empty) == "percent"
+                        ? (value * 100).ToString("0", CultureInfo.InvariantCulture) + "%"
+                        : value.ToString("0.###", CultureInfo.InvariantCulture);
 
                     if (display.Length <= PreparedScene.GetTextGlyphReservation(node.PreparedNode.Source.Id))
                     {
@@ -2620,6 +2630,14 @@ namespace osu.Game.Skinning.Gameplay
                     : content;
                 applyProperty(target, property, value);
             }
+            if (content is SpriteText text && getString(properties, "format", string.Empty) == "uppercase")
+                text.Text = text.Text.ToString().ToUpperInvariant();
+        }
+
+        private static void applyReveal(Container clip, float fraction)
+        {
+            clip.Width = fraction;
+            clip.RelativeChildSize = new Vector2(fraction > 0 ? fraction : 1, 1);
         }
 
         private static void applyProperty(Drawable drawable, string property, GameplaySkinScenePropertyValue value)
@@ -2680,6 +2698,13 @@ namespace osu.Game.Skinning.Gameplay
 
                 case "colour" when value.Kind == GameplaySkinScenePropertyValueKind.String:
                     drawable.Colour = colour(value.StringValue);
+                    break;
+
+                case "format":
+                    break;
+
+                case "reveal-x" when drawable is Container clip:
+                    applyReveal(clip, (float)value.NumberValue);
                     break;
 
                 case "font-size" when value.Kind == GameplaySkinScenePropertyValueKind.Number && drawable is SpriteText text:

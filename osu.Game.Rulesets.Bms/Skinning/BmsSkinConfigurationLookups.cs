@@ -84,5 +84,6 @@ namespace osu.Game.Rulesets.Bms.Skinning
         BgaVerticalPosition,
         KeyAreaHeight,
         ScratchKeyWidth,
+        GaugeHeight,
     }
 }

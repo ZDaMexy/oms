@@ -106,6 +106,8 @@ id 与非负整数 index 必须同时匹配布局。BMS 舞台/组为 `bms.group
 | `text/font-size/alignment` | 字符串 / 1..128 / left或centre或right | text |
 | `mask-mode` | ellipse | mask |
 | `clip-mode/corner-radius` | bounds或rounded / 0..256 | clip |
+| `reveal-x` | 0..1；从左揭露固定宽度内容，0仍保留作者的独立底槽 | clip |
+| `format` | percent / uppercase；静态声明，不接受绑定或状态赋值 | text |
 
 container 不增加专属属性。blend 必填，允许 inherit/alpha/additive/multiply/screen。零进度使用定宽容器里的子图片 width=0；零缩放在绘图矩阵中会夹到极小值，可能留下细线。实际字高需在最小窗口核对。
 
@@ -121,6 +123,7 @@ effects 每项必填 id/type/properties。blur 允许 radius；glow 允许 radiu
 | PlayfieldWidth/PlayfieldHeight | 下落区域整体宽高，屏幕比例 |
 | KeyAreaHeight | 判定线以下独立键盘区高度，安全区高度比例 0..0.18；默认 0，保留原判定区内的键图位置 |
 | ScratchKeyWidth | 独立键盘区中转盘视觉宽度相对于scratch音轨的倍率，1..4，默认1；向普通键之外扩展，受安全区与BGA限制，不改变音轨 |
+| GaugeHeight | 血槽区域占安全区高度的比例，0.02..0.12，默认0.036；与独立键区、信息区共同避让 |
 | BgaWidth/BgaHeight | BGA 最大框的安全区宽高比例 0.01..1；指定尺寸后在可用侧区按 4:3 适配。缺省宽为 0.225（14K 为 0.13），高上限 0.30 |
 | BgaVerticalPosition | 单侧单窗在剩余竖直空间中的位置 0..1，0 顶部、0.5 居中、1 底部；14K 上下窗在各半区对称向中间定位，窄屏底窗固定；默认 0 |
 | NormalLaneWidth/ScratchLaneWidth | 普通键/转盘的相对宽度权重 |
@@ -261,11 +264,21 @@ variants必填id/target/property/source/default/cases。target必须sprite，pro
 
 source只允许object.state、judgement.result、bga.content-state，key必须是上表对应字符串；当前值没有列入cases时使用default。空态先按上一节投影，例如没有判定时也会命中作者的miss分支，不会越过该分支自动使用default。没有任意表达式、范围条件或外部资源路径。
 
-templates每项必填id/root，root是完整节点；instances每项必填id/template/target，没有实例properties、参数或循环生成字段：
+templates每项必填id/root，root是完整节点；instances每项必填id/template，并在target与material之间二选一，没有实例properties、参数或循环生成字段：
 
 ```json
 { "id": "my.status-copy", "template": "ref.status-template", "target": { "kind": "global" } }
 ```
+
+同包跨玩法或单双舞台可按已经解析的公开素材声明挂载模板，例如：
+
+```json
+{ "id": "my.gauge-stages", "template": "my.gauge-style", "material": { "slot": "hud.gauge", "resource": "bms/gauge" } }
+```
+
+仅匹配当前选定包同一内容版本、Provide 状态的 Stage 素材及精确资源名。模板根 slot 必须相同；整棵子树按匹配到的实际舞台定位，子元素在根slot区域内排版，每个实例独立读取其舞台事实。显式target模板仍保留原有目标矩形规则。没有匹配时不挂载，仍检查模板语法与资源；不能借用默认包的 scene 或资源，也不支持任意条件表达式。实际展开数量继续受既有预算限制。
+
+`format: "percent"`将数值转为整数百分比，适合`gauge.value`；准确率和进度保留原有专用文字格式。`uppercase`将文本转换为大写，格式化后仍执行文字长度限制。`reveal-x`可绑定数值，不会压缩格距；固定外框和暗槽放在clip之外。`GaugeHeight`与独立键区参数一样只读取选定包，缺项使用默认值。
 
 实例target覆盖模板整棵子树目标。动画、绑定、状态机和脚本仍引用模板源节点id，作用到它所有实际实例，不引用内部clone名。展开和真实对象实例均计预算。练习用ref.status-template的一个全局实例显示状态：外层ref.status-owner拥有hud.text，内层无slot的global文字ref.status与顶部面板使用同一安全屏幕位置；状态机继续写ref.status。直接把hud.text放在文字自身上会使用既有信息区域，不能据其y值推断全屏顶部位置。需要独立控制的全局图形应使用不同源节点。
 

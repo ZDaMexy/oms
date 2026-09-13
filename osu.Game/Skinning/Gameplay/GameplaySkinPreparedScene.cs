@@ -959,6 +959,21 @@ namespace osu.Game.Skinning.Gameplay
                     throw new ArgumentException("A prepared scene must retain the exact material/layout publication.", nameof(materialSet));
 
                 long preparedNodeCount = copiedRoots.Sum(root => (long)countNodes(root));
+                if (document != null)
+                {
+                    // Material-selected templates expand only once the actual topology and winning source exist.
+                    // Recheck dispatch work against that concrete fanout rather than assuming one copy per selector.
+                    var fanout = enumeratePreparedNodes(copiedRoots).GroupBy(node => node.Source.Id)
+                        .ToDictionary(group => group.Key, group => group.LongCount(), StringComparer.Ordinal);
+                    long frameApplications = document.Tracks.Sum(track => fanout.GetValueOrDefault(track.TargetNodeId))
+                                             + document.Bindings.Sum(binding => fanout.GetValueOrDefault(binding.TargetNodeId))
+                                             + document.Variants.Sum(variant => fanout.GetValueOrDefault(variant.TargetNodeId));
+                    long eventApplications = document.StateMachines.SelectMany(machine => machine.States)
+                        .SelectMany(state => state.Assignments).Sum(assignment => fanout.GetValueOrDefault(assignment.TargetNodeId));
+                    if (frameApplications > GameplaySkinSceneBudgets.MAX_PROPERTY_APPLICATIONS_PER_FRAME
+                        || eventApplications > GameplaySkinSceneBudgets.MAX_STATE_PROPERTY_APPLICATIONS_PER_EVENT)
+                        throw fail(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
+                }
                 RuntimeReservation reservation = reserveRuntime(
                     copiedRoots,
                     HostedSlots,
@@ -1594,6 +1609,19 @@ namespace osu.Game.Skinning.Gameplay
                     if (!templates.TryGetValue(instance.TemplateId, out GameplaySkinSceneTemplate? template))
                         throw fail(GameplaySkinSceneDiagnosticCode.InvalidReference);
 
+                    if (instance.MaterialSlot != null)
+                    {
+                        foreach (GameplaySkinResolvedMaterialEntry entry in ResolveMaterialTemplateEntries(
+                                     instance, materialSet, selectedDocument.Identity.ContentRevision))
+                        {
+                            var target = new GameplaySkinSceneTarget(GameplaySkinSceneTargetKind.Stage,
+                                entry.Target.GroupId!.Value, entry.Target.GroupLogicalIndex);
+                            roots.Add(prepareNode(template.Root, target, $"{instance.Id}/{entry.Target.GroupLogicalIndex}/",
+                                snapshot, materialSet, selectedDocument, resourcesById, programmedNodeIds, ref preparedNodeCount,
+                                null, null, false, cancellationToken, useOwnedSurface: true));
+                        }
+                        continue;
+                    }
                     roots.Add(prepareNode(
                         template.Root,
                         instance.Target,
@@ -1633,6 +1661,17 @@ namespace osu.Game.Skinning.Gameplay
             }
         }
 
+        internal static IEnumerable<GameplaySkinResolvedMaterialEntry> ResolveMaterialTemplateEntries(
+            GameplaySkinSceneInstance instance, GameplaySkinResolvedMaterialSet materialSet, string documentRevision)
+            => materialSet.Entries.Where(entry =>
+                entry.Slot.Id == instance.MaterialSlot
+                && entry.Target.Kind == GameplaySkinResolvedMaterialTargetKind.Stage
+                && entry.State == GameplaySkinResolvedMaterialState.Provide
+                && entry.Source.IsSelectedDocumentDeclaration
+                && entry.Source.ContentRevision == documentRevision
+                && entry.Material is GameplaySkinPublicSlotMaterial material
+                && material.ResourceName == instance.MaterialResource);
+
         private static GameplaySkinPreparedSceneNode prepareNode(
             GameplaySkinSceneNode node,
             GameplaySkinSceneTarget? rootTargetOverride,
@@ -1646,7 +1685,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneLayer? parentLayer,
             GameplaySkinResolvedMaterialKey? inheritedOwner,
             bool parentAllowsLayerDispatch,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool useOwnedSurface = false)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -1701,6 +1741,13 @@ namespace osu.Game.Skinning.Gameplay
 
             if (slot == null && inheritedOwner != null && !inheritedOwner.Target.Equals(materialTarget))
                 throw fail(GameplaySkinSceneDiagnosticCode.InvalidReference);
+
+            // Material-selected templates author their children within the owned slot, rather than the
+            // whole Stage. Explicit-target templates retain their existing absolute target geometry.
+            if (useOwnedSurface && slot == null && inheritedOwner != null
+                && !GameplaySkinSceneSurfaceResolver.TryResolve(snapshot, inheritedOwner.Slot, inheritedOwner.Target,
+                    rect, target.Kind, out rect))
+                throw fail(GameplaySkinSceneDiagnosticCode.UnknownTarget);
 
             GameplaySkinResolvedMaterialKey? owningSlotKey = slot != null && materialTarget != null
                 ? new GameplaySkinResolvedMaterialKey(slot, materialTarget)
@@ -1777,7 +1824,8 @@ namespace osu.Game.Skinning.Gameplay
                     layer,
                     owningSlotKey,
                     allowsLayerDispatch,
-                    cancellationToken));
+                    cancellationToken,
+                    useOwnedSurface));
             }
 
             return new GameplaySkinPreparedSceneNode(

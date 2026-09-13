@@ -13,6 +13,16 @@
       "id": "texture.instrument",
       "type": "texture",
       "path": "scene/instrument.png"
+    },
+    {
+      "id": "texture.gauge-frame",
+      "type": "texture",
+      "path": "scene/gauge-frame.png"
+    },
+    {
+      "id": "texture.gauge-cells",
+      "type": "texture",
+      "path": "scene/gauge-cells.png"
     }
   ]
 }

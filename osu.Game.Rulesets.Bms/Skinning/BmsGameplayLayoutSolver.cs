@@ -92,6 +92,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
         public float? PlayfieldWidth { get; init; }
         public float? PlayfieldHeight { get; init; }
         public float? KeyAreaHeight { get; init; }
+        public float? GaugeHeight { get; init; }
         public float? ScratchKeyWidth { get; init; }
         public float? BgaWidth { get; init; }
         public float? BgaHeight { get; init; }
@@ -116,6 +117,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 PlayfieldWidth = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.PlayfieldWidth, keymode)?.Value,
                 PlayfieldHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.PlayfieldHeight, keymode)?.Value,
                 KeyAreaHeight = selectedLayoutValue(BmsSkinConfigurationLookups.KeyAreaHeight),
+                GaugeHeight = selectedLayoutValue(BmsSkinConfigurationLookups.GaugeHeight),
                 ScratchKeyWidth = selectedLayoutValue(BmsSkinConfigurationLookups.ScratchKeyWidth),
                 BgaWidth = selectedLayoutValue(BmsSkinConfigurationLookups.BgaWidth),
                 BgaHeight = selectedLayoutValue(BmsSkinConfigurationLookups.BgaHeight),
@@ -223,7 +225,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 _ => safe.Left + (safe.Width - fieldWidth) / 2,
             };
 
-            float gaugeHeight = Math.Min(gauge_height * safe.Height * dpiScale, safe.Height * 0.08f);
+            float gaugeHeight = Math.Min(field(configuration.GaugeHeight, gauge_height, 0.02f, 0.12f, "gauge-height", diagnostics) * safe.Height * dpiScale, safe.Height * 0.12f);
             float keyAreaHeight = field(configuration.KeyAreaHeight, 0f, 0f, 0.18f, "key-area-height", diagnostics) * safe.Height;
             float scratchKeyWidth = field(configuration.ScratchKeyWidth, 1f, 1f, 4f, "scratch-key-width", diagnostics);
             float requiredBottomBand = keyAreaHeight + gaugeHeight + (surface_gap + hud_height) * safe.Height;

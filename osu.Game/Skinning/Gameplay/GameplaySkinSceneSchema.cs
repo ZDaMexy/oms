@@ -83,7 +83,7 @@ namespace osu.Game.Skinning.Gameplay
 
             return property switch
             {
-                GameplaySkinSceneProperty.Opacity => value is >= 0 and <= 1,
+                GameplaySkinSceneProperty.Opacity or GameplaySkinSceneProperty.RevealX => value is >= 0 and <= 1,
                 GameplaySkinSceneProperty.X or GameplaySkinSceneProperty.Y => Math.Abs(value) <= GameplaySkinSceneBudgets.MAX_ABSOLUTE_POSITION,
                 GameplaySkinSceneProperty.Width or GameplaySkinSceneProperty.Height => value is >= 0 and <= GameplaySkinSceneBudgets.MAX_RELATIVE_SIZE,
                 GameplaySkinSceneProperty.ScaleX or GameplaySkinSceneProperty.ScaleY => value is >= 0 and <= GameplaySkinSceneBudgets.MAX_SCALE,
@@ -104,7 +104,7 @@ namespace osu.Game.Skinning.Gameplay
 
             return property switch
             {
-                GameplaySkinSceneProperty.Opacity => Math.Clamp(value, 0, 1),
+                GameplaySkinSceneProperty.Opacity or GameplaySkinSceneProperty.RevealX => Math.Clamp(value, 0, 1),
                 GameplaySkinSceneProperty.X or GameplaySkinSceneProperty.Y => Math.Clamp(
                     value,
                     -GameplaySkinSceneBudgets.MAX_ABSOLUTE_POSITION,
@@ -364,6 +364,8 @@ namespace osu.Game.Skinning.Gameplay
         MaskMode = 19,
         ClipMode = 20,
         CornerRadius = 21,
+        RevealX = 22,
+        Format = 23,
     }
 
     public enum GameplaySkinSceneBindingSource
@@ -807,6 +809,8 @@ namespace osu.Game.Skinning.Gameplay
             "mask-mode" => GameplaySkinSceneProperty.MaskMode,
             "clip-mode" => GameplaySkinSceneProperty.ClipMode,
             "corner-radius" => GameplaySkinSceneProperty.CornerRadius,
+            "reveal-x" => GameplaySkinSceneProperty.RevealX,
+            "format" => GameplaySkinSceneProperty.Format,
             _ => GameplaySkinSceneProperty.Unspecified,
         };
 
@@ -833,6 +837,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneProperty.MaskMode => "mask-mode",
             GameplaySkinSceneProperty.ClipMode => "clip-mode",
             GameplaySkinSceneProperty.CornerRadius => "corner-radius",
+            GameplaySkinSceneProperty.RevealX => "reveal-x",
+            GameplaySkinSceneProperty.Format => "format",
             _ => throw new ArgumentOutOfRangeException(nameof(property), property, "Unknown scene property."),
         };
 
@@ -897,13 +903,25 @@ namespace osu.Game.Skinning.Gameplay
 
         public string TemplateId { get; }
 
-        public GameplaySkinSceneTarget Target { get; }
+        public GameplaySkinSceneTarget? Target { get; }
+
+        public string? MaterialSlot { get; }
+
+        public string? MaterialResource { get; }
 
         internal GameplaySkinSceneInstance(string id, string templateId, GameplaySkinSceneTarget target)
         {
             Id = id;
             TemplateId = templateId;
             Target = target;
+        }
+
+        internal GameplaySkinSceneInstance(string id, string templateId, string materialSlot, string materialResource)
+        {
+            Id = id;
+            TemplateId = templateId;
+            MaterialSlot = materialSlot;
+            MaterialResource = materialResource;
         }
 
         public override string ToString() => $"{nameof(GameplaySkinSceneInstance)}:{Id}";

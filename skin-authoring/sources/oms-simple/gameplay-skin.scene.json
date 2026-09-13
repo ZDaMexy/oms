@@ -220,8 +220,75 @@
     ]
   },
   "tracks": [],
-  "stateMachines": [],
+  "stateMachines": [
+    {
+      "id": "still.current-judgement",
+      "initial": "still.judgement.empty",
+      "states": [
+        {
+          "id": "still.judgement.empty",
+          "set": [
+            {
+              "id": "still.judgement.hide",
+              "target": "still.judgement",
+              "property": "opacity",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "id": "still.judgement.active",
+          "set": [
+            {
+              "id": "still.judgement.show",
+              "target": "still.judgement",
+              "property": "opacity",
+              "value": 1
+            }
+          ]
+        }
+      ],
+      "transitions": [
+        {
+          "id": "still.judgement.arrive",
+          "from": "still.judgement.empty",
+          "to": "still.judgement.active",
+          "event": "judgement.hit"
+        }
+      ]
+    }
+  ],
   "bindings": [
+    {
+      "id": "still.stage-bind.judgement.result.text",
+      "target": "still.judgement.result",
+      "property": "text",
+      "source": "judgement.result"
+    },
+    {
+      "id": "still.stage-bind.combo.value.text",
+      "target": "still.combo.value",
+      "property": "text",
+      "source": "combo.value"
+    },
+    {
+      "id": "still.stage-bind.combo.opacity",
+      "target": "still.combo",
+      "property": "opacity",
+      "source": "combo.value"
+    },
+    {
+      "id": "still.stage-bind.gauge.value.text",
+      "target": "still.gauge.value",
+      "property": "text",
+      "source": "gauge.value"
+    },
+    {
+      "id": "still.stage-bind.gauge.reveal.reveal-x",
+      "target": "still.gauge.reveal",
+      "property": "reveal-x",
+      "source": "gauge.value"
+    },
     {
       "id": "still.bind.score",
       "target": "still.hud.score",
@@ -248,6 +315,219 @@
     }
   ],
   "variants": [],
-  "templates": [],
-  "instances": []
+  "templates": [
+    {
+      "id": "still.judgement-style",
+      "root": {
+        "id": "still.judgement",
+        "type": "container",
+        "target": {
+          "kind": "global"
+        },
+        "blend": "alpha",
+        "properties": {
+          "opacity": 0
+        },
+        "effects": [],
+        "children": [
+          {
+            "id": "still.judgement.result",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "",
+              "format": "uppercase",
+              "font-size": 32,
+              "alignment": "centre",
+              "colour": "#eaf8ffff"
+            },
+            "effects": [],
+            "children": []
+          }
+        ],
+        "slot": "hud.judgement"
+      }
+    },
+    {
+      "id": "still.combo-style",
+      "root": {
+        "id": "still.combo",
+        "type": "container",
+        "target": {
+          "kind": "global"
+        },
+        "blend": "alpha",
+        "properties": {
+          "y": -0.8
+        },
+        "effects": [],
+        "children": [
+          {
+            "id": "still.combo.value",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "0",
+              "font-size": 22,
+              "alignment": "centre",
+              "colour": "#a7e6f0ff"
+            },
+            "effects": [],
+            "children": []
+          }
+        ],
+        "slot": "hud.combo"
+      }
+    },
+    {
+      "id": "still.gauge-style",
+      "root": {
+        "id": "still.gauge",
+        "type": "container",
+        "target": {
+          "kind": "global"
+        },
+        "blend": "alpha",
+        "properties": {},
+        "effects": [],
+        "children": [
+          {
+            "id": "still.gauge.frame",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {},
+            "effects": [],
+            "children": [],
+            "resource": "texture.gauge-frame"
+          },
+          {
+            "id": "still.gauge.label",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "GAUGE",
+              "font-size": 10,
+              "x": 0.035,
+              "y": 0.04,
+              "width": 0.5,
+              "height": 0.4,
+              "alignment": "left",
+              "colour": "#b8cbd6ff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "still.gauge.value",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "0%",
+              "font-size": 16,
+              "format": "percent",
+              "x": 0.5,
+              "y": 0.04,
+              "width": 0.46,
+              "height": 0.4,
+              "alignment": "right",
+              "colour": "#f2fbffff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "still.gauge.track",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "x": 0.025,
+              "y": 0.52,
+              "width": 0.95,
+              "height": 0.38,
+              "colour": "#34434bff"
+            },
+            "effects": [],
+            "children": [],
+            "resource": "texture.gauge-cells"
+          },
+          {
+            "id": "still.gauge.reveal",
+            "type": "clip",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "x": 0.025,
+              "y": 0.52,
+              "width": 0.95,
+              "height": 0.38,
+              "clip-mode": "bounds",
+              "reveal-x": 1
+            },
+            "effects": [],
+            "children": [
+              {
+                "id": "still.gauge.fill",
+                "type": "sprite",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {},
+                "effects": [],
+                "children": [],
+                "resource": "texture.gauge-cells"
+              }
+            ]
+          }
+        ],
+        "slot": "hud.gauge"
+      }
+    }
+  ],
+  "instances": [
+    {
+      "id": "still.judgement-stage",
+      "template": "still.judgement-style",
+      "material": {
+        "slot": "hud.judgement",
+        "resource": "bms/hud"
+      }
+    },
+    {
+      "id": "still.combo-stage",
+      "template": "still.combo-style",
+      "material": {
+        "slot": "hud.combo",
+        "resource": "bms/hud"
+      }
+    },
+    {
+      "id": "still.gauge-stage",
+      "template": "still.gauge-style",
+      "material": {
+        "slot": "hud.gauge",
+        "resource": "bms/gauge"
+      }
+    }
+  ]
 }

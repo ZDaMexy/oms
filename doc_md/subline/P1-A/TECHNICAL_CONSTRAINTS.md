@@ -1,9 +1,11 @@
 # P1-A 技术约束：Skin V1、产品面与 release gate
 
-> 最后更新：2026-09-13（独立转盘视觉宽度与纯纹理固定血槽；保留既有恢复和验收合同）
+> 最后更新：2026-09-13（同源Stage模板、裁切与文字格式、血槽高度；保留既有恢复和验收合同）
 > 本文件是 Skin V1 的硬约束源。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，设计证据见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。若代码与本文冲突，先确认新事实并同步修正文档/代码，不能用历史 CHANGELOG 覆盖当前 authority。
 
 ## 按任务定位
+
+2026-09-13细节扩展：`instances`的`target`与`material`二选一；后者只按选定包同一ContentRevision的Stage Provide声明及精确slot/resource匹配，模板根slot相同，准备仍复核exact owner，不借用canonical scene/resources。实际展开参与既有节点、帧、事件与文字预算，各实例使用实际Stage事实。`reveal-x`只用于clip，范围0..1，保留完整子坐标；`format`只允许静态percent/uppercase，格式化后继续限制长度，accuracy/progress保留既有专用格式。BMS `GaugeHeight`仅选定包读取，默认0.036、范围0.02..0.12，由唯一solver与键区/BGA/底部信息共同避让。参考[本轮证据](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md)。
 
 只读当前任务涉及的章节；原合同编号保持不变。当前完成度见[STATUS](DEVELOPMENT_STATUS.md)，待实现动作与完整campaign门见[PLAN](DEVELOPMENT_PLAN.md)。
 

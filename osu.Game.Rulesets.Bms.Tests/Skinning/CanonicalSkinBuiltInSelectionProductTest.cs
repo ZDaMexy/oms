@@ -3,6 +3,7 @@
 using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Testing;
+using osu.Framework.Graphics.Sprites;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Mania.Objects.Drawables;
@@ -53,6 +54,15 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(mania.PreparedScene.Snapshot, Is.SameAs(renderer.ManiaLayoutProbe.Publication!.Snapshot));
                 Assert.That(bms.TryGetRuntimeNode("still.hud.score", out _), Is.True);
                 Assert.That(mania.TryGetRuntimeNode("still.hud.score", out _), Is.True);
+                foreach (string id in new[] { "still.judgement", "still.combo", "still.gauge" })
+                {
+                    var stage = bms.PreparedScene.Roots.Single(node => node.Source.Id == id);
+                    Assert.That(stage.ResolvedTarget.Kind, Is.EqualTo(GameplaySkinSceneTargetKind.Stage));
+                    Assert.That(bms.TryGetRuntimeNode(stage.InstanceId, out _), Is.True);
+                    Assert.That(stage.Children.All(child => child.Rect.Equals(stage.Rect)), Is.True,
+                        "Material template children must stay in their HUD surface, not cover the playfield.");
+                    Assert.That(mania.PreparedScene.Roots.Any(node => node.Source.Id == id), Is.False);
+                }
                 for (int time = 1_050; time <= 1_950; time += 50)
                     clock.Sample(time);
             });
@@ -73,6 +83,18 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 && authoredInformationValue(mania, "still.hud.score") != "0");
             AddStep("release input and leave both playfields", () =>
             {
+                var gauge = bms.PreparedScene.Roots.Single(node => node.Source.Id == "still.gauge");
+                var value = gauge.Children.Single(node => node.Source.Id == "still.gauge.value");
+                var reveal = gauge.Children.Single(node => node.Source.Id == "still.gauge.reveal");
+                Assert.That(bms.TryGetRuntimeNode(reveal.InstanceId, out var revealNode), Is.True);
+                Assert.That(bms.TryGetRuntimeNode(reveal.Children.Single().InstanceId, out var fillNode), Is.True);
+                Assert.That(fillNode!.RootDrawable.Parent, Is.SameAs(revealNode!.ContentDrawable));
+                Assert.That(bms.TryGetRuntimeNode(value.InstanceId, out var gaugeText), Is.True);
+                Assert.That(((SpriteText)gaugeText!.ContentDrawable).Text.ToString(), Does.EndWith("%"));
+                var judgement = bms.PreparedScene.Roots.Single(node => node.Source.Id == "still.judgement");
+                var result = judgement.Children.Single();
+                Assert.That(bms.TryGetRuntimeNode(result.InstanceId, out var resultText), Is.True);
+                Assert.That(((SpriteText)resultText!.ContentDrawable).Text.ToString(), Is.EqualTo("PERFECT"));
                 c6Input(renderer, false);
                 Assert.That(bms.RuntimeFaults, Is.Empty);
                 Assert.That(mania.RuntimeFaults, Is.Empty);
