@@ -12,7 +12,7 @@
 
 ## 皮肤恢复与存储
 
-- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage背景、同源Stage模板、固定血槽裁切与高度、独立转盘宽度、真实绘制特效限制。
+- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage背景与作者乘色、同源Stage模板、固定血槽裁切与高度、转盘宽度、真实绘制限制。
 
 - [内置包构建与冷启动](reference_skin_canonical_installation.md) — source→构建原件/摘要、发行副本同源、PowerShell 空路径，以及已保存星轨的顶层启动线程问题。
 

@@ -47,3 +47,23 @@ dotnet build osu.Desktop.slnf -p:Configuration=Release -p:GenerateFullPaths=true
 ```
 
 实际像素使用`osu.Game.Rulesets.Bms.Tests.exe --exact-test osu.Game.Rulesets.Bms.Tests.Skinning.TestSceneBmsSimpleGameplayCapture`，输出由`OMS_SIMPLE_CAPTURE_PATH`指定，最终exit0。图11保存原始framebuffer，SHA与边界见[图片索引](references/simple-1p-20260912/README.md)。该headless测试主动Skip，不能用跳过结果声称已截图。
+
+## 图12之后的控制区外壳迭代
+
+本轮从干净`e01781c`继续，fetch后origin无变化。图12用户实机继续认可改善，但要求反复对照；保存原图并核对SHA。对照图04/05后选择三项明确差距：键面/凹槽层次仍平，血槽与仪表像普通矩形卡片，大面积拉丝底板亮度抢眼。
+
+白键增加底部斜面，黑键增加上方高光和凹入支座，保留原图尺寸和连续上下轨。血槽及仪表采用同一切角金属外壳配方，读数区与标签区分开，血槽字高调整为12/22。普通scene使用Global `stage.background`已准备的本玩法纹理，乘以`#adb6c0ff`压低底板亮度；BMS原材质文件不改，mania透明图继续透明。没有按1P截图硬编码跨左右布局的控制台底座，也没有修改游戏运行时、公共合同、音轨或输入几何。
+
+首版相关产品检查113 Passed/0 Failed；增加背景压暗后，以完整作者包在BMS全部模式/样式/窗口、mania单/双舞台、真实按键反馈及信息布局路径重新检查，403 Passed/0 Failed/0 Skipped。它属于本轮素材/作者声明验证，不将上一轮full计数重新写成本轮执行。实际desktop最终首次运行exit1、未生成新PNG且标准输出为空，临时日志已由runner清理，原因无法据此归因；独立复验exit0并生成图13，已逐图观察且保存原始像素。
+
+作者正常制作、重复打包、错误拒绝与中断保护通过；最终包SHA256 `e8e3b1259ba9d400a47bc10a39e61d98c7b5371b21d8564b211e605c10eea9da`。Release构建0警告/0错误，内置包自动源同步保持。整体视觉未代签，图13仍是无BGA媒体、带测试边栏的合成7K证据。所有命令串行执行，最终验证日志前缀`artifacts/simple-shell-`。
+
+```powershell
+dotnet build tools/SkinAuthoring/SkinAuthoring.csproj -c Release --no-restore
+tools/SkinAuthoring/bin/Release/net8.0/SkinAuthoring.exe generate skin-authoring/sources/oms-simple
+tools/SkinAuthoring/bin/Release/net8.0/SkinAuthoring.exe check skin-authoring/sources/oms-simple
+dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj -c Release --no-restore --filter 'FullyQualifiedName~TestCanonicalProducts|FullyQualifiedName~TestAuthoredInformationUsesSafeLayoutAndGameplayValues|FullyQualifiedName~TestBuiltInSimplePlaysBmsAndManiaWithoutImport|FullyQualifiedName~TestSimpleLaneContrast' --logger 'trx;LogFileName=simple-shell-final-product.trx'
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File skin-authoring/Build-Skins.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File skin-authoring/Test-Authoring.ps1 -Tool tools/SkinAuthoring/bin/Release/net8.0/SkinAuthoring.exe
+dotnet build osu.Desktop.slnf -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m
+```

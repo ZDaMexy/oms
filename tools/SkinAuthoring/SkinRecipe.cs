@@ -112,12 +112,11 @@ namespace SkinAuthoring
             {
                 draw(Path.Combine(root, "scene", "gauge-frame.png"), 1024, 160, (x, y, w, h) =>
                 {
-                    int edge = Math.Min(Math.Min(x, w - 1 - x), Math.Min(y, h - 1 - y));
-                    if (edge < 3) return new Rgba32(6, 9, 13);
-                    if (edge < 6) return new Rgba32(139, 156, 169);
-                    if (edge < 12) return new Rgba32(46, 60, 73);
-                    if (y is >= 72 and <= 75) return new Rgba32(73, 95, 109);
-                    return y < 72 ? new Rgba32(20, 29, 39) : new Rgba32(6, 10, 15);
+                    Rgba32 shell = instrumentShell(x, y, w, h);
+                    if (x < 18 || x >= w - 18 || y < 18 || y >= h - 18) return shell;
+                    if (y is >= 72 and <= 75) return new Rgba32(82, 103, 117);
+                    if (y < 72 && x > w * 0.72) return new Rgba32(7, 12, 18);
+                    return y < 72 ? new Rgba32(26, 37, 48) : new Rgba32(5, 9, 14);
                 });
                 draw(Path.Combine(root, "scene", "gauge-cells.png"), 1000, 64, (x, y, _, h) =>
                 {
@@ -128,12 +127,10 @@ namespace SkinAuthoring
             if (profile.CompactLayout)
                 draw(Path.Combine(root, "scene", "instrument.png"), 640, 128, (x, y, w, h) =>
                 {
-                    int edge = Math.Min(Math.Min(x, w - 1 - x), Math.Min(y, h - 1 - y));
-                    if (edge < 2) return new Rgba32(6, 9, 13);
-                    if (edge < 4) return new Rgba32(104, 119, 133);
-                    if (edge < 9) return new Rgba32(36, 44, 54);
-                    if (edge < 11) return new Rgba32(11, 16, 22);
-                    return new Rgba32((byte)(18 - y * 6 / h), (byte)(25 - y * 8 / h), (byte)(34 - y * 10 / h));
+                    Rgba32 shell = instrumentShell(x, y, w, h);
+                    if (x < 18 || x >= w - 18 || y < 18 || y >= h - 18) return shell;
+                    if (y == 39 || y == 40) return new Rgba32(48, 66, 80);
+                    return y < 39 ? new Rgba32(26, 37, 48) : new Rgba32(7, 12, 18);
                 });
             draw(Path.Combine(root, "scene", "white.png"), 1, 1, (_, _, _, _) => new Rgba32(255, 255, 255));
             draw(Path.Combine(root, "scene", "orbit.png"), 256, 256, (x, y, w, h) =>
@@ -330,23 +327,43 @@ namespace SkinAuthoring
             bool dark = role == "accent";
             int bottom = dark ? h * 3 / 5 : h * 4 / 5;
             // Matching rails meet across adjacent files; the short keys retain a complete socket and pedestal.
-            if (y < 3 || y >= h - 3) return new Rgba32(147, 162, 175);
-            if (y < 7 || y >= h - 8) return new Rgba32(47, 60, 72);
-            if (y >= h - 11) return new Rgba32(7, 11, 16);
+            if (y < 2 || y >= h - 2) return new Rgba32(9, 14, 20);
+            if (y < 4 || y >= h - 5) return new Rgba32(162, 178, 188);
+            if (y < 8 || y >= h - 10) return new Rgba32(60, 76, 90);
+            if (y >= h - 14) return new Rgba32(10, 17, 24);
             if (y >= bottom)
             {
-                if (Math.Abs(x - w / 2) < 23 && y < bottom + 5) return new Rgba32(101, 117, 128);
-                if (Math.Abs(x - w / 2) < 15 && y < bottom + 11) return tint(accent, 0.7);
-                if (x < 5 || x >= w - 5) return new Rgba32(57, 70, 82);
-                return new Rgba32(21, 29, 38);
+                int centreDistance = Math.Abs(x - w / 2);
+                if (centreDistance < 30 && y < bottom + 4) return new Rgba32(119, 138, 150);
+                if (centreDistance < 24 && y < bottom + 9) return tint(accent, 0.85);
+                if (centreDistance < 30 && y < bottom + 12) return new Rgba32(5, 10, 16);
+                if (dark && centreDistance < 34 && y < h - 18)
+                    return centreDistance > 29 ? new Rgba32(54, 69, 83) : new Rgba32(9, 15, 22);
+                if (x < 4 || x >= w - 4) return new Rgba32(51, 66, 80);
+                return new Rgba32(24, 34, 45);
             }
             if (x < 5 || x >= w - 5 || y < 9) return new Rgba32(7, 10, 14);
-            if (x < 10 || x >= w - 10 || y < 12 || y >= bottom - 4) return new Rgba32(121, 137, 150);
-            if (x < 15 || x >= w - 15 || y >= bottom - 10) return new Rgba32(40, 51, 64);
-            if (y < 16) return dark ? new Rgba32(116, 128, 140) : new Rgba32(246, 250, 255);
+            if (x < 10 || x >= w - 10 || y < 12 || y >= bottom - 4) return new Rgba32(131, 149, 162);
+            if (x < 15 || x >= w - 15 || y >= bottom - 10) return new Rgba32(26, 37, 50);
+            if (y < 17) return dark ? new Rgba32(104, 127, 147) : new Rgba32(250, 253, 255);
+            if (y >= bottom - 15) return dark ? new Rgba32(21, 31, 43) : new Rgba32(143, 161, 176);
             double highlight = Math.Sin(Math.PI * (x - 15) / (w - 30));
-            byte shade = (byte)(dark ? 32 + highlight * 27 - y * 12 / h : 209 + highlight * 35 - y * 25 / h);
+            byte shade = (byte)(dark ? 28 + highlight * 17 + 17 * Math.Exp(-Math.Pow((y - 24) / 12.0, 2)) : 214 + highlight * 27 - y * 18 / h);
             return new Rgba32(shade, shade, (byte)Math.Min(255, shade + 6));
+        }
+
+        private static Rgba32 instrumentShell(int x, int y, int w, int h)
+        {
+            const int cut = 22;
+            double edge = Math.Min(Math.Min(x, w - 1 - x), Math.Min(y, h - 1 - y));
+            edge = Math.Min(edge, Math.Min(Math.Min(x + y, w - 1 - x + y),
+                Math.Min(x + h - 1 - y, w - 1 - x + h - 1 - y)) - cut);
+            if (edge < 0) return default;
+            if (edge < 2) return new Rgba32(5, 9, 14);
+            if (edge < 5) return y < h / 2 ? new Rgba32(159, 177, 190) : new Rgba32(85, 105, 120);
+            if (edge < 11) return new Rgba32(49, 65, 80);
+            if (edge < 14) return new Rgba32(10, 17, 24);
+            return new Rgba32(25, 35, 46);
         }
 
         private static Rgba32 surface(int x, int y, int w, int h, string name, Rgba32 accent, Rgba32 background, Rgba32 highlight, bool complex)
@@ -666,6 +683,7 @@ namespace SkinAuthoring
             }
             if (!profile.Complex && profile.CompactLayout)
             {
+                children.Add(stageTemplateNode("still.cabinet", "sprite", new() { ["colour"] = "#adb6c0ff" }, slot: "stage.background"));
                 templates.Add(new { id = "still.judgement-style", root = stageTemplateNode("still.judgement", "container", new() { ["opacity"] = 0 }, new object[]
                 {
                     stageTemplateNode("still.judgement.result", "text", new()
@@ -685,12 +703,12 @@ namespace SkinAuthoring
                     stageTemplateNode("still.gauge.frame", "sprite", new(), resource: "texture.gauge-frame"),
                     stageTemplateNode("still.gauge.label", "text", new()
                     {
-                        ["text"] = "GAUGE", ["font-size"] = 10, ["x"] = 0.035, ["y"] = 0.04, ["width"] = 0.5, ["height"] = 0.4,
+                        ["text"] = "GAUGE", ["font-size"] = 12, ["x"] = 0.035, ["y"] = 0.04, ["width"] = 0.5, ["height"] = 0.4,
                         ["alignment"] = "left", ["colour"] = "#b8cbd6ff",
                     }),
                     stageTemplateNode("still.gauge.value", "text", new()
                     {
-                        ["text"] = "0%", ["font-size"] = 16, ["format"] = "percent", ["x"] = 0.5, ["y"] = 0.04, ["width"] = 0.46, ["height"] = 0.4,
+                        ["text"] = "0%", ["font-size"] = 22, ["format"] = "percent", ["x"] = 0.5, ["y"] = 0.04, ["width"] = 0.46, ["height"] = 0.4,
                         ["alignment"] = "right", ["colour"] = "#f2fbffff",
                     }),
                     stageTemplateNode("still.gauge.track", "sprite", new()

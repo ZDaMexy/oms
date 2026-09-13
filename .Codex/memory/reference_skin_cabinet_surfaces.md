@@ -4,6 +4,8 @@
 
 material模板无slot子节点须在owner表面定位，不能仅覆盖Stage target后仍用整个playfield矩形，否则血槽会盖满音轨。显式target旧模板不改坐标语义。clip外包transform后必须将子节点挂到content mask，否则裁切只改变空容器；实际内置BMS/mania产品检查与图11共同取证。编辑含非ASCII字面量的测试文件须保持UTF-8，曾误改é为茅导致规范化路径冲突fixture失真，恢复原值后通过，不应放宽生产校验。
 
+图12素材迭代：整体底板过亮可用普通Global `stage.background` sprite的colour乘色，省略resource时使用该玩法已经准备的公开素材；BMS原图保留，mania透明图仍透明。不为单张1P参考硬编码会穿帮的左右控制台底座。本轮键面/切角外壳修改止于离线作者配方，以真实作者包的双玩法/多模式多窗口矩阵和desktop像素验证，不把此前full日志重新计为新执行。
+
 用户图07显示控制键和BGA周围仍穿透歌曲背景。根因不是stage.png透明：原stage.background只有Stage，其矩形是轨道group union，键区和外侧不在其中。当前扩展Global/Stage独立声明；Global=SafeBounds，在Background层depth2，Stage仍depth1。BGA实际内容在它们前方。不得用全屏decoration（Overlay）盖住音符，也不扩大所有Stage矩形。
 
 普通scene的Stage/Group/Lane目标需要精确id+index；instances无条件准备，variant只换资源，隐藏节点仍解析目标。同包覆盖BMS/mania和单双舞台时，不得无条件引用不存在的deck-2或BMS目标。分段血条不能只换分段PNG：原纯texture缩放整个宽度，会使格距随血量变化。现用固定暗槽+mask裁切满宽亮图解决，未加条件实例ABI；RelativeChildSize补偿mask宽度，0值避免除零并保留底槽。视觉测试必须挂载父容器，检查实际DrawWidth而非只看相对Width。

@@ -26,7 +26,9 @@ C2～C6共用exact package+layout+material+scene publication，script及编译�
 
 ## 当前质量打磨（进行中）
 
-图10后的细节迭代：BMS音符收薄但落键边缘不动，判定大写并收拢连击；同源Stage素材模板将血槽外框、暗格、裁切亮格与百分比独立排版，GaugeHeight预留高度。图11真实desktop合成7K确认24%血量时完整槽体、薄音符及判定位置；无BGA且带测试边栏，不代签完整歌曲或整体质量。core focused90/90，BMS布局/选定包143/143，附加真实表面/裁切1/1；BMS full2242 Passed/0 Failed/16 Skipped，core Skin1359 Passed/5 Failed、mania863 Passed/4 Failed，剩余失败名称、类别及完整消息与冻结基线一致。作者完整制作/错误保护和Release通过，见[细节记录](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md)。下面图09结果属于此前迭代。
+图12之后只改作者源：白键斜面、黑键高光/支座，切角血槽/仪表外壳，12/22血槽字高，以及原底板的公开乘色压暗。图13真实desktop已保存；BMS/mania成品模式/样式/窗口与真实反馈相关矩阵403/403，作者制作/保护与Release通过。截图首次提前退出无足够诊断，独立复验exit0，不臆断原因；未重跑或冒用上轮full。控制台整体衔接与判定字形仍可继续打磨，见[本轮记录](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md#图12之后的控制区外壳迭代)。
+
+图10～11当时补薄音符、大写判定与相邻连击，同源Stage模板将血槽外框/暗亮格/百分比独立排版，GaugeHeight预留高度。该轮BMS full2242 Passed/0 Failed/16 Skipped，core Skin1359 Passed/5 Failed、mania863 Passed/4 Failed，剩余失败逐项匹配冻结基线。实际截图、focused、作者与Release记录见[细节记录](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md)。以下为此前迭代。
 
 此前图07～09推动底板、键面、BGA内框、按键/命中光和分立仪表接入普通作者包，mania保留透明背景；`ScratchKeyWidth:2`放大独立转盘，连续键座与长白/短黑键改善控制台。纯纹理gauge完整暗槽/亮图裁切继续供兼容路径使用，当前静线模板见上段。原创金属/转盘原图及提示词保留。LITONE仅作完成度和分区参考，整体质量待签收。
 

@@ -11,6 +11,20 @@
     "effects": [],
     "children": [
       {
+        "id": "still.cabinet",
+        "type": "sprite",
+        "target": {
+          "kind": "global"
+        },
+        "blend": "alpha",
+        "properties": {
+          "colour": "#adb6c0ff"
+        },
+        "effects": [],
+        "children": [],
+        "slot": "stage.background"
+      },
+      {
         "id": "still.hud",
         "type": "container",
         "target": {
@@ -418,7 +432,7 @@
             "blend": "alpha",
             "properties": {
               "text": "GAUGE",
-              "font-size": 10,
+              "font-size": 12,
               "x": 0.035,
               "y": 0.04,
               "width": 0.5,
@@ -438,7 +452,7 @@
             "blend": "alpha",
             "properties": {
               "text": "0%",
-              "font-size": 16,
+              "font-size": 22,
               "format": "percent",
               "x": 0.5,
               "y": 0.04,
