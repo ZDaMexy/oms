@@ -1,4 +1,4 @@
-// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -51,9 +51,19 @@ namespace osu.Game.Overlays.SkinEditor
 
         private readonly ScalingContainer scalingContainer;
 
-        protected override bool BlockNonPositionalInput => true;
+        protected override bool BlockNonPositionalInput => State.Value == Visibility.Visible;
+
+        public override bool IsPresent => base.IsPresent || Scheduler.HasPendingTasks;
+
+        private bool finishingEditing;
 
         private SkinEditor? skinEditor;
+        private EndlessPlayer? previewPlayer;
+        private Live<SkinInfo>? pendingDraft;
+        private long editorSourceRevision;
+        private string? editorRuleset;
+        private long pendingSourceRevision;
+        private string? pendingRuleset;
 
         [Resolved]
         private IPerformFromScreenRunner? performer { get; set; }
@@ -141,15 +151,20 @@ namespace osu.Game.Overlays.SkinEditor
 
         protected override void PopIn()
         {
-            // Show() remains reachable through global shortcuts and legacy callers. Refuse before constructing or
-            // exposing an editor when the current package cannot be mutated through revision publication.
-            if (!SkinAuthoringAvailability.LegacyEditorAvailable
-                || !skinManager.CanModify(skinManager.CurrentSkinInfo.Value))
+            if (finishingEditing)
+            {
+                finishingEditing = false;
+                skinEditor?.Show();
+                return;
+            }
+
+            if (!SkinAuthoringAvailability.LegacyEditorAvailable)
             {
                 Hide();
                 return;
             }
 
+            pendingDraft = null;
             overrideSkinEditorRelevantSettings();
 
             if (skinEditor != null)
@@ -163,6 +178,8 @@ namespace osu.Game.Overlays.SkinEditor
                 return;
             }
 
+            editorSourceRevision = skinManager.CurrentRevision.Generation;
+            editorRuleset = ruleset.Value.ShortName;
             var editor = new SkinEditor();
 
             editor.State.BindValueChanged(_ => updateComponentVisibility());
@@ -172,27 +189,90 @@ namespace osu.Game.Overlays.SkinEditor
             LoadComponentAsync(editor, _ =>
             {
                 if (editor != skinEditor)
+                {
+                    editor.Dispose();
                     return;
+                }
 
+                editor.DraftReady += () =>
+                {
+                    if (editor != skinEditor || State.Value != Visibility.Visible)
+                        return;
+                    if (lastTargetScreen is MainMenu)
+                        PresentGameplay();
+                    if (lastTargetScreen != null)
+                        SetTarget(lastTargetScreen);
+                };
                 AddInternal(editor);
-
-                if (lastTargetScreen is MainMenu)
-                    PresentGameplay();
-
-                Debug.Assert(lastTargetScreen != null);
-
-                SetTarget(lastTargetScreen);
             });
         }
 
         protected override void PopOut()
         {
-            skinEditor?.Save(false);
             skinEditor?.Hide();
+            finishingEditing = true;
+            finishEditing();
+        }
+
+        private void finishEditing()
+        {
+            if (IsDisposed || !finishingEditing)
+                return;
+
+            // Revert and layout restoration attach components asynchronously. Preserve the editor and its source
+            // screen until those components can be serialised, including when Escape follows Revert immediately.
+            if (skinEditor?.IsLoaded == true && !skinEditor.CanFinishEditing)
+            {
+                Scheduler.AddDelayed(finishEditing, 16);
+                return;
+            }
+
+            finishingEditing = false;
+            if (skinEditor?.IsLoaded == true)
+            {
+                skinEditor.Save(false);
+                pendingDraft = skinEditor.HasSavedChanges ? skinEditor.DraftSkin?.SkinInfo : null;
+                pendingSourceRevision = editorSourceRevision;
+                pendingRuleset = editorRuleset;
+                skinEditor.EndPreview();
+            }
+
+            skinEditor?.Hide();
+            skinEditor?.Expire();
+            skinEditor = null;
             nestedInputManagerDisable?.Dispose();
             nestedInputManagerDisable = null;
-
             restoreSkinEditorRelevantSettings();
+
+            // Only the player created by this editor is ours to close. A real game continues normally.
+            if (previewPlayer?.IsCurrentScreen() == true)
+                previewPlayer.Exit();
+            previewPlayer = null;
+            Schedule(applyPendingDraft);
+        }
+
+        private void applyPendingDraft()
+        {
+            if (IsDisposed || pendingDraft == null)
+                return;
+
+            // A later player choice wins over a deferred application from an earlier editing session.
+            if (skinManager.CurrentRevision.Generation != pendingSourceRevision || ruleset.Value.ShortName != pendingRuleset)
+            {
+                pendingDraft = null;
+                return;
+            }
+
+            if (skinManager.CurrentSkinInfo.Disabled || skinManager.CaptureRevisionParticipantSnapshot(out _) == null)
+            {
+                // IsPresent keeps this scheduler alive while the preview/real player is detaching.
+                Scheduler.AddDelayed(applyPendingDraft, 250);
+                return;
+            }
+
+            var saved = pendingDraft;
+            pendingDraft = null;
+            skinManager.CurrentSkinInfo.Value = saved;
         }
 
         public void PresentGameplay() => presentGameplay(false);
@@ -252,10 +332,13 @@ namespace osu.Game.Overlays.SkinEditor
                 if (screen is Player)
                     return;
 
-                // the validity of the current game-wide beatmap + ruleset combination is enforced by song select.
-                // if we're anywhere else, the state is unknown and may not make sense, so forcibly set something that does.
-                if (screen is not SoloSongSelect)
-                    ruleset.Value = beatmap.Value.BeatmapInfo.Ruleset;
+                // Editing retains the mode and package selected when it opened. Pick a compatible chart in song
+                // select before opening gameplay preview rather than silently editing the other mode's skin.
+                if (beatmap.Value.BeatmapInfo.Ruleset.ShortName != ruleset.Value.ShortName)
+                {
+                    onScreenDisplay?.Display(new GameplayPreviewUnavailableToast(SkinEditorStrings.GameplayPreviewRequiresChart));
+                    return;
+                }
                 var replayGeneratingMod = ruleset.Value.CreateInstance().GetAutoplayMod();
 
                 IReadOnlyList<Mod> usableMods = mods.Value;
@@ -267,7 +350,7 @@ namespace osu.Game.Overlays.SkinEditor
                     mods.Value = mods.Value.Except(invalid).ToArray();
 
                 if (replayGeneratingMod != null)
-                    screen.Push(new EndlessPlayer(replayGeneratingMod.CreateScoreFromReplayData));
+                    screen.Push(previewPlayer = new EndlessPlayer(replayGeneratingMod.CreateScoreFromReplayData));
             }, new[] { typeof(Player), typeof(SoloSongSelect) });
         }
 
@@ -385,12 +468,10 @@ namespace osu.Game.Overlays.SkinEditor
 
         private void setTarget(OsuScreen? target)
         {
-            if (target == null)
+            if (target == null || skinEditor == null || finishingEditing)
                 return;
 
-            Debug.Assert(skinEditor != null);
-
-            if (!target.IsLoaded || !skinEditor.IsLoaded)
+            if (!target.IsLoaded || !skinEditor.IsLoaded || skinEditor.DraftSkin == null)
             {
                 Scheduler.AddOnce(setTarget, target);
                 return;
@@ -458,6 +539,14 @@ namespace osu.Game.Overlays.SkinEditor
             leasedVisibilityMode = null;
         }
 
+        private partial class GameplayPreviewUnavailableToast : Toast
+        {
+            public GameplayPreviewUnavailableToast(LocalisableString value)
+                : base(SkinEditorStrings.Gameplay, value)
+            {
+            }
+        }
+
         private partial class ResultsPreviewUnavailableToast : Toast
         {
             public ResultsPreviewUnavailableToast(LocalisableString value)
@@ -478,6 +567,7 @@ namespace osu.Game.Overlays.SkinEditor
         {
             base.Dispose(isDisposing);
 
+            pendingDraft = null;
             externalEditOverlayRegistration?.Dispose();
             externalEditOverlayRegistration = null;
         }

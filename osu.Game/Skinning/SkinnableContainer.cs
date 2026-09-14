@@ -1,4 +1,4 @@
-// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -100,6 +100,9 @@ namespace osu.Game.Skinning
                     ?? CurrentSkin.GetDrawableComponent(Lookup))
                 as Container);
         }
+
+        /// <summary>Preview the ruleset defaults without mutating the published skin's saved user layout.</summary>
+        internal void ReloadDefault() => Reload(CurrentSkin.GetDrawableComponent(Lookup) as Container);
 
         public void Reload(Container? componentsContainer)
         {

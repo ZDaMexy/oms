@@ -1,5 +1,21 @@
 # P1-A 变动日志
 
+## 2026-09-14：固定皮肤目录与原编辑器恢复
+
+按用户“就还原原来的编辑功能，后续再说”的范围收口：设置不再挂入 Folder Skin Workspace/外部注册面；保留旧记录与后端安全边界，改为打开固定 `chartskin` 和手动刷新，新增/修改/移出/放回无需重启。扫描串接启动及前次任务，退出 cancel+join。
+
+恢复原 Skin Editor 的设置/菜单/快捷键入口及拖拽、属性、撤销重做、图片导入、恢复默认、保存、导出。完整资源复制、导入草稿在 manager 跟踪后台任务中完成；编辑只写非 current Realm 副本，临时图片资源只作用于编辑预览。关闭等待异步布局完成后保存，退出自己创建的预览，按现有参与者准入选择保存副本；后来换模式/换皮肤优先，不强退真正游玩。未编辑副本关闭后删除，极端退出期数据库已停止则仅释放资源、不再写库，可能留一个未使用副本。未扩展完整 scene/script 可视化编辑，也未解禁外部 mount/update-import。
+
+验证命令与结果：
+
+- `dotnet build osu.Game.Tests/osu.Game.Tests.csproj --no-restore -p:Configuration=Debug -m -verbosity:minimal`：0 警告/0 错误。
+- `dotnet test osu.Game.Tests/osu.Game.Tests.csproj --no-build --no-restore -c Debug --filter "FullyQualifiedName~TestSceneSkinEditorDraft|FullyQualifiedName~TestSceneSkinEditorRestoration|FullyQualifiedName~TestSceneSkinEditorApply|FullyQualifiedName~TestSceneEditDefaultSkin|FullyQualifiedName~TestSceneManagedSkinFolderRefresh|FullyQualifiedName~TestSceneManagedSkinFolderStartup|FullyQualifiedName~TestSceneManagedSkinFolderScanLifecycle|FullyQualifiedName~TestSceneStartupRuleset|FullyQualifiedName~TestSceneStartupSkinMigration"`：**23/23**；最终记录 `skin-settings-restoration-final.trx`。
+- BMS Debug `SkinExternalEditDisabledUiTest` 与 `FolderSkinWorkspaceUiTest` **10/10**；普通包重载/失败/漂移、current file mutation、nested importer、真实设置 dispose 与 guarded pair **7/7**，记录 `skin-editor-existing-guards.trx`、`skin-editor-publication-guards.trx`。partial fixture 的真实类名为 `BmsManagedFolderSelectionProductTest`，后组按测试方法名过滤，不能把零匹配文件名当作已验证。
+- `dotnet build osu.Desktop.slnf --no-restore -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:minimal`：0 错误；BMS 测试工程未修改的 CS8600（`TestSceneFilesystemBackedStoryboardFallback.cs:151`）与 CA2007（`BmsRulesetStatisticsTest.cs:555`）各一项，保留未屏蔽。
+- owning csproj 定点 `dotnet format whitespace --no-restore --include ...`、`powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1`、`git diff --check` 通过。
+
+首败处理：编译修正 scheduler/IsDisposed 的保护级访问与本地化 XMLDoc；真实菜单发现旧硬编码禁用并恢复；图片持久化测试改为核对 exact owner 的资源 bytes，不能读取其有意为空的 Realm Files snapshot。首次混合测试运行在断言失败后未继续，主动中止且不计 gate；导航 fixture 显式 headless 后重新逐组及整体通过。集成测试初用上游 quick helper 固定期待 12 张四模式谱面，在 OMS 实际只有 3 张 mania；改为现有普通 importer 和实际 mania 选择，没有恢复已删除玩法或修改全局导入预期。未重跑三工程 full，自动结果不代替视觉/发行人工签收。
+
 ## 2026-09-14：按模式选择皮肤与设置页收简
 
 按用户反馈收紧 Settings → Skin 的常规路径：BMS 与 osu!mania 各有一个皮肤选择项，选择会跨重启保留，切换规则集时自动应用对应项。旧全局 `Skin` 配置首次启动会复制到两个 mode override；非法、受保护或不可用项回到已验证的 `oms-simple`，异步文件夹选择不会把结果写到另一模式。空脚本、无作者能力的按钮、空文件夹列表和无待处理恢复不再占据玩家视线，已有记录与真实故障仍可从同一入口处理。顶层启动/迁移/切换回归 **7/7**、Folder Skin Workspace 空状态回归 **7/7**、真实设置 caller 回归 **5/5**，`osu.Game` Debug build 0 警告/0 错误通过。

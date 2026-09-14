@@ -20,14 +20,14 @@ namespace osu.Game.Localisation
         public static LocalisableString CurrentSkin => new TranslatableString(getKey(@"current_skin"), @"Current skin");
 
         /// <summary>
-        /// "BMS skin"
+        /// "BMS 皮肤"
         /// </summary>
-        public static LocalisableString BmsSkin => new TranslatableString(getKey(@"bms_skin"), @"BMS skin");
+        public static LocalisableString BmsSkin => new TranslatableString(getKey(@"bms_skin"), @"BMS 皮肤");
 
         /// <summary>
-        /// "osu!mania skin"
+        /// "osu!mania 皮肤"
         /// </summary>
-        public static LocalisableString ManiaSkin => new TranslatableString(getKey(@"mania_skin"), @"osu!mania skin");
+        public static LocalisableString ManiaSkin => new TranslatableString(getKey(@"mania_skin"), @"osu!mania 皮肤");
 
         /// <summary>
         /// "Skin name"
@@ -156,6 +156,31 @@ namespace osu.Game.Localisation
         /// "Reload current skin"
         /// </summary>
         public static LocalisableString ReloadCurrentSkin => new TranslatableString(getKey(@"reload_current_skin"), @"Reload current skin");
+
+        /// <summary>
+        /// "刷新皮肤"
+        /// </summary>
+        public static LocalisableString RefreshSkins => new TranslatableString(getKey(@"refresh_skins"), @"刷新皮肤");
+
+        /// <summary>
+        /// "打开皮肤文件夹"
+        /// </summary>
+        public static LocalisableString OpenSkinFolder => new TranslatableString(getKey(@"open_skin_folder"), @"打开皮肤文件夹");
+
+        /// <summary>
+        /// "将每个皮肤放在 chartskin 下的独立文件夹中，修改后点击“刷新皮肤”。"
+        /// </summary>
+        public static LocalisableString SkinFolderHint => new TranslatableString(getKey(@"skin_folder_hint"), @"将每个皮肤放在 chartskin 下的独立文件夹中，修改后点击“刷新皮肤”。");
+
+        /// <summary>
+        /// "皮肤列表已刷新。"
+        /// </summary>
+        public static LocalisableString SkinsRefreshed => new TranslatableString(getKey(@"skins_refreshed"), @"皮肤列表已刷新。");
+
+        /// <summary>
+        /// "皮肤文件夹未能刷新，请检查文件后重试。"
+        /// </summary>
+        public static LocalisableString SkinFolderRefreshFailed => new TranslatableString(getKey(@"skin_folder_refresh_failed"), @"皮肤文件夹未能刷新，请检查文件后重试。");
 
         /// <summary>
         /// "The current skin was reloaded."

@@ -19,10 +19,10 @@
 - [skin folder authority/path preflight](reference_skin_filesystem_authority_preflight.md) — 声明/path preflight 不等于安全打开或写入授权。
 - [skin package immutable revision capsule](reference_skin_package_revision_capsule.md) — 内容身份、独占 bytes 与物理捕获的区别。
 - [skin folder Windows handle capture](reference_skin_windows_handle_capture.md) — held no-follow、文件身份竞态与 handle 生命周期。
-- [managed skin folder scanner](reference_skin_managed_folder_scanner.md) — Observed/Valid、启动扫描与 reload 的区别。
+- [managed skin folder scanner](reference_skin_managed_folder_scanner.md) — Observed/Valid、启动/手动扫描与 reload 的区别。
 - [managed skin folder factory/selection](reference_skin_managed_folder_selection.md) — 选择竞态、typed epoch 与 shutdown。
 - [managed chartskin mutation / rename / staged import / delete](reference_skin_managed_folder_mutation_foundation.md) — NTFS move、日志恢复及 uncertain failure。
-- [external Workspace / exact registry / ManagedCopy](reference_skin_external_workspace_managed_copy.md) — external 只读、注册与 ManagedCopy 复核。
+- [external Workspace / exact registry / ManagedCopy](reference_skin_external_workspace_managed_copy.md) — 旧注册后端保留、external 只读与 ManagedCopy 复核。
 - [managed skin atomic reload/detach](reference_skin_atomic_reload_detach.md) — 三源 publication、lease/retire 与调度竞态。
 - [ordinary `.osk` archive import safety](reference_skin_osk_archive_import_safety.md) — archive 预检、same-hash receipt 与非对称回滚。
 - [canonical 构建、安装与用户数据保护](reference_skin_canonical_installation.md) — 静线唯一保底、source→原件/摘要与解压字节核对、星轨退役迁移、缺行修复；便携误入、缓存隔离、冷启动线程、取消资源移交。
@@ -57,7 +57,7 @@
 ## 皮肤与视觉参考
 
 - [BMS 默认皮肤几何](reference_bms_default_skin_geometry.md)
-- [BMS 皮肤编辑器边界](reference_bms_skin_editor.md) — legacy editor 禁用与 CLR 反射格式风险。
+- [BMS 皮肤编辑器边界](reference_bms_skin_editor.md) — 原编辑器独立草稿、预览资源、延迟应用与 CLR 反射构造地雷。
 - [gameplay skin slot 三态合同](reference_gameplay_skin_slot_contract.md) — 三态、provider 优先级与候选生命周期。
 - [gameplay skin shared codec/material](reference_gameplay_skin_codec_material.md) — 样式选择、普通导入说明误报、shared material 与诊断边界。
 - [gameplay skin lane identity/topology](reference_gameplay_skin_lane_identity.md) — stable lane ID 与 topology 投影。

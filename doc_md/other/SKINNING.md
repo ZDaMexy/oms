@@ -6,7 +6,7 @@
 >
 > **本文是什么（派生文档）**：面向皮肤制作者的当前能力与 Skin V1 开发视图。**权威契约不在本文**——共享/分离、ini、scene/event/script、fallback、layout 与安全约束冻结在 [P1-A 技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)，分期在 [P1-A `SV1-*` 计划](../subline/P1-A/DEVELOPMENT_PLAN.md)。本文只是制作者视图；冲突时以 P1-A 四件套为准。
 >
-> **当前作者能力（2026-09-14 核对）**：选中的用户包可来自已导入 `.osk`、启动发现的 `chartskin/<包目录>/`，或 Folder Skin Workspace 注册的只读 external 目录。三源共享版本化 public gameplay-skin catalog、tokenizer/codec、`Provide/Inherit/Suppress` resolver，以及同一 package/layout/material/scene/script publication。玩家在 Settings → Skin 看到 BMS 与 osu!mania 两个独立选择项；首次启动会沿用旧全局皮肤，之后每个模式单独记住选择，切换模式会自动应用对应皮肤。C5 declarative scene、只读 Snapshot/Reset 和全部适用 slot host 继续生效：BMS 28 项均有 production route，Mania 23 项可用，`object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame` 为版本化 NotApplicable。native `[Bms] NoteImage*` 静态图与固定 60 FPS 连续编号帧兼容保持可用。
+> **当前作者能力（2026-09-14 核对）**：选中的用户包可来自已导入 `.osk`、启动或手动刷新发现的 `chartskin/<包目录>/`；旧版已登记的只读 external 记录继续保留，设置不再提供注册工作区。三源共享版本化 public gameplay-skin catalog、tokenizer/codec、`Provide/Inherit/Suppress` resolver，以及同一 package/layout/material/scene/script publication。玩家在 Settings → Skin 看到 BMS 与 osu!mania 两个独立选择项；首次启动会沿用旧全局皮肤，之后每个模式单独记住选择，切换模式会自动应用对应皮肤。C5 declarative scene、只读 Snapshot/Reset 和全部适用 slot host 继续生效：BMS 28 项均有 production route，Mania 23 项可用，`object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame` 为版本化 NotApplicable。native `[Bms] NoteImage*` 静态图与固定 60 FPS 连续编号帧兼容保持可用。
 >
 > **可选脚本与整包准备**：C6 已实现无需 DLL 的 V1 数值脚本、compiler/verifier、CLI、Settings 授权/拒绝/撤销与 profiler。真实 BMS/mania host 读取引擎 snapshot/event，并驱动获准的 scene 节点；没有脚本或拒绝授权时，普通 note/key/judgement 仍正常显示。ini、manifest、scene、script 和全部素材沿用同一 C2 prepared publication 与 owner/lease/detach/retire。Settings → Skin 的 `Reload current skin` 仍是三源唯一手动 reload，gameplay/preview 在读取来源前拒绝；授权撤销不触发 reload，暂停时也会停用旧脚本。没有脚本、待处理恢复或作者权限时，相应高级区块会隐藏，发生真实记录或故障时仍可从原入口处理。作者入口见[脚本说明与工具链](SKIN_SCRIPT_V1_AUTHORING.md)及[Momentum 候选源目录](skin-c6-candidate/README.md)。
 >
@@ -67,7 +67,7 @@ manifest 可声明 `"script": "gameplay-skin.script"`，由后台编译 UTF-8 V1
 - `skin.ini` compatibility：mania/BMS 共同素材、颜色和有限参数；
 - declarative scene/animation：稳定 node type、template、binding、variant、tween/state-machine；
 - optional sandbox script：只读事件驱动的复杂组合逻辑；
-- legacy lazer布局编辑器当前已禁用；其历史HUD layout JSON不是Skin V1 scene格式。
+- 原布局编辑器恢复既有组件的拖拽、属性和图片编辑，保存独立副本；其 HUD layout JSON 不是 Skin V1 scene 格式。
 
 **osu 社区对齐**：OMS 延续官方描述的社区工作流——皮肤以 `.osk` 分享、打开或拖入导入，解包后是根含 `skin.ini` 的普通目录；mania 的素材命名、`[Mania] Keys:` 分桶和 `name-{n}` 动画序列保持兼容。[osu! 官方 Skin 页面](https://osu.ppy.sh/wiki/en/Skin)说明了 `.osk`/文件夹导入方式，[osu!mania skinning](https://osu.ppy.sh/wiki/en/Skinning/osu%21mania)与 [`skin.ini`](https://osu.ppy.sh/wiki/en/Skinning/skin.ini)是共同语义基线。`[Bms]`、scene 和 script 是 OMS 对第一类 BMS ruleset 的版本化扩展，不要求编译 DLL，也不冒充上游 osu! 已原生支持。
 
@@ -81,7 +81,7 @@ manifest 可声明 `"script": "gameplay-skin.script"`，由后台编译 UTF-8 V1
 
 ## 2. 皮肤包结构
 
-当前有三种来源形态：把正式分发包作为 `.osk` 导入；把开发目录放入受管 `chartskin/<包目录>/` 并在下次启动时自动发现；或在 Folder Skin Workspace 中选择合格的只读 external 目录进行注册。三种形态的包内根部都是 `skin.ini`；可选 manifest、scene、script 与素材放在同一包内：
+当前使用方式是把正式分发包作为 `.osk` 导入，或从设置打开皮肤文件夹，将作品放入 `chartskin/<包目录>/` 后点击“刷新皮肤”。旧外部目录记录仍可读取，设置不再要求注册目录。包内根部都是 `skin.ini`；可选 manifest、scene、script 与素材放在同一包内：
 
 ```text
 MyBmsSkin/
@@ -99,13 +99,13 @@ MyBmsSkin/
   ...
 ```
 
-- 正式分发仍使用 `.osk`；skin-scoped importer 会在 archive metadata、entry stream、hash、file-store 与 model publication 前执行有界准入，失败或取消保留源文件且不会清理共享 hash。作者工作目录可放入 `chartskin/<包目录>/` 由下一次启动扫描，也可在 Workspace 中注册为只读 external。用户显式选中后，合法 BMS 包会实例化为同时解析 `[Mania]` 与 `[Bms]` 的 `BmsLegacySkin`。
+- 正式分发仍使用 `.osk`；skin-scoped importer 会在 archive metadata、entry stream、hash、file-store 与 model publication 前执行有界准入，失败或取消保留源文件且不会清理共享 hash。作者工作目录放入 `chartskin/<包目录>/` 后手动刷新即可发现。用户显式选中后，合法 BMS 包会实例化为同时解析 `[Mania]` 与 `[Bms]` 的 `BmsLegacySkin`。
 - V1 仍以 `.osk` 为正式社区分发物；受管目录与 external 只读目录是作者工作区/高级管理面。external 注册不自动选择，random/next/previous 不会隐式选中；切走后重新选择或 configured restart 会 fresh capture。C5 的 v1 manifest/scene 与只读 event 合同继续生效；C6 可选脚本、后台编译及整包准备已接入相同三源入口。`gameplay-skin.script` 或预编译 `gameplay-skin.bytecode` 必须由 manifest 明确选择，未声明时不运行脚本。
 - 只含 mania、只含 BMS 或同含两者都合法；官方 `oms-simple/oms-complex` 选择同包双 ruleset，以证明第三方无需特殊内置路径也能完成产品级皮肤。
-- 可视受管目录为 OMS 数据目录下的 `chartskin/`：每个 direct child 是一个包目录，根必须含有效 `skin.ini`。程序完整启动后会后台扫描一次，有效包进入皮肤选择面，但不会自动选中。新出现的文件、reparse或坏包不会新增记录；同路径若已有scanner exact-own记录则会保留而不因暂时无效被误清理，但选择/reload时仍须重新通过capture/factory，失败只保留旧皮肤而不会发布坏包。根扫描不完整或发生竞态时整轮零对账。启动后新增direct child仍须重启发现；已登记且current的目录原位修改可在安全screen显式Reload，不由scanner自动发布。configured selection仍按typed startup/mutation顺序fresh retry，update thread不等待。
-- Folder Skin Workspace 的 managed 行和既有 current 删除按钮共用 record-ID authority、确认语义、fallback 与 journal/recovery；删除是不可撤销的物理操作。current 目标先发布受保护fallback并等待旧revision detach，成功后才创建journal或开始物理操作；在此前失败/取消会保留或恢复原皮肤且不碰目录。首个物理步骤后只由durable recovery收口并保持fallback，不保证恢复已开始删除的旧目录。final preflight 后竞态新增的 foreign 节点不会被删除，但可能令部分清理后的操作冻结，因此不能把它理解成 all-or-nothing filesystem transaction。
-- Workspace 的 Rename Folder 只改变 direct-child 目录名与同一记录的 managed path，不改 `skin.ini`、作者展示名、Creator、hash 或包内容。Import Managed Copy 需要作者明确给出新的 direct-child 名称，文件只从 external 的 immutable capsule 复制，目录结构来自同次捕获的 bounded manifest，不覆盖、merge 或自动 suffix，也不自动选择新副本；external 原目录始终只读。Workspace不提供行级Reload。
-- external 行的 Unregister 对noncurrent记录直接做exact pure-Realm移除；对current记录先发布受保护fallback、等待旧revision detach，再fresh compare exact service-owner/record/current revision后移除。任一步失败都保留注册并恢复或保持原皮肤；即使源目录缺失或漂移也不会解析、打开、写入或删除source。Open Folder 由 manager fresh 重读并证明精确目录后再导航，UI 不缓存绝对路径。
+- 可视受管目录为 OMS 数据目录下的 `chartskin/`：每个 direct child 是一个包目录，根必须含有效 `skin.ini`。程序完整启动后会后台扫描一次，有效包进入皮肤选择面，但不会自动选中。新出现的文件、reparse或坏包不会新增记录；同路径若已有scanner exact-own记录则会保留而不因暂时无效被误清理，但选择/reload时仍须重新通过capture/factory，失败只保留旧皮肤而不会发布坏包。根扫描不完整或发生竞态时整轮零对账。启动后新增 direct child 可点击“刷新皮肤”发现；已登记且current的目录原位修改可在安全screen显式Reload，不由scanner自动发布。configured selection仍按typed startup/mutation顺序fresh retry，update thread不等待。
+- 既有 current 删除按钮使用 record-ID authority、确认语义、fallback 与 journal/recovery；删除是不可撤销的物理操作。current 目标先发布受保护fallback并等待旧revision detach，成功后才创建journal或开始物理操作；在此前失败/取消会保留或恢复原皮肤且不碰目录。首个物理步骤后只由durable recovery收口并保持fallback，不保证恢复已开始删除的旧目录。final preflight 后竞态新增的 foreign 节点不会被删除，但可能令部分清理后的操作冻结，因此不能把它理解成 all-or-nothing filesystem transaction。
+- 以下仅为保留的旧工作区后端边界，不是当前设置入口：Rename Folder 只改变 direct-child 目录名与同一记录的 managed path，不改 `skin.ini`、作者展示名、Creator、hash 或包内容。Import Managed Copy 需要作者明确给出新的 direct-child 名称，文件只从 external 的 immutable capsule 复制，目录结构来自同次捕获的 bounded manifest，不覆盖、merge 或自动 suffix，也不自动选择新副本；external 原目录始终只读。Workspace不提供行级Reload。
+- 保留的 external Unregister 后端 对noncurrent记录直接做exact pure-Realm移除；对current记录先发布受保护fallback、等待旧revision detach，再fresh compare exact service-owner/record/current revision后移除。任一步失败都保留注册并恢复或保持原皮肤；即使源目录缺失或漂移也不会解析、打开、写入或删除source。Open Folder 由 manager fresh 重读并证明精确目录后再导航，UI 不缓存绝对路径。
 - 路径相对 `skin.ini` 所在目录；子目录用 `/` 或 `\` 均可。
 - 素材格式：PNG（含 alpha）。动画见 [§3](#3-skinini-总览与通用约定) 的帧序列约定。
 - 手动reload：安全screen上的`Reload current skin`会为ordinary `.osk`、managed或external current记录重新验证并准备fresh immutable revision；全部现有participant ready后才一次发布，失败保留exact旧皮肤，旧owner等最后consumer/work detach才释放。作者对managed/external工作目录的原位修改可用此入口；ordinary `.osk`没有作者update-import或内部file-store编辑入口，内容修改仍须编辑源目录、重新打包并导入，按钮只提供统一same-ID revision协议。gameplay/preview或其它无法staged swap的attached screen会先拒绝并提示退出；这不是watcher。C4已把public document、layout与resolved material合成同一publication，C5再加入prepared scene/event与全部适用slot；BMS已提交的Note/LN/scene资源会一直由该publication保活到renderer子树detach，失败/取消的新候选则只释放自己的prepared资源，不会让旧画面引用失效。C6 现在把 ini、manifest、scene、script 和全部素材一同准备和发布，编译工作及脚本 host 也沿用上述 lease/detach/retire。整包失败与恢复的实际证据见 [C6 验证报告](SKIN_SYSTEM_C6_VALIDATION_20260909.md)，完整退出门状态以 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md) 为准。
@@ -320,7 +320,7 @@ gameplay package的legacy候选顺序为：`[Bms]` role-aware override → 按�
 
 ### 7.3 行为契约（关键分工）
 - **加载期 = fail-open + 可查询诊断**：错误package不阻断游玩；manual Reload为三种source在background建立包含layout、resolved material、scene与script的整包revision，全部participant ready后一次替换，失败保留exact旧整包。BMS成功publication持有其prepared Note/LN/scene resource直到renderer子树detach；Skin owner开始退出不会提前释放仍被画面借用的资源，失败/取消/commit拒绝的provisional publication则exactly-once清理自身。C5 scene/event、全部适用 slot 与 C6 script/编译工作均进入同一协议；运行时脚本故障只停用脚本并恢复基础表现。
-- **制作检查**：[作者套件](../../skin-authoring/README.md)检查公开语法、素材、场景、脚本以及普通包和目录准入，定位错误后再打包；没有可视化编辑器。
+- **制作检查**：[作者套件](../../skin-authoring/README.md)检查公开语法、素材、场景、脚本以及普通包和目录准入，定位错误后再打包；完整 scene/script 制作没有可视化编辑器，原组件布局编辑器独立提供有限编辑面。
 - **keymode 覆盖**：实际覆盖由对应 `[Bms] Keymode:` bucket 及具体 slot 声明决定；`[General] Keymodes:` 当前仅是 informational/editor hint，不参与加载期 gating。缺失 slot 沿经校验的 `oms-simple` 链回落。
 
 ---
@@ -333,11 +333,11 @@ gameplay package的legacy候选顺序为：`[Bms]` role-aware override → 按�
 - **declarative scene/animation**：稳定 node ID、named layout slot、template、binding、variant 与动画；这是 V1 的主要创作面。
 - **optional sandbox script**：已接通的 V1 数值源码/字节码作者面，用获准的只读事件与固定 gameplay tick 驱动有状态组合效果；不负责逐帧搬动每个 note。入口及用户授权见[脚本说明](SKIN_SCRIPT_V1_AUTHORING.md)。
 
-**legacy布局编辑器的历史边界（当前禁用）**：它识别`SkinnableContainer` target内的`ISerialisableDrawable`组件，例如`MainHUDComponents`中的key counter、song progress、计分、准确率和判定计数。它不编辑车道、音符等ruleset内部视觉，也不消费C5 prepared scene graph；素材选择器只列已导入文件，没有内置资产浏览器。
+**原布局编辑器的恢复边界**：它识别`SkinnableContainer` target内的`ISerialisableDrawable`组件，例如`MainHUDComponents`中的key counter、song progress、计分、准确率和判定计数。它不编辑车道、音符等ruleset内部视觉，也不消费C5 prepared scene graph；素材选择器只列已导入文件，没有内置资产浏览器。
 
-历史Skin Layout Editor JSON会序列化CLR `Type`并反射构造，当前editor已禁用，该JSON**不能**成为外部分发scene ABI。V1 manifest使用allowlist的稳定node ID；BMS gauge/combo/clear lamp等锚定到引擎给出的named slot，由外部scene决定具体表现，不把当前`DefaultBmsHudLayoutDisplay`固定编排冻结成上限。
+Skin Layout Editor JSON 会序列化 CLR `Type` 并反射构造，该 JSON**不能**成为外部分发scene ABI。V1 manifest使用allowlist的稳定node ID；BMS gauge/combo/clear lamp等锚定到引擎给出的named slot，由外部scene决定具体表现，不把当前`DefaultBmsHudLayoutDisplay`固定编排冻结成上限。
 
-截至当前，legacy Skin Editor菜单、hotkey、overlay以及external-edit/update-import backend均稳定不可用，不能作为author-preview或reload旁路。作者目录只使用Folder Skin Workspace；reload只使用Settings的current manual Reload。未来若重启编辑器，必须另行冻结安全格式与统一revision协议。
+设置、菜单和快捷键可打开原 Skin Editor。编辑器从当前皮肤完整复制独立草稿，原来的拖拽、属性、撤销重做、图片导入、保存和导出沿用；不修改内置原包或作者源目录。关闭预览后，通过正常选择流程应用保存副本；真正游玩不强退，后来换皮肤或换模式优先于旧的待应用副本。external-edit/update-import 仍禁用，编辑预览不绕过游玩期间的整包切换限制。
 
 ---
 
@@ -362,7 +362,7 @@ gameplay package的legacy候选顺序为：`[Bms]` role-aware override → 按�
 
 1. **选择作者起点**：从[完整模板与双包源文件](../../skin-authoring/README.md)开始，按[极光习作演练](../../skin-authoring/docs/WORKSHOP.md)完成修改、检查、打包、普通导入和验证。
 2. **改色 / 换图**：先动 `Colour*` 与 `*Image` 键。普通短键可让 `NoteImage{lane}`、长条头身尾可让 `NoteImage{lane}H/L/T` 指向资源基名并提供 `name-0`、`name-1`…；body 宽度可用 `LongNoteBodyWidth`，只接受 finite 且 `0 < width <= 1`。支持范围以页首能力块为准，帧率目前固定 60 FPS。
-3. **重新载入和重选**：作者修改`.osk`时仍编辑源目录、重新打包并导入，不能原位改OMS内部Realm/file store，也不能使用已禁用的update-import。已登记且当前选中的managed/external工作目录内容变更，可在退出gameplay/preview并回到安全screen后点击Settings → Skin → `Reload current skin`。ordinary Realm current也使用同一按钮做same-ID重新验证/重建，但这不是作者编辑面。新增`chartskin/` direct child仍需重启让一次性scanner发现；不要等待自动检测，也不要重复选择同一项冒充reload。
+3. **重新载入和重选**：作者修改`.osk`时仍编辑源目录、重新打包并导入，不能原位改OMS内部Realm/file store，也不能使用已禁用的update-import。已登记且当前选中的managed/external工作目录内容变更，可在退出gameplay/preview并回到安全screen后点击Settings → Skin → `Reload current skin`。ordinary Realm current也使用同一按钮做same-ID重新验证/重建，但这不是作者编辑面。新增 `chartskin/` direct child 可点击“刷新皮肤”发现；不要等待自动检测，也不要重复选择同一项冒充reload。
 4. **查看并控制脚本授权**：选包后在 Settings → Skin → 可选皮肤脚本中查看请求，按需授予允许能力；拒绝或撤销仍应保留基础显示。可用 CLI 先定位源码/字节码错误，再观察真实 host 效果、profiler 和故障行号。完整步骤见[脚本作者说明](SKIN_SCRIPT_V1_AUTHORING.md)。
 5. **逐 keymode 验证**：至少覆盖你声明的每个 `Keymode`；重点检查 scratch 与键道的可读区分、14K DP 双侧布局。
 6. **看运行结果与日志**：public codec/catalog分别使用稳定`OMS-SKIN-CODEC-NNN`/`OMS-SKIN-SLOT-NNN`，resolver/resource/capability使用稳定小写code；全部产品日志均脱敏。C5 runtime profile逐项列出Supported或NotApplicable；NotApplicable不是`Inherit`，也不代表缺少host。legacy宽松字段的诊断仍不等于完整public合同。

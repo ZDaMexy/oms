@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
@@ -71,6 +72,35 @@ namespace osu.Game.Skinning
         /// The immutable content identity advertised by an exact package store, when this instance owns one.
         /// </summary>
         internal string? PackageContentRevision { get; }
+
+        /// <summary>
+        /// Copies the files owned by this exact skin into an editable archive, without consulting another revision.
+        /// </summary>
+        internal void WriteEditorArchive(Stream destination, SkinInfo draftInfo, CancellationToken cancellationToken = default)
+        {
+            IEnumerable<string> names = FallbackStore is ISkinPackageRevisionResourceStore exactStore
+                ? exactStore.Files.Select(file => file.ResourceName)
+                : SkinInfo.PerformRead(info => info.Files.Select(file => file.Filename).ToArray());
+
+            using var archive = new ZipArchive(destination, ZipArchiveMode.Create, leaveOpen: true);
+            foreach (string name in names)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                // The new metadata gives the editable copy its own import identity, even before any layout is changed.
+                if (string.Equals(name, "skininfo.json", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                using Stream source = store.GetStream(name)
+                                      ?? throw new InvalidDataException("An editor draft source file is missing from its revision.");
+                using Stream target = archive.CreateEntry(name, CompressionLevel.NoCompression).Open();
+                source.CopyToAsync(target, cancellationToken).GetAwaiter().GetResult();
+            }
+
+            using Stream metadata = archive.CreateEntry("skininfo.json", CompressionLevel.NoCompression).Open();
+            cancellationToken.ThrowIfCancellationRequested();
+            byte[] json = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(draftInfo));
+            metadata.Write(json);
+        }
 
         private readonly object gameplayPackagePrepareGate = new object();
 

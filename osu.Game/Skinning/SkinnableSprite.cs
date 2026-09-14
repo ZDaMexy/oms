@@ -1,4 +1,4 @@
-// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System.Collections.Generic;
@@ -34,6 +34,30 @@ namespace osu.Game.Skinning
 
         [Resolved]
         private ISkinSource source { get; set; } = null!;
+
+        private Skin? editorSkin;
+
+        /// <summary>Resource override confined to the layout editor's independent draft preview.</summary>
+        internal Skin? EditorSkin
+        {
+            get => editorSkin;
+            set
+            {
+                if (ReferenceEquals(editorSkin, value))
+                    return;
+                editorSkin = value;
+                if (IsLoaded)
+                    SkinChanged(CurrentSkin);
+            }
+        }
+
+        protected override void SkinChanged(ISkinSource skin)
+        {
+            if (editorSkin?.GetDrawableComponent(ComponentLookup) is Drawable component)
+                SetDrawable(component, false);
+            else
+                base.SkinChanged(skin);
+        }
 
         public SkinnableSprite(string textureName, Vector2? maxSize = null, ConfineMode confineMode = ConfineMode.NoScaling)
             : base(new SpriteComponentLookup(textureName, maxSize), confineMode)
@@ -92,7 +116,8 @@ namespace osu.Game.Skinning
                 // Round-about way of getting the user's skin to find available resources.
                 // In the future we'll probably want to allow access to resources from the fallbacks, or potentially other skins
                 // but that requires further thought.
-                var highestPrioritySkin = getHighestPriorityUserSkin(((SkinnableSprite)SettingSourceObject).source.AllSources) as Skin;
+                var sprite = (SkinnableSprite)SettingSourceObject;
+                var highestPrioritySkin = sprite.EditorSkin ?? getHighestPriorityUserSkin(sprite.source.AllSources) as Skin;
 
                 string[]? availableFiles = highestPrioritySkin?.SkinInfo.PerformRead(
                     s => s.Files

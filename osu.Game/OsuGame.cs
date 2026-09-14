@@ -1619,6 +1619,28 @@ namespace osu.Game
             managedSkinFolderScanTask = Task.Run(() => performManagedSkinFolderStartup(cancellation.Token), cancellation.Token);
         }
 
+        /// <summary>
+        /// Refreshes the fixed skin folder after earlier discovery has finished. Called on the update thread.
+        /// </summary>
+        internal Task<SkinManagedFolderScanResult> RefreshManagedSkinFoldersAsync()
+        {
+            CancellationToken cancellationToken = managedSkinFolderScanCancellation.Token;
+            Task previousScan = managedSkinFolderScanTask;
+            Task<SkinManagedFolderScanResult> refresh = Task.Run(async () =>
+            {
+                await previousScan.ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                using SkinManagedFolderOperationCoordinator.Lease lease =
+                    SkinManager.ManagedFolderOperationCoordinator.EnterStartupSequence(cancellationToken);
+                PerformManagedSkinFolderMutationRecovery(cancellationToken);
+                return scanManagedSkinFolders(cancellationToken);
+            }, cancellationToken);
+
+            // Disposal cancels and joins the entire chain before releasing Realm.
+            managedSkinFolderScanTask = refresh;
+            return refresh;
+        }
+
         private void stopManagedSkinFolderScan()
         {
             CancellationTokenSource cancellation = Interlocked.Exchange(ref managedSkinFolderScanCancellation, null);
@@ -1681,13 +1703,16 @@ namespace osu.Game
         /// released. It is virtual only to allow deterministic headless lifecycle coverage.
         /// </remarks>
         protected virtual void PerformManagedSkinFolderScan(CancellationToken cancellationToken)
+            => scanManagedSkinFolders(cancellationToken);
+
+        private SkinManagedFolderScanResult scanManagedSkinFolders(CancellationToken cancellationToken)
         {
             var scanner = new SkinManagedFolderScanner(
                 ClientRealm,
                 new WindowsSkinManagedFolderDiscoverySource(Storage),
                 SkinManager.ManagedFolderOperationCoordinator);
 
-            scanner.Scan(cancellationToken);
+            return scanner.Scan(cancellationToken);
         }
 
         private void handleBackButton()

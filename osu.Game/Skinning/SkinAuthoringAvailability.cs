@@ -1,4 +1,4 @@
-// Copyright (c) OMS contributors. Licensed under the MIT Licence.
+﻿// Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 namespace osu.Game.Skinning
 {
@@ -14,9 +14,8 @@ namespace osu.Game.Skinning
             "Skin external editing is disabled until update-import can publish through the current revision protocol.";
 
         /// <summary>
-        /// Legacy SkinEditor mutates the selected Realm package outside staged current-revision publication. Keep every
-        /// UI and backend entry point closed until authoring itself participates in the unified protocol.
+        /// The layout editor saves an independent draft and applies it through ordinary revision publication.
         /// </summary>
-        internal static bool LegacyEditorAvailable => false;
+        internal static bool LegacyEditorAvailable => true;
     }
 }

@@ -8,7 +8,7 @@ metadata:
 
 # External Workspace / ManagedCopy 地雷
 
-产品入口与完整安全门见 [P1-A CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)，当前状态读 [STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)。external 永久只读；resolver 词法 request、service-owner token、digest/record/path 都不是 source capability。
+产品入口与完整安全门见 [P1-A CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)，当前状态读 [STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)。设置已移除 Workspace/外部注册产品入口，以下保留旧数据与后端处理的诊断合同。external 永久只读；resolver 词法 request、service-owner token、digest/record/path 都不是 source capability。
 
 ## Selection 和 current Reload 不是同一事务
 

@@ -35,13 +35,13 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
-        public void LegacyAuthoringHasOneStableFailClosedAuthority()
+        public void InternalEditorIsAvailableWhileExternalEditingRemainsDisabled()
         {
             Assert.Multiple(() =>
             {
-                Assert.That(SkinAuthoringAvailability.LegacyEditorAvailable, Is.False);
-                Assert.That(SkinEditorOverlay.IsLegacyAuthoringAvailable, Is.False);
-                Assert.That(SkinSettingsStrings.SkinAuthoringUnavailable.ToString(), Is.Not.Empty);
+                Assert.That(SkinAuthoringAvailability.LegacyEditorAvailable, Is.True);
+                Assert.That(SkinEditorOverlay.IsLegacyAuthoringAvailable, Is.True);
+                Assert.That(ExternalEditOverlay.IsSkinExternalEditingAvailable, Is.False);
             });
         }
     }

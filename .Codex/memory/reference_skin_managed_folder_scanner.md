@@ -35,7 +35,7 @@ metadata:
 - scanGate 只防同实例重入；跨 scanner/selection/mutation/recovery 用共享 coordinator，从 discovery 持到 Realm commit。snapshot→commit 之间不能让 mutation 插入。
 - startup 在同一 typed sequence 先幂等 recovery、后一次 scanner。有效未决 journal 冻结相关 path；invalid/unknown/IO 冻结 namespace。add/update/revive 与 negative cleanup 都查冻结，不能将半成品当新包或缺失。
 - Realm notification 已能刷新 dropdown，不加第二 UI refresh，也不自动选择。scanner 不消费 publication plan，不执行 physical move/delete。
-- 启动后新增 direct child 需重启发现；已登记 current 的原位编辑走 Settings manual Reload，不能称 scanner 为 watcher。
+- 启动后新增 direct child 可经设置“刷新皮肤”发现；手动扫描串接启动/上次任务，继续在 typed sequence 内 recovery→scanner，退出统一 cancel+join。已登记 current 的原位编辑由同一按钮随后按原准入 Reload，仍无 watcher。
 - shutdown/callback 与 configured selection retry 见 [[reference_skin_managed_folder_selection]]、[[reference_skin_atomic_reload_detach]]。
 
 安全诊断只含 reason/计数，不输出 root/name/skin metadata/revision 或 native 异常正文。native 捕获见 [[reference_skin_windows_handle_capture]]，物理恢复见 [[reference_skin_managed_folder_mutation_foundation]]。

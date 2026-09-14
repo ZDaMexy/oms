@@ -7,6 +7,11 @@ namespace osu.Game.Localisation
 {
     public static class SkinEditorStrings
     {
+        /// <summary>
+        /// "先在选曲中选择当前模式的谱面，再打开游戏预览。"
+        /// </summary>
+        public static LocalisableString GameplayPreviewRequiresChart => new TranslatableString(getKey(@"gameplay_preview_requires_chart"), @"先在选曲中选择当前模式的谱面，再打开游戏预览。");
+
         private const string prefix = @"osu.Game.Resources.Localisation.SkinEditor";
 
         /// <summary>

@@ -1,4 +1,4 @@
-// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.ExceptionServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using osu.Framework;
@@ -19,11 +21,13 @@ using osu.Framework.Input;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
+using osu.Framework.Logging;
 using osu.Framework.Testing;
 using osu.Game.Database;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.Cursor;
+using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Input.Bindings;
 using osu.Game.Localisation;
@@ -57,6 +61,33 @@ namespace osu.Game.Overlays.SkinEditor
         private OsuTextFlowContainer headerText = null!;
 
         private Bindable<Skin> currentSkin = null!;
+        private bool restoreDraftLayout;
+        private bool restoringDraftComponents;
+        private readonly CancellationTokenSource draftCancellation = new CancellationTokenSource();
+        private readonly object draftOwnershipGate = new object();
+        private Skin? pendingDraftOwner;
+        private bool draftClosed;
+        private Drawable editorContent = null!;
+        private OsuSpriteText preparationText = null!;
+        private bool edited;
+
+        internal bool HasSavedChanges { get; private set; }
+        internal bool CanFinishEditing => !edited || targetScreen?.IsLoaded != true
+                                         || availableTargets.All(target => target.ComponentsLoaded);
+        internal event Action? DraftReady;
+        internal Skin? DraftSkin => currentSkin?.Value;
+
+        /// <summary>End the local preview before its draft becomes eligible for normal skin publication.</summary>
+        internal void EndPreview()
+        {
+            restoreDraftLayout = false;
+            foreach (var target in availableTargets.ToArray())
+            {
+                foreach (var sprite in target.ChildrenOfType<SkinnableSprite>())
+                    sprite.EditorSkin = null;
+                target.Reload();
+            }
+        }
         private Bindable<string> clipboardContent = null!;
 
         [Resolved]
@@ -165,7 +196,11 @@ namespace osu.Game.Overlays.SkinEditor
                                                     Items = new OsuMenuItem[]
                                                     {
                                                         new EditorMenuItem(Web.CommonStrings.ButtonsSave, MenuItemType.Standard, () => Save()) { Hotkey = new Hotkey(PlatformAction.Save) },
-                                                        new EditorMenuItem(CommonStrings.Export, MenuItemType.Standard, () => skins.ExportCurrentSkin()) { Action = { Disabled = !RuntimeInfo.IsDesktop } },
+                                                        new EditorMenuItem(CommonStrings.Export, MenuItemType.Standard, () =>
+                                                        {
+                                                            Save(false);
+                                                            _ = skins.ExportSkin(currentSkin.Value.SkinInfo);
+                                                        }) { Action = { Disabled = !RuntimeInfo.IsDesktop } },
                                                         CreateExternalEditMenuItem(),
                                                         new OsuMenuItemSpacer(),
                                                         new EditorMenuItem(CommonStrings.RevertToDefault, MenuItemType.Destructive, () => dialogOverlay?.Push(new RevertConfirmDialog(revert))),
@@ -262,26 +297,78 @@ namespace osu.Game.Overlays.SkinEditor
 
             Show();
 
-            game?.RegisterImportHandler(this);
-
-            // as long as the skin editor is loaded, let's make sure we can modify the current skin.
-            currentSkin = skins.CurrentSkin.GetBoundCopy();
-
-            // schedule ensures this only happens when the skin editor is visible.
-            // also avoid some weird endless recursion / bindable feedback loop (something to do with tracking skins across three different bindable types).
-            // probably something which will be factored out in a future database refactor so not too concerning for now.
-            currentSkin.BindValueChanged(val =>
+            editorContent = InternalChild;
+            editorContent.Hide();
+            AddInternal(preparationText = new OsuSpriteText
             {
-                if (val.OldValue != null && hasBegunMutating)
-                    save(val.OldValue);
-
-                hasBegunMutating = false;
-                Scheduler.AddOnce(skinChanged);
-            }, true);
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+                Text = "正在准备皮肤编辑器…",
+            });
+            _ = prepareDraftAsync(draftCancellation.Token);
 
             SelectedComponents.BindCollectionChanged((_, _) => Scheduler.AddOnce(populateSettings), true);
 
-            selectedTarget.BindValueChanged(targetChanged, true);
+            selectedTarget.BindValueChanged(targetChanged);
+        }
+
+        private async Task prepareDraftAsync(CancellationToken cancellationToken)
+        {
+            try
+            {
+                Skin draft = await skins.CreateEditorDraftAsync(cancellationToken).ConfigureAwait(false);
+                lock (draftOwnershipGate)
+                {
+                    if (draftClosed)
+                    {
+                        _ = skins.DiscardEditorDraftAsync(draft);
+                        return;
+                    }
+                    pendingDraftOwner = draft;
+                }
+
+                Schedule(() =>
+                {
+                    lock (draftOwnershipGate)
+                    {
+                        if (draftClosed)
+                            return;
+                        currentSkin = new Bindable<Skin>(pendingDraftOwner!);
+                        pendingDraftOwner = null;
+                    }
+                    preparationText.Expire();
+                    editorContent.Show();
+                    game?.RegisterImportHandler(this);
+                    skinChanged();
+                    selectedTarget.TriggerChange();
+                    DraftReady?.Invoke();
+                });
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException or OperationCanceledException)
+            {
+                Logger.Error(exception, "The skin editor draft could not be prepared.");
+                Schedule(() => preparationText.Text = "皮肤编辑副本准备失败，请关闭后重试。");
+            }
+            catch (Exception exception)
+            {
+                // Unexpected programming errors remain visible on the update thread.
+                Schedule(() => ExceptionDispatchInfo.Capture(exception).Throw());
+            }
+        }
+
+        private void cancelDraftPreparation()
+        {
+            lock (draftOwnershipGate)
+            {
+                draftClosed = true;
+                if (pendingDraftOwner != null)
+                    _ = skins.DiscardEditorDraftAsync(pendingDraftOwner);
+                pendingDraftOwner = null;
+            }
+            draftCancellation.Cancel();
         }
 
         internal EditorMenuItem CreateExternalEditMenuItem()
@@ -306,6 +393,9 @@ namespace osu.Game.Overlays.SkinEditor
 
         public bool OnPressed(KeyBindingPressEvent<PlatformAction> e)
         {
+            if (currentSkin == null)
+                return false;
+
             switch (e.Action)
             {
                 case PlatformAction.Cut:
@@ -345,7 +435,7 @@ namespace osu.Game.Overlays.SkinEditor
 
         public bool OnPressed(KeyBindingPressEvent<GlobalAction> e)
         {
-            if (e.Repeat)
+            if (currentSkin == null || e.Repeat)
                 return false;
 
             switch (e.Action)
@@ -364,7 +454,10 @@ namespace osu.Game.Overlays.SkinEditor
 
         public void UpdateTargetScreen(Drawable targetScreen)
         {
+            if (this.targetScreen != targetScreen && this.targetScreen != null && currentSkin != null)
+                EndPreview();
             this.targetScreen = targetScreen;
+            restoreDraftLayout = currentSkin != null;
 
             changeHandler?.Dispose();
 
@@ -386,6 +479,9 @@ namespace osu.Game.Overlays.SkinEditor
 
         private void targetChanged(ValueChangedEvent<GlobalSkinnableContainerLookup?> target)
         {
+            if (currentSkin == null)
+                return;
+
             foreach (var toolbox in componentsSidebar.OfType<SkinComponentToolbox>())
                 toolbox.Expire();
 
@@ -458,6 +554,11 @@ namespace osu.Game.Overlays.SkinEditor
             void bindChangeHandler(SkinnableContainer skinnableContainer)
             {
                 changeHandler = new SkinEditorChangeHandler(skinnableContainer);
+                changeHandler.OnStateChange += () =>
+                {
+                    if (!restoreDraftLayout && !restoringDraftComponents)
+                        edited = true;
+                };
                 changeHandler.CanUndo.BindValueChanged(v => undoMenuItem.Action.Disabled = !v.NewValue, true);
                 changeHandler.CanRedo.BindValueChanged(v => redoMenuItem.Action.Disabled = !v.NewValue, true);
             }
@@ -465,10 +566,6 @@ namespace osu.Game.Overlays.SkinEditor
 
         private void skinChanged()
         {
-            if (skins.EnsureMutableSkin())
-                // Another skin changed event will arrive which will complete the process.
-                return;
-
             headerText.Clear();
 
             headerText.AddText(SkinEditorStrings.SkinEditor, cp => cp.Font = OsuFont.Default.With(size: 16));
@@ -500,6 +597,7 @@ namespace osu.Game.Overlays.SkinEditor
                     changeHandler = new SkinEditorChangeHandler(targetContainer);
 
                 hasBegunMutating = true;
+                restoreDraftLayout = true;
 
                 // Reload sidebar components.
                 selectedTarget.TriggerChange();
@@ -520,6 +618,8 @@ namespace osu.Game.Overlays.SkinEditor
                 return false;
 
             var drawableComponent = (Drawable)component;
+            if (component is SkinnableSprite sprite)
+                sprite.EditorSkin = currentSkin.Value;
 
             if (applyDefaults)
             {
@@ -554,7 +654,7 @@ namespace osu.Game.Overlays.SkinEditor
                 settingsSidebar.Add(new SkinSettingsToolbox(component));
         }
 
-        private IEnumerable<SkinnableContainer> availableTargets => targetScreen.ChildrenOfType<SkinnableContainer>();
+        private IEnumerable<SkinnableContainer> availableTargets => targetScreen?.ChildrenOfType<SkinnableContainer>() ?? Enumerable.Empty<SkinnableContainer>();
 
         private SkinnableContainer? getFirstTarget() => availableTargets.FirstOrDefault();
 
@@ -565,14 +665,15 @@ namespace osu.Game.Overlays.SkinEditor
 
         private void revert()
         {
+            edited = true;
             SkinnableContainer[] targetContainers = availableTargets.ToArray();
 
             foreach (var t in targetContainers)
             {
                 currentSkin.Value.ResetDrawableTarget(t);
 
-                // add back default components
-                getTarget(t.Lookup)?.Reload();
+                // Preview the ruleset defaults without changing the active package.
+                t.ReloadDefault();
             }
         }
 
@@ -627,7 +728,11 @@ namespace osu.Game.Overlays.SkinEditor
 
         void IEditorChangeHandler.RestoreState(int direction) => changeHandler?.RestoreState(direction);
 
-        public void Save(bool userTriggered = true) => save(currentSkin.Value, userTriggered);
+        public void Save(bool userTriggered = true)
+        {
+            if (currentSkin != null)
+                save(currentSkin.Value, userTriggered);
+        }
 
         private void save(Skin skin, bool userTriggered = true)
         {
@@ -639,15 +744,44 @@ namespace osu.Game.Overlays.SkinEditor
 
             SkinnableContainer[] targetContainers = availableTargets.ToArray();
 
-            if (!targetContainers.All(c => c.ComponentsLoaded))
+            if (targetContainers.Length == 0 || !targetContainers.All(c => c.ComponentsLoaded))
+                return;
+
+            if (!edited && !userTriggered)
                 return;
 
             foreach (var t in targetContainers)
                 skin.UpdateDrawableTarget(t);
 
-            // In the case the save was user triggered, always show the save message to make them feel confident.
-            if (skins.Save(skin) || userTriggered)
+            // Saving an unchanged draft is still a successful explicit save.
+            bool changed = skins.Save(skin);
+            HasSavedChanges |= changed && (edited || userTriggered);
+            if (changed || userTriggered)
                 onScreenDisplay?.Display(new SkinEditorToast(ToastStrings.SkinSaved, skin.SkinInfo.ToString() ?? "Unknown"));
+        }
+
+        protected override void Update()
+        {
+            base.Update();
+            if (currentSkin == null || targetScreen?.IsLoaded != true || State.Value != Visibility.Visible)
+                return;
+
+            var targets = availableTargets.ToArray();
+            if (restoringDraftComponents && targets.All(target => target.ComponentsLoaded))
+                restoringDraftComponents = false;
+            if (restoreDraftLayout && targets.Length > 0 && targets.All(target => target.ComponentsLoaded))
+            {
+                restoreDraftLayout = false;
+                restoringDraftComponents = true;
+                foreach (var target in targets)
+                {
+                    if (currentSkin.Value.GetDrawableComponent(new UserSkinComponentLookup(target.Lookup)) is Container layout)
+                        target.Reload(layout);
+                }
+            }
+
+            foreach (var sprite in targets.SelectMany(target => target.ChildrenOfType<SkinnableSprite>()))
+                sprite.EditorSkin = currentSkin.Value;
         }
 
         protected override bool OnHover(HoverEvent e) => true;
@@ -656,6 +790,7 @@ namespace osu.Game.Overlays.SkinEditor
 
         public override void Hide()
         {
+            cancelDraftPreparation();
             base.Hide();
             SelectedComponents.Clear();
         }
@@ -731,12 +866,15 @@ namespace osu.Game.Overlays.SkinEditor
             {
                 var file = new FileInfo(paths.First());
 
+                edited = true;
                 // import to skin
                 currentSkin.Value.SkinInfo.PerformWrite(skinInfo =>
                 {
                     using (var contents = file.OpenRead())
                         skins.AddFile(skinInfo, contents, file.Name);
                 });
+
+                HasSavedChanges = true;
 
                 // Even though we are 100% on an update thread, we need to wait for realm callbacks to fire (to correctly invalidate caches in RealmBackedResourceStore).
                 // See https://github.com/realm/realm-dotnet/discussions/2634#discussioncomment-2483573 for further discussion.
@@ -772,9 +910,18 @@ namespace osu.Game.Overlays.SkinEditor
 
         protected override void Dispose(bool isDisposing)
         {
+            cancelDraftPreparation();
             base.Dispose(isDisposing);
 
             game?.UnregisterImportHandler(this);
+            if (currentSkin != null)
+            {
+                if (HasSavedChanges)
+                    currentSkin.Value.Dispose();
+                else
+                    _ = skins.DiscardEditorDraftAsync(currentSkin.Value);
+            }
+            draftCancellation.Dispose();
         }
 
         private partial class SkinEditorToast : Toast

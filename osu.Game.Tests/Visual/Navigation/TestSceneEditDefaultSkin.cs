@@ -1,4 +1,4 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -14,10 +14,10 @@ using osu.Game.Localisation;
 using osu.Game.Overlays.SkinEditor;
 using osu.Game.Screens.Menu;
 using osu.Game.Skinning;
-using osuTK.Input;
 
 namespace osu.Game.Tests.Visual.Navigation
 {
+    [HeadlessTest]
     public partial class TestSceneEditDefaultSkin : OsuGameTestScene
     {
         private SkinManager skinManager => Game.Dependencies.Get<SkinManager>();
@@ -25,10 +25,40 @@ namespace osu.Game.Tests.Visual.Navigation
         private RealmAccess realm => Game.Dependencies.Get<RealmAccess>();
 
         [Test]
-        public void TestLegacyAuthoringAndExternalEditRemainFailClosedThroughRealGameGraph()
+        public void TestOriginalEditorOpensForBuiltInSkinFromGlobalAction()
         {
-            GlobalActionContainer globalActions = null!;
-            ButtonSystem buttonSystem = null!;
+            Skin original = null!;
+            Guid draftId = default;
+            AddUntilStep("main menu ready", () => Game.ChildrenOfType<ButtonSystem>().Any(b => b.IsLoaded)
+                && skinEditor.IsLoaded);
+            AddStep("open built-in skin editor", () =>
+            {
+                original = skinManager.CurrentSkin.Value;
+                Assert.That(Game.ChildrenOfType<ButtonSystem>().Single().SkinEditorEnabled, Is.True);
+                Game.ChildrenOfType<GlobalActionContainer>().Single().TriggerPressed(GlobalAction.ToggleSkinEditor);
+            });
+            AddUntilStep("original editing interface visible", () => skinEditor.State.Value == Visibility.Visible
+                && skinEditor.ChildrenOfType<SkinEditor>().Any(e => e.IsLoaded && e.DraftSkin != null));
+            AddStep("editing uses a separate writable copy", () =>
+            {
+                Skin draft = skinEditor.ChildrenOfType<SkinEditor>().Single().DraftSkin!;
+                draftId = draft.SkinInfo.ID;
+                Assert.Multiple(() =>
+                {
+                    Assert.That(draft.SkinInfo.ID, Is.Not.EqualTo(original.SkinInfo.ID));
+                    Assert.That(skinManager.CanModify(draft.SkinInfo), Is.True);
+                    Assert.That(skinManager.CurrentSkin.Value, Is.SameAs(original));
+                });
+            });
+            AddStep("close editor", () => skinEditor.Hide());
+            AddUntilStep("editor closes", () => skinEditor.State.Value == Visibility.Hidden);
+            AddUntilStep("unused copy is removed from choices", () => realm.Run(r => r.Find<SkinInfo>(draftId)?.DeletePending == true));
+            AddAssert("opening without edits keeps original selection", () => ReferenceEquals(skinManager.CurrentSkin.Value, original));
+        }
+
+        [Test]
+        public void TestExternalEditRemainsFailClosedThroughRealGameGraph()
+        {
             ExternalEditOverlay externalEditOverlay = null!;
             Live<SkinInfo> selectionA = null!;
             Skin ownerA = null!;
@@ -39,13 +69,9 @@ namespace osu.Game.Tests.Visual.Navigation
 
             AddUntilStep("wait for real main-menu authoring graph", () =>
             {
-                globalActions = Game.ChildrenOfType<GlobalActionContainer>().SingleOrDefault()!;
-                buttonSystem = Game.ChildrenOfType<ButtonSystem>().SingleOrDefault()!;
                 externalEditOverlay = Game.ChildrenOfType<ExternalEditOverlay>().SingleOrDefault()!;
 
-                return globalActions?.IsLoaded == true
-                       && buttonSystem?.IsLoaded == true
-                       && skinEditor.IsLoaded
+                return skinEditor.IsLoaded
                        && externalEditOverlay?.IsLoaded == true
                        && Game.Notifications.IsLoaded;
             });
@@ -65,34 +91,6 @@ namespace osu.Game.Tests.Visual.Navigation
                     Assert.That(revisionA.SourceKind, Is.EqualTo(SkinCurrentRevisionSourceKind.ProtectedFallback));
                 });
             });
-            AddStep("assert real main menu has no skin-editor affordance", () =>
-            {
-                Assert.Multiple(() =>
-                {
-                    Assert.That(buttonSystem.SkinEditorEnabled, Is.False);
-                    Assert.That(
-                        buttonSystem.ChildrenOfType<MainMenuButton>()
-                                    .Any(button => button.VisibleStateMin == ButtonSystemState.Edit
-                                                   && button.VisibleStateMax == ButtonSystemState.Edit
-                                                   && button.TriggerKeys.Contains(Key.S)),
-                        Is.False);
-                });
-            });
-            AddStep("trigger real global skin-editor action", () =>
-                globalActions.TriggerPressed(GlobalAction.ToggleSkinEditor));
-            AddUntilStep("wait for stable unavailable notification", () =>
-                Game.Notifications.AllNotifications.Any(notification =>
-                    notification.Text.ToString() == SkinSettingsStrings.SkinAuthoringUnavailable.ToString()));
-            AddStep("assert global action did not expose or mutate authoring", () =>
-            {
-                Assert.That(skinEditor.State.Value, Is.EqualTo(Visibility.Hidden));
-                assertExactAuthorityUnchanged(selectionA, ownerA, revisionA, recordA, realmA);
-            });
-            AddStep("invoke indirect overlay Show caller", () => skinEditor.Show());
-            AddUntilStep("wait for indirect overlay rejection", () =>
-                skinEditor.State.Value == Visibility.Hidden);
-            AddStep("assert direct Show did not create a mutable skin", () =>
-                assertExactAuthorityUnchanged(selectionA, ownerA, revisionA, recordA, realmA));
             AddStep("begin external edit through real registered overlay", () =>
             {
                 SkinInfo detachedCurrent = selectionA.PerformRead(info => info.Detach());

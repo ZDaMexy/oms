@@ -18,6 +18,7 @@ using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Localisation;
 using osu.Framework.Logging;
+using osu.Framework.Platform;
 using osu.Game.Configuration;
 using osu.Game.Database;
 using osu.Game.Graphics;
@@ -100,6 +101,7 @@ namespace osu.Game.Overlays.Settings.Sections
                     ShowRevertToDefaultButton = false,
                 },
                 new ReloadCurrentSkinButton(),
+                new OpenSkinFolderButton(),
                 scriptSettings = new SkinScriptSettings(),
                 authorActions = new SkinAuthorActionsContainer
                 {
@@ -113,10 +115,9 @@ namespace osu.Game.Overlays.Settings.Sections
                 layoutEditorButton = new SettingsButtonV2
                 {
                     Text = SkinSettingsStrings.SkinLayoutEditor,
-                    TooltipText = SkinSettingsStrings.SkinAuthoringUnavailable,
+                    TooltipText = "打开皮肤编辑器；修改会保存为独立皮肤副本。",
                     Action = () => skinEditor?.ToggleVisibility(),
                 },
-                new FolderSkinWorkspace(),
             };
         }
 
@@ -319,7 +320,7 @@ namespace osu.Game.Overlays.Settings.Sections
             exportButton.Width = actionWidth;
             deleteButton.Width = actionWidth;
 
-            bool editorAvailable = SkinAuthoringAvailability.LegacyEditorAvailable && canModify;
+            bool editorAvailable = SkinAuthoringAvailability.LegacyEditorAvailable && !currentSkin.Disabled;
             layoutEditorButton.Enabled.Value = editorAvailable;
             layoutEditorButton.CanBeShown.Value = editorAvailable;
         }
@@ -439,6 +440,17 @@ namespace osu.Game.Overlays.Settings.Sections
             public override bool IsPresent => base.IsPresent && CanBeShown.Value;
         }
 
+        public partial class OpenSkinFolderButton : SettingsButtonV2
+        {
+            [BackgroundDependencyLoader]
+            private void load(Storage storage)
+            {
+                Text = SkinSettingsStrings.OpenSkinFolder;
+                TooltipText = SkinSettingsStrings.SkinFolderHint;
+                Action = () => storage.GetStorageForDirectory(SkinFilesystemStorageResolver.MANAGED_ROOT_DIRECTORY).PresentExternally();
+            }
+        }
+
         public partial class ReloadCurrentSkinButton : SettingsButtonV2
         {
             [Resolved]
@@ -447,13 +459,16 @@ namespace osu.Game.Overlays.Settings.Sections
             [Resolved(CanBeNull = true)]
             private INotificationOverlay notificationOverlay { get; set; }
 
+            [Resolved(CanBeNull = true)]
+            private OsuGame game { get; set; }
+
             private Bindable<Skin> currentSkin;
             private System.Threading.Tasks.Task activeReload;
 
             [BackgroundDependencyLoader]
             private void load()
             {
-                Text = SkinSettingsStrings.ReloadCurrentSkin;
+                Text = SkinSettingsStrings.RefreshSkins;
                 Action = reload;
             }
 
@@ -469,7 +484,7 @@ namespace osu.Game.Overlays.Settings.Sections
             private void updateState()
                 => Enabled.Value = activeReload == null
                                    && !currentSkin.Disabled
-                                   && skins.CanReloadCurrentRevision;
+                                   && (game != null || skins.CanReloadCurrentRevision);
 
             private void reload()
             {
@@ -486,7 +501,27 @@ namespace osu.Game.Overlays.Settings.Sections
 
                 try
                 {
+                    if (game != null)
+                    {
+                        SkinManagedFolderScanResult scan = await game.RefreshManagedSkinFoldersAsync().ConfigureAwait(false);
+                        if (!scan.IsSuccess)
+                        {
+                            Schedule(() => finishFolderRefresh(false));
+                            return;
+                        }
+                    }
+
+                    if (!skins.CanReloadCurrentRevision)
+                    {
+                        Schedule(() => finishFolderRefresh(true));
+                        return;
+                    }
+
                     result = await skins.ReloadCurrentRevisionAsync().ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    result = SkinCurrentRevisionReloadResult.Cancelled;
                 }
                 catch
                 {
@@ -503,7 +538,7 @@ namespace osu.Game.Overlays.Settings.Sections
                             break;
 
                         case SkinCurrentRevisionReloadResult.NoChange:
-                            notificationOverlay?.Post(new SimpleNotification { Text = SkinSettingsStrings.CurrentSkinReloadNoChanges });
+                            notificationOverlay?.Post(new SimpleNotification { Text = SkinSettingsStrings.SkinsRefreshed });
                             break;
 
                         case SkinCurrentRevisionReloadResult.LiveGameplayActive:
@@ -529,6 +564,18 @@ namespace osu.Game.Overlays.Settings.Sections
                     if (!IsDisposed)
                         updateState();
                 });
+            }
+
+            private void finishFolderRefresh(bool success)
+            {
+                activeReload = null;
+                if (IsDisposed)
+                    return;
+
+                notificationOverlay?.Post(success
+                    ? new SimpleNotification { Text = SkinSettingsStrings.SkinsRefreshed }
+                    : new SimpleErrorNotification { Text = SkinSettingsStrings.SkinFolderRefreshFailed });
+                updateState();
             }
         }
 

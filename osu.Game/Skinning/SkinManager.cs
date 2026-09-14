@@ -1,4 +1,4 @@
-// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 #nullable disable
@@ -6228,6 +6228,108 @@ namespace osu.Game.Skinning
             }
 
             return ManagedFolderOperationCoordinator.TryEnter(out operationLease);
+        }
+
+        /// <summary>
+        /// Creates an independent editable copy of the current immutable skin. The copy is not selected or published.
+        /// </summary>
+        public Task<Skin> CreateEditorDraftAsync(CancellationToken cancellationToken = default)
+        {
+            lock (managedFolderRenameLifecycleGate)
+            {
+                if (managedFolderMutationShutdown || cancellationToken.IsCancellationRequested)
+                    return Task.FromCanceled<Skin>(new CancellationToken(canceled: true));
+
+                var operationCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                Task<Skin> operationTask = Task.Run(() => createEditorDraft(operationCancellation.Token), operationCancellation.Token);
+                var operation = new FolderWorkspaceReadOperation(operationTask, operationCancellation);
+                folderWorkspaceReadOperations.Add(operation);
+                _ = operationTask.ContinueWith(_ => completeFolderWorkspaceRead(operation), CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                return operationTask;
+            }
+        }
+
+        /// <summary>Retires an unused editor-owned copy without ever deleting a subsequently selected skin.</summary>
+        internal Task DiscardEditorDraftAsync(Skin draft)
+        {
+            lock (managedFolderRenameLifecycleGate)
+            {
+                if (managedFolderMutationShutdown)
+                {
+                    draft.Dispose();
+                    return Task.CompletedTask;
+                }
+
+                var cancellation = new CancellationTokenSource();
+                Task task = Task.Run(() =>
+                {
+                    try
+                    {
+                        draft.SkinInfo.PerformRead(info => Delete(info));
+                    }
+                    finally
+                    {
+                        draft.Dispose();
+                    }
+                });
+                var operation = new FolderWorkspaceReadOperation(task, cancellation);
+                folderWorkspaceReadOperations.Add(operation);
+                _ = task.ContinueWith(_ => completeFolderWorkspaceRead(operation), CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                return task;
+            }
+        }
+
+        private Skin createEditorDraft(CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            using SkinCurrentRevisionLease sourceLease = currentRevisionPublication.AcquireCurrentLease();
+            Skin source = sourceLease.Revision.Owner;
+            string[] existingNames = Realm.Run(r => r.All<SkinInfo>()
+                                                     .Where(info => !info.DeletePending)
+                                                     .AsEnumerable().Select(info => info.Name).ToArray());
+            SkinInfo draftInfo = source.SkinInfo.PerformRead(info => new SkinInfo
+            {
+                Name = NamingUtils.GetNextBestName(existingNames, $"{info.Name} (modified)"),
+                Creator = info.Creator,
+                InstantiationInfo = info.InstantiationInfo,
+            });
+
+            using var archive = new MemoryStream();
+            // Legacy compatibility owners without an exact capsule still read Realm files. Hold the existing
+            // coordination boundary only while copying so selection/mutation cannot change that declaration set.
+            if (source.PackageContentRevision != null)
+                source.WriteEditorArchive(archive, draftInfo, cancellationToken);
+            else
+            {
+                using (ManagedFolderOperationCoordinator.Enter(cancellationToken))
+                {
+                    if (!ReferenceEquals(currentRevisionPublication.Current, sourceLease.Revision))
+                        throw new OperationCanceledException("The editor source changed before its compatibility resources could be captured.");
+                    source.WriteEditorArchive(archive, draftInfo, cancellationToken);
+                }
+            }
+            archive.Position = 0;
+            Live<SkinInfo> copied = skinImporter.Import(new ImportTask(archive, draftInfo.Name + ".osk"),
+                new ImportParameters { ImportImmediately = true }, cancellationToken).GetAwaiter().GetResult()
+                                   ?? throw new InvalidOperationException("The editor draft could not be imported.");
+
+            if (copied.ID == source.SkinInfo.ID)
+                throw new InvalidOperationException("An editor draft must have an independent record identity.");
+
+            Rename(copied, draftInfo.Name);
+            Skin draft = copied.PerformRead(info => info.CreateInstance(this));
+            try
+            {
+                Save(draft);
+                return draft;
+            }
+            catch
+            {
+                draft.Dispose();
+                throw;
+            }
         }
 
         /// <summary>

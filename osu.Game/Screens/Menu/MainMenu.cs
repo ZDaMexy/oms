@@ -153,8 +153,7 @@ namespace osu.Game.Screens.Menu
                     {
                         Buttons = new ButtonSystem
                         {
-                            // Current skin packages are immutable until authoring joins revision publication.
-                            SkinEditorEnabled = false,
+                            SkinEditorEnabled = Skinning.SkinAuthoringAvailability.LegacyEditorAvailable,
                             OnEditBeatmap = () =>
                             {
                                 Beatmap.SetDefault();

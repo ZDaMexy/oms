@@ -19,8 +19,8 @@ metadata:
 
 ## 设置页收简
 
-常规玩家路径只显示 BMS/mania 选择和当前可用的重新载入/作者操作。脚本区块只在当前包声明脚本时出现；作者按钮按 `CanModify`/`CanExport`/`CanDelete` 能力显示；Folder Skin Workspace 的空记录与“无待处理恢复”诊断隐藏，已有记录或真实故障仍保留原操作和恢复入口。不要为了减少视觉噪声删除 manager 的安全拒绝、journal、fallback 或导入/导出路径。
+常规玩家路径只显示 BMS/mania 选择和当前可用的重新载入/作者操作。脚本区块只在当前包声明脚本时出现；作者按钮按 `CanModify`/`CanExport`/`CanDelete` 能力显示；设置不再挂入 Folder Skin Workspace；固定 chartskin 目录由“打开皮肤文件夹”和“刷新皮肤”使用，既有外部记录与后端恢复保护保留。原编辑器以独立副本恢复，入口不再依赖拒绝 current 的 CanModify。不要为了减少视觉噪声删除 manager 的安全拒绝、journal、fallback 或导入/导出路径。
 
 ## 验证与踩坑
 
-`TestSceneStartupRuleset.TestRulesetSpecificSkinPreferences` 用真实 `OsuGame` 在 BMS → mania 切换后断言两条配置和当前皮肤互不污染；`TestSceneStartupSkinMigration` 覆盖旧全局值迁移。设置布局变化后仍需保留现有 `ChildrenOfType` caller（删除、脚本授权、Workspace）并运行 P1-A 规定的 focused tests。不要把“空状态隐藏”误写成“功能删除”，也不要在设置页绕过 `SkinManager.CurrentSkinInfo` 直接写提交 bindable。
+`TestSceneStartupRuleset.TestRulesetSpecificSkinPreferences` 用真实 `OsuGame` 在 BMS → mania 切换后断言两条配置和当前皮肤互不污染；`TestSceneStartupSkinMigration` 覆盖旧全局值迁移。设置布局变化后仍需保留现有 `ChildrenOfType` caller（删除、脚本授权、刷新）并运行 P1-A 规定的 focused tests。不要把移除工作区 UI 写成删除旧用户数据，也不要在设置页绕过 `SkinManager.CurrentSkinInfo` 直接写提交 bindable。
