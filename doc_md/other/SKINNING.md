@@ -6,9 +6,9 @@
 >
 > **本文是什么（派生文档）**：面向皮肤制作者的当前能力与 Skin V1 开发视图。**权威契约不在本文**——共享/分离、ini、scene/event/script、fallback、layout 与安全约束冻结在 [P1-A 技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)，分期在 [P1-A `SV1-*` 计划](../subline/P1-A/DEVELOPMENT_PLAN.md)。本文只是制作者视图；冲突时以 P1-A 四件套为准。
 >
-> **当前作者能力（2026-09-12 核对）**：选中的用户包可来自已导入 `.osk`、启动发现的 `chartskin/<包目录>/`，或 Folder Skin Workspace 注册的只读 external 目录。三源共享版本化 public gameplay-skin catalog、tokenizer/codec、`Provide/Inherit/Suppress` resolver，以及同一 package/layout/material/scene/script publication。C5 declarative scene、只读 Snapshot/Reset 和全部适用 slot host 继续生效：BMS 28 项均有 production route，Mania 23 项可用，`object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame` 为版本化 NotApplicable。native `[Bms] NoteImage*` 静态图与固定 60 FPS 连续编号帧兼容保持可用。
+> **当前作者能力（2026-09-14 核对）**：选中的用户包可来自已导入 `.osk`、启动发现的 `chartskin/<包目录>/`，或 Folder Skin Workspace 注册的只读 external 目录。三源共享版本化 public gameplay-skin catalog、tokenizer/codec、`Provide/Inherit/Suppress` resolver，以及同一 package/layout/material/scene/script publication。玩家在 Settings → Skin 看到 BMS 与 osu!mania 两个独立选择项；首次启动会沿用旧全局皮肤，之后每个模式单独记住选择，切换模式会自动应用对应皮肤。C5 declarative scene、只读 Snapshot/Reset 和全部适用 slot host 继续生效：BMS 28 项均有 production route，Mania 23 项可用，`object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame` 为版本化 NotApplicable。native `[Bms] NoteImage*` 静态图与固定 60 FPS 连续编号帧兼容保持可用。
 >
-> **可选脚本与整包准备**：C6 已实现无需 DLL 的 V1 数值脚本、compiler/verifier、CLI、Settings 授权/拒绝/撤销与 profiler。真实 BMS/mania host 读取引擎 snapshot/event，并驱动获准的 scene 节点；没有脚本或拒绝授权时，普通 note/key/judgement 仍正常显示。ini、manifest、scene、script 和全部素材沿用同一 C2 prepared publication 与 owner/lease/detach/retire。Settings → Skin 的 `Reload current skin` 仍是三源唯一手动 reload，gameplay/preview 在读取来源前拒绝；授权撤销不触发 reload，暂停时也会停用旧脚本。作者入口见[脚本说明与工具链](SKIN_SCRIPT_V1_AUTHORING.md)及[Momentum 候选源目录](skin-c6-candidate/README.md)。
+> **可选脚本与整包准备**：C6 已实现无需 DLL 的 V1 数值脚本、compiler/verifier、CLI、Settings 授权/拒绝/撤销与 profiler。真实 BMS/mania host 读取引擎 snapshot/event，并驱动获准的 scene 节点；没有脚本或拒绝授权时，普通 note/key/judgement 仍正常显示。ini、manifest、scene、script 和全部素材沿用同一 C2 prepared publication 与 owner/lease/detach/retire。Settings → Skin 的 `Reload current skin` 仍是三源唯一手动 reload，gameplay/preview 在读取来源前拒绝；授权撤销不触发 reload，暂停时也会停用旧脚本。没有脚本、待处理恢复或作者权限时，相应高级区块会隐藏，发生真实记录或故障时仍可从原入口处理。作者入口见[脚本说明与工具链](SKIN_SCRIPT_V1_AUTHORING.md)及[Momentum 候选源目录](skin-c6-candidate/README.md)。
 >
 > **状态与验收**：campaign 状态只以 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md) 为准，本轮证据见 [C7 验证报告](SKIN_SYSTEM_C7_VALIDATION_20260909.md)。完整双包、可编辑源文件和独立制作工具见[作者套件](../../skin-authoring/README.md)。正式保底外观来自经过安装校验的普通简洁包；旧 `OmsSkin` 源码仅保留旧恢复证据与人工对照。星轨的动画、美术安排与精细度已获用户总体否定，当前保留为待改对照，不能作为已通过的成品范例；静线也未获整体观感签收。两款迭代按用户要求暂停，准确反馈与恢复条件见 P1-A STATUS。`V-001`～`V-004` 仍为 **0/4 未签收**，新增可见结果见[集中验收清单](SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)，不能据脚本可用宣称 Skin V1 或 release 完成。新 beatmap-local 作者格式继续不可达，既有只读谱面视觉兼容不受影响。其他合同见[公共目录](GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)与[技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)。
 >
@@ -357,6 +357,8 @@ gameplay package的legacy候选顺序为：`[Bms]` role-aware override → 按�
 ---
 
 ## 10. 制作流程与 V1 验收
+
+玩家侧只需在 `设置 → 皮肤` 为 BMS 和 osu!mania 各选一次；两项会分别保存，切换玩法时自动使用对应皮肤。没有单独配置的旧安装会从原来的全局皮肤开始，失效皮肤回到 `oms-simple`。
 
 1. **选择作者起点**：从[完整模板与双包源文件](../../skin-authoring/README.md)开始，按[极光习作演练](../../skin-authoring/docs/WORKSHOP.md)完成修改、检查、打包、普通导入和验证。
 2. **改色 / 换图**：先动 `Colour*` 与 `*Image` 键。普通短键可让 `NoteImage{lane}`、长条头身尾可让 `NoteImage{lane}H/L/T` 指向资源基名并提供 `name-0`、`name-1`…；body 宽度可用 `LongNoteBodyWidth`，只接受 finite 且 `0 < width <= 1`。支持范围以页首能力块为准，帧率目前固定 60 FPS。

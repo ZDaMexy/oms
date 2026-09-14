@@ -5,6 +5,12 @@
 
 ---
 
+## 2026-09-14
+
+### 设置页收简与按模式选择皮肤
+
+根据玩家反馈把 Settings → Skin 的常规路径收成按模式选择、重新载入和当前可用作者操作；空脚本、空目录、无作者权限和无待处理恢复不再显示成常驻诊断。BMS 与 osu!mania 现在分别保存皮肤，旧全局 `Skin` 配置首次启动复制到两个 mode override，规则集切换时由 `SkinManager` 应用对应选择，失效项回到唯一 canonical `oms-simple`。顶层启动/迁移/切换 7/7、Workspace 7/7、真实设置 caller 5/5 通过，`osu.Game` Debug build 0 警告/0 错误；完整视觉、设备和 release 门保持原状态。详见 [P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md)与[变动日志](../subline/P1-A/CHANGELOG.md#2026-09-14按模式选择皮肤与设置页收简)。
+
 ## 2026-09-13
 
 ### 项目事实与文档记忆全量同步

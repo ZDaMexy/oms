@@ -19,6 +19,8 @@ namespace osu.Game.Overlays.Settings.Sections
     /// <summary>Consent controls use the exact selected package token, never a mutable dropdown selection or author ID.</summary>
     public partial class SkinScriptSettings : FillFlowContainer
     {
+        public BindableBool CanBeShown { get; } = new BindableBool(true);
+
         [Resolved]
         private SkinManager skins { get; set; } = null!;
 
@@ -38,7 +40,14 @@ namespace osu.Game.Overlays.Settings.Sections
             Direction = FillDirection.Vertical;
             Padding = SettingsPanel.CONTENT_PADDING;
             Spacing = new Vector2(0, 6);
+
+            // Keep the component alive while its selected skin changes, but remove the empty author block from the
+            // normal player-facing settings surface.
+            AlwaysPresent = true;
+            CanBeShown.BindValueChanged(_ => Invalidate(Invalidation.Presence));
         }
+
+        public override bool IsPresent => base.IsPresent && CanBeShown.Value;
 
         protected override void LoadComplete()
         {
@@ -53,6 +62,7 @@ namespace osu.Game.Overlays.Settings.Sections
             rows.Clear();
             buttons.Clear();
             authorization = current.Value.PreparedGameplaySkinPackage?.ScriptAuthorization;
+            CanBeShown.Value = authorization != null;
             Add(text("可选皮肤脚本"));
             Add(text("脚本仅用于额外表现。拒绝或撤销授权后，普通音符、按键与判定仍正常显示。"));
             Add(status = text(authorization == null ? "此皮肤没有脚本。" : "正在读取授权状态。"));

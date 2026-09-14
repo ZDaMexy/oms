@@ -57,6 +57,7 @@ using osu.Game.Overlays.Notifications;
 using osu.Game.Overlays.OSD;
 using osu.Game.Overlays.SkinEditor;
 using osu.Game.Overlays.Toolbar;
+using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Scoring;
 using osu.Game.Scoring.Legacy;
@@ -226,6 +227,18 @@ namespace osu.Game
         private Bindable<UserActivity> configUserActivity;
 
         private Bindable<string> configSkin;
+
+        private Bindable<string> configBmsSkin;
+
+        private Bindable<string> configManiaSkin;
+
+        private bool applyingConfiguredSkin;
+
+        private bool skinConfigurationReady;
+
+        private string pendingConfiguredSkinRuleset;
+
+        private Guid? pendingConfiguredSkinId;
 
         private RealmDetachedBeatmapStore detachedBeatmapStore;
 
@@ -429,14 +442,54 @@ namespace osu.Game
                 Ruleset.Value = RulesetStore.AvailableRulesets.First();
             }
 
-            Ruleset.ValueChanged += r => configRuleset.Value = r.NewValue.ShortName;
-
             configUserActivity = SessionStatics.GetBindable<UserActivity>(Static.UserOnlineActivity);
 
             configSkin = LocalConfig.GetBindable<string>(OsuSetting.Skin);
+            configBmsSkin = LocalConfig.GetBindable<string>(OsuSetting.SkinBms);
+            configManiaSkin = LocalConfig.GetBindable<string>(OsuSetting.SkinMania);
+
+            Ruleset.ValueChanged += rulesetChanged;
 
             // Keep the config value aligned with any runtime fallback that happens during startup.
-            SkinManager.CurrentSkinInfo.ValueChanged += skin => configSkin.Value = skin.NewValue.ID.ToString();
+            SkinManager.CurrentSkinInfo.ValueChanged += skin =>
+            {
+                configSkin.Value = skin.NewValue.ID.ToString();
+
+                // A skin selected while a ruleset is active becomes that ruleset's preference. During startup and
+                // ruleset changes the manager is applying a stored value, so it must not overwrite the preference
+                // being restored with the transient global projection.
+                if (applyingConfiguredSkin || !skinConfigurationReady || Ruleset.Value == null)
+                    return;
+
+                string activeRuleset = Ruleset.Value.ShortName;
+
+                // A filesystem-backed configured skin may publish after the ruleset event has returned. Keep that
+                // completion tied to the mode which requested it, otherwise a late BMS publication could overwrite
+                // the mania preference after the player has already switched modes.
+                if (pendingConfiguredSkinRuleset != null)
+                {
+                    if (!string.Equals(pendingConfiguredSkinRuleset, activeRuleset, StringComparison.Ordinal))
+                    {
+                        pendingConfiguredSkinRuleset = null;
+                        pendingConfiguredSkinId = null;
+                    }
+                    else if (pendingConfiguredSkinId == skin.NewValue.ID)
+                    {
+                        getSkinConfiguration(activeRuleset).Value = skin.NewValue.ID.ToString();
+                        pendingConfiguredSkinRuleset = null;
+                        pendingConfiguredSkinId = null;
+                        return;
+                    }
+                    else
+                    {
+                        // A different selection made while preparation was pending is a deliberate override.
+                        pendingConfiguredSkinRuleset = null;
+                        pendingConfiguredSkinId = null;
+                    }
+                }
+
+                getSkinConfiguration(activeRuleset).Value = skin.NewValue.ID.ToString();
+            };
 
             UserPlayingState.BindValueChanged(p =>
             {
@@ -455,6 +508,134 @@ namespace osu.Game
 
             applySafeAreaConsiderations = LocalConfig.GetBindable<bool>(OsuSetting.SafeAreaConsiderations);
             applySafeAreaConsiderations.BindValueChanged(apply => SafeAreaContainer.SafeAreaOverrideEdges = apply.NewValue ? SafeAreaOverrideEdges : Edges.All, true);
+        }
+
+        private void rulesetChanged(ValueChangedEvent<RulesetInfo> change)
+        {
+            if (change.NewValue == null)
+                return;
+
+            configRuleset.Value = change.NewValue.ShortName;
+
+            if (!skinConfigurationReady)
+                return;
+
+            // The shared ruleset handler may reject an unavailable ruleset and synchronously restore the previous
+            // value. Only apply the new mode's preference once the authoritative bindable still points at it.
+            if (!string.Equals(Ruleset.Value?.ShortName, change.NewValue.ShortName, StringComparison.Ordinal))
+                return;
+
+            applyConfiguredSkin(change.NewValue.ShortName);
+        }
+
+        private void applyConfiguredSkin(string rulesetShortName)
+        {
+            string configured = getSkinConfigurationValue(rulesetShortName);
+            if (Guid.TryParse(configured, out Guid configuredSkin))
+            {
+                Guid resolvedSkin = resolveConfiguredSkinId(configured);
+                if (resolvedSkin != configuredSkin)
+                {
+                    configured = resolvedSkin.ToString();
+                    getSkinConfiguration(rulesetShortName).Value = configured;
+                }
+            }
+
+            pendingConfiguredSkinRuleset = isModeRuleset(rulesetShortName) ? rulesetShortName : null;
+            pendingConfiguredSkinId = pendingConfiguredSkinRuleset == null ? null : resolveConfiguredSkinId(configured);
+
+            applyingConfiguredSkin = true;
+            try
+            {
+                SkinManager.SetSkinFromConfiguration(configured);
+            }
+            finally
+            {
+                applyingConfiguredSkin = false;
+
+                // Ordinary package selections publish synchronously. Filesystem-backed selections remain pending
+                // until their prepared revision reaches the manager callback above.
+                commitConfiguredSkinIfReady(rulesetShortName);
+            }
+        }
+
+        private void commitConfiguredSkinIfReady(string rulesetShortName)
+        {
+            if (pendingConfiguredSkinRuleset == rulesetShortName
+                && pendingConfiguredSkinId == SkinManager.CurrentSkinInfo.Value.ID)
+            {
+                getSkinConfiguration(rulesetShortName).Value = SkinManager.CurrentSkinInfo.Value.ID.ToString();
+                pendingConfiguredSkinRuleset = null;
+                pendingConfiguredSkinId = null;
+            }
+        }
+
+        private static bool isModeRuleset(string rulesetShortName)
+            => string.Equals(rulesetShortName, "bms", StringComparison.Ordinal)
+               || string.Equals(rulesetShortName, "mania", StringComparison.Ordinal);
+
+        private Bindable<string> getSkinConfiguration(string rulesetShortName)
+        {
+            if (string.Equals(rulesetShortName, "bms", StringComparison.Ordinal))
+                return configBmsSkin ?? configSkin;
+
+            if (string.Equals(rulesetShortName, "mania", StringComparison.Ordinal))
+                return configManiaSkin ?? configSkin;
+
+            return configSkin;
+        }
+
+        private string getSkinConfigurationValue(string rulesetShortName)
+        {
+            string configured = getSkinConfiguration(rulesetShortName)?.Value;
+            return string.IsNullOrWhiteSpace(configured)
+                ? (string.IsNullOrWhiteSpace(configSkin?.Value) ? SkinInfo.OMS_SKIN.ToString() : configSkin.Value)
+                : configured;
+        }
+
+        private Guid resolveConfiguredSkinId(string configured)
+        {
+            if (!Guid.TryParse(configured, out Guid id) || id == SkinInfo.OMS_SKIN)
+                return SkinInfo.OMS_SKIN;
+
+            return SkinManager.Query(skin => skin.ID == id && !skin.Protected && !skin.DeletePending) != null
+                ? id
+                : SkinInfo.OMS_SKIN;
+        }
+
+        private void initialiseSkinConfiguration(Bindable<string> modeConfiguration)
+        {
+            if (modeConfiguration == null || !string.IsNullOrWhiteSpace(modeConfiguration.Value))
+                return;
+
+            modeConfiguration.Value = string.IsNullOrWhiteSpace(configSkin?.Value)
+                ? SkinInfo.OMS_SKIN.ToString()
+                : configSkin.Value;
+        }
+
+        private static void migrateSkinConfiguration(Bindable<string> configuration)
+        {
+            if (configuration == null)
+                return;
+
+            if (Guid.TryParse(configuration.Value, out Guid configuredSkin) && configuredSkin == SkinInfo.OMS_COMPLEX_SKIN)
+                configuration.Value = SkinInfo.OMS_SKIN.ToString();
+        }
+
+        private void normaliseSkinConfiguration(Bindable<string> configuration)
+        {
+            if (configuration == null || string.IsNullOrWhiteSpace(configuration.Value))
+                return;
+
+            if (!Guid.TryParse(configuration.Value, out Guid configuredSkin))
+            {
+                configuration.Value = SkinInfo.OMS_SKIN.ToString();
+                return;
+            }
+
+            Guid resolvedSkin = resolveConfiguredSkinId(configuration.Value);
+            if (resolvedSkin != configuredSkin)
+                configuration.Value = resolvedSkin.ToString();
         }
 
         private ExternalLinkOpener externalLinkOpener;
@@ -1122,9 +1303,20 @@ namespace osu.Game
 
             // Host bootstrap loads dependencies before the update thread starts. Restore the saved selection
             // here so publication runs on that thread, before constructing the initial screen graph.
-            if (Guid.TryParse(configSkin.Value, out Guid configuredSkin) && configuredSkin == SkinInfo.OMS_COMPLEX_SKIN)
-                configSkin.Value = SkinInfo.OMS_SKIN.ToString();
-            SkinManager.SetSkinFromConfiguration(configSkin.Value);
+            migrateSkinConfiguration(configSkin);
+            migrateSkinConfiguration(configBmsSkin);
+            migrateSkinConfiguration(configManiaSkin);
+            normaliseSkinConfiguration(configSkin);
+            normaliseSkinConfiguration(configBmsSkin);
+            normaliseSkinConfiguration(configManiaSkin);
+
+            // New installations and existing users with only the legacy global key start with the same skin in both
+            // modes. Once either row is changed, the mode key becomes authoritative for that mode.
+            initialiseSkinConfiguration(configBmsSkin);
+            initialiseSkinConfiguration(configManiaSkin);
+
+            applyConfiguredSkin(Ruleset.Value?.ShortName);
+            skinConfigurationReady = true;
 
             var languages = Enum.GetValues<Language>();
 

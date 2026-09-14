@@ -34,6 +34,8 @@ namespace osu.Game.Tests.Visual.Navigation
         {
             AddUntilStep("runtime skin migrated to OMS", () => Game.Dependencies.Get<SkinManager>().CurrentSkinInfo.Value.ID == OmsSkin.CreateInfo().ID);
             AddAssert("config migrated to OMS", () => Game.LocalConfig.Get<string>(OsuSetting.Skin) == OmsSkin.CreateInfo().ID.ToString());
+            AddAssert("BMS preference follows migrated skin", () => Game.LocalConfig.Get<string>(OsuSetting.SkinBms) == OmsSkin.CreateInfo().ID.ToString());
+            AddAssert("mania preference follows migrated skin", () => Game.LocalConfig.Get<string>(OsuSetting.SkinMania) == OmsSkin.CreateInfo().ID.ToString());
 
             AddStep("save migrated config", () => Game.LocalConfig.Save());
             AddStep("remove game", () => Remove(Game, true));
@@ -42,6 +44,8 @@ namespace osu.Game.Tests.Visual.Navigation
             AddUntilStep("wait for reload", () => Game.IsLoaded);
             AddUntilStep("runtime skin stays OMS after reload", () => Game.Dependencies.Get<SkinManager>().CurrentSkinInfo.Value.ID == OmsSkin.CreateInfo().ID);
             AddAssert("config stays OMS after reload", () => Game.LocalConfig.Get<string>(OsuSetting.Skin) == OmsSkin.CreateInfo().ID.ToString());
+            AddAssert("BMS preference stays OMS after reload", () => Game.LocalConfig.Get<string>(OsuSetting.SkinBms) == OmsSkin.CreateInfo().ID.ToString());
+            AddAssert("mania preference stays OMS after reload", () => Game.LocalConfig.Get<string>(OsuSetting.SkinMania) == OmsSkin.CreateInfo().ID.ToString());
         }
     }
 }

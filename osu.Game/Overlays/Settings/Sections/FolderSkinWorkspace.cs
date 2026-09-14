@@ -6,6 +6,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using osu.Framework.Allocation;
+using osu.Framework.Bindables;
 using osu.Framework.Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -59,10 +60,11 @@ namespace osu.Game.Overlays.Settings.Sections
         [Resolved(CanBeNull = true)]
         private INotificationOverlay? notificationOverlay { get; set; }
 
-        private FillFlowContainer recordsFlow = null!;
+        private WorkspaceRecordsContainer recordsFlow = null!;
         private SettingsButtonV2 registerExternalFolderButton = null!;
         private SettingsButtonV2 retryRecoveryButton = null!;
         private SettingsNote journalSupportNote = null!;
+        private RecoverySupportContainer recoverySupport = null!;
 
         private readonly List<FolderSkinWorkspaceRow> rows = new List<FolderSkinWorkspaceRow>();
         private readonly CancellationTokenSource readLifetimeCancellation = new CancellationTokenSource();
@@ -95,28 +97,34 @@ namespace osu.Game.Overlays.Settings.Sections
                     Text = SkinSettingsStrings.RegisterExternalFolder,
                     Action = showDirectoryPicker,
                 },
-                recordsFlow = new FillFlowContainer
+                recordsFlow = new WorkspaceRecordsContainer
                 {
                     RelativeSizeAxes = Axes.X,
                     AutoSizeAxes = Axes.Y,
                     Direction = FillDirection.Vertical,
                     Spacing = new Vector2(0, SettingsSection.ITEM_SPACING_V2),
                 },
-                new OsuSpriteText
+                recoverySupport = new RecoverySupportContainer
                 {
-                    Text = SkinSettingsStrings.ManagedFolderRecoverySupport,
-                    Font = OsuFont.Default.With(size: 16, weight: FontWeight.SemiBold),
-                    Margin = SettingsPanel.CONTENT_PADDING,
-                },
-                journalSupportNote = new SettingsNote
-                {
-                    RelativeSizeAxes = Axes.X,
-                },
-                retryRecoveryButton = new SettingsButtonV2
-                {
-                    Text = SkinSettingsStrings.RetryManagedFolderRecovery,
-                    Action = retryRecovery,
-                    Enabled = { Value = false },
+                    Children = new Drawable[]
+                    {
+                        new OsuSpriteText
+                        {
+                            Text = SkinSettingsStrings.ManagedFolderRecoverySupport,
+                            Font = OsuFont.Default.With(size: 16, weight: FontWeight.SemiBold),
+                            Margin = SettingsPanel.CONTENT_PADDING,
+                        },
+                        journalSupportNote = new SettingsNote
+                        {
+                            RelativeSizeAxes = Axes.X,
+                        },
+                        retryRecoveryButton = new SettingsButtonV2
+                        {
+                            Text = SkinSettingsStrings.RetryManagedFolderRecovery,
+                            Action = retryRecovery,
+                            Enabled = { Value = false },
+                        },
+                    }
                 },
             });
         }
@@ -130,6 +138,11 @@ namespace osu.Game.Overlays.Settings.Sections
             realmSubscription = realm.RegisterForNotifications(_ => realm.Realm.All<SkinInfo>(), recordsChanged);
             skins.ManagedFolderJournalStateChanged += journalStateChanged;
             journalStateSubscribed = true;
+
+            // A missing journal is the healthy steady state. Keep the recovery diagnostics available for actual
+            // pending/ambiguous operations, without making every player's skin page look like an error screen.
+            recordsFlow.CanBeShown.Value = false;
+            recoverySupport.CanBeShown.Value = false;
 
             refreshRecords();
             refreshJournalSupport();
@@ -209,6 +222,7 @@ namespace osu.Game.Overlays.Settings.Sections
                     recordsFlow.Clear();
                     rows.Clear();
                     recordsFlow.Add(createMessage(SkinSettingsStrings.FolderSkinOperationFailed));
+                    recordsFlow.CanBeShown.Value = true;
                 });
             }
         }
@@ -221,8 +235,11 @@ namespace osu.Game.Overlays.Settings.Sections
             if (records.Count == 0)
             {
                 recordsFlow.Add(createMessage(SkinSettingsStrings.NoFolderSkins));
+                recordsFlow.CanBeShown.Value = false;
                 return;
             }
+
+            recordsFlow.CanBeShown.Value = true;
 
             foreach (FolderSkinWorkspaceRecord record in records)
             {
@@ -348,6 +365,7 @@ namespace osu.Game.Overlays.Settings.Sections
                         SkinSettingsStrings.ManagedFolderRecoveryDetails(snapshot.Status, snapshot.Reason, snapshot.DiagnosticBundle),
                         snapshot.CanRetry ? SettingsNote.Type.Warning : SettingsNote.Type.Informational);
                     retryRecoveryButton.Enabled.Value = activeOperation == null && snapshot.CanRetry;
+                    recoverySupport.CanBeShown.Value = snapshot.CanRetry || snapshot.Status != "No pending recovery";
                 });
             }
             catch (OperationCanceledException)
@@ -364,6 +382,7 @@ namespace osu.Game.Overlays.Settings.Sections
 
                     journalSupportNote.Current.Value = new SettingsNote.Data(SkinSettingsStrings.FolderSkinOperationFailed, SettingsNote.Type.Critical);
                     retryRecoveryButton.Enabled.Value = false;
+                    recoverySupport.CanBeShown.Value = true;
                 });
             }
         }
@@ -385,6 +404,36 @@ namespace osu.Game.Overlays.Settings.Sections
             }
 
             base.Dispose(isDisposing);
+        }
+
+        private partial class RecoverySupportContainer : FillFlowContainer
+        {
+            public BindableBool CanBeShown { get; } = new BindableBool(true);
+
+            public RecoverySupportContainer()
+            {
+                RelativeSizeAxes = Axes.X;
+                AutoSizeAxes = Axes.Y;
+                Direction = FillDirection.Vertical;
+                AlwaysPresent = true;
+
+                CanBeShown.BindValueChanged(_ => Invalidate(Invalidation.Presence));
+            }
+
+            public override bool IsPresent => base.IsPresent && CanBeShown.Value;
+        }
+
+        private partial class WorkspaceRecordsContainer : FillFlowContainer
+        {
+            public BindableBool CanBeShown { get; } = new BindableBool(true);
+
+            public WorkspaceRecordsContainer()
+            {
+                AlwaysPresent = true;
+                CanBeShown.BindValueChanged(_ => Invalidate(Invalidation.Presence));
+            }
+
+            public override bool IsPresent => base.IsPresent && CanBeShown.Value;
         }
 
         internal partial class FolderSkinWorkspaceRow : CompositeDrawable

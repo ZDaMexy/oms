@@ -18,6 +18,7 @@ using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Localisation;
 using osu.Framework.Logging;
+using osu.Game.Configuration;
 using osu.Game.Database;
 using osu.Game.Graphics;
 using osu.Game.Graphics.UserInterface;
@@ -26,6 +27,7 @@ using osu.Game.Localisation;
 using osu.Game.Overlays.Dialog;
 using osu.Game.Overlays.Notifications;
 using osu.Game.Overlays.SkinEditor;
+using osu.Game.Rulesets;
 using osu.Game.Skinning;
 using osuTK;
 using Realms;
@@ -35,12 +37,17 @@ namespace osu.Game.Overlays.Settings.Sections
 {
     public partial class SkinSection : SettingsSection
     {
-        private SkinDropdown skinDropdown;
+        private readonly List<ModeSkinControl> modeSkinControls = new List<ModeSkinControl>();
         private SettingsButtonV2 layoutEditorButton;
+        private SkinAuthorActionsContainer authorActions;
+        private RenameSkinButton renameButton;
+        private ExportSkinButton exportButton;
+        private DeleteSkinButton deleteButton;
+        private SkinScriptSettings scriptSettings;
         private Bindable<Skin> currentSkin;
-        private Bindable<Live<SkinInfo>> dropdownSelection;
         private Bindable<Live<SkinInfo>> committedSelection;
         private bool synchronisingDropdownSelection;
+        private bool synchronisingModeConfiguration;
         private bool dropdownItemsLoading = true;
         private bool committedSelectionDisabled;
 
@@ -65,36 +72,42 @@ namespace osu.Game.Overlays.Settings.Sections
         [Resolved(CanBeNull = true)]
         private INotificationOverlay notificationOverlay { get; set; }
 
+        [Resolved(CanBeNull = true)]
+        private OsuConfigManager config { get; set; }
+
+        [Resolved(CanBeNull = true)]
+        private IBindable<RulesetInfo> currentRuleset { get; set; }
+
         private IDisposable realmSubscription;
 
         [BackgroundDependencyLoader(permitNulls: true)]
         private void load([CanBeNull] SkinEditorOverlay skinEditor)
         {
+            modeSkinControls.Clear();
+            modeSkinControls.Add(createModeSkinControl("bms", SkinSettingsStrings.BmsSkin, OsuSetting.SkinBms));
+            modeSkinControls.Add(createModeSkinControl("mania", SkinSettingsStrings.ManiaSkin, OsuSetting.SkinMania));
+
             Children = new Drawable[]
             {
                 new SkinInstallationStatus(),
-                new SettingsItemV2(skinDropdown = new SkinDropdown
+                new SettingsItemV2(modeSkinControls[0].Dropdown)
                 {
-                    AlwaysShowSearchBar = true,
-                    AllowNonContiguousMatching = true,
-                    Caption = SkinSettingsStrings.CurrentSkin,
-                    Current = dropdownSelection = new Bindable<Live<SkinInfo>>(skins.CurrentSkinInfo.Value),
-                    Items = new[] { skins.CurrentSkinInfo.Value },
-                }),
+                    // There is no separate player-facing global default anymore; choosing OMS is the explicit reset.
+                    ShowRevertToDefaultButton = false,
+                },
+                new SettingsItemV2(modeSkinControls[1].Dropdown)
+                {
+                    ShowRevertToDefaultButton = false,
+                },
                 new ReloadCurrentSkinButton(),
-                new SkinScriptSettings(),
-                new FillFlowContainer
+                scriptSettings = new SkinScriptSettings(),
+                authorActions = new SkinAuthorActionsContainer
                 {
-                    RelativeSizeAxes = Axes.X,
-                    AutoSizeAxes = Axes.Y,
-                    Direction = FillDirection.Horizontal,
-                    Padding = SettingsPanel.CONTENT_PADDING,
                     Children = new Drawable[]
                     {
-                        // This is all super-temporary until we move skin settings to their own panel / overlay.
-                        new RenameSkinButton { Padding = new MarginPadding { Right = 2.5f }, RelativeSizeAxes = Axes.X, Width = 1 / 3f },
-                        new ExportSkinButton { Padding = new MarginPadding { Horizontal = 2.5f }, RelativeSizeAxes = Axes.X, Width = 1 / 3f },
-                        new DeleteSkinButton { Padding = new MarginPadding { Left = 2.5f }, RelativeSizeAxes = Axes.X, Width = 1 / 3f },
+                        renameButton = new RenameSkinButton { Padding = new MarginPadding { Right = 2.5f }, RelativeSizeAxes = Axes.X, Width = 1 / 3f },
+                        exportButton = new ExportSkinButton { Padding = new MarginPadding { Horizontal = 2.5f }, RelativeSizeAxes = Axes.X, Width = 1 / 3f },
+                        deleteButton = new DeleteSkinButton { Padding = new MarginPadding { Left = 2.5f }, RelativeSizeAxes = Axes.X, Width = 1 / 3f },
                     }
                 },
                 layoutEditorButton = new SettingsButtonV2
@@ -107,6 +120,41 @@ namespace osu.Game.Overlays.Settings.Sections
             };
         }
 
+        private ModeSkinControl createModeSkinControl(string rulesetShortName, LocalisableString caption, OsuSetting setting)
+        {
+            Bindable<string> sourceConfiguration = config?.GetBindable<string>(setting);
+            Live<SkinInfo> initialSelection = resolveConfiguredSelection(sourceConfiguration?.Value);
+            var configuration = sourceConfiguration?.GetBoundCopy() ?? new Bindable<string>(initialSelection.ID.ToString());
+            var selection = new Bindable<Live<SkinInfo>>(initialSelection);
+            var dropdown = new SkinDropdown
+            {
+                AlwaysShowSearchBar = false,
+                AllowNonContiguousMatching = true,
+                Caption = caption,
+                Current = selection,
+                Items = new[] { initialSelection },
+            };
+
+            return new ModeSkinControl(rulesetShortName, configuration, selection, dropdown);
+        }
+
+        private Live<SkinInfo> resolveConfiguredSelection(string configured)
+        {
+            if (string.IsNullOrWhiteSpace(configured) || !Guid.TryParse(configured, out Guid id))
+            {
+                string global = config?.Get<string>(OsuSetting.Skin);
+                if (!string.IsNullOrWhiteSpace(global) && !string.Equals(global, configured, StringComparison.Ordinal))
+                    return resolveConfiguredSelection(global);
+
+                return skins.CurrentSkinInfo.Value;
+            }
+
+            if (id == SkinInfo.OMS_SKIN)
+                return skins.DefaultOmsSkin.SkinInfo;
+
+            return skins.Query(s => s.ID == id && !s.Protected && !s.DeletePending) ?? skins.DefaultOmsSkin.SkinInfo;
+        }
+
         protected override void LoadComplete()
         {
             base.LoadComplete();
@@ -114,44 +162,24 @@ namespace osu.Game.Overlays.Settings.Sections
             updateDropdownDisabled();
 
             committedSelection = skins.CurrentSkinInfo.GetBoundCopy();
-            committedSelection.BindValueChanged(skin => setDropdownSelection(skin.NewValue), true);
+            committedSelection.BindValueChanged(skin => syncCommittedSelection(skin.NewValue), true);
             committedSelection.BindDisabledChanged(disabled =>
             {
                 committedSelectionDisabled = disabled;
                 updateDropdownDisabled();
             }, true);
 
-            dropdownSelection.BindValueChanged(selection =>
+            foreach (ModeSkinControl control in modeSkinControls)
             {
-                if (synchronisingDropdownSelection)
-                    return;
+                control.Selection.BindValueChanged(selection => skinSelectionChanged(control, selection.NewValue));
+                control.Configuration.BindValueChanged(_ => configurationChanged(control));
+            }
 
-                if (selection.NewValue.ID == SkinInfo.RANDOM_SKIN)
-                {
-                    // Restore the committed selection before choosing so random selection can exclude it.
-                    setDropdownSelection(skins.CurrentSkinInfo.Value);
-                    skins.SelectRandomSkin();
-                    return;
-                }
-
-                skins.CurrentSkinInfo.Value = selection.NewValue;
-
-                if (skins.LastSelectionRejectionReason == SkinSelectionRejectionReason.LiveGameplayActive)
-                {
-                    notificationOverlay?.Post(new SimpleErrorNotification
-                    {
-                        Text = SkinSettingsStrings.CurrentSkinReloadGameplayActive,
-                    });
-                }
-
-                // Filesystem-backed requests prepare asynchronously and rejected requests never commit. Keep the
-                // control on the last committed value until SkinManager publishes a coherent pair.
-                setDropdownSelection(skins.CurrentSkinInfo.Value);
-            });
+            currentRuleset?.BindValueChanged(_ => syncModeSelections(), true);
 
             currentSkin = skins.CurrentSkin.GetBoundCopy();
-            currentSkin.BindValueChanged(_ => updateLayoutEditorState(), true);
-            currentSkin.BindDisabledChanged(_ => updateLayoutEditorState(), true);
+            currentSkin.BindValueChanged(_ => updateAuthoringState(), true);
+            currentSkin.BindDisabledChanged(_ => updateAuthoringState(), true);
 
             realmSubscription = realm.RegisterForNotifications(_ => realm.Realm.All<SkinInfo>()
                                                                          .Where(s => !s.DeletePending)
@@ -161,34 +189,140 @@ namespace osu.Game.Overlays.Settings.Sections
 
         }
 
-        private void setDropdownSelection(Live<SkinInfo> selection)
+        private void syncCommittedSelection(Live<SkinInfo> selection)
+        {
+            ModeSkinControl active = getActiveModeControl();
+
+            if (active == null)
+            {
+                foreach (ModeSkinControl control in modeSkinControls)
+                    setDropdownSelection(control, selection);
+
+                return;
+            }
+
+            setDropdownSelection(active, selection);
+
+            if (!synchronisingModeConfiguration && active.Configuration != null)
+            {
+                synchronisingModeConfiguration = true;
+                try
+                {
+                    active.Configuration.Value = selection.ID.ToString();
+                }
+                finally
+                {
+                    synchronisingModeConfiguration = false;
+                }
+            }
+        }
+
+        private void skinSelectionChanged(ModeSkinControl control, Live<SkinInfo> selection)
+        {
+            if (synchronisingDropdownSelection)
+                return;
+
+            if (!isActiveMode(control))
+            {
+                control.Configuration.Value = selection.ID.ToString();
+                return;
+            }
+
+            if (selection.ID == SkinInfo.RANDOM_SKIN)
+            {
+                setDropdownSelection(control, skins.CurrentSkinInfo.Value);
+                skins.SelectRandomSkin();
+                return;
+            }
+
+            skins.CurrentSkinInfo.Value = selection;
+
+            if (skins.LastSelectionRejectionReason == SkinSelectionRejectionReason.LiveGameplayActive)
+            {
+                notificationOverlay?.Post(new SimpleErrorNotification
+                {
+                    Text = SkinSettingsStrings.CurrentSkinReloadGameplayActive,
+                });
+            }
+
+            // Filesystem-backed requests prepare asynchronously and rejected requests never commit. Keep the
+            // control on the last committed value until SkinManager publishes a coherent pair.
+            setDropdownSelection(control, skins.CurrentSkinInfo.Value);
+        }
+
+        private void configurationChanged(ModeSkinControl control)
+        {
+            if (synchronisingModeConfiguration || isActiveMode(control))
+                return;
+
+            setDropdownSelection(control, resolveConfiguredSelection(control.Configuration.Value));
+        }
+
+        private void syncModeSelections()
+        {
+            foreach (ModeSkinControl control in modeSkinControls)
+            {
+                if (!isActiveMode(control))
+                    setDropdownSelection(control, resolveConfiguredSelection(control.Configuration.Value));
+            }
+        }
+
+        private ModeSkinControl getActiveModeControl()
+            => currentRuleset?.Value == null ? null : modeSkinControls.FirstOrDefault(isActiveMode);
+
+        private bool isActiveMode(ModeSkinControl control)
+            => currentRuleset?.Value == null
+                || string.Equals(currentRuleset.Value.ShortName, control.RulesetShortName, StringComparison.Ordinal);
+
+        private void setDropdownSelection(ModeSkinControl control, Live<SkinInfo> selection)
         {
             synchronisingDropdownSelection = true;
-            bool wasDisabled = dropdownSelection.Disabled;
+            bool wasDisabled = control.Selection.Disabled;
 
             try
             {
                 if (wasDisabled)
-                    dropdownSelection.Disabled = false;
+                    control.Selection.Disabled = false;
 
-                dropdownSelection.Value = selection;
+                control.Selection.Value = selection;
             }
             finally
             {
                 if (wasDisabled)
-                    dropdownSelection.Disabled = true;
+                    control.Selection.Disabled = true;
 
                 synchronisingDropdownSelection = false;
             }
         }
 
         private void updateDropdownDisabled()
-            => skinDropdown.Current.Disabled = dropdownItemsLoading || committedSelectionDisabled;
+        {
+            foreach (ModeSkinControl control in modeSkinControls)
+                control.Selection.Disabled = dropdownItemsLoading || committedSelectionDisabled;
+        }
 
-        private void updateLayoutEditorState()
-            => layoutEditorButton.Enabled.Value = SkinAuthoringAvailability.LegacyEditorAvailable
-                                                  && !currentSkin.Disabled
-                                                  && skins.CanModify(currentSkin.Value.SkinInfo);
+        private void updateAuthoringState()
+        {
+            bool canModify = !currentSkin.Disabled && skins.CanModify(currentSkin.Value.SkinInfo);
+            bool canExport = !currentSkin.Disabled && skins.CanExport(currentSkin.Value.SkinInfo);
+            bool canDelete = !currentSkin.Disabled && skins.CanDelete(currentSkin.Value.SkinInfo.ID);
+
+            authorActions.CanBeShown.Value = canModify || canExport || canDelete;
+
+            renameButton.CanBeShown.Value = canModify;
+            exportButton.CanBeShown.Value = canExport;
+            deleteButton.CanBeShown.Value = canDelete;
+
+            int visibleActionCount = (canModify ? 1 : 0) + (canExport ? 1 : 0) + (canDelete ? 1 : 0);
+            float actionWidth = visibleActionCount == 0 ? 1 : 1f / visibleActionCount;
+            renameButton.Width = actionWidth;
+            exportButton.Width = actionWidth;
+            deleteButton.Width = actionWidth;
+
+            bool editorAvailable = SkinAuthoringAvailability.LegacyEditorAvailable && canModify;
+            layoutEditorButton.Enabled.Value = editorAvailable;
+            layoutEditorButton.CanBeShown.Value = editorAvailable;
+        }
 
         private void skinsChanged(IRealmCollection<SkinInfo> sender, ChangeSet changes)
         {
@@ -219,9 +353,11 @@ namespace osu.Game.Overlays.Settings.Sections
                     dropdownItems.Clear();
                     dropdownItems.AddRange(items);
 
-                    skinDropdown.Items = dropdownItems.ToList();
+                    foreach (ModeSkinControl control in modeSkinControls)
+                        control.Dropdown.Items = dropdownItems.ToList();
                     dropdownItemsLoading = false;
                     updateDropdownDisabled();
+                    syncModeSelections();
                 });
             }
             catch (Exception e)
@@ -233,7 +369,8 @@ namespace osu.Game.Overlays.Settings.Sections
                     if (IsDisposed || refreshSequence != dropdownRefreshSequence)
                         return;
 
-                    skinDropdown.Items = new[] { skins.CurrentSkinInfo.Value };
+                    foreach (ModeSkinControl control in modeSkinControls)
+                        control.Dropdown.Items = new[] { control.Selection.Value };
                     dropdownItemsLoading = false;
                     updateDropdownDisabled();
                 });
@@ -246,6 +383,12 @@ namespace osu.Game.Overlays.Settings.Sections
             {
                 Interlocked.Increment(ref dropdownRefreshSequence);
                 committedSelection?.UnbindAll();
+
+                foreach (ModeSkinControl control in modeSkinControls)
+                {
+                    control.Selection.UnbindAll();
+                    control.Configuration.UnbindAll();
+                }
             }
 
             base.Dispose(isDisposing);
@@ -256,6 +399,44 @@ namespace osu.Game.Overlays.Settings.Sections
         private partial class SkinDropdown : FormDropdown<Live<SkinInfo>>
         {
             protected override LocalisableString GenerateItemText(Live<SkinInfo> item) => item.ToString();
+        }
+
+        private sealed class ModeSkinControl
+        {
+            internal readonly string RulesetShortName;
+            internal readonly Bindable<string> Configuration;
+            internal readonly Bindable<Live<SkinInfo>> Selection;
+            internal readonly SkinDropdown Dropdown;
+
+            internal ModeSkinControl(
+                string rulesetShortName,
+                Bindable<string> configuration,
+                Bindable<Live<SkinInfo>> selection,
+                SkinDropdown dropdown)
+            {
+                RulesetShortName = rulesetShortName;
+                Configuration = configuration;
+                Selection = selection;
+                Dropdown = dropdown;
+            }
+        }
+
+        private partial class SkinAuthorActionsContainer : FillFlowContainer
+        {
+            public BindableBool CanBeShown { get; } = new BindableBool(true);
+
+            public SkinAuthorActionsContainer()
+            {
+                RelativeSizeAxes = Axes.X;
+                AutoSizeAxes = Axes.Y;
+                Direction = FillDirection.Horizontal;
+                Padding = SettingsPanel.CONTENT_PADDING;
+                AlwaysPresent = true;
+
+                CanBeShown.BindValueChanged(_ => Invalidate(Invalidation.Presence));
+            }
+
+            public override bool IsPresent => base.IsPresent && CanBeShown.Value;
         }
 
         public partial class ReloadCurrentSkinButton : SettingsButtonV2

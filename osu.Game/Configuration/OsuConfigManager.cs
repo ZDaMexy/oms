@@ -41,6 +41,10 @@ namespace osu.Game.Configuration
             // UI/selection defaults
             SetDefault(OsuSetting.Ruleset, string.Empty);
             SetDefault(OsuSetting.Skin, SkinInfo.OMS_SKIN.ToString());
+            // Empty values are initialised from the legacy global skin during startup. Keeping these keys empty in
+            // the default config lets existing installations migrate without changing the meaning of Skin.
+            SetDefault(OsuSetting.SkinBms, string.Empty);
+            SetDefault(OsuSetting.SkinMania, string.Empty);
 
             SetDefault(OsuSetting.BeatmapDetailTab, BeatmapDetailTab.Local);
             SetDefault(OsuSetting.BeatmapLeaderboardSortMode, LeaderboardSortMode.Score);
@@ -515,5 +519,15 @@ namespace osu.Game.Configuration
 
         DashboardSortMode,
         DashboardDisplayStyle,
+
+        /// <summary>
+        /// Optional skin override for the BMS ruleset. An empty value follows the legacy global skin during startup.
+        /// </summary>
+        SkinBms,
+
+        /// <summary>
+        /// Optional skin override for the osu!mania ruleset. An empty value follows the legacy global skin during startup.
+        /// </summary>
+        SkinMania,
     }
 }

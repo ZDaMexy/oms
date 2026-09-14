@@ -1,17 +1,17 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后更新：2026-09-13（静线打磨暂告一段落，项目事实与文档/记忆同步）
+> 最后更新：2026-09-14（设置页收简与按模式选择皮肤切片）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
 
-静线是唯一内置、首次默认与正式保底；complex 已退役，历史作者文件与验证证据保留，普通用户导入包不删除。用户认可最近调整并决定暂时打磨到此，当前不继续开发外观或进入下一阶段。此反馈不等于原 V-001～V-005、真实设备或长期体验签收，Skin V1/release 仍未完成。原 C1～C7 工程证据不重计，程序化 OmsSkin 已退出实际回落链，物理删除仍待原实机门。
+静线是唯一内置、首次默认与正式保底；complex 已退役，历史作者文件与验证证据保留，普通用户导入包不删除。用户认可最近调整并决定暂时停止外观打磨；本轮按新增需求完成设置页收简和按模式选择皮肤，未进入下一阶段。BMS 与 osu!mania 现在各自记住皮肤，旧全局配置首次启动会复制到两个模式；切换模式时立即应用对应选择。此反馈不等于原 V-001～V-005、真实设备或长期体验签收，Skin V1/release 仍未完成。原 C1～C7 工程证据不重计，程序化 OmsSkin 已退出实际回落链，物理删除仍待原实机门。
 
 ## 当前产品能力与剩余门
 
 | 产品面 | 当前可用结果 | 必须保持的边界与未完成项 |
 | --- | --- | --- |
-| 导入、选择与管理 | 普通 .osk、受管目录、登记作者外部目录；选择可跨重启保留 | external 始终只读；新增受管目录需启动扫描发现，已有用户数据恢复合同继续生效 |
+| 导入、选择与管理 | 普通 .osk、受管目录、登记作者外部目录；BMS 与 osu!mania 可分别选择并跨重启保留 | external 始终只读；新增受管目录需启动扫描发现；首次启动从旧全局皮肤复制模式偏好，失效/受保护项回到静线 |
 | 更新与失败保护 | 设置可手动重新载入整包，失败保留此前外观 | 游玩/预览期间不可 reload；无 watcher 或游玩中替换 |
 | 唯一内置与恢复 | 正常开发启动、build/publish 从作者源自动同步 simple；安装原件验证后恢复工作副本，旧内置 complex 选择迁回 simple | canonical 原件故障须提示修复安装并阻止游玩/预览，不恢复程序化主题；不按同名清除用户包 |
 | 静线游玩外观 | 文件素材提供完整底板、轨道、转盘/键帽、固定分段血槽和 BGA 外框；白黑/皿轨独立比例、分隔线补偿、14K 每侧键序一致 | 已依据用户参考反复改进；当前暂停继续打磨，完整歌曲、其它尺寸及设备体验未整体签收 |
@@ -23,6 +23,13 @@
 C2～C6共享同一 package/layout/material/scene publication、lease/detach 与脚本隔离合同；无游玩宿主的菜单也检查整包。授权撤销不扩大 reload 准入，具体合同只在[技术约束](TECHNICAL_CONSTRAINTS.md)维护。
 
 ## 最近一次验证
+
+2026-09-14完成设置面收简与按模式选择皮肤的产品切片：
+
+- 顶层启动、旧全局皮肤迁移、模式切换和两项偏好独立性 **7/7** 通过；新增 `TestRulesetSpecificSkinPreferences` 覆盖 BMS → mania 切换后的实际皮肤应用。
+- Folder Skin Workspace 空状态回归 **7/7** 通过；作者脚本、作者按钮与恢复提示在无对应内容时按需隐藏，已有记录/故障仍保留原入口。
+- 真实设置 caller 的既有删除、授权与当前 revision 选择回归 **5/5** 通过。
+- `dotnet build osu.Game/osu.Game.csproj --no-restore -p:Configuration=Debug -m -verbosity:minimal` 通过（0 警告、0 错误）。本切只影响设置/配置选择链，未刷新视觉、设备或 Release 人工签收。
 
 最近产品修改为 `234ce1f`（2026-09-13，轨宽与仪表底色），本次治理未重跑或刷新其验证日期：
 
@@ -43,7 +50,8 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 - G1 held-root/journal不是filesystem transaction，foreign addition/replacement可导致冻结；未知旧记录及无完整恢复证据的intent不猜测迁移。旧保存根事故只有事后保全，不追溯宣称无损。
 - BmsBeatmapDecoderOptions.KeymodeOverride只是host/importer seam，普通loader无用户纠正UI；证据不足的sparse .bms/.bml仍拒绝，该缺口归P1-K。
 - BGA内容/seek/decoder归P1-L，输入与设备归P1-B/D，真实LN/音频和发行验收见对应子线；本次收尾不继续开发这些阶段。
+- 按模式选择只改变皮肤配置与启动/切换时的选择，不改变判定、输入、BGA 内容或布局 authority；视觉验收仍按原 V-001～V-005 门执行。
 
 ## 文档治理验证
 
-2026-09-13以已fetch的当前分支及`234ce1f`代码为基线，核对生产接线、现有日志、作者源和当前说明，同步唯一内置、轨宽/信息区、历史验证与暂停边界。文档检查及跨线范围统一见[主线治理记录](../../mainline/CHANGELOG.md#项目事实与文档记忆全量同步)；仅治理不代表新产品、安装或实机验证。
+2026-09-14在上述基线之上核对按模式配置、规则集切换回落、设置页空状态与测试 caller；本次代码与文档同步不改变视觉签收门。文档检查及跨线范围统一见[主线治理记录](../../mainline/CHANGELOG.md#项目事实与文档记忆全量同步)；设置切片的自动结果见本页“最近一次验证”，不代表新安装或实机视觉签收。

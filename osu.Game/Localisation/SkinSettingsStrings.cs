@@ -20,6 +20,16 @@ namespace osu.Game.Localisation
         public static LocalisableString CurrentSkin => new TranslatableString(getKey(@"current_skin"), @"Current skin");
 
         /// <summary>
+        /// "BMS skin"
+        /// </summary>
+        public static LocalisableString BmsSkin => new TranslatableString(getKey(@"bms_skin"), @"BMS skin");
+
+        /// <summary>
+        /// "osu!mania skin"
+        /// </summary>
+        public static LocalisableString ManiaSkin => new TranslatableString(getKey(@"mania_skin"), @"osu!mania skin");
+
+        /// <summary>
         /// "Skin name"
         /// </summary>
         public static LocalisableString SkinName => new TranslatableString(getKey(@"skin_name"), @"Skin name");
