@@ -101,7 +101,7 @@ dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj --no-
 
 ## 项目状态
 
-OMS 处于 **Phase 1.x**（本地 BMS / mania 主流程与皮肤）收尾阶段。静线是支持 BMS 与 mania 的唯一内置、默认与保底皮肤，正常开发启动、构建与发布会带上作者源更新，玩家无需导入；星轨已退出内置，仓库旧文件仅保留历史参考。作者可从模板修改、检查、打包并导入自己的作品，见[皮肤制作套件](skin-authoring/README.md)。静线已完成本次布局、信息区与轨道比例打磨，用户要求暂止视觉迭代、核对项目与文档；这不代表整体画面、输入设备与长时间体验已验收，Skin V1 与整体发行未完成。联网相关的 Phase 3 功能保持冻结。具体进度与验收状态只以 [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) 为准。
+OMS 处于 **Phase 1.x**（本地 BMS / mania 主流程与皮肤）收尾阶段。静线是支持 BMS 与 mania 的唯一内置、默认与保底皮肤，正常开发启动、构建与发布会带上作者源更新，玩家无需导入；星轨已退出内置，仓库旧文件仅保留历史参考。作者可从模板修改、检查、打包并导入自己的作品，见[皮肤制作套件](skin-authoring/README.md)。设置中可分别选择 BMS/mania 皮肤，使用固定 `chartskin` 文件夹并手动刷新；原组件布局编辑器可调整组件和属性、导入图片，保存独立副本。静线已完成此前布局、信息区与轨道比例打磨，用户要求暂止视觉迭代、核对项目与文档；这不代表整体画面、输入设备与长时间体验已验收，Skin V1 与整体发行未完成。联网相关的 Phase 3 功能保持冻结。具体进度与验收状态只以 [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) 为准。
 
 ## 贡献
 

@@ -39,7 +39,7 @@ metadata:
 | 缺 Keys 被当成声明、同名贴图/width 跨包拼接 | [[reference_gameplay_skin_config_presence]]、[[reference_gameplay_skin_lane_resource_compatibility]] |
 | LN body 异步到达后颜色/状态不对 | 真实 DrawableBmsHoldNote 是 Idle/Holding/Broken authority；新 visual 立即投影当前态，不自建 gameplay state；常数只查 P1-A 的 LN 视觉合同 |
 | 原位文件修改未生效、旧资源释放过早 | [[reference_skin_atomic_reload_detach]]；active immutable instance 不观察磁盘，manual Reload 是统一入口 |
-| Workspace copy/rename/delete 或源丢失 | [[reference_skin_external_workspace_managed_copy]]、[[reference_skin_managed_folder_mutation_foundation]]；external 永久只读 |
+| 旧 external/managed 记录的 copy/rename/delete 或源丢失 | [[reference_skin_external_workspace_managed_copy]]、[[reference_skin_managed_folder_mutation_foundation]]；external 永久只读 |
 | 多 BGA viewport 占用多 decoder | [[reference_bms_bga_chain]] 与 P1-L；统一 viewport 不等于单内容源 |
 | 窄 foundation 被写成整轮交付 | [[project_oms_skin_product_progress]] |
 

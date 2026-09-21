@@ -20,7 +20,7 @@ metadata:
 - 旧固定 ID 也可能含不能确认归属的用户数据。只有完整 exact protected metadata 且无用户 files 的已知内置记录能更新/移除；未知同 ID 的 Name/type/hash/files 保全并要求修复。不要因 ID 看起来内置而覆盖或删除。
 - 新导入旧 `OmsSkin` metadata 的 archive 改用普通 BMS/mania parser；已经存在的非 protected 旧 Oms record 只在内存中按 exact 原用户 files 构造同一普通 parser，不能改 Realm type/hash/refs 或补旧嵌入资源。选择和 reload 两条路径都须覆盖。
 - protected canonical 导出按钮需显式允许已验证 instance 对应 exact metadata。普通 `.osk` 导出应保留整份作者包，不能因 protected record 没有 Realm files 而导出空包；未知固定 ID 带用户 files 的记录又必须导出其真实 files，不能按 ID 静默替换成简洁包。
-- `EnsureMutableSkin` 的 canonical 副本也必须由完整普通 archive 导入，不能延用旧“只造同类型无文件记录”的内置皮肤方式。author-manifest 选择走已有异步 publication，创建副本返回不等于已切换；测试应等真实 current pair，legacy editor 仍按现有合同冻结。
+- `EnsureMutableSkin` 的 canonical 副本也必须由完整普通 archive 导入，不能延用旧“只造同类型无文件记录”的内置皮肤方式。author-manifest 选择走已有异步 publication，创建副本返回不等于已切换，测试应等真实 current pair。恢复后的原编辑器不调用该方法切选副本，而使用 `CreateEditorDraftAsync` 保持非 current 草稿；保存/预览诊断见 [[reference_bms_skin_editor]]。
 - 核对恢复/UI时同时看 `IsGameplaySkinInstallationAvailable`、安装修复说明、journal 状态与真实 current revision。内存中有经过验证的简洁包，不表示未解的旧数据操作已经允许进入游玩；修复界面占位 skin 也绝不是可玩的备用主题。
 - protected row 故意缺失时，`GetAllUsableSkins` 与前后轮换的 implicit list 不能直接 `Find(...).ToLive(...)`：`RealmLive` 构造会解引用空记录，造成修复设置丢失用户列表或切换异常。两处列表仅使用既有 `DefaultOmsSkin.SkinInfo` 内存占位；不能补 Realm 行。安装或 journal 仍阻断时，exact protected 默认项的 `CanExport` 与 `ExportSkin` 同时拒绝，普通用户包不因此禁止导出。用真实旧用户包加缺行 invalid journal，以及独立新根未知 `skin-canonical` 文件阻止工作副本创建两路验证，不能改写真实安装原件来制造测试前提。
 - 2026-09-11真实备份G1曾出现普通包游玩拒绝、managed扫描零新增、external登记false三个表现，实际是同一旧protected记录被阻断。仅在失败working Realm的再复制件以SDK`IsDynamic + IsReadOnly`读取，确认完整元数据精确等于归档`dirty-stash^3`中`BmsOmsReferenceSkin.CreateInfo`；同一归档manager确有写入路径。该无用户files记录可在journal已resolved后定点迁移到canonical；不能把旧reference类型重新载入，不能把它加入`IsExactProtectedFallbackRecord`扩张旧journal authority。未知字段、附用户file和未解journal分别保留阻断。归档只取单文件证据，未改原数据或私有baseline，G1不得先替换旧行来造通过前提。
@@ -29,7 +29,7 @@ metadata:
 
 人工观感与设备签收不能由上述安装检查代替。旧 `OmsSkin` 代码的保留用于旧证据与人工对照，不允许被新的普通导入、默认选择或安装故障回落重新接回产品链。
 
-- 首次外部目录登记先要`chartskin`物理防重叠证明；旧测试预先mkdir曾遮蔽新安装无法登记的真实缺口。生产仅通过显式`OpenForFirstWorkspace`创建空自有根：coordinator lease、journal Missing、无任何旧filesystem声明、作者held proof排除祖先重叠、新根native no-follow/no-replace/identity复核。不要把创建能力加给scanner/recovery Open；旧记录但根缺失仍保全并提供恢复原目录指引。
+- 历史外部注册入口的首次登记问题：登记先要`chartskin`物理防重叠证明，旧测试预先mkdir曾遮蔽新安装无法登记的缺口。该旧注册后端仅通过显式`OpenForFirstWorkspace`创建空自有根：coordinator lease、journal Missing、无任何旧filesystem声明、作者held proof排除祖先重叠、新根native no-follow/no-replace/identity复核。不要把创建能力加给scanner/recovery Open；旧记录但根缺失仍保全并提供恢复原目录指引。
 - Windows PowerShell `-Command`后追加路径不等于脚本参数，路径含空格会被重新解释；native junction测试用独立`.ps1`与`-File`、`ArgumentList`逐个传参。ZipArchiveEntry读流不可seek，使用`ReadAllRemainingBytesToArray()`。
 
 - C7 完整包不能只测槽位ready和原生owner隐藏：hud.text一次接管会同时遮掉准确率/进度，必须观察新的实际文字和状态；同一测试host同时挂两玩法时必须给各自事件子树缓存本玩法processor，并沿Player顺序接NewResult/RevertResult，否则可能只有判定事件而分数恒零。当前证据与剩余门从[P1-A状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)进入，暂停检查点只保留历史。
@@ -48,7 +48,7 @@ metadata:
 
 ## 星轨退役与当前边界
 
-用户已放弃 complex，仅继续打磨 simple。静线为唯一内置、默认与保底；星轨不再是启动依赖或构建对象。历史作者文件保留参考，旧内置星轨选择迁回静线，普通用户导入皮肤不清除；不再要求星轨视觉签收。此前双内置授权已被最新决定取代，不继续要求其构建或签收。只迁移旧固定内置身份，不按名字删除普通用户包；旧报告只保留历史证据。
+当前唯一内置与体验门读 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)，用户退役决定见 [[project_oms_skin_product_progress]]。迁移诊断只认旧固定内置身份；同名普通用户包不是退役对象，旧双内置报告不能作为当前启动或构建依赖。
 # 2026-09-12 构建同步补充
 
 内置 simple 不能只复制受跟踪 dist：作者文件变化后旧包仍可通过旧内嵌 hash，表现为开发启动没有更新。当前 Game 构建从 sources 生成 obj/canonical/<Configuration> 包与配对摘要；发行作者副本复制本次 publish 原件。作者工具与正常构建的 ZIP 包装方式可以不同，整包 hash 不同不直接表示内容漂移，须核 entry 集合与每项解压字节。不要在 Game target 调用引用 Game 的 SkinAuthoring 工具形成循环，也不要自动 generate 覆盖作者美术。Windows PowerShell 的 File.Replace 需 `[NullString]::Value` 表示空备份路径，`$null` 会转成空字符串报非法路径；哈希用 .NET，避免继承 PSModulePath 时 Get-FileHash 不可用。验证见 [构建更新记录](../../doc_md/other/SKIN_BUILTIN_BUILD_20260912.md)。

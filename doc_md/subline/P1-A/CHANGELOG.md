@@ -1,5 +1,12 @@
 # P1-A 变动日志
 
+## 2026-09-22：工作区与文档记忆核对
+
+- 对照产品 HEAD `701893f` 核对模式独立选择、固定 `chartskin` 扫描/刷新、原布局编辑器独立副本和关闭后的应用路径；更新状态、计划、约束、作者指南与记忆中的过期描述。外观打磨继续暂停，原 Workspace 后端留存不代表设置仍有注册或行级管理入口。
+- 区分刷新目录扫描与当前整包 reload 的游玩拒绝边界；编辑器不绕过当前包修改保护，正常关闭清理未保存副本，极端退出期可能留下未使用副本。未开放完整 scene/script 编辑或外部 mount/update-import。
+- 读取 2026-09-14 留存 `skin-settings-restoration-final.trx`、`skin-editor-existing-guards.trx`、`skin-editor-publication-guards.trx`，分别确认 23/23、10/10、7/7；这是历史证据复核，不是今天的新测试。原 Release 警告、完整测试、视觉及发行验收边界继续沿用下方记录。
+- 本轮仅改文档与记忆；`CheckDocumentation.ps1` 与 `git diff --check` 通过，未重新构建或运行产品测试。
+
 ## 2026-09-14：固定皮肤目录与原编辑器恢复
 
 按用户“就还原原来的编辑功能，后续再说”的范围收口：设置不再挂入 Folder Skin Workspace/外部注册面；保留旧记录与后端安全边界，改为打开固定 `chartskin` 和手动刷新，新增/修改/移出/放回无需重启。扫描串接启动及前次任务，退出 cancel+join。

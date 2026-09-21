@@ -12,8 +12,8 @@ metadata:
 
 ## 先判断操作是否经过正确入口
 
-- Settings 的 `Reload current skin` 才是 reload；same-value selection、Workspace row、startup scanner 与 watcher 不是替代入口。legacy editor/external-edit/update-import 的禁用边界不能从 UI 绕到 backend。
-- live gameplay/preview 在任何 source capture/parse/provisional prepare 前拒绝；attached consumer 没有 staged receipt 也不能先切 active pair 再补。
+- 设置“刷新皮肤”先扫描固定 `chartskin` 目录，再对具备 reload 资格的 current 执行 `ReloadCurrentRevisionAsync`；同值选择、单独 scanner reconcile 和旧 Workspace row 不会刷新 current 的 immutable 资源，当前无 watcher。原编辑器已恢复为独立草稿，保存后走正常选择 publication，见 [[reference_bms_skin_editor]]；仍禁用的是外部编辑/update-import，以及绕过协议直接修改 current 包。
+- 当前整包 reload 在任何 source capture/parse/provisional prepare 前拒绝 live gameplay/preview；这不表示刷新入口不能先扫描目录。attached consumer 没有 staged receipt 也不能先切 active pair 再补。
 - exact publication 把 package/layout/material/scene 绑在同一 owner；consumer 只读同一已提交引用。NoChange 比较 fresh prepared content revision，不替换 owner。
 - ordinary .osk 的 authoritative 输入是 fresh Realm file declaration + blob bytes；active immutable owner 不随 Realm projection 漂移。managed/external 的 record token 同样不代替 held physical proof。具体 capture 去 [[reference_skin_package_revision_capsule]]、[[reference_skin_managed_folder_selection]]。
 

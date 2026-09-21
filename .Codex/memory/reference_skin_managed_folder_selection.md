@@ -19,7 +19,7 @@ metadata:
 
 ## Startup / generic mutation 双 epoch
 
-复现前提：configured managed capture 在 OsuGame.load 开始，startup scanner 到 LoadComplete 才在 typed StartupSequence 中执行 recovery→reconcile；两者可交错。
+历史复现前提是 configured managed capture 从 `OsuGame.load` 开始、scanner 到 `LoadComplete` 才进入 typed StartupSequence，两者交错。当前配置恢复已移到 update thread 的 `LoadComplete`；startup/手动刷新 worker 与异步 selection 仍可能交错，不能据旧调用位置恢复后台直接 publication。冷启动线程诊断见 [[reference_skin_canonical_installation]]。
 
 - 只等待 exact startup/staged-import holder completion，后台等完经 update scheduler 做 fresh preparation，重新查 generation、current、Realm、path/owner/freeze、allowlist、capture/factory。update thread 不等待。
 - scanner 可能在 capture/factory 前已完成；仅看“当前有无 holder”会丢失原因，必须保留 preparation 观察到的 startup epoch。

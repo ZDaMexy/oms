@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后更新：2026-09-14（固定皮肤目录与原编辑功能恢复，保留后续验收边界）
+> 最后核对：2026-09-22（设置与编辑恢复已完成，保留后续验收边界）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -9,11 +9,10 @@
 
 ## 当前执行门与冻结输入
 
-用户认可静线最近调整并决定暂停外观/素材打磨。当前用户要求继续收简皮肤设置：去掉外部文件夹注册工作区，使用固定 `chartskin` 目录和打开、刷新按钮；保留 BMS 与 osu!mania 独立选择，并恢复原来的内置拖拽、属性、图片导入和保存功能。编辑范围沿用原组件布局，不新增 scene/script 可视化制作能力。该切片不进入新的视觉阶段，不改变既有视觉、设备或 release 验收门。complex 已退役，保留历史作者参考，不恢复开发或签收要求。静线唯一内置、首次默认和正式保底；用户包保全、canonical 完整性与恢复继续作为回归边界。
-
+用户认可静线最近调整并决定暂停外观/素材打磨。固定目录刷新、BMS/mania 独立选择及原组件编辑功能已完成，事实与验证见 [STATUS](DEVELOPMENT_STATUS.md)。后续开发仍需用户明确恢复。后续仍保持编辑范围为原组件布局，不把完整 scene/script 可视化制作列为已授权待办；complex 只保留历史参考。静线唯一内置、首次默认与正式保底，用户包保全、canonical 完整性及恢复继续作为回归边界。
 ## 静线当前迭代验收与后续
 
-以下保留为用户恢复开发或正式验收后的待办，不是设置切片的执行范围：
+以下保留为用户恢复开发或正式验收后的待办，不自行启动新的产品改动：
 
 - 用完整歌曲核对黑白/皿轨比例与note边界、14K第二侧键序、小窗口判定/连击、键区/血槽/仪表衔接；维持旧包等宽兼容和横向布局不改变滚动时间。当前证据见[轨道记录](../../other/SKIN_SIMPLE_LANE_PROPORTIONS_20260913.md)。
 - 核对曲名和多表归类截断、作者标级独立性、实时判定读数、BPM变速与HiSpeed、不同宽高比/单双舞台。信息数据接通不等于整体视觉签收，见[信息区记录](../../other/SKIN_SIMPLE_INFORMATION_20260913.md)。
@@ -21,7 +20,8 @@
 - 后续实际修改按影响范围复验公共配置、唯一布局、BMS/mania选择与回落及Release；保留无声明旧包、P1/P2、其它键数、窄屏及canonical恢复。皮肤控制BGA布局，内容/时间线职责仍归P1-L。
 - 按集中清单补未观察的玩法、样式、设备与长期体验，不复用旧安装包或局部认可补签。
 
-本次设置切片的行为合同是：旧 `Skin` 全局值首次启动复制到 `SkinBms`/`SkinMania`；之后两项独立持久化，规则集切换只请求对应项，失效或受保护皮肤回到已验证的静线。设置页由 `SkinManager` 的已提交选择驱动展示，空脚本/空文件夹/无作者权限不占用常规玩家路径；具体安全边界见 [TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md#g1选择ui与startup协调)。
+设置/模式选择与原编辑器的稳定行为仅在 [TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md#g1选择ui与startup协调) 维护。
+
 ## 七个持久Campaign预算与剩余退出门
 
 `SV1-0`～`SV1-7`表示能力与依赖层，不暗示协作轮数。自2026-08-09的campaign启动prompt起，已知Skin V1/P1-A范围及各campaign必须取得终态的产品路线、P1-K layout前置，在最多七个持久campaign内收口；第七个campaign退出时只允许保留集中视觉、真实设备、长时间体验等人工签收。该承诺是campaign prompt预算，不是日历或单提交工期：同一对话可有多次交互、上下文压缩、有意义提交与测试，未过退出门不得生成后续campaign prompt。不通过拆分子campaign或重新计数扩张该预算。
