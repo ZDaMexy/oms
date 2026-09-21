@@ -278,7 +278,7 @@
 | `#PLAYER` | `1`=SP、`2`=Couple、`3`=DP、`4`=Battle | 现代实现忽略，改由 channel 推断 |
 | `#RANK` | 判定宽窄：`0`=VERY HARD、`1`=HARD、`2`=NORMAL、`3`=EASY（缺省）、`4`=VERY EASY(nanasi) | 社区常以 `2`(NORMAL) 为推荐基准；判定语义归 P1-C |
 | `#DEFEXRANK` / `#EXRANK` | 百分比判定（`100`=`#RANK 2`），可小数 | nanasi 系；与 `#RANK` 并存时取最靠 EOF 的 |
-| `#TOTAL` | gauge/生命总量 | 缺省行为各异，LR2 等按物量/难度估算 |
+| `#TOTAL` | 普通血条正向恢复预算 | OMS保留nullable作者值；有限正数优先、非法声明诊断并忽略；缺省按所选家族与物量计算，见[TOTAL取证与合同](BMS_TOTAL_RULES_AUDIT_20260922.md) |
 | `#PLAYLEVEL` | 难度显示（数字或符号串） | 非强标准 |
 | `#DIFFICULTY` | `1`=BEGINNER、`2`=NORMAL、`3`=HYPER、`4`=ANOTHER、`5`=INSANE | nanasi 系，多作元数据/分组 |
 | `#VOLWAV` | keysound 主音量 `0`–`100` | |

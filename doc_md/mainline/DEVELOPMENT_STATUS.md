@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-09-22（文档与记忆同步；产品验证仍为 2026-09-14）
+> 最后核对：2026-09-22（新增 BMS TOTAL 软件验证；皮肤产品验证仍为 2026-09-14）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -32,6 +32,8 @@ P1-I仍是三行双端筛选原型，须落实既定单轨上限段并补shared 
 皮肤安全与失败回退详见[P1-A技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)：当前并无live gameplay reload或watcher，external永久只读；授权撤销不扩大Reload准入，C6完成不等于C7或人工门关闭。异常期归档只能定点取证。局部自动测试不能代替完整真实选择链，自动证据也不能替代视觉、硬件或特殊Gimmick证明。
 
 ## 最近一次验证
+
+2026-09-22：BMS TOTAL 已区分作者声明与各家族缺省，并为新旧成绩选择对应算法；专项验证与完整回归的具名失败归因见 [TOTAL 报告](../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。该结果不更新皮肤、真实设备或发行签收。
 
 2026-09-14的设置/编辑切片已验证固定目录刷新、原编辑控件、独立副本保存与模式偏好隔离；未刷新视觉、设备或 release 人工门。详见 [P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)。
 

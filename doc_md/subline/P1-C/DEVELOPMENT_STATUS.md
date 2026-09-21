@@ -1,9 +1,11 @@
 # P1-C 当前状态：判定语义与反馈闭环
 
-> 最后更新：2026-09-13（补齐静线实时统计展示；本次仅源码与文档同步，未刷新判定实测）
+> 最后更新：2026-09-22（TOTAL 规则与成绩兼容；验证边界见下文）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，HUD/skin 宿主边界归 [P1-A](../P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 当前阶段
+
+2026-09-22 TOTAL 修正：已接入合法作者值优先、Beatoraja/LR2 各自缺省、辅助前后物量分离与 v7 新局身份；旧 v6/无版本结果使用旧缺省，已存终值/灯保留。focused 250通过，Release成功；BMS full 2300通过、29失败、16跳过，29项均在修改前45d8613逐项复现为旧皮肤入口/编辑器断言。精确来源、失败身份与验证边界统一见[TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。现有 Gauge Mod/默认规则、GAS 与 HCN 持续速率保持。
 
 IIDX/LR2/beatoraja/OD 判定家族与主要边界 parity 已落地并由契约测试守门。常驻速度反馈卡及其 FAST/SLOW、pacemaker、summary、常驻 GN 已按产品决定整体删除；当前工作是保持判定合同稳定，并只补仍有真实用户价值的展示/人工证明。
 

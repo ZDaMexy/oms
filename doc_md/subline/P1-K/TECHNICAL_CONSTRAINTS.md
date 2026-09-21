@@ -1,9 +1,11 @@
 # P1-K 技术约束：BMS 解析链路治理
 
-> 最后更新：2026-09-09（按 production parser/converter 同步现行合同）
+> 最后更新：2026-09-22（TOTAL 规则与成绩兼容；验证边界见下文）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，追加项与更正史按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线约束
+
+TOTAL 输入合同（2026-09-22）：`BmsBeatmapInfo.Total` 为 nullable 作者声明；仅接受有限正数，非法行输出诊断并忽略，最后有效解析分支中的合法声明生效。未声明/全非法保留 null，converter/clone/cache 不回填默认值；有效 TOTAL 由 P1-C 在家族与运行时物量确定后计算，consumer 不得重新读取原始 BMS。详见[TOTAL取证](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。
 
 1. 本子线属于 Phase 1.x 下的 `P1-K`；主 authority 是 decoder、normalized chart model、converter 语义、projection reuse 与 parse-side cache，不得回写成 `P1-H`、`P1-J` 或 `P1-E` 的主线任务。
 2. `P1-H` 只承接 storage / importer / reuse / persisted metadata 的从属影响；不得再长出第二套 parse semantics。

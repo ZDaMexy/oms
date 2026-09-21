@@ -1,6 +1,6 @@
 # P1-C 当前计划：判定语义与反馈边界
 
-> 最后更新：2026-07-16
+> 最后更新：2026-09-22（TOTAL 规则与成绩兼容；验证边界见下文）
 > 主线顺序见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，已完成实现与删除记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -22,6 +22,10 @@ P1-C 只维护 BMS 判定家族、窗口/poor/release parity、判定结果到�
 完成阶段的设计和删除经过不在本页展开，按日期查 [CHANGELOG](CHANGELOG.md)。
 
 ## 当前执行顺序
+
+### 2026-09-22 用户指定：TOTAL 正确性收口
+
+作者/缺省 TOTAL、辅助前后物量、各 family 的回血/扣血与新旧成绩一致性已完成软件切片，验证及既有失败归因见[取证报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。后续守门：P1-K 保持声明与解析诊断，P1-C 保持有效 TOTAL 与成绩版本；变更须覆盖 loader→演奏/回放→results。保留 Gauge Mod、默认 Legacy、GAS 与外观；HCN 持续速率另案处理，不代签 P1-E 的真实长条谱门。
 
 ### 1. 保持 parity gate
 

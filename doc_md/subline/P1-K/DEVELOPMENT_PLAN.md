@@ -1,6 +1,6 @@
 # P1-K 当前计划：BMS 解析与转换治理
 
-> 最后更新：2026-08-30（P1-A C3 的 P1-K Skin 前置已闭合）
+> 最后更新：2026-09-22（TOTAL 规则与成绩兼容；验证边界见下文）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，逐刀历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -15,6 +15,8 @@ P1-K 拥有 decoder、normalized chart model、converter、projection reuse 与 
 外部格式基线统一查 [BMS_FORMAT_REFERENCE.md](../../other/BMS_FORMAT_REFERENCE.md)。
 
 ## 已完成阶段
+
+2026-09-22 TOTAL 软件切片已完成，后续保持缺失与合法声明的区别，非法值诊断并忽略；最后有效分支内的合法声明生效，clone/converter/cache保留 nullable 作者值，不在解析阶段回填规则默认值。与[P1-C计划](../P1-C/DEVELOPMENT_PLAN.md)共同守住 loader→gauge→results 验证，精确来源、验证与既有失败归因见[TOTAL取证](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。
 
 | 阶段 | 结果 | 当前处理 |
 | --- | --- | --- |

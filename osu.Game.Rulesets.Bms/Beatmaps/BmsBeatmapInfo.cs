@@ -34,7 +34,11 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         public int Rank { get; set; } = 2;
 
-        public double Total { get; set; } = 200;
+        /// <summary>
+        /// The author's positive, finite #TOTAL, or null when no valid declaration was supplied.
+        /// Gauge-family defaults are resolved at play time, never written into chart metadata.
+        /// </summary>
+        public double? Total { get; set; }
 
         public string? StageFile { get; set; }
 

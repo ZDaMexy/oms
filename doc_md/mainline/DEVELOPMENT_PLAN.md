@@ -33,6 +33,8 @@
 
 ### R5：Phase 1 玩法与硬件收尾
 
+TOTAL 的作者声明、家族缺省与新旧成绩版本合同由 [P1-C](../subline/P1-C/DEVELOPMENT_PLAN.md) / [P1-K](../subline/P1-K/DEVELOPMENT_PLAN.md) 共同守门；后续变化必须同时验证演奏、回放和结算，不改变既有 Gauge Mod 选择与人工验收边界。
+
 | 子线 | 下一动作与依赖 |
 | --- | --- |
 | P1-J/P1-K | 保持C3 lane/keymode/shared-store authority，补转谱LN、剩余实谱、极端dense与人工音频证明 |

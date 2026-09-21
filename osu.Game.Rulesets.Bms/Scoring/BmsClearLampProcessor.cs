@@ -57,7 +57,9 @@ namespace osu.Game.Rulesets.Bms.Scoring
         {
             var scoreData = score.GetRulesetData<BmsScoreInfoData>() ?? new BmsScoreInfoData();
 
-            scoreData.Version = BmsScoreInfoData.EMPTY_POOR_SEPARATION_VERSION;
+            if (scoreData.HasResultStatistics)
+                return scoreData;
+
             scoreData.UsesGaugeAutoShift = BmsGaugeProcessor.UsesGaugeAutoShift(score);
             scoreData.StartingGaugeType = BmsGaugeProcessor.GetStartingGaugeType(score);
             scoreData.FloorGaugeType = BmsGaugeProcessor.GetFloorGaugeType(score);

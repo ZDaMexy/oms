@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Threading;
 using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Difficulty;
+using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Types;
@@ -31,6 +32,8 @@ namespace osu.Game.Rulesets.Bms.Objects
         public BmsHoldNoteTailEvent? Tail { get; private set; }
 
         public IReadOnlyList<BmsHoldNoteBodyTick> BodyTicks => bodyTicks;
+
+        internal BmsLongNoteMode LongNoteMode { get; set; }
 
         public override double StartTime
         {

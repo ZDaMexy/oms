@@ -172,6 +172,9 @@ namespace osu.Game.Rulesets.Bms.UI
         [Resolved(CanBeNull = true)]
         private IBindable<IReadOnlyList<Mod>>? selectedMods { get; set; }
 
+        [Resolved(CanBeNull = true)]
+        private HealthProcessor? healthProcessor { get; set; }
+
         public DrawableBmsRuleset(BmsRuleset ruleset, IBeatmap beatmap, IReadOnlyList<Mod>? mods = null)
             : base(ruleset, beatmap, mods)
         {
@@ -410,6 +413,17 @@ namespace osu.Game.Rulesets.Bms.UI
                 : new BmsFramedReplayInputHandler(replay);
 
         protected override ReplayRecorder CreateReplayRecorder(Score score) => new BmsReplayRecorder(score);
+
+        public override void SetReplayScore(Score replayScore)
+        {
+            if (replayScore?.Replay is BmsGeneratedAutoplayReplay)
+                BmsScoreInfoData.InitialiseNewPlay(replayScore.ScoreInfo);
+
+            if (replayScore != null && healthProcessor is BmsGaugeProcessor gauge)
+                gauge.ApplyScoreTotalRules(replayScore.ScoreInfo);
+
+            base.SetReplayScore(replayScore!);
+        }
 
         protected override void LoadComplete()
         {

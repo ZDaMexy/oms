@@ -2,6 +2,7 @@
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using osu.Game.Scoring;
 
 namespace osu.Game.Rulesets.Bms.Scoring
 {
@@ -9,6 +10,20 @@ namespace osu.Game.Rulesets.Bms.Scoring
     public class BmsScoreInfoData
     {
         public const int EMPTY_POOR_SEPARATION_VERSION = 6;
+        public const int TOTAL_RULES_VERSION = 7;
+
+        internal static void InitialiseNewPlay(ScoreInfo score)
+            => score.SetRulesetData(new BmsScoreInfoData
+            {
+                Version = TOTAL_RULES_VERSION,
+                UsesGaugeAutoShift = BmsGaugeProcessor.UsesGaugeAutoShift(score.Mods),
+                StartingGaugeType = BmsGaugeProcessor.GetStartingGaugeType(score.Mods),
+                FloorGaugeType = BmsGaugeProcessor.GetFloorGaugeType(score.Mods),
+                GaugeType = BmsGaugeProcessor.GetGaugeType(score.Mods),
+                GaugeRulesFamily = BmsGaugeProcessor.GetGaugeRulesFamily(score.Mods),
+                LongNoteMode = BmsScoreProcessor.GetLongNoteMode(score.Mods),
+                JudgeMode = BmsJudgeModeExtensions.GetJudgeMode(score.Mods),
+            });
 
         [JsonProperty("version")]
         public int Version { get; set; } = EMPTY_POOR_SEPARATION_VERSION;

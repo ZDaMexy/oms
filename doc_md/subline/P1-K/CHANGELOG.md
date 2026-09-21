@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-09-22
+
+### TOTAL 声明保真与有限正数边界
+
+- `BmsBeatmapInfo.Total` 保留 nullable 作者声明；有效分支内最后合法有限正数生效，非法后续行诊断并忽略，不覆盖有效作者值；未声明不再在解析层变成200。
+- clone、converter与loader预置缓存保留声明状态。回血预算与家族缺省归P1-C，不重读源文件或修改共享谱面。
+- 相关 decoder/converter/cache 与 TOTAL focused 已通过；完整验证、固定来源和兼容限制见[TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。
+
 ## 2026-09-12
 
 ### parser/converter、格式参考与诊断记忆对齐

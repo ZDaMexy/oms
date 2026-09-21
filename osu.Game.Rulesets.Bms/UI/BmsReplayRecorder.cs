@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Replays;
+using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Replays;
 using osu.Game.Rulesets.UI;
 using osu.Game.Scoring;
@@ -16,6 +17,7 @@ namespace osu.Game.Rulesets.Bms.UI
         public BmsReplayRecorder(Score score)
             : base(score)
         {
+            BmsScoreInfoData.InitialiseNewPlay(score.ScoreInfo);
         }
 
         protected override ReplayFrame HandleFrame(Vector2 mousePosition, List<BmsAction> actions, ReplayFrame previousFrame)

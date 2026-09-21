@@ -45,6 +45,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
 
             foreach (var holdNote in beatmap.HitObjects.OfType<BmsHoldNote>())
             {
+                holdNote.LongNoteMode = longNoteMode;
                 if (holdNote.Tail?.Judgement is BmsHoldNoteTailJudgement tailJudgement)
                     tailJudgement.CountsForScore = tailCountsForScore;
 

@@ -495,10 +495,10 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                     return;
 
                 case "TOTAL":
-                    if (tryParseDouble(value, out double total))
+                    if (tryParseDouble(value, out double total) && double.IsFinite(total) && total > 0)
                         beatmapInfo.Total = total;
                     else
-                        decodedChart.Warnings.Add($@"Failed to parse #TOTAL value '{value}'.");
+                        decodedChart.Warnings.Add($@"Invalid #TOTAL value '{value}': expected a positive finite number; declaration ignored.");
                     return;
 
                 case "STAGEFILE":

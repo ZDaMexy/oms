@@ -46,6 +46,9 @@ namespace osu.Game.Rulesets.Bms.Scoring
 
         private GaugeSpecification currentGaugeSpecification;
         private BmsKeymode? currentKeymode;
+        private double? declaredTotal;
+        private int totalChartObjects;
+        private bool useLegacyTotalRules;
 
         public IBindable<BmsGaugeType> GaugeTypeBindable => gaugeType;
         public IBindable<BmsGaugeRulesFamily> GaugeRulesFamilyBindable => gaugeRulesFamily;
@@ -102,7 +105,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
 
             setGaugeRulesFamilyInternal(gaugeRulesFamily);
 
-            if (TotalHittableObjects <= 0)
+            if (!currentKeymode.HasValue)
                 return;
 
             updateGaugeBounds();
@@ -113,10 +116,10 @@ namespace osu.Game.Rulesets.Bms.Scoring
 
         public override void ApplyBeatmap(IBeatmap beatmap)
         {
-            ChartTotal = beatmap is BmsBeatmap bmsBeatmap ? bmsBeatmap.BmsInfo.Total : DEFAULT_TOTAL;
-            TotalHittableObjects = countHittableObjects(beatmap);
             currentKeymode = ResolveKeymode(beatmap);
-            BaseRate = CalculateBaseRate(ChartTotal, TotalHittableObjects);
+            declaredTotal = ((BmsBeatmap)beatmap).BmsInfo.Total;
+            totalChartObjects = countChartObjects(beatmap);
+            TotalHittableObjects = countHittableObjects(beatmap);
             updateGaugeSpecification();
 
             base.ApplyBeatmap(beatmap);
@@ -204,13 +207,18 @@ namespace osu.Game.Rulesets.Bms.Scoring
             var scoreData = score.GetRulesetData<BmsScoreInfoData>();
             var gaugeRulesFamily = scoreData?.GaugeRulesFamily ?? GetGaugeRulesFamily(score.Mods);
 
-            if (scoreData?.UsesGaugeAutoShift == true)
-                return new BmsGasGaugeProcessor(drainStartTime, scoreData.StartingGaugeType, scoreData.FloorGaugeType, gaugeRulesFamily);
+            var processor = scoreData == null ? CreateForMods(drainStartTime, score.Mods)
+                : scoreData.UsesGaugeAutoShift
+                    ? new BmsGasGaugeProcessor(drainStartTime, scoreData.StartingGaugeType, scoreData.FloorGaugeType, gaugeRulesFamily)
+                    : new BmsGaugeProcessor(drainStartTime, scoreData.GaugeType, gaugeRulesFamily);
+            processor.ApplyScoreTotalRules(score);
+            return processor;
+        }
 
-            if (scoreData == null)
-                return CreateForMods(drainStartTime, score.Mods);
-
-            return new BmsGaugeProcessor(drainStartTime, scoreData.GaugeType, gaugeRulesFamily);
+        internal void ApplyScoreTotalRules(ScoreInfo score)
+        {
+            useLegacyTotalRules = (score.GetRulesetData<BmsScoreInfoData>()?.Version ?? 0) < BmsScoreInfoData.TOTAL_RULES_VERSION;
+            updateGaugeSpecification();
         }
 
         public static BmsGaugeType GetLowerGaugeType(BmsGaugeType gaugeType)
@@ -262,10 +270,10 @@ namespace osu.Game.Rulesets.Bms.Scoring
                 switch (result.Type)
                 {
                     case HitResult.IgnoreHit:
-                        return applyGaugeDelta(currentGaugeSpecification.Perfect * BmsHoldNoteBodyTick.TICK_QUANTUM / 1000.0);
+                        return applyGaugeDelta(currentGaugeSpecification.Perfect * (BmsHoldNoteBodyTick.TICK_QUANTUM / 1000.0));
 
                     case HitResult.IgnoreMiss:
-                        return applyGaugeDelta(currentGaugeSpecification.Bad * BmsHoldNoteBodyTick.TICK_QUANTUM / 1000.0);
+                        return applyGaugeDelta(currentGaugeSpecification.Bad * (BmsHoldNoteBodyTick.TICK_QUANTUM / 1000.0));
                 }
             }
 
@@ -356,6 +364,15 @@ namespace osu.Game.Rulesets.Bms.Scoring
             if (!currentKeymode.HasValue)
                 return;
 
+            // A declaration always wins, including intentionally low TOTAL charts. Older scores used 200
+            // for every missing declaration. Resolve again after a family mod is applied to the processor.
+            ChartTotal = declaredTotal ?? (useLegacyTotalRules ? DEFAULT_TOTAL : GaugeRulesFamily switch
+            {
+                BmsGaugeRulesFamily.Beatoraja => Math.Max(260, 760.5 * totalChartObjects / (totalChartObjects + 650.0)),
+                BmsGaugeRulesFamily.LR2 => 160 + (totalChartObjects + Math.Clamp(totalChartObjects - 400, 0, 200)) * 0.16,
+                _ => DEFAULT_TOTAL,
+            });
+            BaseRate = CalculateBaseRate(ChartTotal, TotalHittableObjects);
             currentGaugeSpecification = createGaugeSpecification(GaugeRulesFamily, currentKeymode.Value, GaugeType, ChartTotal, TotalHittableObjects);
         }
 
@@ -366,7 +383,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
             Health.Value = Math.Clamp(Health.Value, Health.MinValue, Health.MaxValue);
         }
 
-        private static GaugeSpecification createGaugeSpecification(BmsGaugeRulesFamily gaugeRulesFamily, BmsKeymode keymode, BmsGaugeType gaugeType, double total, int totalHittableObjects)
+        private GaugeSpecification createGaugeSpecification(BmsGaugeRulesFamily gaugeRulesFamily, BmsKeymode keymode, BmsGaugeType gaugeType, double total, int totalHittableObjects)
             => gaugeRulesFamily switch
             {
                 BmsGaugeRulesFamily.Beatoraja => createBeatorajaGaugeSpecification(keymode, gaugeType, total, totalHittableObjects),
@@ -375,7 +392,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
                 _ => createLegacyGaugeSpecification(gaugeType, total, totalHittableObjects),
             };
 
-        private static GaugeSpecification createLegacyGaugeSpecification(BmsGaugeType gaugeType, double total, int totalHittableObjects)
+        private GaugeSpecification createLegacyGaugeSpecification(BmsGaugeType gaugeType, double total, int totalHittableObjects)
         {
             double basePercent = totalHittableObjects <= 0 ? 0 : total / totalHittableObjects;
 
@@ -391,7 +408,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
             };
         }
 
-        private static GaugeSpecification createBeatorajaGaugeSpecification(BmsKeymode keymode, BmsGaugeType gaugeType, double total, int totalHittableObjects)
+        private GaugeSpecification createBeatorajaGaugeSpecification(BmsKeymode keymode, BmsGaugeType gaugeType, double total, int totalHittableObjects)
         {
             switch (resolveGaugeProfile(keymode))
             {
@@ -433,7 +450,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
             }
         }
 
-        private static GaugeSpecification createLr2GaugeSpecification(BmsGaugeType gaugeType, double total, int totalHittableObjects)
+        private GaugeSpecification createLr2GaugeSpecification(BmsGaugeType gaugeType, double total, int totalHittableObjects)
             => gaugeType switch
             {
                 BmsGaugeType.AssistEasy => createGaugeSpecification(new GaugeSettings(2, 20, 60), GaugeValueModifier.Total, 1.2, 1.2, 0.6, -3.2, -4.8, -1.6, total, totalHittableObjects),
@@ -445,7 +462,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
                 _ => createLegacyGaugeSpecification(gaugeType, total, totalHittableObjects),
             };
 
-        private static GaugeSpecification createIidxGaugeSpecification(BmsGaugeType gaugeType, int totalHittableObjects)
+        private GaugeSpecification createIidxGaugeSpecification(BmsGaugeType gaugeType, int totalHittableObjects)
         {
             double aValue = calculateIidxAValue(totalHittableObjects);
 
@@ -462,7 +479,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
             };
         }
 
-        private static GaugeSpecification createGaugeSpecification(GaugeSettings settings, GaugeValueModifier modifier, double perfect, double great, double good, double bad, double poor, double emptyPoor, double total = DEFAULT_TOTAL, int totalHittableObjects = 0, GaugeGutsStep[]? guts = null)
+        private GaugeSpecification createGaugeSpecification(GaugeSettings settings, GaugeValueModifier modifier, double perfect, double great, double good, double bad, double poor, double emptyPoor, double total = DEFAULT_TOTAL, int totalHittableObjects = 0, GaugeGutsStep[]? guts = null)
             => new GaugeSpecification(
                 settings.Minimum,
                 settings.Maximum,
@@ -553,7 +570,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
                 _ => GaugeProfile.SevenKeys,
             };
 
-        private static double applyModifier(GaugeValueModifier modifier, double value, double total, int totalHittableObjects)
+        private double applyModifier(GaugeValueModifier modifier, double value, double total, int totalHittableObjects)
         {
             if (modifier == GaugeValueModifier.None)
                 return value;
@@ -563,7 +580,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
 
             return modifier switch
             {
-                GaugeValueModifier.Total when value > 0 => value * total / totalHittableObjects,
+                GaugeValueModifier.Total when value > 0 => total / totalHittableObjects * value,
                 GaugeValueModifier.LimitIncrement when value > 0 => value * calculateLimitIncrementScale(total, totalHittableObjects),
                 GaugeValueModifier.ModifyDamage when value < 0 => value * calculateModifyDamageMultiplier(total, totalHittableObjects),
                 _ => value,
@@ -576,7 +593,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
             return pg / 0.15;
         }
 
-        private static double calculateModifyDamageMultiplier(double total, int totalHittableObjects)
+        private double calculateModifyDamageMultiplier(double total, int totalHittableObjects)
         {
             double fix2 = 1.0;
             double[] fix1Total = { 240.0, 230.0, 210.0, 200.0, 180.0, 160.0, 150.0, 130.0, 120.0, 0 };
@@ -592,7 +609,10 @@ namespace osu.Game.Rulesets.Bms.Scoring
 
             while (note > totalHittableObjects || note > 1)
             {
-                fix2 += mod * (note - Math.Max(totalHittableObjects, note / 2.0));
+                // The reference algorithm halves an integer note budget (including 125 -> 62).
+                // Preserve the former fractional halves only when reconstructing pre-v7 runs.
+                double half = useLegacyTotalRules ? note / 2.0 : note / 2;
+                fix2 += mod * (note - Math.Max(totalHittableObjects, half));
                 note /= 2;
                 mod *= 2.0;
             }
@@ -621,6 +641,17 @@ namespace osu.Game.Rulesets.Bms.Scoring
                           BmsHitObject bmsHitObject => !bmsHitObject.AutoPlay,
                           _ => false,
                       });
+
+        private static int countChartObjects(IBeatmap beatmap)
+            // Assist mods retain the parent notes and mark them AutoPlay. Their tail judgements are disabled,
+            // so use the parent's runtime LN mode rather than the assisted tail's CountsForScore flag.
+            => beatmap.HitObjects.Sum(hitObject => hitObject switch
+            {
+                BmsBgmEvent => 0,
+                BmsHoldNote hold => hold.LongNoteMode.RequiresTailJudgement() ? 2 : 1,
+                BmsHitObject => 1,
+                _ => 0,
+            });
 
         private readonly struct GaugeSettings
         {

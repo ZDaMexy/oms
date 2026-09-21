@@ -26,7 +26,7 @@ namespace osu.Game.Rulesets.Bms.Mods
             if (beatmap is not BmsBeatmap bmsBeatmap)
                 throw new ArgumentException("BMS autoplay requires a BMS beatmap.", nameof(beatmap));
 
-            return new ModReplayData(new BmsAutoGenerator(bmsBeatmap).Generate(), new ModCreatedUser { Username = @"autoplay" });
+            return new ModReplayData(new BmsGeneratedAutoplayReplay(new BmsAutoGenerator(bmsBeatmap).Generate()), new ModCreatedUser { Username = @"autoplay" });
         }
     }
 }

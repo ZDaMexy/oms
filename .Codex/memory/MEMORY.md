@@ -52,6 +52,7 @@
 - [lane 重排](reference_bms_lane_rearrangement.md) — 重复应用的三次置换故障及 P1-K/P1-J 回链。
 - [stop-motion 滚动旁路](reference_bms_stopmotion_bypass.md)
 - [判定 parity](reference_bms_judgement_parity.md)
+- [TOTAL 与成绩版本](reference_bms_total_rules.md) — 作者值/缺省值、辅助前后两个物量、新生成 autoplay 与旧回放身份。
 - [mania autoplay HoldNote 地雷](reference_mania_autoplay_holdnote.md) — nested judgement 过滤与 P1-K 修复历史。
 
 ## 皮肤与视觉参考
