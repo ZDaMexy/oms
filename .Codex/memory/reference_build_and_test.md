@@ -15,6 +15,8 @@ metadata:
 - `osu.Desktop.slnf` 包含 BMS/mania tests，core `osu.Game.Tests` 须单独编译；只有相同项目/配置的当前代码成功编译后才能用 `--no-build`。
 - `osu.Game` 是 library，却因引用 NUnit test scene 被 C# Dev Kit 误认成 test project，导致缺 runtimeconfig、AutoMapper/测试平台程序集。使用真实 core/BMS/mania 测试工程，不为这个红节点复制依赖或改 library 身份。
 - 第三方程序集可通过 deps/runtimeconfig 从 NuGet cache 加载，输出目录没有单独 DLL 不足以证明依赖缺失。
+- 缺Test SDK依赖时，`dotnet test --no-restore`可能未发现/执行测试却退出0；须确认实际执行摘要及TRX，修复对应工程依赖后重新编译。具名案例见[TOTAL报告](../../doc_md/other/BMS_TOTAL_RULES_AUDIT_20260922.md#验证状态)。
+- 临时目录日志会被清理；复核时分别标明可回读TRX、历史执行记录和新运行证据。比较既有失败需逐项核对名称、错误与堆栈，不能仅靠失败总数。
 
 ## formatter 与并发误判
 

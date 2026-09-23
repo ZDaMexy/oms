@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-09-22（代码基线 701893f；产品验证日期不变）
+> 最后核对：2026-09-23（跨线状态与证据同步；专项产品/人工验证日期不变）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -23,6 +23,8 @@
 C2～C6共享同一 package/layout/material/scene publication、lease/detach 与脚本隔离合同；无游玩宿主的菜单也检查整包。授权撤销不扩大 reload 准入，具体合同只在[技术约束](TECHNICAL_CONSTRAINTS.md)维护。
 
 ## 最近一次验证
+
+2026-09-22 TOTAL 完整回归暴露29项旧皮肤测试预期失败，均已在修改前45d8613复现：28项寻找已移除的工作区，1项仍要求编辑器禁用。2026-09-23复核留存TRX及现行设置源码，失败身份与基线一致；具名清单见[TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md#完整回归失败的基线复现)。这是尚待整理的自动测试欠账，不恢复旧入口，也不代表下述功能专项或人工门被重新签收。
 
 2026-09-14 完成固定目录与原编辑功能恢复的自动验证：
 

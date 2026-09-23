@@ -1,11 +1,11 @@
 # P1-K 当前状态：BMS 解析与转换治理
 
-> 最后更新：2026-09-22（TOTAL 规则与成绩兼容；验证边界见下文）
+> 最后核对：2026-09-23（源码与留存证据同步；产品验证日期不变）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。格式参考见 [BMS_FORMAT_REFERENCE.md](../../other/BMS_FORMAT_REFERENCE.md)。
 
 ## 当前阶段
 
-2026-09-22 TOTAL 修正：作者值改为 nullable，未声明不再冒充200；非法值诊断并忽略，最后有效分支内合法值生效，clone/converter/cache保留状态。loader→gauge→results focused 250通过，Release成功；BMS full 2300通过、29失败、16跳过，失败均已在修改前版本逐项复现为旧皮肤测试断言。规则来源、具名失败与验证限制见[TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)，玩法合同归P1-C。
+2026-09-22 TOTAL 修正：作者值改为 nullable，未声明不再冒充200；非法值诊断并忽略，最后有效分支内合法值生效，clone/converter/cache保留状态。规则来源、具名失败与验证限制见[TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)，玩法合同归P1-C。
 
 K1–K12 主体已阶段性收口：解析 authority、主要控制事件、projection reuse、BMS→mania 转换与 converted-star 修正均已落地。P1-A C3 所需的 P1-K Skin 前置（keymode authority、全 lane armed timeline 与 mod 后键音/LaneId 一致性）也已闭合。该结论只关闭 C3 的解析/转换前置，不代表整条 P1-K 完成；公开表面 wording、真实特殊谱与更宽人工证明仍按本线继续。
 
@@ -34,8 +34,9 @@ K1–K12 主体已阶段性收口：解析 authority、主要控制事件、proj
 
 ## 最近一次验证
 
-- 2026-08-30 C3 P1-K 前置最终证据：decoder/converter **176/176**、projection **24/24**、BMS sound **14/14**、converted Mania **2/2**；格式化后关键 BMS 路径 **235/235**、BMS Skin **802/802**、BMS full **1763/1763**，Release **0 error**。
-- 上述数字只证明 P1-K parser/converter/keysound 前置及其回归；C3 的唯一 layout、全 production consumer 与 revision protocol 总证据由 [P1-A STATUS](../P1-A/DEVELOPMENT_STATUS.md) 统一承载。逐项测试与边界见 [CHANGELOG.md](CHANGELOG.md)。
+2026-09-22 TOTAL 的decoder/converter/cache、演奏/回放与results专项，以及BMS full和Release结果统一见[P1-C最新验证](../P1-C/DEVELOPMENT_STATUS.md#最近一次验证)与[TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。完整回归包含已逐项复现的旧皮肤失败，不能沿用旧C3全绿数字作为当前结论。2026-09-23仅回读留存证据，未新增产品测试。
+
+2026-08-30 C3解析/keymode/lane/shared-store证明仍作为历史专项证据保留，详细计数和边界见[CHANGELOG](CHANGELOG.md)；它不代签当前全部代码或真实特殊谱验收。
 
 ## 当前风险
 

@@ -76,6 +76,8 @@ Beatoraja 的调用顺序提供了区分两个物量的证据：`PlayerResource`
 
 ## 验证状态
 
+证据保存复核（2026-09-23）：以下为9月22日的原始执行记录；三个TRX仍可回读，专项250通过、full的2300通过/29失败/16跳过及旧基线29失败均相符，29项名称、错误消息与路径根标准化后的堆栈一致。下列`%TEMP%/oms-total*`临时日志及筛选文本现已不存在；Release保留为当日执行记录，本次未重跑、未重新确认其构建输出。后续复核优先使用留存TRX与本报告具名清单，不把临时路径当作永久证据。
+
 Debug focused 已完成：`dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj --no-restore --filter "FullyQualifiedName~BmsTotalRulesTest|FullyQualifiedName~TestSceneBmsTotalReplay|FullyQualifiedName~BmsGaugeProcessorTest|FullyQualifiedName~BmsGasGaugeProcessorTest|FullyQualifiedName~BmsClearLampProcessorTest|FullyQualifiedName~BmsBeatmapDecoderTest|FullyQualifiedName~BmsBeatmapConverterTest|FullyQualifiedName~BmsPlayableBeatmapCacheTest" --logger "trx;LogFileName=total-focused-final.trx"`：250通过，0失败/跳过。TRX在本地BMS测试工程TestResults，日志`%TEMP%/oms-total-focused-final.log`。其中真实headless Drawable覆盖旧无数据/v6/v7回放、Mod应用先后、新自动播放和新手动录制；不是只测工厂函数。
 
 首次`--no-restore`因本机缺失Test SDK依赖空跑退出0，不作为验证；随后构建报具名MSB3030缺测试运行器文件，`dotnet restore ... --force --no-cache`恢复后重新编译测试。有效构建保留既有CS8600/CA2007两个警告。

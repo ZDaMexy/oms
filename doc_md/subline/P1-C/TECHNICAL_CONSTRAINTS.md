@@ -34,7 +34,7 @@
 
 ## Results 与验证边界
 
-TOTAL 合同（2026-09-22）：合法作者值优先；缺省 Beatoraja 使用 `max(260,760.5*N/(N+650))`，LR2 按 LR2oraja 兼容依据使用 `160+(N+clamp(N-400,0,200))*0.16`，Legacy 维持200，IIDX不消费TOTAL。缺省物量N包含辅助音符且遵循运行时LN模式；回血/Hard修正物量排除辅助，HCN body不进分母。v7新游玩明确初始化身份；v6/无版本历史使用旧缺省200与旧低物量修正舍入，已存终值/灯不得覆盖。自动播放须由新生成回放身份区分，不能仅凭无成绩数据认定新局。来源与边界见[取证报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。
+TOTAL 合同（2026-09-22）：合法作者值优先；缺省 Beatoraja 使用 `max(260,760.5*N/(N+650))`，LR2 按 LR2oraja 兼容依据使用 `160+(N+clamp(N-400,0,200))*0.16`，Legacy 维持200，IIDX不消费TOTAL。缺省物量N包含辅助音符且遵循运行时LN模式；回血/Hard修正物量排除辅助，HCN body不进分母。v7新游玩明确初始化身份；v7之前（含v6）及无版本历史使用旧缺省200与旧低物量修正舍入，已存终值/灯不得覆盖。自动播放须由新生成回放身份区分，不能仅凭无成绩数据认定新局。来源与边界见[取证报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。
 
 1. results 重建必须消费 Ruleset contract 传入的 already-modded playable beatmap，不得重复应用 beatmap mods；gauge history 与 clear lamp 必须由 owning processor 计算，panel/UI 不得重建 timeline 或灯级。
 2. `PERFECT`/`FULL COMBO` 持久化必须先过 clear condition；HCN body tick 可独立影响 gauge，禁止只看聚合 judgement counts 推导灯级。

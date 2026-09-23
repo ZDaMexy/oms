@@ -334,6 +334,8 @@ MAX EX-SCORE = hittable_note_count × 2
 
 Gauge type and gauge rule family are separate. `BmsGaugeProcessor` supports Assist Easy, Easy, Normal, Hard, ExHard and Hazard, with Legacy / Beatoraja / LR2 / IIDX family implementations. Recovery, damage, start values, clear thresholds and `#TOTAL` treatment are family-specific; the Legacy formula is not a universal rule and IIDX does not derive its rates from `#TOTAL`.
 
+Keep an absent `#TOTAL` distinct from an explicit author value. Family defaults use the pre-assist chart count, while recovery uses the post-assist manual pool. New plays use score-data v7; pre-v7 or unversioned historical scores retain their prior rules and stored results. Exact formulas, invalid-input boundaries and source limitations belong to [P1-C](../subline/P1-C/TECHNICAL_CONSTRAINTS.md#results-与验证边界) / [P1-K](../subline/P1-K/TECHNICAL_CONSTRAINTS.md).
+
 Score/gauge pools must agree with LN/CN/HCN and A-SCR/A-NOT: BGM and assisted notes stay out of the manual pool; HCN body ticks move gauge without adding EX-SCORE or combo. Hazard's GOOD behaviour and survival/groove failure behaviour follow the active tested family. See [P1-C CONSTRAINTS](../subline/P1-C/TECHNICAL_CONSTRAINTS.md) and the gauge-family tests for numeric rules.
 
 Current local score bucketing distinguishes implemented gauge/judge/long-note semantics. Private-server submission and online leaderboard filters remain Phase 3 work; no endpoint or new persisted filter setting is implied here.

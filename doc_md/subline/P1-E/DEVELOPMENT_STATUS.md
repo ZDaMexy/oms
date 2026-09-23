@@ -1,11 +1,12 @@
 # P1-E 开发进度：gameplay 与长条真实谱面验校
 
-> 最后更新：2026-09-09（本地代码/测试源码审查；产品验证未刷新）
+> 最后核对：2026-09-23（跨线状态与证据同步；专项产品/人工验证日期不变）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，当前执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 
 ## 当前阶段
 
 - 当前仓库已具备 LN / CN / HCN 运行时路径：`BmsGaugeProcessor` 的 `TotalHittableObjects` / `BaseRate` 已尊重 long-note 结构，`CN` / `HCN` 的 scored tail 会进入 gauge 分母，`HCN` body tick 仍保持 gauge-only。
+- TOTAL 缺省预算使用辅助前、按运行时长条模式计数的物量；实际回血分母使用辅助后手动判定点。2026-09-23对齐[P1-C合同](../P1-C/TECHNICAL_CONSTRAINTS.md#results-与验证边界)，HCN持续速率未调整，真实谱人工门未关闭。
 - 长条语义已冻结：LN 中途松开即终结；CN 有计分尾判但中途松开后不可接回；HCN 有持续 gauge body 与计分尾判，并且是唯一允许重按恢复的模式。实现地雷见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，更正过程见 [CHANGELOG](CHANGELOG.md) 2026-06-21。
 - long-note release-window 已切到 judge-mode-aware 模型，但真实谱面长条边界、gameplay HUD 最小必要补强与人工验校仍未收口。
 

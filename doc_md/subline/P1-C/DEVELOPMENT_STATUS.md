@@ -1,11 +1,11 @@
 # P1-C 当前状态：判定语义与反馈闭环
 
-> 最后更新：2026-09-22（TOTAL 规则与成绩兼容；验证边界见下文）
+> 最后核对：2026-09-23（源码与留存证据同步；产品验证日期不变）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，HUD/skin 宿主边界归 [P1-A](../P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 当前阶段
 
-2026-09-22 TOTAL 修正：已接入合法作者值优先、Beatoraja/LR2 各自缺省、辅助前后物量分离与 v7 新局身份；旧 v6/无版本结果使用旧缺省，已存终值/灯保留。focused 250通过，Release成功；BMS full 2300通过、29失败、16跳过，29项均在修改前45d8613逐项复现为旧皮肤入口/编辑器断言。精确来源、失败身份与验证边界统一见[TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。现有 Gauge Mod/默认规则、GAS 与 HCN 持续速率保持。
+2026-09-22 TOTAL 修正：已接入合法作者值优先、Beatoraja/LR2 各自缺省、辅助前后物量分离与 v7 新局身份；v7之前（含v6）及无版本历史结果使用旧缺省，已存终值/灯保留。精确来源、失败身份与验证边界统一见[TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。现有 Gauge Mod/默认规则、GAS 与 HCN 持续速率保持。
 
 IIDX/LR2/beatoraja/OD 判定家族与主要边界 parity 已落地并由契约测试守门。常驻速度反馈卡及其 FAST/SLOW、pacemaker、summary、常驻 GN 已按产品决定整体删除；当前工作是保持判定合同稳定，并只补仍有真实用户价值的展示/人工证明。
 
@@ -31,8 +31,9 @@ IIDX/LR2/beatoraja/OD 判定家族与主要边界 parity 已落地并由契约�
 
 ## 最近一次验证
 
-- 全局最新产品验证统一见 [mainline STATUS 的“最近一次验证”](../../mainline/DEVELOPMENT_STATUS.md#最近一次验证)；2026-07-16 仅治理文档，未运行产品测试或 Release。
-- 本线最后一次 parity/BMS 验证、历史细分数字和窗口溯源记录只保留在 [CHANGELOG.md](CHANGELOG.md) 与 [判定记忆](../../../.Codex/memory/reference_bms_judgement_parity.md)，不冒充当前全局 gate。
+2026-09-22 TOTAL 专项 Debug 250/250；BMS full 2300通过、29失败、16跳过；29项失败在修改前45d8613逐项复现，属于旧皮肤工作区/编辑器预期，后续维护归P1-A。Release成功（0错误、2个既有测试警告）。来源、命令、失败身份及未做原版播放器实机对照的边界见[TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。
+
+2026-09-23只回读三个留存TRX核对上述测试数字和失败身份，未重跑产品测试或Release；临时构建日志已不可回读，Release结论保留为9月22日执行记录。此前判定窗口溯源与专项历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 当前风险
 
