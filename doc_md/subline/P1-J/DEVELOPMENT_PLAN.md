@@ -1,6 +1,6 @@
 # P1-J 当前计划：BMS gameplay 性能与音频时序
 
-> 最后更新：2026-09-29（自动键音软件实现完成，保留真实听感门）
+> 最后更新：2026-09-29（暂停保位与手动 LN 自动证据闭合，活动计划保留人工门）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定音频合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，已完成修复与取证按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -14,8 +14,8 @@ P1-J 只拥有 BMS gameplay runtime 的 keysound timing、shared audio pool、la
 ## 当前基线
 
 - 原生 BMS 与转谱-mania 的普通密度主要键音、帧抖动和开局冻结故障已收口。
-- BGM/scratch/tap note 已走 shared `BmsKeysoundStore`；默认手动模式的转谱 LN 仍是开放缺口。
-- lane/order 热路径、通道自动增长、per-WAV cut、prewarm、pause/seek stop 与 diagnostics seam 已有稳定合同。
+- BGM/scratch/tap note 与默认手动转谱 LN head 均已走 shared `BmsKeysoundStore`，Player 路由和回归证据已闭合。
+- lane/order 热路径、通道自动增长、per-WAV cut、prewarm 与 diagnostics seam 已有稳定合同；pause 保位冻结，seek/retry 清除旧声部。
 - BMS gameplay beatmap track 保持静音但仍是时钟源；选歌试听只接受 `#PREVIEW`。
 - 完整 lane timeline、末端 lane 与 mod 后 shared-store production proof 已随 C3/P1-K 闭合；后续只保留回归和真实谱 smoke，证据见 [P1-K CHANGELOG](../P1-K/CHANGELOG.md#2026-08-30)。
 
@@ -23,23 +23,19 @@ P1-J 只拥有 BMS gameplay runtime 的 keysound timing、shared audio pool、la
 
 ## 当前执行顺序
 
+暂停保位与手动 LN 的实现规划已归档 [CHANGELOG](CHANGELOG.md#暂停保位与手动转谱长条声音闭环)，自动证据、完整失败对照与 Release 结果集中见 [验证记录](../../other/EXPERIENCE_CLOSURE_20260929.md)。本线剩余体验门如下。
+
 ### 0. 用户指定：自动键音（2026-09-29）
 
 软件已交付；设置和播放边界以 [自动键音合同](TECHNICAL_CONSTRAINTS.md#自动键音合同2026-09-29)为准，此项仅保留真实听感验收。
 
 软件步骤与验证归档见 [CHANGELOG](CHANGELOG.md#bms-与-bmsmania-自动键音)。剩余人工门：在原生 BMS 与 BMS→mania 分别试听 fully-keysounded、长条/皿、同槽连续音、密集和弦、暂停长 BGM，并对照开关听感；记录设备与谱面，软件证明不得代签。
 
-### 1. 手动模式转谱 LN keysound 进入 shared store
+### 1. 手动转谱长条与长伴奏实机验收
 
-依赖：现有 tap-note store 路由、player-level playback log/harness 与 mania hold pooling 行为保持可验证。
+用真实谱确认手动长条头不重复、不静音，松开尾部不额外发声；同槽长条/短键/BGM 重触发维持原截音效果。长伴奏中途暂停应静音，继续后从原位置接着唱；反复暂停及变速也须试听。seek/retry 应清除旧音乐，不承诺任意 seek 补回过去已开始的长样本。
 
-1. 先用现有 harness 记录当前 LN head 的播放次数、cut group、pause/seek 与 fallback，不直接在生产猜路由。
-2. LN head 必须经 store 获得 per-WAV cut；tail 继续静音。
-3. 嵌套 head 必须沿 mania 可池化类型接入；禁止恢复会让 `DrawableHoldNote.Head` 为空的非池化自定义 hold drawable。
-4. 不能为绕开 pooling 新增长期 per-note/per-lane sample player。
-5. 若候选实现不能通过验收，保留当前一次性 LN head 实现，不引入运行时静默 fallback 掩盖失败，也不影响已稳定的 BGM/scratch/tap 路径。
-
-验收：真实转谱 LN 不重复、不静音，pause/seek 不逃逸，tap/BGM/scratch 与原生 mania hold pooling 不回归。
+记录版本、谱面、设备、模式、自动键音开关与操作步骤，结果回交 P1-G；不以软件路由或原位暂停测试代签真实听感。
 
 ### 2. 50k 极端 dense 谱只按证据治理
 
@@ -57,7 +53,7 @@ P1-J 只拥有 BMS gameplay runtime 的 keysound timing、shared audio pool、la
 1. dense fully-keysounded。
 2. layered/long BGM。
 3. rapid empty-strike 与 lane armed keysound，覆盖 5K/7K 末键、9K 全 lane、14K K14/S2 及 mod 后目标 lane；复用已完成的 production proof，补真实谱听感。
-4. pause/seek/retry；明确当前 one-shot 只保证边界停止，不保证长样本保位续播。
+4. pause/resume 的长样本保位与 seek/retry 清旧声分别试听，不混用两种承诺。
 5. 原生 BMS 与转谱-mania 的代表谱对照。
 
 P1-J 提供谱面、步骤、期望和自动证据；P1-G 统一记录设备与人工结果。发现缺陷后回 P1-J 修复，不在验收表中长期堆积。

@@ -52,6 +52,14 @@ namespace osu.Game.Database
         /// </summary>
         public readonly string Filename;
 
+        /// <summary>
+        /// A completed batch of persisted ruleset metadata changes which needs one song-select refresh.
+        /// </summary>
+        public event Action<IReadOnlyCollection<Guid>>? BeatmapRulesetDataChanged;
+
+        public void NotifyBeatmapRulesetDataChanged(IReadOnlyCollection<Guid> beatmapIds)
+            => BeatmapRulesetDataChanged?.Invoke(beatmapIds);
+
         private readonly SynchronizationContext? updateThreadSyncContext;
 
         /// <summary>
@@ -107,8 +115,9 @@ namespace osu.Game.Database
         /// 55   2026-05-31    Add BeatmapSetInfo.DifficultyTableRevision to force carousel re-detach after BMS difficulty-table metadata rewrites.
         /// 56   2026-06-29    Add SkinInfo.FilesystemStoragePath and SkinInfo.IsExternalFilesystemStorage to support visible folder-backed skins (chartskin/), mirroring BeatmapSetInfo.
         /// 57   2026-07-17    Add SkinInfo.FilesystemStorageAuthorityOwner as nullable scanner ownership metadata. Existing records deliberately remain unowned.
+        /// 58   2026-09-29    Retain unavailable filesystem beatmap records without deleting their files or history.
         /// </summary>
-        private const int schema_version = 57;
+        private const int schema_version = 58;
 
         /// <summary>
         /// Lock object which is held during <see cref="BlockAllOperations"/> sections, blocking realm retrieval during blocking periods.

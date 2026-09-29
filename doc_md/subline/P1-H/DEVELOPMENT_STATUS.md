@@ -1,49 +1,38 @@
 # P1-H 当前状态：存储拓扑
 
-> 最后更新：2026-09-12（源码与文档/记忆复核，补明难度表界面刷新边界；未改存储实现）
+> 最后更新：2026-09-29（谱库索引与历史保全、同内容多目录、难度表批量刷新；验收范围见下）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。
 
 ## 当前阶段
 
-文件系统谱库与数据根主链存在；已有基本删除与hash复用，但**缺失源失效、解除根注册后的记录处理、跨root/path identity与重扫一致性尚未闭合**。P1-H 可为皮肤 G1 提供路径经验，不提供可直接复制的删除 authority。
+谱库索引已支持可恢复的失效处理：重建隐去缺失歌曲，解除外部根隐去不再被其他根覆盖的歌曲，同内容多目录不再互相标记物理删除。历史成绩和收藏不作为扫描垃圾清理。新增库安全与异常边界回归已通过；当前页难度表批量刷新已有列表验证。隔离数据根实机和真实大库体验仍需验收。
 
 ## 已落地能力
 
-- BMS `chartbms/`、mania `chartmania/` 文件系统直读。
-- `portable.ini → data/` 与 `storage.ini` 自定义数据根；安装位置迁移只移动运行时数据，不移动程序。
-- external/managed library 分离，Settings 中各自提供重建/增量扫描。
-- `ExternalLibraryConfig/Scanner` 管理注册外部根；`ManagedLibraryScanner` 管理当前数据根下内部谱库。
-- managed 子目录 trailing-separator 归一化已修复；首次启动导入页复用同一外部谱库入口。
-- 难度表 manager-owned metadata sync、真实 refresh 结果、wrapper/source identity fallback、分批写回和 reuse recovery 主链已收口。
-- 难度表变更后的持久化同步已实现，但当前选歌界面不即时更新深层 metadata；既有实机记录确认退出再进入选歌或重启后生效。不得把同步完成写成当前页面即时刷新，或恢复曾造成大库卡顿的逐 set revision bump。
-- converted star 与难度表共享 `RulesetData` 时通过 `[JsonExtensionData]` 保留彼此未知字段，避免互相覆盖。
-- raw wrapper 复用 timing/hitobject/break 数据，Song Select BPM 不再回退 60。
-
-## 已实现的删除/重扫边界
-
-- [ExternalLibraryScanner](../../../osu.Game/Beatmaps/ExternalLibraryScanner.cs) 的重建重走候选目录，增量经 importer 的active path谓词跳过已索引目录；缺失root只报告错误/跳过，没有现存record失效回收阶段。[ManagedLibraryScanner](../../../osu.Game/Beatmaps/ManagedLibraryScanner.cs) 复用同一遍历器。
-- [ExternalLibrarySettings](../../../osu.Game/Overlays/Settings/Sections/Maintenance/ExternalLibrarySettings.cs) 的移除root只修改 `library-roots.json`，不会同步解除已导入Realm记录。external源物理只读保护已存在，不能把“移除root”写成完整卸载该谱库。
-- [BeatmapManager](../../../osu.Game/Beatmaps/BeatmapManager.cs) 的内部删除入口排除external/protected记录，删除managed记录后清理目录；[RealmAccess](../../../osu.Game/Database/RealmAccess.cs) 启动清理DeletePending记录时也排除external目录。它们不等于缺失/重命名/rebuild的完整恢复协议。
-- BMS/mania folder importer已有大小写不敏感path比较与同hash复用；reuse先取同hash记录再校验path/authority，不可复用时新注册会将已有同hash记录置DeletePending。当前不是跨root同内容多份记录的统一physical identity策略。
-- `ExternalLibraryConfig.AddRoot`目前只有FullPath和大小写不敏感相等去重；尾分隔符、父子root重叠和reparse物理别名尚无统一准入合同，scanner遍历也不能当作held no-follow capture。
+- BMS `chartbms/`、mania `chartmania/` 直读；`portable.ini → data/` 与 `storage.ini` 自定义数据根保持。external/managed 各自重建和增量，首次启动复用同一外部谱库入口。
+- schema 58 `FilesystemUnavailable` 只控制可用性，不请求物删。缺失、解除注册、同目录内容变化保留旧 set/beatmap、metadata、成绩和收藏；同路径原内容恢复复用原身份。
+- 两种模式按来源权限、目录和内容查找可复用记录；同内容不同目录独立保留。同目录换内容隐去旧记录，不再因同 hash 跨路径注册写 `DeletePending`。同内容谱文件改名更新 `LocalFilePath`。
+- 完整无错误重建按本根处理结果收敛缺失索引；最后一张谱面移除后目录不再作为候选，旧记录隐去。增量只补未索引目录，不自动更新已索引目录内容。
+- 外部根解除与扫描串行协调；仍被其他同类型根覆盖的遗留重叠记录保持可见，最后一个覆盖根解除后才隐去。入口不删除源文件。
+- 新根统一完整路径、尾分隔符和大小写语义，拒绝重复及父子重叠。新注册和扫描已有根都拒绝祖先目录链接，遍历遇子目录链接计错并跳过。
+- 难度表 manager-owned sync、结构化 refresh、source identity、分批写回及 reuse recovery 保持。本轮增加整批持久化完成后的通知，当前页读最新持久化 JSON 后一次重筛，不恢复逐 set revision bump；可见谱卡刷新和选中项保留由列表门验证，真实时延另验。
+- 难度表与 converted star 共享 `RulesetData` 继续保留未知字段；raw wrapper 复用 timing/hitobject/break，BPM 不回退 60。
 
 ## 当前边界
 
-- `重建` 重走候选目录，`增量` 只补不存在 active filesystem record 的目录。
-- external 用户目录只读；managed 目录才允许由 OMS 管理。
-- 谱面 authority 与皮肤 authority 不可混用。G1 必须单独定义扫描、删除、重命名和 external root 合同。
+- 根离线、遍历/导入报错、取消时不做缺失回收；此前完成的单目录导入不整体回滚。离线整根保留索引并报错，未读到源不构成物删授权。
+- 候选目录没有任何有效谱面时，BMS/mania 注册明确报错，不计成功导入；mania 分类读取被占用或无权限也计扫描错误，阻止本根缺失收敛。同目录混合 BMS/mania 的版本替换只作用于本模式，不互相隐去。
+- unavailable 保留历史，不等于 `DeletePending`。旧版本已留下的待删记录不能猜测为扫描失效而自动恢复；本轮未迁移、扫描或删除用户数据根。
+- managed 的用户明确删除继续独立存在；扫描和解除注册没有物删权限。external 始终只读。
+- 目录改名建立新路径来源，旧路径记录保留为 unavailable；原路径恢复可复用原身份，不宣称自动跨路径迁移成绩身份。
+- 字符串路径规范化和链接拒绝不构成 held physical identity，不能复制为皮肤 G1 的删除或原子恢复合同。
 
 ## 最近一次验证
 
-2026-09-09复验core scanner **7/7**；BMS importer在本轮BMS full范围内通过。精确范围见[审查报告](../../other/PROJECT_PROGRESS_AUDIT_20260909.md)，历史scanner/难度表/raw-wrapper证据见 [CHANGELOG](CHANGELOG.md)。未对用户库执行扫描或删除。现存 [ExternalLibraryScannerTest](../../../osu.Game.Tests/Beatmaps/ExternalLibraryScannerTest.cs) 覆盖递归/root传递及incremental/rebuild；[BmsImportIntegrationTest](../../../osu.Game.Rulesets.Bms.Tests/BmsImportIntegrationTest.cs) 覆盖external只读、managed相对路径、metadata reuse与external目录不被删除。这些不是未完成失效/去重/恢复矩阵的证明。
+2026-09-29：`library-final` 38 通过、`mania-library-final` 4 通过，包含最终同目录筛选及全部新增异常边界。`core-complete-final` 34 通过、2 个既有排序失败；HEAD carousel 加同 fixture 对照复现相同 2 失败。BMS full 为 2394 通过、29 个既有失败、16 跳过，29 个失败的 Message 和 Stack 与基线逐字一致，不能写成 full 全绿。Release 构建成功（0 错误、2 个既有警告），格式 verify 通过，本轮软件验证完成。精确命令、具名旧失败、对照和发行构建结果集中见 [体验收口验证](../../other/EXPERIENCE_CLOSURE_20260929.md)。未扫描或修改用户谱库。
 
 ## 下一检查点
 
-1. 以已有删除/复用行为为基线，闭合缺失、重命名、移除root、同hash跨root及重扫后的Realm/磁盘/UI矩阵。
-2. 定义规范化 path identity、大小写和重复 root 处理。
-3. 为现场 MD5/难度表不匹配提供只读诊断，不在 UI 卡顿路径做全量重算。
-4. 向 P1-A/G1 只输出可复用路径原则，不输出可直接复制的 importer 实现。
-
-## 文档治理验证
-
-2026-09-09区分已实现基本行为与尚未闭合的存储策略；未改代码、未迁移/扫描/删除用户谱库。全仓实际运行结果由本次主线审查记录汇总。
+1. 在备份或隔离数据根验收重建、离线、解除注册、改名/恢复及大库响应；保留文件与历史关联证据。
+2. 实机确认难度表变更后当前页分组、谱卡文字和选中歌曲，记录真实大库耗时与掉帧。
+3. 难度表/MD5 不匹配只读诊断仍待，不在 UI 卡顿路径全量重算。

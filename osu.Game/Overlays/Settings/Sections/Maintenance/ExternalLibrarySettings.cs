@@ -129,17 +129,24 @@ namespace osu.Game.Overlays.Settings.Sections.Maintenance
                             Text = ExternalLibrarySettingsStrings.DirectoryNotFound(directory.FullName),
                         }));
                     }
+                    catch (IOException)
+                    {
+                        Schedule(() => notificationOverlay?.Post(new SimpleErrorNotification
+                        {
+                            Text = "无法读取此谱库，请检查访问权限并选择未使用目录链接的文件夹。",
+                        }));
+                    }
                 };
 
                 menu.Push(selectScreen);
             });
         }
 
-        private void removeRoot(ExternalLibraryRoot root)
+        private async void removeRoot(ExternalLibraryRoot root)
         {
-            if (libraryConfig == null) return;
+            if (libraryScanner == null) return;
 
-            libraryConfig.RemoveRoot(root.Path);
+            await libraryScanner.RemoveRoot(root).ConfigureAwait(false);
             Schedule(refreshRootsList);
         }
 

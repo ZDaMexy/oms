@@ -1,6 +1,8 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
+using System.Collections.Generic;
 using System.Threading;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
@@ -19,6 +21,11 @@ namespace osu.Game.Database
     /// </remarks>
     public abstract partial class BeatmapStore : Component
     {
+        public event Action<IReadOnlyDictionary<Guid, string>>? RulesetMetadataUpdated;
+
+        protected void NotifyRulesetMetadataUpdated(IReadOnlyDictionary<Guid, string> metadata)
+            => RulesetMetadataUpdated?.Invoke(metadata);
+
         /// <summary>
         /// Get all available beatmaps.
         /// </summary>

@@ -4,9 +4,11 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
+using osu.Framework.Extensions;
 using osu.Framework.Extensions.Color4Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -14,6 +16,7 @@ using osu.Framework.Graphics.Cursor;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Effects;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Input;
 using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
@@ -319,7 +322,6 @@ namespace osu.Game.Screens.Select
             foreach (var row in bmsCompositionFilter.Rows)
             {
                 row.Enabled.BindValueChanged(_ => updateCriteria());
-                row.LowerBound.BindValueChanged(_ => updateCriteria());
                 row.UpperBound.BindValueChanged(_ => updateCriteria());
             }
 
@@ -705,11 +707,8 @@ namespace osu.Game.Screens.Select
             if (!row.Enabled.Value)
                 return;
 
-            if (row.LowerBound.Value > 0)
-                queryParts.Add($"{row.QueryKey}>={row.LowerBound.Value:0.#}");
-
             if (row.UpperBound.Value < 100)
-                queryParts.Add($"{row.QueryKey}<={row.UpperBound.Value:0.#}");
+                queryParts.Add($"{row.QueryKey}<={row.UpperBound.Value.ToString("0.#", CultureInfo.InvariantCulture)}");
         }
 
         private static string appendQuery(string textQuery, string visualQuery)
@@ -1053,75 +1052,88 @@ namespace osu.Game.Screens.Select
             public void Move(Vector2 pos) => Position = pos;
         }
 
-        public partial class BmsCompositionFilterControl : CompositeDrawable
+        public partial class BmsCompositionFilterControl : CompositeDrawable, IHasTooltip
         {
-            private const float row_height = 28f;
-            private const float row_spacing = 3f;
-            private const float button_width = 56f;
-            private const float button_gap = 5f;
-
-            // Half the nub container width; used to inset handle positions so they
-            // don't overlap the toggle buttons or neighbouring UI at the 0%/100% extremes.
-            private const float handle_half_width = ShearedNub.EXPANDED_SIZE / 2f;
-
+            private const float row_height = 28;
+            private const float handle_half_width = 8;
             public BmsCompositionRow RegularRow { get; } = new BmsCompositionRow("RC", "rc", new Color4(94, 190, 255, 255));
             public BmsCompositionRow LongNoteRow { get; } = new BmsCompositionRow("LN", "ln", new Color4(255, 212, 92, 255));
             public BmsCompositionRow ScratchRow { get; } = new BmsCompositionRow("SCR", "scr", new Color4(255, 119, 86, 255));
-
             public IEnumerable<BmsCompositionRow> Rows { get; }
+            private readonly Container track;
+            private readonly Dictionary<BmsCompositionRow, SegmentButton> entriesByRow = new Dictionary<BmsCompositionRow, SegmentButton>();
+            private readonly Dictionary<BmsCompositionRow, SegmentButton> segments = new Dictionary<BmsCompositionRow, SegmentButton>();
+            private readonly Dictionary<BmsCompositionRow, BoundaryHandle> handles = new Dictionary<BmsCompositionRow, BoundaryHandle>();
 
-            private readonly Dictionary<BmsCompositionRow, BmsCompositionRangeSlider> rowSliders = new Dictionary<BmsCompositionRow, BmsCompositionRangeSlider>();
+            public LocalisableString TooltipText => Rows.All(r => r.Enabled.Value)
+                ? Rows.Sum(r => r.UpperBound.Value) < 100
+                    ? "三项上限全部启用且合计不足 100%：有构成统计的谱面均不匹配。可关闭一项限制。"
+                    : "三项上限全部启用且合计 100%：只匹配这一精确配比。可关闭一项限制。"
+                : "RC 单点 / LN 长条 / SCR 皿：点击编辑最大占比，拖动分界调整。空白是可分配额度，不是谱面成分。";
 
-            internal Drawable GetMinHandleDrawable(BmsCompositionRow row) => rowSliders[row].MinHandle;
-            internal Drawable GetMaxHandleDrawable(BmsCompositionRow row) => rowSliders[row].MaxHandle;
-
-            internal Vector2 GetTrackScreenSpacePosition(BmsCompositionRow row, float progress)
-                => rowSliders[row].GetTrackScreenSpacePosition(progress);
+            internal Drawable GetMaxHandleDrawable(BmsCompositionRow row) => handles[row];
+            internal Drawable GetSegmentButton(BmsCompositionRow row) => entriesByRow[row];
+            internal Vector2 GetTrackScreenSpacePosition(float progress)
+                => track.ToScreenSpace(new Vector2(handle_half_width + progress * Math.Max(0, track.DrawWidth - 2 * handle_half_width), row_height / 2));
 
             public BmsCompositionFilterControl()
             {
                 RelativeSizeAxes = Axes.X;
-                AutoSizeAxes = Axes.Y;
-
-                var rows = new[] { RegularRow, LongNoteRow, ScratchRow };
-                Rows = rows;
-
-                var flowContainer = new FillFlowContainer
+                Height = row_height;
+                Rows = new[] { RegularRow, LongNoteRow, ScratchRow };
+                var entries = new FillFlowContainer
                 {
-                    RelativeSizeAxes = Axes.X,
-                    AutoSizeAxes = Axes.Y,
-                    Direction = FillDirection.Vertical,
-                    Spacing = new Vector2(0f, row_spacing),
+                    Direction = FillDirection.Horizontal,
+                    AutoSizeAxes = Axes.X,
+                    RelativeSizeAxes = Axes.Y,
+                    Spacing = new Vector2(2, 0),
                 };
-
-                foreach (var row in rows)
+                track = new Container { RelativeSizeAxes = Axes.Both };
+                track.Add(new Box { RelativeSizeAxes = Axes.Both, Colour = Color4.Black.Opacity(0.4f) });
+                foreach (var row in Rows)
                 {
-                    var slider = new BmsCompositionRangeSlider(row);
-                    rowSliders[row] = slider;
-
-                    flowContainer.Add(new GridContainer
-                    {
-                        RelativeSizeAxes = Axes.X,
-                        Height = row_height,
-                        ColumnDimensions = new[]
-                        {
-                            new Dimension(GridSizeMode.Absolute, button_width),
-                            new Dimension(GridSizeMode.Absolute, button_gap),
-                            new Dimension(),
-                        },
-                        Content = new[]
-                        {
-                            new Drawable[]
-                            {
-                                new BmsCompositionRowButton(row),
-                                Empty(),
-                                slider,
-                            }
-                        }
-                    });
+                    entries.Add(entriesByRow[row] = new SegmentButton(this, row) { Width = 34 });
+                    track.Add(segments[row] = new SegmentButton(this, row));
                 }
+                foreach (var row in Rows)
+                {
+                    track.Add(handles[row] = new BoundaryHandle(this, row));
+                    row.UpperBound.BindValueChanged(_ => updateBudget());
+                }
+                updateBudget();
+                InternalChild = new GridContainer
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    ColumnDimensions = new[] { new Dimension(GridSizeMode.AutoSize), new Dimension(GridSizeMode.Absolute, 5), new Dimension() },
+                    Content = new[] { new Drawable[] { entries, Empty(), track } },
+                };
+            }
 
-                InternalChild = flowContainer;
+            private void updateBudget()
+            {
+                foreach (var row in Rows)
+                    row.UpperBound.MaxValue = 100 - Rows.Where(other => other != row).Sum(other => other.UpperBound.Value);
+            }
+
+            internal void SetUpperBound(BmsCompositionRow row, double value)
+            {
+                row.UpperBound.Value = value;
+                row.Enabled.Value = true;
+            }
+
+            protected override void UpdateAfterChildren()
+            {
+                base.UpdateAfterChildren();
+                float width = Math.Max(0, track.DrawWidth - 2 * handle_half_width);
+                float start = handle_half_width;
+                foreach (var row in Rows)
+                {
+                    var segment = segments[row];
+                    segment.X = start;
+                    segment.Width = (float)(row.UpperBound.Value / 100 * width);
+                    start += segment.Width;
+                    handles[row].Position = new Vector2(start, row_height / 2);
+                }
             }
 
             public sealed class BmsCompositionRow
@@ -1129,10 +1141,8 @@ namespace osu.Game.Screens.Select
                 public string Label { get; }
                 public string QueryKey { get; }
                 public Color4 AccentColour { get; }
-
                 public BindableBool Enabled { get; } = new BindableBool(false);
-                public BindableDouble LowerBound { get; } = new BindableDouble(0) { MinValue = 0, MaxValue = 100, Precision = 1 };
-                public BindableDouble UpperBound { get; } = new BindableDouble(100) { MinValue = 0, MaxValue = 100, Precision = 1 };
+                public BindableDouble UpperBound { get; } = new BindableDouble(30) { MinValue = 0, MaxValue = 100, Precision = 1 };
 
                 public BmsCompositionRow(string label, string queryKey, Color4 accentColour)
                 {
@@ -1142,258 +1152,106 @@ namespace osu.Game.Screens.Select
                 }
             }
 
-            private partial class BmsCompositionRangeSlider : CompositeDrawable
+            private partial class SegmentButton : OsuClickableContainer, IHasPopover, IHasTooltip
             {
+                private readonly BmsCompositionFilterControl owner;
                 private readonly BmsCompositionRow row;
                 private readonly Box fill;
-                private bool layoutInvalid = true;
-                private float lastDrawWidth = -1;
+                private readonly OsuSpriteText text;
+                public override LocalisableString TooltipText => $"{row.Label} 最大 {row.UpperBound.Value:0}%（{(row.Enabled.Value ? "已启用" : "未启用")}），点击编辑。{owner.TooltipText}";
 
-                public BmsCompositionHandle MinHandle { get; }
-                public BmsCompositionHandle MaxHandle { get; }
-
-                /// <summary>
-                /// Returns the screen-space position corresponding to a logical 0..1 progress
-                /// within the inset track range.
-                /// </summary>
-                public Vector2 GetTrackScreenSpacePosition(float progress)
+                public SegmentButton(BmsCompositionFilterControl owner, BmsCompositionRow row)
                 {
-                    float trackWidth = Math.Max(0, DrawWidth - handle_half_width * 2);
-                    float x = handle_half_width + progress * trackWidth;
-                    return new Vector2(
-                        ScreenSpaceDrawQuad.TopLeft.X + x,
-                        ScreenSpaceDrawQuad.Centre.Y);
-                }
-
-                public BmsCompositionRangeSlider(BmsCompositionRow row)
-                {
+                    this.owner = owner;
                     this.row = row;
-                    RelativeSizeAxes = Axes.Both;
-
-                    InternalChildren = new Drawable[]
+                    Height = row_height;
+                    Masking = true;
+                    Action = this.ShowPopover;
+                    Children = new Drawable[]
                     {
-                        new Container
-                        {
-                            RelativeSizeAxes = Axes.Both,
-                            Shear = OsuGame.SHEAR,
-                            Masking = true,
-                            CornerRadius = 5,
-                            BorderThickness = 2,
-                            BorderColour = Color4.White.Opacity(0.08f),
-                            Children = new Drawable[]
-                            {
-                                new Box
-                                {
-                                    RelativeSizeAxes = Axes.Both,
-                                    Colour = Color4.Black.Opacity(0.5f),
-                                },
-                                fill = new Box
-                                {
-                                    RelativeSizeAxes = Axes.Y,
-                                    X = 0,
-                                    Width = 0,
-                                },
-                            }
-                        },
-                        MinHandle = new BmsCompositionHandle(row, row.LowerBound)
-                        {
-                            Origin = Anchor.Centre,
-                            Dragged = dragMin,
-                        },
-                        MaxHandle = new BmsCompositionHandle(row, row.UpperBound)
-                        {
-                            Origin = Anchor.Centre,
-                            Dragged = dragMax,
-                        },
-                    };
-
-                    row.Enabled.BindValueChanged(_ => requestLayout());
-                    row.LowerBound.BindValueChanged(_ => requestLayout());
-                    row.UpperBound.BindValueChanged(_ => requestLayout());
-                }
-
-                protected override void UpdateAfterChildren()
-                {
-                    base.UpdateAfterChildren();
-
-                    if (layoutInvalid || Math.Abs(lastDrawWidth - DrawWidth) > 0.01f)
-                        updateLayout();
-                }
-
-                private void updateLayout()
-                {
-                    lastDrawWidth = DrawWidth;
-                    layoutInvalid = false;
-
-                    float w = DrawWidth;
-                    float h = DrawHeight;
-                    float trackWidth = Math.Max(0, w - handle_half_width * 2);
-                    bool enabled = row.Enabled.Value;
-                    Color4 accentColour = row.AccentColour;
-
-                    float minX = handle_half_width + (float)(row.LowerBound.Value / 100.0 * trackWidth);
-                    float maxX = handle_half_width + (float)(row.UpperBound.Value / 100.0 * trackWidth);
-
-                    fill.X = minX;
-                    fill.Width = Math.Max(0, maxX - minX);
-                    fill.Colour = enabled ? accentColour.Opacity(0.74f) : accentColour.Darken(0.5f).Opacity(0.18f);
-
-                    MinHandle.Position = new Vector2(minX, h / 2);
-                    MaxHandle.Position = new Vector2(maxX, h / 2);
-                }
-
-                /// <summary>
-                /// Converts a raw 0..1 drag progress (across the full slider width) to the
-                /// logical 0..1 progress within the inset track range.
-                /// </summary>
-                private float toLogicalProgress(float rawProgress)
-                {
-                    if (DrawWidth <= 0) return 0;
-
-                    float inset = handle_half_width / DrawWidth;
-                    float range = 1 - 2 * inset;
-                    return range > 0 ? Math.Clamp((rawProgress - inset) / range, 0, 1) : 0;
-                }
-
-                private void dragMin(float rawProgress)
-                {
-                    row.Enabled.Value = true;
-                    double newVal = Math.Round(Math.Clamp(toLogicalProgress(rawProgress) * 100.0, 0, row.UpperBound.Value - 1));
-                    row.LowerBound.Value = newVal;
-                }
-
-                private void dragMax(float rawProgress)
-                {
-                    row.Enabled.Value = true;
-                    double newVal = Math.Round(Math.Clamp(toLogicalProgress(rawProgress) * 100.0, row.LowerBound.Value + 1, 100));
-                    row.UpperBound.Value = newVal;
-                }
-
-                private void requestLayout() => layoutInvalid = true;
-            }
-
-            private partial class BmsCompositionHandle : CompositeDrawable
-            {
-                public Action<float>? Dragged { get; init; }
-
-                private readonly BmsCompositionRow row;
-                private readonly BindableDouble boundValue;
-                private readonly ShearedNub nub;
-                private OsuSpriteText valueText = null!;
-
-                public BmsCompositionHandle(BmsCompositionRow row, BindableDouble boundValue)
-                {
-                    this.row = row;
-                    this.boundValue = boundValue;
-                    Size = new Vector2(ShearedNub.EXPANDED_SIZE, row_height);
-
-                    InternalChildren = new Drawable[]
-                    {
-                        nub = new ShearedNub
-                        {
-                            Anchor = Anchor.Centre,
-                            Origin = Anchor.Centre,
-                            Scale = new Vector2(0.72f),
-                            Current = { Value = true },
-                        },
-                        new Container
-                        {
-                            RelativeSizeAxes = Axes.Both,
-                            Shear = -OsuGame.SHEAR,
-                            Child = valueText = new OsuSpriteText
-                            {
-                                Anchor = Anchor.Centre,
-                                Origin = Anchor.Centre,
-                                Font = OsuFont.TorusAlternate.With(size: 10, weight: FontWeight.Bold),
-                                Colour = Color4.White,
-                            },
-                        },
+                        fill = new Box { RelativeSizeAxes = Axes.Both },
+                        text = new OsuSpriteText { Anchor = Anchor.Centre, Origin = Anchor.Centre, Font = OsuFont.Default.With(size: 11) },
                     };
                 }
 
                 protected override void LoadComplete()
                 {
                     base.LoadComplete();
-                    row.Enabled.BindValueChanged(_ => updateNubState(), true);
-                    boundValue.BindValueChanged(v => valueText.Text = $"{v.NewValue:0}%", true);
+                    row.Enabled.BindValueChanged(_ => fill.Colour = row.Enabled.Value ? row.AccentColour.Opacity(0.75f) : row.AccentColour.Darken(0.65f), true);
+                    row.UpperBound.BindValueChanged(_ => updateText());
                 }
 
-                private void updateNubState()
+                protected override void UpdateAfterChildren()
                 {
-                    bool enabled = row.Enabled.Value;
-                    Color4 colour = enabled ? row.AccentColour : row.AccentColour.Darken(0.6f);
-                    nub.AccentColour = colour;
-                    nub.GlowColour = colour;
-                    nub.GlowingAccentColour = colour.Lighten(0.3f);
-                    nub.Current.Value = enabled;
-                    nub.Alpha = enabled ? 1 : 0.65f;
-                    valueText.Alpha = enabled ? 1 : 0.7f;
+                    base.UpdateAfterChildren();
+                    updateText();
                 }
 
-                protected override bool OnHover(HoverEvent e)
-                {
-                    nub.Glowing = true;
-                    return true;
-                }
+                private void updateText() => text.Text = DrawWidth >= 72 ? $"{row.Label} {row.UpperBound.Value:0}%" : row.Label;
 
-                protected override void OnHoverLost(HoverLostEvent e)
-                {
-                    nub.Glowing = false;
-                    base.OnHoverLost(e);
-                }
+                public Popover GetPopover() => new CompositionEditor(owner, row);
+            }
 
-                protected override bool OnDragStart(DragStartEvent e)
+            private partial class CompositionEditor : OsuPopover
+            {
+                public CompositionEditor(BmsCompositionFilterControl owner, BmsCompositionRow row)
                 {
-                    nub.Glowing = true;
-                    return true;
-                }
-
-                protected override void OnDrag(DragEvent e)
-                {
-                    if (Dragged == null || Parent == null || Parent.DrawWidth <= 0)
-                        return;
-
-                    float progress = Math.Clamp(Parent.ToLocalSpace(e.ScreenSpaceMousePosition).X / Parent.DrawWidth, 0, 1);
-                    Dragged(progress);
-                }
-
-                protected override void OnDragEnd(DragEndEvent e)
-                {
-                    nub.Glowing = IsHovered;
-                    base.OnDragEnd(e);
+                    var input = new OsuTextBox { Width = 200, Height = 35, Text = row.UpperBound.Value.ToString("0", CultureInfo.InvariantCulture) };
+                    var enabled = new ShearedToggleButton(200) { Text = $"启用 {row.Label} 上限", Height = 30 };
+                    enabled.Active.BindTo(row.Enabled);
+                    var message = new OsuSpriteText { Font = OsuFont.Default.With(size: 12) };
+                    input.OnCommit += (_, _) =>
+                    {
+                        if (!double.TryParse(input.Text, NumberStyles.Float, CultureInfo.InvariantCulture, out double value) || !double.IsFinite(value))
+                        {
+                            message.Text = "请输入 0–100 的数字";
+                            return;
+                        }
+                        owner.SetUpperBound(row, value);
+                        input.Text = row.UpperBound.Value.ToString("0", CultureInfo.InvariantCulture);
+                        message.Text = $"已设为 {row.UpperBound.Value:0}%（超出额度时自动限制）";
+                    };
+                    Child = new FillFlowContainer
+                    {
+                        AutoSizeAxes = Axes.Both,
+                        Direction = FillDirection.Vertical,
+                        Spacing = new Vector2(0, 8),
+                        Children = new Drawable[]
+                        {
+                            new OsuSpriteText { Text = $"{row.Label} 最大占比（%）", Font = OsuFont.Default.With(size: 16) },
+                            input,
+                            enabled,
+                            message,
+                            new OsuSpriteText { Text = "对已有构成统计的谱面，三项全开时：", Font = OsuFont.Default.With(size: 12) },
+                            new OsuSpriteText { Text = "合计不足 100% 无匹配；", Font = OsuFont.Default.With(size: 12) },
+                            new OsuSpriteText { Text = "合计 100% 只匹配精确配比。可关闭一项。", Font = OsuFont.Default.With(size: 12) },
+                        },
+                    };
                 }
             }
 
-            private partial class BmsCompositionRowButton : ShearedToggleButton
+            private partial class BoundaryHandle : CompositeDrawable, IHasTooltip
             {
+                private readonly BmsCompositionFilterControl owner;
                 private readonly BmsCompositionRow row;
-
-                public BmsCompositionRowButton(BmsCompositionRow row)
-                    : base(width: button_width)
+                public LocalisableString TooltipText => $"拖动调整 {row.Label} 最大占比：{row.UpperBound.Value:0}%";
+                public BoundaryHandle(BmsCompositionFilterControl owner, BmsCompositionRow row)
                 {
+                    this.owner = owner;
                     this.row = row;
-                    Height = row_height;
-                    TextSize = 13;
-                    Active.BindTo(row.Enabled);
-                    Text = row.Label;
+                    Origin = Anchor.Centre;
+                    Size = new Vector2(12, row_height);
+                    InternalChild = new Box { Anchor = Anchor.Centre, Origin = Anchor.Centre, Size = new Vector2(3, 22), Colour = row.AccentColour };
                 }
-
-                protected override void UpdateActiveState()
+                protected override bool OnDragStart(DragStartEvent e) => e.Button == MouseButton.Left;
+                protected override void OnDrag(DragEvent e)
                 {
-                    if (Active.Value)
-                    {
-                        DarkerColour = row.AccentColour.Darken(0.1f);
-                        LighterColour = row.AccentColour.Lighten(0.1f);
-                        TextColour = OsuColour.ForegroundTextColourFor(row.AccentColour);
-                    }
-                    else
-                    {
-                        // Inactive: match the visual weight of the section labels (Background3).
-                        // Background3 responds correctly to ShearedButton's Lighten(0.2f) hover effect.
-                        DarkerColour = ColourProvider.Background3;
-                        LighterColour = ColourProvider.Background1;
-                        TextColour = ColourProvider.Content2;
-                    }
+                    float width = owner.track.DrawWidth - 2 * handle_half_width;
+                    if (width <= 0)
+                        return;
+                    double preceding = owner.Rows.TakeWhile(r => r != row).Sum(r => r.UpperBound.Value);
+                    double end = (owner.track.ToLocalSpace(e.ScreenSpaceMousePosition).X - handle_half_width) / width * 100;
+                    owner.SetUpperBound(row, Math.Round(end - preceding));
                 }
             }
         }

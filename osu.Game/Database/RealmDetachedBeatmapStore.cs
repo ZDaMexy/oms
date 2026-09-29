@@ -2,6 +2,7 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -23,6 +24,7 @@ namespace osu.Game.Database
         private IDisposable? realmSubscription;
 
         private readonly Queue<OperationArgs> pendingOperations = new Queue<OperationArgs>();
+        private readonly ConcurrentQueue<IReadOnlyCollection<Guid>> pendingMetadataChanges = new ConcurrentQueue<IReadOnlyCollection<Guid>>();
 
         [Resolved]
         private RealmAccess realm { get; set; } = null!;
@@ -37,8 +39,11 @@ namespace osu.Game.Database
         [BackgroundDependencyLoader]
         private void load()
         {
-            realmSubscription = realm.RegisterForNotifications(r => r.All<BeatmapSetInfo>().Where(s => !s.DeletePending && !s.Protected), beatmapSetsChanged);
+            realm.BeatmapRulesetDataChanged += queueMetadataChanges;
+            realmSubscription = realm.RegisterForNotifications(r => r.All<BeatmapSetInfo>().Where(s => !s.DeletePending && !s.Protected && !s.FilesystemUnavailable), beatmapSetsChanged);
         }
+
+        private void queueMetadataChanges(IReadOnlyCollection<Guid> beatmapIds) => pendingMetadataChanges.Enqueue(beatmapIds);
 
         private void beatmapSetsChanged(IRealmCollection<BeatmapSetInfo> sender, ChangeSet? changes)
         {
@@ -148,9 +153,6 @@ namespace osu.Game.Database
             if (!loaded.IsSet)
                 return;
 
-            if (pendingOperations.Count == 0)
-                return;
-
             lock (detachedBeatmapSets)
             {
                 // If this ever leads to performance issues, we could dequeue a limited number of operations per update frame.
@@ -177,6 +179,34 @@ namespace osu.Game.Database
                     }
                 }
             }
+
+            if (pendingMetadataChanges.IsEmpty)
+                return;
+
+            var changedIds = new HashSet<Guid>();
+            while (pendingMetadataChanges.TryDequeue(out var ids))
+                changedIds.UnionWith(ids);
+
+            // Read the latest committed values once, including writes which followed the notification.
+            // Do not re-detach thousands of sets or emit a collection replacement per chart.
+            var metadata = realm.Run(r =>
+            {
+                r.Refresh();
+                return changedIds.Select(id => r.Find<BeatmapInfo>(id))
+                                 .Where(b => b != null)
+                                 .ToDictionary(b => b!.ID, b => b!.Metadata.RulesetDataJson);
+            });
+
+            lock (detachedBeatmapSets)
+            {
+                foreach (var beatmap in detachedBeatmapSets.SelectMany(s => s.Beatmaps))
+                {
+                    if (metadata.TryGetValue(beatmap.ID, out string? json))
+                        beatmap.Metadata.RulesetDataJson = json;
+                }
+            }
+
+            NotifyRulesetMetadataUpdated(metadata);
         }
 
         protected override void Dispose(bool isDisposing)
@@ -186,6 +216,8 @@ namespace osu.Game.Database
             loaded.Set();
             loaded.Dispose();
             realmSubscription?.Dispose();
+            if (realm != null)
+                realm.BeatmapRulesetDataChanged -= queueMetadataChanges;
         }
 
         private record OperationArgs

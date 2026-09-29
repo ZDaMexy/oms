@@ -7,6 +7,12 @@
 
 ## 2026-09-29
 
+### 谱库、声音与选歌体验闭环
+
+从干净的 `master@f94c1b6` 开始，fetch 成功，领先 origin/master 8、落后 0。按用户授权先保全曲库，再闭合声音和选歌路径：缺失/解除注册不再当物删，同内容不同目录共存并保留历史；难度表在当前页刷新；长伴奏暂停保位续播，手动转谱长条头进入同一键音链；三行原型替换为单轨上限筛选。异常输入与双模式混合目录补修一起验收。
+
+分线实现、边界与剩余人工门见 [P1-H](../subline/P1-H/CHANGELOG.md#2026-09-29)、[P1-I](../subline/P1-I/CHANGELOG.md#2026-09-29)、[P1-J](../subline/P1-J/CHANGELOG.md#暂停保位与手动转谱长条声音闭环)。精确命令、有效产物、调试修正及既有失败对照集中于[本轮验证记录](../other/EXPERIENCE_CLOSURE_20260929.md)。未扫描用户真实库，未新增大库、设备听感、Skin V1 或公开发行签收；未推送。
+
 ### 开发缓存与临时文件非系统盘约束
 
 从干净的 `master@813c8e0` 开始，fetch 成功，领先 origin/master 7、落后 0。新增 `UseDevelopmentStorage.ps1`，仅修改当前进程及其子进程环境，统一 TEMP/TMP、NuGet packages/http/scratch/plugins、DOTNET_CLI_HOME 与 bundle 解包位置至 checkout 的 `.dev-cache`；系统盘 checkout 明确拒绝。新增忽略规则与 AGENTS 每个新 shell 的加载、首次重新 restore、旧工作副本和证据保全要求，同步构建记忆。

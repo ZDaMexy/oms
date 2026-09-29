@@ -17,7 +17,13 @@ metadata:
 - 分类互斥：SCR 优先，LN 为非 scratch long note，RC 为剩余。
 - 缺 stats 时 fail-open，不隐藏谱；匹配循环不做 working-beatmap I/O。
 - `ApplyVisualFilters` 不是生产入口，visual UI 编译为 query 字符串。
-- 不凭历史“单轨已落”判断 UI：当前控件形态与未完成产品门只看 [P1-I STATUS](../../doc_md/subline/P1-I/DEVELOPMENT_STATUS.md)。`TestRangeFilterAppliesBothBounds` 和 min/max 拖拽用例只证明三行双端原型，不能证明单轨共享边界合同。
+- 不凭历史“单轨已落”判断 UI：当前控件形态与未完成产品门只看 [P1-I STATUS](../../doc_md/subline/P1-I/DEVELOPMENT_STATUS.md)。历史 `TestRangeFilterAppliesBothBounds` 和 min/max 拖拽结果只证明当时的三行双端原型，不能挪作后续单轨验收证据。
+
+## 单轨空结果诊断
+
+- 三类真实占比合计 100%，但控件编辑的是各类上限：三项全启用且上限和不足 100% 必然无解，等于 100% 则只剩精确配比。看到空列表先查启用状态与条件交集，不要把尾段空白误当成会放宽匹配的容差，也不要用 fallback 隐藏真实条件。
+- 缺统计的谱暂时展示可能与上述空结果不同，这是既有 fail-open 行为；先查 backfill 是否完成。
+- 单轨零宽段的恢复应走固定标签入口；不能因轨道段体不可命中就断言数值丢失。
 
 ## Backfill 合同
 

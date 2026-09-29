@@ -7,8 +7,8 @@ using osu.Game.Rulesets.Mania.Objects;
 namespace osu.Game.Rulesets.Bms.Objects
 {
     /// <summary>
-    /// Carries the original BMS head keysound and WAV slot for automatic playback.
-    /// The ordinary mania hold, nested objects and manual sample playback remain unchanged.
+    /// Carries the original BMS head keysound and WAV slot for automatic playback and the pooled manual head.
+    /// The ordinary mania hold and nested object types remain unchanged.
     /// </summary>
     public class BmsConvertedHoldNoteHitObject : HoldNote, IHasManiaKeysound
     {

@@ -1,9 +1,11 @@
 # OMS 当前开发规划
 
-> 最后核对：2026-09-29（自动键音与自动调整偏移软件已交付，剩余实机验收；其它优先级保持）
+> 最后核对：2026-09-29（谱库、声音与单轨筛选软件收尾，保留实机验收；其它优先级保持）
 > 本页维护全局顺序、跨线依赖和改动验收；当前事实见[STATUS](DEVELOPMENT_STATUS.md)，专项动作从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 当前目标
+
+谱库、声音与单轨筛选的软件改进已具验证证据，接续检查隔离根与大库响应、设备听感和交互体验。具体验收分别归 [P1-H](../subline/P1-H/DEVELOPMENT_PLAN.md)、[P1-J](../subline/P1-J/DEVELOPMENT_PLAN.md)、[P1-I](../subline/P1-I/DEVELOPMENT_PLAN.md)；不重开皮肤打磨、无证据性能治理或真实硬件调校。
 
 交付Windows-only、离线优先OMS。Phase 1.x完成必须同时满足：
 
@@ -41,12 +43,12 @@ TOTAL 的作者声明、家族缺省与新旧成绩版本合同由 [P1-C](../sub
 
 | 子线 | 下一动作与依赖 |
 | --- | --- |
-| P1-J/P1-K | 保持C3 lane/keymode/shared-store authority，补手动模式转谱LN、自动键音听感、剩余实谱与有证据的极端dense治理 |
+| P1-J/P1-K | 保持C3 lane/keymode/shared-store authority，验收手动转谱长条、暂停续播与自动键音听感；极端dense治理须有现场证据 |
 | P1-B/P1-D | analog scratch跨设备edge/hold、真实HID、deadzone/sensitivity、模式说明与live diagnostics；只向皮肤提供只读状态 |
 | P1-C/P1-E | 保持判定parity；验收LN/CN/HCN、长BGM、密集键音和各keymode组合，不恢复已删除常驻反馈卡 |
-| P1-I | 将三行双端原型落实为既定单轨上限段，再补拖拽headless、shared/visual与大库门 |
+| P1-I | 单轨上限段已实现；完成真实拖拽手感、窄窗口及大库体验验收 |
 | P1-L/P1-G | 单BGA content/decoder迁移、逐谱演出和反向滚动；汇总皮肤/输入/长条/选歌/BGA人工release清单 |
-| P1-H | 收口删除/失效、跨root同hash与重扫恢复；谱面scanner经验不授予皮肤mutation authority |
+| P1-H | 缺失恢复、跨目录同内容保全与当前页难度表刷新已实现；补隔离数据根和真实大库验收，谱面scanner经验不授予皮肤mutation authority |
 
 ### R6：公开发行门
 

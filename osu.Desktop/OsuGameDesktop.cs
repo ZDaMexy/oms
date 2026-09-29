@@ -166,11 +166,11 @@ namespace osu.Desktop
             // the Settings overlay async-loads (loadComponentSingleFile uses Schedule,
             // but dependency resolution must find these already registered).
             externalLibraryConfig = new ExternalLibraryConfig(Storage);
-            externalLibraryScanner = new ExternalLibraryScanner(externalLibraryConfig);
+            externalLibraryScanner = new ExternalLibraryScanner(externalLibraryConfig, new FilesystemBeatmapIndex(Storage, ClientRealm));
             managedLibraryScanner = new ManagedLibraryScanner(externalLibraryScanner, new[]
             {
-                new ExternalLibraryScanner.ScanRootDefinition(Storage.GetFullPath(BmsFolderImporter.SONGS_STORAGE_PATH), ExternalLibraryRootType.BMS),
-                new ExternalLibraryScanner.ScanRootDefinition(Storage.GetFullPath(ManiaFolderImporter.MANIA_STORAGE_PATH), ExternalLibraryRootType.Mania),
+                new ExternalLibraryScanner.ScanRootDefinition(Storage.GetFullPath(BmsFolderImporter.SONGS_STORAGE_PATH), ExternalLibraryRootType.BMS, external: false),
+                new ExternalLibraryScanner.ScanRootDefinition(Storage.GetFullPath(ManiaFolderImporter.MANIA_STORAGE_PATH), ExternalLibraryRootType.Mania, external: false),
             });
 
             desktopDependencies.CacheAs(externalLibraryConfig);

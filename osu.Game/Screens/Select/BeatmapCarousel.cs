@@ -55,6 +55,7 @@ namespace osu.Game.Screens.Select
         public const float SPACING = 3f;
 
         private IBindableList<BeatmapSetInfo> detachedBeatmaps = null!;
+        private BeatmapStore? beatmapStore;
 
         private readonly LoadingLayer loading;
 
@@ -129,11 +130,15 @@ namespace osu.Game.Screens.Select
 
             effectiveStarWarmupCancellationSource?.Cancel();
             effectiveStarWarmupCancellationSource?.Dispose();
+            if (beatmapStore != null)
+                beatmapStore.RulesetMetadataUpdated -= rulesetMetadataUpdated;
         }
 
         [BackgroundDependencyLoader]
         private void load(BeatmapStore beatmapStore, AudioManager audio, OsuConfigManager config, CancellationToken? cancellationToken)
         {
+            this.beatmapStore = beatmapStore;
+            beatmapStore.RulesetMetadataUpdated += rulesetMetadataUpdated;
             setupPools();
             detachedBeatmaps = beatmapStore.GetBeatmapSets(cancellationToken);
             loadSamples(audio);
@@ -148,6 +153,25 @@ namespace osu.Game.Screens.Select
         }
 
         #region Beatmap source hookup
+
+        private void rulesetMetadataUpdated(IReadOnlyDictionary<Guid, string> metadata) => Schedule(() =>
+        {
+            bool affected = false;
+            foreach (var beatmap in Items)
+            {
+                if (!metadata.TryGetValue(beatmap.ID, out string? json))
+                    continue;
+
+                beatmap.Metadata.RulesetDataJson = json;
+                affected = true;
+            }
+
+            if (CurrentBeatmap != null && metadata.TryGetValue(CurrentBeatmap.ID, out string? currentJson))
+                CurrentBeatmap.Metadata.RulesetDataJson = currentJson;
+
+            if (affected && Criteria != null)
+                Filter(Criteria, clearExistingPanels: true);
+        });
 
         private void beatmapSetsChanged(object? beatmaps, NotifyCollectionChangedEventArgs changed) => Schedule(() =>
         {
@@ -856,9 +880,9 @@ namespace osu.Game.Screens.Select
 
         private ScheduledDelegate? loadingDebounce;
 
-        public void Filter(FilterCriteria criteria, bool showLoadingImmediately = false)
+        public void Filter(FilterCriteria criteria, bool showLoadingImmediately = false, bool clearExistingPanels = false)
         {
-            bool resetDisplay = grouping.BeatmapSetsGroupedTogether != BeatmapCarouselFilterGrouping.ShouldGroupBeatmapsTogether(criteria);
+            bool resetDisplay = clearExistingPanels || grouping.BeatmapSetsGroupedTogether != BeatmapCarouselFilterGrouping.ShouldGroupBeatmapsTogether(criteria);
 
             Criteria = criteria;
 

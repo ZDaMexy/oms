@@ -1,6 +1,6 @@
 # P1-I 当前计划：BMS 选歌筛选与搜索
 
-> 最后更新：2026-09-09（实际实现对照；保留单轨产品决定）
+> 最后更新：2026-09-29（软件验证完成后保留人工验收）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定筛选/read-model 合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，I0～I3/I5～I7 的实现史按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -14,34 +14,25 @@ P1-I 拥有 BMS Song Select 的分组、搜索、筛选、展示层级和其同�
 | I0 | 归线与 RC/LN/SCR 互斥语义冻结 |
 | I1 | persisted 构成 read-model、import/reuse/backfill 主链 |
 | I2 | BMS criteria 与完整文本搜索语法 |
-| I3 基础 | BMS-only key-count 与三行双端 composition 原型；单轨目标未落 |
+| I3 实现 | BMS-only key-count 与单行单轨 composition 上限段；验证边界见 STATUS |
 | I5 | 歌曲↔谱面展示层级与 BMS-local 持久化 |
 | I6 | 层级返回条、Back 优先级与 scope 解耦 |
 | I7 | 难度表分组解析缓存与大库基线 |
 
-当前先补齐 I3 已承诺的单轨产品面，再收口 I4 自动/视觉证明；不扩张新 filter family。
+当前实现事实见 [STATUS](DEVELOPMENT_STATUS.md)，剩余工作是人工体验签收；不扩张新 filter family。
 
 ## 当前执行顺序
 
-### 1. 单轨产品面与共享边界 proof
+### 1. 人工交互与显示验收
 
-1. 将当前三个 `BmsCompositionRangeSlider` 替换为既有决定的单行单轨：RC/LN/SCR 三个上限段、独立启停、尾段空白容差；visual query 只输出启用段的上限，文本仍保留完整范围语法。现存 min/max 测试反映旧原型，随产品变更更新，不能把它们当作最终合同。
-2. 覆盖总和达到 100% 时尾段优先压缩，以及跨边界、零宽、禁用段和重新启用。
-3. visual control 与文本 criteria 必须对同一集合给出一致结果；控件不能反向削弱完整范围语法。
-4. 缺失 stats 继续 fail-open，不因 headless fixture 变成静默隐藏。
+1. 核对单行单轨拖拽手感、共享边界与窄窗口显示；零宽段必须可经固定入口编辑恢复。
+2. 核对数值编辑聚焦、提交、超预算夹紧的反馈以及独立开关；禁用不改数值，重新启用恢复同一上限。
+3. 核对三项全开时的无解/精确配比提示，确认玩家能理解空白只是可分配额度；默认进入不筛空列表。
+4. 核对模式往返恢复各自筛选区；展示层级、返回条、scope 与 Back 原行为不因筛选改动受损。
 
-验收：真实 UI 已是单轨；headless 断言覆盖共享边界、criteria 输出和 bindable 往返，再经 shared visual 与人工交互核对。不得只补 fixture 后声称 I3 完成。
+验收：记录实际体验与尚未签收项；自动控件测试通过不等于玩家已认可手感。
 
-### 2. shared visual gate
-
-1. 修复2026-09-09实际运行暴露的 fixture `INotificationOverlay` 注入缺口，先让既有 `TestSearch` 执行到搜索断言。
-2. 在 `TestSceneBeatmapFilterControl` 覆盖 BMS branch：composition/key-count 行显示，mania 保持原 star surface。
-3. 切换 ruleset 后 visual state、criteria、persisted BMS setting 不串线。
-4. 展示层级锁定、返回条、scope 与 Back 优先级只补当前缺口，不重写 carousel host。
-
-验收：共享 visual test 可重复通过；BMS-only 行不占用 mania/其它 ruleset 布局 authority。
-
-### 3. 大库性能只按现场证据继续
+### 2. 大库性能只按现场证据继续
 
 1. 仅在当前版本再次复现掉帧时采集 `Ctrl+F11`、线程/GC、refilter/backfill 阶段与当场日志。
 2. 先区分 Realm、直读 backfill、JSON/grouping、carousel draw 或其它 owner，再确定最小切片。

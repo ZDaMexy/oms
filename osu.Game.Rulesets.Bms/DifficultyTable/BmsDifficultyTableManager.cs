@@ -465,17 +465,15 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                         if (beatmap == null || beatmap.Ruleset.ShortName != BmsRuleset.SHORT_NAME)
                             continue;
 
-                        // Persist the entries to realm so the carousel reads them on its next (re)detach.
-                        // NOTE: we intentionally do NOT bump a per-set scalar to force an immediate carousel
-                        // re-detach here — at large library scale a single table toggle matches thousands of sets,
-                        // and per-set notifications caused a multi-minute carousel refresh storm. Mid-session table
-                        // changes therefore require a restart to re-detach; startup display is always correct.
+                        // Persist first; publish a single refresh after the complete batch, never a per-set revision bump.
                         beatmap.Metadata.SetDifficultyTableEntries(updatedLookup.TryGetValue(normaliseMd5(beatmap.MD5Hash), out var entries)
                             ? entries
                             : Array.Empty<BmsDifficultyTableEntry>());
                     }
                 });
             }
+
+            realmAccess.NotifyBeatmapRulesetDataChanged(affectedBeatmapIds);
         }
 
         private static string normaliseMd5(string? md5) => md5?.Trim().ToLowerInvariant() ?? string.Empty;
@@ -607,13 +605,13 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
 
         private static SourceRow? findImportPreset(SqliteConnection connection, SqliteTransaction transaction, ParsedTableSource parsedSource)
         {
-                        bool allowSourceNameMatch = string.Equals(parsedSource.SourceName, parsedSource.DisplayName, StringComparison.OrdinalIgnoreCase);
+            bool allowSourceNameMatch = string.Equals(parsedSource.SourceName, parsedSource.DisplayName, StringComparison.OrdinalIgnoreCase);
 
             using var command = connection.CreateCommand();
             command.Transaction = transaction;
-                        command.CommandText = allowSourceNameMatch
-                                ?
-                                """
+            command.CommandText = allowSourceNameMatch
+                    ?
+                    """
                                 SELECT `id`, `source_name`, `display_name`, `symbol`, `local_path`, `is_preset`, `enabled`, `sort_order`, `imported_at`, `last_refreshed`
                                 FROM `sources`
                                 WHERE `is_preset` = 1
@@ -624,8 +622,8 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                                                  `display_name`
                                 LIMIT 1
                                 """
-                                :
-                                """
+                    :
+                    """
                                 SELECT `id`, `source_name`, `display_name`, `symbol`, `local_path`, `is_preset`, `enabled`, `sort_order`, `imported_at`, `last_refreshed`
                                 FROM `sources`
                                 WHERE `is_preset` = 1
@@ -636,8 +634,8 @@ namespace osu.Game.Rulesets.Bms.DifficultyTable
                                 LIMIT 1
                                 """;
 
-                        if (allowSourceNameMatch)
-                                command.Parameters.Add(new SqliteParameter("@sourceName", parsedSource.SourceName));
+            if (allowSourceNameMatch)
+                command.Parameters.Add(new SqliteParameter("@sourceName", parsedSource.SourceName));
 
             command.Parameters.Add(new SqliteParameter("@displayName", parsedSource.DisplayName));
 

@@ -403,12 +403,20 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             Assert.That(readPersistedDifficultyLabels(realm, beatmapId), Is.Empty);
 
+            int refreshCount = 0;
+            realm.BeatmapRulesetDataChanged += ids =>
+            {
+                Assert.That(ids, Is.EquivalentTo(new[] { beatmapId }));
+                refreshCount++;
+            };
+
             var imported = await manager.ImportFromPath(tableRoot).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
                 Assert.That(readPersistedDifficultyLabels(realm, beatmapId), Is.EqualTo(new[] { "★7" }));
                 Assert.That(readPersistedChartSubtitle(realm, beatmapId), Is.EqualTo("Persistent Subtitle"));
+                Assert.That(refreshCount, Is.EqualTo(1));
             });
 
             manager.SetSourceEnabled(imported.ID, false);
@@ -417,6 +425,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 Assert.That(readPersistedDifficultyLabels(realm, beatmapId), Is.Empty);
                 Assert.That(readPersistedChartSubtitle(realm, beatmapId), Is.EqualTo("Persistent Subtitle"));
+                Assert.That(refreshCount, Is.EqualTo(2));
             });
         }
 

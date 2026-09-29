@@ -33,7 +33,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         });
 
         [Test]
-        public void TestPauseStopsRequestedKeysoundChannels()
+        public void TestPauseRetainsRequestedKeysoundChannelsAndRestoresRate()
         {
             AddUntilStep("store loaded", () => areChannelsReady());
             AddStep("start gameplay clock", () => gameplayClockContainer.Start());
@@ -42,7 +42,10 @@ namespace osu.Game.Rulesets.Bms.Tests
             playTestSample();
 
             AddStep("pause gameplay clock", () => gameplayClockContainer.Stop());
-            AddUntilStep("keysound requests cleared", () => noRequestedChannels());
+            AddUntilStep("channels paused without losing requests", () => keysoundStore.ChannelPool.All(channel => channel.AggregateFrequency.Value == 0));
+            AddAssert("requested sample retained", () => keysoundStore.ChannelPool.Any(channel => channel.RequestedPlaying));
+            AddStep("resume gameplay clock", () => gameplayClockContainer.Start());
+            AddUntilStep("channel rate restored", () => keysoundStore.ChannelPool.All(channel => channel.AggregateFrequency.Value == 1));
         }
 
         [Test]

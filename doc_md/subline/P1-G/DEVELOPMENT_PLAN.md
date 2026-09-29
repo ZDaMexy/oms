@@ -40,14 +40,14 @@ P1-G 只汇总，不实现：发现问题必须回到 owning 子线，修复后�
 
 - LN/CN/HCN 的 release、tail、HCN regrab、gauge 和可见状态。
 - dense fully-keysounded、layered/long BGM、rapid empty-strike、pause/seek/retry。
-- 原生 BMS 与转谱-mania 对照；明确长 one-shot 当前不保证保位 resume。
+- 原生 BMS 与转谱-mania 对照：长伴奏中途暂停静音、继续从原位置播放，反复暂停与变速试听；手动转谱长条头发声一次、尾部不额外发声。seek/retry 清除旧声部，不补播目标以前已开始的长样本。
 - 自动键音按 [P1-J 待试听清单](../P1-J/DEVELOPMENT_PLAN.md#0-用户指定自动键音2026-09-29)分别验收两模式的开关听感，记录版本、谱面及音频设备；现有软件对照不代签真实听感。
 
 ### 4. Song Select 与桌面导入
 
 - 大库分组、筛选、搜索、展示层级、返回导航与无结果条件。
 - shared visual/ruleset 切换不串线。
-- P1-I 当前仍为三行双端构成原型；单轨三段目标须先实现，不能由人工体验提前豁免产品合同。
+- P1-I 单轨上限段已实现；验收拖拽手感、零宽编辑、数值提交、窄窗口和三项全开时的无解提示。自动控件证明不代替人工体验。
 - 桌面拖放导入、首次启动/重扫后的可见结果和基本 UI smoke。
 
 ### 5. Gimmick 与 BGA

@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using osu.Framework.Allocation;
 using osu.Framework.Testing;
 using osu.Framework.Utils;
 using osu.Game.Beatmaps;
@@ -15,6 +16,8 @@ using osu.Game.Graphics.Sprites;
 using osu.Game.Screens.Select;
 using osu.Game.Screens.Select.Filter;
 using osu.Game.Tests.Resources;
+using osu.Game.Tests.Beatmaps;
+using osu.Game.Rulesets.Bms;
 
 namespace osu.Game.Tests.Visual.SongSelect
 {
@@ -24,6 +27,66 @@ namespace osu.Game.Tests.Visual.SongSelect
         private BeatmapSetInfo baseTestBeatmap = null!;
 
         private const int initial_filter_count = 3;
+
+        [Test]
+        public void TestRulesetMetadataRefreshesVisibleTableLabelAndKeepsSelection()
+        {
+            BeatmapInfo target = null!;
+            int filters = 0;
+            const string old_json = "{\"difficulty_table_entries\":[{\"TableName\":\"Test\",\"LevelLabel\":\"★1\",\"Level\":1,\"TableSortOrder\":0}]}";
+            const string new_json = "{\"difficulty_table_entries\":[{\"TableName\":\"Test\",\"LevelLabel\":\"★2\",\"Level\":2,\"TableSortOrder\":0}]}";
+            RemoveAllBeatmaps();
+            AddStep("add BMS-labelled chart", () =>
+            {
+                var set = CreateTestBeatmapSetInfo(1, false);
+                target = set.Beatmaps.Single();
+                target.Ruleset = new BmsRuleset().RulesetInfo;
+                target.Metadata.RulesetDataJson = old_json;
+                Realm.Write(r => r.Add(set, update: true));
+                BeatmapSets.Add(set.Detach());
+                Carousel.Filter(new FilterCriteria { Ruleset = null, Group = GroupMode.None, Sort = SortMode.Title, DisplayLevel = DisplayLevel.Difficulties });
+            });
+            WaitForFiltering();
+            WaitForDrawablePanels();
+            AddUntilStep("old table label visible", () => visibleTextContains("★1"));
+            SelectNextPanel();
+            Select();
+            AddUntilStep("chart selected", () => Carousel.SelectedBeatmapInfo?.ID == target.ID);
+            AddStep("publish changed table", () =>
+            {
+                filters = Carousel.FilterCount;
+                ((TestBeatmapStore)Dependencies.Get<BeatmapStore>()).PublishRulesetMetadata(new Dictionary<Guid, string> { [target.ID] = new_json });
+            });
+            WaitForFiltering();
+            AddUntilStep("new table label visible", () => visibleTextContains("★2") && !visibleTextContains("★1"));
+            AddAssert("same chart selected", () => Carousel.SelectedBeatmapInfo?.ID, () => Is.EqualTo(target.ID));
+            AddAssert("one batch filter", () => Carousel.FilterCount, () => Is.EqualTo(filters + 1));
+
+            bool visibleTextContains(string text) => Carousel.ChildrenOfType<PanelBeatmapStandalone>()
+                                                            .Where(p => p.Item != null && p.IsPresent)
+                                                            .SelectMany(p => p.ChildrenOfType<OsuSpriteText>())
+                                                            .Any(t => t.IsPresent && t.Text.ToString().Contains(text, StringComparison.Ordinal));
+        }
+
+        [Test]
+        public void TestRulesetMetadataBatchRefreshesOnceWithoutReplacingSets()
+        {
+            int filterCount = 0;
+            int collectionChanges = 0;
+            var ids = new Dictionary<Guid, string>();
+            AddStep("publish persisted metadata batch", () =>
+            {
+                filterCount = Carousel.FilterCount;
+                foreach (var beatmap in BeatmapSets.SelectMany(s => s.Beatmaps))
+                    ids.Add(beatmap.ID, "{\"difficulty_table_entries\":[]}");
+                BeatmapSets.BindCollectionChanged((_, _) => collectionChanges++);
+                ((TestBeatmapStore)Dependencies.Get<BeatmapStore>()).PublishRulesetMetadata(ids);
+            });
+            WaitForFiltering();
+            AddAssert("one filter for entire batch", () => Carousel.FilterCount, () => Is.EqualTo(filterCount + 1));
+            AddAssert("metadata visible without leaving selection", () => BeatmapSets.SelectMany(s => s.Beatmaps).All(b => b.Metadata.RulesetDataJson == ids[b.ID]));
+            AddAssert("no set replacement storm", () => collectionChanges, () => Is.Zero);
+        }
 
         [SetUpSteps]
         public void SetUpSteps()

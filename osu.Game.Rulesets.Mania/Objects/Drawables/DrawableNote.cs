@@ -204,7 +204,10 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
             // This is what keeps the converted note a fully pooled DrawableNote rather than a per-note non-pooled
             // drawable on dense charts (J6 / P1-J #10). Normal mania notes — and any context without a hosted store —
             // fall through to the base one-shot path unchanged.
-            if (keysoundStore != null && HitObject is IHasManiaKeysound keysound && keysound.KeysoundSample != null)
+            // Hold heads keep their ordinary pooled HeadNote type. The converted parent owns the original
+            // WAV slot, so resolve it only for the head (never the tail) at the moment of playback.
+            var keysound = HitObject is HeadNote ? ParentHitObject?.HitObject as IHasManiaKeysound : HitObject as IHasManiaKeysound;
+            if (keysoundStore != null && keysound?.KeysoundSample != null)
             {
                 keysoundStore.Play(keysound.KeysoundSample, CalculateSamplePlaybackBalance(SamplePlaybackPosition), keysound.KeysoundCutGroup);
                 return;

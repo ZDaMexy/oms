@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Allocation;
+using osu.Framework.Audio;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -26,6 +27,7 @@ namespace osu.Game.Rulesets.Bms.Audio
     {
         private IBindable<bool>? gameplayPaused;
         private GameplayClockContainer? gameplayClockContainer;
+        private readonly BindableDouble playbackFrequency = new BindableDouble(1);
         private BmsAutomaticKeysoundPlayback? automaticPlayback;
         private double lastAutomaticPlaybackTime = double.NegativeInfinity;
 
@@ -138,11 +140,9 @@ namespace osu.Game.Rulesets.Bms.Audio
                 return;
 
             gameplayPaused = gameplayClockContainer.IsPaused.GetBoundCopy();
-            gameplayPaused.BindValueChanged(paused =>
-            {
-                if (paused.NewValue)
-                    StopAllPlayback();
-            });
+            // The framework's BASS sample channel treats zero frequency as pause, retaining the same
+            // channel and playback position. Stop/Play would discard that channel and restart the sample.
+            gameplayPaused.BindValueChanged(paused => playbackFrequency.Value = paused.NewValue ? 0 : 1, true);
 
             gameplayClockContainer.OnSeek += onSeek;
         }
@@ -455,11 +455,15 @@ namespace osu.Game.Rulesets.Bms.Audio
         private static bool isChannelAvailable(BmsKeysoundChannel channel)
             => channel.LoadState >= LoadState.Ready ? !channel.IsPlaying : !channel.RequestedPlaying;
 
-        private static BmsKeysoundChannel createChannel()
-            => new BmsKeysoundChannel
+        private BmsKeysoundChannel createChannel()
+        {
+            var channel = new BmsKeysoundChannel
             {
                 MinimumSampleVolume = DrawableHitObject.MINIMUM_SAMPLE_VOLUME,
             };
+            channel.AddAdjustment(AdjustableProperty.Frequency, playbackFrequency);
+            return channel;
+        }
 
         private sealed partial class BmsKeysoundChannel : PausableSkinnableSound
         {

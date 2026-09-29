@@ -110,7 +110,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             var preparedBeatmapSet = createBeatmapSet(directoryReader, cancellationToken);
 
             if (preparedBeatmapSet.BeatmapSet == null)
-                return new FolderImportResult(null, preparedBeatmapSet.SkippedBeatmapFiles, preparedBeatmapSet.ImportWarnings);
+                throw new InvalidDataException("The BMS directory contains no valid playable charts.");
 
             string sourcePath = normaliseExternalPath(directoryReader.GetFullPath(string.Empty));
             string rootSnapshotPath = normaliseExternalPath(rootPath);
@@ -146,7 +146,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             var preparedBeatmapSet = createBeatmapSet(directoryReader, cancellationToken);
 
             if (preparedBeatmapSet.BeatmapSet == null)
-                return new FolderImportResult(null, preparedBeatmapSet.SkippedBeatmapFiles, preparedBeatmapSet.ImportWarnings);
+                throw new InvalidDataException("The BMS directory contains no valid playable charts.");
 
             string relativePath = getManagedRelativePath(directoryReader.GetFullPath(string.Empty));
             var existing = tryReuseManaged(preparedBeatmapSet.BeatmapSet, relativePath);
@@ -161,11 +161,11 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         }
 
         private Live<BeatmapSetInfo>? tryReuseImportedCopy(BeatmapSetInfo preparedBeatmapSet)
-            => tryReuseExisting(preparedBeatmapSet, existing => !existing.IsExternalFilesystemStorage);
+            => tryReuseExisting(preparedBeatmapSet, existing => !existing.IsExternalFilesystemStorage && !existing.FilesystemUnavailable, refreshPaths: false);
 
         private bool hasActiveExternalDirectory(string externalPath, string externalRootPath)
             => realmAccess.Run(realm => realm.All<BeatmapSetInfo>()
-                                          .Where(set => !set.DeletePending && set.IsExternalFilesystemStorage)
+                                          .Where(set => !set.DeletePending && !set.FilesystemUnavailable && set.IsExternalFilesystemStorage)
                                           .ToList()
                                           .Any(set => set.FilesystemStoragePath is string storagePath
                                                    && string.Equals(normaliseExternalPath(storagePath), externalPath, StringComparison.OrdinalIgnoreCase)
@@ -173,7 +173,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         private bool hasActiveManagedDirectory(string managedPath)
             => realmAccess.Run(realm => realm.All<BeatmapSetInfo>()
-                                          .Where(set => !set.DeletePending && !set.IsExternalFilesystemStorage)
+                                          .Where(set => !set.DeletePending && !set.FilesystemUnavailable && !set.IsExternalFilesystemStorage)
                                           .ToList()
                                           .Any(set => !string.IsNullOrEmpty(set.FilesystemStoragePath)
                                                    && string.Equals(set.FilesystemStoragePath?.ToStandardisedPath(), managedPath, StringComparison.OrdinalIgnoreCase)));
@@ -187,11 +187,11 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             => tryReuseExisting(preparedBeatmapSet, existing => !existing.IsExternalFilesystemStorage
                                                                && string.Equals(existing.FilesystemStoragePath?.ToStandardisedPath(), managedPath, StringComparison.OrdinalIgnoreCase));
 
-        private Live<BeatmapSetInfo>? tryReuseExisting(BeatmapSetInfo preparedBeatmapSet, Func<BeatmapSetInfo, bool> canReuse)
+        private Live<BeatmapSetInfo>? tryReuseExisting(BeatmapSetInfo preparedBeatmapSet, Func<BeatmapSetInfo, bool> canReuse, bool refreshPaths = true)
         {
             BeatmapSetInfo? existing = realmAccess.Run(realm => realm.All<BeatmapSetInfo>()
                                                                   .OrderBy(set => set.DeletePending)
-                                                                  .FirstOrDefault(set => set.Hash == preparedBeatmapSet.Hash)
+                                                                  .Where(set => set.Hash == preparedBeatmapSet.Hash).ToList().FirstOrDefault(canReuse)
                                                                   ?.Detach());
 
             if (existing == null || string.IsNullOrEmpty(existing.FilesystemStoragePath))
@@ -213,8 +213,15 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
                 using var transaction = realm.BeginWrite();
                 managedExisting.DeletePending = false;
+                managedExisting.FilesystemUnavailable = false;
+                FilesystemBeatmapIndex.SupersedeDirectory(realm, managedExisting);
                 TableMd5Index.ApplyTo(managedExisting.Beatmaps);
                 syncChartFilterStats(managedExisting, preparedBeatmapSet);
+                if (refreshPaths)
+                {
+                    foreach (var beatmap in managedExisting.Beatmaps)
+                        beatmap.LocalFilePath = preparedBeatmapSet.Beatmaps.First(b => b.Hash == beatmap.Hash).LocalFilePath;
+                }
                 transaction.Commit();
 
                 return managedExisting.ToLive(realmAccess);
@@ -236,14 +243,14 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             }
         }
 
-        private static string normaliseExternalPath(string path) => Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        private static string normaliseExternalPath(string path) => FilesystemBeatmapIndex.NormalisePath(path);
 
         private static string getEffectiveExternalLibraryRootPath(BeatmapSetInfo beatmapSet)
             => normaliseExternalPath(beatmapSet.ExternalLibraryRootPath ?? beatmapSet.FilesystemStoragePath ?? string.Empty);
 
         private string getManagedRelativePath(string path)
         {
-            string fullPath = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            string fullPath = FilesystemBeatmapIndex.NormalisePath(path);
             string managedRoot = songsStorage.GetFullPath(string.Empty);
 
             if (!FilesystemSanityCheckHelpers.IsSubDirectory(managedRoot, fullPath))
@@ -269,17 +276,13 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 if (ruleset?.Available != true)
                     throw new InvalidOperationException($"Unable to import BMS beatmaps because ruleset '{BmsRuleset.SHORT_NAME}' is not available locally.");
 
-                var existing = realm.All<BeatmapSetInfo>().OrderBy(set => set.DeletePending).FirstOrDefault(set => set.Hash == beatmapSet.Hash);
-
-                if (existing != null)
-                    existing.DeletePending = true;
-
                 foreach (var beatmap in beatmapSet.Beatmaps)
                 {
                     beatmap.BeatmapSet = beatmapSet;
                     beatmap.Ruleset = ruleset;
                 }
 
+                FilesystemBeatmapIndex.SupersedeDirectory(realm, beatmapSet);
                 realm.Add(beatmapSet);
                 transaction.Commit();
 

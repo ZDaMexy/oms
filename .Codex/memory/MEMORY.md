@@ -34,7 +34,8 @@
 
 - [构建与测试](reference_build_and_test.md) — 开发磁盘与进程环境、测试宿主、formatter owning 路径、输出锁、测试空跑/临时日志失效、VS Code 配置与依赖审计误判。
 - [大曲库选歌性能](reference_song_select_perf.md)
-- [谱面构成过滤](reference_bms_composition_filter.md) — read-model/query/实际控件与产品目标分离。
+- [谱库路径身份与历史保全](reference_filesystem_library_identity.md) — 同内容不同目录、失效与物删分离、重扫恢复及失败边界。
+- [谱面构成过滤](reference_bms_composition_filter.md) — 单轨上限、共享额度、零宽入口及无解条件。
 - [难度表](reference_bms_difficulty_table.md)
 - [选歌元数据显示](reference_bms_songselect_metadata_display.md)
 - [在资源管理器中显示](reference_bms_songselect_reveal_in_explorer.md)
@@ -46,7 +47,7 @@
 - [BGA 链](reference_bms_bga_chain.md) — viewport/event、转码与内容播放的区别。
 - [bgm1 按键触发故障](reference_bms_bgm1_pause_keytrigger_bug.md)
 - [游玩音轨静音合同](reference_bms_gameplay_track_mute.md)
-- [键音链](reference_bms_keysound_chain.md) — 手动/自动发声责任、Mod 重建、时钟测试与手动 LN 边界。
+- [键音链](reference_bms_keysound_chain.md) — 手动/自动发声责任、Mod 重建、暂停保位与手动 LN 池化路由。
 - [lane 键音 timeline 上界](reference_bms_lane_keysound_timeline_bounds.md) — lane-count 上界、parser keymode 与末端发声。
 - [LNOBJ 解码](reference_bms_lnobj_decoding.md) — 单候选配对地雷及 P1-K 权威回链。
 - [lane 重排](reference_bms_lane_rearrangement.md) — 重复应用的三次置换故障及 P1-K/P1-J 回链。

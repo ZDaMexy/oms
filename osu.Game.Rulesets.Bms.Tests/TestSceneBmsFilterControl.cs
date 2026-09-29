@@ -4,11 +4,13 @@ using System;
 using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Testing;
+using osu.Framework.Graphics;
 using osu.Game.Beatmaps;
 using osu.Game.Configuration;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Screens.Select;
+using osu.Game.Graphics.UserInterface;
 using osuTK;
 using osuTK.Input;
 
@@ -55,7 +57,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             });
 
             AddStep("enable RC filter", () => compositionControl.RegularRow.Enabled.Value = true);
-            AddStep("set RC maximum", () => compositionControl.RegularRow.UpperBound.Value = 50);
+            AddStep("set RC maximum", () => { compositionControl.LongNoteRow.UpperBound.Value = 0; compositionControl.RegularRow.UpperBound.Value = 50; });
 
             FilterCriteria criteria = null!;
             AddStep("create criteria", () => criteria = filter.CreateCriteria());
@@ -66,24 +68,54 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
-        public void TestRangeFilterAppliesBothBounds()
+        public void TestTextRangeRemainsAvailable()
         {
             SelectBmsRuleset();
             LoadSongSelect();
+            AddStep("search RC range", () => filter.Search("rc>=30 rc<=70"));
+            AddAssert("below range excluded", () => !BeatmapCarouselFilterMatching.CheckCriteriaMatch(createBeatmap(5, 2, 5, 3), filter.CreateCriteria()));
+            AddAssert("in range matches", () => BeatmapCarouselFilterMatching.CheckCriteriaMatch(createBeatmap(5, 5, 3, 2), filter.CreateCriteria()));
+            AddAssert("above range excluded", () => !BeatmapCarouselFilterMatching.CheckCriteriaMatch(createBeatmap(5, 8, 1, 1), filter.CreateCriteria()));
+        }
 
-            FilterControl.BmsCompositionFilterControl compositionControl = null!;
-            AddStep("get composition control", () => compositionControl = filter.ChildrenOfType<FilterControl.BmsCompositionFilterControl>().Single());
+        [Test]
+        public void TestSharedBudgetAndZeroWidthRecovery()
+        {
+            SelectBmsRuleset();
+            LoadSongSelect();
+            FilterControl.BmsCompositionFilterControl control = null!;
+            AddStep("get control", () => control = filter.ChildrenOfType<FilterControl.BmsCompositionFilterControl>().Single());
+            AddStep("consume tail", () => control.SetUpperBound(control.RegularRow, 100));
+            AddAssert("other segments preserved", () => control.RegularRow.UpperBound.Value == 40 && control.LongNoteRow.UpperBound.Value == 30 && control.ScratchRow.UpperBound.Value == 30);
+            AddStep("collapse RC", () => control.SetUpperBound(control.RegularRow, -10));
+            AddAssert("RC clamped to zero", () => control.RegularRow.UpperBound.Value == 0);
+            AddStep("restore RC", () => control.SetUpperBound(control.RegularRow, 20));
+            AddAssert("restored without changing neighbours", () => control.RegularRow.UpperBound.Value == 20 && control.LongNoteRow.UpperBound.Value == 30);
+            AddStep("disable RC", () => control.RegularRow.Enabled.Value = false);
+            AddAssert("disabled cap does not filter", () => BeatmapCarouselFilterMatching.CheckCriteriaMatch(createBeatmap(5, 8, 1, 1), filter.CreateCriteria()));
+            AddStep("enable RC again", () => control.RegularRow.Enabled.Value = true);
+            AddAssert("same cap restored", () => !BeatmapCarouselFilterMatching.CheckCriteriaMatch(createBeatmap(5, 8, 1, 1), filter.CreateCriteria()));
+        }
 
-            AddStep("enable RC filter", () => compositionControl.RegularRow.Enabled.Value = true);
-            AddStep("set RC lower bound", () => compositionControl.RegularRow.LowerBound.Value = 30);
-            AddStep("set RC upper bound", () => compositionControl.RegularRow.UpperBound.Value = 70);
-
-            FilterCriteria criteria = null!;
-            AddStep("create criteria", () => criteria = filter.CreateCriteria());
-
-            AddAssert("RC20 filtered (below lower)", () => !BeatmapCarouselFilterMatching.CheckCriteriaMatch(createBeatmap(5, 2, 5, 3), criteria));
-            AddAssert("RC50 matches (within range)", () => BeatmapCarouselFilterMatching.CheckCriteriaMatch(createBeatmap(5, 5, 3, 2), criteria));
-            AddAssert("RC80 filtered (above upper)", () => !BeatmapCarouselFilterMatching.CheckCriteriaMatch(createBeatmap(5, 8, 1, 1), criteria));
+        [Test]
+        public void TestRulesetRoundTripKeepsFiltersSeparate()
+        {
+            SelectBmsRuleset();
+            LoadSongSelect();
+            AddStep("set BMS cap and hidden stars", () =>
+            {
+                var control = filter.ChildrenOfType<FilterControl.BmsCompositionFilterControl>().Single();
+                control.SetUpperBound(control.RegularRow, 20);
+                Config.SetValue(OsuSetting.DisplayStarsMinimum, 10.0);
+            });
+            AddAssert("BMS ignores stars", () => !filter.CreateCriteria().UserStarDifficulty.HasFilter);
+            AddStep("switch to mania", () => Ruleset.Value = Rulesets.AvailableRulesets.Single(r => r.ShortName == "mania"));
+            AddAssert("mania restores stars", () => filter.CreateCriteria().UserStarDifficulty.Min == 10);
+            AddUntilStep("BMS controls hidden", () => !compositionSurfacePresent());
+            SelectBmsRuleset();
+            AddUntilStep("BMS controls restored", compositionSurfacePresent);
+            AddAssert("BMS cap preserved", () => !BeatmapCarouselFilterMatching.CheckCriteriaMatch(createBeatmap(5, 8, 1, 1), filter.CreateCriteria()));
+            AddAssert("stars still ignored", () => !filter.CreateCriteria().UserStarDifficulty.HasFilter);
         }
 
         [Test]
@@ -119,7 +151,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddStep("drag max handle left", () =>
             {
                 InputManager.PressButton(MouseButton.Left);
-                InputManager.MoveMouseTo(compositionControl.GetTrackScreenSpacePosition(compositionControl.ScratchRow, 0.6f) + new Vector2(0, 1));
+                InputManager.MoveMouseTo(compositionControl.GetTrackScreenSpacePosition(0.75f) + new Vector2(0, 1));
             });
             AddStep("release mouse", () => InputManager.ReleaseButton(MouseButton.Left));
 
@@ -128,24 +160,28 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
-        public void TestMinHandleDragUpdatesLowerBound()
+        public void TestClickSegmentEditsMaximum()
         {
             SelectBmsRuleset();
             LoadSongSelect();
-
-            FilterControl.BmsCompositionFilterControl compositionControl = null!;
-
-            AddStep("get composition control", () => compositionControl = filter.ChildrenOfType<FilterControl.BmsCompositionFilterControl>().Single());
-            AddStep("move mouse to RC min handle", () => InputManager.MoveMouseTo(compositionControl.GetMinHandleDrawable(compositionControl.RegularRow)));
-            AddStep("drag min handle right", () =>
+            FilterControl.BmsCompositionFilterControl control = null!;
+            AddStep("get control", () => control = filter.ChildrenOfType<FilterControl.BmsCompositionFilterControl>().Single());
+            AddStep("collapse RC segment", () => control.SetUpperBound(control.RegularRow, 0));
+            AddStep("click zero-width RC entry", () =>
             {
-                InputManager.PressButton(MouseButton.Left);
-                InputManager.MoveMouseTo(compositionControl.GetTrackScreenSpacePosition(compositionControl.RegularRow, 0.3f) + new Vector2(0, 1));
+                InputManager.MoveMouseTo(control.GetSegmentButton(control.RegularRow));
+                InputManager.Click(MouseButton.Left);
             });
-            AddStep("release mouse", () => InputManager.ReleaseButton(MouseButton.Left));
-
-            AddAssert("RC lower bound increased", () => compositionControl.RegularRow.LowerBound.Value > 1);
-            AddAssert("RC row enabled by drag", () => compositionControl.RegularRow.Enabled.Value);
+            AddUntilStep("editor visible", () => this.ChildrenOfType<OsuTextBox>().Any(t => t.IsPresent && t.Text == "0"));
+            AddStep("enter cap", () =>
+            {
+                var input = this.ChildrenOfType<OsuTextBox>().Single(t => t.IsPresent && t.Text == "0");
+                InputManager.MoveMouseTo(input);
+                InputManager.Click(MouseButton.Left);
+                input.Text = "15";
+                InputManager.Key(Key.Enter);
+            });
+            AddAssert("numeric cap applied", () => control.RegularRow.UpperBound.Value == 15 && control.RegularRow.Enabled.Value);
         }
 
         [Test]
@@ -165,6 +201,19 @@ namespace osu.Game.Rulesets.Bms.Tests
                 BmsChartFilterStatsBackfill.Initialise(Beatmaps, Realm, storage: null, notifications: null, onCacheUpdated: () => lateCallbackInvoked = true));
 
             AddAssert("late subscriber refreshed immediately", () => lateCallbackInvoked);
+        }
+
+        private bool compositionSurfacePresent()
+        {
+            // IsPresent describes each drawable itself, not visibility inherited from its ruleset container.
+            // Stop at FilterControl: its overall expanded/collapsed state is unrelated to ruleset branching.
+            for (Drawable drawable = filter.ChildrenOfType<FilterControl.BmsCompositionFilterControl>().Single(); drawable != filter; drawable = drawable.Parent!)
+            {
+                if (!drawable.IsPresent)
+                    return false;
+            }
+
+            return true;
         }
 
         private static BeatmapInfo createBeatmap(int keyCount, int regular, int longNote, int scratch)

@@ -1,6 +1,6 @@
 # P1-J 技术约束：BMS gameplay 性能与音频时序
 
-> 最后更新：2026-09-29（增加用户指定的自动键音合同）
+> 最后更新：2026-09-29（暂停保位、seek 清旧声与手动转谱 LN 合同）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，事故取证与旧测试数字按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线与 authority
@@ -25,7 +25,7 @@
 2. 开启时由 shared store 按 gameplay 主时钟推进有序音频游标，普通键/皿/LN head/BGM 各播放原有事件一次，不能依赖 drawable 生存期、命中或自然 miss。关闭 note/pressed-poor/lane empty 与 mania note/column feedback 的额外发声，但保留输入传播、判定、血量、计分、灯及失败流程。自动演奏/辅助 Mod 的原判定语义不受影响。
 3. LN parent 只投影一个 head；tail、armed invisible、mine 不进入自动清单。BGM/转谱皿旧 drawable 在自动模式只维持 Ignore 生命周期，由游标统一发声。相同时刻保留转换器顺序及每次 WAV slot 事件，禁止按文件名合并；继续使用同一通道池、cut、预热和音量/变速链。
 4. BMS→mania 转换器在玩法 Mod 之前保留只读音频值快照，NR/HO/IN 重建/删除对象不能丢音乐；clone 共享只读数据、每局独立游标。自动音乐声像使用转换源音频列和当前声像强度，玩法重排不重写该音频列；默认手动路径仍跟随当前玩法列。自动清单包含 Mod 已删除的 BGM/皿，预热也须覆盖这些样本。不在开关变化时修改共享谱面或 Samples/NodeSamples。
-5. 暂停停止旧声音且不播放未来事件；seek 停声并定位到目标时刻，跳过过去事件、保留目标及未来事件；后退重新经过时可再次发声，重试重新定位。普通向前跨帧处理全部到期事件；frame-stable 重复追帧不能重播相同主时钟事件。不消费 visual offset；现有长 one-shot 不保证保位恢复的限制仍有效。
+5. 暂停冻结既有通道位置且不播放未来事件，继续时从原位置恢复；seek 停止旧声部并定位到目标时刻，跳过过去事件、保留目标及未来事件，不重建过去已开始的长样本。后退重新经过事件时可再次发声，重试重新定位。普通向前跨帧处理全部到期事件；frame-stable 重复追帧不能重播相同主时钟事件。不消费 visual offset。
 6. 必须证明两个模式的无输入发声且仍 miss、提前/晚按/空按不重复、LN head/tail、纯 LN、同输入成绩对照、pause/seek 和原生 mania 不受影响。DTO/游标测试不能代替真实 Player/store 请求证明；真实听感仍需人工验收。
 
 ## shared store 与资源合同
@@ -37,7 +37,7 @@
 4. per-WAV cut 必须按 `KeysoundId/#WAVxx` 槽号分组，不能按文件名。相同槽重触发应在同一 busy channel 干净重启；不同槽即使引用同一文件也不得合并。无 cut-group 的多样本入口不参与 cut。
 5. same-sample fast path 可以直接 stop/replay，避免每次重建 sample drawable；切到不同样本或多样本时必须正确失效缓存，不能改变 cut 语义。
 6. keysound prewarm 对玩家与 autoplay、原生 BMS 与转谱-mania 对等执行，只复用现有 `Playfield` sample pool 与 shared store；不得建立第二套 retained sample authority。加载期变长是允许的显式取舍，update thread 中冷解码不是。
-7. pause/seek/retry 必须统一停止 one-shot store 播放，防止样本逃逸；当前底层不保证长 one-shot 保位 resume，文档和 UI 不得宣称已支持。
+7. pause 必须通过现有样本通道的零频率调整冻结位置，resume 恢复原频率调整链；不得用 Stop/Play 重建通道来冒充续播。暂停声部仍为 busy，不得被 idle 回收或 resize 裁剪。seek/retry 必须清除旧声部，避免恢复后旧音乐逃逸；任意 seek 不承诺重建已开始长样本。底层实际位置证明与真实设备听感分别记录，前者不能代签后者。
 
 ## BMS→mania 音频合同
 
@@ -45,7 +45,7 @@
 2. 转谱 BGM/scratch/tap note 使用 hosted `IManiaKeysoundStore`/`BmsKeysoundStore`；tap note 保持 mania `DrawableNote` 池化，不恢复专用非池化 drawable。
 3. sample-only BGM/scratch 对象的 `Samples` 必须为空，真实键音只放 `KeysoundSample`；否则 mania column feedback 会把 BGM/scratch 当下一可玩对象按键触发。converter test 必须同时守住空 `Samples` 与存在 `KeysoundSample`。
 4. 转谱 BGM sample-only 对象必须 autoplay 出声；pause/seek 由中心 store 统一停止。
-5. 转谱 LN tail 必须静音。`BmsConvertedHoldNoteHitObject` 保留头音/slot，继承普通 HoldNote 池化与嵌套行为；自动键音由音频清单统一经 store 播放。关闭自动键音时仍使用 NodeSamples 旧头音路径，其完整 store 接入仍待后续；不得把自动模式证明扩写成手动 LN 已池化接 store。禁止非池化自定义 hold drawable和 per-note sample player。
+5. 转谱 LN tail 必须静音。`BmsConvertedHoldNoteHitObject` 保留头音/slot，继承普通 HoldNote 池化与嵌套行为；自动键音由音频清单统一经 store 播放。关闭自动键音时 pooled `DrawableNote` 仅在对象为 `HeadNote` 时读取父对象的 `IHasManiaKeysound` 并经 store 发声；不更换普通 HeadNote 类型、不让 tail 使用父对象头音。普通 mania 保持原样本路径。禁止非池化自定义 hold drawable 和 per-note sample player。
 6. `BmsToManiaKeysoundStoreFactory.Create(IRulesetConfigCache?)` 签名因 mania 反射绑定保持兼容；内部通道 floor 128 不得无 profile/保真替代方案而下调。
 7. BMS gameplay 的 `working.Track` 必须静音但继续作为 gameplay clock source：
    - 通过 `Ruleset.PlayBeatmapTrackDuringGameplay` 区分，BMS 为 false，其它 ruleset 默认 true；解析失败 fail-open。
@@ -64,6 +64,8 @@
 5. 不新增默认 audio latency/offset surface，不推进新 gameplay mod、Phase 2 speed 体系或大范围 HUD/UX。
 
 ## 测试与发布
+
+当前暂停保位与手动 LN 的实际位置、Player 路由、完整回归及 Release 证据集中见 [2026-09-29 验证记录](../../other/EXPERIENCE_CLOSURE_20260929.md)；历史自动键音结果不能代替后续改动验证。
 
 1. 修改 store/channel/cut/prewarm 至少覆盖 shared store owner、lane/order、playfield binding、pause/seek 与 BMS relevant/full；修改转谱路径加 converter、mania hold/autoplay relevant 与 player-level playback proof。
 2. late-empty-poor、empty-poor score/gauge、LN tail、replay-loaded HUD/key counter 等回归不得以“性能优化”为由删除。

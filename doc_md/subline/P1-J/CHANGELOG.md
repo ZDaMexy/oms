@@ -7,6 +7,19 @@
 
 ## 2026-09-29
 
+### 暂停保位与手动转谱长条声音闭环
+
+本轮状态：最小软件实现与自动证据已闭合，完整回归未新增失败；命令、工件、失败逐项对照及 Release 结果集中维护在 [本轮验证记录](../../other/EXPERIENCE_CLOSURE_20260929.md)。真实设备与真实谱听感尚未签收。
+
+- 玩家在长人声/伴奏中暂停时，shared store 将既有通道频率乘数置零，保留声部和播放位置；继续后恢复原频率链。使用固定 framework 现有 `SampleChannelBass` 零频率暂停能力，没有替换后端或新建长期播放器。
+- seek/retry 仍停止并清除旧声部；自动游标跳过目标以前事件并保留目标及未来事件，不补播跨越目标的过去长样本。该边界不同于普通 pause/resume。
+- 手动转谱 LN 的普通 pooled head 从父对象读取原 sample/WAV slot，接入已有 store 与 per-WAV cut；保留 HoldNote/HeadNote 池化，tail 静音、普通 mania 发声与判定链不变。自动键音仍由音频清单发声。
+- 新增真实 WAV/native sample channel 位置测试，检查暂停位置不动、原通道续播、原倍频恢复和 seek 清除旧声部；测试端读取固定后端句柄仅用于取证，生产不访问私有 API。另补 Player 真按键长条头一次、原 slot、尾静音证明，更新生命周期的暂停语义。
+
+原授权规划与完成标准：①沿现有通道实现保位暂停，暂停声部不得被闲置回收或裁剪；②以实际 WAV/通道位置证明保位，计数不能代替；③通过原 mania pooled head 接入手动 LN，并用 Player 证明路由；④保护自动键音、原生 mania 与判定，串行完成 focused、mania relevant、BMS full、Release 并逐项比对失败；⑤交付双模式长伴奏/长条/同槽重触发试听步骤，真实设备结果归 P1-G。
+
+验证：native position 三项在 r3 全部通过，所在 focused 共 59 通过；BMS full 2394 通过、29 既有失败、16 跳过，29 项名称、完整错误消息和调用栈与 `auto-keysound-bms-full.trx` 基线逐字一致。mania relevant 421 通过、4 既有失败，`TestHoldNoteChord`、`TestHoldNoteStair`、`TestHoldNoteWithReleasePress`、`TestSingleHoldNote` 的完整消息与调用栈同样与 `TestResults/auto-keysound-20260929/` 基线一致。本轮 Release 成功（0 错误、2 项既有警告），格式 verify 通过；软件门完成，不把存在具名旧失败的完整回归写成全绿。最终命令与统一文档检查结果见集中记录。
+
 ### 自动键音交付后文档与记忆一致性审查
 
 - 对照 `4258d4f` 的设置、主时钟游标、输入发声门控、转谱快照与最终验证工件，软件交付状态不变；只回读最终 focused/full/mania TRX、失败对照和 Release 日志，不把调试中间结果当最终 gate，也未重新运行产品验证。

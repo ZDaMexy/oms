@@ -34,13 +34,19 @@ namespace osu.Game.Beatmaps
         /// </summary>
         public bool AddRoot(string path, ExternalLibraryRootType type)
         {
-            string normalised = Path.GetFullPath(path);
+            string normalised = FilesystemBeatmapIndex.NormalisePath(path);
 
-            if (roots.Any(r => string.Equals(r.Path, normalised, StringComparison.OrdinalIgnoreCase)))
+            if (roots.Any(r => FilesystemBeatmapIndex.ContainsPath(r.Path, normalised) || FilesystemBeatmapIndex.ContainsPath(normalised, r.Path)))
                 return false;
 
             if (!Directory.Exists(normalised))
                 throw new DirectoryNotFoundException($"External library root not found: {normalised}");
+
+            for (DirectoryInfo? directory = new DirectoryInfo(normalised); directory != null; directory = directory.Parent)
+            {
+                if ((directory.Attributes & FileAttributes.ReparsePoint) != 0)
+                    throw new IOException("External library roots cannot use directory links.");
+            }
 
             roots.Add(new ExternalLibraryRoot
             {
@@ -58,8 +64,8 @@ namespace osu.Game.Beatmaps
         /// </summary>
         public bool RemoveRoot(string path)
         {
-            string normalised = Path.GetFullPath(path);
-            int removed = roots.RemoveAll(r => string.Equals(r.Path, normalised, StringComparison.OrdinalIgnoreCase));
+            string normalised = FilesystemBeatmapIndex.NormalisePath(path);
+            int removed = roots.RemoveAll(r => string.Equals(FilesystemBeatmapIndex.NormalisePath(r.Path), normalised, StringComparison.OrdinalIgnoreCase));
 
             if (removed > 0)
             {

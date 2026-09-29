@@ -46,7 +46,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("first event", () => store.PlaybackLogForTesting.Count, () => Is.EqualTo(1));
             AddStep("pause", () => gameplay.Stop());
             AddUntilStep("paused", () => gameplay.IsPaused.Value);
-            AddAssert("pause stops channels", () => store.ChannelPool.All(c => !c.RequestedPlaying));
+            AddAssert("pause freezes channels", () => store.ChannelPool.All(c => c.AggregateFrequency.Value == 0));
             AddStep("seek while paused", () => gameplay.Seek(2500));
             AddWaitStep("remain paused", 3);
             AddAssert("seek does not burst skipped note", () => store.PlaybackLogForTesting.Count, () => Is.EqualTo(1));

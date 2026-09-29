@@ -1,6 +1,8 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
+using System.Collections.Generic;
 using System.Threading;
 using osu.Framework.Bindables;
 using osu.Game.Beatmaps;
@@ -12,5 +14,7 @@ namespace osu.Game.Tests.Beatmaps
     {
         public readonly BindableList<BeatmapSetInfo> BeatmapSets = new BindableList<BeatmapSetInfo>();
         public override IBindableList<BeatmapSetInfo> GetBeatmapSets(CancellationToken? cancellationToken) => BeatmapSets.GetBoundCopy();
+
+        public void PublishRulesetMetadata(IReadOnlyDictionary<Guid, string> metadata) => NotifyRulesetMetadataUpdated(metadata);
     }
 }

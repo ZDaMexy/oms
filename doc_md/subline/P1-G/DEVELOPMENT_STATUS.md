@@ -24,7 +24,7 @@ P1-G 仍处于分项收集与最终汇总待闭合阶段。它不实现功能，
 | 皮肤 | 星轨退役，不再要求签收；静线本次调整获用户接受并暂止打磨，`V-001`～`V-004` 仍 0/4、`V-005` 未签收，当前单内置与第三方的具体矩阵继续待验 | P1-A |
 | 输入/控制器 | analog scratch、跨设备 edge/hold、deadzone/sensitivity、真实 HID | P1-B/P1-D |
 | gameplay/长条/音频 | LN/CN/HCN、长 BGM、dense keysound、empty-strike、pause/seek；两模式自动键音开关听感见 [P1-J](../P1-J/DEVELOPMENT_PLAN.md#0-用户指定自动键音2026-09-29) | P1-C/P1-E/P1-J |
-| Song Select/导入 | 大库分组/筛选/搜索、shared visual、桌面拖放；单轨构成目标须先由P1-I实现 | P1-H/P1-I |
+| Song Select/导入 | 单轨筛选手感与窄窗口、大库分组/搜索、当前页难度表刷新；隔离根重扫/缺失恢复/解除后文件与历史保全 | P1-H/P1-I |
 | Gimmick/BGA | 图序列、POOR、seek、老视频转码、代表 Gimmick 谱与 14K 布局 | P1-L/P1-A |
 | 发行 | fresh extract、portable/custom root、覆盖更新与公开口径 | P1-F |
 

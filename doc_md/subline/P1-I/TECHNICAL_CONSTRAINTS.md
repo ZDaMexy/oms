@@ -1,6 +1,6 @@
 # P1-I 技术约束：BMS 选歌筛选与搜索定制
 
-> 最后更新：2026-09-09（区分当前原型与待兑现产品合同）
+> 最后更新：2026-09-29（明确单轨预算、零宽入口与全启用语义）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，追加项与更正史按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线约束
@@ -10,18 +10,18 @@
 
 ## 产品面与语义约束
 
-2026-09-09代码审查确认当前仍为三行独立双端 slider；以下单轨/上限段/尾段要求是既有产品决定，**尚待实现**，不是本次审查撤销的目标。当前实现与剩余动作见 [STATUS](DEVELOPMENT_STATUS.md) 和 [PLAN](DEVELOPMENT_PLAN.md)。
+以下约束定义单轨/上限段/尾段的稳定行为。当前实现与验证边界分别见 [STATUS](DEVELOPMENT_STATUS.md) 和 [PLAN](DEVELOPMENT_PLAN.md)；三行原型与早期单轨误记的审查历史见 [CHANGELOG](CHANGELOG.md)。
 
 1. BMS-only UI 改动必须严格跟随当前 ruleset；切回 mania 或其他 ruleset 时，筛选区必须恢复现有 shared star slider 与原有 dropdown/product surface。
 2. 共享 `DisplayStarsMinimum` / `DisplayStarsMaximum` 继续只服务非 BMS 的 star slider 语义；BMS 分支启用时，不得让隐藏 slider 的旧 state 继续影响 `criteria.UserStarDifficulty`。
 3. 本专题替换的是 BMS 的 visual filter surface，不是删除 shared `star:` 文本语法；除非另开产品决策，不得顺手改掉 shared parser 的星数关键字。
 4. `RC` / `LN` / `SCR` 必须是互斥分区且和为 `100%`；不得沿用 note distribution summary 那种可重叠计数。首轮固定采用：`SCR` 优先于 `LN`，`LN` 只统计非 scratch long note，`RC` 为剩余 playable objects。
-5. `谱面构成` 的最终 UI 必须是一条单行、单轨的共享控件；从左到右固定为 `RC / LN / SCR` 三个可编辑段，尾段为空白容差。当前三条独立 `range slider` 原型不得作为最终产品面交付。
-6. `RC` / `LN` / `SCR` 三个值都可调，且各自表示该分类的最大占比；visual UI 不承担精确配比或 min/max 双端范围语义。
-7. `RC / LN / SCR` 的 visual 上限值不强制和为 `100%`；剩余尾段空白用于表达容差，而不是第四类真实谱面成分。
-8. `RC / LN / SCR` 三个上限值之和不得超过 `100%`；若拖拽或数值输入会造成溢出，当前编辑值必须被夹紧或阻止，不能让尾段容差为负。
-9. `RC` / `LN` / `SCR` 必须各自拥有独立 enabled state；禁用某段时，该段不再从 visual UI 生成对应的筛选 authority。
-10. `谱面构成` 的可见交互继续冻结为按钮式表面：默认显示 `RC / LN / SCR` 标签、hover 可见当前占比、区域足够宽时在段内居中显示当前占比、点击段位可进入数值输入。
+5. `谱面构成` 的最终 UI 必须是一条单行、单轨的共享控件；从左到右固定为 `RC / LN / SCR` 三个可编辑段，尾段为空白容差。不得回退为三条独立 `range slider`。
+6. `RC` / `LN` / `SCR` 三个值都可调，且各自表示该分类的最大占比；visual UI 不提供 min/max 双端范围编辑；三项同时启用时的匹配结果由这些上限的交集决定，不另造配比匹配 authority。
+7. `RC / LN / SCR` 的 visual 上限值不强制和为 `100%`；剩余尾段空白表达尚可分配的额度，而不是第四类真实谱面成分，也不代表匹配必然放宽。三项全启用且上限和不足 `100%` 时，有构成统计的谱面无匹配；恰好 `100%` 时只匹配精确配比。控件必须如实提示并指出可关闭某项限制，不改变缺 stats 的 fail-open 合同。
+8. `RC / LN / SCR` 三个上限值之和不得超过 `100%`；若拖拽或数值输入会造成溢出，当前编辑值必须被夹紧或阻止，不能让尾段容差为负。增加当前段先消耗空白；空白用尽后夹紧当前段，不能偷改邻段值。数值输入只接受有限数字，非法输入明确提示，合法超界值夹紧并显示实际结果。
+9. `RC` / `LN` / `SCR` 必须各自拥有独立 enabled state；禁用某段时，该段不再从 visual UI 生成对应的筛选 authority。默认三段均禁用；禁用保留段值与显示额度，重新启用恢复同一上限。
+10. `谱面构成` 的可见交互继续冻结为按钮式表面：默认显示 `RC / LN / SCR` 标签、hover 可见当前占比、区域足够宽时在段内居中显示当前占比、点击段位可进入数值输入。单行固定标签入口必须保证零宽段可重新编辑，不能要求用户先拖出不可命中的零宽边界。数值浮层提供独立启停，成功提交数值或拖拽启用当前段。
 11. `键数` 的 authority 必须继续来自 BMS keymode / `Difficulty.CircleSize` 的同步字段；首轮只公开 `5K`、`7K`、`9K`、`14K` 四档，不扩到其他模式或别名。
 12. visual filter 与 custom search 首轮只要求共享同一套 criteria 语义；除非明确追加设计，不得为了“搜索词与 UI 双向同步”扩大到重写整个 search text ownership。
 

@@ -26,7 +26,8 @@ converted star 与难度表使用不同 DTO，却写同一个 `BeatmapMetadata.R
 
 - 重启后仍 Unrated：查 persisted entries、MD5 和共享列 clobber。退出再进入 Song Select 后恢复：属于 carousel 深层 link staleness。
 - 不要恢复 per-set revision bump：5万级库会触发成千 re-detach/scheduler task，用户已验证可冻结 UI 数分钟。
-- mid-session table 变化当前通过退出/重进 Song Select 或重启反映。内存 MD5 index + one-shot refilter 只是后续候选；实施前须先同步 [P1-H CONSTRAINTS](../../doc_md/subline/P1-H/TECHNICAL_CONSTRAINTS.md) 第 15/21 条 persisted-only 消费合同，不能在 consumer 临时加 live lookup 掩盖同步缺口。
+- table 整批持久化后通过全局 RealmAccess 发布谱面 ID；列表合并通知，读取最新持久化 JSON，更新快照后一次重筛并重绑可见卡片（只改 metadata 不会自动刷新 PrepareForUse 中生成的等级文字）。保持选中 ID；不引入实时 table lookup。
+- 原生 Realm 写通知在测试中仍可能产生集合更新；新增批次通知本身不增加逐 set 替换，不能将它描述为阻止所有原生通知或证明大库零卡顿。真实大库耗时需另测。
 - write-back 使用注入的全局 `RealmAccess`；不要 new 第二个实例。
 - 已被旧版本擦掉的 entries 需要一次 table mutation/refresh 重写，修复只能防后续覆盖。
 

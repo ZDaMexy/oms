@@ -34,14 +34,19 @@ namespace osu.Game.Beatmaps
 
             public ExternalLibraryRootType Type { get; }
 
-            public ScanRootDefinition(string path, ExternalLibraryRootType type)
+            public bool External { get; }
+
+            public ScanRootDefinition(string path, ExternalLibraryRootType type, bool external = true)
             {
                 Path = path;
                 Type = type;
+                External = external;
             }
         }
 
         private readonly ExternalLibraryConfig config;
+        private readonly FilesystemBeatmapIndex? index;
+        private readonly SemaphoreSlim scanLock = new SemaphoreSlim(1);
 
         private enum DirectoryScanClassification
         {
@@ -75,9 +80,27 @@ namespace osu.Game.Beatmaps
         /// </summary>
         public Func<string, bool>? ManiaDirectoryShouldImport { get; set; }
 
-        public ExternalLibraryScanner(ExternalLibraryConfig config)
+        public ExternalLibraryScanner(ExternalLibraryConfig config, FilesystemBeatmapIndex? index = null)
         {
             this.config = config;
+            this.index = index;
+        }
+
+        public async Task RemoveRoot(ExternalLibraryRoot root)
+        {
+            await scanLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                var remainingRoots = config.Roots.Where(r => r.Type == root.Type
+                                                            && !string.Equals(FilesystemBeatmapIndex.NormalisePath(r.Path), FilesystemBeatmapIndex.NormalisePath(root.Path), StringComparison.OrdinalIgnoreCase))
+                                           .Select(r => r.Path).ToArray();
+                index?.Unregister(root.Path, root.Type, remainingRoots);
+                config.RemoveRoot(root.Path);
+            }
+            finally
+            {
+                scanLock.Release();
+            }
         }
 
         /// <summary>
@@ -105,7 +128,7 @@ namespace osu.Game.Beatmaps
                 cancellationToken.ThrowIfCancellationRequested();
 
                 var result = await ScanRoot(new ScanRootDefinition(roots[i].Path, roots[i].Type), i, roots.Count, totalImported, totalSkipped, totalErrors,
-                    progress, cancellationToken, mode, BmsDirectoryImporter, ManiaDirectoryImporter, BmsDirectoryShouldImport, ManiaDirectoryShouldImport).ConfigureAwait(false);
+                    progress, cancellationToken, mode, BmsDirectoryImporter, ManiaDirectoryImporter, BmsDirectoryShouldImport, ManiaDirectoryShouldImport, requireRegistered: true).ConfigureAwait(false);
                 totalImported += result.Imported;
                 totalSkipped += result.Skipped;
                 totalErrors += result.Errors;
@@ -161,7 +184,28 @@ namespace osu.Game.Beatmaps
         private async Task<ScanResult> ScanRoot(ScanRootDefinition root, int rootIndex, int totalRoots, int importedSoFar, int skippedSoFar, int errorsSoFar,
                                                 IProgress<ScanProgress>? progress, CancellationToken cancellationToken, ScanMode mode,
                                                 Func<string, string, CancellationToken, Task>? bmsDirectoryImporter, Func<string, CancellationToken, Task>? maniaDirectoryImporter,
-                                                Func<string, string, bool>? bmsDirectoryShouldImport, Func<string, bool>? maniaDirectoryShouldImport)
+                                                Func<string, string, bool>? bmsDirectoryShouldImport, Func<string, bool>? maniaDirectoryShouldImport, bool requireRegistered = false)
+        {
+            await scanLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                // A root can have been removed while another root was scanning.
+                if (requireRegistered && !config.Roots.Any(r => string.Equals(FilesystemBeatmapIndex.NormalisePath(r.Path), FilesystemBeatmapIndex.NormalisePath(root.Path), StringComparison.OrdinalIgnoreCase)))
+                    return new ScanResult(0, 0, 0);
+
+                return await scanRootCore(root, rootIndex, totalRoots, importedSoFar, skippedSoFar, errorsSoFar,
+                    progress, cancellationToken, mode, bmsDirectoryImporter, maniaDirectoryImporter, bmsDirectoryShouldImport, maniaDirectoryShouldImport).ConfigureAwait(false);
+            }
+            finally
+            {
+                scanLock.Release();
+            }
+        }
+
+        private async Task<ScanResult> scanRootCore(ScanRootDefinition root, int rootIndex, int totalRoots, int importedSoFar, int skippedSoFar, int errorsSoFar,
+                                                  IProgress<ScanProgress>? progress, CancellationToken cancellationToken, ScanMode mode,
+                                                  Func<string, string, CancellationToken, Task>? bmsDirectoryImporter, Func<string, CancellationToken, Task>? maniaDirectoryImporter,
+                                                  Func<string, string, bool>? bmsDirectoryShouldImport, Func<string, bool>? maniaDirectoryShouldImport)
         {
             if (!Directory.Exists(root.Path))
             {
@@ -170,14 +214,50 @@ namespace osu.Game.Beatmaps
                 return new ScanResult(0, 0, 1);
             }
 
-            return root.Type switch
+            try
+            {
+                // Existing configuration and direct scan calls must obey the same no-directory-links boundary as new roots.
+                for (DirectoryInfo? directory = new DirectoryInfo(root.Path); directory != null; directory = directory.Parent)
+                {
+                    if ((directory.Attributes & FileAttributes.ReparsePoint) != 0)
+                    {
+                        Logger.Log($"Skipping linked library root: {root.Path}", LoggingTarget.Database, LogLevel.Important);
+                        return new ScanResult(0, 0, 1);
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                Logger.Error(ex, $"Failed to inspect library root: {root.Path}");
+                return new ScanResult(0, 0, 1);
+            }
+
+            var present = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            Func<string, string, CancellationToken, Task>? bmsImport = bmsDirectoryImporter == null ? null : async (dir, registeredRoot, ct) =>
+            {
+                await bmsDirectoryImporter(dir, registeredRoot, ct).ConfigureAwait(false);
+                present.Add(dir);
+            };
+            Func<string, CancellationToken, Task>? maniaImport = maniaDirectoryImporter == null ? null : async (dir, ct) =>
+            {
+                await maniaDirectoryImporter(dir, ct).ConfigureAwait(false);
+                present.Add(dir);
+            };
+
+            var result = root.Type switch
             {
                 ExternalLibraryRootType.BMS => await scanBmsRoot(root.Path, rootIndex, totalRoots, importedSoFar, skippedSoFar, errorsSoFar,
-                    progress, cancellationToken, bmsDirectoryImporter, bmsDirectoryShouldImport, mode).ConfigureAwait(false),
+                    progress, cancellationToken, bmsImport, bmsDirectoryShouldImport, mode).ConfigureAwait(false),
                 ExternalLibraryRootType.Mania => await scanManiaRoot(root.Path, rootIndex, totalRoots, importedSoFar, skippedSoFar, errorsSoFar,
-                    progress, cancellationToken, maniaDirectoryImporter, maniaDirectoryShouldImport, mode).ConfigureAwait(false),
+                    progress, cancellationToken, maniaImport, maniaDirectoryShouldImport, mode).ConfigureAwait(false),
                 _ => new ScanResult(0, 0, 0),
             };
+
+            cancellationToken.ThrowIfCancellationRequested();
+            bool importerAvailable = root.Type == ExternalLibraryRootType.BMS ? bmsImport != null : maniaImport != null;
+            if (mode == ScanMode.Rebuild && result.Errors == 0 && importerAvailable)
+                index?.Reconcile(root.Path, root.Type, root.External, present);
+            return result;
         }
 
         private async Task<ScanResult> scanBmsRoot(string rootPath, int rootIndex, int totalRoots, int importedSoFar, int skippedSoFar, int errorsSoFar,
@@ -328,15 +408,8 @@ namespace osu.Game.Beatmaps
 
         private static bool isManiaOsuFile(string path)
         {
-            try
-            {
-                using var stream = File.OpenRead(path);
-                return OsuFileModeDetector.IsMania(stream);
-            }
-            catch
-            {
-                return false;
-            }
+            using var stream = File.OpenRead(path);
+            return OsuFileModeDetector.IsMania(stream);
         }
 
         private static DirectoryScanClassification classifyManiaDirectory(string dir)
@@ -381,6 +454,21 @@ namespace osu.Game.Beatmaps
 
                 foreach (string child in children)
                 {
+                    try
+                    {
+                        if ((File.GetAttributes(child) & FileAttributes.ReparsePoint) != 0)
+                        {
+                            Logger.Log($"Skipping linked library directory: {child}", LoggingTarget.Database, LogLevel.Important);
+                            errors++;
+                            continue;
+                        }
+                    }
+                    catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+                    {
+                        Logger.Error(ex, $"Failed to inspect library directory: {child}");
+                        errors++;
+                        continue;
+                    }
                     directories.Add(child);
                     queue.Enqueue(child);
                 }

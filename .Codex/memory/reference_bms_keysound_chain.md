@@ -14,11 +14,12 @@ metadata:
 
 - 先确认本局自动键音设置：关闭时 native key-down/armed timeline 与对象发声；开启时 shared store 按主时钟播放，命中与漏按不推进音频游标。默认手动 autoplay 抑制 lane armed 重音并交给音符发声，自动键音模式则统一交给游标，不能混用两种责任。
 - 同文件不同 WAV slot 允许重叠；排查截断看 `KeysoundId`，不能按文件名合并 cut group。通道数/预热数值只查 [资源合同](../../doc_md/subline/P1-J/TECHNICAL_CONSTRAINTS.md#shared-store-与资源合同)，不要恢复用户滑条或每次 Play 全池扫描。
-- 转谱 LN 载体继承普通 HoldNote，自动头音经 store；关闭自动键音时仍是 `NodeSamples[0]`，嵌套 head 没有 store 路由。不能把自动清单证明写成手动 LN 已接入，也不能把此缺口写成 HoldNote 未池化。
-- BGM/scratch 的 `Samples` 为空是防按键旁路的边界；成因和定位方法见 [[reference_bms_bgm1_pause_keytrigger_bug]]。暂停停止样本不等于长 one-shot 保位续播。
+- 转谱 LN 载体继承普通 HoldNote，自动头音经 store；手动 pooled head 从 `ParentHitObject.HitObject` 读取 `IHasManiaKeysound`，不需要新 head 类型或非池化 drawable。只对 HeadNote 读取父头音，不能让 tail 走同路。不能拿自动清单测试代替手动 Player 真按键证明。
+- BGM/scratch 的 `Samples` 为空是防按键旁路的边界；成因和定位方法见 [[reference_bms_bgm1_pause_keytrigger_bug]]。暂停保位依赖既有声部保留，不能重新调用 Stop/Play；seek/retry 则必须真正清除旧声部。
 
 ## 地雷与诊断
 
+- 固定 framework `2026.303.0` 的 `SampleChannelBass` 支持零频率保位暂停：`BassRelativeFrequencyHandler` 把频率变零转为 mixer pause，恢复非零继续同通道；paused 且仍有播放请求的 channel 维持 Playing，不能作为 idle 回收。不要因为 `SampleChannel` 没有公开 Seek/Position 就推断原位暂停无底层能力。实际位置测试通过测试端读取 pinned backend 句柄取证，生产不反射底层、不新增播放器。验证结果以 P1-J CHANGELOG 为准，测试代码存在不代表已通过。
 - NR/HO/IN 会重建 mania 对象，HO/IN 还会删除 BGM/皿 sample-only；自动键音不能只在 Mods 之后扫描 `IHasManiaKeysound`。转换器保存只读音频值快照，每局游标独立；预热必须覆盖快照里的已删除对象声音。当前开关关闭时这些 Mod 的旧音频行为未改。
 - 自动键音不能挂在 playable drawable 的 Update 上：早按后对象可能在应发声时刻前已回收。音频游标必须独立；mania Column 的按键反馈也须单独关，不能仅 gate `DrawableNote.PlaySamples()`。
 - Player 时间测试中普通推进应驱动实际 `FramedBeatmapClock.Source`，并扣除 `TotalAppliedOffset`；`GameplayClockContainer.Seek` 是显式跳转，会按合同跳过过去的自动声音，不能拿它模拟连续游玩。确定性输入/时差对照的 ManualClock 设 Rate=0，避免插值自行推进；速率行为另作生命周期测试。

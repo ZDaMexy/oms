@@ -302,7 +302,7 @@ namespace osu.Game.Beatmaps
             return Realm.Run(r =>
             {
                 r.Refresh();
-                return r.All<BeatmapSetInfo>().Where(b => !b.DeletePending).Detach();
+                return r.All<BeatmapSetInfo>().Where(b => !b.DeletePending && !b.FilesystemUnavailable).Detach();
             });
         }
 
@@ -322,7 +322,7 @@ namespace osu.Game.Beatmaps
         /// <param name="query">The query.</param>
         /// <returns>The first result for the provided query, or null if no results were found.</returns>
         public BeatmapInfo? QueryBeatmap(Expression<Func<BeatmapInfo, bool>> query) => Realm.Run(r =>
-            r.All<BeatmapInfo>().Filter($@"{nameof(BeatmapInfo.BeatmapSet)}.{nameof(BeatmapSetInfo.DeletePending)} == false").FirstOrDefault(query)?.Detach());
+            r.All<BeatmapInfo>().Filter($@"{nameof(BeatmapInfo.BeatmapSet)}.{nameof(BeatmapSetInfo.DeletePending)} == false AND {nameof(BeatmapInfo.BeatmapSet)}.{nameof(BeatmapSetInfo.FilesystemUnavailable)} == false").FirstOrDefault(query)?.Detach());
 
         /// <summary>
         /// Perform a lookup query on available <see cref="BeatmapInfo"/>s.
@@ -334,7 +334,7 @@ namespace osu.Game.Beatmaps
         /// <returns>The first result for the provided query, or null if no results were found.</returns>
         public BeatmapInfo? QueryBeatmap(string query, params QueryArgument[] arguments) => Realm.Run(r =>
             r.All<BeatmapInfo>()
-             .Filter($@"{nameof(BeatmapInfo.BeatmapSet)}.{nameof(BeatmapSetInfo.DeletePending)} == false")
+             .Filter($@"{nameof(BeatmapInfo.BeatmapSet)}.{nameof(BeatmapSetInfo.DeletePending)} == false AND {nameof(BeatmapInfo.BeatmapSet)}.{nameof(BeatmapSetInfo.FilesystemUnavailable)} == false")
              .Filter(query, arguments)
              .FirstOrDefault()?.Detach());
 
@@ -374,7 +374,7 @@ namespace osu.Game.Beatmaps
         {
             Realm.Write(r =>
             {
-                var items = r.All<BeatmapSetInfo>().Where(s => !s.DeletePending && !s.Protected && !s.IsExternalFilesystemStorage);
+                var items = r.All<BeatmapSetInfo>().Where(s => !s.DeletePending && !s.FilesystemUnavailable && !s.Protected && !s.IsExternalFilesystemStorage);
                 DeleteVideos(items.ToList());
             });
         }
@@ -383,7 +383,7 @@ namespace osu.Game.Beatmaps
         {
             Realm.Run(r =>
             {
-                var items = r.All<BeatmapSetInfo>().Where(s => !s.DeletePending && !s.Protected && !s.IsExternalFilesystemStorage);
+                var items = r.All<BeatmapSetInfo>().Where(s => !s.DeletePending && !s.FilesystemUnavailable && !s.Protected && !s.IsExternalFilesystemStorage);
                 deleteInternal(items.ToList(), silent);
             });
         }
@@ -409,7 +409,7 @@ namespace osu.Game.Beatmaps
         {
             Realm.Run(r =>
             {
-                var items = r.All<BeatmapSetInfo>().Where(s => !s.DeletePending && !s.Protected);
+                var items = r.All<BeatmapSetInfo>().Where(s => !s.DeletePending && !s.FilesystemUnavailable && !s.Protected);
 
                 if (filter != null)
                     items = items.Where(filter);
@@ -577,7 +577,7 @@ namespace osu.Game.Beatmaps
                 if (!processableItem.IsManaged)
                     processableItem = r.Find<BeatmapSetInfo>(item.ID);
 
-                if (processableItem == null || processableItem.DeletePending || processableItem.Protected || processableItem.IsExternalFilesystemStorage)
+                if (processableItem == null || processableItem.DeletePending || processableItem.FilesystemUnavailable || processableItem.Protected || processableItem.IsExternalFilesystemStorage)
                     return false;
 
                 directory = processableItem.FilesystemStoragePath;
@@ -772,12 +772,12 @@ namespace osu.Game.Beatmaps
             remove => workingBeatmapCache.OnInvalidated -= value;
         }
 
-        public override bool IsAvailableLocally(BeatmapSetInfo model) => Realm.Run(realm => realm.All<BeatmapSetInfo>().Any(s => s.OnlineID == model.OnlineID && !s.DeletePending));
+        public override bool IsAvailableLocally(BeatmapSetInfo model) => Realm.Run(realm => realm.All<BeatmapSetInfo>().Any(s => s.OnlineID == model.OnlineID && !s.DeletePending && !s.FilesystemUnavailable));
 
         public bool IsAvailableLocally(IBeatmapInfo model)
         {
             return Realm.Run(r => r.All<BeatmapInfo>()
-                                   .Filter($@"{nameof(BeatmapInfo.BeatmapSet)}.{nameof(BeatmapSetInfo.DeletePending)} == false")
+                                   .Filter($@"{nameof(BeatmapInfo.BeatmapSet)}.{nameof(BeatmapSetInfo.DeletePending)} == false AND {nameof(BeatmapInfo.BeatmapSet)}.{nameof(BeatmapSetInfo.FilesystemUnavailable)} == false")
                                    .Filter($@"{nameof(BeatmapInfo.OnlineID)} == $0 AND {nameof(BeatmapInfo.MD5Hash)} == {nameof(BeatmapInfo.OnlineMD5Hash)}", model.OnlineID)
                                    .Any());
         }

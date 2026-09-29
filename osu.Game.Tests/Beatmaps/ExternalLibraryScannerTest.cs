@@ -16,6 +16,53 @@ namespace osu.Game.Tests.Beatmaps
     public class ExternalLibraryScannerTest
     {
         [Test]
+        public void TestRootRegistrationNormalisesSeparatorsAndRejectsOverlap()
+        {
+            using var storage = new TemporaryNativeStorage(nameof(TestRootRegistrationNormalisesSeparatorsAndRejectsOverlap));
+            string root = createBmsRoot(storage, "library", "set");
+            var config = new ExternalLibraryConfig(storage);
+            Assert.That(config.AddRoot(root + Path.DirectorySeparatorChar, ExternalLibraryRootType.BMS), Is.True);
+            Assert.That(config.AddRoot(root.ToUpperInvariant(), ExternalLibraryRootType.BMS), Is.False);
+            Assert.That(config.AddRoot(Path.Combine(root, "set"), ExternalLibraryRootType.BMS), Is.False);
+            Assert.That(config.AddRoot(Path.GetDirectoryName(root)!, ExternalLibraryRootType.BMS), Is.False);
+            Assert.That(config.RemoveRoot(root), Is.True);
+            Assert.That(config.Roots, Is.Empty);
+        }
+
+        [Test]
+        public async Task TestUnregisterWaitsForScanAndPreventsLaterReimport()
+        {
+            using var storage = new TemporaryNativeStorage(nameof(TestUnregisterWaitsForScanAndPreventsLaterReimport));
+            string rootPath = createBmsRoot(storage, "library", "set");
+            var config = new ExternalLibraryConfig(storage);
+            config.AddRoot(rootPath, ExternalLibraryRootType.BMS);
+            var started = new TaskCompletionSource<bool>();
+            var release = new TaskCompletionSource<bool>();
+            int imports = 0;
+            var scanner = new ExternalLibraryScanner(config)
+            {
+                BmsDirectoryImporter = async (_, _, _) =>
+                {
+                    imports++;
+                    started.SetResult(true);
+                    await release.Task.ConfigureAwait(false);
+                },
+            };
+            var root = config.Roots.Single();
+            var scan = scanner.ScanAllRoots();
+            await started.Task.ConfigureAwait(false);
+            var removal = scanner.RemoveRoot(root);
+            Assert.That(removal.IsCompleted, Is.False);
+            release.SetResult(true);
+            await scan.ConfigureAwait(false);
+            await removal.ConfigureAwait(false);
+            await scanner.ScanAllRoots().ConfigureAwait(false);
+            Assert.That(imports, Is.EqualTo(1));
+            Assert.That(config.Roots, Is.Empty);
+            Assert.That(Directory.Exists(rootPath), Is.True);
+        }
+
+        [Test]
         public async Task TestProgressStaysBelowCompleteUntilLastRootFinishes()
         {
             using var storage = new TemporaryNativeStorage(nameof(TestProgressStaysBelowCompleteUntilLastRootFinishes));
@@ -106,7 +153,7 @@ namespace osu.Game.Tests.Beatmaps
                 ManiaDirectoryImporter = (_, _) => Task.CompletedTask,
             };
 
-            var result = await scanner.ScanAllRoots(cancellationToken: CancellationToken.None);
+            var result = await scanner.ScanAllRoots(cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -142,7 +189,7 @@ namespace osu.Game.Tests.Beatmaps
                 },
             };
 
-            var result = await scanner.ScanAllRoots(cancellationToken: CancellationToken.None);
+            var result = await scanner.ScanAllRoots(cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -178,7 +225,7 @@ namespace osu.Game.Tests.Beatmaps
                 BmsDirectoryShouldImport = (directory, _) => Path.GetFileName(directory) != "existing-set",
             };
 
-            var result = await scanner.ScanAllRoots(ExternalLibraryScanner.ScanMode.Incremental, cancellationToken: CancellationToken.None);
+            var result = await scanner.ScanAllRoots(ExternalLibraryScanner.ScanMode.Incremental, cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -213,7 +260,7 @@ namespace osu.Game.Tests.Beatmaps
                 BmsDirectoryShouldImport = (directory, _) => Path.GetFileName(directory) != "existing-set",
             };
 
-            var result = await scanner.ScanAllRoots(ExternalLibraryScanner.ScanMode.Rebuild, cancellationToken: CancellationToken.None);
+            var result = await scanner.ScanAllRoots(ExternalLibraryScanner.ScanMode.Rebuild, cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
@@ -249,7 +296,7 @@ namespace osu.Game.Tests.Beatmaps
                 },
             };
 
-            var result = await scanner.ScanAllRoots(cancellationToken: CancellationToken.None);
+            var result = await scanner.ScanAllRoots(cancellationToken: CancellationToken.None).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {

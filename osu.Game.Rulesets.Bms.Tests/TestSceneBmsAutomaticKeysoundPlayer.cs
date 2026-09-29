@@ -181,6 +181,23 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("rewind does not replay old BGM", () => playCount("bgm.wav"), () => Is.EqualTo(1));
         }
 
+        [Test]
+        public void TestManualConvertedHoldUsesSharedStoreAndSilentTail()
+        {
+            loadPlayer(true, false);
+            advanceTo(8030);
+            pressKey(2, true);
+            AddAssert("manual hold head reaches store once", () => playCount("hold.wav"), () => Is.EqualTo(1));
+            AddAssert("original head WAV slot is preserved", () => store!.PlaybackLogForTesting.Single(r => r.Filename == "hold.wav").CutGroup,
+                () => Is.EqualTo(Player.DrawableRuleset.Objects.OfType<osu.Game.Rulesets.Bms.Objects.BmsConvertedHoldNoteHitObject>().Single().KeysoundId));
+            advanceTo(9000);
+            pressKey(2, false);
+            advanceTo(10500);
+            AddAssert("manual head did not repeat", () => playCount("hold.wav"), () => Is.EqualTo(1));
+            AddAssert("manual tail stays silent", () => playCount("tail.wav"), () => Is.Zero);
+            AddAssert("hold was played through real input", () => Player.ScoreProcessor.HighestCombo.Value, () => Is.GreaterThan(0));
+        }
+
         private void loadPlayer(bool convertedToMania, bool automatic, bool onlyHolds = false)
         {
             CreateTest(() => AddStep("select mode and automatic keysound", () =>

@@ -53,6 +53,12 @@ namespace osu.Game.Beatmaps
         public bool IsExternalFilesystemStorage { get; set; }
 
         /// <summary>
+        /// The filesystem source is no longer indexed. Keep its identity and score/collection links for recovery.
+        /// This is not a request to delete the source directory.
+        /// </summary>
+        public bool FilesystemUnavailable { get; set; }
+
+        /// <summary>
         /// Normalised external library root path captured when this set was imported or registered.
         /// This stays separate from <see cref="FilesystemStoragePath"/> so nested external-library groupings
         /// can remain stable even when the set directory is not the root itself.
@@ -65,10 +71,9 @@ namespace osu.Game.Beatmaps
         /// <remarks>
         /// Currently unused. The original per-write bump was removed because, at large library scale, a single
         /// difficulty-table toggle matches thousands of sets and bumping each one produced a multi-minute carousel
-        /// refresh storm (thousands of per-set re-detaches on the update thread). Difficulty-table grouping now
-        /// relies on persisted metadata read at carousel detach time; mid-session table changes require a restart.
-        /// The column is retained (rather than dropped) to avoid another realm schema migration and to leave room
-        /// for a future lightweight single-shot refresh signal.
+        /// refresh storm (thousands of per-set re-detaches on the update thread). Difficulty-table changes now
+        /// publish one metadata batch notification after persistence, without incrementing this column.
+        /// The column is retained for database compatibility.
         /// </remarks>
         public long DifficultyTableRevision { get; set; }
 
