@@ -1,5 +1,12 @@
 # P1-B 变动日志
 
+## 2026-09-29
+
+### 输入证据日期与同步职责复核
+
+- 回读 `osu.Game.Rulesets.Bms.Tests/TestResults/total-bms-full.trx`，确认9月22日 scratch bridge 43/43通过；STATUS 将无日期的“当前可通过”改为留存结果及其软件范围，不代签真实控制器。
+- 约束回链唯一协作规则，只同步实际受影响文档；不再强制每次刷新四件套与主线。仅文档治理，未运行产品测试、Release或硬件验收。
+
 ## 2026-09-09
 
 ### 输入 production 与文档边界复核

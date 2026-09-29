@@ -68,7 +68,7 @@
 1. 首轮继续在现有 shared `FilterControl` 中做 ruleset-aware row branching；不得为此新开一套 per-ruleset `FilterControl` host、更改 `SongSelect` 构造链，或引入高风险的 shared lifecycle 改造。
 2. 不得为追求 UI 速度而把 RC/LN/SCR authority 偷塞到 `BmsNoteDistributionGraph` 的 runtime cache；Song Select 筛选与右侧详情面板必须共享同一份 persisted truth，而不是各算各的。
 3. `谱面构成` 行必须继续维持单行 product footprint；不得通过新增大块展开面板破坏右上筛选区当前的 search / sort / group / collection 结构。
-4. 任何改变 BMS Song Select 筛选语义的改动，都必须同步更新本目录四件套、`../../mainline/DEVELOPMENT_PLAN.md`、`../../mainline/DEVELOPMENT_STATUS.md` 与 `../../mainline/CHANGELOG.md`。
+4. 改变 BMS Song Select 筛选语义时，按 [文档联动规则](../../README.md#联动规则)同次同步本线实际受影响的状态、计划、约束和验证记录；只有影响全局优先级、release gate 或硬约束时才向 mainline 回写摘要与链接，不机械刷新四件套日期。
 5. 首轮 UI 若需要新控件，优先接受 BMS-local 私有控件，而不是抢先抽象 shared generic segmented filter component；只有当第二个 ruleset 确认复用时，才值得上提共享层。
 6. 若 shared 抽象提炼来不及，允许直接写 BMS-local 私有 segmented control；但不得再以三个彼此独立的 `ShearedRangeSlider` 拼排原型充当最终交付。
 7. **选歌右键「在资源管理器中定位」必须门控在 filesystem-backed 谱面**（`FilesystemBeatmapLocation.IsFilesystemBacked` ＝ `BeatmapSetInfo.FilesystemStoragePath` 非空，覆盖 BMS chartbms/ + 直读 mania chartmania/；hash 库无文件夹故不出该项），不得对 hash-backed 谱面显示一个会失败的入口。**定位必须走 `GameHost.PresentFileExternally(绝对路径)`，不得用 `Storage.PresentFileExternally`** —— 外部库绝对路径越出数据根，经 storage 会触发 traversal 守卫抛异常。路径解析唯一收口在共享 helper `FilesystemBeatmapLocation`（external＝绝对原样 / managed＝`storage.GetFullPath`；难度＝set 目录 + `LocalFilePath` 且 `/`→原生分隔符），与 `BmsBgaPlayer.tryGetAbsolutePath` 同源，不得在面板里另写一套路径拼接。外部目录**只读**打开、绝不重命名/删除/改动（external「只读」合同）；目标不存在时优雅退回父目录或静默，不得报错。中文硬编码标签「打开歌曲文件位置」「打开谱面文件位置」与 OMS 现有 BMS 中文 UI 一致。

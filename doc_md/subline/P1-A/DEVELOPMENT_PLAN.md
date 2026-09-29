@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-09-23（补旧皮肤测试欠账；保留暂停与后续验收边界）
+> 最后核对：2026-09-29（补原验收步骤的当前可达性边界；保留暂停与测试欠账）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -20,7 +20,7 @@
 - 核对曲名和多表归类截断、作者标级独立性、实时判定读数、BPM变速与HiSpeed、不同宽高比/单双舞台。信息数据接通不等于整体视觉签收，见[信息区记录](../../other/SKIN_SIMPLE_INFORMATION_20260913.md)。
 - 继续使用已保存[原始参考与实机反馈](../../other/references/simple-1p-20260912/README.md)作对照；以高质量beatmania style为目标，LITONE仅作功能分区和完成度参考，不复制外框/标识/素材。
 - 后续实际修改按影响范围复验公共配置、唯一布局、BMS/mania选择与回落及Release；保留无声明旧包、P1/P2、其它键数、窄屏及canonical恢复。皮肤控制BGA布局，内容/时间线职责仍归P1-L。
-- 按集中清单补未观察的玩法、样式、设备与长期体验，不复用旧安装包或局部认可补签。
+- 按集中清单补未观察的玩法、样式、设备与长期体验，不复用旧安装包或局部认可补签。正式执行 [V-005](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md#v-005c6-可选脚本与双规则集-momentum-候选) 前须按其中的当前入口说明区分可操作项与仅存后端的旧格子；不可达项保持未执行，不为清单恢复已删除入口或用自动证据代签。
 
 设置/模式选择与原编辑器的稳定行为仅在 [TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md#g1选择ui与startup协调) 维护。
 

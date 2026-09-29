@@ -1,6 +1,6 @@
 # P1-C 技术约束：判定语义与反馈边界
 
-> 最后更新：2026-09-22（TOTAL 规则与成绩兼容；验证边界见下文）
+> 最后核对：2026-09-29（补齐已交付只读统计与同步边界；判定/TOTAL 合同不变）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线与产品边界
@@ -26,7 +26,7 @@
 
 ## 当前反馈与 HUD 边界
 
-1. 全局 `JudgementCounterDisplay` 承担当前判定计数；GN 只在现有调速 toast 与 pre-start overlay 出现。不得把已删除的常驻 card 描述为当前 fallback 或待接线组件。
+1. 全局 `JudgementCounterDisplay` 与皮肤 scene 的只读 `GameplaySkinJudgementStatistics` 共同消费 score statistics；静线已显示 PG/GR/GD/BD/PR/EP/CB，COMBO BREAK 不要求额外伪造 judgement event。GN 只在现有调速 toast 与 pre-start overlay 出现；不得把已删除的常驻 card 描述为当前 fallback 或待接线组件。
 2. 新反馈不得通过遍历 wrapped HUD 子节点、修改 `GaugeBar`/`ComboCounter` 或暗改 `IBmsHudLayoutDisplay` 三件套宿主植入。
 3. 任何新常驻反馈都必须先在独立专题冻结产品价值、数据 authority、P1-A 宿主、fallback、验收和删除路径；不得复活旧 aggregate 规避设计审查。
 4. `Sudden/Hidden/Lift` target/cycle/remember 行为与判定正交；`Lift` 是 geometry control，`Hidden` 是下遮挡，两者不得混写。
@@ -38,5 +38,5 @@ TOTAL 合同（2026-09-22）：合法作者值优先；缺省 Beatoraja 使用 `
 
 1. results 重建必须消费 Ruleset contract 传入的 already-modded playable beatmap，不得重复应用 beatmap mods；gauge history 与 clear lamp 必须由 owning processor 计算，panel/UI 不得重建 timeline 或灯级。
 2. `PERFECT`/`FULL COMBO` 持久化必须先过 clear condition；HCN body tick 可独立影响 gauge，禁止只看聚合 judgement counts 推导灯级。
-3. 判定 family、poor/release、反馈术语或当前 HUD surface 改动，必须同步本目录四件套；影响全局 gate 时再向 mainline 回写摘要。
+3. 判定 family、poor/release、反馈术语或当前 HUD surface 改动，同步本线实际受影响的状态、计划、约束和验证记录；影响全局优先级、release gate 或硬约束时再向 mainline 回写摘要与链接，规则以 [AGENTS](../../../AGENTS.md#权威与文档) 为准。
 4. `BmsGaugeRulesFamily` 与 gauge type、judge family 各有自己的选择和消费链；默认 Legacy 的 TOTAL 倍数/阈值不代表 Beatoraja/LR2/IIDX。GAS 只运行当前 active gauge，降级初始化为新 gauge 的起始值，历史按实际激活段绘制；最终 lamp 由最终 active gauge 与 clear 条件决定，不能在 results 再并行模拟各 gauge 取最高灯。

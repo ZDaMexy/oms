@@ -14,14 +14,14 @@ metadata:
 
 - 按“真实 caller → manager/backend → production host/renderer → 用户结果 → 失败回退/必要人工验收”核算，不按提交、DTO、fixture 或代码量计进度。
 - capture、owner、coordinator、journal/recovery 保护真实用户数据，属于产品安全价值；与新增可见功能分栏，不能换算成 release-ready 百分比。
-- 分开核算“已能表达的效果”“完整成品皮肤”“作者操作是否方便”和“真实观感已验收”。一个可导入的组合效果示例不等于完整复杂皮肤；能编辑文件并打包，也不等于完整创作套件已交付，更不意味着已有可视化编辑器。
+- 分开核算“已能表达的效果”“完整成品皮肤”“作者操作是否方便”和“真实观感已验收”。一个可导入的组合效果示例不等于完整复杂皮肤；能编辑文件并打包，也不等于完整创作套件已交付。现有组件布局编辑器的恢复不证明完整 scene/script 可视化制作已开放，编辑范围见 [[reference_bms_skin_editor]]。
 - production 程序集中的 internal API 也可能没有非测试 caller。先查调用链；不得因底层复杂就一概删为无用，也不得因类型存在就横向扩展。
 - 一个实际例子：fixed-staging import 没有独立非测试 caller；它的固定槽 move/inspection 与 recovery 被 ManagedCopy 复用。独立入口不计额外玩家功能，共同底层不能因此当死代码。
 - 一个反例：keymode override 的 host/importer seam 不等于普通导入已有用户纠正 UI；拒绝模糊谱与用户修正流程分属不同交付。
 
 ## Campaign 粒度决定
 
-用户在 2026-08-09 要求最多七个持久 campaign；`SV1-*` 只是能力/依赖分类，不代表会话轮数。完整 C1～C7 内容和退出门只维护于 P1-A PLAN。
+用户在 2026-08-09 要求最多七个持久 campaign；`SV1-*` 只是能力/依赖分类，不代表会话轮数。当前预算与剩余退出门读 P1-A PLAN，已闭合阶段的原内容与证据按 CHANGELOG 和对应报告检索，不要求当前计划重复完成史。
 
 - 同一 campaign 持续到真实 caller/consumer、失败回退、所需宽测试、文档及终审闭合；可跨多个提交和 compaction。
 - 审计、NO-GO、路线决定、红测、DTO/foundation 或单个 caller 都不推进编号。需要产品决定时仍在原任务等待。

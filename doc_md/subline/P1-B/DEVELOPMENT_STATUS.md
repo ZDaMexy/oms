@@ -1,6 +1,6 @@
 # P1-B 开发进度：输入语义与硬件验收
 
-> 最后更新：2026-09-09（本地代码/测试源码审查；产品验证未刷新）
+> 最后核对：2026-09-29（源码与留存输入证据复核；产品/硬件验证日期不变）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，当前执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 
 ## 当前阶段
@@ -23,10 +23,8 @@
 
 ## 最近一次验证
 
-- desktop Release 构建当前可通过；数位板 / 触屏点击 / 鼠标 subsection 的桌面端安全隐藏已确认不改写 runtime config / handler 消费链。
-- `TestSceneOmsScratchGameplayBridge` 当前基线保持 **43/43**；keyboard / Raw Input / XInput / MouseAxis / DirectInput HID 主链在主线快照中仍视为稳定。
-- 按日期展开的实现与验证记录见 [CHANGELOG.md](CHANGELOG.md)。
+2026-09-22 BMS full 留存 TRX 中，`TestSceneOmsScratchGameplayBridge` 43/43 通过。它证明所覆盖的软件输入/玩法桥，不代表真实 HID、控制器或 cross-device 人工清单通过。完整回归的旧皮肤失败与 Release 历史执行边界见 [P1-C 最新验证](../P1-C/DEVELOPMENT_STATUS.md#最近一次验证)；desktop 设置裁剪的原始构建记录见 [CHANGELOG](CHANGELOG.md#2026-05-09)。
 
 ## 文档治理验证
 
-2026-09-09：核对 [BmsInputManager](../../../osu.Game.Rulesets.Bms/Input/BmsInputManager.cs)、[OmsInputRouter](../../../oms.Input/OmsInputRouter.cs)、desktop 设置入口及 [scratch bridge 测试源码](../../../osu.Game.Rulesets.Bms.Tests/TestSceneOmsScratchGameplayBridge.cs)，确认软件路径已接线。源码审查不替代真实 HID 验收，不将后端存在写成广泛设备兼容；全局实测见主线最新验证。
+2026-09-29：复核 [BmsInputManager](../../../osu.Game.Rulesets.Bms/Input/BmsInputManager.cs)、[OmsInputRouter](../../../oms.Input/OmsInputRouter.cs)、HID backend 与 [scratch bridge 测试源码](../../../osu.Game.Rulesets.Bms.Tests/TestSceneOmsScratchGameplayBridge.cs)，回读9月22日 TRX 并为软件验证补齐日期和范围；未重新构建或测试，真实硬件门保持。此前审查见 [CHANGELOG](CHANGELOG.md)。

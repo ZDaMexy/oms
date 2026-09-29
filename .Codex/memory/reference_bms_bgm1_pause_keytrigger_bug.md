@@ -8,6 +8,8 @@ metadata:
 
 # 转谱 mania 按键误播 bgm1（已解决）
 
+权威合同：[P1-J CONSTRAINTS](../../doc_md/subline/P1-J/TECHNICAL_CONSTRAINTS.md#bmsmania-音频合同)；当前边界见 [P1-J STATUS](../../doc_md/subline/P1-J/DEVELOPMENT_STATUS.md)，本页仅保留误播根因与定位方法。
+
 症状：按最左键触发 bgm1，多按重叠，暂停不停。
 
 ## 真根因
@@ -26,4 +28,4 @@ mania `Column.OnPressed` 会通过 `GameplaySampleTriggerSource` 播放本列“
 - 可用“静音 store 的 BGM”做隔离：仍能听见即证明是非 store 路径。
 - orphan-on-reuse、LN head、Track preview、谱面槽粘连均曾被验证为错误方向，不要重走。
 
-相邻但独立：长 one-shot BGM resume、转谱 LN 池化和 50k dense。完整键音合同见 [[reference_bms_keysound_chain]]，历史见 P1-J CHANGELOG 2026-06-08。
+相邻但独立：长 one-shot BGM resume、转谱 LN 池化和 50k dense。相关诊断见 [[reference_bms_keysound_chain]]，修复历史按2026-06-08查 [P1-J CHANGELOG](../../doc_md/subline/P1-J/CHANGELOG.md)。

@@ -31,7 +31,7 @@ OMS 从 [osu!lazer](https://github.com/ppy/osu) 出发，移除了 osu!、Taiko�
 - **两种模式** —— osu!mania 与 BMS，覆盖 5 / 7 / 9 / 14K。
 - **判定与计分** —— 四套判定体系，EX / DJ 计分与背光（灯）反馈。
 - **多种 Gauge** —— ASSIST EASY / EASY / NORMAL / HARD / EX-HARD / HAZARD / GAS，并可在 OMS LEGACY、beatoraja、LR2、IIDX 等规则族之间切换，让 clear 手感贴近你熟悉的平台。
-- **BGA 背景演出** —— 静态背景、图片与视频 BGA、POOR 层，独立浮窗按布局靠边；老式视频格式配 ffmpeg 也能播（见[使用](#bga-背景演出)）。
+- **BGA 背景演出** —— 静态背景、图片与视频 BGA、POOR 层，窗口尺寸和位置可由皮肤设置；老式视频格式配 ffmpeg 也能播（见[使用](#bga-背景演出)）。
 - **训练与辅助 Mod** —— Mirror / Random（含 R-RANDOM / S-RANDOM 与自定义 pattern）、Auto Scratch / Auto Note 等面向练习的 mod。
 - **输入接入** —— 已接入键盘、XInput、Raw Input 与 DirectInput/HID 软件路径；真实控制器覆盖、模拟皿与校准仍待验收。
 - **BMS 难度表** —— 本地目录与公共 URL 在线源导入、MD5 匹配、按表分组浏览。
@@ -60,7 +60,7 @@ OMS 的核心玩法、谱库与用户数据链默认离线运行；Phase 3 前�
 
 ### BGA 背景演出
 
-BMS 游玩时，BGA 显示在 playfield 旁的浮窗里，按布局靠边（1P 右、2P 左、居中右；14K 默认皮肤当前为四角布局）。静态背景、图片 BGA、POOR 层和 `.mp4` 视频都直接可用，全屏背景为谱面背景图的模糊版。BMS 设置里的「显示 BGA」可关闭整个浮窗。
+BMS 游玩时，BGA 的窗口尺寸、纵向位置和信息区预留可由所选皮肤设置；静线使用较大的 BGA 窗口和上下演奏信息区。常规布局为 1P 右侧、2P 左侧、居中右侧，14K 为四角；空间不足时自动调整位置和轨道区域，避免遮挡读谱。静态背景、图片 BGA、POOR 层和 `.mp4` 视频都直接可用，全屏背景为谱面背景图的模糊版。BMS 设置里的「显示 BGA」可关闭 BGA 窗口。
 
 老式视频格式（`.mpg`、`.wmv`、`.avi`、`.flv`）内置播放器无法解码，默认显示静态图。要播放它们需配一份 ffmpeg：
 
@@ -101,7 +101,7 @@ dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj --no-
 
 ## 项目状态
 
-OMS 处于 **Phase 1.x**（本地 BMS / mania 主流程与皮肤）收尾阶段。静线是支持 BMS 与 mania 的唯一内置、默认与保底皮肤，正常开发启动、构建与发布会带上作者源更新，玩家无需导入；星轨已退出内置，仓库旧文件仅保留历史参考。作者可从模板修改、检查、打包并导入自己的作品，见[皮肤制作套件](skin-authoring/README.md)。设置中可分别选择 BMS/mania 皮肤，使用固定 `chartskin` 文件夹并手动刷新；原组件布局编辑器可调整组件和属性、导入图片，保存独立副本。静线已完成此前布局、信息区与轨道比例打磨，用户要求暂止视觉迭代、核对项目与文档；这不代表整体画面、输入设备与长时间体验已验收，Skin V1 与整体发行未完成。联网相关的 Phase 3 功能保持冻结。具体进度与验收状态只以 [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) 为准。
+OMS 处于 **Phase 1.x**（本地 BMS / mania 主流程与皮肤）收尾阶段。静线是支持 BMS 与 mania 的唯一内置、默认与保底皮肤，正常开发启动、构建与发布会带上作者源更新，玩家无需导入；星轨已退出内置，仓库旧文件仅保留历史参考。作者可从模板修改、检查、打包并导入自己的作品，见[皮肤制作套件](skin-authoring/README.md)。设置中可分别选择 BMS/mania 皮肤，使用固定 `chartskin` 文件夹并手动刷新；原组件布局编辑器可调整组件和属性、导入图片，保存独立副本。静线已完成此前布局、信息区与轨道比例打磨，外观打磨按用户决定暂停；整体画面、输入设备与长时间体验仍未验收，Skin V1 与整体发行未完成。联网相关的 Phase 3 功能保持冻结。具体进度与验收状态只以 [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) 为准。
 
 ## 贡献
 

@@ -2,6 +2,14 @@
 
 > 本文件只记录 `P1-C` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-09-29
+
+### 反馈产品面与 TOTAL 诊断记忆同步
+
+- PLAN 补回9月13日已经交付的静线实时判定统计；CONSTRAINTS 明确全局计数器与 scene 只读消费同一 statistics，COMBO BREAK 不要求伪造判定事件，不恢复旧反馈卡。
+- 对照 `BmsScoreInfoData` 的v6反序列化默认与 `InitialiseNewPlay` 的显式v7，补齐 TOTAL memory，避免把 DTO 默认整体升版而改写旧成绩解释。
+- 再次回读9月22日三个留存 TRX：TOTAL focused 250通过，full 2300通过/29失败/16跳过；旧基线29失败与当前full的名称、错误消息及路径标准化后堆栈逐项相同。仅更新文档与记忆，未重跑产品测试、Release或人工门；Release仍只保留原执行记录。
+
 ## 2026-09-23
 
 ### 实际进度与文档记忆一致性复核

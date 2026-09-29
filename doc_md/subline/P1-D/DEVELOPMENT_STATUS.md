@@ -1,6 +1,6 @@
 # P1-D 开发进度：控制器校准与诊断
 
-> 最后更新：2026-09-09（本地代码/测试源码审查；产品验证未刷新）
+> 最后核对：2026-09-29（设备枚举留存证据复核；校准/实机仍未签收）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，当前执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 
 ## 当前阶段
@@ -18,9 +18,8 @@
 
 ## 最近一次验证
 
-- 当前仅完成基于代码结构的状态同步，尚无新增构建或测试执行。
-- 后续若出现按日期展开的实现或验证，统一写入 [CHANGELOG.md](CHANGELOG.md)。
+2026-09-22 BMS full 留存 TRX 中，`TestDeviceDiscoveryRunsOffCallingThread` 通过；它只证明设备枚举离开调用线程，不是 live capture、完整设置 UI 或真实校准体验验收。完整回归与其既有失败见 [P1-C 最新验证](../P1-C/DEVELOPMENT_STATUS.md#最近一次验证)。
 
 ## 文档治理验证
 
-2026-09-09：核对 [BmsSettingsSubsection](../../../osu.Game.Rulesets.Bms/BmsSettingsSubsection.cs) 到 [supplemental editor](../../../osu.Game.Rulesets.Bms/BmsSupplementalBindingSettingsSection.cs) 的真实入口及[对应测试源码](../../../osu.Game.Rulesets.Bms.Tests/TestSceneBmsSupplementalBindingSettingsSection.cs)。按键/轴捕获、方向反转与保存已存在，独立 deadzone/sensitivity 校准及持续 diagnostics 面板仍未交付；本节仅记录源码审查；全局实测见主线最新验证。
+2026-09-29：对照 [BmsSettingsSubsection](../../../osu.Game.Rulesets.Bms/BmsSettingsSubsection.cs)、[supplemental editor](../../../osu.Game.Rulesets.Bms/BmsSupplementalBindingSettingsSection.cs) 与[设备枚举测试](../../../osu.Game.Rulesets.Bms.Tests/TestSceneBmsSupplementalBindingSettingsSection.cs)，区分源码可见的按键/轴捕获、反转/保存与留存测试实际覆盖范围。未运行新的产品测试；独立校准及持续 diagnostics 产品面仍未交付。此前审查见 [CHANGELOG](CHANGELOG.md)。

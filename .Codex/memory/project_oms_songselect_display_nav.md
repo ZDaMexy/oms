@@ -1,6 +1,6 @@
 ---
 name: project-oms-songselect-display-nav
-description: P1-I 选歌展示/导航的稳定合同与 UI/大库地雷
+description: P1-I 选歌展示/导航的状态分离、池化布局与大库诊断地雷
 metadata:
   node_type: memory
   type: project
@@ -10,13 +10,6 @@ metadata:
 
 权威当前态：[P1-I STATUS](../../doc_md/subline/P1-I/DEVELOPMENT_STATUS.md)；详细历史：[P1-I CHANGELOG](../../doc_md/subline/P1-I/CHANGELOG.md)。
 
-## 已有产品面
-
-- BMS-only 展示层级（歌曲↔谱面）、层级返回条和 hierarchical grouping。
-- 难度表/内外部谱库分组、难度表归类、converted-mania 三态展示与 mania 难度表分组。
-- BMS 模式 IIDX 难度胶囊、preview 指示和文件位置入口。
-- 分组定义按 persisted JSON 内容缓存，避免大库每次反序列化。
-
 ## 关键实现合同
 
 - `BeatmapSetsGroupedTogether` 是歌曲/谱面折叠的单一收口点；不另建 per-ruleset FilterControl host。
@@ -24,6 +17,7 @@ metadata:
 - group 返回与 scoped beatmap-set 是不同状态；Back 优先级：scoped set → group 上退 → 退出 Song Select。
 - converted-mania 难度表只显示 BMS 转谱，应由 grouping 对非 BMS 返回空定义实现，不强改 matching 状态。
 - `RulesetData` 的难度表条目在 osu.Game 侧只读；不得用不完整 DTO 写回。
+- 分组定义按 persisted JSON 内容缓存；大库 JSON 成本先查实际 cache hit/miss，不把该路径当作每次反序列化重做。
 
 ## UI 地雷
 

@@ -31,7 +31,7 @@ OMS starts from [osu!lazer](https://github.com/ppy/osu), removes osu!, Taiko and
 - **Two modes** — osu!mania and BMS, covering 5 / 7 / 9 / 14K.
 - **Judgement & scoring** — four judgement systems, EX / DJ scoring with backlight (lamp) feedback.
 - **Multiple gauges** — ASSIST EASY / EASY / NORMAL / HARD / EX-HARD / HAZARD / GAS, switchable across the OMS LEGACY, beatoraja, LR2 and IIDX rule families so the clear feel matches the platform you know.
-- **BGA playback** — static backgrounds, image and video BGA, POOR layer, shown in a floating panel docked by layout; legacy video formats can also play with ffmpeg (see [Usage](#bga-playback)).
+- **BGA playback** — static backgrounds, image and video BGA, and the POOR layer, with window size and position configurable by skins; legacy video formats can also play with ffmpeg (see [Usage](#bga-playback)).
 - **Training & assist mods** — Mirror / Random (including R-RANDOM / S-RANDOM and custom patterns), Auto Scratch / Auto Note and other practice-oriented mods.
 - **Input integration** — keyboard, XInput, Raw Input and DirectInput/HID software paths are connected; real-device coverage, analog scratch and calibration still require validation.
 - **BMS difficulty tables** — import from local directories and public URL sources, MD5 matching, browse grouped by table.
@@ -60,7 +60,7 @@ The only exception is **BMS difficulty tables**: import / refresh from local pat
 
 ### BGA playback
 
-During BMS play, the BGA is shown in floating panels beside the playfield, docked by layout (1P right, 2P left, centre right; the default 14K skin currently uses the four corners). Static backgrounds, image BGA, the POOR layer and `.mp4` video work directly, with a blurred version of the chart background shown full-screen. "Show BGA" in the BMS settings can turn the panels off.
+During BMS play, the selected skin can set the BGA window size, vertical position and space for information panels. 静线 uses larger BGA windows with gameplay information above and below. The usual placement is right for 1P, left for 2P, right for a centred playfield, and four corners for 14K; when space is limited, the layout adjusts the windows and playfield to keep the lanes readable. Static backgrounds, image BGA, the POOR layer and `.mp4` video work directly, with a blurred version of the chart background shown full-screen. "Show BGA" in the BMS settings can turn the windows off.
 
 Legacy video formats (`.mpg`, `.wmv`, `.avi`, `.flv`) cannot be decoded by the built-in player and show a static image by default. To play them you need an ffmpeg binary:
 
@@ -101,7 +101,7 @@ Repository navigation and the "code changes must update the docs" discipline are
 
 ## Project status
 
-OMS is in the closing work of **Phase 1.x** (local BMS / mania and skinning). Both “静线” (oms-simple) and “星轨” (oms-complex) have importable BMS / mania packages, with editable templates and validation/packaging tools in the [authoring kit](skin-authoring/README.md). 静线 remains the default and fallback. The user has rejected 星轨's overall visual experience, and revisions to both packages are paused. Visual, hardware and long-session acceptance remain incomplete; Skin V1 and the overall release are not complete. Phase 3 online features remain frozen. See [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) for authoritative progress and acceptance status.
+OMS is in the closing work of **Phase 1.x** (local BMS / mania and skinning). “静线” (oms-simple) is the sole built-in, default and fallback skin for both modes. Normal development launches, builds and publishing include updates from its author source; players do not need to import it. “星轨” (oms-complex) has been retired from the built-in selection, and its repository files remain historical references. Authors can edit templates, check, package and import their own work using the [authoring kit](skin-authoring/README.md). Settings save separate BMS and mania skin choices and let players open and refresh the fixed `chartskin` folder. The restored component layout editor supports component and property changes, image imports and saving a separate copy. 静线's recent layout, information and lane-proportion improvements are in place; further visual polish is on hold following the user's decision. Visual, hardware and long-session acceptance remain incomplete; Skin V1 and the overall release are not complete. Phase 3 online features remain frozen. See [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) for authoritative progress and acceptance status.
 
 ## Contributing
 

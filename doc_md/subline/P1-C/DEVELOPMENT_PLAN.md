@@ -1,6 +1,6 @@
 # P1-C 当前计划：判定语义与反馈边界
 
-> 最后更新：2026-09-22（TOTAL 规则与成绩兼容；验证边界见下文）
+> 最后核对：2026-09-29（反馈产品面与已交付统计对齐；执行顺序不变）
 > 主线顺序见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，已完成实现与删除记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -16,7 +16,7 @@ P1-C 只维护 BMS 判定家族、窗口/poor/release parity、判定结果到�
 
 - IIDX/LR2/beatoraja/OD 的主要窗口、边界、scratch、release 与 excessive/empty-poor 合同已落，并由 parity test 守门。
 - 常驻 `DefaultBmsSpeedFeedbackDisplay`、`GameplayFeedbackState` 及其 FAST/SLOW、pacemaker、summary、常驻 GN 已按产品决定删除，不是当前能力。
-- 当前反馈面只有全局 `JudgementCounterDisplay`、调速 toast、pre-start overlay 与既有 target/cycle/remember 行为。
+- 当前反馈面包含全局 `JudgementCounterDisplay`、静线通过普通 scene 绑定的实时判定统计、调速 toast、pre-start overlay 与既有 target/cycle/remember 行为。皮肤统计只读同一 score statistics，不恢复旧反馈卡。
 - pre-start 纯视觉流速 preview 已存在，但不得进入 hit object、判定、计分、键音、replay 或 autoplay authority。
 
 完成阶段的设计和删除经过不在本页展开，按日期查 [CHANGELOG](CHANGELOG.md)。

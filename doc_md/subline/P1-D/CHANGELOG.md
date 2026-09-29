@@ -1,5 +1,12 @@
 # P1-D 变动日志
 
+## 2026-09-29
+
+### 区分设备枚举测试与校准产品验收
+
+- 回读9月22日 `total-bms-full.trx`，`TestDeviceDiscoveryRunsOffCallingThread` 通过；对照测试源码确认它只证明设备枚举离开调用线程，未验证完整 live capture/UI 或真实设备校准。
+- STATUS 补明确的产品证据日期与范围，保留 deadzone/sensitivity、持续 diagnostics 和硬件缺口；约束改为仅同步实际变化与有全局影响的摘要。未改产品、未重跑测试或实机。
+
 ## 2026-09-09
 
 ### 校准产品入口复核

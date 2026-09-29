@@ -5,6 +5,13 @@
 
 ---
 
+## 2026-09-29
+
+### BGA 窄屏避让边界与记忆同步
+
+- 对照 `BmsGameplayLayoutSolver.solveBgaViewports`，常规14K仍为四角；极窄可用空间会缩短轨道并改为下方单viewport，STATUS与BGA memory不再把四角写成无条件结论。
+- 最新治理章只保留本次结论，早前布局/事件审查留在本日志。每viewport一个player、单content/decoder迁移、旧设置提示与逐谱人工门均未改变；未运行产品测试、Release或逐谱对照。
+
 ## 2026-09-13
 
 ### 补齐静线演奏分区带来的 BGA 布局能力

@@ -1,6 +1,6 @@
 # P1-E 开发进度：gameplay 与长条真实谱面验校
 
-> 最后核对：2026-09-23（跨线状态与证据同步；专项产品/人工验证日期不变）
+> 最后核对：2026-09-29（源码与长条留存证据复核；产品/人工验证日期不变）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，当前执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 
 ## 当前阶段
@@ -20,9 +20,8 @@
 
 ## 最近一次验证
 
-- 当前仅完成基于代码结构的状态同步，并沿用主线对 long-note / release-window 的既有已验证结论，尚无新增构建或测试执行。
-- 后续若出现按日期展开的实现或验证，统一写入 [CHANGELOG.md](CHANGELOG.md)。
+2026-09-22 BMS full 留存 TRX 中，`BmsDrawableRulesetTest` 所含 runtime 用例通过；TOTAL 专项同时覆盖 LN/CN/HCN 物量与辅助前后计数。完整回归的既有失败及专项边界见 [P1-C 最新验证](../P1-C/DEVELOPMENT_STATUS.md#最近一次验证)。这些自动结果不替代真实谱 checklist、长条手感或输入组合签收。
 
 ## 文档治理验证
 
-2026-09-09：核对 [DrawableBmsHoldNote](../../../osu.Game.Rulesets.Bms/UI/DrawableBmsHoldNote.cs) 的 release/regrab、[BmsGaugeProcessor](../../../osu.Game.Rulesets.Bms/Scoring/BmsGaugeProcessor.cs) 的尾判分母/HCN body，以及 [runtime 测试源码](../../../osu.Game.Rulesets.Bms.Tests/BmsDrawableRulesetTest.cs)。软件实现与 LN/CN/HCN 三轴合同一致；真实谱 checklist 与人工签收仍未闭合，本节仅记录源码审查，全局实测见主线最新验证。
+2026-09-29：回读9月22日留存 TRX，并核对 [DrawableBmsHoldNote](../../../osu.Game.Rulesets.Bms/UI/DrawableBmsHoldNote.cs) 的 release/regrab、[BmsGaugeProcessor](../../../osu.Game.Rulesets.Bms/Scoring/BmsGaugeProcessor.cs) 的辅助前后物量；LN/CN/HCN 三轴合同及未闭合人工门保持。未重跑产品测试或实机；此前审查见 [CHANGELOG](CHANGELOG.md)。

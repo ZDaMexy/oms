@@ -13,7 +13,7 @@ metadata:
 ## 配置语义
 
 - `OsuSetting.Skin` 继续作为旧版全局值和兼容投影；新增 `SkinBms`、`SkinMania` 两个 mode override。
-- 新安装或旧配置首次进入 `OsuGame.LoadComplete` 时，空的 mode key 从已迁移/规范化的全局值复制，因此旧用户看到的皮肤不变。之后两个 key 独立保存，修改一个不会改另一个。
+- 新安装或旧配置首次进入 `OsuGame.LoadComplete` 时，先迁移旧内置 complex 并规范化失效配置，再把结果复制到空的 mode key。仍有效的普通用户皮肤选择保持；旧内置 complex、缺失或不合资格的记录回到静线，不能笼统承诺所有旧外观不变。之后两个 key 独立保存，修改一个不会改另一个。
 - 启动与规则集切换均在 update thread 的既有 `SkinManager` selection publication 入口应用对应 key。SkinManager 仍独占 current pair、revision、filesystem capture 与失败回退 authority；UI 只保留本地展示 bindable。
 - 无法解析的 ID、缺失记录、受保护或已删除的配置回到已验证的 `oms-simple`；记录有效但整包准备失败沿用 SkinManager 的保留旧 pair 语义，不能把两种失败都归为自动回退。异步文件夹选择完成时必须按发起的 ruleset 绑定，防止 BMS 的晚到结果写入 mania 偏好。
 

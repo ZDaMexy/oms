@@ -5,6 +5,13 @@
 
 ---
 
+## 2026-09-29
+
+### 音频诊断记忆补齐权威入口
+
+- 按键误播BGM与gameplay Track静音两条memory补回P1-J状态/合同的直接链接，保留隐藏发声定位、重置后静音与backfill性能地雷，避免把叶子记忆当第二份产品合同。
+- 对照转谱器，LN仍生成普通mania `HoldNote`、头音在 `NodeSamples[0]`，不能把tap shared-store证明推广到LN。转谱LN、长one-shot保位恢复与dense/真实听感门保持；未改产品或运行测试。
+
 ## 2026-09-09
 
 ### 同步已闭合 lane 证据与真实音频缺口

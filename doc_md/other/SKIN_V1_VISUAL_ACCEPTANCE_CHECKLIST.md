@@ -95,7 +95,7 @@
 
 1. **静态与 60 FPS 编号帧**：7K 普通键 `NoteImage1L`、scratch `NoteImageSL` 与 14K 第二皿 `NoteImageS2L` 分别落到正确长条身；静态素材稳定，`name-0`、`name-1`…连续编号帧以固定 60 FPS 循环，不串到其它 lane、head 或 tail。
 2. **宽度安全域**：合法 `LongNoteBodyWidth` 按声明显示；字段缺失、非 finite、`<= 0` 或 `> 1` 时只把 body 宽度回退到 `0.5775`，同包有效 body 素材仍保留，不污染其它字段或组件。
-3. **同 revision 切换**：A 包使用 2 帧窄 body，B 包使用 3 帧宽 body；准备期间保留旧 body，完成后素材帧组与宽度作为同一个 package revision 一起切换，不出现 A 素材+B 宽度或反向拼接。这是逐组件 A→B 验收，不代表整包原子热重载已开放。
+3. **同 revision 切换**：A 包使用 2 帧窄 body，B 包使用 3 帧宽 body；准备期间保留旧 body，完成后素材帧组与宽度作为同一个 package revision 一起切换，不出现 A 素材+B 宽度或反向拼接。本项仅记录逐组件 A→B，不替代当前整包重载专项与 V-005。
 4. **selected 坏 body 与下层隔离**：selected 包 body 缺失、空值、损坏、断帧、越界或超预算时仍有可读 critical rescue；不得从下层仅同名裸纹理或裸宽度拼件。下层若拥有自己的完整 body 声明、素材与宽度，可按 `Inherit` 整体接管。
 5. **保持状态**：在真实长条上检查 Idle/Holding 为 alpha `0.8`、Broken 为灰暗 alpha `0.32`，状态变化约用 `80ms` 过渡；HCN release 后 Broken、regrab 后恢复 Holding。状态变化和异步 body 到达不得闪回错误状态。
 6. **边界不变**：head/tail 外观、长条长度、拉伸/裁剪、判定位置以及 LN/CN/HCN 判定与保持规则均与切片前一致。本项不验作者 `Suppress`、mania、G1、screen-space/layout、scene/script、整包原子重载或真实 BMS beatmap-local 作者格式。
@@ -117,6 +117,8 @@
 3. **撤销与恢复**：运行时及暂停时撤销 scene 写入，旧脚本效果均撤去，继续可玩；快速撤销再授权不复用旧历史。暂停停止效果时间，retry/seek 重建历史；profiler/诊断可查看，不出现持续刷屏或卡住。
 4. **三源与最终整包**：在测试数据根分别使用 ordinary、managed、registered external；退出 gameplay 后由 Settings 唯一 Reload 生效，live/preview 内操作仍拒绝。相同内容重启保留授权，改内容后重授权；损坏 scene/script/素材保留旧包，修复后可恢复。选择切换和适用的 rename/delete/unregister 不残留旧效果，external 原文件保持不变。
 5. **低端与长时**：记录低端 Windows 设备、谱面/keymode、帧率和 profiler，观察高密度事件、长谱、反复暂停/重试及包切换。自动 instruction/heap/node/resource 限额已另行验证；本项确认真实 GPU、字体、输入设备和长期体验。
+
+当前入口说明：本项保留 C6 原三源验收范围。当前可通过普通 `.osk` 导入与固定 `chartskin/` 目录完成两源操作；registered external 只可使用隔离测试根内已有的有效旧记录，设置已无新增注册和工作区行级操作入口。只对当前可操作的选择、刷新及允许的删除记录人工结果；没有入口的 managed rename / external unregister 保持“未执行”，不能通过修改数据库补出前提，也不能用后端自动验证代签。完整 V-005 仍待签收；后端保留边界见[皮肤作者手册](SKINNING.md#2-皮肤包结构)。
 
 反馈记录：
 

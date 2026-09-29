@@ -1,6 +1,6 @@
 # P1-K 技术约束：BMS 解析链路治理
 
-> 最后更新：2026-09-22（TOTAL 规则与成绩兼容；验证边界见下文）
+> 最后核对：2026-09-29（文档同步与代码验证范围对齐；解析行为合同不变）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，追加项与更正史按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线约束
@@ -163,8 +163,8 @@ sample-only 对象保留在 `HitObjects` 参与键音播放，但必须退出 di
 
 1. 至少补齐三层 focused coverage：decoder、converter、import/raw-wrapper；不要等到播放层开始消费新语义后再补底层测试。
 2. 新的 typed placeholder、visual event surface 或 timeline 语义，必须先有 focused regression，再允许 player-level 或 UI 层使用。
-3. Release build 继续是子线门槛；本专题不能以“只是数据结构与文档治理”为理由绕过 build gate。
+3. Release build 继续是本线产品代码变更门，包括数据结构改动；纯文档/记忆治理按 [主线改动验收矩阵](../../mainline/DEVELOPMENT_PLAN.md#改动验收矩阵)运行文档与 diff 检查，不重跑或刷新产品验证。
 4. 真实谱面 acceptance 与人工 checklist 继续后置到 `P1-E` / `P1-G`；但不得把自动化缺口全部甩给人工验收。
-5. 任何改变 parse semantics、projection ownership 或 cache authority 的实现，都必须同步更新本目录四件套以及 `../../mainline/DEVELOPMENT_PLAN.md`、`../../mainline/DEVELOPMENT_STATUS.md`、`../../mainline/CHANGELOG.md`。
+5. 改变 parse semantics、projection ownership 或 cache authority 时，同次更新本线实际受影响的状态、计划、约束和验证记录；仅影响全局优先级、release gate 或硬约束时向 mainline 回写摘要与链接。同步规则以 [AGENTS](../../../AGENTS.md#权威与文档) 为准，不机械刷新无变化文件。
 6. 第一轮执行必须遵守“focused parser -> focused converter -> focused projection -> full BMS suite -> Release build”这一验证顺序；在更窄的 executable proof 可用时，不得只看 diff 或只依赖人工推理。
 7. `K9` 的第一轮验证顺序固定为“focused mapping / sample-preservation proof -> autoplay ignore-only proof -> selector/resolver focused proof -> `PresentBeatmap` / Song Select focused proof -> Release build”；mapping proof 必须同时锁住 `14K -> 7+7` dual-stage 形态、sample-only scratch 语义与 source-side modless gate。在这些更窄 proof 可用时，不得直接拿 generic convert UI 手测代替。

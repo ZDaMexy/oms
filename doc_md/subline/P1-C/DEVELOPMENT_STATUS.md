@@ -1,6 +1,6 @@
 # P1-C 当前状态：判定语义与反馈闭环
 
-> 最后核对：2026-09-23（源码与留存证据同步；产品验证日期不变）
+> 最后核对：2026-09-29（反馈计划/合同与留存证据复核；产品验证日期不变）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，HUD/skin 宿主边界归 [P1-A](../P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 当前阶段
@@ -50,6 +50,4 @@ IIDX/LR2/beatoraja/OD 判定家族与主要边界 parity 已落地并由契约�
 
 ## 文档治理验证
 
-2026-09-13：核对 `GameplaySkinScoreStateSnapshot.Statistics`、静线 scene 数据绑定与 [信息区产品测试](../../../osu.Game.Rulesets.Bms.Tests/Skinning/CanonicalSkinInformationLayoutProductTest.cs)，补齐已落地的作者化实时统计。此次未运行产品测试、未调整窗口或计分；既有自动结果按原日期查主线与 P1-A，真实谱人工门未关闭。
-
-2026-09-09：核对 [BmsRuleset](../../../osu.Game.Rulesets.Bms/BmsRuleset.cs) 的 judge/score-bucket 入口、[parity 测试源码](../../../osu.Game.Rulesets.Bms.Tests/BmsJudgementSystemParityTest.cs)与长条/计数器消费；当前合同和未登记的真实谱人工门保持。C5 的只读判定事件与 scene host 不代表已恢复 FAST/SLOW/pacemaker 常驻反馈。本节仅记录源码审查；全局实测见主线最新验证。
+2026-09-29：对照当前统计绑定、TOTAL 成绩版本和9月22日三个留存 TRX，修正 PLAN 仍漏报静线实时统计的旧表述，合同与 memory 同步其只读边界及历史版本默认值；29项旧失败的名称、错误信息和路径根标准化后堆栈仍逐项一致。本次未改产品、未重跑测试或实机，Release 仍只有历史执行记录。此前审查见 [CHANGELOG](CHANGELOG.md)。

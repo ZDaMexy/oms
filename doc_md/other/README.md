@@ -21,7 +21,7 @@
 - [静线判定与血槽细节](SKIN_SIMPLE_STAGE_HUD_20260913.md)：图10之后的薄音符、同源舞台模板、固定血槽外框与真实读数。
 - [静线演奏信息与键区比例](SKIN_SIMPLE_INFORMATION_20260913.md)：实时判定、MIN/BPM/MAX、曲名/难度、Score/HiSpeed，通用信息区域及实际画面验证。
 - [静线黑白轨与皿轨比例](SKIN_SIMPLE_LANE_PROPORTIONS_20260913.md)：参考图测量、独立黑键轨宽、皿旁间隔及音符透明边修正。
-- [内置双皮肤随构建更新](SKIN_BUILTIN_BUILD_20260912.md)：开发启动、build/publish 的源文件同步与发行验证。
+- [历史双内置构建与后续退役](SKIN_BUILTIN_BUILD_20260912.md)：开发启动、build/publish 的源文件同步及当时发行证据；当前仅静线参与构建。
 - [历史双内置选择验证](SKIN_BUILTIN_SELECTION_20260912.md)：当时无需导入的选择、重启保留、游玩与安装恢复；当前仅静线内置。
 - [皮肤恢复审计](SKIN_SYSTEM_RECOVERY_20260710.md)：皮肤任务必读；恢复锚点、撤回范围与重新准入。
 - [schema 56 清点](SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)：副本取证与 SV1-0 历史证据，不授权重复操作生产数据。
@@ -34,7 +34,6 @@
 这些文件保存当时的基线、验证范围和限制；不因后续代码或网络状态变化改写原始结论。
 
 - [2026-09-22 BMS TOTAL](BMS_TOTAL_RULES_AUDIT_20260922.md)：作者声明、各家族缺省、辅助前后物量与历史成绩版本的来源和验证。
-
 - [2026-09-09 全项目进度审查](PROJECT_PROGRESS_AUDIT_20260909.md)：P1-A～M 生产链对照及本次实测矩阵。
 - [2026-09-09 C6 验证](SKIN_SYSTEM_C6_VALIDATION_20260909.md)：可选脚本、作者工具、授权隔离与最终整包/G1 证据。
 - [2026-09-09 C7 验证](SKIN_SYSTEM_C7_VALIDATION_20260909.md)：完整双包、制作体验、安装恢复与最终自动检查；人工事实独立保留。

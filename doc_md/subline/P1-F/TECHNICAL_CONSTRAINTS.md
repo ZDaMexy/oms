@@ -6,7 +6,7 @@
 0a. 当前发行仅包含静线内置原件并构建其源；星轨不是安装完整性或启动依赖，历史作者文件只作参考。旧固定内置星轨选择迁回静线，普通导入皮肤与用户文件不清除，静线保持唯一保底。
 1. 在 Phase 3 前不得借发行验收之名重新打开在线更新、默认 endpoint 或终端联网入口。
 2. 便携发布、覆盖更新与离线首发口径必须与 `../../other/RELEASE.md` 保持一致。
-3. 任何改变发行方式、覆盖更新结论或公开 release gate 的改动，都必须同步更新本目录四件套与 `../../mainline/`、`../../other/RELEASE.md`。
+3. 改变发行方式、覆盖更新结论或公开 release gate 时，同次同步本线实际受影响的状态、计划、约束和验证记录，并更新 `../../other/RELEASE.md` 的对应说明；只有影响全局优先级、release gate 或硬约束时才向 mainline 回写摘要与链接，不机械刷新四件套日期。
 4. 当前正式发行压缩包命名以 `build-release.ps1 -> release-repo/oms_YYYYMMDD(.zip)` 为准；不要继续把现状写成泛化的 `OMS-Portable.zip`。
 5. 覆盖更新保持用户原有portable选择和数据：便携模式保留 `portable.ini` 与 `data/`；非便携模式覆盖带marker的新包后、首次启动前仍保持exe旁没有 `portable.ini`。`storage.ini`由 `OsuStorage` 的基础数据根读取，便携模式位于 `data/`，非便携位于host默认数据根；必须保留，不假定在exe同级或已重定向的目标根。当前布局也不是“严格只有一个exe”。
 6. 若后续改变内部 `game.Version` 口径，发行线变更不得破坏 changelog 跳转或配置迁移对非上游 `版本-流` 字符串的兼容性。

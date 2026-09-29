@@ -1,6 +1,6 @@
 # P1-A 技术约束：Skin V1、产品面与 release gate
 
-> 最后更新：2026-09-14（按模式皮肤配置与设置页空状态收简；保留既有恢复和验收合同）
+> 最后更新：2026-09-29（校正唯一内置作者交付与现行目录入口；保留既有恢复和验收合同）
 > 本文件是 Skin V1 的硬约束源。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，设计证据见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。若代码与本文冲突，先确认新事实并同步修正文档/代码，不能用历史 CHANGELOG 覆盖当前 authority。
 
 ## 按任务定位
@@ -143,12 +143,12 @@ L12. lane-resource candidate/snapshot与configuration candidate已经接入BMS e
 
 ## osu 社区式制作者合同
 
-1. `.osk` 是 V1 的正式分发单位；打开/拖入即可导入，解包后是根含 `skin.ini` 的普通可编辑目录。managed/external folder 是作者工作区与高级管理面，不能取代 `.osk` 的社区交换地位。
+1. `.osk` 是 V1 的正式分发单位；打开/拖入即可导入，解包后是根含 `skin.ini` 的普通可编辑目录。当前目录制作入口为固定 `chartskin` 的打开/刷新；旧 external 记录与后端安全合同保留，设置不再提供新增外部注册或 Workspace。目录使用不能取代 `.osk` 的社区交换地位。
 2. `[General]`、`[Colours]`、`[Mania]` 的语法、`Keys:` 分桶、既有素材名、`name-{n}` 动画序列、资源缩放/缺项 fallback 等共同语义以当前 osu legacy compatibility 为基线；BMS 不另造一套同义基础格式。
 3. `[Bms]`、declarative manifest 和 optional script 是 OMS 对第一类 BMS ruleset 的版本化扩展。扩展文件必须可被 OMS validator 识别并产生清晰诊断，不要求作者编译 DLL，也不得冒充上游 osu! 已原生支持的格式。
 4. 只做 mania、只做 BMS 或同时做两者的 `.osk` 都合法；`oms-simple.osk` 必须在一个包内同时提供 mania/BMS，并可作为第三方作者的真实参考源。
 5. common mania assets/ini 在 OMS 中的行为须有代表性社区皮肤 fixture；OMS 生成的组合包若宣称 mania-compatible，也须验证其 mania 部分不会因 BMS 扩展而改变。
-6. 制作者套件（Skin Authoring Kit）至少包含：两内置包的可编辑源、带注释模板、字段/素材/事件/layout/capability/budget 参考、validator/diagnostic 用法、打包与导入说明。它不是 SDK DLL，也不是第三种 package 格式。
+6. 制作者套件（Skin Authoring Kit）至少包含：唯一内置 `oms-simple` 的可编辑源、带注释模板、字段/素材/事件/layout/capability/budget 参考、validator/diagnostic 用法、打包与导入说明；当前同时携带 Aurora 制作演练源。历史 complex 源只留仓库参考，不是发行依赖。套件不是 SDK DLL，也不是第三种 package 格式。
 
 ## fallback 与最小可玩约束
 

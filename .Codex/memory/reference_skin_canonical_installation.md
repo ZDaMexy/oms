@@ -42,17 +42,14 @@ metadata:
 
 - 2026-09-11 真实 Release 取证推翻旧 single-file 完整自解压“便携已通过”：IncludeAllContentForSelfExtract 开启 netcoreapp3 compat，AppContext.BaseDirectory落到TEMP/.net，portable.ini和canonical原件不在该根；窗口和MainMenu可以正常出现，却已读取当前账户bootstrap storage.ini并迁移既有用户库。不得只观察窗口、进程或Running，也不得在开始前创建data/就认为隔离成功。正式改为PublishSingleFile=false自包含多文件，保留RulesetStore现有物理DLL扫描；仅移除IncludeAll而仍单文件会重现旧玩法发现问题。Program用现有HostOptions.PortableInstallation=OsuGameDesktop.IsPortableMode同时隔离框架缓存（exe旁cache/），游戏数据仍data或其storage.ini目标。实际复验必须逐项匹配本次保存根、Realm日志、只读原件、工作副本、双玩法发现与正常退出，且已有默认bootstrap/用户根前后全文件hash和属性一致。
 - 该启动事故原件未事前取该根快照（与G1备份根不同），事后完整字节副本与pointer已保全；只在第二副本以Realm SDK IsDynamic/IsReadOnly、schema57核可读及引用存在，不调用RealmAccess或SkinManager（会执行cleanup/migration）。可读不证明事前未变；0of0 blob cleanup也不覆盖全部DeletePending清理。无本次forward迁移自动备份证据，不拿旧corrupt备份猜测回滚。
-- 修改含中文的Windows PowerShell 5入口必须保留UTF-8 BOM；用UTF8Encoding(false)覆盖原文件可令PS5将UTF-8当本机ANSI，轻则随包中文说明乱码，重则引号误解导致ParseError。先用实际powershell.exe Parser.ParseFile核对，再跑完整入口；仅pwsh解析成功不算PS5证据。
+- 修改含中文的 Windows PowerShell 5 入口必须保留 UTF-8 BOM；`UTF8Encoding(false)` 或默认 `WriteAllText` 会去掉 BOM，PS5 随后可能按系统代码页误解中文或引号，导致说明乱码或 ParseError。2026-09-12 单内置收敛的作者脚本曾命中；先用实际 `powershell.exe` 的 `Parser.ParseFile` 核对，再跑完整入口，仅 pwsh 成功不算 PS5 证据。作者检查应在独立套件副本执行，不能在用于 SourceUnchanged 检查的发行源产生 `work/`。
 - 2026-09-11首次真正正常退出揭露启动扫描从未成功进入：`release-startup-portable-repair3` runtime在Stopping/Stopped后写“Managed skin folder scan ended unexpectedly.”，原隐私边界未记录异常message/stack，不能据退出时刻猜成取消。`c7-startup-recovery-red.trx`真实OsuGame worker（空根/已有普通作者目录）及有journal生产authority三格均给出同一`EnterMutation`重入异常：外层StartupSequence里再次申请mutation被拒绝，fault直到Dispose join才显露；旧lifecycle夹具覆写recovery/scan，未覆盖真实衔接。不能仅改为Enter短lease，因为恢复native/外部registry要求mutation authority，会把合法旧journal误判Ambiguous。专用EnterRecovery只在本线程StartupSequence depth=1时给予恢复子lease，保留外层owner、epoch、selection retry completion和后续扫描，其他路径继续使用不可重入mutation；补实际首启扫描/有journal恢复及取消、不提前释放检查。修复后结果应以当前focused和完整Release启动复验为准，不能把红测复现写成通过。
 - `SkinManagedFolderMutationRecoveryAuthority.TryOpen` 曾在 `Session.Validate` 前清空 native/registry 局部，真实验证中取消后 caller 尚未获得 Session，finally 也已无资源可释放。必须 Validate 成功后才清空局部并移交；拒绝或取消由原 finally 释放，false 分支不再提前 Dispose，避免重复释放。回归使用真实 Windows managed-root 与 external registry，在底层 Validate 后取消，核原 OCE token、外部文件字节、Session/句柄各释放一次及关闭后查询失败；包装器只计数和定点取消，不伪造物理证明，失败夹具也须释放自身资源。不要吞掉 OCE 或扩大 catch。
 
 ## 星轨退役与当前边界
 
 当前唯一内置与体验门读 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)，用户退役决定见 [[project_oms_skin_product_progress]]。迁移诊断只认旧固定内置身份；同名普通用户包不是退役对象，旧双内置报告不能作为当前启动或构建依赖。
-# 2026-09-12 构建同步补充
 
-内置 simple 不能只复制受跟踪 dist：作者文件变化后旧包仍可通过旧内嵌 hash，表现为开发启动没有更新。当前 Game 构建从 sources 生成 obj/canonical/<Configuration> 包与配对摘要；发行作者副本复制本次 publish 原件。作者工具与正常构建的 ZIP 包装方式可以不同，整包 hash 不同不直接表示内容漂移，须核 entry 集合与每项解压字节。不要在 Game target 调用引用 Game 的 SkinAuthoring 工具形成循环，也不要自动 generate 覆盖作者美术。Windows PowerShell 的 File.Replace 需 `[NullString]::Value` 表示空备份路径，`$null` 会转成空字符串报非法路径；哈希用 .NET，避免继承 PSModulePath 时 Get-FileHash 不可用。验证见 [构建更新记录](../../doc_md/other/SKIN_BUILTIN_BUILD_20260912.md)。
+## 作者源与构建包一致性
 
-跨构建器重打包不要用整个 ZIP hash 要求作品相同：PowerShell 5 构建与 .NET 8 作者工具可能产生不同压缩字节，核完整条目集合与逐文件摘要；安装原件自身仍须匹配本次程序集嵌入摘要，两种校验目的不同。
-
-Windows PowerShell 5.1 随包脚本含中文时保存为 UTF-8 BOM；ReadAllText 后默认 WriteAllText 会去掉 BOM，可能使中文被按系统代码页解释而触发引号解析错误。2026-09-12 单内置收敛的作者脚本曾命中，补 BOM 后在独立套件副本完成真实制作/错误拒绝验证。不要直接在用于 SourceUnchanged 检查的发行源运行会产生 work/ 的作者检查，应复制到独立验证目录。
+内置 simple 不能只复制受跟踪 dist：作者文件变化后旧包仍可通过旧内嵌 hash，表现为开发启动没有更新。当前 Game 构建从 sources 生成 obj/canonical/<Configuration> 包与配对摘要；发行作者副本复制本次 publish 原件。PowerShell 5 构建器与 .NET 8 作者工具可以产生不同 ZIP 压缩字节，作品一致性须核完整 entry 集合与每项解压字节；安装原件自身仍须匹配本次程序集嵌入摘要，不能混用两种校验。不要在 Game target 调用引用 Game 的 SkinAuthoring 工具形成循环，也不要自动 generate 覆盖作者美术。Windows PowerShell 的 File.Replace 需 `[NullString]::Value` 表示空备份路径，`$null` 会转成空字符串报非法路径；哈希用 .NET，避免继承 PSModulePath 时 Get-FileHash 不可用。验证见 [构建更新记录](../../doc_md/other/SKIN_BUILTIN_BUILD_20260912.md)。

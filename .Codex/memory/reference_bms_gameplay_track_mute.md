@@ -8,6 +8,8 @@ metadata:
 
 # BMS gameplay Track 静音召回
 
+权威合同：[P1-J CONSTRAINTS](../../doc_md/subline/P1-J/TECHNICAL_CONSTRAINTS.md#bmsmania-音频合同)；当前状态见 [P1-J STATUS](../../doc_md/subline/P1-J/DEVELOPMENT_STATUS.md)。本页记录预览叠播与 backfill 的诊断经验，不另立音频或数据迁移合同。
+
 ## 根因
 
 BMS gameplay 音频由 keysound 驱动，但 importer 曾把 `Metadata.AudioFile` 设为 song-select preview。`MasterGameplayClockContainer` 仍以 `working.Track` 作时钟并从头播放，于是 preview 叠到 native BMS/converted-mania、autoplay/玩家游玩。

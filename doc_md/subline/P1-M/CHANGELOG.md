@@ -3,6 +3,13 @@
 > 本文件记录 `P1-M` 相关的验证通过变更，按时间倒序排列。
 > 当前进度见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 
+## 2026-09-29
+
+### 播放器记忆去重与源码复核
+
+- 源码仍未出现 PlayQueue/SMTC；现有 mini、playlist、试听共用 MusicController 的事实保持，未启动本线或运行试听验收。
+- memory 移除重复的产品范围、完整分期和复用清单，保留试听循环、gameplay 控制权、playlist 直跳、无 PREVIEW 候选与跳曲防死循环的诊断入口；未来范围与协调合同继续分别由 PLAN/CONSTRAINTS 维护。
+
 ## 2026-09-12
 
 ### 规划与记忆对齐复核

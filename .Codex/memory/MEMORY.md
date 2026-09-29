@@ -5,10 +5,10 @@
 ## 项目与协作
 
 - [项目总览](project_oms_overview.md) — 范围、数据根与便携标记。
-- [文档治理](project_oms_docs_governance.md) — 文档失真、旧路由/多语说明漏同步、历史授权误用与检查器误判。
+- [文档治理](project_oms_docs_governance.md) — 多语入口漏同步、旧验收步骤失去入口、子线旧规则与主线冲突、历史授权误用及检查器误判。
 - [反馈工作流](feedback_workflow.md) — 默认产品语言、反过度防御、真机证据与本轮结束边界。
-- [选歌展示与导航](project_oms_songselect_display_nav.md) — 展示层级、返回条与转谱显示。
-- [内置音乐播放器](project_oms_music_player.md) — 已定展开壳体、core 依赖方向与预览音频边界。
+- [选歌展示与导航](project_oms_songselect_display_nav.md) — 状态分离、返回条、池化布局与大库诊断。
+- [内置音乐播放器](project_oms_music_player.md) — 共用音轨/试听与队列接入、已定展开壳体和 core 依赖方向。
 
 ## 皮肤恢复与存储
 
@@ -39,7 +39,7 @@
 - [选歌元数据显示](reference_bms_songselect_metadata_display.md)
 - [在资源管理器中显示](reference_bms_songselect_reveal_in_explorer.md)
 - [转谱星数持久化](reference_converted_star_persistence.md) — 转谱星、原生作者等级与密度预览。
-- [转谱键数显示](reference_converted_mania_keycount_display.md)
+- [转谱键数显示](reference_converted_mania_keycount_display.md) — BMS 键数误入 osu 启发式、转换与展示统一 CircleSize。
 
 ## BMS 解析、音频与游玩参考
 
@@ -52,7 +52,7 @@
 - [lane 重排](reference_bms_lane_rearrangement.md) — 重复应用的三次置换故障及 P1-K/P1-J 回链。
 - [stop-motion 滚动旁路](reference_bms_stopmotion_bypass.md)
 - [判定 parity](reference_bms_judgement_parity.md)
-- [TOTAL 与成绩版本](reference_bms_total_rules.md) — 作者值/缺省值、辅助前后两个物量、新生成 autoplay 与旧回放身份。
+- [TOTAL 与成绩版本](reference_bms_total_rules.md) — 作者值/缺省值、辅助前后两个物量、历史反序列化默认与新游玩版本、autoplay 身份。
 - [mania autoplay HoldNote 地雷](reference_mania_autoplay_holdnote.md) — nested judgement 过滤与 P1-K 修复历史。
 
 ## 皮肤与视觉参考

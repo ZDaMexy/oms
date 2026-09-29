@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-09-23（跨线状态与证据同步；专项产品/人工验证日期不变）
+> 最后核对：2026-09-29（皮肤入口、作者交付与记忆一致性核对；专项产品/人工验证日期不变）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -41,7 +41,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 当前风险与未完成项
 
-- V-001～V-004未逐项签收、V-005未签收；用户对局部改进的认可不补填未观察矩阵，见[集中清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)。
+- V-001～V-004未逐项签收、V-005未签收；用户对局部改进的认可不补填未观察矩阵。V-005 原三源操作中的外部注册及工作区行级入口已退出当前设置，不能把旧步骤当作新用户可执行流程；现行可达范围与未执行边界见[集中清单 V-005](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md#v-005c6-可选脚本与双规则集-momentum-候选)。
 - OmsSkin只保留历史证据与人工对照，源码物理移除仍待原实机门；安装故障不得重新启用它。
 - G1 held-root/journal不是filesystem transaction，foreign addition/replacement可导致冻结；未知旧记录及无完整恢复证据的intent不猜测迁移。旧保存根事故只有事后保全，不追溯宣称无损。
 - BmsBeatmapDecoderOptions.KeymodeOverride只是host/importer seam，普通loader无用户纠正UI；证据不足的sparse .bms/.bml仍拒绝，该缺口归P1-K。
@@ -50,4 +50,4 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 文档治理验证
 
-2026-09-22 核对 `701893f` 的设置、扫描、草稿复制/保存/关闭应用代码及已有测试结果，校正合同与作者说明、记忆中的旧禁用和工作区入口表述。产品验证仍为 2026-09-14，未重跑 full/Release 或新安装与实机验收；文档与差异检查见[本次治理记录](CHANGELOG.md#2026-09-22工作区与文档记忆核对)。
+2026-09-29 对照现行设置、启动配置迁移、独立草稿编辑、内置退役及构建脚本，修正路由/作者合同的双包与外部工作区残留，明确旧配置迁移例外并合并重复诊断记忆。未修改产品或测试，未重新运行产品验证；9月14日功能专项、9月22日完整回归欠账及原人工门均保持原身份。审查范围与检查归属见[本次治理记录](CHANGELOG.md#2026-09-29皮肤文档与记忆一致性审查)。

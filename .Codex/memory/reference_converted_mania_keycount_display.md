@@ -1,21 +1,18 @@
 ---
 name: reference-converted-mania-keycount-display
-description: "Why converted-mania key-count display was wrong/varied in song select, and the single-point fix (trust CircleSize for bms source)"
-metadata: 
+description: BMS 转 mania 键数误落入通用转谱启发式；统一使用存储的 CircleSize，避免逐面板补丁
+metadata:
   node_type: memory
   type: reference
 ---
 
-Converted-mania (BMS shown under the mania ruleset) song-select **key-count display** was wrong and "五花八门" (varied) — fixed 2026-06-13.
+# BMS 转 mania 键数显示地雷
 
-**Symptom**: in mania ruleset, the carousel `[NK]` badge and the wedge/details `KC` attribute bar showed key counts unrelated to the real keymode — any 5K/7K/9K/14K collapsed to **6 or 7**.
+权威合同见 [P1-K CONSTRAINTS](../../doc_md/subline/P1-K/TECHNICAL_CONSTRAINTS.md) 的 K9；当前展示面见 [P1-I STATUS](../../doc_md/subline/P1-I/DEVELOPMENT_STATUS.md)。历史故障是 5K/7K/9K/14K 在 mania 选歌中显示成随 LN 密度与 OD 变化的 6K/7K。
 
-**Chain**: `PanelBeatmap`/`PanelBeatmapStandalone.updateKeyCount` (the `ruleset.OnlineID == 3` branch) calls `ManiaRuleset.GetKeyCount`; the wedge `KC` bar calls `ManiaRuleset.GetBeatmapAttributesForDisplay`. Both → `ManiaBeatmapConverter.GetColumnCount` → private `getColumnCount`. That function only trusts `CircleSize` directly when `SourceRuleset.ShortName == "mania"`. A stored BMS `BeatmapInfo.Ruleset` is `bms` (via `LegacyBeatmapConversionDifficultyInfo.FromBeatmapInfo` → `beatmapInfo.Ruleset`), so it fell into the osu!stable **convert column heuristic** (long-note ratio + OD).
+- panel 的 `[NK]`、详情 `KC` 与 mania 键数过滤最终都经过 [ManiaBeatmapConverter.getColumnCount](../../osu.Game.Rulesets.Mania/Beatmaps/ManiaBeatmapConverter.cs)。BMS 源的 `SourceRuleset` 仍是 `bms`，不会因当前选择 mania 自动变成 `mania`。
+- 原逻辑只信任 mania 的 `CircleSize`，BMS 因而落入通用转谱的 LN 比例/OD 启发式。BMS 导入时已经把 keymode 写为 `CircleSize`，不应重新猜测；现行收口同时信任 mania 与 BMS 源并返回至少 1 的取整键数。
+- BMS→mania 的 `IsForCurrentRuleset=false`，14K 不走 native mania 的双舞台显示拆分。不要为修同一症状分别改 panel、wedge 或 `ManiaRuleset`，否则键数过滤会继续与显示分叉。
+- BMS 当前模式下的 panel 分支只服务 native BMS 展示，不能拿它证明 converted-mania 已正确。
 
-**Root cause / why "varied"**: OMS deleted osu/taiko/catch, so the only rulesets are mania + bms → the heuristic branch is **only ever hit by BMS, and is always wrong**. For BMS, stored `CircleSize ∈ {5,7,9,14}` is always `>= 5`, so: `percentSpecial < 0.2 -> 7`, else `OD > 5 ? 7 : 6`. Result is always 6/7, flipping with LN density + rank. It's dead-but-harmful code.
-
-**Fix (single point)**: in `ManiaBeatmapConverter.getColumnCount`, treat `bms` source like `mania` — return `(int)Math.Max(1, roundedCircleSize)`. BMS `CircleSize` is authoritative keymode columns (set by `BmsBeatmapConverter.populateMetadata` = `BmsRuleset.GetKeyCount(keymode)`, 5/7/9/14). Because badge, `KC` bar, AND `ManiaFilterCriteria` key filter all go through `GetColumnCount`, one change fixes all three. `14K` here returns 14 (IsForCurrentRuleset=false for bms→mania, so no MAX_STAGE_KEYS dual-split), matching native BMS display.
-
-**Did NOT** edit panels/wedge: the panels' existing `else if (ruleset.ShortName == "bms" ...)` branch only serves the bms-ruleset-selected case (`OnlineID != 3`) and stays. Per-surface special-casing would spread "bms" knowledge into more files (incl. `ManiaRuleset` for the wedge) — messier.
-
-Constraint: P1-K TECHNICAL_CONSTRAINTS **K9 #18** (sibling of #11 which governs converted **star** display going through resolved lookup). Test guard: `BmsToManiaBeatmapConverterTest.TestSongSelectKeyCountUsesStoredBmsKeymodeNotConvertHeuristic` (5K/7K/9K_Bms/9K_Pms/14K). Related: [[reference_converted_star_persistence]], [[reference_bms_difficulty_table]].
+回归入口：[BmsToManiaBeatmapConverterTest.TestSongSelectKeyCountUsesStoredBmsKeymodeNotConvertHeuristic](../../osu.Game.Rulesets.Mania.Tests/BmsToManiaBeatmapConverterTest.cs)，覆盖 5K、7K、两种 9K 与 14K。键数与星数是不同链路；星数诊断见 [[reference_converted_star_persistence]]，表内分组见 [[reference_bms_difficulty_table]]。

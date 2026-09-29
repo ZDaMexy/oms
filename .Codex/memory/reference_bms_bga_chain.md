@@ -15,7 +15,7 @@ metadata:
 - decoder 产出 base/poor/layer/layer2 事件与 visual definitions；converter 写 `BmsBeatmap.BgaTimeline/PoorBgaMode`，不进入 `HitObjects`。
 - `BmsBgaPlayer` 按 frame-stable gameplay time 播图片/视频；挂 `DrawableRuleset.Overlays`，pause/seek/retry 随游戏时钟。
 - BMS 资源经 `WorkingBeatmap.GetStream`/文件路径直读 `chartbms/`，不走 hash store。
-- `BmsBgaPanel` 消费同一 immutable layout/viewports 与 material/scene、只读状态事件；未声明作者参数的兼容布局为 5/7/9K 单角、14K 四角。静线已通过选定包的 BGA 尺寸、位置与信息带参数提供较大窗口，不能把兼容小窗写成当前成品固定大小。converted-mania BGA 不在当前范围。
+- `BmsBgaPanel` 消费同一 immutable layout/viewports 与 material/scene、只读状态事件；常规兼容布局为 5/7/9K 单角、14K 四角，极窄空间由 solver 缩短轨道并改为下方单 viewport。静线已通过选定包的 BGA 尺寸、位置与信息带参数提供较大窗口，不能把兼容小窗写成当前成品固定大小。converted-mania BGA 不在当前范围。
 - 老式视频经 opt-in 外部 ffmpeg 转 mp4；无 ffmpeg/失败/超时均回退静态，不阻断游玩。
 
 ## 必须记住的地雷
