@@ -1,5 +1,13 @@
 # P1-A 变动日志
 
+## 2026-09-30：作者 BGA 窗口与随包完整制作手册
+
+- 新增每个`[Bms]/Keymode`的`BgaViewports`作者声明：安全区域内最多16个矩形，逐窗fit/fill/stretch，none显式关闭；无声明保留旧标量布局及14K默认四窗。几何与轨道/键区/血槽/信息区冲突时整组0窗，不擅自移动或改变作者数量；稳定诊断`bms.layout.bga-viewports-unavailable`经现有发布诊断写入runtime.log。CLI拒绝格式、范围和预算错误，不能离线代证实际窗口布局。
+- `BgaInformationHeight`与BGA开关独立，none/无空间时仍可保留曲名、判定、速度和玩家信息区域。原生BMS零窗省略BGA专属scene装饰，但继续验证完整声明、素材和所有者；这不是跨玩法“目标不存在就忽略”开关，mania及BMS转谱仍不提供BGA。
+- 真实游玩的播放资源由[P1-L会话](../P1-L/DEVELOPMENT_STATUS.md)持有；皮肤只取得视图与只读状态，重建显示或窗口不重建播放器，不改变POOR、seek与时钟。当前实现不再区分单窗直接绘制和多窗镜像。
+- 按可见元素和普通作者步骤重写入口，完整正文唯一维护在随发行套件复制的[SKINNING](../../../skin-authoring/docs/SKINNING.md)/[SCRIPTING](../../../skin-authoring/docs/SCRIPTING.md)；旧doc_md页面改为路由。补齐实际文件名、源素材尺寸、编号帧、布局、绑定/状态机/脚本边界、预算和错误定位，以及First Scene独立小包、Reference Study组合练习、BGA Layout独立小包。9月13日原样游戏截图保留来源与日期，不标为新BGA验收；素材拼合预览明确为示意。
+- 专项、桌面成像、三个手册练习与完整回归的精确结果集中于[作者能力记录](../../other/BGA_SKIN_AUTHORING_20260930.md)。已修正零窗宿主、实际多窗预算及示例误写声明/授权/暂停预期；未扩大静线外观、逐谱、设备/DPI、长期与发行人工签收。
+
 ## 2026-09-30：性能治理中的样本与回退状态保护
 
 - P1-J 优化共享样本维护的临时分配，保留 revision 尾音、热更与 shutdown 释放顺序；转谱 sample-only 对象池化后不作为皮肤可玩 Note 发布。

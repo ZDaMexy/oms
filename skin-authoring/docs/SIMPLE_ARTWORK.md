@@ -1,5 +1,7 @@
 # 静线素材来源与修改（2026-09-12）
 
+> 本页为素材制作历史。下文指向 doc_md 的验证记录与参考凭据仅供源码仓库读者使用，不是离线制作套件的必需文件；制作步骤从[完整手册](SKINNING.md)开始。
+
 所有已交付外观都由普通皮肤文件声明和引用，游戏不读取作者配方。静线是唯一内置，complex 只保留历史参考；下面的制作步骤服务作者修改副本。当前目标是高质量、合格的 beatmania style 外观，参考 LITONE 的完成度，不照抄素材，也不以简洁限制素材质量。
 
 - `sources/oms-simple/bms/lane-*.png`、`divider*.png`、`target.png`、`stage.png` 等精确几何素材由 `tools/SkinAuthoring/SkinRecipe.cs` 离线生成。修改配方后重新生成、检查、打包即可。

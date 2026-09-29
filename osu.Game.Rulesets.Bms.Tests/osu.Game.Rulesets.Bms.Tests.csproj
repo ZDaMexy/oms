@@ -17,6 +17,18 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="..\skin-authoring\docs\examples\first-scene\**\*" Exclude="..\skin-authoring\docs\examples\first-scene\README.md">
+      <Link>SkinManualExamples\first-scene\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\skin-authoring\docs\examples\reference-study\gameplay-skin.*">
+      <Link>SkinManualExamples\reference-study\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\skin-authoring\docs\examples\bga-layout\skin.ini">
+      <Link>SkinManualExamples\bga-layout\skin.ini</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <EmbeddedResource Include="..\osu.Game.Tests\Resources\Videos\test-video.mp4" LogicalName="osu.Game.Rulesets.Bms.Tests.Resources.bga-test-video.mp4" />
     <!-- Retired artwork remains an ordinary import fixture, never an installed canonical skin. -->
     <Content Include="..\skin-authoring\dist\oms-complex.osk">

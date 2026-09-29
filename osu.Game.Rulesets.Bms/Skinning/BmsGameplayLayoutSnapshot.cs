@@ -107,6 +107,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
         public IReadOnlyList<GameplaySkinLayoutRect> BgaViewports => Neutral.BgaViewports;
 
+        /// <summary>Presentation of the shared BGA content in each exact neutral viewport, in the same order.</summary>
+        public IReadOnlyList<GameplaySkinBgaScaleMode> BgaViewportScaleModes { get; }
+
         /// <summary>
         /// Projects one already-validated profile-local vertical metric into the exact playfield-relative coordinate
         /// system. The solved hit-target surface is the scale carrier, so DPI/safe-frame fallback can never diverge
@@ -126,7 +129,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
             BmsPlayfieldStyle style,
             BmsPlayfieldLayoutProfile profile,
             BmsLaneLayout laneLayout,
-            IEnumerable<BmsAction> laneActions)
+            IEnumerable<BmsAction> laneActions,
+            IEnumerable<GameplaySkinBgaScaleMode> bgaViewportScaleModes)
         {
             Neutral = neutral ?? throw new ArgumentNullException(nameof(neutral));
             Profile = profile ?? throw new ArgumentNullException(nameof(profile));
@@ -134,6 +138,11 @@ namespace osu.Game.Rulesets.Bms.Skinning
             KeymodeResolution = keymodeResolution ?? throw new ArgumentNullException(nameof(keymodeResolution));
             Keymode = keymodeResolution.Keymode;
             Style = style;
+
+            GameplaySkinBgaScaleMode[] copiedBgaModes = bgaViewportScaleModes.ToArray();
+            if (copiedBgaModes.Length != neutral.BgaViewports.Count)
+                throw new ArgumentException("Every exact BGA viewport must have one scale mode.", nameof(bgaViewportScaleModes));
+            BgaViewportScaleModes = Array.AsReadOnly(copiedBgaModes);
 
             BmsAction[] copiedActions = laneActions?.ToArray() ?? throw new ArgumentNullException(nameof(laneActions));
 

@@ -8,7 +8,7 @@ metadata:
 
 # 原皮肤编辑器恢复召回
 
-当前事实见 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)，安全合同见 [G1](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#g1选择ui与startup协调)，作者边界见 [SKINNING](../../doc_md/other/SKINNING.md#8-三个作者面与布局编辑器边界)。
+当前事实见 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)，安全合同见 [G1](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#g1选择ui与startup协调)，作者边界见 [SKINNING](../../skin-authoring/docs/SKINNING.md#1-选择合适的制作方法)。
 
 - 2026-09-14 用户要求还原原编辑功能，暂不扩展。入口恢复设置、菜单及 `Ctrl+Shift+S`；仅编辑 `SkinnableContainer` 内的 `ISerialisableDrawable`，不是完整 scene/script 或车道素材图形编辑器。BMS/mania 公开作者文件能力不受该范围限制。
 - 不能只把 `LegacyEditorAvailable` 设为 true：旧 `EnsureMutableSkin` 会立即把副本选成 current，而 `Save/AddFile` 当前记录防护随即拒绝。应完整复制独立非 current Realm 草稿，原控件只序列化到草稿，保留 current 通用修改禁令。

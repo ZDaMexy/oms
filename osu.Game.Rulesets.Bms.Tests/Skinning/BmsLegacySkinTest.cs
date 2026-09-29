@@ -211,6 +211,25 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
+        public void TestBgaWindowsUseOnlyTheAcceptedSelectedPackageBucket()
+        {
+            using var fallback = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nBgaViewports: .7,.1,.2,.2,fill\n");
+            using var selected = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\n");
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key7K, fallback).BgaLayout,
+                Is.SameAs(fallback.GetAcceptedBgaLayout(BmsKeymode.Key7K)));
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key7K, selected).BgaLayout, Is.Null);
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key14K, fallback).BgaLayout, Is.Null);
+
+            using var disabled = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nBgaViewports: none\n");
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key7K, disabled).BgaLayout!.Viewports, Is.Empty);
+
+            using var invalid = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nBgaViewports: 0,0,NaN,.2,fit\n");
+            BmsGameplayLayoutConfiguration invalidConfiguration = BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key7K, invalid);
+            Assert.That(invalidConfiguration.BgaLayout, Is.Null);
+            Assert.That(invalidConfiguration.BgaLayoutDiagnostic, Is.EqualTo("bms.layout.bga-viewports.invalid-number"));
+        }
+
+        [Test]
         public void TestAcceptedGeometryUsesExactKeymodeBucketAndPreservesParserValue()
         {
             var skin = new TestBmsLegacySkin(

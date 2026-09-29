@@ -76,6 +76,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private BmsGameplayAdjustmentTarget? currentGameplayAdjustmentTarget;
         private BmsPreStartSpeedPreview? preStartSpeedPreview;
         private BmsBgaPanel? bgaPanel;
+        internal BmsBgaPlaybackSession? BgaPlaybackSession { get; private set; }
         private BmsHudLayoutPanel? hudLayoutPanel;
         private readonly BindableBool showBga = new BindableBool(true);
         private GameplaySkinLayoutPublication? gameplaySkinPublication;
@@ -362,11 +363,10 @@ namespace osu.Game.Rulesets.Bms.UI
             if (Beatmap is not BmsBeatmap bmsBeatmap)
                 return;
 
-            bgaPanel = new BmsBgaPanel(
-                bmsBeatmap.BgaTimeline,
-                bmsBeatmap.PoorBgaMode,
-                LayoutProvider,
-                GameplaySkinSceneRuntime);
+            // This sibling owns media for the gameplay lifetime. SkinChanged only replaces views below bgaPanel.
+            BgaPlaybackSession = new BmsBgaPlaybackSession(bmsBeatmap.BgaTimeline, bmsBeatmap.PoorBgaMode);
+            Overlays.Add(BgaPlaybackSession);
+            bgaPanel = new BmsBgaPanel(BgaPlaybackSession, LayoutProvider, GameplaySkinSceneRuntime);
             Overlays.Add(bgaPanel);
 
             // Transcode legacy BGA videos during loading so the BGA plays from the first frame (P1-L Phase 5.2 R1).
@@ -377,7 +377,11 @@ namespace osu.Game.Rulesets.Bms.UI
             updateBgaPlacement();
 
             Config.BindWith(BmsRulesetSetting.ShowBga, showBga);
-            showBga.BindValueChanged(visible => bgaPanel.Alpha = visible.NewValue ? 1 : 0, true);
+            showBga.BindValueChanged(visible =>
+            {
+                bgaPanel.Alpha = visible.NewValue ? 1 : 0;
+                BgaPlaybackSession.PresentationEnabled = visible.NewValue;
+            }, true);
         }
 
         private void updateBgaPlacement()

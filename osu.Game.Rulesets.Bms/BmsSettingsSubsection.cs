@@ -119,8 +119,8 @@ namespace osu.Game.Rulesets.Bms
                 new SettingsItemV2(new FormCheckBox
                 {
                     Caption = @"显示 BGA",
-                    HintText = "游玩时在 playfield 旁的浮窗中播放谱面 BGA（背景图/动画/视频）。\n\n"
-                               + "默认按游玩区域样式自动排在 playfield 对侧（1P→右、2P→左、居中→右）；14K 默认显示在四角，空间不足时合并到下方。\n"
+                    HintText = "游玩时在皮肤指定的窗口中播放谱面 BGA（背景图/动画/视频）。\n\n"
+                               + "皮肤可决定窗口数量、位置和画面缩放。未指定时，单侧游玩默认放在对侧，14K 默认放在四角，空间不足时移到下方。\n"
                                + "关闭后仅保留全屏背景。仅影响视觉，不影响判定/计分。",
                     Current = { BindTarget = config.GetBindable<bool>(BmsRulesetSetting.ShowBga) },
                 }),

@@ -169,6 +169,12 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
         private static void applyKey(BmsSkinConfiguration config, string key, string value)
         {
+            if (key == GameplaySkinBgaLayout.CONFIGURATION_KEY)
+            {
+                config.AcceptBgaLayout(value);
+                return;
+            }
+
             // Per-lane texture slots keep their full ini key (lane token embedded), matching mania's ImageLookups.
             Match perLaneImage = per_lane_image.Match(key);
 

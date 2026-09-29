@@ -1,11 +1,11 @@
 # OMS 当前开发规划
 
-> 最后核对：2026-09-29（谱库、声音与单轨筛选软件收尾，保留实机验收；其它优先级保持）
+> 最后核对：2026-09-30（BGA 皮肤呈现与制作手册已完成软件验证；保留实机验收）
 > 本页维护全局顺序、跨线依赖和改动验收；当前事实见[STATUS](DEVELOPMENT_STATUS.md)，专项动作从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 当前目标
 
-谱库、声音与单轨筛选的软件改进已具验证证据，接续检查隔离根与大库响应、设备听感和交互体验。具体验收分别归 [P1-H](../subline/P1-H/DEVELOPMENT_PLAN.md)、[P1-J](../subline/P1-J/DEVELOPMENT_PLAN.md)、[P1-I](../subline/P1-I/DEVELOPMENT_PLAN.md)；不重开皮肤打磨、无证据性能治理或真实硬件调校。
+已完成授权的 BGA 皮肤呈现控制与制作手册：作者声明窗口布局和缩放，播放会话归游玩持有；手册覆盖入门、元素查阅、进阶演出与可验证示例。后续设备与真实谱验收归 [P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md) / [P1-L](../subline/P1-L/DEVELOPMENT_PLAN.md)。静线外观打磨仍暂停。谱库、声音与单轨筛选已具软件证据，隔离根、大库、听感与交互验收仍归 [P1-H](../subline/P1-H/DEVELOPMENT_PLAN.md)、[P1-J](../subline/P1-J/DEVELOPMENT_PLAN.md)、[P1-I](../subline/P1-I/DEVELOPMENT_PLAN.md)。
 
 交付Windows-only、离线优先OMS。Phase 1.x完成必须同时满足：
 

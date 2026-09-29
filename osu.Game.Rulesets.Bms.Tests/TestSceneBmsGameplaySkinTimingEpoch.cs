@@ -330,7 +330,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddUntilStep("production 14K BGA event runtime ready", () =>
                 productionRuntimeReady()
                 && drawableRuleset.LayoutSnapshot.BgaViewports.Count == 4
-                && drawableRuleset.ChildrenOfType<BmsBgaPanel>().Single().ChildrenOfType<BmsBgaPlayer>().Count() == 1);
+                && drawableRuleset.ChildrenOfType<BmsBgaPlayer>().Count() == 1);
             AddStep("attach four-viewport BGA consumer", () =>
             {
                 subscription = drawableRuleset.GameplaySkinEventStream.Subscribe();

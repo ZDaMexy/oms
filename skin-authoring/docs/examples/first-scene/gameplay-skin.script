@@ -1,0 +1,14 @@
+oms-script 1
+# Optional to the skin: the HUD and rotation work even when these requests are denied.
+required gameplay.snapshot.read
+required scene.numeric.write
+state energy 0
+state size 1
+target lesson.accent scale-x
+target lesson.accent scale-y
+read energy gauge
+mul size energy 0.25
+add size size 1
+set lesson.accent scale-x size
+set lesson.accent scale-y size
+halt

@@ -4,13 +4,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Allocation;
-using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
-using osu.Framework.Graphics.Sprites;
-using osu.Framework.Graphics.Textures;
-using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Skinning;
@@ -78,14 +74,14 @@ namespace osu.Game.Rulesets.Bms.UI
     {
         void InitialiseGameplaySkinPublication(
             BmsGameplayLayoutProvider layoutProvider,
-            GameplaySkinSceneRuntimeHost? gameplaySkinSceneRuntime);
+            GameplaySkinSceneRuntimeHost? gameplaySkinSceneRuntime,
+            IBmsBgaContentSource? contentSource);
     }
 
     /// <summary>
-    /// Skinnable floating BGA panel (P1-L Phase 5). Mounted in <c>DrawableBmsRuleset.Overlays</c> (above the playfield,
-    /// never occluded by lanes). The default implementation plays the BGA timeline through a <see cref="BmsBgaPlayer"/>
-    /// inside a letterboxed frame positioned per <see cref="BmsBgaPlacement"/>; custom skins override via
-    /// <see cref="IBmsBgaPanelDisplay"/>.
+    /// Skinnable BGA presentation mounted in <c>DrawableBmsRuleset.Overlays</c>. Gameplay supplies one independent
+    /// playback session; the display only places views of its composition according to the exact skin layout.
+    /// The public timeline constructor remains for isolated compatibility previews.
     /// </summary>
     public partial class BmsBgaPanel : SkinnableDrawable
     {
@@ -93,6 +89,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly BmsPoorBgaMode poorMode;
         private readonly BmsGameplayLayoutProvider layoutProvider;
         private readonly GameplaySkinSceneRuntimeHost? gameplaySkinSceneRuntime;
+        private readonly BmsBgaPlaybackSession? playbackSession;
         private BmsBgaPlacement placement = BmsBgaPlacement.TopRight;
 
         public BmsGameplayLayoutSnapshot LayoutSnapshot => layoutProvider.Current;
@@ -104,13 +101,32 @@ namespace osu.Game.Rulesets.Bms.UI
             BmsPoorBgaMode poorMode,
             BmsGameplayLayoutProvider layoutProvider,
             GameplaySkinSceneRuntimeHost? gameplaySkinSceneRuntime = null)
+            : this(timeline, poorMode, layoutProvider, gameplaySkinSceneRuntime, null)
+        {
+        }
+
+        internal BmsBgaPanel(
+            BmsBgaPlaybackSession playbackSession,
+            BmsGameplayLayoutProvider layoutProvider,
+            GameplaySkinSceneRuntimeHost? gameplaySkinSceneRuntime = null)
+            : this(Array.Empty<BmsBgaTimelineEntry>(), BmsPoorBgaMode.Default, layoutProvider, gameplaySkinSceneRuntime, playbackSession)
+        {
+        }
+
+        private BmsBgaPanel(
+            IReadOnlyList<BmsBgaTimelineEntry> timeline,
+            BmsPoorBgaMode poorMode,
+            BmsGameplayLayoutProvider layoutProvider,
+            GameplaySkinSceneRuntimeHost? gameplaySkinSceneRuntime,
+            BmsBgaPlaybackSession? playbackSession)
             : base(new BmsSkinComponentLookup(BmsSkinComponents.BgaPanel),
-                _ => new DefaultBmsBgaPanelDisplay(layoutProvider, gameplaySkinSceneRuntime))
+                _ => new DefaultBmsBgaPanelDisplay(layoutProvider, gameplaySkinSceneRuntime, playbackSession))
         {
             this.timeline = timeline;
             this.poorMode = poorMode;
             this.layoutProvider = layoutProvider ?? throw new ArgumentNullException(nameof(layoutProvider));
             this.gameplaySkinSceneRuntime = gameplaySkinSceneRuntime;
+            this.playbackSession = playbackSession;
 
             RelativeSizeAxes = Axes.Both;
             CentreComponent = false;
@@ -118,30 +134,37 @@ namespace osu.Game.Rulesets.Bms.UI
 
         protected override void SkinChanged(ISkinSource skin)
         {
-            base.SkinChanged(skin);
-
-            // An arbitrary legacy BGA display owns one opaque content tree: hiding it for a public viewport/frame
-            // replacement would also hide P1-L playback, while mounting decorations without a state/surface seam
-            // would advertise a host that cannot preserve the content contract. Exact C5 gameplay therefore fails
-            // closed to the protected engine display. Isolated compatibility previews (no scene runtime) retain the
-            // historical custom display behaviour.
-            if (requiresClosedGameplaySkinDisplay() && Drawable is not IBmsBgaPanelGameplaySkinDisplay)
+            // Gameplay always uses views of its existing session. Legacy drawable lookup can construct and load
+            // its own preview player before publication is injected, so it is only used by isolated previews.
+            if (playbackSession != null)
             {
                 SetDrawable(
-                    new DefaultBmsBgaPanelDisplay(layoutProvider, gameplaySkinSceneRuntime),
+                    new DefaultBmsBgaPanelDisplay(layoutProvider, gameplaySkinSceneRuntime, playbackSession),
                     replacementIsDefault: true);
+            }
+            else
+            {
+                base.SkinChanged(skin);
+
+                if (requiresClosedGameplaySkinDisplay() && Drawable is not IBmsBgaPanelGameplaySkinDisplay)
+                {
+                    SetDrawable(
+                        new DefaultBmsBgaPanelDisplay(layoutProvider, gameplaySkinSceneRuntime),
+                        replacementIsDefault: true);
+                }
             }
 
             if (Drawable is IBmsBgaPanelDisplay display)
             {
                 if (Drawable is IBmsBgaPanelGameplaySkinDisplay gameplaySkinDisplay)
-                    gameplaySkinDisplay.InitialiseGameplaySkinPublication(layoutProvider, gameplaySkinSceneRuntime);
+                    gameplaySkinDisplay.InitialiseGameplaySkinPublication(layoutProvider, gameplaySkinSceneRuntime, playbackSession);
 
                 if (Drawable is not IBmsBgaPanelLayoutDisplay layoutDisplay)
                     throw new InvalidOperationException("bms.layout.bga-display-missing-snapshot-carrier");
 
                 layoutDisplay.InitialiseLayoutSnapshot(layoutProvider.Current);
-                display.SetBgaSource(timeline, poorMode);
+                if (playbackSession == null)
+                    display.SetBgaSource(timeline, poorMode);
                 display.SetLayout(placement);
             }
         }
@@ -198,7 +221,13 @@ namespace osu.Game.Rulesets.Bms.UI
                 display.SetLayout(placement);
         }
 
-        public void NotifyMiss() => (Drawable as IBmsBgaPanelDisplay)?.NotifyMiss();
+        public void NotifyMiss()
+        {
+            if (playbackSession != null)
+                playbackSession.NotifyMiss();
+            else
+                (Drawable as IBmsBgaPanelDisplay)?.NotifyMiss();
+        }
 
         internal bool TryGetContentState(int viewportIndex, out GameplaySkinBgaContentState state, out long contentRevision)
         {
@@ -250,7 +279,9 @@ namespace osu.Game.Rulesets.Bms.UI
                                                      IBmsBgaPanelStateSource, IBmsBgaPanelGameplaySkinDisplay
     {
         private Container framesContainer = null!;
-        private BmsBgaPlayer? player;
+        private IBmsBgaContentSource? contentSource;
+        private BmsBgaPlaybackSession? previewSession;
+        private readonly List<Drawable> contentViews = new List<Drawable>();
         private readonly List<GameplaySkinSpecialisedSceneVisual> frameSceneVisuals = new List<GameplaySkinSpecialisedSceneVisual>();
         private readonly List<GameplaySkinSpecialisedSceneVisual> viewportSceneVisuals = new List<GameplaySkinSpecialisedSceneVisual>();
         private readonly List<GameplaySkinSpecialisedSceneVisual?> frameSceneVisualsByViewport = new List<GameplaySkinSpecialisedSceneVisual?>();
@@ -263,7 +294,6 @@ namespace osu.Game.Rulesets.Bms.UI
         private IReadOnlyList<BmsBgaTimelineEntry> timeline = Array.Empty<BmsBgaTimelineEntry>();
         private BmsPoorBgaMode poorMode = BmsPoorBgaMode.Default;
         private BmsBgaPlacement placement = BmsBgaPlacement.TopRight;
-        private bool hasStaticBackground;
         private bool loaded;
         private BmsGameplayLayoutProvider? layoutProvider;
 
@@ -282,23 +312,30 @@ namespace osu.Game.Rulesets.Bms.UI
         internal IReadOnlyList<Container> NativeFrameVisuals => nativeFrameVisuals;
 
         [Resolved(CanBeNull = true)]
-        private IBindable<WorkingBeatmap>? workingBeatmap { get; set; }
-
-        [Resolved(CanBeNull = true)]
         private GameplaySkinSceneRuntimeHost? sceneRuntime { get; set; }
 
         public DefaultBmsBgaPanelDisplay(
             BmsGameplayLayoutProvider? layoutProvider = null,
             GameplaySkinSceneRuntimeHost? gameplaySkinSceneRuntime = null)
+            : this(layoutProvider, gameplaySkinSceneRuntime, null)
+        {
+        }
+
+        internal DefaultBmsBgaPanelDisplay(
+            BmsGameplayLayoutProvider? layoutProvider,
+            GameplaySkinSceneRuntimeHost? gameplaySkinSceneRuntime,
+            IBmsBgaContentSource? contentSource)
         {
             this.layoutProvider = layoutProvider;
             sceneRuntime = gameplaySkinSceneRuntime;
+            this.contentSource = contentSource;
             RelativeSizeAxes = Axes.Both;
         }
 
         void IBmsBgaPanelGameplaySkinDisplay.InitialiseGameplaySkinPublication(
             BmsGameplayLayoutProvider exactLayoutProvider,
-            GameplaySkinSceneRuntimeHost? gameplaySkinSceneRuntime)
+            GameplaySkinSceneRuntimeHost? gameplaySkinSceneRuntime,
+            IBmsBgaContentSource? source)
         {
             ArgumentNullException.ThrowIfNull(exactLayoutProvider);
 
@@ -307,6 +344,19 @@ namespace osu.Game.Rulesets.Bms.UI
 
             layoutProvider = exactLayoutProvider;
             sceneRuntime = gameplaySkinSceneRuntime;
+
+            if (previewSession != null)
+            {
+                if (source != null)
+                    throw new InvalidOperationException("A standalone BGA preview cannot adopt a gameplay playback session after loading.");
+
+                return;
+            }
+
+            if (contentSource != null && !ReferenceEquals(contentSource, source))
+                throw new InvalidOperationException("A BMS gameplay display cannot replace its playback session.");
+
+            contentSource = source;
         }
 
         [BackgroundDependencyLoader]
@@ -329,17 +379,45 @@ namespace osu.Game.Rulesets.Bms.UI
 
             InternalChild = framesContainer = new Container { RelativeSizeAxes = Axes.Both };
 
+            // Isolated compatibility displays can still preview a source without a gameplay root. Production
+            // always supplies its existing session before load, and never admits a display-owned media player.
+            if (contentSource == null)
+            {
+                previewSession = new BmsBgaPlaybackSession(timeline, poorMode);
+                contentSource = previewSession;
+                AddInternal(previewSession);
+            }
+        }
+
+        protected override void LoadComplete()
+        {
+            base.LoadComplete();
+
             loaded = true;
             rebuild();
         }
 
         public void SetBgaSource(IReadOnlyList<BmsBgaTimelineEntry> newTimeline, BmsPoorBgaMode newPoorMode)
         {
+            if (contentSource != null && previewSession == null)
+                throw new InvalidOperationException("A gameplay BGA display may only read its existing playback session.");
+
             timeline = newTimeline;
             poorMode = newPoorMode;
 
-            if (loaded)
-                rebuild();
+            // AddInternal can eagerly load a compatibility display before SkinChanged supplies its timeline.
+            // Replace that preview even if LoadComplete has not created its presentation views yet.
+            if (previewSession != null)
+            {
+                if (loaded)
+                    clearFrames();
+                RemoveInternal(previewSession, disposeImmediately: true);
+                previewSession = new BmsBgaPlaybackSession(timeline, poorMode);
+                contentSource = previewSession;
+                AddInternal(previewSession);
+                if (loaded)
+                    rebuild();
+            }
         }
 
         public void SetLayout(BmsBgaPlacement newPlacement)
@@ -368,7 +446,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 rebuild();
         }
 
-        public void NotifyMiss() => player?.NotifyMiss();
+        public void NotifyMiss() => previewSession?.NotifyMiss();
 
         protected override void Update()
         {
@@ -376,11 +454,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
             for (int index = 0; index < viewportSceneOwners.Count; index++)
             {
-                GameplaySkinBgaContentState state = player != null
-                    ? player.ContentState
-                    : hasStaticBackground
-                        ? GameplaySkinBgaContentState.Ready
-                        : GameplaySkinBgaContentState.Empty;
+                GameplaySkinBgaContentState state = contentSource?.ContentState ?? GameplaySkinBgaContentState.Empty;
                 viewportSceneOwners[index].Alpha = state is GameplaySkinBgaContentState.Ready
                     or GameplaySkinBgaContentState.Playing
                     or GameplaySkinBgaContentState.Paused
@@ -415,16 +489,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 return false;
             }
 
-            if (player != null)
-            {
-                state = player.ContentState;
-                contentRevision = player.ContentRevision;
-            }
-            else
-            {
-                state = hasStaticBackground ? GameplaySkinBgaContentState.Ready : GameplaySkinBgaContentState.Empty;
-                contentRevision = 0;
-            }
+            state = contentSource?.ContentState ?? GameplaySkinBgaContentState.Empty;
+            contentRevision = contentSource?.ContentRevision ?? 0;
 
             return true;
         }
@@ -446,89 +512,60 @@ namespace osu.Game.Rulesets.Bms.UI
                 return false;
             }
 
-            if (player != null)
-                player.GetContentStateAt(gameplayTime, out state, out contentRevision);
+            if (contentSource != null)
+                contentSource.GetContentStateAt(gameplayTime, out state, out contentRevision);
             else
             {
-                state = hasStaticBackground ? GameplaySkinBgaContentState.Ready : GameplaySkinBgaContentState.Empty;
+                state = GameplaySkinBgaContentState.Empty;
                 contentRevision = 0;
             }
 
             return true;
         }
 
-        private void rebuild()
+        private void clearFrames()
         {
             // Detach the old native owner graph before retiring its specialised handles. Framework clear/disposal
             // is deferred; disposing a still-mounted handle would leave a disposed drawable in the next update.
             Drawable[] oldFrames = framesContainer.Children.ToArray();
             framesContainer.Clear(disposeChildren: false);
+            releaseContentViews();
             retireFrameSceneVisuals();
             foreach (Drawable oldFrame in oldFrames)
                 oldFrame.Dispose();
-            player = null;
-            hasStaticBackground = false;
+        }
+
+        private void rebuild()
+        {
+            clearFrames();
 
             if (LayoutSnapshot == null)
                 return;
 
-            var background = timeline.Count == 0 ? workingBeatmap?.Value?.GetBackground() : null;
-            hasStaticBackground = background != null;
-
-            BufferedContainer? sharedContent = null;
-            if (timeline.Count > 0 && LayoutSnapshot.BgaViewports.Count > 0)
-            {
-                player = new BmsBgaPlayer(timeline, poorMode);
-
-                // Only mirrored layouts need a framebuffer. Single-view gameplay retains the direct rendering path.
-                // The first viewport owns playback and composition; the remaining views only draw its surface.
-                if (LayoutSnapshot.BgaViewports.Count > 1)
-                    sharedContent = new BufferedContainer { RelativeSizeAxes = Axes.Both, Child = player };
-            }
-
             for (int index = 0; index < LayoutSnapshot.BgaViewports.Count; index++)
             {
-                Drawable? content = player;
-                if (sharedContent != null)
-                {
-                    if (index == 0)
-                        content = sharedContent;
-                    else
-                    {
-                        BufferedContainerView<Drawable> view = sharedContent.CreateView();
-                        view.SynchronisedDrawQuad = false;
-                        view.RelativeSizeAxes = Axes.Both;
-                        view.Anchor = Anchor.Centre;
-                        view.Origin = Anchor.Centre;
-                        content = view;
-                    }
-                }
-
-                framesContainer.Add(createFrame(LayoutSnapshot.BgaViewports[index], background, index, content));
+                Drawable? content = contentSource?.CreateView(LayoutSnapshot.BgaViewportScaleModes[index]);
+                if (content != null)
+                    contentViews.Add(content);
+                framesContainer.Add(createFrame(LayoutSnapshot.BgaViewports[index], index, content));
             }
         }
 
-        private Container createFrame(GameplaySkinLayoutRect viewport, Texture? background, int viewportIndex, Drawable? sharedContent)
+        private void releaseContentViews()
+        {
+            foreach (Drawable view in contentViews)
+                contentSource!.ReleaseView(view);
+            contentViews.Clear();
+        }
+
+        private Container createFrame(GameplaySkinLayoutRect viewport, int viewportIndex, Drawable? sharedContent)
         {
             var content = new Container { RelativeSizeAxes = Axes.Both };
-            bool hasContent = false;
+            bool hasContent = contentSource?.HasContent == true;
 
             if (sharedContent != null)
             {
                 content.Add(sharedContent);
-                hasContent = true;
-            }
-            else if (background != null)
-            {
-                content.Add(new Sprite
-                {
-                    RelativeSizeAxes = Axes.Both,
-                    FillMode = FillMode.Fit,
-                    Anchor = Anchor.Centre,
-                    Origin = Anchor.Centre,
-                    Texture = background,
-                });
-                hasContent = true;
             }
 
             content.Alpha = hasContent ? 1 : 0;
@@ -646,7 +683,10 @@ namespace osu.Game.Rulesets.Bms.UI
         protected override void Dispose(bool isDisposing)
         {
             if (isDisposing)
+            {
+                releaseContentViews();
                 retireFrameSceneVisuals();
+            }
 
             base.Dispose(isDisposing);
         }

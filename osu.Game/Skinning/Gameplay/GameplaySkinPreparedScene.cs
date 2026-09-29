@@ -132,18 +132,20 @@ namespace osu.Game.Skinning.Gameplay
                    && string.Equals(rulesetId, "bms", StringComparison.Ordinal))
                || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.BarLine);
 
-        public static int SpecialisedPoolCapacity(GameplaySkinSlotDescriptor descriptor)
+        public static int SpecialisedPoolCapacity(GameplaySkinSlotDescriptor descriptor, GameplaySkinLayoutSnapshot snapshot)
         {
             if (ReferenceEquals(descriptor, GameplaySkinSlotCatalog.KeyVisual))
                 return 1;
+
+            if (ReferenceEquals(descriptor, GameplaySkinSlotCatalog.BgaViewport)
+                || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.BgaFrame))
+                return snapshot.BgaViewports.Count;
 
             if (ReferenceEquals(descriptor, GameplaySkinSlotCatalog.HitExplosion))
                 return GameplaySkinPreparedSceneBudgets.MAX_HIT_EXPLOSION_VISUALS_PER_KEY;
 
             if (ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LaneCoverFill)
-                || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LaneCoverDecoration)
-                || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.BgaViewport)
-                || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.BgaFrame))
+                || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LaneCoverDecoration))
                 return 4;
 
             return GameplaySkinPreparedSceneBudgets.MAX_SPECIALISED_VISUALS_PER_KEY;
@@ -980,6 +982,18 @@ namespace osu.Game.Skinning.Gameplay
                     // Recheck dispatch work against that concrete fanout rather than assuming one copy per selector.
                     var fanout = enumeratePreparedNodes(copiedRoots).GroupBy(node => node.Source.Id)
                         .ToDictionary(group => group.Key, group => group.LongCount(), StringComparer.Ordinal);
+                    foreach (GameplaySkinPreparedHostedSlot plan in HostedSlots.Where(isSpecialisedBga))
+                    {
+                        // The prepared source tree is shared. Count its actual per-window clones, including
+                        // template instances, instead of counting every global BGA source only once.
+                        foreach (GameplaySkinPreparedSceneNode node in enumeratePreparedNodes(plan.RoutedNodes))
+                            fanout[node.Source.Id]--;
+                        for (int index = 0; index < snapshot.BgaViewports.Count; index++)
+                        {
+                            foreach (var projected in bgaNodesForViewport(plan, snapshot, index))
+                                fanout[projected.Node.Source.Id]++;
+                        }
+                    }
                     long frameApplications = document.Tracks.Sum(track => fanout.GetValueOrDefault(track.TargetNodeId))
                                              + document.Bindings.Sum(binding => fanout.GetValueOrDefault(binding.TargetNodeId))
                                              + document.Variants.Sum(variant => fanout.GetValueOrDefault(variant.TargetNodeId));
@@ -992,7 +1006,7 @@ namespace osu.Game.Skinning.Gameplay
                 RuntimeReservation reservation = reserveRuntime(
                     copiedRoots,
                     HostedSlots,
-                    snapshot.Context,
+                    snapshot,
                     textGlyphReservationsByNodeId,
                     textFontSizesByNodeId);
                 long preparedVisuals = checked(reservation.Instances + HudPlan.ReservedRuntimeFactoryInstances);
@@ -1087,6 +1101,12 @@ namespace osu.Game.Skinning.Gameplay
 
             foreach (GameplaySkinResolvedMaterialEntry entry in materialSet.Entries)
             {
+                // The declaration has already been validated, but no native owner exists to host this visual.
+                if (snapshot.BgaViewports.Count == 0
+                    && materialSet.RuntimeSupportProfile.IsSupported(GameplaySkinSlotCatalog.BgaViewport)
+                    && (entry.Slot == GameplaySkinSlotCatalog.BgaViewport || entry.Slot == GameplaySkinSlotCatalog.BgaFrame))
+                    continue;
+
                 GameplaySkinSceneHostRoute route;
                 GameplaySkinSceneHostRoute failureRoute = GameplaySkinSceneHostRoute.Programmatic;
                 GameplaySkinPublicSlotMaterial? publicMaterial = entry.State == GameplaySkinResolvedMaterialState.Provide
@@ -1120,7 +1140,7 @@ namespace osu.Game.Skinning.Gameplay
                     GameplaySkinSceneHostPolicy.LayerFor(entry.Slot),
                     resolveHostedSlotRect(snapshot, entry),
                     route == GameplaySkinSceneHostRoute.Specialised
-                        ? GameplaySkinSceneHostPolicy.SpecialisedPoolCapacity(entry.Slot)
+                        ? GameplaySkinSceneHostPolicy.SpecialisedPoolCapacity(entry.Slot, snapshot)
                         : 0,
                     sceneClaims.GetValueOrDefault(entry.Key) ?? Enumerable.Empty<GameplaySkinPreparedSceneNode>()));
             }
@@ -1159,10 +1179,11 @@ namespace osu.Game.Skinning.Gameplay
         private static RuntimeReservation reserveRuntime(
             IReadOnlyList<GameplaySkinPreparedSceneNode> roots,
             IReadOnlyList<GameplaySkinPreparedHostedSlot> hostedSlots,
-            GameplaySkinLayoutContext context,
+            GameplaySkinLayoutSnapshot snapshot,
             IReadOnlyDictionary<string, int> glyphReservations,
             IReadOnlyDictionary<string, double> fontSizes)
         {
+            GameplaySkinLayoutContext context = snapshot.Context;
             IReadOnlyDictionary<GameplaySkinResolvedMaterialKey, GameplaySkinPreparedHostedSlot> plans =
                 hostedSlots.ToDictionary(plan => plan.Key);
             RuntimeReservation result = default;
@@ -1189,6 +1210,20 @@ namespace osu.Game.Skinning.Gameplay
                 if (plan.Route != GameplaySkinSceneHostRoute.Specialised)
                     continue;
 
+                if (isSpecialisedBga(plan))
+                {
+                    for (int index = 0; index < snapshot.BgaViewports.Count; index++)
+                    {
+                        RuntimeReservation viewport = default;
+                        foreach (var projected in bgaNodesForViewport(plan, snapshot, index))
+                            viewport = viewport.Add(reserveOneNode(projected.Node, context, glyphReservations, fontSizes, projected.Rect));
+                        if (viewport.Instances == 0 && plan.SpecialisedTexture != null)
+                            viewport = new RuntimeReservation(1, 0, 0, 0, 0);
+                        result = result.Add(viewport);
+                    }
+                    continue;
+                }
+
                 RuntimeReservation oneVisual = default;
 
                 foreach (GameplaySkinPreparedSceneNode routed in plan.RoutedNodes)
@@ -1202,6 +1237,43 @@ namespace osu.Game.Skinning.Gameplay
             }
 
             return result;
+        }
+
+        private static bool isSpecialisedBga(GameplaySkinPreparedHostedSlot plan)
+            => plan.Route == GameplaySkinSceneHostRoute.Specialised
+               && (plan.Key.Slot == GameplaySkinSlotCatalog.BgaViewport || plan.Key.Slot == GameplaySkinSlotCatalog.BgaFrame);
+
+        private static IEnumerable<(GameplaySkinPreparedSceneNode Node, GameplaySkinLayoutRect Rect)> bgaNodesForViewport(
+            GameplaySkinPreparedHostedSlot plan,
+            GameplaySkinLayoutSnapshot snapshot,
+            int index)
+        {
+            foreach (GameplaySkinPreparedSceneNode routed in plan.RoutedNodes)
+            {
+                // Match the native BGA host's filtering: global sources repeat in every window, while an
+                // explicit BGA target mounts only in that window. The root fills its actual native owner.
+                if (routed.ResolvedTarget.Kind == GameplaySkinSceneTargetKind.Bga && (routed.ResolvedTarget.Index ?? 0) != index)
+                    continue;
+                foreach (var projected in projectBgaTree(routed, snapshot.BgaViewports[index]))
+                    yield return projected;
+            }
+        }
+
+        private static IEnumerable<(GameplaySkinPreparedSceneNode Node, GameplaySkinLayoutRect Rect)> projectBgaTree(
+            GameplaySkinPreparedSceneNode node,
+            GameplaySkinLayoutRect viewportRect)
+        {
+            yield return (node, viewportRect);
+            foreach (GameplaySkinPreparedSceneNode child in node.Children)
+            {
+                var childRect = GameplaySkinLayoutRect.Create(
+                    viewportRect.Left + (child.Rect.Left - node.Rect.Left) / node.Rect.Width * viewportRect.Width,
+                    viewportRect.Top + (child.Rect.Top - node.Rect.Top) / node.Rect.Height * viewportRect.Height,
+                    child.Rect.Width / node.Rect.Width * viewportRect.Width,
+                    child.Rect.Height / node.Rect.Height * viewportRect.Height);
+                foreach (var projected in projectBgaTree(child, childRect))
+                    yield return projected;
+            }
         }
 
         private static RuntimeReservation reserveMountedTree(
@@ -1246,7 +1318,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinPreparedSceneNode node,
             GameplaySkinLayoutContext context,
             IReadOnlyDictionary<string, int> glyphReservations,
-            IReadOnlyDictionary<string, double> fontSizes)
+            IReadOnlyDictionary<string, double> fontSizes,
+            GameplaySkinLayoutRect? projectedRect = null)
         {
             int glyphs = node.Source.Type == GameplaySkinSceneNodeType.Text
                 ? glyphReservations.GetValueOrDefault(node.Source.Id)
@@ -1255,7 +1328,7 @@ namespace osu.Game.Skinning.Gameplay
             return new RuntimeReservation(
                 1,
                 node.Source.Effects.Count,
-                countOwnEffectSurfacePixels(node, context),
+                countOwnEffectSurfacePixels(node, context, projectedRect),
                 glyphs,
                 glyphs == 0 ? 0 : reserveGlyphPixels(glyphs, fontSize, context));
         }
@@ -1316,13 +1389,14 @@ namespace osu.Game.Skinning.Gameplay
             => checked(countOwnEffectSurfacePixels(node, context)
                        + node.Children.Sum(child => countEffectSurfacePixels(child, context)));
 
-        private static long countOwnEffectSurfacePixels(GameplaySkinPreparedSceneNode node, GameplaySkinLayoutContext context)
+        private static long countOwnEffectSurfacePixels(GameplaySkinPreparedSceneNode node, GameplaySkinLayoutContext context, GameplaySkinLayoutRect? projectedRect = null)
         {
             if (node.Source.Effects.Count == 0)
                 return 0;
 
-            double width = Math.Ceiling(context.RenderPixelWidth * node.Rect.Width / context.ScreenBounds.Width);
-            double height = Math.Ceiling(context.RenderPixelHeight * node.Rect.Height / context.ScreenBounds.Height);
+            GameplaySkinLayoutRect rect = projectedRect ?? node.Rect;
+            double width = Math.Ceiling(context.RenderPixelWidth * rect.Width / context.ScreenBounds.Width);
+            double height = Math.Ceiling(context.RenderPixelHeight * rect.Height / context.ScreenBounds.Height);
             double logicalPixelScale = Math.Max(context.DpiScale, context.RenderPixelHeight / 768d);
             long result = 0;
 
@@ -1616,11 +1690,11 @@ namespace osu.Game.Skinning.Gameplay
                         programmedNodeIds.Add(target.NodeId);
 
                 int preparedNodeCount = 0;
-                var roots = new List<GameplaySkinPreparedSceneNode>
-                {
-                    prepareNode(document.Root, null, string.Empty, snapshot, materialSet, selectedDocument, resourcesById, programmedNodeIds, ref preparedNodeCount,
-                        null, null, false, cancellationToken),
-                };
+                var roots = new List<GameplaySkinPreparedSceneNode>();
+                GameplaySkinPreparedSceneNode? preparedRoot = prepareNode(document.Root, null, string.Empty, snapshot, materialSet, selectedDocument, resourcesById,
+                    programmedNodeIds, ref preparedNodeCount, null, null, false, cancellationToken);
+                if (preparedRoot != null)
+                    roots.Add(preparedRoot);
 
                 IReadOnlyDictionary<string, GameplaySkinSceneTemplate> templates = document.Templates.ToDictionary(template => template.Id, StringComparer.Ordinal);
 
@@ -1641,13 +1715,15 @@ namespace osu.Game.Skinning.Gameplay
                                 ? new GameplaySkinSceneTarget(GameplaySkinSceneTargetKind.Global, null, null)
                                 : new GameplaySkinSceneTarget(GameplaySkinSceneTargetKind.Stage, entry.Target.GroupId!.Value, entry.Target.GroupLogicalIndex);
                             string prefix = global ? $"{instance.Id}/global/" : $"{instance.Id}/{entry.Target.GroupLogicalIndex}/";
-                            roots.Add(prepareNode(template.Root, target, prefix,
+                            GameplaySkinPreparedSceneNode? preparedTemplate = prepareNode(template.Root, target, prefix,
                                 snapshot, materialSet, selectedDocument, resourcesById, programmedNodeIds, ref preparedNodeCount,
-                                null, null, false, cancellationToken, useOwnedSurface: true));
+                                null, null, false, cancellationToken, useOwnedSurface: true);
+                            if (preparedTemplate != null)
+                                roots.Add(preparedTemplate);
                         }
                         continue;
                     }
-                    roots.Add(prepareNode(
+                    GameplaySkinPreparedSceneNode? preparedInstance = prepareNode(
                         template.Root,
                         instance.Target,
                         $"{instance.Id}/",
@@ -1660,7 +1736,9 @@ namespace osu.Game.Skinning.Gameplay
                         null,
                         null,
                         false,
-                        cancellationToken));
+                        cancellationToken);
+                    if (preparedInstance != null)
+                        roots.Add(preparedInstance);
                 }
 
                 return new GameplaySkinPreparedScene(
@@ -1697,7 +1775,7 @@ namespace osu.Game.Skinning.Gameplay
                 && entry.Material is GameplaySkinPublicSlotMaterial material
                 && material.ResourceName == instance.MaterialResource);
 
-        private static GameplaySkinPreparedSceneNode prepareNode(
+        private static GameplaySkinPreparedSceneNode? prepareNode(
             GameplaySkinSceneNode node,
             GameplaySkinSceneTarget? rootTargetOverride,
             string instancePrefix,
@@ -1720,7 +1798,17 @@ namespace osu.Game.Skinning.Gameplay
                 throw fail(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
 
             GameplaySkinSceneTarget target = rootTargetOverride ?? node.Target;
-            (GameplaySkinLayoutRect rect, GameplaySkinResolvedMaterialTarget? materialTarget) = resolveTarget(target, snapshot);
+
+            // A supported ruleset may currently have no BGA windows. Validate the complete declaration/owner
+            // subtree as usual, using a temporary geometry carrier, then omit it from the prepared graph.
+            // Missing geometry must never exempt a package from material, layer or resource validation.
+            bool bgaSurfaceUnavailable = snapshot.BgaViewports.Count == 0 && materialSet.RuntimeSupportProfile.IsSupported(GameplaySkinSlotCatalog.BgaViewport)
+                && (target.Kind == GameplaySkinSceneTargetKind.Bga
+                    || node.SlotId == GameplaySkinSlotCatalog.BgaViewport.Id
+                    || node.SlotId == GameplaySkinSlotCatalog.BgaFrame.Id
+                    || inheritedOwner?.Slot == GameplaySkinSlotCatalog.BgaViewport
+                    || inheritedOwner?.Slot == GameplaySkinSlotCatalog.BgaFrame);
+            (GameplaySkinLayoutRect rect, GameplaySkinResolvedMaterialTarget? materialTarget) = resolveTarget(target, snapshot, bgaSurfaceUnavailable);
             GameplaySkinSlotDescriptor? slot = null;
 
             if (node.SlotId != null)
@@ -1756,7 +1844,7 @@ namespace osu.Game.Skinning.Gameplay
                         materialTarget,
                         rect,
                         target.Kind,
-                        out rect))
+                        out rect) && !bgaSurfaceUnavailable)
                 {
                     throw fail(GameplaySkinSceneDiagnosticCode.UnknownTarget);
                 }
@@ -1772,7 +1860,7 @@ namespace osu.Game.Skinning.Gameplay
             // whole Stage. Explicit-target templates retain their existing absolute target geometry.
             if (useOwnedSurface && slot == null && inheritedOwner != null
                 && !GameplaySkinSceneSurfaceResolver.TryResolve(snapshot, inheritedOwner.Slot, inheritedOwner.Target,
-                    rect, target.Kind, out rect))
+                    rect, target.Kind, out rect) && !bgaSurfaceUnavailable)
                 throw fail(GameplaySkinSceneDiagnosticCode.UnknownTarget);
 
             GameplaySkinResolvedMaterialKey? owningSlotKey = slot != null && materialTarget != null
@@ -1850,7 +1938,7 @@ namespace osu.Game.Skinning.Gameplay
 
             foreach (GameplaySkinSceneNode child in node.Children)
             {
-                children.Add(prepareNode(
+                GameplaySkinPreparedSceneNode? preparedChild = prepareNode(
                     child,
                     rootTargetOverride,
                     instancePrefix,
@@ -1865,8 +1953,13 @@ namespace osu.Game.Skinning.Gameplay
                     allowsLayerDispatch,
                     cancellationToken,
                     useOwnedSurface,
-                    informationSurface));
+                    informationSurface);
+                if (preparedChild != null)
+                    children.Add(preparedChild);
             }
+
+            if (bgaSurfaceUnavailable)
+                return null;
 
             return new GameplaySkinPreparedSceneNode(
                 instancePrefix + node.Id,
@@ -1885,7 +1978,8 @@ namespace osu.Game.Skinning.Gameplay
 
         private static (GameplaySkinLayoutRect Rect, GameplaySkinResolvedMaterialTarget? MaterialTarget) resolveTarget(
             GameplaySkinSceneTarget target,
-            GameplaySkinLayoutSnapshot snapshot)
+            GameplaySkinLayoutSnapshot snapshot,
+            bool allowAbsentBgaSurface)
         {
             GameplaySkinLaneTopologySnapshot topology = snapshot.Context.Topology;
 
@@ -1931,7 +2025,13 @@ namespace osu.Game.Skinning.Gameplay
 
                     int index = target.Index ?? 0;
 
-                    if (index < 0 || index >= snapshot.BgaViewports.Count)
+                    if (index < 0)
+                        throw fail(GameplaySkinSceneDiagnosticCode.InvalidIndex);
+
+                    if (allowAbsentBgaSurface)
+                        return (snapshot.Context.SafeBounds, GameplaySkinResolvedMaterialTarget.Global);
+
+                    if (index >= snapshot.BgaViewports.Count)
                         throw fail(GameplaySkinSceneDiagnosticCode.InvalidIndex);
 
                     return (snapshot.BgaViewports[index], GameplaySkinResolvedMaterialTarget.Global);

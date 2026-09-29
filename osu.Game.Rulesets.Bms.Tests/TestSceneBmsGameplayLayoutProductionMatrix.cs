@@ -385,7 +385,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                     || !playfield.NestedPlayfields.Contains(owner)
                     || !playfield.GroupContainers.Single(container => container.GroupId.Equals(group.GroupId)).Children.Contains(owner)
                     || owner.MeasureBarLines.Count != beatmap.MeasureStartTimes.Count
-                    || owner.PoolCapacity != GameplaySkinSceneHostPolicy.SpecialisedPoolCapacity(GameplaySkinSlotCatalog.BarLine)
+                    || owner.PoolCapacity != GameplaySkinSceneHostPolicy.SpecialisedPoolCapacity(GameplaySkinSlotCatalog.BarLine, playfield.LayoutSnapshot.Neutral)
                     || owner.PoolSize > owner.PoolCapacity
                     || owner.MeasureBarLines.Any(barLine => barLine.GroupLogicalIndex != group.TopologyGroup.LogicalIndex
                                                            || barLine.GroupId?.Equals(group.GroupId) != true))

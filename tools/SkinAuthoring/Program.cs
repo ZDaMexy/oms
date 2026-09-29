@@ -137,6 +137,12 @@ namespace SkinAuthoring
             var errors = new List<string>();
             foreach (var diagnostic in document.Diagnostics)
                 errors.Add($"skin.ini:{diagnostic.LineNumber}: {diagnostic.Id}");
+            foreach (var line in document.LegacySections.Where(section => section.Name == "Bms").SelectMany(section => section.Lines))
+            {
+                if (line.Key == GameplaySkinBgaLayout.CONFIGURATION_KEY && line.Value != null
+                    && !GameplaySkinBgaLayout.TryParse(line.Value, out _, out string? diagnostic))
+                    errors.Add($"skin.ini:{line.LineNumber}: {diagnostic}");
+            }
             foreach (var line in document.LegacySections.Where(section => section.Name is "Bms" or "Mania").SelectMany(section => section.Lines))
             {
                 if (line.Key == null || line.Value == null || !(line.Key.StartsWith("NoteImage", StringComparison.Ordinal)

@@ -1,6 +1,6 @@
 # P1-L 当前计划：BMS Gimmick 与 BGA 视觉
 
-> 最后更新：2026-09-30（共享 BGA 内容已实现；继续代表设备与真实谱验收）
+> 最后更新：2026-09-30（游戏会话与作者窗口；后续代表设备与真实谱验收）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定滚动/BGA 合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，机理背景见 [BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)，已完成阶段按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -15,27 +15,24 @@ P1-L 拥有 BMS Gimmick 的视觉位置旁路、地雷呈现与 BGA decode/timel
 | 地雷视觉 | 已落，保持非判定、随可表示 lane permutation 移动 |
 | 滚动旁路 | BMS-only position integration 与 Off/On/Auto 已落，正常链路隔离 |
 | BGA 主链 | 图序列/视频/POOR、seek、ffmpeg opt-in 转码已落 |
-| 多视图共享内容 | 默认显示一个 player；多 viewport 共享合成 surface，单 viewport 直接绘制；真实素材与生命周期无窗口回归已过 |
-| Skin V1 接线 | C3 共用 immutable layout/viewports、C5 material/scene 与只读 BGA 状态事件已落；选中包可声明 BGA 尺寸/位置及信息区预留 |
+| 多视图共享内容 | 游戏根持有独立播放会话，所有窗口使用共享合成surface的只读view；显示/换窗不重建player，退出根释放 |
+| Skin V1 接线 | C3 layout/viewports、C5 material/scene与只读状态事件已落；作者可声明最多16窗及fit/fill/stretch/none，信息区独立；无声明保留旧布局 |
 | 转码体验 | 预热等待上限、会话缓存、ultrafast 与扫描线进度已落 |
 
 完成实现、事故诊断和旧测试数字不在 PLAN 重述，统一查 [CHANGELOG](CHANGELOG.md)。
 
 ## 当前执行顺序
 
-### 1. 共享 BGA 内容的真实设备与尺寸验收
+### 1. 作者窗口与代表设备验收
 
-默认显示已收敛为一个 `BmsBgaPlayer`，常规 14K 用一个 `BufferedContainer` 和三个只读 view 复用合成结果，单 viewport 保持直接绘制。C3 snapshot、C5 material/scene 与状态事件继续使用现有接口；「显示 BGA」提示已修正为四角及窄屏下方布局。
+游戏持有播放会话与作者窗口的实现及软件证据见[作者能力验证](../../other/BGA_SKIN_AUTHORING_20260930.md)。后续代表设备覆盖宽高比、DPI、三种适配、单窗/多窗与BGA不遮lane；关闭显示/零窗后恢复内容应跟随当前游戏时刻，独立信息区保持。
 
-真实图片/视频各读取一次、暂停/seek/POOR 同步、旧 player 释放及四窗普通图/POOR 桌面实绘已通过。完整回归与证据统一见 [性能验证记录](../../other/GAMEPLAY_PERFORMANCE_20260930.md)。剩余工作是代表设备与真实谱的尺寸/保真验收。
-
-验收：桌面像素与 viewport 比例一致；代表设备覆盖宽高比、DPI 与 BGA 不遮 lane，不能用无窗口资源计数替代实绘结论。
-
+验收记录屏幕比例、样式、窗口声明与实际图像；不能用资源计数替代实绘，较早的[性能证据](../../other/GAMEPLAY_PERFORMANCE_20260930.md)保持其代码身份。
 ### 2. 代表谱逐帧/逐功能人工验收
 
 1. DEAD SOUL 等 Gimmick 谱与 beatoraja/LR2 对照 freeze、snap、Auto 检测和 Off 回退。
 2. 代表图序列、POOR、seek、老式视频转码与重进缓存。
-3. 验证当前 descriptor 驱动的默认 14K 四角布局、共享内容比例、C5 BGA frame/viewport scene 与状态事件及 seek/POOR 一致。
+3. 验证无声明时的14K兼容四角布局、作者窗口及none、独立信息区、共享内容比例、C5 BGA frame/viewport scene与状态事件及seek/POOR一致。实际冲突在runtime.log查`bms.layout.bga-viewports-unavailable`，没有专属设置错误面板。
 4. 结果交 P1-G 汇总；自动链不能替代逐谱视觉结论。
 
 验收：每个样本记录谱面、模式、预期/实际、截图或日志及 owning 子线，不以“能播放”替代保真判断。
@@ -56,7 +53,7 @@ P1-L 拥有 BMS Gimmick 的视觉位置旁路、地雷呈现与 BGA decode/timel
 
 ## 验证顺序
 
-1. owning focused：scroll profile/algorithm、mine、BGA timeline/player/cache/transcode。
+1. owning focused：scroll profile/algorithm、mine、BGA timeline/session/player/cache/transcode，配合P1-A验证作者布局、场景边界和完整例子。
 2. BMS full + `osu.Desktop.slnf` Release。
 3. 代表谱人工视觉；任一阶段必须证明正常非 Gimmick gameplay 零回归。
 

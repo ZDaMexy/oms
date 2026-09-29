@@ -1,10 +1,21 @@
-# Gameplay Skin V1 公共目录
+# Gameplay Skin V1 部件与目标查表
 
-本文是 `GameplaySkinSlotCatalog` 的可读投影，不是第二份 ID 表。下表由 `GameplaySkinSlotCatalogDocumentation.GenerateMarkdownTable()` 生成，并由固定 contract digest 与文档一致性测试锁定；修改目录必须同时变更代码版本、生成块和测试。
+已经知道要改音符、血槽或BGA，但不知道应写哪个名字时，用这张表查部件ID、作用范围以及能否关闭。第一次制作先读[图解和元素速查](../../skin-authoring/docs/SKINNING.md#3-按画面元素查找文件)；完整文件与命令见[制作套件](../../skin-authoring/README.md)。本页保留精确技术表，发行套件内也有 [CATALOG](../../skin-authoring/docs/CATALOG.md) 和 [REFERENCE](../../skin-authoring/docs/REFERENCE.md)，不需要源码目录。
 
-公共目录冻结稳定名称、scope、值类型、Required/Recommended/Optional、继承、是否允许 `Suppress` 以及 ruleset/keymode/stage/lane-role 适用性。它仍**不改变目录语义**；C5 已由独立的 `GameplaySkinRuntimeCapabilitySet` 对每个 slot 给出版本化 runtime 决策并接入真实 host。BMS 对 28 项均有 production route（9K 按 catalog applicability 为 26 格），Mania 对 28 项逐项决策，其中 23 项 Supported，`object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame` 为明确 `NotApplicable`。runtime capability 不能改变目录分类，也不能为 Required/Recommended slot 扩张 `Suppress` 权限。
+读表：`ID`是写进INI/scene的名字；`Scope`是所在区域；`Required/Recommended`不能关闭，只有`Optional + Allowed`可写`Suppress`。资源缺失时继续使用可用的默认部件。表里的键数上界是格式适用范围，不等于当前所有谱面入口都支持该键数。
 
-当前合同版本：catalog `oms-gameplay-skin-catalog.v1`、codec `oms-gameplay-skin-codec.v1`、resolver `oms-gameplay-skin-resolver.v1`。BMS 扩展只有 `[GameplaySkin.Bms:1]`，与 common 共用同一个 tokenizer/codec，不存在第二套 BMS parser。
+实际玩法有差异：原生BMS使用28项（9K无装饰转盘/皿光束）；mania可用23项，`object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame`不适用。**BMS转谱使用mania表现，也没有BGA。** 不要将表中宽泛的目录适用性当作mania实际支持全部28项。
+
+| 找什么 | ID前缀或名称 |
+| --- | --- |
+| 音符、长条头身尾、地雷 | `object.*` |
+| 车道、判定线、键帽、小节线、遮挡 | `playfield.*` |
+| 按键闪光、命中效果 | `effect.*` |
+| 判定、连击、血量、文字信息 | `hud.*` |
+| 背景、舞台外框、自由装饰 | `stage.*`、`decoration` |
+| BGA窗口与外框 | `bga.viewport`、`bga.frame`，内容仍来自谱面 |
+
+当前格式为catalog `oms-gameplay-skin-catalog.v1`、codec `oms-gameplay-skin-codec.v1`、resolver `oms-gameplay-skin-resolver.v1`。下方生成块来自`GameplaySkinSlotCatalog`并受文档一致性测试检查，维护时不手改ID或适用性。INI段只有`[GameplaySkin.Common:1]`与`[GameplaySkin.Bms:1]`。
 
 <!-- GAMEPLAY-SKIN-CATALOG:BEGIN -->
 | ID | Stable name | Catalog | Scope | Type | Class | Default | Suppress | Rulesets | Stage | Lane role | Keymode | Keys | Diagnostic |
@@ -79,39 +90,35 @@ BMS group ID 为 `bms.group.deck-1` / `bms.group.deck-2`，lane ID 为 `bms.lane
 
 匹配当前 presentation 后，GroupId/LaneId、所属 group 和全部 logical/visual/global/group-local index 仍逐项匹配；错误坐标继续产生 `OMS-SKIN-CODEC-021`。其它正确声明、另一组合法排列或实际能进入游玩都不能掩盖当前声明的错误。省略与显式 `any` 在 target identity 中等价，重复声明规则不变。
 
-这是 codec v1 的可选增量，须使用支持 `presentation` 的皮肤样式提示修复版 OMS 与配套作者工具；较旧客户端会把该字段当未知属性拒绝。旧包同时携带未限定样式的左右两组坐标时仍可能得到严格诊断，应修改作者副本、检查并打包，再经普通导入或已登记目录的菜单重新载入更新；不得静默改写用户包或只读作者目录。
+这是 codec v1 的可选增量，须使用支持 `presentation` 的 OMS 与配套作者工具；较旧客户端会把该字段当未知属性拒绝。旧包同时携带未限定样式的左右两组坐标时仍可能得到严格诊断，应修改作者副本、检查并打包，再普通导入，或退出游玩/预览后刷新固定 `chartskin/` 目录。当前设置没有新外部目录注册入口，游戏不改写只读作者目录。
 
 9K 的公开 canonical lane index 为 `1..9`；legacy `[Mania] Keys:9` 的 raw index `0..8` 只经 `bms-gameplay-skin-nine-key-index.v1` 双向映射进入 compatibility candidate，未知版本 fail-closed。Mirror/Random 只改变对象最终目标 `LaneId`；resource、keysound 与 skin lookup 随同该 `LaneId`，不会改变 topology 或借 drawable 次序重算 lane。
 
-## 解析与 precedence
+## 同一部件写了多处时
 
-每个 package 的 `skin.ini` bytes 只捕获、hash、tokenize 一次。legacy `[Mania]` / `[Bms]` adapter 与公共声明共享该不可变 token stream；consumer 不得重开文件或二次 tokenize。进入 gameplay 前，document 会绑定 exact source ID、configuration content revision、package/current generation 和 layout revision；完整 package bytes revision仍由同一 `GameplaySkinPackageRevision` 持有。
+先检查当前玩法、键数、样式与目标是否匹配。包内优先选择更精确的ruleset、keymode、stage-mode、presentation、scope，最后才比较同等级的后行；重复的相同目标仍是错误。`Provide`选自己的资源，`Inherit`继续使用下层可用部件，`Suppress`只允许表中标为可关闭的可选项。精确声明无效时不反选本包更宽的声明。
 
-现有只读 legacy beatmap visual compatibility 高于 selected package，但它不是 C4 beatmap-local 作者格式，也绝不读取或绑定 beatmap skin 的公共 section。其后按 selected public document、selected legacy ruleset bucket、ruleset resources、受保护/canonical 层、程序化末端 fallback 解析；实际不存在的层会被省略，不改变相对顺序。BMS legacy keymode candidate 固定为：
+公共资源声明高于同包的旧版兼容字段。换文件名时同时检查公共声明和`NoteImage*`等字段；直接替换现有同名PNG通常最容易看出效果。旧BMS兼容查找顺序如下，不能用它替代公共Target的明确坐标：
 
-- 5K：`[Bms]` → `Keys:6` → `Keys:5`
-- 7K：`[Bms]` → `Keys:8` → `Keys:7`
-- 9K：`[Bms]` → `Keys:9`，不得重复候选
-- 14K：`[Bms]` → `Keys:16` → 同一个 `Keys:8` 分别投影两个 deck → `Keys:14`
+- 5K：`[Bms]` → `[Mania] Keys:6` → `Keys:5`。
+- 7K：`[Bms]` → `Keys:8` → `Keys:7`。
+- 9K：`[Bms]` → `Keys:9`。
+- 14K：`[Bms]` → `Keys:16` → 两侧各用同一个`Keys:8` → `Keys:14`。
 
-resolver 对每个已支持 target 产出一个最终 immutable `Provide` 或 `Suppress` entry；`Inherit` 只用于继续 provider chain，不以缺 dictionary entry、`null`、异常或 `Drawable.Empty` 表示。Required/Recommended 的非法 `Suppress` 会产生稳定诊断并继续到确定 fallback；只有目录标记为 Optional + Allowed 且 runtime capability 同时支持时才可终止为 `Suppress`。
+必要部件缺失时由当前可用默认外观补齐，不代表作者已经提供了这项素材。既有谱面视觉兼容也可能覆盖皮肤的部分显示；排查时使用不带该兼容覆盖的测试谱。
 
-## 当前 C5 runtime 边界
+## 与scene和BGA配合
 
-C5 在 C4 BMS Note/LN 与 mania Note/Hold/KeyVisual 纵切之上，已将 versioned manifest/scene/event 与全部适用 public slot 接入真实 renderer。`GameplaySkinRuntimeCapabilitySet` 是唯一运行时清单：BMS profile 对 28 项均有 route（9K 的 Turntable/Laser 因 catalog applicability 不适用）；Mania profile 对 28 项逐项给出 decision，23 项 Supported，`object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame` 为版本化 NotApplicable。NotApplicable 是明确的 ruleset/runtime 产品决定，不会静默解释成 `Inherit`，也不代表目录 ID 被删除。BMS/mania 的 global/stage/group/lane、lane/target/cover、barline/stage/backdrop/baseplate、key/keyflash/mine、hit explosion、judgement/combo/gauge/text HUD、turntable/laser、BGA frame/viewport 与 decoration 由固定 host 或 shared scene route 消费同一 exact publication；BMS legacy Note/LN 与 mania Hold 的静态图和固定 60 FPS 编号帧合同保持不变。
+`slot`引用本表ID，但可见场景节点只能使用本包明确Provide的对应素材。未提供、Inherit、Suppress不会被附加scene变成Provide；不要借用默认包的节点或资源。公共INI支持玩法/键数/样式选择，scene的直接目标没有“目标不存在就忽略”的开关。跨玩法专用样式使用[素材匹配模板](../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)。
 
-scene 文件只允许 `gameplay-skin.json` 与 `gameplay-skin.scene.json` 的 v1 合同。prepare 阶段完成严格路径、类型、target、资源、模板、节点/effect/track/keyframe/text 与纹理预算；renderer 只读取单一 immutable prepared graph。事件来自真实 BMS/mania/core producer，以 v1 envelope、bounded queue 与 Snapshot/Reset 提供 late attach、retry、seek、rewind 和旧 epoch 隔离。`GameplayResumed` 是 engine envelope 事实，但 scene state-machine ABI 不接受 `gameplay.resume`，因为完整 Snapshot 已能重建 Running 状态；这不是遗漏的第二事件 authority。
+BGA窗口几何使用`[Bms] BgaViewports`，资源名仍是`bga.viewport/frame`；窗口数量/适配不会改变部件ID或允许脚本控制视频。`none`或无空间时不生成窗口装饰，BgaInformationHeight大于0的信息区域独立保留；声明和素材仍完整校验。CLI检查语法、范围和数量，实际空间冲突需进入游戏并在`runtime.log`搜索`bms.layout.bga-viewports-unavailable`，设置没有专属布局错误面板。完整例子与边界见[制作手册](../../skin-authoring/docs/SKINNING.md#bga窗口与内容)。BMS转mania不提供BGA。
 
-prepared material、layout adapter、prepared scene 与 event runtime state 是同一个 exact package + layout + material + scene publication 引用。所有可失败 parse、validate、resource decode、template expansion、graph build 与 initial Snapshot 构造都在 background prepare 完成；update thread 只交换已经完成的 immutable quadruple。任一步失败保留 exact A；成功后 late attach 只能取得已提交 revision 与 lease，旧 owner 在最后 lease detach 后 exactly-once retire。Settings → Skin 的 `Reload current skin` 仍是唯一手动 reload，live gameplay/preview 在任何 source prepare 前拒绝；没有 watcher、same-value reload 或行级 reload。
+## 检查与更新
 
-## Beatmap-local 终态
+作者工具check给出文件、行号和稳定错误码；按元素查图可用[手册](../../skin-authoring/docs/SKINNING.md)，场景/脚本具体格式与预算用[参考](../../skin-authoring/docs/REFERENCE.md)。修改后打包普通.osk重新导入，或将完整作品放在固定chartskin目录并在退出游玩/预览后点击“刷新皮肤”。当前画面重载失败会保留旧版本；没有自动watcher或游玩中替换。
 
-C4 **不纳入新的 beatmap-local gameplay-skin authoring**。OMS 没有定义 sidecar 名称、可写 producer/importer、capture/archive/reload 或 `WorkingBeatmap` public document/revision authoring ownership；公共 catalog 与 `GameplaySkinDocumentSourceKind` 也没有 BeatmapLocal authority。真实 importer/manager 仍让 `WorkingBeatmap.Skin` 惰性返回同一只读 `LegacyBeatmapSkin` 实例，只承载既有 direct visual compatibility。原因是新的 sidecar 若要安全成立，必须同时冻结 `chartbms/` / `chartmania/` 直读生命周期、路径 containment、携带/复制语义、working beatmap revision、C1 capture/archive 与 C2 same-ID publication，这不是可诚实附加在 C4 Note/LN 纵切上的半功能。
+没有新的beatmap-local public INI/scene/script格式。既有只读谱面视觉兼容保留，普通作者作品仍使用皮肤包或固定目录；当前设置没有新的外部作者目录注册入口。
 
-既有 lazer `LegacyBeatmapSkin` 的只读直接视觉兼容继续存在，并保持高于 selected package 的历史 precedence；它只作为预准备的 `LegacyBeatmapCompatibility` material source，不消费公共 author section。因此本结论不是删除既有谱面皮肤，也不是把测试注入路径宣传成作者格式。若未来重开，必须以独立产品 gate 一次性交付安全格式、真实 producer/importer、revision ownership、两规则集 consumer 与迁移测试；当前替代流程是把 gameplay 声明和素材放入 ordinary `.osk`、managed `chartskin/<包>/` 或已注册只读 external package，再通过唯一 manual Reload 发布。
+## 维护者参考
 
-## 诊断与隐私
-
-codec、resolver 与 material diagnostic 使用稳定 code、catalog ID、target stable ID/index、source kind 以及 exact revision 关联。任意绝对路径、作者资源值、display name、record GUID、content hash 和异常正文都不得进入持久化文本或 `ToString()`；精确 source/content identity 只保留在进程内对象用于相等性与 revision correlation。
-
-只有 exact package+layout+material+scene publication 成功提交后，产品 diagnostic sink 才异步输出该 revision 的去重、确定排序、安全摘要；失败或失去commit admission的候选不会留下“已生效”日志。日志只含公开诊断码、catalog ID、stable target/index、source kind与catalog/codec/resolver/scene/event版本，不阻塞update thread，也不让日志故障改变已提交引用。
+生成表来自`GameplaySkinSlotCatalogDocumentation.GenerateMarkdownTable()`，文档测试只锁生成块及对应合同。来源、版本一致性、诊断隐私与失败恢复的完整细节见[P1-A技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)，实际软件和实机状态见[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)。作者不需要复制这些内部流程才能制作作品。

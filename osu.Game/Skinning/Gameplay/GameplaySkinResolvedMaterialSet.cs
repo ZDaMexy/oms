@@ -766,6 +766,10 @@ namespace osu.Game.Skinning.Gameplay
             Diagnostics = Array.AsReadOnly(copiedDiagnostics);
             string[] persistenceSafeDiagnostics = copiedDiagnostics
                                                   .Select(diagnostic => diagnostic.ToPersistenceSafeString(contractIdentity))
+                // Author BGA declarations need a durable diagnostic. Keep transient environment probes out of
+                // the existing material batch so an ordinary window fallback does not become an author error.
+                .Concat(snapshot.Diagnostics.Select(diagnostic => diagnostic.Code)
+                                .Where(code => code.StartsWith("bms.layout.bga-viewports", StringComparison.Ordinal)))
                                                   .Distinct(StringComparer.Ordinal)
                                                   .OrderBy(message => message, StringComparer.Ordinal)
                                                   .ToArray();

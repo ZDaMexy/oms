@@ -99,6 +99,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
         public float? BgaHeight { get; init; }
         public float? BgaVerticalPosition { get; init; }
         public float? BgaInformationHeight { get; init; }
+        public GameplaySkinBgaLayout? BgaLayout { get; init; }
+        public string? BgaLayoutDiagnostic { get; init; }
         public float? HitTargetHeight { get; init; }
         public float? HitTargetBarHeight { get; init; }
         public float? HitTargetLineHeight { get; init; }
@@ -126,6 +128,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 BgaHeight = selectedLayoutValue(BmsSkinConfigurationLookups.BgaHeight),
                 BgaVerticalPosition = selectedLayoutValue(BmsSkinConfigurationLookups.BgaVerticalPosition),
                 BgaInformationHeight = selectedLayoutValue(BmsSkinConfigurationLookups.BgaInformationHeight),
+                BgaLayout = (selectedLayoutSkin as BmsLegacySkin)?.GetAcceptedBgaLayout(keymode),
+                BgaLayoutDiagnostic = (selectedLayoutSkin as BmsLegacySkin)?.GetBgaLayoutDiagnostic(keymode),
                 HitTargetHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetHeight, keymode)?.Value,
                 HitTargetBarHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetBarHeight, keymode)?.Value,
                 HitTargetLineHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetLineHeight, keymode)?.Value,
@@ -242,7 +246,21 @@ namespace osu.Game.Rulesets.Bms.Skinning
             var playfieldRect = GameplaySkinLayoutRect.Create(fieldX, safe.Top, fieldWidth, fieldHeight);
 
             float informationHeight = field(configuration.BgaInformationHeight, 0f, 0f, 0.30f, "bga-information-height", diagnostics) * safe.Height;
-            var bgaRects = solveBgaViewports(keymode, style, safe, playfieldRect, environment.AspectRatio, gaugeHeight + keyAreaHeight, configuration, diagnostics, informationHeight, ref fieldHeight);
+            if (configuration.BgaLayoutDiagnostic != null)
+                diagnostics.Add(new GameplaySkinLayoutDiagnostic(configuration.BgaLayoutDiagnostic));
+
+            GameplaySkinLayoutRect[] bgaRects = configuration.BgaLayout is { } authoredBga
+                ? solveAuthoredBgaViewports(authoredBga, safe, playfieldRect, gaugeHeight + keyAreaHeight, informationHeight, diagnostics)
+                : solveBgaViewports(keymode, style, safe, playfieldRect, environment.AspectRatio, gaugeHeight + keyAreaHeight, configuration, diagnostics, informationHeight, ref fieldHeight);
+            IEnumerable<GameplaySkinBgaScaleMode> bgaScaleModes = bgaRects.Length == 0
+                ? Array.Empty<GameplaySkinBgaScaleMode>()
+                : configuration.BgaLayout?.ScaleModes ?? Enumerable.Repeat(GameplaySkinBgaScaleMode.Fit, bgaRects.Length);
+
+            // Song/statistics/player information remains usable when BGA is hidden or its authored windows cannot fit.
+            // Reuse the existing safe information-band layout, without publishing these anchors as BGA viewports.
+            GameplaySkinLayoutRect[] informationAnchors = bgaRects.Length == 0 && informationHeight > 0
+                ? solveBgaViewports(keymode, style, safe, playfieldRect, environment.AspectRatio, gaugeHeight + keyAreaHeight, configuration, diagnostics, informationHeight, ref fieldHeight)
+                : bgaRects;
 
             // A bottom BGA fallback may shorten the field. Recreate the complete snapshot geometry from that one result.
             playfieldRect = GameplaySkinLayoutRect.Create(fieldX, safe.Top, fieldWidth, fieldHeight);
@@ -383,8 +401,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
             {
                 float headerHeight = informationHeight * 0.4f;
                 float footerHeight = informationHeight - headerHeight;
-                GameplaySkinLayoutRect primaryBga = bgaRects[0];
-                float bgaBottom = bgaRects.Max(rect => rect.Bottom);
+                GameplaySkinLayoutRect primaryBga = informationAnchors[0];
+                float bgaBottom = informationAnchors.Max(rect => rect.Bottom);
                 surfaces.Add(new GameplaySkinLayoutSurface("information.song",
                     GameplaySkinLayoutRect.Create(primaryBga.Left, primaryBga.Top - headerHeight, primaryBga.Width, headerHeight), 690, true, false));
                 // The same footer tracks the full BGA arrangement, including both rows in 14K.
@@ -407,7 +425,52 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 bgaRects,
                 diagnostics);
 
-            return new BmsGameplayLayoutSnapshot(neutral, keymodeResolution, style, profile, laneLayout, laneLayout.Lanes.Select(lane => lane.Action));
+            return new BmsGameplayLayoutSnapshot(neutral, keymodeResolution, style, profile, laneLayout, laneLayout.Lanes.Select(lane => lane.Action), bgaScaleModes);
+        }
+
+        private static GameplaySkinLayoutRect[] solveAuthoredBgaViewports(
+            GameplaySkinBgaLayout declaration,
+            GameplaySkinLayoutRect safe,
+            GameplaySkinLayoutRect playfield,
+            float gaugeAndKeyAreaHeight,
+            float informationHeight,
+            ICollection<GameplaySkinLayoutDiagnostic> diagnostics)
+        {
+            var viewports = declaration.Viewports.Select(rect => GameplaySkinLayoutRect.Create(
+                safe.Left + rect.Left * safe.Width,
+                safe.Top + rect.Top * safe.Height,
+                rect.Width * safe.Width,
+                rect.Height * safe.Height)).ToArray();
+
+            if (viewports.Length == 0)
+                return viewports;
+
+            // Author positions are exact for this keymode/style/screen. If the complete arrangement cannot fit,
+            // omit it with a diagnostic; do not move windows, resize the playfield or revive the default layout.
+            var controller = GameplaySkinLayoutRect.Create(playfield.Left, playfield.Top, playfield.Width,
+                playfield.Height + gaugeAndKeyAreaHeight + surface_gap * safe.Height);
+            var hud = GameplaySkinLayoutRect.Create(safe.Left, safe.Bottom - hud_height * safe.Height, safe.Width, hud_height * safe.Height);
+            bool available = viewports.All(isAvailable);
+
+            if (available && informationHeight > 0)
+            {
+                float headerHeight = informationHeight * 0.4f;
+                float footerHeight = informationHeight - headerHeight;
+                GameplaySkinLayoutRect first = viewports[0];
+                var header = GameplaySkinLayoutRect.Create(first.Left, first.Top - headerHeight, first.Width, headerHeight);
+                var footer = GameplaySkinLayoutRect.Create(first.Left, viewports.Max(rect => rect.Bottom), first.Width, footerHeight);
+                available = isAvailable(header) && isAvailable(footer)
+                            && viewports.All(rect => !rect.Intersects(header) && !rect.Intersects(footer));
+            }
+
+            if (available)
+                return viewports;
+
+            diagnostics.Add(new GameplaySkinLayoutDiagnostic("bms.layout.bga-viewports-unavailable"));
+            return Array.Empty<GameplaySkinLayoutRect>();
+
+            bool isAvailable(GameplaySkinLayoutRect rect)
+                => safe.Contains(rect) && !rect.Intersects(controller) && !rect.Intersects(hud);
         }
 
         private static GameplaySkinLayoutRect[] solveBgaViewports(

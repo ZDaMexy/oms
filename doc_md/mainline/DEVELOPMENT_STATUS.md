@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-09-30（原生与转谱 gameplay 性能验证；皮肤外观专项仍为 2026-09-13）
+> 最后核对：2026-09-30（BGA 作者窗口与制作手册；皮肤外观专项仍为 2026-09-13）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -14,13 +14,13 @@ OMS处于Phase 1.x后段。complex 已退役；用户认可静线最近调整并
 - Windows-only，保留osu!mania与第一类BMS，Osu/Taiko/Catch已删除；离线优先，Phase 3前OMS私有服务与默认endpoint为空。用户主动添加公共BMS难度表URL仅是既有窄例外。
 - BMS直读`chartbms/`，mania直读`chartmania/`；支持portable `data/`与自定义数据根。主要工程为`osu.Desktop.slnf`、`osu.Game.Rulesets.Bms`及`oms.Input`。
 - 当前协作分支为`master`。皮肤恢复/数据门`SV1-0`已关闭；迁移归档和四个无authority orphan blob继续保全，不能由scanner认领或清理。恢复事实见[恢复审计](../other/SKIN_SYSTEM_RECOVERY_20260710.md)及[数据/实机报告](../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
-- 2026-09-30 gameplay 性能优化开始时工作区干净，HEAD 为 `034d79b`；`git fetch origin` 成功，当时与 `origin/master` 一致。本轮优化在当前 `master` 提交，未经用户确认不推送；旧治理阶段的领先记录见 CHANGELOG，不能作为当前远端状态。
+- 2026-09-30 后续 BGA/手册工作从干净的 `master@807064b` 开始，相对已记录的 `origin/master` 领先 1。接续 fetch 因 TLS EOF 失败，远端新状态未核实；当前分支完成后本地提交，未经用户确认不推送。
 
 ## 当前执行门与全局风险
 
 | 顺序 | 当前事实与下一道门 | 归属 |
 | --- | --- | --- |
-| 1 | 静线当前迭代已留存实绘与回归证据，外观打磨按用户决定暂停；按模式选择、固定目录刷新与原组件编辑恢复已完成限定切片，不恢复complex或自行推进视觉下一阶段 | [P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md) |
+| 1 | 静线外观打磨仍暂停；按新授权完成 BGA 作者窗口与随包完整手册，播放会话由游戏持有；验证与未完成人工门分别记录 | [作者能力验证](../other/BGA_SKIN_AUTHORING_20260930.md) |
 | 2 | canonical普通简洁包接管已实现；旧OmsSkin只保留历史/人工对照，物理删除仍待实机门 | [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md) |
 | 3 | 输入软件基线可用；analog scratch跨设备、校准与真实HID尚未闭合 | [P1-B](../subline/P1-B/DEVELOPMENT_STATUS.md)、[P1-D](../subline/P1-D/DEVELOPMENT_STATUS.md) |
 | 4 | 真实LN/CN/HCN、音频/特殊谱、BGA、选歌大库与发行组合仍需验收；原生/转谱热路径已优化，BGA多窗已共享内容源，证据与剩余门见记录 | [性能验证](../other/GAMEPLAY_PERFORMANCE_20260930.md) |
@@ -33,6 +33,8 @@ OMS处于Phase 1.x后段。complex 已退役；用户认可静线最近调整并
 皮肤安全与失败回退详见[P1-A技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)：当前并无live gameplay reload或watcher，external永久只读；授权撤销不扩大Reload准入，C6完成不等于C7或人工门关闭。异常期归档只能定点取证。局部自动测试不能代替完整真实选择链，自动证据也不能替代视觉、硬件或特殊Gimmick证明。
 
 ## 最近一次验证
+
+2026-09-30 后续：BGA 窗口声明、共享播放会话与作者手册已实现，独立信息区保留、作者场景合法性和可运行例子一并验证；有效软件结果、桌面图像与完整回归对照统一见 [作者能力验证](../other/BGA_SKIN_AUTHORING_20260930.md)。不重新签收静线外观、设备听感或发行组合。
 
 2026-09-30：按用户授权对原生 BMS 与 BMS→mania 完成性能复审和对应优化，覆盖按键/长条、声音维护、转谱常驻对象与 BGA 重复解码；前后指标、软件 gate 和既有失败对照统一见 [性能验证记录](../other/GAMEPLAY_PERFORMANCE_20260930.md)。真实设备听感、逐谱演出和发行门未重新签收。
 

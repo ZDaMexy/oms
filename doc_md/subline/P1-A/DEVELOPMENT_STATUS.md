@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-09-30（共享样本与回退状态验证；外观及人工验收日期不变）
+> 最后核对：2026-09-30（作者 BGA 窗口与完整制作手册已实现；专项与桌面验证已登记，外观及人工验收日期不变）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -16,13 +16,15 @@
 | 唯一内置与恢复 | 正常开发启动、build/publish 从作者源自动同步 simple；安装原件验证后恢复工作副本，旧内置 complex 选择迁回 simple | canonical 原件故障须提示修复安装并阻止游玩/预览，不恢复程序化主题；不按同名清除用户包 |
 | 静线游玩外观 | 文件素材提供完整底板、轨道、转盘/键帽、固定分段血槽和 BGA 外框；白黑/皿轨独立比例、分隔线补偿、14K 每侧键序一致 | 已依据用户参考反复改进；当前暂停继续打磨，完整歌曲、其它尺寸及设备体验未整体签收 |
 | 实时演奏信息 | 实时判定与断连统计、EX SCORE/HiSpeed、MIN/当前/MAX BPM；曲名、作者标级与独立的表名/表内等级 | 读取规则真实状态；表归类不替代作者难度，皮肤不改变判定/计分、时间或难度表导入 |
-| 皮肤布局与公共能力 | BMS 公开键区、血槽、BGA 大小/位置及上下信息区；可选黑键轨宽，无声明旧包保持普通键等宽；mania/BMS 共用作者框架 | 9K/PMS 不应用 IIDX 黑白轨比；BGA 内容/时钟归 P1-L，多个 viewport 已共享 player，见 [性能记录](../../other/GAMEPLAY_PERFORMANCE_20260930.md)；不扩展选歌/结算皮肤面 |
-| 作者制作与可选演出 | [完整套件](../../../skin-authoring/README.md)支持修改、检查、重做、打包、导入/更新；公开 scene/script 授权与隔离可用 | 原编辑器可拖拽既有组件、调整属性、导入图片并保存独立副本；完整 scene/script 没有可视化编辑器，历史 complex 仅作公共 API 参考。当前 simple/Aurora 可重复制作结果不等于旧三包演练重新执行 |
+| 皮肤布局与公共能力 | BMS 公开键区、血槽、信息区与 `BgaViewports`：最多16个作者矩形，逐窗 fit/fill/stretch 或 none；无声明保留旧默认。可选黑键轨宽，mania/BMS 共用作者框架 | 不安全的作者窗口整组省略，信息区独立保留；CLI检查格式，实际冲突进游戏查runtime.log。9K/PMS不应用黑白轨比；BGA会话/内容/时钟归[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，不扩展转谱BGA、选歌/结算皮肤面 |
+| 作者制作与可选演出 | [完整套件](../../../skin-authoring/README.md)含从零制作、按可见元素查文件/尺寸/动画、INI/scene/script字段与预算、刷新打包步骤；First Scene、Reference Study和BGA Layout明确完整包与练习片段 | 主手册与图片随套件发行，无需源码仓库；历史实机图与素材示意已区分。新增例子的工具检查/打包和真实挂载已验证，详见作者能力记录。原编辑器可编辑已有组件并保存独立副本，完整scene/script没有可视化编辑器；不据手册代签视觉或旧三包演练 |
 | 安装与发行 | 此前单内置候选已完成便携、自定义根、旧选择迁移、工作副本恢复和覆盖启动检查 | 9月13日外观修改及9月14日设置/编辑修改各有其自动证据，均不自动更新旧 ZIP 安装验收；独立账户非便携、设备/长期及公开发行组合门仍保留 |
 
 C2～C6共享同一 package/layout/material/scene publication、lease/detach 与脚本隔离合同；无游玩宿主的菜单也检查整包。授权撤销不扩大 reload 准入，具体合同只在[技术约束](TECHNICAL_CONSTRAINTS.md)维护。
 
 ## 最近一次验证
+
+2026-09-30后续作者能力切片：作者可声明BGA窗口和缩放，零窗仍保留独立信息区，游戏持有播放会话。两个动画例子在BMS/mania中验证真实分数、进度、状态、变体与可选脚本；三个练习检查/打包成功，桌面验证共享内容与三种适配。软件回归、已修复问题和真实谱/设备边界统一见[作者能力记录](../../other/BGA_SKIN_AUTHORING_20260930.md)，不重新签收外观或安装发行。
 
 2026-09-30：P1-J 性能治理涉及共享样本维护、转谱对象池和 seek 完整 Reset，P1-L 多窗 BGA 已共享内容源；软件结果与具名失败对照统一见 [性能验证记录](../../other/GAMEPLAY_PERFORMANCE_20260930.md)。本次不是皮肤外观或安装发行重新验收。
 
@@ -47,7 +49,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 - OmsSkin只保留历史证据与人工对照，源码物理移除仍待原实机门；安装故障不得重新启用它。
 - G1 held-root/journal不是filesystem transaction，foreign addition/replacement可导致冻结；未知旧记录及无完整恢复证据的intent不猜测迁移。旧保存根事故只有事后保全，不追溯宣称无损。
 - BmsBeatmapDecoderOptions.KeymodeOverride只是host/importer seam，普通loader无用户纠正UI；证据不足的sparse .bms/.bml仍拒绝，该缺口归P1-K。
-- BGA内容/seek/decoder归P1-L，输入与设备归P1-B/D，真实LN/音频和发行验收见对应子线；本次收尾不继续开发这些阶段。
+- BGA内容/seek/decoder归P1-L；本轮会话与作者窗口改动不关闭逐谱视觉门。输入与设备归P1-B/D，真实LN/音频和发行验收仍见对应子线。
 - 按模式选择只改变皮肤配置与启动/切换时的选择，不改变判定、输入、BGA 内容或布局 authority；视觉验收仍按原 V-001～V-005 门执行。
 
 ## 文档治理验证

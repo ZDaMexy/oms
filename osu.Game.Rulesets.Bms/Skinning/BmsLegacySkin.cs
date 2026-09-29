@@ -613,6 +613,12 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 : GameplaySkinConfigurationDeclaration<float>.Absent;
         }
 
+        internal GameplaySkinBgaLayout? GetAcceptedBgaLayout(BmsKeymode keymode)
+            => bmsConfigurations.TryGetValue(keymode, out BmsSkinConfiguration? configuration) ? configuration.BgaLayout : null;
+
+        internal string? GetBgaLayoutDiagnostic(BmsKeymode keymode)
+            => bmsConfigurations.TryGetValue(keymode, out BmsSkinConfiguration? configuration) ? configuration.BgaLayoutDiagnostic : null;
+
         internal GameplaySkinConfigurationDeclaration<string> GetAcceptedBmsOrdinaryNoteResource(
             BmsKeymode keymode,
             int laneIndex,

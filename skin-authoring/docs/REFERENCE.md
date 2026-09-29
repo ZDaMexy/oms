@@ -1,6 +1,6 @@
 # 普通作者参考：布局、场景、事件与可选脚本
 
-从 [完整制作流程](../README.md)与[静线源文件](../sources/oms-simple/)开始；仓库中的星轨源只作历史参考，不随当前发行套件携带。本页用于查具体写法，不替代完整作品。作者只编辑普通 INI、PNG/WAV、JSON 和数值脚本，无须阅读游戏源码、编译游戏或编写插件。
+第一次制作从[入门](START_HERE.md)开始；按画面找素材用[图解手册](SKINNING.md)，最小完整动态例子用[First Scene](examples/first-scene/README.md)。本页用于查具体字段，完整静线源在[sources/oms-simple](../sources/oms-simple/)；普通作者无需阅读游戏源码、编译游戏或编写插件。
 
 本页对应 `oms-gameplay-skin-manifest.v1`、`oms-gameplay-skin-scene.v1`、`oms-gameplay-skin-event.v1` 和 `oms-script 1`。字段区分大小写，不接受自创字段。
 
@@ -128,6 +128,7 @@ effects 每项必填 id/type/properties。blur 允许 radius；glow 允许 radiu
 | GaugeHeight | 血槽区域占安全区高度的比例，0.02..0.12，默认0.036；与独立键区、信息区共同避让 |
 | BgaWidth/BgaHeight | BGA 最大框的安全区宽高比例 0.01..1；指定尺寸后在可用侧区按 4:3 适配。缺省宽为 0.225（14K 为 0.13），高上限 0.30 |
 | BgaVerticalPosition | 单侧单窗在剩余竖直空间中的位置 0..1，0 顶部、0.5 居中、1 底部；14K 上下窗在各半区对称向中间定位，窄屏底窗固定；默认 0 |
+| BgaViewports | 明确窗口列表：`x,y,width,height,fit; …`，相对安全区域，mode可fit/fill/stretch，最多16窗；`none`关闭窗口；详见下文 |
 | NormalLaneWidth/ScratchLaneWidth | 普通键/转盘的相对宽度权重 |
 | BlackLaneWidth | 5K/7K/14K每侧第2/4/6键的相对宽度，合法0.25..4，与NormalLaneWidth同单位；只读选定包，缺失/非法沿用已解析普通键宽。9K不应用；不改变键身份或滚动时间 |
 | NormalLaneSpacing/ScratchLaneSpacing | 对应间隔权重 |
@@ -137,7 +138,9 @@ effects 每项必填 id/type/properties。blur 允许 radius；glow 允许 radiu
 
 BMS 不接受 mania 的 HitPosition、逐列 ColumnWidth 或自创 HitTargetVerticalOffset。例如略减新作品每个 BMS 块的 PlayfieldWidth，检查后比较5K/7K四样式与14K，不能只改第一块就当作全键数完成。
 
-BMS 在底部保留 8% 的独立信息区；落键区、独立键盘区、血条与 BGA 共同避让，空间不足时统一缩短落键区。BGA 根据 1P/2P 放在相应旁侧，14K 保留两侧上下四窗，侧边不足时使用底部小窗。KeyAreaHeight、ScratchKeyWidth、GaugeHeight、BgaInformationHeight和三个BGA参数只读取当前选定包的声明，缺项使用表中默认值，不继承默认静线的作者布局。参数只改变显示区域，不改变视频内容、播放时钟或判定。非法字段单独回退并记录诊断。独立转盘键图按原图比例居中；旧键图继续随 Lift 与滚动方向移动，独立控制台保持在落键区下方。
+BMS 在底部保留 8% 的独立信息区；落键区、独立键盘区、血条与 BGA 共同避让，旧自动布局空间不足时可缩短落键区，显式窗口冲突则按下文整组关闭。**未声明BgaViewports时**，BGA按1P/2P放旁侧，14K默认两侧上下四窗，侧边不足时使用底部小窗。KeyAreaHeight、ScratchKeyWidth、GaugeHeight、BgaInformationHeight和BGA布局参数只读取当前选定包，缺项不继承默认静线的作者布局。参数只改变显示区域，不改变视频内容、播放时钟或判定。独立转盘键图按原图比例居中；旧键图继续随Lift与滚动方向移动，独立控制台保持在落键区下方。
+
+`BgaViewports`按声明顺序给scene索引0..N-1。x/y非负，宽高为正，x+width与y+height不超过1；只接受有限、使用小数点的数值，mode小写。fit完整显示并留边，fill中心裁切填满，stretch拉伸。谱面时间线先在共享4:3画布合成，再适配各个矩形；没有时间线的静态背景按自然比例适配。语法/数值/越界/mode/超16窗会被CLI拒绝；实际与键区、血槽或信息区冲突则整组0窗，不改作者数量或位置。这个冲突必须进入当前样式与屏幕比例下检查，在日志目录的`runtime.log`搜索`bms.layout.bga-viewports-unavailable`；设置没有专属布局错误面板，离线check不证明实际布局可用。`none`明确0窗，不等于缺省；`BgaInformationHeight`大于0仍独立保留四类信息区域，不因关闭BGA而删掉歌曲/HUD。原生BMS无窗口时省略BGA专属场景装饰，仍完整校验声明、素材和所属部件；mania及BMS转谱不因此获得BGA支持。完整小包见[BGA Layout](examples/bga-layout/README.md)。
 
 纯纹理 `hud.gauge` 资源是一张完整满槽图：引擎固定显示其25%亮度暗槽，再按真实血量从左揭露原色图，不缩放图内格距。零血量仍显示全长暗槽；作者可在文件里绘制分段和边框。有scene节点的血条保持作者自己的绑定表现。
 
@@ -154,7 +157,7 @@ Group ruleset=… keymode=… stage-mode=… group=… group-logical=… group-v
 Lane ruleset=… keymode=… stage-mode=… group=… lane=… group-logical=… group-visual=… global-logical=… global-visual=… group-local-logical=… group-local-visual=…
 ```
 
-ruleset 为 any/mania/bms，stage-mode 为 any/single/dual。keymode 为 any、BMS的5k/7k/9k-bms/9k-pms/14k、mania单舞台Nk或双舞台Nk-Mk。不要混淆旧 [Bms] Keymode 的大小写。公共 section 为 [GameplaySkin.Common:1] 或 [GameplaySkin.Bms:1]，下一条 Target 前的资源行属于当前目标。
+ruleset 为 any/mania/bms，stage-mode 为 any/single/dual。keymode 为 any、BMS的5k/7k/9k-bms/9k-pms/14k、mania单舞台Nk或双舞台Nk-Mk。不要混淆旧 [Bms] Keymode 的大小写。section 必须匹配部件目录：通用部件（包括 BGA）用 [GameplaySkin.Common:1]，只有 BMS 扩展部件用 [GameplaySkin.Bms:1]。通过 Target 的 ruleset=bms 限定玩法，不通过更换目录限定；下一条 Target 前的资源行属于当前目标。
 
 公共 INI 段可用 `#` 或 `;` 在引号外开始行内注释，也可单独写一行 `// 说明`，行首空白不影响。不要把 `// 说明` 接在资源声明或公共段标题后；这种行内写法仍会报错。资源双引号内的 `//` 不会被截断，但文件路径仍须通过正常检查。此版本也能读取普通导入时游戏在新 `[General]` 前添加的整行说明，已有导入作品无需为这条说明改文件；不增加权限，也不写入外部作者目录。
 

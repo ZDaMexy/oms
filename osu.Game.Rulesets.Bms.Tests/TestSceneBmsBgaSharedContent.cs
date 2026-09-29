@@ -75,7 +75,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 TestContext.Progress.WriteLine($"bga mirrors=4 players={panel.ChildrenOfType<BmsBgaPlayer>().Count()} imageReads={working.ImageReads}");
                 Assert.That(panel.ChildrenOfType<BmsBgaPlayer>().Count(), Is.EqualTo(1));
-                Assert.That(panel.ChildrenOfType<BufferedContainerView<Drawable>>().Count(), Is.EqualTo(3));
+                Assert.That(panel.ChildrenOfType<BufferedContainerView<Drawable>>().Count(), Is.EqualTo(4));
                 Assert.That(panel.ChildrenOfType<BufferedContainerView<Drawable>>().All(view =>
                     view.DrawSize == panel.ChildrenOfType<BmsBgaPlayer>().Single().DrawSize), Is.True,
                     "Mirrors must retain the source viewport aspect ratio.");

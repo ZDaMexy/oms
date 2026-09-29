@@ -26,7 +26,7 @@
 - [managed skin atomic reload/detach](reference_skin_atomic_reload_detach.md) — 三源 publication、lease/retire 与调度竞态。
 - [ordinary `.osk` archive import safety](reference_skin_osk_archive_import_safety.md) — archive 预检、same-hash receipt 与非对称回滚。
 - [canonical 构建、安装与用户数据保护](reference_skin_canonical_installation.md) — 静线唯一保底、source→原件/摘要与解压字节核对、星轨退役迁移、缺行修复；便携误入、缓存隔离、冷启动线程、取消资源移交。
-- [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 作者边界、可重复源文件换行、场景定位与零宽进度。
+- [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 随包完整手册、可运行例子、作者边界、场景定位与零宽进度。
 - [Skin V1 价值与工作预算](project_oms_skin_product_progress.md) — 区分效果能力、成品与创作便利度；星轨实际体验否定、有限反馈与本轮停止边界，当前状态读 P1-A。
 - [按模式皮肤选择](reference_skin_mode_selection.md) — BMS/mania 独立配置、旧全局迁移、规则集切换回落与设置页空状态收简。
 
@@ -44,7 +44,7 @@
 
 ## BMS 解析、音频与游玩参考
 
-- [BGA 链](reference_bms_bga_chain.md) — 单内容镜像、显示比例、viewport/event、转码与解码的区别。
+- [BGA 链](reference_bms_bga_chain.md) — 游戏持有会话、皮肤窗口、共享画布与零窗、viewport/event、转码与解码的区别。
 - [bgm1 按键触发故障](reference_bms_bgm1_pause_keytrigger_bug.md)
 - [游玩音轨静音合同](reference_bms_gameplay_track_mute.md)
 - [键音链](reference_bms_keysound_chain.md) — 手动/自动、暂停保位、转谱池化、热路径分配与回退测试时序。

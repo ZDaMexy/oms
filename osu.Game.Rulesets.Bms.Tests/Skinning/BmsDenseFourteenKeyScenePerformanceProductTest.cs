@@ -143,7 +143,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(firstPassPools.UsedMineLanes, Has.Count.EqualTo(16));
                     Assert.That(firstPassPools.UsedBarLineGroups, Is.EquivalentTo(new[] { 0, 1 }));
                     Assert.That(renderer.Drawable.Playfield.BarLinePlayfields.All(owner =>
-                        owner.PoolCapacity == GameplaySkinSceneHostPolicy.SpecialisedPoolCapacity(GameplaySkinSlotCatalog.BarLine)
+                        owner.PoolCapacity == GameplaySkinSceneHostPolicy.SpecialisedPoolCapacity(GameplaySkinSlotCatalog.BarLine, renderer.Drawable.LayoutSnapshot.Neutral)
                         && owner.PoolSize <= owner.PoolCapacity), Is.True);
                     Assert.That(firstPassPools.MaximumCreatedPerLaneAndFamily,
                         Is.LessThanOrEqualTo(BmsLane.MAXIMUM_NOTE_POOL_SIZE));

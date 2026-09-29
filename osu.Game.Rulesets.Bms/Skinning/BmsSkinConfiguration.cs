@@ -21,6 +21,10 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
         public readonly BmsKeymode Keymode;
 
+        public GameplaySkinBgaLayout? BgaLayout { get; private set; }
+
+        public string? BgaLayoutDiagnostic { get; private set; }
+
         /// <summary>Numeric geometry overrides (the geometry subset of <see cref="BmsSkinConfigurationLookups"/>).</summary>
         public readonly Dictionary<BmsSkinConfigurationLookups, float> Geometry = new Dictionary<BmsSkinConfigurationLookups, float>();
 
@@ -38,6 +42,15 @@ namespace osu.Game.Rulesets.Bms.Skinning
         public BmsSkinConfiguration(BmsKeymode keymode)
         {
             Keymode = keymode;
+        }
+
+        internal void AcceptBgaLayout(string value)
+        {
+            if (GameplaySkinBgaLayout.TryParse(value, out GameplaySkinBgaLayout? layout, out string? diagnostic))
+                BgaLayout = layout;
+
+            // Invalid duplicates retain the last accepted declaration, as other native BMS fields do.
+            BgaLayoutDiagnostic = diagnostic;
         }
 
         /// <summary>

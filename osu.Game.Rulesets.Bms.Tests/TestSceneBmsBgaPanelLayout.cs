@@ -35,7 +35,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             loadPanel(BmsKeymode.Key14K);
             AddUntilStep("panel loaded", () => panel.IsLoaded);
             AddAssert("four BGA corners share one player", () => panel.ChildrenOfType<BmsBgaPlayer>().Count(), () => Is.EqualTo(1));
-            AddAssert("three mirrors reuse the original surface", () => panel.ChildrenOfType<osu.Framework.Graphics.Sprites.BufferedContainerView<Drawable>>().Count(), () => Is.EqualTo(3));
+            AddAssert("four windows reference the session surface", () => panel.ChildrenOfType<osu.Framework.Graphics.Sprites.BufferedContainerView<Drawable>>().Count(), () => Is.EqualTo(4));
         }
 
         [Test]

@@ -1,16 +1,24 @@
 # P1-L 变更日志：BMS 演出/Gimmick 谱视觉复刻
 
-> 本文件记录 `P1-L` 相关的验证通过变更，按时间倒序排列。
+> 本文件记录 `P1-L` 相关变更及各自验证状态，按时间倒序排列；实现记录不自动表示通过验收。
 > 当前进度见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 
 ---
 
 ## 2026-09-30
 
+### 游戏持有 BGA 播放会话与作者窗口
+
+- `DrawableBmsRuleset`持有`BmsBgaPlaybackSession`，唯一player与合成surface独立于皮肤显示。全部窗口，包括单窗，都通过只读view/state呈现；皮肤失效、显示更换与窗口重建只替换frames/装饰/views，保持同一个player、视频、POOR与暂停位置，退出游玩根才释放。无游玩根的隔离兼容预览保留既有来源设置，不把显示拥有播放器的路径带回正式游玩。
+- 关闭显示或零窗不重绘合成surface，时钟与内容状态继续推进；buffer按最大投影视图决定尺寸。时间线固定4:3合成画布，fit/fill/stretch只改变各窗对完整合成结果的适配，无时间线的静态背景按自然比例。由此替代下方早先性能切片的单窗直出与首窗承载内容方式。
+- 配合P1-A新增`BgaViewports`数量/几何/适配与none；无声明保留旧标量/14K默认，实际冲突整组0窗并经原发布诊断写入runtime.log。`BgaInformationHeight`独立，关闭BGA仍可保留四类信息区域；零窗时BGA装饰省略不免除声明/素材校验，不增加转谱BGA。
+- 完整作者手册、运行例子与语法/预算检查入口见[制作套件](../../../skin-authoring/README.md)。CLI无法离线确认当前轨道/窗口碰撞；作者需实际进入并搜索`bms.layout.bga-viewports-unavailable`。
+- 专项、桌面成像、三个手册练习与完整回归的精确结果集中于[作者能力记录](../../other/BGA_SKIN_AUTHORING_20260930.md)。已修正零窗宿主、实际多窗预算及示例误写声明/授权/暂停预期；未扩大静线外观、逐谱、设备/DPI、长期与发行人工签收。
+
 ### 14K 多视图共享 BGA 播放与合成
 
-- `DefaultBmsBgaPanelDisplay` 使用一个 `BmsBgaPlayer`；常规四角布局由一个 `BufferedContainer` 和三个只读 view 显示同一合成画面，单 viewport 保持直接绘制。暂停、seek、POOR 和各 viewport 的内容状态来自同一 player，素材与视频资源不再按镜像数量重复创建。
-- 重建先将旧 frames 全部脱树，再退役 scene 装饰并释放旧 frames/player/views。保留原 layout snapshot、各 viewport 的 C5 场景与事件、缺失素材回退及转码缓存合同；「显示 BGA」设置提示与四角/窄屏下方布局对齐。
+- 较早的性能切片先将默认显示内的player与合成画面共享，素材与视频资源不再按窗口数量重复创建；该显示持有内容的阶段已由上方游戏会话实现替代，不作为当前生命周期合同。
+- 当时重建先将旧frames脱树，再退役scene装饰并释放旧显示内容。保留原layout snapshot、各viewport的C5场景与事件、缺失素材回退及转码缓存合同；当前布局重建保留player的规则以上方新切片为准。
 - 真实图片/视频各读取一次、暂停/seek/POOR、旧 player 释放及四窗普通图/POOR 桌面像素验证通过。完整回归额外暴露六月既有转码失败发布早于 tmp 清理的竞态，失败标记移到清理尝试之后、移除 in-progress 之前，保留既有强断言。逐谱保真、DPI 与设备人工门未新增签收；命令、证据及最终结果统一见 [本轮性能验证](../../other/GAMEPLAY_PERFORMANCE_20260930.md)。
 - 镜像 view 不使用默认 aspect 为 1:1 的 `FillMode.Fit`；它匹配现有 viewport，内容本身继续承担 letterbox。资源数量下降不等价于 GPU/帧时收益，极端场景继续按 profile 决策。
 
