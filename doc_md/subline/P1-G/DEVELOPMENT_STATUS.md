@@ -23,7 +23,7 @@ P1-G 仍处于分项收集与最终汇总待闭合阶段。它不实现功能，
 | --- | --- | --- |
 | 皮肤 | 星轨退役，不再要求签收；静线本次调整获用户接受并暂止打磨，`V-001`～`V-004` 仍 0/4、`V-005` 未签收，当前单内置与第三方的具体矩阵继续待验 | P1-A |
 | 输入/控制器 | analog scratch、跨设备 edge/hold、deadzone/sensitivity、真实 HID | P1-B/P1-D |
-| gameplay/长条/音频 | LN/CN/HCN、长 BGM、dense keysound、empty-strike、pause/seek | P1-C/P1-E/P1-J |
+| gameplay/长条/音频 | LN/CN/HCN、长 BGM、dense keysound、empty-strike、pause/seek；两模式自动键音开关听感见 [P1-J](../P1-J/DEVELOPMENT_PLAN.md#0-用户指定自动键音2026-09-29) | P1-C/P1-E/P1-J |
 | Song Select/导入 | 大库分组/筛选/搜索、shared visual、桌面拖放；单轨构成目标须先由P1-I实现 | P1-H/P1-I |
 | Gimmick/BGA | 图序列、POOR、seek、老视频转码、代表 Gimmick 谱与 14K 布局 | P1-L/P1-A |
 | 发行 | fresh extract、portable/custom root、覆盖更新与公开口径 | P1-F |
@@ -44,4 +44,4 @@ P1-G 仍处于分项收集与最终汇总待闭合阶段。它不实现功能，
 
 ## 文档治理验证
 
-2026-09-29：对照 P1-A/P1-F 当前状态与留存发行日志，人工待验矩阵没有新增签收；静线接受/暂停、星轨退役及旧候选身份保持。合并当前页重复的历次治理段，过程保留在 [CHANGELOG](CHANGELOG.md)；未运行产品测试、启动发行包或刷新设备、谱面与人工验证日期。
+2026-09-29：对照 P1-A/P1-F 当前状态与留存发行日志，人工待验矩阵没有新增签收；静线接受/暂停、星轨退役及旧候选身份保持。补接 P1-J 自动键音的双模式试听门，合并当前页重复的历次治理段，过程保留在 [CHANGELOG](CHANGELOG.md)；未运行产品测试、启动发行包或刷新设备、谱面与人工验证日期。

@@ -25,7 +25,7 @@ P1-J 只拥有 BMS gameplay runtime 的 keysound timing、shared audio pool、la
 
 ### 0. 用户指定：自动键音（2026-09-29）
 
-目标：BMS 原生与 BMS→mania 分别提供默认关闭、独立保存的自动键音设置；每局固定，回放使用当前声音偏好。键音按谱面时间播放，真实输入、判定、血量、成绩与通关灯不变。原生 mania 不受影响。
+软件已交付；设置和播放边界以 [自动键音合同](TECHNICAL_CONSTRAINTS.md#自动键音合同2026-09-29)为准，此项仅保留真实听感验收。
 
 软件步骤与验证归档见 [CHANGELOG](CHANGELOG.md#bms-与-bmsmania-自动键音)。剩余人工门：在原生 BMS 与 BMS→mania 分别试听 fully-keysounded、长条/皿、同槽连续音、密集和弦、暂停长 BGM，并对照开关听感；记录设备与谱面，软件证明不得代签。
 
@@ -37,7 +37,7 @@ P1-J 只拥有 BMS gameplay runtime 的 keysound timing、shared audio pool、la
 2. LN head 必须经 store 获得 per-WAV cut；tail 继续静音。
 3. 嵌套 head 必须沿 mania 可池化类型接入；禁止恢复会让 `DrawableHoldNote.Head` 为空的非池化自定义 hold drawable。
 4. 不能为绕开 pooling 新增长期 per-note/per-lane sample player。
-5. 新路径失败时保持当前一次性 LN head 行为，不影响已稳定的 BGM/scratch/tap 路径。
+5. 若候选实现不能通过验收，保留当前一次性 LN head 实现，不引入运行时静默 fallback 掩盖失败，也不影响已稳定的 BGM/scratch/tap 路径。
 
 验收：真实转谱 LN 不重复、不静音，pause/seek 不逃逸，tap/BGM/scratch 与原生 mania hold pooling 不回归。
 

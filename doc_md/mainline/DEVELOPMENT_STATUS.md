@@ -14,7 +14,7 @@ OMS处于Phase 1.x后段。complex 已退役；用户认可静线最近调整并
 - Windows-only，保留osu!mania与第一类BMS，Osu/Taiko/Catch已删除；离线优先，Phase 3前OMS私有服务与默认endpoint为空。用户主动添加公共BMS难度表URL仅是既有窄例外。
 - BMS直读`chartbms/`，mania直读`chartmania/`；支持portable `data/`与自定义数据根。主要工程为`osu.Desktop.slnf`、`osu.Game.Rulesets.Bms`及`oms.Input`。
 - 当前协作分支为`master`。皮肤恢复/数据门`SV1-0`已关闭；迁移归档和四个无authority orphan blob继续保全，不能由scanner认领或清理。恢复事实见[恢复审计](../other/SKIN_SYSTEM_RECOVERY_20260710.md)及[数据/实机报告](../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
-- 2026-09-29 专项文档审查开始时工作区干净，HEAD 为产品提交 `bc00cc2`；`git fetch origin` 成功，领先 `origin/master` 4、落后 0。自动调整偏移的软件状态与剩余验收见 [P1-C](../subline/P1-C/DEVELOPMENT_STATUS.md)，未新增人工签收。
+- 2026-09-29 本次专项文档审查开始时工作区干净，HEAD 为自动键音产品提交 `4258d4f`；`git fetch origin` 成功，领先 `origin/master` 6、落后 0。自动键音的软件状态与剩余试听见 [P1-J](../subline/P1-J/DEVELOPMENT_STATUS.md)，自动调整偏移见 [P1-C](../subline/P1-C/DEVELOPMENT_STATUS.md)，未新增人工签收。
 
 ## 当前执行门与全局风险
 
@@ -46,4 +46,4 @@ P1-I仍是三行双端筛选原型，须落实既定单轨上限段并补shared 
 
 ## 文档治理验证
 
-2026-09-29 自动调整偏移交付后专项复核：核对当前配置、采样、显示与回放代码，并回读留存 TRX/Release 日志；同步主线与子线路由，将已完成七步规划归档，活动计划只留设备/实谱验收，收紧记忆与合同的适用条件。未修改产品或重跑产品测试、Release，未新增实机签收。此前全局审查及专项证据见[同步记录](CHANGELOG.md#2026-09-29)。
+2026-09-29 自动键音交付后专项复核：核对当前设置、播放游标、转谱与输入发声边界，回读留存 TRX、失败对照及 Release 日志；更新仓库基线，区分默认手动键音与自动键音合同，补齐人工试听汇总入口，精简记忆中的重复进度。仅文档与记忆变更，未重跑产品测试或新增实机签收；文档与 diff 检查通过。历次治理见[同步记录](CHANGELOG.md#2026-09-29)。

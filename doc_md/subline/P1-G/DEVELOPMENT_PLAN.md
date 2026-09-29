@@ -1,6 +1,6 @@
 # P1-G 当前计划：Phase 1.x 人工验收汇总
 
-> 最后更新：2026-09-13（静线唯一内置；保留具体人工门，星轨退出后续开发与签收）
+> 最后更新：2026-09-29（接入自动键音试听门，其它人工边界保持）
 > 全局 gate 见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)，当前分项见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，历史结论见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线目标
@@ -41,6 +41,7 @@ P1-G 只汇总，不实现：发现问题必须回到 owning 子线，修复后�
 - LN/CN/HCN 的 release、tail、HCN regrab、gauge 和可见状态。
 - dense fully-keysounded、layered/long BGM、rapid empty-strike、pause/seek/retry。
 - 原生 BMS 与转谱-mania 对照；明确长 one-shot 当前不保证保位 resume。
+- 自动键音按 [P1-J 待试听清单](../P1-J/DEVELOPMENT_PLAN.md#0-用户指定自动键音2026-09-29)分别验收两模式的开关听感，记录版本、谱面及音频设备；现有软件对照不代签真实听感。
 
 ### 4. Song Select 与桌面导入
 

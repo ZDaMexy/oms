@@ -20,7 +20,7 @@ mania `Column.OnPressed` 会通过 `GameplaySampleTriggerSource` 播放本列“
 
 - `BmsConvertedBgmSampleHitObject` 与 scratch sample-only 的 `Samples` 必须为空。
 - 实际自动发声只经 `KeysoundSample/KeysoundId` + `BmsKeysoundStore`。
-- 可玩 key note/LN head 可保留自身 samples；不要为修此 bug 全局禁用 mania key feedback。
+- 可玩 key note/LN head 可保留自身 samples；不要为修此 bug 全局禁用 mania key feedback。自动键音开启时仅对 hosted BMS store 抑制 column feedback，是独立的声音设置合同，不改变普通 mania。
 
 ## 诊断教训
 
@@ -28,4 +28,4 @@ mania `Column.OnPressed` 会通过 `GameplaySampleTriggerSource` 播放本列“
 - 可用“静音 store 的 BGM”做隔离：仍能听见即证明是非 store 路径。
 - orphan-on-reuse、LN head、Track preview、谱面槽粘连均曾被验证为错误方向，不要重走。
 
-相邻但独立：长 one-shot BGM resume、转谱 LN 池化和 50k dense。相关诊断见 [[reference_bms_keysound_chain]]，修复历史按2026-06-08查 [P1-J CHANGELOG](../../doc_md/subline/P1-J/CHANGELOG.md)。
+相邻但独立：长 one-shot BGM resume、手动模式转谱 LN 嵌套头音接入 store 和 50k dense。HoldNote 继承池化与自动模式头音已存在，不能把手动 store 缺口误写成 LN 全部未池化。相关诊断见 [[reference_bms_keysound_chain]]，修复历史按2026-06-08查 [P1-J CHANGELOG](../../doc_md/subline/P1-J/CHANGELOG.md)。

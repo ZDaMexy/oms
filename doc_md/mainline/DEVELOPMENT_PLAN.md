@@ -33,7 +33,7 @@
 
 ### R5：Phase 1 玩法与硬件收尾
 
-2026-09-29 用户指定推进原生 BMS 与 BMS→mania 的独立自动键音设置；声音按谱面时间播放，真实输入和成绩仍由原判定链处理。软件验证与剩余听感/设备门统一见 [P1-J](../subline/P1-J/DEVELOPMENT_PLAN.md)，不推进新 gameplay Mod 或其它冻结功能。
+2026-09-29 用户指定的原生 BMS 与 BMS→mania 独立自动键音设置已完成软件交付；剩余听感/设备门统一见 [P1-J](../subline/P1-J/DEVELOPMENT_PLAN.md)，由 P1-G 汇总，不推进新 gameplay Mod 或其它冻结功能。
 
 2026-09-29 用户指定的「自动调整偏移」互斥 style 已完成软件交付：保留 lazer 的上一局校准，增加 BMS beatoraja 显示时机调整；剩余真实设备、实谱收敛和回放体验验收由 [P1-C](../subline/P1-C/DEVELOPMENT_PLAN.md#2026-09-29-用户指定自动调整偏移-style-互斥)维护，不恢复常驻反馈卡或推进其它冻结功能。
 
@@ -41,7 +41,7 @@ TOTAL 的作者声明、家族缺省与新旧成绩版本合同由 [P1-C](../sub
 
 | 子线 | 下一动作与依赖 |
 | --- | --- |
-| P1-J/P1-K | 保持C3 lane/keymode/shared-store authority，补转谱LN、剩余实谱、极端dense与人工音频证明 |
+| P1-J/P1-K | 保持C3 lane/keymode/shared-store authority，补手动模式转谱LN、自动键音听感、剩余实谱与有证据的极端dense治理 |
 | P1-B/P1-D | analog scratch跨设备edge/hold、真实HID、deadzone/sensitivity、模式说明与live diagnostics；只向皮肤提供只读状态 |
 | P1-C/P1-E | 保持判定parity；验收LN/CN/HCN、长BGM、密集键音和各keymode组合，不恢复已删除常驻反馈卡 |
 | P1-I | 将三行双端原型落实为既定单轨上限段，再补拖拽headless、shared/visual与大库门 |

@@ -306,7 +306,7 @@ Note: GOOD **does not break combo**, but having any GOOD in a run **disqualifies
 
 ### 5.5 Keysound Dispatch
 
-Keysound ownership follows the consumed input and armed lane timeline, not a yes/no lookup on judgement result. Natural misses and LN tails are silent; consumed key-down poor/miss and empty presses may sound according to §4.3 and P1-J. Judgement, scoring and BGM timing remain independent.
+With automatic keysounds disabled, keysound ownership follows the consumed input and armed lane timeline, not a yes/no lookup on judgement result. Natural misses and LN tails are silent; consumed key-down poor/miss and empty presses may sound according to §4.3 and P1-J. With automatic keysounds enabled, chart timing owns playback and key-triggered audio is suppressed. Judgement, scoring and BGM timing remain independent in both settings.
 
 ---
 

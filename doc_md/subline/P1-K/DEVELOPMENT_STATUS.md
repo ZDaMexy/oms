@@ -23,7 +23,7 @@ K1–K12 主体已阶段性收口：解析 authority、主要控制事件、proj
 - converted-star 难度入口过滤 sample-only BGM/scratch，并以 conversion version 失效旧结果。
 - immutable `BmsKeymodeResolution` 由 parser 单点产出并原样流经 converter、production loader 与 gameplay layout owner：authoritative host/importer显式 override、`.pms/.bme`、P2/high channel 与完整 channel-set 的 precedence、evidence、纠正入口及稳定脱敏 diagnostic 已冻结；无充分证据或证据冲突时 fail-closed，不再按最高出现 channel、hit object 或 layout 宽度猜测。
 - `LaneKeysoundTimelines` 的 canonical 上界已改为 `GetLaneCount()`，覆盖 5K/7K 最右键、9K 全 lane、14K K14/Scratch2，以及 visible note、LN head/tail armed entry、invisible object 与相邻 mine；layout/skin/runtime 只消费 parser/converter 投影，不重读 BMS 或二次推导 lane 数。
-- Mirror/RANDOM/R-RANDOM/custom 的对象、mine 与 armed timeline 共用同一 exact permutation；S-RANDOM 因无单一列置换而稳定禁用受影响 armed timeline、保留对象自身 WAV。玩家/autoplay、native BMS 与 converted Mania 已在 production host 证明进入同一 shared keysound store 并实际请求发声，post-mod 对象、keysound 与 skin lookup 汇合到同一 `LaneId`；未改 sample pool、判定或 binding。
+- 原生 BMS 的 Mirror/RANDOM/R-RANDOM/custom 的对象、mine 与 armed timeline 共用同一 exact permutation；S-RANDOM 因无单一列置换而稳定禁用受影响 armed timeline、保留对象自身 WAV。玩家/autoplay、native BMS 与 converted Mania 已在 production host 证明进入同一 shared keysound store 并实际请求发声，原生 BMS post-mod 对象、keysound 与 skin lookup 汇合到同一 `LaneId`；未改 sample pool、判定或 binding。
 
 ## 不可破坏的边界
 

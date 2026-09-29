@@ -55,4 +55,4 @@
 
 ## 文档治理验证
 
-2026-09-09：对照 [converter](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapConverter.cs)、[真实 shared-store 测试源码](../../../osu.Game.Rulesets.Bms.Tests/TestSceneBmsSharedKeysoundTiming.cs)及 [BMS→mania converter](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsToManiaBeatmapConverter.cs)，移除已完成的 lane 修复待办，保留 LN 与人工/性能边界。本节仅记录源码审查，既有数字仍按原日期引用；全局实测见主线最新验证。
+2026-09-29：在 `4258d4f` 上核对独立配置、音频游标、转谱快照和按键发声隔离，回读最终 TRX、失败对照与 Release 日志；交付状态保持。同步默认手动/自动责任与手动 LN 缺口，补 P1-G 试听回链，精简重复记忆；仅文档治理，未重跑产品验证或新增听感签收。详细过程见 [CHANGELOG](CHANGELOG.md#2026-09-29)。

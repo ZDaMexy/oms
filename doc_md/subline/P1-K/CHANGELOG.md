@@ -7,6 +7,10 @@
 
 ## 2026-09-29
 
+### 自动键音文档范围复核
+
+对照当前 converter 与 shared store，明确剩余 LN store 接入只指默认手动模式；原生 BMS 的 post-mod lane 合同不覆盖转谱自动音乐的源音频列声像。修正旧 P1-J 章节号，产品与验证结论不变；本次仅文档审查，未重跑产品测试。
+
 ### 自动键音的转谱资料保全
 
 - 非皿 LN 改为继承普通 HoldNote 的 `BmsConvertedHoldNoteHitObject`，保留头 sample/WAV slot，NodeSamples 与静音尾不变；纯 LN 也被 shared-store host 识别。
