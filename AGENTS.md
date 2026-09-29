@@ -55,7 +55,16 @@ OMS 是基于 osu!lazer 的 Windows-only 音游客户端：只保留 osu!mania�
 
 主要工程：`osu.Game`、`osu.Game.Rulesets.Mania`、`osu.Game.Rulesets.Bms`、`oms.Input`、`osu.Desktop`。
 
+### 开发磁盘约束
+
+- OMS 开发使用非系统盘现有 checkout；本机主目录为 `F:\oms`。不在 C 盘新建 OMS 工作副本或生成构建、测试产物。确需隔离时先确认非系统盘位置，不使用默认落到 C 盘的工作副本进行编译。
+- **每次新 shell 执行 restore/build/test/format、打包或开发检查脚本前**，先执行 `. .\UseDevelopmentStorage.ps1`；环境只在该进程及子进程生效，不能把前一次工具调用的设置当作仍有效。临时探针也放 `.dev-cache/temp/`，日志和 TRX 放仓库 `artifacts/`。
+- 该入口将 TEMP/TMP、NuGet 与 .NET CLI/解包缓存放到当前 checkout 的 `.dev-cache/`，拒绝系统盘 checkout；bin/obj 仍在工程目录。首次切换后重新 restore 对应项目，不用旧 assets 配合 `--no-restore` 假定已迁移。
+- 收尾检查本轮新建的临时目录与工作副本；仅清理已确认闲置、可再生成且不混有用户数据的内容。验收证据、存档、谱面、作者包与恢复备份不得整目录当垃圾处理；`.dev-cache` 中依赖缓存复用，不每轮清空重下。需要长期保存的证据不能只留在临时目录。
+- Codex 全局聊天/数据库/插件与应用缓存不受此入口控制；不可在其它任务运行时搬迁，也不可清理聊天或工作副本以冒充构建缓存回收。旧路径、旧产物不会自动迁移或删除；受安全策略拦截的清理须如实标为未完成。
+
 ```powershell
+. .\UseDevelopmentStorage.ps1
 dotnet build osu.Desktop.slnf -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m
 dotnet run --project osu.Desktop
 dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj --no-restore

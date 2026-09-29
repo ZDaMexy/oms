@@ -32,7 +32,7 @@
 
 ## 构建、存储与产品面参考
 
-- [构建与测试](reference_build_and_test.md) — 测试宿主、formatter owning 路径、输出锁、测试空跑/临时日志失效、VS Code 配置与依赖审计误判。
+- [构建与测试](reference_build_and_test.md) — 开发磁盘与进程环境、测试宿主、formatter owning 路径、输出锁、测试空跑/临时日志失效、VS Code 配置与依赖审计误判。
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱面构成过滤](reference_bms_composition_filter.md) — read-model/query/实际控件与产品目标分离。
 - [难度表](reference_bms_difficulty_table.md)

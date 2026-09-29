@@ -7,6 +7,14 @@
 
 ## 2026-09-29
 
+### 开发缓存与临时文件非系统盘约束
+
+从干净的 `master@813c8e0` 开始，fetch 成功，领先 origin/master 7、落后 0。新增 `UseDevelopmentStorage.ps1`，仅修改当前进程及其子进程环境，统一 TEMP/TMP、NuGet packages/http/scratch/plugins、DOTNET_CLI_HOME 与 bundle 解包位置至 checkout 的 `.dev-cache`；系统盘 checkout 明确拒绝。新增忽略规则与 AGENTS 每个新 shell 的加载、首次重新 restore、旧工作副本和证据保全要求，同步构建记忆。
+
+验证：加载入口后 `dotnet nuget locals all --list` 的四个目录全部指向非系统盘；在 `.dev-cache/temp` 隔离小工程（空 Directory.Build.props、net10.0、无包依赖）实际 `dotnet run --project <probe.csproj> --verbosity quiet` 完成 restore/build/run，核实 project.assets.json 的 packageFolders 与编译后子进程的 GetTempPath。负向 fixture 将脚本根替换为系统盘路径，确认在环境变更前抛错；初次用 scriptblock 注入 PSScriptRoot 的验证方式因嵌套脚本块自动变量为空无效，已改用上述根路径 fixture。`powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\UseDevelopmentStorage.ps1`、文档检查与 `git diff --check` 通过。未编译产品、未新增产品/实机签收。
+
+范围限制：不修改用户/机器环境，不迁移运行数据，不重定向 AppData 或 Codex 全局状态；直接调用 dotnet 而不加载入口仍使用原环境。旧工作副本清理被工具策略拦截，用户尚未执行手动命令，未释放磁盘；共享依赖、聊天、代码、存档和验收资料保留。后续回收与全局迁移见 [主线计划](DEVELOPMENT_PLAN.md#改动验收矩阵)。
+
 ### 自动键音交付后进度与文档记忆专项复核
 
 从干净的 `master@4258d4f` 开始，fetch 成功，领先 origin/master 6、落后 0。核对代码与留存最终验证，交付和人工边界保持；更新主线基线，区分默认手动与自动发声规则、手动转谱 LN 缺口，补齐 P1-G 双模式试听入口并精简重复记忆。仅修改文档与记忆，未重跑产品测试或 Release、未新增人工签收；文档与 diff 检查通过。专项细节见 [P1-J 日志](../subline/P1-J/CHANGELOG.md#2026-09-29)。
