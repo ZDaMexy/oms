@@ -537,9 +537,9 @@ namespace osu.Game.Rulesets.Bms.UI
         // input and consume the press on a hit), so the empty-press keysound there is unaffected.
         private bool laneHasAutoPlayNote()
         {
-            foreach (var aliveObject in HitObjectContainer.AliveObjects)
+            foreach (var entry in HitObjectContainer.AliveEntries)
             {
-                if (aliveObject is DrawableBmsHitObject bmsObject && !bmsObject.AcceptsPlayerInput && hasReachedUnshiftedLifetime(bmsObject))
+                if (entry.Value is DrawableBmsHitObject bmsObject && !bmsObject.AcceptsPlayerInput && hasReachedUnshiftedLifetime(bmsObject))
                     return true;
             }
 
@@ -608,16 +608,23 @@ namespace osu.Game.Rulesets.Bms.UI
                 hasFutureUnjudgedCandidate |= !hitObject.Judged && hitObject.HitObject.StartTime > currentTime;
             }
 
-            foreach (var hitObject in HitObjectContainer.AliveObjects.OfType<DrawableBmsHitObject>())
+            foreach (var entry in HitObjectContainer.AliveEntries)
             {
+                if (entry.Value is not DrawableBmsHitObject hitObject)
+                    continue;
+
                 inspectCandidate(hitObject);
 
                 if (supportsExcessivePoor && canTriggerSupportedEmptyPoor)
                     return true;
             }
 
-            foreach (var hitObject in HitObjectContainer.Objects.OfType<DrawableBmsHitObject>())
+            var objects = HitObjectContainer.OrderedObjects;
+            for (int i = 0; i < objects.Count; i++)
             {
+                if (objects[i] is not DrawableBmsHitObject hitObject || HitObjectContainer.AliveEntries.ContainsKey(hitObject.Entry!))
+                    continue;
+
                 inspectCandidate(hitObject);
 
                 if (supportsExcessivePoor && canTriggerSupportedEmptyPoor)

@@ -34,7 +34,8 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             loadPanel(BmsKeymode.Key14K);
             AddUntilStep("panel loaded", () => panel.IsLoaded);
-            AddAssert("BGA mirrored into four corners", () => panel.ChildrenOfType<BmsBgaPlayer>().Count(), () => Is.EqualTo(4));
+            AddAssert("four BGA corners share one player", () => panel.ChildrenOfType<BmsBgaPlayer>().Count(), () => Is.EqualTo(1));
+            AddAssert("three mirrors reuse the original surface", () => panel.ChildrenOfType<osu.Framework.Graphics.Sprites.BufferedContainerView<Drawable>>().Count(), () => Is.EqualTo(3));
         }
 
         [Test]
@@ -107,7 +108,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Child = panel,
             };
 
-            // A non-empty timeline makes the panel mount a BmsBgaPlayer per corner (one for single play, four for 14K).
+            // Every layout has one content player; 14K mirrors its surface into the remaining corners.
             panel.SetBgaSource(new[] { new BmsBgaTimelineEntry(0, BmsBgaLayer.Base, "x.png", false) }, BmsPoorBgaMode.Default);
             panel.SetLayout(BmsBgaPlacement.TopRight);
         });

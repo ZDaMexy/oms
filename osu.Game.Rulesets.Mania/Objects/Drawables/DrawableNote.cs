@@ -193,6 +193,21 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
         /// </summary>
         protected virtual HitResult GetCappedResult(HitResult result) => result;
 
+        // A hold's original WAV identity belongs to its parent; only the head may consume it.
+        private IHasManiaKeysound sharedKeysound
+            => HitObject is HeadNote ? ParentHitObject?.HitObject as IHasManiaKeysound : HitObject as IHasManiaKeysound;
+
+        protected override void LoadSamples()
+        {
+            // These sounds are already prewarmed by the playfield and played by the shared store. Preparing a
+            // second per-note sample here would still depool/attach it on every note's first update, even though
+            // PlaySamples below never uses it. Keep the ordinary path when this exact note has no hosted sound.
+            if (keysoundStore?.AutomaticPlayback == true || (keysoundStore != null && sharedKeysound?.KeysoundSample != null))
+                return;
+
+            base.LoadSamples();
+        }
+
         public override void PlaySamples()
         {
             // The hosted store owns all converted-BMS audio in automatic mode, including ordinary nested hold heads.
@@ -206,7 +221,7 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
             // fall through to the base one-shot path unchanged.
             // Hold heads keep their ordinary pooled HeadNote type. The converted parent owns the original
             // WAV slot, so resolve it only for the head (never the tail) at the moment of playback.
-            var keysound = HitObject is HeadNote ? ParentHitObject?.HitObject as IHasManiaKeysound : HitObject as IHasManiaKeysound;
+            var keysound = sharedKeysound;
             if (keysoundStore != null && keysound?.KeysoundSample != null)
             {
                 keysoundStore.Play(keysound.KeysoundSample, CalculateSamplePlaybackBalance(SamplePlaybackPosition), keysound.KeysoundCutGroup);

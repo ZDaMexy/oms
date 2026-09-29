@@ -16,6 +16,7 @@ metadata:
 - `osu.Game` 是 library，却因引用 NUnit test scene 被 C# Dev Kit 误认成 test project，导致缺 runtimeconfig、AutoMapper/测试平台程序集。使用真实 core/BMS/mania 测试工程，不为这个红节点复制依赖或改 library 身份。
 - 第三方程序集可通过 deps/runtimeconfig 从 NuGet cache 加载，输出目录没有单独 DLL 不足以证明依赖缺失。
 - 缺Test SDK依赖时，`dotnet test --no-restore`可能未发现/执行测试却退出0；须确认实际执行摘要及TRX，修复对应工程依赖后重新编译。具名案例见[TOTAL报告](../../doc_md/other/BMS_TOTAL_RULES_AUDIT_20260922.md#验证状态)。
+- 真实桌面 exact-test 的 game 隔离根不代表 framework host storage/cache 也跟随 TEMP；默认 host 仍用 AppData，改 APPDATA 环境变量不会改变已解析的 Windows special folder。受非系统盘开发约束时，可在已校验的 `.dev-cache/temp/` 独立输出中复用 ExactVisualTestGame，并用框架 PortableInstallation 使 host 根位于 AppContext.BaseDirectory；不能指向正式客户端输出或用户数据。保存证据后只清理已确认的探针目录。示例见 [性能验证记录](../../doc_md/other/GAMEPLAY_PERFORMANCE_20260930.md)。
 - 临时目录日志会被清理；复核时分别标明可回读TRX、历史执行记录和新运行证据。比较既有失败需逐项核对名称、错误与堆栈，不能仅靠失败总数。
 
 ## formatter 与并发误判

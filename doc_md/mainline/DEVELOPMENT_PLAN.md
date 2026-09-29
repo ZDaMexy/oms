@@ -47,7 +47,7 @@ TOTAL 的作者声明、家族缺省与新旧成绩版本合同由 [P1-C](../sub
 | P1-B/P1-D | analog scratch跨设备edge/hold、真实HID、deadzone/sensitivity、模式说明与live diagnostics；只向皮肤提供只读状态 |
 | P1-C/P1-E | 保持判定parity；验收LN/CN/HCN、长BGM、密集键音和各keymode组合，不恢复已删除常驻反馈卡 |
 | P1-I | 单轨上限段已实现；完成真实拖拽手感、窄窗口及大库体验验收 |
-| P1-L/P1-G | 单BGA content/decoder迁移、逐谱演出和反向滚动；汇总皮肤/输入/长条/选歌/BGA人工release清单 |
+| P1-L/P1-G | 已共享BGA content/decoder；继续逐谱演出和反向滚动门，汇总皮肤/输入/长条/选歌/BGA人工release清单 |
 | P1-H | 缺失恢复、跨目录同内容保全与当前页难度表刷新已实现；补隔离数据根和真实大库验收，谱面scanner经验不授予皮肤mutation authority |
 
 ### R6：公开发行门

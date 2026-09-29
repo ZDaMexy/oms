@@ -473,6 +473,18 @@ namespace osu.Game.Skinning.Gameplay
                     deferDiscontinuityResetForDrawableState = true;
             }
 
+            // Frame stability may traverse many intermediate positions while catching up to a seek. A single
+            // update there only rebuilds that intermediate playfield, not the destination stamped on the Reset.
+            // Start the existing one-update drawable barrier only after both clocks have converged.
+            if (objectSnapshotSource != null
+                && pendingReset is GameplaySkinEventResetReason.Seek or GameplaySkinEventResetReason.Rewind or GameplaySkinEventResetReason.Retry
+                && Time.Current != currentTime)
+            {
+                deferDiscontinuityResetForDrawableState = true;
+                previousTime = time;
+                return;
+            }
+
             // FrameStableComponents update before the scrolling playfield. Hold this barrier for one playfield update
             // so the replacement snapshot is read from drawables re-applied at the new clock position, rather than
             // combining the new time with terminal state retained by the previous frame. All producers remain muted

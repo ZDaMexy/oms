@@ -86,7 +86,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(bgaPanel.Drawable, Is.TypeOf<DefaultBmsBgaPanelDisplay>());
                     Assert.That(compatibilitySkin.Bga.SourceSetCount, Is.Zero);
                     // This original chart has no BGA timeline: all four viewports use the static working-beatmap
-                    // background. The selected-slot case below supplies a timeline and verifies four real players.
+                    // background. The selected-slot case below supplies a timeline and verifies one shared player.
                     Assert.That(renderer.BmsBeatmap.BgaTimeline, Is.Empty);
                     Assert.That(bgaPanel.Drawable!.ChildrenOfType<BmsBgaPlayer>(), Is.Empty);
                     Assert.That(layout.BgaViewports, Has.Count.EqualTo(4));
@@ -196,7 +196,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 defaultBgaDisplay = (DefaultBmsBgaPanelDisplay)bgaPanel.Drawable!;
                 Assert.That(compatibilitySkin.Bga.SourceSetCount, Is.Zero,
                     "The rejected custom BGA must never receive or own the P1-L timeline.");
-                Assert.That(bgaPanel.Drawable.ChildrenOfType<BmsBgaPlayer>().Count(), Is.EqualTo(layout.BgaViewports.Count),
+                Assert.That(bgaPanel.Drawable.ChildrenOfType<BmsBgaPlayer>().Count(), Is.EqualTo(1),
                     "The protected engine display remains the sole P1-L timeline/content owner.");
                 Assert.That(sceneHost.TryGetVisualGate(bgaViewportKey, out GameplaySkinSceneHostedSlot? bgaViewportGate), Is.True);
                 Assert.That(sceneHost.TryGetVisualGate(bgaFrameKey, out GameplaySkinSceneHostedSlot? bgaFrameGate), Is.True);
@@ -328,7 +328,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 && defaultBgaDisplay.NativeFrameVisuals.Where((_, index) => index != 2).All(frame => frame.Alpha == 0));
             AddStep("instance-local frame fallback never touches P1-L content", () => Assert.Multiple(() =>
             {
-                Assert.That(bgaPanel.Drawable!.ChildrenOfType<BmsBgaPlayer>().Count(), Is.EqualTo(4));
+                Assert.That(bgaPanel.Drawable!.ChildrenOfType<BmsBgaPlayer>().Count(), Is.EqualTo(1));
                 Assert.That(Enumerable.Range(0, 4).All(index =>
                     bgaPanel.TryGetContentState(index, out GameplaySkinBgaContentState state, out _)
                     && state != GameplaySkinBgaContentState.Empty), Is.True);

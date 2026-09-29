@@ -22,8 +22,8 @@ namespace osu.Game.Rulesets.Bms.UI
 {
     /// <summary>
     /// Where the BGA panel sits. The default skin uses a screen corner: 5/7/9K mirror the playfield side (P1 → top-right,
-    /// P2 → top-left); 14K (double play, which fills the screen width) also defaults to a corner (top-right, compact size)
-    /// instead of the centre gap. All four corners are available; <see cref="Center"/> remains for skin overrides.
+    /// P2 → top-left). The immutable layout snapshot controls the actual viewports, including the default four-corner
+    /// 14K mirrors and narrow-layout fallback. <see cref="Center"/> remains for compatibility displays.
     /// </summary>
     public enum BmsBgaPlacement
     {
@@ -230,8 +230,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
         /// <summary>
         /// Default-skin placement: a screen corner mirroring the playfield side. 5/7/9K → P1 top-right / P2 top-left;
-        /// 14K (fills the screen width) also defaults to the top-right corner (rendered compact so it clears the lanes)
-        /// rather than the centre gap.
+        /// The placement is a compatibility hint; the shared layout snapshot resolves 14K mirrors and narrow layouts.
         /// </summary>
         public static BmsBgaPlacement ResolveDefaultPlacement(BmsKeymode keymode, BmsPlayfieldStyle style)
         {
@@ -251,7 +250,7 @@ namespace osu.Game.Rulesets.Bms.UI
                                                      IBmsBgaPanelStateSource, IBmsBgaPanelGameplaySkinDisplay
     {
         private Container framesContainer = null!;
-        private readonly List<BmsBgaPlayer> players = new List<BmsBgaPlayer>();
+        private BmsBgaPlayer? player;
         private readonly List<GameplaySkinSpecialisedSceneVisual> frameSceneVisuals = new List<GameplaySkinSpecialisedSceneVisual>();
         private readonly List<GameplaySkinSpecialisedSceneVisual> viewportSceneVisuals = new List<GameplaySkinSpecialisedSceneVisual>();
         private readonly List<GameplaySkinSpecialisedSceneVisual?> frameSceneVisualsByViewport = new List<GameplaySkinSpecialisedSceneVisual?>();
@@ -369,11 +368,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 rebuild();
         }
 
-        public void NotifyMiss()
-        {
-            foreach (var player in players)
-                player.NotifyMiss();
-        }
+        public void NotifyMiss() => player?.NotifyMiss();
 
         protected override void Update()
         {
@@ -381,8 +376,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
             for (int index = 0; index < viewportSceneOwners.Count; index++)
             {
-                GameplaySkinBgaContentState state = index < players.Count
-                    ? players[index].ContentState
+                GameplaySkinBgaContentState state = player != null
+                    ? player.ContentState
                     : hasStaticBackground
                         ? GameplaySkinBgaContentState.Ready
                         : GameplaySkinBgaContentState.Empty;
@@ -420,9 +415,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 return false;
             }
 
-            if (viewportIndex < players.Count)
+            if (player != null)
             {
-                BmsBgaPlayer player = players[viewportIndex];
                 state = player.ContentState;
                 contentRevision = player.ContentRevision;
             }
@@ -452,8 +446,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 return false;
             }
 
-            if (viewportIndex < players.Count)
-                players[viewportIndex].GetContentStateAt(gameplayTime, out state, out contentRevision);
+            if (player != null)
+                player.GetContentStateAt(gameplayTime, out state, out contentRevision);
             else
             {
                 state = hasStaticBackground ? GameplaySkinBgaContentState.Ready : GameplaySkinBgaContentState.Empty;
@@ -467,9 +461,12 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             // Detach the old native owner graph before retiring its specialised handles. Framework clear/disposal
             // is deferred; disposing a still-mounted handle would leave a disposed drawable in the next update.
+            Drawable[] oldFrames = framesContainer.Children.ToArray();
             framesContainer.Clear(disposeChildren: false);
             retireFrameSceneVisuals();
-            players.Clear();
+            foreach (Drawable oldFrame in oldFrames)
+                oldFrame.Dispose();
+            player = null;
             hasStaticBackground = false;
 
             if (LayoutSnapshot == null)
@@ -478,20 +475,47 @@ namespace osu.Game.Rulesets.Bms.UI
             var background = timeline.Count == 0 ? workingBeatmap?.Value?.GetBackground() : null;
             hasStaticBackground = background != null;
 
+            BufferedContainer? sharedContent = null;
+            if (timeline.Count > 0 && LayoutSnapshot.BgaViewports.Count > 0)
+            {
+                player = new BmsBgaPlayer(timeline, poorMode);
+
+                // Only mirrored layouts need a framebuffer. Single-view gameplay retains the direct rendering path.
+                // The first viewport owns playback and composition; the remaining views only draw its surface.
+                if (LayoutSnapshot.BgaViewports.Count > 1)
+                    sharedContent = new BufferedContainer { RelativeSizeAxes = Axes.Both, Child = player };
+            }
+
             for (int index = 0; index < LayoutSnapshot.BgaViewports.Count; index++)
-                framesContainer.Add(createFrame(LayoutSnapshot.BgaViewports[index], background, index));
+            {
+                Drawable? content = player;
+                if (sharedContent != null)
+                {
+                    if (index == 0)
+                        content = sharedContent;
+                    else
+                    {
+                        BufferedContainerView<Drawable> view = sharedContent.CreateView();
+                        view.SynchronisedDrawQuad = false;
+                        view.RelativeSizeAxes = Axes.Both;
+                        view.Anchor = Anchor.Centre;
+                        view.Origin = Anchor.Centre;
+                        content = view;
+                    }
+                }
+
+                framesContainer.Add(createFrame(LayoutSnapshot.BgaViewports[index], background, index, content));
+            }
         }
 
-        private Container createFrame(GameplaySkinLayoutRect viewport, Texture? background, int viewportIndex)
+        private Container createFrame(GameplaySkinLayoutRect viewport, Texture? background, int viewportIndex, Drawable? sharedContent)
         {
             var content = new Container { RelativeSizeAxes = Axes.Both };
             bool hasContent = false;
 
-            if (timeline.Count > 0)
+            if (sharedContent != null)
             {
-                var player = new BmsBgaPlayer(timeline, poorMode);
-                players.Add(player);
-                content.Add(player);
+                content.Add(sharedContent);
                 hasContent = true;
             }
             else if (background != null)

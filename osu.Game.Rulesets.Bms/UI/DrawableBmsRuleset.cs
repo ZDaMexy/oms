@@ -48,7 +48,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public new BmsPlayfield Playfield => (BmsPlayfield)base.Playfield;
 
-        public BmsLongNoteMode LongNoteMode => BmsScoreProcessor.GetLongNoteMode(Mods);
+        public BmsLongNoteMode LongNoteMode { get; }
 
         public BmsJudgeMode JudgeMode => BmsJudgeModeExtensions.GetJudgeMode(Mods);
 
@@ -183,6 +183,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 throw new ArgumentException("Drawable BMS gameplay requires a converted BmsBeatmap.", nameof(beatmap));
 
             BmsBeatmapModApplicator.ApplyToBeatmap(beatmap, mods);
+            LongNoteMode = BmsScoreProcessor.GetLongNoteMode(Mods);
             LayoutProvider = Playfield.LayoutProvider;
             Direction.Value = ScrollingDirection.Down;
 

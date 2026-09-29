@@ -1,6 +1,6 @@
 # P1-L 技术约束：BMS 演出/Gimmick 谱视觉复刻
 
-> 最后更新：2026-09-29（核对显示偏移与 Gimmick 开关边界；不改变产品行为）
+> 最后更新：2026-09-30（默认 BGA 多 viewport 共享播放与合成资源）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，完整背景见 [../../other/BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)。若实现与本文冲突，先修正其一再继续开发。
 
 ## 红线（最高优先级，贯穿全线）
@@ -34,7 +34,7 @@
 5. **base 刻度 = 非冻结时长最常见 BPM**（`computeBaseBpm`，DEAD SOUL=132）。注意 `GetMostCommonBeatLength` 对演出谱会被 STOP-freeze/钳制点拉成 6；旁路在默认 Normal hi-speed 模式下因 `timeRange` 与之无关而忠实，**不得**为对齐而改用 6 做 base（那会复现 squash）。Floating/Classic 绝对刻度标定归 Phase 4。
 6. 极端谱（DEAD SOUL：5645 地雷、6522 knots、~1300 control point、390 STOP 帧）必须有对象池/生命周期预算（与 P1-J 协同），不得无界实例化导致正常链路卡顿。
 
-## Phase 5（BGA 链路）约束 —— viewport/scene/event 已接线；单 content 会话仍待做
+## Phase 5（BGA 链路）约束 —— viewport/scene/event 与共享 content 已接线
 
 1. **BGA 是视觉-only 旁路**：BGA 时间线（`BmsBeatmap.BgaTimeline`）照 `Mines`/`ScrollProfile` 模式挂 `BmsBeatmap`，**不得进入 `beatmap.HitObjects`**，不得回流判定/计分/统计/`TotalObjectCount`。BGA 浮窗不接收游玩输入。
 2. **零核心改动 + 不被遮挡**：浮窗挂 BMS 侧 `DrawableBmsRuleset.Overlays`（渲染在 playfield 之上）；**不得**重新把可见背景塞回 `BmsPlayfield.playfieldContainer` 内被 lane 背板遮挡的旧位置。不得为 BGA 改写共享核心类型。
@@ -42,8 +42,8 @@
 4. **资源直读 `chartbms/`**：BGA 图片经 beatmap 作用域 `TextureStore`、视频经 `WorkingBeatmap.GetStream` 加载（同 storyboard），**不经** hash-backed `files/` store、不转 `.osz`（守 mainline 红线）。
 5. **视频时钟同步**：视频 drawable 必须跟随游玩时钟（`PlaybackPosition = clock - eventTime`），pause/seek/retry 同步，复用 `DrawableStoryboardVideo` 范式；不得让视频脱离 frame-stable 时钟自由播放。
 6. **解码/缺失健壮性**：BGA 资源缺失或视频编解码失败必须**优雅降级**，不得抛异常或刷错误日志、不得拖垮正常游玩链路。具体合同：(a) 视频**优先按绝对文件路径**打开 `new Video(path,…)`——BMS 恒文件系统直读，FFmpeg 对真实文件的探测/seek 远好于基于 .NET-Stream 的 AVIO（后者对老式 **MPEG-1 program-stream `.mpg`** 会在 `avformat_open_input` 阶段直接 `AVERROR_INVALIDDATA` 打不开 → 全黑）；无路径时回退 stream。(b) 仍解不出时通过 `Video.IsFaulted` 检测，base 层**回退显示 STAGEFILE 静态图**（不是黑屏），overlay/poor 层隐藏。路径解析：external 库用绝对 `FilesystemStoragePath`，internal 用 `Storage.GetFullPath(相对路径)`。
-7. **皮肤合同（部分迁移完成）**：C3 已使 BGA 消费同一 `BmsGameplayLayoutSnapshot.BgaViewports`，C5 已接入同一 publication 的 material/scene、只读状态事件与 timing epoch。兼容 display 仍可接收 timeline，默认实现仍逐 viewport 建 player（默认 14K 四个）；这不等于唯一 content 会话已交付。剩余合同：decode/timeline/seek/POOR/clock 与唯一 content surface 由引擎维护；皮肤只取得只读 surface、事件及现有 descriptor viewport，用于 frame/mask/letterbox/decorate。多个 mirror viewport 必须共享同一 content/decoder authority。迁移须同时更新当前四 player 回归并证明 seek/POOR 与 C5 事件一致，不得破坏 fallback 或重建 layout authority。
-8. **perf（与 P1-J 协同）**：纹理懒加载并缓存；每视频源单一 decode/content authority 是剩余迁移门，不是当前四 player 的已满足性质。大视频/海量 `#BMP` 帧需实测 gen0:gen1 与 GC 暂停，不得引入开局阻塞或密谱卡顿。当前 14K 四 player 路线不得继续扩张。
+7. **皮肤与内容合同**：C3 的 `BmsGameplayLayoutSnapshot.BgaViewports`、C5 同一 publication 的 material/scene、只读状态事件与 timing epoch 继续作为唯一接口。兼容 display 仍可接收 timeline；默认实现只创建一个 `BmsBgaPlayer`，多 viewport 共享一个合成 framebuffer 与只读 views，单 viewport 直接绘制。decode/timeline/seek/POOR/clock 由引擎维护，皮肤仅在既有 viewport 上装饰只读内容与状态，不取得 player、raw timeline 或可写 clock。布局重建必须先将旧 frames 全部脱树，再退役装饰和释放旧 player/views；保持缺失素材回退及 seek/POOR/C5 事件一致。
+8. **perf（与 P1-J 协同）**：纹理懒加载并缓存；镜像不得复制 player、素材加载或视频解码 authority。共享 surface 的几何必须匹配现有 viewport，letterbox 由原内容合成负责，不得让 view 的默认 1:1 aspect 再压缩画面。大视频/海量 `#BMP` 帧仍需实测 gen0:gen1、GC 暂停与 update/draw；无窗口资源计数不代表真实 GPU/帧时验收，不得引入开局阻塞或密谱卡顿。
 9. **范围边界**：v1 仅 native BMS ruleset 路径；converted-mania（Mania ruleset 下游玩，无 `BmsPlayfield`/`Overlays`）不在本期，单独评估。overlay/layer 通道"黑=透明"与 `#ARGB` v1 近似，保真细化后续。
 
 ## Phase 5.1（老式视频转码）约束 —— 已落地（2026-06-15），须守
@@ -60,7 +60,7 @@
 1. **会话级缓存（R2/R3，用户拍板）**：转码产物每会话内持久（会话内重进同图即时命中），但**不得跨会话累积**。实现＝`BmsBgaVideoCache.ClearSessionCacheOnce` 每进程**一次性清空** `bga-video-cache/`；**必须在本会话任何转码启动之前**清（取"启动期清"而非"退出清"，崩溃也保证下次启动干净）。清空走 `lock` + `sessionCacheCleared` 守卫——第二个调用方等第一个清完再继续，**绝不可在清空与新转码之间留竞态**（否则重蹈并发写坏文件）。清空只删 `bga-video-cache/` 内文件，best-effort、不抛。
 2. **加载等转码（R1）**：转码预热+等待由专用 `BmsBgaVideoPreloader` 负责，它**必须直接挂在 `DrawableBmsRuleset.Overlays`、不得塞进皮肤化的 `BmsBgaPanel` 内**——因为只有直接挂在被 `LoadComponentAsync` 等待的子树上，阻塞它的后台 `load()` 才能真正推迟 player push、让 BGA 开局即播；塞进 `SkinnableDrawable` 则其内容可能异步加载、不阻塞 push。
 3. **等待必须有上限且可回退（R1 安全网）**：`PrewarmAndWait` 的 cap（当前 8s）是硬上限；**超时必须放行**，回落到 Phase 5.1 既有的"静态→后台转好热替换"路径，使本特性**严格只增不减**（命中/快转→开局播；慢转/失败→等价于今天）。不得移除 cap 让加载无限等待；preloader dispose 必须 cancel 等待。
-4. **转码任务跨实例去重（不得乘以并发数）**：`inProgress` 必须 **static** 且值为 `Lazy<Task>`——preloader 与（14K 的 4 个）`BmsBgaPlayer` 对同一产物只 join **同一个**后台转码 Task，总耗时≈一次转码；`Lazy` 保证 `Task.Run` 副作用每产物只触发一次。唯一 temp（`<hash>.<guid>.tmp`）+ 原子 `File.Move(overwrite)` 仍是并发安全的基线，不得回退。
+4. **转码任务跨实例去重（不得乘以并发数）**：`inProgress` 必须 **static** 且值为 `Lazy<Task>`——preloader、当前 `BmsBgaPlayer` 与快速重进产生的另一实例，对同一产物只 join **同一个**后台转码 Task，总耗时≈一次转码；`Lazy` 保证 `Task.Run` 副作用每产物只触发一次。共享 runtime player 不能代替跨实例转码去重；唯一 temp（`<hash>.<guid>.tmp`）+ 原子 `File.Move(overwrite)` 仍是并发安全的基线，不得回退。
 5. **提速仅用 libx264 `-preset ultrafast`（R4，用户拍板"安全优先"）**：仍 `-profile:v baseline`/yuv420p、不动可解码性；mpeg4 回退分支不得带 `-preset`/`-profile:v`。**硬件编码器（`h264_nvenc` 等）显式不纳入**——产出码流对框架挑剔的内置 FFmpeg 有兼容风险（黑屏惨案底色）、跨机/驱动不确定；若未来要加须 opt-in + 可用性探测 + 失败回退 + 实测可解码 + bump version。
 6. **R5（加载扫描线进度揭示）已落地（2026-06-23）**，须守：
    - **仅 BMS**：`BeatmapMetadataDisplay` 的扫描线（`ScanlineLoadingLayer`）必须门控在现成的 `ruleset==bms` 条件（与难度胶囊同一门控）；**非 BMS 必须保留原 `LoadingLayer`（dim+spinner）**，不得改坏 mania/其它加载观感。

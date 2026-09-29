@@ -330,7 +330,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddUntilStep("production 14K BGA event runtime ready", () =>
                 productionRuntimeReady()
                 && drawableRuleset.LayoutSnapshot.BgaViewports.Count == 4
-                && drawableRuleset.ChildrenOfType<BmsBgaPanel>().Single().ChildrenOfType<BmsBgaPlayer>().Count() == 4);
+                && drawableRuleset.ChildrenOfType<BmsBgaPanel>().Single().ChildrenOfType<BmsBgaPlayer>().Count() == 1);
             AddStep("attach four-viewport BGA consumer", () =>
             {
                 subscription = drawableRuleset.GameplaySkinEventStream.Subscribe();
@@ -344,7 +344,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 lowTime = (beatmap.BgaTimeline[0].StartTime + beatmap.BgaTimeline[1].StartTime) / 2;
             });
             AddStep("seek authoritative gameplay clock past all BGA entries", () => Player.GameplayClockContainer.Seek(highTime));
-            AddUntilStep("high epoch and all real BGA players select the fourth timeline entry", () =>
+            AddUntilStep("high epoch and all BGA mirrors select the fourth timeline entry", () =>
             {
                 BmsBgaPanel panel = drawableRuleset.ChildrenOfType<BmsBgaPanel>().Single();
                 return drawableRuleset.GameplaySkinEventStream.CurrentEpoch >= initialEpoch + 1

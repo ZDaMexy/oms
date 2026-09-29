@@ -5,6 +5,15 @@
 
 ---
 
+## 2026-09-30
+
+### 14K 多视图共享 BGA 播放与合成
+
+- `DefaultBmsBgaPanelDisplay` 使用一个 `BmsBgaPlayer`；常规四角布局由一个 `BufferedContainer` 和三个只读 view 显示同一合成画面，单 viewport 保持直接绘制。暂停、seek、POOR 和各 viewport 的内容状态来自同一 player，素材与视频资源不再按镜像数量重复创建。
+- 重建先将旧 frames 全部脱树，再退役 scene 装饰并释放旧 frames/player/views。保留原 layout snapshot、各 viewport 的 C5 场景与事件、缺失素材回退及转码缓存合同；「显示 BGA」设置提示与四角/窄屏下方布局对齐。
+- 真实图片/视频各读取一次、暂停/seek/POOR、旧 player 释放及四窗普通图/POOR 桌面像素验证通过。完整回归额外暴露六月既有转码失败发布早于 tmp 清理的竞态，失败标记移到清理尝试之后、移除 in-progress 之前，保留既有强断言。逐谱保真、DPI 与设备人工门未新增签收；命令、证据及最终结果统一见 [本轮性能验证](../../other/GAMEPLAY_PERFORMANCE_20260930.md)。
+- 镜像 view 不使用默认 aspect 为 1:1 的 `FillMode.Fit`；它匹配现有 viewport，内容本身继续承担 letterbox。资源数量下降不等价于 GPU/帧时收益，极端场景继续按 profile 决策。
+
 ## 2026-09-29
 
 ### 显示偏移合同与当前入口一致性复核

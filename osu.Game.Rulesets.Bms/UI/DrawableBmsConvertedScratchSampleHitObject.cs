@@ -18,8 +18,14 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public override bool DisplayResult => false;
 
-        public DrawableBmsConvertedScratchSampleHitObject(BmsConvertedScratchSampleHitObject hitObject)
-            : base(hitObject)
+        public DrawableBmsConvertedScratchSampleHitObject()
+            : this(null)
+        {
+        }
+
+        public DrawableBmsConvertedScratchSampleHitObject(BmsConvertedScratchSampleHitObject? hitObject)
+            // Null is the ordinary pooled state before Apply supplies an event.
+            : base(hitObject!)
         {
             Alpha = 0;
             Height = 1;

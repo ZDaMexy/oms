@@ -363,26 +363,48 @@ namespace osu.Game.Skinning
 
         private void releaseCompletedRevisionChannels()
         {
-            var completedSamples = new HashSet<DrawableSample>();
-            var completedLeases = new List<SkinCurrentRevisionLease>();
+            SkinCurrentRevisionLease firstCompletedLease = null;
+            List<SkinCurrentRevisionLease> additionalCompletedLeases = null;
+            HashSet<DrawableSample> completedHistoricalSamples = null;
 
             for (int i = revisionChannels.Count - 1; i >= 0; i--)
             {
-                if (revisionChannels[i].Channel.Playing)
+                ActiveRevisionChannel channel = revisionChannels[i];
+
+                if (channel.Channel.Playing)
                     continue;
 
-                completedSamples.Add(revisionChannels[i].Sample);
-                completedLeases.Add(revisionChannels[i].Lease);
+                // Ordinary Stop/Play completes one voice on the current decoded sample. Keep that
+                // path, idle updates and still-playing updates free of temporary collections.
+                if (firstCompletedLease == null)
+                    firstCompletedLease = channel.Lease;
+                else
+                    (additionalCompletedLeases ??= new List<SkinCurrentRevisionLease>()).Add(channel.Lease);
+
+                if (!ReferenceEquals(channel.Sample, Sample))
+                    (completedHistoricalSamples ??= new HashSet<DrawableSample>()).Add(channel.Sample);
+
                 revisionChannels.RemoveAt(i);
             }
 
-            foreach (DrawableSample completedSample in completedSamples)
-                removeHistoricalSampleIfUnused(completedSample);
+            if (firstCompletedLease == null)
+                return;
+
+            if (completedHistoricalSamples != null)
+            {
+                foreach (DrawableSample completedSample in completedHistoricalSamples)
+                    removeHistoricalSampleIfUnused(completedSample);
+            }
 
             // Removing the final historical drawable must precede the final old-revision detach. A lease release can
             // synchronously retire its owner; the drawable hierarchy may no longer touch that owner afterwards.
-            foreach (SkinCurrentRevisionLease completedLease in completedLeases)
-                completedLease.Dispose();
+            firstCompletedLease.Dispose();
+
+            if (additionalCompletedLeases != null)
+            {
+                foreach (SkinCurrentRevisionLease completedLease in additionalCompletedLeases)
+                    completedLease.Dispose();
+            }
         }
 
         private void removeHistoricalSampleIfUnused(DrawableSample sample)
@@ -496,7 +518,7 @@ namespace osu.Game.Skinning
 
         #endregion
 
-        private sealed class ActiveRevisionChannel
+        private readonly struct ActiveRevisionChannel
         {
             public DrawableSample Sample { get; }
             public SampleChannel Channel { get; }

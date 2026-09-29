@@ -19,9 +19,49 @@ namespace osu.Game.Rulesets.UI
 {
     public partial class HitObjectContainer : PooledDrawableWithLifetimeContainer<HitObjectLifetimeEntry, DrawableHitObject>, IHitObjectContainer
     {
-        public IEnumerable<DrawableHitObject> Objects => InternalChildren.Cast<DrawableHitObject>().OrderBy(h => h.HitObject.StartTime);
+        public IEnumerable<DrawableHitObject> Objects => OrderedObjects;
 
-        public IEnumerable<DrawableHitObject> AliveObjects => AliveEntries.Values.OrderBy(h => h.HitObject.StartTime);
+        public IEnumerable<DrawableHitObject> AliveObjects => OrderedAliveObjects;
+
+        /// <summary>
+        /// Drawables in ascending start-time order. The snapshot is reused until membership or start times change.
+        /// Equal-time objects retain the same stable ordering as <see cref="Objects"/> previously exposed.
+        /// </summary>
+        public IReadOnlyList<DrawableHitObject> OrderedObjects
+            => orderedObjects ??= Array.AsReadOnly(InternalChildren.Cast<DrawableHitObject>().OrderBy(h => h.HitObject.StartTime).ToArray());
+
+        /// <summary>
+        /// Alive drawables in ascending start-time order. Use <c>AliveEntries</c> when order is irrelevant.
+        /// </summary>
+        public IReadOnlyList<DrawableHitObject> OrderedAliveObjects
+            => orderedAliveObjects ??= Array.AsReadOnly(AliveEntries.Values.OrderBy(h => h.HitObject.StartTime).ToArray());
+
+        /// <summary>
+        /// All entries in ascending start-time order, including entries outside their drawable lifetime.
+        /// A new snapshot is published after an entry is added, removed, or changes its start time.
+        /// </summary>
+        public IReadOnlyList<HitObjectLifetimeEntry> OrderedEntries
+        {
+            get
+            {
+                if (!trackingEntryOrder)
+                {
+                    // Only consumers which need full-chart ordering pay for tracking inactive entry changes.
+                    // Drawable start-time bindings alone cannot observe edits to objects outside their lifetime.
+                    trackingEntryOrder = true;
+                    foreach (var entry in Entries)
+                        entry.HitObject.StartTimeBindable.ValueChanged += entryOrderChanged;
+                }
+
+                return orderedEntries ??= Array.AsReadOnly(Entries.OrderBy(entry => entry.HitObject.StartTime).ToArray());
+            }
+        }
+
+        private IReadOnlyList<DrawableHitObject> orderedObjects;
+        private IReadOnlyList<DrawableHitObject> orderedAliveObjects;
+        private IReadOnlyList<HitObjectLifetimeEntry> orderedEntries;
+        private bool trackingEntryOrder;
+        private readonly Action<ValueChangedEvent<double>> entryOrderChanged;
 
         /// <summary>
         /// Invoked when a <see cref="DrawableHitObject"/> is judged.
@@ -53,6 +93,7 @@ namespace osu.Game.Rulesets.UI
 
         public HitObjectContainer()
         {
+            entryOrderChanged = invalidateEntryOrder;
             RelativeSizeAxes = Axes.Both;
         }
 
@@ -62,13 +103,26 @@ namespace osu.Game.Rulesets.UI
 
             // Application of hitobjects during load() may have changed their start times, so ensure the correct sorting order.
             SortInternal();
+            orderedObjects = null;
         }
 
         #region Pooling support
 
+        public override void Add(HitObjectLifetimeEntry entry)
+        {
+            base.Add(entry);
+            orderedEntries = null;
+            if (trackingEntryOrder)
+                entry.HitObject.StartTimeBindable.ValueChanged += entryOrderChanged;
+        }
+
         public override bool Remove(HitObjectLifetimeEntry entry)
         {
             if (!base.Remove(entry)) return false;
+
+            orderedEntries = null;
+            if (trackingEntryOrder)
+                entry.HitObject.StartTimeBindable.ValueChanged -= entryOrderChanged;
 
             // This logic is not in `Remove(DrawableHitObject)` because a non-pooled drawable may be removed by specifying its entry.
             if (nonPooledDrawableMap.Remove(entry, out var drawable))
@@ -88,6 +142,7 @@ namespace osu.Game.Rulesets.UI
 
         protected override void AddDrawable(HitObjectLifetimeEntry entry, DrawableHitObject drawable)
         {
+            orderedAliveObjects = null;
             if (nonPooledDrawableMap.ContainsKey(entry)) return;
 
             addDrawable(drawable);
@@ -96,6 +151,7 @@ namespace osu.Game.Rulesets.UI
 
         protected override void RemoveDrawable(HitObjectLifetimeEntry entry, DrawableHitObject drawable)
         {
+            orderedAliveObjects = null;
             drawable.OnKilled();
             if (nonPooledDrawableMap.ContainsKey(entry)) return;
 
@@ -105,6 +161,7 @@ namespace osu.Game.Rulesets.UI
 
         private void addDrawable(DrawableHitObject drawable)
         {
+            orderedObjects = null;
             drawable.OnNewResult += onNewResult;
 
             bindStartTime(drawable);
@@ -113,6 +170,7 @@ namespace osu.Game.Rulesets.UI
 
         private void removeDrawable(DrawableHitObject drawable)
         {
+            orderedObjects = null;
             drawable.OnNewResult -= onNewResult;
 
             unbindStartTime(drawable);
@@ -156,6 +214,8 @@ namespace osu.Game.Rulesets.UI
 
             bindable.BindValueChanged(_ =>
             {
+                orderedObjects = null;
+                orderedAliveObjects = null;
                 if (LoadState >= LoadState.Ready)
                     SortInternal();
             });
@@ -176,6 +236,8 @@ namespace osu.Game.Rulesets.UI
             startTimeMap.Clear();
         }
 
+        private void invalidateEntryOrder(ValueChangedEvent<double> _) => orderedEntries = null;
+
         protected override int Compare(Drawable x, Drawable y)
         {
             if (!(x is DrawableHitObject xObj) || !(y is DrawableHitObject yObj))
@@ -190,6 +252,12 @@ namespace osu.Game.Rulesets.UI
 
         protected override void Dispose(bool isDisposing)
         {
+            if (trackingEntryOrder)
+            {
+                foreach (var entry in Entries)
+                    entry.HitObject.StartTimeBindable.ValueChanged -= entryOrderChanged;
+            }
+
             base.Dispose(isDisposing);
             unbindAllStartTimes();
         }

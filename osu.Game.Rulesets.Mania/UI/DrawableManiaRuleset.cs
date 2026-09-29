@@ -74,8 +74,9 @@ namespace osu.Game.Rulesets.Mania.UI
         private double currentTimeRange;
 
         private static readonly Type? bms_drawable_factory_type = Type.GetType($"{bms_to_mania_drawable_factory_type}, {bms_ruleset_assembly}", throwOnError: false);
-        private static readonly Func<ManiaHitObject, bool>? bms_can_create_drawable = createFactoryDelegate<Func<ManiaHitObject, bool>>("CanCreate");
-        private static readonly Func<ManiaHitObject, DrawableHitObject<ManiaHitObject>?>? bms_create_drawable = createFactoryDelegate<Func<ManiaHitObject, DrawableHitObject<ManiaHitObject>?>>("Create");
+        private static readonly Action<Column>? bms_register_drawable_pools = createFactoryDelegate<Action<Column>>("RegisterPools");
+
+        internal static void RegisterBmsDrawablePools(Column column) => bms_register_drawable_pools?.Invoke(column);
 
         private static TDelegate? createFactoryDelegate<TDelegate>(string methodName) where TDelegate : Delegate
         {
@@ -601,7 +602,7 @@ namespace osu.Game.Rulesets.Mania.UI
                     {
                         HitObject owner = getGameplaySkinIdentityOwner(drawable.HitObject);
 
-                        if (owner is ManiaHitObject)
+                        if (owner is Note or HoldNote)
                             addSnapshot(drawable, owner, group.Identity.Id);
                     }
                 }
@@ -678,8 +679,12 @@ namespace osu.Game.Rulesets.Mania.UI
                 return true;
             }
 
-            if (hitObject is not ManiaHitObject maniaObject)
+            // Pure BGM/scratch objects have a column only as an audio lifetime anchor. Pooling them must not
+            // manufacture visible Note events or consume the author's active-object budget.
+            if (hitObject is not (Note or HoldNote))
                 return false;
+
+            var maniaObject = (ManiaHitObject)hitObject;
 
             GameplaySkinLaneTopologySnapshot topology = LayoutSnapshot.Context.Topology;
 
@@ -699,6 +704,9 @@ namespace osu.Game.Rulesets.Mania.UI
 
         private void registerGameplaySkinIdentityTree(HitObject owner)
         {
+            if (owner is not (Note or HoldNote or BarLine))
+                return;
+
             gameplaySkinIdentityOwners[owner] = owner;
 
             foreach (HitObject nested in owner.NestedHitObjects)
@@ -841,27 +849,7 @@ namespace osu.Game.Rulesets.Mania.UI
 
         protected override PassThroughInputManager CreateInputManager() => new ManiaInputManager(Ruleset.RulesetInfo, Variant);
 
-        public override DrawableHitObject<ManiaHitObject>? CreateDrawableRepresentation(ManiaHitObject h)
-        {
-            if (h.GetType().Assembly.GetName().Name == bms_ruleset_assembly && tryCreateBmsDrawableRepresentation(h, out var drawableRepresentation))
-                return drawableRepresentation;
-
-            return null;
-        }
-
-        private static bool tryCreateBmsDrawableRepresentation(ManiaHitObject hitObject, out DrawableHitObject<ManiaHitObject>? drawableRepresentation)
-        {
-            drawableRepresentation = null;
-
-            if (bms_can_create_drawable?.Invoke(hitObject) is not true)
-                return false;
-
-            if (bms_create_drawable?.Invoke(hitObject) is not DrawableHitObject<ManiaHitObject> createdDrawableRepresentation)
-                return false;
-
-            drawableRepresentation = createdDrawableRepresentation;
-            return true;
-        }
+        public override DrawableHitObject<ManiaHitObject>? CreateDrawableRepresentation(ManiaHitObject h) => null;
 
         protected override ReplayInputHandler CreateReplayInputHandler(Replay replay) => new ManiaFramedReplayInputHandler(replay);
 

@@ -1,11 +1,13 @@
 # P1-J 当前状态：BMS gameplay 性能与音频时序
 
-> 最后更新：2026-09-30（文档治理；产品验证仍为 2026-09-29，保留真实听感门）
+> 最后更新：2026-09-30（原生与转谱 gameplay 性能复审；保留真实听感门）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。
 
 ## 当前阶段
 
-普通密度 BMS 与转谱-mania 的主要键音故障、帧抖动和开局 gen2 冻结已有修复基线。末端 lane timeline 与 shared-store production proof 已随 P1-A C3/P1-K 闭合。默认手动转谱 LN head 已接入 shared store，长 one-shot 暂停保位续播已有实际位置及 Player 自动证据，完整回归未新增失败；50k 极端 dense 谱 profile 仍按当前真机复现触发，真实谱音频清单仍待人工验收。Release 与统一验收结果见 [本轮验证记录](../../other/EXPERIENCE_CLOSURE_20260929.md)。
+本轮按用户“全量优化并验证”要求，针对修改前已测出的重复开销完成第二轮优化：原生按键复用有序候选，长条只推进未处理 tick；音频维护不再每帧创建临时集合；转谱伴奏/皿采用现有对象池，头音不重复准备普通样本，空击查询复用索引。BGA 四窗共享解码归 P1-L。前后测量、回归及尚未签收的真机边界集中见 [2026-09-30 验证记录](../../other/GAMEPLAY_PERFORMANCE_20260930.md)。
+
+普通密度 BMS 与转谱-mania 的主要键音故障、帧抖动和开局 gen2 冻结已有修复基线。末端 lane timeline 与 shared-store production proof 已随 P1-A C3/P1-K 闭合。默认手动转谱 LN head 已接入 shared store，长 one-shot 暂停保位续播已有实际位置及 Player 自动证据；2026-09-29 完整回归未新增失败，Release 与结果见 [既有基线](../../other/EXPERIENCE_CLOSURE_20260929.md)。50k 极端 dense 谱 profile 仍按当前真机复现触发，真实谱音频清单仍待人工验收。
 
 用户指定的原生 BMS / BMS→mania 自动键音已实现：两个独立默认关闭设置，每局固定，声音按谱面时刻播放，真实操作与成绩仍由原判定链处理。当前执行与退出门见 [PLAN](DEVELOPMENT_PLAN.md#0-用户指定自动键音2026-09-29)，稳定边界见 [自动键音合同](TECHNICAL_CONSTRAINTS.md#自动键音合同2026-09-29)。
 
@@ -24,7 +26,7 @@
 ## BMS→mania 音频当前态
 
 - BGM/scratch/tap note 走复用的 `BmsKeysoundStore`。
-- BGM/scratch sample-only 对象的 `Samples` 为空，避免 mania 按键反馈再次触发；实际键音走 `KeysoundSample`。
+- BGM/scratch sample-only 对象的 `Samples` 为空，避免 mania 按键反馈再次触发；实际键音走 `KeysoundSample`。显示对象按播放窗口由现有池管理，不再整谱常驻；池化生命周期不得把伴奏发布为皮肤 Note 事件。
 - tap note 已池化并具备 per-WAV cut；暂停停 BGM、长 BGM 被 32 通道偷断、bgm1 按 key1 重播均已修复并有历史实机证明。
 - gameplay 主 Track 对 BMS 静音但保留时钟 authority；选歌试听只接受 `#PREVIEW`，存量由 backfill 回写。
 - 转谱 LN 仍使用普通 mania `HoldNote` 与嵌套 head 池化；自动模式按原 head WAV slot 经 store 发声，手动模式的 pooled head 现在从父对象读取同一 sample/slot 并进入 store。`NodeSamples` 数据保留，普通 mania 原行为不变；Player 真按键已证明头音一次、原 slot 与尾静音。
@@ -34,17 +36,19 @@
 | 切片 | 状态 |
 | --- | --- |
 | J1 keysound timing hardening | 完成 |
-| J2 lane/ordered-hit hot path | 首轮完成，后续由 profiler 驱动 |
-| J3 sample allocation | 主路径完成，array-based 底层合同仍在 |
+| J2 lane/ordered-hit hot path | 第二轮已优化有序候选、空击查询与长条推进；后续由实测驱动 |
+| J3 sample allocation | 第二轮消除稳定音频维护分配和转谱重复样本准备；底层多样本合同保持 |
 | J4 live channel safety | 完成；用户设置项已移除，内部 resize 合同保留 |
 | J5 focused/dense validation | 自动化具备，人工清单待闭合 |
 | J6 转谱音频 | tap/BGM/scratch、手动与自动 LN、长样本暂停保位均有自动证据；保留真实听感门 |
 
 ## 最近一次验证
 
+- 2026-09-30：原生、转谱和 BGA 的修改前后测量及本轮最终 gate 以 [集中记录](../../other/GAMEPLAY_PERFORMANCE_20260930.md)为准。微基准不代表整局帧率，自动声音/视频证据不代签真实谱听感与演出保真。
+
 - 2026-09-29 暂停保位/手动 LN：实际 WAV/native channel position 三项及 Player 真按键证明通过；完整回归无新增失败，Release 与格式 verify 通过，软件门完成。具名旧失败仍保留，完整回归不宣称全绿；结果、命令与工件集中见 [验证记录](../../other/EXPERIENCE_CLOSURE_20260929.md)。
 - 2026-09-29：自动键音 Player 证明无输入仍播放但正常 Miss/零分，固定输入开关对照判定、时差、准确率、成绩、连击与血量一致；两个设置互不影响，普通 mania 保持原音效。
-- 同日较早自动键音交付结果保留在 [自动键音验证记录](CHANGELOG.md#bms-与-bmsmania-自动键音)；2026-09-30 只回读留存证据，没有重跑产品验证或新增真实设备听感签收。
+- 同日较早自动键音交付结果保留在 [自动键音验证记录](CHANGELOG.md#bms-与-bmsmania-自动键音)；本轮没有新增真实设备听感签收。
 
 ## 当前风险与下一步
 
@@ -56,4 +60,4 @@
 
 ## 文档治理验证
 
-2026-09-30：对照当前暂停/seek 与 pooled head 路由、2026-09-29 最终 TRX 和集中验证记录，修正转谱 BGM 暂停条款及旧 memory 缺口描述，精简重复进度并补 fixture 清理诊断。仅文档治理，不刷新产品测试与人工验收日期；详情见 [CHANGELOG](CHANGELOG.md#2026-09-30)。
+2026-09-30 同日较早治理（本轮性能优化之前）：对照暂停/seek 与 pooled head 路由、2026-09-29 最终 TRX 和集中验证记录，修正转谱 BGM 暂停条款及旧 memory 缺口描述，精简重复进度并补 fixture 清理诊断。该次仅文档治理，不刷新产品测试与人工验收日期；详情见 [CHANGELOG](CHANGELOG.md#2026-09-30)。

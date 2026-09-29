@@ -1,5 +1,11 @@
 # P1-A 变动日志
 
+## 2026-09-30：性能治理中的样本与回退状态保护
+
+- P1-J 优化共享样本维护的临时分配，保留 revision 尾音、热更与 shutdown 释放顺序；转谱 sample-only 对象池化后不作为皮肤可玩 Note 发布。
+- 真实转谱 Player 验证暴露 seek 的固定一帧 barrier 可能在 frame-stable clock 仍追赶时发布空 Reset。按既有“完整 baseline”合同等待时钟收敛，再执行原 playfield barrier，保持回退单次完整状态。未新增作者 API 或扩大皮肤功能。
+- BGA 多 viewport 已共享引擎内容源，布局/事件 authority 保持。统一测试、前后证据及旧失败对照见 [性能验证记录](../../other/GAMEPLAY_PERFORMANCE_20260930.md)。没有修改外观源包、重开视觉打磨或新增 V-001～V-005/发行人工签收。
+
 ## 2026-09-29：皮肤文档与记忆一致性审查
 
 - 对照 `SkinSection`、`OsuGame`、`SkinManager`、`SkinAuthoringAvailability` 及内置构建/作者检查脚本，确认当前仍为静线唯一内置、双玩法独立偏好、固定目录刷新与独立草稿编辑；修正 README 的“双包暂停”和作者合同中“两内置包”、外部工作区现行入口残留。星轨仅保留历史参考，不恢复旧入口或推进外观开发。

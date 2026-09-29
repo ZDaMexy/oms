@@ -1,7 +1,6 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System.Collections.Generic;
-using osu.Framework.Extensions.IEnumerableExtensions;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.UI;
 
@@ -18,16 +17,32 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public bool IsHittable(DrawableHitObject hitObject, double time)
         {
-            var bmsHitObject = (DrawableBmsHitObject)hitObject;
-            var nextObject = getParticipatingHitObjects().GetNext(bmsHitObject);
+            var objects = getParticipatingHitObjects();
+            bool found = false;
 
-            return nextObject == null || time < nextObject.HitObject.StartTime;
+            for (int i = 0; i < objects.Count; i++)
+            {
+                if (objects[i] is not DrawableBmsHitObject candidate || !canParticipateInLocking(candidate))
+                    continue;
+
+                if (found)
+                    return time < candidate.HitObject.StartTime;
+
+                found = ReferenceEquals(candidate, hitObject);
+            }
+
+            return true;
         }
 
         public void HandleHit(DrawableBmsHitObject hitObject)
         {
-            foreach (var candidate in getParticipatingHitObjects())
+            var objects = getParticipatingHitObjects();
+
+            for (int i = 0; i < objects.Count; i++)
             {
+                if (objects[i] is not DrawableBmsHitObject candidate || !canParticipateInLocking(candidate))
+                    continue;
+
                 if (candidate.HitObject.StartTime >= hitObject.HitObject.StartTime)
                     break;
 
@@ -38,32 +53,17 @@ namespace osu.Game.Rulesets.Bms.UI
             }
         }
 
-        private IEnumerable<DrawableBmsHitObject> getParticipatingHitObjects()
+        private IReadOnlyList<DrawableHitObject> getParticipatingHitObjects()
         {
-            using (var aliveEnumerator = hitObjectContainer.AliveObjects.GetEnumerator())
+            var aliveObjects = hitObjectContainer.OrderedAliveObjects;
+
+            for (int i = 0; i < aliveObjects.Count; i++)
             {
-                while (aliveEnumerator.MoveNext())
-                {
-                    if (aliveEnumerator.Current is not DrawableBmsHitObject hitObject || !canParticipateInLocking(hitObject))
-                        continue;
-
-                    yield return hitObject;
-
-                    while (aliveEnumerator.MoveNext())
-                    {
-                        if (aliveEnumerator.Current is DrawableBmsHitObject remainingHitObject && canParticipateInLocking(remainingHitObject))
-                            yield return remainingHitObject;
-                    }
-
-                    yield break;
-                }
+                if (aliveObjects[i] is DrawableBmsHitObject hitObject && canParticipateInLocking(hitObject))
+                    return aliveObjects;
             }
 
-            foreach (var drawable in hitObjectContainer.Objects)
-            {
-                if (drawable is DrawableBmsHitObject hitObject && canParticipateInLocking(hitObject))
-                    yield return hitObject;
-            }
+            return hitObjectContainer.OrderedObjects;
         }
 
         private static bool canParticipateInLocking(DrawableBmsHitObject hitObject) => hitObject.AcceptsPlayerInput;

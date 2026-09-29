@@ -2,6 +2,10 @@
 
 ## 2026-09-30
 
+### 完整性能回归发现旧 Register 测试预期
+
+mania full 检出 `ManiaImportIntegrationTest.TestRegisterExternalDirectoryWithOnlyNonManiaBeatmapsReturnsNull` 的四月 null 断言与九月已确认的注册失败合同不符。纯 `034d79b` 生产源码下 Release 重新编译单项复现相同 InvalidDataException 和业务堆栈，本轮未改 importer/test；记录为已有测试欠账，不回退正确行为。对照方法、最终 full 与源码恢复证明见 [性能验证记录](../../other/GAMEPLAY_PERFORMANCE_20260930.md)。未扫描真实库、重验隔离根或改存储实现。
+
 ### 文档与记忆健康复核
 
 - 对照当前 importer、scanner、索引协调器及难度表批次刷新代码，区分扫描器收到的错误与 importer 仍可返回有效结果的跳过/警告，避免将失败保全写成任一坏文件都会阻止整个根收敛。

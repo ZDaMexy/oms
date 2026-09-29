@@ -31,4 +31,15 @@ metadata:
 - 虚拟轨或 store 请求计数只能证明调度/路由；实际 WAV/native position 可证明后端保位，但实际设备听感仍须人工验收，不能互相代签。
 - GC 性能看 gen0:gen1、pause duration 和对象存活；少量中寿命分配也可造成晋升风暴。普通密度问题已收口，50k 先用 `BmsGameplayStallDiagnostics` 取证。
 
+## 性能复审地雷（2026-09-30）
+
+- `PoolableSkinnableSample.Update/Stop` 即使无已完成 channel，也曾无条件创建集合；稳态与确有 revision 待释放要分别测。优化不能颠倒“移除记录→dispose 历史 drawable→释放 lease”的顺序。
+- `Objects/AliveObjects` 旧枚举每次消费会重排；排序缓存在容器负责，必须覆盖未激活 entry 的时间编辑和退池/回退。空击完整索引应在 LoadComplete 预建，不能把第一次全谱排序留给玩家。
+- 转谱对象池的 retained 数量须读 `DrawablePool.CurrentPoolSize`，只数 drawable 子树会漏掉池中空闲对象。sample-only 改池化会新增 usage callbacks，必须排除皮肤 Note 事件；不能通过跳过静音 sample-only 候选改变原空击选音语义。
+- `DrawableNote.LoadSamples` 的普通 sample 准备与实际 PlaySamples 路由是两层；仅 hosted store 已接管时省去前者，不能删除 Samples/NodeSamples 或 shared prewarm 来伪造节省。
+- 未加载的长条 fixture 必须对子 tick 执行 Apply 后才有 Entry.RevertResult 订阅；回退按实际 RawTime 通知后再 Reset，不能用未绑定的手工通知判定生产游标失效。
+- 真 Player seek 会让 frame-stable clock 经过中间位置；固定“一次 Update”可能只重建中间 playfield。若 Reset 为空而随后的 attach 快照有目标音符，先查时钟是否收敛；P1-A 要求 Reset 自身完整，不能以稍后 spawn 补回来放宽验证。
+
+本轮前后指标和适用边界见 [性能验证记录](../../doc_md/other/GAMEPLAY_PERFORMANCE_20260930.md)；微基准不代表整局 FPS。
+
 历史误判、旧测试数字和逐日回退只查 P1-J/P1-K CHANGELOG。2026-08-30 C3 前置的最终 focused/full/Release 数字见 [P1-K CHANGELOG](../../doc_md/subline/P1-K/CHANGELOG.md#2026-08-30)。

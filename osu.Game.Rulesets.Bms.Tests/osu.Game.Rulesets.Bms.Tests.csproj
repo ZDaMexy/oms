@@ -17,6 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <EmbeddedResource Include="..\osu.Game.Tests\Resources\Videos\test-video.mp4" LogicalName="osu.Game.Rulesets.Bms.Tests.Resources.bga-test-video.mp4" />
     <!-- Retired artwork remains an ordinary import fixture, never an installed canonical skin. -->
     <Content Include="..\skin-authoring\dist\oms-complex.osk">
       <Link>SkinAuthoringSamples\oms-complex.osk</Link>

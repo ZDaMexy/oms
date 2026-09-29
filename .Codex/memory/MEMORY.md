@@ -44,10 +44,10 @@
 
 ## BMS 解析、音频与游玩参考
 
-- [BGA 链](reference_bms_bga_chain.md) — viewport/event、转码与内容播放的区别。
+- [BGA 链](reference_bms_bga_chain.md) — 单内容镜像、显示比例、viewport/event、转码与解码的区别。
 - [bgm1 按键触发故障](reference_bms_bgm1_pause_keytrigger_bug.md)
 - [游玩音轨静音合同](reference_bms_gameplay_track_mute.md)
-- [键音链](reference_bms_keysound_chain.md) — 手动/自动责任、暂停保位、手动 LN 池化路由与测试场景清理时序。
+- [键音链](reference_bms_keysound_chain.md) — 手动/自动、暂停保位、转谱池化、热路径分配与回退测试时序。
 - [lane 键音 timeline 上界](reference_bms_lane_keysound_timeline_bounds.md) — lane-count 上界、parser keymode 与末端发声。
 - [LNOBJ 解码](reference_bms_lnobj_decoding.md) — 单候选配对地雷及 P1-K 权威回链。
 - [lane 重排](reference_bms_lane_rearrangement.md) — 重复应用的三次置换故障及 P1-K/P1-J 回链。

@@ -1,6 +1,6 @@
 # P1-J 技术约束：BMS gameplay 性能与音频时序
 
-> 最后更新：2026-09-30（文档治理：统一暂停保位与 seek 清旧声表述，行为未改）
+> 最后更新：2026-09-30（有序索引、长条推进、转谱池化与样本维护合同）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，事故取证与旧测试数字按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线与 authority
@@ -38,6 +38,7 @@
 5. same-sample fast path 可以直接 stop/replay，避免每次重建 sample drawable；切到不同样本或多样本时必须正确失效缓存，不能改变 cut 语义。
 6. keysound prewarm 对玩家与 autoplay、原生 BMS 与转谱-mania 对等执行，只复用现有 `Playfield` sample pool 与 shared store；不得建立第二套 retained sample authority。加载期变长是允许的显式取舍，update thread 中冷解码不是。
 7. pause 必须通过现有样本通道的零频率调整冻结位置，resume 恢复原频率调整链；不得用 Stop/Play 重建通道来冒充续播。暂停声部仍为 busy，不得被 idle 回收或 resize 裁剪。seek/retry 必须清除旧声部，避免恢复后旧音乐逃逸；任意 seek 不承诺重建已开始长样本。底层实际位置证明与真实设备听感分别记录，前者不能代签后者。
+8. 稳定播放/空闲维护不分配临时完成集合；确有多路结束或旧 revision sample 待释放时才物化所需集合。必须先从活动记录移除全部已结束通道，再释放历史 drawable，最后释放 revision lease；不得用零分配目标破坏旧声尾音、热更或 shutdown 的所有权顺序。
 
 ## BMS→mania 音频合同
 
@@ -54,6 +55,8 @@
    - `TestSceneBmsGameplayTrackMuting` 与 `TestSceneBmsPlayerAudioSemantics` 同时守住静音和时钟。
 8. BMS 选歌试听只来自 `#PREVIEW`，并从 `PreviewTime=0` 播放；无 `#PREVIEW` 时 AudioFile 为空。不得恢复“未引用且大于 1MB 音频即试听”的启发式。
 9. 存量试听策略由 `BmsPreviewAudioBackfill` 一次性后台收敛：完成标记门控、单次 Realm 快照、解码循环零 Realm、批量写回和进度通知必须保留；不得每次进入选歌重复扫描。
+10. BGM/scratch sample-only drawable 使用既有 Column 对象池，加载时注册类型，初始池大小为零并按真实播放窗口增长；不再每对象反射/整谱创建，也不建立新调度器。池化带来的 usage callbacks 不得将纯音频事件发布为可玩 Note 的 skin scene 状态。
+11. 仅当 hosted store 实际拥有发声责任时，转谱 tap/head 才跳过普通 sample drawable 准备。Samples/NodeSamples 数据、加载期 shared prewarm、无 store 回退及普通 mania 样本行为保留。
 
 ## 热路径与诊断
 
@@ -62,6 +65,8 @@
 3. `BmsGameplayStallDiagnostics` 是长期只读诊断 seam。50k/dense 问题必须先用 stall、GC、allocation、play count 和 frame 证据归因，再改对象池、channel、调度或渲染。
 4. 无当前真机复现时不得重开普通密度旧问题，或扩成全仓 LINQ、audio backend、render/present 清扫。
 5. 不新增默认 audio latency/offset surface，不推进新 gameplay mod、Phase 2 speed 体系或大范围 HUD/UX。
+6. 有序容器快照在成员或 StartTime 改变时失效，完整 entry 索引须追踪未激活对象的时间编辑，并在移除/释放时解绑。空击保持 alive-first 与原 fallback、相同时间顺序和 sample-only 静音语义；加载完成预建索引，回退和成员变化重置游标，不能把整谱首次排序推给玩家首击。
+7. LN/CN/HCN 只跳过已经处理的 tick，保留每个嵌套判定对象及血量结果；结果撤销和 pooled Apply 必须重置推进位置。LongNoteMode 每局固定解析，不能在逐帧热路径重复遍历 Mods。
 
 ## 测试与发布
 

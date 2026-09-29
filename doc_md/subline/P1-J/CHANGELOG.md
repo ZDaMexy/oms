@@ -7,6 +7,12 @@
 
 ## 2026-09-30
 
+### 原生与转谱 gameplay 第二轮性能优化
+
+- 先在当前基线测量，再优化有序按键候选、长条 tick 扫描、模式读取、sample revision 维护、转谱 sample-only 对象常驻与空击查询；没有提高通道上限、改判定窗口或替换音频后端。
+- 转谱普通 tap/head 在 shared store 接管时不重复准备普通 sample；BGM/皿按现有 Column 池复用，伴奏不产生可玩 Note 的皮肤生命周期事件。保留手动/自动、普通 mania、LN 尾静音、pause/seek、旧 revision 尾音与释放顺序。
+- BGA 内容共享与镜像由 P1-L 负责。前后指标、回退/复用验证、完整失败身份对照、Release 和人工未签收边界统一见 [性能验证记录](../../other/GAMEPLAY_PERFORMANCE_20260930.md)。
+
 ### 声音状态、约束与诊断记忆健康审查
 
 - 对照 `BmsKeysoundStore` 的零频率暂停/恢复、seek 清旧声，以及 `DrawableNote` 从 pooled head 父对象读取原 WAV slot 的路径，修正转谱 BGM 条款仍将 pause/seek 都写成“停止”的矛盾。

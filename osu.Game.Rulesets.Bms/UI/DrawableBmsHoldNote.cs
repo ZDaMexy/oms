@@ -10,6 +10,7 @@ using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Bms.Skinning;
+using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.Scoring;
@@ -31,6 +32,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private DrawableBmsHoldNoteHead? headDrawable;
         private DrawableBmsHoldNoteTail? tailDrawable;
         private readonly List<DrawableBmsHoldNoteBodyTick> bodyTickDrawables = new List<DrawableBmsHoldNoteBodyTick>();
+        private int nextBodyTickIndex;
         private BmsLongNoteMode? longNoteModeOverrideForTesting;
         private BmsLongNoteBodyState lastPublishedBodyState;
 
@@ -56,6 +58,7 @@ namespace osu.Game.Rulesets.Bms.UI
             GameplaySkinResolvedMaterialSet? gameplayMaterialSet = null)
             : base(hitObject, gameplayLayoutSnapshot, gameplayMaterialSet)
         {
+            OnRevertResult += onResultReverted;
         }
 
         public override void PlaySamples()
@@ -71,6 +74,7 @@ namespace osu.Game.Rulesets.Bms.UI
             // skipped, so bind the fields from the children that were actually applied. This keeps the LN scoring
             // owner on the parent while allowing head/tail/tick visuals to remain independently pooled.
             bindAppliedNestedDrawables();
+            nextBodyTickIndex = 0;
 
             // Reset transient hold state so a pooled reuse never inherits the previous note's broken/holding look.
             IsHoldingForTesting = false;
@@ -323,6 +327,7 @@ namespace osu.Game.Rulesets.Bms.UI
             headDrawable = null;
             tailDrawable = null;
             bodyTickDrawables.Clear();
+            nextBodyTickIndex = 0;
         }
 
         private void bindAppliedNestedDrawables()
@@ -427,15 +432,15 @@ namespace osu.Game.Rulesets.Bms.UI
             bool hitBodyTick = !longNoteMode.RequiresBodyGaugeTicks() || headDrawable?.IsHit == true && IsHoldingForTesting;
             double currentTime = Time.Current;
 
-            foreach (var bodyTick in bodyTickDrawables)
+            while (nextBodyTickIndex < bodyTickDrawables.Count)
             {
-                if (bodyTick.Judged)
-                    continue;
-
-                if (currentTime < bodyTick.HitObject.StartTime)
+                var bodyTick = bodyTickDrawables[nextBodyTickIndex];
+                if (!bodyTick.Judged && currentTime < bodyTick.HitObject.StartTime)
                     break;
 
-                bodyTick.ApplyTickResult(hitBodyTick);
+                nextBodyTickIndex++;
+                if (!bodyTick.Judged)
+                    bodyTick.ApplyTickResult(hitBodyTick);
             }
         }
 
@@ -443,14 +448,23 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             bool hitBodyTick = !longNoteMode.RequiresBodyGaugeTicks() || headDrawable?.IsHit == true && IsHoldingForTesting;
 
-            foreach (var bodyTick in bodyTickDrawables)
+            while (nextBodyTickIndex < bodyTickDrawables.Count)
             {
+                var bodyTick = bodyTickDrawables[nextBodyTickIndex++];
                 if (bodyTick.Judged)
                     continue;
 
                 bool hitThisTick = hitBodyTick && Time.Current >= bodyTick.HitObject.StartTime;
                 bodyTick.ApplyTickResult(hitThisTick);
             }
+        }
+
+        private void onResultReverted(DrawableHitObject drawable, JudgementResult result)
+        {
+            // A seek can revert nested results while the parent remains alive and pooled in place.
+            // The next judgement pass skips the still-judged prefix once and resumes at the reverted tick.
+            if (drawable is DrawableBmsHoldNoteBodyTick)
+                nextBodyTickIndex = 0;
         }
     }
 }

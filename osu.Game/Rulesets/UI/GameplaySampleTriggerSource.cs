@@ -32,6 +32,13 @@ namespace osu.Game.Rulesets.UI
 
         private HitObjectLifetimeEntry? mostValidObject;
 
+        private IReadOnlyList<HitObjectLifetimeEntry>? orderedEntries;
+        private IReadOnlyList<DrawableHitObject>? orderedAliveObjects;
+        private int nextEntryIndex;
+        private int nextAliveIndex;
+        private HitObjectLifetimeEntry? firstEntry;
+        private HitObjectLifetimeEntry? lastEntry;
+
         [Resolved]
         private IGameplayClock? gameplayClock { get; set; }
 
@@ -54,6 +61,15 @@ namespace osu.Game.Rulesets.UI
             };
         }
 
+        protected override void LoadComplete()
+        {
+            base.LoadComplete();
+
+            // Ruleset loading installs all hit objects before child LoadComplete. Build the full-chart lookup here,
+            // alongside other sample preparation, rather than sorting/subscribing the whole column on its first press.
+            refreshLookupEntries();
+        }
+
         /// <summary>
         /// Play the most appropriate hit sound for the current point in time.
         /// </summary>
@@ -61,7 +77,7 @@ namespace osu.Game.Rulesets.UI
         {
             HitObject? nextObject = GetMostValidObject();
 
-            if (nextObject == null)
+            if (nextObject == null || nextObject.Samples.Count == 0)
                 return;
 
             var samples = nextObject.Samples
@@ -94,24 +110,27 @@ namespace osu.Game.Rulesets.UI
             base.Update();
 
             if (gameplayClock?.IsRewinding == true)
+            {
                 mostValidObject = null;
+                nextEntryIndex = nextAliveIndex = 0;
+            }
         }
 
         protected HitObject? GetMostValidObject()
         {
+            refreshLookupEntries();
+
             if (mostValidObject == null || isAlreadyHit(mostValidObject))
             {
-                // We need to use lifetime entries to find the next object (we can't just use `hitObjectContainer.Objects` due to pooling - it may even be empty).
-                // If required, we can make this lookup more efficient by adding support to get next-future-entry in LifetimeEntryManager.
-                var candidate =
-                    // Use alive entries first as an optimisation.
-                    hitObjectContainer.AliveEntries.Keys.Where(e => !isAlreadyHit(e)).MinBy(e => e.HitObject.StartTime)
-                    ?? hitObjectContainer.Entries.Where(e => !isAlreadyHit(e)).MinBy(e => e.HitObject.StartTime);
+                // Preserve alive-first selection, including silent sample-only objects. The cursors only skip
+                // already-judged entries; they reset on rewind or an authoritative membership/order change.
+                // In particular a finished column no longer re-scans its entire history on every empty strike.
+                var candidate = nextAliveEntry() ?? nextUnjudgedEntry();
 
                 // In the case there are no non-judged objects, the last hit object should be used instead.
                 if (candidate == null)
                 {
-                    mostValidObject = hitObjectContainer.Entries.LastOrDefault();
+                    mostValidObject = lastEntry;
                 }
                 else
                 {
@@ -121,7 +140,7 @@ namespace osu.Game.Rulesets.UI
                     }
                     else
                     {
-                        mostValidObject ??= hitObjectContainer.Entries.FirstOrDefault();
+                        mostValidObject ??= firstEntry;
                     }
                 }
             }
@@ -135,7 +154,64 @@ namespace osu.Game.Rulesets.UI
 
             // Else we want the earliest valid nested.
             // In cases of nested objects, they will always have earlier sample data than their parent object.
-            return getAllNested(mostValidObject.HitObject).OrderBy(h => h.GetEndTime()).SkipWhile(h => h.GetEndTime() <= getReferenceTime()).FirstOrDefault() ?? mostValidObject.HitObject;
+            return getNextNested(mostValidObject.HitObject, getReferenceTime(), null) ?? mostValidObject.HitObject;
+        }
+
+        private void refreshLookupEntries()
+        {
+            var entries = hitObjectContainer.OrderedEntries;
+
+            if (!ReferenceEquals(entries, orderedEntries))
+            {
+                orderedEntries = entries;
+                nextEntryIndex = 0;
+                mostValidObject = null;
+
+                // Retain the original collection's first/last fallback, including equal-time insertion order.
+                // The collection is only enumerated when objects are added, removed or their start times change.
+                firstEntry = lastEntry = null;
+                foreach (var entry in hitObjectContainer.Entries)
+                {
+                    firstEntry ??= entry;
+                    lastEntry = entry;
+                }
+            }
+
+            var alive = hitObjectContainer.OrderedAliveObjects;
+
+            if (!ReferenceEquals(alive, orderedAliveObjects))
+            {
+                orderedAliveObjects = alive;
+                nextAliveIndex = 0;
+            }
+        }
+
+        private HitObjectLifetimeEntry? nextAliveEntry()
+        {
+            while (nextAliveIndex < orderedAliveObjects!.Count)
+            {
+                HitObjectLifetimeEntry entry = orderedAliveObjects[nextAliveIndex].Entry!;
+                if (!isAlreadyHit(entry))
+                    return entry;
+
+                nextAliveIndex++;
+            }
+
+            return null;
+        }
+
+        private HitObjectLifetimeEntry? nextUnjudgedEntry()
+        {
+            while (nextEntryIndex < orderedEntries!.Count)
+            {
+                HitObjectLifetimeEntry entry = orderedEntries[nextEntryIndex];
+                if (!isAlreadyHit(entry))
+                    return entry;
+
+                nextEntryIndex++;
+            }
+
+            return null;
         }
 
         private bool isAlreadyHit(HitObjectLifetimeEntry h) => h.AllJudged;
@@ -143,15 +219,17 @@ namespace osu.Game.Rulesets.UI
 
         private double getReferenceTime() => gameplayClock?.CurrentTime ?? Clock.CurrentTime;
 
-        private IEnumerable<HitObject> getAllNested(HitObject hitObject)
+        private static HitObject? getNextNested(HitObject hitObject, double time, HitObject? candidate)
         {
             foreach (var h in hitObject.NestedHitObjects)
             {
-                yield return h;
+                if (h.GetEndTime() > time && (candidate == null || h.GetEndTime() < candidate.GetEndTime()))
+                    candidate = h;
 
-                foreach (var n in getAllNested(h))
-                    yield return n;
+                candidate = getNextNested(h, time, candidate);
             }
+
+            return candidate;
         }
 
         protected SkinnableSound GetNextSample()

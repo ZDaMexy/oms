@@ -1,6 +1,6 @@
 # P1-J 当前计划：BMS gameplay 性能与音频时序
 
-> 最后更新：2026-09-30（文档治理：精简重复基线，人工门与诊断触发条件不变）
+> 最后更新：2026-09-30（按实测优化原生与转谱；保留人工门与极端谱触发条件）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定音频合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，已完成修复与取证按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -12,6 +12,8 @@ P1-J 只拥有 BMS gameplay runtime 的 keysound timing、shared audio pool、la
 - 不把本线扩成全仓音频后端、渲染、选歌或通用性能专项。
 
 ## 当前基线
+
+2026-09-30 用户授权的全量性能复审已覆盖原生判定/长条、转谱对象和空击、shared sample 维护及 P1-L 多窗 BGA。已测出的开销与改动一一对应，结果见 [性能验证记录](../../other/GAMEPLAY_PERFORMANCE_20260930.md)。后续先完成下列真实谱验收，不把微基准改善扩大成所有谱面帧率承诺，也不继续无证据清扫。
 
 普通密度修复、完整 lane timeline、手动与自动转谱 LN、暂停保位均已有软件基线，详见 [STATUS](DEVELOPMENT_STATUS.md)。资源与发声边界由 [CONSTRAINTS](TECHNICAL_CONSTRAINTS.md) 管理；已完成实施与误判/回退过程只查 [CHANGELOG](CHANGELOG.md)。
 

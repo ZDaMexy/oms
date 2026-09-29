@@ -363,12 +363,6 @@ namespace osu.Game.Rulesets.Bms.UI
             {
                 if (!success)
                 {
-                    // One concise line per failed source (full ffmpeg output is logged just above). BGA is cosmetic
-                    // and degrades to its static image, so this is Verbose (log only) — not a user-facing notification.
-                    // Deduped via the failed-set add so retries never re-log.
-                    if (failedDestinations.TryAdd(destination, 0))
-                        Logger.Log($"BGA video transcode failed for '{source}'. The BGA will show its static image instead (see above for the ffmpeg error).", level: LogLevel.Verbose);
-
                     try
                     {
                         if (File.Exists(tmp))
@@ -378,6 +372,12 @@ namespace osu.Game.Rulesets.Bms.UI
                     {
                         // best-effort cleanup
                     }
+
+                    // Finish cleanup before Resolve can publish Unavailable. Until then callers keep joining
+                    // this in-progress task rather than observing a completed failure with a partial file.
+                    // BGA degrades to its static image; log one concise summary per failed source.
+                    if (failedDestinations.TryAdd(destination, 0))
+                        Logger.Log($"BGA video transcode failed for '{source}'. The BGA will show its static image instead (see above for the ffmpeg error).", level: LogLevel.Verbose);
                 }
 
                 inProgress.TryRemove(destination, out _);

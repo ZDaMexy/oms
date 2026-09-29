@@ -16,6 +16,7 @@ metadata:
 - `BmsBgaPlayer` 按 frame-stable gameplay time 播图片/视频；挂 `DrawableRuleset.Overlays`，pause/seek/retry 随游戏时钟。
 - BMS 资源经 `WorkingBeatmap.GetStream`/文件路径直读 `chartbms/`，不走 hash store。
 - `BmsBgaPanel` 消费同一 immutable layout/viewports 与 material/scene、只读状态事件；常规兼容布局为 5/7/9K 单角、14K 四角，极窄空间由 solver 缩短轨道并改为下方单 viewport。静线已通过选定包的 BGA 尺寸、位置与信息带参数提供较大窗口，不能把兼容小窗写成当前成品固定大小。converted-mania BGA 不在当前范围。
+- 默认显示只创建一个 `BmsBgaPlayer`；多 viewport 使用一个 `BufferedContainer` 和其余只读 views 共享合成画面，单 viewport 直接绘制。暂停/seek/POOR 和各 viewport 的内容状态共享同一 player；皮肤 scene 仅装饰画面与状态，不拥有 timeline/player/clock。
 - 老式视频经 opt-in 外部 ffmpeg 转 mp4；无 ffmpeg/失败/超时均回退静态，不阻断游玩。
 
 ## 必须记住的地雷
@@ -28,15 +29,18 @@ metadata:
 6. 判断缓存坏文件：先用产出它的同一 ffmpeg 解码；不要先归咎框架硬解。
 7. `Video.FramesProcessed` 可做零帧 watchdog；宽限后 dispose，静态优先，避免黑屏和日志刷屏。
 8. 会话缓存启动期只清一次；清理必须发生在任何转码任务前。
+9. `BufferedContainerView` 不自动继承内容 aspect；默认 `FillAspectRatio=1` 时加 `FillMode.Fit` 会把矩形镜像压成方形。当前等尺寸 view 应匹配 viewport，letterbox 留在原 player 内容内；验证要包含实际比例与桌面像素。
+10. 重建必须先把旧 frames 全部脱树，再退役 scene 装饰并释放旧 frames/player/views；`Clear(disposeChildren: false)` 只脱树，不能代替释放旧视频资源。
+11. 转码 runner 失败后，`failedDestinations` 若先于 finally 的 tmp 清理发布，Resolve 会返回 Unavailable 而目录仍暂有半成品。失败状态应在清理尝试后、移除 in-progress 前发布；不要给“无残留”测试加 sleep 规避竞态。本轮完整回归实际复现过该旧顺序窗口。
 
 ## 进度与并发
 
-- 多源预热 join 同一 `Lazy<Task>`，14K 四播放器不能重复转同一文件。
+- 多源预热、当前 player 与快速重进产生的另一实例 join 同一 `Lazy<Task>`；共享 runtime player 不能代替跨实例转码去重。
 - ffmpeg stderr 的 `Duration/time=` 转成平均进度，经 core `GameplayLoadProgress` 桥到 loading scanline；无进度用 indeterminate 动画。
-- `DefaultBmsBgaPanelDisplay.createFrame()` 仍按 viewport 新建 `BmsBgaPlayer`；同一视频可能被默认 14K 四 player 分别解码。shared transcode task 去重不代表 runtime 已有单 content/decoder 会话，迁移仍在 P1-L PLAN；极端 BGA/地雷性能先 profile。
+- shared transcode task 解决转码去重，共享 player/surface 解决 runtime 镜像重复加载与解码，两者证据不可混写。极端 BGA/地雷及新增 framebuffer 的 GPU/帧时成本继续先 profile。
 
 ## 红线与遗留
 
 - BGA 不回流判定/计分；正常滚动链必须可一键回退。
 - overlay 黑透/ARGB 仍是近似；图序列、POOR、seek、老式视频和 14K 布局仍需逐谱人工验证。
-- C3 descriptor/C5 事件已接通，不重开布局前置；单 content 会话未完成，不能从只读事件或测试通过反推已经共享解码器。现有四 player 测试表达当前行为，迁移时须配套新的多视图 seek/POOR proof。
+- 2026-09-30 已通过真实图片/视频各读取一次、共享 player 的暂停/seek/POOR、重建释放旧 player，以及四窗普通图/POOR 桌面像素证明；完整 gate 与人工逐谱验收分开登记，不从资源计数反推保真或帧时结果。统一证据见 [本轮性能验证](../../doc_md/other/GAMEPLAY_PERFORMANCE_20260930.md)。
