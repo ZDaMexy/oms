@@ -1,6 +1,6 @@
 # P1-C 技术约束：判定语义与反馈边界
 
-> 最后核对：2026-09-29（补齐已交付只读统计与同步边界；判定/TOTAL 合同不变）
+> 最后核对：2026-09-29（自动调整偏移的迁移、采样与回放合同核对；判定/TOTAL 合同不变）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线与产品边界
@@ -37,8 +37,8 @@
 - 产品入口为音频→偏移的「自动调整偏移」，单选 `关闭 / osu!lazer style / beatoraja style`；新枚举是唯一运行时 authority。旧布尔仅在首次缺失新键时迁移，已有 Off 不得被旧 true 复活。lazer 仍按上一局中位误差和 UR 自动校准谱面偏移；全局推荐偏移仍手动应用。
 - beatoraja style 仅 BMS；mania 不自动使用该算法。固定 BMS 显示偏移与全局音频/谱面偏移独立，切换/关闭保留数值，±500ms、1ms 步长。关闭自动不等于归零固定值，用户可在同区恢复 0。
 - 普通键/皿 PG/GR/GD、绝对误差 ≤150ms 按 `sign(error)*floor((abs(error)+15)/30)` ms 推动，OMS error 晚正早负；单次变更限幅。LN 在完成时只采一个合并样本；CN/HCN 头与真实释放分别采样。OMS 已有自动到尾行为不改，自动到尾不采帧延迟，不能据此声称长条 runtime 与原版完全相同。AutoPlay/辅助音、持续 tick、空 POOR、parent Ignore 均不学习。
-- 显示修正只作用于 BMS 显示时间，不能改变音符时间、判定、成绩、gauge、输入、键音/BGM/BGA。BMS 侧算法包装同步小节线/地雷，嵌套长条位置与长度不重复偏移。关闭且 0ms 保留原算法实例；自动启用时保持同一包装跨零变化，避免逐音重算全谱。额外预加载对象不能扩大空 POOR 候选或提前屏蔽辅助列空按声音。
-- 真实演奏持续更新用户配置，失败/退出/重试保留。回放只读成绩中的初始值和变更时间线，seek 按时间查询；旧记录缺失字段按 0ms，不学习、不写个人配置。轨迹随 BMS ruleset data 保存，TOTAL version=7 语义不变；停止录制、score clone 前一次序列化，不能逐判定重序列化整个历史。导入轨迹验证有限数、偏移范围和严格递增时间。
+- 显示修正只作用于 BMS 显示时间，不能改变音符时间、判定、成绩、gauge、输入、键音/BGM/BGA。BMS 侧算法包装同步小节线/地雷，嵌套长条位置与长度不重复偏移。真实演奏中，beatoraja 自动调整未启用且固定偏移为 0ms 时保留原算法实例；自动启用时保持同一包装跨零变化，避免逐音重算全谱。额外预加载对象不能扩大空 POOR 候选或提前屏蔽辅助列空按声音。
+- 真实演奏持续更新用户配置，失败/退出/重试保留。回放只读成绩中的初始值和变更时间线，seek 按时间查询；记录含变化轨迹时保持显示包装跨零，不受个人 style 选择影响；旧记录缺失字段按 0ms，不学习、不写个人配置。轨迹随 BMS ruleset data 保存，TOTAL version=7 语义不变；停止录制、score clone 前一次序列化，不能逐判定重序列化整个历史。导入轨迹验证有限数、偏移范围和严格递增时间。
 - 来源：[JudgeManager](https://github.com/exch-bms2/beatoraja/blob/9aea9471f4490732cbbd6b71ca639ee823d20635/src/bms/player/beatoraja/play/JudgeManager.java)、[LaneRenderer](https://github.com/exch-bms2/beatoraja/blob/9aea9471f4490732cbbd6b71ca639ee823d20635/src/bms/player/beatoraja/play/LaneRenderer.java)。独立实现行为，不复制播放器 runtime。
 
 ## Results 与验证边界

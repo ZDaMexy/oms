@@ -1,12 +1,12 @@
 # P1-L 技术约束：BMS 演出/Gimmick 谱视觉复刻
 
-> 最后更新：2026-09-12（对齐转码缓存键与唯一临时文件合同；产品行为未改变）
+> 最后更新：2026-09-29（核对显示偏移与 Gimmick 开关边界；不改变产品行为）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，完整背景见 [../../other/BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)。若实现与本文冲突，先修正其一再继续开发。
 
 ## 红线（最高优先级，贯穿全线）
 
 1. **不得改坏正常游玩链路**：mania 风格前进式滚动 + 判定/计分/gauge 必须保持现状、可独立运行、回归不变。
-2. 演出渲染只能是**可检测/可开关的旁路**：建议按谱面特征自动判定 gimmick 模式或显式开关进入；非 gimmick 谱一律走现有路径。
+2. 演出渲染只能是**可检测/可开关的旁路**：建议按谱面特征自动判定 gimmick 模式或显式开关进入；非 gimmick 谱使用常规滚动算法；P1-C 的固定/自动显示偏移可独立包装该算法，不启用 Gimmick 语义。
 3. **判定语义不变**：判定/计分/gauge 继续由现有按时间的链路负责；本线只接管**视觉定位**，不得改判定语义。
 4. **不得为演出改写共享核心类型**（如 `TimingControlPoint` 的 `[6,60000]` beatLength 钳制）；BMS 专属滚动语义必须留在 BMS 侧旁路内。
 5. 每阶段独立可落地、可回退；均需 focused 回归 + Release 门槛 + 正常链路无回归证明。
@@ -28,7 +28,7 @@
 ## Phase 2（演出旁路）约束 —— Step A–C 已落地，须长期保持
 
 1. 逐对象位置积分旁路**绕开**而非**改写** osu! 的 `ScrollingHitObjectContainer` 与 `TimingControlPoint` 钳制：实现为 BMS 专用 `BmsStopMotionScrollAlgorithm : IScrollAlgorithm`，经 `BmsPlayfield.CreateChildDependencies` 重缓存的 `BmsScrollingInfo` 注入；**零核心文件改动**。新增/改动绝不可回退为修改 `TimingControlPoint` 钳制或 `ScrollingHitObjectContainer`。
-2. 旁路启用必须门控（`BmsGimmickScrollMode`，默认 `Auto`）；`Off`/未命中检测且 BMS 固定显示偏移为 0、自动调整关闭时，`BmsScrollingInfo.Algorithm` 必须**逐实例跟随基类算法**，与当前前进式滚动逐像素一致（`BmsScrollingInfoTest` 锁定）。2026-09-29 用户授权的[自动调整偏移](../P1-C/TECHNICAL_CONSTRAINTS.md#自动调整偏移合同2026-09-29)在普通与 STOP 算法外仅包装显示时间；自动启用时跨 0 保持包装避免全谱重算，关闭且 0 恢复原实例。默认 `Auto` 下「非 gimmick 谱零改动」依赖 `IsStopMotionGimmick` **无误报**（阈值须保守：`MaxSlope ≥ 50 || FrozenFraction ≥ 0.05`）；放宽阈值前须重新评估正常链路回归，且 `Off` 必须始终是 Gimmick 的硬回退。
+2. 旁路启用必须门控（`BmsGimmickScrollMode`，默认 `Auto`）；真实演奏中，`Off`/未命中检测且 BMS 固定显示偏移为 0、beatoraja 自动调整未启用时，`BmsScrollingInfo.Algorithm` 必须**逐实例跟随基类算法**，与当前前进式滚动逐像素一致（`BmsScrollingInfoTest` 锁定）。2026-09-29 用户授权的[自动调整偏移](../P1-C/TECHNICAL_CONSTRAINTS.md#自动调整偏移合同2026-09-29)在普通与 STOP 算法外仅包装显示时间；beatoraja 自动启用时跨 0 保持包装避免全谱重算；回放有记录变化时也保持包装，与个人 style 无关。默认 `Auto` 下「非 gimmick 谱不启用 STOP 算法」依赖 `IsStopMotionGimmick` **无误报**（阈值须保守：`MaxSlope ≥ 50 || FrozenFraction ≥ 0.05`）；放宽阈值前须重新评估正常链路回归，且 `Off` 必须始终是 Gimmick 的硬回退。
 3. 判定/计分继续走 `HitObject.StartTime` 时间链路；旁路只接管**视觉定位**，position 不得回流判定。`BmsScrollProfile` 不得进入 `beatmap.HitObjects`。
 4. `BmsScrollProfile` 必须用**原始未钳制** BPM/STOP/measure-length/scroll 构建（复用 `buildEventTimeline` 游走），不得改用钳制后的 `ControlPointInfo`；STOP 段距离零增长（真冻结）、负向滚动留待 Phase 3（当前 `D` 单调非减，`TimeAtDistance` 取最早达成时间）。
 5. **base 刻度 = 非冻结时长最常见 BPM**（`computeBaseBpm`，DEAD SOUL=132）。注意 `GetMostCommonBeatLength` 对演出谱会被 STOP-freeze/钳制点拉成 6；旁路在默认 Normal hi-speed 模式下因 `timeRange` 与之无关而忠实，**不得**为对齐而改用 6 做 base（那会复现 squash）。Floating/Classic 绝对刻度标定归 Phase 4。

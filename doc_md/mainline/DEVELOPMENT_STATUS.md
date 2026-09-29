@@ -14,7 +14,7 @@ OMS处于Phase 1.x后段。complex 已退役；用户认可静线最近调整并
 - Windows-only，保留osu!mania与第一类BMS，Osu/Taiko/Catch已删除；离线优先，Phase 3前OMS私有服务与默认endpoint为空。用户主动添加公共BMS难度表URL仅是既有窄例外。
 - BMS直读`chartbms/`，mania直读`chartmania/`；支持portable `data/`与自定义数据根。主要工程为`osu.Desktop.slnf`、`osu.Game.Rulesets.Bms`及`oms.Input`。
 - 当前协作分支为`master`。皮肤恢复/数据门`SV1-0`已关闭；迁移归档和四个无authority orphan blob继续保全，不能由scanner认领或清理。恢复事实见[恢复审计](../other/SKIN_SYSTEM_RECOVERY_20260710.md)及[数据/实机报告](../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
-- 2026-09-29 自动调整偏移开发开始时工作区干净，HEAD 为 `176ab6f`；`git fetch origin` 成功，领先 `origin/master` 3、落后 0。新增互斥 style 与 BMS 显示偏移，实际体验与验证边界见 [P1-C](../subline/P1-C/DEVELOPMENT_STATUS.md)，未新增人工签收。
+- 2026-09-29 专项文档审查开始时工作区干净，HEAD 为产品提交 `bc00cc2`；`git fetch origin` 成功，领先 `origin/master` 4、落后 0。自动调整偏移的软件状态与剩余验收见 [P1-C](../subline/P1-C/DEVELOPMENT_STATUS.md)，未新增人工签收。
 
 ## 当前执行门与全局风险
 
@@ -34,14 +34,14 @@ P1-I仍是三行双端筛选原型，须落实既定单轨上限段并补shared 
 
 ## 最近一次验证
 
+2026-09-29：按用户指定优先级完成「自动调整偏移」互斥 style；旧 lazer 自动调整保留，beatoraja style 在 BMS 演奏时调整显示偏移。软件验证、完整回归的旧失败与真实设备待验收边界集中见 [P1-C 状态](../subline/P1-C/DEVELOPMENT_STATUS.md#最近一次验证)，不扩大发行签收。
+
 2026-09-22：BMS TOTAL 已区分作者声明与各家族缺省，并为新旧成绩选择对应算法；专项验证与完整回归的具名失败归因见 [TOTAL 报告](../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。该结果不更新皮肤、真实设备或发行签收。
 
 2026-09-14的设置/编辑切片已验证固定目录刷新、原编辑控件、独立副本保存与模式偏好隔离；未刷新视觉、设备或 release 人工门。详见 [P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)。
-
-2026-09-29：按用户指定优先级完成「自动调整偏移」互斥 style；旧 lazer 自动调整保留，beatoraja style 在 BMS 演奏时调整显示偏移。软件验证、完整回归的旧失败与真实设备待验收边界集中见 [P1-C 状态](../subline/P1-C/DEVELOPMENT_STATUS.md#最近一次验证)，不扩大发行签收。
 
 皮肤代码仍以 2026-09-14 的 `701893f`（原编辑器与固定目录）及 `36eb79c`（按模式选择）为最近修改。2026-09-13 的 `234ce1f` 是最近一次静线外观修改；该轮实绘、自动结果与较早 core/mania 证据见[轨道验证记录](../other/SKIN_SIMPLE_LANE_PROPORTIONS_20260913.md)。此前发行ZIP和安装证据未随后续产品修改重新验收。
 
 ## 文档治理验证
 
-2026-09-29 对照当前代码、留存 TRX、P1-A～M 与 memory 回链审查进度和一致性。修正多语首页、作者/发行/验收入口及子线同步规则的旧口径，精简重复记忆；旧候选包、自动结果与人工未签收继续分开。未改产品代码、未重跑产品测试或 Release，产品与实机日期不变。范围、证据与健康检查见[同步记录](CHANGELOG.md#2026-09-29)。
+2026-09-29 自动调整偏移交付后专项复核：核对当前配置、采样、显示与回放代码，并回读留存 TRX/Release 日志；同步主线与子线路由，将已完成七步规划归档，活动计划只留设备/实谱验收，收紧记忆与合同的适用条件。未修改产品或重跑产品测试、Release，未新增实机签收。此前全局审查及专项证据见[同步记录](CHANGELOG.md#2026-09-29)。

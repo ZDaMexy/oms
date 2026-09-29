@@ -18,7 +18,7 @@
 - Gimmick 渲染只允许 BMS 侧隔离旁路；不改 `TimingControlPoint` 钳制和共享 `ScrollingHitObjectContainer`。
 - 判定/计分继续使用 `HitObject.StartTime`；滚动旁路只改变位置映射。
 - `BmsScrollProfile` 对 BPM/STOP/measure-length/scroll 积分；STOP 段冻结，极端 BPM 产生 snap。
-- `BmsGimmickScrollMode` 提供 Off/On/Auto；未命中检测的正常谱走常规路径。
+- `BmsGimmickScrollMode` 提供 Off/On/Auto；未命中检测的正常谱使用常规滚动算法；固定/自动显示偏移与 Gimmick 开关独立。
 - BGA timeline 不进入 `HitObjects`；运行时 `BmsBgaPlayer` 合成 base/layer/layer2，资源直读 `chartbms/`。
 - 老式视频只在 opt-in 外部 ffmpeg 可用时转码；缓存写入必须唯一 temp、去重且失败不留半成品。
 - BGA 浮窗已消费与 playfield/gauge 共用的 `BmsGameplayLayoutSnapshot.BgaViewports`；无声明时保留兼容默认，常规 14K 为四角四 player，极窄空间下由 solver 缩短轨道并改为下方单 viewport。选中包的尺寸/位置声明和上下信息区也由同一 snapshot 管理，不继承安装皮肤的大 BGA 强加给未声明的旧包。descriptor、material/scene 与事件接线已经完成，单一 engine-owned content/decoder 会话尚未完成，两者不得混写。converted-mania BGA 不在当前范围。
@@ -34,7 +34,7 @@
 ## 最近一次验证
 
 - 2026-09-29 显示偏移专项与回归记录统一见 [P1-C](../P1-C/DEVELOPMENT_STATUS.md#最近一次验证)；未新增逐谱或 BGA 人工签收。
-- 全局最新产品验证统一见 [mainline STATUS 的“最近一次验证”](../../mainline/DEVELOPMENT_STATUS.md#最近一次验证)；2026-07-16 仅治理文档，未运行产品测试或 Release。
+- 全局最新产品验证统一见 [mainline STATUS 的“最近一次验证”](../../mainline/DEVELOPMENT_STATUS.md#最近一次验证)，不把历史结果当作新增人工签收。
 - 滚动、地雷、BGA/cache 的本线历史 focused/full 数字与逐刀实现只查 [CHANGELOG.md](CHANGELOG.md)，不冒充当前全局 gate。
 
 ## 下一检查点
@@ -47,4 +47,4 @@
 
 ## 文档治理验证
 
-2026-09-29：核对 [layout solver](../../../osu.Game.Rulesets.Bms/Skinning/BmsGameplayLayoutSolver.cs) 的选中包 BGA 参数、常规四角与极窄空间避让分支，并与 memory 对齐。每 viewport 一个 player、旧“14K→中缝”设置措辞和逐谱人工门保持；未运行产品测试或逐谱对照，不将 P1-A 局部画面或自动结果扩成 BGA 保真签收。此前审查见 [CHANGELOG](CHANGELOG.md)。
+2026-09-29 自动调整偏移交付后复核：普通/STOP 显示包装、回放跨零和原算法恢复条件与代码对齐，显示偏移不受 Gimmick 开关代管。留存产品验证见 P1-C；未重跑产品测试、Release 或逐谱对照。每 viewport 一个 BGA player、旧“14K→中缝”设置措辞和原人工门仍保持，先前布局与记忆审查见 [CHANGELOG](CHANGELOG.md)。
