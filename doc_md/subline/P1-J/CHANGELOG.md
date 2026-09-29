@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-09-30
+
+### 声音状态、约束与诊断记忆健康审查
+
+- 对照 `BmsKeysoundStore` 的零频率暂停/恢复、seek 清旧声，以及 `DrawableNote` 从 pooled head 父对象读取原 WAV slot 的路径，修正转谱 BGM 条款仍将 pause/seek 都写成“停止”的矛盾。
+- bgm1 误播记忆明确历史症状，移除已过期的“手动 LN store 缺口”，当前能力统一回链 STATUS；keysound 记忆补 NUnit `TearDown` 早于 visual steps 的清场地雷，分清虚拟轨/请求计数、实际后端位置与设备听感三类证据。
+- 回读 2026-09-29 最终 focused/mania/BMS full TRX 与集中验证记录，保留原测试日期、具名旧失败与人工门；STATUS 去重复数字，PLAN 去重复实现基线。本次仅文档治理，未改源码、重跑产品测试或构建，未新增设备与真实谱签收。
+
 ## 2026-09-29
 
 ### 暂停保位与手动转谱长条声音闭环

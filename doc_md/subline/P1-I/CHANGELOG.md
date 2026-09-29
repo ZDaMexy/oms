@@ -1,5 +1,14 @@
 # P1-I 变动日志
 
+## 2026-09-30
+
+### 专项文档与记忆健康审查
+
+- 对照 `RealmDetachedBeatmapStore` 合并 metadata 通知和 `BeatmapCarousel.rulesetMetadataUpdated` 的快照更新/`clearExistingPanels` 重绑，纠正 CONSTRAINTS 中残留的“难度表标签重进或重启才生效”说法；持久化通知 authority 链接 P1-H 第 21 条，不复制跨线合同。
+- STATUS 保留当前能力与 2026-09-29 软件验证，删除重复 read-model 合同清单；PLAN 删除已完成阶段表，聚焦实机手感、窄窗口及现场大库诊断。
+- composition memory 将重复 backfill 合同改为症状定位；展示导航召回补祖先可见性与已改 JSON 但未重绑 panel 的地雷；性能召回补批次通知与缓存的区别，不预设掉帧根因。
+- 本次仅文档治理，未改源码、未运行产品测试；不更新产品验证日期，不关闭人工门。
+
 ## 2026-09-29
 
 ### 单轨上限筛选实现与验收补齐

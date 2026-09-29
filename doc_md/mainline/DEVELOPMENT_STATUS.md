@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-09-29（谱库、声音与单轨筛选；皮肤专项仍为 2026-09-14）
+> 最后核对：2026-09-30（文档与记忆专项复核；产品验证仍为 2026-09-29，皮肤专项仍为 2026-09-14）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -14,7 +14,7 @@ OMS处于Phase 1.x后段。complex 已退役；用户认可静线最近调整并
 - Windows-only，保留osu!mania与第一类BMS，Osu/Taiko/Catch已删除；离线优先，Phase 3前OMS私有服务与默认endpoint为空。用户主动添加公共BMS难度表URL仅是既有窄例外。
 - BMS直读`chartbms/`，mania直读`chartmania/`；支持portable `data/`与自定义数据根。主要工程为`osu.Desktop.slnf`、`osu.Game.Rulesets.Bms`及`oms.Input`。
 - 当前协作分支为`master`。皮肤恢复/数据门`SV1-0`已关闭；迁移归档和四个无authority orphan blob继续保全，不能由scanner认领或清理。恢复事实见[恢复审计](../other/SKIN_SYSTEM_RECOVERY_20260710.md)及[数据/实机报告](../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
-- 2026-09-29 本轮谱库、声音与筛选开发开始时工作区干净，HEAD 为 `f94c1b6`；`git fetch origin` 成功，领先 `origin/master` 8、落后 0。当前本地实现与验证以所属子线为准，未推送、未新增人工签收。
+- 2026-09-30 专项复核开始时工作区干净，HEAD 为 `8c22fdf`；`git fetch origin` 成功，领先 `origin/master` 9、落后 0。本地产品实现已提交，尚未推送；此基线不代表远端已含这些改进。
 
 ## 当前执行门与全局风险
 
@@ -26,7 +26,7 @@ OMS处于Phase 1.x后段。complex 已退役；用户认可静线最近调整并
 | 4 | 真实LN/CN/HCN、音频/特殊谱、BGA、选歌大库与发行组合仍需验收；P1-L仍逐viewport创建player，单content/decoder未完成 | [子线路由](../subline/README.md) |
 | 5 | V-001～V-005及候选发行包人工签收；2026-07-14恢复验收不能代替新增视觉与最终包验证 | [集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)、[P1-G](../subline/P1-G/DEVELOPMENT_STATUS.md) |
 
-本轮已实现谱库缺失恢复与历史保全、难度表当前页刷新、长伴奏暂停保位、手动转谱长条发声和单轨上限筛选；软件验证与未完成的真实大库、交互和听感门分别见 [P1-H](../subline/P1-H/DEVELOPMENT_STATUS.md)、[P1-I](../subline/P1-I/DEVELOPMENT_STATUS.md)、[P1-J](../subline/P1-J/DEVELOPMENT_STATUS.md)。发行覆盖须保持原便携模式，非便携真实设备与公开发行组合验收归P1-F/P1-G。
+谱库缺失恢复与历史保全、难度表当前页刷新、长伴奏暂停保位、手动转谱长条发声和单轨上限筛选已实现；软件验证与未完成的真实大库、交互和听感门分别见 [P1-H](../subline/P1-H/DEVELOPMENT_STATUS.md)、[P1-I](../subline/P1-I/DEVELOPMENT_STATUS.md)、[P1-J](../subline/P1-J/DEVELOPMENT_STATUS.md)。发行覆盖须保持原便携模式，非便携真实设备与公开发行组合验收归P1-F/P1-G。
 
 此前 C7 完整包已完成实际安装恢复及从上一修复版跨版本覆盖，原保存根前后字节和属性一致；旧候选误入已有保存根的事故仍只有事后保全、没有该根事前快照，不能追溯宣称无损。发行和数据边界见 [P1-F 状态](../subline/P1-F/DEVELOPMENT_STATUS.md)。
 
@@ -34,7 +34,7 @@ OMS处于Phase 1.x后段。complex 已退役；用户认可静线最近调整并
 
 ## 最近一次验证
 
-2026-09-29 本轮谱库、声音与单轨筛选的软件验证已完成，Release 编译通过；完整回归中的既有失败已逐项对照，不能称全套全绿。精确证据与人工边界见[本轮验证记录](../other/EXPERIENCE_CLOSURE_20260929.md)。真实大库、操作手感、设备听感与发行签收仍未完成。
+2026-09-29：谱库、声音与单轨筛选的软件验证已完成，Release 编译通过；完整回归中的既有失败已逐项对照，不能称全套全绿。精确证据与人工边界见[验证记录](../other/EXPERIENCE_CLOSURE_20260929.md)。真实大库、操作手感、设备听感与发行签收仍未完成。
 
 2026-09-29：BMS 与 BMS→mania 分别新增默认关闭的自动键音，按谱面时刻播放，仍由真实操作决定成绩；软件证据、完整回归旧失败与真实听感待验收边界见 [P1-J 状态](../subline/P1-J/DEVELOPMENT_STATUS.md#最近一次验证)。
 
@@ -50,4 +50,4 @@ OMS处于Phase 1.x后段。complex 已退役；用户认可静线最近调整并
 
 2026-09-29 开发存储治理：新增进程级 `UseDevelopmentStorage.ps1`，按 [AGENTS 开发磁盘约束](../../AGENTS.md#开发磁盘约束)将后续命令的临时文件、NuGet 与 .NET CLI/解包缓存放在非系统盘 checkout 的 `.dev-cache`。真实无依赖探针 restore/build/run、NuGet 路径、PowerShell 5.1 和系统盘拒绝 fixture 已验证；未运行产品回归。旧 C 盘产物清理被工具策略拦截、用户尚未手动执行，不能记为释放；Codex 全局数据未迁移，仍可能增长。
 
-2026-09-29 自动键音交付后专项复核：核对当前设置、播放游标、转谱与输入发声边界，回读留存 TRX、失败对照及 Release 日志；更新仓库基线，区分默认手动键音与自动键音合同，补齐人工试听汇总入口，精简记忆中的重复进度。仅文档与记忆变更，未重跑产品测试或新增实机签收；文档与 diff 检查通过。历次治理见[同步记录](CHANGELOG.md#2026-09-29)。
+2026-09-30：对照已提交源码、留存 TRX、失败对照及 Release 日志，修正难度表当前页刷新、暂停保位与手动长条在合同和记忆中的旧描述；精简重复进度，补清旧发行物不覆盖后续功能与 schema 58 的边界。仅文档与记忆治理，未重跑产品测试或新增实机签收；检查结果见[同步记录](CHANGELOG.md#2026-09-30)。

@@ -15,16 +15,9 @@ I1/I2 与 I5–I7 主链存在；**I3 单轨产品面与 I4 单轨/搜索自动�
 - 三项全启用且上限合计不足 100% 时，已具构成统计的谱面不匹配；合计恰为 100% 时只匹配精确配比。控件提示和编辑浮层如实说明，可关闭某项放宽限制；缺统计仍暂时展示。
 - persisted `ChartFilterStats`、旧库后台 backfill、进度通知与 resolved 负缓存。
 - 展示层级切换、层级返回条、难度表/内外部谱库层级分组。
-- 难度表归类、converted-mania 三态展示、BMS→mania 难度表分组、IIDX 难度胶囊及文件位置入口。
+- 难度表归类、converted-mania 三态展示、BMS→mania 难度表分组、IIDX 难度胶囊及文件位置入口。难度表整批写入后的列表分组与可见谱卡标记已按通知更新，不要求重进选歌；持久化/通知归属 [P1-H](../P1-H/DEVELOPMENT_STATUS.md)。
 
-## 必须保留的实现合同
-
-- RC/LN/SCR 互斥：SCR 优先，LN 是非 scratch long note，RC 为剩余。
-- Realm Phase 1 枚举必须先 `.AsEnumerable()`；禁止在 Realm `IQueryable` 上比较 link-traversal 的 `Ruleset.ShortName`。
-- 旧库 Phase 2 直读 `.bms` + 轻量计数 + 批量写回；禁止逐张 `GetWorkingBeatmap` 与 UI 抢全局锁。
-- 无 stats 的已处理谱也要写 `ChartFilterStatsResolved`，避免每次启动重复补算。
-- 匹配 fail-open：缺 stats 不静默隐藏谱面。
-- visual 仅生成启用段上限；公开文本搜索继续支持完整范围语法。
+实现边界统一见 [TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，包括互斥计数、旧库 backfill、缺统计 fail-open 与文本范围能力。
 
 ## 最近一次验证
 
@@ -46,3 +39,7 @@ I1/I2 与 I5–I7 主链存在；**I3 单轨产品面与 I4 单轨/搜索自动�
 
 1. 人工核对单轨拖拽、零宽入口、数值提交、开关反馈、窄窗口与模式往返，确认空结果提示可理解。
 2. 仅在真机大库再次复现时启动性能诊断，不做无证据优化。
+
+## 文档治理验证
+
+2026-09-30 对照批次 metadata 通知和谱卡重绑代码，纠正旧“重进/重启才生效”的约束；PLAN 删除已完成能力清单，memory 保留独有诊断。未运行产品测试、未新增人工签收；最近一次产品验证仍为 2026-09-29。

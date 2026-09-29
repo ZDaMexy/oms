@@ -21,17 +21,17 @@ metadata:
 
 ## 单轨空结果诊断
 
-- 三类真实占比合计 100%，但控件编辑的是各类上限：三项全启用且上限和不足 100% 必然无解，等于 100% 则只剩精确配比。看到空列表先查启用状态与条件交集，不要把尾段空白误当成会放宽匹配的容差，也不要用 fallback 隐藏真实条件。
+- 三类真实占比合计 100%，但控件编辑的是各类上限：对已有构成统计的谱面，三项全启用且上限和不足 100% 必然无解，等于 100% 则只剩精确配比。看到空列表先查启用状态与条件交集，不要把尾段空白误当成会放宽匹配的容差，也不要用 fallback 隐藏真实条件。
 - 缺统计的谱暂时展示可能与上述空结果不同，这是既有 fail-open 行为；先查 backfill 是否完成。
 - 单轨零宽段的恢复应走固定标签入口；不能因轨道段体不可命中就断言数值丢失。
 
-## Backfill 合同
+## Backfill 诊断
 
-1. Phase 1 先 `.AsEnumerable()` 再按 ruleset 过滤，读取 persisted stats 填缓存。
-2. Phase 2 直读 `.bms`，轻量 decoder 计数，按 200 左右批量 Realm 写回并更新进度。
-3. 轻量分类必须复用 `BmsBeatmapConverter.IsScratchLane`，不得复制 channel 规则。
-4. 不可算/空谱也写 `ChartFilterStatsResolved` 负缓存；否则每次启动重复补算。
-5. cache-updated 用订阅者列表，迟到订阅者立即收到一次；阶段完成强制刷新，中间刷新节流。
+完整行为合同由 [P1-I CONSTRAINTS](../../doc_md/subline/P1-I/TECHNICAL_CONSTRAINTS.md) 的 read-model 章节拥有；排查时先区分以下症状：
+
+- 每次启动都重新补算空谱：检查 `ChartFilterStatsResolved` 是否持久化，不能只检查 stats 是否为 null。
+- 缓存已有值但列表仍不刷新：检查一次性 bootstrap 是否误挡迟到订阅者；缓存首次填充与回调登记不是同一个生命周期。
+- 补算中周期性卡顿：按 notify/refilter 时序定位，不先提高补算并行度；阶段完成强制刷新与中间节流职责不同。
 
 ## 关键地雷
 

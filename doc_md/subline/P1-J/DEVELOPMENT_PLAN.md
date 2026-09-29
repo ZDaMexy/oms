@@ -1,6 +1,6 @@
 # P1-J 当前计划：BMS gameplay 性能与音频时序
 
-> 最后更新：2026-09-29（暂停保位与手动 LN 自动证据闭合，活动计划保留人工门）
+> 最后更新：2026-09-30（文档治理：精简重复基线，人工门与诊断触发条件不变）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定音频合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，已完成修复与取证按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -13,13 +13,7 @@ P1-J 只拥有 BMS gameplay runtime 的 keysound timing、shared audio pool、la
 
 ## 当前基线
 
-- 原生 BMS 与转谱-mania 的普通密度主要键音、帧抖动和开局冻结故障已收口。
-- BGM/scratch/tap note 与默认手动转谱 LN head 均已走 shared `BmsKeysoundStore`，Player 路由和回归证据已闭合。
-- lane/order 热路径、通道自动增长、per-WAV cut、prewarm 与 diagnostics seam 已有稳定合同；pause 保位冻结，seek/retry 清除旧声部。
-- BMS gameplay beatmap track 保持静音但仍是时钟源；选歌试听只接受 `#PREVIEW`。
-- 完整 lane timeline、末端 lane 与 mod 后 shared-store production proof 已随 C3/P1-K 闭合；后续只保留回归和真实谱 smoke，证据见 [P1-K CHANGELOG](../P1-K/CHANGELOG.md#2026-08-30)。
-
-完成阶段和误判/回退过程不在 PLAN 重述，统一查 [CHANGELOG](CHANGELOG.md)。
+普通密度修复、完整 lane timeline、手动与自动转谱 LN、暂停保位均已有软件基线，详见 [STATUS](DEVELOPMENT_STATUS.md)。资源与发声边界由 [CONSTRAINTS](TECHNICAL_CONSTRAINTS.md) 管理；已完成实施与误判/回退过程只查 [CHANGELOG](CHANGELOG.md)。
 
 ## 当前执行顺序
 

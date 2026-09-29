@@ -32,7 +32,7 @@ Carousel.performFilter依次debounce→update线程snapshot→Matching/Sorting/G
 ## Realm 与 UI 分开查
 
 - link-traversal predicate可能抛错或静默零结果；BmsChartFilterStatsBackfill先AsEnumerable，再用ruleset helper客户端过滤。Found N应在zero early-return前记，避免只能用缺日志猜流程。
-- BmsTableGroupMode有独立分组缓存，不是parsedDataCache的owner；不要跨缓存误归因。
+- BmsTableGroupMode有独立分组缓存，不是parsedDataCache的owner；不要跨缓存误归因。难度表变更后的批次重新筛选是另一触发来源：同时观察 ID 通知合并、最新 JSON 读取和可见谱卡重绑，不把它当作缓存失效后逐谱实时查表。
 - 滚到极端keysound谱时的stutter曾与TextureAtlas size exceeded相关，独立于star resolution；需现场线程/日志确认。
 - native BMS现在显示作者等级/胶囊，converted-mania另走星数；先确认ruleset/实际panel，再用旧“星级动画”截图安排修复。
 

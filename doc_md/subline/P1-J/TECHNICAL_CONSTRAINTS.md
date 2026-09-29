@@ -1,6 +1,6 @@
 # P1-J 技术约束：BMS gameplay 性能与音频时序
 
-> 最后更新：2026-09-29（暂停保位、seek 清旧声与手动转谱 LN 合同）
+> 最后更新：2026-09-30（文档治理：统一暂停保位与 seek 清旧声表述，行为未改）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，事故取证与旧测试数字按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线与 authority
@@ -44,7 +44,7 @@
 1. P1-K 决定“转出什么对象”，P1-J 决定这些对象在 mania runtime 如何通过 shared store 发声。
 2. 转谱 BGM/scratch/tap note 使用 hosted `IManiaKeysoundStore`/`BmsKeysoundStore`；tap note 保持 mania `DrawableNote` 池化，不恢复专用非池化 drawable。
 3. sample-only BGM/scratch 对象的 `Samples` 必须为空，真实键音只放 `KeysoundSample`；否则 mania column feedback 会把 BGM/scratch 当下一可玩对象按键触发。converter test 必须同时守住空 `Samples` 与存在 `KeysoundSample`。
-4. 转谱 BGM sample-only 对象必须 autoplay 出声；pause/seek 由中心 store 统一停止。
+4. 转谱 BGM sample-only 对象必须 autoplay 出声；pause 由中心 store 保位冻结，resume 原位继续；seek/retry 清除旧声部，遵守上节资源合同。
 5. 转谱 LN tail 必须静音。`BmsConvertedHoldNoteHitObject` 保留头音/slot，继承普通 HoldNote 池化与嵌套行为；自动键音由音频清单统一经 store 播放。关闭自动键音时 pooled `DrawableNote` 仅在对象为 `HeadNote` 时读取父对象的 `IHasManiaKeysound` 并经 store 发声；不更换普通 HeadNote 类型、不让 tail 使用父对象头音。普通 mania 保持原样本路径。禁止非池化自定义 hold drawable 和 per-note sample player。
 6. `BmsToManiaKeysoundStoreFactory.Create(IRulesetConfigCache?)` 签名因 mania 反射绑定保持兼容；内部通道 floor 128 不得无 profile/保真替代方案而下调。
 7. BMS gameplay 的 `working.Track` 必须静音但继续作为 gameplay clock source：

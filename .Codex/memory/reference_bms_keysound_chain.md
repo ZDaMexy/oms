@@ -23,11 +23,12 @@ metadata:
 - NR/HO/IN 会重建 mania 对象，HO/IN 还会删除 BGM/皿 sample-only；自动键音不能只在 Mods 之后扫描 `IHasManiaKeysound`。转换器保存只读音频值快照，每局游标独立；预热必须覆盖快照里的已删除对象声音。当前开关关闭时这些 Mod 的旧音频行为未改。
 - 自动键音不能挂在 playable drawable 的 Update 上：早按后对象可能在应发声时刻前已回收。音频游标必须独立；mania Column 的按键反馈也须单独关，不能仅 gate `DrawableNote.PlaySamples()`。
 - Player 时间测试中普通推进应驱动实际 `FramedBeatmapClock.Source`，并扣除 `TotalAppliedOffset`；`GameplayClockContainer.Seek` 是显式跳转，会按合同跳过过去的自动声音，不能拿它模拟连续游玩。确定性输入/时差对照的 ManualClock 设 Rate=0，避免插值自行推进；速率行为另作生命周期测试。
+- 音频位置 visual test 的清理用 `[TearDownSteps]` 加末尾步骤；NUnit `[TearDown]` 早于框架 `AfterTest` 的 `RunTestBlocking`，若其中 Schedule(Clear)，会在实际步骤前拆掉场景，使空通道集合的 All 就绪检查误过、时钟启动调度永远不执行。出现 running 超时先核查场景生命期，不能删时钟/实际位置断言规避。
 - 转谱 HoldNote 不能用非池化自定义嵌套 head；mania `DrawableHoldNote.Update()` 假设池化 head/tail 已建立。
 - mania pool 有 base-type fallback，但前提是 `CreateDrawableRepresentation` 返回 null；返回专用 drawable 就绕过池。
 - “人声截断/少键”先检查 parser，尤其缺省 `#LNTYPE` 应按 1；不要先改通道池。
 - “末端 lane/改键后静音”先检查 parser keymode、timeline 与 post-mod lane，见 [[reference_bms_lane_keysound_timeline_bounds]]、[[reference_bms_lane_rearrangement]]；自动转谱声像按原音频列，不能用重排后的玩法列反推音频漏路由。
-- 虚拟轨测试看不见真实发声/静音，音频改动必须真机。
+- 虚拟轨或 store 请求计数只能证明调度/路由；实际 WAV/native position 可证明后端保位，但实际设备听感仍须人工验收，不能互相代签。
 - GC 性能看 gen0:gen1、pause duration 和对象存活；少量中寿命分配也可造成晋升风暴。普通密度问题已收口，50k 先用 `BmsGameplayStallDiagnostics` 取证。
 
 历史误判、旧测试数字和逐日回退只查 P1-J/P1-K CHANGELOG。2026-08-30 C3 前置的最终 focused/full/Release 数字见 [P1-K CHANGELOG](../../doc_md/subline/P1-K/CHANGELOG.md#2026-08-30)。

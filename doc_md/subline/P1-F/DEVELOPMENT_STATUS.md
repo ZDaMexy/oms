@@ -1,6 +1,6 @@
 # P1-F 开发进度：发行后置与离线发布验收
 
-> 最后核对：2026-09-29（核对旧候选留存证据及后续产品变化；发行启动验证仍为 2026-09-12）
+> 最后核对：2026-09-30（补齐新功能与数据库升级的发行边界；发行启动验证仍为 2026-09-12）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，当前执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 
 ## 当前阶段
@@ -23,7 +23,7 @@
 
 ## 最近一次验证
 
-最近一次发行启动验证为 2026-09-12，以下候选与隔离启动结果固定为形成时的快照。其后的 9 月 13 日静线外观、9 月 14 日皮肤设置/编辑与按模式选择、9 月 22 日 TOTAL 及历史成绩兼容修改均未由该 ZIP 的旧结果验收。对应产品验证见 [P1-A STATUS](../P1-A/DEVELOPMENT_STATUS.md) 与 [P1-C STATUS](../P1-C/DEVELOPMENT_STATUS.md)，不能替代新候选的打包、启动或人工发行矩阵。
+最近一次发行启动验证为 2026-09-12，以下候选与隔离启动结果固定为形成时的快照。其后的 9 月 13 日静线外观、9 月 14 日皮肤设置/编辑与按模式选择、9 月 22 日 TOTAL 及历史成绩兼容、9 月 29 日自动偏移/自动键音、谱库 schema 58 与失效恢复、暂停续播及单轨筛选均未由该 ZIP 的旧结果验收。对应产品验证见 [P1-A STATUS](../P1-A/DEVELOPMENT_STATUS.md)、[P1-C STATUS](../P1-C/DEVELOPMENT_STATUS.md) 与[体验验证记录](../../other/EXPERIENCE_CLOSURE_20260929.md)，不能替代新候选的打包、启动或人工发行矩阵。
 
 验证候选为 release-repo/oms_20260912_4.zip。正常 Release publish/打包、单内置构建 fixture、独立作者套件制作与错误拒绝、集中验收目录组装通过。独立副本在缺少 complex 原件、预先保存旧星轨配置的情况下，首次启动/custom root/损坏副本恢复/同包覆盖四轮正常关闭，配置已保存为 simple；证据 artifacts/simple-only-startup-20260912/results.json。该候选修正了作者脚本 UTF-8 BOM，386 个游戏运行文件逐字节匹配该四轮启动来源，作者检查脚本匹配实际通过的独立套件副本（artifacts/simple-only-final-publication.log）；未再次宣称 ZIP 解包或已有个人库迁移签收。集中目录组装记录 artifacts/simple-only-acceptance.log；制品保持生成时快照，之后仅将组装结束提示改为静线已内置、作者包按需导入，不改变组装或游戏行为。单内置迁移与自动回归结论见 [P1-A 同期记录](../P1-A/CHANGELOG.md#放弃星轨并恢复唯一内置静线)。以下为更早的发行证据，不计为本轮通过。
 
@@ -41,4 +41,4 @@
 
 ## 文档治理验证
 
-2026-09-29：核对发行脚本、9 月 12 日四轮启动 JSON、最终文件匹配及组装日志，保留历史通过身份；修正继续打磨的陈旧表述，并明确后续设置、模式选择与 TOTAL 不由旧包代验。本轮未重打发行物、运行游戏或新增人工结论；原事故边界与公开制品摘要不变，历史细节见 [CHANGELOG](CHANGELOG.md)。后续候选按 [PLAN](DEVELOPMENT_PLAN.md) 与 [RELEASE](../../other/RELEASE.md) 复验。
+2026-09-30：对照当前 schema 与 9 月 29 日软件验证，补齐旧候选尚未覆盖的玩法、谱库、暂停续播和筛选范围；计划增加实际候选隔离升级与历史保全验收。未重打发行物、运行游戏或重验 9 月 12 日启动结果；schema 57 事故、公开制品摘要和人工边界保持，历史见 [CHANGELOG](CHANGELOG.md)。后续候选按 [PLAN](DEVELOPMENT_PLAN.md) 与 [RELEASE](../../other/RELEASE.md) 复验。

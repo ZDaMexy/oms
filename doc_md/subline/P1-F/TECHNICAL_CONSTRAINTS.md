@@ -17,4 +17,4 @@
 11. 原 V-001/V-005 输入固定于 `skin-c7-acceptance/legacy/`，原字节、原清单和摘要同时保留。发行与验收组装在写入输出前验证固定文件，不从未提交的 `artifacts/` 猜取或重新生成原验收输入；组装还须确认安装原件与作者套件中的同名成品一致。
 12. 游戏采用 `PublishSingleFile=false` 的完整自包含多文件 ZIP，直接运行根目录 `osu!.exe`，保留实际发现需要的规则集 DLL 和全部运行文件。完整自解压会把 `AppContext.BaseDirectory` 移到 TEMP，不能再作为 portable/canonical 路径合同；只去掉 `IncludeAllContentForSelfExtract` 也不能满足 `RulesetStore` 的物理 DLL 发现。游戏发布方式改变必须经过真实发行副本复验，不能沿用旧 single-file 窗口/进程 smoke。
 13. Desktop 建立宿主时将 `OsuGameDesktop.IsPortableMode` 传入 `HostOptions.PortableInstallation`。便携用户库由程序旁 `data/` 及其 `storage.ini` 选择，框架缓存位于程序旁 `cache/`；缓存不等于用户库，也不随该指针重定向。发行验收必须记录实际 `client.realm`、本轮日志、工作副本与缓存位置，不能以 marker 存在或进程存活推定隔离成立。非便携真实运行在独立账户/虚拟机验证，不能让候选包接触当前账户已有库。
-14. 发生误入已有数据根时保全实际数据、指针及运行证据，不记录公开账户路径。事后逐字节备份不构成事前快照；未经事前后对应证据不得宣称无损或回滚成功，不猜测删除、降级数据库或恢复未知旧状态。本轮 Realm schema 57 迁移必须按这一边界记录。
+14. 发生误入已有数据根时保全实际数据、指针及运行证据，不记录公开账户路径。事后逐字节备份不构成事前快照；未经事前后对应证据不得宣称无损或回滚成功，不猜测删除、降级数据库或恢复未知旧状态。该边界适用于所有 schema 升级；schema 57 事故仅作为历史证据保留，不能作为 schema 58 或后续升级的验收证明。

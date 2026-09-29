@@ -7,19 +7,7 @@
 
 P1-I 拥有 BMS Song Select 的分组、搜索、筛选、展示层级和其同步 persisted read-model；不拥有谱库扫描、解析 truth、全局 carousel 新承诺或 gameplay/results 产品面。
 
-## 已完成基线
-
-| 阶段 | 结果 |
-| --- | --- |
-| I0 | 归线与 RC/LN/SCR 互斥语义冻结 |
-| I1 | persisted 构成 read-model、import/reuse/backfill 主链 |
-| I2 | BMS criteria 与完整文本搜索语法 |
-| I3 实现 | BMS-only key-count 与单行单轨 composition 上限段；验证边界见 STATUS |
-| I5 | 歌曲↔谱面展示层级与 BMS-local 持久化 |
-| I6 | 层级返回条、Back 优先级与 scope 解耦 |
-| I7 | 难度表分组解析缓存与大库基线 |
-
-当前实现事实见 [STATUS](DEVELOPMENT_STATUS.md)，剩余工作是人工体验签收；不扩张新 filter family。
+当前能力与软件验证见 [STATUS](DEVELOPMENT_STATUS.md)，阶段实现史见 [CHANGELOG](CHANGELOG.md)。本计划仅保留人工体验签收与有现场证据才触发的性能诊断，不扩张新 filter family。
 
 ## 当前执行顺序
 
@@ -41,10 +29,6 @@ P1-I 拥有 BMS Song Select 的分组、搜索、筛选、展示层级和其同�
 
 验收：同一大库、同一操作给出前后时延和结果一致性；无证据时保持现状。
 
-## 必须保持的边界
+## 执行边界
 
-- SCR 优先；LN 是非 scratch long note；RC 是剩余 playable object，三者互斥。
-- Realm Phase 1 先 `.AsEnumerable()`，不在 Realm `IQueryable` 上比较 link-traversal 的 ruleset short name。
-- Phase 2 直读 `.bms` 轻量计数并批量写回；处理过但无 stats 的谱仍要持久化 resolved 标记。
-- text search 是完整能力，visual controls 只是安全子集。
-- 不新建 per-ruleset `FilterControl` host，不扩 mania UI，不把本线变成选歌总体重构。
+沿用 [TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md) 的互斥计数、完整文本范围、backfill 与共享产品面合同。不得借人工验收新建 per-ruleset `FilterControl` host 或扩为选歌总体重构。

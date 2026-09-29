@@ -1,6 +1,6 @@
 # P1-I 技术约束：BMS 选歌筛选与搜索定制
 
-> 最后更新：2026-09-29（明确单轨预算、零宽入口与全启用语义）
+> 最后更新：2026-09-30（校准难度表批次刷新与谱卡重绑合同）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，追加项与更正史按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线约束
@@ -117,7 +117,7 @@
     - **取值只读、严禁建模到可写 DTO**：osu.Game 通过新增 `BmsPersistedMetadataResolver.GetDifficultyTableEntries` 读取，**只从已解析缓存的 `BmsPersistedMetadataData.ExtensionData` 里取 `difficulty_table_entries`**（osu.Game 侧 `BmsPersistedDifficultyTableEntry` 只建模 `TableName/LevelLabel/Level/TableSortOrder` 四字段、**绝不回写**）。**不得**把 `difficulty_table_entries` 建模成 osu.Game 可写 `BmsPersistedMetadataData` 的显式字段——那样 converted-star 写回会按缺字段的 DTO 重新序列化、抹掉 `Symbol`/`Md5`，重蹈 [P1-H #22](../P1-H/TECHNICAL_CONSTRAINTS.md) 的「共享 `RulesetData` 列互相 clobber」破坏性 ping-pong。
     - **展示逻辑收口在 `BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyTableClassification`**（display-only，键于 `Ruleset.ShortName=="bms"`，故 BMS-mode 与转谱-mania 同一谱面取值一致）：按 `TableSortOrder` 升序、每个表取一个 `LevelLabel`、用 `/` 连接（被多个难度表索引则一一列举）。`LevelLabel` 已含符号前缀（`buildLevelLabel`：`★`+`8` / `sl`+`4`），直接显示。表顺序＝当前 `TableSortOrder`（导入/启用序），难度表管理改造后顺序会变、本展示自动跟随。
     - **无归类即收起**：非 BMS 谱面、或未被任何已启用难度表索引（Unrated）时返回空串；面板把该 `OsuSpriteText` `Alpha=0`，借 FillFlow「非 present 子项不参与排布」消除星级↔按钮间的幽灵间距（不得给空标签留固定宽度）。
-    - **不随 ruleset / mod 变化刷新**：归类只依赖谱面自身 BMS 难度表条目，仅在 `PrepareForUse` 取一次；中途启用/禁用难度表的可见性仍沿用既有「重进选歌或重启生效」的 carousel staleness 边界（[reference-bms-difficulty-table]）。回归 `BeatmapLocalMetadataDisplayResolverTest` 4 条（单表 / 多表按 sort order / Unrated 空 / 非 BMS 空）。
+    - **按已提交 metadata 批次重绑，不依赖 ruleset / mod 刷新**：归类仍在 `PrepareForUse` 读取谱面自身的 persisted 难度表条目。难度表整批写入后，经 `RealmAccess` → `RealmDetachedBeatmapStore` → `BeatmapStore.RulesetMetadataUpdated` 合并通知并读取最新 JSON；`BeatmapCarousel` 更新既有快照，使用 `Filter(Criteria, clearExistingPanels: true)` 重新筛选/分组及重绑可见谱卡，保留仍可选的当前谱面身份。不得恢复“必须重进或重启”的旧边界，也不改成逐帧实时查难度表。跨层通知与大库约束由 [P1-H 技术约束](../P1-H/TECHNICAL_CONSTRAINTS.md) 第 21 条拥有；resolver 回归继续覆盖单表、多表顺序、Unrated 与非 BMS。
 
 ### mania「显示转谱」三态（2026-06-22）
 

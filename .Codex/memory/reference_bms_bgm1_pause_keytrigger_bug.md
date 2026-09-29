@@ -10,7 +10,7 @@ metadata:
 
 权威合同：[P1-J CONSTRAINTS](../../doc_md/subline/P1-J/TECHNICAL_CONSTRAINTS.md#bmsmania-音频合同)；当前边界见 [P1-J STATUS](../../doc_md/subline/P1-J/DEVELOPMENT_STATUS.md)，本页仅保留误播根因与定位方法。
 
-症状：按最左键触发 bgm1，多按重叠，暂停不停。
+历史症状：按最左键触发 bgm1，多按重叠，暂停不停；不是当前版本仍有此故障的结论。
 
 ## 真根因
 
@@ -28,4 +28,4 @@ mania `Column.OnPressed` 会通过 `GameplaySampleTriggerSource` 播放本列“
 - 可用“静音 store 的 BGM”做隔离：仍能听见即证明是非 store 路径。
 - orphan-on-reuse、LN head、Track preview、谱面槽粘连均曾被验证为错误方向，不要重走。
 
-相邻但独立：长 one-shot BGM resume、手动模式转谱 LN 嵌套头音接入 store 和 50k dense。HoldNote 继承池化与自动模式头音已存在，不能把手动 store 缺口误写成 LN 全部未池化。相关诊断见 [[reference_bms_keysound_chain]]，修复历史按2026-06-08查 [P1-J CHANGELOG](../../doc_md/subline/P1-J/CHANGELOG.md)。
+相邻但独立：长 one-shot 的暂停保位、手动转谱 LN 发声路由和 50k dense 诊断。前两项当前实现与人工边界只查 P1-J STATUS，不沿用旧“手动 store 缺口”；pause/resume 与 seek 清旧声不能混为一谈。相关诊断见 [[reference_bms_keysound_chain]]，误播修复历史按 2026-06-08 查 [P1-J CHANGELOG](../../doc_md/subline/P1-J/CHANGELOG.md)。
