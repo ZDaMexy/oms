@@ -28,7 +28,7 @@
 ## Phase 2（演出旁路）约束 —— Step A–C 已落地，须长期保持
 
 1. 逐对象位置积分旁路**绕开**而非**改写** osu! 的 `ScrollingHitObjectContainer` 与 `TimingControlPoint` 钳制：实现为 BMS 专用 `BmsStopMotionScrollAlgorithm : IScrollAlgorithm`，经 `BmsPlayfield.CreateChildDependencies` 重缓存的 `BmsScrollingInfo` 注入；**零核心文件改动**。新增/改动绝不可回退为修改 `TimingControlPoint` 钳制或 `ScrollingHitObjectContainer`。
-2. 旁路启用必须门控（`BmsGimmickScrollMode`，默认 `Auto`）；`Off`/未命中检测时 `BmsScrollingInfo.Algorithm` 必须**逐实例跟随基类算法**，与当前前进式滚动逐像素一致（`BmsScrollingInfoTest` 锁定，不得弱化）。默认 `Auto` 下「非 gimmick 谱零改动」依赖 `IsStopMotionGimmick` **无误报**（阈值须保守：`MaxSlope ≥ 50 || FrozenFraction ≥ 0.05`，正常/中等 soflan 远低于此）；放宽阈值前须重新评估正常链路回归，且 `Off` 必须始终是可用的硬回退。
+2. 旁路启用必须门控（`BmsGimmickScrollMode`，默认 `Auto`）；`Off`/未命中检测且 BMS 固定显示偏移为 0、自动调整关闭时，`BmsScrollingInfo.Algorithm` 必须**逐实例跟随基类算法**，与当前前进式滚动逐像素一致（`BmsScrollingInfoTest` 锁定）。2026-09-29 用户授权的[自动调整偏移](../P1-C/TECHNICAL_CONSTRAINTS.md#自动调整偏移合同2026-09-29)在普通与 STOP 算法外仅包装显示时间；自动启用时跨 0 保持包装避免全谱重算，关闭且 0 恢复原实例。默认 `Auto` 下「非 gimmick 谱零改动」依赖 `IsStopMotionGimmick` **无误报**（阈值须保守：`MaxSlope ≥ 50 || FrozenFraction ≥ 0.05`）；放宽阈值前须重新评估正常链路回归，且 `Off` 必须始终是 Gimmick 的硬回退。
 3. 判定/计分继续走 `HitObject.StartTime` 时间链路；旁路只接管**视觉定位**，position 不得回流判定。`BmsScrollProfile` 不得进入 `beatmap.HitObjects`。
 4. `BmsScrollProfile` 必须用**原始未钳制** BPM/STOP/measure-length/scroll 构建（复用 `buildEventTimeline` 游走），不得改用钳制后的 `ControlPointInfo`；STOP 段距离零增长（真冻结）、负向滚动留待 Phase 3（当前 `D` 单调非减，`TimeAtDistance` 取最早达成时间）。
 5. **base 刻度 = 非冻结时长最常见 BPM**（`computeBaseBpm`，DEAD SOUL=132）。注意 `GetMostCommonBeatLength` 对演出谱会被 STOP-freeze/钳制点拉成 6；旁路在默认 Normal hi-speed 模式下因 `timeRange` 与之无关而忠实，**不得**为对齐而改用 6 做 base（那会复现 squash）。Floating/Classic 绝对刻度标定归 Phase 4。

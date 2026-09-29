@@ -34,7 +34,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private IBindable<double>? laneScrollLengthRatio;
 
         // BMS-side scrolling info re-cached to lanes so the stop-motion bypass can be injected without touching shared
-        // core types (P1-L Phase 2). Follows the base algorithm exactly until engaged for a gimmick chart.
+        // core types (P1-L Phase 2). Also supplies the independent BMS display-clock offset.
         private BmsScrollingInfo bmsScrollingInfo = null!;
 
         public BmsLaneLayout LaneLayout { get; private set; } = null!;
@@ -57,6 +57,10 @@ namespace osu.Game.Rulesets.Bms.UI
         public IBindable<double> ScrollLengthRatio => scrollLengthRatio;
 
         public BindableFloat LiftUnits { get; } = new BindableFloat();
+
+        public BindableDouble VisualOffset { get; } = new BindableDouble();
+
+        public BindableBool AutomaticVisualOffsetEnabled { get; } = new BindableBool();
 
         public Container CoverContainer { get; } = new Container
         {
@@ -158,7 +162,7 @@ namespace osu.Game.Rulesets.Bms.UI
         protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
         {
             // Shadow the ruleset's shared IScrollingInfo for our lanes with a BMS-side wrapper. Direction/TimeRange pass
-            // through; only the scroll algorithm can later diverge (and only for gimmick charts under the gate). Guarded
+            // through; only the scroll algorithm can diverge for gimmick charts or the BMS display offset. Guarded
             // so an isolated (parent-less) playfield keeps the base behaviour instead of throwing.
             var dependencies = new DependencyContainer(base.CreateChildDependencies(parent));
             dependencies.Cache(LayoutProvider);
@@ -167,6 +171,8 @@ namespace osu.Game.Rulesets.Bms.UI
             if (baseScrollingInfo != null)
             {
                 bmsScrollingInfo = new BmsScrollingInfo(baseScrollingInfo);
+                bmsScrollingInfo.VisualOffset.BindTo(VisualOffset);
+                bmsScrollingInfo.AutomaticVisualOffsetEnabled.BindTo(AutomaticVisualOffsetEnabled);
                 dependencies.CacheAs<IScrollingInfo>(bmsScrollingInfo);
             }
 

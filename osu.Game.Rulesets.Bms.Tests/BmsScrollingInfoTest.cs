@@ -83,6 +83,60 @@ namespace osu.Game.Rulesets.Bms.Tests
             });
         }
 
+        [Test]
+        public void TestFixedOffsetRestoresExactAlgorithmAtZero()
+        {
+            var baseInfo = new FakeScrollingInfo();
+            var info = new BmsScrollingInfo(baseInfo);
+
+            info.VisualOffset.Value = 20;
+            Assert.That(info.Algorithm.Value.PositionAt(1000, 980, 1000, 1000), Is.Zero);
+
+            info.VisualOffset.Value = 0;
+            Assert.That(info.Algorithm.Value, Is.SameAs(baseInfo.AlgorithmBindable.Value));
+        }
+
+        [Test]
+        public void TestAutomaticAdjustmentKeepsLifetimeAlgorithmAcrossZero()
+        {
+            var info = new BmsScrollingInfo(new FakeScrollingInfo());
+            info.AutomaticVisualOffsetEnabled.Value = true;
+            var initial = info.Algorithm.Value;
+            int algorithmChanges = 0;
+            info.Algorithm.BindValueChanged(_ => algorithmChanges++);
+
+            foreach (double offset in new[] { 500d, 1, 0, -1, -500, 0 })
+            {
+                info.VisualOffset.Value = offset;
+                Assert.That(info.Algorithm.Value.PositionAt(1000, 1000, 1000, 1000), Is.EqualTo(-offset));
+                Assert.That(info.Algorithm.Value.GetDisplayStartTime(2000, 0, 1000, 1000), Is.EqualTo(500));
+            }
+
+            Assert.That(info.Algorithm.Value, Is.SameAs(initial));
+            Assert.That(algorithmChanges, Is.Zero);
+        }
+
+        [Test]
+        public void TestStopMotionAndBaseChangesPreserveOffset()
+        {
+            var baseInfo = new FakeScrollingInfo();
+            var info = new BmsScrollingInfo(baseInfo);
+            info.VisualOffset.Value = 100;
+            var stopMotion = new BmsStopMotionScrollAlgorithm(new BmsScrollProfile(new[] { 0d, 1000d, 2000d, 3000d }, new[] { 0d, 1000d, 1000d, 2000d }, 500));
+            info.EngageStopMotion(stopMotion);
+
+            Assert.That(info.Algorithm.Value.PositionAt(2500, 950, 1000, 1000), Is.EqualTo(500));
+            var active = info.Algorithm.Value;
+            var replacement = new ConstantScrollAlgorithm();
+            baseInfo.AlgorithmBindable.Value = replacement;
+            Assert.That(info.Algorithm.Value, Is.SameAs(active));
+
+            info.Disengage();
+            Assert.That(info.Algorithm.Value.PositionAt(2500, 950, 1000, 1000), Is.EqualTo(1450));
+            info.VisualOffset.Value = 0;
+            Assert.That(info.Algorithm.Value, Is.SameAs(replacement));
+        }
+
         private sealed class FakeScrollingInfo : IScrollingInfo
         {
             public Bindable<ScrollingDirection> DirectionBindable { get; } = new Bindable<ScrollingDirection>();

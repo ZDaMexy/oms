@@ -16,6 +16,7 @@ using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Bms.Skinning;
+using osu.Game.Rulesets.Bms.UI.Scrolling;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.Scoring;
@@ -91,6 +92,9 @@ namespace osu.Game.Rulesets.Bms.UI
 
         [Resolved(CanBeNull = true)]
         private BmsKeysoundStore? keysoundStore { get; set; }
+
+        [Resolved(CanBeNull = true)]
+        private IScrollingInfo? scrollingInfo { get; set; }
 
         private IReadOnlyList<BmsLaneKeysoundEntry> keysoundTimeline = Array.Empty<BmsLaneKeysoundEntry>();
 
@@ -535,7 +539,7 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             foreach (var aliveObject in HitObjectContainer.AliveObjects)
             {
-                if (aliveObject is DrawableBmsHitObject bmsObject && !bmsObject.AcceptsPlayerInput)
+                if (aliveObject is DrawableBmsHitObject bmsObject && !bmsObject.AcceptsPlayerInput && hasReachedUnshiftedLifetime(bmsObject))
                     return true;
             }
 
@@ -566,6 +570,19 @@ namespace osu.Game.Rulesets.Bms.UI
             return keysoundTimeline[resolved < 0 ? 0 : resolved];
         }
 
+        private bool hasReachedUnshiftedLifetime(DrawableBmsHitObject hitObject)
+        {
+            if (!hitObject.IsInPool || scrollingInfo?.Algorithm.Value is not BmsVisualOffsetScrollAlgorithm)
+                return true;
+
+            // The visual wrapper preloads 500ms early, but that must not introduce earlier empty-POOR candidates
+            // or suppress an armed keysound before the original auto note would have loaded. Undo only that preload;
+            // preserve the shared container's earliest-judgement bound when it is earlier than the visual lifetime.
+            double originalStart = Math.Min(hitObject.HitObject.StartTime - hitObject.HitObject.MaximumJudgementOffset,
+                hitObject.Entry!.LifetimeStart + BmsVisualOffsetScrollAlgorithm.MaximumOffset);
+            return Time.Current >= originalStart;
+        }
+
         private bool shouldTriggerEmptyPoor()
         {
             double currentTime = Time.Current;
@@ -576,7 +593,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
             void inspectCandidate(DrawableBmsHitObject hitObject)
             {
-                if (!hitObject.AcceptsPlayerInput)
+                if (!hitObject.AcceptsPlayerInput || !hasReachedUnshiftedLifetime(hitObject))
                     return;
 
                 foundCandidate = true;

@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-09-29（文档与记忆专项审查；TOTAL 产品验证仍为 2026-09-22，皮肤专项仍为 2026-09-14）
+> 最后核对：2026-09-29（自动调整偏移互斥 style；皮肤专项仍为 2026-09-14）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -14,7 +14,7 @@ OMS处于Phase 1.x后段。complex 已退役；用户认可静线最近调整并
 - Windows-only，保留osu!mania与第一类BMS，Osu/Taiko/Catch已删除；离线优先，Phase 3前OMS私有服务与默认endpoint为空。用户主动添加公共BMS难度表URL仅是既有窄例外。
 - BMS直读`chartbms/`，mania直读`chartmania/`；支持portable `data/`与自定义数据根。主要工程为`osu.Desktop.slnf`、`osu.Game.Rulesets.Bms`及`oms.Input`。
 - 当前协作分支为`master`。皮肤恢复/数据门`SV1-0`已关闭；迁移归档和四个无authority orphan blob继续保全，不能由scanner认领或清理。恢复事实见[恢复审计](../other/SKIN_SYSTEM_RECOVERY_20260710.md)及[数据/实机报告](../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
-- 2026-09-29 审查开始时工作区干净，HEAD 为文档提交 `0cbbbb4`；本次 `git fetch origin` 成功，领先 `origin/master` 2、落后 0。最近产品修改仍为 `17a341c`，未出现新的产品交付或人工签收。
+- 2026-09-29 自动调整偏移开发开始时工作区干净，HEAD 为 `176ab6f`；`git fetch origin` 成功，领先 `origin/master` 3、落后 0。新增互斥 style 与 BMS 显示偏移，实际体验与验证边界见 [P1-C](../subline/P1-C/DEVELOPMENT_STATUS.md)，未新增人工签收。
 
 ## 当前执行门与全局风险
 
@@ -38,7 +38,7 @@ P1-I仍是三行双端筛选原型，须落实既定单轨上限段并补shared 
 
 2026-09-14的设置/编辑切片已验证固定目录刷新、原编辑控件、独立副本保存与模式偏好隔离；未刷新视觉、设备或 release 人工门。详见 [P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)。
 
-最新产品修改为 2026-09-22 的 `17a341c`（TOTAL 与历史成绩兼容）。当日 TOTAL 专项与 Release 通过，BMS full 的旧皮肤测试失败已在修改前版本逐项复现，后续维护归 [P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md)。不把“既有失败已归因”写成完整回归全绿。
+2026-09-29：按用户指定优先级完成「自动调整偏移」互斥 style；旧 lazer 自动调整保留，beatoraja style 在 BMS 演奏时调整显示偏移。软件验证、完整回归的旧失败与真实设备待验收边界集中见 [P1-C 状态](../subline/P1-C/DEVELOPMENT_STATUS.md#最近一次验证)，不扩大发行签收。
 
 皮肤代码仍以 2026-09-14 的 `701893f`（原编辑器与固定目录）及 `36eb79c`（按模式选择）为最近修改。2026-09-13 的 `234ce1f` 是最近一次静线外观修改；该轮实绘、自动结果与较早 core/mania 证据见[轨道验证记录](../other/SKIN_SIMPLE_LANE_PROPORTIONS_20260913.md)。此前发行ZIP和安装证据未随后续产品修改重新验收。
 

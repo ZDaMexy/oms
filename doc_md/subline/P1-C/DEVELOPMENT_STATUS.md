@@ -1,9 +1,11 @@
 # P1-C 当前状态：判定语义与反馈闭环
 
-> 最后核对：2026-09-29（反馈计划/合同与留存证据复核；产品验证日期不变）
+> 最后核对：2026-09-29（自动调整偏移互斥 style；真实设备体验待验收）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，HUD/skin 宿主边界归 [P1-A](../P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 当前阶段
+
+「自动调整偏移」已统一为 `关闭 / osu!lazer style / beatoraja style` 单选，旧开启设置迁移为 lazer。玩家可在同一音频设置区查看/修改 BMS 显示偏移；beatoraja 在真实 BMS 演奏中按有效时机调整，关闭后保留固定值，mania 不执行该算法。LN 合并采样、CN/HCN 真实松键、辅助过滤、回放只读轨迹已接入；回放不覆盖个人设置。具体合同见[自动调整偏移](TECHNICAL_CONSTRAINTS.md#自动调整偏移合同2026-09-29)。
 
 2026-09-22 TOTAL 修正：已接入合法作者值优先、Beatoraja/LR2 各自缺省、辅助前后物量分离与 v7 新局身份；v7之前（含v6）及无版本历史结果使用旧缺省，已存终值/灯保留。精确来源、失败身份与验证边界统一见[TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。现有 Gauge Mod/默认规则、GAS 与 HCN 持续速率保持。
 
@@ -31,11 +33,12 @@ IIDX/LR2/beatoraja/OD 判定家族与主要边界 parity 已落地并由契约�
 
 ## 最近一次验证
 
-2026-09-22 TOTAL 专项 Debug 250/250；BMS full 2300通过、29失败、16跳过；29项失败在修改前45d8613逐项复现，属于旧皮肤工作区/编辑器预期，后续维护归P1-A。Release成功（0错误、2个既有测试警告）。来源、命令、失败身份及未做原版播放器实机对照的边界见[TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。
+2026-09-29 自动调整偏移：BMS focused 58通过，core offset focused 35通过、mania replay 331通过；Release 成功（0错误、2个既有测试警告），文档及 diff 检查通过；BMS full 2354通过、29失败、16跳过。29项失败与9月22日留存 full 的名称、错误消息和路径根标准化后的堆栈逐项相同，没有新增失败，旧皮肤工作区/编辑器预期维护仍归 P1-A。命令、工件与其他验证记录见 [CHANGELOG](CHANGELOG.md)。真实设备收敛、听感和外部播放器逐帧对照未签收。
 
-2026-09-23只回读三个留存TRX核对上述测试数字和失败身份，未重跑产品测试或Release；临时构建日志已不可回读，Release结论保留为9月22日执行记录。此前判定窗口溯源与专项历史见[CHANGELOG](CHANGELOG.md)。
-
+TOTAL 与判定窗口历史验证见 [CHANGELOG](CHANGELOG.md) 和 [TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。
 ## 当前风险
+
+- 自动调整偏移尚未签收键盘/真实控制器与普通、皿、LN/CN/HCN、STOP 实谱的收敛和听感；软件验证不能证明最佳个人偏移。已有音频/谱面偏移不因切换 style 自动归零；两种 style 的自动行为互斥，固定值可继续叠加。
 
 - IIDX 闭源细节只能作为 documented heuristic，不能伪装成完全精确复刻。
 - 改窗口时若只看一个家族，会破坏 scratch/release/empty-poor 的组合真值表。
@@ -44,9 +47,11 @@ IIDX/LR2/beatoraja/OD 判定家族与主要边界 parity 已落地并由契约�
 
 ## 下一检查点
 
-1. 任何窗口/poor/release 改动先扩 parity test，再改实现。
-2. 把剩余真实谱判定体验与 LN/CN/HCN 人工结果交给 P1-E/P1-G。
-3. 若用户重新需要 FAST/SLOW 或 pacemaker，先重新定义产品价值、宿主和最小状态合同，不复活已删 aggregate。
+1. 按 PLAN 的自动调整偏移人工门验证稳定谱/和弦/皿/长条/变速、关闭固定、重启保存与回放；发现样本或显示问题只在该专题修复，不扩训练卡。
+
+2. 任何窗口/poor/release 改动先扩 parity test，再改实现。
+3. 把剩余真实谱判定体验与 LN/CN/HCN 人工结果交给 P1-E/P1-G。
+4. 若用户重新需要 FAST/SLOW 或 pacemaker，先重新定义产品价值、宿主和最小状态合同，不复活已删 aggregate。
 
 ## 文档治理验证
 

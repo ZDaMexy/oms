@@ -1,4 +1,4 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
@@ -115,6 +115,10 @@ namespace osu.Game.Configuration
             SetDefault(OsuSetting.AudioOffset, 0, -500.0, 500.0, 1);
 
             SetDefault(OsuSetting.AutomaticallyAdjustBeatmapOffset, false);
+            // A load-only sentinel distinguishes an absent setting from an explicitly saved Off.
+            // Migrate() resolves it before the config is exposed to consumers and resets the normal default.
+            SetDefault(OsuSetting.AutomaticOffsetStyle, (AutomaticOffsetStyle)(-1));
+            SetDefault(OsuSetting.BmsVisualOffset, 0.0, -500.0, 500.0, 1);
 
             // Input
             SetDefault(OsuSetting.MenuCursorSize, 1.0f, 0.5f, 2f, 0.01f);
@@ -258,6 +262,17 @@ namespace osu.Game.Configuration
 
         public void Migrate()
         {
+            var automaticOffsetStyle = GetOriginalBindable<AutomaticOffsetStyle>(OsuSetting.AutomaticOffsetStyle);
+            automaticOffsetStyle.Default = AutomaticOffsetStyle.Off;
+
+            if (automaticOffsetStyle.Value == (AutomaticOffsetStyle)(-1))
+                automaticOffsetStyle.Value = Get<bool>(OsuSetting.AutomaticallyAdjustBeatmapOffset) ? AutomaticOffsetStyle.Lazer : AutomaticOffsetStyle.Off;
+            else if (!Enum.IsDefined(automaticOffsetStyle.Value))
+                automaticOffsetStyle.Value = AutomaticOffsetStyle.Off;
+
+            // The legacy key is a migration input only. All runtime consumers use the exclusive style.
+            SetValue(OsuSetting.AutomaticallyAdjustBeatmapOffset, false);
+
             // arrives as 2020.123.0-lazer
             string rawVersion = Get<string>(OsuSetting.Version);
 
@@ -516,6 +531,8 @@ namespace osu.Game.Configuration
         LastOnlineTagsPopulation,
 
         AutomaticallyAdjustBeatmapOffset,
+        AutomaticOffsetStyle,
+        BmsVisualOffset,
 
         DashboardSortMode,
         DashboardDisplayStyle,

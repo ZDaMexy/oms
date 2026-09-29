@@ -54,6 +54,7 @@ namespace osu.Game.Rulesets.Bms.UI
             : base(new BmsBarLine { Major = true })
         {
             HandleUserInput = false;
+            AlwaysPresent = true;
             Anchor = Origin = Anchor.BottomLeft;
             RelativeSizeAxes = Axes.X;
             Width = 1;
@@ -94,6 +95,7 @@ namespace osu.Game.Rulesets.Bms.UI
             LayoutGroup = group;
             this.materialSet = materialSet;
             HandleUserInput = false;
+            AlwaysPresent = true;
             Anchor = Origin = Anchor.BottomLeft;
             RelativeSizeAxes = Axes.Both;
             Width = 1;
@@ -209,12 +211,21 @@ namespace osu.Game.Rulesets.Bms.UI
                 ApplyMaxResult();
         }
 
+        protected override void Update()
+        {
+            base.Update();
+            double displayedTime = Time.Current + (drawableRuleset?.Playfield.VisualOffset.Value ?? 0);
+            Alpha = (float)Math.Clamp(1 - (displayedTime - HitObject.StartTime) / 150, 0, 1);
+        }
+
         protected override void UpdateHitStateTransforms(ArmedState state)
         {
             base.UpdateHitStateTransforms(state);
 
             if (state == ArmedState.Hit || state == ArmedState.Miss)
-                this.FadeOut(150).Expire();
+                // Keep the visual available through every supported live offset, including a negative change
+                // after its original arrival. Its ignore judgement remains on the unshifted gameplay clock.
+                LifetimeEnd = HitObject.StartTime + Scrolling.BmsVisualOffsetScrollAlgorithm.MaximumOffset + 150;
         }
 
         protected override void Dispose(bool isDisposing)

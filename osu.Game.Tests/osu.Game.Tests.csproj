@@ -83,7 +83,6 @@
 
     <Compile Remove="
       Visual/Gameplay/TestSceneAutoplay.cs;
-      Visual/Gameplay/TestSceneBeatmapOffsetControl.cs;
       Visual/Gameplay/TestSceneBeatmapSkinFallbacks.cs;
       Visual/Gameplay/TestSceneBreakTracker.cs;
       Visual/Gameplay/TestSceneColourHitErrorMeter.cs;

@@ -10,6 +10,7 @@ using osu.Framework.Input;
 using osu.Framework.Input.Events;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.ControlPoints;
+using osu.Game.Configuration;
 using osu.Game.Input.Handlers;
 using osu.Game.Overlays;
 using osu.Game.Overlays.OSD;
@@ -235,8 +236,9 @@ namespace osu.Game.Rulesets.Bms.UI
         }
 
         [BackgroundDependencyLoader]
-        private void load()
+        private void load(OsuConfigManager config)
         {
+            initialiseOffset(config);
             // Subscribe before the playfield adds its direct lane-local bar-line/mine drawables. Their engine usage
             // begins during child loading, so LoadComplete is too late to construct the initial complete snapshot.
             if (GameplaySkinEventRuntime != null)
@@ -412,7 +414,11 @@ namespace osu.Game.Rulesets.Bms.UI
                 ? new BmsAutoplayReplayInputHandler(replay)
                 : new BmsFramedReplayInputHandler(replay);
 
-        protected override ReplayRecorder CreateReplayRecorder(Score score) => new BmsReplayRecorder(score);
+        protected override ReplayRecorder CreateReplayRecorder(Score score)
+        {
+            recordedVisualOffset = new BmsVisualOffsetTimeline { InitialOffset = Playfield.VisualOffset.Value };
+            return new BmsReplayRecorder(score, recordedVisualOffset);
+        }
 
         public override void SetReplayScore(Score replayScore)
         {
@@ -423,6 +429,9 @@ namespace osu.Game.Rulesets.Bms.UI
                 gauge.ApplyScoreTotalRules(replayScore.ScoreInfo);
 
             base.SetReplayScore(replayScore!);
+            replayVisualOffset = replayScore?.ScoreInfo.GetRulesetData<BmsScoreInfoData>()?.VisualOffset;
+            replayVisualOffset?.Validate();
+            refreshVisualOffsetMode();
         }
 
         protected override void LoadComplete()
@@ -436,6 +445,7 @@ namespace osu.Game.Rulesets.Bms.UI
             Playfield.PrewarmKeysounds(getBeatmapKeysoundSamples());
 
             NewResult += HandleGameplayJudgementResult;
+            NewResult += adjustVisualOffsetFromResult;
 
             // Lane construction can precede the parent bridge even though the bridge is attached in load(). Seed the
             // complete state from the real registered drawables once loading commits; later usage edges are de-duped.
@@ -480,6 +490,7 @@ namespace osu.Game.Rulesets.Bms.UI
         protected override void Dispose(bool isDisposing)
         {
             NewResult -= HandleGameplayJudgementResult;
+            NewResult -= adjustVisualOffsetFromResult;
 
             if (gameplaySkinLifecycleStarted)
             {

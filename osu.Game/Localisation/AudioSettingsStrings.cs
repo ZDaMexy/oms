@@ -90,16 +90,6 @@ namespace osu.Game.Localisation
         public static LocalisableString OffsetWizard => new TranslatableString(getKey(@"offset_wizard"), @"Offset wizard");
 
         /// <summary>
-        /// "Adjust beatmap offset automatically"
-        /// </summary>
-        public static LocalisableString AdjustBeatmapOffsetAutomatically => new TranslatableString(getKey(@"adjust_beatmap_offset_automatically"), @"Adjust beatmap offset automatically");
-
-        /// <summary>
-        /// "If enabled, the offset suggested from last play on a beatmap is automatically applied."
-        /// </summary>
-        public static LocalisableString AdjustBeatmapOffsetAutomaticallyTooltip => new TranslatableString(getKey(@"adjust_beatmap_offset_automatically_tooltip"), @"If enabled, the offset suggested from last play on a beatmap is automatically applied.");
-
-        /// <summary>
         /// "Use experimental audio mode"
         /// </summary>
         public static LocalisableString WasapiLabel => new TranslatableString(getKey(@"wasapi_label"), @"Use experimental audio mode");
@@ -113,6 +103,41 @@ namespace osu.Game.Localisation
         /// "Due to reduced latency, your audio offset will need to be adjusted when enabling this setting. Generally expect to subtract 20 - 60 ms from your known value."
         /// </summary>
         public static LocalisableString WasapiNotice => new TranslatableString(getKey(@"wasapi_notice"), @"Due to reduced latency, your audio offset will need to be adjusted when enabling this setting. Generally expect to subtract 20 - 60 ms from your known value.");
+
+        /// <summary>
+        /// "自动调整偏移"
+        /// </summary>
+        public static LocalisableString AutomaticOffset => new TranslatableString(getKey(@"automatic_offset"), @"自动调整偏移");
+
+        /// <summary>
+        /// "osu!lazer style：根据上一局表现调整谱面偏移；beatoraja style：仅在 BMS 演奏中逐步调整音符显示时机，不改变音乐或判定。两种方式互斥，beatoraja style 不调整 osu!mania。"
+        /// </summary>
+        public static LocalisableString AutomaticOffsetHint => new TranslatableString(getKey(@"automatic_offset_hint"), @"osu!lazer style：根据上一局表现调整谱面偏移；beatoraja style：仅在 BMS 演奏中逐步调整音符显示时机，不改变音乐或判定。两种方式互斥，beatoraja style 不调整 osu!mania。");
+
+        /// <summary>
+        /// "关闭"
+        /// </summary>
+        public static LocalisableString AutomaticOffsetOff => new TranslatableString(getKey(@"automatic_offset_off"), @"关闭");
+
+        /// <summary>
+        /// "osu!lazer style"
+        /// </summary>
+        public static LocalisableString AutomaticOffsetLazer => new TranslatableString(getKey(@"automatic_offset_lazer"), @"osu!lazer style");
+
+        /// <summary>
+        /// "beatoraja style"
+        /// </summary>
+        public static LocalisableString AutomaticOffsetBeatoraja => new TranslatableString(getKey(@"automatic_offset_beatoraja"), @"beatoraja style");
+
+        /// <summary>
+        /// "BMS 显示偏移（ms）"
+        /// </summary>
+        public static LocalisableString BmsVisualOffset => new TranslatableString(getKey(@"bms_visual_offset"), @"BMS 显示偏移（ms）");
+
+        /// <summary>
+        /// "正值使音符更早到达判定线，负值使音符更晚到达。关闭自动调整后保留当前值；输入 0 可恢复。不改变音乐或判定。"
+        /// </summary>
+        public static LocalisableString BmsVisualOffsetHint => new TranslatableString(getKey(@"bms_visual_offset_hint"), @"正值使音符更早到达判定线，负值使音符更晚到达。关闭自动调整后保留当前值；输入 0 可恢复。不改变音乐或判定。");
 
         private static string getKey(string key) => $@"{prefix}:{key}";
     }

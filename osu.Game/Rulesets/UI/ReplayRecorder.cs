@@ -111,5 +111,12 @@ namespace osu.Game.Rulesets.UI
         public Func<Vector2, Vector2> ScreenSpaceToGamefield;
 
         public abstract void RecordFrame(bool important);
+
+        /// <summary>
+        /// Flush ruleset-owned recording metadata before the score is cloned or the recorder is replaced.
+        /// </summary>
+        public virtual void EndRecording()
+        {
+        }
     }
 }

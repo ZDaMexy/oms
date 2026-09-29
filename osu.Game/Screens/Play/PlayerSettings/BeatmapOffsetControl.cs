@@ -40,7 +40,7 @@ namespace osu.Game.Screens.Play.PlayerSettings
 
         private Bindable<ScoreInfo?> lastAppliedScore { get; } = new Bindable<ScoreInfo?>();
 
-        private readonly Bindable<bool> autoAdjustBeatmapOffset = new Bindable<bool>();
+        private readonly Bindable<AutomaticOffsetStyle> automaticOffsetStyle = new Bindable<AutomaticOffsetStyle>();
 
         public BindableDouble Current { get; } = new BindableDouble
         {
@@ -114,7 +114,7 @@ namespace osu.Game.Screens.Play.PlayerSettings
         private void load(SessionStatics statics, OsuConfigManager config)
         {
             statics.BindWith(Static.LastAppliedOffsetScore, lastAppliedScore);
-            config.BindWith(OsuSetting.AutomaticallyAdjustBeatmapOffset, autoAdjustBeatmapOffset);
+            config.BindWith(OsuSetting.AutomaticOffsetStyle, automaticOffsetStyle);
         }
 
         protected override void LoadComplete()
@@ -143,6 +143,11 @@ namespace osu.Game.Screens.Play.PlayerSettings
                 });
 
             Current.BindValueChanged(currentChanged);
+            automaticOffsetStyle.BindValueChanged(style =>
+            {
+                if (style.NewValue != AutomaticOffsetStyle.Lazer)
+                    calibrateFromLastPlayButton?.Show();
+            });
             ReferenceScore.BindValueChanged(scoreChanged, true);
         }
 
@@ -322,7 +327,7 @@ namespace osu.Game.Screens.Play.PlayerSettings
                 }
             });
 
-            if (autoAdjustBeatmapOffset.Value && !Current.Disabled)
+            if (automaticOffsetStyle.Value == AutomaticOffsetStyle.Lazer && !Current.Disabled)
             {
                 bool offsetChanged = applySuggestedOffset();
 

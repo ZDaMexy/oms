@@ -4,6 +4,31 @@
 
 ## 2026-09-29
 
+### 自动调整偏移：互斥 style 与 BMS 实时显示校正
+
+- 先记录用户授权的七步实现/验收计划，再统一音频偏移设置为「关闭 / osu!lazer style / beatoraja style」。旧布尔设置只作迁移输入，已有明确新选择优先；lazer 仍按上一局结果调整谱面，beatoraja 只在 BMS 真实演奏中调整显示偏移，关闭保留固定值。手动全局推荐偏移保持独立。
+- BMS 显示偏移默认 0、范围 ±500ms；按固定来源的逐音符整数规则调整，LN 合并采样、CN/HCN 真实头尾分开，持续 tick、自动辅助、自动播放与回放不学习。保留 OMS 已有长条自动完成语义，不把帧调度越界当作玩家松键误差。来源及规则详见 [合同](TECHNICAL_CONSTRAINTS.md#自动调整偏移合同2026-09-29)。
+- 普通/STOP 显示映射、嵌套长条、小节线/地雷同步；判定、键音、BGM/BGA 不跟随显示时间。补偿预加载仅影响视觉，原空 POOR 候选与辅助列键音时机保持。零偏移且自动关闭返回原算法；自动期间跨零不重建全谱加载时间。
+- 成绩扩展记录初始偏移及变化轨迹，结束录制、score clone 前一次刷新；回放 seek 使用记录，旧回放为 0，个人设置不被改写。v7 新局/v6 缺省与既有 TOTAL 兼容边界保持。
+- 专项真实 drawable 输入证明普通键、LN/CN/HCN 的时机采样、关闭保留、键音即时性及回放隔离；纯规则覆盖阈值、方向、限幅、STOP/长条几何与非法回放数据。恢复原偏移控件测试的编译入口，替换其已删除 osu 模式依赖为 mania，不重新引入旧模式。
+- 验证工件保存在忽略目录 `TestResults/auto-offset-20260929/`。BMS focused 最终 58通过；core offset focused 首次缺少本地 NuGet 包，正常 restore 后 35通过。测试 fixture 曾因 sparse `.bms` 模式推断、frame-stable 时钟尚未追平及误用 `Playfield.Remove` 返回值失败，修复 fixture 后最终专项通过；期间发现并修复 Alpha=0 不再更新导致偏移回拉无法恢复显示、提前预加载改变空 POOR/辅助键音的问题，见 [诊断记忆](../../../.Codex/memory/reference_bms_auto_offset.md)。
+- 真实键盘/控制器、和弦/皿/长条/STOP 实谱的收敛和听感仍待人工验收，软件验证不代签发行或外部播放器逐帧一致性。
+- 最终 BMS full 为 2354通过、29失败、16跳过；相对9月22日 `total-bms-full.trx`，29项失败的名称、错误消息、路径根标准化后的堆栈逐项一致；`failure-comparison.txt` 差异数0。旧失败仍归 P1-A，不宣称 full 全绿。最终 core 再编译验证 35通过；mania replay 331通过，无失败/跳过。
+
+- Release 成功，0错误、2个既有测试警告（`TestSceneFilesystemBackedStoryboardFallback:151` CS8600、`BmsRulesetStatisticsTest:555` CA2007）。限定改动文件的 whitespace format 已执行并在其后重新编译验证；文档检查及 `git diff --check` 通过。
+
+执行命令（测试为 Debug；full 复用同一源码/配置刚成功编译的 focused 产物）：
+
+```powershell
+dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj --no-restore --filter "FullyQualifiedName~AutomaticOffset|FullyQualifiedName~VisualOffset|FullyQualifiedName~BmsScrollingInfoTest" --logger "trx;LogFileName=auto-offset-focused-verified.trx" --results-directory TestResults/auto-offset-20260929
+dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj --no-build --no-restore --logger "trx;LogFileName=auto-offset-bms-full.trx" --results-directory TestResults/auto-offset-20260929
+dotnet test osu.Game.Tests/osu.Game.Tests.csproj --no-restore --filter "FullyQualifiedName~AutomaticOffsetConfigTest|FullyQualifiedName~TestSceneBeatmapOffsetControl|FullyQualifiedName~TestSceneAudioOffsetAdjustControl" --logger "trx;LogFileName=auto-offset-core-final.trx" --results-directory TestResults/auto-offset-20260929
+dotnet test osu.Game.Rulesets.Mania.Tests/osu.Game.Rulesets.Mania.Tests.csproj --filter "FullyQualifiedName~Replay" --logger "trx;LogFileName=auto-offset-mania-replay.trx" --results-directory TestResults/auto-offset-20260929
+dotnet build osu.Desktop.slnf -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1
+git diff --check
+```
+
 ### 反馈产品面与 TOTAL 诊断记忆同步
 
 - PLAN 补回9月13日已经交付的静线实时判定统计；CONSTRAINTS 明确全局计数器与 scene 只读消费同一 statistics，COMBO BREAK 不要求伪造判定事件，不恢复旧反馈卡。

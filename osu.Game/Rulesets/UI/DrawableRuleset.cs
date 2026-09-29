@@ -284,6 +284,8 @@ namespace osu.Game.Rulesets.UI
             if (!(KeyBindingInputManager is IHasRecordingHandler recordingInputManager))
                 throw new InvalidOperationException($"A {nameof(KeyBindingInputManager)} which supports recording is not available");
 
+            recordingInputManager.Recorder?.EndRecording();
+
             if (score == null)
             {
                 NewResult -= emitImportantFrame;

@@ -1,4 +1,4 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 using System.Collections.Generic;
@@ -28,11 +28,18 @@ namespace osu.Game.Overlays.Settings.Sections.Audio
                     Current = config.GetBindable<double>(OsuSetting.AudioOffset),
                     Margin = new MarginPadding { Bottom = 5 },
                 },
-                new SettingsItemV2(new FormCheckBox
+                new SettingsItemV2(new FormEnumDropdown<AutomaticOffsetStyle>
                 {
-                    Caption = AudioSettingsStrings.AdjustBeatmapOffsetAutomatically,
-                    HintText = AudioSettingsStrings.AdjustBeatmapOffsetAutomaticallyTooltip,
-                    Current = config.GetBindable<bool>(OsuSetting.AutomaticallyAdjustBeatmapOffset),
+                    Caption = AudioSettingsStrings.AutomaticOffset,
+                    HintText = AudioSettingsStrings.AutomaticOffsetHint,
+                    Current = config.GetBindable<AutomaticOffsetStyle>(OsuSetting.AutomaticOffsetStyle),
+                }),
+                new SettingsItemV2(new FormSliderBar<double>
+                {
+                    Caption = AudioSettingsStrings.BmsVisualOffset,
+                    HintText = AudioSettingsStrings.BmsVisualOffsetHint,
+                    Current = config.GetBindable<double>(OsuSetting.BmsVisualOffset),
+                    KeyboardStep = 1,
                 })
             };
         }

@@ -14,8 +14,8 @@ using osu.Game.Configuration;
 using osu.Game.Overlays.Settings;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Objects;
-using osu.Game.Rulesets.Osu.Mods;
-using osu.Game.Rulesets.Osu.Objects;
+using osu.Game.Rulesets.Mania.Mods;
+using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
 using osu.Game.Screens.Play.PlayerSettings;
@@ -38,7 +38,7 @@ namespace osu.Game.Tests.Visual.Gameplay
         [SetUpSteps]
         public void SetUpSteps()
         {
-            AddStep("reset settings", () => localConfig.SetValue(OsuSetting.AutomaticallyAdjustBeatmapOffset, false));
+            AddStep("reset settings", () => localConfig.SetValue(OsuSetting.AutomaticOffsetStyle, AutomaticOffsetStyle.Off));
 
             recreateControl();
         }
@@ -101,15 +101,15 @@ namespace osu.Game.Tests.Visual.Gameplay
         {
             AddStep("Set short reference score", () =>
             {
-                // 50 events total. one of them (head circle) being timed / having hitwindows, rest having no hitwindows
+                // Only the note requires a timed input; hold bodies have no hit windows.
                 List<HitEvent> hitEvents =
                 [
-                    new HitEvent(30, 1, HitResult.LargeTickHit, new SliderHeadCircle { ClassicSliderBehaviour = true }, null, null),
+                    new HitEvent(30, 1, HitResult.Great, new Note(), null, null),
                 ];
 
                 for (int i = 0; i < 49; i++)
                 {
-                    hitEvents.Add(new HitEvent(0, 1, HitResult.LargeTickHit, new SliderTick(), null, null));
+                    hitEvents.Add(new HitEvent(0, 1, HitResult.LargeTickHit, new HoldNoteBody(), null, null));
                 }
 
                 foreach (var ev in hitEvents)
@@ -148,7 +148,7 @@ namespace osu.Game.Tests.Visual.Gameplay
                 offsetControl.ReferenceScore.Value = new ScoreInfo
                 {
                     HitEvents = TestSceneHitEventTimingDistributionGraph.CreateDistributedHitEvents(10),
-                    Mods = new Mod[] { new OsuModRelax() },
+                    Mods = new Mod[] { new ManiaModAutoplay() },
                     BeatmapInfo = Beatmap.Value.BeatmapInfo,
                 };
             });
@@ -294,7 +294,7 @@ namespace osu.Game.Tests.Visual.Gameplay
         {
             const double average_error = -4.5;
 
-            AddStep("enable automatic adjust", () => localConfig.SetValue(OsuSetting.AutomaticallyAdjustBeatmapOffset, true));
+            AddStep("enable automatic adjust", () => localConfig.SetValue(OsuSetting.AutomaticOffsetStyle, AutomaticOffsetStyle.Lazer));
             AddAssert("offset zero", () => offsetControl.Current.Value == 0);
 
             AddStep("set reference score", () =>
@@ -331,6 +331,44 @@ namespace osu.Game.Tests.Visual.Gameplay
             AddUntilStep("button is disabled", () => !offsetControl.ChildrenOfType<SettingsButton>().Single().Enabled.Value);
         }
 
+        [TestCase(AutomaticOffsetStyle.Off)]
+        [TestCase(AutomaticOffsetStyle.Beatoraja)]
+        public void TestSwitchingAwayFromLazerRestoresManualCalibration(AutomaticOffsetStyle style)
+        {
+            AddStep("select lazer style", () => localConfig.SetValue(OsuSetting.AutomaticOffsetStyle, AutomaticOffsetStyle.Lazer));
+            AddStep("set reference score", () => offsetControl.ReferenceScore.Value = new ScoreInfo
+            {
+                HitEvents = TestSceneHitEventTimingDistributionGraph.CreateDistributedHitEvents(-4.5),
+                BeatmapInfo = Beatmap.Value.BeatmapInfo,
+            });
+            AddAssert("lazer applies suggestion", () => offsetControl.Current.Value == 4.5);
+            AddAssert("manual button hidden", () => !offsetControl.ChildrenOfType<SettingsButton>().Any(b => b.IsPresent));
+            AddStep("select other style", () => localConfig.SetValue(OsuSetting.AutomaticOffsetStyle, style));
+            AddAssert("manual button restored", () => offsetControl.ChildrenOfType<SettingsButton>().Any(b => b.IsPresent));
+            AddStep("set next reference score", () => offsetControl.ReferenceScore.Value = new ScoreInfo
+            {
+                HitEvents = TestSceneHitEventTimingDistributionGraph.CreateDistributedHitEvents(5),
+                BeatmapInfo = Beatmap.Value.BeatmapInfo,
+            });
+            AddAssert("next score does not automatically adjust", () => offsetControl.Current.Value == 4.5);
+            AddStep("press manual calibration", () => offsetControl.ChildrenOfType<SettingsButton>().Single().TriggerClick());
+            AddAssert("manual adjustment works", () => offsetControl.Current.Value == -0.5);
+        }
+
+        [TestCase(AutomaticOffsetStyle.Off)]
+        [TestCase(AutomaticOffsetStyle.Beatoraja)]
+        public void TestOtherStylesDoNotAutomaticallyAdjustBeatmapOffset(AutomaticOffsetStyle style)
+        {
+            AddStep("select style", () => localConfig.SetValue(OsuSetting.AutomaticOffsetStyle, style));
+            AddStep("set reference score", () => offsetControl.ReferenceScore.Value = new ScoreInfo
+            {
+                HitEvents = TestSceneHitEventTimingDistributionGraph.CreateDistributedHitEvents(-4.5),
+                BeatmapInfo = Beatmap.Value.BeatmapInfo,
+            });
+            AddAssert("beatmap offset unchanged", () => offsetControl.Current.Value == 0);
+            AddAssert("manual calibration available", () => offsetControl.ChildrenOfType<SettingsButton>().Any(b => b.IsPresent));
+        }
+
         [Test]
         public void TestAutomaticAdjustmentWithUnstableRate()
         {
@@ -338,7 +376,7 @@ namespace osu.Game.Tests.Visual.Gameplay
             const int spread = 25;
             const double expected_offset = 12.9; // due to high UR (~147). see BeatmapOffsetControl.computeSuggestedOffset()
 
-            AddStep("enable automatic adjust", () => localConfig.SetValue(OsuSetting.AutomaticallyAdjustBeatmapOffset, true));
+            AddStep("enable automatic adjust", () => localConfig.SetValue(OsuSetting.AutomaticOffsetStyle, AutomaticOffsetStyle.Lazer));
             AddAssert("offset zero", () => offsetControl.Current.Value == 0);
 
             AddStep("set reference score", () =>

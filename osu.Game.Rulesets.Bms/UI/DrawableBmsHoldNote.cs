@@ -1,5 +1,6 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using System;
 using System.Collections.Generic;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
@@ -205,12 +206,12 @@ namespace osu.Game.Rulesets.Bms.UI
             if (longNoteMode.AllowsRegrabAfterRelease())
             {
                 if (releaseResult.IsHit() || HasReachedHoldTail(holdNote, Time.Current))
-                    resolveTail(releaseResult.IsHit() ? releaseResult : HitResult.Miss);
+                    resolveTail(releaseResult.IsHit() ? releaseResult : HitResult.Miss, userReleased: true);
 
                 return;
             }
 
-            resolveTail(releaseResult.IsHit() ? releaseResult : HitResult.Miss);
+            resolveTail(releaseResult.IsHit() ? releaseResult : HitResult.Miss, userReleased: true);
         }
 
         internal bool TryApplyHeadPress(HitResult headResult)
@@ -219,6 +220,9 @@ namespace osu.Game.Rulesets.Bms.UI
                 return false;
 
             headDrawable.ApplyHeadResult(headResult);
+
+            if (!holdNote.AutoPlay && longNoteMode.RequiresTailJudgement())
+                drawableRuleset?.ApplyAutomaticOffsetSample(headResult, headDrawable.Result.TimeOffset);
 
             if (headResult.IsHit())
             {
@@ -346,16 +350,47 @@ namespace osu.Game.Rulesets.Bms.UI
             }
         }
 
-        private void resolveTail(HitResult tailResult)
+        private void resolveTail(HitResult tailResult, bool userReleased = false)
         {
             if (tailDrawable?.Judged == true)
                 return;
+
+            if (!holdNote.AutoPlay && headDrawable != null)
+            {
+                var sample = SelectAutomaticOffsetCompletionSample(longNoteMode, headDrawable.Result.Type, headDrawable.Result.TimeOffset,
+                    tailResult, Time.Current - holdNote.EndTime, userReleased);
+
+                if (sample.HasValue)
+                    drawableRuleset?.ApplyAutomaticOffsetSample(sample.Value.Result, sample.Value.Error);
+            }
 
             resolveAllBodyTicks();
             IsHoldingForTesting = false;
 
             tailDrawable?.ApplyTailResult(tailResult);
             finaliseHold();
+        }
+
+        internal static (HitResult Result, double Error)? SelectAutomaticOffsetCompletionSample(
+            BmsLongNoteMode mode, HitResult headResult, double headError, HitResult tailResult, double tailError, bool userReleased)
+        {
+            if (!tailResult.IsHit())
+                return null;
+
+            // CN/HCN heads already supplied a sample. Only an actual release supplies another; a held-through
+            // completion measures frame scheduling rather than the player's timing.
+            if (mode.RequiresTailJudgement())
+                return userReleased ? (tailResult, tailError) : null;
+
+            if (!headResult.IsHit())
+                return null;
+
+            // beatoraja's ordinary LN produces one sample at completion. Held-through notes retain their head
+            // timing; a release uses the worse grade and the larger absolute error (release wins ties).
+            if (!userReleased)
+                return (headResult, headError);
+
+            return (headResult < tailResult ? headResult : tailResult, Math.Abs(headError) > Math.Abs(tailError) ? headError : tailError);
         }
 
         private void finaliseHold()

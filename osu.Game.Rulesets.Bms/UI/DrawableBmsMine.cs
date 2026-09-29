@@ -75,6 +75,7 @@ namespace osu.Game.Rulesets.Bms.UI
             this.materialSet = materialSet;
             this.layoutLane = layoutLane;
             HandleUserInput = false;
+            AlwaysPresent = true;
 
             Anchor = Anchor.BottomLeft;
             Origin = Anchor.BottomLeft;
@@ -151,12 +152,20 @@ namespace osu.Game.Rulesets.Bms.UI
                 ApplyMaxResult();
         }
 
+        protected override void Update()
+        {
+            base.Update();
+            double displayedTime = Time.Current + (drawableRuleset?.Playfield.VisualOffset.Value ?? 0);
+            Alpha = (float)Math.Clamp(1 - (displayedTime - HitObject.StartTime) / 150, 0, 1);
+        }
+
         protected override void UpdateHitStateTransforms(ArmedState state)
         {
             base.UpdateHitStateTransforms(state);
 
             if (state == ArmedState.Hit || state == ArmedState.Miss)
-                this.FadeOut(150).Expire();
+                // Mines are visual-only. Retain them for live offset changes without moving the ignore judgement.
+                LifetimeEnd = HitObject.StartTime + Scrolling.BmsVisualOffsetScrollAlgorithm.MaximumOffset + 150;
         }
 
         protected override void Dispose(bool isDisposing)

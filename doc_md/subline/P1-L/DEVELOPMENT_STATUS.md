@@ -1,12 +1,13 @@
 # P1-L 当前状态：BMS Gimmick 与 BGA 视觉
 
-> 最后核对：2026-09-29（BGA 窄屏布局与记忆对齐；逐谱验证未刷新）
+> 最后核对：2026-09-29（接入 BMS 显示偏移；逐谱人工验证未刷新）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，机理分析见 [BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)。
 
 ## 当前阶段
 
 - 地雷视觉已落地。
 - BMS 专用滚动位置积分旁路 A–C 已落地，Auto 检测存在；正常链路保持隔离。
+- 已接入 P1-C 的 BMS 显示偏移：普通/STOP 映射、小节线/地雷淡出随显示时间，长条嵌套不重复偏移；原判定/音频时间保持，额外预加载不扩大空 POOR/辅助列消音。验证与人工未签收边界统一见 [P1-C](../P1-C/DEVELOPMENT_STATUS.md)。
 - BGA 图序列/视频/POOR/转码缓存/预加载主链已落地。
 - C3 的 immutable layout/viewports 与 C5 的 BGA material/scene、只读状态事件已接入真实宿主。
 - 选中皮肤已经可以通过 `BgaWidth/BgaHeight/BgaVerticalPosition/BgaInformationHeight` 声明 BGA 宽高、位置和信息区预留；静线采用大型 BGA 与上下演奏信息区，唯一 solver 在 safe bounds 内求解并避免遮挡轨道。尺寸不再只能由游戏固定；公开布局合同归 [P1-A](../P1-A/DEVELOPMENT_STATUS.md)。
@@ -32,6 +33,7 @@
 
 ## 最近一次验证
 
+- 2026-09-29 显示偏移专项与回归记录统一见 [P1-C](../P1-C/DEVELOPMENT_STATUS.md#最近一次验证)；未新增逐谱或 BGA 人工签收。
 - 全局最新产品验证统一见 [mainline STATUS 的“最近一次验证”](../../mainline/DEVELOPMENT_STATUS.md#最近一次验证)；2026-07-16 仅治理文档，未运行产品测试或 Release。
 - 滚动、地雷、BGA/cache 的本线历史 focused/full 数字与逐刀实现只查 [CHANGELOG.md](CHANGELOG.md)，不冒充当前全局 gate。
 

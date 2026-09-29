@@ -28,6 +28,9 @@ namespace osu.Game.Rulesets.Bms.Scoring
         [JsonProperty("version")]
         public int Version { get; set; } = EMPTY_POOR_SEPARATION_VERSION;
 
+        [JsonProperty("visual_offset")]
+        public BmsVisualOffsetTimeline? VisualOffset { get; set; }
+
         [JsonProperty("gauge_auto_shift")]
         public bool UsesGaugeAutoShift { get; set; }
 

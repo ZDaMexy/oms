@@ -33,6 +33,8 @@
 
 ### R5：Phase 1 玩法与硬件收尾
 
+2026-09-29 用户指定先完成「自动调整偏移」统一互斥 style：保留 lazer 的上一局校准，增加 BMS beatoraja 显示时机调整；详细顺序、回放与验收由 [P1-C](../subline/P1-C/DEVELOPMENT_PLAN.md#2026-09-29-用户指定自动调整偏移-style-互斥)维护，不恢复常驻反馈卡或推进其它冻结功能。
+
 TOTAL 的作者声明、家族缺省与新旧成绩版本合同由 [P1-C](../subline/P1-C/DEVELOPMENT_PLAN.md) / [P1-K](../subline/P1-K/DEVELOPMENT_PLAN.md) 共同守门；后续变化必须同时验证演奏、回放和结算，不改变既有 Gauge Mod 选择与人工验收边界。
 
 | 子线 | 下一动作与依赖 |
