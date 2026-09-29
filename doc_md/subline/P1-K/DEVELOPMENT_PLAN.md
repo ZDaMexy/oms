@@ -1,6 +1,6 @@
 # P1-K 当前计划：BMS 解析与转换治理
 
-> 最后更新：2026-09-22（TOTAL 规则与成绩兼容；验证边界见下文）
+> 最后更新：2026-09-29（自动键音转换资料完成，手动 LN 与听感门保留）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，逐刀历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -31,7 +31,7 @@ P1-K 拥有 decoder、normalized chart model、converter、projection reuse 与 
 | K8 | gauge history/auto-shift proof | 保持 |
 | K9 | dedicated BMS→mania 转换合同 | 主体完成，wording/manual 待续 |
 | K10 | converted-star 导入/读取加固 | 完成 |
-| K11 | 转谱 BGM/autoplay 音频与 LN 尾对齐 | converter 主体完成，runtime 尾项归 P1-J |
+| K11 | 转谱 BGM/autoplay 音频与 LN 尾对齐 | 自动键音头音/只读快照已接入；手动 LN store 与听感尾项归 P1-J |
 | K12 | sample-only 对象不进入 mania difficulty | 完成 |
 
 ## 当前活动顺序

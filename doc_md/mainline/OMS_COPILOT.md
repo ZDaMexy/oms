@@ -189,8 +189,8 @@ Requirements:
 - Route playback through the shared `BmsKeysoundStore` pool. Native BMS keeps an internal baseline and grows automatically when demand exceeds it; converted-mania uses its own safe floor. The removed `KeysoundConcurrentChannels` user setting must not be described or reintroduced as current configuration without a new product decision and runtime proof.
 - BGM channel (`01`) samples play regardless of player input
 - Missing keysound files: log warning, play silence, do not crash
-- On note hit: trigger the note's assigned keysound immediately
-- Natural unpressed misses are silent; a consumed key-down pressed-poor/miss still plays the note WAV, and an empty press may play the armed lane timeline sample. Audio dispatch is not determined solely by judgement name; BGM remains independent.
+- With automatic keysounds disabled (default), trigger the assigned keysound immediately on note hit. Natural unpressed misses are silent; a consumed key-down pressed-poor/miss still plays the note WAV, and an empty press may play the armed lane timeline sample. Audio dispatch is not determined solely by judgement name; BGM remains independent.
+- Independent opt-in automatic-keysound settings for native BMS and BMS played as mania move audio dispatch to chart timing, suppressing key-triggered audio while preserving real input, judgement and score. Ordinary mania is unaffected. Session, replay and lifecycle boundaries are owned by the [P1-J automatic-keysound contract](../subline/P1-J/TECHNICAL_CONSTRAINTS.md#自动键音合同2026-09-29).
 - **LN tail audio:** Native and converted LN tails remain silent, including successful releases. Head/press audio and mode-specific tail judgement are separate; keep the [P1-J contract](../subline/P1-J/TECHNICAL_CONSTRAINTS.md) and regression tests authoritative.
 
 ### 4.4 Long Note Handling

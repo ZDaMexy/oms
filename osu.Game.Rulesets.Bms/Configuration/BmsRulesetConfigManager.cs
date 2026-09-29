@@ -51,6 +51,7 @@ namespace osu.Game.Rulesets.Bms.Configuration
             SetDefault(BmsRulesetSetting.ShowBga, true);
             SetDefault(BmsRulesetSetting.BgaVideoTranscode, true);
             SetDefault(BmsRulesetSetting.PersistedModState, string.Empty);
+            SetDefault(BmsRulesetSetting.AutoKeysound, false);
         }
 
         public override TrackedSettings CreateTrackedSettings() => new TrackedSettings();
@@ -83,5 +84,6 @@ namespace osu.Game.Rulesets.Bms.Configuration
         ShowBga,
         BgaVideoTranscode,
         PersistedModState,
+        AutoKeysound,
     }
 }

@@ -37,6 +37,9 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private void playKeysound()
         {
+            if (keysoundStore?.AutomaticPlayback == true)
+                return;
+
             if (keysoundStore == null || HitObject.KeysoundSample == null)
             {
                 PlaySamples();

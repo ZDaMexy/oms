@@ -223,7 +223,12 @@ namespace osu.Game.Rulesets.Mania.UI
                 // KEY note) can route its keysound through the store without referencing the BMS assembly. This is what
                 // lets converted KEY notes stay pooled instead of each becoming a non-pooled drawable (J6 / P1-J #10).
                 if (store is IManiaKeysoundStore keysoundStore)
+                {
+                    if (Config.Get<bool>(ManiaRulesetSetting.AutoKeysoundForBms))
+                        keysoundStore.EnableAutomaticPlayback(Beatmap);
+
                     wrapped.CacheAs(keysoundStore);
+                }
             }
 
             return wrapped;
@@ -351,6 +356,12 @@ namespace osu.Game.Rulesets.Mania.UI
         {
             if (sharedKeysoundStore == null)
                 return;
+
+            if (sharedKeysoundStore is IManiaKeysoundStore keysoundStore)
+            {
+                foreach (var sample in keysoundStore.AutomaticSamples)
+                    Playfield.PrepareSamplePool(sample);
+            }
 
             foreach (var hitObject in Beatmap.HitObjects)
             {

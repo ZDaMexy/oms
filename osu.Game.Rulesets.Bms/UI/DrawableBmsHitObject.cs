@@ -188,6 +188,9 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public override void PlaySamples()
         {
+            if (keysoundStore?.AutomaticPlayback == true)
+                return;
+
             playKeysoundThroughStore();
             base.PlaySamples();
         }
@@ -203,7 +206,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private void playKeysoundThroughStore()
         {
-            if (keysoundStore == null)
+            if (keysoundStore == null || keysoundStore.AutomaticPlayback)
                 return;
 
             var keysoundSample = getKeysoundSample();

@@ -52,6 +52,10 @@ namespace osu.Game.Rulesets.Mania.UI
         public Container UnderlayElements => HitObjectArea.UnderlayElements;
 
         private GameplaySampleTriggerSource sampleTriggerSource = null!;
+
+        [Resolved(canBeNull: true)]
+        private IManiaKeysoundStore? keysoundStore { get; set; }
+
         private SkinnableDrawable keyArea = null!;
         private ManiaGameplaySkinFailClosedSkinnableDrawable columnBackground = null!;
         private Container specialisedKeyVisualOwner = null!;
@@ -521,7 +525,9 @@ namespace osu.Game.Rulesets.Mania.UI
             if (e.Action != Action.Value)
                 return false;
 
-            sampleTriggerSource.Play();
+            if (keysoundStore?.AutomaticPlayback != true)
+                sampleTriggerSource.Play();
+
             return true;
         }
 

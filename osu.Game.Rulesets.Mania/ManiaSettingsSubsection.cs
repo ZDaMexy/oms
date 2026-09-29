@@ -59,6 +59,13 @@ namespace osu.Game.Rulesets.Mania
 
             Add(new SettingsItemV2(new FormCheckBox
             {
+                Caption = "用 mania 游玩 BMS 时自动键音",
+                HintText = "键音按谱面时间自动播放，仍需正常按键获得判定与成绩。仅对 BMS 转谱生效，下一局生效。",
+                Current = config.GetBindable<bool>(ManiaRulesetSetting.AutoKeysoundForBms)
+            }));
+
+            Add(new SettingsItemV2(new FormCheckBox
+            {
                 Caption = RulesetSettingsStrings.TouchOverlay,
                 Current = config.GetBindable<bool>(ManiaRulesetSetting.TouchOverlay)
             }));

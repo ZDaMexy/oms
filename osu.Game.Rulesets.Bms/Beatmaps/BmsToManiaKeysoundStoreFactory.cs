@@ -21,11 +21,12 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
     {
         /// <summary>
         /// Whether the converted beatmap carries any keysound that should route through a shared store. Includes
-        /// playable KEY notes (<see cref="BmsConvertedKeyNoteHitObject"/>) so the store is hosted for every converted
-        /// chart and their keysounds get per-WAV cut — not only charts that happen to carry BGM / scratch samples.
+        /// playable KEY notes and holds so automatic playback also works for charts containing only holds.
+        /// Manual hold-head playback continues through the ordinary mania nested note path.
         /// </summary>
         public static bool ShouldHost(IBeatmap beatmap)
-            => beatmap.HitObjects.Any(hitObject => hitObject is BmsConvertedBgmSampleHitObject or BmsConvertedScratchSampleHitObject or BmsConvertedKeyNoteHitObject);
+            => beatmap is BmsConvertedManiaBeatmap
+               || beatmap.HitObjects.Any(hitObject => hitObject is BmsConvertedBgmSampleHitObject or BmsConvertedScratchSampleHitObject or BmsConvertedKeyNoteHitObject or BmsConvertedHoldNoteHitObject);
 
         /// <summary>
         /// Creates the shared keysound store drawable. Returned as <see cref="Drawable"/> so the mania side does not

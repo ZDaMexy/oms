@@ -512,7 +512,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private void playCurrentLaneKeysound()
         {
-            if (keysoundStore == null || keysoundTimeline.Count == 0)
+            if (keysoundStore == null || keysoundStore.AutomaticPlayback || keysoundTimeline.Count == 0)
                 return;
 
             // Autoplay / auto-scratch / auto-note: the notes in this lane are auto-played and already sound their own

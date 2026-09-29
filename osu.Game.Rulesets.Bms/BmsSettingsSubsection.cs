@@ -82,6 +82,15 @@ namespace osu.Game.Rulesets.Bms
 
             Children = new Drawable[]
             {
+                new SettingsItemV2(new FormCheckBox
+                {
+                    Caption = "BMS 模式自动键音",
+                    HintText = "键音按谱面时刻自动播放，按键不再触发键音。仍需正常操作，判定和成绩照常计算。下一局生效。",
+                    Current = config.GetBindable<bool>(BmsRulesetSetting.AutoKeysound),
+                })
+                {
+                    Keywords = new[] { "auto", "keysound" },
+                },
                 new SettingsItemV2(new FormEnumDropdown<BmsHiSpeedMode>
                 {
                     Caption = @"Hi-Speed 模式",

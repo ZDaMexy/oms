@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-09-29（自动调整偏移互斥 style；皮肤专项仍为 2026-09-14）
+> 最后核对：2026-09-29（自动键音；皮肤专项仍为 2026-09-14）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -26,13 +26,15 @@ OMS处于Phase 1.x后段。complex 已退役；用户认可静线最近调整并
 | 4 | 真实LN/CN/HCN、音频/特殊谱、BGA、选歌大库与发行组合仍需验收；P1-L仍逐viewport创建player，单content/decoder未完成 | [子线路由](../subline/README.md) |
 | 5 | V-001～V-005及候选发行包人工签收；2026-07-14恢复验收不能代替新增视觉与最终包验证 | [集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)、[P1-G](../subline/P1-G/DEVELOPMENT_STATUS.md) |
 
-P1-I仍是三行双端筛选原型，须落实既定单轨上限段并补shared fixture/大库门；P1-J的C3末端lane前置已完成，剩余转谱LN、dense profile和听感验收。发行覆盖须保持原便携模式，非便携真实设备与公开发行组合验收归P1-F/P1-G。各项具体风险只在owning子线维护。
+P1-I仍是三行双端筛选原型，须落实既定单轨上限段并补shared fixture/大库门；P1-J的C3末端lane前置已完成，剩余手动模式转谱LN、dense profile和听感验收。发行覆盖须保持原便携模式，非便携真实设备与公开发行组合验收归P1-F/P1-G。各项具体风险只在owning子线维护。
 
 此前 C7 完整包已完成实际安装恢复及从上一修复版跨版本覆盖，原保存根前后字节和属性一致；旧候选误入已有保存根的事故仍只有事后保全、没有该根事前快照，不能追溯宣称无损。发行和数据边界见 [P1-F 状态](../subline/P1-F/DEVELOPMENT_STATUS.md)。
 
 皮肤安全与失败回退详见[P1-A技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)：当前并无live gameplay reload或watcher，external永久只读；授权撤销不扩大Reload准入，C6完成不等于C7或人工门关闭。异常期归档只能定点取证。局部自动测试不能代替完整真实选择链，自动证据也不能替代视觉、硬件或特殊Gimmick证明。
 
 ## 最近一次验证
+
+2026-09-29：BMS 与 BMS→mania 分别新增默认关闭的自动键音，按谱面时刻播放，仍由真实操作决定成绩；软件证据、完整回归旧失败与真实听感待验收边界见 [P1-J 状态](../subline/P1-J/DEVELOPMENT_STATUS.md#最近一次验证)。
 
 2026-09-29：按用户指定优先级完成「自动调整偏移」互斥 style；旧 lazer 自动调整保留，beatoraja style 在 BMS 演奏时调整显示偏移。软件验证、完整回归的旧失败与真实设备待验收边界集中见 [P1-C 状态](../subline/P1-C/DEVELOPMENT_STATUS.md#最近一次验证)，不扩大发行签收。
 

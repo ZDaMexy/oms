@@ -238,6 +238,9 @@ namespace osu.Game.Rulesets.Bms.UI
         [BackgroundDependencyLoader]
         private void load(OsuConfigManager config)
         {
+            if (Config.Get<bool>(BmsRulesetSetting.AutoKeysound))
+                Playfield.KeysoundStore.EnableAutomaticPlayback(Beatmap);
+
             initialiseOffset(config);
             // Subscribe before the playfield adds its direct lane-local bar-line/mine drawables. Their engine usage
             // begins during child loading, so LoadComplete is too late to construct the initial complete snapshot.

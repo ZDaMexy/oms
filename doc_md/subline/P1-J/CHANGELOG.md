@@ -7,6 +7,33 @@
 
 ## 2026-09-29
 
+### BMS 与 BMS→mania 自动键音
+
+开始于干净的 master@1e6eec6；fetch 成功，领先 origin/master 5、落后 0。本次按用户要求先规划再实施，保留真实设备人工门，不推送。
+
+- 两模式分别提供默认关闭、独立保存、下一局生效的声音选项；开启后真实输入仍决定判定/连击/血量/成绩，普通 mania 不受影响。回放使用当前声音偏好，不新增 Mod、成绩分组或保存字段。
+- shared store 统一按 gameplay 主时钟播放有序音频清单，native note/pressed-poor/lane empty、mania note/column feedback 及已有自动 BGM/皿让出发声，避免早按回收漏音与按键重音。尾音、不可见 armed entry 与 mine 不自动播放。
+- 转谱 HoldNote 子类保留 head sample/slot；只读原谱音频快照在 NR/HO/IN 重建玩法对象前捕获，clone 共享数据、每局独立游标。预热覆盖被 Mod 删除的 BGM/皿。自动声像沿转换源音频列，手动玩法列声像不改；关闭自动键音的 LN 仍走原 NodeSamples 头音，未扩称完成手动 LN store 迁移。
+- 暂停停声、seek 跳过过去并重装未来、重试重置；长 one-shot 中途保位恢复仍未实现。真实听感与设备验收未签收。
+- 原七步规划依次为：①独立设置与每局快照；②统一音频游标及去重；③转谱长条资料/纯 LN host；④只隔离发声、不改输入；⑤暂停/seek/retry；⑥converter/Player/成绩及完整回归；⑦同步文档、记忆与当前分支提交。活动计划仅保留剩余人工门。
+- 软件工件位于忽略目录 `TestResults/auto-keysound-20260929/`；BMS 音频 focused 48通过。mania relevant 424通过、4失败：`TestHoldNoteChord`、`TestSingleHoldNote` expected 0 / actual 2，`TestHoldNoteStair` 0 / 4，`TestHoldNoteWithReleasePress` 2 / 3；均为旧 `Incorrect number of frames`，名称及完整消息与 [C6 留存基线](../../other/SKIN_SYSTEM_C6_VALIDATION_20260909.md) 逐项一致，比较保存在 `mania-failure-comparison.json`。原生 mania 开/关 BMS 声音设置的样本/正常计分检查均通过。
+- 真实 Player 证明两模式无输入仍发声但 Miss/零分、早按不提前发声、空按不重播、纯 LN 头音和静音尾；固定输入开关两局对照 judgement/time offset/accuracy/score/combo/health 一致。生命周期覆盖暂停、前后跳转、停止后重置及源时钟速率；Mod 清单与 clone 验证不替代真实音频设备证明。
+
+最终完整回归：BMS 2377通过、29失败、16跳过；对照同日修改前 `TestResults/auto-offset-20260929/auto-offset-bms-full.trx` 的 2354通过、29失败、16跳过，失败名称集合完全一致，每一项完整错误消息与调用栈均相同，比较结果存于 `bms-failure-comparison.json`。新增 23 项全部通过；仍未闭合既有皮肤工作区失败及人工跳过项。
+
+Release 构建成功，0 error；仅保留既有 CS8600（TestSceneFilesystemBackedStoryboardFallback.cs:151）与 CA2007（BmsRulesetStatisticsTest.cs:555）警告。文档健康检查与 `git diff --check` 通过；前者保留历史指纹/路径提示。源码格式化后已重新编译运行完整 BMS 回归，没有以旧产物代替验证。
+
+执行命令（Debug，源码稳定后串行执行）：
+
+```powershell
+dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj --no-restore --filter "FullyQualifiedName~BmsAutomaticKeysound|FullyQualifiedName~BmsSharedKeysoundTiming|FullyQualifiedName~BmsKeysoundPlaybackLifecycle|FullyQualifiedName~BmsPlayerAudioSemantics|FullyQualifiedName~BmsToManiaKeyNoteStoreRouting|FullyQualifiedName~BmsGameplayTrackMuting" --logger "trx;LogFileName=auto-keysound-bms-focused-final.trx" --results-directory TestResults/auto-keysound-20260929
+dotnet test osu.Game.Rulesets.Mania.Tests/osu.Game.Rulesets.Mania.Tests.csproj --no-restore --filter "FullyQualifiedName~BmsToManiaBeatmapConverterTest|FullyQualifiedName~TestSceneManiaHitObjectSamples|FullyQualifiedName~HoldNote|FullyQualifiedName~Replay|FullyQualifiedName~Autoplay" --logger "trx;LogFileName=auto-keysound-mania-relevant.trx" --results-directory TestResults/auto-keysound-20260929
+dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj --no-restore --logger "trx;LogFileName=auto-keysound-bms-full.trx" --results-directory TestResults/auto-keysound-20260929
+dotnet build osu.Desktop.slnf -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1
+git diff --check
+```
+
 ### 音频诊断记忆补齐权威入口
 
 - 按键误播BGM与gameplay Track静音两条memory补回P1-J状态/合同的直接链接，保留隐藏发声定位、重置后静音与backfill性能地雷，避免把叶子记忆当第二份产品合同。

@@ -1,6 +1,6 @@
 # P1-K 当前状态：BMS 解析与转换治理
 
-> 最后核对：2026-09-23（源码与留存证据同步；产品验证日期不变）
+> 最后核对：2026-09-29（自动键音转谱资料保全）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。格式参考见 [BMS_FORMAT_REFERENCE.md](../../other/BMS_FORMAT_REFERENCE.md)。
 
 ## 当前阶段
@@ -18,6 +18,7 @@ K1–K12 主体已阶段性收口：解析 authority、主要控制事件、proj
 - parse-once/project-many：metadata、background、Song Select、statistics、results 等复用 parse authority。
 - source-bound modless playable cache 与 invalidation；results/score consumer 使用 already-modded playable contract。
 - dedicated BMS→mania converter：sample-only BGM/scratch、LN tail 静音、converted star 持久化和展示 read-model。
+- 自动键音：converted HoldNote 保留 head sample/WAV slot，转换后的只读音频快照在 NR/HO/IN 重建玩法对象后仍可播放完整原谱音乐；原统计/难度、NodeSamples 与静音尾不改，播放与验收归 [P1-J](../P1-J/DEVELOPMENT_STATUS.md)。
 - LNOBJ 只与同 lane 紧邻前一普通音符配对，禁止 LIFO 回抓制造重叠 LN。
 - converted-star 难度入口过滤 sample-only BGM/scratch，并以 conversion version 失效旧结果。
 - immutable `BmsKeymodeResolution` 由 parser 单点产出并原样流经 converter、production loader 与 gameplay layout owner：authoritative host/importer显式 override、`.pms/.bme`、P2/high channel 与完整 channel-set 的 precedence、evidence、纠正入口及稳定脱敏 diagnostic 已冻结；无充分证据或证据冲突时 fail-closed，不再按最高出现 channel、hit object 或 layout 宽度猜测。
@@ -33,6 +34,8 @@ K1–K12 主体已阶段性收口：解析 authority、主要控制事件、proj
 - 转谱器不自行计算 mania 星级；星级归 `ManiaDifficultyCalculator`/difficulty cache。
 
 ## 最近一次验证
+
+2026-09-29 自动键音的 converter/Mod/clone、实际 Player 与 mania relevant、完整回归及 Release 记录集中见 [P1-J](../P1-J/CHANGELOG.md#bms-与-bmsmania-自动键音)，不扩成转谱手动 LN 或真实听感已签收。
 
 2026-09-22 TOTAL 的decoder/converter/cache、演奏/回放与results专项，以及BMS full和Release结果统一见[P1-C最新验证](../P1-C/DEVELOPMENT_STATUS.md#最近一次验证)与[TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。完整回归包含已逐项复现的旧皮肤失败，不能沿用旧C3全绿数字作为当前结论。2026-09-23仅回读留存证据，未新增产品测试。
 

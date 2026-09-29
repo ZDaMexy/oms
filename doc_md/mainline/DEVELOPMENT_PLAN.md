@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后核对：2026-09-29（自动调整偏移软件已交付，剩余实机验收；其它优先级保持）
+> 最后核对：2026-09-29（自动键音与自动调整偏移软件已交付，剩余实机验收；其它优先级保持）
 > 本页维护全局顺序、跨线依赖和改动验收；当前事实见[STATUS](DEVELOPMENT_STATUS.md)，专项动作从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 当前目标
@@ -32,6 +32,8 @@
 具体source、权限、预算、回退与journal迁移条件均以[P1-A C6/C7退出门](../subline/P1-A/DEVELOPMENT_PLAN.md)为准。P1-L继续拥有BGA内容/timeline/seek；不扩大beatmap-local作者面或移植LR2/beatoraja runtime。
 
 ### R5：Phase 1 玩法与硬件收尾
+
+2026-09-29 用户指定推进原生 BMS 与 BMS→mania 的独立自动键音设置；声音按谱面时间播放，真实输入和成绩仍由原判定链处理。软件验证与剩余听感/设备门统一见 [P1-J](../subline/P1-J/DEVELOPMENT_PLAN.md)，不推进新 gameplay Mod 或其它冻结功能。
 
 2026-09-29 用户指定的「自动调整偏移」互斥 style 已完成软件交付：保留 lazer 的上一局校准，增加 BMS beatoraja 显示时机调整；剩余真实设备、实谱收敛和回放体验验收由 [P1-C](../subline/P1-C/DEVELOPMENT_PLAN.md#2026-09-29-用户指定自动调整偏移-style-互斥)维护，不恢复常驻反馈卡或推进其它冻结功能。
 

@@ -1,11 +1,13 @@
 # P1-J 当前状态：BMS gameplay 性能与音频时序
 
-> 最后更新：2026-09-09（代码与跨线证据同步；产品验证未刷新）
+> 最后更新：2026-09-29（自动键音实现与软件回归，真实听感待验收）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。
 
 ## 当前阶段
 
-普通密度 BMS 与转谱-mania 的主要键音故障、帧抖动和开局 gen2 冻结已有修复基线。末端 lane timeline 与 shared-store production proof 已随 P1-A C3/P1-K 闭合；仍开放转谱 LN head 的 shared-store 接入、长 one-shot 保位续播、50k 极端 dense 谱 profile 和真实谱音频人工清单。
+普通密度 BMS 与转谱-mania 的主要键音故障、帧抖动和开局 gen2 冻结已有修复基线。末端 lane timeline 与 shared-store production proof 已随 P1-A C3/P1-K 闭合；仍开放默认手动模式转谱 LN head 的 shared-store 接入、长 one-shot 保位续播、50k 极端 dense 谱 profile 和真实谱音频人工清单。
+
+用户指定的原生 BMS / BMS→mania 自动键音已实现：两个独立默认关闭设置，每局固定，声音按谱面时刻播放，真实操作与成绩仍由原判定链处理。当前执行与退出门见 [PLAN](DEVELOPMENT_PLAN.md#0-用户指定自动键音2026-09-29)，稳定边界见 [自动键音合同](TECHNICAL_CONSTRAINTS.md#自动键音合同2026-09-29)。
 
 ## 当前有效合同
 
@@ -13,7 +15,7 @@
 - gameplay keysound same-frame 播放；lane/ordered-hit 热路径已移除首批无谓物化和重复扫描。
 - channel 选择为 idle-first，饱和时增长到上限 256；原生默认基线 32，转谱 store floor 128。
 - 同一 `KeysoundId` 走 per-WAV cut；不同槽即使同文件也不合并。
-- LN tail 不发声；自然 miss 不发声；key-down 的 hit/pressed-poor 按既有合同发声。
+- LN tail 不发声；默认手动键音时自然 miss 不发声，key-down 的 hit/pressed-poor 按既有合同发声；开启自动键音后仅声音改由谱面时刻触发。
 - pause/seek 会统一停止 one-shot store 播放，避免样本穿透；这不等价于长 BGM 真正保位恢复。
 - full autoplay 走对象级 autoplay + direct-time replay 分流；普通 replay 保留 framed 边界推进。
 - 玩家模式已预热 keysound；同样本重触发走 channel fast path，避免 sample-drawable 重建 churn。
@@ -25,7 +27,7 @@
 - BGM/scratch sample-only 对象的 `Samples` 为空，避免 mania 按键反馈再次触发；实际键音走 `KeysoundSample`。
 - tap note 已池化并具备 per-WAV cut；暂停停 BGM、长 BGM 被 32 通道偷断、bgm1 按 key1 重播均已修复并有历史实机证明。
 - gameplay 主 Track 对 BMS 静音但保留时钟 authority；选歌试听只接受 `#PREVIEW`，存量由 backfill 回写。
-- 转谱 LN 仍产出普通 mania `HoldNote`，头音经 `NodeSamples[0]` 播放；没有 `IHasManiaKeysound`/cut-group 的 pooled nested head，不能把 tap-note store proof 扩大成 LN 已接入。
+- 转谱 LN 产出保持普通 mania `HoldNote` 池化的键音载体，自动模式可按原 head WAV slot 经 store 发声；默认手动模式仍经 `NodeSamples[0]`，没有 pooled nested head 的 store 路由，不能把自动模式证明扩大成手动 LN 已接入。
 
 ## 进度
 
@@ -36,17 +38,17 @@
 | J3 sample allocation | 主路径完成，array-based 底层合同仍在 |
 | J4 live channel safety | 完成；用户设置项已移除，内部 resize 合同保留 |
 | J5 focused/dense validation | 自动化具备，人工清单待闭合 |
-| J6 转谱音频 | tap/BGM/scratch 主链完成；LN 与长 BGM resume 仍开放 |
+| J6 转谱音频 | tap/BGM/scratch 主链完成；自动模式含 LN；手动 LN 与长 BGM resume 仍开放 |
 
 ## 最近一次验证
 
-- 全局最新产品验证统一见 [mainline STATUS 的“最近一次验证”](../../mainline/DEVELOPMENT_STATUS.md#最近一次验证)；2026-07-16 仅治理文档，未运行产品测试或 Release。
-- store/audio/runtime 的本线历史 focused/full 数字与逐日取证统一查 [CHANGELOG.md](CHANGELOG.md)，不冒充当前全局 gate。
+- 2026-09-29：自动键音 Player 证明无输入仍播放但正常 Miss/零分，固定输入开关对照判定、时差、准确率、成绩、连击与血量一致；两个设置互不影响，普通 mania 保持原音效。
+- 本次 focused、完整回归、既有失败身份与 Release 结果集中见 [自动键音验证记录](CHANGELOG.md#bms-与-bmsmania-自动键音)；真实设备听感未签收。
 
 ## 当前风险与下一步
 
 1. lane timeline：converter 与 production shared-store 自动证据已闭合，继续保留每轨空击/不可见 keysound 的真实谱 smoke；闭门依据见 [P1-K CHANGELOG](../P1-K/CHANGELOG.md#2026-08-30)。
-2. 转谱 LN：先用现有 player-level harness 取证，再尝试池化嵌套 head；禁止重走曾导致空 Head 容器崩溃的非池化方案。
+2. 手动模式转谱 LN：先用现有 player-level harness 取证，再尝试池化嵌套 head；禁止重走曾导致空 Head 容器崩溃的非池化方案。
 3. 50k dense：只有真机重现时才用 `BmsGameplayStallDiagnostics` 区分 gen2、晋升风暴或 render/present；不把普通密度旧问题重新打开。
 4. 人工清单：dense fully-keysounded、layered/long BGM、rapid empty-strike、pause/seek，结果回交 P1-G。
 5. 长 one-shot 真 pause/resume 仍缺底层能力；当前“边界即停”只能防逃逸，不能宣称保位续播。

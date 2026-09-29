@@ -13,7 +13,7 @@ metadata:
 ## 四条稳定合同
 
 1. **idle-first + 饱和增长**：`BmsKeysoundStore` 基线 32，繁忙时增长到 256，达到上限才轮转；不要恢复用户通道数滑条或每次 Play 全池扫描。
-2. **key-down 必出声**：clean hit 与被消费的 pressed-poor/miss 发对应键音；自然 miss 静音。
+2. **默认手动键音 key-down 必出声**：clean hit 与被消费的 pressed-poor/miss 发对应键音；自然 miss 静音。自动键音 opt-in 只移动发声责任，不改这些输入的判定。
 3. **per-WAV cut 按 `KeysoundId` 槽号**：同槽重触发 cut，不按文件名合并；同文件不同槽允许自重叠。
 4. **LN tail 静音**：头发声，尾不发；尾 sample 只可用于 armed timeline。
 
@@ -27,10 +27,14 @@ autoplay 必须等价于 100% 完美游玩。自动音符存在时 lane armed �
 - 已闭合：pause 边界停播、长 BGM 被 32 通道偷断、tap per-WAV cut、bgm1 按键误触发、普通密度帧抖动与冷解码 gen2 冻结。
 - C3 Skin 前置已闭合：parser 的 immutable `BmsKeymodeResolution` 是 keymode 唯一 truth；`LaneKeysoundTimelines` 以 `GetLaneCount()` 覆盖 5K/7K 末键、9K 全 lane、14K K14/S2 的 visible、LN head/tail armed 与 invisible，layout/runtime 不得二次读谱或猜 lane 数。
 - native BMS 玩家/autoplay 与 converted Mania 已在 production host 证明实际请求同一 shared store。Mirror/RANDOM/R-RANDOM/custom 的对象、mine、armed timeline 共用 exact permutation；S-RANDOM 无单一 permutation 时以 `bms.keysound.timeline.disabled-s-random` 禁用受影响 armed timeline，但对象自身 WAV 仍随 post-mod target lane 发声，keysound 与 skin lookup 使用同一 `LaneId`。
-- 仍开放：转谱 LN 池化嵌套头、长 one-shot BGM 真 pause/resume、50k 极端 dense profile。当前 converter 对 LN 仍生成普通 mania `HoldNote`，头音在 `NodeSamples[0]`，不带 `IHasManiaKeysound`/cut-group；tap-note production store proof 不能用于宣称 LN 已接入。
+- 自动键音的转谱 LN 载体保留 head sample/slot，仍继承普通 HoldNote。关闭自动键音时头音继续在 `NodeSamples[0]`，嵌套 head 没有 store 路由；自动清单证明不能扩写成默认手动 LN 已接入。长 one-shot BGM 真 pause/resume、50k 极端 dense profile 仍开放。
 
 ## 地雷与诊断
 
+- NR/HO/IN 会重建 mania 对象，HO/IN 还会删除 BGM/皿 sample-only；自动键音不能只在 Mods 之后扫描 `IHasManiaKeysound`。转换器保存只读音频值快照，每局游标独立；预热必须覆盖快照里的已删除对象声音。当前开关关闭时这些 Mod 的旧音频行为未改。
+- 自动键音不能挂在 playable drawable 的 Update 上：早按后对象可能在应发声时刻前已回收。音频游标必须独立；mania Column 的按键反馈也须单独关，不能仅 gate `DrawableNote.PlaySamples()`。
+
+- Player 时间测试中普通推进应驱动实际 `FramedBeatmapClock.Source`，并扣除 `TotalAppliedOffset`；`GameplayClockContainer.Seek` 是显式跳转，会按合同跳过过去的自动声音，不能拿它模拟连续游玩。确定性输入/时差对照的 ManualClock 设 Rate=0，避免插值自行推进；速率行为另作生命周期测试。
 - 转谱 HoldNote 不能用非池化自定义嵌套 head；mania `DrawableHoldNote.Update()` 假设池化 head/tail 已建立。
 - mania pool 有 base-type fallback，但前提是 `CreateDrawableRepresentation` 返回 null；返回专用 drawable 就绕过池。
 - “人声截断/少键”先检查 parser，尤其缺省 `#LNTYPE` 应按 1；不要先改通道池。

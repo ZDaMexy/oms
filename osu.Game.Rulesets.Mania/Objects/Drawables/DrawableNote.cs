@@ -195,6 +195,10 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
 
         public override void PlaySamples()
         {
+            // The hosted store owns all converted-BMS audio in automatic mode, including ordinary nested hold heads.
+            if (keysoundStore?.AutomaticPlayback == true)
+                return;
+
             // A converted chart (e.g. BMS) may host a shared keysound store; a converted KEY note then routes its
             // keysound through it (bounded pool, per-WAV cut, pause/seek aware) instead of mania's per-object one-shot.
             // This is what keeps the converted note a fully pooled DrawableNote rather than a per-note non-pooled

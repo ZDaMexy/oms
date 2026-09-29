@@ -3,7 +3,9 @@
 
 #nullable enable
 
+using System.Collections.Generic;
 using osu.Game.Audio;
+using osu.Game.Beatmaps;
 
 namespace osu.Game.Rulesets.Mania.Objects
 {
@@ -16,6 +18,15 @@ namespace osu.Game.Rulesets.Mania.Objects
     /// </summary>
     public interface IManiaKeysoundStore
     {
+        /// <summary>Scheduled samples, including music preserved across note-replacing mods, for loading-time prewarm.</summary>
+        IEnumerable<ISampleInfo> AutomaticSamples { get; }
+
+        /// <summary>Whether chart timing owns keysound playback for this play session.</summary>
+        bool AutomaticPlayback { get; }
+
+        /// <summary>Enables chart-timed playback without changing hit objects or judgement.</summary>
+        void EnableAutomaticPlayback(IBeatmap beatmap);
+
         /// <summary>
         /// Plays a single keysound. When <paramref name="cutGroup"/> (the source WAV slot) is non-null it enables
         /// per-WAV cut: re-triggering the same still-sounding slot restarts it rather than stacking an overlapping copy.

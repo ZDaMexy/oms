@@ -89,12 +89,13 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             // Computing it in-converter ran the full strain pass a second time on the persistence path and added a
             // wasted pass on the gameplay load path (the displayed/persisted star comes from those calculators, never
             // from this transient beatmap's BeatmapInfo). Matches upstream ManiaBeatmapConverter, which sets no star.
+            ((BmsConvertedManiaBeatmap)convertedBeatmap).CaptureAutomaticKeysounds();
             return convertedBeatmap;
         }
 
         protected override Beatmap<ManiaHitObject> CreateBeatmap()
         {
-            var beatmap = new ManiaBeatmap(new StageDefinition(stageColumns));
+            var beatmap = new BmsConvertedManiaBeatmap(new StageDefinition(stageColumns));
 
             if (dualStage)
                 beatmap.Stages.Add(new StageDefinition(stageColumns));
@@ -113,11 +114,13 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                     break;
 
                 case BmsHoldNote holdNote:
-                    yield return new HoldNote
+                    yield return new BmsConvertedHoldNoteHitObject
                     {
                         StartTime = holdNote.StartTime,
                         EndTime = holdNote.EndTime,
                         Column = getTargetColumn(holdNote.LaneIndex),
+                        KeysoundSample = holdNote.HeadKeysoundSample,
+                        KeysoundId = holdNote.HeadKeysoundId,
                         Samples = createSamples(holdNote.HeadKeysoundSample),
                         NodeSamples = new List<IList<HitSampleInfo>>
                         {

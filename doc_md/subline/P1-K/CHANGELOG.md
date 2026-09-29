@@ -7,6 +7,12 @@
 
 ## 2026-09-29
 
+### 自动键音的转谱资料保全
+
+- 非皿 LN 改为继承普通 HoldNote 的 `BmsConvertedHoldNoteHitObject`，保留头 sample/WAV slot，NodeSamples 与静音尾不变；纯 LN 也被 shared-store host 识别。
+- `BmsConvertedManiaBeatmap` 保存只读音频值快照，避免 NR/HO/IN 替换或删除玩法对象时丢失自动音乐；clone 可共享只读快照，各局独立推进。不改变 parser、lane flatten、statistics、difficulty 或缓存版本。
+- 转换、Mod、实际 Player 与完整验证统一见 [P1-J 当次记录](../P1-J/CHANGELOG.md#bms-与-bmsmania-自动键音)；默认手动 LN 的 store 迁移和真实听感仍不在本次完成范围。
+
 ### 文档治理与产品验证边界对齐
 
 - 技术约束明确数据结构等产品代码改动仍需 Release；纯文档/记忆治理遵循主线验收矩阵，不再被旧“文档治理也必须build”的文字误导。

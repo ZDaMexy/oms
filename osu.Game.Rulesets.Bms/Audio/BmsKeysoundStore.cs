@@ -8,11 +8,14 @@ using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Game.Audio;
+using osu.Game.Beatmaps;
+using osu.Game.Configuration;
 using osu.Game.Rulesets.Bms.Diagnostics;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Screens.Play;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Bms.Audio
 {
@@ -23,6 +26,25 @@ namespace osu.Game.Rulesets.Bms.Audio
     {
         private IBindable<bool>? gameplayPaused;
         private GameplayClockContainer? gameplayClockContainer;
+        private BmsAutomaticKeysoundPlayback? automaticPlayback;
+        private double lastAutomaticPlaybackTime = double.NegativeInfinity;
+
+        public bool AutomaticPlayback => automaticPlayback != null;
+
+        public IEnumerable<ISampleInfo> AutomaticSamples => automaticPlayback?.Samples ?? Enumerable.Empty<ISampleInfo>();
+
+        [Resolved(CanBeNull = true)]
+        private GameplaySkinLayoutSnapshot? layoutSnapshot { get; set; }
+
+        [Resolved(CanBeNull = true)]
+        private IGameplaySettings? gameplaySettings { get; set; }
+
+        /// <summary>
+        /// Captures audio from the already-converted gameplay instance without changing its samples or judgements.
+        /// Called once by the owning ruleset before gameplay starts.
+        /// </summary>
+        public void EnableAutomaticPlayback(IBeatmap beatmap)
+            => automaticPlayback = new BmsAutomaticKeysoundPlayback(beatmap);
 
         public const int MIN_CONCURRENT_CHANNELS = 1;
 
@@ -122,7 +144,14 @@ namespace osu.Game.Rulesets.Bms.Audio
                     StopAllPlayback();
             });
 
-            gameplayClockContainer.OnSeek += StopAllPlayback;
+            gameplayClockContainer.OnSeek += onSeek;
+        }
+
+        private void onSeek()
+        {
+            StopAllPlayback();
+            lastAutomaticPlaybackTime = gameplayClockContainer!.CurrentTime;
+            automaticPlayback?.Seek(lastAutomaticPlaybackTime);
         }
 
         public void Play(IEnumerable<ISampleInfo> sampleInfos, double balance)
@@ -313,6 +342,40 @@ namespace osu.Game.Rulesets.Bms.Audio
             }
 
             reclaimIdleChannels();
+
+            if (automaticPlayback == null)
+                return;
+
+            // Use the audio/gameplay clock, not drawable/replay catch-up frames or the display-offset projection.
+            // Multiple frame-stable updates at the same master time must never replay an event.
+            double time = gameplayClockContainer?.CurrentTime ?? Time.Current;
+            if (time < lastAutomaticPlaybackTime)
+            {
+                StopAllPlayback();
+                automaticPlayback.Seek(time);
+            }
+
+            lastAutomaticPlaybackTime = time;
+
+            if (gameplayClockContainer != null && (gameplayClockContainer.IsPaused.Value || !gameplayClockContainer.IsRunning))
+                return;
+
+            while (automaticPlayback.TryDequeue(time, out var keysound))
+            {
+                double balance = 0;
+                if (keysound.ManiaColumn is int column && layoutSnapshot != null && gameplaySettings != null)
+                {
+                    var lane = layoutSnapshot.GetLane(layoutSnapshot.Context.Topology.LanesInLogicalOrder[column].Identity.Id).Rect;
+                    var safe = layoutSnapshot.Context.SafeBounds;
+                    float position = (lane.Left + lane.Width / 2 - safe.Left) / safe.Width;
+                    balance = Math.Round(gameplaySettings.PositionalHitsoundsLevel.Value * 2 * (position - 0.5f), 2);
+                }
+
+                if (keysound.CutGroup is int cutGroup)
+                    Play(keysound.Sample, balance, cutGroup);
+                else
+                    Play(keysound.Sample, balance);
+            }
         }
 
         // Rebuilds the idle-channel free set for the current frame. Channels popped and played during the frame turn
@@ -338,7 +401,7 @@ namespace osu.Game.Rulesets.Bms.Audio
             gameplayPaused?.UnbindAll();
 
             if (gameplayClockContainer != null)
-                gameplayClockContainer.OnSeek -= StopAllPlayback;
+                gameplayClockContainer.OnSeek -= onSeek;
 
             base.Dispose(isDisposing);
         }

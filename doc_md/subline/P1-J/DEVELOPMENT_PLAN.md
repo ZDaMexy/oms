@@ -1,6 +1,6 @@
 # P1-J 当前计划：BMS gameplay 性能与音频时序
 
-> 最后更新：2026-09-09（移除已闭合的 C3 lane 前置待办）
+> 最后更新：2026-09-29（自动键音软件实现完成，保留真实听感门）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定音频合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，已完成修复与取证按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -14,7 +14,7 @@ P1-J 只拥有 BMS gameplay runtime 的 keysound timing、shared audio pool、la
 ## 当前基线
 
 - 原生 BMS 与转谱-mania 的普通密度主要键音、帧抖动和开局冻结故障已收口。
-- BGM/scratch/tap note 已走 shared `BmsKeysoundStore`；转谱 LN 仍是开放缺口。
+- BGM/scratch/tap note 已走 shared `BmsKeysoundStore`；默认手动模式的转谱 LN 仍是开放缺口。
 - lane/order 热路径、通道自动增长、per-WAV cut、prewarm、pause/seek stop 与 diagnostics seam 已有稳定合同。
 - BMS gameplay beatmap track 保持静音但仍是时钟源；选歌试听只接受 `#PREVIEW`。
 - 完整 lane timeline、末端 lane 与 mod 后 shared-store production proof 已随 C3/P1-K 闭合；后续只保留回归和真实谱 smoke，证据见 [P1-K CHANGELOG](../P1-K/CHANGELOG.md#2026-08-30)。
@@ -23,7 +23,13 @@ P1-J 只拥有 BMS gameplay runtime 的 keysound timing、shared audio pool、la
 
 ## 当前执行顺序
 
-### 1. 转谱 LN keysound 进入 shared store
+### 0. 用户指定：自动键音（2026-09-29）
+
+目标：BMS 原生与 BMS→mania 分别提供默认关闭、独立保存的自动键音设置；每局固定，回放使用当前声音偏好。键音按谱面时间播放，真实输入、判定、血量、成绩与通关灯不变。原生 mania 不受影响。
+
+软件步骤与验证归档见 [CHANGELOG](CHANGELOG.md#bms-与-bmsmania-自动键音)。剩余人工门：在原生 BMS 与 BMS→mania 分别试听 fully-keysounded、长条/皿、同槽连续音、密集和弦、暂停长 BGM，并对照开关听感；记录设备与谱面，软件证明不得代签。
+
+### 1. 手动模式转谱 LN keysound 进入 shared store
 
 依赖：现有 tap-note store 路由、player-level playback log/harness 与 mania hold pooling 行为保持可验证。
 
