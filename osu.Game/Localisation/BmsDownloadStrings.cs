@@ -1,0 +1,37 @@
+// Copyright (c) OMS contributors. Licensed under the MIT Licence.
+
+using osu.Framework.Localisation;
+
+namespace osu.Game.Localisation
+{
+    public static class BmsDownloadStrings
+    {
+        private static LocalisableString text(string key, string fallback) => new TranslatableString("osu.Game.Localisation.BmsDownload:" + key, fallback);
+
+        public static LocalisableString Title => text("title", "Browse BMS");
+        public static LocalisableString Description => text("description", "Find BMS charts, download and play.");
+        public static LocalisableString Search => text("search", "Search title, artist or chart");
+        public static LocalisableString SearchNow => text("search_now", "Search");
+        public static LocalisableString AllTables => text("all_tables", "All difficulty tables");
+        public static LocalisableString Download => text("download", "Download");
+        public static LocalisableString Cancel => text("cancel", "Cancel");
+        public static LocalisableString Retry => text("retry", "Retry");
+        public static LocalisableString Open => text("open", "Open in song select");
+        public static LocalisableString Expand => text("expand", "Charts");
+        public static LocalisableString Queued => text("queued", "Queued");
+        public static LocalisableString Downloading => text("downloading", "Downloading");
+        public static LocalisableString Importing => text("importing", "Adding to library");
+        public static LocalisableString Available => text("available", "Ready to play");
+        public static LocalisableString Cancelled => text("cancelled", "Cancelled");
+        public static LocalisableString Failed => text("failed", "Download or import failed. Please retry.");
+        public static LocalisableString NoPackage => text("no_package", "No package available from this source");
+        public static LocalisableString UnsupportedChart => text("unsupported_chart", "This chart format or key count is not supported yet");
+        public static LocalisableString NoResults => text("no_results", "No matching charts found.");
+        public static LocalisableString SearchFailed => text("search_failed", "Could not load this source. Please retry.");
+        public static LocalisableString TableFailed => text("table_failed", "Difficulty tables are unavailable. You can still search.");
+        public static LocalisableString BrowseMore => text("browse_more", "Load more");
+        public static LocalisableString OutsideGameplay => text("outside_gameplay", "Open this chart after the current play finishes.");
+        public static LocalisableString NoLongerAvailable => text("no_longer_available", "This chart is no longer available in your library.");
+        public static LocalisableString ExternalPreview => text("external_preview", "View chart on website");
+    }
+}

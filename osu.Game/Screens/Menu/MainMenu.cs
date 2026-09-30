@@ -253,7 +253,13 @@ namespace osu.Game.Screens.Menu
             };
 
             Buttons.OnSettings = () => settings?.ToggleVisibility();
-            Buttons.OnBeatmapListing = () => beatmapListing?.ToggleVisibility();
+            Buttons.OnBeatmapListing = () =>
+            {
+                if (game?.BmsDownloadsEnabled == true)
+                    game.ToggleBmsDownloadBrowser();
+                else
+                    beatmapListing?.ToggleVisibility();
+            };
 
             reappearSampleSwoosh = audio.Samples.Get(@"Menu/reappear-swoosh");
         }
@@ -476,7 +482,12 @@ namespace osu.Game.Screens.Menu
             Beatmap.Value = beatmap;
             Ruleset.Value = ruleset;
 
-            Schedule(loadSongSelect);
+            Schedule(() =>
+            {
+                var songSelect = new SoloSongSelect();
+                songSelect.OnLoadComplete += _ => ((IHandlePresentBeatmap)songSelect).PresentBeatmap(beatmap, ruleset);
+                this.Push(songSelect);
+            });
         }
 
         public bool OnPressed(KeyBindingPressEvent<GlobalAction> e)

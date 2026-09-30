@@ -25,6 +25,7 @@ using osu.Game.Configuration;
 using osu.Game.IO;
 using osu.Game.IPC;
 using osu.Game.Online.Multiplayer;
+using osu.Game.Online.Bms;
 using osu.Game.Overlays.Settings;
 using osu.Game.Performance;
 using osu.Game.Beatmaps;
@@ -50,6 +51,10 @@ namespace osu.Desktop
         private readonly HighPerformanceSessionManager highPerformanceSessionManager = new HighPerformanceSessionManager();
 
         public bool IsFirstRun { get; init; }
+
+        public override bool BmsDownloadsEnabled => true;
+
+        protected override BmsDownloadManager CreateBmsDownloadManager() => new BmsDownloadManager(Storage, new BmsDownloadImporter(Storage, ClientRealm));
 
         public OsuGameDesktop(string[]? args = null)
             : base(args)

@@ -9,6 +9,7 @@
 - [反馈工作流](feedback_workflow.md) — 默认产品语言、反过度防御、真机证据与本轮结束边界。
 - [选歌展示与导航](project_oms_songselect_display_nav.md) — 状态分离、祖先可见性、谱卡重绑与大库诊断。
 - [内置音乐播放器](project_oms_music_player.md) — 共用音轨/试听与队列接入、已定展开壳体和 core 依赖方向。
+- [内置 BMS 下载](reference_bms_builtin_download.md) — 两源资料语义、浏览可见性、按钮禁用、任务收尾与精确难度选歌。
 
 ## 皮肤恢复与存储
 
@@ -20,7 +21,7 @@
 - [skin package immutable revision capsule](reference_skin_package_revision_capsule.md) — 内容身份、独占 bytes 与物理捕获的区别。
 - [skin folder Windows handle capture](reference_skin_windows_handle_capture.md) — held no-follow、文件身份竞态与 handle 生命周期。
 - [managed skin folder scanner](reference_skin_managed_folder_scanner.md) — Observed/Valid、启动/手动扫描与 reload 的区别。
-- [managed skin folder factory/selection](reference_skin_managed_folder_selection.md) — 选择竞态、typed epoch 与 shutdown。
+- [managed skin folder factory/selection](reference_skin_managed_folder_selection.md) — 选择竞态、typed epoch、shutdown 与隐式提交前同值重选的 fixture 时序。
 - [managed chartskin mutation / rename / staged import / delete](reference_skin_managed_folder_mutation_foundation.md) — NTFS move、日志恢复及 uncertain failure。
 - [external Workspace / exact registry / ManagedCopy](reference_skin_external_workspace_managed_copy.md) — 旧注册后端保留、external 只读与 ManagedCopy 复核。
 - [managed skin atomic reload/detach](reference_skin_atomic_reload_detach.md) — 三源 publication、lease/retire 与调度竞态。

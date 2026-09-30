@@ -26,6 +26,25 @@ namespace osu.Game.Tests.Visual.SongSelect
             WaitForDrawablePanels();
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestRequestedDifficultySurvivesGroupResolution(bool separateInstance)
+        {
+            RemoveAllBeatmaps();
+            AddBeatmaps(1, 3);
+            WaitForFiltering();
+
+            AddStep("request another difficulty before its group resolves", () =>
+            {
+                var requested = BeatmapSets.Single().Beatmaps.Last();
+                Carousel.CurrentGroupedBeatmap = new GroupedBeatmap(null, separateInstance ? requested.Clone() : requested);
+                Carousel.Filter(Carousel.Criteria!);
+            });
+            WaitForFiltering();
+            AddAssert("requested difficulty remains selected", () => Carousel.CurrentBeatmap, () => Is.EqualTo(BeatmapSets.Single().Beatmaps.Last()));
+            AddAssert("requested difficulty has its resolved group", () => Carousel.CurrentGroupedBeatmap?.Group, () => Is.Not.Null);
+        }
+
         [Test]
         public void TestOpenCloseGroupWithNoSelectionMouse()
         {

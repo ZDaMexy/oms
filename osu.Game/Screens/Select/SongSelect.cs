@@ -423,6 +423,7 @@ namespace osu.Game.Screens.Select
 
         private BeatmapInfo? debounceQueuedSelection;
         private double debounceElapsedTime;
+        private bool hasPresentedBeatmap;
 
         private void debounceQueueSelection(BeatmapInfo beatmap)
         {
@@ -750,7 +751,7 @@ namespace osu.Game.Screens.Select
 
             // Some rulesets prefer to open grouped song select at the outermost group level on a fresh entry.
             // When resuming (e.g. after gameplay), preserve the previous beatmap selection.
-            if (!isResuming && Ruleset.Value.CreateInstance().ShouldResetSongSelectGroupToRoot(currentGroupMode))
+            if (!isResuming && !hasPresentedBeatmap && Ruleset.Value.CreateInstance().ShouldResetSongSelectGroupToRoot(currentGroupMode))
             {
                 pendingRootGroupFocus = true;
                 carousel.ResetToRootLevel();
@@ -919,7 +920,10 @@ namespace osu.Game.Screens.Select
 
         private void criteriaChanged(FilterCriteria criteria)
         {
-            bool resetToRootLevel = currentGroupMode != criteria.Group && Ruleset.Value.CreateInstance().ShouldResetSongSelectGroupToRoot(criteria.Group);
+            // The filter control may select the ruleset's initial grouping after an explicit beatmap has been presented.
+            bool resetToRootLevel = currentGroupMode != criteria.Group
+                                    && (CarouselItemsPresented || !hasPresentedBeatmap)
+                                    && Ruleset.Value.CreateInstance().ShouldResetSongSelectGroupToRoot(criteria.Group);
             currentGroupMode = criteria.Group;
 
             if (resetToRootLevel)
@@ -1229,6 +1233,7 @@ namespace osu.Game.Screens.Select
         void IHandlePresentBeatmap.PresentBeatmap(WorkingBeatmap workingBeatmap, RulesetInfo ruleset)
         {
             cancelDebounceSelection();
+            hasPresentedBeatmap = true;
 
             var beatmapInfo = workingBeatmap.BeatmapInfo;
 
@@ -1249,6 +1254,13 @@ namespace osu.Game.Screens.Select
 
                 Logger.Log($"Completing {nameof(IHandlePresentBeatmap.PresentBeatmap)} with beatmap {workingBeatmap} (maintaining ruleset)");
             }
+
+            // A ruleset change may have queued filtering without starting it yet, so the current items can still belong to the old ruleset.
+            // Newly imported items may also be waiting for the carousel's scheduled library update.
+            pendingRootGroupFocus = false;
+            carousel.CurrentBeatmap = beatmapInfo;
+            if (IsFiltering || carousel.CurrentBeatmap == null)
+                carousel.CurrentGroupedBeatmap = new GroupedBeatmap(null, beatmapInfo);
         }
 
         #endregion

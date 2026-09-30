@@ -1,20 +1,20 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-01（进度与文档记忆治理；产品验证仍为 2026-09-30，皮肤外观专项仍为 2026-09-13）
+> 最后核对：2026-10-01（两源 BMS 下载及真实包桌面验证；皮肤外观专项仍为 2026-09-13）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
 
-OMS处于Phase 1.x后段。原生 BMS 与转谱游玩已完成热路径优化；皮肤作者可控制 BGA 窗口并使用随包完整教程和例子。静线是 BMS/mania 唯一内置、默认与保底，两种玩法可分别选择皮肤；固定目录刷新和原组件编辑器可保存独立副本。星轨已退役，静线外观打磨仍暂停。整体画面、真实设备与长期体验尚未签收，Skin V1 与 release 未完成。皮肤能力和剩余门见 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)，性能与听感见 [P1-J](../subline/P1-J/DEVELOPMENT_STATUS.md)。
+OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原包、自动入库并打开指定 BMS 难度；原生 BMS 与转谱游玩已完成热路径优化。皮肤作者可控制 BGA 窗口并使用随包完整教程和例子。静线是 BMS/mania 唯一内置、默认与保底，两种玩法可分别选择皮肤；固定目录刷新和原组件编辑器可保存独立副本。星轨已退役，静线外观打磨仍暂停。整体画面、真实设备与长期体验尚未签收，Skin V1 与 release 未完成。产品能力和剩余门见 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)，性能与听感见 [P1-J](../subline/P1-J/DEVELOPMENT_STATUS.md)。
 
 ## 产品与仓库基线
 
 静线已完成当前控制区、分段血槽、轨宽及演奏信息迭代：白黑/皿轨独立比例，BGA布局由皮肤声明，作者标级与表名/表内等级独立显示。正常开发启动、build/publish只同步simple源。当前暂停继续打磨，既有成果、最新验证和未完成门统一见[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)；历史双内置和各轮截图不作为新的签收。
 
-- Windows-only，保留osu!mania与第一类BMS，Osu/Taiko/Catch已删除；离线优先，Phase 3前OMS私有服务与默认endpoint为空。用户主动添加公共BMS难度表URL仅是既有窄例外。
+- Windows-only，保留osu!mania与第一类BMS，Osu/Taiko/Catch已删除；离线优先，Phase 3前OMS私有服务与默认endpoint为空。公共BMS难度表URL及用户指定的 Ginger Rush / 616 两源浏览下载为窄例外，合同见 [P1-A](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载)。
 - BMS直读`chartbms/`，mania直读`chartmania/`；支持portable `data/`与自定义数据根。主要工程为`osu.Desktop.slnf`、`osu.Game.Rulesets.Bms`及`oms.Input`。
 - 当前协作分支为`master`。皮肤恢复/数据门`SV1-0`已关闭；迁移归档和四个无authority orphan blob继续保全，不能由scanner认领或清理。恢复事实见[恢复审计](../other/SKIN_SYSTEM_RECOVERY_20260710.md)及[数据/实机报告](../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
-- 2026-10-01 治理开始时工作区干净，产品 HEAD 为 `f3a625b`，包含性能优化 `807064b` 和 BGA/作者手册交付；本次 `git fetch origin` 成功，当时领先 `origin/master` 2、落后 0。9 月 30 日的 fetch 失败保留在历史记录，不再作为当前远端状态；未经用户确认不推送。
+- 2026-10-01 下载开发开始时工作区干净，HEAD 为 `24f621e`，包含此前产品交付与文档治理；本轮 `git fetch origin` 成功，当时领先 `origin/master` 3、落后 0。这是开工核对，不能当作收尾在线查询；未经用户确认不推送。
 
 ## 当前执行门与全局风险
 
@@ -33,6 +33,8 @@ OMS处于Phase 1.x后段。原生 BMS 与转谱游玩已完成热路径优化；
 皮肤安全与失败回退详见[P1-A技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)：当前并无live gameplay reload或watcher，external永久只读；授权撤销不扩大Reload准入，C6完成不等于C7或人工门关闭。异常期归档只能定点取证。局部自动测试不能代替完整真实选择链，自动证据也不能替代视觉、硬件或特殊Gimmick证明。
 
 ## 最近一次验证
+
+2026-10-01：玩家可在游戏内浏览 Ginger Rush 与 616，下载整包自动入库并打开指定原生 BMS 难度；后台通知、取消/重试及不打断游玩已实现。两个真实小包均通过桌面搜索→下载→入库→稳定选歌，软件回归和剩余听感/大包/网络体验门见 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md) 与 [下载闭环记录](../other/BMS_DOWNLOAD_20261001.md)。不解除官方/私有在线冻结，也不新增皮肤/设备/发行签收。
 
 2026-09-30 后续：BGA 窗口声明、共享播放会话与作者手册已实现，独立信息区保留、作者场景合法性和可运行例子一并验证；有效软件结果、桌面图像与完整回归对照统一见 [作者能力验证](../other/BGA_SKIN_AUTHORING_20260930.md)。不重新签收静线外观、设备听感或发行组合。
 

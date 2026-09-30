@@ -110,6 +110,8 @@ namespace osu.Game
 
         public virtual bool OnlineFeaturesEnabled => false;
 
+        public virtual bool BmsDownloadsEnabled => false;
+
         public virtual EndpointConfiguration CreateEndpoints() =>
             OnlineFeaturesEnabled
                 ? (UseDevelopmentServer ? new DevelopmentEndpointConfiguration() : new ProductionEndpointConfiguration())

@@ -1,9 +1,11 @@
 # OMS 当前开发规划
 
-> 最后核对：2026-10-01（整理剩余执行门；不新增产品或实机验证）
+> 最后核对：2026-10-01（双源 BMS 下载已实现并完成实际小包桌面路径；保留其后续体验及既有人工门）
 > 本页维护全局顺序、跨线依赖和改动验收；当前事实见[STATUS](DEVELOPMENT_STATUS.md)，专项动作从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 当前目标
+
+用户指定的 Ginger Rush 与 616/Alvorna 游戏内浏览、后台下载、自动入库与精确选歌已实现，详细实施规划和验证归档于 [下载闭环记录](../other/BMS_DOWNLOAD_20261001.md)；后续真实大包/网络/完整歌曲体验见 [P1-A 下载计划](../subline/P1-A/DEVELOPMENT_PLAN.md#用户指定第三方-bms-浏览下载闭环2026-10-01)。不自动推进独立在线试听、整表下载或续传，既有皮肤/设备/发行门继续保留。
 
 以已有软件与桌面证据为输入，后续补齐 BGA/作者作品的设备、真实素材与长时验收，归 [P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md) / [P1-L](../subline/P1-L/DEVELOPMENT_PLAN.md)；静线外观打磨仍暂停。谱库、声音与单轨筛选的隔离根、大库、听感与交互验收归 [P1-H](../subline/P1-H/DEVELOPMENT_PLAN.md)、[P1-J](../subline/P1-J/DEVELOPMENT_PLAN.md)、[P1-I](../subline/P1-I/DEVELOPMENT_PLAN.md)。已交付实现与验证只在 STATUS/CHANGELOG 维护，不重复开发或据此关闭人工门。
 
@@ -63,7 +65,7 @@ P1-F结合P1-G统一复核：
 
 - P1-M播放器在R3～R6/release门前不抢占工作；除产品明确改序外保持后置。
 - 已提前实现的Phase 2能力不代表Phase 1完成；1P/2P flip、完整FHS、dan、BSS/MSS等冻结，除非成为Phase 1阻塞修复。
-- Phase 3的OMS私有服务、默认endpoint、登录、成绩提交、排行榜、谱面下载、聊天、多人和自动更新冻结；用户主动添加公共BMS难度表URL只是既有窄例外。
+- Phase 3的OMS私有服务、默认endpoint、登录、成绩提交、排行榜、OMS/mania 官网谱面下载、聊天、多人和自动更新冻结；公共BMS难度表URL及用户明确授权的 Ginger Rush / 616 第三方 BMS 浏览下载为窄例外，范围与边界见 P1-A 下载计划。
 - 不盲目同步上游，只按[UPSTREAM](../other/UPSTREAM.md)选择性cherry-pick。
 
 ## 改动验收矩阵

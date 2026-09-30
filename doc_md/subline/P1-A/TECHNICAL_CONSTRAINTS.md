@@ -1,7 +1,7 @@
 # P1-A 技术约束：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-01（文档治理：BGA诊断与历史测试基线范围；产品验证日期不变）
-> 本文件是 Skin V1 的硬约束源。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，设计证据见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。若代码与本文冲突，先确认新事实并同步修正文档/代码，不能用历史 CHANGELOG 覆盖当前 authority。
+> 最后核对：2026-10-01（增加用户指定公共 BMS 浏览下载及精确选歌合同；皮肤人工验收不变）
+> 本文件是 P1-A 产品面及 Skin V1 的硬约束源。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，皮肤设计证据见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。若代码与本文冲突，先确认新事实并同步修正文档/代码，不能用历史 CHANGELOG 覆盖当前 authority。
 
 ## 按任务定位
 
@@ -9,6 +9,7 @@
 
 | 任务 | 唯一合同落点 |
 | --- | --- |
+| 两个公共 BMS 来源、后台下载、原包入库与精确选歌 | [第三方 BMS 下载](#第三方-bms-浏览下载) |
 | stable ID、topology与跨ruleset边界 | [共享与分离](#共享与分离约束) |
 | public catalog、shared codec、legacy accepted-token | [ini兼容](#ini-兼容约束) |
 | 三态、资源所有权、Note/LN和canonical fallback | [fallback](#fallback-与最小可玩约束)、[LN状态](#既有-ln-视觉状态合同) |
@@ -23,6 +24,21 @@
 | owning项目验证、失败精确基线 | [测试与发布](#测试与发布约束) |
 
 ## 归线与产品边界
+
+皮肤与用户指定公共 BMS 下载分别遵守以下合同；两者不互相解除准入或验收边界。
+
+## 第三方 BMS 浏览下载
+
+- 唯一授权源为 Ginger Rush 与 616/Alvorna；这项 P1-A 产品面复用 P1-H/P1-K 谱库及解码合同，不重计 Skin campaign。`OnlineFeaturesEnabled` 保持 false，OMS/API/OAuth/SignalR/BSS 默认端点保持空；不开放 mania 官网下载、账号、成绩提交或自动更新。启动只创建服务，首次打开浏览页才访问来源。
+- 主菜单、工具栏及既有浏览快捷键打开全屏页面；搜索保留词条，切源重置表选择并取消旧查询，隐藏/销毁不得发布旧来源或旧关键词结果。Ginger 用站内表 ID，616 用原始表 URL，远端筛选不导入或修改本地难度表。分页保留原站计数，同源同包合并；不同源、同名曲不合并。失败暂停自动追加，玩家手动重试。
+- Ginger 资料取自 `api/v1/files/selectList`、`table/selectHeaderListWithFullInfo`、`files/package/{md5}`；616 取自 `bms.alvorna.com/api/search`、`tables`、`hash`。JSON 实际读取上限 8 MiB、深度 32；格式错误明确失败。MD5 是原谱身份，Ginger shardMD5 不是包/谱面校验值；616 song_name 不是下载文件名，不凭名字拼链接或决定归档格式。
+- 卡片选择具体谱面后下载整个原包。任务由游戏持有，关闭浏览继续，退出取消并等待任务撤出后才释放 Realm。来源内同包正在进行的任务复用；等待、下载、入库、完成、取消、失败由卡片与通知共用。失败不自动换源；终态只在本任务流、暂存清理和队列资源收尾后发布，重试不覆盖仍在撤出的所有者。
+- 资源只允许 HTTPS/default port/no userinfo 的 gingerrush.com、pixeldrain.net、bms.alvorna.com；手动检查最多 5 次跳转，不借转向逃逸主机。包实际压缩上限 2 GiB，下载/入库单任务有界时间；来源大小/Content-Length 不能替代实际计数。暂存限当前数据根的 `bms-downloads/<GUID>/`，归档格式按实际签名识别。
+- ZIP/RAR/7z 展开检查 Windows 路径、traversal/ADS/device、大小写与文件目录冲突、重复、链接/特殊项、加密及取消；单文件 2 GiB、总实际展开 8 GiB、条目 50,000。原始目标 MD5 必须在包及实际持久化文件命中，再通过既有 BmsFolderImporter 写入 chartbms；不经 .osz/files，不写 external 根，不因同名/同 hash 获得覆盖现有目录权限。坏包异常在归档边界成为明确失败，程序错误不静默吞掉。
+- 成功返回实际持久化 GUID/MD5；按当前 Realm 可用记录显示已入库。打开操作在最终导航回调重新查询具体 GUID，切到原生 BMS，不按 set hash 猜集合、不回落选其它难度；首次列表呈现及后续元数据重分组后仍保留明确目标，玩家后续改选自然优先。普通 BMS 首进根组和用户后续改分组合同保持；精确打开验收必须等过滤和选择延迟稳定，同时核对 carousel/全局身份。游戏中完成仅通知，点击打开在 Player 期间拒绝。取消/部分入库失败保留现有已提交目录合同，不声称整包事务回滚或重启恢复任务。
+- 只显示来源实际提供的资料。封面单独有界读取/解码，不打开全局联网纹理来源；8 MiB、单边 8192、1600 万像素、仅首帧，缺图使用普通卡片。没有已确认独立音乐试听服务，第一版试听沿入库后的本地选歌路径；616 看谱链接明确在外部网站打开，`preview` 原始谱面字节不是音乐/BGA。仅现有解码器支持的 classic BMS/PMS 能入库，未知/不支持目标不能伪报可玩；批量整表补下载、续传及跨重启恢复另行授权。
+
+## 皮肤产品边界
 
 冷启动的配置皮肤恢复必须在 update thread 的 LoadComplete 阶段、初始画面图构造之前进入既有 selection publication；BackgroundDependencyLoader 不得直接发布选择。验证必须包含顶层 GameHost bootstrap 的已配置非默认皮肤，不能以 update thread 上嵌套重建 Game 的视觉测试代替。
 

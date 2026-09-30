@@ -45,6 +45,7 @@ using osu.Game.Input.Bindings;
 using osu.Game.IO;
 using osu.Game.Localisation;
 using osu.Game.Online;
+using osu.Game.Online.Bms;
 using osu.Game.Online.API.Requests;
 using osu.Game.Online.Chat;
 using osu.Game.Online.Leaderboards;
@@ -129,6 +130,13 @@ namespace osu.Game
         protected readonly NotificationOverlay Notifications = new NotificationOverlay();
 
         private BeatmapListingOverlay beatmapListing;
+
+        public BmsDownloadOverlay BmsDownloads { get; private set; }
+
+        private BmsDownloadManager bmsDownloadManager;
+        private readonly Dictionary<BmsDownloadTask, ProgressNotification> bmsDownloadNotifications = new Dictionary<BmsDownloadTask, ProgressNotification>();
+
+        protected virtual BmsDownloadManager CreateBmsDownloadManager() => throw new InvalidOperationException("BMS downloads require an importer.");
 
         private DashboardOverlay dashboard;
 
@@ -418,6 +426,9 @@ namespace osu.Game
         [BackgroundDependencyLoader]
         private void load()
         {
+            if (BmsDownloadsEnabled)
+                dependencies.Cache(bmsDownloadManager = CreateBmsDownloadManager());
+
             sentryLogger.AttachUser(API.LocalUser);
 
             if (SeasonalUIConfig.ENABLED)
@@ -1007,6 +1018,93 @@ namespace osu.Game
             });
         }
 
+        internal void ToggleBmsDownloadBrowser() => waitForReady(() => BmsDownloads, overlay => overlay.ToggleVisibility());
+
+        public bool PresentDownloadedBmsBeatmap(Guid beatmapId)
+        {
+            if (ScreenStack.CurrentScreen is Player)
+            {
+                Notifications.Post(new SimpleNotification { Text = BmsDownloadStrings.OutsideGameplay });
+                return false;
+            }
+
+            BmsDownloads.Hide();
+            PerformFromScreen(screen =>
+            {
+                // Re-query at the end of navigation: the chart may have been removed while screens changed.
+                var available = BeatmapManager.QueryBeatmap("ID == $0 AND Ruleset.ShortName == $1", beatmapId, "bms");
+                if (available == null)
+                {
+                    Notifications.Post(new SimpleNotification { Text = BmsDownloadStrings.NoLongerAvailable });
+                    return;
+                }
+
+                var selection = available;
+                var working = BeatmapManager.GetWorkingBeatmap(selection);
+                Ruleset.Value = selection.Ruleset;
+                if (screen is IHandlePresentBeatmap presentable)
+                    presentable.PresentBeatmap(working, selection.Ruleset);
+                else
+                {
+                    Ruleset.Value = selection.Ruleset;
+                    Beatmap.Value = working;
+                }
+            }, new[] { typeof(SongSelect), typeof(IHandlePresentBeatmap) });
+            return true;
+        }
+
+        private void onBmsDownloadChanged(BmsDownloadTask task) => Schedule(() =>
+        {
+            if (IsDisposed)
+                return;
+
+            if (!bmsDownloadNotifications.TryGetValue(task, out var notification))
+            {
+                notification = new ProgressNotification
+                {
+                    Text = task.Package.Name,
+                    CancelRequested = () => { task.Cancel(); return true; },
+                };
+                bmsDownloadNotifications.Add(task, notification);
+                Notifications.Post(notification);
+            }
+
+            var progress = task.Progress;
+            if (notification.State is ProgressNotificationState.Completed or ProgressNotificationState.Cancelled)
+                return;
+            LocalisableString label = progress.State switch
+            {
+                BmsDownloadState.Queued => BmsDownloadStrings.Queued,
+                BmsDownloadState.Importing => BmsDownloadStrings.Importing,
+                _ => BmsDownloadStrings.Downloading,
+            };
+            notification.Text = LocalisableString.Format("{0} · {1}", task.Package.Name, label);
+            notification.Progress = progress.TotalBytes > 0 ? (float)Math.Clamp((double)progress.Bytes / progress.TotalBytes.Value, 0, 1) : 0;
+
+            switch (progress.State)
+            {
+                case BmsDownloadState.Completed:
+                    var target = progress.Imported.First(b => b.Md5 == task.RequestedMd5).BeatmapId;
+                    notification.CompletionText = LocalisableString.Format("{0} · {1}", task.Package.Name, BmsDownloadStrings.Available);
+                    notification.CompletionClickAction = () => PresentDownloadedBmsBeatmap(target);
+                    notification.State = ProgressNotificationState.Completed;
+                    break;
+
+                case BmsDownloadState.Failed:
+                    notification.State = ProgressNotificationState.Cancelled;
+                    Notifications.Post(new SimpleErrorNotification { Text = LocalisableString.Format("{0} · {1}", task.Package.Name, BmsDownloadStrings.Failed) });
+                    break;
+
+                case BmsDownloadState.Cancelled:
+                    notification.State = ProgressNotificationState.Cancelled;
+                    break;
+
+                default:
+                    notification.State = progress.State == BmsDownloadState.Queued ? ProgressNotificationState.Queued : ProgressNotificationState.Active;
+                    break;
+            }
+        });
+
         /// <summary>
         /// Join a multiplayer match immediately.
         /// </summary>
@@ -1269,6 +1367,12 @@ namespace osu.Game
         {
             stopManagedSkinFolderScan();
 
+            if (bmsDownloadManager != null)
+            {
+                bmsDownloadManager.TaskChanged -= onBmsDownloadChanged;
+                bmsDownloadManager.Dispose();
+            }
+
             // Without this, tests may deadlock due to cancellation token not becoming cancelled before disposal.
             // To reproduce, run `TestSceneButtonSystemNavigation` ensuring `TestConstructor` runs before `TestFastShortcutKeys`.
             detachedBeatmapStore?.Dispose();
@@ -1358,6 +1462,9 @@ namespace osu.Game
 
             BeatmapDownloader.PostNotification = n => Notifications.Post(n);
             ScoreDownloader.PostNotification = n => Notifications.Post(n);
+
+            if (bmsDownloadManager != null)
+                bmsDownloadManager.TaskChanged += onBmsDownloadChanged;
 
             ScoreManager.PostNotification = n => Notifications.Post(n);
             ScoreManager.PresentImport = items => PresentScore(items.First().Value);
@@ -1512,6 +1619,9 @@ namespace osu.Game
                 loadComponentSingleFile(chatOverlay = new ChatOverlay(), overlayContent.Add, true);
                 loadComponentSingleFile(new MessageNotifier(), Add, true);
             }
+
+            if (BmsDownloadsEnabled)
+                loadComponentSingleFile(BmsDownloads = new BmsDownloadOverlay(), overlayContent.Add, true);
 
             loadComponentSingleFile(Settings = new SettingsOverlay(), leftFloatingOverlayContent.Add, true);
 

@@ -32,7 +32,7 @@ Until Phase 3 begins, OMS follows these product constraints:
 - Official ZIPs include `portable.ini`, so bootstrap storage is the program-adjacent `data/` directory. Without that marker, host defaults are `%APPDATA%/oms/` (Release) and `%APPDATA%/oms-development/` (Debug). The bootstrap `storage.ini` can redirect runtime data to one custom root.
 - Beatoraja-style portable data mode is already supported via `portable.ini` -> `data/`; keep mutable user data in that dedicated subdirectory rather than mixing it directly with binaries.
 - Registered multi-root external beatmap libraries have a working baseline: `ExternalLibraryConfig` (JSON-based, `library-roots.json`) for root registration, and `ExternalLibraryScanner` (delegate-injected) for walking BMS / mania roots and importing discovered sets. Settings -> Maintenance add/remove/scan and basic managed-set deletion are implemented; missing-root invalidation, root removal effects and cross-root duplicate/recovery semantics remain P1-H work.
-- All OMS-owned networked product features, including account login, leaderboards, beatmap download, chat, news, multiplayer, spectator, daily challenge, and automatic update, remain disabled or hidden until Phase 3. A user explicitly adding a public BMS difficulty-table URL is an existing narrow exception independent of OMS private/default endpoints; it must not expand into an OMS online product surface.
+- OMS private-service features, including account login, leaderboards, official beatmap download, chat, news, multiplayer, spectator, daily challenge, and automatic update, remain disabled or hidden until Phase 3. Explicit public exceptions are user-added BMS difficulty-table URLs and the user-authorised Ginger Rush / 616 BMS browser and download flow. These do not enable private/default endpoints or mania official downloads; the download contract is maintained in [P1-A](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载).
 - Current local-first builds should not ship non-empty default API / OAuth / SignalR / BSS server URLs; if online code remains in the tree, it is Phase 3 technical reserve rather than user-facing functionality.
 
 ---
@@ -1017,7 +1017,7 @@ This section is a frozen Phase 3 target contract. No `oms.Server` project, priva
 
 ### 14.1 API Client
 
-`OmsApiClient` wraps all Phase 3 server communication. Before Phase 3, OMS should not ship a default official server base URL or expose account / leaderboard / beatmap-download flows to end users.
+`OmsApiClient` wraps all Phase 3 private-server communication. Before Phase 3, OMS should not ship a default official server base URL or expose private account / leaderboard / official beatmap-download flows. The explicitly authorised public BMS source exception above remains independent.
 
 Base URL becomes configurable once private server integration is intentionally enabled; until then the client should treat it as unset / disabled.
 

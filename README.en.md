@@ -54,9 +54,11 @@ Charts are read directly from the filesystem: put BMS charts in `chartbms/` and 
 
 ### Offline-first
 
-OMS keeps its core gameplay, libraries and user-data paths offline by default. Until Phase 3, private OMS services stay disabled and default endpoints stay empty. Accounts, online leaderboards, beatmap downloads, news / chat, multiplayer and spectator features are hidden or disabled by default.
+OMS keeps its core gameplay, libraries and user-data paths offline by default. Until Phase 3, private OMS services stay disabled and default endpoints stay empty. Accounts, online leaderboards, OMS / osu!mania official downloads, news / chat, multiplayer and spectator features are hidden or disabled by default.
 
-The only exception is **BMS difficulty tables**: import / refresh from local paths and public URLs is supported and does not depend on any private OMS server.
+In-game Browse supports the authorised public BMS sources [Ginger Rush](https://gingerrush.com/) and [616 / Alvorna](https://616.sb/bms/download). Search, filter by difficulty table, select a chart and download its package, then open the installed chart in song select. Downloads continue when the browser closes; failed tasks can be retried manually. Music previews use local song select after import. Sources are contacted only when Browse opens, without an OMS account. Missing packages and unsupported targets cannot report a successful import. See the [download contract](doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载).
+
+**BMS difficulty tables** also support import / refresh from local paths and public URLs, independently of any private OMS server.
 
 ### BGA playback
 

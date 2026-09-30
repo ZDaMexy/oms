@@ -576,8 +576,6 @@ namespace osu.Game.Screens.Select
         {
             base.HandleFilterCompleted();
 
-            attemptSelectSingleFilteredResult();
-
             if (CurrentSelection is GroupedBeatmap selection)
             {
                 // Check whether the selection-group mapping is still valid post-filter.
@@ -595,6 +593,9 @@ namespace osu.Game.Screens.Select
                         CurrentSelection = newSelection;
                 }
             }
+
+            // Resolve a requested difficulty's new group before considering a recommendation for the single filtered set.
+            attemptSelectSingleFilteredResult();
 
             // Transfer the previous flag states across to the new models.
             if (ExpandedBeatmapSet != null) setExpandedSet(ExpandedBeatmapSet);

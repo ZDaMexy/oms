@@ -15,6 +15,7 @@ metadata:
 - 调用方 SkinInfo 即使同 ID 也不是 authority；final commit 在共享 coordinator 内重新取本 Realm 的 Live record，复核 generation、record/path/owner/freeze 与资格，然后发布。
 - Dropdown、generic Bindable 和 lease 只能单向镜像 committed value，不能获得双向写入口。managed 请求在 update thread admission；普通 Realm .osk 保持其既有线程路径。
 - 同值/disabled 检查在 prepare 前。失败、取消、stale/reentrant、scheduler fault 只回收 provisional，保旧 pair；active immutable capsule 不随磁盘变化。
+- fixture 不能只等 random/next/previous 的请求发出就立即重选当前 external ID：隐式请求可能仍在准备，当前 committed ID 尚未变化，同值重选按合同被忽略，随后隐式请求提交令等待永远不满足。应等前一请求实际提交/明确拒绝后再继续，不加固定 sleep 或修改同值 no-op。10月1日整套曾出现 `wait for external before next` 超时，独立复查五次通过，证据见[下载闭环验证](../../doc_md/other/BMS_DOWNLOAD_20261001.md#有效自动验证)；该项不执行下载选歌路径，不能按失败数量称下载回归。
 - 旧通用 mutation 需在真实事务内重读资格，旧 importer 在 Files.Clear 前也要复核；专用 manager record-ID API 的存在不解禁任意 path 或 base/interface 旁路。
 
 ## Startup / generic mutation 双 epoch
