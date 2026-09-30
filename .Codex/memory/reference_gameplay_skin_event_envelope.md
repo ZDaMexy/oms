@@ -1,6 +1,6 @@
 ---
 name: reference_gameplay_skin_event_envelope
-description: canonical event stream 与 filtered view、mutable callback 拷贝、Snapshot/Reset 和时钟域地雷
+description: canonical event stream、seek 时钟收敛与完整 Reset、callback 拷贝和真实显示地雷
 metadata:
   node_type: memory
   type: reference
@@ -20,6 +20,7 @@ envelope/scene ABI、版本与producer合同见 [P1-A CONSTRAINTS](../../doc_md/
 
 - canonical cursor检查过滤前完整流。初次attach先完整Snapshot，可从mid-session非负epoch/sequence high-water进入；同epoch sequence严格+1/time不递减，换epoch严格+1。
 - Reset是下一epoch、sequence0的完整原子baseline，可前后重锚时间，不是先清空稍后再Snapshot。layout revision在attachment内不回退；Edge匹配当前revision。
+- 真 Player seek 会让 frame-stable clock 遍历中间位置，固定“一次 Update”可能只重建中间 playfield。2026-09-30 转谱实测 Reset 为空、相同目标时刻的后续 attach 已有音符；应先等 frame-stable clock 与 gameplay clock 收敛，再走既有一帧 playfield barrier，不新增时钟或调度器。Reset 自身仍须包含目标位置的完整状态，不能改成接受稍后 spawn 补齐。强断言与证据见[性能记录](../../doc_md/other/GAMEPLAY_PERFORMANCE_20260930.md)。
 - 拒绝不改变last accepted，不排序/补洞/自动修复；long.MaxValue不能wrap。bounded queue溢出通过明确Reset/Snapshot重建，不静默丢事件。
 - filtered view若保留原sequence可有gap，不能把过滤前连续性cursor直接接到它后面。
 - engine可发GameplayResumed；scene state-machine不接受gameplay.resume，因为Snapshot重建Running。这不是漏producer，也不授权另一套状态。
@@ -27,7 +28,7 @@ envelope/scene ABI、版本与producer合同见 [P1-A CONSTRAINTS](../../doc_md/
 
 ## Callback 内必须拷贝
 
-- 2026-09-11 ExactRoot 真实 Seek 取证：测试中晚加的直接 DrawableNote/DrawableHoldNote 会出现在活动对象扫描中，但非池入口不触发 HitObjectUsageBegan，不能取得唯一已登记 object ID。真实重建因此按合同抛错，不能靠放宽 ID 检查、跳过 Seek 或延长等待修复。应经 Playfield.Add(HitObject) 后从对应列按同一 HitObject 捕获真实池对象，保留材料、几何、Reset active ID 与真实击打显示断言。repair9 保留原异常栈，repair10 修复后定点通过；全部结论仍读 P1-A。
+- 2026-09-11 ExactRoot 真实 Seek 取证：测试中晚加的直接 DrawableNote/DrawableHoldNote 会出现在活动对象扫描中，但非池入口不触发 HitObjectUsageBegan，不能取得唯一已登记 object ID。真实重建因此按合同抛错，不能靠放宽 ID 检查、跳过 Seek 或延长等待修复。应经 Playfield.Add(HitObject) 后从对应列按同一 HitObject 捕获真实池对象，保留材料、几何、Reset active ID 与真实击打显示断言；验证结论仍读 P1-A。
 - Logger.NewEntry 的 Message 与 Exception 是两个字段；只保存通用 Message 会丢失根因和堆栈。Release 宿主可能允许一次错误继续运行，表现为后续等待超时；诊断应在当前测试开始前记录两字段、结束取消订阅，不修改游戏异常容许规则，也不把 pendingReset 已清空当作 Reset 成功。
 
 - GameplayClockContainer.OnSeek没有reason/time，Reset也调用Seek；单callback不能区分seek/retry/initial reset，lifecycle bridge必须显式掌握reason/epoch。

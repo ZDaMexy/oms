@@ -1,6 +1,6 @@
 # P1-L 当前计划：BMS Gimmick 与 BGA 视觉
 
-> 最后更新：2026-09-30（游戏会话与作者窗口；后续代表设备与真实谱验收）
+> 最后核对：2026-10-01（文档治理；已完成软件路径作为输入，后续仍为设备与真实谱验收）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定滚动/BGA 合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，机理背景见 [BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)，已完成阶段按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -9,17 +9,7 @@ P1-L 拥有 BMS Gimmick 的视觉位置旁路、地雷呈现与 BGA decode/timel
 
 ## 已完成基线
 
-| 阶段 | 当前结果 |
-| --- | --- |
-| 解析前置 | mine/measure/STOP/BPM/scroll/BGA typed input 由 P1-K 提供 |
-| 地雷视觉 | 已落，保持非判定、随可表示 lane permutation 移动 |
-| 滚动旁路 | BMS-only position integration 与 Off/On/Auto 已落，正常链路隔离 |
-| BGA 主链 | 图序列/视频/POOR、seek、ffmpeg opt-in 转码已落 |
-| 多视图共享内容 | 游戏根持有独立播放会话，所有窗口使用共享合成surface的只读view；显示/换窗不重建player，退出根释放 |
-| Skin V1 接线 | C3 layout/viewports、C5 material/scene与只读状态事件已落；作者可声明最多16窗及fit/fill/stretch/none，信息区独立；无声明保留旧布局 |
-| 转码体验 | 预热等待上限、会话缓存、ultrafast 与扫描线进度已落 |
-
-完成实现、事故诊断和旧测试数字不在 PLAN 重述，统一查 [CHANGELOG](CHANGELOG.md)。
+解析前置、地雷、滚动旁路、BGA主链、共享播放会话和作者窗口已具软件证据，当前能力统一见[STATUS](DEVELOPMENT_STATUS.md)，实现历史与事故诊断按日期查[CHANGELOG](CHANGELOG.md)。不重复开发已交付路径。
 
 ## 当前执行顺序
 
@@ -28,6 +18,7 @@ P1-L 拥有 BMS Gimmick 的视觉位置旁路、地雷呈现与 BGA decode/timel
 游戏持有播放会话与作者窗口的实现及软件证据见[作者能力验证](../../other/BGA_SKIN_AUTHORING_20260930.md)。后续代表设备覆盖宽高比、DPI、三种适配、单窗/多窗与BGA不遮lane；关闭显示/零窗后恢复内容应跟随当前游戏时刻，独立信息区保持。
 
 验收记录屏幕比例、样式、窗口声明与实际图像；不能用资源计数替代实绘，较早的[性能证据](../../other/GAMEPLAY_PERFORMANCE_20260930.md)保持其代码身份。
+
 ### 2. 代表谱逐帧/逐功能人工验收
 
 1. DEAD SOUL 等 Gimmick 谱与 beatoraja/LR2 对照 freeze、snap、Auto 检测和 Off 回退。
@@ -53,7 +44,7 @@ P1-L 拥有 BMS Gimmick 的视觉位置旁路、地雷呈现与 BGA decode/timel
 
 ## 验证顺序
 
-1. owning focused：scroll profile/algorithm、mine、BGA timeline/session/player/cache/transcode，配合P1-A验证作者布局、场景边界和完整例子。
+1. owning focused：scroll profile/algorithm、mine、BGA timeline/session/player/cache/transcode，配合P1-A验证作者布局、场景边界和完整例子；涉及共享scene/layout/publication时按[P1-A测试约束](../P1-A/TECHNICAL_CONSTRAINTS.md#测试与发布约束)追加core/mania相关验证，不以本线最小门替代。
 2. BMS full + `osu.Desktop.slnf` Release。
 3. 代表谱人工视觉；任一阶段必须证明正常非 Gimmick gameplay 零回归。
 

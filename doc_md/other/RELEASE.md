@@ -7,7 +7,7 @@
 
 ## 当前发行范围
 
-静线为唯一内置、默认与保底，外观打磨按用户决定暂停；星轨已退役，不再是启动依赖或构建对象。历史作者文件保留参考，旧内置星轨选择迁回静线，普通用户导入皮肤不清除；不再要求星轨视觉签收。单内置候选 `oms_20260912_4.zip` 的退役迁移、独立制作与隔离启动已有验证，见 [P1-F](../subline/P1-F/DEVELOPMENT_STATUS.md)。之后的静线素材、信息区与轨宽、按模式选择与布局编辑，以及 TOTAL/历史成绩兼容、自动偏移/自动键音、谱库 schema 58 与失效恢复、暂停续播和单轨筛选改动，未重新制作并验收完整安装候选；旧发行包不代表当前源码的全部行为，已有开发验证见[主线状态](../mainline/DEVELOPMENT_STATUS.md#最近一次验证)。
+静线为唯一内置、默认与保底，外观打磨按用户决定暂停；星轨已退役，不再是启动依赖或构建对象。历史作者文件保留参考，旧内置星轨选择迁回静线，普通用户导入皮肤不清除；不再要求星轨视觉签收。单内置候选 `oms_20260912_4.zip` 的退役迁移、独立制作与隔离启动已有验证，见 [P1-F](../subline/P1-F/DEVELOPMENT_STATUS.md)。之后的静线素材、信息区与轨宽、按模式选择与布局编辑，以及 TOTAL/历史成绩兼容、自动偏移/自动键音、谱库 schema 58 与失效恢复、暂停续播、单轨筛选、原生/转谱性能优化及 BGA 作者窗口/完整手册，未重新制作并验收完整安装候选；旧发行包不代表当前源码的全部行为，已有开发验证见[主线状态](../mainline/DEVELOPMENT_STATUS.md#最近一次验证)。
 
 ## 此前人工验收包
 
@@ -29,7 +29,7 @@
 
 `build-release.ps1` 当前执行 self-contained、多文件 `dotnet publish`（`PublishSingleFile=false`），保留完整运行文件与玩法 DLL，补齐 `lazer.ico` / `beatmap.ico`、写入 `portable.ini` 后打包到 `release-repo/oms_YYYYMMDD(.zip)`。解压完整 ZIP 后直接运行 `osu!.exe`，无需另装 .NET。
 2026-09-11 的实际启动揭示旧完整自解压方式会把程序基准目录移到 TEMP，未读到实际安装旁的便携标记并误入已有保存位置。因此游戏改为多文件发行；仅取消完整自解压、仍将玩法 DLL 留在 single-file 内也不能满足现有玩法发现方式。修正后的 `_4` 与 `preview-fix` 历史包已有隔离启动记录；历史 `oms_20260911_startup-fix-final.zip` 已完成 Windows 标准解压、便携与自定义保存、坏工作副本恢复、同包覆盖及上述跨版本更新后正常启动。两玩法可用及实际保存/缓存位置均有各自证据。这些自动安装结果不代表 Skin V1 或公开发行的人工门已经签收。
-发布无需 SDK 的作者工具、静线源文件、Aurora 练习与验收工具；complex 源和旧 dist 仅在仓库保留历史参考，不随当前发行构建；发行根的中英双语 `how to update.txt` 和 `Update-OMS.ps1` 已提供保留原便携模式与基础目录 `storage.ini` 的实际更新入口。
+发布无需 SDK 的作者工具、静线源文件、完整制作手册、Aurora 练习与验收工具；`build-release.ps1` 递归复制 `skin-authoring/docs/`，其中包括基础教程、脚本指南及 First Scene / BGA Layout / Reference Study。候选包需在无源码仓库的目录中复查文档链接、素材与练习，不能用仓库内验证代替实际发行内容检查。complex 源和旧 dist 仅在仓库保留历史参考，不随当前发行构建；发行根的中英双语 `how to update.txt` 和 `Update-OMS.ps1` 已提供保留原便携模式与基础目录 `storage.ini` 的实际更新入口。
 
 > `portable.ini` 是一个空标记文件；只要它存在于 `osu!.exe` 同级目录，游戏便以便携模式启动。
 
@@ -47,7 +47,7 @@
 | `how to update.txt` | 中英双语手动覆盖更新说明 |
 | `Update-OMS.ps1` / `release-files.json` | 保留原运行模式的离线更新工具与逐文件完整性清单 |
 | `Skins/Canonical/oms-simple.osk` | 唯一随安装携带的内置原件与正式保底 |
-| `skin-authoring/` | 静线普通可导入包、完整源文件、模板、说明和无需 SDK 的制作工具 |
+| `skin-authoring/` | 静线普通可导入包、完整源文件、模板、完整离线手册/素材/例子和无需 SDK 的制作工具 |
 | `skin-c7-acceptance/` | 集中人工验收说明、记录表、输入生成及隔离副本工具 |
 
 游戏入口仍是 `osu!.exe`，但不能只复制这个文件；同级完整运行文件与玩法 DLL 都是发行物的一部分。压缩包内直接放这些内容，不把游戏构建目录或 `publish/` 目录名本身打入包。作者工具保持已独立验证的 self-contained single-file 方式，完整复制其实际发布输出；游戏发行方式的修正不要求改动作者工具。

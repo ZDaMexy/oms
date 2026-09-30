@@ -26,13 +26,13 @@
 - [managed skin atomic reload/detach](reference_skin_atomic_reload_detach.md) — 三源 publication、lease/retire 与调度竞态。
 - [ordinary `.osk` archive import safety](reference_skin_osk_archive_import_safety.md) — archive 预检、same-hash receipt 与非对称回滚。
 - [canonical 构建、安装与用户数据保护](reference_skin_canonical_installation.md) — 静线唯一保底、source→原件/摘要与解压字节核对、星轨退役迁移、缺行修复；便携误入、缓存隔离、冷启动线程、取消资源移交。
-- [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 随包完整手册、可运行例子、作者边界、场景定位与零宽进度。
+- [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 随包手册与示例闭合、作者边界、用户决定与诊断入口。
 - [Skin V1 价值与工作预算](project_oms_skin_product_progress.md) — 区分效果能力、成品与创作便利度；星轨实际体验否定、有限反馈与本轮停止边界，当前状态读 P1-A。
 - [按模式皮肤选择](reference_skin_mode_selection.md) — BMS/mania 独立配置、旧全局迁移、规则集切换回落与设置页空状态收简。
 
 ## 构建、存储与产品面参考
 
-- [构建与测试](reference_build_and_test.md) — 开发磁盘与进程环境、测试宿主、formatter owning 路径、输出锁、测试空跑/临时日志失效、VS Code 配置与依赖审计误判。
+- [构建与测试](reference_build_and_test.md) — 开发磁盘与进程环境、测试宿主、formatter owning 路径、输出锁、未编译 fixture/空跑、完整基线归因与依赖审计误判。
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱库路径身份与历史保全](reference_filesystem_library_identity.md) — 同内容不同目录、失效与物删分离、多文件改名及扫描错误边界。
 - [谱面构成过滤](reference_bms_composition_filter.md) — 单轨上限、共享额度、零宽入口及无解条件。
@@ -44,10 +44,10 @@
 
 ## BMS 解析、音频与游玩参考
 
-- [BGA 链](reference_bms_bga_chain.md) — 游戏持有会话、皮肤窗口、共享画布与零窗、viewport/event、转码与解码的区别。
+- [BGA 链](reference_bms_bga_chain.md) — 游戏会话、作者窗口、共享画布与零窗、转码缓存及实际像素诊断。
 - [bgm1 按键触发故障](reference_bms_bgm1_pause_keytrigger_bug.md)
 - [游玩音轨静音合同](reference_bms_gameplay_track_mute.md)
-- [键音链](reference_bms_keysound_chain.md) — 手动/自动、暂停保位、转谱池化、热路径分配与回退测试时序。
+- [键音链](reference_bms_keysound_chain.md) — BMS/转谱发声责任、暂停保位、池化与样本准备、长条/空击性能。
 - [lane 键音 timeline 上界](reference_bms_lane_keysound_timeline_bounds.md) — lane-count 上界、parser keymode 与末端发声。
 - [LNOBJ 解码](reference_bms_lnobj_decoding.md) — 单候选配对地雷及 P1-K 权威回链。
 - [lane 重排](reference_bms_lane_rearrangement.md) — 重复应用的三次置换故障及 P1-K/P1-J 回链。
@@ -62,12 +62,12 @@
 - [BMS 默认皮肤几何](reference_bms_default_skin_geometry.md)
 - [BMS 皮肤编辑器边界](reference_bms_skin_editor.md) — 原编辑器异步独立草稿、关闭保存/回收、预览资源与 CLR 反射构造地雷。
 - [gameplay skin slot 三态合同](reference_gameplay_skin_slot_contract.md) — 三态、provider 优先级与候选生命周期。
-- [gameplay skin shared codec/material](reference_gameplay_skin_codec_material.md) — 样式选择、普通导入说明误报、shared material 与诊断边界。
+- [gameplay skin shared codec/material](reference_gameplay_skin_codec_material.md) — Common/Bms 元素族、样式选择、导入说明误报与持久诊断范围。
 - [gameplay skin lane identity/topology](reference_gameplay_skin_lane_identity.md) — stable lane ID 与 topology 投影。
 - [gameplay skin topology publication/revision](reference_gameplay_skin_topology_revision.md) — owner-local revision 与 publication 区别。
-- [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — 唯一 layout、共同 publication、HUD 遮挡、独立键区/BGA、分隔纹理整轨缩放、scene 舞台目标边界与重打包摘要同步。
+- [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — 唯一 layout、选中包声明、HUD 坐标与作者 BGA 碰撞、分隔纹理缩放及重打包摘要。
 - [gameplay skin config presence](reference_gameplay_skin_config_presence.md) — accepted presence、synthetic default 与 per-index mask。
 - [gameplay skin lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md) — lane provenance、9K/14K 候选映射与资源退役。
-- [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — 事件顺序、producer authority、准确率/进度、真实HUD挂层与池化音符/Seek错误取证。
+- [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — 事件顺序、seek 时钟收敛与完整 Reset、callback 拷贝及真实显示取证。
 - [gameplay skin capability negotiation](reference_gameplay_skin_capability_negotiation.md) — closed allowlist、只读 token 与危险 handle。
-- [gameplay skin 脚本诊断](reference_gameplay_skin_scripts.md) — 菜单整包验证、撤销残留、固定 tick、持久化中断与 queued texture ownership。
+- [gameplay skin 脚本诊断](reference_gameplay_skin_scripts.md) — 授权撤销、暂停冻结、数值钳制、固定 tick 与纹理上传 ownership。

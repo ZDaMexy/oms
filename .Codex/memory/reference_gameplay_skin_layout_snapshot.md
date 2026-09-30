@@ -22,14 +22,14 @@ metadata:
 - BMS keymode 来自 parser-owned resolution；BmsPlayfieldLayoutProfile 只是唯一 solver 内部配置或 isolated compatibility 输入，不是另一生产 geometry。
 - Mania 必须使用真实 single/dual stage-column vector；special key 按 stage-local column 判，不用 total columns、global modulo 或 enum ordinal。
 - logical/visual、global/group-local index 都是显式 order，不是 stable ID。Mirror/Random/S-Random 改对象最终目标 lane，不改固定 topology；object、keysound 与 skin lookup 使用同一目标 LaneId。
-- BGA 的最终 viewport/rect 属于该 layout；内容/timeline/seek 仍属 P1-L。统一 viewport 不能证明统一 decoder/clock。
-- 新增的可选布局字段不能直接查聚合 `ISkinSource.GetConfig`：选定包缺项会继续命中 canonical 的作者值，使旧包意外启用独立键区并放大 BGA。`KeyAreaHeight` 与三项 BGA 参数用同一 package revision 的 exact selected BMS source 读取 accepted declaration，缺项交 solver 默认；必须用普通导入旧包核实，直接传配置对象的 solver 测试看不到此问题。
+- BGA 的最终 viewport/rect 属于该 layout；内容/timeline/seek 仍属 P1-L。统一 viewport 不能证明统一 decoder/clock；会话与显示替换的释放边界见 [[reference_bms_bga_chain]]。
+- 可选布局字段不能直接查聚合 `ISkinSource.GetConfig`：选定包缺项会继续命中 canonical 的作者值，使旧包意外启用独立键区或另一套 BGA 窗口。`KeyAreaHeight`、`BgaViewports` 等作者布局字段须从同一 package revision 的 exact selected BMS source 读取 accepted declaration，缺项交 solver 默认；必须用普通导入旧包核实，直接传配置对象的 solver 测试看不到此问题。
 - 同一 HUD slot 可以有多个平级作者节点。`TryGetHostedDrawable` 的兼容入口只返回首根，首根可能只是面板，不能据其没有 `SpriteText` 判断准确率消失；完整 HUD 检查需遍历该 slot 的已路由节点并核真实文字，同时保留 native/residual 隐藏与同一 publication 断言。
 - menu/shell/background 不因使用 skin texture 就成为作者 gameplay layout surface。
 
 ## 从真实截图排查分区遮挡
 
-- `hud.text` 容器下的 `global` 子节点不会自然继承 HUD 坐标区；顶部信息跨入落键区时先看实际 prepared target/slot 路由。当前作者写法让每个平级图形、文字显式拥有 `hud.text`，不能嵌套 slot owner；嵌套被 preparation 拒绝是合同保护，不应放宽。
+- `hud.text` 容器下的显式 `global` 子节点不会自然继承 HUD 坐标区，而是沿安全屏幕定位；顶部信息跨入落键区时先看实际 prepared target/slot 路由。平级节点可各自拥有 `hud.text`，也可由一个 owner 容器组织无 slot 子节点，位置取决于实际 target 与 layout-surface；不能把合法 owner 容器误禁，也不能嵌套 slot owner 来修位置，后者被 preparation 拒绝是合同保护。
 - BMS 原键图在落键区的裁剪链中。只把键图画高或扩 `HitTargetHeight` 既不能得到独立控制台，还可能侵占判定附近；应在唯一 solver 产生独立键区，保留缺省旧包位置，不改判定/滚动长度。
 - BGA 的 scene 外框放大不等于真实播放器 viewport 放大；应从公开尺寸参数进入唯一 solver，再由现有播放宿主消费。外部截图只用于比较视觉关系，不能推导出播放/timeline 新 authority。
 - 原图凭据见[静线 1P 参考](../../doc_md/other/references/simple-1p-20260912/README.md)。底部 HUD 的公共几何变化也会影响未改作者文件的包，回归不能只观察 simple。
@@ -44,7 +44,7 @@ metadata:
 
 ## Geometry fallback 与构造边界
 
-- 每字段分别验证 finite、正值、range、safe screen 与 non-overlap，并给稳定诊断；fallback 也一次产出完整 snapshot，不拼部分新/旧 geometry。
+- 作者输入的数值边界与 solver 的实际安全布局分开验证；无论缺省还是拒绝结果，都一次产出完整 snapshot，不拼部分新/旧 geometry。不要把旧标量的默认布局推广到显式 `BgaViewports`：合法排列在当前画面放不下时整组零窗并诊断，不擅自换回默认；`none` 也不是缺省。窗口与独立信息带边界见 [[reference_bms_bga_chain]]。
 - 测试复现要包括窄/宽 aspect、DPI、safe-area 与 14K 双 field/scratch/gap/BGA/HUD；普通 7K 正常不证明这些关系。
 - 完整 host 在 child load 前通过 enclosing exact dependency scope 完成 publication。无 publication/material 不临时借 compatibility/default geometry 或 post-commit fallback。
 - prepared carrier 只属于签发 owner；另一 owner carrier、同 root 第二 provider、compatibility→exact 升级、adapter 未引用 exact neutral snapshot 都属于 authority 违约。

@@ -13,6 +13,7 @@ public ID/字段/适用性只读 [public catalog](../../doc_md/other/GAMEPLAY_SK
 ## 输入与 resolver 的反直觉处
 
 - package 的根 skin.ini 只捕获/tokenize 一次，public 与 legacy adapter 消费同一 immutable token stream；consumer 不重开文件，ruleset 不另写 tokenizer。
+- section 的 Common/Bms 是 catalog 元素族，不是目标玩法。BGA 只适用于 BMS，元素仍属于 Common；写入 `[GameplaySkin.Bms:1]` 会失败，玩法由 target 的 ruleset 限定。2026-09-30 作者验证曾误写该 section；必须先用同基线成功例确认真实选择与挂载，防止共用的无效声明掩盖负例预期的拒绝原因。
 - canonical 原件无错而普通导入出现 `OMS-SKIN-CODEC-008` 时，先查末尾公共段与追加 `[General]` 之间的游戏说明：importer 使用整行 `//`。公共 parser 兼容 trim 后的整行注释即可读取既有导入内容，不迁移或重写用户文件；不可改成全局截断 `//`。复验应涵盖真实说明位置、General 元数据、quoted 值和 round-trip，并保留行内 `//`、未知字段、BOM/坏 header 的严格边界。
 - Absent、DeclaredEmpty、Invalid、Valid、Suppress 必须区分。malformed 第一声明仍占 duplicate target；后行不能借“第一行没完整 tokenize”夺 winner。
 - package 内 specificity 为 ruleset→keymode→stage-mode→presentation→scope。最高项遮蔽该 package 更宽声明：它 Inherit/empty/invalid 时转下一 authority，不回头聚合同 package。
@@ -28,6 +29,7 @@ Legacy raw index、source-bound frame/width 与 borrow 地雷见 [[reference_gam
 
 - parse、catalog validate、resource/scene prepare、graph/material 构造止于 background prepare；publication/lease 的统一边界见 [[reference_skin_atomic_reload_detach]]。
 - 稳定诊断去重、排序、完整 persistence-safe payload 在 immutable material 构造时预生成。成功 commit 后 observer 只捕获 immutable 字符串和轻量 receipt，不能捕获 material/snapshot/package/texture/lease。
+- 作者 BGA 布局错误需进入既有持久批次，但不能把 snapshot 的全部环境诊断一并抄入。2026-09-30 首次合并曾把临时 `environment-window-fallback` 计成作者错误；现仅追加 `bms.layout.bga-viewports` 前缀，保留原材料日志范围。不能为了新诊断放宽原普通来源的数量断言；复现与修复证据见[作者能力记录](../../doc_md/other/BGA_SKIN_AUTHORING_20260930.md)。
 - 文本只含 public code、catalog ID、stable target/index、source kind、contract version；作者值、路径、display name、record ID/hash、exception text 不持久化。
 - queue/listener/observer 失败不得从成功 commit 逸出、改变结果或延长旧 material 生命周期。诊断故障不应触发第二次材料发布。
 

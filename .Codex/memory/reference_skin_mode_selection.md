@@ -8,7 +8,7 @@ metadata:
 
 # 按模式皮肤选择召回
 
-当前行为入口：[P1-A 状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)、[技术约束](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#g1选择ui与startup协调)、[制作手册](../../doc_md/other/SKINNING.md)。实现位于 `OsuConfigManager`、`OsuGame` 和 `SkinSection`。
+当前行为入口：[P1-A 状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)、[技术约束](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#g1选择ui与startup协调)、随作者套件发行的[制作手册](../../skin-authoring/docs/SKINNING.md)。实现位于 `OsuConfigManager`、`OsuGame` 和 `SkinSection`。
 
 ## 配置语义
 

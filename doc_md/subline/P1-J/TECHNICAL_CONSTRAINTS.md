@@ -1,6 +1,6 @@
 # P1-J 技术约束：BMS gameplay 性能与音频时序
 
-> 最后更新：2026-09-30（有序索引、长条推进、转谱池化与样本维护合同）
+> 最后核对：2026-10-01（验证入口去重；9 月 30 日运行时合同保持）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，事故取证与旧测试数字按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线与 authority
@@ -70,7 +70,7 @@
 
 ## 测试与发布
 
-当前暂停保位与手动 LN 的实际位置、Player 路由、完整回归及 Release 证据集中见 [2026-09-29 验证记录](../../other/EXPERIENCE_CLOSURE_20260929.md)；历史自动键音结果不能代替后续改动验证。
+最新实际位置、Player 路由、性能对照、完整回归与 Release 证据统一从 [STATUS](DEVELOPMENT_STATUS.md#最近一次验证)进入；历史自动结果不能代替后续改动验证，也不能代签设备听感。
 
 1. 修改 store/channel/cut/prewarm 至少覆盖 shared store owner、lane/order、playfield binding、pause/seek 与 BMS relevant/full；修改转谱路径加 converter、mania hold/autoplay relevant 与 player-level playback proof。
 2. late-empty-poor、empty-poor score/gauge、LN tail、replay-loaded HUD/key counter 等回归不得以“性能优化”为由删除。

@@ -4,9 +4,9 @@
 
 ## 使用说明与主题参考
 
-- [SKINNING.md](SKINNING.md)：皮肤作者手册，区分公开 ABI、legacy 兼容与未交付能力。
+- [完整皮肤制作手册](../../skin-authoring/docs/SKINNING.md)：随制作套件提供的入门、元素查表、进阶能力/上限与可运行例子；[旧入口](SKINNING.md)仅保留兼容路由。
 - [GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md](GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)：公共 slot、语法、三态和适用性。
-- [可选脚本作者说明](SKIN_SCRIPT_V1_AUTHORING.md)：C6 数值语言、权限、工具链与可导入候选。
+- [可选脚本指南](../../skin-authoring/docs/SCRIPTING.md)：数值语言、权限、预算和可运行例子；[旧入口](SKIN_SCRIPT_V1_AUTHORING.md)只作路由。
 - [RELEASE.md](RELEASE.md)：打包、便携模式、数据根与覆盖更新。
 - [BMS_FORMAT_REFERENCE.md](BMS_FORMAT_REFERENCE.md)：格式、channel、时序、长条与控制流，供 P1-K 定点查阅。
 - [BMS_GIMMICK_CHART_RENDERING.md](BMS_GIMMICK_CHART_RENDERING.md)：演出谱视觉机理与方案，当前门归 P1-L。

@@ -48,7 +48,7 @@ Use the current project and production entry points below; implementation invent
 | Mania | `osu.Game.Rulesets.Mania/ManiaRuleset.cs`, `UI/`, `Skinning/`: mania gameplay and neutral runtime adapters | P1-A / P1-K |
 | BMS parse/import | `osu.Game.Rulesets.Bms/Beatmaps/`: decoder, converter, folder/archive import and timing profile | P1-H / P1-K |
 | BMS gameplay | `osu.Game.Rulesets.Bms/Objects/`, `Scoring/`, `Mods/`, `Replays/`, `UI/` | P1-C / P1-E |
-| BMS audio/BGA | `osu.Game.Rulesets.Bms/Audio/`, `UI/BmsBgaPlayer.cs`, `UI/BmsBgaPanel.cs` | P1-J / P1-L |
+| BMS audio/BGA | `osu.Game.Rulesets.Bms/Audio/`, `UI/BmsBgaPlaybackSession.cs`, `UI/BmsBgaPlayer.cs`, `UI/BmsBgaPanel.cs` | P1-J / P1-L |
 | BMS skin/layout | `osu.Game.Rulesets.Bms/Skinning/`: sole layout solver, material and scene adapters | P1-A |
 | Song Select / difficulty | `osu.Game.Rulesets.Bms/SongSelect/`, `Difficulty/`, `DifficultyTable/`; shared `osu.Game/Screens/Select/` | P1-I / P1-K |
 | Input | `oms.Input/OmsInputRouter.cs`, `Devices/`; BMS input bridge | P1-B / P1-D |
@@ -777,7 +777,7 @@ When available, the same panel may also show compact chart metadata lines for:
 Current progress and manual gates belong to [P1-L STATUS](../subline/P1-L/DEVELOPMENT_STATUS.md); detailed invariants live in [P1-L CONSTRAINTS](../subline/P1-L/TECHNICAL_CONSTRAINTS.md).
 
 - `BmsDecodedChart.BgaEvents` carries channels `04` base / `06` poor / `07` layer / `0A` layer2 plus typed `#BGA/#@BGA/#ARGB/#SWBGA/#POORBGA` definitions. Conversion produces a time-ordered `BmsBeatmap.BgaTimeline`, kept outside `HitObjects` like `Mines` and `ScrollProfile`.
-- BGA renders in a skinnable `BgaPanel` above the playfield. Image frames use the beatmap `TextureStore`; video uses the framework playback clock; the POOR layer follows `#POORBGA`.
+- BGA renders through skin-configured viewports resolved by the shared gameplay layout. Image frames use the beatmap `TextureStore`; video uses the framework playback clock; the POOR layer follows `#POORBGA`.
 - Each gameplay root owns one BGA playback session and composited surface; skin windows consume read-only views. Authors may declare window rectangles and Fit/Fill/Stretch through the selected skin, while the sole layout solver preserves safe gameplay regions. Default layouts remain available to older packages. Presentation rebuilding must preserve playback/POOR; converted-mania BGA stays outside this native path. Exact ownership and composition semantics are maintained in [P1-L](../subline/P1-L/TECHNICAL_CONSTRAINTS.md#phase-5bga-链路约束--viewportsceneevent-与共享-content-已接线) and [P1-A](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#playfield-与-bga-布局约束).
 - BGA is visual-only: it never enters `HitObjects` or judgement/scoring. Assets read directly from `chartbms/`, never the hash-backed `files/` store, and missing/decode-failed assets degrade without crashing.
 - Legacy video transcode is opt-in and depends on a user-provided external ffmpeg; OMS does not ship ffmpeg. Without it, when disabled, or on failure, the runtime must retain the static-image fallback.
@@ -942,7 +942,7 @@ The existing solver and adapters produce an immutable layout descriptor covering
 
 BGA decoding, timeline, seek and POOR state remain owned by one gameplay session. The skin declares presentation windows and may frame, clip, mirror and decorate their read-only surface; it cannot create players or clocks. The four-corner 14K arrangement is the compatibility default, not a restriction on authored layouts. Playback survives presentation replacement; stopping the gameplay releases it.
 
-> BMS 默认层与 mania 侧组件的当前迁移进度见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)；面向皮肤制作者的详细 lookup / preset 表见 [../other/SKINNING.md](../other/SKINNING.md)。
+> BMS 默认层与 mania 侧组件的当前进度见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)；面向制作者的入门、元素表、进阶能力与例子见[随包完整手册](../../skin-authoring/docs/SKINNING.md)，公开 slot/三态语法见[目录参考](../other/GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)。
 >
 > 皮肤设计边界与绿色数字 / Mod 联动专题的执行规划、当前状态与技术约束，见 [../subline/P1-A/README.md](../subline/P1-A/README.md) 与 [../subline/P1-C/README.md](../subline/P1-C/README.md)。
 

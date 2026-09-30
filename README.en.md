@@ -60,7 +60,9 @@ The only exception is **BMS difficulty tables**: import / refresh from local pat
 
 ### BGA playback
 
-During BMS play, the selected skin can set the BGA window size, vertical position and space for information panels. 静线 uses larger BGA windows with gameplay information above and below. The usual placement is right for 1P, left for 2P, right for a centred playfield, and four corners for 14K; when space is limited, the layout adjusts the windows and playfield to keep the lanes readable. Static backgrounds, image BGA, the POOR layer and `.mp4` video work directly, with a blurred version of the chart background shown full-screen. "Show BGA" in the BMS settings can turn the windows off.
+During BMS play, skins can position and size up to 16 BGA windows, using Fit, Fill or Stretch, or disable the windows while retaining separate information panels. All windows share the chart's presentation, and rebuilding the display layout preserves playback progress. Older skins without an explicit window declaration retain automatic placement: usually right for 1P, left for 2P, right for a centred playfield, and four corners for 14K, with adjustments when space is limited. Explicitly declared windows that overlap protected gameplay or HUD areas are hidden as a group rather than repositioned. See the [complete skinning manual](skin-authoring/docs/SKINNING.md) for instructions and examples (in Chinese).
+
+Static backgrounds, image BGA, the POOR layer and `.mp4` video work directly, with a blurred version of the chart background shown full-screen. "Show BGA" in the BMS settings turns the windows off. BGA currently applies to native BMS only; BMS charts converted to mania do not include it.
 
 Legacy video formats (`.mpg`, `.wmv`, `.avi`, `.flv`) cannot be decoded by the built-in player and show a static image by default. To play them you need an ffmpeg binary:
 

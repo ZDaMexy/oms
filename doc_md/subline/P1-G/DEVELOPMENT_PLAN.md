@@ -1,6 +1,6 @@
 # P1-G 当前计划：Phase 1.x 人工验收汇总
 
-> 最后更新：2026-09-29（接入自动键音试听门，其它人工边界保持）
+> 最后核对：2026-10-01（移除单内容源旧待办；承接作者窗口的实谱/设备门）
 > 全局 gate 见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)，当前分项见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，历史结论见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线目标
@@ -42,6 +42,7 @@ P1-G 只汇总，不实现：发现问题必须回到 owning 子线，修复后�
 - dense fully-keysounded、layered/long BGM、rapid empty-strike、pause/seek/retry。
 - 原生 BMS 与转谱-mania 对照：长伴奏中途暂停静音、继续从原位置播放，反复暂停与变速试听；手动转谱长条头发声一次、尾部不额外发声。seek/retry 清除旧声部，不补播目标以前已开始的长样本。
 - 自动键音按 [P1-J 待试听清单](../P1-J/DEVELOPMENT_PLAN.md#0-用户指定自动键音2026-09-29)分别验收两模式的开关听感，记录版本、谱面及音频设备；现有软件对照不代签真实听感。
+- 9 月 30 日热路径优化已有修改前后测量及回退/复用回归；按 [P1-J](../P1-J/DEVELOPMENT_PLAN.md)收集真实谱与设备结果，不把微基准改善写成整局帧率或 50k 极端谱已签收。
 
 ### 4. Song Select 与桌面导入
 
@@ -54,7 +55,7 @@ P1-G 只汇总，不实现：发现问题必须回到 owning 子线，修复后�
 
 - 代表图序列、POOR、seek、老视频转码和重进缓存。
 - DEAD SOUL 等代表 Gimmick 谱的 freeze/snap/Auto/Off。
-- 5K/7K/9K/14K 当前布局：C3唯一layout/viewport已落；P1-L内容播放与后续C6/C7新增consumer分别按实际改动复核，不把viewport闭合等同于单内容源已闭合。
+- 5K/7K/9K/14K 当前布局：每局唯一 BGA 播放会话、显示重建保留内容与作者窗口投影已通过[软件及桌面合成像素验证](../../other/BGA_SKIN_AUTHORING_20260930.md)，不再列为待开发。继续按真实谱核对叠层/ARGB/老视频保真、长时解码，以及不同尺寸/DPI 的 Fit/Fill/Stretch 和零窗信息区；固定 4:3 合成画布的 Fill 不承诺消除素材内部黑边。
 
 ### 6. 候选发行物
 

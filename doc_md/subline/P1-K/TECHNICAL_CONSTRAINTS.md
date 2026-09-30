@@ -1,6 +1,6 @@
 # P1-K 技术约束：BMS 解析链路治理
 
-> 最后核对：2026-09-29（文档同步与代码验证范围对齐；解析行为合同不变）
+> 最后核对：2026-10-01（区分 LN 样本数据与已落 hosted 播放路径；解析行为合同不变）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，追加项与更正史按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线约束
@@ -136,7 +136,7 @@ TOTAL 输入合同（2026-09-22）：`BmsBeatmapInfo.Total` 为 nullable 作者�
 2. BGM sample-only 对象只承载 keysound 播放，不得映射到任何 judged column 语义；其 `Column` 只能作为 drawable/sample anchor（默认锚到 column 0），不得因 column 选择改变判定列或 stereo 语义。
 3. converted BGM/scratch 对象经 `isScorableHitObject` 排除出 `TotalObjectCount/EndTimeObjectCount`；两项只管计数元数据。难度输入另由 K12 的 nested-aware combo 谓词过滤，不能把计数断言当作真实星数回归。
 4. converted BGM 的样本解析不得新建第二套 sample 源：它与 note keysound 同走 `BmsKeysoundSampleInfo`（`useBeatmapSamples`）→ 经 `WorkingBeatmapCache` 的 `FilesystemBackedBeatmapResourceProvider`（按 `BeatmapSet.FilesystemStoragePath` 建、与游玩 ruleset 无关）解析 `chartbms/` 内 WAV。实际 shared-store owner 与 dense-BGM 播放期合同见 [P1-J BMS→mania 音频合同](../P1-J/TECHNICAL_CONSTRAINTS.md#bmsmania-音频合同)，不得新建独立的转谱 sample authority。
-5. LN 尾键音 mania 对齐：`BmsToManiaBeatmapConverter` 不得把 LN 尾 keysound 放进 mania `HoldNote.NodeSamples[1]`（mania `TailNote` 会在 release 播放该 node sample，与 [P1-J 转谱音频合同](../P1-J/TECHNICAL_CONSTRAINTS.md#bmsmania-音频合同)规定的「LN tail 一律不发声」冲突，对 LNTYPE1 尾复用头 WAV 的谱会复现 double）。尾 node sample 必须为空列表；关闭自动键音时头 keysound 仍走 `NodeSamples[0]`。`BmsConvertedHoldNoteHitObject` 只额外保留 head sample/slot，维持 HoldNote 继承、嵌套与计分；`BmsConvertedManiaBeatmap` 在 NR/HO/IN 等 Mod 前捕获只读自动音频快照，不能靠后续被重建的对象恢复 WAV 身份。自动播放合同归 [P1-J](../P1-J/TECHNICAL_CONSTRAINTS.md#自动键音合同2026-09-29)。**scratch 长条尾同理**：`createScratchSampleHitObjects` 只发 head sample 对象，不得再为尾单独发 sample-only 对象。
+5. LN 尾键音 mania 对齐：`BmsToManiaBeatmapConverter` 不得把 LN 尾 keysound 放进 mania `HoldNote.NodeSamples[1]`（mania `TailNote` 会在 release 播放该 node sample，与 [P1-J 转谱音频合同](../P1-J/TECHNICAL_CONSTRAINTS.md#bmsmania-音频合同)规定的「LN tail 一律不发声」冲突，对 LNTYPE1 尾复用头 WAV 的谱会复现 double）。尾 node sample 必须为空列表，头音数据继续保留在 `NodeSamples[0]`；关闭自动键音且有 hosted store 时，普通 pooled head 从 `BmsConvertedHoldNoteHitObject` 父对象读取 head sample/slot 经 shared store 发声，无 store 才保留普通样本回退。HoldNote 继承、嵌套与计分保持；`BmsConvertedManiaBeatmap` 在 NR/HO/IN 等 Mod 前捕获只读自动音频快照，不能靠后续被重建的对象恢复 WAV 身份。自动播放合同归 [P1-J](../P1-J/TECHNICAL_CONSTRAINTS.md#自动键音合同2026-09-29)。**scratch 长条尾同理**：`createScratchSampleHitObjects` 只发 head sample 对象，不得再为尾单独发 sample-only 对象。
 6. 本切片只补音频保真，不得顺手改 K9 已冻结的 lane flatten / stage definition / scratch sample-only / converted-star / control-point 剥离语义；若发现这些需要联动改动，先停下拆刀。
 7. 验证顺序固定为「converter focused（BGM 计数 / 不 scorable / 尾 node sample 为空）-> 难度/统计不回归 focused -> mania player-level BGM 出声 / seek 语义（可选）-> Release build」；在 converter focused proof 可用时不得只靠 generic convert UI 手测代替。
 

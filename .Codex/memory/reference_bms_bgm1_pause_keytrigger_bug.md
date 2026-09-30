@@ -14,7 +14,7 @@ metadata:
 
 ## 真根因
 
-mania `Column.OnPressed` 会通过 `GameplaySampleTriggerSource` 播放本列“下一个对象”的 `Samples`。转谱 BGM/scratch sample-only 对象被放在可玩列且曾把键音放进 `Samples`，因此按键反馈绕过 shared store 播出 BGM；重叠和暂停漏播都由这条独立 sample pool 解释。
+mania `Column.OnPressed` 的默认手动反馈会通过 `GameplaySampleTriggerSource` 选择本列候选对象的 `Samples`。转谱 BGM/scratch sample-only 对象被放在可玩列且曾把键音放进 `Samples`，因此按键反馈绕过 shared store 播出 BGM；重叠和暂停漏播都由这条独立 sample pool 解释。这里的候选不总是未来第一个对象，不能用这段故障简称替代当前选音合同。
 
 ## 修复合同
 

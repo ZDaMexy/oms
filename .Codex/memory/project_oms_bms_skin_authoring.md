@@ -1,6 +1,6 @@
 ---
 name: project_oms_bms_skin_authoring
-description: BMS 皮肤用户决定、作者能力边界与常见错误入口的召回
+description: 皮肤作者套件交付、手册与示例闭合、用户决定和诊断入口
 metadata:
   node_type: memory
   type: project
@@ -17,7 +17,7 @@ metadata:
 - 引擎掌握 gameplay truth、layout、滚动/LN 裁剪、池、BGA 内容时钟与安全；作者控制 scene/动画/只读响应。三态按 catalog 的 requirement/applicability 决定，不另列会漂移的 suppress 清单。
 - canonical oms-simple 是唯一内置、默认与保底，覆盖 mania/BMS；用户已放弃 oms-complex，其文件只作历史作者样本，不再作为启动、构建或视觉签收对象。Authoring Kit 是可编辑源、模板、schema/事件/layout/预算说明、validator/diagnostics 与打包文档，不是第二套 SDK/runtime。
 - 手册按普通作者从零制作、可见元素/实际文件/尺寸/帧、布局、绑定/状态机/脚本、上限、失败和刷新打包组织。README只导航；START_HERE、SKINNING、SCRIPTING、REFERENCE及素材/例子必须在发行套件内闭合，不能把不随包复制的doc_md当必要入口。First Scene与BGA Layout是完整小包，Reference Study需复制静线再覆盖三文件；明确片段与整包、工具检查与真实挂载、历史原样截图与素材示意。
-- BGA作者控制安全范围内的窗口数量/位置/比例及fit/fill/stretch/none；游戏根会话掌握唯一播放内容与时钟，所有窗口含单窗都是只读view。无声明保留兼容默认，none不删除独立信息区，BMS转mania仍无BGA。详细合同不在memory重复，查P1-A/P1-L及[[reference_bms_bga_chain]]。
+- BGA 窗口属于作者布局，播放内容与时钟仍由游戏持有；不要因作者能布置窗口而另建播放器。窗口、零窗信息区与转谱边界只查 P1-A/P1-L 及 [[reference_bms_bga_chain]]。
 - canonical 普通包已接管产品渲染保底；程序化 OmsSkin 源码仍保留历史证据与人工对照，物理删除须等原实机 gate，不能把代码保留误读为尚未接管。canonical 损坏走明确安装修复，不暗落另一套程序化主题。
 - 视觉采用集中签收；已获授权的自动可证切片可继续；用户明确暂停时须停止开发，具体边界见 P1-A STATUS。不得把“实现/自动通过，视觉待验收”写成产品/release 完成，或复用 2026-07-14 静态恢复签收。
 
@@ -30,12 +30,12 @@ metadata:
 - callback 返回后量 stopwatch 无法阻止 while true；sandbox 必须可抢占并有 instruction/heap/node/resource quota。
 - schema 来自生产组件与合同，SKINNING 是派生说明，不反向把旧说明当实现需求。
 - Windows上的JSON缩进序列化会写CRLF，即使最后只追加LF；配方中的多行文字还会受C#源码检出换行影响。保留源文件有`eol=lf`时，所有作者输出须主动规范LF，否则新检出后源文件打包不再等于随包成品。核对真实新建、生成、重复打包及源与成品字节，而不是仅检查当前工作目录内的两次打包相同。
-- 场景文字本身作为`hud.text`所有者时采用HUD区域，容器下的显式global子文字可沿安全屏幕定位；模板同理。仅通过离线schema检查不能证明最终位置，需真实挂载测量。零缩放会被绘图矩阵夹到极小值，进度条用固定容器下的子图宽度归零避免细线。
-- 作者`check`能拒绝BGA语法/范围/预算，不能离线确定屏幕/样式碰撞。整组无窗查runtime.log的`bms.layout.bga-viewports-unavailable`，没有专属设置错误面板；零窗仍校验BGA场景素材和所有者。工具通过、旧截图与新增测试代码都不是本轮视觉签收；会话/窗口/例子的独立证据见[作者能力记录](../../doc_md/other/BGA_SKIN_AUTHORING_20260930.md)。
+- 离线 schema 通过不能证明 HUD 的最终位置，需真实挂载测量；owner 与显式 global 子节点的坐标区别见 [[reference_gameplay_skin_layout_snapshot]]。零缩放会被绘图矩阵夹到极小值，进度条用固定容器下的子图宽度归零避免细线。
+- 作者 `check` 能拒绝格式/范围/预算，不能离线确定实际屏幕与轨道的布局碰撞；BGA 无窗日志与边界见 [[reference_bms_bga_chain]]。工具通过、历史截图与新增测试代码都不能代签视觉体验；会话/窗口/例子的独立证据见[作者能力记录](../../doc_md/other/BGA_SKIN_AUTHORING_20260930.md)。
 
 ## 诊断导航
 
-手册示例也要真实选包并在两玩法挂载：Common部件（含BGA）不能写入Bms扩展section；目标的ruleset才限定玩法。测试负例须有同基线成功例，防止全被无效声明掩盖。暂停冻结整个游玩scene，运行状态机不能即时刷新暂停菜单；脚本有限数值越界会钳制，不等于VM故障。
+手册示例也要真实选包并在适用玩法挂载，负例须有同基线成功例，防止共用的无效声明掩盖失败原因。Common/Bms section 误用见 [[reference_gameplay_skin_codec_material]]；暂停冻结与脚本有限值钳制见 [[reference_gameplay_skin_scripts]]。
 
 | 现象 | 优先进入 |
 | --- | --- |

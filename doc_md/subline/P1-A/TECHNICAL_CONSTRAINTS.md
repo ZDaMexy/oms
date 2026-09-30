@@ -1,6 +1,6 @@
 # P1-A 技术约束：Skin V1、产品面与 release gate
 
-> 最后更新：2026-09-29（校正唯一内置作者交付与现行目录入口；保留既有恢复和验收合同）
+> 最后核对：2026-10-01（文档治理：BGA诊断与历史测试基线范围；产品验证日期不变）
 > 本文件是 Skin V1 的硬约束源。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，设计证据见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。若代码与本文冲突，先确认新事实并同步修正文档/代码，不能用历史 CHANGELOG 覆盖当前 authority。
 
 ## 按任务定位
@@ -292,7 +292,7 @@ BMS选定包`BlackLaneWidth`是与NormalLaneWidth同单位的0.25..4横向权重
 
 8a1. 独立按键区可额外声明 `ScratchKeyWidth`（相对scratch轨道宽度，`1..4`，缺省`1`），仅扩展转盘视觉，不改音符、判定或输入轨道。solver从贴近普通键的边缘向外求解并限制在safe bounds及旁侧BGA之外；真实按键视觉消费同一snapshot中的矩形。缺声明不继承canonical倍率。纯纹理`hud.gauge`保持完整暗槽，亮层按真实gauge比例裁切揭露，不缩放格距；0值仍可见全槽。作者scene仍自行控制既有绑定，不追加该纯纹理表现。
 8b. BGA 窗口数量、位置、尺寸和缩放属于皮肤系统。每个 `[Bms] Keymode` 桶可声明 `BgaViewports: x,y,width,height,fit;...`，坐标相对安全区，模式为 `fit/fill/stretch`，最多16窗；`none` 显式零窗。共享 parser 在作者输入边界验证有限数值、正尺寸、边界、模式与预算，decoder/作者工具共用，不另造 INI tokenizer。声明只从 exact selected source 读取；无声明仍使用既有 `BgaWidth/BgaHeight` 最大框（`0.01..1`）、`BgaVerticalPosition`（`0..1`）与默认14K四角/窄屏底部退让，旧尺寸继续按4:3装入。新声明尺寸不限制4:3，不继承 canonical 的选择；invalid duplicate 不擦此前有效声明，同时保留稳定诊断。
-8b1. 作者窗口由唯一 BMS solver 投影到相同 immutable snapshot，缩放模式按同索引保存在该 publication 的 typed adapter；consumer不得再次求几何。完整排列若压住轨道、键区、血条、HUD或信息带无法安全放下，则整组零窗并报告 `bms.layout.bga-viewports-unavailable`，不移动作者窗口、不复活默认四窗。无BGA窗时，只省略该窗口的scene装饰，不让其它音符/HUD失效；非空布局的非法scene索引仍拒绝，mania BGA仍NotApplicable。`BgaInformationHeight` 独立控制信息带，零窗时由同一solver保留原安全信息区锚点，必要时沿旧窄屏规则缩短field；关闭BGA不隐藏曲目、判定或节奏信息。
+8b1. 作者窗口由唯一 BMS solver 投影到相同 immutable snapshot，缩放模式按同索引保存在该 publication 的 typed adapter；consumer不得再次求几何。完整排列若压住轨道、键区、血条、HUD或信息带无法安全放下，则整组零窗并报告 `bms.layout.bga-viewports-unavailable`，不移动作者窗口、不复活默认四窗。`bms.layout.bga-viewports`前缀的稳定代码沿现有成功publication的材料诊断出口写入`runtime.log`，不含作者值或路径；其它临时layout诊断不因此并入持久错误批次。无BGA窗时，只省略该窗口的scene装饰，不让其它音符/HUD失效；非空布局的非法scene索引仍拒绝，mania BGA仍NotApplicable。`BgaInformationHeight` 独立控制信息带，零窗时由同一solver保留原安全信息区锚点，必要时沿旧窄屏规则缩短field；关闭BGA不隐藏曲目、判定或节奏信息。
 8b2. `fit/fill/stretch` 对完整只读合成画面执行留边、居中裁剪或拉伸。BMS timeline 的合成画布保持4:3，各层内部仍按原Fit合成；不能把裁剪合成画布宣称为自动去除素材自身或内部letterbox黑边。无timeline的静态背景按自身比例。旧式键图继续随真实Lift与滚动方向移动，独立键区转盘按比例居中；公共HUD避让保持。
 8b3. BGA native scene 池按实际窗口数保留。Global源在各窗口显示，显式BGA索引只显示在对应窗口；准备期按每个实际窗口投影累计节点/文字/效果面积及动画、绑定、状态赋值的source fanout。不得按首窗面积统一估算不同大小的窗口，也不把所有显式索引节点再次乘总窗数。零窗仍完整校验作者声明、所有者和资源，再省略专属装饰与其宿主。
 9. playfield顶边默认贴屏幕顶边；`HitTargetVerticalOffset=0`时保持`scrollLengthRatio == 1`。皮肤改变视觉尺寸不得改变GN、判定窗口、scroll transform或input authority。BGA decode、content、timeline、seek、POOR/gimmick播放与唯一content authority继续归P1-L/引擎；C3只冻结最终只读viewport/rect，多个mirror viewport也只能引用同一content authority。
@@ -435,7 +435,7 @@ BMS选定包`BlackLaneWidth`是与NormalLaneWidth同单位的0.25..4横向权重
 9. 已导入 `.osk` 的BMS普通短键编号帧动画与长条head/body/tail静态图/编号帧动画必须分别进入集中用户视觉验收清单，并在Skin V1/release宣称完成前取得确认；2026-07-14的静态恢复验收只能证明`SV1-0`基线，不得复用。待签收本身不阻塞后续自动可验证切片，但未签收不得称产品交付、`SV1-1`完成或release gate通过。
 10. ordinary note 与 long-note head/body/tail 的首个产品纵切闭合后，剩余 optional slot 不再通过私有逐件 C# provider/display 扩张；C5 已由 shared scene/runtime 接管全部适用 slot，并继续服从对应 ABI、budget 与 fallback gate。后续新增能力只能进入 C6/C7 的版本化门。
 11. scene/event产品证据必须从ordinary/managed/external source、`SkinManager` current revision、shared codec/catalog/resolver/material、真实BMS/mania producer进入actual renderer；DTO、schema round-trip、graph mock、cursor alone、single drawable或test publisher注入最终snapshot不能替代该证据。beatmap-local public authoring继续不可达。
-12. 既有失败必须逐项比较名称、错误分类和精确消息，不以“失败数量相同”归因。冻结core Skin六项为`TestRetrieveAndLegacyExportJapaneseFilename`、`TestRetrieveAndNonLegacyExportJapaneseFilename`、`TestBackgroundCyclingOnDefaultSkin(True)`、`TestRetrievalWithConflictingFilenames`、`TestSampleUpdatedBeforePlaybackWhenNotPresent`、`TestRetrieveOggAudio`；mania full四项为`TestHoldNoteWithReleasePress`、`TestHoldNoteChord`、`TestSingleHoldNote`、`TestHoldNoteStair`。精确基线证据见[C5交接](../../other/SKIN_SYSTEM_C5_SCENE_EVENT_COMPLETION_HANDOFF_20260903.md)和[CHANGELOG](CHANGELOG.md)，最新实际结果只在[STATUS](DEVELOPMENT_STATUS.md)维护。不得通过NoWarn或删测试隐藏失败。
+12. 既有失败必须逐项比较名称、错误分类、精确消息及相关业务堆栈，不以“失败数量相同”归因。[C5交接](../../other/SKIN_SYSTEM_C5_SCENE_EVENT_COMPLETION_HANDOFF_20260903.md)的core/mania具名清单只属于该时点与执行范围，不是永久失败白名单。当前结果与新增基线复现从[STATUS](DEVELOPMENT_STATUS.md#最近一次验证)进入对应证据；未被旧过滤器覆盖的失败必须另行证明，已归因的旧预期欠账也不能称为已修复。不得通过NoWarn或删测试隐藏失败。
 
 
 `text-overflow=ellipsis`仅作用于text的可见宽度，保留原始绑定元数据，默认行为不变；该静态属性不可动画、状态或绑定写入。共享FontStore资源应按字形面积合计后统一页对齐，禁止把共享图集页按文字节点重复计费；64MP/256MB准入上限保持，取证与保守估算边界见信息区记录。

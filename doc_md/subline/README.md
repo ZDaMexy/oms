@@ -4,7 +4,7 @@
 
 | 子线 | 负责范围 | 当前判定 | 下一道门 |
 | --- | --- | --- | --- |
-| [P1-A](P1-A/DEVELOPMENT_STATUS.md) | 产品面、Skin V1、release gate | 静线唯一内置；模式选择、固定目录刷新和原组件编辑恢复已落；外观打磨暂停，星轨已退役 | 局部认可不代签整体；保留V-001～V-005及设备/长时门，当前只做核对收尾；Skin V1/release未完成 |
+| [P1-A](P1-A/DEVELOPMENT_STATUS.md) | 产品面、Skin V1、release gate | 静线唯一内置；模式选择、目录刷新、原组件编辑及完整作者手册已落；外观打磨暂停 | BGA作者能力、V-001～V-005及设备/长时人工门仍保留；Skin V1/release未完成 |
 | [P1-B](P1-B/DEVELOPMENT_STATUS.md) | 输入语义与硬件 | 软件链可用，真实 HID 覆盖未闭合 | analog scratch 跨设备与实机验收 |
 | [P1-C](P1-C/DEVELOPMENT_STATUS.md) | 判定语义与反馈 | 判定 parity、TOTAL 兼容与自动调整偏移互斥 style 已落；常驻反馈卡已删除 | 保持演奏/回放/结算一致性，补实谱判定与偏移收敛、真实设备验收 |
 | [P1-D](P1-D/DEVELOPMENT_STATUS.md) | 控制器校准与诊断 | 未完成 | deadzone、sensitivity、live diagnostics |
@@ -15,7 +15,7 @@
 | [P1-I](P1-I/DEVELOPMENT_STATUS.md) | BMS 选歌筛选与搜索 | read-model/搜索与单轨上限筛选已落 | 拖拽手感、窄窗口与真实大库体验 |
 | [P1-J](P1-J/DEVELOPMENT_STATUS.md) | gameplay 性能与音频 | 原生/转谱第二轮热路径优化；自动键音、长伴奏暂停保位与手动 LN 基线保留 | 双模式实谱听感、按现场证据触发50k profile、人工清单 |
 | [P1-K](P1-K/DEVELOPMENT_STATUS.md) | BMS 解析与转换 | K1–K12主体及C3前置已落；TOTAL保留作者声明/缺省区别与有限正数边界 | 保持parser/converter唯一authority，补模糊谱纠正入口及真实特殊谱证明 |
-| [P1-L](P1-L/DEVELOPMENT_STATUS.md) | Gimmick/BGA 视觉 | 多窗共享单内容源；C3唯一viewport、C5只读事件及 BMS 显示偏移保持 | 逐谱视觉、设备/尺寸验收与反向滚动；偏移人工门归 P1-C |
+| [P1-L](P1-L/DEVELOPMENT_STATUS.md) | Gimmick/BGA 视觉 | 游戏持有共享播放会话；作者可声明窗口与三种适配，信息区独立；显示偏移保持 | 真实素材、窗口/DPI与长时验收，反向滚动未实现；偏移人工门归 P1-C |
 | [P1-M](P1-M/DEVELOPMENT_STATUS.md) | 内置音乐播放器 | 规划完成，未开工 | 主线 R3–R6/release gate 完成或产品改序后，再启动 PlayQueue 地基 |
 
 子线变化只有在影响全局优先级、release gate 或硬约束时才回写 mainline；禁止把整段子线实现史复制到主线。

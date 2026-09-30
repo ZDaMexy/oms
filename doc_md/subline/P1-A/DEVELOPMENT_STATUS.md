@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-09-30（作者 BGA 窗口与完整制作手册已实现；专项与桌面验证已登记，外观及人工验收日期不变）
+> 最后核对：2026-10-01（文档治理；最近产品验证仍为 2026-09-30，外观及人工验收日期不变）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -18,33 +18,23 @@
 | 实时演奏信息 | 实时判定与断连统计、EX SCORE/HiSpeed、MIN/当前/MAX BPM；曲名、作者标级与独立的表名/表内等级 | 读取规则真实状态；表归类不替代作者难度，皮肤不改变判定/计分、时间或难度表导入 |
 | 皮肤布局与公共能力 | BMS 公开键区、血槽、信息区与 `BgaViewports`：最多16个作者矩形，逐窗 fit/fill/stretch 或 none；无声明保留旧默认。可选黑键轨宽，mania/BMS 共用作者框架 | 不安全的作者窗口整组省略，信息区独立保留；CLI检查格式，实际冲突进游戏查runtime.log。9K/PMS不应用黑白轨比；BGA会话/内容/时钟归[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，不扩展转谱BGA、选歌/结算皮肤面 |
 | 作者制作与可选演出 | [完整套件](../../../skin-authoring/README.md)含从零制作、按可见元素查文件/尺寸/动画、INI/scene/script字段与预算、刷新打包步骤；First Scene、Reference Study和BGA Layout明确完整包与练习片段 | 主手册与图片随套件发行，无需源码仓库；历史实机图与素材示意已区分。新增例子的工具检查/打包和真实挂载已验证，详见作者能力记录。原编辑器可编辑已有组件并保存独立副本，完整scene/script没有可视化编辑器；不据手册代签视觉或旧三包演练 |
-| 安装与发行 | 此前单内置候选已完成便携、自定义根、旧选择迁移、工作副本恢复和覆盖启动检查 | 9月13日外观修改及9月14日设置/编辑修改各有其自动证据，均不自动更新旧 ZIP 安装验收；独立账户非便携、设备/长期及公开发行组合门仍保留 |
+| 安装与发行 | 此前单内置候选已完成便携、自定义根、旧选择迁移、工作副本恢复和覆盖启动检查 | 后续外观、设置及9月30日运行时/作者能力各有软件证据，均未更新旧 ZIP 安装验收；独立账户非便携、设备/长期及公开发行组合门仍保留 |
 
 C2～C6共享同一 package/layout/material/scene publication、lease/detach 与脚本隔离合同；无游玩宿主的菜单也检查整包。授权撤销不扩大 reload 准入，具体合同只在[技术约束](TECHNICAL_CONSTRAINTS.md)维护。
 
 ## 最近一次验证
 
-2026-09-30后续作者能力切片：作者可声明BGA窗口和缩放，零窗仍保留独立信息区，游戏持有播放会话。两个动画例子在BMS/mania中验证真实分数、进度、状态、变体与可选脚本；三个练习检查/打包成功，桌面验证共享内容与三种适配。软件回归、已修复问题和真实谱/设备边界统一见[作者能力记录](../../other/BGA_SKIN_AUTHORING_20260930.md)，不重新签收外观或安装发行。
+2026-09-30后续作者能力切片：作者可声明BGA窗口和缩放，零窗仍保留独立信息区，游戏持有播放会话。两个动画例子在BMS/mania中验证真实分数、进度、状态、变体与可选脚本；三个练习检查/打包成功，桌面验证共享内容与三种适配。软件回归、已修复问题和真实谱/设备边界统一见[作者能力记录](../../other/BGA_SKIN_AUTHORING_20260930.md)。完整BMS/mania回归仍有逐项核实的既有失败，不能称全套全绿，也不重新签收外观或安装发行。
 
 2026-09-30：P1-J 性能治理涉及共享样本维护、转谱对象池和 seek 完整 Reset，P1-L 多窗 BGA 已共享内容源；软件结果与具名失败对照统一见 [性能验证记录](../../other/GAMEPLAY_PERFORMANCE_20260930.md)。本次不是皮肤外观或安装发行重新验收。
 
-2026-09-22 TOTAL 完整回归暴露29项旧皮肤测试预期失败，均已在修改前45d8613复现：28项寻找已移除的工作区，1项仍要求编辑器禁用。2026-09-23复核留存TRX及现行设置源码，失败身份与基线一致；具名清单见[TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md#完整回归失败的基线复现)。这是尚待整理的自动测试欠账，不恢复旧入口，也不代表下述功能专项或人工门被重新签收。
-
-2026-09-14 完成固定目录与原编辑功能恢复的自动验证：
-
-- core Debug focused **23/23**：default/Realm/folder 完整副本、真实 mania 预览的拖拽/属性/图片显示与重读、真实菜单打开/无编辑清理、保存后退出预览并只更新编辑模式、目录放入/修改/移出/放回、启动扫描退出等待、旧全局迁移及模式切换。
-- BMS Debug focused **17/17**：外部编辑仍禁用、旧工作区后端保留、普通包整包重载、原 current 修改禁令、嵌套 importer 写入、设置关闭与 current pair 一致性。
-- core Debug build 通过，0 警告/0 错误；最终 Desktop solution Release build 通过，0 错误。BMS 测试工程两项未修改代码告警为 `TestSceneFilesystemBackedStoryboardFallback.cs:151` 的 CS8600、`BmsRulesetStatisticsTest.cs:555` 的 CA2007，未屏蔽。
-- 定点 whitespace 格式整理、文档检查与 `git diff --check` 通过。未重跑三工程 full，未代签新安装、完整歌曲、视觉、设备或长期体验。
-
-命令、首败与修复见 [本次日志](CHANGELOG.md#2026-09-14固定皮肤目录与原编辑器恢复)。此前静线外观修改的测试、实绘和成品记录仍见 [轨道记录](../../other/SKIN_SIMPLE_LANE_PROPORTIONS_20260913.md)，不把本次编辑路径验证计为视觉重新签收。
-
 ## 此前单内置与布局验证
 
-以下只作历史检索，不是最新代码的重新验收：[单内置退役与启动](CHANGELOG.md#放弃星轨并恢复唯一内置静线)、[构建/冷启动](../../other/SKIN_BUILTIN_BUILD_20260912.md)、[首轮布局](../../other/SKIN_SIMPLE_LAYOUT_20260912.md)、[底板与转盘](../../other/SKIN_SIMPLE_CABINET_20260912.md)、[判定/血槽与键面](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md)、[演奏信息](../../other/SKIN_SIMPLE_INFORMATION_20260913.md)、[C7制作与安装](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)。旧作品与报告保留原样，当前入口不再逐轮复制测试数字。
+以下只作历史检索，不是最新代码的重新验收：[设置/模式选择与原编辑器](CHANGELOG.md#2026-09-14固定皮肤目录与原编辑器恢复)、[单内置退役与启动](CHANGELOG.md#放弃星轨并恢复唯一内置静线)、[构建/冷启动](../../other/SKIN_BUILTIN_BUILD_20260912.md)、[首轮布局](../../other/SKIN_SIMPLE_LAYOUT_20260912.md)、[底板与转盘](../../other/SKIN_SIMPLE_CABINET_20260912.md)、[判定/血槽与键面](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md)、[演奏信息](../../other/SKIN_SIMPLE_INFORMATION_20260913.md)、[轨道比例](../../other/SKIN_SIMPLE_LANE_PROPORTIONS_20260913.md)、[C7制作与安装](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)。旧作品与报告保留原样，当前入口不再逐轮复制测试数字。
 
 ## 当前风险与未完成项
 
+- 29项旧皮肤测试预期仍待整理：28项寻找已移除的工作区，1项要求已恢复的编辑器禁用。9月30日完整回归再次逐项核实其身份、消息和业务堆栈；最新对照见[作者能力记录](../../other/BGA_SKIN_AUTHORING_20260930.md)，最初修改前复现见[TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md#完整回归失败的基线复现)。不为旧测试恢复已删除入口。
 - V-001～V-004未逐项签收、V-005未签收；用户对局部改进的认可不补填未观察矩阵。V-005 原三源操作中的外部注册及工作区行级入口已退出当前设置，不能把旧步骤当作新用户可执行流程；现行可达范围与未执行边界见[集中清单 V-005](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md#v-005c6-可选脚本与双规则集-momentum-候选)。
 - OmsSkin只保留历史证据与人工对照，源码物理移除仍待原实机门；安装故障不得重新启用它。
 - G1 held-root/journal不是filesystem transaction，foreign addition/replacement可导致冻结；未知旧记录及无完整恢复证据的intent不猜测迁移。旧保存根事故只有事后保全，不追溯宣称无损。
@@ -54,4 +44,4 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 文档治理验证
 
-2026-09-29 对照现行设置、启动配置迁移、独立草稿编辑、内置退役及构建脚本，修正路由/作者合同的双包与外部工作区残留，明确旧配置迁移例外并合并重复诊断记忆。未修改产品或测试，未重新运行产品验证；9月14日功能专项、9月22日完整回归欠账及原人工门均保持原身份。审查范围与检查归属见[本次治理记录](CHANGELOG.md#2026-09-29皮肤文档与记忆一致性审查)。
+2026-10-01 对照当前代码及9月30日两份验证记录，区分已交付的作者能力、历史安装证据、旧测试欠账和未签收人工门；压缩计划中的已完成工程叙述，补清BGA诊断范围。仅修改文档，未运行产品构建或测试，未刷新产品/实机日期；检查结果由[主线治理日志](../../mainline/CHANGELOG.md)统一登记，修正范围见[本线日志](CHANGELOG.md#2026-10-01文档健康度同步)。

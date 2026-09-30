@@ -1,6 +1,6 @@
 # P1-K 当前状态：BMS 解析与转换治理
 
-> 最后核对：2026-09-29（自动键音转谱资料保全）
+> 最后核对：2026-10-01（手动 LN shared-store 已完成，保留解析与真实特殊谱门）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。格式参考见 [BMS_FORMAT_REFERENCE.md](../../other/BMS_FORMAT_REFERENCE.md)。
 
 ## 当前阶段
@@ -18,7 +18,7 @@ K1–K12 主体已阶段性收口：解析 authority、主要控制事件、proj
 - parse-once/project-many：metadata、background、Song Select、statistics、results 等复用 parse authority。
 - source-bound modless playable cache 与 invalidation；results/score consumer 使用 already-modded playable contract。
 - dedicated BMS→mania converter：sample-only BGM/scratch、LN tail 静音、converted star 持久化和展示 read-model。
-- 自动键音：converted HoldNote 保留 head sample/WAV slot，转换后的只读音频快照在 NR/HO/IN 重建玩法对象后仍可播放完整原谱音乐；原统计/难度、NodeSamples 与静音尾不改，播放与验收归 [P1-J](../P1-J/DEVELOPMENT_STATUS.md)。
+- converted HoldNote 保留 head sample/WAV slot，手动 pooled head 已经 shared store 发声；自动键音的只读音频快照在 NR/HO/IN 重建玩法对象后仍可播放完整原谱音乐。原统计/难度、NodeSamples 与静音尾不改，普通 mania 及无 hosted store 路径保留；播放实现和听感验收归 [P1-J](../P1-J/DEVELOPMENT_STATUS.md)，不再将手动 store 接入列为缺口。
 - LNOBJ 只与同 lane 紧邻前一普通音符配对，禁止 LIFO 回抓制造重叠 LN。
 - converted-star 难度入口过滤 sample-only BGM/scratch，并以 conversion version 失效旧结果。
 - immutable `BmsKeymodeResolution` 由 parser 单点产出并原样流经 converter、production loader 与 gameplay layout owner：authoritative host/importer显式 override、`.pms/.bme`、P2/high channel 与完整 channel-set 的 precedence、evidence、纠正入口及稳定脱敏 diagnostic 已冻结；无充分证据或证据冲突时 fail-closed，不再按最高出现 channel、hit object 或 layout 宽度猜测。
@@ -35,7 +35,9 @@ K1–K12 主体已阶段性收口：解析 authority、主要控制事件、proj
 
 ## 最近一次验证
 
-2026-09-29 自动键音的 converter/Mod/clone、实际 Player 与 mania relevant、完整回归及 Release 记录集中见 [P1-J](../P1-J/CHANGELOG.md#bms-与-bmsmania-自动键音)，不扩成转谱手动 LN 或真实听感已签收。
+2026-09-30 原生/转谱性能专项保留 converter 数据、普通 mania 样本及回退合同；最终 BMS full 的 `TestManualConvertedHoldUsesSharedStoreAndSilentTail` 通过，后续作者窗口工作的完整回归也保持该结果。证据分别见[性能验证](../../other/GAMEPLAY_PERFORMANCE_20260930.md)与[作者能力验证](../../other/BGA_SKIN_AUTHORING_20260930.md)；这些是运行时软件证明，不代表真实特殊谱或听感已签收。
+
+2026-09-29 自动键音的 converter/Mod/clone 证明见 [P1-J 历史记录](../P1-J/CHANGELOG.md#bms-与-bmsmania-自动键音)；同日后续手动 LN 的 Player/store 路由证明见[体验验证](../../other/EXPERIENCE_CLOSURE_20260929.md)。
 
 2026-09-22 TOTAL 的decoder/converter/cache、演奏/回放与results专项，以及BMS full和Release结果统一见[P1-C最新验证](../P1-C/DEVELOPMENT_STATUS.md#最近一次验证)与[TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。完整回归包含已逐项复现的旧皮肤失败，不能沿用旧C3全绿数字作为当前结论。2026-09-23仅回读留存证据，未新增产品测试。
 
@@ -57,4 +59,4 @@ K1–K12 主体已阶段性收口：解析 authority、主要控制事件、proj
 
 ## 文档治理验证
 
-2026-09-09：核对 [decoder](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapDecoder.cs)、[production loader](../../../osu.Game.Rulesets.Bms/Beatmaps/BmsBeatmapLoader.cs)、converter/mod 投影及 [keymode 测试源码](../../../osu.Game.Rulesets.Bms.Tests/BmsBeatmapDecoderTest.cs)。C3 authority/lane 前置与现状一致；普通 loader 仍传空 override，终端用户纠正入口未交付。同步 P1-J 的旧 lane 待办，并移除约束内失效的“规划中”与旧章节指向；本节仅记录源码审查，全局实测见主线最新验证。
+2026-10-01：对照 [DrawableNote](../../../osu.Game.Rulesets.Mania/Objects/Drawables/DrawableNote.cs) 的父 head sample/slot 路由及 9 月 30 日最终 TRX，移除手动 LN store 旧待办，纠正 K11 将 NodeSamples 数据保留误写为当前 hosted 播放路径的条款。parser/keymode authority 与终端用户纠正入口缺口未改变；仅文档复核，未运行新产品测试，历史审查见 [CHANGELOG](CHANGELOG.md)。

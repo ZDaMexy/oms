@@ -1,11 +1,11 @@
 # OMS 当前开发规划
 
-> 最后核对：2026-09-30（BGA 皮肤呈现与制作手册已完成软件验证；保留实机验收）
+> 最后核对：2026-10-01（整理剩余执行门；不新增产品或实机验证）
 > 本页维护全局顺序、跨线依赖和改动验收；当前事实见[STATUS](DEVELOPMENT_STATUS.md)，专项动作从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 当前目标
 
-已完成授权的 BGA 皮肤呈现控制与制作手册：作者声明窗口布局和缩放，播放会话归游玩持有；手册覆盖入门、元素查阅、进阶演出与可验证示例。后续设备与真实谱验收归 [P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md) / [P1-L](../subline/P1-L/DEVELOPMENT_PLAN.md)。静线外观打磨仍暂停。谱库、声音与单轨筛选已具软件证据，隔离根、大库、听感与交互验收仍归 [P1-H](../subline/P1-H/DEVELOPMENT_PLAN.md)、[P1-J](../subline/P1-J/DEVELOPMENT_PLAN.md)、[P1-I](../subline/P1-I/DEVELOPMENT_PLAN.md)。
+以已有软件与桌面证据为输入，后续补齐 BGA/作者作品的设备、真实素材与长时验收，归 [P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md) / [P1-L](../subline/P1-L/DEVELOPMENT_PLAN.md)；静线外观打磨仍暂停。谱库、声音与单轨筛选的隔离根、大库、听感与交互验收归 [P1-H](../subline/P1-H/DEVELOPMENT_PLAN.md)、[P1-J](../subline/P1-J/DEVELOPMENT_PLAN.md)、[P1-I](../subline/P1-I/DEVELOPMENT_PLAN.md)。已交付实现与验证只在 STATUS/CHANGELOG 维护，不重复开发或据此关闭人工门。
 
 交付Windows-only、离线优先OMS。Phase 1.x完成必须同时满足：
 
@@ -47,7 +47,7 @@ TOTAL 的作者声明、家族缺省与新旧成绩版本合同由 [P1-C](../sub
 | P1-B/P1-D | analog scratch跨设备edge/hold、真实HID、deadzone/sensitivity、模式说明与live diagnostics；只向皮肤提供只读状态 |
 | P1-C/P1-E | 保持判定parity；验收LN/CN/HCN、长BGM、密集键音和各keymode组合，不恢复已删除常驻反馈卡 |
 | P1-I | 单轨上限段已实现；完成真实拖拽手感、窄窗口及大库体验验收 |
-| P1-L/P1-G | 已共享BGA content/decoder；继续逐谱演出和反向滚动门，汇总皮肤/输入/长条/选歌/BGA人工release清单 |
+| P1-L/P1-G | 验收游戏持有的BGA会话与作者窗口在真实素材、窗口/DPI和长时下的表现；反向滚动缺口保留，汇总皮肤/输入/长条/选歌/BGA人工release清单 |
 | P1-H | 缺失恢复、跨目录同内容保全与当前页难度表刷新已实现；补隔离数据根和真实大库验收，谱面scanner经验不授予皮肤mutation authority |
 
 ### R6：公开发行门

@@ -1,6 +1,6 @@
 ---
 name: reference-bms-keysound-chain
-description: BMS 手动与自动键音责任、转谱 LN、Mod 重建与时钟诊断
+description: BMS/转谱发声责任、池化与样本准备、长条/空击性能及音频时钟诊断
 metadata:
   node_type: memory
   type: reference
@@ -29,17 +29,18 @@ metadata:
 - “人声截断/少键”先检查 parser，尤其缺省 `#LNTYPE` 应按 1；不要先改通道池。
 - “末端 lane/改键后静音”先检查 parser keymode、timeline 与 post-mod lane，见 [[reference_bms_lane_keysound_timeline_bounds]]、[[reference_bms_lane_rearrangement]]；自动转谱声像按原音频列，不能用重排后的玩法列反推音频漏路由。
 - 虚拟轨或 store 请求计数只能证明调度/路由；实际 WAV/native position 可证明后端保位，但实际设备听感仍须人工验收，不能互相代签。
-- GC 性能看 gen0:gen1、pause duration 和对象存活；少量中寿命分配也可造成晋升风暴。普通密度问题已收口，50k 先用 `BmsGameplayStallDiagnostics` 取证。
+- GC 性能看 gen0:gen1、pause duration 和对象存活；少量中寿命分配也可造成晋升风暴。已有普通密度修复基线不代表所有真实谱卡顿消失；软件证据与设备边界读 P1-J，50k 先用 `BmsGameplayStallDiagnostics` 取证。
 
 ## 性能复审地雷（2026-09-30）
 
 - `PoolableSkinnableSample.Update/Stop` 即使无已完成 channel，也曾无条件创建集合；稳态与确有 revision 待释放要分别测。优化不能颠倒“移除记录→dispose 历史 drawable→释放 lease”的顺序。
 - `Objects/AliveObjects` 旧枚举每次消费会重排；排序缓存在容器负责，必须覆盖未激活 entry 的时间编辑和退池/回退。空击完整索引应在 LoadComplete 预建，不能把第一次全谱排序留给玩家。
+- 原生长条每帧重新解析 Mods、从头扫描已判 tick 会把后段成本抬高。每局长条模式与单向 tick 游标可复用，但 Apply/回退须重置；不能借跳过 tick 改变 LN/CN/HCN 判定。验证后段推进之外，还须比较完整结果和撤销重判。
 - 转谱对象池的 retained 数量须读 `DrawablePool.CurrentPoolSize`，只数 drawable 子树会漏掉池中空闲对象。sample-only 改池化会新增 usage callbacks，必须排除皮肤 Note 事件；不能通过跳过静音 sample-only 候选改变原空击选音语义。
 - `DrawableNote.LoadSamples` 的普通 sample 准备与实际 PlaySamples 路由是两层；仅 hosted store 已接管时省去前者，不能删除 Samples/NodeSamples 或 shared prewarm 来伪造节省。
 - 未加载的长条 fixture 必须对子 tick 执行 Apply 后才有 Entry.RevertResult 订阅；回退按实际 RawTime 通知后再 Reset，不能用未绑定的手工通知判定生产游标失效。
-- 真 Player seek 会让 frame-stable clock 经过中间位置；固定“一次 Update”可能只重建中间 playfield。若 Reset 为空而随后的 attach 快照有目标音符，先查时钟是否收敛；P1-A 要求 Reset 自身完整，不能以稍后 spawn 补回来放宽验证。
+- 真 Player seek 后皮肤 Reset 为空而晚 attach 有音符，是事件重建与时钟收敛问题；诊断归 [[reference_gameplay_skin_event_envelope]]，不能以音频游标正确代替皮肤快照检查。
 
-本轮前后指标和适用边界见 [性能验证记录](../../doc_md/other/GAMEPLAY_PERFORMANCE_20260930.md)；微基准不代表整局 FPS。
+2026-09-30 前后指标和适用边界见 [性能验证记录](../../doc_md/other/GAMEPLAY_PERFORMANCE_20260930.md)；微基准不代表整局 FPS。
 
-历史误判、旧测试数字和逐日回退只查 P1-J/P1-K CHANGELOG。2026-08-30 C3 前置的最终 focused/full/Release 数字见 [P1-K CHANGELOG](../../doc_md/subline/P1-K/CHANGELOG.md#2026-08-30)。
+历史误判、旧测试数字和逐日回退只查 P1-J/P1-K CHANGELOG。

@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-09-30（授权 BGA 呈现与作者手册；保留外观暂停与测试欠账）
+> 最后核对：2026-10-01（文档治理；已交付能力不再列为实施待办，保留人工门与测试欠账）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -9,17 +9,18 @@
 
 ## 当前执行门与冻结输入
 
-用户认可静线最近调整并决定暂停外观/素材打磨。2026-09-30 另行授权 BGA 作者呈现控制与皮肤制作手册：保持唯一布局求解与引擎播放，作者能声明窗口及缩放；手册按入门、元素、完整进阶示例和当前边界组织，并以实际工具和游玩验证示例。固定目录刷新、BMS/mania 独立选择及原组件编辑功能已完成，事实与验证见 [STATUS](DEVELOPMENT_STATUS.md)。编辑器仍限原组件布局，不把完整 scene/script 可视化制作列为已授权待办；complex 只保留历史参考。静线唯一内置、首次默认与正式保底，用户包保全、canonical 完整性及恢复继续作为回归边界。
+用户认可静线最近调整并决定暂停外观/素材打磨。另行授权的 BGA 作者窗口、游戏持有播放会话与完整制作手册已于2026-09-30完成软件和桌面验证；与此前固定目录刷新、BMS/mania 独立选择及原组件编辑功能一起作为既有输入，事实与证据见 [STATUS](DEVELOPMENT_STATUS.md)。编辑器仍限原组件布局，不把完整 scene/script 可视化制作列为已授权待办；complex 只保留历史参考。静线唯一内置、首次默认与正式保底，用户包保全、canonical 完整性及恢复继续作为回归边界。
+
 ## 静线当前迭代验收与后续
 
 以下保留为用户恢复开发或正式验收后的待办，不自行启动新的产品改动：
 
-- 整理已移除工作区/旧编辑器禁用预期的测试欠账：29项具名失败及修改前复现见[TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md#完整回归失败的基线复现)。按现行固定目录与原编辑器用户路径更新测试；仍有效的后端安全合同保留验证，不为旧测试恢复已删除功能。归因不等于这项维护已完成。
-
+- 整理已移除工作区/旧编辑器禁用预期的测试欠账：29项在[9月30日完整回归](../../other/BGA_SKIN_AUTHORING_20260930.md)中仍逐项复现，修改前证据见[TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md#完整回归失败的基线复现)。按现行固定目录与原编辑器用户路径更新测试；仍有效的后端安全合同保留验证，不为旧测试恢复已删除功能。归因不等于维护完成。
 - 用完整歌曲核对黑白/皿轨比例与note边界、14K第二侧键序、小窗口判定/连击、键区/血槽/仪表衔接；维持旧包等宽兼容和横向布局不改变滚动时间。当前证据见[轨道记录](../../other/SKIN_SIMPLE_LANE_PROPORTIONS_20260913.md)。
 - 核对曲名和多表归类截断、作者标级独立性、实时判定读数、BPM变速与HiSpeed、不同宽高比/单双舞台。信息数据接通不等于整体视觉签收，见[信息区记录](../../other/SKIN_SIMPLE_INFORMATION_20260913.md)。
 - 继续使用已保存[原始参考与实机反馈](../../other/references/simple-1p-20260912/README.md)作对照；以高质量beatmania style为目标，LITONE仅作功能分区和完成度参考，不复制外框/标识/素材。
 - 后续实际修改按影响范围复验公共配置、唯一布局、BMS/mania选择与回落及Release；保留无声明旧包、P1/P2、其它键数、窄屏及canonical恢复。皮肤控制BGA布局，内容/时间线职责仍归P1-L。
+- 作者窗口在代表设备、DPI和真实谱中的可读性、遮挡与三种适配仍需验收，步骤与内容保真由[P1-L计划](../P1-L/DEVELOPMENT_PLAN.md)统一维护；工具检查、真实例子挂载和合成图像证据不能代签这些门。
 - 按集中清单补未观察的玩法、样式、设备与长期体验，不复用旧安装包或局部认可补签。正式执行 [V-005](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md#v-005c6-可选脚本与双规则集-momentum-候选) 前须按其中的当前入口说明区分可操作项与仅存后端的旧格子；不可达项保持未执行，不为清单恢复已删除入口或用自动证据代签。
 
 设置/模式选择与原编辑器的稳定行为仅在 [TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md#g1选择ui与startup协调) 维护。
@@ -30,19 +31,9 @@
 
 ### `C6` 可选脚本与隔离及最终整包reload门
 
-**已闭合。** 以下为本campaign已满足的退出合同；公开工具链、真实候选/授权UI、完整三源与双host、安全隔离、宽测和独立复审见[C6证据](../../other/SKIN_SYSTEM_C6_VALIDATION_20260909.md)。没有向C7转移VM、权限、cache、profiler或最终整包门欠账。
+**已闭合，作为冻结输入。** 映射`SV1-6`并最终复核`SV1-2`；公开工具链、真实授权UI、完整三源与双host、安全隔离、宽测和独立复审见[C6证据](../../other/SKIN_SYSTEM_C6_VALIDATION_20260909.md)。没有向C7转移VM、权限、cache、profiler或最终整包门欠账，不重新安排选型或实现。
 
-映射：`SV1-6`并最终复核`SV1-2`。
-
-**必须闭合的非人工产品结果：**
-
-同一campaign完成VM选型spike、所需产品确认与production实现，spike/决策不能作为终态。若选择in-tree bounded bytecode VM，必须同切交付无需DLL的package作者入口、版本化source/bytecode格式、compiler/verifier、malformed/untrusted bytecode验证、version reject/compat策略、source-mapped诊断与deterministic fixtures。无论选型均须闭合只读snapshot/event、授权scene node、四方capability协商、per-skin identity授权持久化/撤销/重协商、compiler/runtime版本失效与cache规则、永久hard-deny、instruction/heap/node/resource预算、deterministic clock/seed、seek/retry/reload、异步compile、熔断、profiler与授权UI；script host同切加入C2 revision lease/detach协议。
-
-**硬退出门：**
-
-此前 C6 使用真实 BMS/mania host 运行 complex 候选脚本的证据保留；无限循环、超限、异常、取消/shutdown不阻塞update thread且只熔断脚本/scene；ini/manifest/scene/script/素材全部参与同一publication/detach/owner矩阵，至此关闭最终整包reload与G1自动门。不得只交选型文档、catalog、mock consumer，也不得把语言ABI/工具链、授权持久化、profiler或异常回落推给`C7`。
-
-**专项验收补充：** 脚本只用于声明式能力无法合理表达的组合逻辑，不得成为普通note/key/judgement显示的必要条件；只读snapshot/event、操作获准节点。选型还须证明license、Windows打包、性能/GC、调试诊断、低端硬件、权限逃逸防护及pause状态重建；instruction/heap quota须可抢占，编译/I/O在后台。最终整包矩阵覆盖真实选择、重启、切换、rename/import/delete、缺件、原子替换与备份数据根；权限撤销同样加入现有revision协议，不另造event/layout/material/publication或改变P1-L内容authority。
+后续修改继续守[scene/event与脚本合同](TECHNICAL_CONSTRAINTS.md#scene事件与脚本约束)、[C2 publication](TECHNICAL_CONSTRAINTS.md#c2-current-revision与publication)及[测试与发布约束](TECHNICAL_CONSTRAINTS.md#测试与发布约束)。脚本仍为可选能力，不能成为普通音符与必要判定信息显示的前提；历史complex候选证据不恢复其成品身份。
 
 ### `C7` canonical双包、Authoring Kit与自动release收口
 
@@ -50,19 +41,11 @@
 
 **面向产品的实施重点：** 用户恢复迭代时只交付和打磨 `oms-simple`，形成高质量、可完整游玩的 beatmania style 外观，并让作者走通“修改 → 检查 → 打包 → 导入 → 验证”。静线是唯一内置、首次默认与最终保底；complex 与 C6 Momentum 仅保留历史验证身份，不再作为当前成品或默认候选。
 
-**执行输入与交付门：** 双包、作者源和独立制作路径、完整自动复验、安装恢复与跨版本更新均作为已有输入，不重复开发；保留旧包作为对照，不改写其摘要或历史结果。星轨已获总体否定反馈，自动及独立工程复核不等于成品质量通过；真实结果、精确失败比较与交付身份只在 [STATUS](DEVELOPMENT_STATUS.md#最近一次验证)、[C7 报告](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)、[WORKSHOP](../../../skin-authoring/docs/WORKSHOP.md)及 [P1-F](../P1-F/DEVELOPMENT_STATUS.md)维护，不用中间候选替代最终交付。
+**已完成工程输入：** canonical普通包接管、作者源/制作工具、安装恢复与跨版本更新保留[C7证据](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)；9月30日已补齐随套件完整手册及三个实际检查/打包/挂载的练习，见[作者能力记录](../../other/BGA_SKIN_AUTHORING_20260930.md)。不重复开发，不把较早安装包的验收套用到后续运行时与作者源改动；最终发行复验归[P1-F](../P1-F/DEVELOPMENT_STATUS.md)。旧双包及[WORKSHOP](../../../skin-authoring/docs/WORKSHOP.md)只保留各自历史身份。
 
 **静线迭代与后续验收：** 当前按用户决定暂停继续打磨，以下为恢复后仍需满足的验收条件；星轨已放弃，不再列入后续作品修改或签收。围绕完整可玩的静线尽早提供可评审结果，沿既有“修改 → 检查 → 打包 → 导入 → 验证”路径迭代，必要系统修改须对应真实使用问题，不重做已完成能力或扩成可视化编辑器。修改后按影响范围复验，并使用[集中验收包](../../../skin-c7-acceptance/README.md)观察两玩法的键数/样式、单双舞台、缩放、宽高比、必要信息、BGA 区域、授权拒绝/撤销和组合演出；真实设备、音频与长期体验仍要另取实际证据。V-001～V-004 仍 0/4、V-005 未签收；局部改进认可和暂停打磨不代表上述每格已运行或整体签收。旧 OmsSkin 物理删除仍待原实机门。Skin V1 和 release 未完成。后续迭代的推送仍遵循 AGENTS 的授权要求，不沿用此前收尾许可。
 
-**必须闭合的非人工产品结果：**
-
-交付可编辑、可复现构建的唯一内置 `oms-simple.osk`、模板、完整schema/event/layout/capability/budget文档、validator/diagnostics与打包导入说明；发行物只读携带、完整性验证/原子恢复。canonical fallback接管必须覆盖`SkinManager`初始/current/config失败pair、ruleset providing containers、selection/reload失败回落、current managed delete/current external unregister、protected Realm record。升级时仍存在且具备完整现行证据的supported pre-C1 v2及C1以后journal，可由旧`OmsSkin`证据继续恢复或显式版本迁移；缺tombstone/fingerprint/manifest/disposition的pre-product legacy-v1/old-v2 Delete继续strict Invalid并进入安装修复，绝不猜测迁移。之后才让程序化`OmsSkin`退出产品authority；canonical缺失/损坏必须阻止进入gameplay并进入明确安装修复，不能重新生成程序化视觉。第三方包、portable/custom-root/update、性能及全套自动门收敛。
-
-**硬退出门：**
-
-工程状态达到`SV1-1`～`SV1-7`“自动/合同/安全/release gate通过，人工待签收”；canonical切换前后的全部受支持journal/recovery、delete/unregister receipt与失败回落均可证明收口，invalid旧intent也有不扩大authority的安装修复路径；无程序化主题fallback、私有canonical特权、TODO validator/Authoring Kit或未归因自动失败，同时生成一键人工验收包，用户只需执行视觉/实机清单。
-
-**专项验收补充：** simple 走普通导入/导出链，以公开 slot/event/script 完成所需视觉，不用私有 C# provider、隐藏资源或内置特权；可选视觉按实际设计声明，不以“最小可玩”限制素材质量。complex 的双包验证只作为历史证据。最终矩阵包含第三方包、缺失/损坏用户包仍可玩、canonical安装故障修复、启动/切换/reload、全部keymode、BGA、脚本性能、portable/custom-root/覆盖更新及人工视觉与真实设备/谱面。
+**后续退出门：** 已完成的canonical、journal/recovery、普通作者接口及安装故障保护继续按[技术约束](TECHNICAL_CONSTRAINTS.md)回归，不以移除旧OmsSkin源码为由削弱恢复证据。维护上方旧测试预期并对新失败逐项归因；按实际修改重新验证第三方/缺件包、canonical修复、启动/切换/reload、keymode/BGA/脚本及发行组合。软件、合同与安全门不能代替集中视觉、真实设备和长时体验；这些人工门及最终发行复验未关闭前，不宣称Skin V1/release完成。
 
 ### 共同执行规则
 

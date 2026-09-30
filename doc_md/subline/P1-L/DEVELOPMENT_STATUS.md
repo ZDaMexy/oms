@@ -1,6 +1,6 @@
 # P1-L 当前状态：BMS Gimmick 与 BGA 视觉
 
-> 最后核对：2026-09-30（游戏持有 BGA 会话与作者窗口已实现；专项与桌面验证已登记，逐谱人工门保持）
+> 最后核对：2026-10-01（文档治理；最近产品验证仍为 2026-09-30，逐谱人工门保持）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，机理分析见 [BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)。
 
 ## 当前阶段
@@ -10,7 +10,7 @@
 - 已接入 P1-C 的 BMS 显示偏移：普通/STOP 映射、小节线/地雷淡出随显示时间，长条嵌套不重复偏移；原判定/音频时间保持，额外预加载不扩大空 POOR/辅助列消音。验证与人工未签收边界统一见 [P1-C](../P1-C/DEVELOPMENT_STATUS.md)。
 - BGA 图序列/视频/POOR/转码缓存/预加载主链已落地。
 - C3 的 immutable layout/viewports 与 C5 的 BGA material/scene、只读状态事件已接入真实宿主。
-- `DrawableBmsRuleset`持有独立`BmsBgaPlaybackSession`，一个player负责时间线、加载与合成；所有窗口，包括单窗，都使用只读view。皮肤显示/布局重建不更换player或视频，不重置POOR；退出游玩根才释放会话。关闭显示或零窗停止合成重绘，时钟与内容状态继续推进。
+- `DrawableBmsRuleset`持有独立`BmsBgaPlaybackSession`，有时间线时由唯一player负责加载、播放与合成；无时间线时会话提供静态背景。所有窗口，包括单窗，都使用只读view。皮肤显示/布局重建不更换player或视频，不重置POOR；退出游玩根才释放会话。关闭显示或零窗停止合成重绘，时钟与内容状态继续推进。
 - 选中皮肤可以通过`BgaViewports`声明最多16个窗口的数量、位置、比例与fit/fill/stretch，none关闭窗口；无声明保留`BgaWidth/BgaHeight/BgaVerticalPosition`和14K旧默认布局。`BgaInformationHeight`独立保留信息区。唯一solver在safe bounds内校验；实际冲突整组0窗并写runtime.log，公开布局与完整作者手册归[P1-A](../P1-A/DEVELOPMENT_STATUS.md)。
 - 未闭合：逐谱视觉、设备与尺寸验收、反向/负向滚动、极端谱性能与部分保真细节继续保留。
 
@@ -34,11 +34,9 @@
 
 ## 最近一次验证
 
-- 2026-09-30后续会话/作者窗口：已验证显示更换、换窗、POOR、视频/暂停位置、隐藏/零窗与退出释放；桌面像素验证Fit/Fill/Stretch，5/16作者外框及投影预算通过。当前软件结果和既有失败逐项对照见[作者能力记录](../../other/BGA_SKIN_AUTHORING_20260930.md)，较早性能结果保持独立身份，未代签逐谱/设备门。
-- 2026-09-30：真实图片/视频各读取一次、四角共享一个 player、暂停/seek/POOR 同步与旧 player 释放，以及桌面四窗普通图/POOR 像素验证通过。本轮还修正转码失败状态早于临时文件清理的竞态。完整 gate、命令与证据统一见 [本轮性能验证](../../other/GAMEPLAY_PERFORMANCE_20260930.md)，未新增逐谱或设备人工签收。
-- 2026-09-29 显示偏移专项与回归记录统一见 [P1-C](../P1-C/DEVELOPMENT_STATUS.md#最近一次验证)；未新增逐谱或 BGA 人工签收。
-- 全局最新产品验证统一见 [mainline STATUS 的“最近一次验证”](../../mainline/DEVELOPMENT_STATUS.md#最近一次验证)，不把历史结果当作新增人工签收。
-- 滚动、地雷、BGA/cache 的本线历史 focused/full 数字与逐刀实现只查 [CHANGELOG.md](CHANGELOG.md)，不冒充当前全局 gate。
+2026-09-30后续会话/作者窗口：已验证显示更换、换窗、POOR、视频/暂停位置、隐藏/零窗与退出释放；桌面像素验证Fit/Fill/Stretch，5/16作者外框及投影预算通过。当前软件结果和完整BMS/mania回归的既有失败逐项对照见[作者能力记录](../../other/BGA_SKIN_AUTHORING_20260930.md)，不称全套全绿，未代签逐谱/设备门。
+
+同日较早的[性能验证](../../other/GAMEPLAY_PERFORMANCE_20260930.md)保存四窗共享、单次图片/视频读取与转码失败清理竞态的证据。其“第一窗持有内容”及“重建释放旧player”只描述当时实现，现行生命周期由后续独立游戏会话取代，不能据此推导当前单窗FPS或全部谱面的GPU收益。滚动、地雷、cache和显示偏移的历史结果按日期查[CHANGELOG](CHANGELOG.md)。
 
 ## 下一检查点
 
@@ -50,4 +48,4 @@
 
 ## 文档治理验证
 
-2026-09-30对照游戏会话、默认显示与作者窗口源码，当前态不再保留“单窗直出/三个镜像”及布局重建释放player的旧描述。显示偏移合同保持P1-C边界；专项与桌面结果见作者能力记录，完整回归与逐谱门以各自证据为准，历史实现见[CHANGELOG](CHANGELOG.md)。
+2026-10-01对照当前会话、显示、布局与准备期预算源码及9月30日两份记录，分清历史显示持有player与现行游戏会话，修正内部Fit和逐窗适配的合同表述，移除计划中重复的完成清单。仅修改文档，未运行构建、测试或逐谱验收，产品日期不变；检查结果由[主线治理日志](../../mainline/CHANGELOG.md)统一登记，修正范围见[本线日志](CHANGELOG.md#2026-10-01)。
