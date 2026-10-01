@@ -46,6 +46,7 @@ using osu.Game.IO;
 using osu.Game.Localisation;
 using osu.Game.Online;
 using osu.Game.Online.Bms;
+using osu.Game.Online.Sayobot;
 using osu.Game.Online.API.Requests;
 using osu.Game.Online.Chat;
 using osu.Game.Online.Leaderboards;
@@ -133,10 +134,20 @@ namespace osu.Game
 
         public BmsDownloadOverlay BmsDownloads { get; private set; }
 
+        public ManiaDownloadOverlay ManiaDownloads { get; private set; }
+        public readonly Bindable<BeatmapDownloadMode> DownloadMode = new Bindable<BeatmapDownloadMode>();
+
         private BmsDownloadManager bmsDownloadManager;
         private readonly Dictionary<BmsDownloadTask, ProgressNotification> bmsDownloadNotifications = new Dictionary<BmsDownloadTask, ProgressNotification>();
 
         protected virtual BmsDownloadManager CreateBmsDownloadManager() => throw new InvalidOperationException("BMS downloads require an importer.");
+
+        private ManiaDownloadManager maniaDownloadManager;
+        private readonly Dictionary<ManiaDownloadTask, ProgressNotification> maniaDownloadNotifications = new Dictionary<ManiaDownloadTask, ProgressNotification>();
+
+        protected virtual ManiaDownloadManager CreateManiaDownloadManager() => throw new InvalidOperationException("Mania downloads require an importer.");
+
+        protected virtual ManiaDownloadOverlay CreateManiaDownloadOverlay() => new ManiaDownloadOverlay();
 
         private DashboardOverlay dashboard;
 
@@ -426,8 +437,22 @@ namespace osu.Game
         [BackgroundDependencyLoader]
         private void load()
         {
+            dependencies.Cache(DownloadMode);
+            if (!BmsDownloadsEnabled && ManiaDownloadsEnabled)
+                DownloadMode.Value = BeatmapDownloadMode.Mania;
             if (BmsDownloadsEnabled)
                 dependencies.Cache(bmsDownloadManager = CreateBmsDownloadManager());
+            if (ManiaDownloadsEnabled)
+                dependencies.Cache(maniaDownloadManager = CreateManiaDownloadManager());
+
+            DownloadMode.BindValueChanged(_ =>
+            {
+                if (BmsDownloads?.State.Value != Visibility.Visible && ManiaDownloads?.State.Value != Visibility.Visible)
+                    return;
+                BmsDownloads?.Hide();
+                ManiaDownloads?.Hide();
+                showDownloadBrowser();
+            });
 
             sentryLogger.AttachUser(API.LocalUser);
 
@@ -1018,9 +1043,27 @@ namespace osu.Game
             });
         }
 
-        internal void ToggleBmsDownloadBrowser() => waitForReady(() => BmsDownloads, overlay => overlay.ToggleVisibility());
+        internal void ToggleBeatmapDownloadBrowser()
+        {
+            if (DownloadMode.Value == BeatmapDownloadMode.Bms)
+                waitForReady(() => BmsDownloads, overlay => overlay.ToggleVisibility());
+            else
+                waitForReady(() => ManiaDownloads, overlay => overlay.ToggleVisibility());
+        }
 
-        public bool PresentDownloadedBmsBeatmap(Guid beatmapId)
+        private void showDownloadBrowser()
+        {
+            if (DownloadMode.Value == BeatmapDownloadMode.Bms)
+                waitForReady(() => BmsDownloads, overlay => overlay.Show());
+            else
+                waitForReady(() => ManiaDownloads, overlay => overlay.Show());
+        }
+
+        public bool PresentDownloadedBmsBeatmap(Guid beatmapId) => presentDownloadedBeatmap(beatmapId, "bms");
+
+        public bool PresentDownloadedManiaBeatmap(Guid beatmapId) => presentDownloadedBeatmap(beatmapId, "mania");
+
+        private bool presentDownloadedBeatmap(Guid beatmapId, string ruleset)
         {
             if (ScreenStack.CurrentScreen is Player)
             {
@@ -1028,11 +1071,12 @@ namespace osu.Game
                 return false;
             }
 
-            BmsDownloads.Hide();
+            BmsDownloads?.Hide();
+            ManiaDownloads?.Hide();
             PerformFromScreen(screen =>
             {
                 // Re-query at the end of navigation: the chart may have been removed while screens changed.
-                var available = BeatmapManager.QueryBeatmap("ID == $0 AND Ruleset.ShortName == $1", beatmapId, "bms");
+                var available = BeatmapManager.QueryBeatmap("ID == $0 AND Ruleset.ShortName == $1", beatmapId, ruleset);
                 if (available == null)
                 {
                     Notifications.Post(new SimpleNotification { Text = BmsDownloadStrings.NoLongerAvailable });
@@ -1101,6 +1145,58 @@ namespace osu.Game
 
                 default:
                     notification.State = progress.State == BmsDownloadState.Queued ? ProgressNotificationState.Queued : ProgressNotificationState.Active;
+                    break;
+            }
+        });
+
+        private void onManiaDownloadChanged(ManiaDownloadTask task) => Schedule(() =>
+        {
+            if (IsDisposed)
+                return;
+
+            if (!maniaDownloadNotifications.TryGetValue(task, out var notification))
+            {
+                notification = new ProgressNotification
+                {
+                    Text = task.Set.Title,
+                    CancelRequested = () => { task.Cancel(); return true; },
+                };
+                maniaDownloadNotifications.Add(task, notification);
+                Notifications.Post(notification);
+            }
+
+            var progress = task.Progress;
+            if (notification.State is ProgressNotificationState.Completed or ProgressNotificationState.Cancelled)
+                return;
+            LocalisableString label = progress.State switch
+            {
+                ManiaDownloadState.Queued => BmsDownloadStrings.Queued,
+                ManiaDownloadState.Importing => BmsDownloadStrings.Importing,
+                _ => BmsDownloadStrings.Downloading,
+            };
+            notification.Text = LocalisableString.Format("{0} · {1}", task.Set.Title, label);
+            notification.Progress = progress.TotalBytes > 0 ? (float)Math.Clamp((double)progress.Bytes / progress.TotalBytes.Value, 0, 1) : 0;
+
+            switch (progress.State)
+            {
+                case ManiaDownloadState.Completed:
+                    var target = progress.Imported.First(b => b.OnlineId == task.RequestedBeatmapId).BeatmapId;
+                    notification.CompletionText = LocalisableString.Format("{0} · {1}", task.Set.Title, BmsDownloadStrings.Available);
+                    notification.CompletionClickAction = () => PresentDownloadedManiaBeatmap(target);
+                    notification.State = ProgressNotificationState.Completed;
+                    break;
+
+                case ManiaDownloadState.Failed:
+                    notification.State = ProgressNotificationState.Cancelled;
+                    Notifications.Post(new SimpleErrorNotification { Text = LocalisableString.Format("{0} · {1}", task.Set.Title, BmsDownloadStrings.Failed) });
+                    break;
+
+                case ManiaDownloadState.Cancelled:
+                    notification.State = ProgressNotificationState.Cancelled;
+                    break;
+
+                default:
+                    notification.State = progress.State == ManiaDownloadState.Queued ? ProgressNotificationState.Queued : ProgressNotificationState.Active;
                     break;
             }
         });
@@ -1373,6 +1469,12 @@ namespace osu.Game
                 bmsDownloadManager.Dispose();
             }
 
+            if (maniaDownloadManager != null)
+            {
+                maniaDownloadManager.TaskChanged -= onManiaDownloadChanged;
+                maniaDownloadManager.Dispose();
+            }
+
             // Without this, tests may deadlock due to cancellation token not becoming cancelled before disposal.
             // To reproduce, run `TestSceneButtonSystemNavigation` ensuring `TestConstructor` runs before `TestFastShortcutKeys`.
             detachedBeatmapStore?.Dispose();
@@ -1465,6 +1567,8 @@ namespace osu.Game
 
             if (bmsDownloadManager != null)
                 bmsDownloadManager.TaskChanged += onBmsDownloadChanged;
+            if (maniaDownloadManager != null)
+                maniaDownloadManager.TaskChanged += onManiaDownloadChanged;
 
             ScoreManager.PostNotification = n => Notifications.Post(n);
             ScoreManager.PresentImport = items => PresentScore(items.First().Value);
@@ -1622,6 +1726,8 @@ namespace osu.Game
 
             if (BmsDownloadsEnabled)
                 loadComponentSingleFile(BmsDownloads = new BmsDownloadOverlay(), overlayContent.Add, true);
+            if (ManiaDownloadsEnabled)
+                loadComponentSingleFile(ManiaDownloads = CreateManiaDownloadOverlay(), overlayContent.Add, true);
 
             loadComponentSingleFile(Settings = new SettingsOverlay(), leftFloatingOverlayContent.Add, true);
 

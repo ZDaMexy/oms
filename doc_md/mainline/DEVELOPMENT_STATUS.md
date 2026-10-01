@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-01（下载入口、三级筛选及两源真实包桌面验证；皮肤外观专项仍为 2026-09-13）
+> 最后核对：2026-10-01（Sayobot mania 接入与素材窗口验证，实网包安全连接失败门保留；皮肤外观专项仍为 2026-09-13）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -11,10 +11,10 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 静线已完成当前控制区、分段血槽、轨宽及演奏信息迭代：白黑/皿轨独立比例，BGA布局由皮肤声明，作者标级与表名/表内等级独立显示。正常开发启动、build/publish只同步simple源。当前暂停继续打磨，既有成果、最新验证和未完成门统一见[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)；历史双内置和各轮截图不作为新的签收。
 
-- Windows-only，保留osu!mania与第一类BMS，Osu/Taiko/Catch已删除；离线优先，Phase 3前OMS私有服务与默认endpoint为空。公共BMS难度表URL及用户指定的 Ginger Rush / 616 两源浏览下载为窄例外，合同见 [P1-A](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载)。
+- Windows-only，保留osu!mania与第一类BMS，Osu/Taiko/Catch已删除；离线优先，Phase 3前OMS私有服务与默认endpoint为空。公共BMS难度表URL、用户指定Ginger Rush / 616 BMS与Sayobot原生mania镜像下载为窄例外，合同见 P1-A [BMS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) / [mania](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载)。
 - BMS直读`chartbms/`，mania直读`chartmania/`；支持portable `data/`与自定义数据根。主要工程为`osu.Desktop.slnf`、`osu.Game.Rulesets.Bms`及`oms.Input`。
 - 当前协作分支为`master`。皮肤恢复/数据门`SV1-0`已关闭；迁移归档和四个无authority orphan blob继续保全，不能由scanner认领或清理。恢复事实见[恢复审计](../other/SKIN_SYSTEM_RECOVERY_20260710.md)及[数据/实机报告](../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
-- 2026-10-01 下载交互修正开始时工作区干净，HEAD为`6f61139`，已含两源下载闭环；`git fetch origin`成功，当时领先`origin/master`4、落后0。这是本轮开工核对，不能当作收尾在线查询；未经用户确认不推送。
+- 2026-10-01 Sayobot接入开始时工作区干净，HEAD为`1cedd56`，已含两源BMS下载及原浏览视觉；`git fetch origin`成功，当时领先`origin/master`6、落后0。这是开工在线核对，不能当作收尾在线查询；未经用户确认不推送。
 
 ## 当前执行门与全局风险
 
@@ -33,6 +33,8 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 皮肤安全与失败回退详见[P1-A技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)：当前并无live gameplay reload或watcher，external永久只读；授权撤销不扩大Reload准入，C6完成不等于C7或人工门关闭。异常期归档只能定点取证。局部自动测试不能代替完整真实选择链，自动证据也不能替代视觉、硬件或特殊Gimmick证明。
 
 ## 最近一次验证
+
+2026-10-01 Sayobot原生mania已接入共用浏览入口、后台任务和原难度入库/打开，软件/素材窗口路径通过；实站查询筛选成功，但实际包TLS连接断开，实网成功门保留。详细规划、取证、修复及未签收范围见[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)与[Sayobot记录](../other/MANIA_SAYOBOT_DOWNLOAD_20261001.md)，官网/私有服务和原人工门继续冻结。
 
 2026-10-01交互修正：顶部下载入口回到音乐之前，来源→难度表→表内等级联动已可用；两个真实站点均完成Satellite 11级筛选、下载入库和稳定选歌。详细专项及原工具栏失败对照见 [三级筛选记录](../other/BMS_DOWNLOAD_FILTERS_20261001.md)，其它全局与人工门不变。
 

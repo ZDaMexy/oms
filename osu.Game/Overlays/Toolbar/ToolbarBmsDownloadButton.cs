@@ -1,6 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using osu.Framework.Allocation;
+using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Game.Input.Bindings;
 
@@ -8,6 +9,8 @@ namespace osu.Game.Overlays.Toolbar
 {
     public partial class ToolbarBmsDownloadButton : ToolbarOverlayToggleButton
     {
+        private readonly Bindable<BeatmapDownloadMode> mode = new Bindable<BeatmapDownloadMode>();
+
         protected override Anchor TooltipAnchor => Anchor.TopRight;
 
         public ToolbarBmsDownloadButton()
@@ -16,10 +19,14 @@ namespace osu.Game.Overlays.Toolbar
         }
 
         [BackgroundDependencyLoader]
-        private void load(BmsDownloadOverlay downloads, OsuGame game)
+        private void load(OsuGame game)
         {
-            StateContainer = downloads;
-            Action = game.ToggleBmsDownloadBrowser;
+            mode.BindTo(game.DownloadMode);
+            mode.BindValueChanged(_ =>
+            {
+                StateContainer = mode.Value == BeatmapDownloadMode.Bms ? game.BmsDownloads : game.ManiaDownloads;
+                Action = game.ToggleBeatmapDownloadBrowser;
+            }, true);
         }
     }
 }

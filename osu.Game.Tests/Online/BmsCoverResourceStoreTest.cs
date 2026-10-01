@@ -8,7 +8,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using osu.Game.Online.Bms;
+using osu.Game.Online;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
@@ -22,11 +22,12 @@ namespace osu.Game.Tests.Online
         [TestCase("https://gingerrush.com/covers/example.png")]
         [TestCase("https://pixeldrain.net/api/file/example/thumbnail")]
         [TestCase("https://bms.alvorna.com/covers/example.png")]
+        [TestCase("https://a.sayobot.cn/beatmaps/17/covers/cover.webp?0")]
         public async Task TestAllowedSourcesReturnDecodableCover(string url)
         {
             byte[] bytes = createImage(3, 2);
             var handler = new TestHttpHandler((_, _) => Task.FromResult(createResponse(bytes)));
-            using var store = new BmsCoverResourceStore(handler);
+            using var store = new BeatmapDownloadCoverResourceStore(handler);
 
             byte[] result = await store.GetAsync(url).ConfigureAwait(false);
 
@@ -51,13 +52,29 @@ namespace osu.Game.Tests.Online
         [TestCase("https://[::1]/example.png")]
         [TestCase("https://gingerrush.com.example.org/example.png")]
         [TestCase("https://example.org/example.png")]
+        [TestCase("https://a.sayobot.cn:25225/example.png")]
+        [TestCase("https://a.sayobot.cn.example.org/example.png")]
         public async Task TestUnsupportedAddressMakesNoRequest(string url)
         {
             var handler = new TestHttpHandler((_, _) => throw new InvalidOperationException("An unsupported cover address must not reach the HTTP handler."));
-            using var store = new BmsCoverResourceStore(handler);
+            using var store = new BeatmapDownloadCoverResourceStore(handler);
 
             Assert.That(await store.GetAsync(url).ConfigureAwait(false), Is.Null);
             Assert.That(handler.Requests, Is.Zero);
+        }
+
+        [Test]
+        public async Task TestSayobotCoverIdentifiesTheSoftware()
+        {
+            var handler = new TestHttpHandler((request, _) =>
+            {
+                Assert.That(request.Headers.UserAgent.ToString(), Is.EqualTo("OMS/1.0 (+https://github.com/ZDaMexy/oms)"));
+                Assert.That(request.Headers.Referrer!.AbsoluteUri, Is.EqualTo("https://github.com/ZDaMexy/oms/"));
+                return Task.FromResult(createResponse(createImage(3, 2)));
+            });
+            using var store = new BeatmapDownloadCoverResourceStore(handler);
+
+            Assert.That(await store.GetAsync("https://a.sayobot.cn/beatmaps/17/covers/cover.webp?0").ConfigureAwait(false), Is.Not.Null);
         }
 
         [TestCase(HttpStatusCode.NotFound)]
@@ -70,7 +87,7 @@ namespace osu.Game.Tests.Online
                 Headers = { Location = new Uri("https://localhost/redirect.png") },
                 Content = new ByteArrayContent(createImage(1, 1)),
             }));
-            using var store = new BmsCoverResourceStore(handler);
+            using var store = new BeatmapDownloadCoverResourceStore(handler);
 
             Assert.That(await store.GetAsync(cover_url).ConfigureAwait(false), Is.Null);
             Assert.That(handler.Requests, Is.EqualTo(1));
@@ -89,7 +106,7 @@ namespace osu.Game.Tests.Online
                     content.Headers.ContentLength = 1;
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = content });
             });
-            using var store = new BmsCoverResourceStore(handler);
+            using var store = new BeatmapDownloadCoverResourceStore(handler);
 
             Assert.That(await store.GetAsync(cover_url).ConfigureAwait(false), Is.Null);
             Assert.That(stream.BytesRead, Is.EqualTo(max_bytes + 1));
@@ -105,7 +122,7 @@ namespace osu.Game.Tests.Online
                 content.Headers.ContentLength = 8 * 1024 * 1024 + 1;
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = content });
             });
-            using var store = new BmsCoverResourceStore(handler);
+            using var store = new BeatmapDownloadCoverResourceStore(handler);
 
             Assert.That(await store.GetAsync(cover_url).ConfigureAwait(false), Is.Null);
             Assert.That(stream.BytesRead, Is.Zero);
@@ -117,7 +134,7 @@ namespace osu.Game.Tests.Online
         {
             byte[] bytes = createImage(width, height);
             var handler = new TestHttpHandler((_, _) => Task.FromResult(createResponse(bytes)));
-            using var store = new BmsCoverResourceStore(handler);
+            using var store = new BeatmapDownloadCoverResourceStore(handler);
 
             Assert.That(await store.GetAsync(cover_url).ConfigureAwait(false), Is.Null);
         }
@@ -127,7 +144,7 @@ namespace osu.Game.Tests.Online
         {
             byte[] bytes = createImage(8192, 1);
             var handler = new TestHttpHandler((_, _) => Task.FromResult(createResponse(bytes)));
-            using var store = new BmsCoverResourceStore(handler);
+            using var store = new BeatmapDownloadCoverResourceStore(handler);
 
             byte[] result = await store.GetAsync(cover_url).ConfigureAwait(false);
 
@@ -138,7 +155,7 @@ namespace osu.Game.Tests.Online
         public async Task TestInvalidImageHasNoCover()
         {
             var handler = new TestHttpHandler((_, _) => Task.FromResult(createResponse(new byte[] { 1, 2, 3 })));
-            using var store = new BmsCoverResourceStore(handler);
+            using var store = new BeatmapDownloadCoverResourceStore(handler);
 
             Assert.That(await store.GetAsync(cover_url).ConfigureAwait(false), Is.Null);
         }
@@ -148,7 +165,7 @@ namespace osu.Game.Tests.Online
         {
             byte[] bytes = createImage(3, 2);
             var handler = new TestHttpHandler((_, _) => Task.FromResult(createResponse(bytes[..33])));
-            using var store = new BmsCoverResourceStore(handler);
+            using var store = new BeatmapDownloadCoverResourceStore(handler);
 
             Assert.That(await store.GetAsync(cover_url).ConfigureAwait(false), Is.Null);
         }
@@ -161,7 +178,7 @@ namespace osu.Game.Tests.Online
             using var encoded = new MemoryStream();
             animated.SaveAsGif(encoded);
             var handler = new TestHttpHandler((_, _) => Task.FromResult(createResponse(encoded.ToArray())));
-            using var store = new BmsCoverResourceStore(handler);
+            using var store = new BeatmapDownloadCoverResourceStore(handler);
 
             byte[] result = await store.GetAsync(cover_url).ConfigureAwait(false);
 
@@ -173,7 +190,7 @@ namespace osu.Game.Tests.Online
         public async Task TestNetworkFailureHasNoCover()
         {
             var handler = new TestHttpHandler((_, _) => Task.FromException<HttpResponseMessage>(new HttpRequestException("Expected network failure.")));
-            using var store = new BmsCoverResourceStore(handler);
+            using var store = new BeatmapDownloadCoverResourceStore(handler);
 
             Assert.That(await store.GetAsync(cover_url).ConfigureAwait(false), Is.Null);
         }
@@ -182,7 +199,7 @@ namespace osu.Game.Tests.Online
         public async Task TestTimeoutHasNoCover()
         {
             var handler = new TestHttpHandler((_, _) => Task.FromException<HttpResponseMessage>(new TaskCanceledException("Expected timeout.")));
-            using var store = new BmsCoverResourceStore(handler);
+            using var store = new BeatmapDownloadCoverResourceStore(handler);
 
             Assert.That(await store.GetAsync(cover_url).ConfigureAwait(false), Is.Null);
         }
@@ -197,7 +214,7 @@ namespace osu.Game.Tests.Online
                 await Task.Delay(Timeout.Infinite, token).ConfigureAwait(false);
                 throw new InvalidOperationException("A cancelled request cannot produce a response.");
             });
-            using var store = new BmsCoverResourceStore(handler);
+            using var store = new BeatmapDownloadCoverResourceStore(handler);
 
             Assert.That(async () => { await store.GetAsync(cover_url, cancellation.Token).ConfigureAwait(false); }, Throws.InstanceOf<OperationCanceledException>());
         }
@@ -212,7 +229,7 @@ namespace osu.Game.Tests.Online
                 await Task.Delay(Timeout.Infinite, token).ConfigureAwait(false);
                 throw new InvalidOperationException("A disposed store cannot produce a response.");
             });
-            using var store = new BmsCoverResourceStore(handler);
+            using var store = new BeatmapDownloadCoverResourceStore(handler);
             Task<byte[]> result = store.GetAsync(cover_url);
             await started.Task.ConfigureAwait(false);
 
@@ -225,7 +242,7 @@ namespace osu.Game.Tests.Online
         public void TestSynchronousStreamReturnsCover()
         {
             var handler = new TestHttpHandler((_, _) => Task.FromResult(createResponse(createImage(2, 3))));
-            using var store = new BmsCoverResourceStore(handler);
+            using var store = new BeatmapDownloadCoverResourceStore(handler);
             using Stream? result = store.GetStream(cover_url);
 
             Assert.That(result, Is.Not.Null);

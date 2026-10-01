@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="title" xml:space="preserve"><value>Browse beatmaps</value></data>
+  <data name="description" xml:space="preserve"><value>Find BMS and osu!mania charts, download and play.</value></data>
+  <data name="mode" xml:space="preserve"><value>Game mode</value></data>
+  <data name="keys" xml:space="preserve"><value>Keys</value></data>
+  <data name="stars" xml:space="preserve"><value>Star rating</value></data>
+  <data name="category" xml:space="preserve"><value>Status</value></data>
+  <data name="all_keys" xml:space="preserve"><value>All keys</value></data>
+  <data name="all_stars" xml:space="preserve"><value>All star ratings</value></data>
+  <data name="all_categories" xml:space="preserve"><value>Any status</value></data>
+  <data name="search_mania" xml:space="preserve"><value>Search by title, artist, mapper or beatmapset ID</value></data>
+  <data name="ranked" xml:space="preserve"><value>Ranked</value></data>
+  <data name="approved" xml:space="preserve"><value>Approved</value></data>
+  <data name="qualified" xml:space="preserve"><value>Qualified</value></data>
+  <data name="loved" xml:space="preserve"><value>Loved</value></data>
+  <data name="pending" xml:space="preserve"><value>Pending</value></data>
+  <data name="graveyard" xml:space="preserve"><value>Graveyard</value></data>
+  <data name="sayobot" xml:space="preserve"><value>Sayobot mirror</value></data>
+</root>

@@ -4,7 +4,7 @@
 
 | 子线 | 负责范围 | 当前判定 | 下一道门 |
 | --- | --- | --- | --- |
-| [P1-A](P1-A/DEVELOPMENT_STATUS.md) | 产品面、Skin V1、release gate | Ginger Rush/616 原浏览视觉、来源→表→等级筛选、后台下载入库与精确选歌已落；静线唯一内置，选择/刷新/原编辑器与作者手册保留；皮肤外观暂停 | 下载大包/网络/听感、BGA作者能力、V-001～V-005及设备/长时人工门保留；Skin V1/release未完成 |
+| [P1-A](P1-A/DEVELOPMENT_STATUS.md) | 产品面、Skin V1、release gate | Ginger Rush/616 筛选下载及精确选歌可用；Sayobot mania共用浏览/入库实现与素材窗口已验；静线唯一内置，选择/刷新/原编辑器与作者手册保留，外观暂停 | Sayobot实际包连接失败，成功闭环待补；大包/网络/听感、BGA作者、V-001～V-005与设备/长时门保留，Skin V1/release未完成 |
 | [P1-B](P1-B/DEVELOPMENT_STATUS.md) | 输入语义与硬件 | 软件链可用，真实 HID 覆盖未闭合 | analog scratch 跨设备与实机验收 |
 | [P1-C](P1-C/DEVELOPMENT_STATUS.md) | 判定语义与反馈 | 判定 parity、TOTAL 兼容与自动调整偏移互斥 style 已落；常驻反馈卡已删除 | 保持演奏/回放/结算一致性，补实谱判定与偏移收敛、真实设备验收 |
 | [P1-D](P1-D/DEVELOPMENT_STATUS.md) | 控制器校准与诊断 | 未完成 | deadzone、sensitivity、live diagnostics |

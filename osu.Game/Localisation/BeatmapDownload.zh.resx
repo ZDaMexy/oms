@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="title" xml:space="preserve"><value>浏览谱面</value></data>
+  <data name="description" xml:space="preserve"><value>查找、下载 BMS 与 osu!mania 谱面，加入谱库后直接游玩。</value></data>
+  <data name="mode" xml:space="preserve"><value>玩法</value></data>
+  <data name="keys" xml:space="preserve"><value>键数</value></data>
+  <data name="stars" xml:space="preserve"><value>星级</value></data>
+  <data name="category" xml:space="preserve"><value>谱面状态</value></data>
+  <data name="all_keys" xml:space="preserve"><value>全部键数</value></data>
+  <data name="all_stars" xml:space="preserve"><value>全部星级</value></data>
+  <data name="all_categories" xml:space="preserve"><value>全部状态</value></data>
+  <data name="search_mania" xml:space="preserve"><value>搜索曲名、作者、谱师或谱包 ID</value></data>
+  <data name="ranked" xml:space="preserve"><value>已排名</value></data>
+  <data name="approved" xml:space="preserve"><value>已批准</value></data>
+  <data name="qualified" xml:space="preserve"><value>已提名</value></data>
+  <data name="loved" xml:space="preserve"><value>社区喜爱</value></data>
+  <data name="pending" xml:space="preserve"><value>待定</value></data>
+  <data name="graveyard" xml:space="preserve"><value>坟场</value></data>
+  <data name="sayobot" xml:space="preserve"><value>小夜镜像</value></data>
+</root>

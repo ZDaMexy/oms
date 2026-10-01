@@ -13,12 +13,12 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.PixelFormats;
 
-namespace osu.Game.Online.Bms
+namespace osu.Game.Online
 {
     /// <summary>
-    /// Supplies static, bounded covers for the explicitly supported BMS download sources.
+    /// Supplies static, bounded covers for the explicitly supported public beatmap download sources.
     /// </summary>
-    public sealed class BmsCoverResourceStore : IResourceStore<byte[]>
+    public sealed class BeatmapDownloadCoverResourceStore : IResourceStore<byte[]>
     {
         private const int max_download_bytes = 8 * 1024 * 1024;
         private const int max_image_dimension = 8192;
@@ -28,7 +28,7 @@ namespace osu.Game.Online.Bms
         private readonly CancellationTokenSource lifetime = new CancellationTokenSource();
         private int disposed;
 
-        public BmsCoverResourceStore(HttpMessageHandler? handler = null)
+        public BeatmapDownloadCoverResourceStore(HttpMessageHandler? handler = null)
         {
             client = new HttpClient(handler ?? new HttpClientHandler { AllowAutoRedirect = false })
             {
@@ -48,7 +48,8 @@ namespace osu.Game.Online.Bms
                 || !uri.IsDefaultPort
                 || !(uri.Host.Equals("pixeldrain.net", StringComparison.OrdinalIgnoreCase)
                      || uri.Host.Equals("gingerrush.com", StringComparison.OrdinalIgnoreCase)
-                     || uri.Host.Equals("bms.alvorna.com", StringComparison.OrdinalIgnoreCase)))
+                     || uri.Host.Equals("bms.alvorna.com", StringComparison.OrdinalIgnoreCase)
+                     || uri.Host.Equals("a.sayobot.cn", StringComparison.OrdinalIgnoreCase)))
                 return unavailable("unsupported-address");
 
             using var requestCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetime.Token);
@@ -57,7 +58,13 @@ namespace osu.Game.Online.Bms
 
             try
             {
-                using HttpResponseMessage response = await client.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, requestToken).ConfigureAwait(false);
+                using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+                if (uri.Host.Equals("a.sayobot.cn", StringComparison.OrdinalIgnoreCase))
+                {
+                    request.Headers.UserAgent.ParseAdd("OMS/1.0 (+https://github.com/ZDaMexy/oms)");
+                    request.Headers.Referrer = new Uri("https://github.com/ZDaMexy/oms/");
+                }
+                using HttpResponseMessage response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, requestToken).ConfigureAwait(false);
 
                 if (!response.IsSuccessStatusCode)
                     return unavailable($"http-{(int)response.StatusCode}");
@@ -129,6 +136,8 @@ namespace osu.Game.Online.Bms
         }
 
         public IEnumerable<string> GetAvailableResources() => Array.Empty<string>();
+
+        internal void CancelPendingRequests() => lifetime.Cancel();
 
         public void Dispose()
         {

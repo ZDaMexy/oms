@@ -12,7 +12,6 @@ using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
-using osu.Framework.Graphics.Textures;
 using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Framework.Threading;
@@ -23,6 +22,7 @@ using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Localisation;
+using osu.Game.Online;
 using osu.Game.Online.Bms;
 using osuTK;
 using osuTK.Graphics;
@@ -39,7 +39,7 @@ namespace osu.Game.Overlays
         private FillFlowContainer<BmsDownloadCard> results = null!;
         private OsuSpriteText status = null!;
         private ShowMoreButton more = null!;
-        private TextureStore covers = null!;
+        private BeatmapDownloadCoverStore covers = null!;
         private CancellationTokenSource? queryCancellation;
         private CancellationTokenSource? tableCancellation;
         private CancellationTokenSource? levelCancellation;
@@ -68,7 +68,7 @@ namespace osu.Game.Overlays
             this.downloads = downloads;
             this.beatmaps = beatmaps;
             this.game = game;
-            covers = new TextureStore(host.Renderer, host.CreateTextureLoaderStore(new BmsCoverResourceStore()));
+            covers = new BeatmapDownloadCoverStore(host, new BeatmapDownloadCoverResourceStore());
 
             Child = new Container
             {
@@ -150,6 +150,7 @@ namespace osu.Game.Overlays
                 levelCancellation?.Cancel();
                 revision++;
                 searching = false;
+                more.IsLoading = false;
                 Loading.Hide();
                 return;
             }

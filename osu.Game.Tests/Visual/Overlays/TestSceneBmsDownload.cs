@@ -124,7 +124,7 @@ namespace osu.Game.Tests.Visual.Overlays
             AddAssert("download completed", () => task!.Progress.State, () => Is.EqualTo(BmsDownloadState.Completed));
             AddAssert("completion did not interrupt menu", () => Game.ScreenStack.CurrentScreen is MainMenu);
             AddStep("reopen browser", () => overlay.Show());
-            AddUntilStep("card is ready to open", () => overlay.Cards.Single().ChildrenOfType<BmsDownloadCardButton>().Any(b => b.TooltipText.ToString().Contains("song select", StringComparison.OrdinalIgnoreCase)));
+            AddUntilStep("card is ready to open", () => overlay.Cards.Single().ChildrenOfType<BeatmapDownloadCardButton>().Any(b => b.TooltipText.ToString().Contains("song select", StringComparison.OrdinalIgnoreCase)));
             AddStep("capture completed card if requested", () => screenshot = captureScreenshot("-completed"));
             AddUntilStep("completion screenshot completes", () => screenshot!.IsCompleted);
             AddStep("surface completion screenshot failure", () => screenshot!.GetAwaiter().GetResult());
@@ -254,7 +254,7 @@ namespace osu.Game.Tests.Visual.Overlays
             AddUntilStep("filtered chart package imported", () => (task = manager.GetTask(overlay.Cards.Single().Package.Key))?.Completion.IsCompleted == true);
             AddAssert("download succeeded", () => task!.Progress.State, () => Is.EqualTo(BmsDownloadState.Completed));
             AddStep("record selected original chart", () => target = task!.Progress.Imported!.First(chart => chart.Md5 == another_md5).BeatmapId);
-            AddUntilStep("filtered card can open exact chart", () => overlay.Cards.Single().ChildrenOfType<BmsDownloadCardButton>().Any(button => button.TooltipText.ToString().Contains("song select", StringComparison.OrdinalIgnoreCase)));
+            AddUntilStep("filtered card can open exact chart", () => overlay.Cards.Single().ChildrenOfType<BeatmapDownloadCardButton>().Any(button => button.TooltipText.ToString().Contains("song select", StringComparison.OrdinalIgnoreCase)));
             AddStep("open selected chart", () => click(cardButton(overlay.Cards.Single(), "Open in song select")));
             AddUntilStep("song list settled on selected original chart", () => Game.ScreenStack.CurrentScreen is SoloSongSelect select && select.CarouselItemsPresented && !select.IsFiltering
                 && select.ChildrenOfType<BeatmapCarousel>().Single().CurrentBeatmap?.ID == target && Game.Beatmap.Value.BeatmapInfo.ID == target);
@@ -479,7 +479,7 @@ namespace osu.Game.Tests.Visual.Overlays
             AddUntilStep("card accepts input", () => !overlay.ChildrenOfType<LoadingLayer>().Single().IsPresent);
             AddStep("select exact difficulty", () => overlay.Cards.Single().SelectChart(another_md5));
             AddStep("click download", () => click(cardButton(overlay.Cards.Single(), "Download")));
-            AddUntilStep("download is cancellable", () => packages.Requests == 1 && overlay.Cards.Single().ChildrenOfType<BmsDownloadCardButton>().Any(button => button.TooltipText.ToString() == "Cancel"));
+            AddUntilStep("download is cancellable", () => packages.Requests == 1 && overlay.Cards.Single().ChildrenOfType<BeatmapDownloadCardButton>().Any(button => button.TooltipText.ToString() == "Cancel"));
             AddStep("click cancel", () =>
             {
                 cancelled = manager.GetTask(overlay.Cards.Single().Package.Key);
@@ -487,7 +487,7 @@ namespace osu.Game.Tests.Visual.Overlays
             });
             AddUntilStep("task cancelled", () => cancelled!.Completion.IsCompleted);
             AddAssert("cancelled task never imported", () => cancelled!.Progress.State, () => Is.EqualTo(BmsDownloadState.Cancelled));
-            AddUntilStep("cancelled card can retry", () => overlay.Cards.Single().ChildrenOfType<BmsDownloadCardButton>().Any(button => button.TooltipText.ToString() == "Retry"));
+            AddUntilStep("cancelled card can retry", () => overlay.Cards.Single().ChildrenOfType<BeatmapDownloadCardButton>().Any(button => button.TooltipText.ToString() == "Retry"));
             AddStep("retry with server failure", () =>
             {
                 packages.Response = (_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
@@ -496,7 +496,7 @@ namespace osu.Game.Tests.Visual.Overlays
             AddUntilStep("retry creates a new task", () => (failed = manager.GetTask(overlay.Cards.Single().Package.Key)) != cancelled);
             AddUntilStep("retry reports server failure", () => failed!.Completion.IsCompleted);
             AddAssert("failed retry preserves requested difficulty", () => failed!.RequestedMd5 == another_md5 && failed.Progress.State == BmsDownloadState.Failed);
-            AddUntilStep("failed card can retry", () => overlay.Cards.Single().ChildrenOfType<BmsDownloadCardButton>().Any(button => button.TooltipText.ToString() == "Retry"));
+            AddUntilStep("failed card can retry", () => overlay.Cards.Single().ChildrenOfType<BeatmapDownloadCardButton>().Any(button => button.TooltipText.ToString() == "Retry"));
             AddStep("retry held response again", () =>
             {
                 packages.Response = async (_, token) =>
@@ -613,8 +613,8 @@ namespace osu.Game.Tests.Visual.Overlays
             AddAssert("no package fetched for unsupported chart", () => packages.Requests, () => Is.Zero);
         }
 
-        private static BmsDownloadCardButton cardButton(BmsDownloadCard card, string tooltip) =>
-            card.ChildrenOfType<BmsDownloadCardButton>().Single(button => button.TooltipText.ToString() == tooltip);
+        private static BeatmapDownloadCardButton cardButton(BmsDownloadCard card, string tooltip) =>
+            card.ChildrenOfType<BeatmapDownloadCardButton>().Single(button => button.TooltipText.ToString() == tooltip);
 
         private void click(Drawable drawable)
         {

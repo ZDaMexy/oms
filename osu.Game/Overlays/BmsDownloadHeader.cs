@@ -90,6 +90,7 @@ namespace osu.Game.Overlays
                             Spacing = new Vector2(0, 5),
                             Children = new Drawable[]
                             {
+                                new BeatmapDownloadModeSelector(),
                                 source = new SourceFilterRow(),
                                 filterField(BmsDownloadStrings.Table, tables = new TableDropdown()),
                                 filterField(BmsDownloadStrings.TableLevel, levels = new LevelDropdown()),
@@ -148,8 +149,8 @@ namespace osu.Game.Overlays
         {
             public DownloadTitle()
             {
-                Title = BmsDownloadStrings.Title;
-                Description = BmsDownloadStrings.Description;
+                Title = BeatmapDownloadStrings.Title;
+                Description = BeatmapDownloadStrings.Description;
                 Icon = OsuIcon.Beatmap;
             }
         }

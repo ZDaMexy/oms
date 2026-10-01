@@ -5,21 +5,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using osu.Framework.Allocation;
-using osu.Framework.Bindables;
 using osu.Framework.Extensions.Color4Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
-using osu.Framework.Graphics.Textures;
-using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
-using osu.Game.Beatmaps.Drawables.Cards;
-using osu.Game.Beatmaps.Drawables.Cards.Buttons;
 using osu.Game.Graphics;
-using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Localisation;
@@ -29,212 +22,26 @@ using osuTK;
 
 namespace osu.Game.Overlays
 {
-    public partial class BmsDownloadCard : CompositeDrawable
+    public partial class BmsDownloadCard : BeatmapDownloadCard
     {
         private readonly BmsDownloadManager downloads;
-        private readonly TextureStore covers;
         private readonly Func<string, Guid?> findLocal;
         private readonly Action<Guid> open;
-        private readonly BeatmapCardContent content = new BeatmapCardContent(BeatmapCardNormal.HEIGHT);
-        private readonly BindableBool expanded = new BindableBool();
-        private readonly Bindable<DownloadState> progressState = new Bindable<DownloadState>();
-        private readonly BindableDouble progress = new BindableDouble();
-        private readonly CancellationTokenSource coverCancellation = new CancellationTokenSource();
-
-        private FillFlowContainer<BmsDownloadChartRow> chartList = null!;
-        private TruncatingSpriteText title = null!;
-        private TruncatingSpriteText selection = null!;
-        private TruncatingSpriteText artist = null!;
-        private TruncatingSpriteText status = null!;
-        private BeatmapCardDownloadProgressBar progressBar = null!;
-        private BmsDownloadCardButton action = null!;
-        private BmsDownloadCardButton expand = null!;
-        private BmsDownloadCardButton preview = null!;
-        private Sprite cover = null!;
-        private SpriteIcon placeholder = null!;
         private BmsDownloadChart selected;
-
-        [Resolved]
-        private OsuGame game { get; set; } = null!;
 
         public BmsDownloadPackage Package { get; private set; }
         public string SelectedMd5 => selected.Md5;
 
-        public BmsDownloadCard(BmsDownloadPackage package, BmsDownloadManager downloads, TextureStore covers,
+        public BmsDownloadCard(BmsDownloadPackage package, BmsDownloadManager downloads, BeatmapDownloadCoverStore covers,
                                Func<string, Guid?> findLocal, Action<Guid> open)
+            : base(covers, package.CoverUrl)
         {
             Package = package;
             selected = package.Charts[0];
             this.downloads = downloads;
-            this.covers = covers;
             this.findLocal = findLocal;
             this.open = open;
-            content.Expanded.BindTarget = expanded;
-            Width = BeatmapCard.WIDTH;
-            Height = BeatmapCardNormal.HEIGHT;
         }
-
-        [BackgroundDependencyLoader]
-        private void load(OverlayColourProvider colour)
-        {
-            InternalChild = content;
-            content.MainContent = new Container
-            {
-                RelativeSizeAxes = Axes.Both,
-                Children = new Drawable[]
-                {
-                    new Box { RelativeSizeAxes = Axes.Both, Colour = colour.Background3 },
-                    new Container
-                    {
-                        Size = new Vector2(BeatmapCardNormal.HEIGHT),
-                        CornerRadius = BeatmapCard.CORNER_RADIUS,
-                        Masking = true,
-                        Children = new Drawable[]
-                        {
-                            new Box { RelativeSizeAxes = Axes.Both, Colour = colour.Background4 },
-                            placeholder = new SpriteIcon
-                            {
-                                Anchor = Anchor.Centre,
-                                Origin = Anchor.Centre,
-                                Size = new Vector2(28),
-                                Icon = OsuIcon.Beatmap,
-                                Colour = colour.Light1,
-                            },
-                            cover = new Sprite { RelativeSizeAxes = Axes.Both, FillMode = FillMode.Fill },
-                        },
-                    },
-                    new Container
-                    {
-                        X = BeatmapCardNormal.HEIGHT,
-                        Width = BeatmapCard.WIDTH - BeatmapCardNormal.HEIGHT - 28,
-                        RelativeSizeAxes = Axes.Y,
-                        Padding = new MarginPadding { Left = 8, Right = 4, Top = 5, Bottom = 2 },
-                        Children = new Drawable[]
-                        {
-                            new FillFlowContainer
-                            {
-                                RelativeSizeAxes = Axes.X,
-                                AutoSizeAxes = Axes.Y,
-                                Direction = FillDirection.Vertical,
-                                Spacing = new Vector2(0, 2),
-                                Children = new Drawable[]
-                                {
-                                    title = new TruncatingSpriteText { RelativeSizeAxes = Axes.X, Font = OsuFont.Default.With(size: 18, weight: FontWeight.SemiBold) },
-                                    artist = new TruncatingSpriteText { RelativeSizeAxes = Axes.X, Font = OsuFont.Default.With(size: 13, weight: FontWeight.SemiBold), Colour = colour.Light2 },
-                                    new DifficultySummary(content)
-                                    {
-                                        RelativeSizeAxes = Axes.X,
-                                        Height = 16,
-                                        TooltipText = BmsDownloadStrings.Expand,
-                                        Action = ToggleCharts,
-                                        Child = selection = new TruncatingSpriteText
-                                        {
-                                            RelativeSizeAxes = Axes.X,
-                                            Anchor = Anchor.CentreLeft,
-                                            Origin = Anchor.CentreLeft,
-                                            Font = OsuFont.Default.With(size: 11),
-                                            Colour = colour.Light1,
-                                        },
-                                    },
-                                    status = new TruncatingSpriteText { RelativeSizeAxes = Axes.X, Font = OsuFont.Default.With(size: 11), Colour = colour.Light2 },
-                                },
-                            },
-                            progressBar = new BeatmapCardDownloadProgressBar
-                            {
-                                RelativeSizeAxes = Axes.X,
-                                Height = 3,
-                                Anchor = Anchor.BottomLeft,
-                                Origin = Anchor.BottomLeft,
-                                State = { BindTarget = progressState },
-                                Progress = { BindTarget = progress },
-                                Alpha = 0,
-                            },
-                        },
-                    },
-                    new FillFlowContainer
-                    {
-                        Anchor = Anchor.TopRight,
-                        Origin = Anchor.TopRight,
-                        AutoSizeAxes = Axes.Y,
-                        Width = 28,
-                        Direction = FillDirection.Vertical,
-                        Children = new Drawable[]
-                        {
-                            buttonSlot(action = new BmsDownloadCardButton(FontAwesome.Solid.Download)),
-                            buttonSlot(expand = new BmsDownloadCardButton(FontAwesome.Solid.ChevronDown)
-                            {
-                                TooltipText = BmsDownloadStrings.Expand,
-                                Action = ToggleCharts,
-                            }),
-                            buttonSlot(preview = new BmsDownloadCardButton(FontAwesome.Solid.ExternalLinkAlt)
-                            {
-                                TooltipText = BmsDownloadStrings.ExternalPreview,
-                                Action = () => game.OpenUrlExternally(selected.PreviewUrl!.AbsoluteUri),
-                            }),
-                        },
-                    },
-                },
-            };
-            content.ExpandedContent = new Container
-            {
-                RelativeSizeAxes = Axes.X,
-                AutoSizeAxes = Axes.Y,
-                Padding = new MarginPadding { Horizontal = 8, Vertical = 10 },
-                Child = chartList = new FillFlowContainer<BmsDownloadChartRow>
-                {
-                    RelativeSizeAxes = Axes.X,
-                    AutoSizeAxes = Axes.Y,
-                    Direction = FillDirection.Vertical,
-                    Spacing = new Vector2(0, 3),
-                },
-            };
-        }
-
-        private static Drawable buttonSlot(BmsDownloadCardButton button) => new Container
-        {
-            Width = 28,
-            Height = BeatmapCardNormal.HEIGHT / 3,
-            Child = button,
-        };
-
-        protected override void LoadComplete()
-        {
-            base.LoadComplete();
-            content.Expanded.BindValueChanged(state => expand.ButtonIcon = state.NewValue ? FontAwesome.Solid.ChevronUp : FontAwesome.Solid.ChevronDown);
-            rebuildCharts();
-            Refresh();
-            if (Package.CoverUrl != null)
-                loadCover(Package.CoverUrl);
-        }
-
-        private async void loadCover(Uri uri)
-        {
-            try
-            {
-                var texture = await covers.GetAsync(uri.AbsoluteUri, coverCancellation.Token).ConfigureAwait(false);
-                if (coverCancellation.IsCancellationRequested)
-                {
-                    texture?.Dispose();
-                    return;
-                }
-
-                Schedule(() =>
-                {
-                    if (IsDisposed)
-                        texture?.Dispose();
-                    else
-                    {
-                        cover.Texture = texture;
-                        placeholder.Alpha = texture == null ? 1 : 0;
-                    }
-                });
-            }
-            catch (OperationCanceledException)
-            {
-            }
-        }
-
-        public void ToggleCharts() => expanded.Toggle();
 
         public void SelectChart(string md5)
         {
@@ -247,47 +54,48 @@ namespace osu.Game.Overlays
             Package = Package with { Charts = Package.Charts.Concat(incoming.Charts).DistinctBy(c => c.Md5).ToArray() };
             if (IsLoaded)
             {
-                rebuildCharts();
+                RebuildCharts();
                 Refresh();
             }
         }
 
-        private void rebuildCharts()
+        protected override void RebuildCharts()
         {
-            chartList.Clear();
+            ChartList.Clear();
             foreach (var chart in Package.Charts)
-                chartList.Add(new BmsDownloadChartRow(chart) { Action = () => SelectChart(chart.Md5) });
+                ChartList.Add(new BmsDownloadChartRow(chart) { Action = () => SelectChart(chart.Md5) });
         }
 
-        public void Refresh()
+        public override void Refresh()
         {
             if (!IsLoaded)
                 return;
 
             var task = downloads.GetTask(Package.Key);
             var local = findLocal(selected.Md5);
-            title.Text = selected.Title;
-            artist.Text = selected.Artist;
-            selection.Text = GetChartDetails(selected);
-            preview.Alpha = selected.PreviewUrl == null ? 0 : 1;
-            foreach (var row in chartList)
+            TitleText.Text = selected.Title;
+            ArtistText.Text = selected.Artist;
+            DifficultyText.Text = GetChartDetails(selected);
+            ExternalButton.Alpha = selected.PreviewUrl == null ? 0 : 1;
+            ExternalButton.Action = () => Game.OpenUrlExternally(selected.PreviewUrl!.AbsoluteUri);
+            foreach (var row in ChartList.OfType<BmsDownloadChartRow>())
                 row.SetSelected(row.Chart.Md5 == selected.Md5);
 
-            progressBar.Alpha = 0;
+            ProgressBar.Alpha = 0;
             if (local.HasValue)
             {
-                status.Text = BmsDownloadStrings.Available;
-                action.ButtonIcon = FontAwesome.Solid.Play;
-                action.TooltipText = BmsDownloadStrings.Open;
-                action.Action = () => open(local.Value);
-                action.Enabled.Value = true;
+                StatusText.Text = BmsDownloadStrings.Available;
+                ActionButton.ButtonIcon = FontAwesome.Solid.Play;
+                ActionButton.TooltipText = BmsDownloadStrings.Open;
+                ActionButton.Action = () => open(local.Value);
+                ActionButton.Enabled.Value = true;
                 return;
             }
 
             if (task != null && task.Progress.State is BmsDownloadState.Queued or BmsDownloadState.Downloading or BmsDownloadState.Importing)
             {
                 var current = task.Progress;
-                status.Text = current.State switch
+                StatusText.Text = current.State switch
                 {
                     BmsDownloadState.Queued => BmsDownloadStrings.Queued,
                     BmsDownloadState.Importing => BmsDownloadStrings.Importing,
@@ -295,29 +103,29 @@ namespace osu.Game.Overlays
                         ? BmsDownloadStrings.DownloadProgress((int)Math.Clamp(100.0 * current.Bytes / current.TotalBytes.Value, 0, 100))
                         : BmsDownloadStrings.Downloading,
                 };
-                progressState.Value = current.State == BmsDownloadState.Importing ? DownloadState.Importing : DownloadState.Downloading;
-                progress.Value = current.State == BmsDownloadState.Importing ? 1
+                ProgressState.Value = current.State == BmsDownloadState.Importing ? DownloadState.Importing : DownloadState.Downloading;
+                Progress.Value = current.State == BmsDownloadState.Importing ? 1
                     : current.TotalBytes > 0 ? Math.Clamp((double)current.Bytes / current.TotalBytes.Value, 0, 1) : 0;
-                progressBar.Alpha = 1;
-                action.ButtonIcon = FontAwesome.Solid.Times;
-                action.TooltipText = BmsDownloadStrings.Cancel;
-                action.Action = task.Cancel;
-                action.Enabled.Value = true;
+                ProgressBar.Alpha = 1;
+                ActionButton.ButtonIcon = FontAwesome.Solid.Times;
+                ActionButton.TooltipText = BmsDownloadStrings.Cancel;
+                ActionButton.Action = task.Cancel;
+                ActionButton.Enabled.Value = true;
                 return;
             }
 
             bool unsupported = selected.KeyCount.HasValue && selected.KeyCount.Value is not (5 or 7 or 9 or 10 or 14)
                                || string.Equals(Path.GetExtension(selected.FileName), ".bmson", StringComparison.OrdinalIgnoreCase);
-            status.Text = unsupported ? BmsDownloadStrings.UnsupportedChart : !Package.CanDownload ? BmsDownloadStrings.NoPackage : task?.Progress.State switch
+            StatusText.Text = unsupported ? BmsDownloadStrings.UnsupportedChart : !Package.CanDownload ? BmsDownloadStrings.NoPackage : task?.Progress.State switch
             {
                 BmsDownloadState.Failed => BmsDownloadStrings.Failed,
                 BmsDownloadState.Cancelled => BmsDownloadStrings.Cancelled,
                 _ => BmsDownloadStrings.ChartsCount(Package.Charts.Count),
             };
-            action.ButtonIcon = task == null ? FontAwesome.Solid.Download : FontAwesome.Solid.RedoAlt;
-            action.TooltipText = task == null ? BmsDownloadStrings.Download : BmsDownloadStrings.Retry;
-            action.Action = StartDownload;
-            action.Enabled.Value = Package.CanDownload && !unsupported;
+            ActionButton.ButtonIcon = task == null ? FontAwesome.Solid.Download : FontAwesome.Solid.RedoAlt;
+            ActionButton.TooltipText = task == null ? BmsDownloadStrings.Download : BmsDownloadStrings.Retry;
+            ActionButton.Action = StartDownload;
+            ActionButton.Enabled.Value = Package.CanDownload && !unsupported;
         }
 
         internal static LocalisableString GetChartDetails(BmsDownloadChart chart)
@@ -334,53 +142,6 @@ namespace osu.Game.Overlays
 
         public void StartDownload() => downloads.Download(Package, selected.Md5);
 
-        protected override void Dispose(bool isDisposing)
-        {
-            coverCancellation.Cancel();
-            coverCancellation.Dispose();
-            base.Dispose(isDisposing);
-        }
-
-        private partial class DifficultySummary : OsuClickableContainer
-        {
-            private readonly BeatmapCardContent content;
-
-            public DifficultySummary(BeatmapCardContent content) => this.content = content;
-
-            protected override bool OnHover(HoverEvent e)
-            {
-                content.ExpandAfterDelay();
-                return base.OnHover(e);
-            }
-
-            protected override void OnHoverLost(HoverLostEvent e)
-            {
-                if (!content.Expanded.Value)
-                    content.CancelExpand();
-                base.OnHoverLost(e);
-            }
-        }
-    }
-
-    public partial class BmsDownloadCardButton : BeatmapCardIconButton
-    {
-        private IconUsage buttonIcon;
-
-        public IconUsage ButtonIcon
-        {
-            get => buttonIcon;
-            set
-            {
-                buttonIcon = value;
-                if (IsLoaded)
-                    Icon.Icon = value;
-            }
-        }
-
-        public BmsDownloadCardButton(IconUsage icon) => buttonIcon = icon;
-
-        [BackgroundDependencyLoader]
-        private void load() => Icon.Icon = buttonIcon;
     }
 
     public partial class BmsDownloadChartRow : OsuAnimatedButton

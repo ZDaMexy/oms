@@ -58,6 +58,10 @@ OMS keeps its core gameplay, libraries and user-data paths offline by default. U
 
 In-game Browse supports the authorised public BMS sources [Ginger Rush](https://gingerrush.com/) and [616 / Alvorna](https://616.sb/bms/download). Choose a download source, difficulty table and table level, optionally add a search keyword, then expand a compact song card to select a chart and use its download icon. Open the installed chart in song select. Hover icons for their action labels; use the search icon or Enter to retry a query manually. Downloads continue when the browser closes; failed tasks can be retried manually. Music previews use local song select after import. Sources are contacted only when Browse opens, without an OMS account. Missing packages and unsupported targets cannot report a successful import. See the [download contract](doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载).
 
+Switch to osu!mania in the same browser to use the [Sayobot mirror](https://osu.sayobot.cn/). Search by title, artist, mapper or original beatmap set ID, and filter by keys, star range and approval status. Expand a card to select a difficulty; the no-video package downloads into `chartmania`, and its completion icon or notification opens that exact difficulty. Mixed-mode packages import only mania. Downloads continue when switching modes or closing Browse. The mirror is contacted only after entering the mania section, without an official account. Stars come from mirror metadata; music previews use local song select. Official downloads, separate online previews and resume are unavailable. See the [mania download contract](doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载).
+
+The current live download node fails its secure connection, so successful import of a real mirror package remains unverified. Software checks and desktop fixture paths pass; see the [validation record](doc_md/other/MANIA_SAYOBOT_DOWNLOAD_20261001.md).
+
 **BMS difficulty tables** also support import / refresh from local paths and public URLs, independently of any private OMS server.
 
 ### BGA playback

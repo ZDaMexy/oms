@@ -196,7 +196,7 @@ namespace osu.Game.Screens.Menu
             });
             buttonsTopLevel.Add(new MainMenuButton(ButtonSystemStrings.Edit, @"button-play-select", OsuIcon.EditCircle, new Color4(238, 170, 0, 255), (_, _) => State = ButtonSystemState.Edit, Key.E));
 
-            if (onlineFeaturesEnabled || game?.BmsDownloadsEnabled == true)
+            if (onlineFeaturesEnabled || (game?.BmsDownloadsEnabled == true || game?.ManiaDownloadsEnabled == true))
             {
                 buttonsTopLevel.Add(new MainMenuButton(ButtonSystemStrings.Browse, @"button-default-select", OsuIcon.Beatmap, new Color4(165, 204, 0, 255), (_, _) => OnBeatmapListing?.Invoke(), Key.B,
                     Key.D));

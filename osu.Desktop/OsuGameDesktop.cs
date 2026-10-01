@@ -26,6 +26,7 @@ using osu.Game.IO;
 using osu.Game.IPC;
 using osu.Game.Online.Multiplayer;
 using osu.Game.Online.Bms;
+using osu.Game.Online.Sayobot;
 using osu.Game.Overlays.Settings;
 using osu.Game.Performance;
 using osu.Game.Beatmaps;
@@ -54,7 +55,11 @@ namespace osu.Desktop
 
         public override bool BmsDownloadsEnabled => true;
 
+        public override bool ManiaDownloadsEnabled => true;
+
         protected override BmsDownloadManager CreateBmsDownloadManager() => new BmsDownloadManager(Storage, new BmsDownloadImporter(Storage, ClientRealm));
+
+        protected override ManiaDownloadManager CreateManiaDownloadManager() => new ManiaDownloadManager(Storage, new ManiaDownloadImporter(Storage, ClientRealm));
 
         public OsuGameDesktop(string[]? args = null)
             : base(args)
