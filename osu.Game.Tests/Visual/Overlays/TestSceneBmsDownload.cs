@@ -52,6 +52,8 @@ namespace osu.Game.Tests.Visual.Overlays
         private BmsDownloadOverlay overlay => Game.BmsDownloads;
         private BmsDownloadHeader header => overlay.ChildrenOfType<BmsDownloadHeader>().Single();
         private BmsDownloadManager manager => ((DownloadGame)Game).Manager;
+        private OsuDropdown<string> tableDropdown => header.ChildrenOfType<OsuDropdown<string>>().Single();
+        private OsuDropdown<BmsDownloadHeader.TableLevel> levelDropdown => header.ChildrenOfType<OsuDropdown<BmsDownloadHeader.TableLevel>>().Single();
 
         protected override TestOsuGame CreateTestGame()
         {
@@ -66,6 +68,15 @@ namespace osu.Game.Tests.Visual.Overlays
             AddUntilStep("browser and toolbar loaded", () => overlay.IsLoaded && Game.Toolbar.IsLoaded);
             AddAssert("official online features stay disabled", () => !Game.OnlineFeaturesEnabled);
             AddAssert("startup made no source request", () => metadata.Requests, () => Is.Zero);
+            AddStep("show toolbar", () => Game.Toolbar.Show());
+            AddWaitStep("allow toolbar layout", 2);
+            AddAssert("browse entrance is before music and notifications", () =>
+                Game.Toolbar.ChildrenOfType<ToolbarBmsDownloadButton>().Single().ScreenSpaceDrawQuad.Centre.X
+                < Game.Toolbar.ChildrenOfType<ToolbarMusicButton>().Single().ScreenSpaceDrawQuad.Centre.X
+                && Game.Toolbar.ChildrenOfType<ToolbarMusicButton>().Single().ScreenSpaceDrawQuad.Centre.X
+                < Game.Toolbar.ChildrenOfType<ToolbarClock>().Single().ScreenSpaceDrawQuad.Centre.X
+                && Game.Toolbar.ChildrenOfType<ToolbarClock>().Single().ScreenSpaceDrawQuad.Centre.X
+                < Game.Toolbar.ChildrenOfType<ToolbarNotificationButton>().Single().ScreenSpaceDrawQuad.Centre.X);
             AddStep("open from menu browse", () => ((MainMenu)Game.ScreenStack.CurrentScreen).ChildrenOfType<ButtonSystem>().Single().OnBeatmapListing!());
             AddUntilStep("browser shows a result", () => overlay.State.Value == Visibility.Visible && overlay.Cards.Count == 1);
             AddStep("close browser", () => overlay.Hide());
@@ -208,6 +219,120 @@ namespace osu.Game.Tests.Visual.Overlays
             AddUntilStep("616 missing-package result appears", () => overlay.Cards.SingleOrDefault()?.Package.Source == BmsDownloadSource.Konmai);
             AddAssert("missing package stays visible and unavailable", () => !overlay.Cards.Single().Package.CanDownload);
             AddAssert("missing package has no download action", () => !overlay.Cards.Single().ChildrenOfType<SettingsButtonV2>().Single(b => b.Text.ToString() == "Download").Enabled.Value);
+        }
+
+        [TestCase(BmsDownloadSource.Ginger)]
+        [TestCase(BmsDownloadSource.Konmai)]
+        public void TestSourceTableAndLevelSelectExactChartAndOpen(BmsDownloadSource source)
+        {
+            BmsDownloadTask? task = null;
+            Guid target = Guid.Empty;
+            AddUntilStep("browser loaded", () => overlay.IsLoaded);
+            AddStep("provide tables and select source", () =>
+            {
+                metadata.Response = tableMetadata;
+                header.Source.Value = source;
+                overlay.Show();
+            });
+            AddUntilStep("selected source tables loaded", () => tableDropdown.Items.Contains(tableId(source)));
+            AddAssert("grades require a selected table", () => header.Level.Disabled);
+            AddStep("select difficulty table", () => header.Table.Value = tableId(source));
+            AddUntilStep("full table grades loaded", () => !header.Level.Disabled);
+            AddAssert("table order retains custom and empty grades", () => levelDropdown.Items.Select(item => item.Value),
+                () => Is.EqualTo(new string?[] { null, "2", "1", "?", "" }));
+            AddStep("select table grade two", () => header.Level.Value = new BmsDownloadHeader.TableLevel("2"));
+            AddUntilStep("only the matching original chart is shown", () => overlay.Cards.SingleOrDefault()?.Package.Charts.SingleOrDefault()?.Md5 == another_md5);
+            AddAssert("other grade in same package stays out of results", () => overlay.Cards.Single().Package.Charts, () => Has.Count.EqualTo(1));
+            if (source == BmsDownloadSource.Ginger)
+                AddAssert("author play level remains separate", () => overlay.Cards.Single().Package.Charts.Single().Level, () => Is.EqualTo("7"));
+            AddUntilStep("filter loading no longer intercepts buttons", () => !overlay.ChildrenOfType<LoadingLayer>().Single().IsPresent);
+            AddStep("download from filtered card", () =>
+            {
+                var card = overlay.Cards.Single();
+                card.ChildrenOfType<SettingsButtonV2>().Single(button => button.Text.ToString() == "Download").TriggerClick();
+                task = manager.GetTask(card.Package.Key);
+            });
+            AddUntilStep("filtered chart package imported", () => task?.Completion.IsCompleted == true);
+            AddAssert("download succeeded", () => task!.Progress.State, () => Is.EqualTo(BmsDownloadState.Completed));
+            AddStep("record selected original chart", () => target = task!.Progress.Imported!.First(chart => chart.Md5 == another_md5).BeatmapId);
+            AddUntilStep("filtered card can open exact chart", () => overlay.Cards.Single().ChildrenOfType<SettingsButtonV2>().Any(button => button.Text.ToString().Contains("song select", StringComparison.OrdinalIgnoreCase)));
+            AddStep("open selected chart", () => overlay.Cards.Single().ChildrenOfType<SettingsButtonV2>().Single(button => button.Text.ToString().Contains("song select", StringComparison.OrdinalIgnoreCase)).TriggerClick());
+            AddUntilStep("song list settled on selected original chart", () => Game.ScreenStack.CurrentScreen is SoloSongSelect select && select.CarouselItemsPresented && !select.IsFiltering
+                && select.ChildrenOfType<BeatmapCarousel>().Single().CurrentBeatmap?.ID == target && Game.Beatmap.Value.BeatmapInfo.ID == target);
+            AddAssert("BMS play mode selected", () => Game.Ruleset.Value.ShortName, () => Is.EqualTo("bms"));
+        }
+
+        [Test]
+        public void TestChangingTableAndSourceClearsGradeAndDiscardsLateTableData()
+        {
+            TaskCompletionSource<HttpResponseMessage> oldTable = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            bool oldTableStarted = false;
+            AddUntilStep("browser loaded", () => overlay.IsLoaded);
+            AddStep("hold first table even after cancellation", () => metadata.Response = async (request, token) =>
+            {
+                if (request.RequestUri!.AbsolutePath.EndsWith("selectDataList", StringComparison.Ordinal))
+                {
+                    using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(token).ConfigureAwait(false));
+                    if (body.RootElement.GetProperty("headerID").GetInt32() == 1)
+                    {
+                        oldTableStarted = true;
+                        return await oldTable.Task.ConfigureAwait(false);
+                    }
+                }
+                return await tableMetadata(request, token).ConfigureAwait(false);
+            });
+            AddStep("open browser", () => overlay.Show());
+            AddUntilStep("tables loaded", () => tableDropdown.Items.Contains("1"));
+            AddStep("select first table", () => header.Table.Value = "1");
+            AddUntilStep("first table read pending", () => oldTableStarted);
+            AddStep("select second table", () => header.Table.Value = "2");
+            AddUntilStep("second table grade available", () => !header.Level.Disabled && levelDropdown.Items.Any(item => item.Value == "Other"));
+            AddStep("select second table grade", () => header.Level.Value = new BmsDownloadHeader.TableLevel("Other"));
+            AddStep("release old table", () => oldTable.SetResult(gingerTableData(1)));
+            AddWaitStep("allow old response to finish", 3);
+            AddAssert("old levels did not replace selected table", () => levelDropdown.Items.Select(item => item.Value), () => Is.EqualTo(new string?[] { null, "Other" }));
+            AddAssert("second table grade remains selected", () => header.Level.Value.Value, () => Is.EqualTo("Other"));
+            AddStep("return to all tables", () => header.Table.Value = string.Empty);
+            AddAssert("clearing table clears and disables grade", () => header.Level.Value.Value == null && header.Level.Disabled);
+            AddStep("switch source", () => header.Source.Value = BmsDownloadSource.Konmai);
+            AddAssert("new source starts without table or grade", () => header.Table.Value.Length == 0 && header.Level.Value.Value == null && header.Level.Disabled);
+            AddUntilStep("new source table list replaces old list", () => tableDropdown.Items.Contains(tableId(BmsDownloadSource.Konmai)) && !tableDropdown.Items.Contains("2"));
+        }
+
+        [Test]
+        public void TestTableGradeReadFailureRequiresManualRetryAndUngradedIsSelectable()
+        {
+            bool fail = true;
+            int tableReads = 0;
+            int failedReads = 0;
+            AddUntilStep("browser loaded", () => overlay.IsLoaded);
+            AddStep("fail selected table metadata", () => metadata.Response = async (request, token) =>
+            {
+                if (request.RequestUri!.AbsolutePath.EndsWith("selectDataList", StringComparison.Ordinal))
+                {
+                    Interlocked.Increment(ref tableReads);
+                    if (fail)
+                        return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+                }
+                return await tableMetadata(request, token).ConfigureAwait(false);
+            });
+            AddStep("open browser", () => overlay.Show());
+            AddUntilStep("tables loaded", () => tableDropdown.Items.Contains("1"));
+            AddStep("select table", () => header.Table.Value = "1");
+            AddUntilStep("grade failure shown", () => levelDropdown.ChildrenOfType<osu.Game.Graphics.Sprites.OsuSpriteText>().Any(text => text.Text.ToString().Contains("Could not read levels", StringComparison.Ordinal)));
+            AddStep("record failed table reads", () => failedReads = tableReads);
+            AddWaitStep("leave failed table without retry", 5);
+            AddAssert("failed table is not retried automatically", () => tableReads, () => Is.EqualTo(failedReads));
+            AddAssert("grade remains unavailable", () => header.Level.Disabled && header.Level.Value.Value == null);
+            AddStep("retry with search button", () =>
+            {
+                fail = false;
+                header.ChildrenOfType<SettingsButtonV2>().Single().TriggerClick();
+            });
+            AddUntilStep("grade list available after retry", () => !header.Level.Disabled);
+            AddStep("select genuinely empty grade", () => header.Level.Value = new BmsDownloadHeader.TableLevel(""));
+            AddUntilStep("ungraded chart shown without other grades", () => overlay.Cards.SingleOrDefault()?.Package.Charts.SingleOrDefault()?.Md5 == normal_md5);
+            AddAssert("empty grade differs from all levels", () => header.Level.Value.Value, () => Is.EqualTo(""));
         }
 
         [Test]
@@ -402,6 +527,85 @@ namespace osu.Game.Tests.Visual.Overlays
                 data = new[] { new { md5 = normal_md5, chart_name = "Unhosted chart", title = "Unhosted chart", artist = "OMS", song_name = "Song", song_url = (string?)null } }
             }));
         }
+
+        private static string tableId(BmsDownloadSource source) => source == BmsDownloadSource.Ginger ? "1" : "https://table.example/original";
+
+        private static async Task<HttpResponseMessage> tableMetadata(HttpRequestMessage request, CancellationToken token)
+        {
+            string path = request.RequestUri!.AbsolutePath;
+            if (path.EndsWith("selectHeaderListWithFullInfo", StringComparison.Ordinal))
+                return json("[{\"id\":1,\"name\":\"Test Table\",\"originalURL\":\"\"},{\"id\":2,\"name\":\"Other Table\",\"originalURL\":\"\"}]");
+            if (path.Contains("selectOneHeader/", StringComparison.Ordinal))
+            {
+                bool other = path.EndsWith("/2", StringComparison.Ordinal);
+                return json(JsonSerializer.Serialize(new { id = other ? 2 : 1, symbol = other ? "◇" : "★", levelOrders = other ? "Other" : "2,1,?" }));
+            }
+            if (path.EndsWith("selectDataList", StringComparison.Ordinal))
+            {
+                using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(token).ConfigureAwait(false));
+                return gingerTableData(body.RootElement.GetProperty("headerID").GetInt32());
+            }
+            if (path.Contains("files/package/", StringComparison.Ordinal))
+                return json(JsonSerializer.Serialize(new
+                {
+                    id = 17,
+                    fileName = "OMS Download Test.7z",
+                    downloadURL = "https://gingerrush.com/packages/song.7z",
+                    fileSize = createPackage().Length,
+                    songs = new[]
+                    {
+                        new { md5 = normal_md5, fileName = "normal.bme", title = "OMS Download Test", artist = "OMS", subTitle = "[NORMAL]", mode = "BEAT_7K", playLevel = "3" },
+                        new { md5 = another_md5, fileName = "another.bme", title = "OMS Download Test", artist = "OMS", subTitle = "[ANOTHER]", mode = "BEAT_7K", playLevel = "7" },
+                    },
+                }));
+            if (path.EndsWith("/tables", StringComparison.Ordinal))
+                return json(JsonSerializer.Serialize(new
+                {
+                    result = "success",
+                    tables = new[] { new { diff_table_name = "Test Table", diff_table_url = tableId(BmsDownloadSource.Konmai), diff_table_full_local_url = "https://bms.alvorna.com/tables/test/header.json" } },
+                }));
+            if (path.EndsWith("header.json", StringComparison.Ordinal))
+                return json("{\"symbol\":\"★\",\"level_order\":[2,1,\"?\"],\"data_url\":\"body.json\"}");
+            if (path.EndsWith("body.json", StringComparison.Ordinal))
+                return json(JsonSerializer.Serialize(tableEntries(1)));
+            if (path.EndsWith("/hash", StringComparison.Ordinal))
+            {
+                bool another = request.RequestUri.Query.Contains(another_md5, StringComparison.Ordinal);
+                return json(JsonSerializer.Serialize(new
+                {
+                    result = "success",
+                    data = new
+                    {
+                        md5 = another ? another_md5 : normal_md5,
+                        chart_name = another ? "OMS Download Test [ANOTHER]" : "OMS Download Test [NORMAL]",
+                        title = "OMS Download Test",
+                        artist = "OMS",
+                        song_name = "OMS Download Test",
+                        song_url = "https://bms.alvorna.com/bms/zipped/test.7z",
+                    },
+                }));
+            }
+            return await defaultMetadata(request, token).ConfigureAwait(false);
+        }
+
+        private static HttpResponseMessage gingerTableData(int table) => json(JsonSerializer.Serialize(new
+        {
+            page = 1,
+            pageSize = 100,
+            pageCount = 1,
+            total = table == 1 ? 4 : 1,
+            data = tableEntries(table),
+        }));
+
+        private static object[] tableEntries(int table) => table == 1
+            ? new object[]
+            {
+                new { headerID = 1, md5 = normal_md5, level = "1", title = "OMS Download Test", artist = "OMS" },
+                new { headerID = 1, md5 = another_md5, level = "2", title = "OMS Download Test", artist = "OMS" },
+                new { headerID = 1, md5 = normal_md5, level = "?", title = "OMS Download Test", artist = "OMS" },
+                new { headerID = 1, md5 = normal_md5, level = "", title = "OMS Download Test", artist = "OMS" },
+            }
+            : new object[] { new { headerID = 2, md5 = normal_md5, level = "Other", title = "OMS Download Test", artist = "OMS" } };
 
         private static HttpResponseMessage gingerResponse(int page, string extension = ".bme", string mode = "BEAT_7K") => json(JsonSerializer.Serialize(new
         {

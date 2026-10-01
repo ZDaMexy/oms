@@ -30,8 +30,11 @@
 ## 第三方 BMS 浏览下载
 
 - 唯一授权源为 Ginger Rush 与 616/Alvorna；这项 P1-A 产品面复用 P1-H/P1-K 谱库及解码合同，不重计 Skin campaign。`OnlineFeaturesEnabled` 保持 false，OMS/API/OAuth/SignalR/BSS 默认端点保持空；不开放 mania 官网下载、账号、成绩提交或自动更新。启动只创建服务，首次打开浏览页才访问来源。
-- 主菜单、工具栏及既有浏览快捷键打开全屏页面；搜索保留词条，切源重置表选择并取消旧查询，隐藏/销毁不得发布旧来源或旧关键词结果。Ginger 用站内表 ID，616 用原始表 URL，远端筛选不导入或修改本地难度表。分页保留原站计数，同源同包合并；不同源、同名曲不合并。失败暂停自动追加，玩家手动重试。
+- 主菜单、工具栏及既有浏览快捷键打开全屏页面；工具栏下载按钮位于音乐、时钟和通知之前的原浏览槽位。来源→难度表→表内等级依次联动，切源清表及等级，切表清等级；搜索词保留。隐藏/销毁取消查询与表读取，旧回应不得覆盖新来源、表或等级。Ginger 用站内表 ID，616 用原始表 URL，远端筛选不导入或修改本地难度表。
+- 等级来自选定表的完整资料，保留字符串/数字原文及表符号，不使用作者 playLevel。按 level_order/levelOrders 中实际存在的等级排序，其余按完整表首次出现顺序追加；真实空等级显示“未分级”，与“全部等级”分开。完整表成功后才启用等级选择，读取失败明确显示并由搜索按钮手动重试，不发布半张表或自动重试。
+- 选定等级时按精确原等级及表内 title/artist/MD5 搜索，每页20个去重目标，最多4并发按MD5解析来源内真实包身份；仅保留匹配谱面，不能将同包其它等级混入卡片。Ginger表条目id/songID不是资源包id，不得代替canonical包身份。未收录MD5保留表资料与暂无资源包提示。未选具体等级时继续原站查询；同源同包跨页合并，不同源、同名曲不合并。失败暂停自动追加，玩家手动重试。
 - Ginger 资料取自 `api/v1/files/selectList`、`table/selectHeaderListWithFullInfo`、`files/package/{md5}`；616 取自 `bms.alvorna.com/api/search`、`tables`、`hash`。JSON 实际读取上限 8 MiB、深度 32；格式错误明确失败。MD5 是原谱身份，Ginger shardMD5 不是包/谱面校验值；616 song_name 不是下载文件名，不凭名字拼链接或决定归档格式。
+- 完整表另使用 Ginger `table/selectOneHeader/{id}` 与 `table/selectDataList`，固定100条逐页读取，核对每页数量/总数及表身份；616使用`tables.diff_table_full_local_url`的站内镜像header及其data_url。每次完整表读取消耗共享8MiB JSON预算；616镜像只允许HTTPS/default port/no userinfo的bms.alvorna.com，不回落原站或跨来源补数据。元数据客户端不自动跳转，3xx明确失败，资源包仍沿既有有界跳转合同。
 - 卡片选择具体谱面后下载整个原包。任务由游戏持有，关闭浏览继续，退出取消并等待任务撤出后才释放 Realm。来源内同包正在进行的任务复用；等待、下载、入库、完成、取消、失败由卡片与通知共用。失败不自动换源；终态只在本任务流、暂存清理和队列资源收尾后发布，重试不覆盖仍在撤出的所有者。
 - 资源只允许 HTTPS/default port/no userinfo 的 gingerrush.com、pixeldrain.net、bms.alvorna.com；手动检查最多 5 次跳转，不借转向逃逸主机。包实际压缩上限 2 GiB，下载/入库单任务有界时间；来源大小/Content-Length 不能替代实际计数。暂存限当前数据根的 `bms-downloads/<GUID>/`，归档格式按实际签名识别。
 - ZIP/RAR/7z 展开检查 Windows 路径、traversal/ADS/device、大小写与文件目录冲突、重复、链接/特殊项、加密及取消；单文件 2 GiB、总实际展开 8 GiB、条目 50,000。原始目标 MD5 必须在包及实际持久化文件命中，再通过既有 BmsFolderImporter 写入 chartbms；不经 .osz/files，不写 external 根，不因同名/同 hash 获得覆盖现有目录权限。坏包异常在归档边界成为明确失败，程序错误不静默吞掉。

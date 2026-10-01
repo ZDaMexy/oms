@@ -13,6 +13,14 @@ namespace osu.Game.Localisation
         public static LocalisableString Search => text("search", "Search title, artist or chart");
         public static LocalisableString SearchNow => text("search_now", "Search");
         public static LocalisableString AllTables => text("all_tables", "All difficulty tables");
+        public static LocalisableString Source => text("source", "Download source");
+        public static LocalisableString Table => text("table", "Difficulty table");
+        public static LocalisableString TableLevel => text("table_level", "Table level");
+        public static LocalisableString SelectTable => text("select_table", "Choose a table first");
+        public static LocalisableString AllLevels => text("all_levels", "All levels");
+        public static LocalisableString Ungraded => text("ungraded", "Ungraded");
+        public static LocalisableString LevelsLoading => text("levels_loading", "Reading table levels…");
+        public static LocalisableString LevelsFailed => text("levels_failed", "Could not read levels. Click Search to retry.");
         public static LocalisableString Download => text("download", "Download");
         public static LocalisableString Cancel => text("cancel", "Cancel");
         public static LocalisableString Retry => text("retry", "Retry");

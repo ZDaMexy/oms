@@ -23,6 +23,7 @@ namespace osu.Game.Online.Bms
         private const string ginger_base_url = "https://gingerrush.com/api/v1/";
         private const string konmai_base_url = "https://bms.alvorna.com/api/";
         private const int page_size = 20;
+        private const int table_page_size = 100;
         private const int max_response_bytes = 8 * 1024 * 1024;
 
         private readonly HttpClient client;
@@ -31,7 +32,7 @@ namespace osu.Game.Online.Bms
 
         public BmsDownloadClient(HttpClient? client = null)
         {
-            this.client = client ?? new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
+            this.client = client ?? new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(30) };
             ownsClient = client == null;
         }
 
@@ -117,12 +118,211 @@ namespace osu.Game.Online.Bms
                 {
                     string originalUrl = readString(table, "diff_table_url");
                     requireWebUrl(originalUrl, "diff_table_url");
-                    tables.Add(new BmsDownloadTable(originalUrl, readString(table, "diff_table_name"), originalUrl));
+                    tables.Add(new BmsDownloadTable(originalUrl, readString(table, "diff_table_name"), originalUrl,
+                        readOptionalUrl(table, "diff_table_full_local_url")));
                 }
             }
 
             cancellationToken.ThrowIfCancellationRequested();
             return tables.ToArray();
+        }
+
+        public Task<BmsDownloadTableData> GetTableDataAsync(BmsDownloadSource source, BmsDownloadTable table, CancellationToken cancellationToken)
+        {
+            ArgumentNullException.ThrowIfNull(table);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            return source switch
+            {
+                BmsDownloadSource.Ginger => getGingerTableDataAsync(table, cancellationToken),
+                BmsDownloadSource.Konmai => getKonmaiTableDataAsync(table, cancellationToken),
+                _ => throw new ArgumentOutOfRangeException(nameof(source))
+            };
+        }
+
+        public async Task<BmsDownloadSearchResult> SearchTableLevelAsync(BmsDownloadSource source, BmsDownloadTableData data, string level, string query, int page,
+                                                                       CancellationToken cancellationToken)
+        {
+            ArgumentNullException.ThrowIfNull(data);
+            ArgumentNullException.ThrowIfNull(level);
+            ArgumentNullException.ThrowIfNull(query);
+            ArgumentOutOfRangeException.ThrowIfLessThan(page, 1);
+
+            if (source != BmsDownloadSource.Ginger && source != BmsDownloadSource.Konmai)
+                throw new ArgumentOutOfRangeException(nameof(source));
+
+            cancellationToken.ThrowIfCancellationRequested();
+            string keyword = query.Trim();
+            BmsDownloadTableEntry[] matchingEntries = data.Entries
+                .Where(entry => entry.Level == level && (entry.Title.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                    || entry.Artist.Contains(keyword, StringComparison.OrdinalIgnoreCase) || entry.Md5.Contains(keyword, StringComparison.OrdinalIgnoreCase)))
+                .DistinctBy(entry => entry.Md5).ToArray();
+            int total = matchingEntries.Length;
+            BmsDownloadTableEntry[] pageEntries = matchingEntries.Skip((int)Math.Min(total, (page - 1L) * page_size)).Take(page_size).ToArray();
+            var resolved = new BmsDownloadPackage[pageEntries.Length];
+
+            await Parallel.ForEachAsync(Enumerable.Range(0, pageEntries.Length), new ParallelOptions
+            {
+                MaxDegreeOfParallelism = 4,
+                CancellationToken = cancellationToken
+            }, async (index, token) =>
+            {
+                BmsDownloadTableEntry entry = pageEntries[index];
+                BmsDownloadPackage? package = await ResolveAsync(source, entry.Md5, token).ConfigureAwait(false);
+
+                if (package == null)
+                {
+                    string title = string.IsNullOrWhiteSpace(entry.Title) ? entry.Md5 : entry.Title;
+                    package = new BmsDownloadPackage(source, "chart:" + entry.Md5, title, null,
+                        new[] { new BmsDownloadChart(entry.Md5, title, entry.Artist) });
+                }
+                else
+                    package = package with { Charts = package.Charts.Where(chart => chart.Md5 == entry.Md5).ToArray() };
+
+                resolved[index] = package;
+            }).ConfigureAwait(false);
+
+            cancellationToken.ThrowIfCancellationRequested();
+            var packages = new Dictionary<string, BmsDownloadPackage>(StringComparer.Ordinal);
+
+            foreach (BmsDownloadPackage package in resolved)
+                addPackage(packages, package);
+
+            return new BmsDownloadSearchResult(packages.Values.ToArray(), page, (int)((total + (long)page_size - 1) / page_size), total);
+        }
+
+        private async Task<BmsDownloadTableData> getGingerTableDataAsync(BmsDownloadTable table, CancellationToken cancellationToken)
+        {
+            if (!int.TryParse(table.Id, NumberStyles.None, CultureInfo.InvariantCulture, out int tableId) || tableId < 1)
+                throw new ArgumentException("Ginger table IDs must be positive integers.", nameof(table));
+
+            var budget = new TableReadBudget();
+            string symbol;
+            string[] orderedLevels;
+
+            using (var headerRequest = new HttpRequestMessage(HttpMethod.Get, ginger_base_url + "table/selectOneHeader/" + table.Id))
+            using (var document = await sendAsync(headerRequest, false, cancellationToken, budget).ConfigureAwait(false))
+            {
+                JsonElement header = requireObject(document!.RootElement, "table header");
+
+                if (readInt(header, "id", 1) != tableId)
+                    throw new InvalidDataException("Ginger returned the header of a different difficulty table.");
+
+                symbol = readOptionalString(header, "symbol") ?? "";
+                orderedLevels = (readOptionalString(header, "levelOrders") ?? "").Split(',').Where(value => !string.IsNullOrWhiteSpace(value)).ToArray();
+            }
+
+            var entries = new List<BmsDownloadTableEntry>();
+            int total = 0;
+            int totalPages = 1;
+
+            for (int page = 1; page <= totalPages; page++)
+            {
+                using var request = gingerPost("table/selectDataList", new
+                {
+                    pageRequest = new { page, pageSize = table_page_size },
+                    headerID = tableId,
+                    fuzzyKeyword = (string?)null
+                });
+                using var document = await sendAsync(request, false, cancellationToken, budget).ConfigureAwait(false);
+                JsonElement root = requireObject(document!.RootElement, "table data response");
+                int returnedPage = readInt(root, "page", 1);
+                int returnedPageSize = readInt(root, "pageSize", 1);
+                int returnedTotalPages = readInt(root, "pageCount", 0);
+                int returnedTotal = readInt(root, "total", 0);
+                JsonElement data = requireArray(readRequired(root, "data"), "data");
+
+                if (returnedPage != page || returnedPageSize != table_page_size
+                    || returnedTotalPages != (returnedTotal + (long)table_page_size - 1) / table_page_size
+                    || data.GetArrayLength() != Math.Min(table_page_size, Math.Max(0, returnedTotal - (page - 1L) * table_page_size))
+                    || (page > 1 && (returnedTotal != total || returnedTotalPages != totalPages)))
+                    throw new InvalidDataException("Ginger returned incomplete or changing difficulty table pagination.");
+
+                total = returnedTotal;
+                totalPages = returnedTotalPages;
+
+                foreach (JsonElement item in data.EnumerateArray())
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    JsonElement entry = requireObject(item, "table entry");
+
+                    if (readInt(entry, "headerID", 1) != tableId)
+                        throw new InvalidDataException("Ginger returned an entry of a different difficulty table.");
+
+                    entries.Add(readTableEntry(entry));
+                }
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            return tableData(symbol, orderedLevels, entries);
+        }
+
+        private async Task<BmsDownloadTableData> getKonmaiTableDataAsync(BmsDownloadTable table, CancellationToken cancellationToken)
+        {
+            if (table.HeaderUrl == null)
+                throw new InvalidDataException("616 did not provide a mirrored difficulty table header URL.");
+
+            Uri headerUrl = requireKonmaiTableUrl(table.HeaderUrl);
+            var budget = new TableReadBudget();
+            string symbol;
+            string[] orderedLevels;
+            Uri bodyUrl;
+
+            using (var request = new HttpRequestMessage(HttpMethod.Get, headerUrl))
+            using (var document = await sendAsync(request, false, cancellationToken, budget).ConfigureAwait(false))
+            {
+                JsonElement header = requireObject(document!.RootElement, "table header");
+                symbol = readOptionalString(header, "symbol") ?? "";
+                string dataUrl = readString(header, "data_url");
+
+                if (dataUrl != dataUrl.Trim() || dataUrl.Any(char.IsControl) || !Uri.TryCreate(headerUrl, dataUrl, out Uri? uri))
+                    throw new InvalidDataException("616 returned an invalid mirrored difficulty table data URL.");
+
+                bodyUrl = requireKonmaiTableUrl(uri);
+                orderedLevels = !header.TryGetProperty("level_order", out JsonElement order) || order.ValueKind == JsonValueKind.Null
+                    ? Array.Empty<string>()
+                    : requireArray(order, "level_order").EnumerateArray().Select(readTableLevel).Where(value => !string.IsNullOrWhiteSpace(value)).ToArray();
+            }
+
+            using var bodyRequest = new HttpRequestMessage(HttpMethod.Get, bodyUrl);
+            using var bodyDocument = await sendAsync(bodyRequest, false, cancellationToken, budget).ConfigureAwait(false);
+            var entries = new List<BmsDownloadTableEntry>();
+
+            foreach (JsonElement item in requireArray(bodyDocument!.RootElement, "table data").EnumerateArray())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                entries.Add(readTableEntry(requireObject(item, "table entry")));
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            return tableData(symbol, orderedLevels, entries);
+        }
+
+        private static Uri requireKonmaiTableUrl(Uri url)
+        {
+            if (!url.IsAbsoluteUri || url.Scheme != Uri.UriSchemeHttps || !url.IsDefaultPort || url.UserInfo.Length != 0
+                || !url.Host.Equals("bms.alvorna.com", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("616 difficulty table metadata must remain on its HTTPS mirror at bms.alvorna.com.");
+
+            return url;
+        }
+
+        private static BmsDownloadTableEntry readTableEntry(JsonElement entry) => new BmsDownloadTableEntry(readMd5(entry),
+            readTableLevel(readRequired(entry, "level")), readOptionalString(entry, "title") ?? "", readOptionalString(entry, "artist") ?? "");
+
+        private static string readTableLevel(JsonElement value) => value.ValueKind switch
+        {
+            JsonValueKind.String => value.GetString()!,
+            JsonValueKind.Number => value.GetRawText(),
+            _ => throw new InvalidDataException("A difficulty table level must be a string or number.")
+        };
+
+        private static BmsDownloadTableData tableData(string symbol, IEnumerable<string> orderedLevels, List<BmsDownloadTableEntry> entries)
+        {
+            string[] actualLevels = entries.Select(entry => entry.Level).Distinct(StringComparer.Ordinal).ToArray();
+            var actual = new HashSet<string>(actualLevels, StringComparer.Ordinal);
+            string[] levels = orderedLevels.Where(actual.Contains).Concat(actualLevels).Distinct(StringComparer.Ordinal).ToArray();
+            return new BmsDownloadTableData(symbol, levels, entries.ToArray());
         }
 
         public async Task<BmsDownloadPackage?> ResolveAsync(BmsDownloadSource source, string md5, CancellationToken cancellationToken)
@@ -206,7 +406,7 @@ namespace osu.Game.Online.Bms
             Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
         };
 
-        private async Task<JsonDocument?> sendAsync(HttpRequestMessage request, bool allowNotFound, CancellationToken cancellationToken)
+        private async Task<JsonDocument?> sendAsync(HttpRequestMessage request, bool allowNotFound, CancellationToken cancellationToken, TableReadBudget? tableBudget = null)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             cancellationToken.ThrowIfCancellationRequested();
@@ -225,6 +425,9 @@ namespace osu.Game.Online.Bms
                     return null;
 
                 response.EnsureSuccessStatusCode();
+
+                if (tableBudget != null && response.RequestMessage?.RequestUri is Uri finalUri && finalUri != request.RequestUri)
+                    throw new InvalidDataException("The difficulty table metadata request was redirected.");
 
                 if (response.Content.Headers.ContentLength > max_response_bytes)
                     throw new InvalidDataException("The BMS source response exceeds the 8 MiB JSON limit.");
@@ -253,6 +456,8 @@ namespace osu.Game.Online.Bms
 
                     if (body.Length + count > max_response_bytes)
                         throw new InvalidDataException("The BMS source response exceeds the 8 MiB JSON limit.");
+
+                    tableBudget?.Consume(count);
 
                     body.Write(buffer, 0, count);
                 }
@@ -455,6 +660,19 @@ namespace osu.Game.Online.Bms
             uri = null;
             return value == value.Trim() && !value.Any(char.IsControl) && Uri.TryCreate(value, UriKind.Absolute, out uri)
                 && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) && uri.Host.Length > 0 && uri.UserInfo.Length == 0;
+        }
+
+        private sealed class TableReadBudget
+        {
+            private int bytesRead;
+
+            public void Consume(int count)
+            {
+                if (count > max_response_bytes - bytesRead)
+                    throw new InvalidDataException("The complete difficulty table exceeds the 8 MiB JSON limit.");
+
+                bytesRead += count;
+            }
         }
 
         public void Dispose()

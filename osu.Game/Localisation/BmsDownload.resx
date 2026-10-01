@@ -7,6 +7,14 @@
   <data name="search"><value>Search title, artist or chart</value></data>
   <data name="search_now"><value>Search</value></data>
   <data name="all_tables"><value>All difficulty tables</value></data>
+  <data name="source"><value>Download source</value></data>
+  <data name="table"><value>Difficulty table</value></data>
+  <data name="table_level"><value>Table level</value></data>
+  <data name="select_table"><value>Choose a table first</value></data>
+  <data name="all_levels"><value>All levels</value></data>
+  <data name="ungraded"><value>Ungraded</value></data>
+  <data name="levels_loading"><value>Reading table levels…</value></data>
+  <data name="levels_failed"><value>Could not read levels. Click Search to retry.</value></data>
   <data name="download"><value>Download</value></data>
   <data name="cancel"><value>Cancel</value></data>
   <data name="retry"><value>Retry</value></data>

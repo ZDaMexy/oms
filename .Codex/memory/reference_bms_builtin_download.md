@@ -1,6 +1,6 @@
 ---
 name: reference_bms_builtin_download
-description: P1-A 公共 BMS 下载源、浏览可见性、任务收尾及精确选歌接入地雷
+description: P1-A 公共 BMS 下载源、完整表等级联动、浏览可见性、任务收尾及精确选歌接入地雷
 metadata:
   node_type: memory
   type: reference
@@ -15,6 +15,16 @@ metadata:
 - `Button.Action` 赋值会更新 Enabled。不可下载按钮先赋 Action，最后设置 Enabled；顺序反过来会把缺包和 bmson/24K/48K 按钮重新启用。
 - 全屏 Loading 层只用于清空结果的初次查询。追加页保留卡片操作，只禁用加载更多；单测在下一页回应挂起时点击实际下载按钮，避免已有结果仍被等待层吞掉输入。
 - `OsuGameTestScene` 的步骤执行时才创建新 Game。`AddStep(..., overlay.Show)` 会在构造步骤时捕获上一实例；使用 `() => overlay.Show()`，否则看似依赖注入错误，实际访问旧 overlay。
+- Toolbar 的 Children 后用 Concat 追加下载按钮，会让它跑到通知右侧。离线分支须把它放在音乐、时钟、通知之前；用实际屏幕坐标及桌面截图检查相对位置，不以按钮存在代替。
+
+## 完整表等级与包身份
+
+- Ginger `table/selectDataList` 最高100条一页，不能请求大pageSize便把单页当完整表。完整读取后才发布等级；headerID、每页数量、总数/页数要一致，共享JSON预算避免每页限额无限累加。Satellite实取2358条/24页；另源2385条是独立快照，不能跨源补齐。
+- Ginger levelOrders 可能为空或仅逗号/空格；仅这些空顺序声明忽略。实际条目level原文保留，616 level/level_order允许字符串或JSON数字；先遵循明确声明，再追加完整表首次出现的其它等级。作者playLevel不是表等级。真实空等级与“全部等级”的UI值分开；Dropdown.Current.Disabled会禁止程序改值，更新Items/Value前先解除，再按可用状态锁定。
+- 616 /tables 的 diff_table_url 才是查询用原始表URL，diff_table_full_local_url 是站内镜像header，data_url相对镜像解析；不要把姜站的原始引用URL当616表ID。只读站内HTTPS镜像，不因缺镜像回落未授权原站。
+- Ginger表数据行的id/songID不是资源包id。按表内精确MD5调用files/package解析canonical id，才能与目录浏览共用同一下载任务；只保留匹配MD5，避免同包其它等级混回卡片。616同样沿hash→实际song_url身份，未收录/缺包保留表资料且不可下载。
+- 表与等级读取消独立于查询，切源/表和隐藏均取消；发布同时核对token、来源及表。切表先清旧等级和完整资料，禁止迟到的旧表把新等级换回。读取失败在等级栏明确显示，搜索按钮手动重试，不循环读取或把半表当成功。
+- 实站桌面探针读完整Ginger表可能超过Framework默认单个Until步骤10秒。诊断可仅对该独立进程设置OSU_TESTS_NO_TIMEOUT=1，同时保留ExactVisualTestGame的120秒整体watchdog及外层截止；不改变产品网络期限。控件Text.ToString返回fallback文字，画面已中文也可能仍是Download；点按钮按实际本地化/原文本核对，不能把找不到测试按钮当作生产功能失败。
 
 ## 来源与包格式
 

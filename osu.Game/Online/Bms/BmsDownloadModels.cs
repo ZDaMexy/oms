@@ -21,7 +21,11 @@ namespace osu.Game.Online.Bms
         public bool CanDownload => DownloadUrl != null;
     }
 
-    public record BmsDownloadTable(string Id, string Name, string OriginalUrl);
+    public record BmsDownloadTable(string Id, string Name, string OriginalUrl, Uri? HeaderUrl = null);
+
+    public record BmsDownloadTableEntry(string Md5, string Level, string Title, string Artist);
+
+    public record BmsDownloadTableData(string Symbol, IReadOnlyList<string> Levels, IReadOnlyList<BmsDownloadTableEntry> Entries);
 
     public record BmsDownloadSearchResult(IReadOnlyList<BmsDownloadPackage> Packages, int Page, int TotalPages, int Total);
 }

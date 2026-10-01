@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-01（两源 BMS 下载及真实包桌面验证；皮肤外观专项仍为 2026-09-13）
+> 最后核对：2026-10-01（下载入口、三级筛选及两源真实包桌面验证；皮肤外观专项仍为 2026-09-13）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -14,7 +14,7 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 - Windows-only，保留osu!mania与第一类BMS，Osu/Taiko/Catch已删除；离线优先，Phase 3前OMS私有服务与默认endpoint为空。公共BMS难度表URL及用户指定的 Ginger Rush / 616 两源浏览下载为窄例外，合同见 [P1-A](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载)。
 - BMS直读`chartbms/`，mania直读`chartmania/`；支持portable `data/`与自定义数据根。主要工程为`osu.Desktop.slnf`、`osu.Game.Rulesets.Bms`及`oms.Input`。
 - 当前协作分支为`master`。皮肤恢复/数据门`SV1-0`已关闭；迁移归档和四个无authority orphan blob继续保全，不能由scanner认领或清理。恢复事实见[恢复审计](../other/SKIN_SYSTEM_RECOVERY_20260710.md)及[数据/实机报告](../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
-- 2026-10-01 下载开发开始时工作区干净，HEAD 为 `24f621e`，包含此前产品交付与文档治理；本轮 `git fetch origin` 成功，当时领先 `origin/master` 3、落后 0。这是开工核对，不能当作收尾在线查询；未经用户确认不推送。
+- 2026-10-01 下载交互修正开始时工作区干净，HEAD为`6f61139`，已含两源下载闭环；`git fetch origin`成功，当时领先`origin/master`4、落后0。这是本轮开工核对，不能当作收尾在线查询；未经用户确认不推送。
 
 ## 当前执行门与全局风险
 
@@ -33,6 +33,8 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 皮肤安全与失败回退详见[P1-A技术约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)：当前并无live gameplay reload或watcher，external永久只读；授权撤销不扩大Reload准入，C6完成不等于C7或人工门关闭。异常期归档只能定点取证。局部自动测试不能代替完整真实选择链，自动证据也不能替代视觉、硬件或特殊Gimmick证明。
 
 ## 最近一次验证
+
+2026-10-01交互修正：顶部下载入口回到音乐之前，来源→难度表→表内等级联动已可用；两个真实站点均完成Satellite 11级筛选、下载入库和稳定选歌。详细专项及原工具栏失败对照见 [三级筛选记录](../other/BMS_DOWNLOAD_FILTERS_20261001.md)，其它全局与人工门不变。
 
 2026-10-01：玩家可在游戏内浏览 Ginger Rush 与 616，下载整包自动入库并打开指定原生 BMS 难度；后台通知、取消/重试及不打断游玩已实现。两个真实小包均通过桌面搜索→下载→入库→稳定选歌，软件回归和剩余听感/大包/网络体验门见 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md) 与 [下载闭环记录](../other/BMS_DOWNLOAD_20261001.md)。不解除官方/私有在线冻结，也不新增皮肤/设备/发行签收。
 

@@ -56,7 +56,7 @@ OMS 从 [osu!lazer](https://github.com/ppy/osu) 出发，移除了 osu!、Taiko�
 
 OMS 的核心玩法、谱库与用户数据链默认离线运行；Phase 3 前，OMS 私有服务与默认 endpoint 保持关闭或为空。账号、在线排行榜、OMS / osu!mania 官方谱面下载、新闻 / 聊天、多人与观战等功能默认隐藏或禁用。
 
-游戏内“浏览”支持 [Ginger Rush](https://gingerrush.com/) 和 [616 / Alvorna](https://616.sb/bms/download) 公共 BMS 源：搜索、按难度表筛选、展开谱面后下载资源包，入库后直接在选歌中打开。关闭页面后下载继续，失败可手动重试；音乐试听使用已入库谱面的本地选歌试听。首次打开才访问来源，不要求 OMS 账号；来源没有资源包或目标不受当前解码器支持时不会显示下载成功。详见 [下载合同](doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载)。
+游戏内“浏览”支持 [Ginger Rush](https://gingerrush.com/) 和 [616 / Alvorna](https://616.sb/bms/download) 公共 BMS 源：依次选择下载源、难度表和表内等级，可结合关键词查找，选择谱面后下载资源包，入库后直接在选歌中打开。关闭页面后下载继续，失败可手动重试；音乐试听使用已入库谱面的本地选歌试听。首次打开才访问来源，不要求 OMS 账号；来源没有资源包或目标不受当前解码器支持时不会显示下载成功。详见 [下载合同](doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载)。
 
 此外，**BMS 难度表**支持本地路径与公共 URL 的导入 / 刷新，同样不依赖任何 OMS 私有服务器。
 

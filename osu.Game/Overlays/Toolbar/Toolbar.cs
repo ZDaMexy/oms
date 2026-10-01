@@ -4,7 +4,6 @@
 #nullable disable
 
 using System;
-using System.Linq;
 using osu.Framework.Extensions.Color4Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Colour;
@@ -163,7 +162,7 @@ namespace osu.Game.Overlays.Toolbar
                                         Direction = FillDirection.Horizontal,
                                         RelativeSizeAxes = Axes.Y,
                                         AutoSizeAxes = Axes.X,
-                                        Children = (onlineFeaturesEnabled
+                                        Children = onlineFeaturesEnabled
                                             ? new Drawable[]
                                             {
                                                 new ToolbarNewsButton(),
@@ -182,14 +181,20 @@ namespace osu.Game.Overlays.Toolbar
                                                 new ToolbarClock(),
                                                 new ToolbarNotificationButton(),
                                             }
-                                            : new Drawable[]
-                                            {
-                                                new ToolbarMusicButton(),
-                                                new ToolbarClock(),
-                                                new ToolbarNotificationButton(),
-                                            }).Concat(osuGame?.BmsDownloadsEnabled == true
-                                                ? new Drawable[] { new ToolbarBmsDownloadButton() }
-                                                : Array.Empty<Drawable>()).ToArray()
+                                            : osuGame?.BmsDownloadsEnabled == true
+                                                ? new Drawable[]
+                                                {
+                                                    new ToolbarBmsDownloadButton(),
+                                                    new ToolbarMusicButton(),
+                                                    new ToolbarClock(),
+                                                    new ToolbarNotificationButton(),
+                                                }
+                                                : new Drawable[]
+                                                {
+                                                    new ToolbarMusicButton(),
+                                                    new ToolbarClock(),
+                                                    new ToolbarNotificationButton(),
+                                                }
                                     },
                                 }
                             },

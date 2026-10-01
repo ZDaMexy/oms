@@ -9,7 +9,7 @@
 - [反馈工作流](feedback_workflow.md) — 默认产品语言、反过度防御、真机证据与本轮结束边界。
 - [选歌展示与导航](project_oms_songselect_display_nav.md) — 状态分离、祖先可见性、谱卡重绑与大库诊断。
 - [内置音乐播放器](project_oms_music_player.md) — 共用音轨/试听与队列接入、已定展开壳体和 core 依赖方向。
-- [内置 BMS 下载](reference_bms_builtin_download.md) — 两源资料语义、浏览可见性、按钮禁用、任务收尾与精确难度选歌。
+- [内置 BMS 下载](reference_bms_builtin_download.md) — 两源完整表等级联动、包身份、浏览可见性、按钮位置/禁用、任务收尾与精确难度选歌。
 
 ## 皮肤恢复与存储
 

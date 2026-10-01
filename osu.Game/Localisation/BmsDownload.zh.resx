@@ -7,6 +7,14 @@
   <data name="search" xml:space="preserve"><value>搜索曲名、作者或谱面</value></data>
   <data name="search_now" xml:space="preserve"><value>搜索</value></data>
   <data name="all_tables" xml:space="preserve"><value>所有难度表</value></data>
+  <data name="source" xml:space="preserve"><value>下载源</value></data>
+  <data name="table" xml:space="preserve"><value>难度表</value></data>
+  <data name="table_level" xml:space="preserve"><value>表内等级</value></data>
+  <data name="select_table" xml:space="preserve"><value>请先选择难度表</value></data>
+  <data name="all_levels" xml:space="preserve"><value>全部等级</value></data>
+  <data name="ungraded" xml:space="preserve"><value>未分级</value></data>
+  <data name="levels_loading" xml:space="preserve"><value>正在读取表内等级…</value></data>
+  <data name="levels_failed" xml:space="preserve"><value>等级读取失败，点搜索重试。</value></data>
   <data name="download" xml:space="preserve"><value>下载</value></data>
   <data name="cancel" xml:space="preserve"><value>取消</value></data>
   <data name="retry" xml:space="preserve"><value>重试</value></data>

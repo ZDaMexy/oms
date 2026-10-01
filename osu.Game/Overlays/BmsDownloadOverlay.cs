@@ -41,6 +41,8 @@ namespace osu.Game.Overlays
         private TextureStore covers = null!;
         private CancellationTokenSource? queryCancellation;
         private CancellationTokenSource? tableCancellation;
+        private CancellationTokenSource? levelCancellation;
+        private BmsDownloadTableData? tableData;
         private ScheduledDelegate? debounce;
         private int revision;
         private int page;
@@ -103,9 +105,23 @@ namespace osu.Game.Overlays
                     loadTables();
                 queueSearch();
             });
-            Header.Table.BindValueChanged(_ => queueSearch());
+            Header.Table.BindValueChanged(_ =>
+            {
+                levelCancellation?.Cancel();
+                tableData = null;
+                Header.ClearLevels();
+                if (State.Value == Visibility.Visible && Header.SelectedTable != null)
+                    loadLevels();
+                queueSearch();
+            });
+            Header.Level.BindValueChanged(_ => queueSearch());
             Header.Query.BindValueChanged(_ => queueSearch());
-            Header.Retry = () => search(reset: true);
+            Header.Retry = () =>
+            {
+                if (Header.SelectedTable != null && tableData == null)
+                    loadLevels();
+                search(reset: true);
+            };
             downloads.TaskChanged += onTaskChanged;
             State.BindValueChanged(visibilityChanged, true);
         }
@@ -117,6 +133,7 @@ namespace osu.Game.Overlays
                 debounce?.Cancel();
                 queryCancellation?.Cancel();
                 tableCancellation?.Cancel();
+                levelCancellation?.Cancel();
                 revision++;
                 searching = false;
                 Loading.Hide();
@@ -125,6 +142,8 @@ namespace osu.Game.Overlays
 
             Header.FocusSearch();
             loadTables();
+            if (Header.SelectedTable != null && tableData == null)
+                loadLevels();
             if (cards.Count == 0)
                 search(reset: true);
             else
@@ -193,6 +212,10 @@ namespace osu.Game.Overlays
             int requestedPage = reset ? 1 : page + 1;
             string query = Header.Query.Value;
             string table = Header.Table.Value;
+            string? level = Header.Level.Value.Value;
+            var currentTableData = tableData;
+            if (level != null && currentTableData == null)
+                return;
             searching = true;
             more.Enabled.Value = false;
             if (reset)
@@ -200,8 +223,10 @@ namespace osu.Game.Overlays
 
             try
             {
-                var response = await downloads.Client.SearchAsync(source, query, requestedPage,
-                    table.Length == 0 ? null : table, cancellation.Token).ConfigureAwait(false);
+                var response = level == null
+                    ? await downloads.Client.SearchAsync(source, query, requestedPage,
+                        table.Length == 0 ? null : table, cancellation.Token).ConfigureAwait(false)
+                    : await downloads.Client.SearchTableLevelAsync(source, currentTableData!, level, query, requestedPage, cancellation.Token).ConfigureAwait(false);
 
                 Schedule(() =>
                 {
@@ -260,6 +285,44 @@ namespace osu.Game.Overlays
             }
         }
 
+        private async void loadLevels()
+        {
+            levelCancellation?.Cancel();
+            levelCancellation?.Dispose();
+            levelCancellation = new CancellationTokenSource();
+            var cancellation = levelCancellation;
+            var source = Header.Source.Value;
+            var table = Header.SelectedTable!;
+            Header.SetLevelsLoading();
+
+            try
+            {
+                var data = await downloads.Client.GetTableDataAsync(source, table, cancellation.Token).ConfigureAwait(false);
+                Schedule(() =>
+                {
+                    if (IsDisposed || cancellation.IsCancellationRequested || Header.Source.Value != source || Header.Table.Value != table.Id)
+                        return;
+
+                    tableData = data;
+                    Header.SetLevels(data);
+                    if (Header.Level.Value.Value != null)
+                        queueSearch();
+                });
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException)
+            {
+                Logger.Error(ex, "Could not read the selected BMS table's levels.");
+                Schedule(() =>
+                {
+                    if (!IsDisposed && !cancellation.IsCancellationRequested && Header.Source.Value == source && Header.Table.Value == table.Id)
+                        Header.SetLevelsFailed();
+                });
+            }
+        }
+
         private Guid? findLocal(string md5) => beatmaps.QueryBeatmap("Ruleset.ShortName == $0 AND MD5Hash == $1", "bms", md5)?.ID;
 
         private void onTaskChanged(BmsDownloadTask task) => Scheduler.AddOnce(refreshTask, task);
@@ -290,8 +353,10 @@ namespace osu.Game.Overlays
             downloads.TaskChanged -= onTaskChanged;
             queryCancellation?.Cancel();
             tableCancellation?.Cancel();
+            levelCancellation?.Cancel();
             queryCancellation?.Dispose();
             tableCancellation?.Dispose();
+            levelCancellation?.Dispose();
             covers.Dispose();
             base.Dispose(isDisposing);
         }
@@ -301,10 +366,13 @@ namespace osu.Game.Overlays
     {
         private SourceDropdown source = null!;
         private TableDropdown tables = null!;
+        private LevelDropdown levels = null!;
         private BasicSearchTextBox search = null!;
 
         public Bindable<BmsDownloadSource> Source => source.Current;
         public Bindable<string> Table => tables.Current;
+        public Bindable<TableLevel> Level => levels.Current;
+        public BmsDownloadTable? SelectedTable => tables.SelectedTable;
         public Bindable<string> Query => search.Current;
         public Action? Retry { get; set; }
 
@@ -327,8 +395,9 @@ namespace osu.Game.Overlays
                     Spacing = new Vector2(12),
                     Children = new Drawable[]
                     {
-                        source = new SourceDropdown { Width = 220 },
-                        tables = new TableDropdown { Width = 340 },
+                        filterField(BmsDownloadStrings.Source, 200, source = new SourceDropdown()),
+                        filterField(BmsDownloadStrings.Table, 330, tables = new TableDropdown()),
+                        filterField(BmsDownloadStrings.TableLevel, 190, levels = new LevelDropdown()),
                     },
                 },
                 search = new BasicSearchTextBox
@@ -344,6 +413,29 @@ namespace osu.Game.Overlays
         public void FocusSearch() => search.TakeFocus();
         public void ClearTables() => tables.SetTables(Array.Empty<BmsDownloadTable>());
         public void SetTables(IReadOnlyList<BmsDownloadTable> values) => tables.SetTables(values);
+        public void ClearLevels() => levels.Clear();
+        public void SetLevelsLoading() => levels.SetStatus(BmsDownloadStrings.LevelsLoading);
+        public void SetLevelsFailed() => levels.SetStatus(BmsDownloadStrings.LevelsFailed);
+        public void SetLevels(BmsDownloadTableData data) => levels.SetLevels(data.Symbol, data.Levels);
+
+        public readonly record struct TableLevel(string? Value);
+
+        private static Drawable filterField(LocalisableString label, float width, Drawable dropdown)
+        {
+            dropdown.RelativeSizeAxes = Axes.X;
+            return new FillFlowContainer
+            {
+                Width = width,
+                AutoSizeAxes = Axes.Y,
+                Direction = FillDirection.Vertical,
+                Spacing = new Vector2(0, 5),
+                Children = new Drawable[]
+                {
+                    new OsuSpriteText { Text = label, Font = OsuFont.Default.With(size: 14) },
+                    dropdown,
+                },
+            };
+        }
 
         private partial class DownloadTitle : OverlayTitle
         {
@@ -368,21 +460,59 @@ namespace osu.Game.Overlays
 
         private partial class TableDropdown : OsuDropdown<string>
         {
-            private readonly Dictionary<string, string> names = new Dictionary<string, string>();
+            private readonly Dictionary<string, BmsDownloadTable> values = new Dictionary<string, BmsDownloadTable>();
+
+            public BmsDownloadTable? SelectedTable => values.GetValueOrDefault(Current.Value);
 
             public TableDropdown() => SetTables(Array.Empty<BmsDownloadTable>());
 
             public void SetTables(IReadOnlyList<BmsDownloadTable> values)
             {
                 string previous = Current.Value ?? string.Empty;
-                names.Clear();
+                this.values.Clear();
                 foreach (var value in values)
-                    names[value.Id] = value.Name;
-                Items = new[] { string.Empty }.Concat(names.Keys);
-                Current.Value = names.ContainsKey(previous) ? previous : string.Empty;
+                    this.values[value.Id] = value;
+                Items = new[] { string.Empty }.Concat(this.values.Keys);
+                Current.Value = this.values.ContainsKey(previous) ? previous : string.Empty;
             }
 
-            protected override LocalisableString GenerateItemText(string item) => item.Length == 0 ? BmsDownloadStrings.AllTables : names[item];
+            protected override LocalisableString GenerateItemText(string item) => item.Length == 0 ? BmsDownloadStrings.AllTables : values[item].Name;
+        }
+
+        private partial class LevelDropdown : OsuDropdown<TableLevel>
+        {
+            private string symbol = string.Empty;
+            private LocalisableString emptyText = BmsDownloadStrings.SelectTable;
+
+            public LevelDropdown() => Clear();
+
+            public void Clear()
+            {
+                SetStatus(BmsDownloadStrings.SelectTable);
+            }
+
+            public void SetStatus(LocalisableString text)
+            {
+                emptyText = text;
+                Current.Disabled = false;
+                Items = new[] { new TableLevel(null) };
+                Current.Value = new TableLevel(null);
+                Current.Disabled = true;
+            }
+
+            public void SetLevels(string tableSymbol, IReadOnlyList<string> values)
+            {
+                var previous = Current.Value;
+                symbol = tableSymbol;
+                emptyText = BmsDownloadStrings.AllLevels;
+                Current.Disabled = false;
+                Items = new[] { new TableLevel(null) }.Concat(values.Select(value => new TableLevel(value)));
+                Current.Value = previous.Value != null && values.Contains(previous.Value) ? previous : new TableLevel(null);
+                Current.Disabled = values.Count == 0;
+            }
+
+            protected override LocalisableString GenerateItemText(TableLevel item) => item.Value == null ? emptyText
+                : item.Value.Length == 0 ? BmsDownloadStrings.Ungraded : symbol + item.Value;
         }
     }
 
