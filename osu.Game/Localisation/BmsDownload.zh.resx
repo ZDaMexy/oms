@@ -22,6 +22,9 @@
   <data name="expand" xml:space="preserve"><value>谱面</value></data>
   <data name="queued" xml:space="preserve"><value>等待下载</value></data>
   <data name="downloading" xml:space="preserve"><value>正在下载</value></data>
+  <data name="download_progress" xml:space="preserve"><value>正在下载 {0}%</value></data>
+  <data name="charts_count" xml:space="preserve"><value>{0} 张谱面</value></data>
+  <data name="author_level" xml:space="preserve"><value>作者标级 {0}</value></data>
   <data name="importing" xml:space="preserve"><value>正在加入谱库</value></data>
   <data name="available" xml:space="preserve"><value>已入库，可以游玩</value></data>
   <data name="cancelled" xml:space="preserve"><value>已取消</value></data>

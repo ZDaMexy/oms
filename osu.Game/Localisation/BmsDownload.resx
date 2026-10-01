@@ -22,6 +22,9 @@
   <data name="expand"><value>Charts</value></data>
   <data name="queued"><value>Queued</value></data>
   <data name="downloading"><value>Downloading</value></data>
+  <data name="download_progress"><value>Downloading {0}%</value></data>
+  <data name="charts_count"><value>{0} charts</value></data>
+  <data name="author_level"><value>Author level {0}</value></data>
   <data name="importing"><value>Adding to library</value></data>
   <data name="available"><value>Ready to play</value></data>
   <data name="cancelled"><value>Cancelled</value></data>

@@ -16,6 +16,10 @@ metadata:
 - 全屏 Loading 层只用于清空结果的初次查询。追加页保留卡片操作，只禁用加载更多；单测在下一页回应挂起时点击实际下载按钮，避免已有结果仍被等待层吞掉输入。
 - `OsuGameTestScene` 的步骤执行时才创建新 Game。`AddStep(..., overlay.Show)` 会在构造步骤时捕获上一实例；使用 `() => overlay.Show()`，否则看似依赖注入错误，实际访问旧 overlay。
 - Toolbar 的 Children 后用 Concat 追加下载按钮，会让它跑到通知右侧。离线分支须把它放在音乐、时钟、通知之前；用实际屏幕坐标及桌面截图检查相对位置，不以按钮存在代替。
+- 原卡片BeatmapCardContent的展开区超出80px主区；外层不能mask，结果沿用ReverseChildIDFillFlowContainer及220px底余量，否则跨行/末卡难度会被裁切或吞点击。BeatmapCardIconButton加载时强制RelativeSizeAxes=Both，需固定尺寸动作槽；不要为复用外观伪造APIBeatmapSet或打开官网纹理。
+- OsuAnimatedButton构造器在Content放入hover层，子类再用Children赋值会清除并dispose它；追加难度行用AddRange保留。图标Action不是设置式Button的同一个启用合同，从不支持难度切到local/活动任务时必须恢复Enabled=true，避免Open/Cancel继承禁用。
+- BasicSearchTextBox继承SearchTextBox的AllowCommit=false；只订阅OnCommit不会触发回车重试。拥有提交动作的子类显式开启AllowCommit，保留原IME处理。ShowMoreButton的文字在加载时才创建，设置Text要等LoadComplete；其点击会开启IsLoading，查询成功/失败须主动结束。
+- 真鼠标Click可在下一次update才触发下载动作，同一探针step立即捕获GetTask可能得到旧null；等待任务实际登记再读取，不把探针捕获时序错误当成按钮失效。桌面两源以源页签、表/等级菜单和动作的真实鼠标输入核对。
 
 ## 完整表等级与包身份
 

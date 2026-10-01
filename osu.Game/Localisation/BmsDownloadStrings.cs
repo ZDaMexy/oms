@@ -6,7 +6,7 @@ namespace osu.Game.Localisation
 {
     public static class BmsDownloadStrings
     {
-        private static LocalisableString text(string key, string fallback) => new TranslatableString("osu.Game.Localisation.BmsDownload:" + key, fallback);
+        private static LocalisableString text(string key, string fallback, params object[] args) => new TranslatableString("osu.Game.Localisation.BmsDownload:" + key, fallback, args);
 
         public static LocalisableString Title => text("title", "Browse BMS");
         public static LocalisableString Description => text("description", "Find BMS charts, download and play.");
@@ -28,6 +28,9 @@ namespace osu.Game.Localisation
         public static LocalisableString Expand => text("expand", "Charts");
         public static LocalisableString Queued => text("queued", "Queued");
         public static LocalisableString Downloading => text("downloading", "Downloading");
+        public static LocalisableString DownloadProgress(int percent) => text("download_progress", "Downloading {0}%", percent);
+        public static LocalisableString ChartsCount(int count) => text("charts_count", "{0} charts", count);
+        public static LocalisableString AuthorLevel(string level) => text("author_level", "Author level {0}", level);
         public static LocalisableString Importing => text("importing", "Adding to library");
         public static LocalisableString Available => text("available", "Ready to play");
         public static LocalisableString Cancelled => text("cancelled", "Cancelled");
