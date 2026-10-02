@@ -72,7 +72,7 @@ mania 的2字节空DEFLATE目录候选已排除：虽然.NET可读，[PKWARE APP
 
 完成仅通知、Player期间拒绝跳转、最终GUID/ruleset可用重查、正常精确选歌及共享封面慢读/退出未发现本次新增可确认问题。先前封面WaitSafely及字形Sprite误判已修，不重复报告。Sayobot实网TLS失败仍沿[10月1日原记录](MANIA_SAYOBOT_DOWNLOAD_20261001.md)，本轮未尝试新的真实包下载，也未关闭TLS或更换来源。
 
-本轮没有跑规则集全套、重新签收Desktop Release、真实大包/设备/听感或皮肤/发行人工门。已有专项通过不覆盖新增复现缺口；审查完成不等于六项修复完成。后续修复退出条件归[P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md#下载增改审查的修复门2026-10-02)。
+本轮没有跑规则集全套、重新签收Desktop Release、真实大包/设备/听感或皮肤/发行人工门。已有专项通过不覆盖新增复现缺口；审查完成不等于六项修复完成。后续修复退出条件归[P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md#下载维护与回归)。
 
 复现源和运行方式另存本轮artifacts的 `probe-source/`，不只留临时目录；导航对照证据已保存，确认闲置且无用户数据的F盘临时工作副本已移除，见 `baseline-worktree.json` / `review-cleanup.json`。主工作区原缓存及其它任务文件未清理。
 

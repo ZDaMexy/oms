@@ -1,7 +1,7 @@
 # 两个公共 BMS 下载源：规划与闭环验证
 
 > 日期：2026-10-01。归属 P1-A 产品面，复用 P1-H/P1-K 本地谱库与解码合同。
-> 当前能力见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续动作见 [PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md#用户指定第三方-bms-浏览下载闭环2026-10-01)，稳定合同只在 [第三方下载约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) 维护。
+> 当前能力见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续动作见 [PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md#第三方-bms-剩余体验验收)，稳定合同只在 [第三方下载约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) 维护。
 
 ## 玩家路径与本轮范围
 

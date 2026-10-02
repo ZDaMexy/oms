@@ -18,12 +18,13 @@ metadata:
 - Toolbar 的 Children 后用 Concat 追加下载按钮，会让它跑到通知右侧。离线分支须把它放在音乐、时钟、通知之前；用实际屏幕坐标及桌面截图检查相对位置，不以按钮存在代替。
 - 原卡片BeatmapCardContent的展开区超出80px主区；外层不能mask，结果沿用ReverseChildIDFillFlowContainer及220px底余量，否则跨行/末卡难度会被裁切或吞点击。BeatmapCardIconButton加载时强制RelativeSizeAxes=Both，需固定尺寸动作槽；不要为复用外观伪造APIBeatmapSet或打开官网纹理。
 - OsuAnimatedButton构造器在Content放入hover层，子类再用Children赋值会清除并dispose它；追加难度行用AddRange保留。图标Action不是设置式Button的同一个启用合同，从不支持难度切到local/活动任务时必须恢复Enabled=true，避免Open/Cancel继承禁用。
+- 两种玩法共用封面读取与owner；慢图筛选重建、同URL未完成查询、单卡取消和退出清理的独有诊断见[共享封面记忆](reference_mania_sayobot_download.md#共享封面读取与退出)，不在两份叶子复制。
 - BasicSearchTextBox继承SearchTextBox的AllowCommit=false；只订阅OnCommit不会触发回车重试。拥有提交动作的子类显式开启AllowCommit，保留原IME处理。ShowMoreButton的文字在加载时才创建，设置Text要等LoadComplete；其点击会开启IsLoading，查询成功/失败须主动结束。
 - 真鼠标Click可在下一次update才触发下载动作，同一探针step立即捕获GetTask可能得到旧null；等待任务实际登记再读取，不把探针捕获时序错误当成按钮失效。桌面两源以源页签、表/等级菜单和动作的真实鼠标输入核对。
 
 ## 完整表等级与包身份
 
-- Ginger `table/selectDataList` 最高100条一页，不能请求大pageSize便把单页当完整表。完整读取后才发布等级；headerID、每页数量、总数/页数要一致，共享JSON预算避免每页限额无限累加。Satellite实取2358条/24页；另源2385条是独立快照，不能跨源补齐。
+- Ginger `table/selectDataList` 最高100条一页，不能请求大pageSize便把单页当完整表。完整读取后才发布等级；headerID、每页数量、总数/页数要一致，共享JSON预算避免每页限额无限累加。两源资料是独立快照，不能跨源补齐；当时Satellite的不同条目数见[完整表取证](../../doc_md/other/BMS_DOWNLOAD_FILTERS_20261001.md)，不作为当前站点数量。
 - Ginger levelOrders 可能为空或仅逗号/空格；仅这些空顺序声明忽略。实际条目level原文保留，616 level/level_order允许字符串或JSON数字；先遵循明确声明，再追加完整表首次出现的其它等级。作者playLevel不是表等级。真实空等级与“全部等级”的UI值分开；Dropdown.Current.Disabled会禁止程序改值，更新Items/Value前先解除，再按可用状态锁定。
 - 616 /tables 的 diff_table_url 才是查询用原始表URL，diff_table_full_local_url 是站内镜像header，data_url相对镜像解析；不要把姜站的原始引用URL当616表ID。只读站内HTTPS镜像，不因缺镜像回落未授权原站。
 - Ginger表数据行的id/songID不是资源包id。按表内精确MD5调用files/package解析canonical id，才能与目录浏览共用同一下载任务；只保留匹配MD5，避免同包其它等级混回卡片。616同样沿hash→实际song_url身份，未收录/缺包保留表资料且不可下载。
@@ -36,17 +37,23 @@ metadata:
 - 616 `/preview` 返回原谱字节，`song_preview_url` 是外部看谱链接，都不是音乐试听。Ginger `shardMD5` 也不是目标谱面或压缩包校验值。
 - Ginger 已知文件名/键数可提前提示不支持；616 缺资料时用实际原 MD5 与 classic 解码判断，不从标题猜键数。只有实际入库身份能显示可玩。
 
-## 任务收尾与导航
+## 归档输入与释放诊断
 
 - SharpCompress0.39的ZIP OpenEntryStream不支持method时抛NotSupportedException，不是ArchiveException。必须在归档输入边界转换；扩大manager捕获会掩盖程序错误。真实manager复现曾出现Completion fault但仍停Importing、同包无法重试、Dispose再抛；归档输入与任务收尾需联合验证。原复现见[全量审查](../../doc_md/other/BEATMAP_DOWNLOAD_REVIEW_20261002.md)，修复和新回归见[修复记录](../../doc_md/other/BEATMAP_DOWNLOAD_FIXES_20261002.md)，当前事实只查STATUS。
 - SharpCompress ZIP流及.NET ZipArchiveEntry.Open都不能代替本链CRC核对；目标谱MD5无法证明音频/图片完整。SharpCompress打开条目会以local头替换central头，合法data descriptor的local size/CRC可为0，须在Open之前保存central声明再比实际读取。用非seekable writer生成合法descriptor正例，并翻转stored资源单字节作坏包反例。
 - SharpCompress0.39还会以非ArchiveException报告坏输入：Deflate的ZlibException、ZstdException、内部LZMA DataError/InvalidParam，以及RAR.Read、BZip2.Cadvise、XZ.AssertBlockCheckTypeIsSupported、LzmaStream构造器、7z.ReadDatabase的通用异常。先用小型真实坏包保存红身份；内部类型核对库程序集，通用异常另核对TargetSite声明类/方法。不要全接InvalidOperation/IndexOutOfRange/NotImplemented，也不要扩manager捕获；固定版本升级时按真实夹具复验这些来源。
 - RAR/7z的EntryStream.Dispose在未到EOF且reader未取消时会SkipEntry，导致预算拒绝或取消后的收尾继续展开。提取catch必须在using入流作用域内先reader.Cancel再rethrow，正常EOF不取消。独立计数探针证明先读1字节后普通Dispose又消费72字节，Cancel后为0；它是库释放语义实验，不是生产解压量测量。底层MemoryStream.Position可在首读时已因缓冲到末尾，不能拿它证明没有继续消费。见[修复记录](../../doc_md/other/BEATMAP_DOWNLOAD_FIXES_20261002.md)。
 - 条目预算不限制单路径展开出的隐式前缀；路径长度/深度须在Split及累计字符串前限制。谱文本后续全文复制/解码也不能沿用资源GiB预算：原8MiB填充谱累计分配约76MB，该数字不是峰值。下载预算需验证声明与实际读取、全部classic扩展及合计谱文本；用有界流式素材证明拒绝，不执行GiB内存耗尽，也不为下载改变普通目录解码合同。
+
+## 失败反馈与任务收尾
+
 - 表目录与选中表资料是两次独立读取；目录503后并无选中表，Header.Retry仅读等级/歌曲无法恢复目录。实际鼠标/Enter需核对目录请求、恢复选项、迟到回应及独立提示；歌曲成功不能清掉目录故障。新增错误文案仍用单行组件时，须检查已支持窄窗口的实际文字宽度，不把中文或英文长提示截在内容区外。
 - BMS与Sayobot已处理失败都沿Network/默认Verbose保留完整异常，由页面/本地化任务通知承接。仅把Logger.Error的target改Network仍会转发英文系统诊断；Debug默认可能不留日志。用真实游戏转发器核对本来源无双提示并正向核对完整LogEntry，不能把其它迟到诊断算作下载重复提示。
 - `InvalidDataException` 直接继承 SystemException，不属于 IOException；坏 JSON/归档的可恢复失败必须明确列入对应边界，否则任务/UI 异步方法会异常退出而没有失败状态。
 - 在任务集合锁内登记 Completion，终态在释放流、独占暂存和队列资源后发布；退出先 cancel + join，再释放 Realm。否则可能漏等任务或让重试替换仍在收尾的所有者。
+
+## 入库完成与精确导航
+
 - Realm LINQ 不支持本链 `Ruleset.ShortName` 嵌套属性比较。沿既有字符串 RQL 查询；`BeatmapManager.QueryBeatmap` 已返回 detached BeatmapInfo，不能再当 Live 调用 PerformRead。
 - 后台 importer 已提交而 update Realm 尚未推进时，通知可先报成功；卡片当次查不到本地目标，Completed 会落入已有任务的Retry分支，后续 Realm通知不自动重刷卡片。BMS/mania均在完成回调、刷新现有卡片前同步当前Realm，再沿原可用查询判定；不靠历史Imported直接显示Open，也不在进度帧或全局查询增加刷新。回归在单AddStep内固定旧快照、限时等待真实任务，再调用公有overlay.UpdateSubTree只执行页面完成更新；Drawable.Scheduler是protected，不能直接从测试访问。必须断言一次请求直接Open及原Guid稳定，另测后台删除/不可用与旧通知拒绝。仅关页重开会掩盖此时序。
 - 打开选中的原谱用实际持久化 GUID，导航最终回调重新查询可用记录；旧 PresentBeatmap(set, predicate) 会在不命中时回落其它难度，不满足精确选歌。实际 Player 期间只通知，不自动切歌或借完成点击退出游玩。

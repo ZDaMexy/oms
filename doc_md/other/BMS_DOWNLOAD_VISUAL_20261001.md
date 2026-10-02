@@ -1,7 +1,7 @@
 # BMS 下载页复用原浏览设计：规划与验收
 
 > 日期：2026-10-01。归属 P1-A，接续[两源下载](BMS_DOWNLOAD_20261001.md)及[三级筛选](BMS_DOWNLOAD_FILTERS_20261001.md)。
-> 当前事实见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)，剩余体验门见 [PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md#用户指定第三方-bms-浏览下载闭环2026-10-01)，稳定边界见[第三方下载合同](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载)。
+> 当前事实见 [P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)，剩余体验门见 [PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md#第三方-bms-剩余体验验收)，稳定边界见[第三方下载合同](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载)。
 
 ## 玩家结果与范围
 

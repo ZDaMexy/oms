@@ -1,7 +1,7 @@
 # 下载入口位置与三级筛选：规划及验收
 
 > 日期：2026-10-01。归属P1-A，接续[两源下载闭环](BMS_DOWNLOAD_20261001.md)，保持P1-H/P1-K原谱导入与本地库合同。
-> 当前状态见[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)，剩余动作见[PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md#用户指定第三方-bms-浏览下载闭环2026-10-01)，稳定行为见[第三方下载约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载)。
+> 当前状态见[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)，剩余动作见[PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md#第三方-bms-剩余体验验收)，稳定行为见[第三方下载约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载)。
 
 ## 玩家结果与范围
 

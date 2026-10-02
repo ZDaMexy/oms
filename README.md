@@ -60,7 +60,7 @@ OMS 的核心玩法、谱库与用户数据链默认离线运行；Phase 3 前�
 
 在同一浏览页切换到 osu!mania，可从 [Sayobot 镜像](https://osu.sayobot.cn/) 按曲名、作者或原谱面集编号查找，并选择键数、星级范围和收录状态。展开卡片选择具体难度，下载无视频原包后自动加入 `chartmania`，完成图标或通知可准确打开所选难度；混合包只加入 mania。切换分区或关闭页面后下载继续，进入 mania 分区前不访问镜像，无需官网账号。星级来自镜像资料，试听沿本地选歌；不含官网下载、独立在线试听或续传。详见 [mania 下载合同](doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载)。
 
-当前验证中镜像实际下载节点的安全连接失败，实网包成功入库验收尚未完成；软件与素材窗口已通过，具体结果见 [验证记录](doc_md/other/MANIA_SAYOBOT_DOWNLOAD_20261001.md)。
+最近一次留存的实站验收（2026-10-01）在包下载的安全连接处失败，实网包成功入库仍待补验；软件与素材窗口已有通过记录。这是当时的网络结果，不代表节点持续故障。当前进度见 [P1-A 状态](doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)，当时证据见 [验证记录](doc_md/other/MANIA_SAYOBOT_DOWNLOAD_20261001.md)。
 
 此外，**BMS 难度表**支持本地路径与公共 URL 的导入 / 刷新，同样不依赖任何 OMS 私有服务器。
 

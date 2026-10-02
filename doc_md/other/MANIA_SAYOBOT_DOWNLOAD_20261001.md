@@ -1,6 +1,7 @@
 # Sayobot mania 游戏内下载：闭环规划与验收
 
 > 2026-10-01；产品面归P1-A，沿用P1-H的mania目录导入与数据保全合同。开工master@1cedd56工作区干净；fetch成功，相对更新后origin/master领先6、落后0。此为开工在线核对，不代表收尾远端状态。
+> 本页保留当时的方案和证据；当前能力见[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)，剩余动作见[PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md#sayobot-mania-实网成功验收)，稳定合同见[Sayobot下载约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载)。
 
 ## 本轮授权与目标
 

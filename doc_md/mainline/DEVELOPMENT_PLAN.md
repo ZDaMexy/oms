@@ -1,15 +1,15 @@
 # OMS 当前开发规划
 
-> 最后核对：2026-10-02（下载审查修复已收口；实网成功与既有人工门继续保留）
+> 最后核对：2026-10-03（下载专项剩余动作与文档已同步；产品验证与人工日期保留）
 > 本页维护全局顺序、跨线依赖和改动验收；当前事实见[STATUS](DEVELOPMENT_STATUS.md)，专项动作从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 当前目标
 
-下载审查的已完成修复作为后续输入，结果只在[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)维护。后续触及归档或浏览时复验坏包收尾、预算、资源完整性、手动恢复、旧库保全与原难度打开；具名旧测试按当前合同维护，不恢复旧入口或放宽输入失败语义。
+下载已交付能力及修复作为后续输入，结果只在[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)维护；改动归档、浏览或完成状态时的回归与具名旧检查维护见[P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md#下载维护与回归)，不恢复旧入口或放宽输入失败语义。
 
-用户指定的 Ginger Rush 与 616/Alvorna 游戏内浏览、后台下载、自动入库与精确选歌已实现，详细实施规划和验证归档于 [下载闭环记录](../other/BMS_DOWNLOAD_20261001.md)；后续真实大包/网络/完整歌曲体验见 [P1-A 下载计划](../subline/P1-A/DEVELOPMENT_PLAN.md#用户指定第三方-bms-浏览下载闭环2026-10-01)。不自动推进独立在线试听、整表下载或续传，既有皮肤/设备/发行门继续保留。
+Ginger Rush与616/Alvorna后续真实窗口、首次完成、大包/网络/完整歌曲体验见[P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md#第三方-bms-剩余体验验收)。不自动推进独立在线试听、整表下载或续传，既有皮肤/设备/发行门保留。
 
-Sayobot原生mania镜像下载的实现与素材窗口验证为后续输入；当前实际包安全连接失败，待节点/网络恢复后补真实纯mania及混合小包成功入库与稳定打开，具体门见[P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md#用户指定-sayobot-mania-下载闭环2026-10-01)。不把素材或HEAD结果替代实际下载，也不启用官网/私有服务。
+Sayobot真实纯mania及混合小包成功入库与稳定打开仍待补验，动作见[P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md#sayobot-mania-实网成功验收)。网络结论沿最近留存实测日期读取，不把素材或HEAD结果替代实际下载，也不启用官网/私有服务。
 
 以已有软件与桌面证据为输入，后续补齐 BGA/作者作品的设备、真实素材与长时验收，归 [P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md) / [P1-L](../subline/P1-L/DEVELOPMENT_PLAN.md)；静线外观打磨仍暂停。谱库、声音与单轨筛选的隔离根、大库、听感与交互验收归 [P1-H](../subline/P1-H/DEVELOPMENT_PLAN.md)、[P1-J](../subline/P1-J/DEVELOPMENT_PLAN.md)、[P1-I](../subline/P1-I/DEVELOPMENT_PLAN.md)。已交付实现与验证只在 STATUS/CHANGELOG 维护，不重复开发或据此关闭人工门。
 

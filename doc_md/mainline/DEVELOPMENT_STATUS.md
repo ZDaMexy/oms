@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-02（下载审查六项问题修复并回归；实网成功门保留，皮肤外观专项仍为 2026-09-13）
+> 最后核对：2026-10-03（下载专项进度与文档已同步；产品验证沿用已有日期，实网与皮肤人工门保留）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -14,11 +14,10 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 - Windows-only，保留osu!mania与第一类BMS，Osu/Taiko/Catch已删除；离线优先，Phase 3前OMS私有服务与默认endpoint为空。公共BMS难度表URL、用户指定Ginger Rush / 616 BMS与Sayobot原生mania镜像下载为窄例外，合同见 P1-A [BMS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) / [mania](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载)。
 - BMS直读`chartbms/`，mania直读`chartmania/`；支持portable `data/`与自定义数据根。主要工程为`osu.Desktop.slnf`、`osu.Game.Rulesets.Bms`及`oms.Input`。
 - 当前协作分支为`master`。皮肤恢复/数据门`SV1-0`已关闭；迁移归档和四个无authority orphan blob继续保全，不能由scanner认领或清理。恢复事实见[恢复审计](../other/SKIN_SYSTEM_RECOVERY_20260710.md)及[数据/实机报告](../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
-- 2026-10-02下载修复开工时工作区干净，HEAD为`491c822`，已含下载增改及审查；`git fetch origin`成功，当时领先`origin/master`8、落后0。这是开工在线核对，不能当作收尾在线查询；未经用户确认不推送。
 
 ## 当前执行门与全局风险
 
-下载后续维护、具名旧检查及实网成功门见[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)与[计划](../subline/P1-A/DEVELOPMENT_PLAN.md)；修复结果集中在下方最近验证，不扩大全局在线能力。
+下载首次完成后的可玩状态已修复；后续维护、具名旧检查及实网成功门见[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)与[计划](../subline/P1-A/DEVELOPMENT_PLAN.md)，不扩大全局在线能力。
 
 | 顺序 | 当前事实与下一道门 | 归属 |
 | --- | --- | --- |
@@ -36,24 +35,20 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 ## 最近一次验证
 
-2026-10-02下载审查六项问题已修复：坏包可明确失败并重试，路径/谱文本有界，资源完整性、表目录恢复及中文反馈已回归；Release通过，具名旧测试失败与实网成功门继续保留。结果与后续边界见[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)，实施及证据见[修复记录](../other/BEATMAP_DOWNLOAD_FIXES_20261002.md)，不新增皮肤、设备或发行人工签收。
+2026-10-03下载完成状态修复已有软件与Release证据：首次成功后可直接打开所选难度，删除/目录不可用目标不能误显示可玩。当前能力、验证范围、原坏包/目录修复及未完成门统一见[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)；修复后实站观察、真实大包/听感及原人工门保留。
 
-2026-10-01 Sayobot原生mania已接入共用浏览入口、后台任务和原难度入库/打开，软件/素材窗口路径通过；实站查询筛选成功，但实际包TLS连接断开，实网成功门保留。详细规划、取证、修复及未签收范围见[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)与[Sayobot记录](../other/MANIA_SAYOBOT_DOWNLOAD_20261001.md)，官网/私有服务和原人工门继续冻结。
-
-2026-10-01交互修正：顶部下载入口回到音乐之前，来源→难度表→表内等级联动已可用；两个真实站点均完成Satellite 11级筛选、下载入库和稳定选歌。详细专项及原工具栏失败对照见 [三级筛选记录](../other/BMS_DOWNLOAD_FILTERS_20261001.md)，其它全局与人工门不变。
-
-2026-10-01：玩家可在游戏内浏览 Ginger Rush 与 616，下载整包自动入库并打开指定原生 BMS 难度；后台通知、取消/重试及不打断游玩已实现。两个真实小包均通过桌面搜索→下载→入库→稳定选歌，软件回归和剩余听感/大包/网络体验门见 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md) 与 [下载闭环记录](../other/BMS_DOWNLOAD_20261001.md)。不解除官方/私有在线冻结，也不新增皮肤/设备/发行签收。
+2026-10-01的两源BMS小包桌面成功、Sayobot素材路径与实站查询/包连接失败证据见[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)及其历史记录。Sayobot真实包成功入库仍未签收，旧连接结果不代表节点持续故障；官网/私有服务继续冻结。
 
 2026-09-30 后续：BGA 窗口声明、共享播放会话与作者手册已实现，独立信息区保留、作者场景合法性和可运行例子一并验证；有效软件结果、桌面图像与完整回归对照统一见 [作者能力验证](../other/BGA_SKIN_AUTHORING_20260930.md)。不重新签收静线外观、设备听感或发行组合。
 
 2026-09-30：按用户授权对原生 BMS 与 BMS→mania 完成性能复审和对应优化，覆盖按键/长条、声音维护、转谱常驻对象与 BGA 重复解码；前后指标、软件 gate 和既有失败对照统一见 [性能验证记录](../other/GAMEPLAY_PERFORMANCE_20260930.md)。真实设备听感、逐谱演出和发行门未重新签收。
 
-完整回归没有新增失败，但并非全绿：逐项身份、原因与业务堆栈对照集中于上述报告，遗留测试维护归各 owning 子线。较早的谱库/选歌、偏移/TOTAL 和设置/编辑证据从相应 STATUS 或 [CHANGELOG](CHANGELOG.md)检索，不在本页累计历轮结果。
+已有完整回归记录并非全绿：逐项身份、原因与业务堆栈对照集中于上述报告，遗留测试维护归各 owning 子线；专项通过不代表整个仓库全绿。较早的谱库/选歌、偏移/TOTAL 和设置/编辑证据从相应 STATUS 或 [CHANGELOG](CHANGELOG.md)检索，不在本页累计历轮结果。
 
 最近一次静线外观修改仍为 2026-09-13 的 `234ce1f`；该轮实绘与自动证据见[轨道验证记录](../other/SKIN_SIMPLE_LANE_PROPORTIONS_20260913.md)。此前发行 ZIP 和安装证据未随后续产品修改重新验收。
 
 ## 文档治理验证
 
-2026-10-02：同步下载修复后的主线/子线状态、剩余计划、稳定合同、三语说明及诊断记忆，保留历史审查与具名失败原义。文档/差异检查见[修复记录](../other/BEATMAP_DOWNLOAD_FIXES_20261002.md#文档记忆与收尾)及[日志](CHANGELOG.md#游戏内下载审查问题修复与验证)，不刷新实网、皮肤或发行人工日期。
+2026-10-03：下载专项当前入口、剩余计划、三语说明与共享诊断记忆已核对并收简，历史网络结果明确保留日期。治理结论见[日志](CHANGELOG.md#下载专项进度与文档记忆治理)；仅改文档与记忆，没有重跑产品验证或刷新实网、皮肤与发行签收。
 
 开发存储继续遵守 [AGENTS](../../AGENTS.md#开发磁盘约束)。旧系统盘产物回收和 Codex 全局迁移未完成，不能因文档检查通过而宣称已释放或零增长；待办保留在 [PLAN](DEVELOPMENT_PLAN.md#改动验收矩阵)。

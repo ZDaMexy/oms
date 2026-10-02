@@ -60,7 +60,7 @@ In-game Browse supports the authorised public BMS sources [Ginger Rush](https://
 
 Switch to osu!mania in the same browser to use the [Sayobot mirror](https://osu.sayobot.cn/). Search by title, artist, mapper or original beatmap set ID, and filter by keys, star range and approval status. Expand a card to select a difficulty; the no-video package downloads into `chartmania`, and its completion icon or notification opens that exact difficulty. Mixed-mode packages import only mania. Downloads continue when switching modes or closing Browse. The mirror is contacted only after entering the mania section, without an official account. Stars come from mirror metadata; music previews use local song select. Official downloads, separate online previews and resume are unavailable. See the [mania download contract](doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载).
 
-The current live download node fails its secure connection, so successful import of a real mirror package remains unverified. Software checks and desktop fixture paths pass; see the [validation record](doc_md/other/MANIA_SAYOBOT_DOWNLOAD_20261001.md).
+The latest recorded live-site acceptance check (2026-10-01) failed at the package download's secure connection; successful import of a real mirror package remains unverified. Software and desktop fixture checks passed. This network result applies to that date. See [current P1-A status](doc_md/subline/P1-A/DEVELOPMENT_STATUS.md) and the [dated evidence](doc_md/other/MANIA_SAYOBOT_DOWNLOAD_20261001.md).
 
 **BMS difficulty tables** also support import / refresh from local paths and public URLs, independently of any private OMS server.
 

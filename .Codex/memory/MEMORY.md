@@ -5,12 +5,12 @@
 ## 项目与协作
 
 - [项目总览](project_oms_overview.md) — 范围、数据根与便携标记。
-- [文档治理](project_oms_docs_governance.md) — 多语及跨线消费者漏同步、旧验收入口、子线规则冲突、历史授权误用及检查器误判。
+- [文档治理](project_oms_docs_governance.md) — 多语及跨线消费者漏同步、历史网络结果时效、旧验收入口、规则冲突与检查器误判。
 - [反馈工作流](feedback_workflow.md) — 默认产品语言、反过度防御、真机证据与本轮结束边界。
 - [选歌展示与导航](project_oms_songselect_display_nav.md) — 状态分离、祖先可见性、谱卡重绑与大库诊断。
 - [内置音乐播放器](project_oms_music_player.md) — 共用音轨/试听与队列接入、已定展开壳体和 core 依赖方向。
 - [内置 BMS 下载](reference_bms_builtin_download.md) — 完整表与包身份、目录手动恢复、归档预算/CRC/释放语义、首次完成旧快照、任务收尾与精确选歌。
-- [Sayobot mania 下载](reference_mania_sayobot_download.md) — 原游标/混合包筛选、原sid/bid与实际MD5、镜像节点/失败提示，以及慢图筛选重建与退出清理。
+- [Sayobot mania 下载](reference_mania_sayobot_download.md) — 原游标/混合包、原sid/bid与实际MD5、镜像节点；两玩法共享封面、首次完成旧快照的回链与退出诊断。
 
 ## 皮肤恢复与存储
 
