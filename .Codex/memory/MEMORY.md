@@ -9,7 +9,7 @@
 - [反馈工作流](feedback_workflow.md) — 默认产品语言、反过度防御、真机证据与本轮结束边界。
 - [选歌展示与导航](project_oms_songselect_display_nav.md) — 状态分离、祖先可见性、谱卡重绑与大库诊断。
 - [内置音乐播放器](project_oms_music_player.md) — 共用音轨/试听与队列接入、已定展开壳体和 core 依赖方向。
-- [内置 BMS 下载](reference_bms_builtin_download.md) — 完整表与包身份、鼠标/回车、归档失败/路径与谱文本内存/CRC审查地雷、任务收尾与精确选歌。
+- [内置 BMS 下载](reference_bms_builtin_download.md) — 完整表与包身份、目录手动恢复、归档预算/CRC/释放语义、真实任务收尾与精确选歌。
 - [Sayobot mania 下载](reference_mania_sayobot_download.md) — 原游标/混合包筛选、原sid/bid与实际MD5、镜像节点/失败提示，以及慢图筛选重建与退出清理。
 
 ## 皮肤恢复与存储

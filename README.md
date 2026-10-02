@@ -56,7 +56,7 @@ OMS 从 [osu!lazer](https://github.com/ppy/osu) 出发，移除了 osu!、Taiko�
 
 OMS 的核心玩法、谱库与用户数据链默认离线运行；Phase 3 前，OMS 私有服务与默认 endpoint 保持关闭或为空。账号、在线排行榜、OMS / osu!mania 官方谱面下载、新闻 / 聊天、多人与观战等功能默认隐藏或禁用。
 
-游戏内“浏览”支持 [Ginger Rush](https://gingerrush.com/) 和 [616 / Alvorna](https://616.sb/bms/download) 公共 BMS 源：依次选择下载源、难度表和表内等级，可结合关键词查找。在紧凑歌曲卡片中展开并选择谱面，点击下载图标获取资源包，入库后直接在选歌中打开；图标悬停显示操作提示，搜索图标或回车可手动重试。关闭页面后下载继续，失败可手动重试；音乐试听使用已入库谱面的本地选歌试听。首次打开才访问来源，不要求 OMS 账号；来源没有资源包或目标不受当前解码器支持时不会显示下载成功。详见 [下载合同](doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载)。
+游戏内“浏览”支持 [Ginger Rush](https://gingerrush.com/) 和 [616 / Alvorna](https://616.sb/bms/download) 公共 BMS 源：依次选择下载源、难度表和表内等级，可结合关键词查找。在紧凑歌曲卡片中展开并选择谱面，点击下载图标获取资源包，入库后直接在选歌中打开；图标悬停显示操作提示。难度表暂不可用时会保留提示，点击搜索图标或回车可重试并恢复表和等级选择。关闭页面后下载继续，失败可手动重试；音乐试听使用已入库谱面的本地选歌试听。首次打开才访问来源，不要求 OMS 账号；来源没有资源包、包损坏或目标不受当前解码器支持时不会显示下载成功。详见 [下载合同](doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载)。
 
 在同一浏览页切换到 osu!mania，可从 [Sayobot 镜像](https://osu.sayobot.cn/) 按曲名、作者或原谱面集编号查找，并选择键数、星级范围和收录状态。展开卡片选择具体难度，下载无视频原包后自动加入 `chartmania`，完成图标或通知可准确打开所选难度；混合包只加入 mania。切换分区或关闭页面后下载继续，进入 mania 分区前不访问镜像，无需官网账号。星级来自镜像资料，试听沿本地选歌；不含官网下载、独立在线试听或续传。详见 [mania 下载合同](doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载)。
 

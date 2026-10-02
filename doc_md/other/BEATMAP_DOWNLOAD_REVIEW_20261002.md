@@ -2,6 +2,8 @@
 
 > 2026-10-02；审查基线 master@f0f52a2，范围 `24f621e..f0f52a2`。开工工作区干净，fetch 成功，相对刷新后的 origin/master 领先7、落后0。归属 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)，沿用 P1-H/P1-K 导入合同。
 
+本报告保留修复前的发现和失败证据；后续实现及重新验证见[修复记录](BEATMAP_DOWNLOAD_FIXES_20261002.md)，当前状态以[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)为准。
+
 ## 结论与范围
 
 确认六项需修复问题：三项 P1、三项 P2，均在新增 BMS 下载路径。正常来源筛选、后台下载、原难度打开与 Sayobot 软件路径继续有有效证据，但 BMS 不支持包的收尾、解析内存与路径预算必须先收口，不能据正常小包通过签收完整坏包边界。本轮只审查并记录问题，没有修改生产源码、既有测试或产品合同，没有推送。

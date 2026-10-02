@@ -33,7 +33,7 @@
   <data name="unsupported_chart"><value>This chart format or key count is not supported yet</value></data>
   <data name="no_results"><value>No matching charts found.</value></data>
   <data name="search_failed"><value>Could not load this source. Please retry.</value></data>
-  <data name="table_failed"><value>Difficulty tables are unavailable. You can still search.</value></data>
+  <data name="table_failed"><value>Tables unavailable. Click Search to retry.</value></data>
   <data name="browse_more"><value>Load more</value></data>
   <data name="outside_gameplay"><value>Open this chart after the current play finishes.</value></data>
   <data name="no_longer_available"><value>This chart is no longer available in your library.</value></data>

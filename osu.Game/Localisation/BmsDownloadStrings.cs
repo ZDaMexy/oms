@@ -39,7 +39,7 @@ namespace osu.Game.Localisation
         public static LocalisableString UnsupportedChart => text("unsupported_chart", "This chart format or key count is not supported yet");
         public static LocalisableString NoResults => text("no_results", "No matching charts found.");
         public static LocalisableString SearchFailed => text("search_failed", "Could not load this source. Please retry.");
-        public static LocalisableString TableFailed => text("table_failed", "Difficulty tables are unavailable. You can still search.");
+        public static LocalisableString TableFailed => text("table_failed", "Tables unavailable. Click Search to retry.");
         public static LocalisableString BrowseMore => text("browse_more", "Load more");
         public static LocalisableString OutsideGameplay => text("outside_gameplay", "Open this chart after the current play finishes.");
         public static LocalisableString NoLongerAvailable => text("no_longer_available", "This chart is no longer available in your library.");

@@ -1,6 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -16,12 +17,14 @@ using osu.Framework.Allocation;
 using osu.Framework.Configuration;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Localisation;
+using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Drawables.Cards;
+using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
-using osu.Game.Input;
 using osu.Game.Input.Bindings;
 using osu.Game.Online.API;
 using osu.Game.Online.Bms;
@@ -33,9 +36,9 @@ using osu.Game.Screens.Menu;
 using osu.Game.Screens.Play;
 using osu.Game.Screens.Select;
 using osu.Game.Tests.Resources;
+using osuTK.Input;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
-using osuTK.Input;
 
 namespace osu.Game.Tests.Visual.Overlays
 {
@@ -47,6 +50,7 @@ namespace osu.Game.Tests.Visual.Overlays
         private static readonly string another_md5 = hash(another_chart);
         private StubHandler metadata = null!;
         private StubHandler packages = null!;
+        private readonly ConcurrentQueue<LogEntry> logEntries = new ConcurrentQueue<LogEntry>();
 
         [Resolved]
         private GameHost host { get; set; } = null!;
@@ -62,6 +66,14 @@ namespace osu.Game.Tests.Visual.Overlays
             packages = new StubHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(createPackage()) }));
             return new DownloadGame(LocalStorage, API, metadata, packages);
         }
+
+        [SetUp]
+        public void SetUpLogReceipt() => logEntries.Clear();
+
+        [TearDown]
+        public void TearDownLogReceipt() => Logger.NewEntry -= captureLog;
+
+        private void captureLog(LogEntry entry) => logEntries.Enqueue(entry);
 
         [Test]
         public void TestEntrancesAreAvailableWithoutOfficialOnlineFeatures()
@@ -319,7 +331,7 @@ namespace osu.Game.Tests.Visual.Overlays
             AddStep("open browser", () => overlay.Show());
             AddUntilStep("tables loaded", () => tableDropdown.Items.Contains("1"));
             AddStep("select table", () => header.Table.Value = "1");
-            AddUntilStep("grade failure shown", () => levelDropdown.ChildrenOfType<osu.Game.Graphics.Sprites.OsuSpriteText>().Any(text => text.Text.ToString().Contains("Could not read levels", StringComparison.Ordinal)));
+            AddUntilStep("grade failure shown", () => levelDropdown.ChildrenOfType<OsuSpriteText>().Any(text => text.Text.ToString().Contains("Could not read levels", StringComparison.Ordinal)));
             AddStep("record failed table reads", () => failedReads = tableReads);
             AddWaitStep("leave failed table without retry", 5);
             AddAssert("failed table is not retried automatically", () => tableReads, () => Is.EqualTo(failedReads));
@@ -341,6 +353,215 @@ namespace osu.Game.Tests.Visual.Overlays
             AddStep("select genuinely empty grade", () => header.Level.Value = new BmsDownloadHeader.TableLevel(""));
             AddUntilStep("ungraded chart shown without other grades", () => overlay.Cards.SingleOrDefault()?.Package.Charts.SingleOrDefault()?.Md5 == normal_md5);
             AddAssert("empty grade differs from all levels", () => header.Level.Value.Value, () => Is.EqualTo(""));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestTableDirectoryFailureCanBeManuallyRetriedWithoutLosingSearchResults(bool keyboard)
+        {
+            bool fail = true;
+            int tableReads = 0;
+            int searchesBeforeRetry = 0;
+            TaskCompletionSource releaseSongs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            AddUntilStep("browser loaded", () => overlay.IsLoaded);
+            AddStep("fail the directory before songs finish", () => metadata.Response = async (request, token) =>
+            {
+                if (request.RequestUri!.AbsolutePath.EndsWith("selectHeaderListWithFullInfo", StringComparison.Ordinal))
+                {
+                    Interlocked.Increment(ref tableReads);
+                    if (Volatile.Read(ref fail))
+                        return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+                }
+                if (request.RequestUri.AbsolutePath.EndsWith("selectList", StringComparison.Ordinal))
+                    await releaseSongs.Task.WaitAsync(token).ConfigureAwait(false);
+                return await tableMetadata(request, token).ConfigureAwait(false);
+            });
+            AddStep("open browser at a supported width", () =>
+            {
+                Game.Dependencies.Get<FrameworkConfigManager>().SetValue(FrameworkSetting.Locale, "en");
+                overlay.RelativeSizeAxes = Axes.Y;
+                overlay.Width = keyboard ? 800 : 420;
+                overlay.Show();
+            });
+            AddUntilStep("directory failure remains visible during song loading", () => hasVisibleFallbackText("Tables unavailable"));
+            AddAssert("directory retry warning fits the content width", () =>
+            {
+                var warning = overlay.ChildrenOfType<OsuSpriteText>().Single(sprite => sprite.IsPresent && sprite.Text.ToString().StartsWith("Tables unavailable", StringComparison.Ordinal));
+                return warning.DrawWidth <= warning.Parent!.ChildSize.X;
+            });
+            AddStep("finish the successful song query", () => releaseSongs.SetResult());
+            AddUntilStep("songs finish despite the directory failure", () => overlay.Cards.Count == 1 && !overlay.ChildrenOfType<LoadingLayer>().Single().IsPresent);
+            AddAssert("song success does not clear the directory warning", () => hasVisibleFallbackText("Tables unavailable"));
+            AddAssert("failed directory has no selectable table", () => !tableDropdown.Items.Contains("1"));
+            AddWaitStep("leave the directory failure untouched", 5);
+            AddAssert("failed directory does not retry itself", () => Volatile.Read(ref tableReads), () => Is.EqualTo(1));
+            AddStep("recover the table service", () =>
+            {
+                Volatile.Write(ref fail, false);
+                searchesBeforeRetry = metadata.SearchRequests;
+                if (keyboard)
+                    header.FocusSearch();
+            });
+            AddStep(keyboard ? "retry with Enter" : "retry with the search icon", () =>
+            {
+                if (keyboard)
+                    InputManager.Key(Key.Enter);
+                else
+                    click(header.ChildrenOfType<IconButton>().Single());
+            });
+            AddUntilStep("manual retry sends a song query and restores the directory", () => metadata.SearchRequests > searchesBeforeRetry && tableDropdown.Items.Contains("1"));
+            AddAssert("manual retry reads the directory exactly once", () => Volatile.Read(ref tableReads), () => Is.EqualTo(2));
+            AddAssert("directory success clears its own warning", () => !hasVisibleFallbackText("Tables unavailable"));
+            AddStep("search again after recovery", () => header.Query.Value = "OMS");
+            AddUntilStep("normal search completes", () => overlay.Cards.Count == 1 && !overlay.ChildrenOfType<LoadingLayer>().Single().IsPresent);
+            AddAssert("a healthy directory is not read on query changes", () => Volatile.Read(ref tableReads), () => Is.EqualTo(2));
+            AddStep("select the recovered table", () => header.Table.Value = "1");
+            AddUntilStep("recovered table levels become selectable", () => !header.Level.Disabled);
+            AddStep("select the recovered table's level two", () => header.Level.Value = new BmsDownloadHeader.TableLevel("2"));
+            AddUntilStep("only the chosen original difficulty is shown", () => overlay.Cards.SingleOrDefault()?.Package.Charts.SingleOrDefault()?.Md5 == another_md5);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestPendingDirectoryRetryDoesNotPublishAfterHidingOrChangingSource(bool changeSource)
+        {
+            int tableReads = 0;
+            TaskCompletionSource<HttpResponseMessage> late = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            AddUntilStep("browser loaded", () => overlay.IsLoaded);
+            AddStep("fail the directory then hold its retry despite cancellation", () => metadata.Response = async (request, token) =>
+            {
+                if (request.RequestUri!.AbsolutePath.EndsWith("selectHeaderListWithFullInfo", StringComparison.Ordinal))
+                {
+                    int requestNumber = Interlocked.Increment(ref tableReads);
+                    if (requestNumber == 1)
+                        return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+                    if (requestNumber == 2)
+                        return await late.Task.ConfigureAwait(false);
+                }
+                return await tableMetadata(request, token).ConfigureAwait(false);
+            });
+            AddStep("open browser", () => overlay.Show());
+            AddUntilStep("directory failed but songs remain usable", () => hasVisibleFallbackText("Tables unavailable") && overlay.Cards.Count == 1
+                && !overlay.ChildrenOfType<LoadingLayer>().Single().IsPresent);
+            AddStep("retry the directory", () => click(header.ChildrenOfType<IconButton>().Single()));
+            AddUntilStep("directory retry is still pending", () => Volatile.Read(ref tableReads) == 2);
+            AddStep(changeSource ? "choose a different source" : "close during directory retry", () =>
+            {
+                if (changeSource)
+                    header.Source.Value = BmsDownloadSource.Konmai;
+                else
+                    overlay.Hide();
+            });
+            if (changeSource)
+                AddUntilStep("new source's directory loaded", () => tableDropdown.Items.Contains(tableId(BmsDownloadSource.Konmai)));
+            AddStep("release the old directory response", () => late.SetResult(json("[{\"id\":1,\"name\":\"Old Source Table\",\"originalURL\":\"\"}]")));
+            AddWaitStep("allow the late response callback", 3);
+            AddAssert("the old directory cannot repopulate the browser", () => !tableDropdown.Items.Contains("1"));
+            if (changeSource)
+            {
+                AddAssert("new source keeps its own directory", () => tableDropdown.Items.Contains(tableId(BmsDownloadSource.Konmai)));
+                AddAssert("old source's failure warning is cleared", () => !hasVisibleFallbackText("Tables unavailable"));
+            }
+            else
+            {
+                AddAssert("late response keeps the browser closed", () => overlay.State.Value, () => Is.EqualTo(Visibility.Hidden));
+                AddStep("reopen after the abandoned retry", () => overlay.Show());
+                AddUntilStep("fresh directory becomes available", () => tableDropdown.Items.Contains("1") && !hasVisibleFallbackText("Tables unavailable"));
+                AddAssert("reopening made a fresh directory request", () => Volatile.Read(ref tableReads), () => Is.EqualTo(3));
+            }
+        }
+
+        [Test]
+        public void TestDirectoryRecoveryDoesNotHideAnIndependentSearchFailure()
+        {
+            bool failDirectory = true;
+            AddUntilStep("browser loaded", () => overlay.IsLoaded);
+            AddStep("fail directory and song reads independently", () => metadata.Response = async (request, token) =>
+            {
+                string path = request.RequestUri!.AbsolutePath;
+                if (path.EndsWith("selectList", StringComparison.Ordinal)
+                    || (path.EndsWith("selectHeaderListWithFullInfo", StringComparison.Ordinal) && Volatile.Read(ref failDirectory)))
+                    return new HttpResponseMessage(HttpStatusCode.ServiceUnavailable);
+                return await tableMetadata(request, token).ConfigureAwait(false);
+            });
+            AddStep("open browser", () => overlay.Show());
+            AddUntilStep("both independent failures are visible", () => hasVisibleFallbackText("Tables unavailable") && hasVisibleFallbackText("Could not load this source"));
+            AddStep("recover only the directory and retry", () =>
+            {
+                Volatile.Write(ref failDirectory, false);
+                click(header.ChildrenOfType<IconButton>().Single());
+            });
+            AddUntilStep("directory is selectable and song search still failed", () => tableDropdown.Items.Contains("1") && hasVisibleFallbackText("Could not load this source"));
+            AddAssert("only the recovered directory warning is cleared", () => !hasVisibleFallbackText("Tables unavailable"));
+            AddAssert("song retry remains available", () => overlay.ChildrenOfType<ShowMoreButton>().Single().Text.ToString(), () => Is.EqualTo("Retry"));
+        }
+
+        [TestCase("tables", "Could not load BMS download source tables.")]
+        [TestCase("search", "Could not search the selected BMS download source.")]
+        [TestCase("levels", "Could not read the selected BMS table's levels.")]
+        [TestCase("download", "BMS package download or import failed.")]
+        public void TestHandledFailureKeepsFullNetworkLogWithoutDuplicateSystemNotification(string kind, string context)
+        {
+            var failure = new HttpRequestException("Full BMS source diagnostic " + new string('x', 400) + " end marker",
+                new IOException("Full underlying source diagnostic."), HttpStatusCode.ServiceUnavailable);
+            BmsDownloadTask? task = null;
+            AddUntilStep("browser loaded", () => overlay.IsLoaded);
+            AddStep("observe full logging and use Chinese feedback", () =>
+            {
+                Logger.NewEntry += captureLog;
+                Game.Dependencies.Get<FrameworkConfigManager>().SetValue(FrameworkSetting.Locale, "zh");
+                metadata.Response = (request, token) =>
+                {
+                    string path = request.RequestUri!.AbsolutePath;
+                    bool expectedFailure = kind switch
+                    {
+                        "tables" => path.EndsWith("selectHeaderListWithFullInfo", StringComparison.Ordinal),
+                        "search" => path.EndsWith("selectList", StringComparison.Ordinal),
+                        "levels" => path.EndsWith("selectDataList", StringComparison.Ordinal),
+                        _ => false,
+                    };
+                    return expectedFailure ? Task.FromException<HttpResponseMessage>(failure) : tableMetadata(request, token);
+                };
+                if (kind == "download")
+                    packages.Response = (_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+            });
+            AddStep("open browser", () => overlay.Show());
+            switch (kind)
+            {
+                case "tables":
+                    AddUntilStep("directory failure is explained in Chinese", () => hasVisibleLocalisedText("难度表暂不可用，点搜索重试。"));
+                    break;
+
+                case "search":
+                    AddUntilStep("query failure is explained in Chinese", () => hasVisibleLocalisedText("暂时无法读取此来源，请重试。"));
+                    break;
+
+                case "levels":
+                    AddUntilStep("table is available", () => tableDropdown.Items.Contains("1"));
+                    AddStep("read selected table levels", () => header.Table.Value = "1");
+                    AddUntilStep("level failure is explained in Chinese", () => hasVisibleLocalisedText("等级读取失败，点搜索重试。"));
+                    break;
+
+                case "download":
+                    AddUntilStep("original package loaded", () => overlay.Cards.Count == 1);
+                    AddStep("download a package whose server returns 503", () => task = manager.Download(overlay.Cards.Single().Package, normal_md5));
+                    AddUntilStep("package failure settles", () => task!.Completion.IsCompleted && task.Progress.State == BmsDownloadState.Failed);
+                    AddUntilStep("package failure is explained in Chinese", () => Game.Notifications.AllNotifications.OfType<SimpleErrorNotification>().Any(notification =>
+                        Game.Dependencies.Get<LocalisationManager>().GetLocalisedString(notification.Text).Contains("下载或入库失败，请重试。", StringComparison.Ordinal)));
+                    break;
+            }
+            AddUntilStep("complete exception is retained in the Network log", () => logEntries.Any(entry =>
+                entry.Target == LoggingTarget.Network && entry.Level == LogLevel.Verbose
+                                                     && (kind == "download"
+                                                         ? entry.Message.StartsWith(context + "\nSystem.Net.Http.HttpRequestException:", StringComparison.Ordinal)
+                                                           && entry.Message.Contains("503", StringComparison.Ordinal) && entry.Message.Contains(" at ", StringComparison.Ordinal)
+                                                         : entry.Message == $"{context}\n{failure}")));
+            AddWaitStep("allow general diagnostic forwarding", 3);
+            AddAssert("handled failure has no raw system diagnostic", () => !Game.Notifications.AllNotifications.OfType<SimpleErrorNotification>().Any(notification =>
+                notification.Text.ToString().Contains(context, StringComparison.Ordinal)));
+            if (kind == "download")
+                AddAssert("only one actionable download failure notification is posted", () => Game.Notifications.AllNotifications.OfType<SimpleErrorNotification>().Count(notification =>
+                    Game.Dependencies.Get<LocalisationManager>().GetLocalisedString(notification.Text).Contains("下载或入库失败，请重试。", StringComparison.Ordinal)), () => Is.EqualTo(1));
         }
 
         [Test]
@@ -604,7 +825,7 @@ namespace osu.Game.Tests.Visual.Overlays
             AddStep("open browser", () => overlay.Show());
             AddUntilStep("package loaded", () => overlay.Cards.SingleOrDefault()?.Package.Charts.Count == 2);
             AddAssert("unsupported difficulty cannot download", () => !cardButton(overlay.Cards.Single(), "Download").Enabled.Value);
-            AddAssert("unsupported reason is visible", () => overlay.Cards.Single().ChildrenOfType<osu.Game.Graphics.Sprites.OsuSpriteText>().Any(t => t.Text.ToString().Contains("not supported", StringComparison.OrdinalIgnoreCase)));
+            AddAssert("unsupported reason is visible", () => overlay.Cards.Single().ChildrenOfType<OsuSpriteText>().Any(t => t.Text.ToString().Contains("not supported", StringComparison.OrdinalIgnoreCase)));
             AddUntilStep("unsupported card accepts input", () => !overlay.ChildrenOfType<LoadingLayer>().Single().IsPresent);
             AddStep("click unsupported download icon", () => click(cardButton(overlay.Cards.Single(), "Download")));
             AddAssert("unsupported action fetched no package", () => packages.Requests, () => Is.Zero);
@@ -615,6 +836,11 @@ namespace osu.Game.Tests.Visual.Overlays
 
         private static BeatmapDownloadCardButton cardButton(BmsDownloadCard card, string tooltip) =>
             card.ChildrenOfType<BeatmapDownloadCardButton>().Single(button => button.TooltipText.ToString() == tooltip);
+
+        private bool hasVisibleFallbackText(string text) => overlay.ChildrenOfType<OsuSpriteText>().Any(sprite => sprite.IsPresent && sprite.Text.ToString().Contains(text, StringComparison.Ordinal));
+
+        private bool hasVisibleLocalisedText(string text) => overlay.ChildrenOfType<OsuSpriteText>().Any(sprite => sprite.IsPresent
+            && Game.Dependencies.Get<LocalisationManager>().GetLocalisedString(sprite.Text).Contains(text, StringComparison.Ordinal));
 
         private void click(Drawable drawable)
         {

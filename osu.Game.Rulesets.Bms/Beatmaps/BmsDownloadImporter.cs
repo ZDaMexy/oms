@@ -17,7 +17,10 @@ using SharpCompress.Archives;
 using SharpCompress.Common;
 using SharpCompress.Common.Rar;
 using SharpCompress.Readers;
+using ZstdSharp;
+using CRC32 = SharpCompress.Compressors.Deflate.CRC32;
 using ZipArchive = System.IO.Compression.ZipArchive;
+using ZlibException = SharpCompress.Compressors.Deflate.ZlibException;
 
 namespace osu.Game.Rulesets.Bms.Beatmaps
 {
@@ -29,6 +32,8 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         private const long max_compressed_bytes = 2L * 1024 * 1024 * 1024;
         private const long max_expanded_bytes = 8L * 1024 * 1024 * 1024;
         private const long max_file_bytes = 2L * 1024 * 1024 * 1024;
+        private const long max_chart_bytes = 32L * 1024 * 1024;
+        private const long max_total_chart_bytes = 128L * 1024 * 1024;
         private const int max_entries = 50_000;
 
         private readonly Storage storage;
@@ -73,7 +78,8 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 {
                     chartFiles = await Task.Run(() => extractArchive(fullArchivePath, extractionRoot, cancellationToken), cancellationToken).ConfigureAwait(false);
                 }
-                catch (Exception exception) when (exception is ArchiveException or ExtractionException or EndOfStreamException)
+                catch (Exception exception) when (exception is ArchiveException or ExtractionException or EndOfStreamException or NotSupportedException or ZlibException
+                                                  || isArchiveDataFailure(exception))
                 {
                     throw new InvalidDataException("The downloaded BMS archive is damaged or cannot be extracted.", exception);
                 }
@@ -128,6 +134,34 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             }
         }
 
+        private static bool isArchiveDataFailure(Exception exception)
+        {
+            if (exception is ZstdException)
+                return true;
+
+            Type type = exception.GetType();
+
+            // SharpCompress exposes these input failures only as internal Exception types.
+            if (type.Assembly == typeof(ArchiveFactory).Assembly
+                && type.FullName is "SharpCompress.Compressors.LZMA.DataErrorException" or "SharpCompress.Compressors.LZMA.InvalidParamException")
+                return true;
+
+            var site = exception.TargetSite;
+
+            if (site is not { DeclaringType: { } declaringType }
+                || declaringType.Assembly != typeof(ArchiveFactory).Assembly)
+                return false;
+
+            // These exact library throw sites report bad archive input or an unsupported XZ checksum.
+            // Their general exception classes must not hide unrelated caller or program errors.
+            return (exception, declaringType.FullName, site.Name) is
+                (InvalidOperationException, "SharpCompress.Compressors.Rar.RarStream", "Read")
+                or (InvalidOperationException, "SharpCompress.Compressors.BZip2.CBZip2InputStream", "Cadvise")
+                or (InvalidOperationException, "SharpCompress.Common.SevenZip.ArchiveReader", "ReadDatabase")
+                or (NotImplementedException, "SharpCompress.Compressors.Xz.XZStream", "AssertBlockCheckTypeIsSupported")
+                or (IndexOutOfRangeException, "SharpCompress.Compressors.LZMA.LzmaStream", ".ctor");
+        }
+
         private static Dictionary<string, string> extractArchive(string archivePath, string extractionRoot, CancellationToken cancellationToken)
         {
             using var source = new FileStream(archivePath, FileMode.Open, FileAccess.Read, FileShare.Read);
@@ -148,6 +182,8 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             var chartFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             var buffer = new byte[128 * 1024];
             long expandedBytes = 0;
+            long chartBytes = 0;
+            long declaredChartBytes = 0;
 
             if (archive.Type == ArchiveType.Zip)
             {
@@ -175,21 +211,40 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 if (zip.Entries.Count != entries.Count)
                     throw new InvalidDataException("The ZIP package has inconsistent entry metadata.");
 
+                var paths = new string[entries.Count];
+
+                // Reject the complete chart text budget before extracting any ZIP entry or parsing a chart.
                 for (int i = 0; i < entries.Count; i++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     var entry = entries[i];
                     validateAttributes(zip.Entries[i].ExternalAttributes);
-                    string relativePath = reservePath(entry.Key ?? string.Empty, entry.IsDirectory, names);
+                    string relativePath = paths[i] = reservePath(entry.Key ?? string.Empty, entry.IsDirectory, names);
 
-                    if (entry.Size > max_file_bytes || zip.Entries[i].Length > max_file_bytes)
-                        throw new InvalidDataException($"Archive entry '{relativePath}' exceeds the 2 GiB file size limit.");
+                    if (entry.Size != zip.Entries[i].Length)
+                        throw new InvalidDataException("The ZIP package has inconsistent entry sizes.");
+
+                    if (entry.IsDirectory && (entry.Size != 0 || entry.CompressedSize != 0 || entry.Crc != 0))
+                        throw new InvalidDataException("ZIP directories must not contain file data.");
+
+                    validateDeclaredSize(entry, relativePath, ref declaredChartBytes);
+                }
+
+                for (int i = 0; i < entries.Count; i++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var entry = entries[i];
 
                     if (entry.IsDirectory)
                         continue;
 
+                    // SharpCompress replaces its central header with the local header on open. A data descriptor's
+                    // local header can legitimately contain zero size/CRC, so retain the central declaration.
+                    long expectedSize = zip.Entries[i].Length;
+                    uint expectedCrc = (uint)entry.Crc;
                     using var input = entry.OpenEntryStream();
-                    expandedBytes += extractFile(input, extractionRoot, relativePath, expandedBytes, buffer, chartFiles, cancellationToken);
+                    expandedBytes += extractFile(input, extractionRoot, paths[i], expandedBytes, ref chartBytes, expectedSize,
+                        expectedCrc, buffer, chartFiles, cancellationToken);
                 }
             }
             else if (archive.Type == ArchiveType.Rar || archive.Type == ArchiveType.SevenZip)
@@ -211,14 +266,25 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                     validateAttributes(entry.Attrib ?? 0);
                     string relativePath = reservePath(entry.Key ?? string.Empty, entry.IsDirectory, names);
 
-                    if (entry.Size > max_file_bytes)
-                        throw new InvalidDataException($"Archive entry '{relativePath}' exceeds the 2 GiB file size limit.");
+                    validateDeclaredSize(entry, relativePath, ref declaredChartBytes);
 
                     if (entry.IsDirectory)
                         continue;
 
                     using var input = reader.OpenEntryStream();
-                    expandedBytes += extractFile(input, extractionRoot, relativePath, expandedBytes, buffer, chartFiles, cancellationToken);
+
+                    try
+                    {
+                        expandedBytes += extractFile(input, extractionRoot, relativePath, expandedBytes, ref chartBytes, entry.Size,
+                            null, buffer, chartFiles, cancellationToken);
+                    }
+                    catch
+                    {
+                        // An unfinished EntryStream otherwise decompresses the remaining entry during Dispose,
+                        // beyond our actual-byte budgets and cancellation checks. Stop it before releasing the stream.
+                        reader.Cancel();
+                        throw;
+                    }
                 }
             }
             else
@@ -227,13 +293,29 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             return chartFiles;
         }
 
-        private static long extractFile(Stream input, string extractionRoot, string relativePath, long expandedBytes, byte[] buffer, Dictionary<string, string> chartFiles, CancellationToken cancellationToken)
+        private static void validateDeclaredSize(IEntry entry, string relativePath, ref long declaredChartBytes)
+        {
+            if (entry.Size < 0 || entry.Size > max_file_bytes)
+                throw new InvalidDataException($"Archive entry '{relativePath}' exceeds the 2 GiB file size limit.");
+
+            if (entry.IsDirectory || !BmsImportExtensions.IsBeatmapFile(relativePath))
+                return;
+
+            if (entry.Size > max_chart_bytes || entry.Size > max_total_chart_bytes - declaredChartBytes)
+                throw new InvalidDataException("The BMS download exceeds its 32 MiB chart or 128 MiB total chart text limit.");
+
+            declaredChartBytes += entry.Size;
+        }
+
+        private static long extractFile(Stream input, string extractionRoot, string relativePath, long expandedBytes, ref long chartBytes,
+                                        long expectedSize, uint? expectedCrc, byte[] buffer, Dictionary<string, string> chartFiles, CancellationToken cancellationToken)
         {
             string destination = Path.Combine(extractionRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
             Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
 
             using var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None);
             using var md5 = BmsImportExtensions.IsBeatmapFile(relativePath) ? IncrementalHash.CreateHash(HashAlgorithmName.MD5) : null;
+            var crc = expectedCrc.HasValue ? new CRC32() : null;
             long fileBytes = 0;
 
             while (true)
@@ -247,13 +329,23 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 if (read > max_file_bytes - fileBytes || read > max_expanded_bytes - expandedBytes - fileBytes)
                     throw new InvalidDataException("The BMS download exceeds its file or expanded size limit.");
 
+                if (md5 != null && (read > max_chart_bytes - fileBytes || read > max_total_chart_bytes - chartBytes - fileBytes))
+                    throw new InvalidDataException("The BMS download exceeds its 32 MiB chart or 128 MiB total chart text limit.");
+
                 output.Write(buffer, 0, read);
                 md5?.AppendData(buffer, 0, read);
+                crc?.SlurpBlock(buffer, 0, read);
                 fileBytes += read;
             }
 
+            if (fileBytes != expectedSize || (crc != null && unchecked((uint)crc.Crc32Result) != expectedCrc))
+                throw new InvalidDataException("The BMS download contains an incomplete or damaged file.");
+
             if (md5 != null)
+            {
                 chartFiles.Add(destination, Convert.ToHexString(md5.GetHashAndReset()).ToLowerInvariant());
+                chartBytes += fileBytes;
+            }
 
             return fileBytes;
         }
@@ -265,6 +357,9 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             if (isDirectory)
                 relativePath = relativePath.TrimEnd('/');
 
+            if (relativePath.Length > 512 || relativePath.Count(character => character == '/') >= 32)
+                throw new InvalidDataException("The BMS download exceeds its 512-character path or 32-level depth limit.");
+
             string[] components = relativePath.Split('/');
             string current = string.Empty;
 
@@ -272,7 +367,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             {
                 string component = components[i];
 
-                if (component.Length == 0 || component == "." || component == ".."
+                if (component.Length == 0 || component.Length > 255 || component == "." || component == ".."
                     || component.EndsWith('.') || component.EndsWith(' ')
                     || component.Any(c => c < ' ' || c is '<' or '>' or ':' or '"' or '|' or '?' or '*')
                     || isDeviceName(component))

@@ -38,6 +38,7 @@ namespace osu.Game.Overlays
         private readonly Dictionary<string, BmsDownloadCard> cards = new Dictionary<string, BmsDownloadCard>();
         private FillFlowContainer<BmsDownloadCard> results = null!;
         private OsuSpriteText status = null!;
+        private OsuSpriteText tableStatus = null!;
         private ShowMoreButton more = null!;
         private BeatmapDownloadCoverStore covers = null!;
         private CancellationTokenSource? queryCancellation;
@@ -50,6 +51,7 @@ namespace osu.Game.Overlays
         private int totalPages;
         private bool searching;
         private bool paginationPaused;
+        private bool tablesFailed;
 
         public IReadOnlyCollection<BmsDownloadCard> Cards => cards.Values;
 
@@ -86,7 +88,17 @@ namespace osu.Game.Overlays
                         Spacing = new Vector2(0, 15),
                         Children = new Drawable[]
                         {
-                            status = new OsuSpriteText { Font = OsuFont.Default.With(size: 18) },
+                            new FillFlowContainer<OsuSpriteText>
+                            {
+                                RelativeSizeAxes = Axes.X,
+                                AutoSizeAxes = Axes.Y,
+                                Direction = FillDirection.Vertical,
+                                Children = new[]
+                                {
+                                    tableStatus = new OsuSpriteText { Font = OsuFont.Default.With(size: 18), Alpha = 0 },
+                                    status = new OsuSpriteText { Font = OsuFont.Default.With(size: 18) },
+                                },
+                            },
                             results = new ReverseChildIDFillFlowContainer<BmsDownloadCard>
                             {
                                 RelativeSizeAxes = Axes.X,
@@ -114,6 +126,8 @@ namespace osu.Game.Overlays
             more.Text = BmsDownloadStrings.BrowseMore;
             Header.Source.BindValueChanged(_ =>
             {
+                tablesFailed = false;
+                tableStatus.Hide();
                 Header.ClearTables();
                 if (State.Value == Visibility.Visible)
                     loadTables();
@@ -132,6 +146,8 @@ namespace osu.Game.Overlays
             Header.Query.BindValueChanged(_ => queueSearch());
             Header.Retry = () =>
             {
+                if (tablesFailed)
+                    loadTables();
                 if (Header.SelectedTable != null && tableData == null)
                     loadLevels();
                 search(reset: true);
@@ -183,6 +199,7 @@ namespace osu.Game.Overlays
 
         private async void loadTables()
         {
+            tablesFailed = false;
             tableCancellation?.Cancel();
             tableCancellation?.Dispose();
             tableCancellation = new CancellationTokenSource();
@@ -195,7 +212,10 @@ namespace osu.Game.Overlays
                 Schedule(() =>
                 {
                     if (!IsDisposed && !cancellation.IsCancellationRequested && Header.Source.Value == source)
+                    {
+                        tableStatus.Hide();
                         Header.SetTables(tables);
+                    }
                 });
             }
             catch (OperationCanceledException)
@@ -203,11 +223,15 @@ namespace osu.Game.Overlays
             }
             catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException)
             {
-                Logger.Error(ex, "Could not load BMS download source tables.");
+                Logger.Log($"Could not load BMS download source tables.\n{ex}", LoggingTarget.Network);
                 Schedule(() =>
                 {
                     if (!IsDisposed && !cancellation.IsCancellationRequested && Header.Source.Value == source)
-                        status.Text = BmsDownloadStrings.TableFailed;
+                    {
+                        tablesFailed = true;
+                        tableStatus.Text = BmsDownloadStrings.TableFailed;
+                        tableStatus.Show();
+                    }
                 });
             }
         }
@@ -284,7 +308,7 @@ namespace osu.Game.Overlays
             }
             catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException)
             {
-                Logger.Error(ex, "Could not search the selected BMS download source.");
+                Logger.Log($"Could not search the selected BMS download source.\n{ex}", LoggingTarget.Network);
                 Schedule(() =>
                 {
                     if (IsDisposed || requestRevision != revision || cancellation.IsCancellationRequested)
@@ -331,7 +355,7 @@ namespace osu.Game.Overlays
             }
             catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException)
             {
-                Logger.Error(ex, "Could not read the selected BMS table's levels.");
+                Logger.Log($"Could not read the selected BMS table's levels.\n{ex}", LoggingTarget.Network);
                 Schedule(() =>
                 {
                     if (!IsDisposed && !cancellation.IsCancellationRequested && Header.Source.Value == source && Header.Table.Value == table.Id)

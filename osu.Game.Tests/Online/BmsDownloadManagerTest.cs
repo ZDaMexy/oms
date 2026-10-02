@@ -2,19 +2,26 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Buffers.Binary;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using osu.Framework.Logging;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
+using osu.Game.Database;
 using osu.Game.Online.Bms;
+using osu.Game.Rulesets;
+using osu.Game.Rulesets.Bms.Beatmaps;
 
 namespace osu.Game.Tests.Online
 {
@@ -346,6 +353,110 @@ namespace osu.Game.Tests.Online
         }
 
         [Test]
+        public async Task TestHandledPackageFailureRetainsTheFullNetworkDiagnostic()
+        {
+            const string diagnostic = "Expected BMS package connection failure with inner transport details.";
+            var receipt = new TaskCompletionSource<LogEntry>(TaskCreationOptions.RunContinuationsAsynchronously);
+            void captureLog(LogEntry entry)
+            {
+                if (entry.Message.StartsWith("BMS package download or import failed.", StringComparison.Ordinal)
+                    && entry.Message.Contains(diagnostic, StringComparison.Ordinal))
+                    receipt.TrySetResult(entry);
+            }
+
+            using var http = new HttpClient(new StubHandler((_, _) => Task.FromException<HttpResponseMessage>(
+                new HttpRequestException(diagnostic, new IOException("Expected inner transport failure.")))));
+            using var manager = new BmsDownloadManager(storage, successfulImporter(), downloads: http);
+            Logger.NewEntry += captureLog;
+            try
+            {
+                BmsDownloadTask task = manager.Download(createPackage(), md5_b);
+                await task.Completion.WaitAsync(wait_limit);
+                LogEntry entry = await receipt.Task.WaitAsync(wait_limit);
+
+                Assert.That(task.Progress.State, Is.EqualTo(BmsDownloadState.Failed));
+                Assert.That(entry.Target, Is.EqualTo(LoggingTarget.Network));
+                Assert.That(entry.Level, Is.EqualTo(LogLevel.Verbose));
+                Assert.That(entry.Message, Does.Contain(nameof(HttpRequestException)).And.Contain(nameof(IOException))
+                                               .And.Contain("Expected inner transport failure.").And.Contain("requestPackage"));
+                assertStoragePreservedAndClean();
+            }
+            finally
+            {
+                Logger.NewEntry -= captureLog;
+            }
+        }
+
+        [Test]
+        public void TestImporterProgrammingFailureRemainsVisible()
+        {
+            var importer = new StubImporter((_, _, _) => throw new InvalidOperationException("Expected importer programming failure."));
+            using var http = successfulHttpClient();
+            using var manager = new BmsDownloadManager(storage, importer, downloads: http);
+            BmsDownloadTask task = manager.Download(createPackage(), md5_b);
+
+            var exception = Assert.ThrowsAsync<InvalidOperationException>(async () => await task.Completion.WaitAsync(wait_limit));
+            Assert.That(exception!.Message, Is.EqualTo("Expected importer programming failure."));
+            Assert.That(task.Completion.IsFaulted, Is.True);
+            assertStoragePreservedAndClean();
+            Assert.Throws<InvalidOperationException>(manager.Dispose);
+        }
+
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task TestUnsupportedOrDamagedRealArchiveCanFailThenRetryOrExit(bool retry, bool damagedDeflate)
+        {
+            const string chart = "#TITLE Downloaded Song\n#ARTIST OMS\n#BPM 150\n#WAV01 sound.wav\n#00119:0100\n";
+            string hash = Convert.ToHexString(MD5.HashData(Encoding.UTF8.GetBytes(chart))).ToLowerInvariant();
+            byte[] good = createRealArchive(chart, damagedDeflate ? CompressionLevel.Optimal : CompressionLevel.NoCompression);
+            byte[] bad = (byte[])good.Clone();
+            damageArchiveResource(bad, damagedDeflate);
+            bool serveBad = true;
+            var handler = new StubHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(serveBad ? bad : good),
+            }));
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
+            using var rulesets = new RealmRulesetStore(realm, storage);
+            using var http = new HttpClient(handler);
+            using var manager = new BmsDownloadManager(storage, new BmsDownloadImporter(storage, realm), downloads: http);
+            var package = new BmsDownloadPackage(BmsDownloadSource.Ginger, "unsupported", "Song", new Uri("https://gingerrush.com/package.zip"),
+                new[] { new BmsDownloadChart(hash, "Song", "OMS", "NORMAL") });
+
+            BmsDownloadTask failed = manager.Download(package, hash);
+            await failed.Completion.WaitAsync(wait_limit);
+            Assert.That(failed.Completion.IsFaulted, Is.False);
+            Assert.That(failed.Progress.State, Is.EqualTo(BmsDownloadState.Failed));
+            Assert.That(failed.Progress.Imported, Is.Null);
+            Assert.That(realm.Run(r => r.All<BeatmapSetInfo>().Count()), Is.Zero);
+            failed.Cancel();
+            Assert.That(failed.Progress.State, Is.EqualTo(BmsDownloadState.Failed));
+            assertStoragePreservedAndClean();
+
+            if (retry)
+            {
+                serveBad = false;
+                BmsDownloadTask replacement = manager.Download(package, hash);
+                Assert.That(replacement, Is.Not.SameAs(failed));
+                await replacement.Completion.WaitAsync(wait_limit);
+                Assert.That(replacement.Progress.State, Is.EqualTo(BmsDownloadState.Completed));
+                var imported = replacement.Progress.Imported!.Single();
+                Assert.That(imported.Md5, Is.EqualTo(hash));
+                Assert.That(realm.Run(r => r.Find<BeatmapInfo>(imported.BeatmapId)!.Ruleset.ShortName), Is.EqualTo("bms"));
+
+                BmsDownloadTask next = manager.Download(package with { Id = "following" }, hash);
+                await next.Completion.WaitAsync(wait_limit);
+                Assert.That(next.Progress.State, Is.EqualTo(BmsDownloadState.Completed));
+                Assert.That(next.Progress.Imported, Is.EqualTo(replacement.Progress.Imported));
+                assertStoragePreservedAndClean();
+            }
+
+            Assert.DoesNotThrow(manager.Dispose);
+        }
+
+        [Test]
         public async Task TestImporterIoFailureIsReportedAndARegisteredTaskCanBeRetriedFromItsTerminalEvent()
         {
             var firstImportStarted = signal();
@@ -523,6 +634,44 @@ namespace osu.Game.Tests.Online
             }, size);
 
         private static TaskCompletionSource<bool> signal() => new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        private static byte[] createRealArchive(string chart, CompressionLevel compression)
+        {
+            using var buffer = new MemoryStream();
+            using (var zip = new ZipArchive(buffer, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                using (var output = zip.CreateEntry("Song/chart.bme", compression).Open())
+                    output.Write(Encoding.UTF8.GetBytes(chart));
+                using (var output = zip.CreateEntry("Song/sound.wav", compression).Open())
+                    output.Write(Encoding.UTF8.GetBytes("valid sound payload"));
+            }
+
+            return buffer.ToArray();
+        }
+
+        private static void damageArchiveResource(byte[] archive, bool damagedDeflate)
+        {
+            for (int offset = 0; offset <= archive.Length - 46; offset++)
+            {
+                uint signature = BinaryPrimitives.ReadUInt32LittleEndian(archive.AsSpan(offset, 4));
+                if (signature is not (0x04034b50 or 0x02014b50))
+                    continue;
+
+                bool central = signature == 0x02014b50;
+                int nameLength = BinaryPrimitives.ReadUInt16LittleEndian(archive.AsSpan(offset + (central ? 28 : 26), 2));
+                int nameOffset = offset + (central ? 46 : 30);
+                if (Encoding.UTF8.GetString(archive, nameOffset, nameLength) == "Song/sound.wav")
+                {
+                    if (!damagedDeflate)
+                        BinaryPrimitives.WriteUInt16LittleEndian(archive.AsSpan(offset + (central ? 10 : 8), 2), 77);
+                    else if (!central)
+                    {
+                        int dataOffset = nameOffset + nameLength + BinaryPrimitives.ReadUInt16LittleEndian(archive.AsSpan(offset + 28, 2));
+                        archive[dataOffset] = (byte)((archive[dataOffset] & ~6) | 6);
+                    }
+                }
+            }
+        }
 
         private static Task<IReadOnlyList<BmsDownloadImportedBeatmap>> importedResult(string md5)
             => Task.FromResult<IReadOnlyList<BmsDownloadImportedBeatmap>>(new[] { new BmsDownloadImportedBeatmap(beatmap_id, md5) });

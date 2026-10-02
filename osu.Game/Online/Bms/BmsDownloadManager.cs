@@ -199,7 +199,7 @@ namespace osu.Game.Online.Bms
             }
             catch (Exception ex) when (ex is HttpRequestException or IOException or InvalidDataException or UnauthorizedAccessException)
             {
-                Logger.Error(ex, "BMS package download or import failed.");
+                Logger.Log($"BMS package download or import failed.\n{ex}", LoggingTarget.Network);
                 terminal = task.Progress with { State = BmsDownloadState.Failed };
             }
             finally
@@ -250,7 +250,7 @@ namespace osu.Game.Online.Bms
                 {
                     var status = response.StatusCode;
                     response.Dispose();
-                    throw new HttpRequestException("The download server rejected the package request.", null, status);
+                    throw new HttpRequestException($"The download server rejected the package request ({(int)status}).", null, status);
                 }
 
                 return response;

@@ -33,7 +33,7 @@
   <data name="unsupported_chart" xml:space="preserve"><value>暂不支持这张谱面的格式或键数</value></data>
   <data name="no_results" xml:space="preserve"><value>没有找到匹配的谱面。</value></data>
   <data name="search_failed" xml:space="preserve"><value>暂时无法读取此来源，请重试。</value></data>
-  <data name="table_failed" xml:space="preserve"><value>暂时无法读取难度表，仍可搜索谱面。</value></data>
+  <data name="table_failed" xml:space="preserve"><value>难度表暂不可用，点搜索重试。</value></data>
   <data name="browse_more" xml:space="preserve"><value>加载更多</value></data>
   <data name="outside_gameplay" xml:space="preserve"><value>请在当前游玩结束后打开谱面。</value></data>
   <data name="no_longer_available" xml:space="preserve"><value>这张谱面当前已不在可用谱库中。</value></data>

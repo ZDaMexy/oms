@@ -1,6 +1,6 @@
 ---
 name: reference_bms_builtin_download
-description: P1-A 公共 BMS 下载、表等级、归档失败/内存/CRC审查及精确选歌接入地雷
+description: P1-A 公共 BMS 下载、表等级、归档预算/CRC/释放语义与精确选歌接入地雷
 metadata:
   node_type: memory
   type: reference
@@ -28,7 +28,7 @@ metadata:
 - 616 /tables 的 diff_table_url 才是查询用原始表URL，diff_table_full_local_url 是站内镜像header，data_url相对镜像解析；不要把姜站的原始引用URL当616表ID。只读站内HTTPS镜像，不因缺镜像回落未授权原站。
 - Ginger表数据行的id/songID不是资源包id。按表内精确MD5调用files/package解析canonical id，才能与目录浏览共用同一下载任务；只保留匹配MD5，避免同包其它等级混回卡片。616同样沿hash→实际song_url身份，未收录/缺包保留表资料且不可下载。
 - 表与等级读取消独立于查询，切源/表和隐藏均取消；发布同时核对token、来源及表。切表先清旧等级和完整资料，禁止迟到的旧表把新等级换回。读取失败在等级栏明确显示，搜索按钮手动重试，不循环读取或把半表当成功。
-- 实站桌面探针读完整Ginger表可能超过Framework默认单个Until步骤10秒。诊断可仅对该独立进程设置OSU_TESTS_NO_TIMEOUT=1，同时保留ExactVisualTestGame的120秒整体watchdog及外层截止；不改变产品网络期限。控件Text.ToString返回fallback文字，画面已中文也可能仍是Download；点按钮按实际本地化/原文本核对，不能把找不到测试按钮当作生产功能失败。
+- 实站桌面探针读完整Ginger表可能超过Framework默认单个Until步骤10秒。诊断可仅对该独立进程设置OSU_TESTS_NO_TIMEOUT=1，同时保留ExactVisualTestGame的120秒整体watchdog及外层截止；不改变产品网络期限。控件Text.ToString返回fallback文字，画面已中文也可能仍是Download。中文提示检查须对可见组件使用游戏当前LocalisationManager.GetLocalisedString，而非对fallback字符串断言中文；这证明所选语言解析与可见性，不代替实际字形截图。不能把测试读文本方式错误当作生产功能失败。
 
 ## 来源与包格式
 
@@ -38,8 +38,13 @@ metadata:
 
 ## 任务收尾与导航
 
-- SharpCompress0.39的ZIP OpenEntryStream不支持method时抛NotSupportedException，不是ArchiveException；真实输入会让任务Completion fault但仍停在Importing，同包重试复用/取消无效，Dispose再抛。ZIP流也不自动验证CRC，目标谱MD5无法证明资源完整。下载边界缺口、低量路径/全文内存探针及未修复状态见[全量审查](../../doc_md/other/BEATMAP_DOWNLOAD_REVIEW_20261002.md)，不要用宽泛manager捕获或仅正常小包证明坏包安全。
-- 表目录与选中表资料是两次独立读取；目录503后并无选中表，Header.Retry只读等级/歌曲不能恢复目录。真实鼠标/Enter都需统计目录请求及恢复后的选项；歌曲成功清掉共用status会掩盖目录失败。BMS Logger.Error还会把已处理失败转为英文通知，不能把Sayobot已修路径当双源都已收口。
+- SharpCompress0.39的ZIP OpenEntryStream不支持method时抛NotSupportedException，不是ArchiveException。必须在归档输入边界转换；扩大manager捕获会掩盖程序错误。真实manager复现曾出现Completion fault但仍停Importing、同包无法重试、Dispose再抛；归档输入与任务收尾需联合验证。原复现见[全量审查](../../doc_md/other/BEATMAP_DOWNLOAD_REVIEW_20261002.md)，修复和新回归见[修复记录](../../doc_md/other/BEATMAP_DOWNLOAD_FIXES_20261002.md)，当前事实只查STATUS。
+- SharpCompress ZIP流及.NET ZipArchiveEntry.Open都不能代替本链CRC核对；目标谱MD5无法证明音频/图片完整。SharpCompress打开条目会以local头替换central头，合法data descriptor的local size/CRC可为0，须在Open之前保存central声明再比实际读取。用非seekable writer生成合法descriptor正例，并翻转stored资源单字节作坏包反例。
+- SharpCompress0.39还会以非ArchiveException报告坏输入：Deflate的ZlibException、ZstdException、内部LZMA DataError/InvalidParam，以及RAR.Read、BZip2.Cadvise、XZ.AssertBlockCheckTypeIsSupported、LzmaStream构造器、7z.ReadDatabase的通用异常。先用小型真实坏包保存红身份；内部类型核对库程序集，通用异常另核对TargetSite声明类/方法。不要全接InvalidOperation/IndexOutOfRange/NotImplemented，也不要扩manager捕获；固定版本升级时按真实夹具复验这些来源。
+- RAR/7z的EntryStream.Dispose在未到EOF且reader未取消时会SkipEntry，导致预算拒绝或取消后的收尾继续展开。提取catch必须在using入流作用域内先reader.Cancel再rethrow，正常EOF不取消。独立计数探针证明先读1字节后普通Dispose又消费72字节，Cancel后为0；它是库释放语义实验，不是生产解压量测量。底层MemoryStream.Position可在首读时已因缓冲到末尾，不能拿它证明没有继续消费。见[修复记录](../../doc_md/other/BEATMAP_DOWNLOAD_FIXES_20261002.md)。
+- 条目预算不限制单路径展开出的隐式前缀；路径长度/深度须在Split及累计字符串前限制。谱文本后续全文复制/解码也不能沿用资源GiB预算：原8MiB填充谱累计分配约76MB，该数字不是峰值。下载预算需验证声明与实际读取、全部classic扩展及合计谱文本；用有界流式素材证明拒绝，不执行GiB内存耗尽，也不为下载改变普通目录解码合同。
+- 表目录与选中表资料是两次独立读取；目录503后并无选中表，Header.Retry仅读等级/歌曲无法恢复目录。实际鼠标/Enter需核对目录请求、恢复选项、迟到回应及独立提示；歌曲成功不能清掉目录故障。新增错误文案仍用单行组件时，须检查已支持窄窗口的实际文字宽度，不把中文或英文长提示截在内容区外。
+- BMS与Sayobot已处理失败都沿Network/默认Verbose保留完整异常，由页面/本地化任务通知承接。仅把Logger.Error的target改Network仍会转发英文系统诊断；Debug默认可能不留日志。用真实游戏转发器核对本来源无双提示并正向核对完整LogEntry，不能把其它迟到诊断算作下载重复提示。
 - `InvalidDataException` 直接继承 SystemException，不属于 IOException；坏 JSON/归档的可恢复失败必须明确列入对应边界，否则任务/UI 异步方法会异常退出而没有失败状态。
 - 在任务集合锁内登记 Completion，终态在释放流、独占暂存和队列资源后发布；退出先 cancel + join，再释放 Realm。否则可能漏等任务或让重试替换仍在收尾的所有者。
 - Realm LINQ 不支持本链 `Ruleset.ShortName` 嵌套属性比较。沿既有字符串 RQL 查询；`BeatmapManager.QueryBeatmap` 已返回 detached BeatmapInfo，不能再当 Live 调用 PerformRead。
