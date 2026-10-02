@@ -1,5 +1,28 @@
 # P1-A 变动日志
 
+## 2026-10-03：首次下载完成后的可玩状态修复
+
+- 从干净master@2cf5208接续，fetch成功，领先origin/master10、落后0。用户616筛选页截图及同次运行日志证明同曲先成功、再次排队再成功；只读核对自定义数据根，没有修改用户谱库、配置或日志。
+- 根因是后台入库提交先于update-thread Realm快照推进；完成通知使用真实入库结果，卡片一次查询却仍未命中，Completed因已有任务落入Retry。两个下载页面仅在完成回调刷新现有卡片前同步Realm，继续按当前选择的BMS原MD5/mania原bid、玩法和可用记录查找；不改全局查询、任务/导入流程，不以历史Imported绕过删除/目录不可用检查。
+- 先补始终开页的真实导入时序回归：单AddStep固定旧快照并限时等待后台完成，再公有UpdateSubTree执行页面更新；原源码四例均在完成后没有Open处失败，修复后四例通过。测试初稿误访问protected Drawable.Scheduler导致CS1540，纠正后才取得有效红测，不计为产品失败。新增四例后台删除/目录不可用反例，卡片仍可重试，旧完成通知解释不可用并留菜单；正例只请求一次包，点击后稳定命中原Guid。
+- Debug下载相关344全部通过，覆盖来源/任务/共享封面和两浏览页；Release下载导入BMS78、mania49全部通过，Desktop Release0错误/0警告。BMS测试编译另有CS8600/CA2007警告，身份见日志，未修改对应文件。四文件格式校验无改动；原fixture `dataBytes` 的IDE1006命名债务保留，最终核对显式排除此诊断，初始report留存。
+- 有效命令见下方，持久证据在`artifacts/download-completion-20261003/`：`first-download-red.trx`、`first-download-green.trx`、`downloads-final.trx`、`bms-import-final.trx`、`mania-import-final.trx`及各日志、`desktop-release.log`、`format/`与`format-final/`。同步本线STATUS/PLAN/CONSTRAINTS与唯一旧快照诊断记忆；没有新建临时探针或工作副本。文档检查与git diff检查通过，当前分支提交、不推送。
+- 未重新裁定七项难度组选歌及一项mania普通目录旧检查，也未补签修复后的实站桌面、大包/听感、皮肤、设备或发行门；后续实际网络观察按现有计划验收。
+
+每次新shell先执行开发存储入口；以下测试/构建均编译当前配置，不复用旧产物作为验证门：
+
+```powershell
+. .\UseDevelopmentStorage.ps1
+dotnet test osu.Game.Tests/osu.Game.Tests.csproj -c Debug --no-restore --filter "FullyQualifiedName~TestFirstDownloadOffersExactChartBeforeRealmNotification" --logger "trx;LogFileName=first-download-green.trx" --results-directory artifacts/download-completion-20261003
+dotnet format osu.Game.Tests/osu.Game.Tests.csproj --no-restore --verify-no-changes --exclude-diagnostics IDE1006 --include osu.Game/Overlays/BmsDownloadOverlay.cs osu.Game/Overlays/ManiaDownloadOverlay.cs osu.Game.Tests/Visual/Overlays/TestSceneBmsDownload.cs osu.Game.Tests/Visual/Overlays/TestSceneManiaDownload.cs --report artifacts/download-completion-20261003/format-final
+dotnet test osu.Game.Tests/osu.Game.Tests.csproj -c Debug --no-restore --filter "FullyQualifiedName~BmsDownloadClientTest|FullyQualifiedName~BmsDownloadManagerTest|FullyQualifiedName~ManiaDownloadManagerTest|FullyQualifiedName~SayobotClientTest|FullyQualifiedName~BmsCoverResourceStoreTest|FullyQualifiedName~TestSceneBmsDownload|FullyQualifiedName~TestSceneManiaDownload" --logger "trx;LogFileName=downloads-final.trx" --results-directory artifacts/download-completion-20261003
+dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj -c Release --no-restore --filter "FullyQualifiedName~BmsDownloadImporterTest" --logger "trx;LogFileName=bms-import-final.trx" --results-directory artifacts/download-completion-20261003
+dotnet test osu.Game.Rulesets.Mania.Tests/osu.Game.Rulesets.Mania.Tests.csproj -c Release --no-restore --filter "FullyQualifiedName~ManiaDownloadImporterTest" --logger "trx;LogFileName=mania-import-final.trx" --results-directory artifacts/download-completion-20261003
+dotnet build osu.Desktop.slnf -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m --no-restore
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1
+git diff --check
+```
+
 ## 2026-10-02：游戏内下载审查问题修复与验证
 
 - 从干净master@491c822接续，fetch成功，开工时相对origin/master领先8、落后0；保存六项具体修复方案与退出条件后实施，归档与页面责任分离，共享格式化/build/test由主执行者串行调度。

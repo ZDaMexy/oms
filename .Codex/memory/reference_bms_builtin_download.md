@@ -1,6 +1,6 @@
 ---
 name: reference_bms_builtin_download
-description: P1-A 公共 BMS 下载、表等级、归档预算/CRC/释放语义与精确选歌接入地雷
+description: P1-A 公共 BMS 下载、表等级、归档预算/CRC/释放、首次完成旧快照与精确选歌地雷
 metadata:
   node_type: memory
   type: reference
@@ -48,6 +48,7 @@ metadata:
 - `InvalidDataException` 直接继承 SystemException，不属于 IOException；坏 JSON/归档的可恢复失败必须明确列入对应边界，否则任务/UI 异步方法会异常退出而没有失败状态。
 - 在任务集合锁内登记 Completion，终态在释放流、独占暂存和队列资源后发布；退出先 cancel + join，再释放 Realm。否则可能漏等任务或让重试替换仍在收尾的所有者。
 - Realm LINQ 不支持本链 `Ruleset.ShortName` 嵌套属性比较。沿既有字符串 RQL 查询；`BeatmapManager.QueryBeatmap` 已返回 detached BeatmapInfo，不能再当 Live 调用 PerformRead。
+- 后台 importer 已提交而 update Realm 尚未推进时，通知可先报成功；卡片当次查不到本地目标，Completed 会落入已有任务的Retry分支，后续 Realm通知不自动重刷卡片。BMS/mania均在完成回调、刷新现有卡片前同步当前Realm，再沿原可用查询判定；不靠历史Imported直接显示Open，也不在进度帧或全局查询增加刷新。回归在单AddStep内固定旧快照、限时等待真实任务，再调用公有overlay.UpdateSubTree只执行页面完成更新；Drawable.Scheduler是protected，不能直接从测试访问。必须断言一次请求直接Open及原Guid稳定，另测后台删除/不可用与旧通知拒绝。仅关页重开会掩盖此时序。
 - 打开选中的原谱用实际持久化 GUID，导航最终回调重新查询可用记录；旧 PresentBeatmap(set, predicate) 会在不命中时回落其它难度，不满足精确选歌。实际 Player 期间只通知，不自动切歌或借完成点击退出游玩。
 - 精确选歌必须等 carousel 初次呈现、过滤完成与选择 debounce 后再核对 GUID。真实多谱包暴露两条初始化竞态：先推荐再重映射 GroupedBeatmap 会因旧/null 分组换难度；明确 Present 后 FilterControl 又把 None 改为 DifficultyTable，criteriaChanged 根组重置会清空目标。推荐前按原 GUID 重映射，明确跳转的首次呈现窗口跳过根组 reset；正常进入/用户后续改组继续原合同。主菜单 LoadComplete 要向选歌传递明确目标；等待过滤或 Realm 新项通知时保留目标 GroupedBeatmap，不能后来覆盖玩家手动选择。
 - 原 fixture 只选 ANOTHER，恰与自动推荐一致，会掩盖上述换歌。正反目标都要检查，并核对 carousel 与全局选择一致；单纯把对象复制成 Clone 不能复现此问题，CheckModelEquality 已有 BeatmapInfo GUID override。下载打开明确选原生 BMS，不能沿当前 mania 的转谱显示保持模式。

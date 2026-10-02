@@ -102,6 +102,86 @@ namespace osu.Game.Tests.Visual.Overlays
 
         [TestCase(false)]
         [TestCase(true)]
+        public void TestFirstDownloadOffersExactChartBeforeRealmNotification(bool another)
+        {
+            string requestedMd5 = another ? another_md5 : normal_md5;
+            Guid target = Guid.Empty;
+            AddUntilStep("browser loaded", () => overlay.IsLoaded);
+            AddStep("open browser", () => overlay.Show());
+            AddUntilStep("package and both charts loaded", () => overlay.Cards.SingleOrDefault()?.Package.Charts.Count == 2);
+            AddUntilStep("card loaded", () => overlay.Cards.Single().IsLoaded);
+            AddStep("complete first download before realm notifications", () =>
+            {
+                var card = overlay.Cards.Single();
+                card.SelectChart(requestedMd5);
+                Game.Realm.Realm.Refresh();
+                Assert.That(Game.BeatmapManager.QueryBeatmap("Ruleset.ShortName == $0 AND MD5Hash == $1", "bms", requestedMd5), Is.Null);
+
+                var task = manager.Download(card.Package, requestedMd5);
+                Assert.That(task.Completion.Wait(TimeSpan.FromSeconds(10)), Is.True, "background import must finish without pumping the update thread");
+                task.Completion.GetAwaiter().GetResult();
+                Assert.That(task.Progress.State, Is.EqualTo(BmsDownloadState.Completed));
+                target = task.Progress.Imported!.Single(chart => chart.Md5 == requestedMd5).BeatmapId;
+                Assert.That(Game.BeatmapManager.QueryBeatmap("ID == $0", target), Is.Null, "the update realm has not yet observed the completed background write");
+
+                // Run the overlay's actual completion update before the update thread processes Realm's notification.
+                overlay.UpdateSubTree();
+                Assert.That(card.ChildrenOfType<BeatmapDownloadCardButton>().Any(button => button.TooltipText.ToString() == "Open in song select"), Is.True);
+                Assert.That(packages.Requests, Is.EqualTo(1));
+            });
+            AddUntilStep("single completion notification", () => Game.Notifications.ChildrenOfType<ProgressCompletionNotification>().Count() == 1);
+            AddUntilStep("card accepts input", () => !overlay.ChildrenOfType<LoadingLayer>().Single().IsPresent);
+            AddStep("click first completed download", () => click(cardButton(overlay.Cards.Single(), "Open in song select")));
+            AddUntilStep("exact selected chart opens", () => Game.ScreenStack.CurrentScreen is SoloSongSelect && Game.Beatmap.Value.BeatmapInfo.ID == target);
+            AddUntilStep("song list settled", () => Game.ScreenStack.CurrentScreen is SoloSongSelect select && select.CarouselItemsPresented && !select.IsFiltering);
+            AddWaitStep("allow selection debounce", 5);
+            AddAssert("settled selection keeps original chart", () => Game.Beatmap.Value.BeatmapInfo.ID, () => Is.EqualTo(target));
+            AddAssert("first download was enough", () => packages.Requests, () => Is.EqualTo(1));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestCompletedUnavailableChartDoesNotOfferPlay(bool unavailable)
+        {
+            AddUntilStep("browser loaded", () => overlay.IsLoaded);
+            AddStep("open browser", () => overlay.Show());
+            AddUntilStep("package and both charts loaded", () => overlay.Cards.SingleOrDefault()?.Package.Charts.Count == 2);
+            AddUntilStep("card loaded", () => overlay.Cards.Single().IsLoaded);
+            AddStep("make completed chart unavailable before card refresh", () =>
+            {
+                var card = overlay.Cards.Single();
+                card.SelectChart(another_md5);
+                Game.Realm.Realm.Refresh();
+                var task = manager.Download(card.Package, another_md5);
+                Assert.That(task.Completion.Wait(TimeSpan.FromSeconds(10)), Is.True);
+                task.Completion.GetAwaiter().GetResult();
+                Assert.That(task.Progress.State, Is.EqualTo(BmsDownloadState.Completed));
+                Guid target = task.Progress.Imported!.Single(chart => chart.Md5 == another_md5).BeatmapId;
+                var remove = Task.Run(() => Game.Realm.Write(realm =>
+                {
+                    var set = realm.Find<BeatmapInfo>(target)!.BeatmapSet!;
+                    if (unavailable)
+                        set.FilesystemUnavailable = true;
+                    else
+                        set.DeletePending = true;
+                }));
+                Assert.That(remove.Wait(TimeSpan.FromSeconds(10)), Is.True);
+                remove.GetAwaiter().GetResult();
+
+                overlay.UpdateSubTree();
+                Assert.That(card.ChildrenOfType<BeatmapDownloadCardButton>().Any(button => button.TooltipText.ToString() == "Open in song select"), Is.False);
+                Assert.That(cardButton(card, "Retry").Enabled.Value, Is.True);
+                Assert.That(packages.Requests, Is.EqualTo(1));
+            });
+            AddUntilStep("completion notification arrives", () => Game.Notifications.ChildrenOfType<ProgressCompletionNotification>().Count() == 1);
+            AddStep("open removed chart from completion notification", () => Game.Notifications.ChildrenOfType<ProgressCompletionNotification>().Single().Activated!());
+            AddUntilStep("unavailable chart explains result", () => Game.Notifications.ChildrenOfType<SimpleNotification>().Any(notification =>
+                notification.Text.ToString().Contains("no longer available", StringComparison.OrdinalIgnoreCase)));
+            AddAssert("notification leaves menu current", () => Game.ScreenStack.CurrentScreen is MainMenu);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
         public void TestDownloadContinuesWhileClosedAndOpensExactDifficulty(bool another)
         {
             string requestedMd5 = another ? another_md5 : normal_md5;

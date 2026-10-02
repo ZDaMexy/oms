@@ -17,6 +17,7 @@ using osu.Framework.Platform;
 using osu.Framework.Threading;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Drawables.Cards;
+using osu.Game.Database;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.Sprites;
@@ -34,6 +35,7 @@ namespace osu.Game.Overlays
         private BmsDownloadManager downloads = null!;
         private BeatmapManager beatmaps = null!;
         private OsuGame game = null!;
+        private RealmAccess realm = null!;
 
         private readonly Dictionary<string, BmsDownloadCard> cards = new Dictionary<string, BmsDownloadCard>();
         private FillFlowContainer<BmsDownloadCard> results = null!;
@@ -65,11 +67,12 @@ namespace osu.Game.Overlays
         protected override Color4 BackgroundColour => ColourProvider.Background6;
 
         [BackgroundDependencyLoader]
-        private void load(GameHost host, BmsDownloadManager downloads, BeatmapManager beatmaps, OsuGame game)
+        private void load(GameHost host, BmsDownloadManager downloads, BeatmapManager beatmaps, OsuGame game, RealmAccess realm)
         {
             this.downloads = downloads;
             this.beatmaps = beatmaps;
             this.game = game;
+            this.realm = realm;
             covers = new BeatmapDownloadCoverStore(host, new BeatmapDownloadCoverResourceStore());
 
             Child = new Container
@@ -371,7 +374,13 @@ namespace osu.Game.Overlays
         private void refreshTask(BmsDownloadTask task)
         {
             if (!IsDisposed && cards.TryGetValue(task.Package.Key, out var card))
+            {
+                // Import commits on a worker thread, before Realm's update-thread notification may arrive.
+                if (task.Progress.State == BmsDownloadState.Completed)
+                    realm.Realm.Refresh();
+
                 card.Refresh();
+            }
         }
 
         private void refreshCards()

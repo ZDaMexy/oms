@@ -15,6 +15,7 @@ using osu.Framework.Platform;
 using osu.Framework.Threading;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Drawables.Cards;
+using osu.Game.Database;
 using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
@@ -31,6 +32,7 @@ namespace osu.Game.Overlays
         private ManiaDownloadManager downloads = null!;
         private BeatmapManager beatmaps = null!;
         private OsuGame game = null!;
+        private RealmAccess realm = null!;
         private readonly BeatmapDownloadCoverResourceStore coverSource;
         private readonly Dictionary<string, ManiaDownloadCard> cards = new Dictionary<string, ManiaDownloadCard>();
         private FillFlowContainer<ManiaDownloadCard> results = null!;
@@ -57,11 +59,12 @@ namespace osu.Game.Overlays
         protected override Color4 BackgroundColour => ColourProvider.Background6;
 
         [BackgroundDependencyLoader]
-        private void load(GameHost host, ManiaDownloadManager downloads, BeatmapManager beatmaps, OsuGame game)
+        private void load(GameHost host, ManiaDownloadManager downloads, BeatmapManager beatmaps, OsuGame game, RealmAccess realm)
         {
             this.downloads = downloads;
             this.beatmaps = beatmaps;
             this.game = game;
+            this.realm = realm;
             covers = new BeatmapDownloadCoverStore(host, coverSource);
             Child = new Container
             {
@@ -229,7 +232,13 @@ namespace osu.Game.Overlays
         private void refreshTask(ManiaDownloadTask task)
         {
             if (!IsDisposed && cards.TryGetValue(task.Set.Key, out var card))
+            {
+                // Import commits on a worker thread, before Realm's update-thread notification may arrive.
+                if (task.Progress.State == ManiaDownloadState.Completed)
+                    realm.Realm.Refresh();
+
                 card.Refresh();
+            }
         }
 
         protected override void Update()
