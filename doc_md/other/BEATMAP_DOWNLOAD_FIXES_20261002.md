@@ -100,6 +100,6 @@ mania原目录失败为 `TestRegisterExternalDirectoryWithOnlyNonManiaBeatmapsRe
 
 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1`通过：192个Markdown、1903个相对链接、256个本地Markdown锚点、121个memory wiki链；原公开制品/参考指纹及通用路径提示保留，未为消除提示改写历史。`git diff --check`通过，STATUS/PLAN行数和字符预算、memory单行预算均保持；源码冻结清单与验证后文件一致。检查日志为 `documentation-check.log`，差异结果为 `diff-check.log`。
 
-两个本次自建暂存目录 `.dev-cache/temp/download-fix-bms-fixtures/` 和 `.dev-cache/temp/beatmap-download-fixes-20261002/` 已定点检查；探针源码及工具生成参考包与artifacts保存证据哈希一致。清理命令被自动安全审查在执行前拒绝，仅返回“blocked by policy”，没有执行递归删除。两个目录继续保留，`cleanup.json`明确记录清理未完成；没有新建或操作其它工作副本，也未清空依赖缓存、用户内容或长期证据。
+两个本次自建暂存目录 `.dev-cache/temp/download-fix-bms-fixtures/` 和 `.dev-cache/temp/beatmap-download-fixes-20261002/` 已定点检查；探针源码及工具生成参考包与artifacts保存证据哈希一致。最初自动清理被安全审查在执行前拒绝，仅返回“blocked by policy”；随后用户用PowerShell按固定路径删除，两个Test-Path均为False，代理只读复核也确认目录不存在、长期验证日志/夹具/探针源码仍在。`cleanup.json`及`completion.json`已更新为用户完成清理；没有新建或操作其它工作副本，也未清空依赖缓存、用户内容或长期证据。此次仅补清理收尾，未重跑或刷新产品验收。
 
 收尾在当前master提交，未经用户确认不推送。实网、设备与发行人工门不因文档或提交完成而关闭。
