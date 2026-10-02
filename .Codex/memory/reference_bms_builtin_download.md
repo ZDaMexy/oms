@@ -1,6 +1,6 @@
 ---
 name: reference_bms_builtin_download
-description: P1-A 公共 BMS 下载源、完整表等级联动、浏览可见性、任务收尾及精确选歌接入地雷
+description: P1-A 公共 BMS 下载、表等级、归档失败/内存/CRC审查及精确选歌接入地雷
 metadata:
   node_type: memory
   type: reference
@@ -38,6 +38,8 @@ metadata:
 
 ## 任务收尾与导航
 
+- SharpCompress0.39的ZIP OpenEntryStream不支持method时抛NotSupportedException，不是ArchiveException；真实输入会让任务Completion fault但仍停在Importing，同包重试复用/取消无效，Dispose再抛。ZIP流也不自动验证CRC，目标谱MD5无法证明资源完整。下载边界缺口、低量路径/全文内存探针及未修复状态见[全量审查](../../doc_md/other/BEATMAP_DOWNLOAD_REVIEW_20261002.md)，不要用宽泛manager捕获或仅正常小包证明坏包安全。
+- 表目录与选中表资料是两次独立读取；目录503后并无选中表，Header.Retry只读等级/歌曲不能恢复目录。真实鼠标/Enter都需统计目录请求及恢复后的选项；歌曲成功清掉共用status会掩盖目录失败。BMS Logger.Error还会把已处理失败转为英文通知，不能把Sayobot已修路径当双源都已收口。
 - `InvalidDataException` 直接继承 SystemException，不属于 IOException；坏 JSON/归档的可恢复失败必须明确列入对应边界，否则任务/UI 异步方法会异常退出而没有失败状态。
 - 在任务集合锁内登记 Completion，终态在释放流、独占暂存和队列资源后发布；退出先 cancel + join，再释放 Realm。否则可能漏等任务或让重试替换仍在收尾的所有者。
 - Realm LINQ 不支持本链 `Ruleset.ShortName` 嵌套属性比较。沿既有字符串 RQL 查询；`BeatmapManager.QueryBeatmap` 已返回 detached BeatmapInfo，不能再当 Live 调用 PerformRead。
