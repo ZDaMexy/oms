@@ -1,5 +1,9 @@
 # OMS IR 客户端与生产试运行记录
 
+## 当前实机入口与生成物清理
+
+2026-10-03 用户纠正：日常通过 VS Code 非调试启动当前工作区，发行构建由用户自行执行。本报告下方完整候选与启动检查是已发生的历史证据，不是当前交付要求。已按清单和 SHA256 核对删除本轮 ZIP / sidecar、publish、两个启动副本的程序文件及字体 / shader 缓存，释放 2336846647 字节（约 2.18 GiB）；原有存档、日志、恢复备份、结果与制品清单保留。删除记录为 `artifacts/oms-ir-release-20261003/removed-generated-windows-files-20261003.json`，原清单为 `retired-windows-candidate-manifest.json`；早期构建日志与历史结果中的路径不再表示仍存在的安装目录。VS Code 当前代码与线上 IR 未更改，后续不因实机验收或服务部署自行打包。
+
 ## 玩家入口与验收范围
 
 用户于 2026-10-03 授权持续实现、commit / push 与直接部署，由用户在真实环境验收。客户端工具栏奖杯打开独立 IR 面板；服务地址填 `https://oms.zdamexy.work`，启用并登录后，正常完成且真正保存的新局才交分。网页入口为 `https://oms.zdamexy.work/ir/`；端内 / 网页同一账号读取相同服务记录。客户端默认地址空、IR 关闭，旧 `OnlineFeaturesEnabled=false` 不变。

@@ -17,3 +17,4 @@
 - Git URL 专用 `http.https://github.com/.proxy` 覆盖普通 `http.proxy=`。本轮成功用每命令清空该项、schannel / HTTP1.1，不关闭 TLS 或永久改配置。
 - .NET / NuGet 会读取 Windows 系统代理，curl --noproxy 正常不代表 dotnet 可达。当前进程显式 HTTP_PROXY / HTTPS_PROXY 加官方域名 NO_PROXY 后实际绕行成功、官方完整包恢复；不能靠改源或反复 ignore-failed-sources 掩盖 TLS 故障，不改全局代理或跳过签名。
 - 十万局榜单避免全历史 payload 排序和按人逐次全表点灯扫描；正式 SQL 先取每人最佳 ID，再排名读 payload，灯走独立覆盖索引。容量探针计入调度到确认，不能把 429 或排队延迟剔除。
+- “真实环境验收”不授权客户端打包：2026-10-03 用户明确日常用 VS Code 非调试启动，发行构建自行执行。稳定约定在 AGENTS；不要由部署服务推导需要 ZIP / publish / 额外安装副本，既有发行门留到用户构建时验收。
