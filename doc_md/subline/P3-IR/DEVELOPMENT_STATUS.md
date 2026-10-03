@@ -15,6 +15,10 @@
 
 默认 endpoint、旧 OnlineFeaturesEnabled 仍保持为空 / false。Phase 1.x 原人工及发行门不随 IR 开工关闭，主线产品状态仍保留其未签收项。
 
+## 多来源扩展状态
+
+2026-10-04 用户要求先详细规划、后续正式审查；已形成外部 Dev Bridge 的多播放器接入、网页/OMS 来源混榜和 LR2IR 全量基础榜提案，入口见[规划投影](DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜待审查规划)。只读汇总与代码/第三方接口取证用于确定工作包，尚未审查采纳，没有新来源接通、历史导入或生产改动。现行 v1、既有真人/设备/发行门及原验证日期保留。
+
 ## 2026-10-03 验证范围
 
 客户端 core IR Release focused 43 通过，BMS IR / 点灯 / 计分 relevant 101 通过，Desktop Release 构建成功。真实 Player + ScoreManager / Realm 场景证明保存未完成时无交分、保存后使用实际 UUID、关闭 IR 仍保存和匿名开局不认领；HTTP 为合成服务，不代签设备。两份实际 C# Create 导出的合成 JSON 未改字段即被公网 API 接收，同局重传 200 / 不新增、榜单 / 本人历史保持一致、刷新旋转及退出撤销均通过。后端 60 行为检查通过，1 条 Starlette 弃用警告；NuGet 漏洞信息源不可达警告保留，不能宣称依赖审计通过。
