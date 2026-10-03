@@ -5,7 +5,7 @@
 
 ## 当前目标
 
-2026-10-03 用户授权提前推进独立 OMS IR：先本地真实账号、交分和网页试验榜，再端内保存后交分、离线恢复与 50 人运行验收。范围和退出条件统一见 [P3-IR](../subline/P3-IR/DEVELOPMENT_PLAN.md)；这项改序不关闭下方 Phase 1.x 门，也不填入默认 endpoint。
+2026-10-03 用户授权提前推进独立 OMS IR 并直接部署：候选端内保存后交分 / 待交恢复和 50 人服务已具软件、容量 / 恢复及生产证据，后续由用户在候选包验收真实游玩、网页同一局、断网重启与原账号恢复。范围和退出条件统一见 [P3-IR](../subline/P3-IR/DEVELOPMENT_PLAN.md)；这项改序不关闭下方 Phase 1.x 门，也不填入默认 endpoint。
 
 下载已交付能力及修复作为后续输入，结果只在[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)维护；改动归档、浏览或完成状态时的回归与具名旧检查维护见[P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md#下载维护与回归)，不恢复旧入口或放宽输入失败语义。
 
@@ -72,7 +72,7 @@ P1-F结合P1-G统一复核：
 
 - P1-M播放器在R3～R6/release门前不抢占工作；除产品明确改序外保持后置。
 - 已提前实现的Phase 2能力不代表Phase 1完成；1P/2P flip、完整FHS、dan、BSS/MSS等冻结，除非成为Phase 1阻塞修复。
-- 2026-10-03 用户授权的 [P3-IR](../subline/P3-IR/DEVELOPMENT_PLAN.md) 独立本地开发提前开始；默认 endpoint、公开私有服务入口、OMS/mania 官网谱面下载、聊天、多人与自动更新仍冻结。既有公共下载窄例外沿 P1-A 合同，不扩大为官网在线面。
+- 2026-10-03 用户授权的 [P3-IR](../subline/P3-IR/DEVELOPMENT_PLAN.md) 独立按需服务已进入主动连接 / 公网试运行；默认 endpoint、OMS/mania 官网谱面下载、聊天、多人与自动更新仍冻结。既有公共下载窄例外沿 P1-A 合同，不扩大旧全套在线面。
 - 不盲目同步上游，只按[UPSTREAM](../other/UPSTREAM.md)选择性cherry-pick。
 
 ## 改动验收矩阵

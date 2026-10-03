@@ -22,4 +22,4 @@
 
 ## 授权提前工作的 Phase 3 子线
 
-[P3-IR](P3-IR/DEVELOPMENT_STATUS.md) 于 2026-10-03 按用户授权开始独立 IR 的本地账号、交分与网页闭环，客户端接入与离线补交随后实施。默认 endpoint 仍空，原 Phase 1.x 人工 / 发行门保持；完整范围与退出条件见该线[计划](P3-IR/DEVELOPMENT_PLAN.md)和[约束](P3-IR/TECHNICAL_CONSTRAINTS.md)。
+[P3-IR](P3-IR/DEVELOPMENT_STATUS.md) 于 2026-10-03 按用户授权实现候选端内保存后交分、持久待交和查询，独立服务 / 网页已部署试运行，真实游玩由用户验收。默认 endpoint 仍空，原 Phase 1.x 人工 / 发行门保持；完整范围与退出条件见该线[计划](P3-IR/DEVELOPMENT_PLAN.md)和[约束](P3-IR/TECHNICAL_CONSTRAINTS.md)。

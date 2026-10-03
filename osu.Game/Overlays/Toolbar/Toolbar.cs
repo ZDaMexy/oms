@@ -172,6 +172,7 @@ namespace osu.Game.Overlays.Toolbar
                                                 new ToolbarBeatmapListingButton(),
                                                 new ToolbarChatButton(),
                                                 new ToolbarSocialButton(),
+                                                new ToolbarOmsIrButton(),
                                                 new ToolbarMusicButton(),
                                                 //new ToolbarButton
                                                 //{
@@ -185,12 +186,14 @@ namespace osu.Game.Overlays.Toolbar
                                                 ? new Drawable[]
                                                 {
                                                     new ToolbarBmsDownloadButton(),
+                                                    new ToolbarOmsIrButton(),
                                                     new ToolbarMusicButton(),
                                                     new ToolbarClock(),
                                                     new ToolbarNotificationButton(),
                                                 }
                                                 : new Drawable[]
                                                 {
+                                                    new ToolbarOmsIrButton(),
                                                     new ToolbarMusicButton(),
                                                     new ToolbarClock(),
                                                     new ToolbarNotificationButton(),

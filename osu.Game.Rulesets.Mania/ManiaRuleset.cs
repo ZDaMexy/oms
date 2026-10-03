@@ -18,6 +18,7 @@ using osu.Game.Beatmaps.Legacy;
 using osu.Game.Configuration;
 using osu.Game.Graphics;
 using osu.Game.Localisation;
+using osu.Game.Online.IR;
 using osu.Game.Overlays.Settings;
 using osu.Game.Rulesets.Configuration;
 using osu.Game.Rulesets.Difficulty;
@@ -155,6 +156,14 @@ namespace osu.Game.Rulesets.Mania
         public override PerformanceCalculator CreatePerformanceCalculator() => new ManiaPerformanceCalculator();
 
         public const string SHORT_NAME = "mania";
+
+        public override OmsIrSubmissionContext CaptureOmsIrSubmissionContext(IBeatmap playableBeatmap, IBeatmapInfo sourceBeatmapInfo)
+        {
+            if (playableBeatmap is not ManiaBeatmap maniaBeatmap)
+                throw new ArgumentException("Mania IR requires the actual playable mania beatmap.", nameof(playableBeatmap));
+
+            return new OmsIrSubmissionContext(SHORT_NAME, $"mania_{maniaBeatmap.TotalColumns}k", sourceBeatmapInfo);
+        }
 
         public override string RulesetAPIVersionSupported => CURRENT_RULESET_API_VERSION;
 

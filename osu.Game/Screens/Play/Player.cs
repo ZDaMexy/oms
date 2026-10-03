@@ -26,6 +26,7 @@ using osu.Game.Extensions;
 using osu.Game.Graphics.Containers;
 using osu.Game.IO.Archives;
 using osu.Game.Online.API;
+using osu.Game.Online.IR;
 using osu.Game.Overlays;
 using osu.Game.Replays.Legacy;
 using osu.Game.Rulesets;
@@ -131,6 +132,12 @@ namespace osu.Game.Screens.Play
 
         [Resolved]
         private ScoreManager scoreManager { get; set; }
+
+        [Resolved(CanBeNull = true)]
+        private OmsIrService omsIr { get; set; }
+
+        private OmsIrSubmissionTarget irTarget;
+        private OmsIrSubmissionContext irContext;
 
         [Resolved]
         private IAPIProvider api { get; set; }
@@ -285,6 +292,19 @@ namespace osu.Game.Screens.Play
             Score.ScoreInfo.BeatmapHash = Beatmap.Value.BeatmapInfo.Hash;
             Score.ScoreInfo.Ruleset = ruleset.RulesetInfo;
             Score.ScoreInfo.Mods = gameplayMods;
+
+            irTarget = omsIr?.CaptureSubmissionTarget();
+            if (irTarget != null)
+            {
+                try
+                {
+                    irContext = ruleset.CaptureOmsIrSubmissionContext(playableBeatmap, Beatmap.Value.Beatmap.BeatmapInfo);
+                }
+                catch (InvalidOperationException error)
+                {
+                    omsIr.ReportLocalFailure(error.Message);
+                }
+            }
 
             dependencies.CacheAs(GameplayState = new GameplayState(playableBeatmap, ruleset, gameplayMods, Score, ScoreProcessor, HealthProcessor, Beatmap.Value.Storyboard, PlayingState));
 
@@ -922,6 +942,7 @@ namespace osu.Game.Screens.Play
 
             return prepareScoreForDisplayTask = Task.Run(async () =>
             {
+                bool irResultPrepared = true;
                 try
                 {
                     await PrepareScoreForResultsAsync(scoreCopy).ConfigureAwait(false);
@@ -929,6 +950,7 @@ namespace osu.Game.Screens.Play
                 catch (Exception ex)
                 {
                     Logger.Error(ex, @"Score preparation failed!");
+                    irResultPrepared = false;
                 }
 
                 try
@@ -938,15 +960,43 @@ namespace osu.Game.Screens.Play
                 catch (Exception ex)
                 {
                     Logger.Error(ex, @"Ruleset score preparation failed!");
+                    irResultPrepared = false;
                 }
 
+                bool imported = false;
                 try
                 {
                     await ImportScore(scoreCopy).ConfigureAwait(false);
+                    imported = true;
                 }
                 catch (Exception ex)
                 {
                     Logger.Error(ex, @"Score import failed!");
+                }
+
+                if (canShowResults && imported && DrawableRuleset.ReplayScore == null && !string.IsNullOrEmpty(scoreCopy.ScoreInfo.Hash)
+                    && irResultPrepared && irContext != null)
+                {
+                    try
+                    {
+                        await omsIr.QueueSubmissionAsync(irTarget, irContext.Create(scoreCopy.ScoreInfo)).ConfigureAwait(false);
+                    }
+                    catch (OmsIrException error)
+                    {
+                        omsIr.ReportLocalFailure($"本地成绩已保存；IR 待交未完成：{error.Message}");
+                    }
+                    catch (IOException error)
+                    {
+                        omsIr.ReportLocalFailure($"本地成绩已保存；IR 待交无法写入：{error.Message}");
+                    }
+                    catch (UnauthorizedAccessException)
+                    {
+                        omsIr.ReportLocalFailure("本地成绩已保存；IR 待交目录无法写入，请检查保存目录权限。");
+                    }
+                    catch (InvalidOperationException error)
+                    {
+                        omsIr.ReportLocalFailure($"本地成绩已保存；这局暂不能交分：{error.Message}");
+                    }
                 }
 
                 return scoreCopy.ScoreInfo;

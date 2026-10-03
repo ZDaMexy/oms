@@ -17,6 +17,7 @@ using osu.Game.Beatmaps;
 using osu.Game.Configuration;
 using osu.Game.Database;
 using osu.Game.Localisation;
+using osu.Game.Online.IR;
 using osu.Game.Overlays;
 using osu.Game.Overlays.Settings;
 using osu.Game.Rulesets.Bms.Beatmaps;
@@ -330,6 +331,24 @@ namespace osu.Game.Rulesets.Bms
         public override void PrepareScoreInfoForResults(ScoreInfo score, IBeatmap playableBeatmap)
         {
             score.SetRulesetData(BmsClearLampProcessor.CreatePersistentData(score, playableBeatmap));
+        }
+
+        public override OmsIrSubmissionContext CaptureOmsIrSubmissionContext(IBeatmap playableBeatmap, IBeatmapInfo sourceBeatmapInfo)
+        {
+            if (playableBeatmap is not BmsBeatmap bmsBeatmap)
+                throw new ArgumentException("BMS IR requires the actual playable BMS beatmap.", nameof(playableBeatmap));
+
+            string keymode = bmsBeatmap.BmsInfo.KeymodeResolution.Keymode switch
+            {
+                BmsKeymode.Key5K => "bms_5k",
+                BmsKeymode.Key7K => "bms_7k",
+                BmsKeymode.Key9K_Bms => "bms_9k",
+                BmsKeymode.Key9K_Pms => "pms_9k",
+                BmsKeymode.Key14K => "bms_14k",
+                _ => throw new InvalidOperationException("The playable BMS keymode is not supported."),
+            };
+
+            return new OmsIrSubmissionContext(SHORT_NAME, keymode, sourceBeatmapInfo, BmsJudgeRankExtensions.FromHeaderValue(bmsBeatmap.BmsInfo.Rank).ToHeaderValue());
         }
 
         public override Drawable CreateResultsAccuracyDisplay(ScoreInfo score, bool withFlair = false) => new BmsResultsAccuracyDisplay(score, withFlair);

@@ -135,6 +135,7 @@ namespace osu.Game
         public BmsDownloadOverlay BmsDownloads { get; private set; }
 
         public ManiaDownloadOverlay ManiaDownloads { get; private set; }
+        public OmsIrOverlay Ir { get; private set; }
         public readonly Bindable<BeatmapDownloadMode> DownloadMode = new Bindable<BeatmapDownloadMode>();
 
         private BmsDownloadManager bmsDownloadManager;
@@ -1728,6 +1729,8 @@ namespace osu.Game
                 loadComponentSingleFile(BmsDownloads = new BmsDownloadOverlay(), overlayContent.Add, true);
             if (ManiaDownloadsEnabled)
                 loadComponentSingleFile(ManiaDownloads = CreateManiaDownloadOverlay(), overlayContent.Add, true);
+
+            loadComponentSingleFile(Ir = new OmsIrOverlay(), overlayContent.Add, true);
 
             loadComponentSingleFile(Settings = new SettingsOverlay(), leftFloatingOverlayContent.Add, true);
 

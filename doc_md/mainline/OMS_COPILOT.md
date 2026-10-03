@@ -1011,9 +1011,9 @@ The skin system must ship with both non-visual and visual validation:
 
 ---
 
-## 14. Phase 3 Private Server Integration (authorised local IR development)
+## 14. Phase 3 Private Server Integration (authorised opt-in IR trial)
 
-On 2026-10-03 the user explicitly authorised planning and starting a small request-driven OMS IR. This narrows the previous freeze for local IR development; it does not complete Phase 1.x or enable public/default endpoints. There is no current `oms.Server` project in this client repository. The client remains offline by default and `OnlineFeaturesEnabled` stays false.
+On 2026-10-03 the user explicitly authorised a small request-driven OMS IR, then continued implementation, commits, pushes and direct deployment for real-environment acceptance. This narrows the previous freeze for the independent IR trial; it does not complete Phase 1.x or configure a default client endpoint. There is no current `oms.Server` project in this client repository. The client remains offline by default and `OnlineFeaturesEnabled` stays false.
 
 ### 14.1 Independent IR Client
 
@@ -1023,7 +1023,7 @@ Client implementation, failure behaviour and gates are owned by [P3-IR](../subli
 
 ### 14.2 Adopted IR v1
 
-The external backend uses `/api/ir/v1` for register/login/refresh/logout, current user, final-score submission, chart/group discovery, public trial boards and owner-only history. Desktop login returns `access_token`, `refresh_token`, `user`, `expires_in`. These routes are local development work, not current default client features.
+The external backend uses `/api/ir/v1` for register/login/refresh/logout, current user, final-score submission, chart/group discovery, public trial boards and owner-only history. Desktop login returns `access_token`, `refresh_token`, `user`, `expires_in`. The IR overlay requires an explicit service origin and opt-in; production and client verification results belong in P3-IR status.
 
 A submission binds the saved ScoreInfo UUID and account, raw-chart MD5 plus SHA256, explicit ruleset/keymode, played time, client and total-score versions, score/statistics/mods and complete BMS v7 result. BMS EX is derived from perfect/great statistics; final gauge is 0..1 and native clear lamp is an integer. BMS/PMS 9K needs the playable chart's resolved keymode; mania needs actual columns. The obsolete flat OmsScore sketch is superseded by the external v1 contract, not a second serializer in this document.
 

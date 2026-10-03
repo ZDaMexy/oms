@@ -22,6 +22,7 @@ using osu.Game.Configuration;
 using osu.Game.Database;
 using osu.Game.Extensions;
 using osu.Game.Localisation;
+using osu.Game.Online.IR;
 using osu.Game.Online.Leaderboards;
 using osu.Game.Overlays;
 using osu.Game.Overlays.Settings;
@@ -361,6 +362,14 @@ namespace osu.Game.Rulesets
         public virtual void PrepareScoreInfoForResults(ScoreInfo score, IBeatmap playableBeatmap)
         {
         }
+
+        /// <summary>
+        /// Captures the actual playable conditions of a new play for opt-in OMS IR submission after local saving.
+        /// </summary>
+        /// <param name="playableBeatmap">The converted beatmap with this play's mods applied.</param>
+        /// <param name="sourceBeatmapInfo">The original chart identity verified by the working beatmap loader.</param>
+        /// <returns>A captured context, or null when this ruleset does not support OMS IR.</returns>
+        public virtual OmsIrSubmissionContext? CaptureOmsIrSubmissionContext(IBeatmap playableBeatmap, IBeatmapInfo sourceBeatmapInfo) => null;
 
         /// <summary>
         /// Creates the main accuracy / rank display shown in the expanded results panel.

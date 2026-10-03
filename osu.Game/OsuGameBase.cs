@@ -48,6 +48,7 @@ using osu.Game.Input.Bindings;
 using osu.Game.IO;
 using osu.Game.Localisation;
 using osu.Game.Online;
+using osu.Game.Online.IR;
 using osu.Game.Online.API;
 using osu.Game.Online.Chat;
 using osu.Game.Online.Leaderboards;
@@ -192,6 +193,8 @@ namespace osu.Game
         protected BeatmapModelDownloader BeatmapDownloader { get; private set; }
 
         protected ScoreManager ScoreManager { get; private set; }
+
+        public OmsIrService OmsIr { get; private set; }
 
         protected ScoreModelDownloader ScoreDownloader { get; private set; }
 
@@ -371,6 +374,7 @@ namespace osu.Game
 
             // ordering is important here to ensure foreign keys rules are not broken in ModelStore.Cleanup()
             dependencies.Cache(ScoreManager = new ScoreManager(RulesetStore, () => BeatmapManager, Storage, ClientRealm, API, LocalConfig));
+            dependencies.Cache(OmsIr = new OmsIrService(Storage));
 
             dependencies.Cache(BeatmapManager = new BeatmapManager(Storage, ClientRealm, API, Audio, Resources, Host, defaultBeatmap, difficultyCache, performOnlineLookups: OnlineFeaturesEnabled,
                 customBeatmapLoaders: CreateCustomBeatmapLoaders()));
@@ -885,6 +889,7 @@ namespace osu.Game
 
         protected override void Dispose(bool isDisposing)
         {
+            OmsIr?.Dispose();
             rulesetModStatePersistence?.Dispose();
             base.Dispose(isDisposing);
 
