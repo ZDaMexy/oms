@@ -8,7 +8,7 @@
 
 2026-09-12 对星轨动画、美术安排和精细度的总体否定保留为历史反馈，不改写为通过。静线尚未取得整体视觉签收，当前表格以静线与普通第三方/Aurora 为观察对象。固定 `V001-V005-原验收清单.md` 和 C6 输入保留原精确语义与历史身份，不因此恢复 complex 产品或签收要求；未做项目不代填通过。
 
-当前源码另有[完整制作手册与例子](../skin-authoring/docs/SKINNING.md)及作者 BGA 窗口能力；旧体验目录不自动获得这些内容。后续应按当次完整候选核对，原观察表和旧发行证据不能代签新增窗口、真实素材及长时体验。
+当前源码另有完整制作手册与例子，新体验包内入口为 `skin-authoring/docs/SKINNING.md`，并提供作者 BGA 窗口能力；旧体验目录不自动获得这些内容。后续应按当次完整候选核对，原观察表和旧发行证据不能代签新增窗口、真实素材及长时体验。
 
 ## 开始游玩
 
@@ -40,7 +40,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Reset-ImportCopies.ps1
 
 ## 完成一次作者练习
 
-打开随包 `skin-authoring/README.md`，使用 `Author.ps1` 和可编辑的 `sources/`。复制模板为自己的名字，先改变配色或其中一组音符，再按套件入口检查、打包；把生成包的副本拖入本验收窗口，选择后游玩两种玩法。故意写错一个资源名并运行检查，确认错误能指到具体文件和位置，修复后再导入。目录作者可以登记自己的目录：游戏只读该目录，修改后退出游玩和预览，再在设置中重新载入。游玩或预览期间重新载入仍应被拒绝。
+打开随包 `skin-authoring/README.md`，使用 `Author.ps1` 和可编辑的 `sources/`。复制模板为自己的名字，先改变配色或其中一组音符，再按套件入口检查、打包；把生成包的副本拖入本验收窗口，选择后游玩两种玩法。故意写错一个资源名并运行检查，确认错误能指到具体文件和位置，修复后再导入。反复修改目录作品时，在设置点“打开皮肤文件夹”，将作品放入固定 `chartskin/<作品名>/`；退出游玩和预览后点“刷新皮肤”。游玩或预览期间刷新当前包仍应被拒绝。
+
+C7-19/C7-21 保留原三源与取消登记范围。当前可操作普通导入包和固定 `chartskin` 目录；external 只可使用隔离测试根内已有的有效旧记录，设置没有新增目录登记、managed 改名或 external 注销入口。只记录实际可达的选择、刷新和允许的普通包删除，不可达格保持“未执行”，不修改数据库制造前提，也不用后端自动结果代签原范围；固定 legacy 清单保持原样。
 
 `import-copies/aurora-study.osk` 是从模板实际制作的作者练习成品，源文件和过程见 `skin-authoring/sources/aurora-study/` 与 `docs/WORKSHOP.md`。可先直接导入它，再照完整过程制作自己的版本。
 
@@ -74,10 +76,11 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Update-Installation.ps
 
 ## 从仓库重建本包
 
-先生成完整发行物及作者套件，再运行：
+在非系统盘 checkout 的仓库根目录按 `AGENTS.md` 的开发磁盘约束加载存储入口，生成完整发行物及作者套件后，再运行下方命令。此入口只供源码开发，随包游玩/作者操作仍使用前面的命令。
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\skin-c7-acceptance\Build-Acceptance.ps1 -ReleaseDirectory "F:\oms\publish"
+. .\UseDevelopmentStorage.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\skin-c7-acceptance\Build-Acceptance.ps1 -ReleaseDirectory "D:\OMS-release-fresh"
 ```
 
 输出目录每次独立创建，不覆盖之前的验收记录。版本、发行程序校验与未签收状态写在 `build-evidence.json`；观察谱、素材和第三方输入的校验写在 `inputs/SHA256SUMS.txt`。

@@ -10,7 +10,7 @@
 | [P1-D](P1-D/DEVELOPMENT_STATUS.md) | 控制器校准与诊断 | 未完成 | deadzone、sensitivity、live diagnostics |
 | [P1-E](P1-E/DEVELOPMENT_STATUS.md) | gameplay 与 LN/CN/HCN | 自动链已具备，真实谱面验校未闭合 | 真实谱面长条与输入验收 |
 | [P1-F](P1-F/DEVELOPMENT_STATUS.md) | 离线发行物与覆盖更新 | 历史多文件候选已通过便携/自定义根、恢复、完整覆盖后真实启动及正常退出；旧候选事故事后保全 | 后续产品改动未重新发行验收；仍缺独立账户非便携、设备/长时及公开发行组合人工门，不追溯宣称旧事故无损 |
-| [P1-G](P1-G/DEVELOPMENT_STATUS.md) | 人工验收汇总 | 静态皮肤与 portable 已有分项证据；总清单未闭合 | 汇总皮肤、输入、长条/音频、Song Select、BGA 与发行矩阵 |
+| [P1-G](P1-G/DEVELOPMENT_STATUS.md) | 人工验收汇总 | 静态皮肤与 portable 已有分项证据；总清单未闭合 | 汇总皮肤、输入、长条/音频、Song Select、公共下载、BGA 与发行矩阵 |
 | [P1-H](P1-H/DEVELOPMENT_STATUS.md) | 存储拓扑 | 缺失恢复、同内容多目录及历史保全、当前页难度表刷新已落 | 隔离数据根与真实大库验收、只读诊断 |
 | [P1-I](P1-I/DEVELOPMENT_STATUS.md) | BMS 选歌筛选与搜索 | read-model/搜索与单轨上限筛选已落 | 拖拽手感、窄窗口与真实大库体验 |
 | [P1-J](P1-J/DEVELOPMENT_STATUS.md) | gameplay 性能与音频 | 原生/转谱第二轮热路径优化；自动键音、长伴奏暂停保位与手动 LN 基线保留 | 双模式实谱听感、按现场证据触发50k profile、人工清单 |

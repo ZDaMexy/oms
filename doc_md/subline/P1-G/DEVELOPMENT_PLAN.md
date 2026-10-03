@@ -1,11 +1,11 @@
 # P1-G 当前计划：Phase 1.x 人工验收汇总
 
-> 最后核对：2026-10-01（移除单内容源旧待办；承接作者窗口的实谱/设备门）
+> 最后核对：2026-10-03（承接公共下载剩余体验与候选组合；原人工门保留）
 > 全局 gate 见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)，当前分项见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，历史结论见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线目标
 
-建立一份可追溯的 Phase 1.x 人工 release checklist，统一承接皮肤、真实输入、长条/音频、Song Select、Gimmick/BGA 和发行物中无法由自动测试证明的结果。
+建立一份可追溯的 Phase 1.x 人工 release checklist，统一承接皮肤、真实输入、长条/音频、Song Select、公共下载、Gimmick/BGA 和发行物中无法由自动测试证明的结果。
 
 P1-G 只汇总，不实现：发现问题必须回到 owning 子线，修复后只重测受影响矩阵格。
 
@@ -50,6 +50,7 @@ P1-G 只汇总，不实现：发现问题必须回到 owning 子线，修复后�
 - shared visual/ruleset 切换不串线。
 - P1-I 单轨上限段已实现；验收拖拽手感、零宽编辑、数值提交、窄窗口和三项全开时的无解提示。自动控件证明不代替人工体验。
 - 桌面拖放导入、首次启动/重扫后的可见结果和基本 UI smoke。
+- 公共 BMS/mania 下载按 [P1-A 剩余计划](../P1-A/DEVELOPMENT_PLAN.md#下载维护与回归)记录：两源 BMS 修复后首次完成与精确打开、实际大包/网络/完整歌曲，Sayobot 真实纯 mania/混合小包成功入库及稳定打开。软件/素材成功与旧实站结果分别保留日期，未验项不代填通过。
 
 ### 5. Gimmick 与 BGA
 
@@ -61,6 +62,7 @@ P1-G 只汇总，不实现：发现问题必须回到 owning 子线，修复后�
 
 - fresh extract 冷启动、portable `data/`、custom root 与覆盖更新。
 - 保留 `portable.ini`、`storage.ini` 和用户内容；公开说明与真实能力一致。
+- 当前完整候选复核公共下载、后台任务、失败/取消和入库选歌组合；本次启动尚未首次进入对应浏览分区时不发起该来源请求，关页后已开始的后台下载继续，不扩张官网/私有服务或默认 endpoint。缺陷归 P1-A，候选保存/升级问题归 P1-F/P1-H。
 - 本项由 P1-F 提供候选包与步骤，P1-G 记录最终人工结果。
 
 ## 关闭规则

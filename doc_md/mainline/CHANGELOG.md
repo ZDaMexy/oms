@@ -7,6 +7,18 @@
 
 ## 2026-10-03
 
+### 全项目进度与文档记忆健康复核
+
+从干净 `master@9ae8873` 接续，`git fetch origin` 成功；开工时领先 `origin/master` 12、落后 0，远端为 `034d79b`。三个只读巡检分别覆盖 P1-A～M 当前入口/相关合同、用户与发行说明，以及 MEMORY 索引和全部 56 个诊断叶子；主执行者统一取证、编辑、检查和提交。
+
+- 主约束就地校正谱库可用性/历史保全及当前页难度表批次刷新，保留整根离线/失败不收敛和大库人工门；P1-H 计划补齐具名旧 Register 检查维护。P1-K 删除引言漏留的手动 LN 接入待办，将已完成表/C3 实施史回归 STATUS/CHANGELOG，真实特殊谱、用户纠正入口与听感门保留。
+- 发行说明与 P1-F/G 承接已授权公共下载、完成状态修复和下一完整候选的入库/选歌/离线组合；官网/私有服务与默认 endpoint 继续冻结。当前集中体验 README/CHECKLIST 改为固定 `chartskin` 与刷新操作，原三源/取消登记的不可达格保持未执行，legacy 输入与原签收状态不变。
+- 三语首页、发行和验收重建的开发代码块补齐每个新 PowerShell 的存储前置。mutation 记忆区分普通 reservation 不可重入与 startup `EnterRecovery` 子 lease；反馈/末端轨道叶子去除重复诊断和完成史，治理记忆与索引补主合同、复制入口和命令环境的漏同步地雷。
+
+此次仅修改 Markdown、验收 CSV 和记忆；未重跑产品测试/Release、打包、取新网络或实机证据，未扫描/修改用户数据。原软件/实网/皮肤/设备/发行验证保留日期；公开制品指纹、恢复归档和既有警告按证据用途保留。没有新建临时探针或工作副本，长期检查证据放在 `artifacts/documentation-health-20261003-project-audit/`；当前分支提交，未推送。
+
+验证：新 shell 先 `. .\UseDevelopmentStorage.ps1`，随后 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1` 与 `git diff --check` 通过；192 个 Markdown、1939 个相对链接、280 个本地锚点、122 个 memory wiki 链，76 项既有制品/素材指纹和通用路径审阅提示保留。直接解析 CSV 确认 32 行/8 列、原 ID/顺序/签收状态/证据不变，仅 C7-19/C7-21 操作说明改变；初次探针把两种 PowerShell CSV 读取的末列 null/空字符串判为差异，核原字段后改用文字比较才取得有效结果，不计产品失败。未修改检查器，按文档验收矩阵不运行其 fixture 或产品构建。
+
 ### 下载专项进度与文档记忆治理
 
 从干净master@0bdcf60接续，fetch成功，开工时领先origin/master11、落后0。按当前代码和既有验证核对下载专项：首次完成可玩状态、来源/后台/精确打开与保留门归[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)；本次没有修改产品代码或重新运行产品测试。主线仅更新摘要与路由，移出旧会话Git基线和重复实施史；计划集中到维护、Sayobot实网成功与BMS剩余体验。三语README和历史报告明确网络结果日期与当前authority，记忆去重并补共享诊断互链。具体核对、健康检查及证据见[P1-A日志](../subline/P1-A/CHANGELOG.md#2026-10-03下载专项进度与文档记忆健康治理)，产品/实网/皮肤/设备/发行日期与人工门保留；当前分支提交，不推送。

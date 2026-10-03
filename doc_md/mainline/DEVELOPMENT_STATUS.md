@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-03（下载专项进度与文档已同步；产品验证沿用已有日期，实网与皮肤人工门保留）
+> 最后核对：2026-10-03（全项目进度、发行承接与文档记忆已复核；产品验证沿用已有日期，人工门保留）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -25,7 +25,7 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 | 2 | canonical普通简洁包接管已实现；旧OmsSkin只保留历史/人工对照，物理删除仍待实机门 | [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md) |
 | 3 | 输入软件基线可用；analog scratch跨设备、校准与真实HID尚未闭合 | [P1-B](../subline/P1-B/DEVELOPMENT_STATUS.md)、[P1-D](../subline/P1-D/DEVELOPMENT_STATUS.md) |
 | 4 | 真实LN/CN/HCN、音频/特殊谱、BGA、选歌大库与发行组合仍需验收；原生/转谱热路径已优化，BGA多窗已共享内容源，证据与剩余门见记录 | [性能验证](../other/GAMEPLAY_PERFORMANCE_20260930.md) |
-| 5 | V-001～V-005及候选发行包人工签收；2026-07-14恢复验收不能代替新增视觉与最终包验证 | [集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)、[P1-G](../subline/P1-G/DEVELOPMENT_STATUS.md) |
+| 5 | V-001～V-005及当前完整候选人工签收，承接公共下载与离线启动组合；2026-07-14恢复和旧 ZIP 验收不能代替新增能力的最终包验证 | [集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)、[P1-F](../subline/P1-F/DEVELOPMENT_STATUS.md)、[P1-G](../subline/P1-G/DEVELOPMENT_STATUS.md) |
 
 谱库缺失恢复与历史保全、难度表当前页刷新、长伴奏暂停保位、手动转谱长条发声和单轨上限筛选已实现；软件验证与未完成的真实大库、交互和听感门分别见 [P1-H](../subline/P1-H/DEVELOPMENT_STATUS.md)、[P1-I](../subline/P1-I/DEVELOPMENT_STATUS.md)、[P1-J](../subline/P1-J/DEVELOPMENT_STATUS.md)。发行覆盖须保持原便携模式，非便携真实设备与公开发行组合验收归P1-F/P1-G。
 
@@ -49,6 +49,6 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 ## 文档治理验证
 
-2026-10-03：下载专项当前入口、剩余计划、三语说明与共享诊断记忆已核对并收简，历史网络结果明确保留日期。治理结论见[日志](CHANGELOG.md#下载专项进度与文档记忆治理)；仅改文档与记忆，没有重跑产品验证或刷新实网、皮肤与发行签收。
+2026-10-03：复核全部子线当前入口与诊断记忆，校正主合同的谱库/难度表旧描述、长条接入旧待办、发行下载窄例外和当前验收入口；计划与记忆收简重复完成史，保留具名旧检查维护及 startup 恢复例外。范围与检查结果见[日志](CHANGELOG.md#全项目进度与文档记忆健康复核)；仅改文档、验收表与记忆，没有重跑产品验证或刷新实网、皮肤与发行签收。
 
 开发存储继续遵守 [AGENTS](../../AGENTS.md#开发磁盘约束)。旧系统盘产物回收和 Codex 全局迁移未完成，不能因文档检查通过而宣称已释放或零增长；待办保留在 [PLAN](DEVELOPMENT_PLAN.md#改动验收矩阵)。

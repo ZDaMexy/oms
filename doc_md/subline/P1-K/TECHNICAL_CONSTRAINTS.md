@@ -1,6 +1,6 @@
 # P1-K 技术约束：BMS 解析链路治理
 
-> 最后核对：2026-10-01（区分 LN 样本数据与已落 hosted 播放路径；解析行为合同不变）
+> 最后核对：2026-10-03（移除 K11 引言的旧手动 LN 接入待办；解析行为合同不变）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，追加项与更正史按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线约束
@@ -130,7 +130,7 @@ TOTAL 输入合同（2026-09-22）：`BmsBeatmapInfo.Total` 为 nullable 作者�
 
 ## K11：BMS -> mania 转谱 BGM / autoplay 音频补全约束（2026-06-01 落地，converter 侧）
 
-旧 BGM 丢失故障已经修复；历史见 [CHANGELOG](CHANGELOG.md) 2026-06-01。当前 converter 已生成 BGM sample-only 对象，runtime 发声与剩余手动模式 LN head store 接入由 [P1-J](../P1-J/DEVELOPMENT_STATUS.md) 维护。
+旧 BGM 丢失故障已经修复；历史见 [CHANGELOG](CHANGELOG.md) 2026-06-01。当前 converter 已生成 BGM sample-only 对象，runtime 发声与真实听感验收由 [P1-J](../P1-J/DEVELOPMENT_STATUS.md) 维护。
 
 1. BGM（`BmsBgmEvent`）在 `BMS -> mania` 转谱中不得继续被静默丢弃；必须作为 sample-only、`IgnoreJudgement` / empty-hitwindow 的 converted mania object 保留 autoplay 键音时间线，与 scratch sample-only（K9 #6）同族对待——不进 combo、statistics、star-rating、autoplay key 生成与 note-lock。
 2. BGM sample-only 对象只承载 keysound 播放，不得映射到任何 judged column 语义；其 `Column` 只能作为 drawable/sample anchor（默认锚到 column 0），不得因 column 选择改变判定列或 stereo 语义。

@@ -1,6 +1,6 @@
 # P1-H 当前计划：存储拓扑
 
-> 最后更新：2026-09-30（文档边界复核；保留隔离根实机、真实大库与诊断门，未新增产品验收）
+> 最后核对：2026-10-03（补齐具名旧导入检查维护；隔离根、真实大库与诊断门保留）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，批次及验证命令见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -25,6 +25,10 @@
 3. 不在筛选路径逐谱加载 working beatmap、全库重算或写 Realm。
 
 验收：解释未匹配/未刷新，不泄露用户绝对路径、不改变库状态，明确下一 owning 子线。
+
+### 3. 旧导入检查维护
+
+按 [STATUS 中的具名失败](DEVELOPMENT_STATUS.md#最近一次验证)对齐 `TestRegisterExternalDirectoryWithOnlyNonManiaBeatmapsReturnsNull`：目录注册无有效谱面应明确报错，普通 `Import` 的空结果通知保持独立合同。维护时运行对应 Register/Import focused；不因旧 null 断言回退正确行为，也不把既有失败归因写成已修复或全绿。
 
 ## 向 P1-A/G1 输出的边界
 

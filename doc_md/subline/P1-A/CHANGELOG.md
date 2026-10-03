@@ -1,5 +1,11 @@
 # P1-A 变动日志
 
+## 2026-10-03：集中验收入口与恢复记忆复核
+
+全项目文档/记忆专项复核发现集中体验 README/CHECKLIST 仍要求登记作者外部目录和取消登记，且 `Build-Acceptance.ps1` 会原样复制到新包。操作改为普通导入/固定 `chartskin` 与设置刷新；保留原三源范围，external 仅使用隔离根已有有效旧记录，不可达格明确未执行，不修改数据库补前提。C7-21 只删除当前允许的普通包，静线仍受保护；固定 legacy 文件和未签收状态不变。
+
+恢复记忆将不可重入限定为普通 mutation/staged reservation，保留同线程 depth=1 startup 的 `EnterRecovery` 子 lease 与外层 owner/epoch；对照现行 coordinator、合同及 canonical 诊断，不改产品行为。发行/人工组合承接下载由 P1-F/G 回链本线门；统一检查与范围见[主线日志](../../mainline/CHANGELOG.md#全项目进度与文档记忆健康复核)。仅文档/验收表/记忆，未运行产品、实网或人工验收，不重计 campaign。
+
 ## 2026-10-03：下载专项进度与文档记忆健康治理
 
 - 从干净master@0bdcf60接续，fetch成功，开工领先origin/master11、落后0。对照来源/任务/卡片/Realm查询、两导入器以及留存TRX/log核对当前状态，两个独立只读巡检分别核对产品事实和消费入口；没有修改生产代码、测试、工具或用户数据，没有新网络取证或产品重验。

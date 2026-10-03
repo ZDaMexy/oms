@@ -5,7 +5,7 @@
 ## 项目与协作
 
 - [项目总览](project_oms_overview.md) — 范围、数据根与便携标记。
-- [文档治理](project_oms_docs_governance.md) — 多语及跨线消费者漏同步、历史网络结果时效、旧验收入口、规则冲突与检查器误判。
+- [文档治理](project_oms_docs_governance.md) — 主约束/多语/发行复制入口漏同步、历史网络时效、不可达验收格、开发命令环境与检查器误判。
 - [反馈工作流](feedback_workflow.md) — 默认产品语言、反过度防御、真机证据与本轮结束边界。
 - [选歌展示与导航](project_oms_songselect_display_nav.md) — 状态分离、祖先可见性、谱卡重绑与大库诊断。
 - [内置音乐播放器](project_oms_music_player.md) — 共用音轨/试听与队列接入、已定展开壳体和 core 依赖方向。
@@ -23,7 +23,7 @@
 - [skin folder Windows handle capture](reference_skin_windows_handle_capture.md) — held no-follow、文件身份竞态与 handle 生命周期。
 - [managed skin folder scanner](reference_skin_managed_folder_scanner.md) — Observed/Valid、启动/手动扫描与 reload 的区别。
 - [managed skin folder factory/selection](reference_skin_managed_folder_selection.md) — 选择竞态、typed epoch、shutdown 与隐式提交前同值重选的 fixture 时序。
-- [managed chartskin mutation / rename / staged import / delete](reference_skin_managed_folder_mutation_foundation.md) — NTFS move、日志恢复及 uncertain failure。
+- [managed chartskin mutation / rename / staged import / delete](reference_skin_managed_folder_mutation_foundation.md) — startup 恢复子 lease、NTFS move、日志恢复及 uncertain failure。
 - [external Workspace / exact registry / ManagedCopy](reference_skin_external_workspace_managed_copy.md) — 旧注册后端保留、external 只读与 ManagedCopy 复核。
 - [managed skin atomic reload/detach](reference_skin_atomic_reload_detach.md) — 三源 publication、lease/retire 与调度竞态。
 - [ordinary `.osk` archive import safety](reference_skin_osk_archive_import_safety.md) — archive 预检、same-hash receipt 与非对称回滚。
@@ -50,7 +50,7 @@
 - [bgm1 按键触发故障](reference_bms_bgm1_pause_keytrigger_bug.md)
 - [游玩音轨静音合同](reference_bms_gameplay_track_mute.md)
 - [键音链](reference_bms_keysound_chain.md) — BMS/转谱发声责任、暂停保位、池化与样本准备、长条/空击性能。
-- [lane 键音 timeline 上界](reference_bms_lane_keysound_timeline_bounds.md) — lane-count 上界、parser keymode 与末端发声。
+- [lane 键音 timeline 上界](reference_bms_lane_keysound_timeline_bounds.md) — key/lane count 误用、末端声音分层证明与 sparse API/UI 边界。
 - [LNOBJ 解码](reference_bms_lnobj_decoding.md) — 单候选配对地雷及 P1-K 权威回链。
 - [lane 重排](reference_bms_lane_rearrangement.md) — 重复应用的三次置换故障及 P1-K/P1-J 回链。
 - [stop-motion 滚动旁路](reference_bms_stopmotion_bypass.md)

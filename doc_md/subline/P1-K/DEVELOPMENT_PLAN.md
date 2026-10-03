@@ -1,6 +1,6 @@
 # P1-K 当前计划：BMS 解析与转换治理
 
-> 最后核对：2026-10-01（移除已完成的手动 LN store 待办；保留真实听感门）
+> 最后核对：2026-10-03（已完成表与 C3 实施史回归状态/历史；保留公开表面与特殊谱门）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，逐刀历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -14,43 +14,18 @@ P1-K 拥有 decoder、normalized chart model、converter、projection reuse 与 
 
 外部格式基线统一查 [BMS_FORMAT_REFERENCE.md](../../other/BMS_FORMAT_REFERENCE.md)。
 
-## 已完成阶段
+## 后续输入
 
-2026-09-22 TOTAL 软件切片已完成，后续保持缺失与合法声明的区别，非法值诊断并忽略；最后有效分支内的合法声明生效，clone/converter/cache保留 nullable 作者值，不在解析阶段回填规则默认值。与[P1-C计划](../P1-C/DEVELOPMENT_PLAN.md)共同守住 loader→gauge→results 验证，精确来源、验证与既有失败归因见[TOTAL取证](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。
-
-| 阶段 | 结果 | 当前处理 |
-| --- | --- | --- |
-| K0 | 归线、术语与 authority 冻结 | 保持 |
-| K1 | raw/typed 双层与 no-loss carrier | 保持；新增格式先 raw 后 typed |
-| K2 | header/definition/channel coverage | 真实谱驱动补口 |
-| K3 | timeline/control-event 语义 | parity gate 守护 |
-| K4 | parse-once/project-many | 禁止 consumer ad hoc 重解析 |
-| K5 | modless playable cache/invalidation | 禁止第二套 cache authority |
-| K6 | focused validation 基线 | 按改动面扩展 |
-| K7 | results summary consumer proof | 保持 |
-| K8 | gauge history/auto-shift proof | 保持 |
-| K9 | dedicated BMS→mania 转换合同 | 主体完成，wording/manual 待续 |
-| K10 | converted-star 导入/读取加固 | 完成 |
-| K11 | 转谱 BGM/autoplay 音频与 LN 尾对齐 | 自动键音头音/只读快照、手动 LN shared-store 路由均已落；仅真实听感尾项归 P1-J |
-| K12 | sample-only 对象不进入 mania difficulty | 完成 |
+既有解析/转换、C3 keymode/lane 前置、TOTAL 和手动 LN shared-store 的实现与验证统一见 [STATUS](DEVELOPMENT_STATUS.md)及 [CHANGELOG](CHANGELOG.md)，不重复开发。保持 [CONSTRAINTS](TECHNICAL_CONSTRAINTS.md) 的 raw/typed、parse-once、缓存、sample-only 与 metadata 共存边界；TOTAL 与 [P1-C](../P1-C/DEVELOPMENT_PLAN.md)共同守住 loader→gauge→results 验证，真实听感门归 [P1-J](../P1-J/DEVELOPMENT_PLAN.md)。
 
 ## 当前活动顺序
-
-### 0. Skin V1 topology 前置修正（已闭合，2026-08-30）
-
-1. `buildLaneKeysoundTimelines()` 已以 canonical `GetLaneCount()` 为唯一上界；5K/7K 最右键、9K 全 lane、14K K14/S2 的 visible、LN head/tail armed、invisible 与相邻 mine fixture 已锁住末端不丢失。
-2. `BmsKeymodeResolution` 已冻结 parser-owned precedence、source/evidence、authoritative host/importer显式 override seam与稳定脱敏 diagnostic；`.pms/.bme`、P2/high channel 与 sparse chart 可追溯，无充分证据或冲突时 fail-closed。converter、manager/layout owner 只携带同一 resolution，不按对象最高 lane 或 layout 宽度二次猜测。
-3. production keysound proof 已覆盖 native BMS 玩家/autoplay 与 converted Mania 的同一 shared store；原生 BMS 的 Mirror/RANDOM/R-RANDOM/custom 搬移同一 exact permutation，S-RANDOM 稳定禁用不可搬移的 armed timeline，post-mod 对象、keysound 与 skin lookup 使用同一 `LaneId`。本切片未改 sample pool、判定或 binding。
-
-本节仅标记 P1-A C3 的 P1-K Skin 前置 gate 闭合；后续 public surface、特殊谱与 projection/cache 治理仍开放，不能据此把整条 P1-K 标成完成。验证数字见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md) 与 [CHANGELOG.md](CHANGELOG.md)。
-
-该闭门不宣称终端用户已能在UI中纠正模糊sparse谱：普通`ICustomBeatmapLoader`仍不提供override，证据不足时继续fail-closed。若最终产品要接受这类谱，P1-K后续必须为现有decoder seam补authoritative importer/UI caller及真实导入回归，不能把layout猜测当替代。
 
 ### 1. Public surface 收尾
 
 1. 明确 BMS→mania 的入口 wording、source/target ruleset 与转换后限制。
 2. 复核 Song Select、loading、results 的标题/难度/键数/star 展示使用同一 persisted/display authority。
 3. 用人工清单证明 native BMS 与 converted-mania 的公开表面，不在 converter 内新增展示逻辑。
+4. 普通 `ICustomBeatmapLoader` 仍不提供用户 override，模糊 sparse 谱证据不足时继续 fail-closed。若最终产品要接受此类谱，为现有 decoder seam 补 authoritative importer/UI caller 及真实导入回归，不用 layout 猜测代替；已闭合的 C3 前置不代表用户纠正入口已交付。
 
 ### 2. 真实特殊谱驱动的解析补口
 

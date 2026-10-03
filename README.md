@@ -81,10 +81,15 @@ BMS 游玩时，皮肤可设置最多 16 个 BGA 窗口的位置、大小和完�
 
 需要 [.NET 8 SDK](https://dotnet.microsoft.com/download)，以及 Visual Studio、JetBrains Rider 或 Visual Studio Code 之一。优先打开 `osu.Desktop.slnf`。
 
-```shell
+在非系统盘目录克隆；每个新 PowerShell 在构建、测试、打包或开发检查前加载开发存储入口。首次切换缓存后重新 restore 对应工程，不复用旧 assets；完整约定见[开发磁盘约束](AGENTS.md#开发磁盘约束)。
+
+```powershell
 # 克隆
 git clone https://github.com/ZDaMexy/oms.git
 cd oms
+
+# 当前 PowerShell 及其子进程使用仓库旁的开发缓存
+. .\UseDevelopmentStorage.ps1
 
 # 构建
 dotnet build osu.Desktop.slnf -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m

@@ -7,7 +7,7 @@
 
 ## 当前发行范围
 
-静线为唯一内置、默认与保底，外观打磨按用户决定暂停；星轨已退役，不再是启动依赖或构建对象。历史作者文件保留参考，旧内置星轨选择迁回静线，普通用户导入皮肤不清除；不再要求星轨视觉签收。单内置候选 `oms_20260912_4.zip` 的退役迁移、独立制作与隔离启动已有验证，见 [P1-F](../subline/P1-F/DEVELOPMENT_STATUS.md)。之后的静线素材、信息区与轨宽、按模式选择与布局编辑，以及 TOTAL/历史成绩兼容、自动偏移/自动键音、谱库 schema 58 与失效恢复、暂停续播、单轨筛选、原生/转谱性能优化及 BGA 作者窗口/完整手册，未重新制作并验收完整安装候选；旧发行包不代表当前源码的全部行为，已有开发验证见[主线状态](../mainline/DEVELOPMENT_STATUS.md#最近一次验证)。
+静线为唯一内置、默认与保底，外观打磨按用户决定暂停；星轨已退役，不再是启动依赖或构建对象。历史作者文件保留参考，旧内置星轨选择迁回静线，普通用户导入皮肤不清除；不再要求星轨视觉签收。单内置候选 `oms_20260912_4.zip` 的退役迁移、独立制作与隔离启动已有验证，见 [P1-F](../subline/P1-F/DEVELOPMENT_STATUS.md)。之后的静线素材、信息区与轨宽、按模式选择与布局编辑，以及 TOTAL/历史成绩兼容、自动偏移/自动键音、谱库 schema 58 与失效恢复、暂停续播、单轨筛选、原生/转谱性能优化、BGA 作者窗口/完整手册及公共 BMS/mania 浏览下载与完成状态修复，未重新制作并验收完整安装候选；旧发行包不代表当前源码的全部行为，已有开发验证见[主线状态](../mainline/DEVELOPMENT_STATUS.md#最近一次验证)。
 
 ## 此前人工验收包
 
@@ -19,7 +19,10 @@
 
 ## 构建发行包
 
+在非系统盘 checkout 的仓库根目录打开 PowerShell；每个新进程先按[开发磁盘约束](../../AGENTS.md#开发磁盘约束)加载存储入口，首次切换后重新 restore 对应工程。
+
 ```powershell
+. .\UseDevelopmentStorage.ps1
 # 推荐：生成正式发行物
 .\build-release.ps1
 
@@ -173,6 +176,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Update-OMS.ps1 -Update
 开发环境可使用仓库自带脚本作有限启动观察：
 
 ```powershell
+. .\UseDevelopmentStorage.ps1
 .\SmokeTestDesktop.ps1        # 有限的 8 秒启动观察，不证明实际保存位置
 ```
 
@@ -185,7 +189,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Update-OMS.ps1 -Update
 - 游戏内更新：**已禁用**（`IsInAppUpdateEnabled => false`）
 - Velopack 初始化：**已跳过**
 - API / OAuth / SignalR：**默认端点已清空**
-- 在线排行榜 / 谱面下载 / 聊天 / 多人：**已隐藏**
+- OMS 私有服务、在线排行榜 / 官网谱面下载 / 聊天 / 多人：**已隐藏或禁用**
 - 远程静态资源 fallback：**已被离线模式屏蔽**
 
-> OMS 私有服务与联网产品面属于 Phase 3 后续规划，当前没有启用日期或全量开放承诺。用户主动添加公共 BMS 难度表 URL 是现有窄例外，不代表 OMS 在线服务已经开放。
+> OMS 私有服务与官网联网产品面属于 Phase 3 后续规划，当前没有启用日期或全量开放承诺。用户主动添加公共 BMS 难度表 URL、已授权的 Ginger Rush / 616 BMS 浏览下载与 Sayobot 原生 mania 镜像下载为窄例外，不开放默认端点、官网或私有服务。当前能力和未签收的实网/大包体验见 [P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，输入与联网边界见 P1-A [BMS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) / [mania](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载)合同；下一完整候选还须按 [P1-F](../subline/P1-F/DEVELOPMENT_PLAN.md) / [P1-G](../subline/P1-G/DEVELOPMENT_PLAN.md)完成发行组合验收。

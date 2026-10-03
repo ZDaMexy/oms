@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后核对：2026-10-03（下载专项剩余动作与文档已同步；产品验证与人工日期保留）
+> 最后核对：2026-10-03（全项目剩余动作与发行承接已复核；产品验证与人工日期保留）
 > 本页维护全局顺序、跨线依赖和改动验收；当前事实见[STATUS](DEVELOPMENT_STATUS.md)，专项动作从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 当前目标
@@ -64,6 +64,7 @@ P1-F结合P1-G统一复核：
 - `portable.ini → data/`、bootstrap storage中的`storage.ini`与自定义根；保持已验证的完整包、覆盖工具与保存位置合同，补独立账户非便携及设备/长时发行体验。
 - Release build/publish、BMS full、mania/core relevant及各子线要求的测试；失败逐项稳定归因。
 - 发布说明区分code-provider/ini/scene/script能力，不宣称未通过门的G1、脚本、格式兼容或在线能力。
+- 当前完整候选承接公共下载、后台任务、失败/取消、入库选歌与离线启动组合；实网成功和大包/听感门从 [P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md)进入，由 [P1-G](../subline/P1-G/DEVELOPMENT_PLAN.md)汇总，不以旧 ZIP 或开发软件结果代签。
 
 ## 冻结项
 

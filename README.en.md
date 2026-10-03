@@ -81,10 +81,15 @@ Then keep "ffmpeg完整BGA支持" (full BGA support via ffmpeg) enabled in the B
 
 You need the [.NET 8 SDK](https://dotnet.microsoft.com/download) and one of Visual Studio, JetBrains Rider or Visual Studio Code. Prefer opening `osu.Desktop.slnf`.
 
-```shell
+Clone on a non-system drive. Load the development storage entry in each new PowerShell before building, testing, packaging or running development checks. Restore the relevant projects after first switching caches instead of reusing old assets; see the [development storage rules](AGENTS.md#开发磁盘约束).
+
+```powershell
 # Clone
 git clone https://github.com/ZDaMexy/oms.git
 cd oms
+
+# Use checkout-local development caches for this PowerShell and its children
+. .\UseDevelopmentStorage.ps1
 
 # Build
 dotnet build osu.Desktop.slnf -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m

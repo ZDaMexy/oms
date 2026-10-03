@@ -81,10 +81,15 @@ BMS プレイ中、スキンで最大 16 個の BGA ウィンドウの位置・�
 
 [.NET 8 SDK](https://dotnet.microsoft.com/download) と、Visual Studio・JetBrains Rider・Visual Studio Code のいずれかが必要です。`osu.Desktop.slnf` を開くことを推奨します。
 
-```shell
+システムドライブ以外にクローンしてください。新しい PowerShell を開くたびに、ビルド・テスト・梱包・開発用チェックの前に開発ストレージ設定を読み込みます。キャッシュを初めて切り替えた後は、古い assets を再利用せず対象プロジェクトを restore してください。詳細は[開発ストレージ規則](AGENTS.md#开发磁盘约束)を参照してください。
+
+```powershell
 # クローン
 git clone https://github.com/ZDaMexy/oms.git
 cd oms
+
+# この PowerShell と子プロセスの開発キャッシュをリポジトリ内に配置
+. .\UseDevelopmentStorage.ps1
 
 # ビルド
 dotnet build osu.Desktop.slnf -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m

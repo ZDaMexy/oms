@@ -1,6 +1,6 @@
 # P1-G 当前状态：Phase 1.x 人工验收汇总
 
-> 最后核对：2026-10-01（承接性能与 BGA 作者窗口的软件证据；无新增人工签收）
+> 最后核对：2026-10-03（承接公共下载的实网与发行组合门；无新增人工签收）
 > 全局状态与待人工项见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，执行清单见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 
 ## 当前阶段
@@ -27,8 +27,9 @@ P1-G 仍处于分项收集与最终汇总待闭合阶段。它不实现功能，
 | 输入/控制器 | analog scratch、跨设备 edge/hold、deadzone/sensitivity、真实 HID | P1-B/P1-D |
 | gameplay/长条/音频 | LN/CN/HCN、手动转谱长条、长 BGM 暂停保位与 seek/retry 清旧声、dense keysound、empty-strike；两模式自动键音开关听感见 [P1-J](../P1-J/DEVELOPMENT_PLAN.md#0-用户指定自动键音2026-09-29) | P1-C/P1-E/P1-J |
 | Song Select/导入 | 单轨筛选手感与窄窗口、大库分组/搜索、当前页难度表刷新；隔离根重扫/缺失恢复/解除后文件与历史保全 | P1-H/P1-I |
+| 公共下载 | 两源 BMS 修复后首次完成与精确打开、真实大包/网络/完整歌曲；Sayobot 实际包成功、稳定入库与打开；软件/历史实站证据和未签收范围见 [P1-A](../P1-A/DEVELOPMENT_STATUS.md) | P1-A |
 | Gimmick/BGA | 实谱叠层/ARGB、图序列、POOR、seek、老视频与长时解码；作者窗口在不同尺寸/DPI 下的 Fit/Fill/Stretch、零窗与信息区，代表 Gimmick 谱及默认 14K 布局 | P1-L/P1-A |
-| 发行 | fresh extract、portable/custom root、覆盖更新与公开口径 | P1-F |
+| 发行 | fresh extract、portable/custom root、覆盖更新与公开口径；当前完整候选承接公共下载与离线启动组合 | P1-F/P1-A |
 
 ## 当前边界
 
@@ -41,9 +42,9 @@ P1-G 仍处于分项收集与最终汇总待闭合阶段。它不实现功能，
 ## 下一检查点
 
 1. 当前仅完成已授权收尾；后续有新的静线改动或验收安排时，按[集中视觉清单](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)记录受影响结果及原 V-001～V-005，不重开星轨。保留[确定性短键素材说明](../../other/SKIN_BMS_NOTE_ANIMATION_MANUAL_GATE.md)的原输入与步骤，不扩大成 beatmap-local public authoring 证明，不恢复逐组件串行开工门。
-2. 按 [当前计划](DEVELOPMENT_PLAN.md) 逐项吸收 P1-B/D/E/I/J/L/F 的可验收切片，不等待所有代码线同时结束才建账。
+2. 按 [当前计划](DEVELOPMENT_PLAN.md) 逐项吸收 P1-A/B/D/E/H/I/J/L/F 的可验收切片，不等待所有代码线同时结束才建账。
 3. 所有 release gate 就绪后执行一次候选发行物总清单；阻塞项归线修复后只重测受影响矩阵格。
 
 ## 文档治理验证
 
-2026-10-01：将共享 BGA 内容与作者窗口改为已具软件/合成像素证据，人工项保留真实谱保真、设备/DPI 和最终发行组合；同步后续授权已实施但静线外观仍暂停的边界。无新增人工签收，未运行产品测试或启动发行包；过程见 [CHANGELOG](CHANGELOG.md)。
+2026-10-03：补齐公共下载的剩余实网/大包体验和完整候选组合；集中体验指南改用当前固定目录/刷新入口，原三源及取消登记的不可达格明确保持未执行。共享 BGA、设备/DPI、静线暂停与原 V-001～V-005 门保留。无新增人工签收，未运行产品测试或启动发行包；过程见 [CHANGELOG](CHANGELOG.md)。

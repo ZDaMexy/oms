@@ -14,7 +14,7 @@ metadata:
 
 - scanner 从 native discovery 到 Realm reconcile 都持同一 coordinator；selection 最终重读/发布、mutation、recovery 也在此边界内。发布时取本 Realm 的 fresh Live record，不用调用方旧对象。
 - startup 与 staged-import 有 typed completion，可让 configured selection 等待后 fresh retry；generic mutation 没有。generic epoch 跨越必须拒绝，不能把所有 contention 都改成重试；manual 请求与 configured startup 路径分开。
-- ordinary 短 lease 只同线程嵌套；mutation reservation 不可重入，但可跨线程 dispose。holder ownership 必须与 admission 同锁可见，不能出现 semaphore 已占用而 holder 尚未发布的空窗。
+- ordinary 短 lease 只同线程嵌套；普通 `EnterMutation` / staged reservation 不可重入，但 reservation 可跨线程 dispose。唯一恢复例外是同线程、depth=1 的 `StartupSequence` 经 `EnterRecovery` 取得 mutation 子 lease，保留外层 owner/epoch；不能泛化到 mutation/short scope/另一个 recovery。真实启动重入故障见 [[reference_skin_canonical_installation]]。holder ownership 与 admission 必须同锁可见，避免已占用而 holder 尚未发布的空窗。
 - manager 构造先 recovery；启动 worker 在同一 typed sequence 中再次幂等 recovery 后立刻 scanner。shutdown 在 Realm 释放前 cancel + join startup、selection/reload、mutation 和 materializer/work/retire，queued completion 须 reap 或晚到 no-op。
 - scanner/service owner 只是 Realm 记录归属，不是文件写权限。foreign/null owner、root/path/record 冲突不允许“修好 owner 后继续”；目标资格按 ID fresh 重读，文件能力来自 held no-follow session。
 - 合法非重叠 external 不再全局阻断 managed mutation。v3 必须持有 exact declaration set + physical non-overlap proof 到 final collision；旧 v2 按“当时无 service-owned external”的冻结合同恢复，不能静默补 v3 字段。

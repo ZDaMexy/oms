@@ -1,6 +1,6 @@
 # P1-K 当前状态：BMS 解析与转换治理
 
-> 最后核对：2026-10-01（手动 LN shared-store 已完成，保留解析与真实特殊谱门）
+> 最后核对：2026-10-03（校正 K11 旧待办并收简计划/记忆；产品验证与真实特殊谱门保留）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。格式参考见 [BMS_FORMAT_REFERENCE.md](../../other/BMS_FORMAT_REFERENCE.md)。
 
 ## 当前阶段
@@ -59,4 +59,4 @@ K1–K12 主体已阶段性收口：解析 authority、主要控制事件、proj
 
 ## 文档治理验证
 
-2026-10-01：对照 [DrawableNote](../../../osu.Game.Rulesets.Mania/Objects/Drawables/DrawableNote.cs) 的父 head sample/slot 路由及 9 月 30 日最终 TRX，移除手动 LN store 旧待办，纠正 K11 将 NodeSamples 数据保留误写为当前 hosted 播放路径的条款。parser/keymode authority 与终端用户纠正入口缺口未改变；仅文档复核，未运行新产品测试，历史审查见 [CHANGELOG](CHANGELOG.md)。
+2026-10-03：再次对照 [DrawableNote](../../../osu.Game.Rulesets.Mania/Objects/Drawables/DrawableNote.cs) 父 head sample/slot 路由，移除 K11 引言遗漏的手动 LN store 待办；PLAN 的已完成表/C3 实施史改为状态与合同回链，末端轨道记忆保留独有诊断。parser/keymode authority、终端用户纠正入口和真实听感缺口未改变；只改文档与记忆，未运行新产品测试，前次与本次审查见 [CHANGELOG](CHANGELOG.md)。

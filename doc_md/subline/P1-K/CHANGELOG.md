@@ -5,6 +5,10 @@
 
 ---
 
+## 2026-10-03
+
+对照当前 DrawableNote 与本线 K11 正文，删除引言仍留的“剩余手动 LN head store 接入”；现有 shared-store 证据与真实听感未签收边界不变。PLAN 移出 K0～K12 已完成表和 C3 闭门实现史，回链 STATUS/CONSTRAINTS；保留普通 loader 无用户 override 的公开入口缺口。末端 lane 记忆精简重复闭门能力，只留 key/lane count 误用、边缘对象和数据/实际发声分层证明。仅文档与记忆，未运行新产品测试或关闭真实特殊谱门；统一检查见[主线日志](../../mainline/CHANGELOG.md#全项目进度与文档记忆健康复核)。
+
 ## 2026-10-01
 
 对照当前 `DrawableNote`、converter 数据与 9 月 30 日完整回归，确认默认手动 LN head 的 shared-store 接入已有软件证明。STATUS/PLAN 删除旧迁移缺口，K11 区分保留的 `NodeSamples[0]` 数据、hosted store 实际播放与无 store 普通回退；不改变 parser、难度或尾静音合同。9 月 29 日较早记录保留当时范围，后续完成依据回链 P1-J/体验及性能验证。本次仅文档复核，未运行新测试或新增真实听感签收。
