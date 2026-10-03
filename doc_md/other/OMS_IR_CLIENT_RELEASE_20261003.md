@@ -14,7 +14,7 @@ Release 验证均先 `. .\UseDevelopmentStorage.ps1`，开发缓存 / 临时 / �
 
 ```powershell
 dotnet test osu.Game.Tests\osu.Game.Tests.csproj -c Release --no-restore --filter 'FullyQualifiedName~OmsIr' --logger 'trx;LogFileName=client-focused-run6.trx' --results-directory artifacts\oms-ir-release-20261003
-dotnet test osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj -c Release --no-restore --filter 'FullyQualifiedName~BmsOmsIrSubmissionTest|FullyQualifiedName~BmsClearLampProcessor|FullyQualifiedName~BmsScoreProcessor' --logger 'trx;LogFileName=bms-focused-run2.trx' --results-directory artifacts\oms-ir-release-20261003
+dotnet test osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj -c Release --no-restore --filter 'FullyQualifiedName~BmsOmsIrSubmissionTest|FullyQualifiedName~BmsClearLampProcessor|FullyQualifiedName~BmsScoreProcessor' --logger 'trx;LogFileName=bms-ir-focused-run2.trx' --results-directory artifacts\oms-ir-release-20261003
 dotnet build osu.Desktop.slnf -c Release --no-restore -p:GenerateFullPaths=true -m -verbosity:m
 ```
 
@@ -36,10 +36,16 @@ BMS 合成 payload 起初被服务拒绝：本地完成整曲的 Passed=true 与
 
 2026-10-03 11:19 UTC 发布，私有健康通过、服务无重启、日备份 timer 已启动；Nginx 重载后首次公开检查 404，后续重新检查 IR / API 与两站均 200，不把首次失败记为成功。HTTP→HTTPS 301，TLS 验证开启。公网真实 HTTP 接收两份未改的 C# 导出，同局第二次 200 / 不新增、本人两条历史 / 他人 403、公共榜对应局、桌面刷新旋转 / 退出撤销、网页 Secure / HttpOnly / Strict cookie、错误 / 缺少 Origin 拒绝和 64 KiB JSON 413 均通过。公开两谱明确标为“合成契约样例（非玩家成绩）”；没有将容量库或测试账号迁入生产。
 
-生产维护、备份、账号人工恢复、日志及回退只沿 Backend `deploy/README.md`，共享设施修改同步两站。备份离机与真实浏览器最终检查在实际执行后补录。
+生产维护、备份、账号人工恢复、日志及回退只沿 Backend `deploy/README.md`，共享设施修改同步两站。立即一致备份成功，快照已外取到 F 盘、散列一致；只查元信息，不读取生产内容或把快照进 Git。公网浏览器控制连接反复超时，未取得最终页面交互与桌面 / 手机截图，首轮本地浏览器证据保留原日期。
 
 ## 候选包与保留门
 
-Windows 完整候选包及冷启动检查待当前源码提交后执行官方 `build-release.ps1`，结果后续补录；不向客户端填入默认地址。长期证据位于 `artifacts/oms-ir-release-20261003/`，包含 TRX、编译日志、合成 payload、公网 probe、容量失败 / 复测、恢复 / NAT 和生产配置操作；凭据不进入证据或 Git。
+Windows 完整候选已由官方 `build-release.ps1` 生成 `release-repo/oms_20261003.zip`（341.6 MiB），清单绑定 clean `63f50c7c75cb6ee93a626a379a7e7a638a343876`。ZIP 每个文件和 fresh publish 清单 / 字节一致，唯一静线原件的 ZIP 只读属性保留；制品旁有 SHA256 文件。不向客户端填入默认地址。
 
-真实玩家仍需分别完整手动游玩 BMS / mania，核对本地、端内、网页同一局；断网完成、重启补交、原账号恢复、关闭 IR 和账号切换需实际验收。DPI / 长谱名、portable / 自定义根及覆盖更新保留。此前 Phase 1.x 皮肤、输入设备、听感和整体公开发行门没有被此候选或自动场景关闭。
+首次打包因系统代理造成 NuGet TLS EOF 失败；只改当前命令进程的代理绕行列表后，官方源 restore 和完整自包含 publish 成功，系统设置未更改。绕行只作用于 NuGet 官方域名，TLS / 签名验证保持；此前 focused 的 NU1900 / 恢复尝试的 NU1801 失败记录保留，成功 publish 仅剩作者工具既有 IL3000 警告，不宣称独立安全审计完成。
+
+对 fresh publish 执行随包 `skin-c7-acceptance/Test-ReleaseStartup.ps1`，输出 `candidate-startup-63f50c7/results.json`：便携首次、自定义根、损坏工作副本恢复、同完整包覆盖后四次均加载完成、保存 / 缓存位置正确、稳定运行并正常退出 0，没有强制终止；source unchanged。另核 ZIP 载荷与实际启动的目录全量一致，不冒充 Windows Shell 解包或跨版本更新已复验。长期证据位于 `artifacts/oms-ir-release-20261003/`，含 TRX、构建 / 打包、实际启动、制品核对、合成 payload、公网 probe、容量失败 / 复测、恢复 / NAT 和生产操作；凭据不进证据或 Git。
+
+真实玩家仍需分别完整手动游玩 BMS / mania，核对本地、端内、网页同一局；断网完成、重启补交、原账号恢复、关闭 IR 和账号切换需实际验收。DPI / 长谱名、独立账户非便携和跨版本覆盖保留；当前同包隔离组合已有软件证据。此前 Phase 1.x 皮肤、输入设备、听感和整体公开发行门没有被此候选或自动场景关闭。
+
+收尾文档门：`CheckDocumentation.ps1` 通过（198 Markdown / 1962 相对链接 / 281 锚点 / 124 memory wiki），跨仓工作区检查通过（96 文档 / 484 链接 / 5 阶段 / 5 来源 / 17 事实 / 11 待复核），公共文档检查器六项 fixture 通过，六仓 working / staged `git diff --check` 通过。外部仓库只提交 IR 记录及必要公共来源 / 导航，原网站源码与其余既有文档迁移留在工作区；工作区检查不冒充原首页未提交版本已经上线。

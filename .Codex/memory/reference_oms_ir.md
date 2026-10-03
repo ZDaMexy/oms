@@ -15,4 +15,5 @@
 - InvalidDataException 不是 IOException 子类，异常 settings / pending 恢复须显式处理并停 IR / 保全原件；响应体读取 IOException 是网络丢失，仍以原 UUID 重试。
 - 401 清除凭据失败不能保留内存会话继续重发：先使内存身份失效、标记需要登录，再尝试 Windows 删除。排队本地写入也不能等待正在登录的 HTTP 锁。
 - Git URL 专用 `http.https://github.com/.proxy` 覆盖普通 `http.proxy=`。本轮成功用每命令清空该项、schannel / HTTP1.1，不关闭 TLS 或永久改配置。
+- .NET / NuGet 会读取 Windows 系统代理，curl --noproxy 正常不代表 dotnet 可达。当前进程显式 HTTP_PROXY / HTTPS_PROXY 加官方域名 NO_PROXY 后实际绕行成功、官方完整包恢复；不能靠改源或反复 ignore-failed-sources 掩盖 TLS 故障，不改全局代理或跳过签名。
 - 十万局榜单避免全历史 payload 排序和按人逐次全表点灯扫描；正式 SQL 先取每人最佳 ID，再排名读 payload，灯走独立覆盖索引。容量探针计入调度到确认，不能把 429 或排队延迟剔除。
