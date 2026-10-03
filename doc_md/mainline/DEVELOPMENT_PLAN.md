@@ -5,6 +5,8 @@
 
 ## 当前目标
 
+2026-10-03 用户授权提前推进独立 OMS IR：先本地真实账号、交分和网页试验榜，再端内保存后交分、离线恢复与 50 人运行验收。范围和退出条件统一见 [P3-IR](../subline/P3-IR/DEVELOPMENT_PLAN.md)；这项改序不关闭下方 Phase 1.x 门，也不填入默认 endpoint。
+
 下载已交付能力及修复作为后续输入，结果只在[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)维护；改动归档、浏览或完成状态时的回归与具名旧检查维护见[P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md#下载维护与回归)，不恢复旧入口或放宽输入失败语义。
 
 Ginger Rush与616/Alvorna后续真实窗口、首次完成、大包/网络/完整歌曲体验见[P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md#第三方-bms-剩余体验验收)。不自动推进独立在线试听、整表下载或续传，既有皮肤/设备/发行门保留。
@@ -70,7 +72,7 @@ P1-F结合P1-G统一复核：
 
 - P1-M播放器在R3～R6/release门前不抢占工作；除产品明确改序外保持后置。
 - 已提前实现的Phase 2能力不代表Phase 1完成；1P/2P flip、完整FHS、dan、BSS/MSS等冻结，除非成为Phase 1阻塞修复。
-- Phase 3的OMS私有服务、默认endpoint、登录、成绩提交、排行榜、OMS/mania 官网谱面下载、聊天、多人和自动更新冻结；公共BMS难度表URL、用户授权的 Ginger Rush / 616 BMS及Sayobot原生mania镜像下载为窄例外，范围与边界见 P1-A 下载计划。
+- 2026-10-03 用户授权的 [P3-IR](../subline/P3-IR/DEVELOPMENT_PLAN.md) 独立本地开发提前开始；默认 endpoint、公开私有服务入口、OMS/mania 官网谱面下载、聊天、多人与自动更新仍冻结。既有公共下载窄例外沿 P1-A 合同，不扩大为官网在线面。
 - 不盲目同步上游，只按[UPSTREAM](../other/UPSTREAM.md)选择性cherry-pick。
 
 ## 改动验收矩阵

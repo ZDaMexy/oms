@@ -9,6 +9,8 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 ## 产品与仓库基线
 
+2026-10-03 按用户授权启动独立 IR 的本地服务 / 网页闭环；客户端尚无 OMS 交分或查榜能力，来源、合同与后续接入见 [P3-IR](../subline/P3-IR/DEVELOPMENT_STATUS.md)。默认 endpoint 和旧在线总开关保持原值，Phase 1.x 人工 / 发行门不变。
+
 静线已完成当前控制区、分段血槽、轨宽及演奏信息迭代：白黑/皿轨独立比例，BGA布局由皮肤声明，作者标级与表名/表内等级独立显示。正常开发启动、build/publish只同步simple源。当前暂停继续打磨，既有成果、最新验证和未完成门统一见[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)；历史双内置和各轮截图不作为新的签收。
 
 - Windows-only，保留osu!mania与第一类BMS，Osu/Taiko/Catch已删除；离线优先，Phase 3前OMS私有服务与默认endpoint为空。公共BMS难度表URL、用户指定Ginger Rush / 616 BMS与Sayobot原生mania镜像下载为窄例外，合同见 P1-A [BMS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) / [mania](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载)。
@@ -37,7 +39,7 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 2026-10-03下载完成状态修复已有软件与Release证据：首次成功后可直接打开所选难度，删除/目录不可用目标不能误显示可玩。当前能力、验证范围、原坏包/目录修复及未完成门统一见[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)；修复后实站观察、真实大包/听感及原人工门保留。
 
-2026-10-01的两源BMS小包桌面成功、Sayobot素材路径与实站查询/包连接失败证据见[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)及其历史记录。Sayobot真实包成功入库仍未签收，旧连接结果不代表节点持续故障；官网/私有服务继续冻结。
+2026-10-01的两源BMS小包桌面成功、Sayobot素材路径与实站查询/包连接失败证据见[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)及其历史记录。Sayobot真实包成功入库仍未签收，旧连接结果不代表节点持续故障；公开官网/私有服务入口继续冻结，授权本地 IR 开工见 P3-IR。
 
 2026-09-30 后续：BGA 窗口声明、共享播放会话与作者手册已实现，独立信息区保留、作者场景合法性和可运行例子一并验证；有效软件结果、桌面图像与完整回归对照统一见 [作者能力验证](../other/BGA_SKIN_AUTHORING_20260930.md)。不重新签收静线外观、设备听感或发行组合。
 

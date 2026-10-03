@@ -33,7 +33,7 @@ Until Phase 3 begins, OMS follows these product constraints:
 - Beatoraja-style portable data mode is already supported via `portable.ini` -> `data/`; keep mutable user data in that dedicated subdirectory rather than mixing it directly with binaries.
 - Registered multi-root beatmap libraries use `ExternalLibraryConfig` (`library-roots.json`) and `ExternalLibraryScanner` for BMS / mania registration and scanning. Complete error-free rebuilds hide missing sets; removing the last covering external root only hides its index entries. Preserve files, scores and collections, keep identical content in different directories as separate sources, and reuse the original identity when the original path/content returns. Offline roots, failed scans and user-requested physical deletion remain distinct. Exact boundaries and outstanding isolated-root / large-library acceptance are owned by [P1-H](../subline/P1-H/TECHNICAL_CONSTRAINTS.md) and its [STATUS](../subline/P1-H/DEVELOPMENT_STATUS.md).
 - OMS private-service features, including account login, leaderboards, official beatmap download, chat, news, multiplayer, spectator, daily challenge, and automatic update, remain disabled or hidden until Phase 3. Explicit public exceptions are user-added BMS difficulty-table URLs, the user-authorised Ginger Rush / 616 BMS browser and download flow, and Sayobot native mania mirror downloads. These do not enable private/default endpoints or official downloads; contracts are maintained in P1-A for [BMS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) and [mania](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载).
-- Current local-first builds should not ship non-empty default API / OAuth / SignalR / BSS server URLs; if online code remains in the tree, it is Phase 3 technical reserve rather than user-facing functionality.
+- Current local-first builds should not ship non-empty default API / OAuth / SignalR / BSS server URLs; if online code remains in the tree, it is Phase 3 technical reserve rather than user-facing functionality. Local IR development was explicitly authorised on 2026-10-03 under [P3-IR](../subline/P3-IR/DEVELOPMENT_PLAN.md); public/default endpoints remain unset.
 
 ---
 
@@ -1011,75 +1011,31 @@ The skin system must ship with both non-visual and visual validation:
 
 ---
 
-## 14. Phase 3 Private Server Integration (planned; no current `oms.Server` project)
+## 14. Phase 3 Private Server Integration (authorised local IR development)
 
-This section is a frozen Phase 3 target contract. No `oms.Server` project, private-service base URL or default endpoint is implied until Phase 3 is explicitly activated.
+On 2026-10-03 the user explicitly authorised planning and starting a small request-driven OMS IR. This narrows the previous freeze for local IR development; it does not complete Phase 1.x or enable public/default endpoints. There is no current `oms.Server` project in this client repository. The client remains offline by default and `OnlineFeaturesEnabled` stays false.
 
-### 14.1 API Client
+### 14.1 Independent IR Client
 
-`OmsApiClient` wraps all Phase 3 private-server communication. Before Phase 3, OMS should not ship a default official server base URL or expose private account / leaderboard / official beatmap-download flows. The explicitly authorised public BMS and Sayobot mania source exceptions above remain independent.
+Use an independent opt-in IR address, session and HTTP consumer. Do not enable the old `IAPIProvider`, SoloPlayer legacy gate, realtime hubs or default EndpointConfiguration to obtain IR. Desktop access/refresh tokens belong in the Windows credential store. Browser sessions use HttpOnly cookies in the external Website.
 
-Base URL becomes configurable once private server integration is intentionally enabled; until then the client should treat it as unset / disabled.
+Client implementation, failure behaviour and gates are owned by [P3-IR](../subline/P3-IR/TECHNICAL_CONSTRAINTS.md). The full cross-end v1 contract is maintained externally at `F:\zdamexy-workspace\oms-server\dev_bridge_md\doc_md\subline\oms-ir\constraints.md`.
 
-Authentication: Bearer token stored in OS credential store. Refresh token flow.
+### 14.2 Adopted IR v1
 
-### 14.2 Endpoints (Interface Contract)
+The external backend uses `/api/ir/v1` for register/login/refresh/logout, current user, final-score submission, chart/group discovery, public trial boards and owner-only history. Desktop login returns `access_token`, `refresh_token`, `user`, `expires_in`. These routes are local development work, not current default client features.
 
-These are the Phase 3 API endpoints OMS expects. Backend implementation is external, and current local-only releases must not call them by default.
+A submission binds the saved ScoreInfo UUID and account, raw-chart MD5 plus SHA256, explicit ruleset/keymode, played time, client and total-score versions, score/statistics/mods and complete BMS v7 result. BMS EX is derived from perfect/great statistics; final gauge is 0..1 and native clear lamp is an integer. BMS/PMS 9K needs the playable chart's resolved keymode; mania needs actual columns. The obsolete flat OmsScore sketch is superseded by the external v1 contract, not a second serializer in this document.
 
-```
-POST   /auth/login              → { token, refresh_token, user }
-POST   /auth/refresh            → { token }
-GET    /user/me                 → OmsUser
+All first-round boards are explicitly client-reported without replay verification. Comparable groups include declared gameplay conditions; assistance is separate and autoplay only enters owner history. Same account/UUID/content returns the original record; changed content or same MD5/different SHA256 rejects without overwriting history. Best score and best lamp may come from different plays.
 
-POST   /scores/submit           → Submit BMS or mania score
-GET    /scores/chart/{hash}     → Top scores for a chart (leaderboard)
-GET    /scores/user/{id}        → User's score history
+Official beatmap search/download, hosted difficulty tables, community, chat, presence, spectator, multiplayer and automatic updates are outside the authorised IR slice. Existing public BMS / Sayobot exceptions remain independent.
 
-GET    /beatmaps/search?q=&page=  → Beatmap search results
-GET    /beatmaps/{id}/download    → Download beatmap archive
-GET    /difficulty-tables         → List server-hosted difficulty table mirrors
-GET    /difficulty-tables/{id}    → Table entries with chart hashes
-```
+### 14.3 Local Save and Offline Recovery
 
-Chart identity is keyed by **MD5 hash of the `.bms` file** (standard in BMS ecosystem).
+Only create a submission after final ruleset preparation and confirmed local import; the old network hook runs before BMS final lamp generation. First client integration targets newly completed, normally saved plays, not automatic historical/anonymous-score claims. A matching total-score version does not prove a new play.
 
-**`OmsScore` submission payload (key fields):**
-
-```csharp
-public class OmsScore
-{
-    public string   ChartMd5       { get; set; }  // lowercase hex MD5 of .bms file
-    public string   Ruleset        { get; set; }  // "bms" or "mania"
-    public string   Keymode        { get; set; }  // "5k", "7k", "9k_bms", "9k_pms", "14k"
-    public int      ExScore        { get; set; }  // BMS only
-    public int      MaxExScore     { get; set; }  // BMS only
-    public int      PgreatCount    { get; set; }
-    public int      GreatCount     { get; set; }
-    public int      GoodCount      { get; set; }
-    public int      BadCount       { get; set; }
-    public int      PoorCount      { get; set; }
-    public int      EmptyPoorCount { get; set; }  // ghost note penalties (§5.2)
-    public int      MaxCombo       { get; set; }
-    public string   ClearLamp      { get; set; }  // e.g. "HARD_CLEAR", "FULL_COMBO"
-    public string   GaugeMode      { get; set; }  // "NORMAL","HARD","EX_HARD","HAZARD","ASSIST_EASY","EASY","GAS"
-    public string   JudgeMode      { get; set; }  // "OD", "BEATORAJA", "LR2"
-    public string   LongNoteMode   { get; set; }  // "LN", "CN", "HCN"
-    public bool     ModAutoScratch { get; set; }
-    public bool     ModMirror      { get; set; }
-    public string   ClientVersion  { get; set; }
-    public DateTime PlayedAt       { get; set; }
-}
-```
-
-### 14.3 Offline Mode
-
-If the server is unreachable, OMS runs fully offline:
-- Local score metadata saved through `ScoreManager` / Realm; replay data uses the existing score file store
-- No leaderboard data shown (replaced by "Offline" indicator)
-- Beatmap download unavailable
-- Difficulty table data uses last cached fetch
-- All local gameplay fully functional
+Offline gameplay and local scores remain fully functional. A persistent pending record belongs to its original service/account/UUID; 401 retains it for reauthentication, lost responses resubmit the same ID, and account switching cannot transfer ownership. Disabling IR or deleting local data does not silently erase server history. Local-first behaviour and credential/queue recovery must be tested before any release address is configured.
 
 ---
 
