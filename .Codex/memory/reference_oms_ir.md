@@ -33,6 +33,7 @@
 - 网络整榜先分层取证：r9服务器本地完整数组通过，固定Java SDK经SSH网络首次仍在`pending.get(10s)`失败，JSON/DTO转换尚未执行；独立HTTP成功和同源后续暖读不能代签首次SDK。标准JDK subscriber的对照要保留原对象，不用包装后冒充其内部TrustedSubscriber调度；记录头/完整body/解析/转换时间和实际协议，不由偏好HTTP2、request(1)或失败文字直接推断流控/解码问题。所有诊断不是正式真人门，不延长截止或截榜。
 - 压缩整榜不能只检查JSON：r10实际WinHTTP自动解压接受坏CRC、29,204行仍与identity相同；编译/字段一致不能签完整性。按实际失败改固定官方zlib静态校验完整结束与尾部，网络/解压后各计限并沿原截止；依赖源码/许可/hash纳入干净编译与发布证明，不借宿主已有DLL猜版本。Java首次连续slow失败未复现时保留原日志，用实际异常类型核定，不能盲改成“超时”或放松原因断言。
 - 恢复盘账须保留原失败：r9两闲置合成恢复库使原七日门false；先将完整gzip/sidecar及逻辑验证证据外取，解压复核SHA后才能精确定点清理可重建的合成DB/WAL/SHM，再另记七日/新空恢复/WAL/系统余量补账，不覆写原报告。Python sqlite3连接的`with`只管理事务，不自动close；ownership/fuser前须显式关闭自己的连接。本机远端fuser不支持`--`，非法选项不能当作文件仍被占用。
+- Windows字节证明文件不能用默认文本fd：2026-10-05 r10外取工具用`os.open`/`os.write`后按UTF8字节数`ftruncate`，默认LF→CRLF展开使JSON结尾被截断，CLI显示通过也不构成可用receipt。写这种精确字节文件须用`O_BINARY`；保留原失败，重新完整解压核对两快照并独立解析完成JSON/核producer hash后，才向远端确认定点清理。F证据`offhost-r10-receipt-invalid.json`及`offhost-r10-verification-r2.json`不进Git。
 - “真实环境验收”不授权客户端打包：2026-10-03 用户明确日常用 VS Code 非调试启动，发行构建自行执行。稳定约定在 AGENTS；不要由部署服务推导需要 ZIP / publish / 额外安装副本，既有发行门留到用户构建时验收。
 - 首次未填搜索词时，`new Bindable<string>()` 默认 null；`query.Length` 在 HTTP 前失败，async finally 仍恢复按钮，界面可停在 loading。2026-10-04 trace 只有登录与 read-start、没有第二请求 / response-ready，滚动猜测不成立；应初始化业务不变量 `string.Empty`，不加 catch / fallback 掩错。临时诊断撤掉，原场景断言仍须通过。
 
