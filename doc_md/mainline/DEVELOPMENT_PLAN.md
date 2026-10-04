@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后核对：2026-10-03（全项目剩余动作与发行承接已复核；产品验证与人工日期保留）
+> 最后核对：2026-10-04（全项目剩余动作、授权边界与已有发行证据承接复核；产品及人工日期保留）
 > 本页维护全局顺序、跨线依赖和改动验收；当前事实见[STATUS](DEVELOPMENT_STATUS.md)，专项动作从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 当前目标
@@ -13,7 +13,7 @@
 
 Ginger Rush与616/Alvorna后续真实窗口、首次完成、大包/网络/完整歌曲体验见[P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md#第三方-bms-剩余体验验收)。不自动推进独立在线试听、整表下载或续传，既有皮肤/设备/发行门保留。
 
-Sayobot真实纯mania及混合小包成功入库与稳定打开仍待补验，动作见[P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md#sayobot-mania-实网成功验收)。网络结论沿最近留存实测日期读取，不把素材或HEAD结果替代实际下载，也不启用官网/私有服务。
+Sayobot真实纯mania及混合小包成功入库与稳定打开仍待补验，动作见[P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md#sayobot-mania-实网成功验收)。网络结论沿最近留存实测日期读取，不把素材或HEAD结果替代实际下载；下载不启用官网/旧在线链，独立 IR 只沿 P3-IR。
 
 以已有软件与桌面证据为输入，后续补齐 BGA/作者作品的设备、真实素材与长时验收，归 [P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md) / [P1-L](../subline/P1-L/DEVELOPMENT_PLAN.md)；静线外观打磨仍暂停。谱库、声音与单轨筛选的隔离根、大库、听感与交互验收归 [P1-H](../subline/P1-H/DEVELOPMENT_PLAN.md)、[P1-J](../subline/P1-J/DEVELOPMENT_PLAN.md)、[P1-I](../subline/P1-I/DEVELOPMENT_PLAN.md)。已交付实现与验证只在 STATUS/CHANGELOG 维护，不重复开发或据此关闭人工门。
 
@@ -68,7 +68,7 @@ P1-F结合P1-G统一复核：
 - `portable.ini → data/`、bootstrap storage中的`storage.ini`与自定义根；保持已验证的完整包、覆盖工具与保存位置合同，补独立账户非便携及设备/长时发行体验。
 - Release build/publish、BMS full、mania/core relevant及各子线要求的测试；失败逐项稳定归因。
 - 发布说明区分code-provider/ini/scene/script能力，不宣称未通过门的G1、脚本、格式兼容或在线能力。
-- 当前完整候选承接公共下载、后台任务、失败/取消、入库选歌与离线启动组合；实网成功和大包/听感门从 [P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md)进入，由 [P1-G](../subline/P1-G/DEVELOPMENT_PLAN.md)汇总，不以旧 ZIP 或开发软件结果代签。
+- 剩余发行组合按 [P1-F](../subline/P1-F/DEVELOPMENT_PLAN.md)承接公共下载、后台任务、失败/取消、入库选歌与离线启动；实网成功和大包/听感门从 [P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md)进入，由 [P1-G](../subline/P1-G/DEVELOPMENT_PLAN.md)汇总，不以同包自动启动或开发软件结果代签。独立 IR 真人门归 P3-IR，不新增到 Phase 1.x 必过矩阵。
 
 ## 冻结项
 

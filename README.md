@@ -54,7 +54,9 @@ OMS 从 [osu!lazer](https://github.com/ppy/osu) 出发，移除了 osu!、Taiko�
 
 ### 离线优先
 
-OMS 的核心玩法、谱库与用户数据链默认离线运行；Phase 3 前，OMS 私有服务与默认 endpoint 保持关闭或为空。账号、在线排行榜、OMS / osu!mania 官方谱面下载、新闻 / 聊天、多人与观战等功能默认隐藏或禁用。
+OMS 的核心玩法、谱库与用户数据链默认离线运行，默认服务地址为空。原官网账号、OMS / osu!mania 官方谱面下载、新闻 / 聊天、多人与观战等功能继续隐藏或禁用。
+
+独立 OMS IR 已进入主动连接试运行：从工具栏奖杯入口填写 `https://oms.zdamexy.work`，启用并注册 / 登录后，支持的正常完整新局在本地保存后交分，可在端内和网页查榜、查看本人记录及恢复待交。关闭 IR 仍可离线游玩；真实手动游玩、断网重启与账号归属验收尚未完成，多来源和 LR2 历史榜扩展仍待正式审查。当前范围见 [P3-IR 状态](doc_md/subline/P3-IR/DEVELOPMENT_STATUS.md)。
 
 游戏内“浏览”支持 [Ginger Rush](https://gingerrush.com/) 和 [616 / Alvorna](https://616.sb/bms/download) 公共 BMS 源：依次选择下载源、难度表和表内等级，可结合关键词查找。在紧凑歌曲卡片中展开并选择谱面，点击下载图标获取资源包，入库后直接在选歌中打开；图标悬停显示操作提示。难度表暂不可用时会保留提示，点击搜索图标或回车可重试并恢复表和等级选择。关闭页面后下载继续，失败可手动重试；音乐试听使用已入库谱面的本地选歌试听。首次打开才访问来源，不要求 OMS 账号；来源没有资源包、包损坏或目标不受当前解码器支持时不会显示下载成功。详见 [下载合同](doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载)。
 
@@ -114,7 +116,7 @@ dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj --no-
 
 ## 项目状态
 
-OMS 处于 **Phase 1.x**（本地 BMS / mania 主流程与皮肤）收尾阶段。静线是支持 BMS 与 mania 的唯一内置、默认与保底皮肤，正常开发启动、构建与发布会带上作者源更新，玩家无需导入；星轨已退出内置，仓库旧文件仅保留历史参考。作者可从模板修改、检查、打包并导入自己的作品，见[皮肤制作套件](skin-authoring/README.md)。设置中可分别选择 BMS/mania 皮肤，使用固定 `chartskin` 文件夹并手动刷新；原组件布局编辑器可调整组件和属性、导入图片，保存独立副本。静线已完成此前布局、信息区与轨道比例打磨，外观打磨按用户决定暂停；整体画面、输入设备与长时间体验仍未验收，Skin V1 与整体发行未完成。联网相关的 Phase 3 功能保持冻结。具体进度与验收状态只以 [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) 为准。
+OMS 处于 **Phase 1.x**（本地 BMS / mania 主流程与皮肤）收尾阶段。静线是支持 BMS 与 mania 的唯一内置、默认与保底皮肤，正常开发启动、构建与发布会带上作者源更新，玩家无需导入；星轨已退出内置，仓库旧文件仅保留历史参考。作者可从模板修改、检查、打包并导入自己的作品，见[皮肤制作套件](skin-authoring/README.md)。设置中可分别选择 BMS/mania 皮肤，使用固定 `chartskin` 文件夹并手动刷新；原组件布局编辑器可调整组件和属性、导入图片，保存独立副本。静线已完成此前布局、信息区与轨道比例打磨，外观打磨按用户决定暂停；整体画面、输入设备与长时间体验仍未验收，Skin V1 与整体发行未完成。独立 IR 按需试运行，其余 Phase 3 联网功能保持冻结。具体进度与验收状态只以 [DEVELOPMENT_STATUS.md](doc_md/mainline/DEVELOPMENT_STATUS.md) 为准。
 
 ## 贡献
 

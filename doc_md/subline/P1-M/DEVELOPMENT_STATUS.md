@@ -1,6 +1,6 @@
 # P1-M 开发进度：内置音乐播放器
 
-> 最后更新：2026-09-12（源码与规划/记忆对齐；尚未开工，未新增运行验收）
+> 最后核对：2026-10-04（后置 BGA 合同对齐；尚未开工，未新增运行验收）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。执行规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，硬约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)。
 
 ## 当前阶段
@@ -42,4 +42,4 @@
 
 ## 文档治理验证
 
-2026-09-09核对MusicController、mini/playlist、SongSelect preview-loop、BMS importer/backfill及现存音乐scene测试源；未运行播放器测试、实机试听或新增P1-M实现。最新全仓运行结果由主线统一记录。
+2026-10-04：后置 BGA 规划从旧 Phase 5 名称回链 P1-L 现行内容会话/只读画面合同，不预定接口或认为 gameplay 生命周期可直接搬用。PlayQueue/SMTC 仍未开工，未运行播放器测试或实机试听，后置顺序不变，见 [CHANGELOG](CHANGELOG.md)；统一检查归 [主线日志](../../mainline/CHANGELOG.md#项目进度与文档记忆一致性复核)。

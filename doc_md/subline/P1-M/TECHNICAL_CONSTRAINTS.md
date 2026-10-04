@@ -1,6 +1,6 @@
 # P1-M 技术约束：内置音乐播放器
 
-> 最后更新：2026-09-12（对齐 core 播放源识别边界；播放器仍未实现）
+> 最后更新：2026-10-04（后置 BGA 规划回链现行会话合同；播放器仍未开工）
 > 本文件记录 `P1-M` 的硬约束。若实现与本文冲突，先修正其一再继续开发。规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，现状见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)。
 
 ## 红线（最高优先级，贯穿全线）
@@ -14,7 +14,7 @@
 
 1. 本线 authority = 音乐播放器**导航策略**（队列/重复模式/播放源过滤/随机历史）与**播放器 UI**（mini + 展开）。底层音轨生命周期归 `MusicController`（瘦身为纯引擎），不另起第二套音轨实现。
 2. judgement / scoring / gauge 与 gameplay 音轨控制不归本线（只读 `AllowTrackControl`，不改语义）。
-3. BMS BGA 渲染本体归 **P1-L**（Phase 5 `BmsBgaPlayer`）；M4 的 BGA-in-player 只做核心接口 + 跨项目桥接消费，不在本线另起第二套 BGA 渲染。
+3. BMS BGA 内容、播放会话与只读画面合同归 [P1-L](../P1-L/TECHNICAL_CONSTRAINTS.md)；M4 的后置 BGA-in-player spike 先证明非 gameplay 生命周期与跨项目消费边界，再按真实消费者确定桥接，不从旧 Phase 5 名称推导现成接入。core 不引用 BMS，不在本线另起第二套 BGA 渲染。
 4. 持久化的 persisted metadata / 存储拓扑若有交集，归 **P1-H**；本线只新增播放器自有状态模型（队列/历史/模式）。
 5. 播放源过滤与 song-select 的 BMS 筛选（**P1-I**）概念相邻但不同层：本线过滤的是「播放器音轨池」，不复用/不改 P1-I 的 song-select filter criteria。
 

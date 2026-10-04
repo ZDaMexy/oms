@@ -18,7 +18,7 @@
 | 层 | 保存内容 | 入口 |
 | --- | --- | --- |
 | mainline | 全局编排、跨线风险、产品硬约束及历史 | [主线入口](mainline/README.md) |
-| subline | 一个专项的事实、计划、合同与历史 | [P1-A～M](subline/README.md) |
+| subline | 一个专项的事实、计划、合同与历史 | [P1-A～M 与 P3-IR](subline/README.md) |
 | other | 作者/发行说明、格式参考、带日期的审查和恢复证据 | [参考索引](other/README.md) |
 | mini | 没有现成归属、需独立跟踪的事项 | [mini 入口](mini/README.md) |
 | memory | 难以从代码直接看出的踩坑、复现条件和诊断方法 | [记忆索引](../.Codex/memory/MEMORY.md) |

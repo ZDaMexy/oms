@@ -4,8 +4,8 @@
 
 ## 项目与协作
 
-- [项目总览](project_oms_overview.md) — 范围、数据根与便携标记。
-- [文档治理](project_oms_docs_governance.md) — 主约束/多语/发行复制入口漏同步、历史网络时效、不可达验收格、开发命令环境与检查器误判。
+- [项目总览](project_oms_overview.md) — 范围、独立 IR 与旧在线链边界、数据根与便携标记。
+- [文档治理](project_oms_docs_governance.md) — 主约束/多语/发行例外漏同步、候选证据与清理范围、历史网络时效、不可达验收格、开发命令环境与检查器误判。
 - [反馈工作流](feedback_workflow.md) — 默认产品语言、反过度防御、真机证据与本轮结束边界。
 - [选歌展示与导航](project_oms_songselect_display_nav.md) — 状态分离、祖先可见性、谱卡重绑与大库诊断。
 - [内置音乐播放器](project_oms_music_player.md) — 共用音轨/试听与队列接入、已定展开壳体和 core 依赖方向。
@@ -40,7 +40,7 @@
 - [谱库路径身份与历史保全](reference_filesystem_library_identity.md) — 同内容不同目录、失效与物删分离、多文件改名及扫描错误边界。
 - [谱面构成过滤](reference_bms_composition_filter.md) — 单轨上限、共享额度、零宽入口及无解条件。
 - [难度表](reference_bms_difficulty_table.md)
-- [选歌元数据显示](reference_bms_songselect_metadata_display.md)
+- [选歌元数据显示](reference_bms_songselect_metadata_display.md) — 署名共用 resolver 与标题/难度名局部清理的边界。
 - [在资源管理器中显示](reference_bms_songselect_reveal_in_explorer.md)
 - [转谱星数持久化](reference_converted_star_persistence.md) — 转谱星、原生作者等级与密度预览。
 - [转谱键数显示](reference_converted_mania_keycount_display.md) — BMS 键数误入 osu 启发式、转换与展示统一 CircleSize。

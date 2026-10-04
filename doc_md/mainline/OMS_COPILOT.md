@@ -23,17 +23,17 @@
 
 ### Current Release and Connectivity Policy
 
-Until Phase 3 begins, OMS follows these product constraints:
+OMS follows these release and connectivity constraints, including the authorised independent IR slice:
 
 - Windows releases are portable full packages only. Prefer `build-release.ps1` 产出的 `oms_YYYYMMDD(.zip)`；do not treat `Setup.exe`, MSI, or delta packages as the primary user path for current OMS releases.
 - In-game online update is disabled for early OMS releases. Do not ship automatic check, download, or apply-update flows to end users yet.
 - Hide or remove release-stream switching and manual "Check for updates" UI while update delivery is intentionally disabled.
-- Version-to-version updates before online features exist are manual file-overwrite updates. New packages must support replacing program files in place without forcing users to re-import local BMS content, and current release guidance must preserve the existing portable/non-portable mode, portable-mode `data/`, and the `storage.ini` pointer in the bootstrap storage. New packages contain `portable.ini`; non-portable updates must leave that marker absent before launch.
+- Version-to-version updates remain manual file-overwrite updates while automatic update delivery is disabled. New packages must support replacing program files in place without forcing users to re-import local BMS content, and current release guidance must preserve the existing portable/non-portable mode, portable-mode `data/`, and the `storage.ini` pointer in the bootstrap storage. New packages contain `portable.ini`; non-portable updates must leave that marker absent before launch.
 - Official ZIPs include `portable.ini`, so bootstrap storage is the program-adjacent `data/` directory. Without that marker, host defaults are `%APPDATA%/oms/` (Release) and `%APPDATA%/oms-development/` (Debug). The bootstrap `storage.ini` can redirect runtime data to one custom root.
 - Beatoraja-style portable data mode is already supported via `portable.ini` -> `data/`; keep mutable user data in that dedicated subdirectory rather than mixing it directly with binaries.
 - Registered multi-root beatmap libraries use `ExternalLibraryConfig` (`library-roots.json`) and `ExternalLibraryScanner` for BMS / mania registration and scanning. Complete error-free rebuilds hide missing sets; removing the last covering external root only hides its index entries. Preserve files, scores and collections, keep identical content in different directories as separate sources, and reuse the original identity when the original path/content returns. Offline roots, failed scans and user-requested physical deletion remain distinct. Exact boundaries and outstanding isolated-root / large-library acceptance are owned by [P1-H](../subline/P1-H/TECHNICAL_CONSTRAINTS.md) and its [STATUS](../subline/P1-H/DEVELOPMENT_STATUS.md).
-- OMS private-service features, including account login, leaderboards, official beatmap download, chat, news, multiplayer, spectator, daily challenge, and automatic update, remain disabled or hidden until Phase 3. Explicit public exceptions are user-added BMS difficulty-table URLs, the user-authorised Ginger Rush / 616 BMS browser and download flow, and Sayobot native mania mirror downloads. These do not enable private/default endpoints or official downloads; contracts are maintained in P1-A for [BMS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) and [mania](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载).
-- Current local-first builds should not ship non-empty default API / OAuth / SignalR / BSS server URLs; if online code remains in the tree, it is Phase 3 technical reserve rather than user-facing functionality. Local IR development was explicitly authorised on 2026-10-03 under [P3-IR](../subline/P3-IR/DEVELOPMENT_PLAN.md); public/default endpoints remain unset.
+- Legacy account/API flows, official beatmap download, chat, news, multiplayer, spectator, daily challenge and automatic update remain disabled or hidden. The independent opt-in IR provides its own account, saved-score submission and boards under [P3-IR](../subline/P3-IR/TECHNICAL_CONSTRAINTS.md); it does not enable the legacy online stack. Separate public exceptions are user-added BMS difficulty-table URLs, the user-authorised Ginger Rush / 616 BMS browser and download flow, and Sayobot native mania mirror downloads, governed by P1-A for [BMS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) and [mania](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载).
+- Current local-first builds must keep default API / OAuth / SignalR / BSS URLs empty and `OnlineFeaturesEnabled=false`. Independent IR requires an explicit service address and opt-in; its trial results and remaining acceptance belong to [P3-IR STATUS](../subline/P3-IR/DEVELOPMENT_STATUS.md). Other unadopted online code remains technical reserve.
 
 ---
 
@@ -338,7 +338,7 @@ Keep an absent `#TOTAL` distinct from an explicit author value. Family defaults 
 
 Score/gauge pools must agree with LN/CN/HCN and A-SCR/A-NOT: BGM and assisted notes stay out of the manual pool; HCN body ticks move gauge without adding EX-SCORE or combo. Hazard's GOOD behaviour and survival/groove failure behaviour follow the active tested family. See [P1-C CONSTRAINTS](../subline/P1-C/TECHNICAL_CONSTRAINTS.md) and the gauge-family tests for numeric rules.
 
-Current local score bucketing distinguishes implemented gauge/judge/long-note semantics. Private-server submission and online leaderboard filters remain Phase 3 work; no endpoint or new persisted filter setting is implied here.
+Current local score bucketing distinguishes implemented gauge/judge/long-note semantics. It does not define IR eligibility or comparable groups: independent submission and boards follow [P3-IR](../subline/P3-IR/TECHNICAL_CONSTRAINTS.md), including its actual Mod acceptance boundary. This local contract implies no default endpoint or additional persisted filter setting.
 
 ### 6.3 Clear Lamp (`BmsClearLampProcessor`)
 
@@ -366,11 +366,11 @@ Only upgrade lamp, never downgrade.
 
 `BmsModGaugeAutoShift : Mod` exposes persisted `StartingGauge` (default ExHard) and `FloorGauge` (default Easy), mutually exclusive with individual gauge mods. Gauge rank order is Hazard → ExHard → Hard → Normal → Easy → Assist Easy, but automatic downgrading applies only to failed survival gauges and is bounded by the configured floor. Entering Normal stops downgrading; a floor of Easy does not cause a later Normal → Easy transition. Groove gauges finish at song end instead of causing mid-song failure.
 
-On downgrade, the new active gauge starts at its family/type default value. Result history displays each activated segment of this one evolving gauge run. The result lamp follows the final active gauge and the playable run, not the best of independently simulated gauges. Keep downgrade and history semantics aligned between gameplay and `BmsClearLampProcessor`; the regression `TestGaugeAutoShiftDowngradesAndAwardsFinalActiveGaugeLamp` locks this distinction. Private-server GAS submission remains unimplemented Phase 3 work.
+On downgrade, the new active gauge starts at its family/type default value. Result history displays each activated segment of this one evolving gauge run. The result lamp follows the final active gauge and the playable run, not the best of independently simulated gauges. Keep downgrade and history semantics aligned between gameplay and `BmsClearLampProcessor`; the regression `TestGaugeAutoShiftDowngradesAndAwardsFinalActiveGaugeLamp` locks this distinction. IR captures final GAS fields, but accepted Mod combinations follow [P3-IR](../subline/P3-IR/TECHNICAL_CONSTRAINTS.md); field capture and local gauge tests do not prove service acceptance. Unsupported Mods retain their original pending payload.
 
 ### 6.5 Auto Assist Mods — A-SCR / A-NOT
 
-Current repository status: `BmsModAutoScratch` and `BmsModAutoNote` now exist in the current workspace as `DifficultyReduction` mods. The current implementation exposes mod-local `ScratchVisibility` / `TintScratchNotes` / `ScratchTintColour` and `NoteVisibility` / `TintNotes` / `NoteTintColour` settings. Configurable BMS mods now also use a BMS-only ruleset-config snapshot for selection/config persistence; leaderboard filters remain future work.
+Current repository status: `BmsModAutoScratch` and `BmsModAutoNote` now exist in the current workspace as `DifficultyReduction` mods. The current implementation exposes mod-local `ScratchVisibility` / `TintScratchNotes` / `ScratchTintColour` and `NoteVisibility` / `TintNotes` / `NoteTintColour` settings. Configurable BMS mods now also use a BMS-only ruleset-config snapshot for selection/config persistence; IR grouping follows its separate contract.
 
 **Current behavior / contract:**
 
@@ -386,7 +386,7 @@ Current repository status: `BmsModAutoScratch` and `BmsModAutoNote` now exist in
 - Disabling a configurable BMS mod is not treated as a request to reset it; if the mod opts into preserved settings, re-enabling it must restore the last remembered configuration.
 - This contract is currently BMS-only and must not be generalized to mania or to a global cross-ruleset `SelectedMods` persistence layer without a separate design and product contract.
 
-Online leaderboard filters remain Phase 3 scope. Add persistent configuration only when the actual consumer and compatibility contract are implemented.
+Independent IR board queries follow [P3-IR](../subline/P3-IR/TECHNICAL_CONSTRAINTS.md). Proposed multi-source filters remain [unadopted](../subline/P3-IR/DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜待审查规划). Add persistent configuration only when the actual consumer and compatibility contract are implemented.
 
 `BmsKeysoundStore` capacity is an internal runtime policy with automatic growth, not a persistent user-tunable ceiling. The removed `KeysoundConcurrentChannels` setting must not be used as replay/config authority; add new persistent state only when a consuming feature and its compatibility contract land together.
 
@@ -552,7 +552,7 @@ BMS projected to mania uses the mania difficulty pipeline and persists the conve
 
 ### 9.4 Display and filtering
 
-Consumers use the persisted author level and difficulty-table entries through the current resolvers; selection must not reopen a BMS file solely to obtain labels. Native BMS, converted mania stars and the note-distribution preview are separate authorities. Current grouping/filtering behavior and the still-unimplemented single-track composition UI are tracked in [P1-I STATUS](../subline/P1-I/DEVELOPMENT_STATUS.md).
+Consumers use the persisted author level and difficulty-table entries through the current resolvers; selection must not reopen a BMS file solely to obtain labels. Native BMS, converted mania stars and the note-distribution preview are separate authorities. The single-track composition upper-bound controls are implemented; current grouping/filtering behavior and remaining manual interaction / large-library acceptance are tracked in [P1-I STATUS](../subline/P1-I/DEVELOPMENT_STATUS.md).
 
 ---
 

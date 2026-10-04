@@ -7,7 +7,9 @@
 
 ## 当前发行范围
 
-静线为唯一内置、默认与保底，外观打磨按用户决定暂停；星轨已退役，不再是启动依赖或构建对象。历史作者文件保留参考，旧内置星轨选择迁回静线，普通用户导入皮肤不清除；不再要求星轨视觉签收。单内置候选 `oms_20260912_4.zip` 的退役迁移、独立制作与隔离启动已有验证，见 [P1-F](../subline/P1-F/DEVELOPMENT_STATUS.md)。之后的静线素材、信息区与轨宽、按模式选择与布局编辑，以及 TOTAL/历史成绩兼容、自动偏移/自动键音、谱库 schema 58 与失效恢复、暂停续播、单轨筛选、原生/转谱性能优化、BGA 作者窗口/完整手册及公共 BMS/mania 浏览下载与完成状态修复，未重新制作并验收完整安装候选；旧发行包不代表当前源码的全部行为，已有开发验证见[主线状态](../mainline/DEVELOPMENT_STATUS.md#最近一次验证)。
+静线为唯一内置、默认与保底，外观打磨按用户决定暂停；星轨已退役，不再是启动依赖或构建对象。历史作者文件保留参考，旧内置星轨选择迁回静线，普通用户导入皮肤不清除；不再要求星轨视觉签收。
+
+2026-10-03 已形成绑定 clean `63f50c7` 的完整候选，ZIP 与 fresh publish 载荷一致，便携、自定义根、工作副本恢复及同包覆盖后隔离启动通过。随后按用户要求删除生成的 ZIP、publish 与两启动副本的程序/缓存，保留日志、结果、清单和恢复备份，见 [P1-F 状态](../subline/P1-F/DEVELOPMENT_STATUS.md#最近一次验证)及 [IR 发布记录](OMS_IR_CLIENT_RELEASE_20261003.md)。该结果不代签 Windows Shell 解包、跨版本、新版作者套件独立制作、真实下载或真人 IR 游玩；旧 9 月候选不代表当前源码全部行为，设备/长期及整体公开发行仍未完成。日常通过 VS Code 非调试启动验收，发行构建由用户自行执行，不要求再次打包。
 
 ## 此前人工验收包
 
@@ -15,7 +17,7 @@
 
 - `oms_20260911_startup-fix-final.zip` 与同名集中验收目录：历史双包候选，在 PS5、无 Git/SDK 环境完成组装，验证便携、自定义根、损坏工作副本恢复、同包覆盖后的正常启动和退出；两玩法可用有额外只读检查证据。对旧 `preview-fix` 副本另验证跨版本更新保留用户文件、数据库、模式及两款旧只读原件备份。这些记录见 [C7 验证](SKIN_SYSTEM_C7_VALIDATION_20260909.md)，不证明当前版本已做同样的整包安装复验。
 - `oms_20260912.zip`：历史双内置自动构建候选；`oms_20260912_2.zip`：其后修复已保存星轨配置的冷启动异常。构建、隔离桌面补验及限制见[构建记录](SKIN_BUILTIN_BUILD_20260912.md)。
-- `oms_20260912_4.zip`：最近已记录的单内置完整候选，退役迁移和四轮隔离启动结果见 [P1-F 状态](../subline/P1-F/DEVELOPMENT_STATUS.md)。本次文档同步不重打包这些旧制品，不改写其随包空白清单与验证结果。
+- `oms_20260912_4.zip`：9 月单内置完整候选，退役迁移和四轮隔离启动结果见 [P1-F 状态](../subline/P1-F/DEVELOPMENT_STATUS.md)。这些旧制品及其随包空白清单和验证结果保留原身份。
 
 ## 构建发行包
 
@@ -189,7 +191,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Update-OMS.ps1 -Update
 - 游戏内更新：**已禁用**（`IsInAppUpdateEnabled => false`）
 - Velopack 初始化：**已跳过**
 - API / OAuth / SignalR：**默认端点已清空**
-- OMS 私有服务、在线排行榜 / 官网谱面下载 / 聊天 / 多人：**已隐藏或禁用**
+- 原官网账号/API、官网谱面下载 / 聊天 / 多人：**已隐藏或禁用**
+- 独立 OMS IR：**主动配置地址并启用的试运行**，账号、保存后交分和查榜沿 [P3-IR](../subline/P3-IR/DEVELOPMENT_STATUS.md)，默认仍空地址 / 关闭
 - 远程静态资源 fallback：**已被离线模式屏蔽**
 
-> OMS 私有服务与官网联网产品面属于 Phase 3 后续规划，当前没有启用日期或全量开放承诺。用户主动添加公共 BMS 难度表 URL、已授权的 Ginger Rush / 616 BMS 浏览下载与 Sayobot 原生 mania 镜像下载为窄例外，不开放默认端点、官网或私有服务。当前能力和未签收的实网/大包体验见 [P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，输入与联网边界见 P1-A [BMS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) / [mania](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载)合同；下一完整候选还须按 [P1-F](../subline/P1-F/DEVELOPMENT_PLAN.md) / [P1-G](../subline/P1-G/DEVELOPMENT_PLAN.md)完成发行组合验收。
+> 独立 IR 试运行不启用旧在线链或默认端点，也不关闭 Phase 1.x 人工/发行门。多来源与 LR2 历史榜仅为 [待审查规划](../subline/P3-IR/DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜待审查规划)。公共 BMS 难度表 URL、Ginger Rush / 616 BMS 和 Sayobot mania 镜像下载仍是独立窄例外，能力及未签收实网/大包体验见 [P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，边界见 P1-A [BMS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) / [mania](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载)；剩余发行组合沿 [P1-F](../subline/P1-F/DEVELOPMENT_PLAN.md) / [P1-G](../subline/P1-G/DEVELOPMENT_PLAN.md)。

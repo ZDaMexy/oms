@@ -1,6 +1,6 @@
 # P1-G 当前计划：Phase 1.x 人工验收汇总
 
-> 最后核对：2026-10-03（承接公共下载剩余体验与候选组合；原人工门保留）
+> 最后核对：2026-10-04（候选证据与独立 IR 归属对齐；原人工门保留）
 > 全局 gate 见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)，当前分项见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，历史结论见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线目标
@@ -62,7 +62,7 @@ P1-G 只汇总，不实现：发现问题必须回到 owning 子线，修复后�
 
 - fresh extract 冷启动、portable `data/`、custom root 与覆盖更新。
 - 保留 `portable.ini`、`storage.ini` 和用户内容；公开说明与真实能力一致。
-- 当前完整候选复核公共下载、后台任务、失败/取消和入库选歌组合；本次启动尚未首次进入对应浏览分区时不发起该来源请求，关页后已开始的后台下载继续，不扩张官网/私有服务或默认 endpoint。缺陷归 P1-A，候选保存/升级问题归 P1-F/P1-H。
+- 当前完整候选复核公共下载、后台任务、失败/取消和入库选歌组合；本次启动尚未首次进入对应浏览分区时不发起该来源请求，关页后已开始的后台下载继续，不扩张官网/旧在线链或默认 endpoint。10 月 3 日同包启动证据见 [P1-F](../P1-F/DEVELOPMENT_STATUS.md)，不能代签本项；独立 IR 真人门只沿 [P3-IR](../P3-IR/DEVELOPMENT_PLAN.md)。缺陷归 P1-A，候选保存/升级问题归 P1-F/P1-H。
 - 本项由 P1-F 提供候选包与步骤，P1-G 记录最终人工结果。
 
 ## 关闭规则

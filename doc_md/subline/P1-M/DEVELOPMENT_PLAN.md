@@ -1,6 +1,6 @@
 # P1-M 开发计划：内置音乐播放器
 
-> 最后更新：2026-09-12（对齐既定展开壳体与 core 依赖边界；产品规划未开工）
+> 最后更新：2026-10-04（后置 BGA 依赖回链现行会话合同；播放器仍未开工）
 > 全局计划见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。架构审查结论见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，硬约束见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)。
 > **红线：① 不得改坏 song-select 试听链路；② 不得破坏 gameplay 全局音轨控制闸 `AllowTrackControl`；③ 离线优先——播放器只用本地音轨，绝不接在线试听。**
 
@@ -79,7 +79,7 @@
 - 跨会话恢复上次位置 / 队列 / 模式：扩展 Phase 0/1 的持久化。
 
 ### Phase 4 — 进阶集成（M4 BGA + M6 SMTC）
-- **BGA-in-player spike**（跨项目）：osu.Game 不能引用 Bms 项目。需在核心定义接口（如 `IBackgroundAnimationProvider` / skinnable 组件），由 BMS ruleset 注册实现，让展开视图在当前曲为 bms 时复用 [BmsBgaPlayer](../../../osu.Game.Rulesets.Bms/UI/BmsBgaPlayer.cs)（P1-L Phase 5）。前期展开视图先用静态封面（mania/bms 通用）。
+- **BGA-in-player spike**（后置、跨项目）：osu.Game 不能引用 Bms 项目。先沿 [P1-L 当前会话与只读画面合同](../P1-L/TECHNICAL_CONSTRAINTS.md)确认非 gameplay 的内容生命周期和真实消费边界，再确定核心桥接；不假定当前 gameplay 会话可直接搬用，不另建解码/时间线。前期展开视图先用静态封面（mania/bms 通用）。
 - **Windows SMTC 媒体键**：纯净新增，仅 `osu.Desktop`（Windows 入口）；锁屏 + 键盘媒体键控制 + 元数据上报。
 
 ## 验证顺序（每阶段强制）

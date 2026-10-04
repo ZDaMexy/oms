@@ -3,6 +3,12 @@
 > 本文件记录 `P1-M` 相关的验证通过变更，按时间倒序排列。
 > 当前进度见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 
+## 2026-10-04
+
+### 后置 BGA 依赖回链现行合同
+
+PLAN/CONSTRAINTS 的 BGA-in-player spike 不再引用旧 Phase 5 或预定新接口，改为先证明非 gameplay 生命周期和跨项目真实消费，再沿 P1-L 当前内容会话与只读画面合同桥接。未新增实现、播放器验证或启动本线，既有 core 依赖方向与主线后置顺序保持；统一检查见 [主线日志](../../mainline/CHANGELOG.md#项目进度与文档记忆一致性复核)。
+
 ## 2026-09-29
 
 ### 播放器记忆去重与源码复核
