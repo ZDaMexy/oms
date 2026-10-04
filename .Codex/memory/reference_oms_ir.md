@@ -29,6 +29,7 @@
 - OpenLR2固定SDK须同MSVC19.44/MT/Release/架构；x86 cdecl的`.def`直接列未修饰GetMethodTable，手工别名可能双重修饰。F盘免安装工具入口必须从原工具目录加载，复制到构建目录的入口仅作hash证明；UTF8无BOM含中文构建脚本用当前PS7执行，PS5可能ANSI误读。独立检查程序须被固定宿主指纹拒绝，不绕过它伪造真实宿主HTTP/游玩证据。
 - 单worker不等于单同步工作：r6默认AnyIO40槽形成41实际线程，首次/原生单读已通过，峰值后仍挤占共享余量并产生大量MemoryHigh事件；无OOM/swap、RSS低于500MiB不等于资源通过。按真实边界限制工作量，再用原峰值/持续速率复核，不以改小压测速率或暖SQL签收；短峰值已失败就先落资源证据并停止，不能再跑无效30分钟。
 - 内存守门也不证明峰值可用：r7逐路径CPU乘实际速率已超主机1.5核；给全榜生成名次再排本页和目录COUNT/页两次扫描是重复工作。完整候选只物化一次，近端读页、页首EX按全榜更高人数修正并列，其余offset+页内RANK；末页反读仍按原record_key输出。须逐行核对首中末/跨页大并列/越界和全局本人，再实测原负载；SQL加速数字不代签HTTP。
+- 一条SQL不一定更省：r8目录MATERIALIZED让首屏先整理全目录，实际HTTP文字搜索CPU由137升至207ms。各目录UNIQUE(md5)可按互斥的匹配成员计总数，再用原UNION有序页；此前来源不同标题未匹配时不能吞掉后续命中。混榜完整排序仅携带四个整数、页面/本人再hydrate原字段，种类加记录ID字典序必须等价原record_key；80排名/26目录暖SQL等价仍不代签原峰值。r8驱动排队仅2ms但HTTP约1秒，不能把线程槽排队或execute墙钟差值直接说成SQLite锁。
 - “真实环境验收”不授权客户端打包：2026-10-03 用户明确日常用 VS Code 非调试启动，发行构建自行执行。稳定约定在 AGENTS；不要由部署服务推导需要 ZIP / publish / 额外安装副本，既有发行门留到用户构建时验收。
 - 首次未填搜索词时，`new Bindable<string>()` 默认 null；`query.Length` 在 HTTP 前失败，async finally 仍恢复按钮，界面可停在 loading。2026-10-04 trace 只有登录与 read-start、没有第二请求 / response-ready，滚动猜测不成立；应初始化业务不变量 `string.Empty`，不加 catch / fallback 掩错。临时诊断撤掉，原场景断言仍须通过。
 
