@@ -11,6 +11,8 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 2026-10-03 按用户授权实现客户端主动连接、保存后交分、待交恢复与端内查榜，独立服务 / 网页已部署试运行，50 人代表性容量和一致恢复通过；用户通过 VS Code 非调试启动核对同一局、断网重启与账号归属，不需要 agent 生成发行包，见 [P3-IR](../subline/P3-IR/DEVELOPMENT_STATUS.md)。默认 endpoint 和旧在线总开关保持原值，Phase 1.x 人工 / 发行门不变。
 
+2026-10-04 [多播放器、来源混榜与 LR2IR 历史榜](../subline/P3-IR/DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜待审查规划)仅完成待正式审查的详细提案；专项文档/记忆已分清现行能力、未实施扩展和人工门，不刷新全项目产品验证或关闭原门。
+
 静线已完成当前控制区、分段血槽、轨宽及演奏信息迭代：白黑/皿轨独立比例，BGA布局由皮肤声明，作者标级与表名/表内等级独立显示。正常开发启动、build/publish只同步simple源。当前暂停继续打磨，既有成果、最新验证和未完成门统一见[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)；历史双内置和各轮截图不作为新的签收。
 
 - Windows-only，保留osu!mania与第一类BMS，Osu/Taiko/Catch已删除；离线优先，默认 endpoint 为空。用户授权的独立 IR 主动连接 / 试运行沿 P3-IR，不扩大旧全套在线产品面。公共BMS难度表URL、用户指定Ginger Rush / 616 BMS与Sayobot原生mania镜像下载为窄例外，合同见 P1-A [BMS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) / [mania](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载)。
@@ -50,6 +52,8 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 最近一次静线外观修改仍为 2026-09-13 的 `234ce1f`；该轮实绘与自动证据见[轨道验证记录](../other/SKIN_SIMPLE_LANE_PROPORTIONS_20260913.md)。此前发行 ZIP 和安装证据未随后续产品修改重新验收。
 
 ## 文档治理验证
+
+2026-10-04 仅复核 [P3-IR 的文档/记忆与外部投影](../subline/P3-IR/DEVELOPMENT_STATUS.md#文档治理验证)，明确现行 v1、待审查扩展和独立人工门；不是全项目重验，其他专项产品/治理日期保持。
 
 2026-10-03：复核全部子线当前入口与诊断记忆，校正主合同的谱库/难度表旧描述、长条接入旧待办、发行下载窄例外和当前验收入口；计划与记忆收简重复完成史，保留具名旧检查维护及 startup 恢复例外。范围与检查结果见[日志](CHANGELOG.md#全项目进度与文档记忆健康复核)；仅改文档、验收表与记忆，没有重跑产品验证或刷新实网、皮肤与发行签收。
 
