@@ -274,6 +274,49 @@ namespace osu.Game.Online.IR
                 "scores/chart/" + md5 + "?group=" + group + "&page=" + validPage(page) + "&limit=20", null, null, token), cancellationToken);
         }
 
+        public Task<JObject> GetSourcesAsync(CancellationToken cancellationToken = default) => withNetworkAsync(token =>
+            sendAsync(requireEnabledOrigin(), HttpMethod.Get, "sources", null, null, token, "v2"), cancellationToken);
+
+        public Task<JObject> GetSourceChartsAsync(string query = "", int page = 1, CancellationToken cancellationToken = default)
+        {
+            if (query.Length > 200)
+                throw new OmsIrException("invalid_search", "请将谱名、作者或原谱 MD5 限制在 200 字以内。");
+            return withNetworkAsync(token => sendAsync(requireEnabledOrigin(), HttpMethod.Get,
+                "charts?q=" + Uri.EscapeDataString(query) + "&page=" + validPage(page) + "&limit=20", null, null, token, "v2"), cancellationToken);
+        }
+
+        public Task<JObject> GetSourceChartAsync(string md5, CancellationToken cancellationToken = default)
+        {
+            validateChartMd5(md5);
+            return withNetworkAsync(token => sendAsync(requireEnabledOrigin(), HttpMethod.Get, "charts/" + md5, null, null, token, "v2"), cancellationToken);
+        }
+
+        public Task<JObject> GetSourceChartScoresAsync(string md5, IReadOnlyList<string>? sources = null, string mode = "reference",
+                                                      string? condition = null, int page = 1, CancellationToken cancellationToken = default)
+        {
+            validateChartMd5(md5);
+            if (mode is not ("reference" or "comparable") || (mode == "comparable" && string.IsNullOrEmpty(condition))
+                || (mode == "reference" && condition != null) || condition?.Length > 100)
+                throw new OmsIrException("invalid_conditions", "请主动选择同条件组，或返回参考混榜。");
+            if (sources != null && (sources.Count > 16 || sources.Any(source => source.Length is < 1 or > 32
+                    || !source.All(character => character is >= 'a' and <= 'z' or >= '0' and <= '9' or '_' or '.'))))
+                throw new OmsIrException("invalid_sources", "请选择服务提供的来源。");
+            string path = "scores/chart/" + md5 + "?mode=" + mode + "&page=" + validPage(page) + "&limit=20";
+            if (sources != null)
+                path += "&sources=" + Uri.EscapeDataString(string.Join(',', sources.Distinct(StringComparer.Ordinal)));
+            if (condition != null)
+                path += "&condition=" + Uri.EscapeDataString(condition);
+            return withNetworkAsync(token => session != null
+                ? authenticatedAsync(HttpMethod.Get, path, null, token, "v2")
+                : sendAsync(requireEnabledOrigin(), HttpMethod.Get, path, null, null, token, "v2"), cancellationToken);
+        }
+
+        private static void validateChartMd5(string md5)
+        {
+            if (md5.Length != 32 || !md5.All(character => character is >= '0' and <= '9' or >= 'a' and <= 'f'))
+                throw new OmsIrException("invalid_chart", "请先选择具有原谱内容身份的谱面。");
+        }
+
         public Task<JObject> GetMyScoresAsync(int page = 1, CancellationToken cancellationToken = default) => withNetworkAsync(token =>
         {
             requireEnabledOrigin();
@@ -319,7 +362,7 @@ namespace osu.Game.Online.IR
 
         private OmsIrSession requireSession() => session ?? throw new OmsIrException("login_required", "请登录原账号；待交仍已保留。" );
 
-        private async Task<JObject> authenticatedAsync(HttpMethod method, string path, string? body, CancellationToken token)
+        private async Task<JObject> authenticatedAsync(HttpMethod method, string path, string? body, CancellationToken token, string apiVersion = "v1")
         {
             Uri origin = requireEnabledOrigin();
             OmsIrSession owner = requireSession();
@@ -327,14 +370,14 @@ namespace osu.Game.Online.IR
                 owner = await refreshAsync(origin, owner, token).ConfigureAwait(false);
             try
             {
-                return await sendAsync(origin, method, path, body, owner.AccessToken, token).ConfigureAwait(false);
+                return await sendAsync(origin, method, path, body, owner.AccessToken, token, apiVersion).ConfigureAwait(false);
             }
             catch (OmsIrException exception) when (exception.StatusCode == HttpStatusCode.Unauthorized)
             {
                 owner = await refreshAsync(origin, owner, token).ConfigureAwait(false);
                 try
                 {
-                    return await sendAsync(origin, method, path, body, owner.AccessToken, token).ConfigureAwait(false);
+                    return await sendAsync(origin, method, path, body, owner.AccessToken, token, apiVersion).ConfigureAwait(false);
                 }
                 catch (OmsIrException retryException) when (retryException.StatusCode == HttpStatusCode.Unauthorized)
                 {
@@ -380,12 +423,12 @@ namespace osu.Game.Online.IR
             deleteCredential(origin);
         }
 
-        private async Task<JObject> sendAsync(Uri origin, HttpMethod method, string path, string? body, string? accessToken, CancellationToken token)
+        private async Task<JObject> sendAsync(Uri origin, HttpMethod method, string path, string? body, string? accessToken, CancellationToken token, string apiVersion = "v1")
         {
             using var requestDeadline = CancellationTokenSource.CreateLinkedTokenSource(token);
             requestDeadline.CancelAfter(TimeSpan.FromSeconds(20));
             CancellationToken requestToken = requestDeadline.Token;
-            using var request = new HttpRequestMessage(method, new Uri(origin, "api/ir/v1/" + path));
+            using var request = new HttpRequestMessage(method, new Uri(origin, "api/ir/" + apiVersion + "/" + path));
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             if (accessToken != null)
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
@@ -540,11 +583,17 @@ namespace osu.Game.Online.IR
             "invalid_session" or "invalid_refresh" => "登录已失效，请重新登录原账号；待交仍已保留。",
             "rate_limited" or "password_busy" => "IR 服务正忙，请稍后重试。",
             "unsupported_mod" => "本局的 Mod 或参数暂不支持；本地成绩与待交已保留。",
+            "invalid_mod_conditions" => "本局的选项与保存后的实际规则不一致；本地成绩与待交已保留。",
             "unsupported_rules_version" or "unsupported_score_version" or "unsupported_schema" => "本局的成绩版本暂不支持；本地成绩与待交已保留。",
             "submission_conflict" => "同一局 ID 已有不同内容；本地成绩与待交已保留，请检查来源。",
             "chart_identity_conflict" => "谱面 MD5 对应的内容或玩法不同；本地成绩与待交已保留。",
             "history_private" => "完整记录仅账号本人可查看。",
             "board_not_found" => "这个游玩条件还没有公开榜单。",
+            "chart_not_found" => "这个谱面还没有成绩或历史目录。",
+            "unsupported_source" => "所选来源未知或尚未开放，请重新读取来源列表。",
+            "condition_required" or "unexpected_condition" => "请主动选择已证明的同条件组，或返回参考混榜。",
+            "bms_reference_only" => "参考混榜用于 BMS；mania 请使用原计分条件榜。",
+            "archive_unavailable" or "archive_version" => "历史榜暂时无法安全读取，请联系维护者；这不是成功的空榜。",
             _ => status == HttpStatusCode.UnprocessableEntity ? "成绩字段未通过服务检查；本地成绩与待交已保留。"
                 : "IR 请求失败（HTTP " + ((int)status).ToString(CultureInfo.InvariantCulture) + "）；本地成绩与待交已保留。",
         };

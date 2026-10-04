@@ -466,6 +466,91 @@ namespace osu.Game.Tests.Online.IR
         }
 
         [Test]
+        public async Task SourceBoardsKeepAllEmptyMultipleAndComparableRequestsDistinct()
+        {
+            var requests = new ConcurrentQueue<(string Path, string? Bearer)>();
+            string? escapedSearch = null;
+            using var http = new HttpClient(new Handler((request, _) =>
+            {
+                if (request.RequestUri!.AbsolutePath == "/api/ir/v2/charts")
+                    escapedSearch = request.RequestUri.Query;
+                requests.Enqueue((Uri.UnescapeDataString(request.RequestUri!.PathAndQuery), request.Headers.Authorization?.Parameter));
+                return Task.FromResult(request.RequestUri.AbsolutePath.EndsWith("/auth/login", StringComparison.Ordinal)
+                    ? json(loginResponse(1)) : json(new JObject { ["items"] = new JArray(), ["total"] = 0 }));
+            }));
+            using var service = new OmsIrService(storage, http, credentials);
+            await service.ConfigureAsync(origin, true);
+            string md5 = new string('a', 32);
+            await service.GetSourcesAsync();
+            await service.GetSourceChartsAsync("中文谱名&作者");
+            await service.GetSourceChartAsync(md5);
+            await service.GetSourceChartScoresAsync(md5);
+            await service.GetSourceChartScoresAsync(md5, Array.Empty<string>());
+            await service.GetSourceChartScoresAsync(md5, new[] { "oms", "lr2ir.v3.lr2", "oms" });
+            await service.LoginAsync("player_one", password);
+            string condition = new string('b', 64) + ":200";
+            await service.GetSourceChartScoresAsync(md5, new[] { "oms" }, "comparable", condition, 2);
+            var reads = requests.Where(request => request.Path.StartsWith("/api/ir/v2/", StringComparison.Ordinal)).ToArray();
+            Assert.Multiple(() =>
+            {
+                Assert.That(reads[0].Path, Is.EqualTo("/api/ir/v2/sources"));
+                Assert.That(reads[1].Path, Does.Contain("q=中文谱名&作者"));
+                Assert.That(escapedSearch, Does.Contain("%26"));
+                Assert.That(reads[2].Path, Is.EqualTo("/api/ir/v2/charts/" + md5));
+                Assert.That(reads[3].Path, Does.Not.Contain("sources="));
+                Assert.That(reads[4].Path, Does.EndWith("&sources="));
+                Assert.That(reads[5].Path, Does.EndWith("&sources=oms,lr2ir.v3.lr2"));
+                Assert.That(reads[6].Path, Does.Contain("mode=comparable&page=2"));
+                Assert.That(reads[6].Path, Does.EndWith("&condition=" + condition));
+                Assert.That(reads.Take(6).All(request => request.Bearer == null), Is.True);
+                Assert.That(reads[6].Bearer, Is.EqualTo(accessFor(1)));
+            });
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SourceBoardRefreshKeepsItsVersionAndNeverFallsBackToAnonymous(bool refreshSucceeds)
+        {
+            const string rotatedAccess = "rotated-access-player-0000000000";
+            var boardTokens = new ConcurrentQueue<string?>();
+            using var http = new HttpClient(new Handler((request, _) =>
+            {
+                string path = request.RequestUri!.AbsolutePath;
+                if (path.EndsWith("/auth/login", StringComparison.Ordinal))
+                    return Task.FromResult(json(loginResponse(1)));
+                if (path == "/api/ir/v1/auth/refresh")
+                {
+                    if (!refreshSucceeds)
+                        return Task.FromResult(error(HttpStatusCode.Unauthorized, "invalid_refresh"));
+                    JObject response = loginResponse(1);
+                    response["access_token"] = rotatedAccess;
+                    return Task.FromResult(json(response));
+                }
+                Assert.That(path, Does.StartWith("/api/ir/v2/scores/chart/"));
+                string? bearer = request.Headers.Authorization?.Parameter;
+                boardTokens.Enqueue(bearer);
+                return Task.FromResult(bearer == rotatedAccess ? json(new JObject()) : error(HttpStatusCode.Unauthorized, "invalid_session"));
+            }));
+            using var service = new OmsIrService(storage, http, credentials);
+            await service.ConfigureAsync(origin, true);
+            await service.LoginAsync("player_one", password);
+            if (refreshSucceeds)
+            {
+                await service.GetSourceChartScoresAsync(new string('a', 32));
+                Assert.That(boardTokens, Is.EqualTo(new[] { accessFor(1), rotatedAccess }));
+                Assert.That(service.State.Account?.Id, Is.EqualTo(1));
+            }
+            else
+            {
+                OmsIrException error = Assert.ThrowsAsync<OmsIrException>(async () => await service.GetSourceChartScoresAsync(new string('a', 32)))!;
+                Assert.That(error.Code, Is.EqualTo("login_required"));
+                Assert.That(boardTokens, Is.EqualTo(new[] { accessFor(1) }));
+                Assert.That(service.State.RequiresLogin, Is.True);
+                Assert.That(credentials.Values, Is.Empty);
+            }
+        }
+
+        [Test]
         public async Task IncorrectPasswordShowsAuthenticationFailureWithoutLeakingPassword()
         {
             using var http = new HttpClient(new Handler((_, _) => Task.FromResult(error(HttpStatusCode.Unauthorized, "invalid_credentials"))));

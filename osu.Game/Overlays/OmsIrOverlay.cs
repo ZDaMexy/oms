@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -15,6 +16,7 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Localisation;
+using osu.Game.Beatmaps;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.Sprites;
@@ -38,14 +40,20 @@ namespace osu.Game.Overlays
         [Resolved]
         private OmsIrService service { get; set; } = null!;
 
+        [Resolved]
+        private IBindable<WorkingBeatmap> currentBeatmap { get; set; } = null!;
+
         private readonly Bindable<string> address = new Bindable<string>();
         private readonly Bindable<bool> enabled = new Bindable<bool>();
+        private readonly Bindable<string> search = new Bindable<string>(string.Empty);
         private FormTextBox username = null!;
         private OsuPasswordTextBox password = null!;
         private OsuTextFlowContainer connectionStatus = null!;
         private OsuTextFlowContainer actionStatus = null!;
         private OsuSpriteText pageText = null!;
         private FillFlowContainer rows = null!;
+        private FillFlowContainer sourceOptions = null!;
+        private FillFlowContainer conditionOptions = null!;
         private readonly List<FormButton> buttons = new List<FormButton>();
         private FormButton historyButton = null!;
         private CancellationTokenSource? operationCancellation;
@@ -60,8 +68,12 @@ namespace osu.Game.Overlays
         private string? chartMd5;
         private string? group;
         private string? chartTitle;
+        private JArray? sourceRegistry;
+        private HashSet<string>? selectedSources;
+        private string boardMode = "reference";
+        private string? conditionId;
 
-        private enum View { Charts, Board, History }
+        private enum View { Charts, Board, ReferenceBoard, History }
 
         public OmsIrOverlay()
         {
@@ -100,14 +112,14 @@ namespace osu.Game.Overlays
                                 Children = new Drawable[]
                                 {
                                     text("OMS IR · 记录每次进步", 26),
-                                    flow("客户端上报，未经回放核验。自动游玩只留本人记录；辅助玩法单独分组。"),
+                                    flow("新成绩与历史摘要均未核验。参考混榜按原 EX 排序；需要时可主动收窄到已证明的同条件。"),
                                     connectionStatus = flow(string.Empty),
                                     new FormTextBox { Caption = "服务地址", PlaceholderText = "填写 HTTPS 服务地址", Current = address },
                                     new FormCheckBox { Caption = "启用 IR；只提交启用并登录后开始的新局", Current = enabled },
                                     makeButtons(button("保存连接设置", () => run(async token =>
                                     {
                                         await service.ConfigureAsync(address.Value, enabled.Value, token).ConfigureAwait(false);
-                                        Schedule(() => { rows.Clear(); page = 1; view = View.Charts; });
+                                        Schedule(() => { clearRead(); page = 1; view = View.Charts; sourceOptions.Clear(); conditionOptions.Clear(); });
                                     })), new FormButton { ButtonText = "关闭", Action = Hide }),
                                     username = new FormTextBox { Caption = "账号名", PlaceholderText = "3–24 位字母、数字或下划线" },
                                     new Container
@@ -122,7 +134,23 @@ namespace osu.Game.Overlays
                                     },
                                     makeButtons(button("登录", () => login(false)), button("注册并登录", () => login(true)), button("退出账号", () => run(service.LogoutAsync))),
                                     makeButtons(button("重试待交", () => run(service.RetryPendingAsync)), button("读取谱面", () => navigate(View.Charts)), historyButton = button("本人记录", () => navigate(View.History))),
+                                    new FormTextBox { Caption = "谱名、作者或 MD5", PlaceholderText = "填写后点击读取谱面", Current = search },
+                                    makeButtons(button("当前 BMS 谱面榜", openCurrentChart)),
                                     actionStatus = flow("本地成绩先保存，再交分。网络失败时待交保留；切换账号不会转交旧账号的记录。"),
+                                    sourceOptions = new FillFlowContainer
+                                    {
+                                        RelativeSizeAxes = Axes.X,
+                                        AutoSizeAxes = Axes.Y,
+                                        Direction = FillDirection.Vertical,
+                                        Spacing = new Vector2(0, 8),
+                                    },
+                                    conditionOptions = new FillFlowContainer
+                                    {
+                                        RelativeSizeAxes = Axes.X,
+                                        AutoSizeAxes = Axes.Y,
+                                        Direction = FillDirection.Vertical,
+                                        Spacing = new Vector2(0, 8),
+                                    },
                                     rows = new FillFlowContainer
                                     {
                                         RelativeSizeAxes = Axes.X,
@@ -139,6 +167,7 @@ namespace osu.Game.Overlays
                 }
             };
             service.StateChanged += onServiceChanged;
+            currentBeatmap.ValueChanged += onBeatmapChanged;
             applyState(service.State);
         }
 
@@ -178,14 +207,22 @@ namespace osu.Game.Overlays
                 return;
 
             bool changedOwner = displayedAccount != state.Account?.Id || displayedService != state.ServiceAddress || requiresLogin != state.RequiresLogin;
+            bool changedService = displayedService != state.ServiceAddress;
             displayedAccount = state.Account?.Id;
             displayedService = state.ServiceAddress;
             requiresLogin = state.RequiresLogin;
             if (changedOwner)
             {
                 cancelOperation();
-                rows.Clear();
-                pageText.Text = string.Empty;
+                clearRead();
+                sourceOptions.Clear();
+                conditionOptions.Clear();
+                page = 1;
+                if (changedService)
+                {
+                    sourceRegistry = null;
+                    selectedSources = null;
+                }
                 actionStatus.Text = "连接或账号已变化，请重新读取。";
             }
             string account = state.Account == null ? "未登录" : state.RequiresLogin ? $"{state.Account.Username} · 需要重新登录" : state.Account.Username;
@@ -214,6 +251,8 @@ namespace osu.Game.Overlays
                 return;
             view = next;
             page = 1;
+            sourceOptions.Clear();
+            conditionOptions.Clear();
             refresh();
         }
 
@@ -227,18 +266,28 @@ namespace osu.Game.Overlays
 
         private void refresh()
         {
+            clearRead();
+            actionStatus.Text = "正在按所选范围读取；本地游玩和成绩不受影响。";
             View requestedView = view;
             int requestedPage = page;
             string? requestedMd5 = chartMd5;
             string? requestedGroup = group;
+            string? requestedCondition = conditionId;
+            string requestedMode = boardMode;
+            string[]? requestedSources = selectedSources?.ToArray();
+            string requestedSearch = search.Value;
             run(async token =>
             {
                 int requestRevision = revision;
+                JArray? registry = sourceRegistry;
+                if (requestedView == View.ReferenceBoard)
+                    registry = required<JArray>(await service.GetSourcesAsync(token).ConfigureAwait(false), "items");
                 JObject response = requestedView switch
                 {
                     View.History => await service.GetMyScoresAsync(requestedPage, token).ConfigureAwait(false),
                     View.Board when requestedMd5 != null && requestedGroup != null => await service.GetChartScoresAsync(requestedMd5, requestedGroup, requestedPage, token).ConfigureAwait(false),
-                    _ => await service.GetChartsAsync(requestedPage, token).ConfigureAwait(false),
+                    View.ReferenceBoard when requestedMd5 != null => await service.GetSourceChartScoresAsync(requestedMd5, requestedSources, requestedMode, requestedCondition, requestedPage, token).ConfigureAwait(false),
+                    _ => await service.GetSourceChartsAsync(requestedSearch, requestedPage, token).ConfigureAwait(false),
                 };
                 Schedule(() =>
                 {
@@ -246,6 +295,7 @@ namespace osu.Game.Overlays
                         return;
                     try
                     {
+                        sourceRegistry = registry;
                         showResponse(response);
                     }
                     catch (JsonException)
@@ -267,6 +317,11 @@ namespace osu.Game.Overlays
             long limit = integer(response, "limit");
             if (limit is < 1 or > 50 || total < 0 || items.Count > limit)
                 throw new JsonSerializationException("Invalid IR pagination.");
+            if (view == View.ReferenceBoard)
+            {
+                showReferenceResponse(response, items, total, limit);
+                return;
+            }
             var content = new List<Drawable>();
             if (view == View.Board)
                 content.Add(flow(chartTitle ?? "谱面榜单"));
@@ -278,9 +333,14 @@ namespace osu.Game.Overlays
                 if (view == View.Charts)
                 {
                     JObject chart = required<JObject>(item, "chart");
-                    string title = stringValue(chart, "title");
+                    string title = nullableString(chart, "title") ?? "标题未收录";
                     string md5 = stringValue(chart, "md5");
-                    content.Add(flow(title));
+                    content.Add(flow($"{title}\n作者：{nullableString(chart, "artist") ?? "未收录"} · 难度：{nullableString(chart, "difficulty") ?? "未收录"}\nMD5：{md5}"));
+                    if (stringValue(item, "ruleset") == "bms")
+                    {
+                        content.Add(new FormButton { ButtonText = "查看参考混榜", Action = () => openReferenceBoard(md5, title) });
+                        continue;
+                    }
                     foreach (JToken conditionToken in required<JArray>(item, "groups"))
                     {
                         var condition = conditionToken as JObject ?? throw new JsonSerializationException("Invalid IR group.");
@@ -305,7 +365,19 @@ namespace osu.Game.Overlays
                     {
                         string md5 = stringValue(required<JObject>(score, "chart"), "md5");
                         string id = stringValue(score, "group_id");
-                        content.Add(new FormButton { ButtonText = "查看同条件榜", Action = () => openBoard(md5, id, heading) });
+                        content.Add(new FormButton
+                        {
+                            ButtonText = "查看同条件榜",
+                            Action = () =>
+                            {
+                                if (isBms)
+                                    openReferenceBoard(md5, heading, id + ":" + integer(score, "max_ex_score").ToString(CultureInfo.InvariantCulture));
+                                else
+                                    openBoard(md5, id, heading);
+                            },
+                        });
+                        if (isBms)
+                            content.Add(new FormButton { ButtonText = "查看参考混榜", Action = () => openReferenceBoard(md5, heading) });
                     }
                 }
             }
@@ -325,6 +397,233 @@ namespace osu.Game.Overlays
             chartTitle = title;
             navigate(View.Board);
         }
+
+        private void openCurrentChart()
+        {
+            BeatmapInfo info = currentBeatmap.Value.BeatmapInfo;
+            if (info.Ruleset.ShortName != "bms" || info.MD5Hash.Length != 32)
+            {
+                actionStatus.Text = "请先在选歌页选择具有原谱内容身份的 BMS 谱面。";
+                return;
+            }
+            openReferenceBoard(info.MD5Hash.ToLowerInvariant(), info.Metadata.Title);
+        }
+
+        private void openReferenceBoard(string md5, string title, string? condition = null)
+        {
+            cancelOperation();
+            chartMd5 = md5;
+            chartTitle = title;
+            selectedSources = null;
+            boardMode = condition == null ? "reference" : "comparable";
+            conditionId = condition;
+            navigate(View.ReferenceBoard);
+        }
+
+        private void onBeatmapChanged(ValueChangedEvent<WorkingBeatmap> change) => Schedule(() =>
+        {
+            if (view != View.ReferenceBoard)
+                return;
+            cancelOperation();
+            clearRead();
+            sourceOptions.Clear();
+            conditionOptions.Clear();
+            chartMd5 = null;
+            chartTitle = null;
+            conditionId = null;
+            page = 1;
+            view = View.Charts;
+            actionStatus.Text = "选谱已变化，请重新读取当前 BMS 谱面榜。";
+            updateButtons();
+        });
+
+        private void clearRead()
+        {
+            rows.Clear();
+            pageText.Text = string.Empty;
+            totalPages = 0;
+        }
+
+        private void changeSources(HashSet<string>? sources)
+        {
+            selectedSources = sources;
+            cancelOperation();
+            page = 1;
+            conditionOptions.Clear();
+            refresh();
+        }
+
+        private void chooseSource(string code, bool selected)
+        {
+            var chosen = selectedSources == null
+                ? new HashSet<string>(sourceRegistry!.OfType<JObject>().Where(item => boolean(item, "available")).Select(item => stringValue(item, "code")), StringComparer.Ordinal)
+                : new HashSet<string>(selectedSources, StringComparer.Ordinal);
+            if (selected)
+                chosen.Add(code);
+            else
+                chosen.Remove(code);
+            changeSources(chosen);
+        }
+
+        private void chooseCondition(string? id)
+        {
+            boardMode = id == null ? "reference" : "comparable";
+            conditionId = id;
+            cancelOperation();
+            page = 1;
+            refresh();
+        }
+
+        private void showReferenceResponse(JObject response, JArray items, long total, long limit)
+        {
+            var controls = new List<Drawable>
+            {
+                flow("选择一个、多个或全部来源。取消全部来源会保留空选择。"),
+                makeButtons(new FormButton { ButtonText = "全部来源", Action = () => changeSources(null) },
+                    new FormButton { ButtonText = "清空来源", Action = () => changeSources(new HashSet<string>(StringComparer.Ordinal)) }),
+            };
+            foreach (JToken entry in sourceRegistry!)
+            {
+                var source = entry as JObject ?? throw new JsonSerializationException("Invalid IR source.");
+                string code = stringValue(source, "code");
+                bool available = boolean(source, "available");
+                var selection = new Bindable<bool>(available && (selectedSources?.Contains(code) ?? true)) { Disabled = !available };
+                controls.Add(new FormCheckBox { Caption = stringValue(source, "label") + " · " + (available ? stringValue(source, "verification") : "未开放"), Current = selection });
+                selection.BindValueChanged(change => chooseSource(code, change.NewValue));
+            }
+
+            var conditions = required<JArray>(response, "conditions");
+            var conditionControls = new List<Drawable>
+            {
+                flow(boardMode == "reference" ? "当前为参考混榜：按原 EX 排序，条件可能不同。" : "当前为主动选择的同条件榜。"),
+                new FormButton { ButtonText = "返回参考混榜", Action = () => chooseCondition(null) },
+            };
+            foreach (JToken entry in conditions)
+            {
+                var condition = entry as JObject ?? throw new JsonSerializationException("Invalid IR condition.");
+                string id = stringValue(condition, "id");
+                conditionControls.Add(new FormButton { ButtonText = "同条件 · " + stringValue(condition, "label"), Action = () => chooseCondition(id) });
+            }
+            if (conditions.Count == 0)
+                conditionControls.Add(flow("所选来源没有已证明的同条件组；可返回参考混榜。"));
+
+            var content = new List<Drawable> { flow(chartTitle ?? nullableString(required<JObject>(response, "chart"), "title") ?? "标题未收录") };
+            content.Add(flow("来源范围：" + string.Join("、", strings(response, "selected_sources").Select(sourceLabel))));
+            if (stringValue(response, "content_identity") == "md5-only")
+                content.Add(flow("目前只凭 MD5 关联，尚未确认相同内容与条件。"));
+            if (boolean(response, "archive_suspended"))
+                content.Add(flow("历史目录保留了停用标记，请结合原始来源判断。"));
+            content.Add(flow(stringValue(response, "notice")));
+            JObject snapshot = required<JObject>(response, "snapshot");
+            string archiveVersion = nullableString(snapshot, "archive_version") ?? "本次未加载历史";
+            string readAt = DateTimeOffset.Parse(stringValue(snapshot, "read_at"), CultureInfo.InvariantCulture).ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
+            content.Add(flow($"历史快照：{archiveVersion}\n本次读取：{readAt}；该时间不代表游玩时间。"));
+            JToken? me = response["me"];
+            if (me is JObject mine)
+            {
+                JObject identity = required<JObject>(mine, "identity");
+                if (service.State.Account is not OmsIrAccount owner || stringValue(identity, "namespace") != "oms"
+                    || stringValue(identity, "id") != owner.Id.ToString(CultureInfo.InvariantCulture))
+                    throw new JsonSerializationException("IR self rank has a different owner.");
+                content.Add(flow("本人在当前完整范围内的名次"));
+                addReferenceRow(content, mine);
+            }
+            else if (me?.Type == JTokenType.Null)
+                content.Add(flow(service.State.Account == null ? "登录后可查看本人在相同来源范围内的名次。" : "本人在当前范围没有公开成绩。"));
+            else
+                throw new JsonSerializationException("Invalid IR self rank.");
+            if (items.Count == 0)
+                content.Add(flow("当前范围没有记录。"));
+            foreach (JToken entry in items)
+                addReferenceRow(content, entry as JObject ?? throw new JsonSerializationException("Invalid IR record."));
+
+            sourceOptions.Clear();
+            sourceOptions.AddRange(controls);
+            conditionOptions.Clear();
+            conditionOptions.AddRange(conditionControls);
+            rows.Clear();
+            rows.AddRange(content);
+            totalPages = Math.Max(1, (int)Math.Ceiling((double)total / limit));
+            pageText.Text = $"{page} / {totalPages} · 共 {total} 位玩家";
+            actionStatus.Text = "成绩与历史摘要均未核验。分数和各规则最佳灯分别保留原记录；同名旧身份不会合并。";
+        }
+
+        private void addReferenceRow(List<Drawable> content, JObject item)
+        {
+            JObject identity = required<JObject>(item, "identity");
+            JObject score = required<JObject>(item, "score");
+            string name = stringValue(identity, "username");
+            string origin = stringValue(identity, "namespace") == "lr2ir"
+                ? "LR2IR 旧身份 #" + stringValue(identity, "id") + " · 未关联 OMS"
+                : "OMS 账号 #" + stringValue(identity, "id");
+            string maximum = nullableInteger(score, "max_ex_score")?.ToString(CultureInfo.InvariantCulture) ?? "未收录";
+            string kind = recordKindLabel(stringValue(score, "record_kind"));
+            string lamp = originalLamp(score);
+            content.Add(flow($"#{integer(item, "rank")} · {name}\n{origin}\nEX {integer(score, "ex_score")} / {maximum} · {sourceLabel(stringValue(score, "source"))} · {kind}\n原灯：{lamp}"));
+            foreach (JToken entry in required<JArray>(item, "best_lamps"))
+            {
+                var best = entry as JObject ?? throw new JsonSerializationException("Invalid IR lamp.");
+                string evidence = stringValue(best, "record_id") == stringValue(score, "record_id") ? string.Empty : " · 分数与该灯来自不同记录";
+                string ruleLabel = stringValue(best, "rule_label");
+                content.Add(flow($"独立最佳灯：{stringValue(best, "label")} · {sourceLabel(stringValue(best, "source"))}{evidence}\n灯规则：{ruleLabel}"));
+            }
+            if (stringValue(score, "record_kind") == "archive_best")
+                content.Add(flow("这是历史最佳摘要；分数和灯不一定来自同一次游玩。"));
+            string detail = referenceDetails(item);
+            content.Add(new FormButton { ButtonText = "查看记录详情", Action = () => actionStatus.Text = detail });
+        }
+
+        private string referenceDetails(JObject item)
+        {
+            JObject score = required<JObject>(item, "score");
+            string? playedAt = nullableString(score, "played_at");
+            string time = playedAt == null ? "未收录" : DateTimeOffset.Parse(playedAt, CultureInfo.InvariantCulture).ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
+            string known = string.Join("\n", required<JObject>(score, "conditions").Properties().Select(property => conditionLabel(property.Name) + "：" + conditionValue(property.Value)));
+            string unknown = string.Join("、", strings(score, "unknown_fields").Select(conditionLabel));
+            string rawLamp = score["lamp"] is JObject original ? conditionValue(original["value"]!) : "未收录";
+            return $"{recordKindLabel(stringValue(score, "record_kind"))} · {sourceLabel(stringValue(score, "source"))}\n原灯：{originalLamp(score)}\n原灯值：{rawLamp}\n游玩时间：{time}\n已知条件\n{known}\n未收录或未证明：{(unknown.Length == 0 ? "无声明缺项" : unknown)}";
+        }
+
+        private string sourceLabel(string code) => sourceRegistry!.OfType<JObject>().FirstOrDefault(source => stringValue(source, "code") == code) is JObject found ? stringValue(found, "label") : code;
+
+        private static string recordKindLabel(string kind) => kind switch
+        {
+            "play" => "保存后的新局", "best_state" => "播放器最佳状态", "archive_best" => "历史最佳摘要", _ => kind,
+        };
+
+        private static string conditionLabel(string field) => field switch
+        {
+            "ruleset" => "玩法", "keymode" => "键型", "judge_mode" => "判定", "judge_rank" => "判定等级",
+            "judge_algorithm" => "判定算法", "gauge_rules_family" or "gauge_rules" => "血条规则",
+            "gauge_auto_shift" => "自动降档", "starting_gauge_type" => "起始血条", "floor_gauge_type" => "降档下限",
+            "long_note_mode" => "长条规则", "branch_policy" => "谱面分支", "assist" => "辅助资格", "frequency" => "频率",
+            "total" => "TOTAL", "max_ex_score" => "最大 EX", "played_at" => "游玩时间", "sha256" => "内容声明",
+            "version" => "成绩规则版本", "mods" => "辅助选项", "cross_player_parity" => "跨播放器同规则证明",
+            "option_1" => "历史选项 1", "option_2" => "历史选项 2", "option_3" => "历史选项 3", "option_4" => "历史选项 4", "input" => "输入方式", _ => field,
+        };
+
+        private static string conditionValue(JToken value) => value.Type switch
+        {
+            JTokenType.Null => "未收录", JTokenType.String => value.Value<string>()!,
+            JTokenType.Boolean => value.Value<bool>() ? "是" : "否", _ => value.ToString(Formatting.None),
+        };
+
+        private static string originalLamp(JObject score)
+        {
+            JToken? lamp = score["lamp"];
+            if (lamp?.Type == JTokenType.Null)
+                return "未收录";
+            if (lamp is not JObject original || original["value"]?.Type is not (JTokenType.String or JTokenType.Integer))
+                throw new JsonSerializationException("Invalid IR original lamp.");
+            string label = stringValue(original, "label");
+            return stringValue(original, "family").StartsWith("unknown:", StringComparison.Ordinal) ? label + " · 灯规则未知" : label;
+        }
+
+        private static string[] strings(JObject source, string field) => required<JArray>(source, field).Select(value => value.Type == JTokenType.String
+            ? value.Value<string>()! : throw new JsonSerializationException("Invalid IR string list.")).ToArray();
+
+        private static string? nullableString(JObject source, string field) => source[field]?.Type == JTokenType.Null ? null : stringValue(source, field);
+        private static long? nullableInteger(JObject source, string field) => source[field]?.Type == JTokenType.Null ? null : integer(source, field);
 
         private static string scoreDetails(JObject score)
         {
@@ -382,6 +681,10 @@ namespace osu.Game.Overlays
             {
                 Schedule(() => { if (requestRevision == revision) actionStatus.Text = $"IR 数据无法保存或读取：{error.Message}"; });
             }
+            catch (JsonException)
+            {
+                Schedule(() => { if (requestRevision == revision) actionStatus.Text = "IR 返回的列表格式不正确，请检查服务地址。"; });
+            }
             finally
             {
                 Schedule(() =>
@@ -419,6 +722,8 @@ namespace osu.Game.Overlays
         {
             if (service != null)
                 service.StateChanged -= onServiceChanged;
+            if (currentBeatmap != null)
+                currentBeatmap.ValueChanged -= onBeatmapChanged;
             cancelOperation();
             base.Dispose(isDisposing);
         }

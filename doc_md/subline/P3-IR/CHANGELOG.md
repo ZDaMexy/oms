@@ -1,5 +1,20 @@
 # OMS IR 历史
 
+## 2026-10-04：多来源正式采用与客户端查询
+
+承接外部 Dev Bridge 修订 3 的 D01～D09 审查与正式合同，客户端增加当前 BMS 原谱 / 搜索目录直达、多来源参考与主动同条件查询。全部、单 / 多与空来源由服务作用于完整候选集合；保留独立灯、旧同名身份、未收录字段和三类记录语义。有效会话的 v2 本人查询保持原 Bearer / v1 刷新边界，mania 与本人逐局历史仍沿 v1；账号、选谱和来源变化取消旧范围，迟到响应不能重新显示。
+
+M1 不改客户端原待交或玩法代码；服务采用真实规则 Mod 字段一致性，保留原 UUID / 账号 / body，JD 与辅助视觉参数仍拒绝。新增 C# 导出经原生录制初始化、结果准备与保存字段 clone，覆盖实际规则轴、LR2 / LR2G 五轴和 GAS 默认 / 显式 / 下限钳制；默认 GAS settings 仍空，显式原枚举以整数保留，有效规则轴不反写原设置。OMS 灯 family 含最大 EX，直接显示服务 `rule_label`；外部和历史未知灯不造跨条件最佳。
+
+首轮场景在无输入目录查询处失败；诊断记录出现 login request1 与 read-start，但没有第二次 HTTP / response-ready，证伪滚动或遮罩猜测。搜索 `new Bindable<string>()` 默认 null，在 `query.Length` 进入网络前失败，finally 仅恢复按钮；改为内部 `string.Empty` 不变量后原行为断言完整通过，临时 Console 输出已移除。失败日志 / TRX 全部保留，没有以删断言或宽泛 catch 放过。
+
+集中执行者每个开发 shell 先运行 `UseDevelopmentStorage.ps1`，按当前源串行 Release 复编 / 验证：
+
+- `osu.Game.Tests/osu.Game.Tests.csproj`，filter `FullyQualifiedName~OmsIrServiceTests|FullyQualifiedName~TestSceneOmsIrOverlay`：32/32；包含 Service 30 项和场景构造 / 行为 2 项。
+- `osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj`，filter `FullyQualifiedName~BmsOmsIrSubmissionTest`：27/27；原 `OMS_IR_CONTRACT_FIXTURE_DIRECTORY` 指向 F 盘证据目录，导出 18 份合成 JSON，其中新增 17 份。
+
+输出为 `artifacts/oms-ir-multisource-20261004/oms-focused-final.log`、`oms-ir-focused-final.trx`、`bms-ir-contract.log`、`bms-ir-contract.trx` 与 `m1-client-payloads/`；BMS 编译保留其他文件的 CS8600 / CA2007 警告。未生成发行包、publish 或额外安装副本；未签收真人游玩、设备体验、全量主机 / 恢复及目标宿主矩阵，P/C 仍取各正式门。文档 / 记忆同步不代替这些门。
+
 ## 2026-10-04：专项进度、文档与记忆健康同步
 
 核对 OMS、Dev Bridge、Backend、Website、Client Bridge 的当前分支/在线跟踪与已有 diff，保全外部既有治理和 Website assets 修改。统一提案修订 2 只校正职责/入口：现行 v1 已试运行、多来源 D01～D09 待正式审查、M0～M8 未实施、先导 P/完整 C 与真人门分别保留。补齐各仓投影，退出已完成的社区收尾待办；旧公网浏览器超时与后续匿名 IR 就绪只读证据分开。
@@ -8,7 +23,7 @@
 
 ## 2026-10-04：多播放器接入与历史榜详细规划
 
-按用户先规划、随后另做审查的要求，在外部 Dev Bridge 调研区形成唯一详细提案，并在本线维护[客户端执行投影](DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜待审查规划)。包含先导/完整终点、三类记录、真自由混榜/独立灯、旧身份与隐私语义、现有 OMS LR2/LR2G 接收缺口、第三方最佳状态/原生榜、全量容量/恢复和具名验收。仅文档与静态/既有汇总证据，没有重新扫描原库、改产品代码、导入/上传、部署或打包；后续正式审查未完成，产品门和人工日期不提升。
+按用户先规划、随后另做审查的要求，在外部 Dev Bridge 调研区形成唯一详细提案，并在本线维护[客户端执行投影](DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜实施)。包含先导/完整终点、三类记录、真自由混榜/独立灯、旧身份与隐私语义、现有 OMS LR2/LR2G 接收缺口、第三方最佳状态/原生榜、全量容量/恢复和具名验收。仅文档与静态/既有汇总证据，没有重新扫描原库、改产品代码、导入/上传、部署或打包；当时正式审查未完成，产品门和人工日期不提升。
 
 仅文档验证：`CheckDocumentation.ps1` 通过（198 Markdown、1965 相对链接、284 锚点、125 memory 链）；跨工作区文档检查通过（104 文档、574 本地链接，既有来源待复核状态不提升），`git diff --check` 通过。首轮 PLAN 的“本轮”话术触发规则拒绝，改为稳定的审查采纳 gate 后通过；公开/通用路径和旧制品指纹警告保留，未改检查脚本、未重跑产品或设备验证。完整输出留 `artifacts/oms-ir-multisource-plan-20261004/`。
 

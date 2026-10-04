@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
@@ -144,6 +145,149 @@ namespace osu.Game.Rulesets.Bms.Tests
             var payload = ruleset.CaptureOmsIrSubmissionContext(new BmsBeatmap(), source).Create(score).Payload;
 
             Assert.That(payload["mods"]![0]!["settings"]!.Value<bool>("tint_scratch_notes"), Is.False);
+        }
+
+        [TestCase(1, "LR2", "judge_mode", "LR2")]
+        [TestCase(2, "BRJ", "judge_mode", "Beatoraja")]
+        [TestCase(3, "IIDXJ", "judge_mode", "IIDX")]
+        [TestCase(4, "LR2G", "gauge_rules_family", "LR2")]
+        [TestCase(5, "BRG", "gauge_rules_family", "Beatoraja")]
+        [TestCase(6, "IIDXG", "gauge_rules_family", "IIDX")]
+        [TestCase(7, "A-EASY", "gauge_type", "AssistEasy")]
+        [TestCase(8, "EASY", "gauge_type", "Easy")]
+        [TestCase(9, "HARD", "gauge_type", "Hard")]
+        [TestCase(10, "EX-HARD", "gauge_type", "ExHard")]
+        [TestCase(11, "HAZARD", "gauge_type", "Hazard")]
+        [TestCase(12, "CN", "long_note_mode", "CN")]
+        [TestCase(13, "HCN", "long_note_mode", "HCN")]
+        public void TestSavedNativeRuleModProjectsItsActualFinalAxis(int fixtureId, string acronym, string field, string expected)
+        {
+            var ruleset = new BmsRuleset();
+            JObject payload = createPreparedPayload(fixtureId, new[] { ruleset.CreateModFromAcronym(acronym)! });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(payload["mods"]![0]!.Value<string>("acronym"), Is.EqualTo(acronym));
+                Assert.That((JObject)payload["mods"]![0]!["settings"]!, Is.Empty);
+                Assert.That(payload["ruleset_data"]!.Value<string>(field), Is.EqualTo(expected));
+                if (field == "gauge_type")
+                {
+                    Assert.That(payload["ruleset_data"]!.Value<string>("starting_gauge_type"), Is.EqualTo(expected));
+                    Assert.That(payload["ruleset_data"]!.Value<string>("floor_gauge_type"), Is.EqualTo(expected));
+                    Assert.That(payload["ruleset_data"]!.Value<bool>("gauge_auto_shift"), Is.False);
+                }
+            });
+
+            exportFixture($"bms-m1-{fixtureId:D2}-{acronym.ToLowerInvariant()}.json", payload);
+        }
+
+        [Test]
+        public void TestSavedLr2PlayKeepsFiveRealAxesAndTheSavedUuid()
+        {
+            var ruleset = new BmsRuleset();
+            string[] acronyms = { "ASCR", "LR2", "LR2G", "HARD", "HCN" };
+            JObject payload = createPreparedPayload(14, acronyms.Select(acronym => ruleset.CreateModFromAcronym(acronym)!).ToArray());
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(payload["mods"]!.Select(mod => mod.Value<string>("acronym")), Is.EqualTo(acronyms));
+                Assert.That(payload["mods"]!.All(mod => !((JObject)mod["settings"]!).HasValues), Is.True);
+                Assert.That(payload["ruleset_data"]!.Value<string>("judge_mode"), Is.EqualTo("LR2"));
+                Assert.That(payload["ruleset_data"]!.Value<string>("gauge_rules_family"), Is.EqualTo("LR2"));
+                Assert.That(payload["ruleset_data"]!.Value<string>("gauge_type"), Is.EqualTo("Hard"));
+                Assert.That(payload["ruleset_data"]!.Value<string>("long_note_mode"), Is.EqualTo("HCN"));
+            });
+
+            exportFixture("bms-m1-14-lr2-five-axes.json", payload);
+        }
+
+        [TestCase(20, null, null, BmsGaugeType.ExHard, BmsGaugeType.Easy, true)]
+        [TestCase(21, BmsGaugeType.Hazard, BmsGaugeType.AssistEasy, BmsGaugeType.Hazard, BmsGaugeType.AssistEasy, true)]
+        [TestCase(22, BmsGaugeType.Normal, BmsGaugeType.Hazard, BmsGaugeType.Normal, BmsGaugeType.Normal, false)]
+        public void TestSavedGasSettingsKeepOriginalIntegersAndActualEffectiveGauges(int fixtureId, BmsGaugeType? configuredStart,
+                                                                                  BmsGaugeType? configuredFloor, BmsGaugeType expectedStart,
+                                                                                  BmsGaugeType expectedFloor, bool downgrade)
+        {
+            var gas = new BmsModGaugeAutoShift();
+            if (configuredStart.HasValue)
+                gas.StartingGauge.Value = configuredStart.Value;
+            if (configuredFloor.HasValue)
+                gas.FloorGauge.Value = configuredFloor.Value;
+            JObject payload = createPreparedPayload(fixtureId, new Mod[] { gas }, downgrade);
+            var settings = (JObject)payload["mods"]![0]!["settings"]!;
+            var data = (JObject)payload["ruleset_data"]!;
+            BmsGaugeType active = Enum.Parse<BmsGaugeType>(data.Value<string>("gauge_type")!);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(payload["mods"]![0]!.Value<string>("acronym"), Is.EqualTo("GAS"));
+                Assert.That(data.Value<bool>("gauge_auto_shift"), Is.True);
+                Assert.That(data.Value<string>("starting_gauge_type"), Is.EqualTo(expectedStart.ToString()));
+                Assert.That(data.Value<string>("floor_gauge_type"), Is.EqualTo(expectedFloor.ToString()));
+                Assert.That(active, Is.InRange(expectedFloor, expectedStart));
+                if (downgrade)
+                    Assert.That(active, Is.LessThan(expectedStart), "The final active gauge comes from prepared hit events, not the configured start.");
+                if (configuredStart.HasValue)
+                {
+                    Assert.That(settings["starting_gauge"]!.Type, Is.EqualTo(JTokenType.Integer));
+                    Assert.That(settings.Value<int>("starting_gauge"), Is.EqualTo((int)configuredStart.Value));
+                    Assert.That(settings["floor_gauge"]!.Type, Is.EqualTo(JTokenType.Integer));
+                    Assert.That(settings.Value<int>("floor_gauge"), Is.EqualTo((int)configuredFloor!.Value));
+                }
+                else
+                    Assert.That(settings, Is.Empty, "Default GAS settings stay empty; effective values are carried by the final rule axes.");
+            });
+
+            exportFixture($"bms-m1-{fixtureId:D2}-gas.json", payload);
+        }
+
+        private static JObject createPreparedPayload(int fixtureId, Mod[] mods, bool downgrade = false)
+        {
+            var ruleset = new BmsRuleset();
+            var chart = new BmsBeatmapDecoder().DecodeText("#TITLE OMS IR synthetic M1\n#BPM 120\n#RANK 3\n#TOTAL 800\n#00111:" + string.Concat(Enumerable.Repeat("01", 100)), "synthetic.bme");
+            var playable = (BmsBeatmap)new BmsBeatmapConverter(new BmsDecodedBeatmap(chart), ruleset).Convert();
+            var source = createSource(ruleset);
+            source.Metadata.Title = "合成 M1 保存契约样例（非玩家成绩）";
+            source.Metadata.Artist = "OMS synthetic verification";
+            var context = ruleset.CaptureOmsIrSubmissionContext(playable, source);
+            var score = createScore(source, ruleset);
+            score.Mods = mods;
+            score.ClientVersion = "OMS synthetic M1 contract";
+            score.MaximumStatistics = new Dictionary<HitResult, int> { [HitResult.Perfect] = 100 };
+            score.Statistics = downgrade
+                ? new Dictionary<HitResult, int> { [HitResult.Meh] = 30, [HitResult.Perfect] = 70 }
+                : new Dictionary<HitResult, int> { [HitResult.Perfect] = 100 };
+            score.MaxCombo = downgrade ? 70 : 100;
+            score.TotalScore = BmsScoreProcessor.CalculateExScore(score.Statistics);
+            score.Accuracy = (double)score.TotalScore / 200;
+            score.HitEvents = playable.HitObjects.Select((note, index) => new HitEvent(0, 1, downgrade && index < 30 ? HitResult.Meh : HitResult.Perfect,
+                note, index > 0 ? playable.HitObjects[index - 1] : null, null)).ToList();
+            new BmsReplayRecorder(new Score { ScoreInfo = score }).EndRecording();
+            ruleset.PrepareScoreInfoForResults(score, playable);
+
+            // These identities belong only to exported synthetic contracts; real plays use the locally saved UUID.
+            score.ID = Guid.Parse("d14d1800-0000-4000-8000-" + fixtureId.ToString("D12"));
+            ScoreInfo saved = score.DeepClone();
+            JObject payload = context.Create(saved).Payload;
+            Assert.Multiple(() =>
+            {
+                Assert.That(payload.Value<string>("submission_id"), Is.EqualTo(saved.ID.ToString("D")));
+                Assert.That(payload.Value<string>("keymode"), Is.EqualTo("bms_7k"));
+                Assert.That(payload["bms_chart"]!.Value<int>("judge_rank"), Is.EqualTo(3));
+                Assert.That(payload["ruleset_data"]!.Value<int>("version"), Is.EqualTo(7));
+                Assert.That(payload["ruleset_data"]!["clear_lamp"]!.Type, Is.EqualTo(JTokenType.Integer));
+                Assert.That(JToken.DeepEquals(context.Create(saved).Payload, payload), Is.True);
+            });
+            return payload;
+        }
+
+        private static void exportFixture(string name, JObject payload)
+        {
+            string? fixtureDirectory = Environment.GetEnvironmentVariable("OMS_IR_CONTRACT_FIXTURE_DIRECTORY");
+            if (string.IsNullOrEmpty(fixtureDirectory))
+                return;
+            Directory.CreateDirectory(fixtureDirectory);
+            File.WriteAllText(Path.Combine(fixtureDirectory, name), payload.ToString(Formatting.Indented));
         }
 
         private static BeatmapInfo createSource(BmsRuleset ruleset) => new BeatmapInfo(ruleset.RulesetInfo)

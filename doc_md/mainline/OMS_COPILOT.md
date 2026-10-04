@@ -386,7 +386,7 @@ Current repository status: `BmsModAutoScratch` and `BmsModAutoNote` now exist in
 - Disabling a configurable BMS mod is not treated as a request to reset it; if the mod opts into preserved settings, re-enabling it must restore the last remembered configuration.
 - This contract is currently BMS-only and must not be generalized to mania or to a global cross-ruleset `SelectedMods` persistence layer without a separate design and product contract.
 
-Independent IR board queries follow [P3-IR](../subline/P3-IR/TECHNICAL_CONSTRAINTS.md). Proposed multi-source filters remain [unadopted](../subline/P3-IR/DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜待审查规划). Add persistent configuration only when the actual consumer and compatibility contract are implemented.
+Independent IR board queries and adopted multi-source filters follow [P3-IR](../subline/P3-IR/TECHNICAL_CONSTRAINTS.md) and its [implementation plan](../subline/P3-IR/DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜实施). Comparable results remain limited to proved OMS conditions; target-host and human acceptance gates remain open.
 
 `BmsKeysoundStore` capacity is an internal runtime policy with automatic growth, not a persistent user-tunable ceiling. The removed `KeysoundConcurrentChannels` setting must not be used as replay/config authority; add new persistent state only when a consuming feature and its compatibility contract land together.
 
