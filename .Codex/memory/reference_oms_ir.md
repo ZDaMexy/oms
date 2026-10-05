@@ -4,6 +4,8 @@
 
 当前能力读 [[../../doc_md/subline/P3-IR/DEVELOPMENT_STATUS.md]]，客户端合同读 [[../../doc_md/subline/P3-IR/TECHNICAL_CONSTRAINTS.md]]，多来源正式执行从 [[../../doc_md/subline/P3-IR/DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜实施]] 进入。当前采用源码绑定取外部 Client Bridge；旧 `63f50c7` 是早期发布来源，`a9928fe` 是字段 / 生命周期取证，均不能当当前 HEAD。这里保留排错线索，不定义阶段或替代正式合同。
 
+- 2026-10-05 原账号 / 实际 osu-web 发布：运行 manifest 绑定已提交源码、插件实际构建及对应源码下载，后续文档 HEAD 不能冒充 runtime。读取 profile / 来源本身会更新 SQLite rate_limits；回退指纹应完整核对玩家 / 会话 / 撤销 / 社区与 schema，单独记录该真实限流命中，不能谎报所有表全等或放宽限额。门户 no-cache 与 IR 既有 no-store 都要求重新请求，校验脚本不能因更严格 no-store 误报。浏览器 fullPage 导出 / viewport override 与实际 native 画面不一致时保留失败并明确窄屏待复核；公网 AX/DOM/reload 超时而截图可用，只签实际截图，不能以 HTTP 字节或旧截图代签普通刷新和点击往返。
+
 ## 成绩身份与最终保存
 
 - 旧 Player.prepareAndImportScoreAsync 中 SubmittingPlayer 的网络准备早于 BMS ruleset 最终结果准备。直接接旧入口会缺最终灯 / 血条；新 IR 消费最终保存成功并回写实际 UUID 的结果。

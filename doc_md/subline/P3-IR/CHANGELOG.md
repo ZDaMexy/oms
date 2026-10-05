@@ -1,5 +1,9 @@
 # OMS IR 历史
 
+## 2026-10-05：实际 osu-web 试运行与原账号真人路径
+
+外部 `b520bcb99015-5d0531c22423` / schema3 已部署待验收，最小 profile 与对应公开源码、同账户网页入口通过服务 / 软件及公开门；全量主机、两空恢复、完整F盘保全 / 补账、旧schema3往返和新日备份已过。只更新外部来源与剩余门，不重跑未改客户端产品或生成 Windows 包。详细失败、源码身份、盘账、维护 / 回退以及公网浏览器 / 窄屏限制取[外部核验](F:/zdamexy-workspace/websites/oms-website/doc_md/other/osu-web-lazer-account-verification-20261005.md)。用户从当前 F:/oms 非调试启动原用户按钮 / 原个人页，真实新局 / 原UUID待交 / 换账号 / 实服分页与网页对照、P/C均待。
+
 ## 2026-10-05：原登录和个人页复用
 
 按用户采用复用 ToolbarUserButton / LoginOverlay / LoginPanel / LoginForm 与 UserProfileOverlay / ProfileHeader / 原分页和内容容器。原账号窗口主动设置服务、启用、登录 / 注册，已登录菜单提供本人个人页 / 补交 / 连接 / 退出；奖杯只读榜并链接原窗口。个人页读取当前账号真实 UUID 新局与灯 / 判定，提供原服务分页、同条件 / 参考榜和无凭据网页外链。默认空地址与旧 OnlineFeaturesEnabled=false、原待交和保存归属合同不变。
