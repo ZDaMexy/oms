@@ -15,6 +15,9 @@
 
 ## 凭据与持久待交
 
+- 原 lazer 的账号 UI 可直接消费独立 OmsIrService，不把服务身份塞入旧 APIUser / IAPIProvider。登录响应 await 后、写凭据和 State 前必须对当前操作取消复核；关闭窗口取消与 revision / Owner 变化是实际边界，迟到响应不能恢复账号或本人记录。
+- Visual TestScene 的 SetUp 用 AddStep 延后替换字段实例时，`AddStep(..., overlay.Hide)` 会在注册时捕获旧实例；执行时须用 lambda 读取当前字段。2026-10-05 关闭登录场景 r4～r6 的失败因此定位，r7 在当前窗口 Visible→Hidden、HTTP 取消与迟到不出现的原断言全部通过。不能直接削弱安全断言或把隐藏窗口的操作当真人关闭门。
+
 - InvalidDataException 不是 IOException 子类，异常 settings / pending 恢复须显式处理并停 IR / 保全原件；响应体读取 IOException 是网络丢失，仍以原 UUID 重试。
 - 401 清除凭据失败不能保留内存会话继续重发：先使内存身份失效、标记需要登录，再尝试 Windows 删除。排队本地写入也不能等待正在登录的 HTTP 锁。
 

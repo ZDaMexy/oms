@@ -4,6 +4,8 @@
 
 2026-10-03 用户授权独立按需 IR 持续开发、commit / push 与直接部署试运行，范围见[计划](DEVELOPMENT_PLAN.md)。软件与运行门须先通过，真实游玩由用户在部署环境验收。Phase 3 开发不自动启用官网谱包下载、聊天、presence、观战、多人、自动更新或所有旧 API。客户端默认服务地址仍为空；不能把预留接口当作当前能力。
 
+2026-10-05 用户采用 osu-web 官网设计，并要求客户端复用 lazer 原登录与个人页。OMS 账号接入现有工具栏账号按钮、LoginOverlay / LoginPanel / LoginForm 和 UserProfileOverlay；IR 奖杯入口只承担选谱查榜，并提供账号入口。独立 OMS 服务与凭据保持原边界，不将 OMS 用户伪装成 ppy 的 APIUser / 在线状态，不开启旧 API、聊天或持续连接。个人页仅显示实际 OMS 身份、本人记录和主动打开的对应官网身份页；缺少的头像、国家、等级、PP、在线人数、游玩次数或时间不得补造。网页 `/users/?id=<OMS ID>` 与新最小身份接口采用外部社区合同，旧 LR2IR 身份不跳转为同名 OMS 账号。
+
 ## 身份、结算与保存
 
 - 使用独立服务设置、账号会话和请求消费者，`OnlineFeaturesEnabled=false` 及空 EndpointConfiguration 不改；不借旧 SoloPlayer legacy / 正数 OnlineID gate。

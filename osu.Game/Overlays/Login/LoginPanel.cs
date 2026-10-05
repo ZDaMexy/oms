@@ -16,6 +16,7 @@ using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Localisation;
 using osu.Game.Online.API;
+using osu.Game.Online.IR;
 using osu.Game.Overlays.Settings;
 using osu.Game.Users;
 using osuTK;
@@ -27,6 +28,10 @@ namespace osu.Game.Overlays.Login
         private bool bounding = true;
 
         private Drawable? form;
+        private readonly bool useOmsAccount;
+        private long? displayedOmsAccount;
+        private string displayedOmsService = string.Empty;
+        private bool displayedRequiresLogin;
 
         [Resolved]
         private OsuColour colours { get; set; } = null!;
@@ -47,6 +52,12 @@ namespace osu.Game.Overlays.Login
         [Resolved]
         private OsuConfigManager config { get; set; } = null!;
 
+        [Resolved]
+        private OmsIrService? ir { get; set; }
+
+        [Resolved]
+        private OsuGame? game { get; set; }
+
         public override RectangleF BoundingBox => bounding ? base.BoundingBox : RectangleF.Empty;
 
         public bool Bounding
@@ -59,8 +70,9 @@ namespace osu.Game.Overlays.Login
             }
         }
 
-        public LoginPanel()
+        public LoginPanel(bool useOmsAccount = false)
         {
+            this.useOmsAccount = useOmsAccount;
             RelativeSizeAxes = Axes.X;
             AutoSizeAxes = Axes.Y;
         }
@@ -69,11 +81,69 @@ namespace osu.Game.Overlays.Login
         {
             base.LoadComplete();
 
+            if (useOmsAccount)
+            {
+                ir!.StateChanged += omsStateChanged;
+                showOmsAccount(ir.State, true);
+                return;
+            }
+
             config.BindWith(OsuSetting.UserOnlineStatus, configUserStatus);
             configUserStatus.BindValueChanged(e => updateDropdownCurrent(e.NewValue), true);
 
             apiState.BindTo(api.State);
             apiState.BindValueChanged(onlineStateChanged, true);
+        }
+
+        private void omsStateChanged(OmsIrState state) => Schedule(() => showOmsAccount(ir!.State));
+
+        private void showOmsAccount(OmsIrState state, bool force = false)
+        {
+            if (!force && displayedOmsAccount == state.Account?.Id && displayedOmsService == state.ServiceAddress && displayedRequiresLogin == state.RequiresLogin)
+                return;
+
+            displayedOmsAccount = state.Account?.Id;
+            displayedOmsService = state.ServiceAddress;
+            displayedRequiresLogin = state.RequiresLogin;
+            CancelAccountOperation();
+            form = null;
+
+            if (state.Account != null && !state.RequiresLogin)
+                Child = form = new OmsAccountPanel(state.Account)
+                {
+                    ConnectionSettings = () =>
+                    {
+                        CancelAccountOperation();
+                        Child = form = new LoginForm(true) { RequestHide = RequestHide };
+                        ScheduleAfterChildren(() => GetContainingFocusManager()?.ChangeFocus(form));
+                    },
+                    ShowProfile = () =>
+                    {
+                        RequestHide?.Invoke();
+                        game?.ShowOwnOmsProfile();
+                    },
+                };
+            else
+                Child = form = new LoginForm(true) { RequestHide = RequestHide };
+
+            if (IsPresent)
+                ScheduleAfterChildren(() => GetContainingFocusManager()?.ChangeFocus(form));
+        }
+
+        public void CancelAccountOperation()
+        {
+            if (form is LoginForm login)
+                login.CancelAccountOperation();
+            if (form is OmsAccountPanel account)
+                account.CancelAccountOperation();
+        }
+
+        protected override void Dispose(bool isDisposing)
+        {
+            if (useOmsAccount && ir != null)
+                ir.StateChanged -= omsStateChanged;
+            CancelAccountOperation();
+            base.Dispose(isDisposing);
         }
 
         private void onlineStateChanged(ValueChangedEvent<APIState> state) => Schedule(() =>

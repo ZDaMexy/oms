@@ -32,7 +32,7 @@ namespace osu.Game.Overlays
     {
         public IconUsage Icon => FontAwesome.Solid.Trophy;
         public LocalisableString Title => "OMS IR";
-        public LocalisableString Description => "主动连接、交分与试验榜";
+        public LocalisableString Description => "谱面榜与来源筛选";
 
         [Cached]
         private readonly OverlayColourProvider colourProvider = new OverlayColourProvider(OverlayColourScheme.Blue);
@@ -43,11 +43,7 @@ namespace osu.Game.Overlays
         [Resolved]
         private IBindable<WorkingBeatmap> currentBeatmap { get; set; } = null!;
 
-        private readonly Bindable<string> address = new Bindable<string>();
-        private readonly Bindable<bool> enabled = new Bindable<bool>();
         private readonly Bindable<string> search = new Bindable<string>(string.Empty);
-        private FormTextBox username = null!;
-        private OsuPasswordTextBox password = null!;
         private OsuTextFlowContainer connectionStatus = null!;
         private OsuTextFlowContainer actionStatus = null!;
         private OsuSpriteText pageText = null!;
@@ -55,11 +51,11 @@ namespace osu.Game.Overlays
         private FillFlowContainer sourceOptions = null!;
         private FillFlowContainer conditionOptions = null!;
         private readonly List<FormButton> buttons = new List<FormButton>();
-        private FormButton historyButton = null!;
         private CancellationTokenSource? operationCancellation;
         private long? displayedAccount;
         private string displayedService = string.Empty;
         private bool requiresLogin;
+        private bool displayedEnabled;
         private int revision;
         private int page = 1;
         private int totalPages;
@@ -73,7 +69,10 @@ namespace osu.Game.Overlays
         private string boardMode = "reference";
         private string? conditionId;
 
-        private enum View { Charts, Board, ReferenceBoard, History }
+        private enum View { Charts, Board, ReferenceBoard }
+
+        [Resolved]
+        private OsuGame? game { get; set; }
 
         public OmsIrOverlay()
         {
@@ -83,8 +82,6 @@ namespace osu.Game.Overlays
         [BackgroundDependencyLoader]
         private void load()
         {
-            address.Value = service.State.ServiceAddress;
-            enabled.Value = service.State.Enabled;
             Children = new Drawable[]
             {
                 new Box { RelativeSizeAxes = Axes.Both, Colour = Color4.Black, Alpha = 0.7f },
@@ -111,29 +108,11 @@ namespace osu.Game.Overlays
                                 Spacing = new Vector2(0, 12),
                                 Children = new Drawable[]
                                 {
-                                    text("OMS IR · 记录每次进步", 26),
+                                    text("OMS IR", 26),
                                     flow("新成绩与历史摘要均未核验。参考混榜按原 EX 排序；需要时可主动收窄到已证明的同条件。"),
                                     connectionStatus = flow(string.Empty),
-                                    new FormTextBox { Caption = "服务地址", PlaceholderText = "填写 HTTPS 服务地址", Current = address },
-                                    new FormCheckBox { Caption = "启用 IR；只提交启用并登录后开始的新局", Current = enabled },
-                                    makeButtons(button("保存连接设置", () => run(async token =>
-                                    {
-                                        await service.ConfigureAsync(address.Value, enabled.Value, token).ConfigureAwait(false);
-                                        Schedule(() => { clearRead(); page = 1; view = View.Charts; sourceOptions.Clear(); conditionOptions.Clear(); });
-                                    })), new FormButton { ButtonText = "关闭", Action = Hide }),
-                                    username = new FormTextBox { Caption = "账号名", PlaceholderText = "3–24 位字母、数字或下划线" },
-                                    new Container
-                                    {
-                                        RelativeSizeAxes = Axes.X,
-                                        Height = 64,
-                                        Children = new Drawable[]
-                                        {
-                                            text("密码", 14),
-                                            password = new OsuPasswordTextBox { RelativeSizeAxes = Axes.X, Y = 22, Height = 40, PlaceholderText = "至少 10 个字符" },
-                                        }
-                                    },
-                                    makeButtons(button("登录", () => login(false)), button("注册并登录", () => login(true)), button("退出账号", () => run(service.LogoutAsync))),
-                                    makeButtons(button("重试待交", () => run(service.RetryPendingAsync)), button("读取谱面", () => navigate(View.Charts)), historyButton = button("本人记录", () => navigate(View.History))),
+                                    makeButtons(button("账号与连接", () => game?.ShowOmsAccount()), new FormButton { ButtonText = "关闭", Action = Hide }),
+                                    makeButtons(button("读取谱面", () => navigate(View.Charts))),
                                     new FormTextBox { Caption = "谱名、作者或 MD5", PlaceholderText = "填写后点击读取谱面", Current = search },
                                     makeButtons(button("当前 BMS 谱面榜", openCurrentChart)),
                                     actionStatus = flow("本地成绩先保存，再交分。网络失败时待交保留；切换账号不会转交旧账号的记录。"),
@@ -206,11 +185,12 @@ namespace osu.Game.Overlays
             if (IsDisposed)
                 return;
 
-            bool changedOwner = displayedAccount != state.Account?.Id || displayedService != state.ServiceAddress || requiresLogin != state.RequiresLogin;
+            bool changedOwner = displayedAccount != state.Account?.Id || displayedService != state.ServiceAddress || requiresLogin != state.RequiresLogin || displayedEnabled != state.Enabled;
             bool changedService = displayedService != state.ServiceAddress;
             displayedAccount = state.Account?.Id;
             displayedService = state.ServiceAddress;
             requiresLogin = state.RequiresLogin;
+            displayedEnabled = state.Enabled;
             if (changedOwner)
             {
                 cancelOperation();
@@ -234,15 +214,6 @@ namespace osu.Game.Overlays
         {
             foreach (var item in buttons)
                 item.Enabled.Value = !running;
-            historyButton.Enabled.Value = !running && service.State.Account != null && !service.State.RequiresLogin;
-        }
-
-        private void login(bool register)
-        {
-            string account = username.Current.Value;
-            string secret = password.Text;
-            password.Text = string.Empty;
-            run(token => service.LoginAsync(account, secret, register, token));
         }
 
         private void navigate(View next)
@@ -284,7 +255,6 @@ namespace osu.Game.Overlays
                     registry = required<JArray>(await service.GetSourcesAsync(token).ConfigureAwait(false), "items");
                 JObject response = requestedView switch
                 {
-                    View.History => await service.GetMyScoresAsync(requestedPage, token).ConfigureAwait(false),
                     View.Board when requestedMd5 != null && requestedGroup != null => await service.GetChartScoresAsync(requestedMd5, requestedGroup, requestedPage, token).ConfigureAwait(false),
                     View.ReferenceBoard when requestedMd5 != null => await service.GetSourceChartScoresAsync(requestedMd5, requestedSources, requestedMode, requestedCondition, requestedPage, token).ConfigureAwait(false),
                     _ => await service.GetSourceChartsAsync(requestedSearch, requestedPage, token).ConfigureAwait(false),
@@ -351,34 +321,16 @@ namespace osu.Game.Overlays
                 }
                 else
                 {
-                    JObject score = view == View.Board ? required<JObject>(item, "score") : item;
+                    JObject score = required<JObject>(item, "score");
                     bool isBms = stringValue(score, "ruleset") == "bms";
                     string value = isBms
                         ? $"EX {integer(score, "ex_score")} / {integer(score, "max_ex_score")}" : $"分数 {integer(score, "total_score"):N0}";
-                    string heading = view == View.Board ? $"#{integer(item, "rank")} · {stringValue(required<JObject>(item, "user"), "username")}" : stringValue(required<JObject>(score, "chart"), "title");
-                    string lamp = isBms ? lampName(view == View.Board ? integer(item, "best_lamp") : integer(required<JObject>(score, "ruleset_data"), "clear_lamp")) : boolean(score, "passed") ? "通过" : "未通过";
-                    string source = isBms && view == View.Board && integer(item, "best_lamp_score_id") != integer(score, "id") ? " · 最佳灯来自另一局" : string.Empty;
-                    string detail = scoreDetails(score);
+                    string heading = $"#{integer(item, "rank")} · {stringValue(required<JObject>(item, "user"), "username")}";
+                    string lamp = isBms ? lampName(integer(item, "best_lamp")) : boolean(score, "passed") ? "通过" : "未通过";
+                    string source = isBms && integer(item, "best_lamp_score_id") != integer(score, "id") ? " · 最佳灯来自另一局" : string.Empty;
+                    string detail = ScoreDetails(score);
                     content.Add(flow($"{heading}\n{value} · {number(score, "accuracy"):P2} · {integer(score, "max_combo")} COMBO · {lamp}{source}"));
                     content.Add(new FormButton { ButtonText = "查看这局详情", Action = () => actionStatus.Text = detail });
-                    if (view == View.History && boolean(score, "public_board"))
-                    {
-                        string md5 = stringValue(required<JObject>(score, "chart"), "md5");
-                        string id = stringValue(score, "group_id");
-                        content.Add(new FormButton
-                        {
-                            ButtonText = "查看同条件榜",
-                            Action = () =>
-                            {
-                                if (isBms)
-                                    openReferenceBoard(md5, heading, id + ":" + integer(score, "max_ex_score").ToString(CultureInfo.InvariantCulture));
-                                else
-                                    openBoard(md5, id, heading);
-                            },
-                        });
-                        if (isBms)
-                            content.Add(new FormButton { ButtonText = "查看参考混榜", Action = () => openReferenceBoard(md5, heading) });
-                    }
                 }
             }
             rows.Clear();
@@ -396,6 +348,16 @@ namespace osu.Game.Overlays
             group = id;
             chartTitle = title;
             navigate(View.Board);
+        }
+
+        public void ShowChartBoard(string md5, string title, string? condition = null, string? maniaGroup = null)
+        {
+            cancelOperation();
+            Show();
+            if (maniaGroup != null)
+                openBoard(md5, maniaGroup, title);
+            else
+                openReferenceBoard(md5, title, condition);
         }
 
         private void openCurrentChart()
@@ -625,7 +587,7 @@ namespace osu.Game.Overlays
         private static string? nullableString(JObject source, string field) => source[field]?.Type == JTokenType.Null ? null : stringValue(source, field);
         private static long? nullableInteger(JObject source, string field) => source[field]?.Type == JTokenType.Null ? null : integer(source, field);
 
-        private static string scoreDetails(JObject score)
+        internal static string ScoreDetails(JObject score)
         {
             JObject statistics = required<JObject>(score, "statistics");
             string counts = $"PERFECT {statistics.Value<int>("perfect")} · GREAT {statistics.Value<int>("great")} · GOOD {statistics.Value<int>("good")} · MISS {statistics.Value<int>("miss")} · EMPTY POOR {statistics.Value<int>("ok")}";
@@ -713,7 +675,6 @@ namespace osu.Game.Overlays
         protected override void PopOut()
         {
             cancelOperation();
-            password.Text = string.Empty;
             this.FadeOut(150);
             base.PopOut();
         }

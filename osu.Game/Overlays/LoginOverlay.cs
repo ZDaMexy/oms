@@ -17,6 +17,7 @@ namespace osu.Game.Overlays
     public partial class LoginOverlay : OsuFocusedOverlayContainer
     {
         private LoginPanel panel = null!;
+        private readonly bool useOmsAccount;
 
         private const float transition_time = 400;
 
@@ -25,8 +26,9 @@ namespace osu.Game.Overlays
         [Cached]
         private OverlayColourProvider colourProvider = new OverlayColourProvider(OverlayColourScheme.Purple);
 
-        public LoginOverlay()
+        public LoginOverlay(bool useOmsAccount = false)
         {
+            this.useOmsAccount = useOmsAccount;
             AutoSizeAxes = Axes.Both;
             Masking = true;
             EdgeEffect = new EdgeEffectParameters
@@ -61,7 +63,7 @@ namespace osu.Game.Overlays
                             Masking = true,
                             AutoSizeDuration = transition_time,
                             AutoSizeEasing = Easing.OutQuint,
-                            Child = panel = new LoginPanel
+                            Child = panel = new LoginPanel(useOmsAccount)
                             {
                                 Padding = new MarginPadding { Vertical = SettingsSection.ITEM_SPACING },
                                 RequestHide = Hide,
@@ -85,6 +87,7 @@ namespace osu.Game.Overlays
         {
             base.PopOut();
 
+            panel.CancelAccountOperation();
             panel.Bounding = false;
             this.FadeOut(transition_time);
             FadeEdgeEffectTo(0, WaveContainer.DISAPPEAR_DURATION, Easing.In);

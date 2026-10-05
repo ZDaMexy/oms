@@ -34,10 +34,11 @@ namespace osu.Game.Overlays
 {
     public partial class UserProfileOverlay : FullscreenOverlay<ProfileHeader>
     {
-        protected override Container<Drawable> Content => onlineViewContainer;
+        protected override Container<Drawable> Content => useOmsAccount ? omsViewContainer : onlineViewContainer;
 
         private readonly OnlineViewContainer onlineViewContainer;
         private readonly LoadingLayer loadingLayer;
+        private readonly bool useOmsAccount;
 
         private ProfileSection? lastSection;
         private ProfileSection[]? sections;
@@ -53,18 +54,19 @@ namespace osu.Game.Overlays
         [Resolved]
         private RulesetStore rulesets { get; set; } = null!;
 
-        public UserProfileOverlay()
+        public UserProfileOverlay(bool useOmsAccount = false)
             : base(OverlayColourScheme.Pink)
         {
+            this.useOmsAccount = useOmsAccount;
+            if (useOmsAccount)
+                RecreateHeader();
+            onlineViewContainer = new OnlineViewContainer($"Sign in to view the {Header.Title.Title}") { RelativeSizeAxes = Axes.Both };
             base.Content.Add(new PopoverContainer
             {
                 RelativeSizeAxes = Axes.Both,
                 Children = new Drawable[]
                 {
-                    onlineViewContainer = new OnlineViewContainer($"Sign in to view the {Header.Title.Title}")
-                    {
-                        RelativeSizeAxes = Axes.Both
-                    },
+                    useOmsAccount ? omsViewContainer : onlineViewContainer,
                     loadingLayer = new LoadingLayer(true)
                 }
             });
@@ -73,6 +75,12 @@ namespace osu.Game.Overlays
         [BackgroundDependencyLoader]
         private void load()
         {
+            if (useOmsAccount)
+            {
+                loadOmsProfile();
+                return;
+            }
+
             apiState.BindTo(API.State);
             apiState.BindValueChanged(state => Schedule(() =>
             {
@@ -81,12 +89,15 @@ namespace osu.Game.Overlays
             }));
         }
 
-        protected override ProfileHeader CreateHeader() => new ProfileHeader();
+        protected override ProfileHeader CreateHeader() => useOmsAccount ? new OmsIrProfileHeader() : new ProfileHeader();
 
         protected override Color4 BackgroundColour => ColourProvider.Background5;
 
         public void ShowUser(IUser userToShow, IRulesetInfo? userRuleset = null)
         {
+            if (useOmsAccount)
+                return;
+
             if (userToShow.OnlineID == APIUser.SYSTEM_USER_ID)
                 return;
 

@@ -1,7 +1,6 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-using System.Diagnostics;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -17,10 +16,7 @@ namespace osu.Game.Overlays.Profile
     {
         public Bindable<UserProfileData?> User = new Bindable<UserProfileData?>();
 
-        private CentreHeaderContainer centreHeaderContainer;
-        private DetailHeaderContainer detailHeaderContainer;
-
-        private TopHeaderContainer topHeaderContainer = null!;
+        private TopHeaderContainer? topHeaderContainer;
 
         public ProfileHeader()
         {
@@ -30,10 +26,6 @@ namespace osu.Game.Overlays.Profile
 
             // todo: pending implementation.
             // TabControl.AddItem(LayoutStrings.HeaderUsersModding);
-
-            // Haphazardly guaranteed by OverlayHeader constructor (see CreateBackground / CreateContent).
-            Debug.Assert(centreHeaderContainer != null);
-            Debug.Assert(detailHeaderContainer != null);
         }
 
         protected override Drawable CreateBackground() => Empty();
@@ -59,12 +51,12 @@ namespace osu.Game.Overlays.Profile
                     RelativeSizeAxes = Axes.X,
                     User = { BindTarget = User },
                 },
-                detailHeaderContainer = new DetailHeaderContainer
+                new DetailHeaderContainer
                 {
                     RelativeSizeAxes = Axes.X,
                     User = { BindTarget = User },
                 },
-                centreHeaderContainer = new CentreHeaderContainer
+                new CentreHeaderContainer
                 {
                     RelativeSizeAxes = Axes.X,
                     User = { BindTarget = User },
@@ -83,7 +75,8 @@ namespace osu.Game.Overlays.Profile
 
             // This is basically a tooltip display on hover, so we should display above everything.
             // If this ever breaks let's just trash the design and make it a standard tooltip.
-            AddInternal(topHeaderContainer.PreviousUsernamesDisplay.CreateProxy());
+            if (topHeaderContainer != null)
+                AddInternal(topHeaderContainer.PreviousUsernamesDisplay.CreateProxy());
         }
 
         protected override OverlayTitle CreateTitle() => new ProfileHeaderTitle();

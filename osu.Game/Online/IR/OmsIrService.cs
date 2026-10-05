@@ -169,6 +169,8 @@ namespace osu.Game.Online.IR
             var body = new JObject { ["username"] = username, ["password"] = password, ["transport"] = "desktop" };
             JObject response = await sendAsync(origin, HttpMethod.Post, register ? "auth/register" : "auth/login", body.ToString(Formatting.None), null, token).ConfigureAwait(false);
             OmsIrSession loggedIn = decodeSession(response);
+            // A response can finish after the account panel closed, even when HTTP observes the cancellation late.
+            token.ThrowIfCancellationRequested();
             writeCredential(origin, loggedIn);
             lock (stateLock)
             {

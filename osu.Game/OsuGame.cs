@@ -136,6 +136,7 @@ namespace osu.Game
 
         public ManiaDownloadOverlay ManiaDownloads { get; private set; }
         public OmsIrOverlay Ir { get; private set; }
+        public LoginOverlay Account { get; private set; }
         public readonly Bindable<BeatmapDownloadMode> DownloadMode = new Bindable<BeatmapDownloadMode>();
 
         private BmsDownloadManager bmsDownloadManager;
@@ -823,6 +824,25 @@ namespace osu.Game
                 return;
 
             waitForReady(() => userProfile, _ => userProfile.ShowUser(user));
+        }
+
+        public void ShowOmsAccount()
+        {
+            Ir?.Hide();
+            waitForReady(() => Account, _ => Account.Show());
+        }
+
+        public void ShowOwnOmsProfile()
+        {
+            if (OnlineFeaturesEnabled)
+                return;
+            Ir?.Hide();
+            waitForReady(() => userProfile, _ => userProfile.ShowOwnOmsUser());
+        }
+
+        public void ShowOmsScoreBoard(string md5, string title, string condition = null, string maniaGroup = null)
+        {
+            waitForReady(() => Ir, _ => Ir.ShowChartBoard(md5, title, condition, maniaGroup));
         }
 
         /// <summary>
@@ -1743,17 +1763,16 @@ namespace osu.Game
                 loadComponentSingleFile(beatmapSetOverlay = new BeatmapSetOverlay(), overlayContent.Add, true);
                 loadComponentSingleFile(wikiOverlay = new WikiOverlay(), overlayContent.Add, true);
             }
+            else
+                loadComponentSingleFile(userProfile = new UserProfileOverlay(true), overlayContent.Add, true);
 
             loadComponentSingleFile(skinEditor = new SkinEditorOverlay(ScreenContainer), overlayContent.Add, true);
 
-            if (OnlineFeaturesEnabled)
+            loadComponentSingleFile(Account = new LoginOverlay(!OnlineFeaturesEnabled)
             {
-                loadComponentSingleFile(new LoginOverlay
-                {
-                    Anchor = Anchor.TopRight,
-                    Origin = Anchor.TopRight,
-                }, rightFloatingOverlayContent.Add, true);
-            }
+                Anchor = Anchor.TopRight,
+                Origin = Anchor.TopRight,
+            }, rightFloatingOverlayContent.Add, true);
 
             loadComponentSingleFile(new NowPlayingOverlay
             {

@@ -2,7 +2,7 @@
 
 ## 玩家当前能做什么
 
-客户端增加独立 IR 奖杯入口：玩家主动填入服务地址、启用并登录后，新局先完成最终结算和本地保存，再交分；可在端内读榜、查看本人记录与手动补交。关闭 IR 仍可离线游玩。公网试运行页面已发布到 `https://oms.zdamexy.work/ir/`，客户端填写的地址为 `https://oms.zdamexy.work`。用户通过 VS Code 非调试启动当前工作区验收，发行构建由用户自行执行；验证与历史候选证据见[客户端发布记录](../../other/OMS_IR_CLIENT_RELEASE_20261003.md)，不要求再次打包。
+客户端已复用右上角原用户按钮、登录窗口与个人页：玩家主动填入服务地址、启用并登录后，可在原个人页查看本人 UUID 新局、判定 / 灯与分页，从记录进入同条件或参考榜；连接设置、退出与手动补交在原账号菜单。奖杯只负责查榜并跳转同一账号入口。新局仍先最终结算和本地保存，再交分；关闭 IR 可离线游玩。公网试运行页面为 `https://oms.zdamexy.work/ir/`，客户端填写 `https://oms.zdamexy.work`。2026-10-05 原界面软件门通过，当前工作区待用户 VS Code 非调试启动验收；发行由用户执行，不生成 Windows 发行包。原发布历史见[客户端发布记录](../../other/OMS_IR_CLIENT_RELEASE_20261003.md)。
 
 客户端实际保存 UUID、原谱内容身份、BMS / PMS 键型、mania 实际列数和 BMS 最终点灯 / 血条已接入；待交绑定原服务与原账号，响应丢失重复不新增，401 等待原账号重登。来源和适用提交维护在外部 Client Bridge，跨端合同由 Dev Bridge IR 维护；静态来源、合成场景与实际玩家验收分别记录。
 
@@ -26,6 +26,8 @@
 - 外部实际发布为ecca50eab82c-09d7ffdf4bbb/schema3；同制品完整性/实际网络、全量主机/两空恢复/补账、公开HTTP/原IR社区双站与首份受保护F盘日备份完整核验已通过。公开浏览器初次超时后同一HTTPS页实际匿名来源切换、首/第二/尾页、深链/同条件空范围及桌面/390px已补核。详细事实仅取外部Backend主机报告和Dev Bridge IR进展，旧十万条容量不代签全量；公开账号/密钥/本人、DPI、P/C、VS Code非调试OMS及全部宿主真人仍未闭环，状态“已部署待验收”。
 
 ## 最近一次验证
+
+2026-10-05 客户端原账号 / 个人页适配集中 Release 有效复编，64/64 通过，覆盖原 LoginOverlay、ToolbarUserButton、ProfileHeader / UserProfileOverlay 与全部 core OmsIr 行为。关闭窗口取消 HTTP，迟到登录不能发布凭据 / 身份，关闭或换账号后旧本人行不能出现；跨账号响应、原 UUID / Owner 与分页受理均留证。原生个人页只显示本人逐局记录，网页外链 `/users/?id=<真实 ID>` 无 token，不伪造旧 APIUser、PP、国家或头像。Desktop 普通 Release 编译成功，保留未改 BMS 测试源文件的 CS8600 / CA2007 两项警告；未 publish 或制作发行副本。日志 / TRX 留 `artifacts/oms-osu-web-lazer-account-20261005/`，命令、首次失败身份与修复见[本线日志](CHANGELOG.md#2026-10-05原登录和个人页复用)。实际窗口布局、焦点、长账号名、实服分页和网页 / OMS 同账号仍待真人，不签收 P/C。
 
 2026-10-04 集中 Release 复编后，`osu.Game.Tests` 的 Service / Overlay focused 32/32 通过（Service 30 项、场景构造与行为 2 项）；`BmsOmsIrSubmissionTest` 27/27 通过，导出 18 份合成 JSON，其中 17 份新增覆盖真实规则 Mod、LR2 / LR2G 五轴以及 GAS 默认、显式设置和下限钳制。投射经过原生录制初始化、最终结果准备及保存字段 clone，保留 UUID、原设置和实际规则轴；它们是软件契约证据，不是玩家游玩。BMS 编译输出保留其他源文件的 CS8600 / CA2007 警告，不宣称零警告或依赖审计通过。
 

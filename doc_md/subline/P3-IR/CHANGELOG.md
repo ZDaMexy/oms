@@ -1,5 +1,13 @@
 # OMS IR 历史
 
+## 2026-10-05：原登录和个人页复用
+
+按用户采用复用 ToolbarUserButton / LoginOverlay / LoginPanel / LoginForm 与 UserProfileOverlay / ProfileHeader / 原分页和内容容器。原账号窗口主动设置服务、启用、登录 / 注册，已登录菜单提供本人个人页 / 补交 / 连接 / 退出；奖杯只读榜并链接原窗口。个人页读取当前账号真实 UUID 新局与灯 / 判定，提供原服务分页、同条件 / 参考榜和无凭据网页外链。默认空地址与旧 OnlineFeaturesEnabled=false、原待交和保存归属合同不变。
+
+集中命令为 `. ./UseDevelopmentStorage.ps1` 后 `dotnet test osu.Game.Tests/osu.Game.Tests.csproj -c Release --no-restore -m:1 --filter 'FullyQualifiedName~OmsIr|FullyQualifiedName~OmsAccount|FullyQualifiedName~TestSceneLoginOverlay|FullyQualifiedName~TestSceneToolbarUserButton|FullyQualifiedName~TestSceneUserProfileHeader|FullyQualifiedName~TestSceneUserProfileOverlay' --logger 'trx;LogFileName=client-account-r7.trx' --results-directory F:/oms/artifacts/oms-osu-web-lazer-account-20261005 -v minimal`，64/64 通过。Desktop `dotnet build osu.Desktop.slnf -c Release --no-restore -m:1 -p:GenerateFullPaths=true -v minimal` 成功，两项未改 BMS 测试警告保留。root 串行协调，未制作 Windows 发行包。
+
+r1/r2 缺 Containers import，r3 验收读取 setter-only TextFlowContainer.Text，均编译失败；r4/r5/r6 各 63/64，关闭 / 迟到场景未过，原日志和 TRX 不改写。场景注册步骤的实例方法组提前捕获了上一轮窗口，改为执行时读取当前字段，并明确 Visible→Hidden 后取消 / 释放响应，r7 保留原安全断言通过。Service 在 await 登录响应解析后、发布凭据和身份前复核实际取消，不把关闭窗口后的迟到响应保存为成功。软件门与首次失败范围分开，不因脚本改正代签真实 UI；VS Code 非调试长名 / 焦点 / 实服分页、网页同账号与 P/C 仍待。
+
 ## 2026-10-05：外部多来源发布待验收与维护收尾
 
 外部最终同制品/实际网络、全量共享主机/两空恢复/WAL/补账后，服务与网页01:41:04（UTC+8）发布ecca50eab82c-09d7ffdf4bbb/schema3，全量公开历史和五插件可按需使用；公开HTTP/旧IR社区/双站/全部资产和首份正式日备份受保护F盘完整核验通过。详细执行证据取外部Backend/Dev Bridge，不用旧十万条或SDK软件代签真人。

@@ -15,6 +15,7 @@ using osu.Game.Graphics.UserInterface;
 using osu.Game.Localisation;
 using osu.Game.Online.API;
 using osu.Game.Online.API.Requests.Responses;
+using osu.Game.Online.IR;
 using osu.Game.Users.Drawables;
 using osuTK;
 using osuTK.Graphics;
@@ -34,15 +35,27 @@ namespace osu.Game.Overlays.Toolbar
         private IBindable<APIState> apiState = null!;
 
         private OsuSpriteText usernameText = null!;
+        private readonly bool useOmsAccount;
 
-        public ToolbarUserButton()
+        [Resolved]
+        private OmsIrService? ir { get; set; }
+
+        public ToolbarUserButton(bool useOmsAccount = false)
         {
+            this.useOmsAccount = useOmsAccount;
             ButtonContent.AutoSizeAxes = Axes.X;
         }
 
         [BackgroundDependencyLoader]
         private void load(OsuColour colours, IAPIProvider api, LoginOverlay? login)
         {
+            Drawable identityVisual = useOmsAccount ? new SpriteIcon
+            {
+                Icon = OsuIcon.Player,
+                Size = new Vector2(20),
+                Anchor = Anchor.Centre,
+                Origin = Anchor.Centre,
+            } : avatar = new UpdateableAvatar(isInteractive: false) { RelativeSizeAxes = Axes.Both };
             Flow.AddRange(new Drawable[]
             {
                 usernameText = new OsuSpriteText
@@ -66,10 +79,7 @@ namespace osu.Game.Overlays.Toolbar
                     },
                     Children = new Drawable[]
                     {
-                        avatar = new UpdateableAvatar(isInteractive: false)
-                        {
-                            RelativeSizeAxes = Axes.Both,
-                        },
+                        identityVisual,
                         spinner = new LoadingLayer(dimBackground: true, withBox: false)
                         {
                             BlockPositionalInput = false,
@@ -88,20 +98,47 @@ namespace osu.Game.Overlays.Toolbar
                             Colour = colours.YellowLight,
                         },
                     }
-                },
-                new TransientUserStatisticsUpdateDisplay
-                {
-                    Alpha = 0,
                 }
             });
+
+            StateContainer = login;
+
+            if (useOmsAccount)
+            {
+                ir!.StateChanged += omsStateChanged;
+                applyOmsState(ir.State);
+                return;
+            }
+
+            Flow.Add(new TransientUserStatisticsUpdateDisplay { Alpha = 0 });
 
             apiState = api.State.GetBoundCopy();
             apiState.BindValueChanged(onlineStateChanged, true);
 
             localUser = api.LocalUser.GetBoundCopy();
             localUser.BindValueChanged(userChanged, true);
+        }
 
-            StateContainer = login;
+        private void omsStateChanged(OmsIrState state) => Schedule(() => applyOmsState(ir!.State));
+
+        private void applyOmsState(OmsIrState state)
+        {
+            usernameText.Text = state.Account?.Username ?? "登录";
+            TooltipText = state.RequiresLogin && state.Account != null ? "请重新登录原账号，待交已保留"
+                : state.Account == null ? "OMS 账号与 IR 连接"
+                : $"OMS #{state.Account.Id} · {(state.Enabled ? "IR 已启用" : "IR 已关闭")} · 待交 {state.PendingCount}";
+            failingIcon.FadeTo(state.RequiresLogin && state.Account != null ? 1 : 0, 200, Easing.OutQuint);
+            if (state.Busy)
+                spinner.Show();
+            else
+                spinner.Hide();
+        }
+
+        protected override void Dispose(bool isDisposing)
+        {
+            if (useOmsAccount && ir != null)
+                ir.StateChanged -= omsStateChanged;
+            base.Dispose(isDisposing);
         }
 
         private void userChanged(ValueChangedEvent<APIUser> user) => Schedule(() =>
