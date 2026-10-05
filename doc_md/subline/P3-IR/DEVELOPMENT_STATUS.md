@@ -8,6 +8,14 @@
 
 当前工作区可从所选BMS原谱、谱名/作者/MD5目录进入参考混榜，选一个/多个/全部/空来源，查看完整范围人数/名次/独立灯并主动收窄同条件。历史同名账号独立，缺字段/未知灯如实显示；mania及本人逐局记录沿原路径。2026-10-05 17:16:55（UTC+8）外部新版已发布 `b520bcb99015-5d0531c22423` / schema3，官网实际 osu-web 与客户端原登录 / 个人页衔接，最小网页身份只带 OMS ID。运行来源、全量 / 恢复 / 备份和浏览器工具限制只取[外部本次核验](F:/zdamexy-workspace/websites/oms-website/doc_md/other/osu-web-lazer-account-verification-20261005.md)。状态“已部署待验收”；本次原账号产品源码 6bc5272 软件门已过，真实网页 / OMS 同范围及目标宿主游玩待用户验收，b7d0f74d 为此前多来源来源。
 
+## 当前客户端与外部候选来源
+
+当前客户端运行源码为 `234a9ff39654cdc30f3d5661cb6a9bf69bb90db6`，含原登录 / 本人页与 mania 六判定；文档 HEAD `f05d` 和本次更新不构成新运行验证。默认空地址、旧在线总开关 false 及原 body / UUID / owner 不变；窗口 / 焦点 / 长名、实服分页、旧待交和网页同范围仍待用户 VS Code 非调试验收，无 Windows 发行包。
+
+生产仍为 `b520bcb99015-5d0531c22423`；新完整玩家站候选 `25d32397c330-37f05e2ca369` 已准备但**未部署**。近三万人口、至少120秒五读 / 秒写读重叠与两次新空目录恢复仍在运行，尚无最终结果。旧3ab全量 / 原生 / 1,800秒门和原空间 false 保留来源，补账单独记录；增量边界见[本线计划](DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜实施)。
+
+地力评级 / Walkure 后置；PP 为后续优先方向，规则与来源资格独立采用后实施，现有收录 / 通关 / mania 累计指标不标 PP。先导 P / 完整 C 和所有宿主真人格仍待验收。
+
 ## 当前门
 
 - IR0：当前源码来源与采用合同 v1 已建立，消费者沿桥文档登记。
@@ -27,6 +35,10 @@
 
 ## 最近一次验证
 
+2026-10-06 OpenLR2 R4 在3ab源码 / 固定SDK / 专用软件Host上通过双架构非空消费；不证明正式DLL与真实EXE的STL、标准LN、UI、线程或断线。1,002身份、请求 / 统计 / 缓存推断和实际构建来源见[本日记录](CHANGELOG.md)。后续25d正式重编不改R4来源，P/C真人仍待。
+
+同日候选25d / 37f的[host r7](../../../artifacts/oms-player-site-20261005/host-player-report-r7.json)两玩法各1,000 / 100,000不同最佳通过，53合成账号，十请求含首次；个人p95≤300ms、玩家榜≤1秒。实际loopback / PID / 源码与500MiB / 150%预算、无OOM / hostswap0、共享余量≥512MiB及schema3往返留证。它不签近三万人口、1,800秒或千万级档案；新门仍待。
+
 2026-10-05 后续已采用完整玩家网站范围；外部官网实施中，当前部署仍取上方实际版本。客户端本人记录修正 mania Ok 错名 / 漏 Meh，原六类计数与 BMS 判定分开；真实 factory focused Release 11/11 通过，命令与证据见[本次记录](../../other/OMS_PLAYER_SITE_20261005.md)。保存、UUID和原账号待交归属未改；VS Code 非调试 / 两端真人与 P/C 保留。
 
 2026-10-05 客户端原账号 / 个人页适配集中 Release 有效复编，64/64 通过，覆盖原 LoginOverlay、ToolbarUserButton、ProfileHeader / UserProfileOverlay 与全部 core OmsIr 行为。关闭窗口取消 HTTP，迟到登录不能发布凭据 / 身份，关闭或换账号后旧本人行不能出现；跨账号响应、原 UUID / Owner 与分页受理均留证。原生个人页只显示本人逐局记录，网页外链 `/users/?id=<真实 ID>` 无 token，不伪造旧 APIUser、PP、国家或头像。Desktop 普通 Release 编译成功，保留未改 BMS 测试源文件的 CS8600 / CA2007 两项警告；未 publish 或制作发行副本。日志 / TRX 留 `artifacts/oms-osu-web-lazer-account-20261005/`，命令、首次失败身份与修复见[本线日志](CHANGELOG.md#2026-10-05原登录和个人页复用)。实际窗口布局、焦点、长账号名、实服分页和网页 / OMS 同账号仍待真人，不签收 P/C。
@@ -40,6 +52,8 @@
 2026-10-03 原 Player / Realm、公网两份 C# 合成受理、Desktop 与发行历史证据仍归[客户端发布记录](../../other/OMS_IR_CLIENT_RELEASE_20261003.md)和 `artifacts/oms-ir-release-20261003/`，首轮留 `artifacts/oms-ir-start-20261003/`。本次未生成 Windows 发行包、publish 或安装副本，也未签收真实手动游玩、目标宿主及此前 Phase 1.x 设备 / 皮肤 / 发行门。
 
 ## 文档治理验证
+
+2026-10-06 根执行 CheckDocumentation.ps1 / git diff --check通过（199Markdown / 2017链接 / 310锚点 / 125记忆wiki链），workspace124文档 / 930链接通过；证据为 `client-docs-r9.log`。此次长度精简后提交前复检结果另存 `artifacts/oms-player-site-20261005/client-docs-r10.log`；原通用警告保留，仅同步文档，不刷新产品 / 真人日期。
 
 2026-10-05，外部实际部署、公开匿名读榜、P/C剩余门、维护与收据故障已同步状态/计划/日志及记忆；统一执行者运行 CheckDocumentation.ps1 与 git diff --check 通过（198Markdown/2002相对链接/305锚点/125记忆wiki链）。原有公开checksum/通用路径提示保留；证据为 `artifacts/oms-ir-multisource-20261004/client-docs-deployment-r10-r3.log`，外部协作检查110文档/739链接及原来源/消费者边界独立核对。只同步文档，没有重跑未改客户端产品、生成Windows包或代签真人。
 

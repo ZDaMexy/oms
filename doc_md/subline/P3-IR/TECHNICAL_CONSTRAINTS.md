@@ -8,7 +8,7 @@
 
 ## 身份、结算与保存
 
-2026-10-05 后续用户明确扩展官网为基于 osu-web 的 BMS / mania 玩家网站；批准两 BMS 源 / Sayobot 的网页元数据查询与原包外链下载由[共同专项](F:/zdamexy-workspace/oms-server/dev_bridge_md/doc_md/subline/oms-player-site/constraints.md)独立约束。此采用覆盖早先“官网谱包冻结”的这部分范围，不扩聊天、presence、多人、旧 API 或常驻在线。网站当前公开最佳 / 独立灯 / 分条件统计与游戏本人 UUID 全历史分开；没有稳定局 ID 的外部状态不造逐局，旧 LR2IR 同名身份不并入 OMS 个人页。地力后置、BMS PP另议；缺数据不造等级、国家、头像或游玩次数。mania 详情按六类真实判定展示，不套 BMS EMPTY POOR / 灯。
+2026-10-05 后续用户明确扩展官网为基于 osu-web 的 BMS / mania 玩家网站；批准两 BMS 源 / Sayobot 的网页元数据查询与原包外链下载由[共同专项](F:/zdamexy-workspace/oms-server/dev_bridge_md/doc_md/subline/oms-player-site/constraints.md)独立约束。此采用覆盖早先“官网谱包冻结”的这部分范围，不扩聊天、presence、多人、旧 API 或常驻在线。网站当前公开最佳 / 独立灯 / 分条件统计与游戏本人 UUID 全历史分开；没有稳定局 ID 的外部状态不造逐局，旧 LR2IR 同名身份不并入 OMS 个人页。2026-10-06 按用户取舍地力评级和 Walkure 后置，PP是后续优先方向但规则 / 范围 / 来源资格独立讨论后正式采用；当前积累指标不是PP，缺数据不造等级、国家、头像或游玩次数。mania 详情按六类真实判定展示，不套 BMS EMPTY POOR / 灯。
 
 - 使用独立服务设置、账号会话和请求消费者，`OnlineFeaturesEnabled=false` 及空 EndpointConfiguration 不改；不借旧 SoloPlayer legacy / 正数 OnlineID gate。
 - 本局选定的服务、账号与提交 UUID 在异步响应或重登时保持原所有权；切换账号不把旧待交重新绑定给新账号。
@@ -41,3 +41,9 @@
 只在存在当前服务 / 账号的有效待交时启动有限重试；普通网络失败按 5 / 15 / 45 / 120 秒等待，最多五次后保全并提示手动重试。422 / 409 保留失败原因，重试沿同一 UUID 与原 body；没有闲置轮询、presence 或常驻连接。每次主动参考查询读取当前来源列表再读榜；有原会话时 v2 携带 Bearer，错误 / 过期凭据沿原刷新流程或明确失败，不退匿名。端内响应回到更新线程，账号 / 服务 / 选谱或来源范围变化后取消旧请求并清空旧列表，迟到响应不能重现旧账号或旧范围。
 
 跨端 v1 正式合同在外部 `F:\zdamexy-workspace\oms-server\dev_bridge_md\doc_md\subline\oms-ir\constraints.md`，多来源合同为同目录 `multisource-contract.md`；本文件只约束客户端消费，实施变更须同步事实桥、Dev Bridge、Backend 和 Website 的实际落点。来源是否已获目标版本 / 玩法真人验证取 registry 与正式验收进展，不能由接入通道、合成样例或插件构建推导完整支持。
+
+## 软件证据和实际运行范围
+
+OpenLR2 非空软件门必须绑定实际 SDK / 业务源码 / 工具链及专用DLL的真实Host SHA：2026-10-06 R4使用3ab源码与同工具链、不同于正式宿主的受控软件EXE / DLL，真实完整1,002人、Top999和非空返回对象仅证明该软件边界。不能从21统计、六组keymode / longnote presence、缓存路径或同MSVC推导正式DLL / 固定真实EXE的非空STL兼容、标准LN解析、原生UI、线程或断线通过；两架构各自真人门保持。后来25d正式插件重编译只登记其自己的来源，不将旧R4结果改成新构建验收。
+
+共享主机容量、恢复与个人延迟须沿实际候选和真实样本人数登记。53合成账号下每玩法100,000不同最佳不等于近三万人口，原十万热谱局不等于全量25,562,325历史摘要；短门不冒充1,800秒。本人名次纯读取的已采用差异边界取[外部正式约束](F:/zdamexy-workspace/oms-server/dev_bridge_md/doc_md/subline/oms-player-site/constraints.md#2026-10-06-本人名次纯读取修订与差异验收)：旧独立门保持3ab原来源和原false，新候选重新签当前个人数学 / 耗时 / 写读重叠及两新空恢复，所有表含sequence / 索引 / trigger完整指纹先相等后读非空API。主500MiB /150% /swap0、维护128MiB /50% /swap0、共享可用至少512MiB不放宽；未完成新门不部署。客户端文档HEAD更新不构成客户端运行源码或真人日期更新。

@@ -1,5 +1,19 @@
 # OMS IR 历史
 
+## 2026-10-06：外部玩家统计与 OpenLR2 软件门投影
+
+仅同步客户端P3-IR四件套和诊断记忆，客户端运行源码仍为 `234a9ff39654cdc30f3d5661cb6a9bf69bb90db6`；原账号适配6bc / 多来源b7来源和原软件日期保留，后续文档HEAD `f05d` 不当新runtime。用户从当前F:/oms经VS Code非调试启动验收原登录 / 个人页、窗口焦点 / 长名、原待交 / UUID / owner、实服分页与网页一致；这些与P/C真人仍未签收。无新构建、Windows发行包、publish、额外安装或生产部署。
+
+OpenR4实际双架构软件HTTP与非空容器消费通过，来源 `3abf9aa3741559f2f6fad310429b5ec9a490f349`、固定SDK v260915 / `c7f1da3e33c6b367bfda068b72d915b6995cf3ae`；SDK SHA256 `59784c97c0d39800de4c17ce3b1a4b5f4df5a523d4a7ff726a67587f69ca1dcf`。专用软件Host SHA不同于formal，仅证明同业务源码 / 固定SDK / 同工具链的专用软件探针。准确[R4报告](../../../artifacts/oms-player-site-20261005/open-nonempty-native-gate/executions/20261005T224112Z-95b17e0972/report.json)与[软件构建record](../../../artifacts/oms-player-site-20261005/open-nonempty-native-gate/runs/20261005T220917Z-6280e6aa/build-record.json)不与25d后续正式构建混源。
+
+每架构83个真实隔离HTTP请求：24次合成交分、50次原生GET、6次单谱元数据、3次本人；完整同谱1,002合成身份 / 本人共享名次1,002 / SDK Top999，21统计与未知BP保留，5K / 7K / 14K各longnote presence 0 / 1共六组。较高EX / 同灯保留旧灯观察，较低EX / 更高灯独立改善，状态ID、原生身份及逐局数守恒；26次缓存回读无新增请求是按精确方法 / 路径总量的推断。正式DLL / 固定真实EXE的非空STL ABI、标准LN解析、原生UI、线程、断线未签；原r1 / r2工具入口失败及r3同灯载体预期错误保留，软件门不签P/C。
+
+新候选 `25d32397c330-37f05e2ca369` 来源Backend `25d32397c330090fe7e6588938bd558d884bfa89` / Web `37f05e2ca3690c5ba6008862121aa5038864f92b`。[共享主机r7](../../../artifacts/oms-player-site-20261005/host-player-report-r7.json)两玩法1,000 / 100,000不同最佳 completed / passed 均true：个人三路径十请求含首次 / p95≤300ms，玩家榜≤1秒。100,000规模BMS三个人页p95为138.090 / 52.387 / 46.825ms，mania为79.907 / 48.437 / 50.945ms，最慢玩家榜437.533ms；实际loopback网络 / 源码 / PID、500MiB / 150%预算、无OOM / 进程与主机swap、共享余量≥512MiB和schema3往返保持。
+
+样本53合成账号，不签近三万人口、1,800秒或千万级档案；根正在运行独立新人口 / 写读重叠 / 两空恢复增量门，当前尚未最终完成。生产仍b520已部署待验收，新完整玩家站候选已准备但未部署；旧3ab独立门和原空间false保留实际来源 / 失败，补账单独记录，正式复用和新增门边界取[共同约束](F:/zdamexy-workspace/oms-server/dev_bridge_md/doc_md/subline/oms-player-site/constraints.md#2026-10-06-本人名次纯读取修订与差异验收)。
+
+后续产品取舍记为地力评级 /Walkure后置，PP优先但规则与来源资格独立讨论后正式采用；现有收录 /通关 /mania累计指标不标PP。PSCore普通Command ACL、WinPS5继承Core模块路径及EncodedCommand三十秒超时只进入技术记忆；原shell失败发生在app创建前，不当业务故障。根执行的client-docs-r9.log记录文档199 / 链接2017 / 锚点310 / 记忆125及workspace124 / 930通过，git diff --check通过；原通用警告保留。本次将STATUS新增细节转入历史，精简后的复检待根执行，未重跑产品或更新真人日期。
+
 ## 2026-10-05：完整玩家网站采用与 mania 六类判定
 
 按后续用户要求采用实际 osu-web 的谱面 / 个人 / 排行完整路径，批准两 BMS 源与 Sayobot 网页原包获取，地力后置、BMS PP另议；共同合同与实施门在外部玩家网站专项。客户端只修本人详情对 mania Ok 错套 EMPTY POOR / 漏 Meh 的展示，真实 factory / Create focused Release 11/11，原 BMS 五类、保存、UUID及owner不改；软件命令和未完门见[本次记录](../../other/OMS_PLAYER_SITE_20261005.md)。当前新网站实施中，旧生产版和 P/C / 真人待验收不提升，无Windows发行物。
