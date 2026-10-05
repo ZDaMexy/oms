@@ -11,7 +11,7 @@
 - [内置音乐播放器](project_oms_music_player.md) — 共用音轨/试听与队列接入、已定展开壳体和 core 依赖方向。
 - [内置 BMS 下载](reference_bms_builtin_download.md) — 完整表与包身份、目录手动恢复、归档预算/CRC/释放语义、首次完成旧快照、任务收尾与精确选歌。
 - [Sayobot mania 下载](reference_mania_sayobot_download.md) — 原游标/混合包、原sid/bid与实际MD5、镜像节点；两玩法共享封面、首次完成旧快照的回链与退出诊断。
-- [OMS IR 接入](reference_oms_ir.md) — 权威与运行源码 / 文档HEAD时效；保存/身份与凭据队列、原账号UI取消发布、场景方法组捕获旧窗、mania六判定与镜像身份、限流表与玩家回退指纹、no-store与浏览器截图限制、空搜索null；多来源统计隐私、无局ID、原生整榜/ID、Mod/GAS、独立灯、共享主机cgroup/WAL、峰值/全局分页/目录去重、首次SDK网络分层、压缩CRC真实边界、恢复外取/补账/连接关闭、Windows字节receipt及Open工具地雷。
+- [OMS IR 接入](reference_oms_ir.md) — 权威与运行源码 / 文档HEAD时效；保存/身份与凭据队列、原账号UI取消发布、场景方法组捕获旧窗、mania六判定与镜像身份、限流表与玩家回退指纹、no-store与浏览器截图限制、空搜索null；多来源统计隐私、无局ID、原生整榜/ID、Mod/GAS、独立灯、共享主机cgroup/WAL、峰值/全局分页/目录去重、首次SDK网络分层、压缩CRC真实边界、恢复外取/补账/连接关闭、Windows字节receipt及Open工具地雷；发布mtime/ETag、真实查询计划、执行器MemoryHigh、结构与行hash分验、已知索引原子升级。
 
 ## 皮肤恢复与存储
 

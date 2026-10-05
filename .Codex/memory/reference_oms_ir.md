@@ -29,6 +29,7 @@
 - .NET / NuGet 会读取 Windows 系统代理，curl --noproxy 正常不代表 dotnet 可达。2026-10-03 对调用进程显式设置 HTTP_PROXY / HTTPS_PROXY 加官方域名 NO_PROXY 后绕行成功、官方完整包恢复；不能靠改源或反复 ignore-failed-sources 掩盖 TLS 故障，不改全局代理或跳过签名。
 - 本机常规 Python 的旧 SQLite 存在 WAL reset 风险；2026-10-03 服务开发验证用外部项目 F 盘 venv 的 SQLite 3.53.1，实际 runtime 版本须在所属发布门核对，单 worker 不等于只有一个数据库连接。
 - 十万局榜单避免全历史 payload 排序和按人逐次全表点灯扫描；正式 SQL 先取每人最佳 ID，再排名读 payload，灯走独立覆盖索引。容量探针计入调度到确认，不能把 429 或排队延迟剔除。
+- 索引升级的全表记录不变与结构不变分开验：`logical_fingerprint` 同时含逐表行hash与 `schema_sha256`。2026-10-06 r6 因合法新增一个索引的结构hash变化误判，保留原失败；r7复核逐表相同并从结构中仅移除精确批准索引后与原结构相等。八→九列在真实 r4 合成库另验所有表与其他结构不变、再次初始化的 schema_version / rootpage 不变，不能跳过全部结构比较或用总行数代签。
 - 全量主机探针和服务不可共用生产MemoryMax口径：2026-10-04 r1把JSON发起/校验与服务放同scope，混读超时且未到30分钟。后续用独立systemd服务约束实际server，采集MainPID/cgroup而非systemd-run包装进程；失败证据取外部Backend全量主机报告，不从暖SQL推导HTTP通过。WAL最后连接关闭会在exists/stat之间消失，只做一次stat并捕获真实FileNotFoundError，防采样线程中止后残余样本冒充资源门。
 - 覆盖索引暖读不证明首次整榜：2026-10-04 r4暖页通过，但100k旧局的完整覆盖扫描仍约780ms。整tuple递归也未跳过重复条件，实际计划只用第一前缀范围；分拆最大EX、规则组、账号的严格前缀seek才把同50个完整候选降到约30ms。条件目录同样不能再扫描所有旧局；以实际HTTP/完整候选等价和新回归复核，不新增被同名索引忽略的“优化”。
 - OpenLR2固定SDK须同MSVC19.44/MT/Release/架构；x86 cdecl的`.def`直接列未修饰GetMethodTable，手工别名可能双重修饰。F盘免安装工具入口必须从原工具目录加载，复制到构建目录的入口仅作hash证明；UTF8无BOM含中文构建脚本用当前PS7执行，PS5可能ANSI误读。独立检查程序须被固定宿主指纹拒绝，不绕过它伪造真实宿主HTTP/游玩证据。
@@ -55,3 +56,10 @@
 - OMS Create 发送真实 APIMods，不能清空 Mod 伪装普通。真实规则 Mod 接收边界从正式合同取；GAS settings 的原枚举是整数，最终数据的枚举是字符串，默认 settings 为空，有效下限钳制不改原参数。JD 捕捉的原 header rank 尚不等于覆盖后的有效 rank，拒绝时保原待交。
 - 灯规则不能只匹配 group hash：OMS family 还区分最大 EX，消费服务 `rule_label`；外部 SDK 缺精确 TOTAL / gauge_history 时相同 gauge 数字也不证明可合并。历史 ★FULLCOMBO 保原标签，不能换算为 OMS Perfect。
 - 混榜错位先核对筛选位置：来源/公开资格/条件必须先约束最佳 EX、独立灯和参与身份，再计算人数、名次及分页。先取每源 TopN 再拼接，或沿 mandatory group 永远分开，均不满足自由参考混榜。
+
+## 玩家网站与发布诊断
+
+- `tarfile.TarInfo` 默认mtime=0；实际BT Nginx的静态ETag依赖mtime和长度，内容变而长度不变会错误304，即使Cache-Control=no-cache也仍旧显示。2026-10-06实际独立探针复现并验证实际发布时间可修正；外层发布条目统一created_at秒，内容SHA仍独立绑定。内部源码归档固定时间不等于HTTP文件时间。
+- 玩家统计先看真实EXPLAIN：GROUP BY可能使SQLite选scores_history回表，即使存在scores_lamp覆盖索引；全scores_reference再逐局JOIN还会反复计算条件JSON。请求内先筛真实eligible_groups，再沿实际覆盖范围聚合；新执行器/索引声明或小样本不能代签同规模p95。
+- 测试driver和服务是不同进程：driver的MemoryHigh也会产生回收延迟；256MiB完整整榜解码执行器不能当作生产或维护预算，主服务500MiB、维护128MiB要分别实测。记录实际cgroup事件/peak，异常时保留旧失败再复核，不由推测消除时限失败。
+- Windows上的sqlite3 Connection `with`只结束事务，不保证close；完整解压CRC/hash核验后删除F盘临时库须显式close或contextlib.closing。WinError32时保全源库和压缩证据，修正后从完整重新核验继续，不能跳过旧失败或删整目录。
