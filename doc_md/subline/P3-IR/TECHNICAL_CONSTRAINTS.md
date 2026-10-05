@@ -8,6 +8,8 @@
 
 ## 身份、结算与保存
 
+2026-10-05 后续用户明确扩展官网为基于 osu-web 的 BMS / mania 玩家网站；批准两 BMS 源 / Sayobot 的网页元数据查询与原包外链下载由[共同专项](F:/zdamexy-workspace/oms-server/dev_bridge_md/doc_md/subline/oms-player-site/constraints.md)独立约束。此采用覆盖早先“官网谱包冻结”的这部分范围，不扩聊天、presence、多人、旧 API 或常驻在线。网站当前公开最佳 / 独立灯 / 分条件统计与游戏本人 UUID 全历史分开；没有稳定局 ID 的外部状态不造逐局，旧 LR2IR 同名身份不并入 OMS 个人页。地力后置、BMS PP另议；缺数据不造等级、国家、头像或游玩次数。mania 详情按六类真实判定展示，不套 BMS EMPTY POOR / 灯。
+
 - 使用独立服务设置、账号会话和请求消费者，`OnlineFeaturesEnabled=false` 及空 EndpointConfiguration 不改；不借旧 SoloPlayer legacy / 正数 OnlineID gate。
 - 本局选定的服务、账号与提交 UUID 在异步响应或重登时保持原所有权；切换账号不把旧待交重新绑定给新账号。
 - 真实本地保存优先。BMS `PrepareScoreInfoForResults` 写入最终血条和灯后，`ImportScore` 成功并回写实际 UUID，才允许创建待交。旧网络钩子位于 BMS 最终准备之前，不能直接复用。

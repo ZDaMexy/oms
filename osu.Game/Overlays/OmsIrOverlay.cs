@@ -590,7 +590,12 @@ namespace osu.Game.Overlays
         internal static string ScoreDetails(JObject score)
         {
             JObject statistics = required<JObject>(score, "statistics");
-            string counts = $"PERFECT {statistics.Value<int>("perfect")} · GREAT {statistics.Value<int>("great")} · GOOD {statistics.Value<int>("good")} · MISS {statistics.Value<int>("miss")} · EMPTY POOR {statistics.Value<int>("ok")}";
+            string counts = stringValue(score, "ruleset") switch
+            {
+                "bms" => $"PERFECT {statistics.Value<int>("perfect")} · GREAT {statistics.Value<int>("great")} · GOOD {statistics.Value<int>("good")} · MISS {statistics.Value<int>("miss")} · EMPTY POOR {statistics.Value<int>("ok")}",
+                "mania" => $"Perfect {statistics.Value<int>("perfect")} · Great {statistics.Value<int>("great")} · Good {statistics.Value<int>("good")} · Ok {statistics.Value<int>("ok")} · Meh {statistics.Value<int>("meh")} · Miss {statistics.Value<int>("miss")}",
+                _ => throw new JsonSerializationException("Invalid IR score ruleset."),
+            };
             string gauge = score["ruleset_data"] is JObject data ? $"\n本局灯：{lampName(integer(data, "clear_lamp"))} · 最终血条 {number(data, "final_gauge"):P1}" : string.Empty;
             string time = DateTimeOffset.Parse(stringValue(score, "played_at"), CultureInfo.InvariantCulture).ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
             return $"{stringValue(required<JObject>(score, "chart"), "title")}\n{stringValue(score, "group_label")}\n{counts}{gauge}\n游玩时间：{time}";

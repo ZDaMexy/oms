@@ -1,5 +1,9 @@
 # OMS IR 历史
 
+## 2026-10-05：完整玩家网站采用与 mania 六类判定
+
+按后续用户要求采用实际 osu-web 的谱面 / 个人 / 排行完整路径，批准两 BMS 源与 Sayobot 网页原包获取，地力后置、BMS PP另议；共同合同与实施门在外部玩家网站专项。客户端只修本人详情对 mania Ok 错套 EMPTY POOR / 漏 Meh 的展示，真实 factory / Create focused Release 11/11，原 BMS 五类、保存、UUID及owner不改；软件命令和未完门见[本次记录](../../other/OMS_PLAYER_SITE_20261005.md)。当前新网站实施中，旧生产版和 P/C / 真人待验收不提升，无Windows发行物。
+
 ## 2026-10-05：实际 osu-web 试运行与原账号真人路径
 
 外部 `b520bcb99015-5d0531c22423` / schema3 已部署待验收，最小 profile 与对应公开源码、同账户网页入口通过服务 / 软件及公开门；全量主机、两空恢复、完整F盘保全 / 补账、旧schema3往返和新日备份已过。只更新外部来源与剩余门，不重跑未改客户端产品或生成 Windows 包。详细失败、源码身份、盘账、维护 / 回退以及公网浏览器 / 窄屏限制取[外部核验](F:/zdamexy-workspace/websites/oms-website/doc_md/other/osu-web-lazer-account-verification-20261005.md)。用户从当前 F:/oms 非调试启动原用户按钮 / 原个人页，真实新局 / 原UUID待交 / 换账号 / 实服分页与网页对照、P/C均待。

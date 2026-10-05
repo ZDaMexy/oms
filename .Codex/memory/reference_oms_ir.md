@@ -44,6 +44,8 @@
 
 ## 多来源取证地雷
 
+- 2026-10-05 本人详情消费 statistics 必须按真实 ruleset：mania Perfect / Great / Good / Ok / Meh / Miss 六类；BMS 原 Perfect / Great / Good / Miss / Ok 对应 EMPTY POOR。共用 BMS 表会把 mania Ok 错名并漏 Meh。真实 ManiaRuleset + Capture/Create + ScoreDetails 行为断言证明计数，不能仅比较新数组字面量；未改保存 / 上传 payload。网站当前公开最佳和游戏本人 UUID 全历史分开，mirror sid/bid 未提供 chart MD5 时不造同名关联。
+
 以下取证地雷已进入正式审查 / 实施的排错路径；具体边界仍取正式合同。接口、合成导出、插件构建或旧十万局容量不能签收真实宿主 / 全量历史。
 
 - archive 的 PB 是 (MD5, 原玩家 ID) 最佳摘要；缺逐次时间/SHA256/完整规则，不可塞成完整 OMS v7 或自动注册旧身份。用户给的 v3.db 路径实际是目录；只访问明确授权的目标，schema/汇总证据留 artifacts，不扫描其他 private-data。

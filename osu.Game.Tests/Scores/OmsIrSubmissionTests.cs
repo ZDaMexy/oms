@@ -7,6 +7,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using osu.Game.Beatmaps;
+using osu.Game.Overlays;
 using osu.Game.Rulesets.Mania;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Mods;
@@ -178,6 +179,34 @@ namespace osu.Game.Tests.Scores
                 Assert.That(payload["statistics"]!.Value<int>("large_bonus"), Is.EqualTo(1));
                 Assert.That(payload["statistics"]!["miss"], Is.Null);
                 Assert.That(payload["maximum_statistics"]!.Value<int>("perfect"), Is.EqualTo(3));
+            });
+        }
+
+        [Test]
+        public void TestManiaDetailsKeepAllSixNativeJudgements()
+        {
+            var source = createSource();
+            var score = createScore(source);
+            score.Statistics = new Dictionary<HitResult, int>
+            {
+                [HitResult.Perfect] = 11,
+                [HitResult.Great] = 9,
+                [HitResult.Good] = 7,
+                [HitResult.Ok] = 5,
+                [HitResult.Meh] = 3,
+                [HitResult.Miss] = 2,
+            };
+            var context = new ManiaRuleset().CaptureOmsIrSubmissionContext(new ManiaBeatmap(new StageDefinition(4)), source);
+            var payload = context.Create(score).Payload;
+            payload["group_label"] = "Mania 4K · OMS test";
+
+            string details = OmsIrOverlay.ScoreDetails(payload);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(details, Does.Contain("Perfect 11 · Great 9 · Good 7 · Ok 5 · Meh 3 · Miss 2"));
+                Assert.That(details, Does.Not.Contain("EMPTY POOR"));
+                Assert.That(details, Does.Not.Contain("本局灯"));
             });
         }
 

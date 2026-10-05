@@ -10,6 +10,8 @@
 
 ## 闭环顺序
 
+完整玩家网站沿[跨端计划](F:/zdamexy-workspace/oms-server/dev_bridge_md/doc_md/subline/oms-player-site/dev-plan.md)推进实际 osu-web 搜索 / 详情 / 个人 / 排行与统一入口，批准源原包获取，公开最佳 / 独立灯 / 分条件统计，BMS 与 mania 分榜。地力后置、BMS PP另议；核对客户端 mania 六类判定与网页本人页，分别完成新站运行门和既有 P/C 真人门。
+
 | 门 | 玩家 / 维护者结果 | 退出条件 |
 | --- | --- | --- |
 | IR0 | 成绩身份和可比较条件明确 | 提交绑定源码、事实桥登记、合同与双方采用一致；BMS / PMS 9K、最终灯、血条、判定与计分版本不混淆 |

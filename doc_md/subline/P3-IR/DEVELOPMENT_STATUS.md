@@ -27,6 +27,8 @@
 
 ## 最近一次验证
 
+2026-10-05 后续已采用完整玩家网站范围；外部官网实施中，当前部署仍取上方实际版本。客户端本人记录修正 mania Ok 错名 / 漏 Meh，原六类计数与 BMS 判定分开；真实 factory focused Release 11/11 通过，命令与证据见[本次记录](../../other/OMS_PLAYER_SITE_20261005.md)。保存、UUID和原账号待交归属未改；VS Code 非调试 / 两端真人与 P/C 保留。
+
 2026-10-05 客户端原账号 / 个人页适配集中 Release 有效复编，64/64 通过，覆盖原 LoginOverlay、ToolbarUserButton、ProfileHeader / UserProfileOverlay 与全部 core OmsIr 行为。关闭窗口取消 HTTP，迟到登录不能发布凭据 / 身份，关闭或换账号后旧本人行不能出现；跨账号响应、原 UUID / Owner 与分页受理均留证。原生个人页只显示本人逐局记录，网页外链 `/users/?id=<真实 ID>` 无 token，不伪造旧 APIUser、PP、国家或头像。Desktop 普通 Release 编译成功，保留未改 BMS 测试源文件的 CS8600 / CA2007 两项警告；未 publish 或制作发行副本。日志 / TRX 留 `artifacts/oms-osu-web-lazer-account-20261005/`，命令、首次失败身份与修复见[本线日志](CHANGELOG.md#2026-10-05原登录和个人页复用)。实际窗口布局、焦点、长账号名、实服分页和网页 / OMS 同账号仍待真人，不签收 P/C。
 
 2026-10-04 集中 Release 复编后，`osu.Game.Tests` 的 Service / Overlay focused 32/32 通过（Service 30 项、场景构造与行为 2 项）；`BmsOmsIrSubmissionTest` 27/27 通过，导出 18 份合成 JSON，其中 17 份新增覆盖真实规则 Mod、LR2 / LR2G 五轴以及 GAS 默认、显式设置和下限钳制。投射经过原生录制初始化、最终结果准备及保存字段 clone，保留 UUID、原设置和实际规则轴；它们是软件契约证据，不是玩家游玩。BMS 编译输出保留其他源文件的 CS8600 / CA2007 警告，不宣称零警告或依赖审计通过。

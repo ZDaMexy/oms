@@ -74,7 +74,7 @@ P1-F结合P1-G统一复核：
 
 - P1-M播放器在R3～R6/release门前不抢占工作；除产品明确改序外保持后置。
 - 已提前实现的Phase 2能力不代表Phase 1完成；1P/2P flip、完整FHS、dan、BSS/MSS等冻结，除非成为Phase 1阻塞修复。
-- 2026-10-03 用户授权的 [P3-IR](../subline/P3-IR/DEVELOPMENT_PLAN.md) 独立按需服务已进入主动连接 / 公网试运行；默认 endpoint、OMS/mania 官网谱面下载、聊天、多人与自动更新仍冻结。既有公共下载窄例外沿 P1-A 合同，不扩大旧全套在线面。
+- 2026-10-03 用户授权的 [P3-IR](../subline/P3-IR/DEVELOPMENT_PLAN.md) 独立按需服务已进入主动连接 / 公网试运行；2026-10-05 后续批准来源的官网谱面获取沿外部玩家网站专项推进。默认 endpoint、聊天、多人与自动更新仍冻结；既有客户端公共下载沿 P1-A，不扩大旧全套在线面。
 - 不盲目同步上游，只按[UPSTREAM](../other/UPSTREAM.md)选择性cherry-pick。
 
 ## 改动验收矩阵

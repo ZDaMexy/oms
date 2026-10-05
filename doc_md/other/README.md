@@ -5,6 +5,7 @@
 ## 使用说明与主题参考
 
 - [OMS IR 客户端与生产试运行](OMS_IR_CLIENT_RELEASE_20261003.md)：端内主动连接、保存后交分、待交恢复、公网合同、容量及候选验收边界。
+- [完整玩家网站与 mania 判定](OMS_PLAYER_SITE_20261005.md)：实际 osu-web 页面采用、批准源原包获取、公开最佳边界及客户端六类判定证据。
 - [完整皮肤制作手册](../../skin-authoring/docs/SKINNING.md)：随制作套件提供的入门、元素查表、进阶能力/上限与可运行例子；[旧入口](SKINNING.md)仅保留兼容路由。
 - [GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md](GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)：公共 slot、语法、三态和适用性。
 - [可选脚本指南](../../skin-authoring/docs/SCRIPTING.md)：数值语言、权限、预算和可运行例子；[旧入口](SKIN_SCRIPT_V1_AUTHORING.md)只作路由。
