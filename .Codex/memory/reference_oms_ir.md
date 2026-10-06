@@ -11,6 +11,8 @@
 - journal的秒级`--until`会截掉同秒亚秒shutdown日志；先保留实际Code2 / Status15 / Resultsuccess和PIDgone，再捕获包含关闭边界的日志。工具误判在stop之后失败时按实际停点续接，不重停 / 不拿旧快照覆盖；本次两次停服影响和原失败见P3-IR日志。
 - 临时观测文件逐件核完整inode / SHA和原effective设置；只撤销任务自己的90-*及本轮50-MemoryAccounting。默认Accounting本已yes时删除冗余runtime属性仍核实际yes，新维护pin保持。恢复原timer只在空间和固定源码门后，核enabled / active / waiting及实际NextElapse，不写死每日触发时刻。8对预算同时包含最大已获证gzip / sidecar、实际或批准最大raw / WAL及系统2GiB；现成daily snapshot大小也纳入MAX。
 
+- 2026-10-07 页面发布的正式oneshot结束后可能移除cgroup，MemoryPeak真实为`[not set]`；int转换失败的r6原件保留且未切换。以`start --no-block`采实际同一正starttimestamp / ExecMainPID的100ms运行帧，另核硬Max128 / swap0 / CPU50与终态成功、PIDgone；缺终态峰记null，观察峰不冒充全生命周期峰。timer暂停 / 等原worker结束后再操作，超时只停止自己的worker，所有收尾错误分别留证；新前端sidecar恢复保留旧完整release绑定，以同一投影兼容新manifest，源码回退不覆盖live。
+
 ## 成绩身份与最终保存
 
 - 旧 Player.prepareAndImportScoreAsync 中 SubmittingPlayer 的网络准备早于 BMS ruleset 最终结果准备。直接接旧入口会缺最终灯 / 血条；新 IR 消费最终保存成功并回写实际 UUID 的结果。
