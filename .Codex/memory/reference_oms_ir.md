@@ -81,3 +81,5 @@
 
 - 2026-10-06 counts22全量R6完成全部持续 / 恢复分项，独立driver实际内核和loaded峰值仍超Max256MiB 20,480B；原completed=true/pass=false完整14MB报告与终态均保全。上限是实际峰值门，不能减页缓存、换RSS、给容差或将成功分项升级整体。新观察进程可提前设置MemoryHigh以回收，MemoryMax、CPU、swap和原HTTP / 时长门保持，仍须真实新运行。
 - 只读mode=ro的WAL库可能创建空WAL与锁SHM：本次三库保全审计R1因此真实Exit1。保留失败原件与侧文件；只有固定自有副本的全部角色关闭、fuser闲置、非空WAL / journal已拒绝后，才可保留COMMON immutable读取并证明所有物理侧文件首尾恒等，不用于活动生产库或母库。F上执行的starter仅有F真实来源，主机参考副本不等于主机执行；完整收取的report/log/events其inode / ctime等证据不应被后续chmod改写。
+- Windows Python3.12的Path.stat把ctime报成birthtime，os.fstat可能报实际change time；跨API只比dev / ino / size / mtime / nlink / 明确birthtime，同API早晚继续核完整ctime / 属性和整件SHA，不把fd字段回填成原path证据。Linux校验编译报告中的F路径用PureWindowsPath；实际Linux文件仍用Path。修工具时另建来源、输出和单位，原失败保留，不改业务或门。
+- systemd关闭后的ControlGroup可能为空；不能拼出/sys/fs/cgroup并把全局根峰值冒充该单位终态。实际loaded MemoryPeak可另记，终态kernel不可用须如实记录，末次live不代填。要求新空目录的维护工具在接受目录前不能写入执行日志；日志另放明确独占位置，误写目录及拒绝证据保留。

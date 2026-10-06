@@ -1,5 +1,13 @@
 # OMS IR 历史
 
+## 2026-10-06：全量 R7 通过，发布仍待
+
+相同d1 / 22b / 234候选在原资源与HTTP上限下完成新全量R7：七来源查询、四来源各29,204条完整原生数组、120秒重叠 / 突发 / 1,800秒、两新空恢复及两次完整旧21安装升级均通过。实际driver1573435 loaded / Main0 / Code1 / Status0 / Resultsuccess / PID gone，MemoryPeak252,444,672B；2,169检查 / 12,481 HTTP无失败。完整原报告14,860,264B（证据标识7a18bac）与日志 / JSONL整件收F，collection40f4e69通过，完整指纹保存在外部证据。原full30 / all_predeployment=false保留，不据此签真人或生产上线。
+
+新三库终态R2审计PID1631949于UTC13:01以实际loaded Exit0结束，峰118,190,080B，原112High / 128MaxMiB / CPU50% / swap0不变。完整审计548,701B（证据标识6daa0b0）与实际F collection fe99d74通过，完整指纹保存在外部证据；三库全22表 / sequence / schema / FK / integrity、空WAL不可变读取及物理侧文件恒等均核。末次live内核值不当终态，已消失的cgroup不读全局根替代。
+
+原终态R1在Linux解析F路径时于SQLite之前失败，完整失败和单位保留；R2仅修F路径类型和来源标记，原运行、恢复、资源门及候选字节不改。Windows Path.stat / fstat的ctime定义差异只在跨API桥接处按dev / ino / size / mtime / nlink / birthtime核验，同API前后完整ctime和整件SHA继续保留。root首次备份包装提前写入空目录被拒，原失败保留，使用新独占空目录接续。当前完整F备份签收运行中，实际八对空间、生产保全 / 发布、公开缓存与同库回退仍待；生产b520、用户非调试与全部宿主真人 / P/C未提升。详细证据见[当前来源](DEVELOPMENT_STATUS.md#当前客户端与外部候选来源)及其外部验证链接。
+
 ## 2026-10-06：全量 R6 完成分项与资源失败
 
 客户端运行源码仍234a9ff，本文档与记忆同步不构成新构建或真人验收。外部当前候选d1f052 / 22b4已实现22表精确人数分布，软件focused121 / full336、小样本及指定b520真实UUID与外部最佳往返通过；实际全量R6于UTC09:13完成七来源 / 四原生完整数组 / 1,800秒 / 两新空恢复与旧21安装分项，但独立验收driver的实际峰值268,455,936B超256MiB上限20,480B，整轮false。完整报告1b440 / 失败收取0c4bc及真实Exit1保留，不能减峰、增容差或由分项代签。
