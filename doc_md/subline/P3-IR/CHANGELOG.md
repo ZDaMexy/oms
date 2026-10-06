@@ -1,5 +1,35 @@
 # OMS IR 历史
 
+## 2026-10-07：维护收尾与真人门
+
+运行仍d1f052b93a81 / 22b4ee54f237，客户端234a9ff未改。实际新→旧b520→新源码同库往返完成，旧阶段只读补核556574c7bd38、旧HTTP运行 / d1-helper正式备份a2aed221f9dc / F22表af79ca239a06、返回新源码1c9af6e33695分别留证。保留同一当前库，三阶段非配额全表指纹 / 原账号UUID / 外部状态 / 会话 / 社区相同，只有真实GET更新rate_limits；没有生产伪造新写或恢复旧raw。
+
+最终正式backup PID1772424加载Exit0 / PIDgone，Max128MiB / CPU50% / swap0，缓存117,964,800B；原观察器漏采prune PID的55cbe3c15204仍false，未造PID / 改原flags。已发布完整对在F独立全CRC / raw / 22表 / sequence / schema / FK / integrity核验通过f6792617c92c，具体来源取[服务原件](F:/zdamexy-workspace/oms-server/oms-backend/doc_md/other/oms-player-site-verification-20261005.md#生产发布与维护收尾)。
+
+[最终公开报告](../../../artifacts/oms-player-site-20261005/public-player-site-r7-20261006T163617Z-1be7ecbc/public-player-site-report.json)（15c682a35f39）实际156GET / 880检查通过。Ginger与616均ok、有两个真实候选，推荐Ginger入口307到pixeldrain.net未跟随；初次失败 / 616替代保持原记录。公开历史29,202身份与尾页1,461，未证明OMS条件 / 社区帖子时不造数据；普通浏览器多次30秒超时，视觉 / 刷新 / 点击 / 账号真人仍待。
+
+[最终实际空间](../../../artifacts/oms-player-site-20261005/production-final-space-closed-r7-8ce4df6c2091.json)（9d4d14d9546f）通过八对、最大gzip39,475,324B / 临时raw962,183,168B与系统2GiB计账，磁盘4,777,447,424B≥需求3,433,858,016B。worker1786416实际loadedExit0 / PIDgone / 128MiB，峰85,221,376B、OOM0；主机可用约870MiB / 负载0.05 / swap使用0。任务临时90与50-MemoryAccounting均按身份撤销，默认Accountingyes和d1维护pin保持；[恢复原timer](../../../artifacts/oms-player-site-20261005/production-final-restore-timer-r7-5da8b0a16d72.json)（73fd3449a133）enabled / active / waiting，实测下一次04:17:46CST。
+
+回退检查工具两次误判造成停服，原失败保留：catalog停止后先disable导致终态被回收，改为先收终态；秒级journal --until漏亚秒关闭日志，实际日志只读补采后从已停位置继续。Path('/proc')/int导致最后收取失败也只读补核，不重复停服 / 备份 / 恢复。维护和回退只取[当前运行说明](F:/zdamexy-workspace/oms-server/oms-backend/doc_md/other/oms-player-site-maintenance-20261006.md)。
+
+状态保持“已部署待验收”，先OMS＋全量历史＋ED7K先导P，再固定宿主 / 两架构 / 30玩法C；原登录 / 本人UUID / 旧待交归属、两端来源与同条件 / 分页 / 隐私、真实包入库及视觉真人未签。地力 / komasan / Walkure后置，PP后续优先但规则另议。仅文档与记忆同步，无新代码编译、Windows包 / publish / 安装副本。
+
+## 2026-10-06：完整玩家站部署待验收
+
+服务 / 网站运行来源为 d1f052b93a81 / 22b4ee54f237，客户端运行源234a9ff未改。22:39（CST）实际激活通过，22:42 Nginx重新加载通过；[激活原报告](../../../artifacts/oms-player-site-20261005/production-activation-r7-20261006T143857Z-e1c18b13/actor-activation-report.json)（01bce49bc86e）及[实际F终态](../../../artifacts/oms-player-site-20261005/production-activation-r7-20261006T143857Z-e1c18b13/activation-terminal.json)（4ebf5cfcafc7）各自留证。root重新加载收据为 production-root-nginx-reload-r7-20261006T144205Z-70fd765c.json，旧b520保全来源不改。当前“已部署待验收”，无新客户端构建、Windows发行包、publish或安装副本。
+
+新全量R7 / 三库终态R2保留7a18bac / 6daa0b0原来源；[三库完整F保全与精确退役](../../../artifacts/oms-player-site-20261005/retained-position-delta-r7-20261006T130537Z-9063a016/retention-report.json)（d4b8d5ebb801）与[独立空间补门](../../../artifacts/oms-player-site-20261005/position-delta-r7-fresh-space-r2.json)（97a6f9b43f0c）实际通过。原full30 / all_predeployment的false不回写，补门和部署另留收据；原R6 driver268,455,936B超过256MiB上限20KiB的1b4401报告与失败终态保持，不用RSS或容差改判。
+
+[匿名公开报告](../../../artifacts/oms-player-site-20261005/public-player-site-r7-20261006T144252Z-637e7601/public-player-site-report.json)（d97c2bb7f840）完成156 GET / 880检查：首页、下载、新闻、帮助、IR、谱面、玩家页、排行、社区与来源说明按实际路由核对；旧八项ETag / If-Modified-Since获得新200完整body，新ETag获得304，两站正常TLS主页和指定缺失ACME路径保持。热谱按实际资格得到29,202独立历史身份 / 第1,461尾页，原未知条件 / 原灯保留；没有OMS条件，不签同条件真人，没有现存社区帖，不造帖子。只签已请求的公开页面与关系，不以抽样页面代签全档案字节；普通浏览器工具多次30秒超时，视觉 / 刷新 / 点击与真人账号仍待。
+
+下载元数据中Ginger实际失败，616按真实MD5 / SHA匹配，下载入口返回307到 bms.alvorna.com，未跟随下载谱包。外源失败与可用替代分别保留，不将失败写为空命中，也不声明包下载 / 入库完成。独立catalog worker在三个受保护位置实际得到EACCES13，拒读live库 / 备份 / 历史文件；收据 catalog-production-sandbox-root-r7-20261006T144750Z-0b7cd589.json。默认离线、主动请求与原站外链范围未扩。
+
+生产旧core的before备份对已在受保护F完整核验（168608b），其raw与激活前保全一致。新[正式备份收取](../../../artifacts/oms-player-site-20261005/production-post-r7-6c6ae4c8cf6c/backup-collection.json)（b17c63c60003）和[完整F核验](../../../artifacts/oms-player-site-20261005/production-post-r7-6c6ae4c8cf6c/pair-verification.json)（f9b46a9ef354）通过全22表 / sequence / schema / CRC / integrity / FK，维护helper与sidecar实际运行来源分开绑定，不将helper身份写成运行版本。
+
+[两个新空目录恢复](../../../artifacts/oms-player-site-20261005/production-two-empty-restores-root-r7-7b61dc80e981.json)（a7e7972ef068）及各自收取8424b41babec / f52bac7b49d6通过，只触及隔离恢复目标，production_live_restored=false。宿主恢复以完整raw字节相等继承F的全22表指纹，宿主独立全表测量仍false；原失败按各自收据保持。当次旧HTTP同库往返、timer与最终空间尚待，2026-10-07实际收尾见[后续记录](#2026-10-07维护收尾与真人门)，不回写旧门成功。
+
+真人30玩法矩阵、固定宿主交分 / 原生读榜、OMS原工具栏登录 / 个人页、两端来源 / 同条件 / 尾页 / 隐私、原账号待交UUID与离线仍待；接续路线取[计划](DEVELOPMENT_PLAN.md#真实环境验收与剩余门)，用户通过VS Code非调试启动。地力黑星、komasan方向与Walkure后置，标准和客户端方案待讨论，PP后续优先但不自造规则 / 分数。此项只同步客户端文档与记忆，当前文档检查由根执行者另跑，不刷新客户端产品 / 真人日期或关闭P/C。
+
 ## 2026-10-06：全量 R7 通过，发布仍待
 
 相同d1 / 22b / 234候选在原资源与HTTP上限下完成新全量R7：七来源查询、四来源各29,204条完整原生数组、120秒重叠 / 突发 / 1,800秒、两新空恢复及两次完整旧21安装升级均通过。实际driver1573435 loaded / Main0 / Code1 / Status0 / Resultsuccess / PID gone，MemoryPeak252,444,672B；2,169检查 / 12,481 HTTP无失败。完整原报告14,860,264B（证据标识7a18bac）与日志 / JSONL整件收F，collection40f4e69通过，完整指纹保存在外部证据。原full30 / all_predeployment=false保留，不据此签真人或生产上线。

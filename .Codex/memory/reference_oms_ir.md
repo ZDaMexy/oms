@@ -6,6 +6,11 @@
 
 - 2026-10-05 原账号 / 实际 osu-web 发布：运行 manifest 绑定已提交源码、插件实际构建及对应源码下载，后续文档 HEAD 不能冒充 runtime。读取 profile / 来源本身会更新 SQLite rate_limits；回退指纹应完整核对玩家 / 会话 / 撤销 / 社区与 schema，单独记录该真实限流命中，不能谎报所有表全等或放宽限额。门户 no-cache 与 IR 既有 no-store 都要求重新请求，校验脚本不能因更严格 no-store 误报。浏览器 fullPage 导出 / viewport override 与实际 native 画面不一致时保留失败并明确窄屏待复核；公网 AX/DOM/reload 超时而截图可用，只签实际截图，不能以 HTTP 字节或旧截图代签普通刷新和点击往返。
 
+- 2026-10-07 已部署站的收尾必须区别实际formal备份和观察器：短prune子PID漏采时原observer false不改；保留actual loaded Exit0 / 正峰 / PIDgone与原件，独立F full CRC / raw / 22表验证，只签这份完整对，不造未观察PID。早先同一固定helper backup/prune真实观察另留来源。源码新→旧→新用同一live，配额因GET可变，原账号UUID和全部非配额表逐表核对。
+- `systemctl disable --now`可能回收inactive单元终态，停止catalog后先收loaded / 原PID / 缓存峰再disable；卸载后不能以ExecMainPID0 / 未设置峰改签正常资源门。`Path('/proc') / PID`必须str；最后收取失败仅只读补核原关闭角色 / 原件，不重复源码切换和API来制造新证明。
+- journal的秒级`--until`会截掉同秒亚秒shutdown日志；先保留实际Code2 / Status15 / Resultsuccess和PIDgone，再捕获包含关闭边界的日志。工具误判在stop之后失败时按实际停点续接，不重停 / 不拿旧快照覆盖；本次两次停服影响和原失败见P3-IR日志。
+- 临时观测文件逐件核完整inode / SHA和原effective设置；只撤销任务自己的90-*及本轮50-MemoryAccounting。默认Accounting本已yes时删除冗余runtime属性仍核实际yes，新维护pin保持。恢复原timer只在空间和固定源码门后，核enabled / active / waiting及实际NextElapse，不写死每日触发时刻。8对预算同时包含最大已获证gzip / sidecar、实际或批准最大raw / WAL及系统2GiB；现成daily snapshot大小也纳入MAX。
+
 ## 成绩身份与最终保存
 
 - 旧 Player.prepareAndImportScoreAsync 中 SubmittingPlayer 的网络准备早于 BMS ruleset 最终结果准备。直接接旧入口会缺最终灯 / 血条；新 IR 消费最终保存成功并回写实际 UUID 的结果。
@@ -81,5 +86,8 @@
 
 - 2026-10-06 counts22全量R6完成全部持续 / 恢复分项，独立driver实际内核和loaded峰值仍超Max256MiB 20,480B；原completed=true/pass=false完整14MB报告与终态均保全。上限是实际峰值门，不能减页缓存、换RSS、给容差或将成功分项升级整体。新观察进程可提前设置MemoryHigh以回收，MemoryMax、CPU、swap和原HTTP / 时长门保持，仍须真实新运行。
 - 只读mode=ro的WAL库可能创建空WAL与锁SHM：本次三库保全审计R1因此真实Exit1。保留失败原件与侧文件；只有固定自有副本的全部角色关闭、fuser闲置、非空WAL / journal已拒绝后，才可保留COMMON immutable读取并证明所有物理侧文件首尾恒等，不用于活动生产库或母库。F上执行的starter仅有F真实来源，主机参考副本不等于主机执行；完整收取的report/log/events其inode / ctime等证据不应被后续chmod改写。
-- Windows Python3.12的Path.stat把ctime报成birthtime，os.fstat可能报实际change time；跨API只比dev / ino / size / mtime / nlink / 明确birthtime，同API早晚继续核完整ctime / 属性和整件SHA，不把fd字段回填成原path证据。Linux校验编译报告中的F路径用PureWindowsPath；实际Linux文件仍用Path。修工具时另建来源、输出和单位，原失败保留，不改业务或门。
-- systemd关闭后的ControlGroup可能为空；不能拼出/sys/fs/cgroup并把全局根峰值冒充该单位终态。实际loaded MemoryPeak可另记，终态kernel不可用须如实记录，末次live不代填。要求新空目录的维护工具在接受目录前不能写入执行日志；日志另放明确独占位置，误写目录及拒绝证据保留。
+- Windows Python3.12的Path.stat把ctime报成birthtime，os.fstat可能报实际change time；跨API只比dev / ino / size / mtime / nlink / 明确birthtime，同API早晚继续核完整ctime / 属性和整件SHA，不把fd字段回填成原path证据。Windows只读本身可能改变atime，须保留真实before / after，不能由它断言源被写或替改证据；Linux显式O_NOATIME仍按实际字段核。Linux校验编译报告中的F路径用PureWindowsPath，实际Linux文件用Path；旧失败来源 / 输出保留。
+- systemd关闭后的ControlGroup可能为空；不能拼出/sys/fs/cgroup把全局根峰值冒充该单位终态。实际loaded MemoryPeak独立保留，终态kernel不可用如实记录，末次live不代填。本次before实际报告通过而F终态观察因空group失败：原false原件保留，另用独立只读收取同一次已退出单位 / 实际PID / 原源码 / 全输入与输出，再签新观察；不重跑旧before或备份，不虚构timeout。新空目录被接受前不能写入执行日志，误写与拒绝证据保留。
+- 发布的运行release.json（3370fbfbcb7d）与AGPL源码offer清单（c627b813eb36）用途不同：前者绑定实际部署字节和runtime，后者绑定公开构建源码 / 固定依赖 / 许可。HTML或source-only清单不能代替运行format3；后续文档HEAD也不更新运行来源。维护helper保持新counts22源码，但备份sidecar必须记录当时真实current来源，旧b520同库回退不把新helper伪装为旧运行版本。
+- typed终态按实际共有字段逐键核对，保留两份完整叶子；18字段包装与21字段完整systemctl记录不要求整对象同形，也不能漏PID / unit / 来源 / 预算。先整件收F，再核同一单位实际loaded MainPID0 / ExecMainPID / Code / Status / Result / PIDgone / cached峰，内核可得性另记。正常uvicorn SIGTERM可为Code2 / Status15 / Resultsuccess，但须配实际同PID顺序关闭日志；维护worker仍要求真实Code1 / Status0，不伪造Exit0或以live替代终态。
+- 维护报告用setup.evidence_directory的实际具体子目录定位：主机 production-backup-r7-ID/worker-report.json / observer-events.jsonl 与backup.stdout.log，不在证据根猜同名report；F签收在 production-post-r7-ID/backup-collection.json，完整核验在pair-verification.json。必须从本次完整stdout的准确发布行识别gzip / sidecar，不找latest；失败worker已有报告却没有pair时仍完整保全后来真实发布对，原flags不改。正式恢复用原对在两个新空目录整raw字节相等继承F全22表证明，不能说已独立主机逐表测量。
