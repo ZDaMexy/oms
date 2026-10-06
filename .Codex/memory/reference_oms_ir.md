@@ -71,3 +71,8 @@
 - r2十次首BMS454.771ms仍失败。独立只读分段中摘要26ms、排名约376ms；本人缓存摘要改法仍总387ms，不能只凭删raw枚举当修复。descriptor JSON不带source，读取实际scope列。原transient服务停止后可能LoadState=not-found / ExecMainPID0，结合原报告实际PID与/proc gone核对，不伪造终态PID；来源、函数实验与真正HTTP门分开。
 
 - WITHOUT ROWID表的`NOT INDEXED`标签不能代签主键扫描；实际EQP为准。2026-10-06覆盖排名副本数学通过，正式唯一索引按精确完整旧/新结构升级；物理结构改变须重跑完整来源/写成本/恢复门，不能复用纯读取合同。只读backup保全旧schema，升级失败连索引回滚；25d/3ab严格拒绝新索引，指定b520回退仍须实测，新维护helper保持固定。seed.archive是公开信息字典，不是raw路径；保全失败原值保持，完整F核验后只定点退役实际raw。
+
+- Windows `str(Path('/opt/...'))`会带反斜线；远端身份串行化用POSIX字符串或`as_posix()`。CPUQuota显示的精度依实际主机，真实150%可能为`1.500000s`，先取证再用等价数值核验；SQLite实际索引DDL可含换行，只做SQL空白正规化，完整schema指纹仍保留原字节。
+- systemd `--collect`会丢真实终态，`RemainAfterExit=yes`与`--wait`会挂住；用独占文件、非阻塞启动、实际PID / starttime握手与loaded终态MemoryPeak。已退出成功单位不设持续RuntimeMaxSec，以免后续长门中改成timeout；保留有限轮询失败边界。末次live内核峰不冒充终态，内外gzip与controller各自实测。
+
+- 新索引存在、自动被用与HTTP预算是三个事实：2026-10-06 R3真实首HTTP622.113ms失败，后九次约29ms；六条件COUNT的后置EQP确用正式COVERING，独立函数24～38ms却read_bytes全0。系统缓存命中和不含quota写 / commit / close的函数诊断不解释首HTTP，不据此盲加INDEXED BY或删首请求；需独立合成副本的完整HTTP分段。driver累计memory.max历史事件已在前窗口存在，若本窗口不增不得归因本次尾延迟。

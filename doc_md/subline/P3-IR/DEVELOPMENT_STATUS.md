@@ -10,12 +10,12 @@
 
 ## 当前客户端与外部候选来源
 
-当前客户端运行源码为 `234a9ff39654cdc30f3d5661cb6a9bf69bb90db6`，含原登录 / 本人页与 mania 六判定；文档 HEAD `f05d` 和本次更新不构成新运行验证。默认空地址、旧在线总开关 false 及原 body / UUID / owner 不变；窗口 / 焦点 / 长名、实服分页、旧待交和网页同范围仍待用户 VS Code 非调试验收，无 Windows 发行包。
+当前客户端运行源码为 `234a9ff39654cdc30f3d5661cb6a9bf69bb90db6`，含原登录 / 本人页与 mania 六判定；文档 HEAD 和本次更新不构成新运行验证。默认空地址、旧在线总开关 false 及原 body / UUID / owner 不变；窗口 / 焦点 / 长名、实服分页、旧待交和网页同范围仍待用户 VS Code 非调试验收，无 Windows 发行包。
 
-生产仍为 `b520bcb99015-5d0531c22423`；新完整玩家站候选 `25d32397c330-37f05e2ca369` 已准备但**未部署**。
-r1第一次新空恢复的统计首次330.510ms超过300，原失败保留；两失败测试库已完整F保全后定点退役。
-2026-10-06 新r2七查询分项后，首BMS个人454.771ms失败；原生 / 1,800秒 / 个人重叠及恢复未发生。排名首读修复与实际七日余量仍待。
-旧3ab成功分项与原空间false保留来源，详细证据取[外部本次服务验证](F:/zdamexy-workspace/oms-server/oms-backend/doc_md/other/oms-player-site-verification-20261005.md)。增量边界见[本线计划](DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜实施)。
+生产仍为 `b520bcb99015-5d0531c22423`；新完整玩家站候选 `24eef4c71844-22b4ee54f237` 已准备但**未部署**。
+新索引的两尺度个人读取、旧库升级与指定b520真实写入返回已通过；新R3七来源全量查询分项通过，但首次BMS个人622.113ms超300，真实总门false，尚未到原生 / 1,800秒 / 两新空恢复。
+旧25d的r1恢复330.510ms、r2首次454.771ms及旧3ab空间false保留各自来源；失败raw已完整F保全后定点退役，新R3单主raw待只读取证与保全。
+详细来源、实际终态与未完门取[外部本次服务验证](F:/zdamexy-workspace/oms-server/oms-backend/doc_md/other/oms-player-site-verification-20261005.md#新索引全量首读仍失败2026-10-06)，范围见[本线计划](DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜实施)。
 
 地力评级 / Walkure 后置；PP 为后续优先方向，规则与来源资格独立采用后实施，现有收录 / 通关 / mania 累计指标不标 PP。先导 P / 完整 C 和所有宿主真人格仍待验收。
 
@@ -38,7 +38,7 @@ r1第一次新空恢复的统计首次330.510ms超过300，原失败保留；两
 
 ## 最近一次验证
 
-2026-10-06 唯一排名索引与旧库原子升级软件门通过，SQL提速不代签HTTP。新主机 / 旧写 / 全量持续 / 两恢复及发布待，生产b520；取[执行记录](DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜实施)。客户端234未变，真人P/C未提升。
+2026-10-06 排名索引软件、实际旧库升级和b520往返已通过，但新全量首次BMS622.113ms仍失败；后续持续 / 两恢复 / 发布未完成，生产b520。取[执行记录](DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜实施)；客户端234未变，真人P/C未提升。
 
 2026-10-06 OpenLR2 R4 在3ab源码 / 固定SDK / 专用软件Host上通过双架构非空消费；不证明正式DLL与真实EXE的STL、标准LN、UI、线程或断线。1,002身份、请求 / 统计 / 缓存推断和实际构建来源见[本日记录](CHANGELOG.md)。后续25d正式重编不改R4来源，P/C真人仍待。
 
@@ -50,17 +50,13 @@ r1第一次新空恢复的统计首次330.510ms超过300，原失败保留；两
 个人页保留本人逐局记录，网页外链仅带真实OMS ID；不造旧APIUser、PP或头像。Desktop普通Release编译成功，原BMS两警告保留，未打包。
 命令、失败身份、日志 / TRX与修复见[本线日志](CHANGELOG.md#2026-10-05原登录和个人页复用)。布局 / 焦点 / 长名、实服分页与网页同账号仍待真人，不签收P/C。
 
-2026-10-04 集中 Release 复编后，`osu.Game.Tests` 的 Service / Overlay focused 32/32 通过（Service 30 项、场景构造与行为 2 项）；`BmsOmsIrSubmissionTest` 27/27 通过，导出 18 份合成 JSON，其中 17 份新增覆盖真实规则 Mod、LR2 / LR2G 五轴以及 GAS 默认、显式设置和下限钳制。投射经过原生录制初始化、最终结果准备及保存字段 clone，保留 UUID、原设置和实际规则轴；它们是软件契约证据，不是玩家游玩。BMS 编译输出保留其他源文件的 CS8600 / CA2007 警告，不宣称零警告或依赖审计通过。
-
-来源范围、空选择、原 EX 排序、旧同名身份、独立灯、本人名次、mania 回归、选谱变化和迟到响应由场景验证；有效会话的 v2 Bearer、原 v1 刷新与不退匿名由 Service 验证。首次无输入目录读取曾因内部搜索 Bindable 默认 null，在进入 HTTP 前失败；初始化为 `string.Empty` 后原行为断言通过，临时诊断输出已删除。日志 / TRX 和新导出留 `artifacts/oms-ir-multisource-20261004/`，身份与命令配置归[本线日志](CHANGELOG.md#2026-10-04多来源正式采用与客户端查询)；早期失败证据保留。
-
-随后同一 Release 编译产物的全部 core IR relevant 46/46 通过，涵盖提交、Player 保存链、Service 与面板；Desktop 普通 Release 编译成功。18份实际Create导出在隔离服务原样受理，再交保持同UUID和原规则字段，完整本人记录守恒；首轮探针错误使用不存在的score.user字段，修正验收工具后以本人历史核对，不是产品上传失败。证据为 `oms-all-relevant.log` / `oms-ir-all-relevant.trx`、`desktop-release.log`、`m1-client-backend-report.json`；没有写入本次生产测试账号或成绩。
+2026-10-04 客户端多来源查询、真实规则Mod投射、保存后UUID和迟到响应已有有效Release软件门；18份实际Create导出在隔离服务原样受理，Desktop普通Release编译通过。首轮场景默认null与验收字段错误均保留失败身份，未改变原UUID / 规则 / owner。命令、TRX、完整计数和原两编译警告归[当日记录](CHANGELOG.md#2026-10-04多来源正式采用与客户端查询)，不代签真人。
 
 2026-10-03 原 Player / Realm、公网两份 C# 合成受理、Desktop 与发行历史证据仍归[客户端发布记录](../../other/OMS_IR_CLIENT_RELEASE_20261003.md)和 `artifacts/oms-ir-release-20261003/`，首轮留 `artifacts/oms-ir-start-20261003/`。本次未生成 Windows 发行包、publish 或安装副本，也未签收真实手动游玩、目标宿主及此前 Phase 1.x 设备 / 皮肤 / 发行门。
 
 ## 文档治理验证
 
-2026-10-06 根执行 CheckDocumentation.ps1 / git diff --check通过（199Markdown / 2017链接 / 310锚点 / 125记忆wiki链），workspace124文档 / 930链接通过；证据为 `client-docs-r9.log`。此次长度精简后提交前复检结果另存 `artifacts/oms-player-site-20261005/client-docs-r10.log`；原通用警告保留，仅同步文档，不刷新产品 / 真人日期。
+2026-10-06 根执行 CheckDocumentation.ps1 / git diff --check通过（199Markdown / 2018链接 / 312锚点 / 125记忆wiki链），workspace124文档 / 936链接通过；证据为 `client-docs-r17.log` / `workspace-verification-r23.log`。原82未提交路径指纹保持，`original-dirty-guard-r23.json`通过。原通用警告保留，只同步文档，不刷新产品 / 真人日期。
 
 2026-10-05，外部实际部署、公开匿名读榜、P/C剩余门、维护与收据故障已同步状态/计划/日志及记忆；统一执行者运行 CheckDocumentation.ps1 与 git diff --check 通过（198Markdown/2002相对链接/305锚点/125记忆wiki链）。原有公开checksum/通用路径提示保留；证据为 `artifacts/oms-ir-multisource-20261004/client-docs-deployment-r10-r3.log`，外部协作检查110文档/739链接及原来源/消费者边界独立核对。只同步文档，没有重跑未改客户端产品、生成Windows包或代签真人。
 

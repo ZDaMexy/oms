@@ -1,5 +1,9 @@
 # OMS IR 历史
 
+## 2026-10-06：新索引主机分项与全量首读失败
+
+客户端运行来源234未改；外部新候选24eef / 22b完成严格导出、两尺度R8、完整旧addon升级及指定b520真实写入返回，F完整保全与退役实际合成raw。新R3七来源查询分项通过，但首次BMS个人622.113ms超300、原PID1309440 Exit1，原false / 报告 / JSONL / 日志保留，尚未到原生、120秒 / 1,800秒或两新空恢复。只读诊断六条件COUNT实际均COVERING、完整内容一致，缓存函数24～38ms不解释原首HTTP。细节和actual来源只取[外部验证](F:/zdamexy-workspace/oms-server/oms-backend/doc_md/other/oms-player-site-verification-20261005.md#新索引全量首读仍失败2026-10-06)，生产仍b520，无新Windows构建 / 包或真人P/C签收。
+
 ## 2026-10-06：外部玩家统计与 OpenLR2 软件门投影
 
 仅同步客户端P3-IR四件套和诊断记忆，客户端运行源码仍为 `234a9ff39654cdc30f3d5661cb6a9bf69bb90db6`；原账号适配6bc / 多来源b7来源和原软件日期保留，后续文档HEAD `f05d` 不当新runtime。用户从当前F:/oms经VS Code非调试启动验收原登录 / 个人页、窗口焦点 / 长名、原待交 / UUID / owner、实服分页与网页一致；这些与P/C真人仍未签收。无新构建、Windows发行包、publish、额外安装或生产部署。
