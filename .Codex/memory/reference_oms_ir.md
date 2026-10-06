@@ -78,3 +78,6 @@
 - systemd `--collect`会丢真实终态，`RemainAfterExit=yes`与`--wait`会挂住；用独占文件、非阻塞启动、实际PID / starttime握手与loaded终态MemoryPeak。已退出成功单位不设持续RuntimeMaxSec，以免后续长门中改成timeout；保留有限轮询失败边界。末次live内核峰不冒充终态，内外gzip与controller各自实测。
 
 - 新索引存在、自动被用与HTTP预算是三个事实：2026-10-06 R3真实首HTTP622.113ms失败，后九次约29ms；六条件COUNT的后置EQP确用正式COVERING，独立函数24～38ms却read_bytes全0。系统缓存命中和不含quota写 / commit / close的函数诊断不解释首HTTP，不据此盲加INDEXED BY或删首请求；需独立合成副本的完整HTTP分段。driver累计memory.max历史事件已在前窗口存在，若本窗口不增不得归因本次尾延迟。
+
+- 2026-10-06 counts22全量R6完成全部持续 / 恢复分项，独立driver实际内核和loaded峰值仍超Max256MiB 20,480B；原completed=true/pass=false完整14MB报告与终态均保全。上限是实际峰值门，不能减页缓存、换RSS、给容差或将成功分项升级整体。新观察进程可提前设置MemoryHigh以回收，MemoryMax、CPU、swap和原HTTP / 时长门保持，仍须真实新运行。
+- 只读mode=ro的WAL库可能创建空WAL与锁SHM：本次三库保全审计R1因此真实Exit1。保留失败原件与侧文件；只有固定自有副本的全部角色关闭、fuser闲置、非空WAL / journal已拒绝后，才可保留COMMON immutable读取并证明所有物理侧文件首尾恒等，不用于活动生产库或母库。F上执行的starter仅有F真实来源，主机参考副本不等于主机执行；完整收取的report/log/events其inode / ctime等证据不应被后续chmod改写。

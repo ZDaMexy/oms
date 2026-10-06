@@ -11,7 +11,7 @@
 - [内置音乐播放器](project_oms_music_player.md) — 共用音轨/试听与队列接入、已定展开壳体和 core 依赖方向。
 - [内置 BMS 下载](reference_bms_builtin_download.md) — 完整表与包身份、目录手动恢复、归档预算/CRC/释放语义、首次完成旧快照、任务收尾与精确选歌。
 - [Sayobot mania 下载](reference_mania_sayobot_download.md) — 原游标/混合包、原sid/bid与实际MD5、镜像节点；两玩法共享封面、首次完成旧快照的回链与退出诊断。
-- [OMS IR 接入](reference_oms_ir.md) — 源码 / 文档HEAD、UUID归属与原账号UI；mania判定、镜像身份、统计隐私、多来源整榜 / 独立灯；共享主机cgroup/WAL、峰值 / 全局分页、SDK与Open软件Host；CRC / 恢复外取 / 精确退役、WinPS模块与超时、mtime / ETag、真实查询计划、旧结构原子升级 / 固定维护、执行器回收、采样跨度及十次首请求 / 失败保全、POSIX路径 / 实际配额格式 / loaded终态运输、人数返回类型与残留WAL。
+- [OMS IR 接入](reference_oms_ir.md) — 源码 / 文档HEAD、UUID归属与原账号UI；mania判定、镜像身份、统计隐私、多来源整榜 / 独立灯；共享主机cgroup/WAL、峰值 / 全局分页、SDK与Open软件Host；CRC / 恢复外取 / 精确退役、WinPS模块与超时、mtime / ETag、真实查询计划、旧结构原子升级 / 固定维护、执行器回收、采样跨度及十次首请求 / 失败保全、POSIX路径 / 实际配额格式 / loaded终态运输、人数返回类型与残留WAL、边界峰值 / 空WAL不可变核验 / F启动器。
 
 ## 皮肤恢复与存储
 
