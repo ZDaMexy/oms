@@ -69,3 +69,5 @@
 - 增长报告每次HTTP成功整份重写会增加driver CPU / 回收干扰；2026-10-06恢复首次330.510ms仍失败，不能因只读函数约20ms就认定根因或删首请求。成功事件独占逐行记录，失败保全；十次最近秩p95=max，不用更多暖读稀释。实际采样首末跨度与外包围墙钟、原HTTP末条时长分开，分别记录来源。
 - 失败保全按实际对象：上述r1只有主库 / restore1两raw，没有restore2；三raw pass-only工具不能套用。先完整F gzip EOF CRC / raw SHA / 全21表 / schema / sequence / FK核验，再按关闭PID、inode、字节定点退役，原false不改。zero WAL的残留SHM不是未提交状态，不为它自动写库或删除侧文件。
 - r2十次首BMS454.771ms仍失败。独立只读分段中摘要26ms、排名约376ms；本人缓存摘要改法仍总387ms，不能只凭删raw枚举当修复。descriptor JSON不带source，读取实际scope列。原transient服务停止后可能LoadState=not-found / ExecMainPID0，结合原报告实际PID与/proc gone核对，不伪造终态PID；来源、函数实验与真正HTTP门分开。
+
+- WITHOUT ROWID表的`NOT INDEXED`标签不能代签主键扫描；实际EQP为准。2026-10-06覆盖排名副本数学通过，正式唯一索引按精确完整旧/新结构升级；物理结构改变须重跑完整来源/写成本/恢复门，不能复用纯读取合同。只读backup保全旧schema，升级失败连索引回滚；25d/3ab严格拒绝新索引，指定b520回退仍须实测，新维护helper保持固定。seed.archive是公开信息字典，不是raw路径；保全失败原值保持，完整F核验后只定点退役实际raw。
