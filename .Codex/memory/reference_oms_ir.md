@@ -66,3 +66,6 @@
 - 玩家统计先看真实EXPLAIN：GROUP BY可能使SQLite选scores_history回表，即使存在scores_lamp覆盖索引；全scores_reference再逐局JOIN还会反复计算条件JSON。请求内先筛真实eligible_groups，再沿实际覆盖范围聚合；新执行器/索引声明或小样本不能代签同规模p95。
 - 测试driver和服务是不同进程：driver的MemoryHigh也会产生回收延迟；256MiB完整整榜解码执行器不能当作生产或维护预算，主服务500MiB、维护128MiB要分别实测。记录实际cgroup事件/peak，异常时保留旧失败再复核，不由推测消除时限失败。
 - Windows上的sqlite3 Connection `with`只结束事务，不保证close；完整解压CRC/hash核验后删除F盘临时库须显式close或contextlib.closing。WinError32时保全源库和压缩证据，修正后从完整重新核验继续，不能跳过旧失败或删整目录。
+- 增长报告每次HTTP成功整份重写会增加driver CPU / 回收干扰；2026-10-06恢复首次330.510ms仍失败，不能因只读函数约20ms就认定根因或删首请求。成功事件独占逐行记录，失败保全；十次最近秩p95=max，不用更多暖读稀释。实际采样首末跨度与外包围墙钟、原HTTP末条时长分开，分别记录来源。
+- 失败保全按实际对象：上述r1只有主库 / restore1两raw，没有restore2；三raw pass-only工具不能套用。先完整F gzip EOF CRC / raw SHA / 全21表 / schema / sequence / FK核验，再按关闭PID、inode、字节定点退役，原false不改。zero WAL的残留SHM不是未提交状态，不为它自动写库或删除侧文件。
+- r2十次首BMS454.771ms仍失败。独立只读分段中摘要26ms、排名约376ms；本人缓存摘要改法仍总387ms，不能只凭删raw枚举当修复。descriptor JSON不带source，读取实际scope列。原transient服务停止后可能LoadState=not-found / ExecMainPID0，结合原报告实际PID与/proc gone核对，不伪造终态PID；来源、函数实验与真正HTTP门分开。
