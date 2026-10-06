@@ -62,6 +62,8 @@
 
 ## 玩家网站与发布诊断
 
+- counts22 当前 `player_position` 返回完整 `rank` / `total_players` 字典；检查器不能与tuple比较或用`*dict`记录数值。2026-10-06 small R2因此真实失败，R3只修工具合同后通过全部逐人原始数学。服务正常关闭须主动SIGTERM own main并保留loaded单位，已退出后再`systemctl stop`会卸载transient；维护工具也受同一边界约束。全量R4的512MiB余量失败在guard前未落最小样本，不能以终态内存补填；重新实测先保存同窗口driver/main实际观察。关闭后的合成库仍可能有已提交WAL，先完整封存raw/WAL/SHM及组合逻辑指纹，再独立必要checkpoint；只读终态失败不改成成功。
+
 - `tarfile.TarInfo` 默认mtime=0；实际BT Nginx的静态ETag依赖mtime和长度，内容变而长度不变会错误304，即使Cache-Control=no-cache也仍旧显示。2026-10-06实际独立探针复现并验证实际发布时间可修正；外层发布条目统一created_at秒，内容SHA仍独立绑定。内部源码归档固定时间不等于HTTP文件时间。
 - 玩家统计先看真实EXPLAIN：GROUP BY可能使SQLite选scores_history回表，即使存在scores_lamp覆盖索引；全scores_reference再逐局JOIN还会反复计算条件JSON。请求内先筛真实eligible_groups，再沿实际覆盖范围聚合；新执行器/索引声明或小样本不能代签同规模p95。
 - 测试driver和服务是不同进程：driver的MemoryHigh也会产生回收延迟；256MiB完整整榜解码执行器不能当作生产或维护预算，主服务500MiB、维护128MiB要分别实测。记录实际cgroup事件/peak，异常时保留旧失败再复核，不由推测消除时限失败。
