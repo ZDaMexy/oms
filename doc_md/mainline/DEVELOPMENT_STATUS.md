@@ -17,6 +17,8 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 2026-10-05 按用户采用将 IR 账号与本人记录接入原 lazer 用户按钮、登录窗口与个人页，奖杯仅查榜；原账号界面 / 隔离软件门与普通 Desktop 编译通过。实际 osu-web 官网已部署待验收，准确外部来源、维护与未完门见 [P3-IR](../subline/P3-IR/DEVELOPMENT_STATUS.md#玩家当前能做什么)。不重新启用旧在线生命周期；用户非调试真机、两端真实对照与 P/C 未签收。
 
+2026-10-06 完整玩家网站候选d1 / 22b仍未部署；R6实际资源失败保留，完整F保全退役后已启动相同上限的新全量R7。当前外部来源、运行 / 空间 / 发布与真人未完门只取 [P3-IR当前来源](../subline/P3-IR/DEVELOPMENT_STATUS.md#当前客户端与外部候选来源)，客户端运行源码234未改，原全项目人工 / 发行门保持。
+
 静线已完成当前控制区、分段血槽、轨宽及演奏信息迭代：白黑/皿轨独立比例，BGA布局由皮肤声明，作者标级与表名/表内等级独立显示。正常开发启动、build/publish只同步simple源。当前暂停继续打磨，既有成果、最新验证和未完成门统一见[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)；历史双内置和各轮截图不作为新的签收。
 
 - Windows-only，保留osu!mania与第一类BMS，Osu/Taiko/Catch已删除；离线优先，默认 endpoint 为空。用户授权的独立 IR 主动连接 / 试运行沿 P3-IR，不扩大旧全套在线产品面。公共BMS难度表URL、用户指定Ginger Rush / 616 BMS与Sayobot原生mania镜像下载为窄例外，合同见 P1-A [BMS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) / [mania](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载)。
