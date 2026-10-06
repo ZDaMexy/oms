@@ -96,7 +96,7 @@ namespace osu.Game.Overlays.Login
                     },
                 },
                 button("个人资料", () => ShowProfile?.Invoke()),
-                button("重试待交", () => run(ir.RetryPendingAsync)),
+                button("重试上传", () => run(ir.RetryPendingAsync)),
                 button("连接设置", () => ConnectionSettings?.Invoke()),
                 button("退出账号", () => run(ir.LogoutAsync)),
             };
@@ -115,7 +115,16 @@ namespace osu.Game.Overlays.Login
 
         private void applyState(OmsIrState state)
         {
-            status.Text = $"{(state.Enabled ? "IR 已启用" : "IR 已关闭")} · {state.ServiceAddress}\n待交 {state.PendingCount} · 暂不能提交 {state.BlockedCount} · 其他账号待交 {state.WaitingOtherAccountCount}\n{state.Message}";
+            var lines = new List<string> { $"{(state.Enabled ? "IR 已启用" : "IR 已关闭")} · {state.ServiceAddress}" };
+            if (state.PendingCount > 0)
+                lines.Add($"待上传 {state.PendingCount} 条");
+            if (state.BlockedCount > 0)
+                lines.Add($"暂不能上传 {state.BlockedCount} 条");
+            if (state.WaitingOtherAccountCount > 0)
+                lines.Add($"其他账号有 {state.WaitingOtherAccountCount} 条待上传成绩，请登录原账号重试。");
+            if (state.Message.Length > 0)
+                lines.Add(state.Message);
+            status.Text = string.Join("\n", lines);
         }
 
         private async void run(Func<CancellationToken, Task> action)

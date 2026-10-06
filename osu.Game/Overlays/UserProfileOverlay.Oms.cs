@@ -96,9 +96,9 @@ namespace osu.Game.Overlays
                 return;
             cancelOmsRead();
             omsRecent!.ClearRecords();
-            omsRecent.SetStatus(state.Account == null || state.RequiresLogin ? "请从右上角登录 OMS 账号。完整游玩记录仅本人可见。"
-                : !state.Enabled ? "IR 已关闭。开启后可主动读取本人记录，本地成绩不受影响。"
-                : "点击刷新读取本人记录。外部最佳状态与 LR2IR 历史摘要不作为逐局历史。", false);
+            omsRecent.SetStatus(state.Account == null || state.RequiresLogin ? "请从右上角登录 OMS 账号。游玩记录仅本人可见。"
+                : !state.Enabled ? "IR 已关闭。请在连接设置中启用后查看。"
+                : "刷新后查看已上传的游玩成绩。", false);
         }
 
         private async void readOmsHistory(int page)
@@ -114,7 +114,7 @@ namespace osu.Game.Overlays
 
             int requestedRevision = omsRevision;
             var cancellation = omsRead = new CancellationTokenSource();
-            omsRecent.SetStatus("正在读取本人记录……", true);
+            omsRecent.SetStatus("正在加载游玩记录…", true);
             loadingLayer.Show();
             try
             {
@@ -145,13 +145,13 @@ namespace osu.Game.Overlays
                         updatingOmsPagination = true;
                         omsRecent.SetPagination(page, checked((int)Math.Max(1, Math.Ceiling((double)total / limit))));
                         updatingOmsPagination = false;
-                        omsRecent.SetStatus($"共 {total} 条 · OMS 保存后的新局 · 仅本人可见", false);
+                        omsRecent.SetStatus($"共 {total} 条成绩 · 仅本人可见", false);
                     }
                     catch (Exception exception) when (exception is JsonException or FormatException or OverflowException)
                     {
                         updatingOmsPagination = false;
                         omsRecent.ClearRecords();
-                        omsRecent.SetStatus("IR 返回的本人记录格式不正确，请检查服务。", false);
+                        omsRecent.SetStatus("本人记录格式不正确，无法显示。", false);
                     }
                 });
             }
@@ -276,7 +276,7 @@ namespace osu.Game.Overlays
             {
                 var items = new List<Drawable>();
                 if (scores.Count == 0)
-                    items.Add(omsText("还没有已提交的 OMS 新局记录。"));
+                    items.Add(omsText("还没有已上传的游玩成绩。"));
                 foreach (JObject score in scores)
                 {
                     bool isBms = requiredString(score, "ruleset") == "bms";
@@ -305,7 +305,7 @@ namespace osu.Game.Overlays
                             {
                                 omsText(title, 18),
                                 omsText(result),
-                                omsText(OmsIrOverlay.ScoreDetails(score)),
+                                omsText(OmsIrOverlay.ScoreDetails(score, false)),
                                 omsText("本局 ID：" + uuid, 12),
                                 actions,
                             },
@@ -330,13 +330,22 @@ namespace osu.Game.Overlays
                 AddRange(new Drawable[]
                 {
                     status = omsText(string.Empty),
-                    new SettingsButton { Text = "账号与连接", Action = () => OpenAccount?.Invoke() },
+                    new SettingsButton { Text = "打开账号菜单", Action = () => OpenAccount?.Invoke() },
                 });
             }
 
             public void UpdateState(OmsIrState state)
             {
-                status.Text = $"{(state.Enabled ? "IR 已启用" : "IR 已关闭")} · {state.ServiceAddress}\n待交 {state.PendingCount} · 暂不能提交 {state.BlockedCount} · 其他账号待交 {state.WaitingOtherAccountCount}\n{state.Message}";
+                var lines = new List<string> { $"{(state.Enabled ? "IR 已启用" : "IR 已关闭")} · {state.ServiceAddress}" };
+                if (state.PendingCount > 0)
+                    lines.Add($"待上传 {state.PendingCount} 条");
+                if (state.BlockedCount > 0)
+                    lines.Add($"暂不能上传 {state.BlockedCount} 条");
+                if (state.WaitingOtherAccountCount > 0)
+                    lines.Add($"其他账号有 {state.WaitingOtherAccountCount} 条待上传成绩，请登录原账号重试。");
+                if (state.Message.Length > 0)
+                    lines.Add(state.Message);
+                status.Text = string.Join("\n", lines);
             }
         }
     }

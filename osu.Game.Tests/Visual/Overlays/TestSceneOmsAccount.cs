@@ -28,6 +28,7 @@ using osu.Game.Overlays.Settings;
 using osu.Game.Overlays.Toolbar;
 using osu.Game.Users.Drawables;
 using osuTK;
+using osuTK.Input;
 
 namespace osu.Game.Tests.Visual.Overlays
 {
@@ -41,6 +42,8 @@ namespace osu.Game.Tests.Visual.Overlays
         private int requests;
         private int legacyRequests;
         private int historyRequests;
+        private int loginRequests;
+        private string lastLoginOrigin = string.Empty;
         private bool holdLogin;
         private bool holdHistory;
         private bool wrongHistoryOwner;
@@ -55,7 +58,8 @@ namespace osu.Game.Tests.Visual.Overlays
             {
                 service?.Dispose();
                 http?.Dispose();
-                requests = legacyRequests = historyRequests = 0;
+                requests = legacyRequests = historyRequests = loginRequests = 0;
+                lastLoginOrigin = string.Empty;
                 holdLogin = holdHistory = wrongHistoryOwner = false;
                 delayedLoginWasCancelled = false;
                 delayedLogin = delayedHistory = null;
@@ -139,6 +143,57 @@ namespace osu.Game.Tests.Visual.Overlays
         }
 
         [Test]
+        public void TestUnsavedConnectionCannotSendCredentials()
+        {
+            AddAssert("startup stays offline", () => requests == 0 && !service.State.Enabled && service.State.ServiceAddress.Length == 0);
+            AddStep("open original login form", () => userButton.TriggerClick());
+            AddUntilStep("login form loaded", () => login.State.Value == Visibility.Visible && login.ChildrenOfType<LoginForm>().Any(form => form.IsLoaded));
+            AddAssert("offline form cannot login or register", () => !accountButton("登录").Enabled.Value && !accountButton("注册并登录").Enabled.Value);
+            AddStep("save first explicit connection", configureFromForm);
+            AddUntilStep("first connection saved", () => service.State.Enabled && accountButton("登录").Enabled.Value);
+            AddAssert("saving connection makes no HTTP request", () => requests, () => Is.Zero);
+            AddStep("edit the address without saving", () =>
+            {
+                login.ChildrenOfType<OsuTextBox>().Single(box => box.Name == "IR service address").Text = "https://next-ir.example.test";
+                usernameBox().Text = "player_one";
+                var password = login.ChildrenOfType<OsuPasswordTextBox>().Single();
+                password.Text = "synthetic-password-123";
+                InputManager.MoveMouseTo(password);
+                InputManager.Click(MouseButton.Left);
+            });
+            AddAssert("unsaved address disables login and registration", () => !accountButton("登录").Enabled.Value && !accountButton("注册并登录").Enabled.Value);
+            AddAssert("unsaved address is explained", () => login.ChildrenOfType<OsuTextFlowContainer>()
+                .Any(flow => string.Concat(flow.ChildrenOfType<SpriteText>().Select(text => text.Text.ToString())).Contains("连接设置尚未保存", StringComparison.Ordinal)));
+            AddUntilStep("password input is focused", () => login.ChildrenOfType<OsuPasswordTextBox>().Single().HasFocus);
+            AddStep("try password Enter with unsaved address", () => InputManager.Key(Key.Enter));
+            AddAssert("Enter does not send credentials to the saved origin", () => requests == 0 && loginRequests == 0 && service.State.ServiceAddress == "https://ir.example.test/");
+            AddAssert("blocked attempt keeps the password available", () => login.ChildrenOfType<OsuPasswordTextBox>().Single().Text, () => Is.EqualTo("synthetic-password-123"));
+            AddStep("restore saved address but edit the switch", () =>
+            {
+                login.ChildrenOfType<OsuTextBox>().Single(box => box.Name == "IR service address").Text = service.State.ServiceAddress;
+                login.ChildrenOfType<SettingsCheckbox>().Single().Current.Value = false;
+            });
+            AddAssert("unsaved switch also disables login and registration", () => !accountButton("登录").Enabled.Value && !accountButton("注册并登录").Enabled.Value);
+            AddStep("save the new explicit origin and enabled switch", () =>
+            {
+                login.ChildrenOfType<OsuTextBox>().Single(box => box.Name == "IR service address").Text = "https://next-ir.example.test";
+                login.ChildrenOfType<SettingsCheckbox>().Single().Current.Value = true;
+                accountButton("保存连接设置").TriggerClick();
+            });
+            AddUntilStep("new connection saved and form ready", () => service.State.ServiceAddress == "https://next-ir.example.test/" && accountButton("登录").Enabled.Value);
+            AddAssert("new connection alone still makes no request", () => requests, () => Is.Zero);
+            AddStep("login using the saved new origin", () =>
+            {
+                usernameBox().Text = "player_one";
+                login.ChildrenOfType<OsuPasswordTextBox>().Single().Text = "synthetic-password-123";
+                accountButton("登录").TriggerClick();
+            });
+            AddUntilStep("new origin login succeeds", () => service.State.Account?.Id == 1);
+            AddAssert("only the saved new origin receives login", () => loginRequests == 1 && lastLoginOrigin == "https://next-ir.example.test");
+            AddAssert("old API remains unused", () => legacyRequests, () => Is.Zero);
+        }
+
+        [Test]
         public void TestHiddenLoginAndLatePrivateReadCannotResurrect()
         {
             AddStep("open login and configure", () => login.Show());
@@ -214,6 +269,8 @@ namespace osu.Game.Tests.Visual.Overlays
             string path = request.RequestUri!.AbsolutePath;
             if (path.EndsWith("/auth/login", StringComparison.Ordinal) || path.EndsWith("/auth/register", StringComparison.Ordinal))
             {
+                Interlocked.Increment(ref loginRequests);
+                lastLoginOrigin = request.RequestUri.GetLeftPart(UriPartial.Authority);
                 string username = (string)JObject.Parse(await request.Content!.ReadAsStringAsync(token))["username"]!;
                 long id = username == "player_two" ? 2 : 1;
                 if (holdLogin)

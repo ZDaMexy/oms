@@ -11,8 +11,8 @@ namespace osu.Game.Overlays.Toolbar
         private void load(OsuGame game)
         {
             StateContainer = game.Ir;
-            TooltipMain = "OMS IR";
-            TooltipSub = "主动连接、交分与试验榜";
+            TooltipMain = "谱面排行榜";
+            TooltipSub = "选择来源，查看同谱面成绩";
             SetIcon(FontAwesome.Solid.Trophy);
             Action = () => game.Ir?.ToggleVisibility();
         }

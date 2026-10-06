@@ -39,6 +39,9 @@ namespace osu.Game.Overlays.Login
         private readonly List<SettingsButton> omsButtons = new List<SettingsButton>();
         private ErrorTextFlowContainer? omsError;
         private OsuTextFlowContainer? omsStatus;
+        private OsuTextFlowContainer omsConnectionStatus = null!;
+        private SettingsButton omsLogin = null!;
+        private SettingsButton omsRegister = null!;
         private CancellationTokenSource? accountOperation;
 
         [Resolved]
@@ -200,15 +203,34 @@ namespace osu.Game.Overlays.Login
                     Spacing = new Vector2(0, SettingsSection.ITEM_SPACING),
                     Children = new Drawable[]
                     {
-                        new OsuSpriteText { Text = "OMS 账号", Font = OsuFont.GetFont(weight: FontWeight.Bold) },
+                        new OsuSpriteText { Text = "IR 连接", Font = OsuFont.GetFont(weight: FontWeight.Bold) },
                         new OsuTextBox
                         {
                             Name = "IR service address",
-                            PlaceholderText = "HTTPS 服务地址",
+                            PlaceholderText = "服务器地址（HTTPS）",
                             RelativeSizeAxes = Axes.X,
                             Current = serviceAddress,
                             TabbableContentContainer = this,
                         },
+                        omsConnectionStatus = new OsuTextFlowContainer(sprite => sprite.Font = OsuFont.GetFont(size: 14))
+                        {
+                            RelativeSizeAxes = Axes.X,
+                            AutoSizeAxes = Axes.Y,
+                        },
+                    },
+                },
+                new SettingsCheckbox { LabelText = "启用 IR", Current = irEnabled },
+                omsButton("保存连接设置", saveOmsConnection),
+                new FillFlowContainer
+                {
+                    RelativeSizeAxes = Axes.X,
+                    AutoSizeAxes = Axes.Y,
+                    Padding = new MarginPadding { Horizontal = SettingsPanel.CONTENT_MARGINS },
+                    Direction = FillDirection.Vertical,
+                    Spacing = new Vector2(0, SettingsSection.ITEM_SPACING),
+                    Children = new Drawable[]
+                    {
+                        new OsuSpriteText { Text = "OMS 账号", Font = OsuFont.GetFont(weight: FontWeight.Bold) },
                         username = new OsuTextBox
                         {
                             Name = "OMS username",
@@ -229,15 +251,16 @@ namespace osu.Game.Overlays.Login
                         {
                             RelativeSizeAxes = Axes.X,
                             AutoSizeAxes = Axes.Y,
-                            Text = state.RequiresLogin && state.Account != null ? $"请重新登录 {state.Account.Username}。原账号待交已保留。" : "离线游玩无需账号。连接后只提交登录后开始的新局。",
+                            Text = state.RequiresLogin && state.Account != null ? $"请重新登录 {state.Account.Username}。待上传成绩已保留。" : "离线游玩无需账号。只上传登录后开始并已保存的成绩。",
                         },
                     },
                 },
-                new SettingsCheckbox { LabelText = "启用 IR", Current = irEnabled },
-                omsButton("保存连接设置", () => runAccountOperation(token => ir.ConfigureAsync(serviceAddress.Value, irEnabled.Value, token))),
-                omsButton("登录", () => loginOmsAccount(false)),
-                omsButton("注册并登录", () => loginOmsAccount(true)),
+                omsLogin = omsButton("登录", () => loginOmsAccount(false)),
+                omsRegister = omsButton("注册并登录", () => loginOmsAccount(true)),
             };
+            serviceAddress.BindValueChanged(_ => updateOmsConnection());
+            irEnabled.BindValueChanged(_ => updateOmsConnection());
+            updateOmsConnection();
             password.OnCommit += (_, _) => performLogin();
         }
 
@@ -250,10 +273,52 @@ namespace osu.Game.Overlays.Login
 
         private void loginOmsAccount(bool register)
         {
+            if (!canUseSavedOmsConnection())
+            {
+                updateOmsConnection();
+                return;
+            }
             string account = username.Text;
             string secret = password.Text;
             password.Text = string.Empty;
             runAccountOperation(token => ir!.LoginAsync(account, secret, register, token));
+        }
+
+        private bool canUseSavedOmsConnection()
+        {
+            OmsIrState state = ir!.State;
+            return accountOperation == null && state.Enabled && state.ServiceAddress.Length != 0
+                && serviceAddress.Value == state.ServiceAddress && irEnabled.Value == state.Enabled;
+        }
+
+        private void updateOmsConnection()
+        {
+            OmsIrState state = ir!.State;
+            bool changed = serviceAddress.Value != state.ServiceAddress || irEnabled.Value != state.Enabled;
+            omsConnectionStatus.Text = changed ? "连接设置尚未保存。保存后再登录。"
+                : state.Enabled ? "连接已保存。" : "IR 已关闭。登录前请启用并保存连接。";
+            omsLogin.Enabled.Value = omsRegister.Enabled.Value = canUseSavedOmsConnection();
+        }
+
+        private void saveOmsConnection()
+        {
+            string address = serviceAddress.Value;
+            bool enabled = irEnabled.Value;
+            runAccountOperation(async token =>
+            {
+                await ir!.ConfigureAsync(address, enabled, token).ConfigureAwait(false);
+                Schedule(() =>
+                {
+                    if (token.IsCancellationRequested || IsDisposed)
+                        return;
+                    if (serviceAddress.Value == address && irEnabled.Value == enabled)
+                    {
+                        serviceAddress.Value = ir.State.ServiceAddress;
+                        irEnabled.Value = ir.State.Enabled;
+                    }
+                    updateOmsConnection();
+                });
+            });
         }
 
         private async void runAccountOperation(Func<CancellationToken, Task> action)
@@ -288,6 +353,7 @@ namespace osu.Game.Overlays.Login
                         accountOperation = null;
                         foreach (var button in omsButtons)
                             button.Enabled.Value = true;
+                        updateOmsConnection();
                     }
                     cancellation.Dispose();
                 });
@@ -311,6 +377,12 @@ namespace osu.Game.Overlays.Login
             accountOperation = null;
             foreach (var button in omsButtons)
                 button.Enabled.Value = true;
+            // Disposal can cancel the form off the update thread; text-flow updates must be scheduled.
+            Schedule(() =>
+            {
+                if (!IsDisposed)
+                    updateOmsConnection();
+            });
         }
 
         protected override void Dispose(bool isDisposing)

@@ -36,6 +36,7 @@ namespace osu.Game.Tests.Visual.Overlays
         private bool holdBoard;
         private TaskCompletionSource<JObject>? delayedBoard;
         private string lastBoardMd5 = string.Empty;
+        private string lastBoardQuery = string.Empty;
 
         [BackgroundDependencyLoader]
         private void load()
@@ -61,6 +62,7 @@ namespace osu.Game.Tests.Visual.Overlays
                 if (path.StartsWith("/api/ir/v2/scores/chart/", StringComparison.Ordinal))
                 {
                     lastBoardMd5 = path[(path.LastIndexOf('/') + 1)..];
+                    lastBoardQuery = request.RequestUri.Query;
                     JObject result = referenceBoard(request);
                     if (holdBoard)
                     {
@@ -119,53 +121,75 @@ namespace osu.Game.Tests.Visual.Overlays
             AddAssert("default view makes no request", () => requests, () => Is.Zero);
             AddAssert("IR has no duplicate account form", () => !overlay.ChildrenOfType<OsuPasswordTextBox>().Any() && !buttonExists("本人记录"));
             AddStep("save existing opt-in connection", () => service.ConfigureAsync("https://ir.example.test", true).GetAwaiter().GetResult());
-            AddUntilStep("connection enabled", () => service.State.Enabled && button("读取谱面").Enabled.Value);
+            AddUntilStep("connection enabled", () => service.State.Enabled && button("查找谱面").Enabled.Value);
             AddStep("login existing account", () => service.LoginAsync("ir_ui_synthetic", "synthetic-password-123").GetAwaiter().GetResult());
-            AddUntilStep("existing account visible", () => service.State.Account != null && button("读取谱面").Enabled.Value);
-            AddStep("read chart catalogue", () => click("读取谱面"));
-            AddUntilStep("catalogue request finishes", () => !service.State.Busy && button("读取谱面").Enabled.Value);
+            AddUntilStep("existing account visible", () => service.State.Account != null && button("查找谱面").Enabled.Value);
+            AddStep("read chart catalogue", () => click("查找谱面"));
+            AddUntilStep("catalogue request finishes", () => !service.State.Busy && button("查找谱面").Enabled.Value);
             AddStep("scroll to catalogue results", () => overlay.ChildrenOfType<OsuScrollContainer>().Single().ScrollToEnd(false));
-            AddUntilStep("reference and mania entries appear", () => hasText("合成 IR 谱面") && buttonExists("查看参考混榜") && buttonExists("mania · 原计分条件") && button("读取谱面").Enabled.Value);
+            AddUntilStep("reference and mania entries appear", () => hasText("合成 IR 谱面") && buttonExists("查看参考混榜") && buttonExists("mania · 原计分条件") && button("查找谱面").Enabled.Value);
             AddAssert("missing archive metadata is explicit and MD5 remains available", () => hasText("标题未收录") && hasText("作者：未收录") && hasText("MD5：" + new string('a', 32)));
             AddStep("open all-source reference board", () => click("查看参考混榜"));
             AddUntilStep("all sources and independent lamps appear", () => hasText("共 3 位玩家") && hasText("EX 175 / 200") && hasText("FULL COMBO") && hasText("分数与该灯来自不同记录"));
             AddAssert("historical same name keeps its identity and original lamp", () => hasText("LR2IR 旧身份 #1 · 未关联 OMS") && hasText("★FULLCOMBO · 灯规则未知") && hasText("EX 199 / 未收录"));
-            AddAssert("own full-range rank is shown independently", () => hasText("本人在当前完整范围内的名次") && hasText("#3 · ir_ui_synthetic"));
-            AddUntilStep("board request completed", () => button("读取谱面").Enabled.Value);
+            AddAssert("own full-range rank is shown independently", () => hasText("我的名次（所选来源）") && hasText("#3 · ir_ui_synthetic"));
+            AddUntilStep("board request completed", () => button("查找谱面").Enabled.Value);
             AddStep("exclude historical source", () => sourceCheckbox("LR2IR 历史").Current.Value = false);
-            AddUntilStep("selected sources determine count and global rank", () => hasText("共 2 位玩家") && hasText("#2 · ir_ui_synthetic") && !hasText("★FULLCOMBO") && button("读取谱面").Enabled.Value);
+            AddUntilStep("selected sources determine count and global rank", () => hasText("共 2 位玩家") && hasText("#2 · ir_ui_synthetic") && !hasText("★FULLCOMBO") && button("查找谱面").Enabled.Value);
             AddStep("narrow to proven conditions", () => click("同条件 · 7K · 普通 · 合成条件"));
-            AddUntilStep("explicit same-condition range excludes other conditions", () => hasText("共 1 位玩家") && hasText("当前为主动选择的同条件榜") && !hasText("EX 190") && button("读取谱面").Enabled.Value);
+            AddUntilStep("explicit same-condition range excludes other conditions", () => hasText("共 1 位玩家") && hasText("同条件榜") && !hasText("EX 190") && button("查找谱面").Enabled.Value);
+            AddAssert("chosen condition is sent explicitly", () => lastBoardQuery.Contains("mode=comparable", StringComparison.Ordinal)
+                && Uri.UnescapeDataString(lastBoardQuery).Contains("condition=" + new string('c', 64) + ":200", StringComparison.Ordinal));
+            AddStep("remove OMS while a same-condition board is chosen", () => sourceCheckbox("OMS").Current.Value = false);
+            AddUntilStep("new source scope reads its actual best and count", () => hasText("共 1 位玩家") && hasText("EX 190") && !hasText("EX 175")
+                && hasText("参考混榜 · 按原 EX") && button("查找谱面").Enabled.Value);
+            AddAssert("source change clears the old condition and resets the page", () => lastBoardQuery.Contains("mode=reference", StringComparison.Ordinal)
+                && lastBoardQuery.Contains("page=1", StringComparison.Ordinal) && !lastBoardQuery.Contains("condition=", StringComparison.Ordinal)
+                && Uri.UnescapeDataString(lastBoardQuery).Contains("sources=lr2oraja_ed", StringComparison.Ordinal));
+            AddStep("add OMS back to the source choice", () => sourceCheckbox("OMS").Current.Value = true);
+            AddUntilStep("reference scope returns with OMS", () => hasText("共 2 位玩家") && hasText("EX 175") && button("查找谱面").Enabled.Value);
+            AddStep("choose the proven condition again", () => click("同条件 · 7K · 普通 · 合成条件"));
+            AddUntilStep("same-condition board returns", () => hasText("共 1 位玩家") && hasText("同条件榜") && !hasText("EX 190") && button("查找谱面").Enabled.Value);
             AddStep("return to reference", () => click("返回参考混榜"));
-            AddUntilStep("reference restored", () => hasText("共 2 位玩家") && button("读取谱面").Enabled.Value);
+            AddUntilStep("reference restored", () => hasText("共 2 位玩家") && button("查找谱面").Enabled.Value);
             AddStep("keep an empty source choice", () => click("清空来源"));
-            AddUntilStep("empty choice is not silently all", () => hasText("请选择来源") && hasText("共 0 位玩家") && !hasText("EX 175") && button("读取谱面").Enabled.Value);
+            AddUntilStep("empty choice is not silently all", () => hasText("请选择来源") && hasText("共 0 位玩家") && !hasText("EX 175") && button("查找谱面").Enabled.Value);
             AddStep("historical source only", () => sourceCheckbox("LR2IR 历史").Current.Value = true);
-            AddUntilStep("old same name is not highlighted as self", () => hasText("共 1 位玩家") && hasText("本人在当前范围没有公开成绩") && hasText("LR2IR 旧身份") && button("读取谱面").Enabled.Value);
-            AddStep("read historical summary details", () => click("查看记录详情"));
-            AddAssert("missing time and unknown conditions stay honest", () => hasText("游玩时间：未收录") && hasText("血条规则") && !hasText("最终血条 0"));
+            AddUntilStep("old same name is not highlighted as self", () => hasText("共 1 位玩家") && hasText("你在所选来源中还没有公开成绩") && hasText("LR2IR 旧身份") && button("查找谱面").Enabled.Value);
+            AddStep("scroll to the historical record", () => overlay.ChildrenOfType<OsuScrollContainer>().Single().ScrollToEnd(false));
+            FillFlowContainer historicalDetails = null!;
+            AddStep("read historical summary details", () =>
+            {
+                historicalDetails = (FillFlowContainer)button("查看记录详情").Parent!;
+                click("查看记录详情");
+            });
+            AddUntilStep("missing time and unknown conditions stay honest beside the row", () => hasText("游玩时间：未收录") && hasText("血条规则") && !hasText("最终血条 0")
+                && historicalDetails.ChildrenOfType<OsuTextFlowContainer>().Any(flow => string.Concat(flow.ChildrenOfType<SpriteText>().Select(sprite => sprite.Text.ToString())).Contains("游玩时间：未收录", StringComparison.Ordinal)));
+            AddStep("collapse historical details", () => click("收起详情"));
+            AddAssert("collapsing removes details without removing the original identity or lamp", () => !hasText("游玩时间：未收录") && hasText("LR2IR 旧身份 #1") && hasText("★FULLCOMBO · 灯规则未知"));
             AddStep("select all sources again", () => click("全部来源"));
-            AddUntilStep("full range returns", () => hasText("共 3 位玩家") && button("读取谱面").Enabled.Value);
+            AddUntilStep("full range returns", () => hasText("共 3 位玩家") && button("查找谱面").Enabled.Value);
             AddStep("hold the old range response", () => { holdBoard = true; delayedBoard = null; click("刷新"); });
             AddUntilStep("old response is in flight", () => delayedBoard != null);
             AddStep("change sources during the old request", () => sourceCheckbox("LR2IR 历史").Current.Value = false);
             AddStep("release late response", () => delayedBoard!.TrySetResult(referenceBoardForSources(new[] { "oms", "lr2oraja_ed", "lr2ir.v3.lr2" }, true, false)));
-            AddUntilStep("late old scope cannot overwrite the selection", () => hasText("共 2 位玩家") && !hasText("EX 199") && button("读取谱面").Enabled.Value);
+            AddUntilStep("late old scope cannot overwrite the selection", () => hasText("共 2 位玩家") && !hasText("EX 199") && button("查找谱面").Enabled.Value);
             AddStep("return malformed server response", () => { malformed = true; click("刷新"); });
-            AddUntilStep("bad response reports failure without breaking the overlay", () => hasText("列表格式不正确") && button("读取谱面").Enabled.Value);
-            AddStep("restore catalogue and choose mania", () => { malformed = false; click("读取谱面"); });
-            AddUntilStep("mania original group available", () => buttonExists("mania · 原计分条件") && button("读取谱面").Enabled.Value);
+            AddUntilStep("bad response reports failure without breaking the overlay", () => hasText("列表格式不正确") && button("查找谱面").Enabled.Value);
+            AddStep("restore catalogue and choose mania", () => { malformed = false; click("查找谱面"); });
+            AddUntilStep("mania original group available", () => buttonExists("mania · 原计分条件") && button("查找谱面").Enabled.Value);
             AddStep("open original mania board", () => click("mania · 原计分条件"));
-            AddUntilStep("mania scoring remains v1", () => hasText("分数 900,000") && button("读取谱面").Enabled.Value);
+            AddUntilStep("mania scoring remains v1", () => hasText("分数 900,000") && button("查找谱面").Enabled.Value);
+            AddAssert("mania board does not claim a BMS best lamp", () => !hasText("点灯最佳") && !hasText("独立最佳灯"));
             AddStep("select a local original BMS", () => setCurrentBms(new string('d', 32)));
             AddStep("open current original chart", () => click("当前 BMS 谱面榜"));
-            AddUntilStep("current chart uses the actual original MD5", () => lastBoardMd5 == new string('d', 32) && hasText("共 3 位玩家") && button("读取谱面").Enabled.Value);
+            AddUntilStep("current chart uses the actual original MD5", () => lastBoardMd5 == new string('d', 32) && hasText("共 3 位玩家") && button("查找谱面").Enabled.Value);
             AddStep("hold current chart read", () => { holdBoard = true; delayedBoard = null; click("刷新"); });
             AddUntilStep("chart response held", () => delayedBoard != null);
             AddStep("change the selected chart", () => setCurrentBms(new string('e', 32)));
             AddUntilStep("chart change clears the previous read", () => hasText("选谱已变化") && !hasText("EX 175"));
             AddStep("release previous chart response", () => delayedBoard!.TrySetResult(referenceBoardForSources(new[] { "oms", "lr2oraja_ed", "lr2ir.v3.lr2" }, true, false)));
-            AddUntilStep("late chart request has stopped", () => !service.State.Busy && button("读取谱面").Enabled.Value);
+            AddUntilStep("late chart request has stopped", () => !service.State.Busy && button("查找谱面").Enabled.Value);
             AddAssert("late previous chart does not reappear", () => !hasText("EX 175") && !hasText("EX 199"));
             AddStep("logout existing account", () => service.LogoutAsync().GetAwaiter().GetResult());
             AddUntilStep("account scope is cleared", () => service.State.Account == null && !hasText("EX 175") && !hasText("EX 199"));
