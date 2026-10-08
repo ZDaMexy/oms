@@ -1,5 +1,11 @@
 # OMS IR 历史
 
+## 2026-10-08：原版官网实际发布
+
+原版osu-web按后续授权实际发布，最终B879 / B0 / schema3。共享主机完整运行、两次实际空恢复与八对 / 最大raw / 2 GiB预算、固定正式备份R7同实例采样与完整F gzip / raw / 22表、旧D1/e6同库回退、公开207检查 / 564请求、新配置完整外存和原timer恢复通过。第一次forward及恢复schema守卫、R6早期注册、Blade / 根链接误判和一次Ginger502的原false保持，后续实际成功另留原件。
+
+准确版本 / 实际终态 / 窗口 / 失败只取[外部正式记录](F:/zdamexy-workspace/websites/oms-web/doc_md/production-deployment-20261007.md#正式发布与收尾)，[维护与真人路径](F:/zdamexy-workspace/websites/oms-web/doc_md/production-maintenance.md)已同步。当前 **已部署待验收**；本轮没有客户端源码、发行物或新真人交分，原6168791 / 234a9ff软件证据保持来源，默认离线、UUID / 归属、原待交不变，P/C和原人工 / 发行门未关闭。
+
 ## 2026-10-07（原账号与查榜界面复查）
 
 调整原登录窗口的连接 / 保存与凭据顺序、未保存连接保护，移除重复项目说明；详情原位置展开、换源清条件 / 页码、mania通过语义。Release新编后17/17，普通DesktopRelease通过，首次两例Dispose线程错误原件保全后修复；不改Service / factory / UUID / owner，不签真人、视觉、P/C或发行。详见[本轮证据](../../other/OMS_IR_UI_REVIEW_20261007.md)。

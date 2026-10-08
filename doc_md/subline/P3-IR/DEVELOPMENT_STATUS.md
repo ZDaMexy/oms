@@ -1,5 +1,11 @@
 # OMS IR 当前状态
 
+## 原版官网部署与待验收
+
+2026-10-08 原版osu-web已实际最终发布 `b879e4233818-b0feceae22e4` / schema3，状态 **已部署待验收**。原Laravel / Blade / React / Less / Turbo页面已接唯一OMS服务，玩家可从新闻首页、独立下载 / 帮助、谱面目录、参考混榜、账号 / 个人与玩家榜进入。共享主机完整运行、两次实际空恢复与容量、发布前后正式备份、新→旧D1/e6→新同库回退、公网207检查 / 564请求和timer恢复通过，全部原失败保持；准确来源 / 资源 / 失败只取[正式发布](F:/zdamexy-workspace/websites/oms-web/doc_md/production-deployment-20261007.md#正式发布与收尾)，日常运维和[真人路径](F:/zdamexy-workspace/websites/oms-web/doc_md/production-maintenance.md#真人验收)已同步。
+
+本次没有修改客户端源码或生成发行物；默认地址空、旧在线false、原UUID / body / owner保持。线上浏览器工具超时，未签线上视觉 / 普通点击；真实原账号、旧待交补交、下载入库、OMS同谱同范围及ED7K先导P后完整C仍待用户验收。下方旧站各轮软件 / 发布保留原日期，不冒充当前运行。
+
 ## 2026-10-07 账号与查榜界面复查
 
 玩家先保存连接再登录，未保存地址 / 启用变化时阻止凭据发送。换来源清条件回第一页，详情原位置展开；mania显示实际通过。UUID / 归属和默认离线保持。软件来源6168791的17例Release与普通Desktop编译通过，首次线程失败和修复见[本轮核验](../../other/OMS_IR_UI_REVIEW_20261007.md)。网页取实际发布记录，窗口、P/C和发行仍待真人。
@@ -16,10 +22,7 @@
 
 当前工作区账号 / 查榜UI软件来源 `6168791` 已通过原17例新编Release及普通Desktop编译，实际窗口待VS Code非调试验收；原mania六判定和服务完整运行门来源 `234a9ff` 保留原证据，不以文档HEAD替换。默认空地址、旧在线总开关false及原body / UUID / owner不变。窗口 / 焦点 / 长名、实服分页、旧待交和网页同范围仍待用户VS Code非调试验收，无Windows发行包。
 
-官网于2026-10-07 04:25:04 CST实际更新为 `d1f052b93a81-e6fdf914cb04` / schema3，当前已部署待验收；新页面 / 缓存 / 对应源码、正式备份与两新空恢复取[本次网站核验](F:/zdamexy-workspace/websites/oms-website/doc_md/other/oms-deai-verification-20261007.md)。后端 / 插件 / 投影不变。下方完整运行门的原服务 / 网站来源为 `d1f052b93a81-22b4ee54f237` / schema3，含22表精确人数分布。2026-10-06 22:39（CST）实际激活通过，22:42 Nginx重新加载通过，状态**已部署待验收**；旧b520为本轮保全和同库回退来源。
-同候选的小样本、逐人名次与旧b520真实UUID / 外部更新往返已过。新全量R7通过七来源查询、四原生整榜、1,800秒、两新空恢复和实际资源门；三库终态R2、受保护F整件签收及独立八对空间补门通过。原full30 / all_predeployment的false保持，补门与部署另留收据，不据此签真人。
-前次R6 driver峰超限等失败保留。R7生产备份 / 两空恢复、F全22表核验、b520同库往返及八对空间补门已过，未恢复live或购买扩盘；宿主raw整字节继承F指纹，不签宿主独立逐表扫描，漏采prune PID的观察器false保持。详情取下方原服务证据。
-详细来源、实际终态与未完门取[外部本次服务验证](F:/zdamexy-workspace/oms-server/oms-backend/doc_md/other/oms-player-site-verification-20261005.md#counts22-候选的实际主机检查2026-10-06)，范围见[本线计划](DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜实施)。
+当前原版B879 / B0运行与维护取上方最新记录。旧静态D1/e6（2026-10-07 04:25:04 CST）现为同库设计回退来源，当次来源取[旧页面核验](F:/zdamexy-workspace/websites/oms-website/doc_md/other/oms-deai-verification-20261007.md)。旧D1/22完整运行 / 七来源 / 原生 / 1,800秒 / 两空恢复 / F核验与b520往返取[历史服务证据](F:/zdamexy-workspace/oms-server/oms-backend/doc_md/other/oms-player-site-verification-20261005.md#counts22-候选的实际主机检查2026-10-06)。其原full30 / all_predeployment及漏采prune的false保持，宿主raw按全字节继承F指纹，不伪称宿主独立逐表扫描；旧运行来源不能代签当前源码或真人。
 
 地力黑星、komasan方向与Walkure后置，标准与客户端方案待讨论；PP为后续优先方向，规则 / 范围 / 来源资格须独立采用，当前指标不标PP。先导P / 完整C、30玩法矩阵与全部宿主真人格仍待验收。
 
@@ -42,7 +45,9 @@
 
 ## 最近一次验证
 
-2026-10-07 d1 / 22b已部署待验收，新→旧→新同库往返、三阶段正式备份与两新空生产恢复、最终空间和原timer恢复留证。切回后实际156匿名GET / 880检查通过，热谱29,202独立历史身份 / 尾页1,461，无OMS条件或现存社区帖不造数据。Ginger与616最新lookup均ok、两候选，推荐入口307到pixeldrain.net，未下载包；初次Ginger失败与616替代保留原记录。原观察器漏采prune PID的false未改，最终完整对另经F22表核验。浏览器多次30秒超时，视觉 / 普通刷新 / 真人操作仍待。[本次记录](CHANGELOG.md#2026-10-07维护收尾与真人门)绑定实际来源，客户端234a9ff未改，P/C未闭环。
+2026-10-08 原版站实际发布、两实际恢复 / 预算、固定正式备份完整观察 / F核验、同库回退与公网 / timer结论取[本次日志](CHANGELOG.md#2026-10-08原版官网实际发布)。客户端6168791软件来源未改；真实窗口 / 下载 / 账号与P/C仍待，不从文档HEAD推导运行源码。
+
+旧D1 / 22b同库往返、正式备份 / 两空恢复、156匿名GET / 880检查及两源307的原结果、失败与工具限制取[2026-10-07日志](CHANGELOG.md#2026-10-07维护收尾与真人门)；未下载原包或签线上浏览器 / 真人，原observer false保持。
 
 2026-10-06 OpenLR2 R4 在3ab源码 / 固定SDK / 专用软件Host上通过双架构非空消费；不证明正式DLL与真实EXE的STL、标准LN、UI、线程或断线。1,002身份、请求 / 统计 / 缓存推断和实际构建来源见[本日记录](CHANGELOG.md)。后续25d正式重编不改R4来源，P/C真人仍待。
 
@@ -60,8 +65,4 @@
 
 ## 文档治理验证
 
-2026-10-07 根串行 CheckDocumentation.ps1通过（199Markdown / 2032相对链接 / 317锚点 / 125记忆wiki链），workspace125文档 / 948链接通过，私有数据排除1 / 来源9 / 事实23 / 待确认11；证据client-docs-final-20261007-r2.log、workspace-final-20261007-r2.log。原82未提交路径完整指纹保持，original-dirty-guard-r38.json通过。原公开checksum / 通用路径提示与此前失败保留；仅更新文档 / 记忆，不刷新客户端产品或真人日期。
-
-2026-10-05，外部实际部署、公开匿名读榜、P/C剩余门、维护与收据故障已同步状态/计划/日志及记忆；统一执行者运行 CheckDocumentation.ps1 与 git diff --check 通过（198Markdown/2002相对链接/305锚点/125记忆wiki链）。原有公开checksum/通用路径提示保留；证据为 `artifacts/oms-ir-multisource-20261004/client-docs-deployment-r10-r3.log`，外部协作检查110文档/739链接及原来源/消费者边界独立核对。只同步文档，没有重跑未改客户端产品、生成Windows包或代签真人。
-
-2026-10-04正式采用的软件结果、首轮RELEASE旧锚点修复和 `oms-documentation-r2.log`保留原日期；更早专项检查归[历史](CHANGELOG.md#2026-10-04专项进度文档与记忆健康同步)与 `artifacts/oms-ir-doc-sync-20261004/`，文档更新不刷新产品或真人日期。
+2026-10-07文档门通过，原199Markdown / 2032相对链接 / 317锚点 / 125记忆链及workspace125文档 / 948链接、原82路径完整指纹和r38证明保持；原证据为client-docs-final-20261007-r2.log / workspace-final-20261007-r2.log。更早治理检查、失败和精确来源沿[历史](CHANGELOG.md#2026-10-04专项进度文档与记忆健康同步)，文档HEAD不刷新产品 / 真人日期。本轮2026-10-08治理结果另按实际新检查记录，不补签旧失败。

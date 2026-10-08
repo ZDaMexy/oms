@@ -2,6 +2,11 @@
 
 ## 权威入口与证据时效
 
+- 2026-10-08原版站上线排错：0077私有owner创建的公开cache父目录须明确0755可遍历，private子目录仍0700；config / view cache在与FPM相同的正式/app命名空间生成。运行提交不随文档或外置探针HEAD提升，固定日备份helper与HTTP current分别绑定；操作路径取外部原版站 production-maintenance.md。
+- systemd oneshot的新InvocationID / ExecMainPID可能先于Bash原argv / cwd就绪。有限保存全部候选，只有同InvocationID / ExecMainPID / starttime且真正位于该cgroup的MainPID或ControlPID才可登记；最终匹配窗口须从原流核验，不用成功终态补造旧帧。R6 false保留，R7实际完整104 / 107匹配另证。
+- Nginx reload返回0之后旧worker仍可能接收请求；宝塔实际init reload后有界核真实HTTPS，留每次尝试。停止主IR就是发布变动，自动恢复须先停候选主IR / PHP再作兼容守卫。原全部schema保留时仅容许本轮已采用的两普通目录索引，不因合法索引拒绝已证明旧源；其他差异不泛化。首次停点 / 独立实际恢复 / 新同库往返分别留证，不能回灌旧raw或把恢复工具当任意版本回退器。
+- 原Blade静态页没有json-oms-page，账号PHP空data可真实为[]；按原controller / action / section、DOM / 完整正文 / 导航 / 资源核验，不给产品填假JSON。Laravel首页href空root path与/等价，其他path / query / fragment须保留。来源真实502留状态 / 错误，不用重试或替代源冒充本次成功；后续真实200另留日期。
+
 当前能力读 [[../../doc_md/subline/P3-IR/DEVELOPMENT_STATUS.md]]，客户端合同读 [[../../doc_md/subline/P3-IR/TECHNICAL_CONSTRAINTS.md]]，多来源正式执行从 [[../../doc_md/subline/P3-IR/DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜实施]] 进入。当前采用源码绑定取外部 Client Bridge；旧 `63f50c7` 是早期发布来源，`a9928fe` 是字段 / 生命周期取证，均不能当当前 HEAD。这里保留排错线索，不定义阶段或替代正式合同。
 
 - 2026-10-08 子验证 argv / cwd / cgroup 的合取失败须先保全预期与实际字段，没记录分项不能归因于启动竞态或资源耗尽。有界身份等待仍须精确原来源 / 同 PID 与 starttime / 同 cgroup / 存活，并计入从 Popen 前开始的原总时限；迟到匹配也失败。父资源观察覆盖子初始化、完整投影哈希与 wait，子报告成功不代签父资源或真实退出；所有后端生命周期保持父所有权。实际官网迁移状态只取 `F:\zdamexy-workspace\websites\oms-web\doc_md\production-deployment-20261007.md`，不从新工具或文档 HEAD 推导线上来源。
