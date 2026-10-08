@@ -72,8 +72,13 @@
 ## 玩家网站与发布诊断
 
 - 2026-10-08 原版 osu-web R14 已真实通过完整共享主机运行（最低可用内存 560.957 MiB，swap / OOM 零），F 留全部原帧、成功终态和 R15 原停止现场；新两空恢复与八对 / 最大 raw / 2 GiB 盘账仍未通过，正式 current 仍旧。接续读 Web `doc_md/production-deployment-20261007.md`，不从新的文档 HEAD 或运行分项推导部署 / P/C。已外存证明的旧压缩件退役不改变原失败；全量停止 main 的 level6 gzip 预测也不是 SQL 一致备份或恢复门。
-- 2026-10-08 通用 journal 经明确用户授权才访问和清理：255.4 rotate / flush 自动 vacuum，`--sync --namespace=*` 不能证明两个 namespace 都已 sync，须逐一 literal sync。独立已 ready CONT 看门、短暂停写、closed44硬链接 + active2复制，恢复原 PID 后全部 journal verify；首轮 BrokenPipeError / F0B 必须保留失败，不能归因为未知 SSH idle。R2 用同一固定 cut 经有 keepalive / 有界 metadata 的 foreground `ssh -n cat FIFO` 全件导出 F，完整46件 / SHA / size / EOFCRC 后才解除准确 pins 和设置default480 + 既有OMS32 MiB。完整受保护 F 原件及两轮原帧保持，实际净增空间不代签两空恢复、source/cache/WAL峰值或生产。
+- 2026-10-08 通用 journal 经明确用户授权才访问和清理：255.4 rotate / flush 自动 vacuum，`--sync --namespace=*` 不能证明两个 namespace 都已 sync，须逐一 literal sync。独立已 ready CONT 看门、短暂停写、closed44硬链接 + active2复制，恢复原 PID 后全部 journal verify；首轮 BrokenPipeError / F0B 必须保留失败，不能归因为未知 SSH idle。R2 用同一固定 cut 经有 keepalive / 有界 metadata 的 foreground `ssh -n cat FIFO` 全件导出 F，完整46件 / SHA / size / EOFCRC 后才解除准确 pins 和设置default480 + 既有OMS32 MiB，合计512 MiB。随后按原授权追加清理4+3件已关闭旧日志；最新3件执行源 `9e1bbc17…`、空间实测净增148500480 B。完整受保护 F 原件及两轮原帧保持，实际净增空间不代签两空恢复、source/cache/WAL峰值或生产。
 - 冻结 harness 的 `properties()` 不包含 ExecStart，正式定义须独立 `systemctl show` 读取，勿访问不存在字段或修改冻结源。停止 main / WAL / SHM 的物理证明须先核存在集合，再逐件 SHA；`if is_file()` 后仅 `all()` 会吞掉缺失侧文件。checkpoint 前完整保全原组合和 22 表，SQLite 连接显式 close，再验证逻辑相等；预测文件不冒充正式 sidecar。
+
+- 2026-10-08 原R14第二空恢复先撤销user0桌面会话，完整分页却仍用该token，实际返回401；不能据 `full_board_all_pages_300ms` 失败项名认定已证明超过300ms。工具 `133eb509` 改为显式传入有效身份，并在断言前保全逐请求HTTP；人数、全部页、本人行与原时限仍核验，原失败不改。
+- 同日第二恢复补验r1 / r2分别因proctitle成员匹配、重复原sample名失败，F原件保留。r3的Nginx仍是同PID2868624、starttime / cwd相同，但启动后合法改成master title，`same_process` 因argv变化误拒，不能说PID被重用。99次正常续期（49桌面、50网页）已逐次原子写入独立0600凭据，旧refresh已旋转不可再用；后续r4须先实际首页200就绪，再构造BudgetUnit绑定稳定身份并复用最新凭据，不复活已撤销的user0桌面会话。
+- 本次 `systemctl stop` 把已关闭的Nginx单位变为真实inactive / dead，并使ExecMainPID0、MemoryPeak `[not set]`；这与 `BudgetUnit.close` 对同PID发SIGTERM、保留loaded / exited终态的路径不同。保留原断言失败后独立读取已关闭现场，不再次stop，不补造原PID、原峰或旧成功。
+- 固定备份observer须在sampling.join后，从已关闭完整原流按最终InvocationID / ExecMainPID / MainPID及真实可用cgroup逐行统计；新调用帧可先落盘、后登记身份，在线compact计数会漏帧。收取端独立核全流SHA / 数量、非零同PID存活帧及128 MiB / CPU50% / swap0 / OOM边界，不能只删计数对应断言。仅backup终态允许真实 `[not set]` 并记null，观察峰不称全生命周期峰；观察者自身仍核实际终态。本次 `c98a4917…` 备份观察工具及 `81c6e8b7…` 有限收尾工具已审接受但尚无实际门签收，不据此宣布r4补验、两恢复完整或部署。
 
 - 完整原生榜 probe 的四次校验可在 JSON object_hook 逐行完整解析后释放未消费的 identity / lamp / conditions / native 图，保留原 ID / is_me / EX；顶层 / 灯汇总与默认解析不改，完整收包 / gzip / 全行 / 名次 / 字节 / 时限仍核验。2026-10-08 R13 父观察最低 510.145 MiB 的失败原件保留，新软件 24 项通过不代签主机。末次成功内容不能定位失败原因，须读 failures 与内外完整原帧。跨仓使用 Web 存储入口只创建 Web temp，pytest --basetemp 用其绝对 F 路径；Backend 相对父目录不存在的 setup errors 不算有效 gate。
 
@@ -90,7 +95,7 @@
 - WITHOUT ROWID表的`NOT INDEXED`标签不能代签主键扫描；实际EQP为准。2026-10-06覆盖排名副本数学通过，正式唯一索引按精确完整旧/新结构升级；物理结构改变须重跑完整来源/写成本/恢复门，不能复用纯读取合同。只读backup保全旧schema，升级失败连索引回滚；25d/3ab严格拒绝新索引，指定b520回退仍须实测，新维护helper保持固定。seed.archive是公开信息字典，不是raw路径；保全失败原值保持，完整F核验后只定点退役实际raw。
 
 - Windows `str(Path('/opt/...'))`会带反斜线；远端身份串行化用POSIX字符串或`as_posix()`。CPUQuota显示的精度依实际主机，真实150%可能为`1.500000s`，先取证再用等价数值核验；SQLite实际索引DDL可含换行，只做SQL空白正规化，完整schema指纹仍保留原字节。
-- systemd `--collect`会丢真实终态，`RemainAfterExit=yes`与`--wait`会挂住；用独占文件、非阻塞启动、实际PID / starttime握手与loaded终态MemoryPeak。已退出成功单位不设持续RuntimeMaxSec，以免后续长门中改成timeout；保留有限轮询失败边界。末次live内核峰不冒充终态，内外gzip与controller各自实测。
+- systemd `--collect`会丢真实终态，`RemainAfterExit=yes`与`--wait`会挂住；用独占文件、非阻塞启动、实际PID / starttime握手与loaded终态MemoryPeak。本轮已成功退出的Type=exec / RemainAfterExit=yes单位超过自身RuntimeMaxSec后仍保持success，原journal-budget / old-map长时观察已留证，不能概括它都会timeout。仍运行的staging / 前端及独立维护unit各按真实合同限时；父RuntimeMax不限制独立systemd子unit，维护worker须单独有限，失败时只收尾自己实际绑定的角色并保留真实终态。末次live内核峰不冒充终态，内外gzip与controller各自实测。
 
 - 新索引存在、自动被用与HTTP预算是三个事实：2026-10-06 R3真实首HTTP622.113ms失败，后九次约29ms；六条件COUNT的后置EQP确用正式COVERING，独立函数24～38ms却read_bytes全0。系统缓存命中和不含quota写 / commit / close的函数诊断不解释首HTTP，不据此盲加INDEXED BY或删首请求；需独立合成副本的完整HTTP分段。driver累计memory.max历史事件已在前窗口存在，若本窗口不增不得归因本次尾延迟。
 
@@ -103,3 +108,5 @@
 - 维护报告用setup.evidence_directory的实际具体子目录定位：主机 production-backup-r7-ID/worker-report.json / observer-events.jsonl 与backup.stdout.log，不在证据根猜同名report；F签收在 production-post-r7-ID/backup-collection.json，完整核验在pair-verification.json。必须从本次完整stdout的准确发布行识别gzip / sidecar，不找latest；失败worker已有报告却没有pair时仍完整保全后来真实发布对，原flags不改。正式恢复用原对在两个新空目录整raw字节相等继承F全22表证明，不能说已独立主机逐表测量。
 
 - 2026-10-07原登录表单的地址输入不等于已保存service origin；登录按钮与密码OnCommit都必须使用同一个已保存连接谓词。配置保存仅写本地，不发送凭据，异步完成不覆盖用户随后新输入。CancelAccountOperation可从AsyncDisposalQueue调用；新增TextFlow文字刷新必须Schedule且跳过已Dispose，不能在释放线程Clear子元素。初次两例真实线程失败保全，修复后原17例Release有效重编通过。来源切换须清旧condition回reference / page1，保留空sources，详情在原位置展开保留原ID / unknown / lamp，不用简化文案改记录语义。
+
+- 2026-10-08 frozen g.properties 只返回 UNIT_PROPERTIES 声明的字段，不含 ControlPID；新增前置关闭核对须一次明确读取实际 ControlPID，不能把未读取当实际缺失或直接索引。补验r4因此在业务前真实KeyError / failed，F完整一流两帧保持；r5准备来源不代签运行或两恢复。
