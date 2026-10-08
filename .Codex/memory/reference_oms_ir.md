@@ -71,7 +71,7 @@
 
 ## 玩家网站与发布诊断
 
-- 2026-10-08 原版 osu-web R14 已真实通过完整共享主机运行（最低可用内存 560.957 MiB，swap / OOM 零），F 留全部原帧、成功终态和 R15 原停止现场；新两空恢复与八对 / 最大 raw / 2 GiB 盘账仍未通过，正式 current 仍旧。接续读 Web `doc_md/production-deployment-20261007.md`，不从新的文档 HEAD 或运行分项推导部署 / P/C。已外存证明的旧压缩件退役不改变原失败；全量停止 main 的 level6 gzip 预测也不是 SQL 一致备份或恢复门。
+- 2026-10-08 原版 osu-web R14 已真实通过完整共享主机运行（最低可用内存 560.957 MiB，swap / OOM 零）；随后两实际空恢复、完整 F 保全及 81 窗口 / 29,724 原帧的八对 / 最大 raw / 额外 2 GiB 盘账也通过，原失败保持。正式 current 仍旧；固定正式备份成功，但首个 observer 启动身份误判失败，完整观察仍须补验。接续读 Web `doc_md/production-deployment-20261007.md`，不从新文档 HEAD 或运行分项推导部署 / P/C。停止 gzip 预测不是 SQL 一致备份或恢复门，字节继承证明如实记未执行本地 SQLite 重读。
 - 2026-10-08 通用 journal 经明确用户授权才访问和清理：255.4 rotate / flush 自动 vacuum，`--sync --namespace=*` 不能证明两个 namespace 都已 sync，须逐一 literal sync。独立已 ready CONT 看门、短暂停写、closed44硬链接 + active2复制，恢复原 PID 后全部 journal verify；首轮 BrokenPipeError / F0B 必须保留失败，不能归因为未知 SSH idle。R2 用同一固定 cut 经有 keepalive / 有界 metadata 的 foreground `ssh -n cat FIFO` 全件导出 F，完整46件 / SHA / size / EOFCRC 后才解除准确 pins 和设置default480 + 既有OMS32 MiB，合计512 MiB。随后按原授权追加清理4+3件已关闭旧日志；最新3件执行源 `9e1bbc17…`、空间实测净增148500480 B。完整受保护 F 原件及两轮原帧保持，实际净增空间不代签两空恢复、source/cache/WAL峰值或生产。
 - 冻结 harness 的 `properties()` 不包含 ExecStart，正式定义须独立 `systemctl show` 读取，勿访问不存在字段或修改冻结源。停止 main / WAL / SHM 的物理证明须先核存在集合，再逐件 SHA；`if is_file()` 后仅 `all()` 会吞掉缺失侧文件。checkpoint 前完整保全原组合和 22 表，SQLite 连接显式 close，再验证逻辑相等；预测文件不冒充正式 sidecar。
 
@@ -110,3 +110,5 @@
 - 2026-10-07原登录表单的地址输入不等于已保存service origin；登录按钮与密码OnCommit都必须使用同一个已保存连接谓词。配置保存仅写本地，不发送凭据，异步完成不覆盖用户随后新输入。CancelAccountOperation可从AsyncDisposalQueue调用；新增TextFlow文字刷新必须Schedule且跳过已Dispose，不能在释放线程Clear子元素。初次两例真实线程失败保全，修复后原17例Release有效重编通过。来源切换须清旧condition回reference / page1，保留空sources，详情在原位置展开保留原ID / unknown / lamp，不用简化文案改记录语义。
 
 - 2026-10-08 frozen g.properties 只返回 UNIT_PROPERTIES 声明的字段，不含 ControlPID；新增前置关闭核对须一次明确读取实际 ControlPID，不能把未读取当实际缺失或直接索引。补验r4因此在业务前真实KeyError / failed，F完整一流两帧保持；r5准备来源不代签运行或两恢复。
+
+- 2026-10-08 fixed backup R4 的 protected ACL 子 shell 即使重定向 stream6，UseDevelopmentStorage 仍从 success stream1 输出提示，JSON 解析失败且尚未 SSH；明确同时抑制1和6，错误仍保留。R5严格源文件名绑定未同步而在 dispatch 前拒绝。R6新 InvocationID / ExecMainPID 出现时 bash argv / cwd 尚未通过，61 ms退出；七原帧均旧 invocation，不能充当新实例观察。实际 backup 本身随后成功，从该精确 invocation 完成行独立完整保全对至 F、核 gzip/raw/22表及真实当前 manifest，原 observer false 和正式观察门 false 保持；oneshot须有限等待真实身份、保存候选，不把 ControlPID 0 / MainPID 0 含义混用或用后来终态补帧。
