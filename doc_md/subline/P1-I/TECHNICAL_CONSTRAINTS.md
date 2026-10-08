@@ -1,12 +1,12 @@
 # P1-I 技术约束：BMS 选歌筛选与搜索定制
 
-> 最后更新：2026-10-04（统一尾段额度表述；匹配行为与产品验证日期不变）
+> 最后更新：2026-10-08（统一筛选统计/补算与通用存储归线，修正试听合同回链；行为与产品验证日期不变）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，追加项与更正史按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线约束
 
 1. 本子线属于 Phase 1.x 下的 `P1-I`；主 authority 是 BMS Song Select 的筛选产品面、搜索语法与匹配语义，不得回写成 `P1-A` 或 `P1-H` 的主线任务。
-2. `P1-A` 只承接 BMS-only UI 分支、切 ruleset 回退与共享产品面从属影响；`P1-H` 只承接 persisted read-model / backfill authority。二者都不得再各自长出第二套筛选语义。
+2. `P1-A` 只承接 BMS-only UI 分支、切 ruleset 回退与共享产品面从属影响；`P1-H` 承接通用存储、共享 metadata 与 Realm 写回边界。筛选统计、persisted read-model 与 backfill 行为由本线下方合同定义，相关存储写回同时遵守 [P1-H 合同](../P1-H/TECHNICAL_CONSTRAINTS.md)；不派生第二套筛选语义或补算 authority。
 
 ## 产品面与语义约束
 
@@ -148,7 +148,7 @@
     - 回归 `BmsLocalMetadataDisplayResolverTest`（+5：标签＋等级 / UNKNOWN(null 与 0) / 原始 playlevel verbatim / 仅标签无 playlevel / 非 BMS 空）；`BeatmapMetadataDisplay` 为视觉组件、无 headless 单测，复用同一组 resolver。
 
 23. **carousel 面板音符图标：曲名右侧 preview 指示（仅 BMS 模式 + BMS 谱 + 有试听）、删左侧 lamp 上的 ruleset 音符（BMS）**：
-    - **preview 指示**：`PanelBeatmapStandalone` 曲名右侧 `previewIcon`（`FontAwesome.Solid.Music`），`updateDifficultyLevelDisplay` 里 `Alpha = (ruleset=bms && beatmap=bms) && !IsNullOrEmpty(beatmap.Metadata.AudioFile) ? 1 : 0`。判据**必须用 `Metadata.AudioFile` 非空**（＝有 `#PREVIEW`＝会试听，与 [P1-J #12] 选歌试听策略同一信号），不得另造判据。只 standalone（有曲名）加，grouped `PanelBeatmap` 不加。
+    - **preview 指示**：`PanelBeatmapStandalone` 曲名右侧 `previewIcon`（`FontAwesome.Solid.Music`），`updateDifficultyLevelDisplay` 里 `Alpha = (ruleset=bms && beatmap=bms) && !IsNullOrEmpty(beatmap.Metadata.AudioFile) ? 1 : 0`。判据**必须用 `Metadata.AudioFile` 非空**（＝有 `#PREVIEW`＝会试听，与 [P1-J 试听合同](../P1-J/TECHNICAL_CONSTRAINTS.md#bmsmania-音频合同)同一信号），不得另造判据。只 standalone（有曲名）加，grouped `PanelBeatmap` 不加。
     - **删左侧 ruleset 音符（保留 lamp 颜色块）**：`PanelBeatmap`+`PanelBeatmapStandalone` 的 `PrepareForUse` 设 `difficultyIcon.Alpha = beatmap.Ruleset.ShortName=="bms" ? 0 : 1`。**★必须同时 `difficultyIcon.AlwaysPresent = true`（创建时）★**：base `Panel.iconContainer` 是 **AutoSize**，AutoSize **不计入 Alpha=0（非 present）child** → 只设 Alpha=0 会让 iconContainer 收缩到 0 → `contentPaddingContainer.Padding.Left=iconContainer.DrawWidth=0` → beatmap 背景盖住 lamp 颜色块（`backgroundBorder`），**lamp 连块一起消失**（2026-06-23 首版踩坑、用户截图发现）。`AlwaysPresent=true` 让隐藏的 icon 仍占布局宽 → lamp 块保留、标题不位移、仅音符不可见。非 BMS 保留其 ruleset 图标（Alpha=1）。
     - panel 无 headless 单测（`TestScenePanelBeatmap*` 已 `<Compile Remove>`）；靠实机验收。
 

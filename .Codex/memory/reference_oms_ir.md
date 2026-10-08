@@ -2,116 +2,99 @@
 
 ## 权威入口与证据时效
 
-- 2026-10-08原版站上线排错：0077私有owner创建的公开cache父目录须明确0755可遍历，private子目录仍0700；config / view cache在与FPM相同的正式/app命名空间生成。运行提交不随文档或外置探针HEAD提升，固定日备份helper与HTTP current分别绑定；操作路径取外部原版站 production-maintenance.md。
-- systemd oneshot的新InvocationID / ExecMainPID可能先于Bash原argv / cwd就绪。有限保存全部候选，只有同InvocationID / ExecMainPID / starttime且真正位于该cgroup的MainPID或ControlPID才可登记；最终匹配窗口须从原流核验，不用成功终态补造旧帧。R6早期身份误判的原false保留，后续实际观察按自己的完整原流另证，结果只取正式日志。
-- Nginx reload返回0之后旧worker仍可能接收请求；宝塔实际init reload后有界核真实HTTPS，留每次尝试。停止主IR就是发布变动，自动恢复须先停候选主IR / PHP再作兼容守卫。原全部schema保留时仅容许本轮已采用的两普通目录索引，不因合法索引拒绝已证明旧源；其他差异不泛化。首次停点 / 独立实际恢复 / 新同库往返分别留证，不能回灌旧raw或把恢复工具当任意版本回退器。
-- 原Blade静态页没有json-oms-page，账号PHP空data可真实为[]；按原controller / action / section、DOM / 完整正文 / 导航 / 资源核验，不给产品填假JSON。Laravel首页href空root path与/等价，其他path / query / fragment须保留。来源真实502留状态 / 错误，不用重试或替代源冒充本次成功；后续真实200另留日期。
+当前能力读 [P3-IR STATUS](../../doc_md/subline/P3-IR/DEVELOPMENT_STATUS.md)，行为读[客户端合同](../../doc_md/subline/P3-IR/TECHNICAL_CONSTRAINTS.md)，多来源执行从[计划](../../doc_md/subline/P3-IR/DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜实施)进入。各轮失败、报告身份和指标查[本线历史](../../doc_md/subline/P3-IR/CHANGELOG.md)；这里按故障保留原因和诊断方法，不维护中途待办或第二套进度。
 
-当前能力读 [[../../doc_md/subline/P3-IR/DEVELOPMENT_STATUS.md]]，客户端合同读 [[../../doc_md/subline/P3-IR/TECHNICAL_CONSTRAINTS.md]]，多来源正式执行从 [[../../doc_md/subline/P3-IR/DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜实施]] 进入。当前采用源码绑定取外部 Client Bridge；旧 `63f50c7` 是早期发布来源，`a9928fe` 是字段 / 生命周期取证，均不能当当前 HEAD。这里保留排错线索，不定义阶段或替代正式合同。
-
-- 2026-10-08 子验证 argv / cwd / cgroup 的合取失败须先保全预期与实际字段，没记录分项不能归因于启动竞态或资源耗尽。有界身份等待仍须精确原来源 / 同 PID 与 starttime / 同 cgroup / 存活，并计入从 Popen 前开始的原总时限；迟到匹配也失败。父资源观察覆盖子初始化、完整投影哈希与 wait，子报告成功不代签父资源或真实退出；所有后端生命周期保持父所有权。实际官网迁移状态只取 `F:\zdamexy-workspace\websites\oms-web\doc_md\production-deployment-20261007.md`，不从新工具或文档 HEAD 推导线上来源。
-
-- 2026-10-05旧参考站 / 原账号发布排错：运行manifest绑定已提交源码、插件实际构建及对应源码下载，后续文档HEAD不能冒充runtime；该旧参考站不是后来的原版Laravel / Blade / React官网。读取profile / 来源本身会更新SQLite rate_limits；回退指纹完整核玩家 / 会话 / 撤销 / 社区与schema，单列真实限流命中，不谎报所有表全等或放宽限额。门户no-cache与IR既有no-store都要求重新请求，检查器不能因更严格no-store误报。fullPage导出 / viewport override与native画面不一致时保留失败；公网AX / DOM / reload超时而截图可用，只签实际截图，不以HTTP字节或旧截图代签普通刷新和点击。
-
-- 2026-10-07 已部署站的收尾必须区别实际formal备份和观察器：短prune子PID漏采时原observer false不改；保留actual loaded Exit0 / 正峰 / PIDgone与原件，独立F full CRC / raw / 22表验证，只签这份完整对，不造未观察PID。早先同一固定helper backup/prune真实观察另留来源。源码新→旧→新用同一live，配额因GET可变，原账号UUID和全部非配额表逐表核对。
-- `systemctl disable --now`可能回收inactive单元终态，停止catalog后先收loaded / 原PID / 缓存峰再disable；卸载后不能以ExecMainPID0 / 未设置峰改签正常资源门。`Path('/proc') / PID`必须str；最后收取失败仅只读补核原关闭角色 / 原件，不重复源码切换和API来制造新证明。
-- journal的秒级`--until`会截掉同秒亚秒shutdown日志；先保留实际Code2 / Status15 / Resultsuccess和PIDgone，再捕获包含关闭边界的日志。工具误判在stop之后失败时按实际停点续接，不重停 / 不拿旧快照覆盖；本次两次停服影响和原失败见P3-IR日志。
-- 临时观测文件逐件核完整inode / SHA和原effective设置；只撤销任务自己的90-*及本轮50-MemoryAccounting。默认Accounting本已yes时删除冗余runtime属性仍核实际yes，新维护pin保持。恢复原timer只在空间和固定源码门后，核enabled / active / waiting及实际NextElapse，不写死每日触发时刻。8对预算同时包含最大已获证gzip / sidecar、实际或批准最大raw / WAL及系统2GiB；现成daily snapshot大小也纳入MAX。
-
-- 2026-10-07 页面发布的正式oneshot结束后可能移除cgroup，MemoryPeak真实为`[not set]`；int转换失败的r6原件保留且未切换。以`start --no-block`采实际同一正starttimestamp / ExecMainPID的100ms运行帧，另核硬Max128 / swap0 / CPU50与终态成功、PIDgone；缺终态峰记null，观察峰不冒充全生命周期峰。timer暂停 / 等原worker结束后再操作，超时只停止自己的worker，所有收尾错误分别留证；新前端sidecar恢复保留旧完整release绑定，以同一投影兼容新manifest，源码回退不覆盖live。
+- **文档、工具和运行来源不同**：运行 manifest 绑定实际已提交服务 / 网页、插件构建及相应源码下载；新文档或外置探针 HEAD 不更新 runtime。原版 Laravel / Blade / React 官网与早期静态参考站分开，实际部署与失败取[正式记录](F:/zdamexy-workspace/websites/oms-web/doc_md/production-deployment-20261007.md)，操作取[维护说明](F:/zdamexy-workspace/websites/oms-web/doc_md/production-maintenance.md)。
+- **运行清单不等于源码 offer**：release.json 绑定运行字节；AGPL offer 绑定公开构建源码 / 依赖 / 许可，HTML 或 source-only 清单不能替代运行 format3。固定备份 helper 和当时 HTTP current 分别绑定；旧源码同库回退时 sidecar 仍记录真实 current，不把新 helper 冒称旧运行源码。历史 sidecar 恢复保留原完整 release 绑定，同一投影兼容新 manifest 不重写旧身份；源码回退保留 live，不覆盖当前库。
+- **成功分项不补签失败整轮**：软件、实际服务 / 资源、恢复、浏览器和真人分别留来源；completed=true 仍可能 pass=false。旧失败原件不改，后续实际成功另记，不通过重停服务、重放请求或延长时限制造旧门的证明。
 
 ## 成绩身份与最终保存
 
-- 旧 Player.prepareAndImportScoreAsync 中 SubmittingPlayer 的网络准备早于 BMS ruleset 最终结果准备。直接接旧入口会缺最终灯 / 血条；新 IR 消费最终保存成功并回写实际 UUID 的结果。
-- 9K 的数字 CircleSize 不能判断 BMS / PMS；必须在可玩谱持有 KeymodeResolution 时捕捉。mania 转换 / dual stage 也使实际 TotalColumns 不总等于 CircleSize。
-- BMS EMPTY POOR v6 起是 HitResult.Ok (`ok`)，不是 combo_break；最大 EX 来自 maximum_statistics，不能把整张字典求和当物件数。final_gauge 是 0..1，clear_lamp 原生是整数，邻近字段的 StringEnumConverter 不能外推到它。
-- 总分版本 `30000016` 也可能来自历史回放导入 / 重算，不能用它证明新局。首接入不自动遍扫历史上传。
-- BMS converter 可复制新的可玩 BeatmapInfo 且丢失 hash，交分上下文取 loader 已验证的原谱身份；实际列数 / 键型仍取可玩谱。
-- BMS Normal 完整结束但未达到清条线时，本地 Passed 仍 true；IR passed 按最终 clear_lamp >=2 投射，不能修改本地“已完成”来迎合接口。
+- 旧 Player.prepareAndImportScoreAsync 中 SubmittingPlayer 网络准备早于 BMS 最终结果，直接接旧钩子会缺最终灯 / 血条；新 IR 消费最终保存成功并回写实际 UUID 的结果。
+- 数字 CircleSize=9 不能区分 BMS / PMS；取可玩谱 KeymodeResolution。mania 转换 / dual stage 的实际 TotalColumns 也不总等于 CircleSize。
+- BMS EMPTY POOR v6 起是 HitResult.Ok，非 combo_break；最大 EX 取 maximum_statistics，不能整字典求和当物件数。final_gauge 为 0..1，原生 clear_lamp 为整数，邻近 StringEnumConverter 不能外推。
+- 总分版本 30000016 也来自历史回放导入 / 重算，不证明新局；首接入不遍扫历史上传。converter 可复制丢 hash 的可玩 BeatmapInfo，原谱身份应取 loader 已验证来源，实际列数 / 键型仍取可玩谱。
+- BMS Normal 完整结束却未清条时，本地 Passed 仍 true；IR passed 按最终 clear_lamp>=2 投射，不修改本地“已完成”来迎合接口。
+- mania 本人详情套 BMS 表会把 Ok 错叫 EMPTY POOR 并漏 Meh。核真实 ManiaRuleset + Capture/Create + ScoreDetails 六类计数，不能只比新数组；修展示不改保存 / 上传 payload。镜像 sid / bid 缺 chart MD5 时不能凭同名猜关联。
 
-## 凭据与持久待交
+## 凭据、界面与持久待交
 
-- 原 lazer 的账号 UI 可直接消费独立 OmsIrService，不把服务身份塞入旧 APIUser / IAPIProvider。登录响应 await 后、写凭据和 State 前必须对当前操作取消复核；关闭窗口取消与 revision / Owner 变化是实际边界，迟到响应不能恢复账号或本人记录。
-- Visual TestScene 的 SetUp 用 AddStep 延后替换字段实例时，`AddStep(..., overlay.Hide)` 会在注册时捕获旧实例；执行时须用 lambda 读取当前字段。2026-10-05 关闭登录场景 r4～r6 的失败因此定位，r7 在当前窗口 Visible→Hidden、HTTP 取消与迟到不出现的原断言全部通过。不能直接削弱安全断言或把隐藏窗口的操作当真人关闭门。
-
-- InvalidDataException 不是 IOException 子类，异常 settings / pending 恢复须显式处理并停 IR / 保全原件；响应体读取 IOException 是网络丢失，仍以原 UUID 重试。
-- 401 清除凭据失败不能保留内存会话继续重发：先使内存身份失效、标记需要登录，再尝试 Windows 删除。排队本地写入也不能等待正在登录的 HTTP 锁。
-
-## 构建与服务诊断
-
-- Git URL 专用 `http.https://github.com/.proxy` 覆盖普通 `http.proxy=`。2026-10-03 用每命令清空该项、schannel / HTTP1.1 成功绕行，不关闭 TLS 或永久改配置；下次先诊断当时网络，不把旧绕行写成永远有效。
-- .NET / NuGet 会读取 Windows 系统代理，curl --noproxy 正常不代表 dotnet 可达。2026-10-03 对调用进程显式设置 HTTP_PROXY / HTTPS_PROXY 加官方域名 NO_PROXY 后绕行成功、官方完整包恢复；不能靠改源或反复 ignore-failed-sources 掩盖 TLS 故障，不改全局代理或跳过签名。
-- 本机常规 Python 的旧 SQLite 存在 WAL reset 风险；2026-10-03 服务开发验证用外部项目 F 盘 venv 的 SQLite 3.53.1，实际 runtime 版本须在所属发布门核对，单 worker 不等于只有一个数据库连接。
-- 十万局榜单避免全历史 payload 排序和按人逐次全表点灯扫描；正式 SQL 先取每人最佳 ID，再排名读 payload，灯走独立覆盖索引。容量探针计入调度到确认，不能把 429 或排队延迟剔除。
-- 索引升级的全表记录不变与结构不变分开验：`logical_fingerprint` 同时含逐表行hash与 `schema_sha256`。2026-10-06 r6 因合法新增一个索引的结构hash变化误判，保留原失败；r7复核逐表相同并从结构中仅移除精确批准索引后与原结构相等。八→九列在真实 r4 合成库另验所有表与其他结构不变、再次初始化的 schema_version / rootpage 不变，不能跳过全部结构比较或用总行数代签。
-- 全量主机探针和服务不可共用生产MemoryMax口径：2026-10-04 r1把JSON发起/校验与服务放同scope，混读超时且未到30分钟。后续用独立systemd服务约束实际server，采集MainPID/cgroup而非systemd-run包装进程；失败证据取外部Backend全量主机报告，不从暖SQL推导HTTP通过。WAL最后连接关闭会在exists/stat之间消失，只做一次stat并捕获真实FileNotFoundError，防采样线程中止后残余样本冒充资源门。
-- 覆盖索引暖读不证明首次整榜：2026-10-04 r4暖页通过，但100k旧局的完整覆盖扫描仍约780ms。整tuple递归也未跳过重复条件，实际计划只用第一前缀范围；分拆最大EX、规则组、账号的严格前缀seek才把同50个完整候选降到约30ms。条件目录同样不能再扫描所有旧局；以实际HTTP/完整候选等价和新回归复核，不新增被同名索引忽略的“优化”。
-- OpenLR2固定SDK须同MSVC19.44/MT/Release/架构；x86 cdecl的`.def`直接列未修饰GetMethodTable，手工别名可能双重修饰。F盘免安装工具入口必须从原工具目录加载，复制到构建目录的入口仅作hash证明；UTF8无BOM含中文构建脚本用当前PS7执行，PS5可能ANSI误读。独立检查程序须被固定宿主指纹拒绝，不绕过它伪造真实宿主HTTP/游玩证据。
-- 同源码Open非空软件Host变体要单独绑定：2026-10-06 R4实际源码3ab、固定SDK及同MSVC /MT消费非空对象，但软件DLL只接受自己探针EXE的Host SHA。正式DLL /固定真实EXE的STL、UI、线程和断线仍待，不由后来25d正式重编译改写旧软件结果；SDK longnote只表presence，不签标准LN解析。真实汇总与软件build-record在F盘`oms-player-site-20261005/open-nonempty-native-gate/`，能力状态只取P3-IR。
-- ACL子shell失败须先分清实际shell：2026-10-06 Open软件r1在app /账号创建前失败，`open-acl-diagnostic-r1.json`为WinPS5 `CouldNotAutoloadMatchingModule`；父pwsh的Core PSModulePath被子WinPS继承，不能据此说SDK /HTTP /产品失败。r2同一Core EXE以UTF16LE EncodedCommand执行ACL，30秒截止、stdout /stderr均零；保留真实timeout，未证明其具体根因。`open-acl-shell-diagnostic-r2.json`证明同一pwsh普通`-NoProfile -NonInteractive -Command`最短诊断EXIT0，诊断本身没运行ACL /app。后续使用明确Core EXE与Python list argv的plain Command，在新owned目录完成原保护ACL；Storage首行、原30秒截止、三ACE、shell /脚本SHA与原输出保留，不改全局PSModulePath、不放宽权限或猜成业务失败。
-- 同灯的最高分观察不替换独立灯载体：原external.update仅在原灯严格更高时更新lamp_json。2026-10-06 Open软件r3在EX0/Failed1→EX61/Failed1后误期待灯载体也变成stage1，实际仍stage0；较低EX14/Hard4才更新灯载体。r4只修期望 `(best_stage,lamp_stage)=(1,0)`，不改C++ /业务或编译输入，保留原失败 /原stateID与两载体hash，不能把验收工具预期错误写成产品数据损坏。
-- 单worker不等于单同步工作：r6默认AnyIO40槽形成41实际线程，首次/原生单读已通过，峰值后仍挤占共享余量并产生大量MemoryHigh事件；无OOM/swap、RSS低于500MiB不等于资源通过。按真实边界限制工作量，再用原峰值/持续速率复核，不以改小压测速率或暖SQL签收；短峰值已失败就先落资源证据并停止，不能再跑无效30分钟。
-- 内存守门也不证明峰值可用：r7逐路径CPU乘实际速率已超主机1.5核；给全榜生成名次再排本页和目录COUNT/页两次扫描是重复工作。完整候选只物化一次，近端读页、页首EX按全榜更高人数修正并列，其余offset+页内RANK；末页反读仍按原record_key输出。须逐行核对首中末/跨页大并列/越界和全局本人，再实测原负载；SQL加速数字不代签HTTP。
-- 一条SQL不一定更省：r8目录MATERIALIZED让首屏先整理全目录，实际HTTP文字搜索CPU由137升至207ms。各目录UNIQUE(md5)可按互斥的匹配成员计总数，再用原UNION有序页；此前来源不同标题未匹配时不能吞掉后续命中。混榜完整排序仅携带四个整数、页面/本人再hydrate原字段，种类加记录ID字典序必须等价原record_key；80排名/26目录暖SQL等价仍不代签原峰值。r8驱动排队仅2ms但HTTP约1秒，不能把线程槽排队或execute墙钟差值直接说成SQLite锁。
-- 网络整榜先分层取证：r9服务器本地完整数组通过，固定Java SDK经SSH网络首次仍在`pending.get(10s)`失败，JSON/DTO转换尚未执行；独立HTTP成功和同源后续暖读不能代签首次SDK。标准JDK subscriber的对照要保留原对象，不用包装后冒充其内部TrustedSubscriber调度；记录头/完整body/解析/转换时间和实际协议，不由偏好HTTP2、request(1)或失败文字直接推断流控/解码问题。所有诊断不是正式真人门，不延长截止或截榜。
-- 压缩整榜不能只检查JSON：r10实际WinHTTP自动解压接受坏CRC、29,204行仍与identity相同；编译/字段一致不能签完整性。按实际失败改固定官方zlib静态校验完整结束与尾部，网络/解压后各计限并沿原截止；依赖源码/许可/hash纳入干净编译与发布证明，不借宿主已有DLL猜版本。Java首次连续slow失败未复现时保留原日志，用实际异常类型核定，不能盲改成“超时”或放松原因断言。
-- 恢复盘账须保留原失败：r9两闲置合成恢复库使原七日门false；先将完整gzip/sidecar及逻辑验证证据外取，解压复核SHA后才能精确定点清理可重建的合成DB/WAL/SHM，再另记七日/新空恢复/WAL/系统余量补账，不覆写原报告。Python sqlite3连接的`with`只管理事务，不自动close；ownership/fuser前须显式关闭自己的连接。本机远端fuser不支持`--`，非法选项不能当作文件仍被占用。
-- Windows字节证明文件不能用默认文本fd：2026-10-05 r10外取工具用`os.open`/`os.write`后按UTF8字节数`ftruncate`，默认LF→CRLF展开使JSON结尾被截断，CLI显示通过也不构成可用receipt。写这种精确字节文件须用`O_BINARY`；保留原失败，重新完整解压核对两快照并独立解析完成JSON/核producer hash后，才向远端确认定点清理。F证据`offhost-r10-receipt-invalid.json`及`offhost-r10-verification-r2.json`不进Git。
-- 首次未填搜索词时，`new Bindable<string>()` 默认 null；`query.Length` 在 HTTP 前失败，async finally 仍恢复按钮，界面可停在 loading。2026-10-04 trace 只有登录与 read-start、没有第二请求 / response-ready，滚动猜测不成立；应初始化业务不变量 `string.Empty`，不加 catch / fallback 掩错。临时诊断撤掉，原场景断言仍须通过。
+- 原账号 UI 消费独立 OmsIrService，不把服务身份塞入旧 APIUser / IAPIProvider。await 登录后、写凭据 / State 前复核当前操作取消；窗口关闭与 revision / Owner 变化是真实边界，迟到响应不能恢复账号或本人记录。
+- 地址输入不等于已保存 origin；按钮与密码 OnCommit 使用同一个已保存连接谓词。保存只写本地，不发凭据，异步完成不覆盖随后新输入。CancelAccountOperation 可从 AsyncDisposalQueue 调用；TextFlow 刷新须 Schedule 并跳过已 Dispose，释放线程直接 Clear 曾导致真实失败。
+- Visual TestScene 的 SetUp 用 AddStep 延后换实例时，`AddStep(..., overlay.Hide)` 注册时已捕获旧实例；用 lambda 执行时读当前字段。原 Visible→Hidden、HTTP 取消与迟到不出现断言保留，隐藏窗口的测试操作不代签真人关闭。
+- InvalidDataException 不继承 IOException；异常 settings / pending 恢复须显式处理、停 IR 并保全原件。响应体 IOException 是网络丢失，沿原 UUID 重试。401 时先使内存身份失效、标记需要登录，再尝试删除 Windows 凭据；删除失败也不能继续重发。本地排队写入不等账号 HTTP 锁。
+- 首次空搜索的 `new Bindable<string>()` 默认为 null，query.Length 可在 HTTP 前失败，finally 仍恢复按钮而画面留 loading；只有 read-start、无第二请求时先查业务不变量，初始化 string.Empty，不靠 catch / fallback 掩错。
+- 换来源后的旧 condition / 页码与迟到结果须沿当前合同清理；空 sources、原 ID / unknown / lamp 保真。网站公开最佳与端内本人 UUID 全历史的边界读合同，不因简化文案改变记录语义。
 
 ## 多来源取证地雷
 
-- 2026-10-05本人详情误用共用BMS判定表，会把mania Ok错叫EMPTY POOR并漏Meh；须以真实ManiaRuleset + Capture/Create + ScoreDetails行为核六类计数，不能仅比较新数组字面量。修复不改保存 / 上传payload。镜像sid / bid未提供chart MD5时不能由同名猜造关联，公开最佳与本人UUID历史的正式边界取客户端合同。
+正式记录 / 来源规则取[查询合同](../../doc_md/subline/P3-IR/TECHNICAL_CONSTRAINTS.md#来源查询与记录展示)，以下只保留解析器和 SDK 的反直觉条件。
 
-多来源记录 / 来源筛选与正式验收边界取[[../../doc_md/subline/P3-IR/TECHNICAL_CONSTRAINTS.md#来源查询与记录展示]]，以下只保留解析器 / SDK的反直觉地雷。
+- archive PB 是 (MD5, 原玩家 ID) 最佳摘要，缺逐次时间 / SHA256 / 完整规则，不能填成 OMS v7 或自动注册旧身份。授权的 v3.db 路径曾实际是目录；先核目标类型，不扫描其它 private-data。
+- privacy_level=full 隐藏个人统计，不等于单谱 PB 私密；缺 profile 也不证明私密。★FULLCOMBO、option、异常 / 停榜标记须按原站 / 解析器取证，不凭标签猜灯或删除整批公开成绩。
+- Java IRScoreData / OpenLR2 IRScoreV1 无稳定局 ID；宿主会重复 new 对象，秒级日期或每次生成 UUID 不证明同局。最佳状态与逐局幂等分开；ED assist=0 / FAILED 也不证明无辅助或整曲完成。
+- Java RankingData 用完整数组长度计人数、空 player 认本人，截 TopN / 首屏会错榜；OpenLR2 才有 TopX / 本人 / 总数。原生 int ID 须独立持久映射，不与 LR2 / OMS 混空间；RestoreCachedRank 不发 HTTP。
+- GAS settings 枚举是整数而最终数据是字符串，默认 settings 为空；有效下限钳制不改原参数，真实 Create 保留 APIMods。JD 原 header rank 不等于覆盖后的有效 rank，接收 / 拒绝仍取合同。
+- 灯不能只按 group hash 合并：OMS family 还区分最大 EX，消费服务 rule_label；外部 SDK 缺精确 TOTAL / gauge_history 时同 gauge 数字不证明同条件。历史 ★FULLCOMBO 保原标签，不换算 OMS Perfect。
+- 最高分与独立灯载体可来自不同状态：external.update 只在原灯严格更高时换 lamp_json。同灯 EX0→EX61 时灯载体仍可保持旧局，较低分但更高灯才更新；验收工具不能误把这个合同判断成数据损坏。
+- OpenLR2 固定 SDK 须同 MSVC19.44 / MT / Release / 架构；x86 cdecl 的 .def 直接列未修饰 GetMethodTable，手工别名可能双重修饰。非空软件 Host 变体只接自己的 EXE 指纹，R4 的 3ab 软件来源不能由后续 25d 正式重编改写；固定真实 EXE 的 STL / UI / 线程 / 断线与标准 LN 仍另验，longnote presence 不证明标准 LN 解析。来源与 build-record 从 STATUS 回链，不绕宿主指纹造真人证明。
 
-- archive 的 PB 是 (MD5, 原玩家 ID) 最佳摘要；缺逐次时间/SHA256/完整规则，不可塞成完整 OMS v7 或自动注册旧身份。用户给的 v3.db 路径实际是目录；只访问明确授权的目标，schema/汇总证据留 artifacts，不扫描其他 private-data。
-- schema 的 privacy_level=full 是隐藏全部个人统计，不等于单谱 PB 私密；profile 缺失也不是私密证明。★FULLCOMBO、option、异常及停榜标记需要原站/解析器语义取证，不能由标签猜规范灯或删除整批公开成绩。
-- Java IRScoreData 和 OpenLR2 IRScoreV1 没有稳定局 ID；宿主重复会 new 对象，秒级日期/每次生成 UUID 都不能证明同局。最佳状态幂等与逐局幂等分开；ED assist=0 和 FAILED 灯不能证明无辅助或整曲完成。
-- Java RankingData 用全数组长度算人数、空 player 认本人，TopN/第一页会错榜；OpenLR2 才有 TopX/本人/总数。其原生 int ID 需持久唯一映射，不能直接与旧 LR2/OMS ID 混空间。RestoreCachedRank 不能发 HTTP。
-- GAS settings原枚举是整数，最终数据枚举是字符串，默认settings为空，有效下限钳制不改原参数；真实Create保留APIMods，接收与拒绝边界只取正式合同。JD捕捉的原header rank尚不等于覆盖后的有效rank，不能将二者视为同一事实。
-- 灯规则不能只匹配 group hash：OMS family 还区分最大 EX，消费服务 `rule_label`；外部 SDK 缺精确 TOTAL / gauge_history 时相同 gauge 数字也不证明可合并。历史 ★FULLCOMBO 保原标签，不能换算为 OMS Perfect。
+## 构建与服务诊断
+
+- Git 专用 `http.https://github.com/.proxy` 可覆盖普通 http.proxy=；按调用进程诊断 / 绕行，不永久改配置或关闭 TLS。Windows 系统代理也影响 .NET / NuGet，curl --noproxy 成功不证明 dotnet 可达；当次 HTTP_PROXY / HTTPS_PROXY / NO_PROXY 的绕行不写成永久方案，不靠换源或 ignore-failed-sources 掩盖故障。
+- 服务开发曾用 F 盘 venv 的 SQLite 3.53.1 避开旧 runtime WAL reset 风险；发布时核实际版本。单 worker 既不等于一个数据库连接，也不等于单个同步工作；AnyIO 默认 40 槽曾形成 41 线程，RSS 小于预算且无 OOM / swap 仍可能挤占共享余量。
+- ACL 子 shell 失败先核实际 shell：父 pwsh Core PSModulePath 被 WinPS5 继承可产生 CouldNotAutoloadMatchingModule；EncodedCommand 超时且空输出不证明 SDK / HTTP / ACL 业务失败。同一 Core EXE 的 plain Command 诊断成功仅证明 shell；真实 ACL 用明确 EXE / list argv，在新 owned 目录沿原截止和原三 ACE 验证，不改全局模块路径或放宽权限。免安装工具从原工具目录加载，复制入口仅作 hash；含中文无 BOM 脚本用 PS7。
+- 子 shell 输出 JSON 时，UseDevelopmentStorage 的提示来自 success stream1，即使抑制 stream6 仍会污染解析；明确同时抑制1和6，错误保留。严格绑定工具源文件名却未同步时可在 dispatch 前拒绝，不算 SSH 或产品执行失败。
+- frozen harness 的 properties() 只返回声明字段，可能没有 ExecStart / ControlPID；须显式 systemctl show 读取，不能索引不存在字段或把未读取当实际缺失，不为过门改冻结源。
+
+## SQL、HTTP 与资源诊断
+
+- 全历史 payload 排序和逐人全表点灯扫描曾放大成本；先取每人最佳 ID，再排名 / hydrate，灯走独立覆盖索引。覆盖索引暖读不证明首次整榜；整 tuple 递归可能只利用第一前缀，严格分拆最大 EX / 规则组 / 账号前缀 seek 才能跳过重复条件，条件目录也不能再扫全部旧局。
+- logical_fingerprint 含逐表行 hash 和 schema_sha256，记录不变与结构不变要分开验。新增批准索引时只排除那一个精确差异再比完整结构；八→九列另验其它表 / 结构以及二次初始化 schema_version / rootpage，不用总行数代签。新索引升级须核写成本 / 完整来源 / 恢复并实测指定同库回退，失败回滚索引；旧严格来源可能拒绝新索引。
+- 全榜排完再排本页、目录 COUNT / 页重复扫描可使 CPU 超预算。候选只物化一次，近端取页；页首并列用全榜更高人数修正，其余 offset+页内 RANK，末页反读仍按原 record_key；核首中末 / 跨页大并列 / 越界 / 全局本人，不以 SQL 速度代签 HTTP。
+- 一条 MATERIALIZED SQL 曾让目录首屏先整理全部目录，比原分拆更慢。UNIQUE(md5) 目录可按互斥匹配成员计总数后 UNION 有序页，不能吞后来源不同标题的命中；混榜整数排序后按原记录 hydrate 仍须证明 record_key 等价。
+- 玩家统计 GROUP BY 可让 SQLite 选 scores_history 回表；全 scores_reference 逐局 JOIN 会重复解 JSON。先筛真实 eligible_groups，再沿实际覆盖范围聚合。WITHOUT ROWID 的 NOT INDEXED 不证明主键扫描，索引存在 / 自动采用 / HTTP 过门是三个事实，以真实 EXPLAIN 和完整请求为准，不盲加 INDEXED BY。
+- 首 HTTP 慢、后续暖读快时，read_bytes=0 或只读函数较快不解释 quota 写 / commit / close；先取完整 HTTP 分段。线程槽排队、execute 墙钟或旧累计 memory.max 事件不直接证明 SQLite 锁 / 本次回收；同窗口增量与实际进程要齐。
+- player_position 返回 rank / total_players 字典，不能与 tuple 比或用 *dict 取值。请求 401 时 full_board_all_pages_300ms 项失败不证明延迟超300ms；断言前留逐请求状态 / 时长，使用当前有效身份，不复活已撤销桌面会话。十次最近秩 p95=max，首请求不删除，也不加暖读稀释。
+- driver 与服务分别约束：JSON 发起 / 校验不放同一生产 scope；采真正 MainPID / cgroup，而非包装进程。容量计时包含调度至确认，不剔除429或排队延迟。driver MemoryHigh 自身会导致回收；完整原生 JSON 图跨来源未释放也会挤共享余量，可在逐行校验后释放未消费对象，保留完整收包 / gzip / 名次 / 原时限。object_hook 释放 identity / lamp / conditions / native 图时仍保留原 ID / is_me / EX，顶层和灯汇总不改。
+- 短峰已失败先完整落资源证据，不再跑无效持续门；真实 kernel / loaded peak 超上限约20KiB仍是失败，不能减页缓存、换 RSS 或给容差。主 / 维护 / driver 预算不同，来源相同的后续新观察仍须沿原 HTTP / 时长 / CPU / swap 门实测。
+- 每次成功 HTTP 整份重写报告会增加 driver CPU / 回收干扰；成功事件独占逐行写、失败完整保全。采样首末跨度、外包围墙钟和末条 HTTP 时长分别登记；独立函数较快不定位恢复首请求的真实超时。
+
+## 原生整榜网络诊断
+
+- 固定 Java SDK 首次 pending.get(10s) 失败且 JSON / DTO 尚未执行时，服务器本地数组或独立 HTTP 成功不能代签 SDK 首次。分层记录头 / 完整 body / 解析 / 转换 / 实际协议，标准 JDK subscriber 对照保留原对象，不据 HTTP2 偏好、request(1) 或错误文字猜流控 / 解码。
+- WinHTTP 自动解压曾接受坏 gzip CRC，完整行仍与 identity 相同；字段等价不证明完整性。固定官方 zlib 静态校验完整结束和尾部，网络 / 解压分别计限且保持原总截止；源码 / 许可 / hash 随实际构建发布，不借宿主已有 DLL。Java slow 失败未复现时留原异常类型，不盲改成“超时”或放松原因断言。
+- 正式完整门不截榜或延长截止；对象释放的工具修订、软件结果与主机资源分别绑定。跨仓 pytest --basetemp 使用所属存储入口创建的绝对 F 路径，相对父目录不存在的 setup errors 不算有效 gate。
+
+## systemd 身份、采样与终态
+
+- oneshot 新 InvocationID / ExecMainPID 可先于 Bash argv / cwd 就绪。有限保存所有候选，只有同 invocation / PID / starttime 且真实属于 cgroup 的 MainPID 或 ControlPID 才登记；旧 invocation 原帧不能补新观察，ControlPID0 与 MainPID0 含义不同。子身份等待计入从 Popen 前开始的总截止，迟到匹配也失败。
+- argv / cwd / cgroup 合取失败先保全预期和实际分项，缺分项不能归因竞态 / 耗尽。Nginx 启动后合法改为 master proctitle 时，同 PID / starttime / cwd 仍可稳定；不能把 argv 变化直接当 PID 重用。父观察覆盖子初始化、完整投影 hash 和 wait，子报告成功不证明父资源或真实退出，生命周期仍归父。
+- backup observer 在 sampling.join 后从关闭的完整原流按最终 invocation / PID / 可用 cgroup 统计；在线 compact 可漏掉先落盘后登记的帧。收取端核完整 SHA / 数量 / 非零同 PID 存活帧与资源边界，不能仅删计数断言。短 prune PID 漏采保持 observer false；实际备份成功和精确完整对另验，不造未采帧。
+- oneshot 关闭可移除 cgroup，使 MemoryPeak=[not set]；backup 终态峰实际不可得时记 null，观察峰不冒称生命周期峰，observer 自身仍核实际终态。ControlGroup 空时不能拼全局 /sys/fs/cgroup 取根峰值；终态 kernel 不可得如实记，末次 live 不回填。
+- disable --now / stop 可卸载已退出单元，ExecMainPID0 与峰缺失不证明资源通过。先保留 loaded / exited 和原 PID；uvicorn 自有 SIGTERM 可真实 Code2 / Status15 / Resultsuccess，但配同 PID 顺序关闭日志，维护 worker 仍要求 Code1 / Status0。typed 终态只比实际共有字段，18字段包装不必与21字段原件同形，PID / unit / 来源 / 预算不得漏。
+- --collect 会丢终态，RemainAfterExit=yes 配 --wait 会挂住；用独占输出、非阻塞启动、实际 PID / starttime 握手和 loaded 终态。已成功退出 Type=exec / RemainAfterExit 单元超过 RuntimeMaxSec 未必失败，父 RuntimeMax 也不约束独立 systemd 子 unit；各 worker 独立有限，失败只收尾绑定的自有角色。
+- journal 秒级 --until 会漏同秒亚秒 shutdown；先保留实际退出与 PIDgone，再取包含边界的日志。stop 后工具失败按真实停点只读补核，不重停或用旧快照覆盖。新空恢复目录验收前不能写执行日志，误写与拒绝证据保留。
+
+## 备份、恢复与证据文件
+
+- gzip 大小预测不等于 SQL 一致备份或空恢复；恢复 raw 整件字节相等可继承完整 F 指纹，仍如实说明没有主机独立 SQLite 逐表重读。报告按 setup.evidence_directory 实际子目录找，准确 gzip / sidecar 从该 invocation 的完整 stdout 发布行识别，不找 latest。
+- worker 失败且早报告无 pair 时，后来真正发布的完整对仍须保全，原 flags 不改。暂停 timer 并等原 worker 关闭后操作，超时只停自己的 worker；真实 refresh 轮转后旧 token 不复用，新的独立0600凭据原子保存，恢复核实际首页就绪和当前有效身份。
+- 恢复盘账包含最大已获证 gzip / sidecar、实际或批准最大 raw / WAL、八对及系统2GiB，daily snapshot 也取 MAX。闲置合成恢复库造成旧门失败时，先完整 F 外取 / 解压核 SHA 与逻辑证据，再按身份定点退役可重建 raw / WAL / SHM；按实际存在对象保全，不能把三 raw 工具套在只有两 raw 的失败轮，或把 seed.archive 信息字典当 raw 路径。
+- checkpoint 前核 main / WAL / SHM 的实际存在集合并逐件 SHA，`if is_file()` 后仅 all() 会漏缺失侧件。完整封存已提交 WAL 和组合逻辑后显式 close，必要 checkpoint 后核原组合逻辑等价；零 WAL 的残留 SHM 不等于未提交状态，不为它自动写库或删侧件。采样 WAL 最后连接关闭时可能在 exists / stat 间消失，一次 stat 捕获真实 FileNotFoundError，防采样线程中止后残余样本冒充完整门。
+- SQLite Connection 的 with 只结束事务，不自动 close；删除临时恢复库或核 fuser 前显式 close / contextlib.closing。WinError32 留源库与压缩证据，不删整目录；远端 fuser 不支持 -- 时，选项失败不表示仍占用。
+- mode=ro 读 WAL 库仍可能创建空 WAL / 锁 SHM。只有固定自有副本的所有角色关闭、fuser 空闲、非空 WAL / journal 已拒绝后才可 immutable 读，并核所有物理侧件前后恒等；不用于活动生产或母库。F 执行来源不等于主机参考副本执行，完整 report / log / events 的 inode / ctime 证据也不能被后续 chmod 改写。
+- Windows 默认文本 fd 的 LF→CRLF 可使按 UTF8 字节数 ftruncate 的 JSON 尾部截坏；精确字节证明用 O_BINARY。CLI exit0 不是有效 receipt，完整解压核两快照并独立解析 JSON / producer hash 后才确认清理；旧 invalid receipt 保全。
+- Windows Python3.12 Path.stat 的 ctime 可为 birthtime，os.fstat 可报 change time；跨 API 只比 dev / ino / size / mtime / nlink / 明确 birthtime，同 API 前后仍核完整 ctime / 属性 / SHA。只读可改变 atime，保留实值，不据此断言源被写或替改证据；Linux O_NOATIME 也沿真实字段核。
+- 远端身份序列化用 POSIX 字符串 / as_posix()，Windows Path('/opt/...') 可能产反斜线；Linux 解析 F 路径用 PureWindowsPath，真实 Linux 文件用 Path，/proc 子路径 PID 转 str。CPUQuota 的 1.500000s 可等价150%；索引 DDL 换行仅作 SQL 空白正规化，完整 schema 指纹保原字节。
 
 ## 玩家网站与发布诊断
 
-- gzip大小预测不是SQL一致备份或空恢复门；恢复raw整件字节相等可继承完整F指纹，但须如实记录没有独立SQLite重读，不把字节继承写成主机逐表扫描。原版站运行 / 发布与各轮失败只取正式部署日志，不在memory保存中途待办。
-- 2026-10-08 journal排错：255.4 rotate / flush会自动vacuum，`--sync --namespace=*`不能证明两个namespace都已sync，须逐一literal sync。经明确授权处理时，独立已ready的CONT看门覆盖短暂停写，closed硬链接 / active复制后恢复原PID再全件journal verify。首轮BrokenPipeError / F0B保持失败，不能猜为SSH idle；同一固定cut用有keepalive / 有界metadata的foreground `ssh -n cat FIFO`完整外取，核SHA / size / EOFCRC后才解除准确pins。合计保留量与实际清理结果取外部正式记录；净增空间不代签空恢复、source / cache / WAL峰值或生产。
-- 冻结 harness 的 `properties()` 不包含 ExecStart，正式定义须独立 `systemctl show` 读取，勿访问不存在字段或修改冻结源。停止 main / WAL / SHM 的物理证明须先核存在集合，再逐件 SHA；`if is_file()` 后仅 `all()` 会吞掉缺失侧文件。checkpoint 前完整保全原组合和 22 表，SQLite 连接显式 close，再验证逻辑相等；预测文件不冒充正式 sidecar。
-
-- 2026-10-08 原R14第二空恢复先撤销user0桌面会话，完整分页却仍用该token，实际返回401；不能据 `full_board_all_pages_300ms` 失败项名认定已证明超过300ms。工具 `133eb509` 改为显式传入有效身份，并在断言前保全逐请求HTTP；人数、全部页、本人行与原时限仍核验，原失败不改。
-- 同日第二恢复补验r1 / r2分别因proctitle成员匹配、重复原sample名失败，F原件保留；r3的Nginx保持同PID / starttime / cwd，启动后却合法改成master title，`same_process`因argv变化误拒，不能说PID被重用。正常续期逐次原子写入独立0600凭据，旧refresh旋转后不可复用；补核应先确认实际首页200就绪，再绑定稳定进程身份并使用最新凭据，不复活已撤销桌面会话。各轮结果只取正式日志。
-- 本次 `systemctl stop` 把已关闭的Nginx单位变为真实inactive / dead，并使ExecMainPID0、MemoryPeak `[not set]`；这与 `BudgetUnit.close` 对同PID发SIGTERM、保留loaded / exited终态的路径不同。保留原断言失败后独立读取已关闭现场，不再次stop，不补造原PID、原峰或旧成功。
-- 固定备份observer须在sampling.join后，从已关闭完整原流按最终InvocationID / ExecMainPID / MainPID及真实可用cgroup逐行统计；新调用帧可先落盘、后登记身份，在线compact计数会漏帧。收取端独立核全流SHA / 数量、非零同PID存活帧及实际资源边界，不能只删计数断言。仅backup终态允许真实`[not set]`并记null，观察峰不称全生命周期峰；观察者自身仍核实际终态。工具审查与实际门分别登记，原失败不由后续成功改写。
-
-- 完整原生榜probe可在JSON object_hook逐行完整解析后释放未消费的identity / lamp / conditions / native图，保留原ID / is_me / EX；顶层 / 灯汇总与默认解析不改，完整收包 / gzip / 全行 / 名次 / 字节 / 时限仍核验。2026-10-08 R13父观察最低510.145MiB的失败原件保留，软件通过不代签主机。末次成功内容不能定位失败原因，须读failures与内外完整原帧。跨仓使用Web存储入口只创建Web temp，pytest --basetemp用其绝对F路径；Backend相对父目录不存在的setup errors不算有效gate。
-
-- counts22 当前 `player_position` 返回完整 `rank` / `total_players` 字典；检查器不能与tuple比较或用`*dict`记录数值。2026-10-06 small R2因此真实失败，R3只修工具合同后通过全部逐人原始数学。服务正常关闭须主动SIGTERM own main并保留loaded单位，已退出后再`systemctl stop`会卸载transient；维护工具也受同一边界约束。全量R4的512MiB余量失败在guard前未落最小样本，不能以终态内存补填；重新实测先保存同窗口driver/main实际观察。关闭后的合成库仍可能有已提交WAL，先完整封存raw/WAL/SHM及组合逻辑指纹，再独立必要checkpoint；只读终态失败不改成成功。
-
-- `tarfile.TarInfo` 默认mtime=0；实际BT Nginx的静态ETag依赖mtime和长度，内容变而长度不变会错误304，即使Cache-Control=no-cache也仍旧显示。2026-10-06实际独立探针复现并验证实际发布时间可修正；外层发布条目统一created_at秒，内容SHA仍独立绑定。内部源码归档固定时间不等于HTTP文件时间。
-- 玩家统计先看真实EXPLAIN：GROUP BY可能使SQLite选scores_history回表，即使存在scores_lamp覆盖索引；全scores_reference再逐局JOIN还会反复计算条件JSON。请求内先筛真实eligible_groups，再沿实际覆盖范围聚合；新执行器/索引声明或小样本不能代签同规模p95。
-- 测试driver和服务是不同进程：driver的MemoryHigh也会产生回收延迟；256MiB完整整榜解码执行器不能当作生产或维护预算，主服务500MiB、维护128MiB要分别实测。记录实际cgroup事件/peak，异常时保留旧失败再复核，不由推测消除时限失败。
-- Windows上的sqlite3 Connection `with`只结束事务，不保证close；完整解压CRC/hash核验后删除F盘临时库须显式close或contextlib.closing。WinError32时保全源库和压缩证据，修正后从完整重新核验继续，不能跳过旧失败或删整目录。
-- 增长报告每次HTTP成功整份重写会增加driver CPU / 回收干扰；2026-10-06恢复首次330.510ms仍失败，不能因只读函数约20ms就认定根因或删首请求。成功事件独占逐行记录，失败保全；十次最近秩p95=max，不用更多暖读稀释。实际采样首末跨度与外包围墙钟、原HTTP末条时长分开，分别记录来源。
-- 失败保全按实际对象：上述r1只有主库 / restore1两raw，没有restore2；三raw pass-only工具不能套用。先完整F gzip EOF CRC / raw SHA / 全21表 / schema / sequence / FK核验，再按关闭PID、inode、字节定点退役，原false不改。zero WAL的残留SHM不是未提交状态，不为它自动写库或删除侧文件。
-- r2十次首BMS454.771ms仍失败。独立只读分段中摘要26ms、排名约376ms；本人缓存摘要改法仍总387ms，不能只凭删raw枚举当修复。descriptor JSON不带source，读取实际scope列。原transient服务停止后可能LoadState=not-found / ExecMainPID0，结合原报告实际PID与/proc gone核对，不伪造终态PID；来源、函数实验与真正HTTP门分开。
-
-- WITHOUT ROWID表的`NOT INDEXED`标签不能代签主键扫描；实际EQP为准。2026-10-06覆盖排名副本数学通过，正式唯一索引按精确完整旧/新结构升级；物理结构改变须重跑完整来源/写成本/恢复门，不能复用纯读取合同。只读backup保全旧schema，升级失败连索引回滚；25d/3ab严格拒绝新索引，指定b520回退仍须实测，新维护helper保持固定。seed.archive是公开信息字典，不是raw路径；保全失败原值保持，完整F核验后只定点退役实际raw。
-
-- Windows `str(Path('/opt/...'))`会带反斜线；远端身份串行化用POSIX字符串或`as_posix()`。CPUQuota显示的精度依实际主机，真实150%可能为`1.500000s`，先取证再用等价数值核验；SQLite实际索引DDL可含换行，只做SQL空白正规化，完整schema指纹仍保留原字节。
-- systemd `--collect`会丢真实终态，`RemainAfterExit=yes`与`--wait`会挂住；用独占文件、非阻塞启动、实际PID / starttime握手与loaded终态MemoryPeak。本轮已成功退出的Type=exec / RemainAfterExit=yes单位超过自身RuntimeMaxSec后仍保持success，原journal-budget / old-map长时观察已留证，不能概括它都会timeout。仍运行的staging / 前端及独立维护unit各按真实合同限时；父RuntimeMax不限制独立systemd子unit，维护worker须单独有限，失败时只收尾自己实际绑定的角色并保留真实终态。末次live内核峰不冒充终态，内外gzip与controller各自实测。
-
-- 新索引存在、自动被用与HTTP预算是三个事实：2026-10-06 R3真实首HTTP622.113ms失败，后九次约29ms；六条件COUNT的后置EQP确用正式COVERING，独立函数24～38ms却read_bytes全0。系统缓存命中和不含quota写 / commit / close的函数诊断不解释首HTTP，不据此盲加INDEXED BY或删首请求；需独立合成副本的完整HTTP分段。driver累计memory.max历史事件已在前窗口存在，若本窗口不增不得归因本次尾延迟。
-
-- 2026-10-06 counts22全量R6完成全部持续 / 恢复分项，独立driver实际内核和loaded峰值仍超Max256MiB 20,480B；原completed=true/pass=false完整14MB报告与终态均保全。上限是实际峰值门，不能减页缓存、换RSS、给容差或将成功分项升级整体。新观察进程可提前设置MemoryHigh以回收，MemoryMax、CPU、swap和原HTTP / 时长门保持，仍须真实新运行。
-- 只读mode=ro的WAL库可能创建空WAL与锁SHM：本次三库保全审计R1因此真实Exit1。保留失败原件与侧文件；只有固定自有副本的全部角色关闭、fuser闲置、非空WAL / journal已拒绝后，才可保留COMMON immutable读取并证明所有物理侧文件首尾恒等，不用于活动生产库或母库。F上执行的starter仅有F真实来源，主机参考副本不等于主机执行；完整收取的report/log/events其inode / ctime等证据不应被后续chmod改写。
-- Windows Python3.12的Path.stat把ctime报成birthtime，os.fstat可能报实际change time；跨API只比dev / ino / size / mtime / nlink / 明确birthtime，同API早晚继续核完整ctime / 属性和整件SHA，不把fd字段回填成原path证据。Windows只读本身可能改变atime，须保留真实before / after，不能由它断言源被写或替改证据；Linux显式O_NOATIME仍按实际字段核。Linux校验编译报告中的F路径用PureWindowsPath，实际Linux文件用Path；旧失败来源 / 输出保留。
-- systemd关闭后的ControlGroup可能为空；不能拼出/sys/fs/cgroup把全局根峰值冒充该单位终态。实际loaded MemoryPeak独立保留，终态kernel不可用如实记录，末次live不代填。本次before实际报告通过而F终态观察因空group失败：原false原件保留，另用独立只读收取同一次已退出单位 / 实际PID / 原源码 / 全输入与输出，再签新观察；不重跑旧before或备份，不虚构timeout。新空目录被接受前不能写入执行日志，误写与拒绝证据保留。
-- 发布的运行release.json（3370fbfbcb7d）与AGPL源码offer清单（c627b813eb36）用途不同：前者绑定实际部署字节和runtime，后者绑定公开构建源码 / 固定依赖 / 许可。HTML或source-only清单不能代替运行format3；后续文档HEAD也不更新运行来源。维护helper保持新counts22源码，但备份sidecar必须记录当时真实current来源，旧b520同库回退不把新helper伪装为旧运行版本。
-- typed终态按实际共有字段逐键核对，保留两份完整叶子；18字段包装与21字段完整systemctl记录不要求整对象同形，也不能漏PID / unit / 来源 / 预算。先整件收F，再核同一单位实际loaded MainPID0 / ExecMainPID / Code / Status / Result / PIDgone / cached峰，内核可得性另记。正常uvicorn SIGTERM可为Code2 / Status15 / Resultsuccess，但须配实际同PID顺序关闭日志；维护worker仍要求真实Code1 / Status0，不伪造Exit0或以live替代终态。
-- 维护报告用setup.evidence_directory的实际具体子目录定位：主机 production-backup-r7-ID/worker-report.json / observer-events.jsonl 与backup.stdout.log，不在证据根猜同名report；F签收在 production-post-r7-ID/backup-collection.json，完整核验在pair-verification.json。必须从本次完整stdout的准确发布行识别gzip / sidecar，不找latest；失败worker已有报告却没有pair时仍完整保全后来真实发布对，原flags不改。正式恢复用原对在两个新空目录整raw字节相等继承F全22表证明，不能说已独立主机逐表测量。
-
-- 2026-10-07原登录表单的地址输入不等于已保存service origin；登录按钮与密码OnCommit都必须使用同一个已保存连接谓词。配置保存仅写本地，不发送凭据，异步完成不覆盖用户随后新输入。CancelAccountOperation可从AsyncDisposalQueue调用；新增TextFlow文字刷新必须Schedule且跳过已Dispose，不能在释放线程Clear子元素。初次两例真实线程失败保全，修复后原17例Release有效重编通过。来源切换须清旧condition回reference / page1，保留空sources，详情在原位置展开保留原ID / unknown / lamp，不用简化文案改记录语义。
-
-- 2026-10-08 frozen g.properties 只返回 UNIT_PROPERTIES 声明的字段，不含 ControlPID；新增前置关闭核对须一次明确读取实际 ControlPID，不能把未读取当实际缺失或直接索引。补验r4因此在业务前真实KeyError / failed，F完整一流两帧保持；r5准备来源不代签运行或两恢复。
-
-- 2026-10-08 fixed backup R4 的 protected ACL 子 shell 即使重定向 stream6，UseDevelopmentStorage 仍从 success stream1 输出提示，JSON 解析失败且尚未 SSH；明确同时抑制1和6，错误仍保留。R5严格源文件名绑定未同步而在 dispatch 前拒绝。R6新 InvocationID / ExecMainPID 出现时 bash argv / cwd 尚未通过，61 ms退出；七原帧均旧 invocation，不能充当新实例观察。实际 backup 本身随后成功，从该精确 invocation 完成行独立完整保全对至 F、核 gzip/raw/22表及真实当前 manifest，原 observer false 和正式观察门 false 保持；oneshot须有限等待真实身份、保存候选，不把 ControlPID 0 / MainPID 0 含义混用或用后来终态补帧。
+- 私有 owner 的0077 umask 会让公开 cache 父目录不可遍历；父层明确0755，private 子目录仍0700。config / view cache 在 FPM 同一正式 /app 命名空间生成，不能用其它目录生成的成功结果代签实际运行。
+- Nginx reload exit0 后旧 worker 仍可接请求；宝塔 init reload 后有界核真实 HTTPS，保留每次尝试。停主 IR 属发布变动，自动恢复先停候选 IR / PHP 再作兼容守卫；旧 schema 全保留且只容许本次批准的两普通目录索引，不泛化为任意版本回退。
+- 原 Blade 静态页无 json-oms-page，账号 PHP 空 data 可以是[]；核真实 controller / action / section、DOM / 正文 / 导航 / 资源，不给产品填假 JSON。首页 href 空 root path 与 / 等价，其它 path / query / fragment 保留；真实502和后来200分开留日期，不借重试 / 替代源冒充原成功。
+- TarInfo 默认 mtime=0，而实际 BT Nginx 静态 ETag 依赖 mtime / 长度；内容变、长度不变可错304，no-cache 仍旧显示。HTTP发布条目用实际 created_at 秒，内部固定源码归档时间另算，内容 SHA 独立绑定。no-store 比 no-cache 更严，检查器不能因此误报。
+- GET profile / 来源会改 rate_limits；同库回退核账号 / UUID / 会话 / 撤销 / 社区 / schema，单列真实配额变化，不谎报所有表相同或放宽限额。来源 / 输入 / 规模未变时不反复操作来刷新旧证据。
+- fullPage / viewport override 可与 native 画面不同；AX / DOM / reload 超时而截图可用时只签截图，HTTP字节和旧截图不代签普通点击 / 刷新。
+- journal255.4 rotate / flush 可自动 vacuum，--sync --namespace=* 不证明各 namespace 已同步，逐一 literal sync。已授权保全时用 ready 的独立 CONT 看门覆盖短暂停写，closed 硬链接 / active 复制后恢复原 PID，再全件 journal verify；BrokenPipeError 不猜 SSH idle。同一固定 cut 以 keepalive / 有界 metadata 的 foreground ssh -n cat FIFO 完整外取，核 SHA / size / EOFCRC 才解准确 pins，净增空间不代签生产资源。
+- 撤销临时观察配置前逐件核 inode / SHA / effective 值，只撤自有文件；原 Accounting=yes 不因删冗余属性消失，新维护 pin 保留。timer 仅在空间 / 固定来源门后恢复原状态，核 enabled / active / waiting 和实际 NextElapse，不写死每日触发秒数。

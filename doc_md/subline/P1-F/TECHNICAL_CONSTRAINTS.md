@@ -4,7 +4,7 @@
 
 0. 发行作者套件只携带 `sources/oms-simple` 与 `aurora-study`；complex 源与 dist 只留仓库历史参考，固定 C6 历史证据保留。跨构建器比较 `.osk` 应核 ZIP 条目集合与逐文件摘要，不能要求 PowerShell 5 与 .NET 8 压缩字节相同。
 0a. 当前发行仅包含静线内置原件并构建其源；星轨不是安装完整性或启动依赖，历史作者文件只作参考。旧固定内置星轨选择迁回静线，普通导入皮肤与用户文件不清除，静线保持唯一保底。
-1. 不得借发行验收之名重新打开在线更新、默认 endpoint、官网或旧在线链。独立主动连接 / 按需 IR 试运行沿 [P3-IR](../P3-IR/TECHNICAL_CONSTRAINTS.md)，用户手动配置地址，默认仍空，原 Phase 1.x 门保留。用户主动添加公共 BMS 难度表 URL、已授权的 Ginger Rush / 616 BMS 浏览下载和 Sayobot 原生 mania 镜像下载仍为独立窄例外，边界由 P1-A [BMS](../P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) / [mania](../P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载)维护；发行验收不扩张这些范围。
+1. 不得借发行验收之名重新打开在线更新、默认 endpoint 或上游官网的旧在线链。独立主动连接 / 按需 IR 与已采用玩家网站范围沿 [P3-IR](../P3-IR/TECHNICAL_CONSTRAINTS.md)，用户手动配置地址，默认仍空，原 Phase 1.x 门保留。用户主动添加公共 BMS 难度表 URL、已授权的 Ginger Rush / 616 BMS 浏览下载和 Sayobot 原生 mania 镜像下载仍为独立窄例外，边界由 P1-A [BMS](../P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) / [mania](../P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载)维护；发行验收不扩张这些范围。
 2. 便携发布、覆盖更新与离线首发口径必须与 `../../other/RELEASE.md` 保持一致。
 3. 改变发行方式、覆盖更新结论或公开 release gate 时，同次同步本线实际受影响的状态、计划、约束和验证记录，并更新 `../../other/RELEASE.md` 的对应说明；只有影响全局优先级、release gate 或硬约束时才向 mainline 回写摘要与链接，不机械刷新四件套日期。
 4. 当前正式发行压缩包命名以 `build-release.ps1 -> release-repo/oms_YYYYMMDD(.zip)` 为准；不要继续把现状写成泛化的 `OMS-Portable.zip`。

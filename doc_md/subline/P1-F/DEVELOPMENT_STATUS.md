@@ -1,6 +1,6 @@
 # P1-F 开发进度：发行后置与离线发布验收
 
-> 最后核对：2026-10-04（补录 2026-10-03 已有隔离候选证据；无新增发行或人工验证）
+> 最后核对：2026-10-08（区分历史候选制作证明与新版套件待验；无新增发行或人工验证）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，当前执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 
 ## 当前阶段
@@ -21,7 +21,7 @@
 | --- | --- | --- |
 | 完整发行与便携保存基线 | 自动验证通过 | 此前真实 ZIP、实际保存/缓存位置、两玩法可用及正常退出均有证据 |
 | 只读安装原件、恢复与覆盖 | 自动验证通过 | 坏工作副本保全后恢复；同包覆盖保留自定义保存指针，跨版本另证便携用户文件与原模式保持，旧只读原件留在备份 |
-| 离开开发环境的制作与验收组装 | 已验证 | 最终作者程序独立制作演练、PS5 无 Git/SDK 的真实包组装均已完成 |
+| 离开开发环境的制作与验收组装 | 历史候选已验证；新版待验 | 9 月 C7 独立制作和无 Git/SDK 组装有证据；新增手册/练习的实际发行套件仍待独立演练 |
 | 在线更新关闭基线 | 已完成 | 离线完整包与随包工具覆盖，不进入 Velopack 自更新链 |
 | 公开发行物人工验收 | 待签收 | 依赖 P1-A/P1-G 的画面、设备及长期体验，不宣称 Skin V1 或 release 完成 |
 
@@ -31,13 +31,11 @@
 
 该记录不证明 Windows Shell 解包、跨版本升级、新版作者套件无 Git/SDK 演练、真实下载或真人 IR 游玩已复验，独立账户非便携、设备/听感/长期及整体发行门保持。以下 9 月候选与跨版本结果保留原身份，不能代签上述剩余门。
 
-验证候选为 release-repo/oms_20260912_4.zip。正常 Release publish/打包、单内置构建 fixture、独立作者套件制作与错误拒绝、集中验收目录组装通过。独立副本在缺少 complex 原件、预先保存旧星轨配置的情况下，首次启动/custom root/损坏副本恢复/同包覆盖四轮正常关闭，配置已保存为 simple；证据 artifacts/simple-only-startup-20260912/results.json。该候选修正了作者脚本 UTF-8 BOM，386 个游戏运行文件逐字节匹配该四轮启动来源，作者检查脚本匹配实际通过的独立套件副本（artifacts/simple-only-final-publication.log）；未再次宣称 ZIP 解包或已有个人库迁移签收。集中目录组装记录 artifacts/simple-only-acceptance.log；制品保持生成时快照，之后仅将组装结束提示改为静线已内置、作者包按需导入，不改变组装或游戏行为。单内置迁移与自动回归结论见 [P1-A 同期记录](../P1-A/CHANGELOG.md#放弃星轨并恢复唯一内置静线)。以下为更早的发行证据，不计为本轮通过。
+2026-09-12 的仅静线候选 `oms_20260912_4.zip` 已有单内置迁移、独立作者制作与错误拒绝、集中目录组装及四轮隔离启动/恢复/同包覆盖证据；UTF-8 BOM 修正后的实际载荷与作者工具绑定保留。来源与结果见 `artifacts/simple-only-startup-20260912/results.json`、当次日志及 [P1-A 单内置记录](../P1-A/CHANGELOG.md#放弃星轨并恢复唯一内置静线)，不代签后新增能力。
 
-此前 C7 ZIP 为 344,240,108 B，SHA256 `76f1e7d91581a8c4aad5f3f0da2e64a3e47930b6259ec9fdc3f8be9105035574`；发行清单 SHA256 为 `5bd05386bdb687774a6a8b295b00581ef3a27b343aaabd8300011649af4b8ac0`。`artifacts/skin-startup-warning-20260911/final-delivery/delivery.json`、同目录的 `release-extracted-extraction.json`、`acceptance-assembly.json` 固定本次来源与实际组装。四轮证据为 `artifacts/skin-c7-evidence/release-startup-startup-fix-final/results.json`（UTC 2026-09-11 16:22:49～16:25:13），均正常退出、退出码 0、无强制终止；两处共享测试根的只读玩法结果见当前证据目录的 `rulesets-portable.log`、`rulesets-custom.log`。
+更早 2026-09-11 C7 候选已有真实 Windows Shell 解包、独立制作、无 Git/SDK 组装、四轮隔离启动和跨版本覆盖证明。公开制品摘要、准确时段与最终来源回链 [C7 验证记录](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)及 `artifacts/skin-startup-warning-20260911/final-delivery/`；旧升级报告的 Pending 随后由另步两玩法只读结果补齐，原报告未反写。更新工具前后用户文件不变，游戏仍允许更新自己的测试库，不称整个游玩期间数据库不变。
 
-跨版本证据为 `artifacts/skin-c7-evidence/release-startup-preview-upgrade-startup-fix-final/results.json`（UTC 16:25:24～16:26:35）。其中玩法检查的 Pending 字段是该记录形成时的另步待查；随后已在 `artifacts/skin-startup-warning-20260911/final-delivery/rulesets-upgrade.log` 及其指向的独立只读副本记录中完成，两玩法均可用，未改写旧证据。更新工具前后用户库字节相同；实际游戏启动允许更新自己的测试库，不把它说成整个游玩期间数据库不变。完整开发证据与自动检查边界集中在 [C7 验证记录](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)。
-
-该次 C7 受保护运行前后，旧测试安装、旧发行来源、新发行来源，以及账户 bootstrap、事故保存根与原 G1 根的全部文件字节和属性均保持相同，未直接打开原数据库。该结果不能追溯证明首次事故没有影响。
+该次受保护 C7 运行前后，旧/新来源、bootstrap、事故根与原 G1 根的全部文件字节和属性相同，未直接打开原数据库；这一结果不能追溯证明首次事故无损，也不代签当前候选的人工门。
 
 ## 首次事故与证据边界
 
@@ -47,4 +45,4 @@
 
 ## 文档治理验证
 
-2026-10-04：回读 IR 发布记录、四轮启动结果与删除清单，纠正“最新仍为 9 月 12 日”的失真；同步 PLAN、发行说明与路由，限定独立 IR 窄例外。仅文档核对，未重打包或新增运行证据，产品日期沿 10 月 3 日，schema 57 事故、公开制品摘要与人工门不变，见 [CHANGELOG](CHANGELOG.md)。统一检查归 [主线日志](../../mainline/CHANGELOG.md#项目进度与文档记忆一致性复核)。
+2026-10-08：限定矩阵的旧作者演练来源，收简重复的 9 月制品摘要/时段并回链原报告，计划不再暗示已删除候选仍可运行；已采用玩家网站与上游旧在线链分开。原 10 月 4 日证据补录保留在 [CHANGELOG](CHANGELOG.md)，产品验证仍为 10 月 3 日，事故和人工门不变；没有新打包/启动，检查取 [主线治理日志](../../mainline/CHANGELOG.md#项目进度与文档记忆健康复核)。

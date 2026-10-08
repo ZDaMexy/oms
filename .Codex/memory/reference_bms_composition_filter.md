@@ -40,4 +40,4 @@ metadata:
 - 后台 catch 必须记录日志；周期诊断用 Verbose，避免 Important 变成用户通知。
 - `RulesetData` 与 converted star/难度表共享，DTO 必须保留 ExtensionData。
 
-诊断 grep database log 的 `[BmsCompositionFilter]`；当前 full gate 看主线 STATUS，旧测试数字与实机过程查 P1-I CHANGELOG。
+诊断用 `rg` 检索 database log 的 `[BmsCompositionFilter]`；当前软件验证与人工门看 [P1-I 最新验证](../../doc_md/subline/P1-I/DEVELOPMENT_STATUS.md#最近一次验证)，旧测试数字与实机过程查 [P1-I CHANGELOG](../../doc_md/subline/P1-I/CHANGELOG.md)。
