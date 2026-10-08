@@ -71,6 +71,10 @@
 
 ## 玩家网站与发布诊断
 
+- 2026-10-08 原版 osu-web R14 已真实通过完整共享主机运行（最低可用内存 560.957 MiB，swap / OOM 零），F 留全部原帧、成功终态和 R15 原停止现场；新两空恢复与八对 / 最大 raw / 2 GiB 盘账仍未通过，正式 current 仍旧。接续读 Web `doc_md/production-deployment-20261007.md`，不从新的文档 HEAD 或运行分项推导部署 / P/C。已外存证明的旧压缩件退役不改变原失败；全量停止 main 的 level6 gzip 预测也不是 SQL 一致备份或恢复门。
+- 2026-10-08 通用 journal 经明确用户授权才访问和清理：255.4 rotate / flush 自动 vacuum，`--sync --namespace=*` 不能证明两个 namespace 都已 sync，须逐一 literal sync。独立已 ready CONT 看门、短暂停写、closed44硬链接 + active2复制，恢复原 PID 后全部 journal verify；首轮 BrokenPipeError / F0B 必须保留失败，不能归因为未知 SSH idle。R2 用同一固定 cut 经有 keepalive / 有界 metadata 的 foreground `ssh -n cat FIFO` 全件导出 F，完整46件 / SHA / size / EOFCRC 后才解除准确 pins 和设置default480 + 既有OMS32 MiB。完整受保护 F 原件及两轮原帧保持，实际净增空间不代签两空恢复、source/cache/WAL峰值或生产。
+- 冻结 harness 的 `properties()` 不包含 ExecStart，正式定义须独立 `systemctl show` 读取，勿访问不存在字段或修改冻结源。停止 main / WAL / SHM 的物理证明须先核存在集合，再逐件 SHA；`if is_file()` 后仅 `all()` 会吞掉缺失侧文件。checkpoint 前完整保全原组合和 22 表，SQLite 连接显式 close，再验证逻辑相等；预测文件不冒充正式 sidecar。
+
 - 完整原生榜 probe 的四次校验可在 JSON object_hook 逐行完整解析后释放未消费的 identity / lamp / conditions / native 图，保留原 ID / is_me / EX；顶层 / 灯汇总与默认解析不改，完整收包 / gzip / 全行 / 名次 / 字节 / 时限仍核验。2026-10-08 R13 父观察最低 510.145 MiB 的失败原件保留，新软件 24 项通过不代签主机。末次成功内容不能定位失败原因，须读 failures 与内外完整原帧。跨仓使用 Web 存储入口只创建 Web temp，pytest --basetemp 用其绝对 F 路径；Backend 相对父目录不存在的 setup errors 不算有效 gate。
 
 - counts22 当前 `player_position` 返回完整 `rank` / `total_players` 字典；检查器不能与tuple比较或用`*dict`记录数值。2026-10-06 small R2因此真实失败，R3只修工具合同后通过全部逐人原始数学。服务正常关闭须主动SIGTERM own main并保留loaded单位，已退出后再`systemctl stop`会卸载transient；维护工具也受同一边界约束。全量R4的512MiB余量失败在guard前未落最小样本，不能以终态内存补填；重新实测先保存同窗口driver/main实际观察。关闭后的合成库仍可能有已提交WAL，先完整封存raw/WAL/SHM及组合逻辑指纹，再独立必要checkpoint；只读终态失败不改成成功。
