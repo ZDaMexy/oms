@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-08（全项目入口、归线与诊断记忆健康复核；原产品、软件、人工与发行验证日期保留）
+> 最后核对：2026-10-09（工作区迁移与开发环境复验；原产品、人工与发行验证日期保留）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -16,6 +16,12 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 - Windows-only，保留osu!mania与第一类BMS，Osu/Taiko/Catch已删除；离线优先，默认 endpoint 为空。用户授权的独立 IR 主动连接 / 试运行沿 P3-IR，不扩大旧全套在线产品面。公共BMS难度表URL、用户指定Ginger Rush / 616 BMS与Sayobot原生mania镜像下载为窄例外，合同见 P1-A [BMS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) / [mania](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载)。
 - BMS直读`chartbms/`，mania直读`chartmania/`；支持portable `data/`与自定义数据根。主要工程为`osu.Desktop.slnf`、`osu.Game.Rulesets.Bms`及`oms.Input`。
 - 当前协作分支为`master`。皮肤恢复/数据门`SV1-0`已关闭；迁移归档和四个无authority orphan blob继续保全，不能由scanner认领或清理。恢复事实见[恢复审计](../other/SKIN_SYSTEM_RECOVERY_20260710.md)及[数据/实机报告](../other/SKIN_SYSTEM_SV1_0_INVENTORY_20260713.md)。
+
+## 工作区与开发环境
+
+客户端当前位于 F:/zdamexy-workspace/oms，入口见 [AGENTS](../../AGENTS.md)；总工作区提供客户端、网站、后端与两桥路由。2026-10-09 已完成文件搬迁、原 tracked 字节保全核对、两个关联工作副本连接修复，以及 Python / 工具链活动入口迁移。旧 F:/oms 仅有六个空目录容器，旧 Codex oms 项目保留历史；用户不再在旧项目协作。
+
+新路径下普通 Desktop Debug restore / build、脚本语法、三套 Java SDK 探针编译、统一文档及客户端文档校验通过；本轮方法、原失败、证据位置和人工接续见 [迁移日志](CHANGELOG.md#2026-10-09)。尚待用户在新 VS Code 目录非调试启动确认谱库 / 待交及必要时重新登录 IR；旧空目录清理被自动审批拦截，本轮保留，后续待监视释放后人工清理。此结果只验证迁移后的开发环境，不代签原软件来源、玩家体验、生产或发行门。
 
 ## 当前执行门与全局风险
 

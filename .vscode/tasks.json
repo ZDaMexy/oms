@@ -1,36 +1,39 @@
 {
-    // See https://go.microsoft.com/fwlink/?LinkId=733558
-    // for the documentation about the tasks.json format
     "version": "2.0.0",
     "tasks": [
         {
             "label": "Build osu! (Debug)",
-            "type": "shell",
-            "command": "dotnet",
+            "type": "process",
+            "command": "powershell.exe",
             "args": [
-                "build",
-                "osu.Desktop",
-                "-p:GenerateFullPaths=true",
-                "-m",
-                "-verbosity:m"
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                "$ErrorActionPreference='Stop'; . ./UseDevelopmentStorage.ps1; dotnet build osu.Desktop -p:GenerateFullPaths=true -m -verbosity:m; exit $LASTEXITCODE"
             ],
             "group": "build",
-            "problemMatcher": "$msCompile"
+            "problemMatcher": "$msCompile",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
         },
         {
             "label": "Build osu! (Release)",
-            "type": "shell",
-            "command": "dotnet",
+            "type": "process",
+            "command": "powershell.exe",
             "args": [
-                "build",
-                "osu.Desktop",
-                "-p:Configuration=Release",
-                "-p:GenerateFullPaths=true",
-                "-m",
-                "-verbosity:m"
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                "$ErrorActionPreference='Stop'; . ./UseDevelopmentStorage.ps1; dotnet build osu.Desktop -p:Configuration=Release -p:GenerateFullPaths=true -m -verbosity:m; exit $LASTEXITCODE"
             ],
             "group": "build",
-            "problemMatcher": "$msCompile"
+            "problemMatcher": "$msCompile",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
         }
     ]
 }

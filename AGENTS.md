@@ -1,8 +1,10 @@
 # AGENTS.md — OMS 协作入口
 
-OMS 是基于 osu!lazer 的 Windows-only 音游客户端：只保留 osu!mania，新增第一类 BMS；离线优先，默认 endpoint 冻结；用户授权的独立按需 IR 试运行见 P3-IR。
+OMS 是基于 osu!lazer 的 Windows-only 音游客户端：只保留 osu!mania，新增第一类 BMS；离线优先，默认 endpoint 冻结；用户授权的独立按需 IR 试运行见 P3-IR。项目介绍见 [README](README.md)。
 
 ## 开始工作
+
+本仓位于 ZDaMexy 总工作区。单客户端任务按本入口开展；涉及网站、服务端或桥契约的修改，从 [总工作区入口](../AGENTS.md) 识别并读取全部受影响项目，跨边界采用继续经过 Client Bridge 与 Dev Bridge。
 
 1. 先看 `git status --short --branch`、HEAD 与跟踪分支差异，分清本地代码、已记录的远端与在线查询结果。接续开发时先 fetch；工作区干净且仅落后时可 `merge --ff-only`，有未提交改动或分叉时先保全并审查。网络失败须说明基线时效，不能把旧 STATUS 当最新进度。
 2. 读 [当前状态](doc_md/mainline/DEVELOPMENT_STATUS.md)。
@@ -59,7 +61,8 @@ OMS 是基于 osu!lazer 的 Windows-only 音游客户端：只保留 osu!mania�
 
 ### 开发磁盘约束
 
-- OMS 开发使用非系统盘现有 checkout；本机主目录为 `F:\oms`。不在 C 盘新建 OMS 工作副本或生成构建、测试产物。确需隔离时先确认非系统盘位置，不使用默认落到 C 盘的工作副本进行编译。
+- OMS 开发使用非系统盘现有 checkout；本机主目录为 `F:\zdamexy-workspace\oms`。不在 C 盘新建 OMS 工作副本或生成构建、测试产物。确需隔离时先确认非系统盘位置，不使用默认落到 C 盘的工作副本进行编译。
+- 历史文档中的 `F:\oms\...` / `F:/oms/...` 按本仓相同相对路径查找；原快照、命令、来源日期和验收结论保留。日常客户端开发以当前本仓目录打开 VS Code / Codex，跨项目任务从总工作区开展。
 - **每次新 shell 执行 restore/build/test/format、打包或开发检查脚本前**，先执行 `. .\UseDevelopmentStorage.ps1`；环境只在该进程及子进程生效，不能把前一次工具调用的设置当作仍有效。临时探针也放 `.dev-cache/temp/`，日志和 TRX 放仓库 `artifacts/`。
 - 该入口将 TEMP/TMP、NuGet 与 .NET CLI/解包缓存放到当前 checkout 的 `.dev-cache/`，拒绝系统盘 checkout；bin/obj 仍在工程目录。首次切换后重新 restore 对应项目，不用旧 assets 配合 `--no-restore` 假定已迁移。
 - 收尾检查本轮新建的临时目录与工作副本；仅清理已确认闲置、可再生成且不混有用户数据的内容。验收证据、存档、谱面、作者包与恢复备份不得整目录当垃圾处理；`.dev-cache` 中依赖缓存复用，不每轮清空重下。需要长期保存的证据不能只留在临时目录。

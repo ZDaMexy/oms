@@ -16,4 +16,4 @@
 
 同一根执行者随后运行 `dotnet build osu.Desktop.slnf -p:Configuration=Release --no-restore -p:GenerateFullPaths=true -m:1 --verbosity minimal`：普通 Desktop Release 成功，保留未改 BMS 测试的 CS8600 / CA2007 两项警告，日志 `artifacts/oms-player-site-20261005/desktop-release-r1.log`。文档初查发现新证据未入索引和 PLAN 混入结果，修复导航及计划职责后 r2 通过；历史 r1 保留。
 
-新官网谱面获取、真实账号 / 公开最佳 / 玩家榜 / 原社区与两端一致性、共享主机预算和两次空目录恢复由外部专项归档后再部署试运行。用户通过 F:/oms 的 VS Code 非调试启动核对 mania 六类判定、原账号入口、旧待交 / UUID / owner 与网页本人页；ED 7K 先导和全部固定宿主 / 玩法 C、非空跨 DLL 容器及 Phase 1.x 原真人 / 发行门均未关闭。
+新官网谱面获取、真实账号 / 公开最佳 / 玩家榜 / 原社区与两端一致性、共享主机预算和两次空目录恢复由外部专项归档后再部署试运行。用户通过[当前客户端工作区](../../AGENTS.md#开发磁盘约束)的 VS Code 非调试启动核对 mania 六类判定、原账号入口、旧待交 / UUID / owner 与网页本人页；ED 7K 先导和全部固定宿主 / 玩法 C、非空跨 DLL 容器及 Phase 1.x 原真人 / 发行门均未关闭。

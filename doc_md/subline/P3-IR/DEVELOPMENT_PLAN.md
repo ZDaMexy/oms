@@ -2,7 +2,7 @@
 
 ## 原版官网部署后的接续
 
-2026-10-08 原版官网已部署待验收。按[线上具体路径](F:/zdamexy-workspace/websites/oms-web/doc_md/production-maintenance.md#真人验收)验普通浏览器 / 窄屏、Ginger / 616与Sayobot真实包入库、原账号 / 密钥及游戏同谱同来源 / 条件；用户通过VS Code非调试启动当前F:\oms，核原个人页、UUID保存后新局、断网重启和旧账号补交。优先完成OMS＋全量公开历史＋ED7K的P，继续指定其余宿主版本 / 玩法与架构的完整C，不能由原版网站或单插件下载关闭整项。
+2026-10-08 原版官网已部署待验收。按[线上具体路径](F:/zdamexy-workspace/websites/oms-web/doc_md/production-maintenance.md#真人验收)验普通浏览器 / 窄屏、Ginger / 616与Sayobot真实包入库、原账号 / 密钥及游戏同谱同来源 / 条件；用户通过VS Code非调试启动当前F:\zdamexy-workspace\oms，核原个人页、UUID保存后新局、断网重启和旧账号补交。优先完成OMS＋全量公开历史＋ED7K的P，继续指定其余宿主版本 / 玩法与架构的完整C，不能由原版网站或单插件下载关闭整项。
 
 维护固定helper、日备份 / F外取、增长与同库回退；反馈或来源 / 输入 / 规模变化触发对应修复和复验，未变已过门不重复。实际版本和适用证据取[当前状态](DEVELOPMENT_STATUS.md#原版官网部署与待验收)，批准两BMS源 / Sayobot原包获取沿既有网站专项；PP / 地力另议，不扩聊天、presence、多人与未采用的官网谱包，不生成发行物。
 
