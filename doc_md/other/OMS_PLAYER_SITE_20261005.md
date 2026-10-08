@@ -2,7 +2,7 @@
 
 ## 已采用范围与当前状态
 
-用户要求以 osu-web 的实际谱面、个人与排行页面为基础补齐 BMS / mania 玩家服务，而非只改配色或最小身份页。共同采用合同归 [外部玩家网站专项](F:/zdamexy-workspace/oms-server/dev_bridge_md/doc_md/subline/oms-player-site/constraints.md)，谱面查询 / 原包获取限既有批准的 Ginger / 616 / Sayobot 来源。地力评级按用户意见后置，BMS PP 的规则与优先级另议；不把积累指标叫 PP。新网站范围当前实施与验收中，既有生产版和 P/C 真人待验收状态保留。
+用户要求以 osu-web 的实际谱面、个人与排行页面为基础补齐 BMS / mania 玩家服务，而非只改配色或最小身份页。共同采用合同归 [外部玩家网站专项](../../../oms-server/dev_bridge_md/doc_md/subline/oms-player-site/constraints.md)，谱面查询 / 原包获取限既有批准的 Ginger / 616 / Sayobot 来源。地力评级按用户意见后置，BMS PP 的规则与优先级另议；不把积累指标叫 PP。新网站范围当前实施与验收中，既有生产版和 P/C 真人待验收状态保留。
 
 游戏继续从原账号按钮登录、打开原个人页。官网可扩展当前公开最佳和分条件统计；游戏本人完整 UUID 历史不因此公开。官网跳原下载源不等于客户端自动入库，mania 原始 sid / bid 未有真实 MD5 关联时不能猜造。默认空地址、旧在线总开关 false 与保存后 UUID / 原账号待交归属不变。无 Windows 发行包、publish 或额外安装副本。
 

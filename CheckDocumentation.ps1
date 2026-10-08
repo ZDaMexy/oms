@@ -223,6 +223,12 @@ try
                 $target = $rawTarget.Split(' ', 2)[0]
             }
 
+            if ($target -match '^[a-zA-Z]:[/\\]')
+            {
+                $failures.Add("$($fileRelative):$((get-line-number $text $match.Index)) 使用本机绝对链接：$target；请改为相对当前文件的标准链接")
+                continue
+            }
+
             if ([string]::IsNullOrWhiteSpace($target) -or
                 $target.StartsWith('//') -or
                 $target -match '^[a-zA-Z][a-zA-Z0-9+.-]*:')

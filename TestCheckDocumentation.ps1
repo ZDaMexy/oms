@@ -36,6 +36,8 @@ $cases = @(
     @{ Name = 'missing duplicate suffix'; Target = "## Repeat`n## Repeat"; Readme = '[bad](target.md#repeat-2)'; Exit = 1; Contains = '断开的 Markdown 锚点' },
     @{ Name = 'original missing-file check'; Readme = '[bad](missing.md#entry)'; Exit = 1; Contains = '断链：missing.md#entry' },
     @{ Name = 'original root-link rejection'; Readme = '[bad](/target.md#保留合同)'; Exit = 1; Contains = '使用仓库根链接' },
+    @{ Name = 'Windows drive link is not a URI'; Readme = '[bad](F:/workspace/target.md#保留合同)'; Exit = 1; Contains = 'README.md:1 使用本机绝对链接' },
+    @{ Name = 'Windows angle path with spaces'; Readme = '[bad](<F:\workspace\with space\target.md#保留合同>)'; Exit = 1; Contains = '使用本机绝对链接' },
     @{ Name = 'non-Markdown fragments and remote links'; Readme = '[asset](asset.txt#unknown) [web](https://example.org/page#unknown)' },
     @{ Name = 'unsupported Setext warns'; Target = "Setext`n======"; Readme = '[manual](target.md#setext)'; Contains = '无法确认锚点' },
     @{ Name = 'unsupported inline link warns'; Target = '# [label](asset.txt)'; Readme = '[manual](target.md#label)'; Contains = '无法确认锚点' },

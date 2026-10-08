@@ -4,7 +4,7 @@
 
 当前能力读 [P3-IR STATUS](../../doc_md/subline/P3-IR/DEVELOPMENT_STATUS.md)，行为读[客户端合同](../../doc_md/subline/P3-IR/TECHNICAL_CONSTRAINTS.md)，多来源执行从[计划](../../doc_md/subline/P3-IR/DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜实施)进入。各轮失败、报告身份和指标查[本线历史](../../doc_md/subline/P3-IR/CHANGELOG.md)；这里按故障保留原因和诊断方法，不维护中途待办或第二套进度。
 
-- **文档、工具和运行来源不同**：运行 manifest 绑定实际已提交服务 / 网页、插件构建及相应源码下载；新文档或外置探针 HEAD 不更新 runtime。原版 Laravel / Blade / React 官网与早期静态参考站分开，实际部署与失败取[正式记录](F:/zdamexy-workspace/websites/oms-web/doc_md/production-deployment-20261007.md)，操作取[维护说明](F:/zdamexy-workspace/websites/oms-web/doc_md/production-maintenance.md)。
+- **文档、工具和运行来源不同**：运行 manifest 绑定实际已提交服务 / 网页、插件构建及相应源码下载；新文档或外置探针 HEAD 不更新 runtime。原版 Laravel / Blade / React 官网与早期静态参考站分开，实际部署与失败取[正式记录](../../../websites/oms-web/doc_md/production-deployment-20261007.md)，操作取[维护说明](../../../websites/oms-web/doc_md/production-maintenance.md)。
 - **运行清单不等于源码 offer**：release.json 绑定运行字节；AGPL offer 绑定公开构建源码 / 依赖 / 许可，HTML 或 source-only 清单不能替代运行 format3。固定备份 helper 和当时 HTTP current 分别绑定；旧源码同库回退时 sidecar 仍记录真实 current，不把新 helper 冒称旧运行源码。历史 sidecar 恢复保留原完整 release 绑定，同一投影兼容新 manifest 不重写旧身份；源码回退保留 live，不覆盖当前库。
 - **成功分项不补签失败整轮**：软件、实际服务 / 资源、恢复、浏览器和真人分别留来源；completed=true 仍可能 pass=false。旧失败原件不改，后续实际成功另记，不通过重停服务、重放请求或延长时限制造旧门的证明。
 

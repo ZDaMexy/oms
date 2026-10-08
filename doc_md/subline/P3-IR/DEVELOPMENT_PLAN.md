@@ -2,7 +2,7 @@
 
 ## 原版官网部署后的接续
 
-2026-10-08 原版官网已部署待验收。按[线上具体路径](F:/zdamexy-workspace/websites/oms-web/doc_md/production-maintenance.md#真人验收)验普通浏览器 / 窄屏、Ginger / 616与Sayobot真实包入库、原账号 / 密钥及游戏同谱同来源 / 条件；用户通过VS Code非调试启动当前F:\zdamexy-workspace\oms，核原个人页、UUID保存后新局、断网重启和旧账号补交。优先完成OMS＋全量公开历史＋ED7K的P，继续指定其余宿主版本 / 玩法与架构的完整C，不能由原版网站或单插件下载关闭整项。
+2026-10-08 原版官网已部署待验收。按[线上具体路径](../../../../websites/oms-web/doc_md/production-maintenance.md#真人验收)验普通浏览器 / 窄屏、Ginger / 616与Sayobot真实包入库、原账号 / 密钥及游戏同谱同来源 / 条件；用户通过VS Code非调试启动当前F:\zdamexy-workspace\oms，核原个人页、UUID保存后新局、断网重启和旧账号补交。优先完成OMS＋全量公开历史＋ED7K的P，继续指定其余宿主版本 / 玩法与架构的完整C，不能由原版网站或单插件下载关闭整项。
 
 维护固定helper、日备份 / F外取、增长与同库回退；反馈或来源 / 输入 / 规模变化触发对应修复和复验，未变已过门不重复。实际版本和适用证据取[当前状态](DEVELOPMENT_STATUS.md#原版官网部署与待验收)，批准两BMS源 / Sayobot原包获取沿既有网站专项；PP / 地力另议，不扩聊天、presence、多人与未采用的官网谱包，不生成发行物。
 
@@ -20,7 +20,7 @@
 
 ## 闭环顺序
 
-沿[跨端计划](F:/zdamexy-workspace/oms-server/dev_bridge_md/doc_md/subline/oms-player-site/dev-plan.md)维护实际osu-web搜索 / 详情 / 个人 / 排行与统一入口，验批准源原包获取、公开最佳 / 独立灯 / 分条件统计及BMS与mania分榜。地力黑星、komasan方向与Walkure后置，标准与客户端方案须讨论；PP是后续优先方向，规则 / 数据 / 来源资格独立采用，不将累计分称PP。按下方路径接续P/C真人与反馈。
+沿[跨端计划](../../../../oms-server/dev_bridge_md/doc_md/subline/oms-player-site/dev-plan.md)维护实际osu-web搜索 / 详情 / 个人 / 排行与统一入口，验批准源原包获取、公开最佳 / 独立灯 / 分条件统计及BMS与mania分榜。地力黑星、komasan方向与Walkure后置，标准与客户端方案须讨论；PP是后续优先方向，规则 / 数据 / 来源资格独立采用，不将累计分称PP。按下方路径接续P/C真人与反馈。
 
 | 门 | 玩家 / 维护者结果 | 退出条件 |
 | --- | --- | --- |
@@ -40,7 +40,7 @@
 4. 窄窗口 / DPI、中文长谱名、分页、本人记录清空及 Windows 凭据真路径补设备体验；软件已有证据见[状态](DEVELOPMENT_STATUS.md)，不重复开发同一入口。
 5. 日常实机验收不触发发行打包。portable / 自定义根、覆盖组合和正式包冷启动留到用户自行构建发行时验收，已有隔离组合证据保留，不关闭 Phase 1.x 皮肤、硬件、听感和公开发行门。
 6. 完整手动游玩真实 LR2 / LR2G 及 GAS 默认 / 自选设置，核对本地最终灯、保存后的本人记录和网页；旧阻塞待交登录原账号后手动重试，原内容 / UUID / 归属不改。JD 与未开放辅助视觉设置保留明确拒绝原因；不以 Ranked 或本地 display bucket 作为公平榜准入，不自动交分未保存演示、回放、历史或匿名局。
-7. 按[原版官网维护说明](F:/zdamexy-workspace/websites/oms-web/doc_md/production-maintenance.md)继续日备份、受保护F外取和增长 / 磁盘 / WAL / 失败日志检查；维护同库源码回退，保留当前数据与固定新helper，不恢复旧快照覆盖新局。具体当前版本与旧运行 / 恢复证据只取STATUS，原失败保持；版本或规模未变时不重跑已过门。
+7. 按[原版官网维护说明](../../../../websites/oms-web/doc_md/production-maintenance.md)继续日备份、受保护F外取和增长 / 磁盘 / WAL / 失败日志检查；维护同库源码回退，保留当前数据与固定新helper，不恢复旧快照覆盖新局。具体当前版本与旧运行 / 恢复证据只取STATUS，原失败保持；版本或规模未变时不重跑已过门。
 8. 验原版官网普通浏览器刷新 / 视觉 / 窄屏、真实原账号 / 密钥 / 本人身份及批准源原包下载入库，再对照OMS同谱同范围；旧参考站浏览器或HTTP证据不签当前原版真人体验。继续全部指定宿主 / 玩法 / 架构及DPI体验，逐项留实际失败与反馈，不由网页上线关闭P/C。
 
 ## 验证

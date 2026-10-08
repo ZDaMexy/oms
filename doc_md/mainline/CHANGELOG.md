@@ -7,6 +7,16 @@
 
 ## 2026-10-09
 
+### 七项目进度与文档记忆复核
+
+从干净 master@c77823e2a448d590cd8c32c930f551f1bcfecf18 复核主线、P1-A～M / P3-IR 状态与诊断记忆；未 fetch，开工时本地 origin/master 仍落后当前分支两提交，该观察不代表实时远端。最新客户端产品源码仍为 6168791，软件、人工与发行日期及待验门均保留。
+
+七文件中的 22 个本机跨项目 Markdown 链接改为相对路径，包含 P3-IR 状态 / 计划 / 合同 / 历史、两份来源报告与 IR 诊断记忆。旧治理标题已从外部 verification 迁入 changelog，本次修正实际目标；历史来源日期、版本、失败及非链接证据路径原样保留，没有新增事实或记忆叶子。
+
+CheckDocumentation.ps1 在 URI 跳过前拒绝本机盘符链接，避免未核路径 / 标题的链接被误当网址；新增正斜杠、带空格反斜杠两项反例。TestCheckDocumentation.ps1 本轮 37/37 通过，保留 HTTPS / 非 Markdown 片段与原片段正反例；当前文档检查及跨仓差异结果取[统一复核记录](../../../oms-server/dev_bridge_md/doc_md/mainline/changelog.md#2026-10-09-七项目进度与记忆复核)，长期收据在 artifacts/workspace-doc-health-20261009-r1/。
+
+本轮未执行产品 build / test / formatter、网络或用户数据取证、生产变更、下载、恢复、容量复验或 Windows 打包；真实账号 / 窗口 / 下载、迁移后 VS Code 非调试启动、P/C 与设备 / 发行门继续保留。
+
 ### 客户端迁入总工作区
 
 从干净的 master@24b235ecf16467a6becc8c5b5a17a6dfc8ec6091 迁至 F:/zdamexy-workspace/oms。开工已保存六个目标仓的 HEAD、状态、暂存 / 未暂存差异及拟改文件原件，完整方案按基线、搬迁、开发环境修复、入口联动、验证、交接六阶段执行；证据集中于 artifacts/workspace-migration-20261009/。

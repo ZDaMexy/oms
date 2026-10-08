@@ -2,7 +2,7 @@
 
 ## 原版官网部署与待验收
 
-2026-10-08 原版osu-web已实际最终发布 `b879e4233818-b0feceae22e4` / schema3，状态 **已部署待验收**。原Laravel / Blade / React / Less / Turbo页面已接唯一OMS服务，玩家可从新闻首页、独立下载 / 帮助、谱面目录、参考混榜、账号 / 个人与玩家榜进入。共享主机完整运行、两次实际空恢复与容量、发布前后正式备份、新→旧D1/e6→新同库回退、公网207检查 / 564请求和timer恢复通过，全部原失败保持；准确来源 / 资源 / 失败只取[正式发布](F:/zdamexy-workspace/websites/oms-web/doc_md/production-deployment-20261007.md#正式发布与收尾)，日常运维和[真人路径](F:/zdamexy-workspace/websites/oms-web/doc_md/production-maintenance.md#真人验收)已同步。
+2026-10-08 原版osu-web已实际最终发布 `b879e4233818-b0feceae22e4` / schema3，状态 **已部署待验收**。原Laravel / Blade / React / Less / Turbo页面已接唯一OMS服务，玩家可从新闻首页、独立下载 / 帮助、谱面目录、参考混榜、账号 / 个人与玩家榜进入。共享主机完整运行、两次实际空恢复与容量、发布前后正式备份、新→旧D1/e6→新同库回退、公网207检查 / 564请求和timer恢复通过，全部原失败保持；准确来源 / 资源 / 失败只取[正式发布](../../../../websites/oms-web/doc_md/production-deployment-20261007.md#正式发布与收尾)，日常运维和[真人路径](../../../../websites/oms-web/doc_md/production-maintenance.md#真人验收)已同步。
 
 本次没有修改客户端源码或生成发行物；默认地址空、旧在线false、原UUID / body / owner保持。线上浏览器工具超时，未签线上视觉 / 普通点击；真实原账号、旧待交补交、下载入库、OMS同谱同范围及ED7K先导P后完整C仍待用户验收。下方旧站各轮软件 / 发布保留原日期，不冒充当前运行。
 
@@ -22,7 +22,7 @@
 
 当前工作区账号 / 查榜UI软件来源`6168791`，2026-10-07Release与普通Desktop编译有效；后续纯文档同步不刷新这份软件来源，仓库核对时点从对应治理日志读取。`234a9ff`是此前mania六判定与服务完整运行门的客户端来源，保留原结果。默认空地址、旧在线总开关false及原body / UUID / owner不变。窗口 / 焦点 / 长名、实服分页、旧待交和网页同范围仍待用户VS Code非调试验收，无Windows发行包。
 
-当前原版B879 / B0运行与维护取上方最新记录。旧静态D1/e6（2026-10-07 04:25:04 CST）现为同库设计回退来源，当次来源取[旧页面核验](F:/zdamexy-workspace/websites/oms-website/doc_md/other/oms-deai-verification-20261007.md)。旧D1/22完整运行 / 七来源 / 原生 / 1,800秒 / 两空恢复 / F核验与b520往返取[历史服务证据](F:/zdamexy-workspace/oms-server/oms-backend/doc_md/other/oms-player-site-verification-20261005.md#counts22-候选的实际主机检查2026-10-06)。其原full30 / all_predeployment及漏采prune的false保持，宿主raw按全字节继承F指纹，不伪称宿主独立逐表扫描；旧运行来源不能代签当前源码或真人。
+当前原版B879 / B0运行与维护取上方最新记录。旧静态D1/e6（2026-10-07 04:25:04 CST）现为同库设计回退来源，当次来源取[旧页面核验](../../../../websites/oms-website/doc_md/other/oms-deai-verification-20261007.md)。旧D1/22完整运行 / 七来源 / 原生 / 1,800秒 / 两空恢复 / F核验与b520往返取[历史服务证据](../../../../oms-server/oms-backend/doc_md/other/oms-player-site-verification-20261005.md#counts22-候选的实际主机检查2026-10-06)。其原full30 / all_predeployment及漏采prune的false保持，宿主raw按全字节继承F指纹，不伪称宿主独立逐表扫描；旧运行来源不能代签当前源码或真人。
 
 地力黑星、komasan方向与Walkure后置，标准与客户端方案待讨论；PP为后续优先方向，规则 / 范围 / 来源资格须独立采用，当前指标不标PP。先导P / 完整C、30玩法矩阵与全部宿主真人格仍待验收。
 

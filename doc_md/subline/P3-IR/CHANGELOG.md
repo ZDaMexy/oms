@@ -1,5 +1,9 @@
 # OMS IR 历史
 
+## 2026-10-09：迁移后跨项目导航复核
+
+将当前状态 / 计划 / 合同、旧来源报告 / 历史与诊断记忆的跨仓导航改为相对路径；旧治理标题改指 Dev Bridge 实际历史。来源和原日期不刷新，官网继续已部署待验收，6168791 软件与 P/C / 发行真人门不变。检查器与统一七仓的本次验证只在[主线记录](../../mainline/CHANGELOG.md#七项目进度与文档记忆复核)维护，不新增重复进度或诊断叶子。
+
 ## 2026-10-08：当前入口与诊断记忆复核
 
 以干净48fa55b、成功fetch后的master/origin为基线，6168791之后仍仅文档/记忆修改。三语首页不再指向奖杯登录或称多来源待审查；按实际原账号保存门、来源查榜、端内本人UUID全历史/网站公开最佳与原版官网已部署待验收同步。主约束明确v1保存/凭据、v2 BMS来源查询和已采用玩家网站的窄例外；默认地址与旧在线false保持。
@@ -16,13 +20,13 @@ reference_oms_ir按故障主题整理来源时效、保存/凭据、多来源SDK
 
 2026-10-08 22:30:08 CST真实只读SSH确认current仍B879 / B0，主IR / catalog / PHP enabled running且NRestarts0，backup timer enabled active waiting；即时root余约4.33GiB、MemAvailable约828MiB / swap0只是观察，不重签容量。22:30:57 CST匿名公网`/`、`/ir/`、旧`/users/?id=<OMS ID>`与新`/users/<OMS ID>`均200 / 对应标题，HTML no-cache,private；原版路由保留users/profileLegacy及ir，客户端外链不改。完整原件为[生产只读状态](../../../artifacts/oms-ir-doc-health-20261008/production-readonly-state-r1.json)和[公开入口只读核对](../../../artifacts/oms-ir-doc-health-20261008/public-route-readonly-r1.json)。这只核运行 / 兼容入口，不签普通浏览器视觉 / 登录、真实下载、客户端或P/C。
 
-本轮只修文档、记忆与外部工作区事实定位检查，并作小范围只读观察；没有客户端产品实现或产品build/test/formatter、线上变更、Windows发行物或真人签收，未访问原始用户数据 / 凭据，Phase 1.x全部原门保持。客户端文档检查、七仓工作区与暂存差异检查通过；外部跨仓 / 片段与确切暂存视图检查、定位检查器10项回归及原失败的边界沿[本轮治理记录](F:/zdamexy-workspace/oms-server/dev_bridge_md/doc_md/mainline/verification.md#2026-10-08-文档与记忆健康度复核)。没有用旧通过替代新检查。
+本轮只修文档、记忆与外部工作区事实定位检查，并作小范围只读观察；没有客户端产品实现或产品build/test/formatter、线上变更、Windows发行物或真人签收，未访问原始用户数据 / 凭据，Phase 1.x全部原门保持。客户端文档检查、七仓工作区与暂存差异检查通过；外部跨仓 / 片段与确切暂存视图检查、定位检查器10项回归及原失败的边界沿[本轮治理记录](../../../../oms-server/dev_bridge_md/doc_md/mainline/changelog.md#2026-10-08-文档与记忆健康度复核)。没有用旧通过替代新检查。
 
 ## 2026-10-08：原版官网实际发布
 
 原版osu-web按后续授权实际发布，最终B879 / B0 / schema3。共享主机完整运行、两次实际空恢复与八对 / 最大raw / 2 GiB预算、固定正式备份R7同实例采样与完整F gzip / raw / 22表、旧D1/e6同库回退、公开207检查 / 564请求、新配置完整外存和原timer恢复通过。第一次forward及恢复schema守卫、R6早期注册、Blade / 根链接误判和一次Ginger502的原false保持，后续实际成功另留原件。
 
-准确版本 / 实际终态 / 窗口 / 失败只取[外部正式记录](F:/zdamexy-workspace/websites/oms-web/doc_md/production-deployment-20261007.md#正式发布与收尾)，[维护与真人路径](F:/zdamexy-workspace/websites/oms-web/doc_md/production-maintenance.md)已同步。当前 **已部署待验收**；本轮没有客户端源码、发行物或新真人交分，原6168791 / 234a9ff软件证据保持来源，默认离线、UUID / 归属、原待交不变，P/C和原人工 / 发行门未关闭。
+准确版本 / 实际终态 / 窗口 / 失败只取[外部正式记录](../../../../websites/oms-web/doc_md/production-deployment-20261007.md#正式发布与收尾)，[维护与真人路径](../../../../websites/oms-web/doc_md/production-maintenance.md)已同步。当前 **已部署待验收**；本轮没有客户端源码、发行物或新真人交分，原6168791 / 234a9ff软件证据保持来源，默认离线、UUID / 归属、原待交不变，P/C和原人工 / 发行门未关闭。
 
 ## 2026-10-07（原账号与查榜界面复查）
 
@@ -32,13 +36,13 @@ reference_oms_ir按故障主题整理来源时效、保存/凭据、多来源SDK
 
 运行仍d1f052b93a81 / 22b4ee54f237，客户端234a9ff未改。实际新→旧b520→新源码同库往返完成，旧阶段只读补核556574c7bd38、旧HTTP运行 / d1-helper正式备份a2aed221f9dc / F22表af79ca239a06、返回新源码1c9af6e33695分别留证。保留同一当前库，三阶段非配额全表指纹 / 原账号UUID / 外部状态 / 会话 / 社区相同，只有真实GET更新rate_limits；没有生产伪造新写或恢复旧raw。
 
-最终正式backup PID1772424加载Exit0 / PIDgone，Max128MiB / CPU50% / swap0，缓存117,964,800B；原观察器漏采prune PID的55cbe3c15204仍false，未造PID / 改原flags。已发布完整对在F独立全CRC / raw / 22表 / sequence / schema / FK / integrity核验通过f6792617c92c，具体来源取[服务原件](F:/zdamexy-workspace/oms-server/oms-backend/doc_md/other/oms-player-site-verification-20261005.md#生产发布与维护收尾)。
+最终正式backup PID1772424加载Exit0 / PIDgone，Max128MiB / CPU50% / swap0，缓存117,964,800B；原观察器漏采prune PID的55cbe3c15204仍false，未造PID / 改原flags。已发布完整对在F独立全CRC / raw / 22表 / sequence / schema / FK / integrity核验通过f6792617c92c，具体来源取[服务原件](../../../../oms-server/oms-backend/doc_md/other/oms-player-site-verification-20261005.md#生产发布与维护收尾)。
 
 [最终公开报告](../../../artifacts/oms-player-site-20261005/public-player-site-r7-20261006T163617Z-1be7ecbc/public-player-site-report.json)（15c682a35f39）实际156GET / 880检查通过。Ginger与616均ok、有两个真实候选，推荐Ginger入口307到pixeldrain.net未跟随；初次失败 / 616替代保持原记录。公开历史29,202身份与尾页1,461，未证明OMS条件 / 社区帖子时不造数据；普通浏览器多次30秒超时，视觉 / 刷新 / 点击 / 账号真人仍待。
 
 [最终实际空间](../../../artifacts/oms-player-site-20261005/production-final-space-closed-r7-8ce4df6c2091.json)（9d4d14d9546f）通过八对、最大gzip39,475,324B / 临时raw962,183,168B与系统2GiB计账，磁盘4,777,447,424B≥需求3,433,858,016B。worker1786416实际loadedExit0 / PIDgone / 128MiB，峰85,221,376B、OOM0；主机可用约870MiB / 负载0.05 / swap使用0。任务临时90与50-MemoryAccounting均按身份撤销，默认Accountingyes和d1维护pin保持；[恢复原timer](../../../artifacts/oms-player-site-20261005/production-final-restore-timer-r7-5da8b0a16d72.json)（73fd3449a133）enabled / active / waiting，实测下一次04:17:46CST。
 
-回退检查工具两次误判造成停服，原失败保留：catalog停止后先disable导致终态被回收，改为先收终态；秒级journal --until漏亚秒关闭日志，实际日志只读补采后从已停位置继续。Path('/proc')/int导致最后收取失败也只读补核，不重复停服 / 备份 / 恢复。维护和回退只取[当前运行说明](F:/zdamexy-workspace/oms-server/oms-backend/doc_md/other/oms-player-site-maintenance-20261006.md)。
+回退检查工具两次误判造成停服，原失败保留：catalog停止后先disable导致终态被回收，改为先收终态；秒级journal --until漏亚秒关闭日志，实际日志只读补采后从已停位置继续。Path('/proc')/int导致最后收取失败也只读补核，不重复停服 / 备份 / 恢复。维护和回退只取[当前运行说明](../../../../oms-server/oms-backend/doc_md/other/oms-player-site-maintenance-20261006.md)。
 
 状态保持“已部署待验收”，先OMS＋全量历史＋ED7K先导P，再固定宿主 / 两架构 / 30玩法C；原登录 / 本人UUID / 旧待交归属、两端来源与同条件 / 分页 / 隐私、真实包入库及视觉真人未签。地力 / komasan / Walkure后置，PP后续优先但规则另议。仅文档与记忆同步，无新代码编译、Windows包 / publish / 安装副本。
 
@@ -70,11 +74,11 @@ reference_oms_ir按故障主题整理来源时效、保存/凭据、多来源SDK
 
 客户端运行源码仍234a9ff，本文档与记忆同步不构成新构建或真人验收。外部当前候选d1f052 / 22b4已实现22表精确人数分布，软件focused121 / full336、小样本及指定b520真实UUID与外部最佳往返通过；实际全量R6于UTC09:13完成七来源 / 四原生完整数组 / 1,800秒 / 两新空恢复与旧21安装分项，但独立验收driver的实际峰值268,455,936B超256MiB上限20,480B，整轮false。完整报告1b440 / 失败收取0c4bc及真实Exit1保留，不能减峰、增容差或由分项代签。
 
-失败三库保全的首次只读审计在恢复库零WAL / 锁SHM恒等检查失败，完整3083 / 实际terminal44d3保全F。后续仅对全部真实角色已关闭、fuser闲置及WAL不存在或零的自有副本采用无副作用读取，非空WAL继续拒绝。R2于UTC10:04实际通过三库全部22表两次核验及全部侧文件恒等，完整4f109 / 实际terminaldba5保全F；三库完整F保全与定点退役已实际通过cbdb39，八份重复gzip亦经全量F核验后退役18870。新全量R7于UTC10:38实际启动、原Max256MiB不变，结果及空间 / 发布门仍待。细节只取[外部当前验证](F:/zdamexy-workspace/oms-server/oms-backend/doc_md/other/oms-player-site-verification-20261005.md#counts22-候选的实际主机检查2026-10-06)。生产仍b520，新网站未部署；地力后置、PP另议，OMS非调试 / 两端 / 指定宿主及P/C真人仍待，无Windows包或额外安装。
+失败三库保全的首次只读审计在恢复库零WAL / 锁SHM恒等检查失败，完整3083 / 实际terminal44d3保全F。后续仅对全部真实角色已关闭、fuser闲置及WAL不存在或零的自有副本采用无副作用读取，非空WAL继续拒绝。R2于UTC10:04实际通过三库全部22表两次核验及全部侧文件恒等，完整4f109 / 实际terminaldba5保全F；三库完整F保全与定点退役已实际通过cbdb39，八份重复gzip亦经全量F核验后退役18870。新全量R7于UTC10:38实际启动、原Max256MiB不变，结果及空间 / 发布门仍待。细节只取[外部当前验证](../../../../oms-server/oms-backend/doc_md/other/oms-player-site-verification-20261005.md#counts22-候选的实际主机检查2026-10-06)。生产仍b520，新网站未部署；地力后置、PP另议，OMS非调试 / 两端 / 指定宿主及P/C真人仍待，无Windows包或额外安装。
 
 ## 2026-10-06：新索引主机分项与全量首读失败
 
-客户端运行来源234未改；外部新候选24eef / 22b完成严格导出、两尺度R8、完整旧addon升级及指定b520真实写入返回，F完整保全与退役实际合成raw。新R3七来源查询分项通过，但首次BMS个人622.113ms超300、原PID1309440 Exit1，原false / 报告 / JSONL / 日志保留，尚未到原生、120秒 / 1,800秒或两新空恢复。只读诊断六条件COUNT实际均COVERING、完整内容一致，缓存函数24～38ms不解释原首HTTP。细节和actual来源只取[外部验证](F:/zdamexy-workspace/oms-server/oms-backend/doc_md/other/oms-player-site-verification-20261005.md#新索引全量首读仍失败2026-10-06)，生产仍b520，无新Windows构建 / 包或真人P/C签收。
+客户端运行来源234未改；外部新候选24eef / 22b完成严格导出、两尺度R8、完整旧addon升级及指定b520真实写入返回，F完整保全与退役实际合成raw。新R3七来源查询分项通过，但首次BMS个人622.113ms超300、原PID1309440 Exit1，原false / 报告 / JSONL / 日志保留，尚未到原生、120秒 / 1,800秒或两新空恢复。只读诊断六条件COUNT实际均COVERING、完整内容一致，缓存函数24～38ms不解释原首HTTP。细节和actual来源只取[外部验证](../../../../oms-server/oms-backend/doc_md/other/oms-player-site-verification-20261005.md#新索引全量首读仍失败2026-10-06)，生产仍b520，无新Windows构建 / 包或真人P/C签收。
 
 ## 2026-10-06：外部玩家统计与 OpenLR2 软件门投影
 
@@ -86,7 +90,7 @@ OpenR4实际双架构软件HTTP与非空容器消费通过，来源 `3abf9aa3741
 
 新候选 `25d32397c330-37f05e2ca369` 来源Backend `25d32397c330090fe7e6588938bd558d884bfa89` / Web `37f05e2ca3690c5ba6008862121aa5038864f92b`。[共享主机r7](../../../artifacts/oms-player-site-20261005/host-player-report-r7.json)两玩法1,000 / 100,000不同最佳 completed / passed 均true：个人三路径十请求含首次 / p95≤300ms，玩家榜≤1秒。100,000规模BMS三个人页p95为138.090 / 52.387 / 46.825ms，mania为79.907 / 48.437 / 50.945ms，最慢玩家榜437.533ms；实际loopback网络 / 源码 / PID、500MiB / 150%预算、无OOM / 进程与主机swap、共享余量≥512MiB和schema3往返保持。
 
-样本53合成账号，不签近三万人口、1,800秒或千万级档案；根正在运行独立新人口 / 写读重叠 / 两空恢复增量门，当前尚未最终完成。生产仍b520已部署待验收，新完整玩家站候选已准备但未部署；旧3ab独立门和原空间false保留实际来源 / 失败，补账单独记录，正式复用和新增门边界取[共同约束](F:/zdamexy-workspace/oms-server/dev_bridge_md/doc_md/subline/oms-player-site/constraints.md#2026-10-06-本人名次纯读取修订与差异验收)。
+样本53合成账号，不签近三万人口、1,800秒或千万级档案；根正在运行独立新人口 / 写读重叠 / 两空恢复增量门，当前尚未最终完成。生产仍b520已部署待验收，新完整玩家站候选已准备但未部署；旧3ab独立门和原空间false保留实际来源 / 失败，补账单独记录，正式复用和新增门边界取[共同约束](../../../../oms-server/dev_bridge_md/doc_md/subline/oms-player-site/constraints.md#2026-10-06-本人名次纯读取修订与差异验收)。
 
 后续产品取舍记为地力评级 /Walkure后置，PP优先但规则与来源资格独立讨论后正式采用；现有收录 /通关 /mania累计指标不标PP。PSCore普通Command ACL、WinPS5继承Core模块路径及EncodedCommand三十秒超时只进入技术记忆；原shell失败发生在app创建前，不当业务故障。根执行的client-docs-r9.log记录文档199 / 链接2017 / 锚点310 / 记忆125及workspace124 / 930通过，git diff --check通过；原通用警告保留。本次将STATUS新增细节转入历史，精简后的复检待根执行，未重跑产品或更新真人日期。
 
@@ -96,7 +100,7 @@ OpenR4实际双架构软件HTTP与非空容器消费通过，来源 `3abf9aa3741
 
 ## 2026-10-05：实际 osu-web 试运行与原账号真人路径
 
-当时采用osu-web设计的旧参考站`b520bcb99015-5d0531c22423` / schema3已部署待验收，最小profile与对应公开源码、同账户网页入口通过服务 / 软件及公开门；全量主机、两空恢复、完整F盘保全 / 补账、旧schema3往返和新日备份已过。这是旧参考站历史，不是2026-10-08原Laravel / Blade / React官网发布。只更新外部来源与剩余门，不重跑未改客户端产品或生成Windows包。详细失败、源码身份、盘账、维护 / 回退及当时浏览器 / 窄屏限制取[外部历史核验](F:/zdamexy-workspace/websites/oms-website/doc_md/other/osu-web-lazer-account-verification-20261005.md)。用户从F:/oms非调试启动原账号 / 个人页，真实新局 / 原UUID待交 / 换账号 / 实服分页与网页对照、P/C当时均待，不由此新签当前真人。
+当时采用osu-web设计的旧参考站`b520bcb99015-5d0531c22423` / schema3已部署待验收，最小profile与对应公开源码、同账户网页入口通过服务 / 软件及公开门；全量主机、两空恢复、完整F盘保全 / 补账、旧schema3往返和新日备份已过。这是旧参考站历史，不是2026-10-08原Laravel / Blade / React官网发布。只更新外部来源与剩余门，不重跑未改客户端产品或生成Windows包。详细失败、源码身份、盘账、维护 / 回退及当时浏览器 / 窄屏限制取[外部历史核验](../../../../websites/oms-website/doc_md/other/osu-web-lazer-account-verification-20261005.md)。用户从F:/oms非调试启动原账号 / 个人页，真实新局 / 原UUID待交 / 换账号 / 实服分页与网页对照、P/C当时均待，不由此新签当前真人。
 
 ## 2026-10-05：原登录和个人页复用
 
