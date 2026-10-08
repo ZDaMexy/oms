@@ -5,14 +5,13 @@
 ## 项目与协作
 
 - [项目总览](project_oms_overview.md) — 范围、独立 IR 与旧在线链边界、数据根与便携标记。
-- [文档治理](project_oms_docs_governance.md) — 主约束/多语/发行例外漏同步、候选证据与清理范围、历史网络时效、不可达验收格、开发命令环境与检查器误判。
+- [文档治理](project_oms_docs_governance.md) — 主约束/多语/发行例外漏同步、候选证据与清理范围、历史网络时效、不可达验收格、开发命令环境、暂存引用闭合与检查器误判。
 - [反馈工作流](feedback_workflow.md) — 默认产品语言、反过度防御、真机证据与本轮结束边界。
 - [选歌展示与导航](project_oms_songselect_display_nav.md) — 状态分离、祖先可见性、谱卡重绑与大库诊断。
 - [内置音乐播放器](project_oms_music_player.md) — 共用音轨/试听与队列接入、已定展开壳体和 core 依赖方向。
 - [内置 BMS 下载](reference_bms_builtin_download.md) — 完整表与包身份、目录手动恢复、归档预算/CRC/释放语义、首次完成旧快照、任务收尾与精确选歌。
 - [Sayobot mania 下载](reference_mania_sayobot_download.md) — 原游标/混合包、原sid/bid与实际MD5、镜像节点；两玩法共享封面、首次完成旧快照的回链与退出诊断。
-- [OMS IR 接入](reference_oms_ir.md) — 源码 / 文档HEAD、UUID归属与原账号UI；mania判定 / 镜像、多来源整榜与独立灯；共享主机cgroup / WAL / 精确峰值 / 全分页、SDK与Open软件Host；CRC / 22表 / 恢复外取 / 精确退役、WinPS / atime / mtime / ETag、实际查询 / 旧结构升级 / 固定维护、采样与失败保全、跨API路径 / 空cgroup / 空目录；双manifest / typed终态 / 原件只读补核、停止与disable顺序、journal亚秒边界 / 已停续接、formal备份与漏采PID分记、临时配置 / 原timer / 八对与最大raw预算；未保存origin / 密码回车、异步Dispose的TextFlow线程边界、换源清条件与详情原位；inactive oneshot峰缺值 / 同一backup实例采样、兼容新前端manifest / 原sidecar绑定；子验证身份原帧 / 同总时限等待 / 父所有权、全原生解码图释放 / 失败原帧 / 跨仓绝对temp；停止库存在集合 / 独立ExecStart / gzip预测与实际恢复；journal全原件 / 独立CONT看门 / 分namespace sync、失败传输与同cut全件外取 / 合计保留量；撤销后分页401 / 补验失败、Nginx就绪身份 / 已旋转refresh、stop终态回收；backup最终身份原流 / 独立有限维护与已退出success；ACL提示stream1 / strict文件名、early oneshot身份 / 精确完成对独立保全。
-  新增：公开cache父目录 / 同app缓存、同cgroup ControlPID登记 / 最终原流匹配、宝塔reload与HTTPS就绪 / 两批准索引同库回退、真实Blade与PHP空数组 / root href / 来源502原件。
+- [OMS IR 接入](reference_oms_ir.md) — 软件 / 文档 / 运行manifest时效；保存UUID、账号取消与界面线程；mania判定、来源 / SDK身份与完整整榜；SQL / 并发 / 压缩及真实峰值；备份恢复、停服终态与systemd采样；跨平台路径 / 字节外取、journal保全；原版发布缓存 / Blade排错。
 
 ## 皮肤恢复与存储
 

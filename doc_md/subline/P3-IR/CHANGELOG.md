@@ -1,5 +1,15 @@
 # OMS IR 历史
 
+## 2026-10-08：进度文档与记忆一致性复核
+
+七仓已在线fetch且均为0/0、暂存为空，客户端从干净master@514dc645接续，完整[仓库基线](../../../artifacts/oms-ir-doc-health-20261008/repository-baselines.json)保全。确认6168791之后仅文档 / 记忆变更；当前账号 / 查榜软件来源与历史234a9ff分别标记，不以文档HEAD或旧服务验证概括当前客户端。
+
+主线只留当前P3摘要，专项将原版B879 / B0、旧静态D1/e6与更早参考站分开，原日期、版本、失败与适用软件 / 运行 / 恢复证据保持。PLAN退出已完成发布过程，转为固定日备份 / F外取、增长 / 同库回退和普通浏览器、批准源真实包入库、原账号 / 密钥、VS Code非调试OMS及先导P / 完整C真人动作；公开最佳中可见记录与端内本人UUID全历史不混用。记忆只保诊断地雷，移除中途待办、重复合同和逐次新增索引。
+
+2026-10-08 22:30:08 CST真实只读SSH确认current仍B879 / B0，主IR / catalog / PHP enabled running且NRestarts0，backup timer enabled active waiting；即时root余约4.33GiB、MemAvailable约828MiB / swap0只是观察，不重签容量。22:30:57 CST匿名公网`/`、`/ir/`、旧`/users/?id=<OMS ID>`与新`/users/<OMS ID>`均200 / 对应标题，HTML no-cache,private；原版路由保留users/profileLegacy及ir，客户端外链不改。完整原件为[生产只读状态](../../../artifacts/oms-ir-doc-health-20261008/production-readonly-state-r1.json)和[公开入口只读核对](../../../artifacts/oms-ir-doc-health-20261008/public-route-readonly-r1.json)。这只核运行 / 兼容入口，不签普通浏览器视觉 / 登录、真实下载、客户端或P/C。
+
+本轮只修文档、记忆与外部工作区事实定位检查，并作小范围只读观察；没有客户端产品实现或产品build/test/formatter、线上变更、Windows发行物或真人签收，未访问原始用户数据 / 凭据，Phase 1.x全部原门保持。客户端文档检查、七仓工作区与暂存差异检查通过；外部跨仓 / 片段与确切暂存视图检查、定位检查器10项回归及原失败的边界沿[本轮治理记录](F:/zdamexy-workspace/oms-server/dev_bridge_md/doc_md/mainline/verification.md#2026-10-08-文档与记忆健康度复核)。没有用旧通过替代新检查。
+
 ## 2026-10-08：原版官网实际发布
 
 原版osu-web按后续授权实际发布，最终B879 / B0 / schema3。共享主机完整运行、两次实际空恢复与八对 / 最大raw / 2 GiB预算、固定正式备份R7同实例采样与完整F gzip / raw / 22表、旧D1/e6同库回退、公开207检查 / 564请求、新配置完整外存和原timer恢复通过。第一次forward及恢复schema守卫、R6早期注册、Blade / 根链接误判和一次Ginger502的原false保持，后续实际成功另留原件。
@@ -78,7 +88,7 @@ OpenR4实际双架构软件HTTP与非空容器消费通过，来源 `3abf9aa3741
 
 ## 2026-10-05：实际 osu-web 试运行与原账号真人路径
 
-外部 `b520bcb99015-5d0531c22423` / schema3 已部署待验收，最小 profile 与对应公开源码、同账户网页入口通过服务 / 软件及公开门；全量主机、两空恢复、完整F盘保全 / 补账、旧schema3往返和新日备份已过。只更新外部来源与剩余门，不重跑未改客户端产品或生成 Windows 包。详细失败、源码身份、盘账、维护 / 回退以及公网浏览器 / 窄屏限制取[外部核验](F:/zdamexy-workspace/websites/oms-website/doc_md/other/osu-web-lazer-account-verification-20261005.md)。用户从当前 F:/oms 非调试启动原用户按钮 / 原个人页，真实新局 / 原UUID待交 / 换账号 / 实服分页与网页对照、P/C均待。
+当时采用osu-web设计的旧参考站`b520bcb99015-5d0531c22423` / schema3已部署待验收，最小profile与对应公开源码、同账户网页入口通过服务 / 软件及公开门；全量主机、两空恢复、完整F盘保全 / 补账、旧schema3往返和新日备份已过。这是旧参考站历史，不是2026-10-08原Laravel / Blade / React官网发布。只更新外部来源与剩余门，不重跑未改客户端产品或生成Windows包。详细失败、源码身份、盘账、维护 / 回退及当时浏览器 / 窄屏限制取[外部历史核验](F:/zdamexy-workspace/websites/oms-website/doc_md/other/osu-web-lazer-account-verification-20261005.md)。用户从F:/oms非调试启动原账号 / 个人页，真实新局 / 原UUID待交 / 换账号 / 实服分页与网页对照、P/C当时均待，不由此新签当前真人。
 
 ## 2026-10-05：原登录和个人页复用
 

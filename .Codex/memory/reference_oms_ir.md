@@ -3,7 +3,7 @@
 ## 权威入口与证据时效
 
 - 2026-10-08原版站上线排错：0077私有owner创建的公开cache父目录须明确0755可遍历，private子目录仍0700；config / view cache在与FPM相同的正式/app命名空间生成。运行提交不随文档或外置探针HEAD提升，固定日备份helper与HTTP current分别绑定；操作路径取外部原版站 production-maintenance.md。
-- systemd oneshot的新InvocationID / ExecMainPID可能先于Bash原argv / cwd就绪。有限保存全部候选，只有同InvocationID / ExecMainPID / starttime且真正位于该cgroup的MainPID或ControlPID才可登记；最终匹配窗口须从原流核验，不用成功终态补造旧帧。R6 false保留，R7实际完整104 / 107匹配另证。
+- systemd oneshot的新InvocationID / ExecMainPID可能先于Bash原argv / cwd就绪。有限保存全部候选，只有同InvocationID / ExecMainPID / starttime且真正位于该cgroup的MainPID或ControlPID才可登记；最终匹配窗口须从原流核验，不用成功终态补造旧帧。R6早期身份误判的原false保留，后续实际观察按自己的完整原流另证，结果只取正式日志。
 - Nginx reload返回0之后旧worker仍可能接收请求；宝塔实际init reload后有界核真实HTTPS，留每次尝试。停止主IR就是发布变动，自动恢复须先停候选主IR / PHP再作兼容守卫。原全部schema保留时仅容许本轮已采用的两普通目录索引，不因合法索引拒绝已证明旧源；其他差异不泛化。首次停点 / 独立实际恢复 / 新同库往返分别留证，不能回灌旧raw或把恢复工具当任意版本回退器。
 - 原Blade静态页没有json-oms-page，账号PHP空data可真实为[]；按原controller / action / section、DOM / 完整正文 / 导航 / 资源核验，不给产品填假JSON。Laravel首页href空root path与/等价，其他path / query / fragment须保留。来源真实502留状态 / 错误，不用重试或替代源冒充本次成功；后续真实200另留日期。
 
@@ -11,7 +11,7 @@
 
 - 2026-10-08 子验证 argv / cwd / cgroup 的合取失败须先保全预期与实际字段，没记录分项不能归因于启动竞态或资源耗尽。有界身份等待仍须精确原来源 / 同 PID 与 starttime / 同 cgroup / 存活，并计入从 Popen 前开始的原总时限；迟到匹配也失败。父资源观察覆盖子初始化、完整投影哈希与 wait，子报告成功不代签父资源或真实退出；所有后端生命周期保持父所有权。实际官网迁移状态只取 `F:\zdamexy-workspace\websites\oms-web\doc_md\production-deployment-20261007.md`，不从新工具或文档 HEAD 推导线上来源。
 
-- 2026-10-05 原账号 / 实际 osu-web 发布：运行 manifest 绑定已提交源码、插件实际构建及对应源码下载，后续文档 HEAD 不能冒充 runtime。读取 profile / 来源本身会更新 SQLite rate_limits；回退指纹应完整核对玩家 / 会话 / 撤销 / 社区与 schema，单独记录该真实限流命中，不能谎报所有表全等或放宽限额。门户 no-cache 与 IR 既有 no-store 都要求重新请求，校验脚本不能因更严格 no-store 误报。浏览器 fullPage 导出 / viewport override 与实际 native 画面不一致时保留失败并明确窄屏待复核；公网 AX/DOM/reload 超时而截图可用，只签实际截图，不能以 HTTP 字节或旧截图代签普通刷新和点击往返。
+- 2026-10-05旧参考站 / 原账号发布排错：运行manifest绑定已提交源码、插件实际构建及对应源码下载，后续文档HEAD不能冒充runtime；该旧参考站不是后来的原版Laravel / Blade / React官网。读取profile / 来源本身会更新SQLite rate_limits；回退指纹完整核玩家 / 会话 / 撤销 / 社区与schema，单列真实限流命中，不谎报所有表全等或放宽限额。门户no-cache与IR既有no-store都要求重新请求，检查器不能因更严格no-store误报。fullPage导出 / viewport override与native画面不一致时保留失败；公网AX / DOM / reload超时而截图可用，只签实际截图，不以HTTP字节或旧截图代签普通刷新和点击。
 
 - 2026-10-07 已部署站的收尾必须区别实际formal备份和观察器：短prune子PID漏采时原observer false不改；保留actual loaded Exit0 / 正峰 / PIDgone与原件，独立F full CRC / raw / 22表验证，只签这份完整对，不造未观察PID。早先同一固定helper backup/prune真实观察另留来源。源码新→旧→新用同一live，配额因GET可变，原账号UUID和全部非配额表逐表核对。
 - `systemctl disable --now`可能回收inactive单元终态，停止catalog后先收loaded / 原PID / 缓存峰再disable；卸载后不能以ExecMainPID0 / 未设置峰改签正常资源门。`Path('/proc') / PID`必须str；最后收取失败仅只读补核原关闭角色 / 原件，不重复源码切换和API来制造新证明。
@@ -57,35 +57,33 @@
 - 压缩整榜不能只检查JSON：r10实际WinHTTP自动解压接受坏CRC、29,204行仍与identity相同；编译/字段一致不能签完整性。按实际失败改固定官方zlib静态校验完整结束与尾部，网络/解压后各计限并沿原截止；依赖源码/许可/hash纳入干净编译与发布证明，不借宿主已有DLL猜版本。Java首次连续slow失败未复现时保留原日志，用实际异常类型核定，不能盲改成“超时”或放松原因断言。
 - 恢复盘账须保留原失败：r9两闲置合成恢复库使原七日门false；先将完整gzip/sidecar及逻辑验证证据外取，解压复核SHA后才能精确定点清理可重建的合成DB/WAL/SHM，再另记七日/新空恢复/WAL/系统余量补账，不覆写原报告。Python sqlite3连接的`with`只管理事务，不自动close；ownership/fuser前须显式关闭自己的连接。本机远端fuser不支持`--`，非法选项不能当作文件仍被占用。
 - Windows字节证明文件不能用默认文本fd：2026-10-05 r10外取工具用`os.open`/`os.write`后按UTF8字节数`ftruncate`，默认LF→CRLF展开使JSON结尾被截断，CLI显示通过也不构成可用receipt。写这种精确字节文件须用`O_BINARY`；保留原失败，重新完整解压核对两快照并独立解析完成JSON/核producer hash后，才向远端确认定点清理。F证据`offhost-r10-receipt-invalid.json`及`offhost-r10-verification-r2.json`不进Git。
-- “真实环境验收”不授权客户端打包：2026-10-03 用户明确日常用 VS Code 非调试启动，发行构建自行执行。稳定约定在 AGENTS；不要由部署服务推导需要 ZIP / publish / 额外安装副本，既有发行门留到用户构建时验收。
 - 首次未填搜索词时，`new Bindable<string>()` 默认 null；`query.Length` 在 HTTP 前失败，async finally 仍恢复按钮，界面可停在 loading。2026-10-04 trace 只有登录与 read-start、没有第二请求 / response-ready，滚动猜测不成立；应初始化业务不变量 `string.Empty`，不加 catch / fallback 掩错。临时诊断撤掉，原场景断言仍须通过。
 
 ## 多来源取证地雷
 
-- 2026-10-05 本人详情消费 statistics 必须按真实 ruleset：mania Perfect / Great / Good / Ok / Meh / Miss 六类；BMS 原 Perfect / Great / Good / Miss / Ok 对应 EMPTY POOR。共用 BMS 表会把 mania Ok 错名并漏 Meh。真实 ManiaRuleset + Capture/Create + ScoreDetails 行为断言证明计数，不能仅比较新数组字面量；未改保存 / 上传 payload。网站当前公开最佳和游戏本人 UUID 全历史分开，mirror sid/bid 未提供 chart MD5 时不造同名关联。
+- 2026-10-05本人详情误用共用BMS判定表，会把mania Ok错叫EMPTY POOR并漏Meh；须以真实ManiaRuleset + Capture/Create + ScoreDetails行为核六类计数，不能仅比较新数组字面量。修复不改保存 / 上传payload。镜像sid / bid未提供chart MD5时不能由同名猜造关联，公开最佳与本人UUID历史的正式边界取客户端合同。
 
-以下取证地雷已进入正式审查 / 实施的排错路径；具体边界仍取正式合同。接口、合成导出、插件构建或旧十万局容量不能签收真实宿主 / 全量历史。
+多来源记录 / 来源筛选与正式验收边界取[[../../doc_md/subline/P3-IR/TECHNICAL_CONSTRAINTS.md#来源查询与记录展示]]，以下只保留解析器 / SDK的反直觉地雷。
 
 - archive 的 PB 是 (MD5, 原玩家 ID) 最佳摘要；缺逐次时间/SHA256/完整规则，不可塞成完整 OMS v7 或自动注册旧身份。用户给的 v3.db 路径实际是目录；只访问明确授权的目标，schema/汇总证据留 artifacts，不扫描其他 private-data。
 - schema 的 privacy_level=full 是隐藏全部个人统计，不等于单谱 PB 私密；profile 缺失也不是私密证明。★FULLCOMBO、option、异常及停榜标记需要原站/解析器语义取证，不能由标签猜规范灯或删除整批公开成绩。
 - Java IRScoreData 和 OpenLR2 IRScoreV1 没有稳定局 ID；宿主重复会 new 对象，秒级日期/每次生成 UUID 都不能证明同局。最佳状态幂等与逐局幂等分开；ED assist=0 和 FAILED 灯不能证明无辅助或整曲完成。
 - Java RankingData 用全数组长度算人数、空 player 认本人，TopN/第一页会错榜；OpenLR2 才有 TopX/本人/总数。其原生 int ID 需持久唯一映射，不能直接与旧 LR2/OMS ID 混空间。RestoreCachedRank 不能发 HTTP。
-- OMS Create 发送真实 APIMods，不能清空 Mod 伪装普通。真实规则 Mod 接收边界从正式合同取；GAS settings 的原枚举是整数，最终数据的枚举是字符串，默认 settings 为空，有效下限钳制不改原参数。JD 捕捉的原 header rank 尚不等于覆盖后的有效 rank，拒绝时保原待交。
+- GAS settings原枚举是整数，最终数据枚举是字符串，默认settings为空，有效下限钳制不改原参数；真实Create保留APIMods，接收与拒绝边界只取正式合同。JD捕捉的原header rank尚不等于覆盖后的有效rank，不能将二者视为同一事实。
 - 灯规则不能只匹配 group hash：OMS family 还区分最大 EX，消费服务 `rule_label`；外部 SDK 缺精确 TOTAL / gauge_history 时相同 gauge 数字也不证明可合并。历史 ★FULLCOMBO 保原标签，不能换算为 OMS Perfect。
-- 混榜错位先核对筛选位置：来源/公开资格/条件必须先约束最佳 EX、独立灯和参与身份，再计算人数、名次及分页。先取每源 TopN 再拼接，或沿 mandatory group 永远分开，均不满足自由参考混榜。
 
 ## 玩家网站与发布诊断
 
-- 2026-10-08 原版 osu-web R14 已真实通过完整共享主机运行（最低可用内存 560.957 MiB，swap / OOM 零）；随后两实际空恢复、完整 F 保全及 81 窗口 / 29,724 原帧的八对 / 最大 raw / 额外 2 GiB 盘账也通过，原失败保持。正式 current 仍旧；固定正式备份成功，但首个 observer 启动身份误判失败，完整观察仍须补验。接续读 Web `doc_md/production-deployment-20261007.md`，不从新文档 HEAD 或运行分项推导部署 / P/C。停止 gzip 预测不是 SQL 一致备份或恢复门，字节继承证明如实记未执行本地 SQLite 重读。
-- 2026-10-08 通用 journal 经明确用户授权才访问和清理：255.4 rotate / flush 自动 vacuum，`--sync --namespace=*` 不能证明两个 namespace 都已 sync，须逐一 literal sync。独立已 ready CONT 看门、短暂停写、closed44硬链接 + active2复制，恢复原 PID 后全部 journal verify；首轮 BrokenPipeError / F0B 必须保留失败，不能归因为未知 SSH idle。R2 用同一固定 cut 经有 keepalive / 有界 metadata 的 foreground `ssh -n cat FIFO` 全件导出 F，完整46件 / SHA / size / EOFCRC 后才解除准确 pins 和设置default480 + 既有OMS32 MiB，合计512 MiB。随后按原授权追加清理4+3件已关闭旧日志；最新3件执行源 `9e1bbc17…`、空间实测净增148500480 B。完整受保护 F 原件及两轮原帧保持，实际净增空间不代签两空恢复、source/cache/WAL峰值或生产。
+- gzip大小预测不是SQL一致备份或空恢复门；恢复raw整件字节相等可继承完整F指纹，但须如实记录没有独立SQLite重读，不把字节继承写成主机逐表扫描。原版站运行 / 发布与各轮失败只取正式部署日志，不在memory保存中途待办。
+- 2026-10-08 journal排错：255.4 rotate / flush会自动vacuum，`--sync --namespace=*`不能证明两个namespace都已sync，须逐一literal sync。经明确授权处理时，独立已ready的CONT看门覆盖短暂停写，closed硬链接 / active复制后恢复原PID再全件journal verify。首轮BrokenPipeError / F0B保持失败，不能猜为SSH idle；同一固定cut用有keepalive / 有界metadata的foreground `ssh -n cat FIFO`完整外取，核SHA / size / EOFCRC后才解除准确pins。合计保留量与实际清理结果取外部正式记录；净增空间不代签空恢复、source / cache / WAL峰值或生产。
 - 冻结 harness 的 `properties()` 不包含 ExecStart，正式定义须独立 `systemctl show` 读取，勿访问不存在字段或修改冻结源。停止 main / WAL / SHM 的物理证明须先核存在集合，再逐件 SHA；`if is_file()` 后仅 `all()` 会吞掉缺失侧文件。checkpoint 前完整保全原组合和 22 表，SQLite 连接显式 close，再验证逻辑相等；预测文件不冒充正式 sidecar。
 
 - 2026-10-08 原R14第二空恢复先撤销user0桌面会话，完整分页却仍用该token，实际返回401；不能据 `full_board_all_pages_300ms` 失败项名认定已证明超过300ms。工具 `133eb509` 改为显式传入有效身份，并在断言前保全逐请求HTTP；人数、全部页、本人行与原时限仍核验，原失败不改。
-- 同日第二恢复补验r1 / r2分别因proctitle成员匹配、重复原sample名失败，F原件保留。r3的Nginx仍是同PID2868624、starttime / cwd相同，但启动后合法改成master title，`same_process` 因argv变化误拒，不能说PID被重用。99次正常续期（49桌面、50网页）已逐次原子写入独立0600凭据，旧refresh已旋转不可再用；后续r4须先实际首页200就绪，再构造BudgetUnit绑定稳定身份并复用最新凭据，不复活已撤销的user0桌面会话。
+- 同日第二恢复补验r1 / r2分别因proctitle成员匹配、重复原sample名失败，F原件保留；r3的Nginx保持同PID / starttime / cwd，启动后却合法改成master title，`same_process`因argv变化误拒，不能说PID被重用。正常续期逐次原子写入独立0600凭据，旧refresh旋转后不可复用；补核应先确认实际首页200就绪，再绑定稳定进程身份并使用最新凭据，不复活已撤销桌面会话。各轮结果只取正式日志。
 - 本次 `systemctl stop` 把已关闭的Nginx单位变为真实inactive / dead，并使ExecMainPID0、MemoryPeak `[not set]`；这与 `BudgetUnit.close` 对同PID发SIGTERM、保留loaded / exited终态的路径不同。保留原断言失败后独立读取已关闭现场，不再次stop，不补造原PID、原峰或旧成功。
-- 固定备份observer须在sampling.join后，从已关闭完整原流按最终InvocationID / ExecMainPID / MainPID及真实可用cgroup逐行统计；新调用帧可先落盘、后登记身份，在线compact计数会漏帧。收取端独立核全流SHA / 数量、非零同PID存活帧及128 MiB / CPU50% / swap0 / OOM边界，不能只删计数对应断言。仅backup终态允许真实 `[not set]` 并记null，观察峰不称全生命周期峰；观察者自身仍核实际终态。本次 `c98a4917…` 备份观察工具及 `81c6e8b7…` 有限收尾工具已审接受但尚无实际门签收，不据此宣布r4补验、两恢复完整或部署。
+- 固定备份observer须在sampling.join后，从已关闭完整原流按最终InvocationID / ExecMainPID / MainPID及真实可用cgroup逐行统计；新调用帧可先落盘、后登记身份，在线compact计数会漏帧。收取端独立核全流SHA / 数量、非零同PID存活帧及实际资源边界，不能只删计数断言。仅backup终态允许真实`[not set]`并记null，观察峰不称全生命周期峰；观察者自身仍核实际终态。工具审查与实际门分别登记，原失败不由后续成功改写。
 
-- 完整原生榜 probe 的四次校验可在 JSON object_hook 逐行完整解析后释放未消费的 identity / lamp / conditions / native 图，保留原 ID / is_me / EX；顶层 / 灯汇总与默认解析不改，完整收包 / gzip / 全行 / 名次 / 字节 / 时限仍核验。2026-10-08 R13 父观察最低 510.145 MiB 的失败原件保留，新软件 24 项通过不代签主机。末次成功内容不能定位失败原因，须读 failures 与内外完整原帧。跨仓使用 Web 存储入口只创建 Web temp，pytest --basetemp 用其绝对 F 路径；Backend 相对父目录不存在的 setup errors 不算有效 gate。
+- 完整原生榜probe可在JSON object_hook逐行完整解析后释放未消费的identity / lamp / conditions / native图，保留原ID / is_me / EX；顶层 / 灯汇总与默认解析不改，完整收包 / gzip / 全行 / 名次 / 字节 / 时限仍核验。2026-10-08 R13父观察最低510.145MiB的失败原件保留，软件通过不代签主机。末次成功内容不能定位失败原因，须读failures与内外完整原帧。跨仓使用Web存储入口只创建Web temp，pytest --basetemp用其绝对F路径；Backend相对父目录不存在的setup errors不算有效gate。
 
 - counts22 当前 `player_position` 返回完整 `rank` / `total_players` 字典；检查器不能与tuple比较或用`*dict`记录数值。2026-10-06 small R2因此真实失败，R3只修工具合同后通过全部逐人原始数学。服务正常关闭须主动SIGTERM own main并保留loaded单位，已退出后再`systemctl stop`会卸载transient；维护工具也受同一边界约束。全量R4的512MiB余量失败在guard前未落最小样本，不能以终态内存补填；重新实测先保存同窗口driver/main实际观察。关闭后的合成库仍可能有已提交WAL，先完整封存raw/WAL/SHM及组合逻辑指纹，再独立必要checkpoint；只读终态失败不改成成功。
 
