@@ -71,6 +71,8 @@
 
 ## 玩家网站与发布诊断
 
+- 完整原生榜 probe 的四次校验可在 JSON object_hook 逐行完整解析后释放未消费的 identity / lamp / conditions / native 图，保留原 ID / is_me / EX；顶层 / 灯汇总与默认解析不改，完整收包 / gzip / 全行 / 名次 / 字节 / 时限仍核验。2026-10-08 R13 父观察最低 510.145 MiB 的失败原件保留，新软件 24 项通过不代签主机。末次成功内容不能定位失败原因，须读 failures 与内外完整原帧。跨仓使用 Web 存储入口只创建 Web temp，pytest --basetemp 用其绝对 F 路径；Backend 相对父目录不存在的 setup errors 不算有效 gate。
+
 - counts22 当前 `player_position` 返回完整 `rank` / `total_players` 字典；检查器不能与tuple比较或用`*dict`记录数值。2026-10-06 small R2因此真实失败，R3只修工具合同后通过全部逐人原始数学。服务正常关闭须主动SIGTERM own main并保留loaded单位，已退出后再`systemctl stop`会卸载transient；维护工具也受同一边界约束。全量R4的512MiB余量失败在guard前未落最小样本，不能以终态内存补填；重新实测先保存同窗口driver/main实际观察。关闭后的合成库仍可能有已提交WAL，先完整封存raw/WAL/SHM及组合逻辑指纹，再独立必要checkpoint；只读终态失败不改成成功。
 
 - `tarfile.TarInfo` 默认mtime=0；实际BT Nginx的静态ETag依赖mtime和长度，内容变而长度不变会错误304，即使Cache-Control=no-cache也仍旧显示。2026-10-06实际独立探针复现并验证实际发布时间可修正；外层发布条目统一created_at秒，内容SHA仍独立绑定。内部源码归档固定时间不等于HTTP文件时间。
