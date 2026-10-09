@@ -1289,6 +1289,11 @@ namespace osu.Game.Screens.Select
                 if (beatmap.GetOnlineURL(api, Ruleset.Value) is string url)
                     yield return new OsuMenuItem(CommonStrings.CopyLink, MenuItemType.Standard, () => (game as OsuGame)?.CopyToClipboard(url));
             }
+            else if (game is OsuGame { OnlineFeaturesEnabled: false } omsGame)
+            {
+                foreach (var action in omsGame.GetOmsBeatmapActions(beatmap))
+                    yield return action;
+            }
 
             yield return new OsuMenuItemSpacer();
 

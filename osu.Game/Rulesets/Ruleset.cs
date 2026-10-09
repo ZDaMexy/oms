@@ -371,6 +371,9 @@ namespace osu.Game.Rulesets
         /// <returns>A captured context, or null when this ruleset does not support OMS IR.</returns>
         public virtual OmsIrSubmissionContext? CaptureOmsIrSubmissionContext(IBeatmap playableBeatmap, IBeatmapInfo sourceBeatmapInfo) => null;
 
+        /// <summary>The website scope proven by persisted chart metadata, or null when the player must select a scope on the website.</summary>
+        public virtual string? GetOmsWebsiteKeymode(IBeatmapInfo beatmapInfo) => null;
+
         /// <summary>
         /// Creates the main accuracy / rank display shown in the expanded results panel.
         /// </summary>

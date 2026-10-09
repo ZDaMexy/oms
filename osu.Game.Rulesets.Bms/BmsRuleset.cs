@@ -351,6 +351,23 @@ namespace osu.Game.Rulesets.Bms
             return new OmsIrSubmissionContext(SHORT_NAME, keymode, sourceBeatmapInfo, BmsJudgeRankExtensions.FromHeaderValue(bmsBeatmap.BmsInfo.Rank).ToHeaderValue());
         }
 
+        public override string? GetOmsWebsiteKeymode(IBeatmapInfo beatmapInfo)
+        {
+            if (beatmapInfo.Ruleset.ShortName != SHORT_NAME || !TryGetKeyCount(beatmapInfo, out int keys))
+                return null;
+            if (keys != 9)
+                return $"bms_{keys}k";
+
+            // The persisted column count alone cannot distinguish BMS 9K from PMS.
+            string extension = beatmapInfo is BeatmapInfo stored ? System.IO.Path.GetExtension(stored.Path)?.ToLowerInvariant() ?? string.Empty : string.Empty;
+            return extension switch
+            {
+                ".pms" => "pms_9k",
+                ".bms" or ".bme" or ".bml" => "bms_9k",
+                _ => null,
+            };
+        }
+
         public override Drawable CreateResultsAccuracyDisplay(ScoreInfo score, bool withFlair = false) => new BmsResultsAccuracyDisplay(score, withFlair);
 
         public override Drawable CreateResultsRankBadge(ScoreInfo score) => new BmsDrawableDjLevel(BmsDjLevelDisplayInfo.FromScore(score).Level);

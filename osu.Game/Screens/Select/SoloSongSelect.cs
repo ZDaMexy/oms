@@ -87,6 +87,12 @@ namespace osu.Game.Screens.Select
 
                 yield return new OsuMenuItemSpacer();
             }
+            else if (game is { OnlineFeaturesEnabled: false })
+            {
+                foreach (var action in game.GetOmsBeatmapActions(beatmap))
+                    yield return action;
+                yield return new OsuMenuItemSpacer();
+            }
 
             foreach (var i in CreateCollectionMenuActions(beatmap))
                 yield return i;

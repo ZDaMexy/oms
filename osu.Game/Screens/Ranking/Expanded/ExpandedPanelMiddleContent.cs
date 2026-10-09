@@ -374,7 +374,9 @@ namespace osu.Game.Screens.Ranking.Expanded
                     }
                 };
 
-                if (beatmapId > 0)
+                if (game is { OnlineFeaturesEnabled: false } && osu.Game.Online.IR.OmsWebsite.HasChart(beatmap))
+                    Action = () => game.OpenOmsBeatmap(beatmap);
+                else if (beatmapId > 0)
                     Action = () => game?.ShowBeatmap(beatmapId);
             }
         }

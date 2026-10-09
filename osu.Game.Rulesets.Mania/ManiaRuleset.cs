@@ -165,6 +165,9 @@ namespace osu.Game.Rulesets.Mania
             return new OmsIrSubmissionContext(SHORT_NAME, $"mania_{maniaBeatmap.TotalColumns}k", sourceBeatmapInfo);
         }
 
+        public override string? GetOmsWebsiteKeymode(IBeatmapInfo beatmapInfo) => beatmapInfo.Ruleset.ShortName is SHORT_NAME or "bms"
+            ? $"mania_{GetKeyCount(beatmapInfo, Array.Empty<Mod>())}k" : null;
+
         public override string RulesetAPIVersionSupported => CURRENT_RULESET_API_VERSION;
 
         public override HitObjectComposer CreateHitObjectComposer() => new ManiaHitObjectComposer(this);

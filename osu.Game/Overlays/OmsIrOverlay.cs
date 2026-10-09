@@ -68,8 +68,15 @@ namespace osu.Game.Overlays
         private HashSet<string>? selectedSources;
         private string boardMode = "reference";
         private string? conditionId;
+        private FormButton websiteButton = null!;
 
-        private enum View { Charts, Board, ReferenceBoard }
+        private enum View { Charts, Board, ReferenceBoard, ManiaConditions }
+
+        public string? WebsiteUrl => service.State.ServiceAddress != displayedService ? null
+            : view == View.Charts ? null
+            : chartMd5 == null ? null
+            : view == View.ReferenceBoard ? OmsWebsite.ChartBoard(displayedService, chartMd5, "bms", boardMode, conditionId, selectedSources, page: page)
+            : OmsWebsite.ChartBoard(displayedService, chartMd5, "mania", group: view == View.Board ? group : null, page: page);
 
         [Resolved]
         private OsuGame? game { get; set; }
@@ -114,7 +121,11 @@ namespace osu.Game.Overlays
                                     makeButtons(button("账号与连接", () => game?.ShowOmsAccount()), new FormButton { ButtonText = "关闭", Action = Hide }),
                                     new FormTextBox { Caption = "谱名、作者或 MD5", PlaceholderText = "留空查看全部谱面", Current = search },
                                     makeButtons(button("查找谱面", () => navigate(View.Charts))),
-                                    makeButtons(button("当前 BMS 谱面榜", openCurrentChart)),
+                                    makeButtons(button("当前谱面榜", openCurrentChart), websiteButton = new FormButton
+                                    {
+                                        ButtonText = "在网页查看",
+                                        Action = () => { if (WebsiteUrl is string url) game?.OpenUrlExternally(url); },
+                                    }),
                                     actionStatus = flow("选择谱面后查看排行榜。"),
                                     sourceOptions = new FillFlowContainer
                                     {
@@ -231,6 +242,12 @@ namespace osu.Game.Overlays
                 {
                     sourceRegistry = null;
                     selectedSources = null;
+                    chartMd5 = null;
+                    chartTitle = null;
+                    group = null;
+                    conditionId = null;
+                    boardMode = "reference";
+                    view = View.Charts;
                 }
                 actionStatus.Text = "账号或连接已变化，请刷新榜单。";
             }
@@ -243,6 +260,7 @@ namespace osu.Game.Overlays
         {
             foreach (var item in buttons)
                 item.Enabled.Value = !running;
+            websiteButton.Enabled.Value = !running && WebsiteUrl != null;
         }
 
         private void navigate(View next)
@@ -286,6 +304,7 @@ namespace osu.Game.Overlays
                 {
                     View.Board when requestedMd5 != null && requestedGroup != null => await service.GetChartScoresAsync(requestedMd5, requestedGroup, requestedPage, token).ConfigureAwait(false),
                     View.ReferenceBoard when requestedMd5 != null => await service.GetSourceChartScoresAsync(requestedMd5, requestedSources, requestedMode, requestedCondition, requestedPage, token).ConfigureAwait(false),
+                    View.ManiaConditions when requestedMd5 != null => await service.GetSourceChartAsync(requestedMd5, token).ConfigureAwait(false),
                     _ => await service.GetSourceChartsAsync(requestedSearch, requestedPage, token).ConfigureAwait(false),
                 };
                 Schedule(() =>
@@ -311,6 +330,25 @@ namespace osu.Game.Overlays
 
         private void showResponse(JObject response)
         {
+            if (view == View.ManiaConditions)
+            {
+                JObject chart = required<JObject>(response, "chart");
+                if (stringValue(response, "ruleset") != "mania" || stringValue(chart, "md5") != chartMd5)
+                    throw new JsonSerializationException("The IR chart does not match the selected mania chart.");
+                var groups = required<JArray>(response, "groups");
+                rows.Clear();
+                rows.Add(flow(chartTitle ?? "谱面榜单"));
+                foreach (JToken entry in groups)
+                {
+                    var condition = entry as JObject ?? throw new JsonSerializationException("Invalid IR group.");
+                    string id = stringValue(condition, "id");
+                    rows.Add(new FormButton { ButtonText = stringValue(condition, "label"), Action = () => openBoard(chartMd5!, id, chartTitle!) });
+                }
+                totalPages = 1;
+                pageText.Text = string.Empty;
+                actionStatus.Text = groups.Count == 0 ? "这张谱面还没有公开的计分条件。" : "选择计分条件查看 mania 谱面榜。";
+                return;
+            }
             JArray items = required<JArray>(response, "items");
             long total = integer(response, "total");
             long limit = integer(response, "limit");
@@ -359,6 +397,7 @@ namespace osu.Game.Overlays
                     string source = isBms && integer(item, "best_lamp_score_id") != integer(score, "id") ? " · 最佳灯来自另一局" : string.Empty;
                     string detail = ScoreDetails(score);
                     content.Add(flow($"{heading}\n{value} · {number(score, "accuracy"):P2} · {integer(score, "max_combo")} COMBO · {lamp}{source}"));
+                    addProfileLink(content, integer(required<JObject>(item, "user"), "id"), "mania", stringValue(score, "keymode"));
                     content.Add(recordDetails("查看这局详情", detail));
                 }
             }
@@ -379,12 +418,14 @@ namespace osu.Game.Overlays
             navigate(View.Board);
         }
 
-        public void ShowChartBoard(string md5, string title, string? condition = null, string? maniaGroup = null)
+        public void ShowChartBoard(string md5, string title, string? condition = null, string? maniaGroup = null, string ruleset = "bms")
         {
             cancelOperation();
             Show();
             if (maniaGroup != null)
                 openBoard(md5, maniaGroup, title);
+            else if (ruleset == "mania")
+                openManiaConditions(md5, title);
             else
                 openReferenceBoard(md5, title, condition);
         }
@@ -392,12 +433,24 @@ namespace osu.Game.Overlays
         private void openCurrentChart()
         {
             BeatmapInfo info = currentBeatmap.Value.BeatmapInfo;
-            if (info.Ruleset.ShortName != "bms" || info.MD5Hash.Length != 32)
+            if (!OmsWebsite.HasChart(info))
             {
-                actionStatus.Text = "请先在选歌页选择一张 BMS 原谱。";
+                actionStatus.Text = "请先在选歌页选择一张 BMS 或 mania 原谱。";
                 return;
             }
-            openReferenceBoard(info.MD5Hash.ToLowerInvariant(), info.Metadata.Title);
+            if (info.Ruleset.ShortName == "mania")
+                openManiaConditions(info.MD5Hash.ToLowerInvariant(), info.Metadata.Title);
+            else
+                openReferenceBoard(info.MD5Hash.ToLowerInvariant(), info.Metadata.Title);
+        }
+
+        private void openManiaConditions(string md5, string title)
+        {
+            cancelOperation();
+            chartMd5 = md5;
+            chartTitle = title;
+            group = null;
+            navigate(View.ManiaConditions);
         }
 
         private void openReferenceBoard(string md5, string title, string? condition = null)
@@ -413,7 +466,7 @@ namespace osu.Game.Overlays
 
         private void onBeatmapChanged(ValueChangedEvent<WorkingBeatmap> change) => Schedule(() =>
         {
-            if (view != View.ReferenceBoard)
+            if (view == View.Charts)
                 return;
             cancelOperation();
             clearRead();
@@ -424,7 +477,7 @@ namespace osu.Game.Overlays
             conditionId = null;
             page = 1;
             view = View.Charts;
-            actionStatus.Text = "选谱已变化，请重新查看当前 BMS 谱面榜。";
+            actionStatus.Text = "选谱已变化，请重新查看当前谱面榜。";
             updateButtons();
         });
 
@@ -554,6 +607,11 @@ namespace osu.Game.Overlays
             string kind = recordKindLabel(stringValue(score, "record_kind"));
             string lamp = originalLamp(score);
             content.Add(flow($"#{integer(item, "rank")} · {name}\n{origin}\nEX {integer(score, "ex_score")} / {maximum} · {sourceLabel(stringValue(score, "source"))} · {kind}\n原灯：{lamp}"));
+            if (stringValue(identity, "namespace") == "oms" && long.TryParse(stringValue(identity, "id"), NumberStyles.None, CultureInfo.InvariantCulture, out long omsId))
+            {
+                JToken? keymode = required<JObject>(score, "conditions")["keymode"];
+                addProfileLink(content, omsId, "bms", keymode?.Type == JTokenType.String ? keymode.Value<string>() : null);
+            }
             foreach (JToken entry in required<JArray>(item, "best_lamps"))
             {
                 var best = entry as JObject ?? throw new JsonSerializationException("Invalid IR lamp.");
@@ -565,6 +623,12 @@ namespace osu.Game.Overlays
                 content.Add(flow("这是历史最佳摘要；分数和灯不一定来自同一次游玩。"));
             string detail = referenceDetails(item);
             content.Add(recordDetails("查看记录详情", detail));
+        }
+
+        private void addProfileLink(List<Drawable> content, long userId, string ruleset, string? keymode)
+        {
+            if (OmsWebsite.Profile(displayedService, userId, ruleset, keymode) is string url)
+                content.Add(new ExternalLinkButton(url));
         }
 
         private string referenceDetails(JObject item)

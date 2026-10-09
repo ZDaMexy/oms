@@ -1,5 +1,17 @@
 # OMS IR 历史
 
+## 2026-10-10客户端与网站入口恢复
+
+对照固定ppy/osu `adfbb1ca25f7836f0f3577faac334469e6e9e8ae` 的谱面 / 用户覆盖层和原排行职责，恢复当前OMS已实现页面的入口；不恢复旧ppy请求。此前选歌 / 谱集详情与复制被旧在线false和正数OnlineID挡住，结算谱名调用关闭入口，个人网页仅旧users/?id，工具栏无OMS玩家排行，当前谱查榜只支持BMS。现在按真实MD5 / OMS ID / 服务origin连接，谱集逐难度、mania先取真实条件，榜内网页保留来源 / 条件 / 页码；实际OMS身份可打开网页，LR2IR旧身份不映射。网站 / Backend运行源码及配置未改。
+
+主执行者串行加载UseDevelopmentStorage后有效复编：`dotnet test osu.Game.Tests/osu.Game.Tests.csproj -c Release --no-restore --filter 'FullyQualifiedName~OmsWebsiteTests|FullyQualifiedName~TestSceneOmsWebsiteWiring|FullyQualifiedName~TestSceneOmsIrOverlay|FullyQualifiedName~TestSceneOmsAccount|FullyQualifiedName~OmsIrServiceTests|FullyQualifiedName~OmsIrSubmissionTests'` 最终r5 **65/65**。覆盖默认离线、真实MD5而非OnlineID、64位ID、PMS / BMS9K与mania双舞台键型、个人页随选谱变化、原菜单 / 工具栏、来源含空 / 条件 / 当前mania组、未知旧身份及错MD5拒绝；服务切换清除BMS旧条件与mania旧组。
+
+`dotnet build osu.Desktop.slnf -c Release --no-restore` 和 `dotnet build osu.Desktop/osu.Desktop.csproj -c Debug` 均成功；最初Release复编保留原BMS测试CS8600 / CA2007两警告，最终r5 Release / Debug均无警告。首次r1编译失败是IBindable绑定API使用错误，已改bound copy；r2有未入Realm的测试谱面被原CanHide读取，以及第二测试复用连接状态两项fixture失败；修正有界菜单检查并在同一隔离场景接续mania步骤，r3、r4通过。只读复查发现服务切换仍保留旧条件 / group，已清除并返回目录；新增两玩法行为断言后的最终r5通过。删去目录页外链，防止把网站难度表选择冒称为端内IR全目录同范围。
+
+匿名公网8个页面上下文（BMS / mania MD5、规范64位个人ID、BMS7K / PMS9K / mania4K排行）及空来源实际榜通过；r1探针手抄了33位MD5导致422，改为公开API返回的真实32位MD5，失败脚本仍留存。证据根 `artifacts/client-web-wiring-20261010/`：r1～r5日志 / TRX、desktop-release-r5.log / desktop-debug-r5.log和public-links-r2.json。HTTP只证明路由 / 上下文承接，示例mania / 缺失用户不伪装真实成绩或账号；未做线上浏览器 / 真实客户端点击、整曲、部署 / Windows发行。来源登记和跨仓采用由Client Bridge / Dev Bridge维护，原保存 / 队列、P/C与Phase1.x门保持。
+
+文档检查r1发现本轮STATUS标题变更后PLAN遗留旧锚，已改为当前入口；修复后client-docs-r2.log通过，git diff --check通过。既有64位公开指纹与示例路径提示保留，不改原来源身份。跨仓登记验收在提交绑定后记录于来源桥。
+
 ## 2026-10-09：迁移后跨项目导航复核
 
 将当前状态 / 计划 / 合同、旧来源报告 / 历史与诊断记忆的跨仓导航改为相对路径；旧治理标题改指 Dev Bridge 实际历史。来源和原日期不刷新，官网继续已部署待验收，6168791 软件与 P/C / 发行真人门不变。检查器与统一七仓的本次验证只在[主线记录](../../mainline/CHANGELOG.md#七项目进度与文档记忆复核)维护，不新增重复进度或诊断叶子。

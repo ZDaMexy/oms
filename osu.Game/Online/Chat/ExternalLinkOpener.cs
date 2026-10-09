@@ -11,6 +11,7 @@ using osu.Framework.Platform;
 using osu.Game.Configuration;
 using osu.Game.Localisation;
 using osu.Game.Online.API;
+using osu.Game.Online.IR;
 using osu.Game.Overlays;
 using osu.Game.Overlays.Dialog;
 using osu.Game.Overlays.Notifications;
@@ -35,6 +36,9 @@ namespace osu.Game.Online.Chat
         [Resolved]
         private IAPIProvider api { get; set; } = null!;
 
+        [Resolved]
+        private OmsIrService? omsIr { get; set; }
+
         private Bindable<bool> externalLinkWarning = null!;
 
         [BackgroundDependencyLoader(true)]
@@ -55,6 +59,8 @@ namespace osu.Game.Online.Chat
             else
             {
                 isTrustedDomain = url.StartsWith(api.Endpoints.WebsiteUrl, StringComparison.Ordinal);
+                if (omsIr?.State.ServiceAddress is string origin && origin.Length != 0 && Uri.TryCreate(url, UriKind.Absolute, out Uri? target))
+                    isTrustedDomain |= target.GetLeftPart(UriPartial.Authority).Equals(new Uri(origin).GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase);
             }
 
             if (!url.CheckIsValidUrl())

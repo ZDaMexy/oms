@@ -186,6 +186,7 @@ namespace osu.Game.Overlays.Toolbar
                                                 ? new Drawable[]
                                                 {
                                                     new ToolbarBmsDownloadButton(),
+                                                    new ToolbarOmsRankingsButton(),
                                                     new ToolbarOmsIrButton(),
                                                     new ToolbarMusicButton(),
                                                     userButton = new ToolbarUserButton(true),
@@ -194,6 +195,7 @@ namespace osu.Game.Overlays.Toolbar
                                                 }
                                                 : new Drawable[]
                                                 {
+                                                    new ToolbarOmsRankingsButton(),
                                                     new ToolbarOmsIrButton(),
                                                     new ToolbarMusicButton(),
                                                     userButton = new ToolbarUserButton(true),

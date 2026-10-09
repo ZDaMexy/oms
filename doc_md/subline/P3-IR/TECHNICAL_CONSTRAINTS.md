@@ -8,9 +8,11 @@
 
 2026-10-03 用户授权独立按需 IR 持续开发、commit / push 与直接部署试运行，范围见[计划](DEVELOPMENT_PLAN.md)。软件与运行门须先通过，真实游玩由用户在部署环境验收。Phase 3 开发不自动启用官网谱包下载、聊天、presence、观战、多人、自动更新或所有旧 API。客户端默认服务地址仍为空；不能把预留接口当作当前能力。
 
-2026-10-05 用户采用 osu-web 官网设计，并要求客户端复用 lazer 原登录与个人页。OMS 账号接入现有工具栏账号按钮、LoginOverlay / LoginPanel / LoginForm 和 UserProfileOverlay；IR 奖杯入口只承担选谱查榜，并提供账号入口。独立 OMS 服务与凭据保持原边界，不将 OMS 用户伪装成 ppy 的 APIUser / 在线状态，不开启旧 API、聊天或持续连接。个人页仅显示实际 OMS 身份、本人记录和主动打开的对应官网身份页；缺少的头像、国家、等级、PP、在线人数、游玩次数或时间不得补造。网页 `/users/?id=<OMS ID>` 与新最小身份接口采用外部社区合同，旧 LR2IR 身份不跳转为同名 OMS 账号。
+2026-10-05 用户采用 osu-web 官网设计，并要求客户端复用 lazer 原登录与个人页。OMS 账号接入现有工具栏账号按钮、LoginOverlay / LoginPanel / LoginForm 和 UserProfileOverlay；IR 奖杯入口只承担选谱查榜，并提供账号入口。独立 OMS 服务与凭据保持原边界，不将 OMS 用户伪装成 ppy 的 APIUser / 在线状态，不开启旧 API、聊天或持续连接。个人页仅显示实际 OMS 身份、本人记录和主动打开的对应官网身份页；缺少的头像、国家、等级、PP、在线人数、游玩次数或时间不得补造。当时网页 `/users/?id=<OMS ID>` 与最小身份接口采用外部社区合同；现行规范路径取下方共同接线合同，旧 LR2IR 身份不跳转为同名 OMS 账号。
 
 ## 身份、结算与保存
+
+2026-10-10 恢复已实现网站入口，路径 / 参数与职责取[共同接线合同](../../../../oms-server/dev_bridge_md/doc_md/subline/oms-player-site/constraints.md#客户端与网页入口)。选歌详情 / 复制和结算谱名使用实际原谱MD5，不借正数ppy OnlineID；本地谱集逐难度选择，不以第一张MD5代替整个谱集。原个人页外链改规范OMS ID，旧users/?id仅保留兼容；当前规则集 / 键型只读已存元数据，不为网址重新解谱，不用当前Mod改写谱面基础键型。未知键型留网页选择，不造7K结论；PMS / BMS 9K需可证明的扩展名。mania当前谱先取并核对真实MD5 / 玩法的groups，选条件后仍用v1榜；换谱 / 服务 / 账号取消旧读。网页保留所选来源（含空）/ 条件 / 页码，目录尚未选谱时不声称网页同范围。浏览器不接收桌面令牌；旧 namespace不链接OMS用户。默认空地址、旧在线false、保存 / UUID / owner及其他冻结在线面不变。
 
 2026-10-05 后续用户明确扩展官网为基于 osu-web 的 BMS / mania 玩家网站；批准两 BMS 源 / Sayobot 的网页元数据查询与原包外链下载由[共同专项](../../../../oms-server/dev_bridge_md/doc_md/subline/oms-player-site/constraints.md)独立约束。此采用覆盖早先“官网谱包冻结”的这部分范围，不扩聊天、presence、多人、旧 API 或常驻在线。网站当前公开最佳 / 独立灯 / 分条件统计与游戏本人 UUID 全历史分开；没有稳定局 ID 的外部状态不造逐局，旧 LR2IR 同名身份不并入 OMS 个人页。2026-10-06 按用户取舍地力评级和 Walkure 后置，PP是后续优先方向但规则 / 范围 / 来源资格独立讨论后正式采用；当前积累指标不是PP，缺数据不造等级、国家、头像或游玩次数。mania 详情按六类真实判定展示，不套 BMS EMPTY POOR / 灯。
 

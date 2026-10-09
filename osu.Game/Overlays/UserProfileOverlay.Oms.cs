@@ -141,7 +141,7 @@ namespace osu.Game.Overlays
                                 throw new JsonSerializationException("The OMS history record has a different owner or no saved UUID.");
                             records.Add(score);
                         }
-                        omsRecent.ShowRecords(records, showOmsScoreBoard);
+                        omsRecent.ShowRecords(records, showOmsScoreBoard, showOmsScoreWebsite);
                         updatingOmsPagination = true;
                         omsRecent.SetPagination(page, checked((int)Math.Max(1, Math.Ceiling((double)total / limit))));
                         updatingOmsPagination = false;
@@ -185,6 +185,20 @@ namespace osu.Game.Overlays
             string group = requiredString(score, "group_id");
             omsGame?.ShowOmsScoreBoard(md5, title, comparable && isBms ? group + ":" + requiredInteger(score, "max_ex_score").ToString(CultureInfo.InvariantCulture) : null,
                 isBms ? null : group);
+        }
+
+        private void showOmsScoreWebsite(JObject score)
+        {
+            if (omsIr!.State.ServiceAddress != omsDisplayedService)
+                return;
+            string ruleset = requiredString(score, "ruleset");
+            string group = requiredString(score, "group_id");
+            string? url = OmsWebsite.ChartBoard(omsDisplayedService, requiredString(requiredObject(score, "chart"), "md5"), ruleset,
+                mode: ruleset == "bms" ? "comparable" : null,
+                condition: ruleset == "bms" ? group + ":" + requiredInteger(score, "max_ex_score").ToString(CultureInfo.InvariantCulture) : null,
+                group: ruleset == "mania" ? group : null);
+            if (url != null)
+                omsGame?.OpenUrlExternally(url);
         }
 
         private void cancelOmsRead()
@@ -272,7 +286,7 @@ namespace osu.Game.Overlays
                 pagination.CurrentPage.Value = page - 1;
             }
 
-            public void ShowRecords(IReadOnlyList<JObject> scores, Action<JObject, bool> openBoard)
+            public void ShowRecords(IReadOnlyList<JObject> scores, Action<JObject, bool> openBoard, Action<JObject> openWebsite)
             {
                 var items = new List<Drawable>();
                 if (scores.Count == 0)
@@ -287,6 +301,7 @@ namespace osu.Game.Overlays
                     if (score["public_board"]?.Type == JTokenType.Boolean && score["public_board"]!.Value<bool>())
                     {
                         actions.Add(new SettingsButton { Text = "查看同条件榜", Action = () => openBoard(score, true) });
+                        actions.Add(new SettingsButton { Text = "在网页查看同条件榜", Action = () => openWebsite(score) });
                         if (isBms)
                             actions.Add(new SettingsButton { Text = "查看参考混榜", Action = () => openBoard(score, false) });
                     }

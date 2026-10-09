@@ -49,6 +49,7 @@ using osu.Game.Online.Bms;
 using osu.Game.Online.Sayobot;
 using osu.Game.Online.API.Requests;
 using osu.Game.Online.Chat;
+using osu.Game.Online.IR;
 using osu.Game.Online.Leaderboards;
 using osu.Game.Online.Rooms;
 using osu.Game.Overlays;
@@ -840,9 +841,42 @@ namespace osu.Game
             waitForReady(() => userProfile, _ => userProfile.ShowOwnOmsUser());
         }
 
-        public void ShowOmsScoreBoard(string md5, string title, string condition = null, string maniaGroup = null)
+        public void ShowOmsScoreBoard(string md5, string title, string condition = null, string maniaGroup = null, string ruleset = "bms")
         {
-            waitForReady(() => Ir, _ => Ir.ShowChartBoard(md5, title, condition, maniaGroup));
+            waitForReady(() => Ir, _ => Ir.ShowChartBoard(md5, title, condition, maniaGroup, ruleset));
+        }
+
+        public void OpenOmsBeatmap(IBeatmapInfo beatmap) => openOmsWebsite(OmsWebsite.Chart(OmsIr.State.ServiceAddress, beatmap));
+
+        public void OpenOmsRankings()
+        {
+            var scope = OmsWebsite.CurrentScope(Beatmap.Value.BeatmapInfo, Ruleset.Value);
+            openOmsWebsite(OmsWebsite.Rankings(OmsIr.State.ServiceAddress, scope.Ruleset, scope.Keymode));
+        }
+
+        private void openOmsWebsite(string url)
+        {
+            if (url == null)
+                ShowOmsAccount();
+            else
+                OpenUrlExternally(url);
+        }
+
+        public IEnumerable<OsuMenuItem> GetOmsBeatmapActions(BeatmapInfo beatmap)
+        {
+            if (!OmsWebsite.HasChart(beatmap))
+                yield break;
+
+            yield return new OsuMenuItem(CommonStrings.Details, MenuItemType.Standard, () => OpenOmsBeatmap(beatmap));
+            yield return new OsuMenuItem("谱面排行榜", MenuItemType.Standard,
+                () => ShowOmsScoreBoard(beatmap.MD5Hash.ToLowerInvariant(), beatmap.Metadata.Title, ruleset: beatmap.Ruleset.ShortName));
+            if (OmsWebsite.Chart(OmsIr.State.ServiceAddress, beatmap) != null)
+                yield return new OsuMenuItem(CommonStrings.CopyLink, MenuItemType.Standard, () =>
+                {
+                    string url = OmsWebsite.Chart(OmsIr.State.ServiceAddress, beatmap);
+                    if (url != null)
+                        CopyToClipboard(url);
+                });
         }
 
         /// <summary>

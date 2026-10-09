@@ -27,6 +27,7 @@ using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Localisation;
 using osu.Game.Online.API;
+using osu.Game.Online.IR;
 using osu.Game.Overlays;
 using osu.Game.Rulesets;
 using osuTK;
@@ -271,6 +272,23 @@ namespace osu.Game.Screens.Select
                         items.Add(new OsuMenuItem(CommonStrings.CopyLink, MenuItemType.Standard, () => game?.CopyToClipboard(url)));
 
                     items.Add(new OsuMenuItemSpacer());
+                }
+
+                if (game is { OnlineFeaturesEnabled: false })
+                {
+                    var charts = beatmapSet.Beatmaps.Where(OmsWebsite.HasChart).ToArray();
+                    if (charts.Length > 0)
+                    {
+                        // A local set has no OMS set ID. Let the player choose the actual chart.
+                        items.Add(new OsuMenuItem(CommonStrings.Details)
+                        {
+                            Items = charts.Select(chart => new OsuMenuItem(chart.DifficultyName)
+                            {
+                                Items = game.GetOmsBeatmapActions(chart).ToArray(),
+                            }).ToArray(),
+                        });
+                        items.Add(new OsuMenuItemSpacer());
+                    }
                 }
 
                 var collectionItems = realm.Realm.All<BeatmapCollection>()

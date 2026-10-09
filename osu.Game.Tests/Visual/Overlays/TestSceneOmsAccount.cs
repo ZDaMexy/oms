@@ -18,6 +18,7 @@ using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Graphics.UserInterface.PageSelector;
+using osu.Game.Beatmaps;
 using osu.Game.Online;
 using osu.Game.Online.API;
 using osu.Game.Online.IR;
@@ -26,6 +27,7 @@ using osu.Game.Overlays.Login;
 using osu.Game.Overlays.Profile;
 using osu.Game.Overlays.Settings;
 using osu.Game.Overlays.Toolbar;
+using osu.Game.Rulesets.Mania;
 using osu.Game.Users.Drawables;
 using osuTK;
 using osuTK.Input;
@@ -92,6 +94,17 @@ namespace osu.Game.Tests.Visual.Overlays
         [Test]
         public void TestNativeLoginRegistrationAndPrivateProfile()
         {
+            AddStep("select a native 4K chart", () =>
+            {
+                Ruleset.Value = new ManiaRuleset().RulesetInfo;
+                Beatmap.Value = CreateWorkingBeatmap(new Beatmap
+                {
+                    BeatmapInfo = new BeatmapInfo(Ruleset.Value)
+                    {
+                        MD5Hash = new string('a', 32), Difficulty = new BeatmapDifficulty { CircleSize = 4 },
+                    },
+                });
+            });
             OsuPasswordTextBox savedPassword = null!;
             AddAssert("offline startup makes no request", () => requests, () => Is.Zero);
             AddAssert("default service stays empty", () => service.State.ServiceAddress, () => Is.Empty);
@@ -118,7 +131,16 @@ namespace osu.Game.Tests.Visual.Overlays
             AddAssert("only true OMS profile facts", () => ((OmsIrProfileHeader)profile.Header).Account.Value, () => Is.EqualTo(new OmsIrAccount(1, "player_one")));
             AddAssert("no fabricated upstream avatar", () => profile.ChildrenOfType<UpdateableAvatar>().Any(), () => Is.False);
             AddAssert("actual web profile route has no credentials", () => profile.ChildrenOfType<ExternalLinkButton>().Single().Link,
-                () => Is.EqualTo("https://ir.example.test/users/?id=1"));
+                () => Is.EqualTo("https://ir.example.test/users/1?ruleset=mania&keymode=mania_4k"));
+            AddStep("switch to a native 10K chart", () => Beatmap.Value = CreateWorkingBeatmap(new Beatmap
+            {
+                BeatmapInfo = new BeatmapInfo(Ruleset.Value)
+                {
+                    MD5Hash = new string('b', 32), Difficulty = new BeatmapDifficulty { CircleSize = 10 },
+                },
+            }));
+            AddAssert("website scope follows the new columns", () => profile.ChildrenOfType<ExternalLinkButton>().Single().Link,
+                () => Is.EqualTo("https://ir.example.test/users/1?ruleset=mania&keymode=mania_10k"));
             AddAssert("saved result has this play's lamp and final gauge", () => hasProfileText("本局灯：CLEAR") && hasProfileText("85.0"));
             AddAssert("public play links to comparable and reference boards", () => profile.ChildrenOfType<SettingsButton>().Any(button => button.Text.ToString() == "查看同条件榜")
                                                                                   && profile.ChildrenOfType<SettingsButton>().Any(button => button.Text.ToString() == "查看参考混榜"));

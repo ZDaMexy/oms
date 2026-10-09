@@ -1,16 +1,17 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
-using System.Globalization;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
+using osu.Game.Beatmaps;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Online.IR;
+using osu.Game.Rulesets;
 using osuTK;
 
 namespace osu.Game.Overlays.Profile
@@ -20,6 +21,8 @@ namespace osu.Game.Overlays.Profile
     {
         public readonly Bindable<OmsIrAccount?> Account = new Bindable<OmsIrAccount?>();
         public readonly Bindable<string> ServiceAddress = new Bindable<string>(string.Empty);
+        private IBindable<RulesetInfo> ruleset = null!;
+        private IBindable<WorkingBeatmap> beatmap = null!;
 
         private OsuSpriteText username = null!;
         private OsuSpriteText identity = null!;
@@ -85,11 +88,15 @@ namespace osu.Game.Overlays.Profile
         protected override OverlayTitle CreateTitle() => new OmsProfileTitle();
 
         [BackgroundDependencyLoader]
-        private void load(OverlayColourProvider colours)
+        private void load(OverlayColourProvider colours, IBindable<RulesetInfo> currentRuleset, IBindable<WorkingBeatmap> currentBeatmap)
         {
             accountBackground.Colour = colours.Background3;
+            ruleset = currentRuleset.GetBoundCopy();
+            beatmap = currentBeatmap.GetBoundCopy();
             Account.BindValueChanged(_ => updateAccount(), true);
             ServiceAddress.BindValueChanged(_ => updateAccount());
+            ruleset.BindValueChanged(_ => updateAccount());
+            beatmap.BindValueChanged(_ => updateAccount());
         }
 
         private void updateAccount()
@@ -97,9 +104,12 @@ namespace osu.Game.Overlays.Profile
             OmsIrAccount? account = Account.Value;
             username.Text = account?.Username ?? "未登录";
             identity.Text = account == null ? "完整游玩记录仅本人可见" : $"OMS #{account.Id}";
-            externalLink.Link = account != null && ServiceAddress.Value.Length != 0
-                ? new System.Uri(new System.Uri(ServiceAddress.Value), "users/?id=" + account.Id.ToString(CultureInfo.InvariantCulture)).AbsoluteUri
-                : null;
+            externalLink.Link = null;
+            if (account != null && ServiceAddress.Value.Length != 0)
+            {
+                var scope = OmsWebsite.CurrentScope(beatmap.Value.BeatmapInfo, ruleset.Value);
+                externalLink.Link = OmsWebsite.Profile(ServiceAddress.Value, account.Id, scope.Ruleset, scope.Keymode);
+            }
             externalLink.Alpha = externalLink.Link == null ? 0 : 1;
         }
 
