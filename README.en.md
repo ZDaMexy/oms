@@ -54,9 +54,9 @@ Charts are read directly from the filesystem: put BMS charts in `chartbms/` and 
 
 ### Offline-first
 
-OMS keeps its core gameplay, libraries and user-data paths offline by default, with an empty default service address. Upstream legacy accounts and official chart packages, legacy in-client news / chat, multiplayer and spectator features remain hidden or disabled.
+OMS keeps its core gameplay, libraries and user-data paths offline by default. The legacy osu! API address remains empty. Upstream legacy accounts and official chart packages, legacy in-client news / chat, multiplayer and spectator features remain hidden or disabled.
 
-Independent OMS IR is available as an opt-in trial. Open the account button at the top right, enter `https://oms.zdamexy.work`, enable IR and save the connection settings before registering or logging in. Supported new plays submit after local saving; the client profile shows your individual plays, and the account menu retries pending submissions. The trophy opens leaderboards, with BMS source selection, reference rankings and proven OMS comparable conditions. Disabling IR preserves offline play.
+Independent OMSIR connects to `https://oms.zdamexy.work`. Register or log in directly from the account button at the top right; logging in enables submission of supported new plays after local saving. The client profile shows your individual plays, and the account menu retries pending submissions. Open a specific chart's leaderboard from song selection or your play history; public boards are also available without logging in. BMS supports source selection and proven comparable conditions; mania uses its actual scoring conditions. You can play offline while logged out.
 
 The original website is deployed and awaits acceptance. It provides a chart directory, public personal best records, player rankings, news and download / help pages, plus approved metadata queries and original-package links for the two BMS sources and Sayobot. Website public best records are separate from your complete play history in the client. Real accounts, manual play, offline restart, package import and player-app integrations still await acceptance. See [P3-IR status](doc_md/subline/P3-IR/DEVELOPMENT_STATUS.md).
 

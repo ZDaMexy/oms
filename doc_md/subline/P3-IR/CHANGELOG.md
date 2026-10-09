@@ -1,5 +1,23 @@
 # OMS IR 历史
 
+## 2026-10-10固定OMSIR登录与谱面榜入口简化
+
+按用户当前反馈，从干净 `master@4df59ebd4910fbea0ae2137fb711a0b36a957f86` 接续。客户端源码提交 `21daf78ddc97c4b801dc5fe5fd92dda48df95525` 固定 OMSIR 为 `https://oms.zdamexy.work/`；原账号窗口删地址、IR 开关、保存连接，账号菜单删连接设置，直接登录 / 注册 / 回车成功后允许后续保存新局上传，退出停止新局归属捕捉。官方 origin 的原凭据可恢复；旧 settings 不读取也不删除，外站凭据 / 待交保留且不重新归属或上传。旧 osu! API 地址空 / 在线false、原 UUID / body / owner 与本地保存优先保持。
+
+顶部通用奖杯按钮和端内目录搜索移除，选歌 / 本人记录继续按具体谱面进入榜，匿名可主动读公开榜。榜标题对应实际谱面，动作换成普通按钮，不再套整行设置表单；加载时可关闭。换谱关闭旧榜，来源 / 条件 / 空选择、真实旧身份、缺字段 / 原灯及 mania 实际分组保持。补核发现隐藏窗口的账号通知尚留 Scheduler 时，重新开榜会先启动请求再被旧通知取消；新读前同步当前账号，退出后立即重开公开榜与关闭时迟到请求均已验证。
+
+主执行者每个新 shell 加载 `UseDevelopmentStorage.ps1`，串行冻结源码后有效运行：`dotnet build osu.Game.Tests/osu.Game.Tests.csproj -c Release --no-restore`、`dotnet test osu.Game.Tests/osu.Game.Tests.csproj -c Release --no-build --no-restore --filter 'FullyQualifiedName~OmsIrServiceTests|FullyQualifiedName~TestSceneOmsAccount|FullyQualifiedName~TestSceneOmsIrOverlay|FullyQualifiedName~TestSceneOmsWebsiteWiring|FullyQualifiedName~OmsWebsiteTests|FullyQualifiedName~TestSceneOmsIrPlayerSave|FullyQualifiedName~OmsIrSubmissionTests'`。最终 r6 **73/73**；覆盖固定 origin / 无启动请求、直接账号路径、官方和外站凭据 / 待交隔离、公开榜、原记录 / 网站身份、保存优先 / 匿名局不认领与账号 / 谱面 / 迟到取消。
+
+`dotnet build osu.Desktop/osu.Desktop.csproj -c Release`、同项目普通 `-c Debug` 均成功，0 警告 / 0 错误；两个所属工程的 `dotnet format --no-restore --verify-no-changes --include <本轮文件>` 最终通过。只编译必要客户端工程，未重建已清理的其他模板 / 工具；没有启动用户数据客户端或生成 Windows 发行、publish、安装副本。
+
+原件保留于 `artifacts/oms-account-simplify-20261010/`：r1 编译漏删空 if、r2 误实例化抽象 OsuButton 均修复为现有 RoundedButton；r3 72/72 后补外站凭据与关闭场景，r4 72/73 的重开榜失败揭示上述真实通知顺序问题；r5 错用不存在的 slnf 未执行测试，改为实际 Tests 项目。最终 `core-build-r6.log`、`focused-r6.log`、`results/account-and-board-r6.trx`、Desktop 两配置和格式验证日志为有效门。首次命名格式告警亦保留，常量 / Player 私有别名已按规则修正。此前成功和失败不重标为本轮结果。
+
+同步三语首页、P3 当前计划 / 状态 / 约束、主线摘要及 IR 诊断记忆；新源码经 Client Bridge 登记，再由 Dev Bridge 采用，Web / Backend 仅同步文档。本轮未改线上程序 / 配置、进行生产请求或真实点击 / 整曲，原 P/C 与发行门保持待验收；用户从 VS Code 非调试启动当前工作区。
+
+文档 / memory 检查通过：`client-docs-r1.log` 为200 Markdown / 2110相对链接 / 365锚点 / 123 memory链；旧公开checksum与通用绝对路径示例告警保留。根`verify-workspace.mjs`的`workspace-r1.log`通过160文档 /1521链接、14来源 /28事实 /11待复核；新增4消费者后共73，`registry-preservation.json`逐对象确认原13来源 /27事实完整保留。当前源码已提交，跨仓原先未提交差异按事前副本仅暂存本轮增量；检查不签生产 / 真人。
+
+增量暂存采用事前工作文件与 HEAD / 本轮文件三方对照；Dev Bridge 历史头部的相邻插入出现冲突，仅将本轮新段加入 HEAD，旧未提交段落保留在工作区。`prior-diff-preservation.json`确认事实桥13、开发桥32、Backend9个原脏文件的增删行与原补丁逐项一致，没有额外待提交文件；暂存原件留同收据目录，不把此前工作归属本轮。
+
 ## 2026-10-10客户端与网站入口恢复
 
 对照固定ppy/osu `adfbb1ca25f7836f0f3577faac334469e6e9e8ae` 的谱面 / 用户覆盖层和原排行职责，恢复当前OMS已实现页面的入口；不恢复旧ppy请求。此前选歌 / 谱集详情与复制被旧在线false和正数OnlineID挡住，结算谱名调用关闭入口，个人网页仅旧users/?id，工具栏无OMS玩家排行，当前谱查榜只支持BMS。现在按真实MD5 / OMS ID / 服务origin连接，谱集逐难度、mania先取真实条件，榜内网页保留来源 / 条件 / 页码；实际OMS身份可打开网页，LR2IR旧身份不映射。网站 / Backend运行源码及配置未改。

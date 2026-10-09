@@ -11,7 +11,7 @@
 - [内置音乐播放器](project_oms_music_player.md) — 共用音轨/试听与队列接入、已定展开壳体和 core 依赖方向。
 - [内置 BMS 下载](reference_bms_builtin_download.md) — 完整表与包身份、目录手动恢复、归档预算/CRC/释放语义、首次完成旧快照、任务收尾与精确选歌。
 - [Sayobot mania 下载](reference_mania_sayobot_download.md) — 原游标/混合包、原sid/bid与实际MD5、镜像节点；两玩法共享封面、首次完成旧快照的回链与退出诊断。
-- [OMS IR 接入](reference_oms_ir.md) — 按故障进入保存/凭据、换服务的网页范围、多来源/SDK、SQL/HTTP资源、systemd身份与终态、备份/证据文件、原版网站缓存；源码/工具/运行时效分开，各轮指标与失败回链P3-IR历史。
+- [OMS IR 接入](reference_oms_ir.md) — 按故障进入保存 / 固定OMSIR凭据、直接登录与公开查榜、隐藏窗口账号通知、多来源 / SDK、SQL / HTTP资源、systemd终态、备份 / 证据与网站缓存；源码 / 工具 / 运行时效分开，旧可切换服务故障和指标回链P3-IR历史。
 
 ## 皮肤恢复与存储
 

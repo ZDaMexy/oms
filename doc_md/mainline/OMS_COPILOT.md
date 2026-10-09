@@ -1017,13 +1017,13 @@ On 2026-10-03 the user explicitly authorised a small request-driven OMS IR, then
 
 ### 14.1 Independent IR Client
 
-Use an independent opt-in IR address, session and HTTP consumer. Do not enable the old `IAPIProvider`, SoloPlayer legacy gate, realtime hubs or default EndpointConfiguration to obtain IR. Desktop access/refresh tokens belong in the Windows credential store. Browser sessions use HttpOnly cookies in the external Website.
+Use the independent OMSIR origin `https://oms.zdamexy.work/`, session and HTTP consumer. Direct OMS login enables submission of supported new plays; there is no address field, IR switch or saved-connection step. Do not enable the old `IAPIProvider`, SoloPlayer legacy gate, realtime hubs or default EndpointConfiguration to obtain IR. Desktop access/refresh tokens belong in the Windows credential store. Browser sessions use HttpOnly cookies in the external Website.
 
 Client implementation, failure behaviour and gates are owned by [P3-IR](../subline/P3-IR/TECHNICAL_CONSTRAINTS.md). The full cross-end v1 contract is maintained externally at `F:\zdamexy-workspace\oms-server\dev_bridge_md\doc_md\subline\oms-ir\constraints.md`.
 
 ### 14.2 Adopted IR v1
 
-The external backend uses `/api/ir/v1` for register/login/refresh/logout, current user, final-score submission, chart/group discovery, public trial boards and owner-only history. Desktop login returns `access_token`, `refresh_token`, `user`, `expires_in`. The account UI requires an explicit service origin, opt-in and saved connection settings before credentials are sent; production and client verification results belong in P3-IR status.
+The external backend uses `/api/ir/v1` for register/login/refresh/logout, current user, final-score submission, chart/group discovery, public trial boards and owner-only history. Desktop login returns `access_token`, `refresh_token`, `user`, `expires_in`. The account UI sends credentials only through direct login or registration to the fixed OMSIR origin. Public chart boards are available on explicit request without logging in, from song selection or a specific play record; there is no global trophy or in-client catalog search. Production and client verification results belong in P3-IR status.
 
 The adopted `/api/ir/v2` BMS query supports source selection, reference rankings and proven OMS comparable conditions. Full candidate selection, historical identity, unknown fields and independent lamps follow [P3-IR query constraints](../subline/P3-IR/TECHNICAL_CONSTRAINTS.md#来源查询与记录展示). Client owner-only UUID history and website public best records remain separate; a plugin build or software scene does not complete target-player acceptance.
 
@@ -1037,7 +1037,7 @@ The separately adopted osu-web player website and approved BMS / Sayobot metadat
 
 Only create a submission after final ruleset preparation and confirmed local import; the old network hook runs before BMS final lamp generation. First client integration targets newly completed, normally saved plays, not automatic historical/anonymous-score claims. A matching total-score version does not prove a new play.
 
-Offline gameplay and local scores remain fully functional. A persistent pending record belongs to its original service/account/UUID; 401 retains it for reauthentication, lost responses resubmit the same ID, and account switching cannot transfer ownership. Disabling IR or deleting local data does not silently erase server history. Local-first behaviour and credential/queue recovery must be tested before any release address is configured.
+Offline gameplay and local scores remain fully functional. A persistent pending record belongs to its original service/account/UUID; 401 retains it for reauthentication, lost responses resubmit the same ID, and account switching cannot transfer ownership. Logging out or deleting local data does not silently erase server history. Old connection files are preserved but ignored; only credentials for the official origin and the same save root are restored. Foreign credentials and pending submissions are never rebound or sent to OMSIR. Local-first behaviour and credential/queue recovery must be verified for client changes.
 
 ---
 

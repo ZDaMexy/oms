@@ -19,12 +19,13 @@
 
 ## 凭据、界面与持久待交
 
-- 换服务时只清榜单行而保留MD5 / condition / group，会由新origin构造旧服务范围的有效网页链接。诊断须同时检查当前视图 / 范围和网页按钮；地址变化清完整范围并回目录，异步状态处理前再核origin。实际故障与两玩法行为证据见[2026-10-10接线日志](../../doc_md/subline/P3-IR/CHANGELOG.md#2026-10-10客户端与网站入口恢复)。
+- 原可切换服务版本中只清榜单行而保留MD5 / condition / group，会由新origin构造旧服务范围的有效网页链接。诊断须同时检查当前视图 / 范围和网页按钮；地址变化清完整范围并回目录，异步状态处理前再核origin。实际故障与两玩法行为证据见[2026-10-10接线日志](../../doc_md/subline/P3-IR/CHANGELOG.md#2026-10-10客户端与网站入口恢复)。
 - 原账号 UI 消费独立 OmsIrService，不把服务身份塞入旧 APIUser / IAPIProvider。await 登录后、写凭据 / State 前复核当前操作取消；窗口关闭与 revision / Owner 变化是真实边界，迟到响应不能恢复账号或本人记录。
-- 地址输入不等于已保存 origin；按钮与密码 OnCommit 使用同一个已保存连接谓词。保存只写本地，不发凭据，异步完成不覆盖随后新输入。CancelAccountOperation 可从 AsyncDisposalQueue 调用；TextFlow 刷新须 Schedule 并跳过已 Dispose，释放线程直接 Clear 曾导致真实失败。
+- 旧保存连接谓词只适用于原地址输入界面；固定 OMSIR 后直接登录 / 注册 / 密码 OnCommit 走同一账号请求，开窗无凭据请求。旧 settings 文件保留但不消费，官方 origin 凭据目标的保存根 / hash 格式保持；外站凭据和待交不得重新归属。CancelAccountOperation 可从 AsyncDisposalQueue 调用；TextFlow 刷新须 Schedule 并跳过已 Dispose，释放线程直接 Clear 曾导致真实失败。
+- 隐藏覆盖层的账号通知可能停留在 Scheduler；重新开榜时若先启动请求再处理旧通知，会取消新榜。ShowChartBoard 在新读取前应用当前账号，queued 通知随后不再改变 owner；用隐藏时退出、立即重开并加载公开榜的行为验证，不能只断言 Visible。实际修复回链[本轮日志](../../doc_md/subline/P3-IR/CHANGELOG.md#2026-10-10固定omsir登录与谱面榜入口简化)。
 - Visual TestScene 的 SetUp 用 AddStep 延后换实例时，`AddStep(..., overlay.Hide)` 注册时已捕获旧实例；用 lambda 执行时读当前字段。原 Visible→Hidden、HTTP 取消与迟到不出现断言保留，隐藏窗口的测试操作不代签真人关闭。
-- InvalidDataException 不继承 IOException；异常 settings / pending 恢复须显式处理、停 IR 并保全原件。响应体 IOException 是网络丢失，沿原 UUID 重试。401 时先使内存身份失效、标记需要登录，再尝试删除 Windows 凭据；删除失败也不能继续重发。本地排队写入不等账号 HTTP 锁。
-- 首次空搜索的 `new Bindable<string>()` 默认为 null，query.Length 可在 HTTP 前失败，finally 仍恢复按钮而画面留 loading；只有 read-start、无第二请求时先查业务不变量，初始化 string.Empty，不靠 catch / fallback 掩错。
+- InvalidDataException 不继承 IOException；异常 pending 恢复须显式处理、停上传并保全原件；退休 settings 不再参与恢复。响应体 IOException 是网络丢失，沿原 UUID 重试。401 时先使内存身份失效、标记需要登录，再尝试删除 Windows 凭据；删除失败也不能继续重发。本地排队写入不等账号 HTTP 锁。
+- 原目录搜索的 `new Bindable<string>()` 默认为 null，query.Length 可在 HTTP 前失败，finally 仍恢复按钮而画面留 loading；只有 read-start、无第二请求时先查业务不变量，初始化 string.Empty，不靠 catch / fallback 掩错。独立目录交互已退休，此条只留原故障原因。
 - 换来源后的旧 condition / 页码与迟到结果须沿当前合同清理；空 sources、原 ID / unknown / lamp 保真。网站公开最佳与端内本人 UUID 全历史的边界读合同，不因简化文案改变记录语义。
 
 ## 多来源取证地雷
