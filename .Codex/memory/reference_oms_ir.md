@@ -19,6 +19,7 @@
 
 ## 凭据、界面与持久待交
 
+- 换服务时只清榜单行而保留MD5 / condition / group，会由新origin构造旧服务范围的有效网页链接。诊断须同时检查当前视图 / 范围和网页按钮；地址变化清完整范围并回目录，异步状态处理前再核origin。实际故障与两玩法行为证据见[2026-10-10接线日志](../../doc_md/subline/P3-IR/CHANGELOG.md#2026-10-10客户端与网站入口恢复)。
 - 原账号 UI 消费独立 OmsIrService，不把服务身份塞入旧 APIUser / IAPIProvider。await 登录后、写凭据 / State 前复核当前操作取消；窗口关闭与 revision / Owner 变化是真实边界，迟到响应不能恢复账号或本人记录。
 - 地址输入不等于已保存 origin；按钮与密码 OnCommit 使用同一个已保存连接谓词。保存只写本地，不发凭据，异步完成不覆盖随后新输入。CancelAccountOperation 可从 AsyncDisposalQueue 调用；TextFlow 刷新须 Schedule 并跳过已 Dispose，释放线程直接 Clear 曾导致真实失败。
 - Visual TestScene 的 SetUp 用 AddStep 延后换实例时，`AddStep(..., overlay.Hide)` 注册时已捕获旧实例；用 lambda 执行时读当前字段。原 Visible→Hidden、HTTP 取消与迟到不出现断言保留，隐藏窗口的测试操作不代签真人关闭。
