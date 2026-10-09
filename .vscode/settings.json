@@ -1,4 +1,12 @@
 {
   "yaml.validate": false,
-  "python.terminal.activateEnvironment": false
+  "python.terminal.activateEnvironment": false,
+  "python.analysis.exclude": [
+    ".dev-cache",
+    ".venv",
+    "artifacts",
+    "TestResults",
+    "**/bin",
+    "**/obj"
+  ]
 }

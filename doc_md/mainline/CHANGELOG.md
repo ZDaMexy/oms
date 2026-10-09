@@ -5,6 +5,16 @@
 
 ---
 
+## 2026-10-10
+
+### VS Code Pylance扫描范围
+
+用户打开OMS文件夹时收到大量源文件提示。从干净master@4cb6678接续，fetch后与origin/master一致。本机Pylance 2026.4.1支持工作区`python.analysis.exclude`及默认排除相加；原设置未配置自定义范围。只改[工作区设置](../../.vscode/settings.json)，排除`.dev-cache`、`.venv`、`artifacts`、`TestResults`和各项目`bin` / `obj`，保留原设置、默认排除及打开脚本的分析，不禁用Pylance或改用户全局设置。
+
+只读文件枚举在上述三个主要目录发现6942个`.py/.pyi`（artifacts 4416、.dev-cache 2125、.venv 401），仓库当前无tracked Python源码；此数是实际目录文件数量，不冒称Pylance此前全部分析数。更新后显式排除范围外Python文件为0，配置JSON / 本机扩展schema与文档 / diff检查通过，证据留`artifacts/vscode-pylance-20261010/`。实际提示消失须用户执行`Developer: Reload Window`后确认，没有运行产品build / test、删除缓存或生成Windows发行物。
+
+排除的追加语义和打开文件仍分析取[微软Pylance说明](https://github.com/microsoft/pylance-release/blob/main/docs/settings/python_analysis_exclude.md)，诊断经验只在[构建与检查记忆](../../.Codex/memory/reference_build_and_test.md#检查脚本与环境)召回。本轮只修改本地开发环境，在当前分支提交，尚未推送。
+
 ## 2026-10-09
 
 ### 七项目进度与文档记忆复核
