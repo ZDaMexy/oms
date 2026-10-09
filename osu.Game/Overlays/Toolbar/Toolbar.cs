@@ -4,20 +4,20 @@
 #nullable disable
 
 using System;
+using osu.Framework.Allocation;
+using osu.Framework.Bindables;
 using osu.Framework.Extensions.Color4Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
-using osu.Game.Graphics;
-using osuTK;
 using osu.Framework.Graphics.Shapes;
-using osu.Framework.Allocation;
-using osu.Framework.Bindables;
-using osu.Framework.Input.Events;
-using osu.Game.Rulesets;
 using osu.Framework.Input.Bindings;
+using osu.Framework.Input.Events;
+using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
 using osu.Game.Input.Bindings;
+using osu.Game.Rulesets;
+using osuTK;
 
 namespace osu.Game.Overlays.Toolbar
 {
@@ -172,7 +172,6 @@ namespace osu.Game.Overlays.Toolbar
                                                 new ToolbarBeatmapListingButton(),
                                                 new ToolbarChatButton(),
                                                 new ToolbarSocialButton(),
-                                                new ToolbarOmsIrButton(),
                                                 new ToolbarMusicButton(),
                                                 //new ToolbarButton
                                                 //{
@@ -187,7 +186,6 @@ namespace osu.Game.Overlays.Toolbar
                                                 {
                                                     new ToolbarBmsDownloadButton(),
                                                     new ToolbarOmsRankingsButton(),
-                                                    new ToolbarOmsIrButton(),
                                                     new ToolbarMusicButton(),
                                                     userButton = new ToolbarUserButton(true),
                                                     new ToolbarClock(),
@@ -196,7 +194,6 @@ namespace osu.Game.Overlays.Toolbar
                                                 : new Drawable[]
                                                 {
                                                     new ToolbarOmsRankingsButton(),
-                                                    new ToolbarOmsIrButton(),
                                                     new ToolbarMusicButton(),
                                                     userButton = new ToolbarUserButton(true),
                                                     new ToolbarClock(),

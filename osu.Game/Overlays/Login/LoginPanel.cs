@@ -111,12 +111,6 @@ namespace osu.Game.Overlays.Login
             if (state.Account != null && !state.RequiresLogin)
                 Child = form = new OmsAccountPanel(state.Account)
                 {
-                    ConnectionSettings = () =>
-                    {
-                        CancelAccountOperation();
-                        Child = form = new LoginForm(true) { RequestHide = RequestHide };
-                        ScheduleAfterChildren(() => GetContainingFocusManager()?.ChangeFocus(form));
-                    },
                     ShowProfile = () =>
                     {
                         RequestHide?.Invoke();

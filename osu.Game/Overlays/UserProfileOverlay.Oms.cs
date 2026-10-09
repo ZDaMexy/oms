@@ -12,8 +12,6 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Localisation;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
-using osu.Game.Graphics.Sprites;
-using osu.Game.Graphics.UserInterface;
 using osu.Game.Graphics.UserInterface.PageSelector;
 using osu.Game.Online.IR;
 using osu.Game.Overlays.Profile;
@@ -334,7 +332,7 @@ namespace osu.Game.Overlays
 
         private partial class OmsAccountSection : ProfileSection
         {
-            public override LocalisableString Title => "账号与连接";
+            public override LocalisableString Title => "账号";
             public override string Identifier => "account";
             public Action? OpenAccount;
 
@@ -351,7 +349,7 @@ namespace osu.Game.Overlays
 
             public void UpdateState(OmsIrState state)
             {
-                var lines = new List<string> { $"{(state.Enabled ? "IR 已启用" : "IR 已关闭")} · {state.ServiceAddress}" };
+                var lines = new List<string>();
                 if (state.PendingCount > 0)
                     lines.Add($"待上传 {state.PendingCount} 条");
                 if (state.BlockedCount > 0)

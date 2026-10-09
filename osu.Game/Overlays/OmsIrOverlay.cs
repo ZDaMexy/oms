@@ -43,14 +43,13 @@ namespace osu.Game.Overlays
         [Resolved]
         private IBindable<WorkingBeatmap> currentBeatmap { get; set; } = null!;
 
-        private readonly Bindable<string> search = new Bindable<string>(string.Empty);
-        private OsuTextFlowContainer connectionStatus = null!;
+        private TruncatingSpriteText chartHeading = null!;
         private OsuTextFlowContainer actionStatus = null!;
         private OsuSpriteText pageText = null!;
         private FillFlowContainer rows = null!;
         private FillFlowContainer sourceOptions = null!;
         private FillFlowContainer conditionOptions = null!;
-        private readonly List<FormButton> buttons = new List<FormButton>();
+        private readonly List<OsuButton> buttons = new List<OsuButton>();
         private CancellationTokenSource? operationCancellation;
         private long? displayedAccount;
         private string displayedService = string.Empty;
@@ -68,12 +67,13 @@ namespace osu.Game.Overlays
         private HashSet<string>? selectedSources;
         private string boardMode = "reference";
         private string? conditionId;
-        private FormButton websiteButton = null!;
+        private OsuButton websiteButton = null!;
+        private OsuButton refreshButton = null!;
 
-        private enum View { Charts, Board, ReferenceBoard, ManiaConditions }
+        private enum View { None, Board, ReferenceBoard, ManiaConditions }
 
         public string? WebsiteUrl => service.State.ServiceAddress != displayedService ? null
-            : view == View.Charts ? null
+            : view == View.None ? null
             : chartMd5 == null ? null
             : view == View.ReferenceBoard ? OmsWebsite.ChartBoard(displayedService, chartMd5, "bms", boardMode, conditionId, selectedSources, page: page)
             : OmsWebsite.ChartBoard(displayedService, chartMd5, "mania", group: view == View.Board ? group : null, page: page);
@@ -115,17 +115,15 @@ namespace osu.Game.Overlays
                                 Spacing = new Vector2(0, 12),
                                 Children = new Drawable[]
                                 {
-                                    text("谱面排行榜", 26),
-                                    flow("榜单成绩未经回放验证。"),
-                                    connectionStatus = flow(string.Empty),
-                                    makeButtons(button("账号与连接", () => game?.ShowOmsAccount()), new FormButton { ButtonText = "关闭", Action = Hide }),
-                                    new FormTextBox { Caption = "谱名、作者或 MD5", PlaceholderText = "留空查看全部谱面", Current = search },
-                                    makeButtons(button("查找谱面", () => navigate(View.Charts))),
-                                    makeButtons(button("当前谱面榜", openCurrentChart), websiteButton = new FormButton
+                                    text("谱面排行榜", 18),
+                                    chartHeading = new TruncatingSpriteText { RelativeSizeAxes = Axes.X, Font = OsuFont.GetFont(size: 26) },
+                                    makeButtons(websiteButton = new RoundedButton
                                     {
-                                        ButtonText = "在网页查看",
+                                        Text = "在网页查看",
+                                        RelativeSizeAxes = Axes.X,
+                                        Height = 40,
                                         Action = () => { if (WebsiteUrl is string url) game?.OpenUrlExternally(url); },
-                                    }),
+                                    }, new RoundedButton { Text = "关闭", RelativeSizeAxes = Axes.X, Height = 40, Action = Hide }),
                                     actionStatus = flow("选择谱面后查看排行榜。"),
                                     sourceOptions = new FillFlowContainer
                                     {
@@ -149,7 +147,8 @@ namespace osu.Game.Overlays
                                         Spacing = new Vector2(0, 8),
                                     },
                                     pageText = text(string.Empty, 16),
-                                    makeButtons(button("上一页", () => changePage(-1)), button("刷新", refresh), button("下一页", () => changePage(1))),
+                                    makeButtons(button("上一页", () => changePage(-1)), refreshButton = button("刷新", refresh), button("下一页", () => changePage(1))),
+                                    text("榜单成绩未经回放验证。", 14),
                                 }
                             }
                         }
@@ -174,9 +173,9 @@ namespace osu.Game.Overlays
             return result;
         }
 
-        private FormButton button(string label, Action action)
+        private OsuButton button(string label, Action action)
         {
-            var result = new FormButton { ButtonText = label, Action = action };
+            var result = new RoundedButton { Text = label, RelativeSizeAxes = Axes.X, Height = 40, Action = action };
             buttons.Add(result);
             return result;
         }
@@ -202,9 +201,11 @@ namespace osu.Game.Overlays
             void updateDetails()
             {
                 content.Clear();
-                content.Add(new FormButton
+                content.Add(new RoundedButton
                 {
-                    ButtonText = expanded ? "收起详情" : label,
+                    Text = expanded ? "收起详情" : label,
+                    RelativeSizeAxes = Axes.X,
+                    Height = 40,
                     Action = () =>
                     {
                         expanded = !expanded;
@@ -226,7 +227,6 @@ namespace osu.Game.Overlays
                 return;
 
             bool changedOwner = displayedAccount != state.Account?.Id || displayedService != state.ServiceAddress || requiresLogin != state.RequiresLogin || displayedEnabled != state.Enabled;
-            bool changedService = displayedService != state.ServiceAddress;
             displayedAccount = state.Account?.Id;
             displayedService = state.ServiceAddress;
             requiresLogin = state.RequiresLogin;
@@ -238,21 +238,8 @@ namespace osu.Game.Overlays
                 sourceOptions.Clear();
                 conditionOptions.Clear();
                 page = 1;
-                if (changedService)
-                {
-                    sourceRegistry = null;
-                    selectedSources = null;
-                    chartMd5 = null;
-                    chartTitle = null;
-                    group = null;
-                    conditionId = null;
-                    boardMode = "reference";
-                    view = View.Charts;
-                }
-                actionStatus.Text = "账号或连接已变化，请刷新榜单。";
+                actionStatus.Text = "账号已变化，请刷新榜单。";
             }
-            string account = state.Account == null ? "未登录" : state.RequiresLogin ? $"{state.Account.Username} · 需要重新登录" : state.Account.Username;
-            connectionStatus.Text = $"{(state.Enabled ? "IR 已启用" : "IR 已关闭")} · {account}";
             updateButtons();
         }
 
@@ -261,6 +248,7 @@ namespace osu.Game.Overlays
             foreach (var item in buttons)
                 item.Enabled.Value = !running;
             websiteButton.Enabled.Value = !running && WebsiteUrl != null;
+            refreshButton.Enabled.Value = !running && chartMd5 != null;
         }
 
         private void navigate(View next)
@@ -284,8 +272,11 @@ namespace osu.Game.Overlays
 
         private void refresh()
         {
+            if (chartMd5 == null)
+                return;
             clearRead();
-            actionStatus.Text = view == View.Charts ? "正在查找谱面…" : "正在加载排行榜…";
+            actionStatus.Text = "正在加载排行榜…";
+            chartHeading.Text = chartTitle ?? "谱面排行榜";
             View requestedView = view;
             int requestedPage = page;
             string? requestedMd5 = chartMd5;
@@ -293,7 +284,6 @@ namespace osu.Game.Overlays
             string? requestedCondition = conditionId;
             string requestedMode = boardMode;
             string[]? requestedSources = selectedSources?.ToArray();
-            string requestedSearch = search.Value;
             run(async token =>
             {
                 int requestRevision = revision;
@@ -305,7 +295,7 @@ namespace osu.Game.Overlays
                     View.Board when requestedMd5 != null && requestedGroup != null => await service.GetChartScoresAsync(requestedMd5, requestedGroup, requestedPage, token).ConfigureAwait(false),
                     View.ReferenceBoard when requestedMd5 != null => await service.GetSourceChartScoresAsync(requestedMd5, requestedSources, requestedMode, requestedCondition, requestedPage, token).ConfigureAwait(false),
                     View.ManiaConditions when requestedMd5 != null => await service.GetSourceChartAsync(requestedMd5, token).ConfigureAwait(false),
-                    _ => await service.GetSourceChartsAsync(requestedSearch, requestedPage, token).ConfigureAwait(false),
+                    _ => throw new InvalidOperationException("A chart is required to read its leaderboard."),
                 };
                 Schedule(() =>
                 {
@@ -337,12 +327,11 @@ namespace osu.Game.Overlays
                     throw new JsonSerializationException("The IR chart does not match the selected mania chart.");
                 var groups = required<JArray>(response, "groups");
                 rows.Clear();
-                rows.Add(flow(chartTitle ?? "谱面榜单"));
                 foreach (JToken entry in groups)
                 {
                     var condition = entry as JObject ?? throw new JsonSerializationException("Invalid IR group.");
                     string id = stringValue(condition, "id");
-                    rows.Add(new FormButton { ButtonText = stringValue(condition, "label"), Action = () => openBoard(chartMd5!, id, chartTitle!) });
+                    rows.Add(new RoundedButton { RelativeSizeAxes = Axes.X, Height = 40, Text = stringValue(condition, "label"), Action = () => openBoard(chartMd5!, id, chartTitle!) });
                 }
                 totalPages = 1;
                 pageText.Text = string.Empty;
@@ -360,46 +349,22 @@ namespace osu.Game.Overlays
                 return;
             }
             var content = new List<Drawable>();
-            if (view == View.Board)
-                content.Add(flow(chartTitle ?? "谱面榜单"));
             if (items.Count == 0)
-                content.Add(flow(view == View.Charts ? "没有找到谱面。" : "当前条件没有公开成绩。"));
+                content.Add(flow("当前条件没有公开成绩。"));
             foreach (JToken entry in items)
             {
                 var item = entry as JObject ?? throw new JsonSerializationException("Invalid IR record.");
-                if (view == View.Charts)
-                {
-                    JObject chart = required<JObject>(item, "chart");
-                    string title = nullableString(chart, "title") ?? "标题未收录";
-                    string md5 = stringValue(chart, "md5");
-                    content.Add(flow($"{title}\n作者：{nullableString(chart, "artist") ?? "未收录"} · 难度：{nullableString(chart, "difficulty") ?? "未收录"}\nMD5：{md5}"));
-                    if (stringValue(item, "ruleset") == "bms")
-                    {
-                        content.Add(new FormButton { ButtonText = "查看参考混榜", Action = () => openReferenceBoard(md5, title) });
-                        continue;
-                    }
-                    foreach (JToken conditionToken in required<JArray>(item, "groups"))
-                    {
-                        var condition = conditionToken as JObject ?? throw new JsonSerializationException("Invalid IR group.");
-                        string id = stringValue(condition, "id");
-                        string label = stringValue(condition, "label");
-                        content.Add(new FormButton { ButtonText = label, Action = () => openBoard(md5, id, title) });
-                    }
-                }
-                else
-                {
-                    JObject score = required<JObject>(item, "score");
-                    bool isBms = stringValue(score, "ruleset") == "bms";
-                    string value = isBms
-                        ? $"EX {integer(score, "ex_score")} / {integer(score, "max_ex_score")}" : $"分数 {integer(score, "total_score"):N0}";
-                    string heading = $"#{integer(item, "rank")} · {stringValue(required<JObject>(item, "user"), "username")}";
-                    string lamp = isBms ? lampName(integer(item, "best_lamp")) : boolean(score, "passed") ? "通过" : "未通过";
-                    string source = isBms && integer(item, "best_lamp_score_id") != integer(score, "id") ? " · 最佳灯来自另一局" : string.Empty;
-                    string detail = ScoreDetails(score);
-                    content.Add(flow($"{heading}\n{value} · {number(score, "accuracy"):P2} · {integer(score, "max_combo")} COMBO · {lamp}{source}"));
-                    addProfileLink(content, integer(required<JObject>(item, "user"), "id"), "mania", stringValue(score, "keymode"));
-                    content.Add(recordDetails("查看这局详情", detail));
-                }
+                JObject score = required<JObject>(item, "score");
+                bool isBms = stringValue(score, "ruleset") == "bms";
+                string value = isBms
+                    ? $"EX {integer(score, "ex_score")} / {integer(score, "max_ex_score")}" : $"分数 {integer(score, "total_score"):N0}";
+                string heading = $"#{integer(item, "rank")} · {stringValue(required<JObject>(item, "user"), "username")}";
+                string lamp = isBms ? lampName(integer(item, "best_lamp")) : boolean(score, "passed") ? "通过" : "未通过";
+                string source = isBms && integer(item, "best_lamp_score_id") != integer(score, "id") ? " · 最佳灯来自另一局" : string.Empty;
+                string detail = ScoreDetails(score);
+                content.Add(flow($"{heading}\n{value} · {number(score, "accuracy"):P2} · {integer(score, "max_combo")} COMBO · {lamp}{source}"));
+                addProfileLink(content, integer(required<JObject>(item, "user"), "id"), "mania", stringValue(score, "keymode"));
+                content.Add(recordDetails("查看这局详情", detail));
             }
             rows.Clear();
             rows.AddRange(content);
@@ -420,6 +385,9 @@ namespace osu.Game.Overlays
 
         public void ShowChartBoard(string md5, string title, string? condition = null, string? maniaGroup = null, string ruleset = "bms")
         {
+            // Account notifications can stay scheduled while the overlay is hidden.
+            // Apply the latest owner before opening a new read so those notifications cannot cancel it.
+            applyState(service.State);
             cancelOperation();
             Show();
             if (maniaGroup != null)
@@ -428,20 +396,6 @@ namespace osu.Game.Overlays
                 openManiaConditions(md5, title);
             else
                 openReferenceBoard(md5, title, condition);
-        }
-
-        private void openCurrentChart()
-        {
-            BeatmapInfo info = currentBeatmap.Value.BeatmapInfo;
-            if (!OmsWebsite.HasChart(info))
-            {
-                actionStatus.Text = "请先在选歌页选择一张 BMS 或 mania 原谱。";
-                return;
-            }
-            if (info.Ruleset.ShortName == "mania")
-                openManiaConditions(info.MD5Hash.ToLowerInvariant(), info.Metadata.Title);
-            else
-                openReferenceBoard(info.MD5Hash.ToLowerInvariant(), info.Metadata.Title);
         }
 
         private void openManiaConditions(string md5, string title)
@@ -466,7 +420,7 @@ namespace osu.Game.Overlays
 
         private void onBeatmapChanged(ValueChangedEvent<WorkingBeatmap> change) => Schedule(() =>
         {
-            if (view == View.Charts)
+            if (view == View.None)
                 return;
             cancelOperation();
             clearRead();
@@ -476,8 +430,8 @@ namespace osu.Game.Overlays
             chartTitle = null;
             conditionId = null;
             page = 1;
-            view = View.Charts;
-            actionStatus.Text = "选谱已变化，请重新查看当前谱面榜。";
+            view = View.None;
+            Hide();
             updateButtons();
         });
 
@@ -525,8 +479,8 @@ namespace osu.Game.Overlays
             var controls = new List<Drawable>
             {
                 flow("成绩来源"),
-                makeButtons(new FormButton { ButtonText = "全部来源", Action = () => changeSources(null) },
-                    new FormButton { ButtonText = "清空来源", Action = () => changeSources(new HashSet<string>(StringComparer.Ordinal)) }),
+                makeButtons(new RoundedButton { RelativeSizeAxes = Axes.X, Height = 40, Text = "全部来源", Action = () => changeSources(null) },
+                    new RoundedButton { RelativeSizeAxes = Axes.X, Height = 40, Text = "清空来源", Action = () => changeSources(new HashSet<string>(StringComparer.Ordinal)) }),
             };
             foreach (JToken entry in sourceRegistry!)
             {
@@ -544,18 +498,21 @@ namespace osu.Game.Overlays
                 flow(boardMode == "reference" ? "参考混榜 · 按原 EX 排序，游玩条件可能不同。" : "同条件榜"),
             };
             if (boardMode == "comparable")
-                conditionControls.Add(new FormButton { ButtonText = "返回参考混榜", Action = () => chooseCondition(null) });
+                conditionControls.Add(new RoundedButton { RelativeSizeAxes = Axes.X, Height = 40, Text = "返回参考混榜", Action = () => chooseCondition(null) });
             foreach (JToken entry in conditions)
             {
                 var condition = entry as JObject ?? throw new JsonSerializationException("Invalid IR condition.");
                 string id = stringValue(condition, "id");
-                conditionControls.Add(new FormButton { ButtonText = "同条件 · " + stringValue(condition, "label"), Action = () => chooseCondition(id) });
+                conditionControls.Add(new RoundedButton { RelativeSizeAxes = Axes.X, Height = 40, Text = "同条件 · " + stringValue(condition, "label"), Action = () => chooseCondition(id) });
             }
             if (conditions.Count == 0 && strings(response, "selected_sources").Length > 0)
                 conditionControls.Add(flow("所选来源没有已确认的同条件，只能参考。"));
 
-            var content = new List<Drawable> { flow(chartTitle ?? nullableString(required<JObject>(response, "chart"), "title") ?? "标题未收录") };
-            content.Add(flow("来源：" + string.Join("、", strings(response, "selected_sources").Select(sourceLabel))));
+            var content = new List<Drawable>
+            {
+                flow(chartTitle ?? nullableString(required<JObject>(response, "chart"), "title") ?? "标题未收录"),
+                flow("来源：" + string.Join("、", strings(response, "selected_sources").Select(sourceLabel)))
+            };
             if (stringValue(response, "content_identity") == "md5-only")
                 content.Add(flow("仅按 MD5 匹配，内容和游玩条件尚未确认。"));
             if (boolean(response, "archive_suspended"))
@@ -646,24 +603,48 @@ namespace osu.Game.Overlays
 
         private static string recordKindLabel(string kind) => kind switch
         {
-            "play" => "OMS 单次成绩", "best_state" => "播放器最佳成绩", "archive_best" => "历史最佳摘要", _ => kind,
+            "play" => "OMS 单次成绩",
+            "best_state" => "播放器最佳成绩",
+            "archive_best" => "历史最佳摘要",
+            _ => kind,
         };
 
         private static string conditionLabel(string field) => field switch
         {
-            "ruleset" => "玩法", "keymode" => "键型", "judge_mode" => "判定", "judge_rank" => "判定等级",
-            "judge_algorithm" => "判定算法", "gauge_rules_family" or "gauge_rules" => "血条规则",
-            "gauge_auto_shift" => "自动降档", "starting_gauge_type" => "起始血条", "floor_gauge_type" => "降档下限",
-            "long_note_mode" => "长条规则", "branch_policy" => "谱面分支", "assist" => "辅助状态", "frequency" => "频率",
-            "total" => "TOTAL", "max_ex_score" => "最大 EX", "played_at" => "游玩时间", "sha256" => "内容声明",
-            "version" => "成绩规则版本", "mods" => "选项（Mods）", "cross_player_parity" => "跨播放器规则一致性",
-            "option_1" => "历史选项 1", "option_2" => "历史选项 2", "option_3" => "历史选项 3", "option_4" => "历史选项 4", "input" => "输入方式", _ => field,
+            "ruleset" => "玩法",
+            "keymode" => "键型",
+            "judge_mode" => "判定",
+            "judge_rank" => "判定等级",
+            "judge_algorithm" => "判定算法",
+            "gauge_rules_family" or "gauge_rules" => "血条规则",
+            "gauge_auto_shift" => "自动降档",
+            "starting_gauge_type" => "起始血条",
+            "floor_gauge_type" => "降档下限",
+            "long_note_mode" => "长条规则",
+            "branch_policy" => "谱面分支",
+            "assist" => "辅助状态",
+            "frequency" => "频率",
+            "total" => "TOTAL",
+            "max_ex_score" => "最大 EX",
+            "played_at" => "游玩时间",
+            "sha256" => "内容声明",
+            "version" => "成绩规则版本",
+            "mods" => "选项（Mods）",
+            "cross_player_parity" => "跨播放器规则一致性",
+            "option_1" => "历史选项 1",
+            "option_2" => "历史选项 2",
+            "option_3" => "历史选项 3",
+            "option_4" => "历史选项 4",
+            "input" => "输入方式",
+            _ => field,
         };
 
         private static string conditionValue(JToken value) => value.Type switch
         {
-            JTokenType.Null => "未收录", JTokenType.String => value.Value<string>()!,
-            JTokenType.Boolean => value.Value<bool>() ? "是" : "否", _ => value.ToString(Formatting.None),
+            JTokenType.Null => "未收录",
+            JTokenType.String => value.Value<string>()!,
+            JTokenType.Boolean => value.Value<bool>() ? "是" : "否",
+            _ => value.ToString(Formatting.None),
         };
 
         private static string originalLamp(JObject score)
@@ -720,7 +701,16 @@ namespace osu.Game.Overlays
 
         private static string lampName(long? value) => value switch
         {
-            1 => "FAILED", 2 => "ASSIST EASY", 3 => "EASY CLEAR", 4 => "CLEAR", 5 => "HARD CLEAR", 6 => "EX HARD CLEAR", 7 => "HAZARD CLEAR", 8 => "FULL COMBO", 9 => "PERFECT", _ => "—",
+            1 => "FAILED",
+            2 => "ASSIST EASY",
+            3 => "EASY CLEAR",
+            4 => "CLEAR",
+            5 => "HARD CLEAR",
+            6 => "EX HARD CLEAR",
+            7 => "HAZARD CLEAR",
+            8 => "FULL COMBO",
+            9 => "PERFECT",
+            _ => "—",
         };
 
         private async void run(Func<CancellationToken, Task> action)

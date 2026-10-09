@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,7 +24,7 @@ namespace osu.Game.Tests.Online.IR
     [TestFixture]
     public class OmsIrServiceTests
     {
-        private const string origin = "https://ir.example.test/";
+        private const string origin = "https://oms.zdamexy.work/";
         private const string password = "OMS-local-test-password!";
         private TemporaryNativeStorage storage = null!;
         private MemoryCredentials credentials = null!;
@@ -39,7 +40,7 @@ namespace osu.Game.Tests.Online.IR
         public void TearDown() => storage.Dispose();
 
         [Test]
-        public async Task DefaultHasNoAddressAndMakesNoRequest()
+        public async Task GuestUsesOmsirWithoutMakingAnyStartupRequest()
         {
             int requests = 0;
             using var http = new HttpClient(new Handler((_, _) =>
@@ -49,7 +50,7 @@ namespace osu.Game.Tests.Online.IR
             }));
             using var service = new OmsIrService(storage, http, credentials);
             Assert.That(service.State.Enabled, Is.False);
-            Assert.That(service.State.ServiceAddress, Is.Empty);
+            Assert.That(service.State.ServiceAddress, Is.EqualTo(origin));
             Assert.That(service.CaptureSubmissionTarget(), Is.Null);
             await Task.Delay(100);
             Assert.That(requests, Is.Zero);
@@ -73,19 +74,23 @@ namespace osu.Game.Tests.Online.IR
         [Test]
         public async Task CredentialsAreOnlyWrittenToTheCredentialStoreAndRestoredFromThere()
         {
-            using var http = standardHttp();
+            int attempts = 0;
+            using var http = standardHttp((_, _) =>
+            {
+                Interlocked.Increment(ref attempts);
+                throw new HttpRequestException("Synthetic offline.");
+            });
             using (var service = new OmsIrService(storage, http, credentials))
             {
-                await service.ConfigureAsync(origin, true);
                 await service.LoginAsync("player_one", password, register: true);
                 Assert.That(service.State.Account, Is.EqualTo(new OmsIrAccount(1, "player_one")));
                 OmsIrSubmissionTarget target = service.CaptureSubmissionTarget()!;
-                await service.ConfigureAsync(origin, false);
                 await service.QueueSubmissionAsync(target, submission());
+                await waitUntil(() => attempts == 1 && !service.State.Busy);
                 Assert.That(credentials.Values.Single().Value.ToString(), Is.EqualTo("OMS IR credential record"));
             }
             using var restored = new OmsIrService(storage, http, credentials);
-            Assert.That(restored.State.Enabled, Is.False);
+            Assert.That(restored.State.Enabled, Is.True);
             Assert.That(restored.State.Account?.Id, Is.EqualTo(1));
             Assert.That(restored.State.PendingCount, Is.EqualTo(1));
             foreach (string path in Directory.EnumerateFiles(storage.GetFullPath("oms-ir"), "*", SearchOption.AllDirectories))
@@ -124,7 +129,6 @@ namespace osu.Game.Tests.Online.IR
                 return new HttpResponseMessage(HttpStatusCode.NoContent);
             }));
             using var service = new OmsIrService(storage, http, credentials);
-            await service.ConfigureAsync(origin, true);
             await service.LoginAsync("player_one", password);
             OmsIrSubmissionTarget target = service.CaptureSubmissionTarget()!;
             Task login = service.LoginAsync("player_two", password);
@@ -161,7 +165,6 @@ namespace osu.Game.Tests.Online.IR
             OmsIrSubmission play = submission();
             using (var service = new OmsIrService(storage, http, credentials))
             {
-                await service.ConfigureAsync(origin, true);
                 await service.LoginAsync("player_one", password);
                 await service.QueueSubmissionAsync(service.CaptureSubmissionTarget()!, play);
                 await waitUntil(() => seen.Count == 1 && !service.State.Busy);
@@ -193,7 +196,6 @@ namespace osu.Game.Tests.Online.IR
                 return acknowledge(payload, 1, duplicate);
             });
             using var service = new OmsIrService(storage, http, credentials);
-            await service.ConfigureAsync(origin, true);
             await service.LoginAsync("player_one", password);
             OmsIrSubmission play = submission();
             await service.QueueSubmissionAsync(service.CaptureSubmissionTarget()!, play);
@@ -225,7 +227,6 @@ namespace osu.Game.Tests.Online.IR
                 return Task.FromResult(error(HttpStatusCode.Unauthorized, "invalid_session"));
             }));
             using var service = new OmsIrService(storage, http, credentials);
-            await service.ConfigureAsync(origin, true);
             await service.LoginAsync("player_one", password);
             OmsIrSubmissionTarget target = service.CaptureSubmissionTarget()!;
             await service.QueueSubmissionAsync(target, submission());
@@ -253,7 +254,6 @@ namespace osu.Game.Tests.Online.IR
                 return Task.FromResult(error(HttpStatusCode.Unauthorized, "invalid_session"));
             }));
             using var service = new OmsIrService(storage, http, credentials);
-            await service.ConfigureAsync(origin, true);
             await service.LoginAsync("player_one", password);
             credentials.FailDelete = true;
             OmsIrSubmissionTarget target = service.CaptureSubmissionTarget()!;
@@ -282,7 +282,6 @@ namespace osu.Game.Tests.Online.IR
                     : error(status, code);
             });
             using var service = new OmsIrService(storage, http, credentials);
-            await service.ConfigureAsync(origin, true);
             await service.LoginAsync("player_one", password);
             await service.QueueSubmissionAsync(service.CaptureSubmissionTarget()!, submission());
             await waitUntil(() => service.State.BlockedCount == 1 && !service.State.Busy);
@@ -300,10 +299,9 @@ namespace osu.Game.Tests.Online.IR
         {
             using var http = standardHttp();
             using var service = new OmsIrService(storage, http, credentials);
-            await service.ConfigureAsync(origin, true);
             await service.LoginAsync("player_one", password);
             OmsIrSubmissionTarget target = service.CaptureSubmissionTarget()!;
-            await service.ConfigureAsync(origin, false);
+            await service.LogoutAsync();
             OmsIrSubmission original = submission();
             await service.QueueSubmissionAsync(target, original);
             await service.QueueSubmissionAsync(target, original);
@@ -335,7 +333,6 @@ namespace osu.Game.Tests.Online.IR
                 throw new InvalidOperationException("The submission should have been cancelled.");
             });
             var service = new OmsIrService(storage, http, credentials);
-            await service.ConfigureAsync(origin, true);
             await service.LoginAsync("player_one", password);
             await service.QueueSubmissionAsync(service.CaptureSubmissionTarget()!, submission());
             await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -358,11 +355,10 @@ namespace osu.Game.Tests.Online.IR
             OmsIrSubmission play = submission();
             using (var service = new OmsIrService(storage, http, credentials))
             {
-                await service.ConfigureAsync(origin, true);
                 await service.LoginAsync("player_one", password);
                 await service.QueueSubmissionAsync(service.CaptureSubmissionTarget()!, play);
                 await waitUntil(() => failed == 1 && !service.State.Busy);
-                await service.ConfigureAsync(origin, false);
+                await service.LogoutAsync();
             }
             string pending = storage.GetFullPath("oms-ir/pending");
             string primary = Directory.EnumerateFiles(pending, "*.json").Single();
@@ -384,10 +380,9 @@ namespace osu.Game.Tests.Online.IR
             Guid id;
             using (var service = new OmsIrService(storage, http, credentials))
             {
-                await service.ConfigureAsync(origin, true);
                 await service.LoginAsync("player_one", password);
                 OmsIrSubmissionTarget target = service.CaptureSubmissionTarget()!;
-                await service.ConfigureAsync(origin, false);
+                await service.LogoutAsync();
                 OmsIrSubmission play = submission();
                 id = play.SubmissionId;
                 await service.QueueSubmissionAsync(target, play);
@@ -406,10 +401,9 @@ namespace osu.Game.Tests.Online.IR
             using var http = standardHttp();
             using (var service = new OmsIrService(storage, http, credentials))
             {
-                await service.ConfigureAsync(origin, true);
                 await service.LoginAsync("player_one", password);
                 OmsIrSubmissionTarget target = service.CaptureSubmissionTarget()!;
-                await service.ConfigureAsync(origin, false);
+                await service.LogoutAsync();
                 await service.QueueSubmissionAsync(target, submission());
             }
             string path = Directory.EnumerateFiles(storage.GetFullPath("oms-ir/pending"), "*.json").Single();
@@ -424,20 +418,72 @@ namespace osu.Game.Tests.Online.IR
             Assert.That(exception.Code, Is.EqualTo("storage_error"));
         }
 
-        [Test]
-        public async Task InvalidSettingsDoNotEnableIrOrMasqueradeAsSuccessfulEmptyState()
+        [TestCase("{\"version\":1,\"service_address\":\"https://other-ir.example.test/\",\"enabled\":true}")]
+        [TestCase("{\"version\":1,\"service_address\":\"\",\"enabled\":false}")]
+        [TestCase("broken legacy settings")]
+        public async Task LegacyConnectionSettingsCannotRedirectLoginOrBlockIt(string legacySettings)
         {
             string path = storage.GetFullPath("oms-ir/settings.json");
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            const string damaged = "{\"version\":1,\"service_address\":\"https://ir.example.test/\",\"enabled\":\"true\"}";
-            File.WriteAllText(path, damaged);
-            using var http = standardHttp();
+            File.WriteAllText(path, legacySettings);
+            var requests = new ConcurrentQueue<Uri>();
+            using var http = new HttpClient(new Handler((request, _) =>
+            {
+                requests.Enqueue(request.RequestUri!);
+                return Task.FromResult(json(loginResponse(1)));
+            }));
             using var service = new OmsIrService(storage, http, credentials);
             Assert.That(service.State.Enabled, Is.False);
-            Assert.That(service.State.Message, Does.Contain("暂停"));
-            Assert.That(File.ReadAllText(path), Is.EqualTo(damaged));
-            Assert.ThrowsAsync<OmsIrException>(async () => await service.ConfigureAsync(origin, true));
-            await Task.CompletedTask;
+            Assert.That(requests, Is.Empty);
+            await service.LoginAsync("player_one", password);
+            Assert.That(service.State.Enabled, Is.True);
+            Assert.That(service.CaptureSubmissionTarget(), Is.EqualTo(new OmsIrSubmissionTarget(new Uri(origin), 1)));
+            Assert.That(requests.Single().AbsoluteUri, Is.EqualTo(origin + "api/ir/v1/auth/login"));
+            Assert.That(File.ReadAllText(path), Is.EqualTo(legacySettings));
+            await service.LogoutAsync();
+            Assert.That(service.State.Enabled, Is.False);
+            Assert.That(service.CaptureSubmissionTarget(), Is.Null);
+        }
+
+        [Test]
+        public async Task PendingFromAnotherOriginIsPreservedAndNeverReassignedToOmsir()
+        {
+            int attempts = 0;
+            using var http = standardHttp((_, _) =>
+            {
+                Interlocked.Increment(ref attempts);
+                throw new InvalidOperationException("A foreign submission must never reach OMSIR.");
+            });
+            using var service = new OmsIrService(storage, http, credentials);
+            var target = new OmsIrSubmissionTarget(new Uri("https://other-ir.example.test/"), 1);
+            OmsIrSubmission play = submission();
+            await service.QueueSubmissionAsync(target, play);
+            string path = Directory.EnumerateFiles(storage.GetFullPath("oms-ir/pending"), "*.json").Single();
+            string saved = File.ReadAllText(path);
+            await service.LoginAsync("player_one", password);
+            await Task.Delay(100);
+            Assert.That(attempts, Is.Zero);
+            Assert.That(service.State.WaitingOtherAccountCount, Is.EqualTo(1));
+            Assert.That(service.PendingSubmissions.Single().Target, Is.EqualTo(target));
+            Assert.That(service.PendingSubmissions.Single().SubmissionId, Is.EqualTo(play.SubmissionId));
+            Assert.That(File.ReadAllText(path), Is.EqualTo(saved));
+        }
+
+        [Test]
+        public async Task CredentialsFromAnotherOriginCannotBecomeTheOmsAccount()
+        {
+            string scope = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(storage.GetFullPath(string.Empty).ToUpperInvariant()))).ToLowerInvariant();
+            string foreignOrigin = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("https://other-ir.example.test/"))).ToLowerInvariant();
+            string legacyTarget = "OMS.IR.v1:" + scope + ":" + foreignOrigin;
+            credentials.Values[legacyTarget] = new OmsIrSession(99, "foreign_user", accessFor(99), refreshFor(99), DateTimeOffset.UtcNow.AddMinutes(30));
+            using var http = standardHttp();
+            using var service = new OmsIrService(storage, http, credentials);
+            Assert.That(service.State.Account, Is.Null);
+            Assert.That(service.CaptureSubmissionTarget(), Is.Null);
+            await service.LoginAsync("player_one", password);
+            Assert.That(service.State.Account?.Id, Is.EqualTo(1));
+            Assert.That(service.CaptureSubmissionTarget()?.ServiceUri, Is.EqualTo(OmsIrService.ServiceOrigin));
+            Assert.That(credentials.Values[legacyTarget].UserId, Is.EqualTo(99));
         }
 
         [Test]
@@ -451,7 +497,6 @@ namespace osu.Game.Tests.Online.IR
                     ? json(loginResponse(1)) : json(new JObject { ["items"] = new JArray(), ["total"] = 0 }));
             }));
             using var service = new OmsIrService(storage, http, credentials);
-            await service.ConfigureAsync(origin, true);
             await service.GetChartsAsync();
             await service.GetChartScoresAsync(new string('a', 32), new string('b', 64));
             await service.LoginAsync("player_one", password);
@@ -479,7 +524,6 @@ namespace osu.Game.Tests.Online.IR
                     ? json(loginResponse(1)) : json(new JObject { ["items"] = new JArray(), ["total"] = 0 }));
             }));
             using var service = new OmsIrService(storage, http, credentials);
-            await service.ConfigureAsync(origin, true);
             string md5 = new string('a', 32);
             await service.GetSourcesAsync();
             await service.GetSourceChartsAsync("中文谱名&作者");
@@ -511,7 +555,7 @@ namespace osu.Game.Tests.Online.IR
         [TestCase(true)]
         public async Task SourceBoardRefreshKeepsItsVersionAndNeverFallsBackToAnonymous(bool refreshSucceeds)
         {
-            const string rotatedAccess = "rotated-access-player-0000000000";
+            const string rotated_access = "rotated-access-player-0000000000";
             var boardTokens = new ConcurrentQueue<string?>();
             using var http = new HttpClient(new Handler((request, _) =>
             {
@@ -523,21 +567,20 @@ namespace osu.Game.Tests.Online.IR
                     if (!refreshSucceeds)
                         return Task.FromResult(error(HttpStatusCode.Unauthorized, "invalid_refresh"));
                     JObject response = loginResponse(1);
-                    response["access_token"] = rotatedAccess;
+                    response["access_token"] = rotated_access;
                     return Task.FromResult(json(response));
                 }
                 Assert.That(path, Does.StartWith("/api/ir/v2/scores/chart/"));
                 string? bearer = request.Headers.Authorization?.Parameter;
                 boardTokens.Enqueue(bearer);
-                return Task.FromResult(bearer == rotatedAccess ? json(new JObject()) : error(HttpStatusCode.Unauthorized, "invalid_session"));
+                return Task.FromResult(bearer == rotated_access ? json(new JObject()) : error(HttpStatusCode.Unauthorized, "invalid_session"));
             }));
             using var service = new OmsIrService(storage, http, credentials);
-            await service.ConfigureAsync(origin, true);
             await service.LoginAsync("player_one", password);
             if (refreshSucceeds)
             {
                 await service.GetSourceChartScoresAsync(new string('a', 32));
-                Assert.That(boardTokens, Is.EqualTo(new[] { accessFor(1), rotatedAccess }));
+                Assert.That(boardTokens, Is.EqualTo(new[] { accessFor(1), rotated_access }));
                 Assert.That(service.State.Account?.Id, Is.EqualTo(1));
             }
             else
@@ -555,7 +598,6 @@ namespace osu.Game.Tests.Online.IR
         {
             using var http = new HttpClient(new Handler((_, _) => Task.FromResult(error(HttpStatusCode.Unauthorized, "invalid_credentials"))));
             using var service = new OmsIrService(storage, http, credentials);
-            await service.ConfigureAsync(origin, true);
             OmsIrException exception = Assert.ThrowsAsync<OmsIrException>(async () => await service.LoginAsync("player_one", password))!;
             Assert.That(exception.Code, Is.EqualTo("invalid_credentials"));
             Assert.That(service.State.Message, Does.Contain("密码不正确"));
@@ -569,7 +611,6 @@ namespace osu.Game.Tests.Online.IR
         {
             using var http = standardHttp((_, _) => Task.FromResult(acknowledge(submission().Payload, 2)));
             using var service = new OmsIrService(storage, http, credentials);
-            await service.ConfigureAsync(origin, true);
             await service.LoginAsync("player_one", password);
             OmsIrSubmission play = submission();
             await service.QueueSubmissionAsync(service.CaptureSubmissionTarget()!, play);
@@ -581,8 +622,8 @@ namespace osu.Game.Tests.Online.IR
         [Test]
         public async Task AccessRefreshRotatesStoredCredentialsAndRetainsTheSubmissionIdentity()
         {
-            const string rotatedAccess = "rotated-access-player-0000000000";
-            const string rotatedRefresh = "rotated-refresh-player-0000000000";
+            const string rotated_access = "rotated-access-player-0000000000";
+            const string rotated_refresh = "rotated-refresh-player-0000000000";
             int refreshes = 0;
             var attempts = new ConcurrentQueue<(string Body, string? Token)>();
             using var http = new HttpClient(new Handler(async (request, token) =>
@@ -597,25 +638,24 @@ namespace osu.Game.Tests.Online.IR
                     JObject sent = JObject.Parse(await request.Content!.ReadAsStringAsync(token));
                     Assert.That((string?)sent["refresh_token"], Is.EqualTo(refreshFor(1)));
                     JObject refreshed = loginResponse(1);
-                    refreshed["access_token"] = rotatedAccess;
-                    refreshed["refresh_token"] = rotatedRefresh;
+                    refreshed["access_token"] = rotated_access;
+                    refreshed["refresh_token"] = rotated_refresh;
                     return json(refreshed);
                 }
                 string body = await request.Content!.ReadAsStringAsync(token);
                 string? bearer = request.Headers.Authorization?.Parameter;
                 attempts.Enqueue((body, bearer));
-                return bearer == rotatedAccess ? acknowledge(JObject.Parse(body), 1) : error(HttpStatusCode.Unauthorized, "invalid_session");
+                return bearer == rotated_access ? acknowledge(JObject.Parse(body), 1) : error(HttpStatusCode.Unauthorized, "invalid_session");
             }));
             using var service = new OmsIrService(storage, http, credentials);
-            await service.ConfigureAsync(origin, true);
             await service.LoginAsync("player_one", password);
             await service.QueueSubmissionAsync(service.CaptureSubmissionTarget()!, submission());
             await waitUntil(() => service.State.PendingCount == 0);
             Assert.That(refreshes, Is.EqualTo(1));
             Assert.That(attempts.Count, Is.EqualTo(2));
             Assert.That(attempts.ToArray()[1].Body, Is.EqualTo(attempts.ToArray()[0].Body));
-            Assert.That(credentials.Values.Single().Value.AccessToken, Is.EqualTo(rotatedAccess));
-            Assert.That(credentials.Values.Single().Value.RefreshToken, Is.EqualTo(rotatedRefresh));
+            Assert.That(credentials.Values.Single().Value.AccessToken, Is.EqualTo(rotated_access));
+            Assert.That(credentials.Values.Single().Value.RefreshToken, Is.EqualTo(rotated_refresh));
         }
 
         [Test]
@@ -632,7 +672,6 @@ namespace osu.Game.Tests.Online.IR
                 return Task.FromResult(redirect);
             }));
             using var service = new OmsIrService(storage, http, credentials);
-            await service.ConfigureAsync(origin, true);
             await service.LoginAsync("player_one", password);
             OmsIrException exception = Assert.ThrowsAsync<OmsIrException>(async () => await service.GetMyScoresAsync())!;
             Assert.That(exception.Code, Is.EqualTo("redirect_rejected"));

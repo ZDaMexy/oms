@@ -25,17 +25,17 @@ namespace osu.Game.Tests.Visual.Navigation
             };
             AddAssert("legacy API stays disabled", () => Game.OnlineFeaturesEnabled, () => Is.False);
             AddAssert("player rankings entry is present", () => Game.ChildrenOfType<ToolbarOmsRankingsButton>().Any());
+            AddAssert("toolbar has no generic chart leaderboard toggle", () => !Game.ChildrenOfType<ToolbarOverlayToggleButton>().Any(button => button.TooltipMain.ToString() == "谱面排行榜"));
             AddStep("open native solo selection", () => Game.ScreenStack.Push(select = new SoloSongSelect()));
             AddUntilStep("selection loaded", () => select.IsLoaded);
             AddAssert("local MD5 has details and a board without a ppy ID", () =>
             {
                 return select.GetForwardActions(chart).Any(item => item.Text.Value == CommonStrings.Details)
                        && select.GetForwardActions(chart).Any(item => item.Text.Value.ToString() == "谱面排行榜")
-                       && !Game.GetOmsBeatmapActions(chart).Any(item => item.Text.Value == CommonStrings.CopyLink);
+                       && Game.GetOmsBeatmapActions(chart).Any(item => item.Text.Value == CommonStrings.CopyLink);
             });
-            AddStep("save the requested origin", () => Game.OmsIr.ConfigureAsync("https://ir.example.test", false).GetAwaiter().GetResult());
-            AddAssert("copy link appears only for a configured origin", () => select.GetForwardActions(chart).Any(item => item.Text.Value == CommonStrings.CopyLink));
-            AddAssert("public page entry does not enable IR submission", () => Game.OmsIr.State.Enabled, () => Is.False);
+            AddAssert("guest can copy the actual OMS chart link", () => select.GetForwardActions(chart).Any(item => item.Text.Value == CommonStrings.CopyLink));
+            AddAssert("public links do not sign in or enable submission", () => Game.OmsIr.State.Enabled, () => Is.False);
             AddStep("remove the chart identity", () => chart.MD5Hash = string.Empty);
             AddAssert("no link is fabricated for an unidentified chart", () => Game.GetOmsBeatmapActions(chart).Any(), () => Is.False);
         }

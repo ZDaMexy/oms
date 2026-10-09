@@ -21,7 +21,6 @@ namespace osu.Game.Overlays.Login
     public partial class OmsAccountPanel : FillFlowContainer
     {
         public Action? ShowProfile;
-        public Action? ConnectionSettings;
 
         [Resolved]
         private OmsIrService ir { get; set; } = null!;
@@ -97,7 +96,6 @@ namespace osu.Game.Overlays.Login
                 },
                 button("个人资料", () => ShowProfile?.Invoke()),
                 button("重试上传", () => run(ir.RetryPendingAsync)),
-                button("连接设置", () => ConnectionSettings?.Invoke()),
                 button("退出账号", () => run(ir.LogoutAsync)),
             };
             ir.StateChanged += stateChanged;
@@ -115,7 +113,7 @@ namespace osu.Game.Overlays.Login
 
         private void applyState(OmsIrState state)
         {
-            var lines = new List<string> { $"{(state.Enabled ? "IR 已启用" : "IR 已关闭")} · {state.ServiceAddress}" };
+            var lines = new List<string>();
             if (state.PendingCount > 0)
                 lines.Add($"待上传 {state.PendingCount} 条");
             if (state.BlockedCount > 0)

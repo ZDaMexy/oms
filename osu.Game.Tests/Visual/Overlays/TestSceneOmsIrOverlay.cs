@@ -11,10 +11,8 @@ using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using osu.Framework.Allocation;
-using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
-using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
 using osu.Game.Graphics.Containers;
@@ -64,7 +62,8 @@ namespace osu.Game.Tests.Visual.Overlays
                     maniaChart["md5"] = wrongManiaChart ? new string('f', 32) : path.Split('/').Last();
                     return new JObject
                     {
-                        ["chart"] = maniaChart, ["ruleset"] = "mania",
+                        ["chart"] = maniaChart,
+                        ["ruleset"] = "mania",
                         ["groups"] = new JArray(new JObject { ["id"] = new string('c', 64), ["label"] = "mania · 原计分条件" }),
                     };
                 }
@@ -129,49 +128,46 @@ namespace osu.Game.Tests.Visual.Overlays
                 overlay.Show();
             });
             AddUntilStep("IR controls loaded", () => overlay.IsLoaded);
-            AddAssert("default address stays empty", () => service.State.ServiceAddress, () => Is.Empty);
+            AddAssert("default service is OMSIR", () => service.State.ServiceAddress, () => Is.EqualTo(OmsIrService.ServiceOrigin.AbsoluteUri));
             AddAssert("offline startup has no website fallback", () => overlay.WebsiteUrl, () => Is.Null);
             AddAssert("default view makes no request", () => requests, () => Is.Zero);
             AddAssert("IR has no duplicate account form", () => !overlay.ChildrenOfType<OsuPasswordTextBox>().Any() && !buttonExists("本人记录"));
-            AddStep("save existing opt-in connection", () => service.ConfigureAsync("https://ir.example.test", true).GetAwaiter().GetResult());
-            AddUntilStep("connection enabled", () => service.State.Enabled && button("查找谱面").Enabled.Value);
+            AddAssert("no generic search or connection step", () => !buttonExists("查找谱面") && !buttonExists("账号与连接"));
+            AddStep("guest opens the chosen chart", () => overlay.ShowChartBoard(new string('a', 32), "合成 IR 谱面"));
+            AddUntilStep("guest can read public scores", () => hasText("共 3 位玩家") && hasText("EX 175 / 200") && button("刷新").Enabled.Value);
+            AddAssert("public board does not log in or capture submissions", () => service.State.Account == null && service.CaptureSubmissionTarget() == null);
             AddStep("login existing account", () => service.LoginAsync("ir_ui_synthetic", "synthetic-password-123").GetAwaiter().GetResult());
-            AddUntilStep("existing account visible", () => service.State.Account != null && button("查找谱面").Enabled.Value);
-            AddStep("read chart catalogue", () => click("查找谱面"));
-            AddUntilStep("catalogue request finishes", () => !service.State.Busy && button("查找谱面").Enabled.Value);
-            AddStep("scroll to catalogue results", () => overlay.ChildrenOfType<OsuScrollContainer>().Single().ScrollToEnd(false));
-            AddUntilStep("reference and mania entries appear", () => hasText("合成 IR 谱面") && buttonExists("查看参考混榜") && buttonExists("mania · 原计分条件") && button("查找谱面").Enabled.Value);
-            AddAssert("missing archive metadata is explicit and MD5 remains available", () => hasText("标题未收录") && hasText("作者：未收录") && hasText("MD5：" + new string('a', 32)));
-            AddStep("open all-source reference board", () => click("查看参考混榜"));
+            AddUntilStep("existing account visible", () => service.State.Account != null && button("刷新").Enabled.Value);
+            AddStep("refresh chosen chart for this account", () => click("刷新"));
             AddUntilStep("all sources and independent lamps appear", () => hasText("共 3 位玩家") && hasText("EX 175 / 200") && hasText("FULL COMBO") && hasText("分数与该灯来自不同记录"));
             AddAssert("historical same name keeps its identity and original lamp", () => hasText("LR2IR 旧身份 #1 · 未关联 OMS") && hasText("★FULLCOMBO · 灯规则未知") && hasText("EX 199 / 未收录"));
             AddAssert("own full-range rank is shown independently", () => hasText("我的名次（所选来源）") && hasText("#3 · ir_ui_synthetic"));
-            AddUntilStep("board request completed", () => button("查找谱面").Enabled.Value);
+            AddUntilStep("board request completed", () => button("刷新").Enabled.Value);
             AddStep("exclude historical source", () => sourceCheckbox("LR2IR 历史").Current.Value = false);
-            AddUntilStep("selected sources determine count and global rank", () => hasText("共 2 位玩家") && hasText("#2 · ir_ui_synthetic") && !hasText("★FULLCOMBO") && button("查找谱面").Enabled.Value);
+            AddUntilStep("selected sources determine count and global rank", () => hasText("共 2 位玩家") && hasText("#2 · ir_ui_synthetic") && !hasText("★FULLCOMBO") && button("刷新").Enabled.Value);
             AddStep("narrow to proven conditions", () => click("同条件 · 7K · 普通 · 合成条件"));
-            AddUntilStep("explicit same-condition range excludes other conditions", () => hasText("共 1 位玩家") && hasText("同条件榜") && !hasText("EX 190") && button("查找谱面").Enabled.Value);
+            AddUntilStep("explicit same-condition range excludes other conditions", () => hasText("共 1 位玩家") && hasText("同条件榜") && !hasText("EX 190") && button("刷新").Enabled.Value);
             AddAssert("chosen condition is sent explicitly", () => lastBoardQuery.Contains("mode=comparable", StringComparison.Ordinal)
                 && Uri.UnescapeDataString(lastBoardQuery).Contains("condition=" + new string('c', 64) + ":200", StringComparison.Ordinal));
             AddAssert("website keeps the selected condition and sources", () => overlay.WebsiteUrl,
                 () => Is.EqualTo(OmsWebsite.ChartBoard(service.State.ServiceAddress, new string('a', 32), "bms", "comparable", new string('c', 64) + ":200", new[] { "oms", "lr2oraja_ed" })));
             AddStep("remove OMS while a same-condition board is chosen", () => sourceCheckbox("OMS").Current.Value = false);
             AddUntilStep("new source scope reads its actual best and count", () => hasText("共 1 位玩家") && hasText("EX 190") && !hasText("EX 175")
-                && hasText("参考混榜 · 按原 EX") && button("查找谱面").Enabled.Value);
+                && hasText("参考混榜 · 按原 EX") && button("刷新").Enabled.Value);
             AddAssert("source change clears the old condition and resets the page", () => lastBoardQuery.Contains("mode=reference", StringComparison.Ordinal)
                 && lastBoardQuery.Contains("page=1", StringComparison.Ordinal) && !lastBoardQuery.Contains("condition=", StringComparison.Ordinal)
                 && Uri.UnescapeDataString(lastBoardQuery).Contains("sources=lr2oraja_ed", StringComparison.Ordinal));
             AddStep("add OMS back to the source choice", () => sourceCheckbox("OMS").Current.Value = true);
-            AddUntilStep("reference scope returns with OMS", () => hasText("共 2 位玩家") && hasText("EX 175") && button("查找谱面").Enabled.Value);
+            AddUntilStep("reference scope returns with OMS", () => hasText("共 2 位玩家") && hasText("EX 175") && button("刷新").Enabled.Value);
             AddStep("choose the proven condition again", () => click("同条件 · 7K · 普通 · 合成条件"));
-            AddUntilStep("same-condition board returns", () => hasText("共 1 位玩家") && hasText("同条件榜") && !hasText("EX 190") && button("查找谱面").Enabled.Value);
+            AddUntilStep("same-condition board returns", () => hasText("共 1 位玩家") && hasText("同条件榜") && !hasText("EX 190") && button("刷新").Enabled.Value);
             AddStep("return to reference", () => click("返回参考混榜"));
-            AddUntilStep("reference restored", () => hasText("共 2 位玩家") && button("查找谱面").Enabled.Value);
+            AddUntilStep("reference restored", () => hasText("共 2 位玩家") && button("刷新").Enabled.Value);
             AddStep("keep an empty source choice", () => click("清空来源"));
-            AddUntilStep("empty choice is not silently all", () => hasText("请选择来源") && hasText("共 0 位玩家") && !hasText("EX 175") && button("查找谱面").Enabled.Value);
+            AddUntilStep("empty choice is not silently all", () => hasText("请选择来源") && hasText("共 0 位玩家") && !hasText("EX 175") && button("刷新").Enabled.Value);
             AddAssert("website keeps the empty source selection", () => overlay.WebsiteUrl, () => Does.EndWith("&sources="));
             AddStep("historical source only", () => sourceCheckbox("LR2IR 历史").Current.Value = true);
-            AddUntilStep("old same name is not highlighted as self", () => hasText("共 1 位玩家") && hasText("你在所选来源中还没有公开成绩") && hasText("LR2IR 旧身份") && button("查找谱面").Enabled.Value);
+            AddUntilStep("old same name is not highlighted as self", () => hasText("共 1 位玩家") && hasText("你在所选来源中还没有公开成绩") && hasText("LR2IR 旧身份") && button("刷新").Enabled.Value);
             AddAssert("old LR2IR identity never becomes an OMS profile", () => overlay.ChildrenOfType<ExternalLinkButton>().Any(), () => Is.False);
             AddStep("scroll to the historical record", () => overlay.ChildrenOfType<OsuScrollContainer>().Single().ScrollToEnd(false));
             FillFlowContainer historicalDetails = null!;
@@ -185,38 +181,42 @@ namespace osu.Game.Tests.Visual.Overlays
             AddStep("collapse historical details", () => click("收起详情"));
             AddAssert("collapsing removes details without removing the original identity or lamp", () => !hasText("游玩时间：未收录") && hasText("LR2IR 旧身份 #1") && hasText("★FULLCOMBO · 灯规则未知"));
             AddStep("select all sources again", () => click("全部来源"));
-            AddUntilStep("full range returns", () => hasText("共 3 位玩家") && button("查找谱面").Enabled.Value);
+            AddUntilStep("full range returns", () => hasText("共 3 位玩家") && button("刷新").Enabled.Value);
             AddStep("hold the old range response", () => { holdBoard = true; delayedBoard = null; click("刷新"); });
             AddUntilStep("old response is in flight", () => delayedBoard != null);
             AddStep("change sources during the old request", () => sourceCheckbox("LR2IR 历史").Current.Value = false);
             AddStep("release late response", () => delayedBoard!.TrySetResult(referenceBoardForSources(new[] { "oms", "lr2oraja_ed", "lr2ir.v3.lr2" }, true, false)));
-            AddUntilStep("late old scope cannot overwrite the selection", () => hasText("共 2 位玩家") && !hasText("EX 199") && button("查找谱面").Enabled.Value);
+            AddUntilStep("late old scope cannot overwrite the selection", () => hasText("共 2 位玩家") && !hasText("EX 199") && button("刷新").Enabled.Value);
             AddStep("return malformed server response", () => { malformed = true; click("刷新"); });
-            AddUntilStep("bad response reports failure without breaking the overlay", () => hasText("列表格式不正确") && button("查找谱面").Enabled.Value);
-            AddStep("restore catalogue and choose mania", () => { malformed = false; click("查找谱面"); });
-            AddUntilStep("mania original group available", () => buttonExists("mania · 原计分条件") && button("查找谱面").Enabled.Value);
+            AddUntilStep("bad response reports failure without breaking the overlay", () => hasText("列表格式不正确") && button("刷新").Enabled.Value);
+            AddStep("open the chosen mania chart", () => { malformed = false; overlay.ShowChartBoard(new string('f', 32), "合成 mania 原谱", ruleset: "mania"); });
+            AddUntilStep("mania original group available", () => buttonExists("mania · 原计分条件") && button("刷新").Enabled.Value);
             AddStep("open original mania board", () => click("mania · 原计分条件"));
-            AddUntilStep("mania scoring remains v1", () => hasText("分数 900,000") && button("查找谱面").Enabled.Value);
+            AddUntilStep("mania scoring remains v1", () => hasText("分数 900,000") && button("刷新").Enabled.Value);
             AddAssert("mania board does not claim a BMS best lamp", () => !hasText("点灯最佳") && !hasText("独立最佳灯"));
             AddStep("select a local original BMS", () => setCurrentBms(new string('d', 32)));
-            AddStep("open current original chart", () => click("当前谱面榜"));
-            AddUntilStep("current chart uses the actual original MD5", () => lastBoardMd5 == new string('d', 32) && hasText("共 3 位玩家") && button("查找谱面").Enabled.Value);
+            AddStep("open current original chart", () => overlay.ShowChartBoard(new string('d', 32), "当前 BMS 原谱"));
+            AddUntilStep("current chart uses the actual original MD5", () => lastBoardMd5 == new string('d', 32) && hasText("共 3 位玩家") && button("刷新").Enabled.Value);
             AddStep("hold current chart read", () => { holdBoard = true; delayedBoard = null; click("刷新"); });
             AddUntilStep("chart response held", () => delayedBoard != null);
             AddStep("change the selected chart", () => setCurrentBms(new string('e', 32)));
-            AddUntilStep("chart change clears the previous read", () => hasText("选谱已变化") && !hasText("EX 175"));
+            AddUntilStep("chart change closes and clears the previous read", () => overlay.State.Value == Visibility.Hidden && !hasText("EX 175") && overlay.WebsiteUrl == null);
             AddStep("release previous chart response", () => delayedBoard!.TrySetResult(referenceBoardForSources(new[] { "oms", "lr2oraja_ed", "lr2ir.v3.lr2" }, true, false)));
-            AddUntilStep("late chart request has stopped", () => !service.State.Busy && button("查找谱面").Enabled.Value);
+            AddUntilStep("late chart request has stopped", () => !service.State.Busy && !button("刷新").Enabled.Value);
             AddAssert("late previous chart does not reappear", () => !hasText("EX 175") && !hasText("EX 199"));
             AddStep("logout existing account", () => service.LogoutAsync().GetAwaiter().GetResult());
             AddUntilStep("account scope is cleared", () => service.State.Account == null && !hasText("EX 175") && !hasText("EX 199"));
-            AddStep("close and reopen", () => { click("关闭"); overlay.Show(); });
+            AddStep("reopen a specific chart", () => overlay.ShowChartBoard(new string('a', 32), "合成 IR 谱面"));
             AddAssert("overlay remains usable after completed operations", () => overlay.State.Value, () => Is.EqualTo(Visibility.Visible));
-            AddStep("select BMS conditions before switching services", () => overlay.ShowChartBoard(new string('a', 32), "synthetic chart", new string('c', 64) + ":200"));
-            AddUntilStep("BMS condition is selected", () => hasText("同条件榜") && button("查找谱面").Enabled.Value);
-            AddStep("switch the BMS service", () => service.ConfigureAsync("https://other-ir.example.test", true).GetAwaiter().GetResult());
-            AddUntilStep("BMS service change clears the read", () => hasText("连接已变化") && !hasText("EX 175") && button("查找谱面").Enabled.Value);
-            AddAssert("new service cannot inherit the old BMS condition", () => overlay.WebsiteUrl, () => Is.Null);
+            AddUntilStep("reopened chart loaded", () => button("刷新").Enabled.Value && hasText("共 3 位玩家"));
+            AddStep("hold a read before closing", () => { holdBoard = true; delayedBoard = null; click("刷新"); });
+            AddUntilStep("read is held", () => delayedBoard != null);
+            AddAssert("close remains available during loading", () => button("关闭").Enabled.Value);
+            AddStep("close the loading board", () => click("关闭"));
+            AddUntilStep("board closed", () => overlay.State.Value == Visibility.Hidden);
+            AddStep("release the closed board response", () => delayedBoard!.TrySetResult(referenceBoardForSources(new[] { "oms", "lr2oraja_ed", "lr2ir.v3.lr2" }, true, false)));
+            AddUntilStep("closed read settles", () => !service.State.Busy);
+            AddAssert("closed response cannot restore scores", () => !hasText("EX 175") && !hasText("EX 199"));
             testSelectedManiaChartChoosesItsActualConditions();
         }
 
@@ -224,39 +224,34 @@ namespace osu.Game.Tests.Visual.Overlays
         {
             AddStep("show IR", () => { Child = overlay = new OmsIrOverlay(); overlay.Show(); });
             AddUntilStep("controls loaded", () => overlay.IsLoaded);
-            AddStep("enable requested connection", () => service.ConfigureAsync("https://ir.example.test", true).GetAwaiter().GetResult());
-            AddUntilStep("requested connection applied", () => button("查找谱面").Enabled.Value && overlay.WebsiteUrl == null);
             AddStep("select native mania", () => setCurrentChart("mania", new string('1', 32)));
-            AddStep("open selected mania conditions", () => click("当前谱面榜"));
-            AddUntilStep("actual conditions appear", () => hasText("选择计分条件") && buttonExists("mania · 原计分条件") && button("查找谱面").Enabled.Value);
+            AddStep("open selected mania conditions", () => overlay.ShowChartBoard(new string('1', 32), "原生 mania", ruleset: "mania"));
+            AddUntilStep("actual conditions appear", () => hasText("选择计分条件") && buttonExists("mania · 原计分条件") && button("刷新").Enabled.Value);
             AddAssert("unselected mania group stays out of the URL", () => overlay.WebsiteUrl,
                 () => Is.EqualTo(OmsWebsite.ChartBoard(service.State.ServiceAddress, new string('1', 32), "mania")));
             AddStep("select the actual group", () => click("mania · 原计分条件"));
-            AddUntilStep("selected mania board loads", () => hasText("分数 900,000") && button("查找谱面").Enabled.Value);
+            AddUntilStep("selected mania board loads", () => hasText("分数 900,000") && button("刷新").Enabled.Value);
             AddAssert("website follows the exact mania group", () => overlay.WebsiteUrl,
                 () => Is.EqualTo(OmsWebsite.ChartBoard(service.State.ServiceAddress, new string('1', 32), "mania", group: new string('c', 64))));
             AddStep("change the original chart", () => setCurrentChart("mania", new string('2', 32)));
-            AddUntilStep("old mania board is cleared", () => hasText("选谱已变化") && !hasText("分数 900,000"));
-            AddStep("open the second mania chart", () => click("当前谱面榜"));
-            AddUntilStep("second chart conditions appear", () => buttonExists("mania · 原计分条件") && button("查找谱面").Enabled.Value);
+            AddUntilStep("old mania board is cleared", () => overlay.State.Value == Visibility.Hidden && !hasText("分数 900,000") && overlay.WebsiteUrl == null);
+            AddStep("open the second mania chart", () => overlay.ShowChartBoard(new string('2', 32), "第二张 mania", ruleset: "mania"));
+            AddUntilStep("second chart conditions appear", () => buttonExists("mania · 原计分条件") && button("刷新").Enabled.Value);
             AddStep("select its actual group", () => click("mania · 原计分条件"));
-            AddUntilStep("second mania board loads", () => hasText("分数 900,000") && button("查找谱面").Enabled.Value);
-            AddStep("switch the mania service", () => service.ConfigureAsync("https://other-ir.example.test", true).GetAwaiter().GetResult());
-            AddUntilStep("mania service change clears the read", () => hasText("连接已变化") && !hasText("分数 900,000") && button("查找谱面").Enabled.Value);
-            AddAssert("new service cannot inherit the old mania group", () => overlay.WebsiteUrl, () => Is.Null);
-            AddStep("restore requested connection", () => service.ConfigureAsync("https://ir.example.test", true).GetAwaiter().GetResult());
-            AddUntilStep("restored connection applied", () => button("查找谱面").Enabled.Value && overlay.WebsiteUrl == null);
-            AddStep("return a different chart for the next read", () => { wrongManiaChart = true; click("当前谱面榜"); });
-            AddUntilStep("wrong chart cannot provide a selectable condition", () => hasText("列表格式不正确") && !buttonExists("mania · 原计分条件") && button("查找谱面").Enabled.Value);
+            AddUntilStep("second mania board loads", () => hasText("分数 900,000") && button("刷新").Enabled.Value);
+            AddStep("select a third mania chart", () => setCurrentChart("mania", new string('3', 32)));
+            AddUntilStep("previous group is cleared", () => overlay.WebsiteUrl == null && !hasText("分数 900,000"));
+            AddStep("return a different chart for the next read", () => { wrongManiaChart = true; overlay.ShowChartBoard(new string('3', 32), "第三张 mania", ruleset: "mania"); });
+            AddUntilStep("wrong chart cannot provide a selectable condition", () => hasText("列表格式不正确") && !buttonExists("mania · 原计分条件") && button("刷新").Enabled.Value);
             AddStep("clear malformed fixture", () => wrongManiaChart = false);
         }
 
         private bool hasText(string part) => overlay.ChildrenOfType<OsuTextFlowContainer>().Any(flow => string.Concat(flow.ChildrenOfType<SpriteText>().Select(sprite => sprite.Text.ToString())).Contains(part, StringComparison.Ordinal))
                                              || overlay.ChildrenOfType<SpriteText>().Any(sprite => sprite.Text.ToString().Contains(part, StringComparison.Ordinal));
 
-        private bool buttonExists(string label) => overlay.ChildrenOfType<FormButton>().Any(item => item.ButtonText.ToString() == label);
-        private FormButton button(string label) => overlay.ChildrenOfType<FormButton>().Single(item => item.ButtonText.ToString() == label);
-        private void click(string label) => button(label).ChildrenOfType<Button>().Single().TriggerClick();
+        private bool buttonExists(string label) => overlay.ChildrenOfType<OsuButton>().Any(item => item.Text.ToString() == label);
+        private OsuButton button(string label) => overlay.ChildrenOfType<OsuButton>().Single(item => item.Text.ToString() == label);
+        private void click(string label) => button(label).TriggerClick();
 
         private FormCheckBox sourceCheckbox(string label) => overlay.ChildrenOfType<FormCheckBox>().Single(item => item.Caption.ToString().StartsWith(label + " ·", StringComparison.Ordinal));
 
@@ -279,9 +274,13 @@ namespace osu.Game.Tests.Visual.Overlays
 
         private static JObject source(string code, string label) => new JObject
         {
-            ["code"] = code, ["label"] = label, ["available"] = true,
+            ["code"] = code,
+            ["label"] = label,
+            ["available"] = true,
             ["record_kind"] = code == "oms" ? "play" : code.StartsWith("lr2ir", StringComparison.Ordinal) ? "archive_best" : "best_state",
-            ["versions"] = new JArray(), ["verification"] = "未核验参考", ["unknown_fields"] = new JArray(),
+            ["versions"] = new JArray(),
+            ["verification"] = "未核验参考",
+            ["unknown_fields"] = new JArray(),
         };
 
         private static JObject referenceBoard(HttpRequestMessage request)
@@ -308,7 +307,12 @@ namespace osu.Game.Tests.Visual.Overlays
                     new JObject { ["family"] = "oms:" + new string('c', 64) + ":200", ["value"] = 4, ["label"] = "CLEAR" });
                 mine["best_lamps"] = new JArray(new JObject
                 {
-                    ["family"] = "oms:" + new string('c', 64) + ":200", ["value"] = 8, ["label"] = "FULL COMBO", ["source"] = "oms", ["record_id"] = "oms:2", ["rule_label"] = "OMS · 7K · Normal · LN · 200 最大 EX",
+                    ["family"] = "oms:" + new string('c', 64) + ":200",
+                    ["value"] = 8,
+                    ["label"] = "FULL COMBO",
+                    ["source"] = "oms",
+                    ["record_id"] = "oms:2",
+                    ["rule_label"] = "OMS · 7K · Normal · LN · 200 最大 EX",
                 });
                 items.Add(mine);
             }
@@ -316,12 +320,21 @@ namespace osu.Game.Tests.Visual.Overlays
                 items[index]["rank"] = index + 1;
             return new JObject
             {
-                ["chart"] = chart(), ["ruleset"] = "bms", ["groups"] = new JArray(new JObject { ["id"] = new string('c', 64), ["label"] = "OMS · 7K · Normal · LN" }),
-                ["available_sources"] = new JArray(sources), ["content_identity"] = "sha256-reported", ["archive_suspended"] = false,
-                ["items"] = items, ["page"] = 1, ["limit"] = 20, ["total"] = items.Count, ["selected_sources"] = new JArray(sources),
+                ["chart"] = chart(),
+                ["ruleset"] = "bms",
+                ["groups"] = new JArray(new JObject { ["id"] = new string('c', 64), ["label"] = "OMS · 7K · Normal · LN" }),
+                ["available_sources"] = new JArray(sources),
+                ["content_identity"] = "sha256-reported",
+                ["archive_suspended"] = false,
+                ["items"] = items,
+                ["page"] = 1,
+                ["limit"] = 20,
+                ["total"] = items.Count,
+                ["selected_sources"] = new JArray(sources),
                 ["mode"] = comparable ? "comparable" : "reference",
                 ["conditions"] = sources.Contains("oms") ? new JArray(new JObject { ["id"] = new string('c', 64) + ":200", ["label"] = "7K · 普通 · 合成条件", ["source_scope"] = new JArray("oms"), ["unknown_fields"] = new JArray() }) : new JArray(),
-                ["trust"] = "unverified-reference", ["me"] = loggedIn && mine != null ? mine.DeepClone() : JValue.CreateNull(),
+                ["trust"] = "unverified-reference",
+                ["me"] = loggedIn && mine != null ? mine.DeepClone() : JValue.CreateNull(),
                 ["snapshot"] = new JObject { ["archive_version"] = "synthetic-archive-v1", ["read_at"] = "2026-10-04T00:00:00Z" },
                 ["notice"] = sources.Length == 0 ? "请选择来源" : "原 EX 参考，不代表跨播放器公平性",
             };
@@ -329,10 +342,14 @@ namespace osu.Game.Tests.Visual.Overlays
 
         private static JObject referenceRow(string identityNamespace, string identityId, string name, string record, string kind, string sourceCode, int ex, int? maximum, JObject lamp) => new JObject
         {
-            ["rank"] = 1, ["identity"] = new JObject { ["namespace"] = identityNamespace, ["id"] = identityId, ["username"] = name },
+            ["rank"] = 1,
+            ["identity"] = new JObject { ["namespace"] = identityNamespace, ["id"] = identityId, ["username"] = name },
             ["score"] = new JObject
             {
-                ["record_id"] = record, ["record_kind"] = kind, ["source"] = sourceCode, ["ex_score"] = ex,
+                ["record_id"] = record,
+                ["record_kind"] = kind,
+                ["source"] = sourceCode,
+                ["ex_score"] = ex,
                 ["max_ex_score"] = maximum.HasValue ? new JValue(maximum.Value) : JValue.CreateNull(),
                 ["played_at"] = kind == "play" ? new JValue("2026-10-02T12:00:00Z") : JValue.CreateNull(),
                 ["conditions"] = new JObject { ["keymode"] = "bms_7k" },
@@ -345,9 +362,18 @@ namespace osu.Game.Tests.Visual.Overlays
         private static JObject chart() => new JObject { ["title"] = "合成 IR 谱面", ["md5"] = new string('a', 32), ["sha256"] = new string('b', 64), ["artist"] = JValue.CreateNull(), ["difficulty"] = JValue.CreateNull() };
         private static JObject score() => new JObject
         {
-            ["id"] = 1, ["ruleset"] = "bms", ["chart"] = chart(), ["ex_score"] = 175, ["max_ex_score"] = 200,
-            ["accuracy"] = 0.875, ["max_combo"] = 100, ["passed"] = true, ["public_board"] = true,
-            ["group_id"] = new string('c', 64), ["group_label"] = "7K · 普通 · 合成条件", ["played_at"] = "2026-10-02T12:00:00Z",
+            ["id"] = 1,
+            ["ruleset"] = "bms",
+            ["chart"] = chart(),
+            ["ex_score"] = 175,
+            ["max_ex_score"] = 200,
+            ["accuracy"] = 0.875,
+            ["max_combo"] = 100,
+            ["passed"] = true,
+            ["public_board"] = true,
+            ["group_id"] = new string('c', 64),
+            ["group_label"] = "7K · 普通 · 合成条件",
+            ["played_at"] = "2026-10-02T12:00:00Z",
             ["statistics"] = new JObject { ["perfect"] = 75, ["great"] = 25 },
             ["ruleset_data"] = new JObject { ["clear_lamp"] = 4, ["final_gauge"] = 0.85 },
         };

@@ -14,12 +14,11 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Testing;
+using osu.Game.Beatmaps;
 using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Graphics.UserInterface.PageSelector;
-using osu.Game.Beatmaps;
-using osu.Game.Online;
 using osu.Game.Online.API;
 using osu.Game.Online.IR;
 using osu.Game.Overlays;
@@ -29,7 +28,6 @@ using osu.Game.Overlays.Settings;
 using osu.Game.Overlays.Toolbar;
 using osu.Game.Rulesets.Mania;
 using osu.Game.Users.Drawables;
-using osuTK;
 using osuTK.Input;
 
 namespace osu.Game.Tests.Visual.Overlays
@@ -101,19 +99,18 @@ namespace osu.Game.Tests.Visual.Overlays
                 {
                     BeatmapInfo = new BeatmapInfo(Ruleset.Value)
                     {
-                        MD5Hash = new string('a', 32), Difficulty = new BeatmapDifficulty { CircleSize = 4 },
+                        MD5Hash = new string('a', 32),
+                        Difficulty = new BeatmapDifficulty { CircleSize = 4 },
                     },
                 });
             });
             OsuPasswordTextBox savedPassword = null!;
             AddAssert("offline startup makes no request", () => requests, () => Is.Zero);
-            AddAssert("default service stays empty", () => service.State.ServiceAddress, () => Is.Empty);
+            AddAssert("account uses OMSIR", () => service.State.ServiceAddress, () => Is.EqualTo(OmsIrService.ServiceOrigin.AbsoluteUri));
             AddStep("open original user menu", () => userButton.TriggerClick());
             AddUntilStep("original login form visible", () => login.State.Value == Visibility.Visible && login.ChildrenOfType<LoginForm>().Any(form => form.IsLoaded));
-            AddStep("save explicit OMS origin", configureFromForm);
-            AddUntilStep("IR enabled without a network request", () => service.State.Enabled && accountButton("登录").Enabled.Value);
-            AddAssert("connection settings alone stay request driven", () => requests, () => Is.Zero);
-            AddStep("open original menu after connection settings", showAccountMenu);
+            AddAssert("opening the account form makes no request", () => requests, () => Is.Zero);
+            AddStep("open original menu", showAccountMenu);
             AddUntilStep("login form is actually visible", () => login.State.Value == Visibility.Visible && accountButton("登录").Enabled.Value);
             AddStep("login through original form controls", () =>
             {
@@ -131,16 +128,17 @@ namespace osu.Game.Tests.Visual.Overlays
             AddAssert("only true OMS profile facts", () => ((OmsIrProfileHeader)profile.Header).Account.Value, () => Is.EqualTo(new OmsIrAccount(1, "player_one")));
             AddAssert("no fabricated upstream avatar", () => profile.ChildrenOfType<UpdateableAvatar>().Any(), () => Is.False);
             AddAssert("actual web profile route has no credentials", () => profile.ChildrenOfType<ExternalLinkButton>().Single().Link,
-                () => Is.EqualTo("https://ir.example.test/users/1?ruleset=mania&keymode=mania_4k"));
+                () => Is.EqualTo("https://oms.zdamexy.work/users/1?ruleset=mania&keymode=mania_4k"));
             AddStep("switch to a native 10K chart", () => Beatmap.Value = CreateWorkingBeatmap(new Beatmap
             {
                 BeatmapInfo = new BeatmapInfo(Ruleset.Value)
                 {
-                    MD5Hash = new string('b', 32), Difficulty = new BeatmapDifficulty { CircleSize = 10 },
+                    MD5Hash = new string('b', 32),
+                    Difficulty = new BeatmapDifficulty { CircleSize = 10 },
                 },
             }));
             AddAssert("website scope follows the new columns", () => profile.ChildrenOfType<ExternalLinkButton>().Single().Link,
-                () => Is.EqualTo("https://ir.example.test/users/1?ruleset=mania&keymode=mania_10k"));
+                () => Is.EqualTo("https://oms.zdamexy.work/users/1?ruleset=mania&keymode=mania_10k"));
             AddAssert("saved result has this play's lamp and final gauge", () => hasProfileText("本局灯：CLEAR") && hasProfileText("85.0"));
             AddAssert("public play links to comparable and reference boards", () => profile.ChildrenOfType<SettingsButton>().Any(button => button.Text.ToString() == "查看同条件榜")
                                                                                   && profile.ChildrenOfType<SettingsButton>().Any(button => button.Text.ToString() == "查看参考混榜"));
@@ -165,63 +163,42 @@ namespace osu.Game.Tests.Visual.Overlays
         }
 
         [Test]
-        public void TestUnsavedConnectionCannotSendCredentials()
+        public void TestLoginDirectlyEnablesSubmissionAndLogoutReturnsToGuest()
         {
-            AddAssert("startup stays offline", () => requests == 0 && !service.State.Enabled && service.State.ServiceAddress.Length == 0);
+            AddAssert("startup stays offline", () => requests == 0 && !service.State.Enabled && service.CaptureSubmissionTarget() == null);
             AddStep("open original login form", () => userButton.TriggerClick());
             AddUntilStep("login form loaded", () => login.State.Value == Visibility.Visible && login.ChildrenOfType<LoginForm>().Any(form => form.IsLoaded));
-            AddAssert("offline form cannot login or register", () => !accountButton("登录").Enabled.Value && !accountButton("注册并登录").Enabled.Value);
-            AddStep("save first explicit connection", configureFromForm);
-            AddUntilStep("first connection saved", () => service.State.Enabled && accountButton("登录").Enabled.Value);
-            AddAssert("saving connection makes no HTTP request", () => requests, () => Is.Zero);
-            AddStep("edit the address without saving", () =>
+            AddAssert("guest can login or register directly", () => accountButton("登录").Enabled.Value && accountButton("注册并登录").Enabled.Value);
+            AddAssert("form has no server address, IR switch or save step", () =>
+                !login.ChildrenOfType<OsuTextBox>().Any(box => box.Name == "IR service address")
+                && !login.ChildrenOfType<SettingsCheckbox>().Any()
+                && login.ChildrenOfType<SettingsButton>().Count() == 2);
+            AddAssert("opening the form remains request driven", () => requests, () => Is.Zero);
+            AddStep("enter account and focus password", () =>
             {
-                login.ChildrenOfType<OsuTextBox>().Single(box => box.Name == "IR service address").Text = "https://next-ir.example.test";
                 usernameBox().Text = "player_one";
                 var password = login.ChildrenOfType<OsuPasswordTextBox>().Single();
                 password.Text = "synthetic-password-123";
                 InputManager.MoveMouseTo(password);
                 InputManager.Click(MouseButton.Left);
             });
-            AddAssert("unsaved address disables login and registration", () => !accountButton("登录").Enabled.Value && !accountButton("注册并登录").Enabled.Value);
-            AddAssert("unsaved address is explained", () => login.ChildrenOfType<OsuTextFlowContainer>()
-                .Any(flow => string.Concat(flow.ChildrenOfType<SpriteText>().Select(text => text.Text.ToString())).Contains("连接设置尚未保存", StringComparison.Ordinal)));
             AddUntilStep("password input is focused", () => login.ChildrenOfType<OsuPasswordTextBox>().Single().HasFocus);
-            AddStep("try password Enter with unsaved address", () => InputManager.Key(Key.Enter));
-            AddAssert("Enter does not send credentials to the saved origin", () => requests == 0 && loginRequests == 0 && service.State.ServiceAddress == "https://ir.example.test/");
-            AddAssert("blocked attempt keeps the password available", () => login.ChildrenOfType<OsuPasswordTextBox>().Single().Text, () => Is.EqualTo("synthetic-password-123"));
-            AddStep("restore saved address but edit the switch", () =>
-            {
-                login.ChildrenOfType<OsuTextBox>().Single(box => box.Name == "IR service address").Text = service.State.ServiceAddress;
-                login.ChildrenOfType<SettingsCheckbox>().Single().Current.Value = false;
-            });
-            AddAssert("unsaved switch also disables login and registration", () => !accountButton("登录").Enabled.Value && !accountButton("注册并登录").Enabled.Value);
-            AddStep("save the new explicit origin and enabled switch", () =>
-            {
-                login.ChildrenOfType<OsuTextBox>().Single(box => box.Name == "IR service address").Text = "https://next-ir.example.test";
-                login.ChildrenOfType<SettingsCheckbox>().Single().Current.Value = true;
-                accountButton("保存连接设置").TriggerClick();
-            });
-            AddUntilStep("new connection saved and form ready", () => service.State.ServiceAddress == "https://next-ir.example.test/" && accountButton("登录").Enabled.Value);
-            AddAssert("new connection alone still makes no request", () => requests, () => Is.Zero);
-            AddStep("login using the saved new origin", () =>
-            {
-                usernameBox().Text = "player_one";
-                login.ChildrenOfType<OsuPasswordTextBox>().Single().Text = "synthetic-password-123";
-                accountButton("登录").TriggerClick();
-            });
-            AddUntilStep("new origin login succeeds", () => service.State.Account?.Id == 1);
-            AddAssert("only the saved new origin receives login", () => loginRequests == 1 && lastLoginOrigin == "https://next-ir.example.test");
+            AddStep("login with Enter", () => InputManager.Key(Key.Enter));
+            AddUntilStep("account menu loaded", () => service.State.Account?.Id == 1 && login.ChildrenOfType<OmsAccountPanel>().Any(panel => panel.IsLoaded));
+            AddAssert("login itself enables new score submission", () => service.State.Enabled && service.CaptureSubmissionTarget()?.UserId == 1);
+            AddAssert("only OMSIR receives the login", () => loginRequests == 1 && lastLoginOrigin == "https://oms.zdamexy.work");
+            AddAssert("account menu has no connection settings", () => !login.ChildrenOfType<SettingsButton>().Any(button => button.Text.ToString() == "连接设置"));
+            AddStep("logout using the account menu", () => accountButton("退出账号").TriggerClick());
+            AddUntilStep("guest form restored", () => service.State.Account == null && login.ChildrenOfType<LoginForm>().Any(form => form.IsLoaded));
+            AddAssert("logout stops capturing uploads", () => !service.State.Enabled && service.CaptureSubmissionTarget() == null);
             AddAssert("old API remains unused", () => legacyRequests, () => Is.Zero);
         }
 
         [Test]
         public void TestHiddenLoginAndLatePrivateReadCannotResurrect()
         {
-            AddStep("open login and configure", () => login.Show());
+            AddStep("open login", () => login.Show());
             AddUntilStep("form loaded", () => login.ChildrenOfType<LoginForm>().Any(form => form.IsLoaded));
-            AddStep("save connection", configureFromForm);
-            AddUntilStep("connection saved", () => service.State.Enabled && accountButton("登录").Enabled.Value);
             AddStep("open original menu before delayed login", showAccountMenu);
             AddUntilStep("visible login form ready", () => login.State.Value == Visibility.Visible && accountButton("登录").Enabled.Value);
             AddStep("start delayed login", () =>
@@ -263,13 +240,6 @@ namespace osu.Game.Tests.Visual.Overlays
             });
             AddUntilStep("wrong owner reports failure and clears rows", () => hasProfileText("本人记录格式不正确") && !hasProfileText("本局 ID："));
             AddAssert("legacy API remains unused after delayed requests", () => legacyRequests, () => Is.Zero);
-        }
-
-        private void configureFromForm()
-        {
-            login.ChildrenOfType<OsuTextBox>().Single(box => box.Name == "IR service address").Text = "https://ir.example.test";
-            login.ChildrenOfType<SettingsCheckbox>().Single().Current.Value = true;
-            accountButton("保存连接设置").TriggerClick();
         }
 
         private void showAccountMenu()
@@ -335,14 +305,26 @@ namespace osu.Game.Tests.Visual.Overlays
         {
             ["items"] = new JArray(Enumerable.Range(page == 2 ? 21 : 1, id == 1 && page == 1 ? 20 : 1).Select(index => new JObject
             {
-                ["id"] = index + (id == 2 ? 100 : 0), ["user_id"] = id, ["submission_id"] = $"00000000-0000-4000-a000-{index + (id == 2 ? 100 : 0):000000000000}", ["ruleset"] = "bms",
+                ["id"] = index + (id == 2 ? 100 : 0),
+                ["user_id"] = id,
+                ["submission_id"] = $"00000000-0000-4000-a000-{index + (id == 2 ? 100 : 0):000000000000}",
+                ["ruleset"] = "bms",
                 ["chart"] = new JObject { ["md5"] = new string('a', 32), ["title"] = id == 1 ? "合成 OMS 新局 " + index : "player_two 的新局" },
-                ["ex_score"] = 175, ["max_ex_score"] = 200, ["accuracy"] = 0.875, ["max_combo"] = 100, ["passed"] = true, ["public_board"] = true,
-                ["group_id"] = new string('c', 64), ["group_label"] = "7K · 普通 · 合成条件", ["played_at"] = "2026-10-05T00:00:00Z",
+                ["ex_score"] = 175,
+                ["max_ex_score"] = 200,
+                ["accuracy"] = 0.875,
+                ["max_combo"] = 100,
+                ["passed"] = true,
+                ["public_board"] = true,
+                ["group_id"] = new string('c', 64),
+                ["group_label"] = "7K · 普通 · 合成条件",
+                ["played_at"] = "2026-10-05T00:00:00Z",
                 ["statistics"] = new JObject { ["perfect"] = 75, ["great"] = 25 },
                 ["ruleset_data"] = new JObject { ["clear_lamp"] = 4, ["final_gauge"] = 0.85 },
             })),
-            ["total"] = id == 1 ? 21 : 1, ["limit"] = 20, ["page"] = page,
+            ["total"] = id == 1 ? 21 : 1,
+            ["limit"] = 20,
+            ["page"] = page,
         };
 
         protected override void Dispose(bool isDisposing)

@@ -125,8 +125,8 @@ namespace osu.Game.Overlays.Toolbar
         {
             usernameText.Text = state.Account?.Username ?? "登录";
             TooltipText = state.RequiresLogin && state.Account != null ? "请重新登录原账号，待交已保留"
-                : state.Account == null ? "OMS 账号与 IR 连接"
-                : $"OMS #{state.Account.Id} · {(state.Enabled ? "IR 已启用" : "IR 已关闭")} · 待交 {state.PendingCount}";
+                : state.Account == null ? "登录 OMS 账号"
+                : $"OMS #{state.Account.Id} · 待上传 {state.PendingCount}";
             failingIcon.FadeTo(state.RequiresLogin && state.Account != null ? 1 : 0, 200, Easing.OutQuint);
             if (state.Busy)
                 spinner.Show();

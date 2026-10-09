@@ -32,7 +32,6 @@ namespace osu.Game.Tests.Visual.Gameplay
     /// <summary>Synthetic mania play through the real Player and Realm score importer, with an in-process IR transport.</summary>
     public partial class TestSceneOmsIrPlayerSave : PlayerTestScene
     {
-        private const string service_origin = "https://ir-player.example.test/";
         private const string chart_md5 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
         private const string chart_sha256 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
         private readonly ConcurrentQueue<Receipt> receipts = new ConcurrentQueue<Receipt>();
@@ -44,7 +43,7 @@ namespace osu.Game.Tests.Visual.Gameplay
         private Task? accountOperation;
         private bool holdImport;
 
-        private new SavingPlayer Player => (SavingPlayer)base.Player;
+        private SavingPlayer player => (SavingPlayer)Player;
 
         protected override bool HasCustomSteps => true;
         protected override bool AllowFail => true;
@@ -105,35 +104,35 @@ namespace osu.Game.Tests.Visual.Gameplay
         [Test]
         public void SavedScoreExistsInRealmBeforeTheIrReceivesItsActualUuid()
         {
-            configureAccount(enabled: true, login: true);
+            configureAccount(login: true);
             AddStep("hold local score import", () => holdImport = true);
             CreateTest();
             finishPlay();
-            AddUntilStep("real Player reached its local import", () => Player.ImportStarted);
+            AddUntilStep("real Player reached its local import", () => player.ImportStarted);
             AddAssert("IR has not received a score before save", () => receipts.IsEmpty);
             AddAssert("nothing queued before local save", () => ir.State.PendingCount == 0);
-            AddAssert("candidate score is not in Realm", () => Player.CandidateScore != null && readStoredHash(Player.CandidateScore.ID) == null);
-            AddStep("permit the real local importer", () => Player.ReleaseImport());
-            AddUntilStep("local score import completed", () => Player.ImportCompleted);
+            AddAssert("candidate score is not in Realm", () => player.CandidateScore != null && readStoredHash(player.CandidateScore.ID) == null);
+            AddStep("permit the real local importer", () => player.ReleaseImport());
+            AddUntilStep("local score import completed", () => player.ImportCompleted);
             AddUntilStep("IR received the saved score", () => receipts.Count == 1);
             AddAssert("HTTP receipt saw a stored score hash", () => !string.IsNullOrEmpty(receipts.Single().StoredHash));
-            AddAssert("submitted UUID is the importer returned UUID", () => receipts.Single().SubmissionId == Player.SavedScore!.ID);
+            AddAssert("submitted UUID is the importer returned UUID", () => receipts.Single().SubmissionId == player.SavedScore!.ID);
             AddAssert("submitted actual playable columns", () => (string?)receipts.Single().Payload["keymode"] == "mania_4k");
             AddAssert("submitted original chart identity", () => (string?)receipts.Single().Payload["chart"]?["md5"] == chart_md5
                                                                   && (string?)receipts.Single().Payload["chart"]?["sha256"] == chart_sha256);
             AddUntilStep("receipt cleared durable pending", () => ir.State.PendingCount == 0 && !ir.State.Busy);
-            AddUntilStep("results are displayed", () => Player.GetChildScreen() is ResultsScreen);
+            AddUntilStep("results are displayed", () => player.GetChildScreen() is ResultsScreen);
         }
 
         [Test]
-        public void DisabledIrStillStoresTheFinishedPlayWithoutSubmission()
+        public void GuestStillStoresTheFinishedPlayWithoutSubmission()
         {
-            configureAccount(enabled: false, login: false);
+            configureAccount(login: false);
             CreateTest();
             finishPlay();
-            AddUntilStep("real local score import completed", () => Player.ImportCompleted);
-            AddUntilStep("results are displayed", () => Player.GetChildScreen() is ResultsScreen);
-            AddAssert("local saved score has a hash", () => !string.IsNullOrEmpty(readStoredHash(Player.SavedScore!.ID)));
+            AddUntilStep("real local score import completed", () => player.ImportCompleted);
+            AddUntilStep("results are displayed", () => player.GetChildScreen() is ResultsScreen);
+            AddAssert("local saved score has a hash", () => !string.IsNullOrEmpty(readStoredHash(player.SavedScore!.ID)));
             AddAssert("IR never received a submission", () => receipts.IsEmpty);
             AddAssert("IR has no pending play", () => ir.State.PendingCount == 0);
         }
@@ -141,30 +140,29 @@ namespace osu.Game.Tests.Visual.Gameplay
         [Test]
         public void LoggingInDuringAnAnonymousPlayDoesNotClaimTheFinishedScore()
         {
-            configureAccount(enabled: true, login: false);
+            configureAccount(login: false);
             CreateTest();
             AddAssert("play began without an IR account", () => ir.CaptureSubmissionTarget() == null);
             AddStep("log in after the player captured its target", () => accountOperation = ir.LoginAsync("ir_player", "Synthetic-player-password!"));
             AddUntilStep("IR account operation completed", () => accountOperation!.IsCompleted);
             AddAssert("IR login succeeded", () => accountOperation!.IsCompletedSuccessfully && ir.State.Account?.Id == 17);
             finishPlay();
-            AddUntilStep("real local score import completed", () => Player.ImportCompleted);
-            AddUntilStep("results are displayed", () => Player.GetChildScreen() is ResultsScreen);
-            AddAssert("anonymous play is still saved locally", () => !string.IsNullOrEmpty(readStoredHash(Player.SavedScore!.ID)));
+            AddUntilStep("real local score import completed", () => player.ImportCompleted);
+            AddUntilStep("results are displayed", () => player.GetChildScreen() is ResultsScreen);
+            AddAssert("anonymous play is still saved locally", () => !string.IsNullOrEmpty(readStoredHash(player.SavedScore!.ID)));
             AddAssert("later login did not claim the anonymous play", () => receipts.IsEmpty && ir.State.PendingCount == 0);
         }
 
-        private void configureAccount(bool enabled, bool login)
+        private void configureAccount(bool login)
         {
-            AddStep("configure independent IR", () => accountOperation = configureAsync(enabled, login));
+            AddStep("set OMS account", () => accountOperation = configureAsync(login));
             AddUntilStep("IR account operation completed", () => accountOperation!.IsCompleted);
             AddAssert("IR account operation succeeded", () => accountOperation!.IsCompletedSuccessfully);
         }
 
-        private async Task configureAsync(bool enabled, bool login)
+        private async Task configureAsync(bool login)
         {
             await ir.LogoutAsync().ConfigureAwait(false);
-            await ir.ConfigureAsync(service_origin, enabled).ConfigureAwait(false);
             if (login)
                 await ir.LoginAsync("ir_player", "Synthetic-player-password!").ConfigureAwait(false);
         }
@@ -172,7 +170,7 @@ namespace osu.Game.Tests.Visual.Gameplay
         private void finishPlay()
         {
             AddUntilStep("synthetic track is running", () => Beatmap.Value.Track.IsRunning);
-            AddStep("seek to the final native mania object", () => Player.GameplayClockContainer.Seek(Player.DrawableRuleset.Objects.Last().GetEndTime()));
+            AddStep("seek to the final native mania object", () => player.GameplayClockContainer.Seek(player.DrawableRuleset.Objects.Last().GetEndTime()));
         }
 
         private string? readStoredHash(Guid id) => Realm.Run(realm => realm.Find<ScoreInfo>(id)?.Hash);

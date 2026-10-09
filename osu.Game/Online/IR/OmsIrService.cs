@@ -19,9 +19,11 @@ using osu.Framework.Platform;
 
 namespace osu.Game.Online.IR
 {
-    /// <summary>An opt-in IR client. It does not enable or consume the legacy osu! API.</summary>
+    /// <summary>The OMS account client. It does not enable or consume the legacy osu! API.</summary>
     public sealed class OmsIrService : IDisposable
     {
+        public static Uri ServiceOrigin { get; } = new Uri("https://oms.zdamexy.work/");
+
         private const int maximum_response_bytes = 4 * 1024 * 1024;
         private static readonly TimeSpan[] retry_delays = { TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(15), TimeSpan.FromSeconds(45), TimeSpan.FromSeconds(120) };
 
@@ -35,19 +37,16 @@ namespace osu.Game.Online.IR
         private readonly bool ownsHttp;
         private readonly IOmsIrCredentialStore credentials;
         private readonly string credentialScope;
-        private readonly string configurationPath;
         private readonly OmsIrQueue? queue;
-        private Uri? serviceUri;
         private OmsIrSession? session;
-        private bool enabled;
         private bool requiresLogin;
         private bool busy;
-        private string message = "IR 默认关闭；本地游玩与保存照常。";
+        private string message = "登录 OMS 账号后上传新成绩，离线游玩无需账号。";
         private string? storageFailure;
         private Task? worker;
         private CancellationTokenSource? retryDelay;
         private volatile bool disposed;
-        private OmsIrState state = new OmsIrState("", false, null, 0, 0, 0, false, false, "IR 默认关闭；本地游玩与保存照常。");
+        private OmsIrState state = new OmsIrState(ServiceOrigin.AbsoluteUri, false, null, 0, 0, 0, false, false, "登录 OMS 账号后上传新成绩，离线游玩无需账号。");
 
         /// <summary>Published from the completing thread. Drawables must schedule their own updates.</summary>
         public event Action<OmsIrState>? StateChanged;
@@ -66,7 +65,6 @@ namespace osu.Game.Online.IR
 
         public OmsIrService(Storage storage, HttpClient? httpClient = null, IOmsIrCredentialStore? credentialStore = null)
         {
-            configurationPath = storage.GetFullPath("oms-ir/settings.json");
             credentialScope = hash(storage.GetFullPath(string.Empty).ToUpperInvariant());
             credentials = credentialStore ?? new OmsIrCredentialStore();
             ownsHttp = httpClient == null;
@@ -79,30 +77,22 @@ namespace osu.Game.Online.IR
             {
                 Storage irStorage = storage.GetStorageForDirectory("oms-ir");
                 queue = new OmsIrQueue(irStorage);
-                if (File.Exists(configurationPath) || File.Exists(configurationPath + ".backup")
-                    || Directory.EnumerateFiles(Path.GetDirectoryName(configurationPath)!, "settings.json.tmp-*").Any())
-                {
-                    (Uri? origin, bool active) = OmsIrAtomicFile.Read(configurationPath, decodeConfiguration, out bool recovered);
-                    serviceUri = origin;
-                    enabled = active;
-                    message = recovered ? "已恢复上次完整的 IR 设置；异常文件已保留。" : active ? "IR 已开启，请登录或继续补交。" : "IR 已关闭，本地游玩与保存照常。";
-                }
                 if (queue.RecoveryNotice != null)
                     message = queue.RecoveryNotice;
             }
             catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
             {
-                enabled = false;
-                storageFailure = "IR 设置或待交文件无法读取，已暂停 IR 并保留原文件。本地游玩与保存照常。";
+                storageFailure = "待上传成绩无法读取，已暂停上传并保留原文件。本地游玩与保存照常。";
                 message = storageFailure;
             }
 
-            if (serviceUri != null && storageFailure == null)
+            if (storageFailure == null)
             {
                 try
                 {
-                    session = credentials.Read(credentialTarget(serviceUri));
-                    requiresLogin = session == null;
+                    session = credentials.Read(credentialTarget(ServiceOrigin));
+                    if (session != null && queue?.RecoveryNotice == null)
+                        message = "已登录；原账号的待上传成绩会继续上传。";
                 }
                 catch (Exception exception) when (exception is Win32Exception or IOException or InvalidDataException or PlatformNotSupportedException)
                 {
@@ -115,7 +105,7 @@ namespace osu.Game.Online.IR
             wakeWorker();
         }
 
-        /// <summary>Accepts an origin, never an API URL. Plain HTTP is reserved for loopback development.</summary>
+        /// <summary>Validates origins retained in existing submission records, never an API URL.</summary>
         public static Uri ParseServiceAddress(string address)
         {
             if (!Uri.TryCreate(address.Trim(), UriKind.Absolute, out Uri? uri) || !string.IsNullOrEmpty(uri.UserInfo)
@@ -133,38 +123,12 @@ namespace osu.Game.Online.IR
                 ? new OmsIrSubmissionTarget(new Uri(snapshot.ServiceAddress), snapshot.Account.Id) : null;
         }
 
-        public Task ConfigureAsync(string address, bool enabled, CancellationToken cancellationToken = default) => withNetworkAsync(token =>
-        {
-            Uri? origin = string.IsNullOrWhiteSpace(address) ? null : ParseServiceAddress(address);
-            if (enabled && origin == null)
-                throw new OmsIrException("invalid_address", "开启 IR 前请填写服务地址。默认地址保持为空。");
-            if (enabled && storageFailure != null)
-                throw new OmsIrException("storage_error", storageFailure);
-
-            OmsIrSession? restored = null;
-            if (origin != null)
-                restored = readCredential(origin);
-
-            var document = new JObject { ["version"] = 1, ["service_address"] = origin?.AbsoluteUri ?? "", ["enabled"] = enabled };
-            OmsIrAtomicFile.Write(configurationPath, document.ToString(Formatting.None));
-            lock (stateLock)
-            {
-                serviceUri = origin;
-                this.enabled = enabled;
-                session = restored;
-                requiresLogin = origin != null && restored == null;
-                message = enabled ? restored != null ? "已恢复当前账号，原账号待交会继续补交。" : "IR 已开启，请登录。" : "IR 已关闭；待交保留，本地游玩与保存照常。";
-            }
-            wakeWorker();
-            return Task.FromResult(true);
-        }, cancellationToken);
-
         public Task LoginAsync(string username, string password, bool register = false, CancellationToken cancellationToken = default) => withNetworkAsync(async token =>
         {
-            Uri origin = requireEnabledOrigin();
+            Uri origin = requireOrigin();
             if (username.Length is < 3 or > 24 || !username.All(character => character is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9' or '_')
                 || password.Length is < 10 or > 128)
-                throw new OmsIrException("invalid_credentials_format", "账号为 3–24 位字母、数字或下划线；密码为 10–128 个字符。密码不会被裁剪。" );
+                throw new OmsIrException("invalid_credentials_format", "账号为 3–24 位字母、数字或下划线；密码为 10–128 个字符。密码不会被裁剪。");
 
             var body = new JObject { ["username"] = username, ["password"] = password, ["transport"] = "desktop" };
             JObject response = await sendAsync(origin, HttpMethod.Post, register ? "auth/register" : "auth/login", body.ToString(Formatting.None), null, token).ConfigureAwait(false);
@@ -184,10 +148,10 @@ namespace osu.Game.Online.IR
 
         public Task LogoutAsync(CancellationToken cancellationToken = default) => withNetworkAsync(async token =>
         {
-            Uri? origin = serviceUri;
+            Uri origin = ServiceOrigin;
             OmsIrSession? previous = session;
             string resultMessage = "已退出登录；待交仍绑定原账号，本地游玩与保存照常。";
-            if (origin != null && previous != null)
+            if (previous != null)
             {
                 try
                 {
@@ -204,7 +168,7 @@ namespace osu.Game.Online.IR
             lock (stateLock)
             {
                 session = null;
-                requiresLogin = origin != null;
+                requiresLogin = false;
                 message = resultMessage;
             }
             wakeWorker();
@@ -233,7 +197,7 @@ namespace osu.Game.Online.IR
                     }
                 }
             }, linked.Token).ConfigureAwait(false);
-            setMessage("本地成绩已保存，IR 待交已保全并绑定开局时的账号。" );
+            setMessage("本地成绩已保存，IR 待交已保全并绑定开局时的账号。");
             publish();
             wakeWorker();
         }
@@ -244,16 +208,16 @@ namespace osu.Game.Online.IR
             cancellationToken.ThrowIfCancellationRequested();
             OmsIrState snapshot = State;
             if (!snapshot.Enabled || snapshot.Account == null || snapshot.RequiresLogin)
-                throw new OmsIrException("login_required", "请开启 IR 并登录原账号后重试。待交仍已保留。" );
+                throw new OmsIrException("login_required", "请登录原账号后重试。待上传成绩仍已保留。");
 
             lock (queueLock)
             {
                 if (queue == null || storageFailure != null)
-                    throw new OmsIrException("storage_error", storageFailure ?? "IR 待交存储不可用。" );
+                    throw new OmsIrException("storage_error", storageFailure ?? "IR 待交存储不可用。");
                 foreach (OmsIrQueueEntry entry in queue.Entries.Where(entry => matches(entry, new Uri(snapshot.ServiceAddress), snapshot.Account.Id)).ToArray())
                     queue.Replace(entry with { Attempts = 0, NextAttempt = DateTimeOffset.UtcNow, BlockedReason = null });
             }
-            setMessage("已安排原账号待交重试；其他账号的待交不会改归属。" );
+            setMessage("已安排原账号待交重试；其他账号的待交不会改归属。");
             publish();
             wakeWorker();
             return Task.CompletedTask;
@@ -266,31 +230,31 @@ namespace osu.Game.Online.IR
         }
 
         public Task<JObject> GetChartsAsync(int page = 1, CancellationToken cancellationToken = default) => withNetworkAsync(token =>
-            sendAsync(requireEnabledOrigin(), HttpMethod.Get, "charts?page=" + validPage(page) + "&limit=20", null, null, token), cancellationToken);
+            sendAsync(requireOrigin(), HttpMethod.Get, "charts?page=" + validPage(page) + "&limit=20", null, null, token), cancellationToken);
 
         public Task<JObject> GetChartScoresAsync(string md5, string group, int page = 1, CancellationToken cancellationToken = default)
         {
             if (md5.Length != 32 || group.Length != 64 || !md5.Concat(group).All(character => character is >= '0' and <= '9' or >= 'a' and <= 'f'))
-                throw new OmsIrException("invalid_board", "请先选择谱面和游玩条件。" );
-            return withNetworkAsync(token => sendAsync(requireEnabledOrigin(), HttpMethod.Get,
+                throw new OmsIrException("invalid_board", "请先选择谱面和游玩条件。");
+            return withNetworkAsync(token => sendAsync(requireOrigin(), HttpMethod.Get,
                 "scores/chart/" + md5 + "?group=" + group + "&page=" + validPage(page) + "&limit=20", null, null, token), cancellationToken);
         }
 
         public Task<JObject> GetSourcesAsync(CancellationToken cancellationToken = default) => withNetworkAsync(token =>
-            sendAsync(requireEnabledOrigin(), HttpMethod.Get, "sources", null, null, token, "v2"), cancellationToken);
+            sendAsync(requireOrigin(), HttpMethod.Get, "sources", null, null, token, "v2"), cancellationToken);
 
         public Task<JObject> GetSourceChartsAsync(string query = "", int page = 1, CancellationToken cancellationToken = default)
         {
             if (query.Length > 200)
                 throw new OmsIrException("invalid_search", "请将谱名、作者或原谱 MD5 限制在 200 字以内。");
-            return withNetworkAsync(token => sendAsync(requireEnabledOrigin(), HttpMethod.Get,
+            return withNetworkAsync(token => sendAsync(requireOrigin(), HttpMethod.Get,
                 "charts?q=" + Uri.EscapeDataString(query) + "&page=" + validPage(page) + "&limit=20", null, null, token, "v2"), cancellationToken);
         }
 
         public Task<JObject> GetSourceChartAsync(string md5, CancellationToken cancellationToken = default)
         {
             validateChartMd5(md5);
-            return withNetworkAsync(token => sendAsync(requireEnabledOrigin(), HttpMethod.Get, "charts/" + md5, null, null, token, "v2"), cancellationToken);
+            return withNetworkAsync(token => sendAsync(requireOrigin(), HttpMethod.Get, "charts/" + md5, null, null, token, "v2"), cancellationToken);
         }
 
         public Task<JObject> GetSourceChartScoresAsync(string md5, IReadOnlyList<string>? sources = null, string mode = "reference",
@@ -310,7 +274,7 @@ namespace osu.Game.Online.IR
                 path += "&condition=" + Uri.EscapeDataString(condition);
             return withNetworkAsync(token => session != null
                 ? authenticatedAsync(HttpMethod.Get, path, null, token, "v2")
-                : sendAsync(requireEnabledOrigin(), HttpMethod.Get, path, null, null, token, "v2"), cancellationToken);
+                : sendAsync(requireOrigin(), HttpMethod.Get, path, null, null, token, "v2"), cancellationToken);
         }
 
         private static void validateChartMd5(string md5)
@@ -321,7 +285,7 @@ namespace osu.Game.Online.IR
 
         public Task<JObject> GetMyScoresAsync(int page = 1, CancellationToken cancellationToken = default) => withNetworkAsync(token =>
         {
-            requireEnabledOrigin();
+            requireOrigin();
             OmsIrSession owner = requireSession();
             return authenticatedAsync(HttpMethod.Get, "scores/user/" + owner.UserId.ToString(CultureInfo.InvariantCulture)
                 + "?page=" + validPage(page) + "&limit=20", null, token);
@@ -355,18 +319,18 @@ namespace osu.Game.Online.IR
             }
         }
 
-        private Uri requireEnabledOrigin()
+        private Uri requireOrigin()
         {
             if (storageFailure != null)
                 throw new OmsIrException("storage_error", storageFailure);
-            return enabled && serviceUri != null ? serviceUri : throw new OmsIrException("ir_disabled", "请主动填写服务地址并开启 IR。本地游玩仍可离线完成。" );
+            return ServiceOrigin;
         }
 
-        private OmsIrSession requireSession() => session ?? throw new OmsIrException("login_required", "请登录原账号；待交仍已保留。" );
+        private OmsIrSession requireSession() => session ?? throw new OmsIrException("login_required", "请登录原账号；待交仍已保留。");
 
         private async Task<JObject> authenticatedAsync(HttpMethod method, string path, string? body, CancellationToken token, string apiVersion = "v1")
         {
-            Uri origin = requireEnabledOrigin();
+            Uri origin = requireOrigin();
             OmsIrSession owner = requireSession();
             if (owner.AccessExpiresAt <= DateTimeOffset.UtcNow)
                 owner = await refreshAsync(origin, owner, token).ConfigureAwait(false);
@@ -441,7 +405,7 @@ namespace osu.Game.Online.IR
             {
                 using HttpResponseMessage response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, requestToken).ConfigureAwait(false);
                 if ((int)response.StatusCode is >= 300 and < 400)
-                    throw new OmsIrException("redirect_rejected", "IR 地址发生跳转，请检查站点地址。凭据不会被转发。", response.StatusCode);
+                    throw new OmsIrException("redirect_rejected", "OMSIR 返回了异常跳转，登录信息不会被转发。请稍后重试。", response.StatusCode);
                 if (response.StatusCode == HttpStatusCode.NoContent)
                     return new JObject();
                 if (response.Content.Headers.ContentLength > maximum_response_bytes)
@@ -516,39 +480,6 @@ namespace osu.Game.Online.IR
             }
         }
 
-        private static (Uri?, bool) decodeConfiguration(string contents)
-        {
-            JObject document = OmsIrJson.Parse(contents);
-            if (OmsIrJson.Integer(document, "version") != 1 || document["enabled"]?.Type != JTokenType.Boolean)
-                throw new InvalidDataException("Invalid OMS IR configuration version or switch.");
-            string address = OmsIrJson.String(document, "service_address");
-            Uri? origin;
-            try
-            {
-                origin = address.Length == 0 ? null : ParseServiceAddress(address);
-            }
-            catch (OmsIrException exception)
-            {
-                throw new InvalidDataException("Invalid OMS IR configuration origin.", exception);
-            }
-            bool active = document["enabled"]!.Value<bool>();
-            if (active && origin == null)
-                throw new InvalidDataException("Enabled OMS IR has no service origin.");
-            return (origin, active);
-        }
-
-        private OmsIrSession? readCredential(Uri origin)
-        {
-            try
-            {
-                return credentials.Read(credentialTarget(origin));
-            }
-            catch (Exception exception) when (exception is Win32Exception or IOException or InvalidDataException or PlatformNotSupportedException)
-            {
-                throw new OmsIrException("credential_store", "Windows 无法读取 IR 凭据；待交保留，请检查凭据管理器。", innerException: exception);
-            }
-        }
-
         private void writeCredential(Uri origin, OmsIrSession value)
         {
             try
@@ -576,7 +507,7 @@ namespace osu.Game.Online.IR
         private string credentialTarget(Uri origin) => "OMS.IR.v1:" + credentialScope + ":" + hash(origin.AbsoluteUri);
         private static string hash(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value))).ToLowerInvariant();
         private static string validPage(int page) => page > 0 ? page.ToString(CultureInfo.InvariantCulture)
-            : throw new OmsIrException("invalid_page", "页码必须从 1 开始。" );
+            : throw new OmsIrException("invalid_page", "页码必须从 1 开始。");
 
         private static string errorMessage(string code, HttpStatusCode status) => code switch
         {
@@ -621,9 +552,10 @@ namespace osu.Game.Online.IR
                 lock (queueLock)
                 {
                     OmsIrQueueEntry[] entries = queue?.Entries.ToArray() ?? Array.Empty<OmsIrQueueEntry>();
-                    snapshot = new OmsIrState(serviceUri?.AbsoluteUri ?? "", enabled, session == null ? null : new OmsIrAccount(session.UserId, session.Username),
+                    snapshot = new OmsIrState(ServiceOrigin.AbsoluteUri, session != null && !requiresLogin && storageFailure == null,
+                        session == null ? null : new OmsIrAccount(session.UserId, session.Username),
                         entries.Length, entries.Count(entry => entry.BlockedReason != null),
-                        entries.Count(entry => serviceUri == null || session == null || !matches(entry, serviceUri, session.UserId)), requiresLogin, busy, message);
+                        entries.Count(entry => session == null || !matches(entry, ServiceOrigin, session.UserId)), requiresLogin, busy, message);
                 }
                 Volatile.Write(ref state, snapshot);
             }
@@ -637,10 +569,10 @@ namespace osu.Game.Online.IR
         {
             lock (stateLock)
             {
-                if (!enabled || serviceUri == null || session == null || requiresLogin || storageFailure != null)
+                if (session == null || requiresLogin || storageFailure != null)
                     return null;
                 lock (queueLock)
-                    return queue?.Entries.Where(entry => entry.BlockedReason == null && entry.Attempts < 5 && matches(entry, serviceUri, session.UserId))
+                    return queue?.Entries.Where(entry => entry.BlockedReason == null && entry.Attempts < 5 && matches(entry, ServiceOrigin, session.UserId))
                                 .OrderBy(entry => entry.NextAttempt).ThenBy(entry => entry.SubmissionId).FirstOrDefault();
             }
         }
@@ -714,7 +646,7 @@ namespace osu.Game.Online.IR
                             validateAcknowledgement(response, entry);
                             lock (queueLock)
                                 queue!.Remove(entry);
-                            setMessage("IR 已收到本局成绩；重复发送也只保留同一局。" );
+                            setMessage("IR 已收到本局成绩；重复发送也只保留同一局。");
                         }
                         catch (OmsIrException exception)
                         {
@@ -783,7 +715,6 @@ namespace osu.Game.Online.IR
             lock (stateLock)
             {
                 storageFailure = "IR 待交无法安全写入，已暂停 IR 并保留原文件；本地成绩不受影响。";
-                enabled = false;
                 message = storageFailure;
             }
         }
