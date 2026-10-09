@@ -33,6 +33,7 @@ metadata:
 
 - Pylance提示大量源文件时，先按目录枚举`.py/.pyi`，缓存 / 验证产物可能含成千依赖文件。工作区`python.analysis.exclude`排除目录扫描，打开或被实际源码导入的文件仍可分析；`ignore`只静音诊断，不能替代排除。区分目录数量、配置验证与重新加载后的实际编辑器结果；本机实例和采用范围取[2026-10-10日志](../../doc_md/mainline/CHANGELOG.md#2026-10-10)。
 - 仓库在非系统盘不代表开发零占用系统盘：旧工作副本有独立 bin/obj，默认 NuGet/TEMP 与 Codex 聊天也分开存放。每个新 shell 按 [开发磁盘约束](../../AGENTS.md#开发磁盘约束)加载 `UseDevelopmentStorage.ps1`；进程环境不跨工具调用保留，旧 assets 的绝对 packageFolders 也不会随环境变量自动重写，切换后先 restore。运行数据和验收资料不能因位于 bin/artifacts/AppData 就认定为垃圾；清理被策略拦截时不能记为已释放。
+- 清理构建输出前须查看真实内容：Desktop的`bin/.../data`可能含正在使用的Realm、谱库和配置，应保护整个运行目录；Game的`obj/canonical`还可能残留退役皮肤包，先按内容摘要确认独立保留副本，不能仅凭`bin/obj`名或忽略规则删除。清除`obj`后需正常restore / build；容量复核区分文件逻辑大小与磁盘可用空间差值。实例和边界取[清理日志](../../doc_md/mainline/CHANGELOG.md#确认后清理构建输出)。
 - JavaScript 字符串调用 PowerShell regex 有两层转义；普通 template literal 可能吞掉 `\[`，`String.raw` 仍会插值 `${...}`。优先运行已审查脚本，不能把带错误的 `BROKEN 0` 当作结果。
 - `rg --files` 默认不包含 hidden memory；枚举要包括 `.Codex` 并排除 `.git`。根目录 Markdown 的 parent 也须正确解析。链接以文件所在目录为准，不从仓库根再猜一次。
 - `dotnet --info` 曾在 workload `InstallerBase` 初始化失败，但同环境实际 Release build/test 可运行。诊断命令失败不等于产品构建失败，不据此修改 SDK、安装 workload 或加 runtime fallback。

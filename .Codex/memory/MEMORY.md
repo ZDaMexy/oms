@@ -35,7 +35,7 @@
 
 ## 构建、存储与产品面参考
 
-- [构建与测试](reference_build_and_test.md) — 开发磁盘与进程环境、Pylance缓存扫描、测试宿主、formatter owning 路径、输出锁、未编译 fixture/空跑、完整基线归因与依赖审计误判。
+- [构建与测试](reference_build_and_test.md) — 开发磁盘与进程环境、Pylance缓存扫描、构建目录内真实数据 / 旧作者包与容量误判、测试宿主、formatter owning 路径、输出锁、未编译 fixture/空跑、完整基线归因与依赖审计误判。
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱库路径身份与历史保全](reference_filesystem_library_identity.md) — 同内容不同目录、失效与物删分离、多文件改名及扫描错误边界。
 - [谱面构成过滤](reference_bms_composition_filter.md) — 单轨上限、共享额度、零宽入口及无解条件。

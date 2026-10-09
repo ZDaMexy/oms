@@ -7,6 +7,16 @@
 
 ## 2026-10-10
 
+### 确认后清理构建输出
+
+用户授权核实删除项后安全清理，从干净master@fe3d897接续，fetch成功，保留前轮Pylance本地提交。只清理经逐项核对的35个工程 / 测试 / ruleset模板 / 作者工具`bin`或`obj`目录，8929个生成文件合计11.486 GiB逻辑大小；F盘可用空间实际增加11.282 GiB，此差值仅表示本轮磁盘观察，不能用逻辑大小冒充实际回收量。
+
+删除前将范围固定为审查过的路径清单；逐项确认解析后仍位于当前OMS checkout、目录与祖先没有重解析点、上层有归属csproj、没有tracked文件、曲库 / 存档 / 测试收据标记或活动OMS程序 / build / test，文件独占打开检查通过。所有输出中的`.osk`逐一核对独立保留副本的SHA256，包含旧complex包，原作者包、归档和恢复证据保留；初次只读预检因漏列已存在的win-x64生成布局而停止，核对实际目录后补齐已知布局再通过，当时尚未删除文件。
+
+使用PowerShell原生`Remove-Item -LiteralPath`逐项删除，每项删除前再次核对路径、目录快照和占用，删除后确认目标不存在。`osu.Desktop/bin`因含真实便携数据而整体排除，其内文件及目录清单、文件SHA256、大小、mtime和属性前后完全一致；删除完成时tracked工作区仍干净。私有数据目录、测试收据、`artifacts`、`release-repo`、原皮肤作者源 / 包、NuGet缓存、固定工具链及混有SDK / 探针资料的`.dev-cache/temp`未列入删除范围，旧F:/oms空目录和系统盘遗留亦未处理。
+
+本轮执行脚本、确认清单、皮肤副本核对和删除 / 完整性收据留`artifacts/cleanup-audit-20261010/`；用户数据的精确取证值仅留本机忽略目录，不入版本文档。没有重新编译、启动客户端或生成发行物，以免回填刚清除的输出；下次VS Code开发启动正常restore / build，已清除工程不能用旧`--no-build`或`--no-restore`。诊断回链[构建与检查记忆](../../.Codex/memory/reference_build_and_test.md#检查脚本与环境)，文档 / diff校验通过；文档与记忆在当前分支本地提交，未推送，不刷新产品或人工门。
+
 ### VS Code Pylance扫描范围
 
 用户打开OMS文件夹时收到大量源文件提示。从干净master@4cb6678接续，fetch后与origin/master一致。本机Pylance 2026.4.1支持工作区`python.analysis.exclude`及默认排除相加；原设置未配置自定义范围。只改[工作区设置](../../.vscode/settings.json)，排除`.dev-cache`、`.venv`、`artifacts`、`TestResults`和各项目`bin` / `obj`，保留原设置、默认排除及打开脚本的分析，不禁用Pylance或改用户全局设置。
