@@ -9,6 +9,8 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -173,7 +175,8 @@ namespace osu.Game.Tests.Online.IR
             loseResponse = false;
             using var restarted = new OmsIrService(storage, http, credentials);
             await restarted.RetryPendingAsync();
-            await waitUntil(() => restarted.State.PendingCount == 0);
+            // The v1 queue cannot distinguish the saved connection delay from a server-required delay after restart.
+            await waitUntil(() => restarted.State.PendingCount == 0, TimeSpan.FromSeconds(7));
             Assert.That(seen.Count, Is.EqualTo(2));
             Assert.That(seen.ToArray()[1], Is.EqualTo(seen.ToArray()[0]));
             Assert.That(stored, Is.EqualTo(new[] { play.SubmissionId.ToString() }));
@@ -292,6 +295,407 @@ namespace osu.Game.Tests.Online.IR
             await service.RetryPendingAsync();
             await waitUntil(() => service.State.PendingCount == 0);
             Assert.That(requests, Is.EqualTo(2));
+        }
+
+        [TestCase(HttpStatusCode.TooManyRequests)]
+        [TestCase(HttpStatusCode.ServiceUnavailable)]
+        public async Task ServerRetryAfterPausesAllPendingPlaysAndManualRetryCannotShortenIt(HttpStatusCode status)
+        {
+            var watch = Stopwatch.StartNew();
+            var seen = new ConcurrentQueue<(string Body, TimeSpan Time)>();
+            using var http = standardHttp(async (request, token) =>
+            {
+                string body = await request.Content!.ReadAsStringAsync(token);
+                seen.Enqueue((body, watch.Elapsed));
+                if (seen.Count == 1)
+                {
+                    HttpResponseMessage response = error(status, "rate_limited");
+                    response.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.FromSeconds(1));
+                    return response;
+                }
+                return acknowledge(JObject.Parse(body), 1);
+            });
+            using var service = new OmsIrService(storage, http, credentials);
+            await service.LoginAsync("player_one", password);
+            OmsIrSubmissionTarget target = service.CaptureSubmissionTarget()!;
+            await service.LogoutAsync();
+            OmsIrSubmission[] plays = Enumerable.Range(0, 3).Select(_ => submission()).ToArray();
+            foreach (OmsIrSubmission play in plays)
+                await service.QueueSubmissionAsync(target, play);
+            await service.LoginAsync("player_one", password);
+            await waitUntil(() => !seen.IsEmpty && !service.State.Busy);
+            await service.RetryPendingAsync();
+            await Task.Delay(200);
+            Assert.That(seen, Has.Count.EqualTo(1), "The server's wait applies to every pending play, including a manual retry.");
+            await waitUntil(() => service.State.PendingCount == 0);
+            var requests = seen.ToArray();
+            Assert.That(requests, Has.Length.EqualTo(4));
+            Assert.That(requests[1].Time - requests[0].Time, Is.GreaterThanOrEqualTo(TimeSpan.FromSeconds(1)));
+            Assert.That(requests.Select(request => request.Body).Distinct(), Is.EquivalentTo(plays.Select(play => play.Payload.ToString(Formatting.None))));
+            Assert.That(requests.Count(request => request.Body == requests[0].Body), Is.EqualTo(2));
+        }
+
+        [TestCase(null)]
+        [TestCase(HttpStatusCode.ServiceUnavailable)]
+        [TestCase(HttpStatusCode.RequestTimeout)]
+        public async Task TemporaryFailurePausesNewAndExistingPlaysUntilThePlayerRetries(HttpStatusCode? status)
+        {
+            var seen = new ConcurrentQueue<string>();
+            using var http = standardHttp(async (request, token) =>
+            {
+                string body = await request.Content!.ReadAsStringAsync(token);
+                seen.Enqueue(body);
+                if (seen.Count == 1)
+                {
+                    if (status.HasValue)
+                        return error(status.Value, "http_error");
+                    throw new HttpRequestException("Synthetic offline connection.");
+                }
+                return acknowledge(JObject.Parse(body), 1);
+            });
+            using var service = new OmsIrService(storage, http, credentials);
+            await service.LoginAsync("player_one", password);
+            OmsIrSubmissionTarget target = service.CaptureSubmissionTarget()!;
+            await service.LogoutAsync();
+            OmsIrSubmission[] plays = Enumerable.Range(0, 4).Select(_ => submission()).ToArray();
+            foreach (OmsIrSubmission play in plays.Take(3))
+                await service.QueueSubmissionAsync(target, play);
+            await service.LoginAsync("player_one", password);
+            await waitUntil(() => !seen.IsEmpty && !service.State.Busy);
+            await service.QueueSubmissionAsync(target, plays[3]);
+            await Task.Delay(200);
+            Assert.That(seen, Has.Count.EqualTo(1), "Enqueuing another saved play must not bypass the queue's backoff.");
+            Assert.That(service.State.BlockedCount, Is.Zero);
+            await service.RetryPendingAsync();
+            await waitUntil(() => service.State.PendingCount == 0);
+            Assert.That(seen, Has.Count.EqualTo(5));
+            Assert.That(seen.Distinct(), Is.EquivalentTo(plays.Select(play => play.Payload.ToString(Formatting.None))));
+            Assert.That(seen.Count(body => body == seen.First()), Is.EqualTo(2));
+        }
+
+        [TestCase(HttpStatusCode.UnprocessableEntity, "unsupported_mod")]
+        [TestCase(HttpStatusCode.Conflict, "submission_conflict")]
+        public async Task OnePermanentlyRejectedPlayDoesNotPauseTheOtherPendingPlays(HttpStatusCode status, string code)
+        {
+            var seen = new ConcurrentQueue<string>();
+            using var http = standardHttp(async (request, token) =>
+            {
+                string body = await request.Content!.ReadAsStringAsync(token);
+                seen.Enqueue(body);
+                return seen.Count == 1 ? error(status, code) : acknowledge(JObject.Parse(body), 1);
+            });
+            using var service = new OmsIrService(storage, http, credentials);
+            await service.LoginAsync("player_one", password);
+            OmsIrSubmissionTarget target = service.CaptureSubmissionTarget()!;
+            await service.LogoutAsync();
+            foreach (OmsIrSubmission play in Enumerable.Range(0, 3).Select(_ => submission()))
+                await service.QueueSubmissionAsync(target, play);
+            await service.LoginAsync("player_one", password);
+            await waitUntil(() => service.State.PendingCount == 1 && service.State.BlockedCount == 1);
+            Assert.That(seen, Has.Count.EqualTo(3));
+            Assert.That(service.PendingSubmissions.Single().BlockedReason, Does.Contain(code));
+            string pending = File.ReadAllText(Directory.EnumerateFiles(storage.GetFullPath("oms-ir/pending"), "*.json").Single());
+            Assert.That((string?)JObject.Parse(pending)["body"], Is.EqualTo(seen.First()));
+        }
+
+        [Test]
+        public async Task LoggingOutAndLoggingBackIntoTheSameAccountPreservesServerRetryAfter()
+        {
+            int requests = 0;
+            using var http = standardHttp((_, _) =>
+            {
+                Interlocked.Increment(ref requests);
+                HttpResponseMessage response = error(HttpStatusCode.TooManyRequests, "rate_limited");
+                response.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.FromMinutes(10));
+                return Task.FromResult(response);
+            });
+            using var service = new OmsIrService(storage, http, credentials);
+            await service.LoginAsync("player_one", password);
+            OmsIrSubmission first = submission();
+            await service.QueueSubmissionAsync(service.CaptureSubmissionTarget()!, first);
+            await waitUntil(() => requests == 1 && !service.State.Busy);
+            await service.LogoutAsync();
+            await service.LoginAsync("player_one", password);
+            OmsIrSubmission second = submission();
+            await service.QueueSubmissionAsync(service.CaptureSubmissionTarget()!, second);
+            await service.RetryPendingAsync();
+            await Task.Delay(200);
+            Assert.That(requests, Is.EqualTo(1));
+            Assert.That(service.State.PendingCount, Is.EqualTo(2));
+            Assert.That(service.PendingSubmissions.Select(play => play.SubmissionId), Is.EquivalentTo(new[] { first.SubmissionId, second.SubmissionId }));
+            Assert.That(service.PendingSubmissions.All(play => play.Target.UserId == 1), Is.True);
+            Assert.That(service.State.WaitingOtherAccountCount, Is.Zero);
+            foreach (string path in Directory.EnumerateFiles(storage.GetFullPath("oms-ir/pending"), "*.json"))
+                Assert.That(DateTimeOffset.Parse((string)JObject.Parse(File.ReadAllText(path))["next_attempt"]!), Is.GreaterThan(DateTimeOffset.UtcNow.AddMinutes(9)));
+        }
+
+        [Test]
+        public async Task AccountSwitchUsesEachOwnersPersistedDeadlineAndKeepsOtherPlaysSeparate()
+        {
+            var seen = new ConcurrentQueue<long>();
+            using var http = standardHttp((request, _) =>
+            {
+                long owner = request.Headers.Authorization!.Parameter == accessFor(2) ? 2 : 1;
+                seen.Enqueue(owner);
+                HttpResponseMessage response = error(HttpStatusCode.TooManyRequests, "rate_limited");
+                response.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.FromMinutes(owner == 1 ? 10 : 20));
+                return Task.FromResult(response);
+            });
+            using var service = new OmsIrService(storage, http, credentials);
+            await service.LoginAsync("player_one", password);
+            OmsIrSubmission first = submission();
+            await service.QueueSubmissionAsync(service.CaptureSubmissionTarget()!, first);
+            await waitUntil(() => seen.Count == 1 && !service.State.Busy);
+            await service.LoginAsync("player_two", password);
+            await service.QueueSubmissionAsync(service.CaptureSubmissionTarget()!, submission());
+            await waitUntil(() => seen.Count == 2 && !service.State.Busy);
+            await service.QueueSubmissionAsync(service.CaptureSubmissionTarget()!, submission());
+            await service.LoginAsync("player_one", password);
+            OmsIrSubmission last = submission();
+            await service.QueueSubmissionAsync(service.CaptureSubmissionTarget()!, last);
+            await Task.Delay(200);
+            Assert.That(seen, Is.EqualTo(new[] { 1L, 2L }));
+            Assert.That(service.State.PendingCount, Is.EqualTo(4));
+            Assert.That(service.State.WaitingOtherAccountCount, Is.EqualTo(2));
+            JObject[] pending = Directory.EnumerateFiles(storage.GetFullPath("oms-ir/pending"), "*.json").Select(path => JObject.Parse(File.ReadAllText(path))).ToArray();
+            DateTimeOffset firstDeadline = DateTimeOffset.Parse((string)pending.Single(play => (string?)play["submission_id"] == first.SubmissionId.ToString())["next_attempt"]!);
+            DateTimeOffset lastDeadline = DateTimeOffset.Parse((string)pending.Single(play => (string?)play["submission_id"] == last.SubmissionId.ToString())["next_attempt"]!);
+            Assert.That(firstDeadline, Is.GreaterThan(DateTimeOffset.UtcNow.AddMinutes(9)));
+            Assert.That(firstDeadline, Is.LessThan(DateTimeOffset.UtcNow.AddMinutes(11)));
+            Assert.That(lastDeadline, Is.EqualTo(firstDeadline));
+            Assert.That(pending.Where(play => (long)play["user_id"]! == 2).Select(play => DateTimeOffset.Parse((string)play["next_attempt"]!)),
+                Is.All.GreaterThan(DateTimeOffset.UtcNow.AddMinutes(19)));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RetryDuringLoginBeforeTheAccountSnapshotPublishesCannotResetThePreviousOwnersDeadline(bool advanceWake)
+        {
+            int requests = 0;
+            using var http = standardHttp((_, _) =>
+            {
+                Interlocked.Increment(ref requests);
+                HttpResponseMessage response = error(HttpStatusCode.TooManyRequests, "rate_limited");
+                response.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.FromMinutes(10));
+                return Task.FromResult(response);
+            });
+            using var service = new OmsIrService(storage, http, credentials);
+            await service.LoginAsync("player_one", password);
+            OmsIrSubmission play = submission();
+            await service.QueueSubmissionAsync(service.CaptureSubmissionTarget()!, play);
+            await waitUntil(() => requests == 1 && !service.State.Busy);
+            string path = Directory.EnumerateFiles(storage.GetFullPath("oms-ir/pending"), "*.json").Single();
+            string original = File.ReadAllText(path);
+            object workerGate = typeof(OmsIrService).GetField("workerLock", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(service)!;
+            object sessionGate = typeof(OmsIrService).GetField("stateLock", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(service)!;
+            FieldInfo sessionField = typeof(OmsIrService).GetField("session", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            Task? login = null;
+            bool sessionChanged = false;
+            long? publishedOwner = null;
+            OmsIrException? retryFailure = null;
+            string? entryAfterRetry = null;
+            Exception? gateFailure = null;
+            var gateReleased = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            // Monitor ownership belongs to a thread. Keep the entire gate lifetime outside the async test
+            // state machine and NUnit assertions, then signal completion only after the synchronous unlock.
+            var gateThread = new Thread(() =>
+            {
+                try
+                {
+                    lock (workerGate)
+                    {
+                        login = Task.Run(() => service.LoginAsync("player_two", password));
+                        sessionChanged = SpinWait.SpinUntil(() =>
+                        {
+                            lock (sessionGate)
+                                return sessionField.GetValue(service) is OmsIrSession { UserId: 2 };
+                        }, TimeSpan.FromSeconds(5));
+                        if (!sessionChanged)
+                            return;
+                        publishedOwner = service.State.Account?.Id;
+                        if (advanceWake)
+                        {
+                            // Run the real wake while publication is still blocked to reproduce the narrow window
+                            // where the new account's backoff has replaced the old one but State still names the old owner.
+                            typeof(OmsIrService).GetMethod("wakeWorker", BindingFlags.Instance | BindingFlags.NonPublic)!
+                                .Invoke(service, new object[] { true });
+                        }
+                        try
+                        {
+                            // RetryPendingAsync is synchronous up to and including the ownership guard.
+                            // Do not block on a Task or invoke NUnit's assertion adapters while owning the monitor.
+                            _ = service.RetryPendingAsync();
+                        }
+                        catch (OmsIrException exception)
+                        {
+                            retryFailure = exception;
+                        }
+                        entryAfterRetry = File.ReadAllText(path);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    gateFailure = exception;
+                }
+                finally
+                {
+                    gateReleased.TrySetResult();
+                }
+            })
+            { IsBackground = true };
+            gateThread.Start();
+            try
+            {
+                await gateReleased.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            }
+            finally
+            {
+                Assert.That(gateThread.Join(TimeSpan.FromSeconds(6)), Is.True, "The synchronous gate thread must unlock before login cleanup and disposal.");
+                if (login != null)
+                    await login.WaitAsync(TimeSpan.FromSeconds(5));
+            }
+            Assert.That(gateFailure, Is.Null, "The gate thread failed before it finished the concurrency observation.");
+            Assert.That(sessionChanged, Is.True, "The real login must change the session while its wake is blocked.");
+            Assert.That(publishedOwner, Is.EqualTo(1), "The published snapshot must still belong to the old account.");
+            Assert.That(retryFailure, Is.Not.Null, "Retry must reject the old account snapshot while the real session belongs to another account.");
+            Assert.That(retryFailure!.Code, Is.EqualTo("login_required"));
+            Assert.That(entryAfterRetry, Is.EqualTo(original));
+            Assert.That(service.State.Account?.Id, Is.EqualTo(2));
+            Assert.That(service.State.WaitingOtherAccountCount, Is.EqualTo(1));
+            await service.LoginAsync("player_one", password);
+            await Task.Delay(100);
+            Assert.That(requests, Is.EqualTo(1));
+            Assert.That(File.ReadAllText(path), Is.EqualTo(original));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RestartPreservesTheWholeQueuesServerWaitForNewPlaysAndManualRetry(bool manualRetry)
+        {
+            int requests = 0;
+            using var http = standardHttp((_, _) =>
+            {
+                Interlocked.Increment(ref requests);
+                HttpResponseMessage response = error(HttpStatusCode.TooManyRequests, "rate_limited");
+                response.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.FromMinutes(10));
+                return Task.FromResult(response);
+            });
+            OmsIrSubmission[] plays = Enumerable.Range(0, 5).Select(_ => submission()).ToArray();
+            OmsIrSubmissionTarget target;
+            using (var first = new OmsIrService(storage, http, credentials))
+            {
+                await first.LoginAsync("player_one", password);
+                target = first.CaptureSubmissionTarget()!;
+                await first.LogoutAsync();
+                foreach (OmsIrSubmission play in plays.Take(3))
+                    await first.QueueSubmissionAsync(target, play);
+                await first.LoginAsync("player_one", password);
+                await waitUntil(() => requests >= 1 && !first.State.Busy);
+                await first.QueueSubmissionAsync(target, plays[3]);
+            }
+            using var restored = new OmsIrService(storage, http, credentials);
+            await restored.QueueSubmissionAsync(restored.CaptureSubmissionTarget()!, plays[4]);
+            if (manualRetry)
+                await restored.RetryPendingAsync();
+            await Task.Delay(200);
+            Assert.That(requests, Is.EqualTo(1));
+            Assert.That(restored.State.PendingCount, Is.EqualTo(5));
+            Assert.That(restored.State.BlockedCount, Is.Zero);
+            JObject[] pending = Directory.EnumerateFiles(storage.GetFullPath("oms-ir/pending"), "*.json").Select(path => JObject.Parse(File.ReadAllText(path))).ToArray();
+            Assert.That(pending.Select(play => (string?)play["body"]), Is.EquivalentTo(plays.Select(play => play.Payload.ToString(Formatting.None))));
+            Assert.That(pending.Select(play => (long)play["user_id"]!), Is.All.EqualTo(target.UserId));
+            Assert.That(pending.Select(play => DateTimeOffset.Parse((string)play["next_attempt"]!)), Is.All.GreaterThan(DateTimeOffset.UtcNow.AddMinutes(9)));
+        }
+
+        [Test]
+        [Platform("Win")]
+        public async Task FailureWhilePersistingTheQueuesServerWaitStopsUploadsAndPreservesAllSavedBodies()
+        {
+            int requests = 0;
+            using var http = standardHttp((_, _) =>
+            {
+                Interlocked.Increment(ref requests);
+                HttpResponseMessage response = error(HttpStatusCode.TooManyRequests, "rate_limited");
+                response.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.FromMinutes(10));
+                return Task.FromResult(response);
+            });
+            using var service = new OmsIrService(storage, http, credentials);
+            await service.LoginAsync("player_one", password);
+            OmsIrSubmissionTarget target = service.CaptureSubmissionTarget()!;
+            await service.LogoutAsync();
+            OmsIrSubmission[] plays = Enumerable.Range(0, 3).Select(_ => submission()).OrderBy(play => play.SubmissionId).ToArray();
+            foreach (OmsIrSubmission play in plays)
+                await service.QueueSubmissionAsync(target, play);
+            string blockedPath = Directory.EnumerateFiles(storage.GetFullPath("oms-ir/pending"), "*.json")
+                .Single(path => (string?)JObject.Parse(File.ReadAllText(path))["submission_id"] == plays[1].SubmissionId.ToString());
+            using var blocked = new FileStream(blockedPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            await service.LoginAsync("player_one", password);
+            await waitUntil(() => requests >= 1 && !service.State.Enabled && !service.State.Busy);
+            await Task.Delay(100);
+            Assert.That(requests, Is.EqualTo(1));
+            Assert.That(service.State.Message, Does.Contain("已暂停 IR"));
+            Assert.That(service.State.PendingCount, Is.EqualTo(3));
+            Assert.That(Directory.EnumerateFiles(storage.GetFullPath("oms-ir/pending"), "*.json").Select(path => (string?)JObject.Parse(File.ReadAllText(path))["body"]),
+                Is.EquivalentTo(plays.Select(play => play.Payload.ToString(Formatting.None))));
+        }
+
+        [Test]
+        public async Task DisposingDuringQueueBackoffCancelsTheWaitAndKeepsEverySavedPlay()
+        {
+            int requests = 0;
+            using var http = standardHttp((_, _) =>
+            {
+                Interlocked.Increment(ref requests);
+                HttpResponseMessage response = error(HttpStatusCode.TooManyRequests, "rate_limited");
+                response.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.FromMinutes(10));
+                return Task.FromResult(response);
+            });
+            using var service = new OmsIrService(storage, http, credentials);
+            await service.LoginAsync("player_one", password);
+            OmsIrSubmissionTarget target = service.CaptureSubmissionTarget()!;
+            await service.LogoutAsync();
+            foreach (OmsIrSubmission play in Enumerable.Range(0, 3).Select(_ => submission()))
+                await service.QueueSubmissionAsync(target, play);
+            await service.LoginAsync("player_one", password);
+            await waitUntil(() => requests >= 1 && !service.State.Busy);
+            service.Dispose();
+            await Task.Delay(200);
+            Assert.That(requests, Is.EqualTo(1));
+            Assert.That(service.State.PendingCount, Is.EqualTo(3));
+            Assert.That(Directory.EnumerateFiles(storage.GetFullPath("oms-ir/pending"), "*.json"), Has.Exactly(3).Items);
+        }
+
+        [Test]
+        public async Task RepeatedRateLimitingStillStopsAfterFiveAttemptsAndPreservesTheOriginalPlay()
+        {
+            var seen = new ConcurrentQueue<string>();
+            using var http = standardHttp(async (request, token) =>
+            {
+                seen.Enqueue(await request.Content!.ReadAsStringAsync(token));
+                HttpResponseMessage response = error(HttpStatusCode.TooManyRequests, "rate_limited");
+                response.Headers.RetryAfter = new RetryConditionHeaderValue(seen.Count == 5 ? TimeSpan.FromMinutes(10) : TimeSpan.Zero);
+                return response;
+            });
+            using var service = new OmsIrService(storage, http, credentials);
+            await service.LoginAsync("player_one", password);
+            OmsIrSubmission play = submission();
+            await service.QueueSubmissionAsync(service.CaptureSubmissionTarget()!, play);
+            await waitUntil(() => service.State.BlockedCount == 1 && !service.State.Busy);
+            await Task.Delay(100);
+            Assert.That(seen, Has.Count.EqualTo(5));
+            Assert.That(seen.Distinct(), Is.EqualTo(new[] { play.Payload.ToString(Formatting.None) }));
+            Assert.That(service.PendingSubmissions.Single().SubmissionId, Is.EqualTo(play.SubmissionId));
+            Assert.That(service.PendingSubmissions.Single().BlockedReason, Does.Contain("已暂停自动补交"));
+            service.Dispose();
+            using var restored = new OmsIrService(storage, http, credentials);
+            await restored.QueueSubmissionAsync(restored.CaptureSubmissionTarget()!, submission());
+            await restored.RetryPendingAsync();
+            await Task.Delay(200);
+            Assert.That(seen, Has.Count.EqualTo(5), "A fifth-attempt pause must still protect new plays after restart.");
+            Assert.That(restored.State.PendingCount, Is.EqualTo(2));
+            Assert.That(Directory.EnumerateFiles(storage.GetFullPath("oms-ir/pending"), "*.json")
+                .Select(path => DateTimeOffset.Parse((string)JObject.Parse(File.ReadAllText(path))["next_attempt"]!)),
+                Is.All.GreaterThan(DateTimeOffset.UtcNow.AddMinutes(9)));
         }
 
         [Test]
@@ -708,12 +1112,12 @@ namespace osu.Game.Tests.Online.IR
             return new OmsIrSubmission(id, new JObject { ["submission_id"] = id.ToString(), ["marker"] = "synthetic saved play" });
         }
 
-        private static async Task waitUntil(Func<bool> predicate)
+        private static async Task waitUntil(Func<bool> predicate, TimeSpan? timeout = null)
         {
             var watch = Stopwatch.StartNew();
             while (!predicate())
             {
-                if (watch.Elapsed > TimeSpan.FromSeconds(5))
+                if (watch.Elapsed > (timeout ?? TimeSpan.FromSeconds(5)))
                     Assert.Fail("The expected IR state did not arrive within the test budget.");
                 await Task.Delay(10);
             }

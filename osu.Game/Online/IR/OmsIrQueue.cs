@@ -56,7 +56,7 @@ namespace osu.Game.Online.IR
             }
         }
 
-        public void Enqueue(OmsIrSubmissionTarget target, OmsIrSubmission submission)
+        public void Enqueue(OmsIrSubmissionTarget target, OmsIrSubmission submission, DateTimeOffset nextAttempt)
         {
             string body = submission.Payload.ToString(Formatting.None);
             if (submission.SubmissionId == Guid.Empty || Encoding.UTF8.GetByteCount(body) > MaximumPayloadBytes
@@ -71,7 +71,7 @@ namespace osu.Game.Online.IR
                 return;
             }
 
-            var entry = new OmsIrQueueEntry(submission.SubmissionId, target, body, 0, DateTimeOffset.UtcNow, null);
+            var entry = new OmsIrQueueEntry(submission.SubmissionId, target, body, 0, nextAttempt, null);
             persist(entry);
             entries.Add(key, entry);
         }

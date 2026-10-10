@@ -45,6 +45,7 @@ namespace osu.Game.Online.IR
         private string? storageFailure;
         private Task? worker;
         private CancellationTokenSource? retryDelay;
+        private (OmsIrSubmissionTarget Target, DateTimeOffset Until, bool PreserveDeadline)? uploadBackoff;
         private volatile bool disposed;
         private OmsIrState state = new OmsIrState(ServiceOrigin.AbsoluteUri, false, null, 0, 0, 0, false, false, "登录 OMS 账号后上传新成绩，离线游玩无需账号。");
 
@@ -68,7 +69,12 @@ namespace osu.Game.Online.IR
             credentialScope = hash(storage.GetFullPath(string.Empty).ToUpperInvariant());
             credentials = credentialStore ?? new OmsIrCredentialStore();
             ownsHttp = httpClient == null;
-            http = httpClient ?? new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false })
+            http = httpClient ?? new HttpClient(new HttpClientHandler
+            {
+                AllowAutoRedirect = false,
+                UseCookies = false,
+                AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
+            })
             {
                 Timeout = TimeSpan.FromSeconds(20),
             };
@@ -136,13 +142,15 @@ namespace osu.Game.Online.IR
             // A response can finish after the account panel closed, even when HTTP observes the cancellation late.
             token.ThrowIfCancellationRequested();
             writeCredential(origin, loggedIn);
+            bool changedAccount;
             lock (stateLock)
             {
+                changedAccount = session?.UserId != loggedIn.UserId;
                 session = loggedIn;
                 requiresLogin = false;
                 message = "已登录；本局选定账号的成绩会在本地保存后补交。";
             }
-            wakeWorker();
+            wakeWorker(resetUploadBackoff: changedAccount);
             return true;
         }, cancellationToken);
 
@@ -171,7 +179,7 @@ namespace osu.Game.Online.IR
                 requiresLogin = false;
                 message = resultMessage;
             }
-            wakeWorker();
+            wakeWorker(resetUploadBackoff: true);
             return true;
         }, cancellationToken);
 
@@ -183,17 +191,23 @@ namespace osu.Game.Online.IR
             await Task.Run(() =>
             {
                 linked.Token.ThrowIfCancellationRequested();
-                lock (queueLock)
+                lock (workerLock)
                 {
-                    if (queue == null || storageFailure != null)
-                        throw new OmsIrException("storage_error", storageFailure ?? "IR 待交存储不可用；本地成绩已保存。");
-                    try
+                    lock (queueLock)
                     {
-                        queue.Enqueue(target, submission);
-                    }
-                    catch (InvalidDataException exception)
-                    {
-                        throw new OmsIrException("invalid_submission", "本局待交字段或大小不符合要求；本地成绩与原待交已保留。", innerException: exception);
+                        if (queue == null || storageFailure != null)
+                            throw new OmsIrException("storage_error", storageFailure ?? "IR 待交存储不可用；本地成绩已保存。");
+                        try
+                        {
+                            DateTimeOffset nextAttempt = DateTimeOffset.UtcNow;
+                            if (uploadBackoff is { } backoff && backoff.Target == target && backoff.Until > nextAttempt)
+                                nextAttempt = backoff.Until;
+                            queue.Enqueue(target, submission, nextAttempt);
+                        }
+                        catch (InvalidDataException exception)
+                        {
+                            throw new OmsIrException("invalid_submission", "本局待交字段或大小不符合要求；本地成绩与原待交已保留。", innerException: exception);
+                        }
                     }
                 }
             }, linked.Token).ConfigureAwait(false);
@@ -210,12 +224,48 @@ namespace osu.Game.Online.IR
             if (!snapshot.Enabled || snapshot.Account == null || snapshot.RequiresLogin)
                 throw new OmsIrException("login_required", "请登录原账号后重试。待上传成绩仍已保留。");
 
-            lock (queueLock)
+            try
             {
-                if (queue == null || storageFailure != null)
-                    throw new OmsIrException("storage_error", storageFailure ?? "IR 待交存储不可用。");
-                foreach (OmsIrQueueEntry entry in queue.Entries.Where(entry => matches(entry, new Uri(snapshot.ServiceAddress), snapshot.Account.Id)).ToArray())
-                    queue.Replace(entry with { Attempts = 0, NextAttempt = DateTimeOffset.UtcNow, BlockedReason = null });
+                lock (workerLock)
+                {
+                    lock (stateLock)
+                    {
+                        // A completed login can own the session before its updated UI snapshot is published.
+                        if (session == null || requiresLogin || session.UserId != snapshot.Account.Id)
+                            throw new OmsIrException("login_required", "账号已变化，请登录原账号后重试。待上传成绩仍已保留。");
+                        var target = new OmsIrSubmissionTarget(ServiceOrigin, session.UserId);
+                        DateTimeOffset nextAttempt = DateTimeOffset.UtcNow;
+                        if (uploadBackoff is { } backoff && backoff.Target == target)
+                        {
+                            // A player can retry a recovered connection, but cannot shorten a server's Retry-After.
+                            if (backoff.PreserveDeadline && backoff.Until > nextAttempt)
+                                nextAttempt = backoff.Until;
+                            else
+                                uploadBackoff = null;
+                        }
+                        lock (queueLock)
+                        {
+                            if (queue == null || storageFailure != null)
+                                throw new OmsIrException("storage_error", storageFailure ?? "IR 待交存储不可用。");
+                            foreach (OmsIrQueueEntry entry in queue.Entries.Where(entry => matches(entry, target.ServiceUri, target.UserId)).ToArray())
+                                queue.Replace(entry with { Attempts = 0, NextAttempt = nextAttempt, BlockedReason = null });
+                        }
+                    }
+                }
+            }
+            // Keep typed catches here. The filtered storage catch reused workerLock's lockTaken
+            // slot in Release IL, preventing Monitor.Exit when the ownership guard threw.
+            catch (IOException exception)
+            {
+                stopForStorageFailure();
+                publish();
+                throw new OmsIrException("storage_error", State.Message, innerException: exception);
+            }
+            catch (UnauthorizedAccessException exception)
+            {
+                stopForStorageFailure();
+                publish();
+                throw new OmsIrException("storage_error", State.Message, innerException: exception);
             }
             setMessage("已安排原账号待交重试；其他账号的待交不会改归属。");
             publish();
@@ -577,10 +627,38 @@ namespace osu.Game.Online.IR
             }
         }
 
-        private void wakeWorker()
+        // Called under workerLock; a service failure pauses this owner's whole queue, including new plays.
+        private DateTimeOffset uploadReadyAt(OmsIrQueueEntry entry) =>
+            uploadBackoff is { } backoff && backoff.Target == entry.Target && backoff.Until > entry.NextAttempt
+                ? backoff.Until : entry.NextAttempt;
+
+        // The v1 queue stores deadlines, not their cause. Preserve recovered future deadlines rather than
+        // guessing that a manual retry or new play may bypass Retry-After. A fifth-attempt pause also owns a deadline.
+        private void restoreUploadBackoff()
+        {
+            lock (stateLock)
+            {
+                if (session == null || requiresLogin || storageFailure != null)
+                    return;
+                lock (queueLock)
+                {
+                    DateTimeOffset now = DateTimeOffset.UtcNow;
+                    DateTimeOffset until = queue?.Entries.Where(entry => matches(entry, ServiceOrigin, session.UserId)
+                        && (entry.BlockedReason == null || entry.Attempts == 5)).Select(entry => entry.NextAttempt).DefaultIfEmpty(now).Max() ?? now;
+                    if (until > now)
+                        uploadBackoff = (new OmsIrSubmissionTarget(ServiceOrigin, session.UserId), until, true);
+                }
+            }
+        }
+
+        private void wakeWorker(bool resetUploadBackoff = false)
         {
             lock (workerLock)
             {
+                if (resetUploadBackoff)
+                    uploadBackoff = null;
+                if (uploadBackoff == null)
+                    restoreUploadBackoff();
                 retryDelay?.Cancel();
                 if (!disposed && (worker == null || worker.IsCompleted) && nextEntry() != null)
                     worker = Task.Run(processPendingAsync);
@@ -595,6 +673,7 @@ namespace osu.Game.Online.IR
                 {
                     OmsIrQueueEntry? entry;
                     CancellationTokenSource? delay = null;
+                    DateTimeOffset readyAt;
                     lock (workerLock)
                     {
                         entry = nextEntry();
@@ -603,7 +682,8 @@ namespace osu.Game.Online.IR
                             worker = null;
                             return;
                         }
-                        if (entry.NextAttempt > DateTimeOffset.UtcNow)
+                        readyAt = uploadReadyAt(entry);
+                        if (readyAt > DateTimeOffset.UtcNow)
                             retryDelay = delay = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
                     }
 
@@ -611,7 +691,7 @@ namespace osu.Game.Online.IR
                     {
                         try
                         {
-                            TimeSpan remaining = entry.NextAttempt - DateTimeOffset.UtcNow;
+                            TimeSpan remaining = readyAt - DateTimeOffset.UtcNow;
                             if (remaining > TimeSpan.Zero)
                                 await Task.Delay(TimeSpan.FromSeconds(Math.Min(remaining.TotalSeconds, 300)), delay.Token).ConfigureAwait(false);
                         }
@@ -635,9 +715,11 @@ namespace osu.Game.Online.IR
                     {
                         // The account may have changed while this request waited behind a login or query.
                         lock (workerLock)
+                        {
                             entry = nextEntry();
-                        if (entry == null || entry.NextAttempt > DateTimeOffset.UtcNow)
-                            continue;
+                            if (entry == null || uploadReadyAt(entry) > DateTimeOffset.UtcNow)
+                                continue;
+                        }
                         setMessage("正在补交已保存的成绩……");
                         setBusy(true);
                         try
@@ -654,28 +736,55 @@ namespace osu.Game.Online.IR
                             if (exception.StatusCode != HttpStatusCode.Unauthorized)
                             {
                                 bool permanent = (int?)exception.StatusCode is >= 400 and < 500
-                                    && exception.StatusCode != HttpStatusCode.TooManyRequests;
+                                    && exception.StatusCode is not (HttpStatusCode.TooManyRequests or HttpStatusCode.RequestTimeout);
+                                bool temporaryServiceFailure = exception.Code is "connection_failed" or "request_timeout"
+                                    || exception.StatusCode is HttpStatusCode.TooManyRequests or HttpStatusCode.RequestTimeout
+                                    || (int?)exception.StatusCode >= 500;
                                 try
                                 {
-                                    lock (queueLock)
+                                    lock (workerLock)
                                     {
-                                        // Manual retry may have reset attempts while this HTTP request was in flight.
-                                        OmsIrQueueEntry current = queue!.Get(entry);
-                                        int attempts = current.Attempts + 1;
-                                        TimeSpan wait = exception.RetryAfter ?? (attempts <= retry_delays.Length ? retry_delays[attempts - 1] : TimeSpan.Zero);
-                                        wait = TimeSpan.FromSeconds(Math.Clamp(wait.TotalSeconds, 1, 300));
-                                        string? reason = permanent ? exception.Code + "：" + exception.Message
-                                            : attempts >= 5 ? "已暂停自动补交：" + exception.Message + " 请手动重试。" : null;
-                                        queue.Replace(current with { Attempts = attempts, NextAttempt = DateTimeOffset.UtcNow + wait, BlockedReason = reason });
+                                        lock (queueLock)
+                                        {
+                                            // Manual retry may have reset attempts while this HTTP request was in flight.
+                                            OmsIrQueueEntry current = queue!.Get(entry);
+                                            int attempts = current.Attempts + 1;
+                                            TimeSpan wait = exception.RetryAfter ?? (attempts <= retry_delays.Length ? retry_delays[attempts - 1] : TimeSpan.Zero);
+                                            if (wait < TimeSpan.FromSeconds(1))
+                                                wait = TimeSpan.FromSeconds(1);
+                                            DateTimeOffset now = DateTimeOffset.UtcNow;
+                                            DateTimeOffset nextAttempt = wait >= DateTimeOffset.MaxValue - now ? DateTimeOffset.MaxValue : now + wait;
+                                            string? reason = permanent ? exception.Code + "：" + exception.Message
+                                                : attempts >= 5 ? "已暂停自动补交：" + exception.Message + " 请手动重试。" : null;
+                                            queue.Replace(current with { Attempts = attempts, NextAttempt = nextAttempt, BlockedReason = reason });
+                                            if (temporaryServiceFailure)
+                                            {
+                                                uploadBackoff = (entry.Target, nextAttempt, exception.RetryAfter.HasValue);
+                                                if (exception.RetryAfter.HasValue)
+                                                {
+                                                    foreach (OmsIrQueueEntry pending in queue.Entries.Where(pending => pending.BlockedReason == null
+                                                        && pending.Target == entry.Target && pending.NextAttempt < nextAttempt).ToArray())
+                                                        queue.Replace(pending with { NextAttempt = nextAttempt });
+                                                }
+                                            }
+                                        }
                                     }
                                 }
-                                catch (Exception storageException) when (storageException is IOException or UnauthorizedAccessException)
+                                catch (IOException)
+                                {
+                                    stopForStorageFailure();
+                                }
+                                catch (UnauthorizedAccessException)
                                 {
                                     stopForStorageFailure();
                                 }
                             }
                         }
-                        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                        catch (IOException)
+                        {
+                            stopForStorageFailure();
+                        }
+                        catch (UnauthorizedAccessException)
                         {
                             stopForStorageFailure();
                         }
