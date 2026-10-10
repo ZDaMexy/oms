@@ -19,6 +19,8 @@
 
 ## 凭据、界面与持久待交
 
+- 队列只给失败条写Retry-After，会由其他待交 / 新局立即再撞服务，退出重登或重启也能绕过仅内存冷却。截止须由原owner记录恢复，含第五次暂停项，新局一次原子落盘继承；文件没有原因时保守保留未来截止。手动重试不能只读已发布State：登录可先改变真实session / 冷却而尚未publish，旧快照会覆写原owner期限；worker→state→queue持锁复核并写入，实际并发与文件锁失败证据回链[网络日志](../../doc_md/subline/P3-IR/CHANGELOG.md#2026-10-11网络服务审查与负载优化)。
+- 真实线程已退出而登录 / Dispose仍等workerLock时，不能直接归因NUnit或持锁await。先核产物与实际全线程栈，再看Release IL / EH：本轮SDK的异常filter复用lockTaken，false筛选先改false，finally跳过Exit；持锁区域外只捕明确存储类型，避免filter影响锁展开。工具链、实际IL与保持原并发fixture后的修复证据仅取上方网络日志，不外推所有编译器。
 - 原可切换服务版本中只清榜单行而保留MD5 / condition / group，会由新origin构造旧服务范围的有效网页链接。诊断须同时检查当前视图 / 范围和网页按钮；地址变化清完整范围并回目录，异步状态处理前再核origin。实际故障与两玩法行为证据见[2026-10-10接线日志](../../doc_md/subline/P3-IR/CHANGELOG.md#2026-10-10客户端与网站入口恢复)。
 - 原账号 UI 消费独立 OmsIrService，不把服务身份塞入旧 APIUser / IAPIProvider。await 登录后、写凭据 / State 前复核当前操作取消；窗口关闭与 revision / Owner 变化是真实边界，迟到响应不能恢复账号或本人记录。
 - 旧保存连接谓词只适用于原地址输入界面；固定 OMSIR 后直接登录 / 注册 / 密码 OnCommit 走同一账号请求，开窗无凭据请求。旧 settings 文件保留但不消费，官方 origin 凭据目标的保存根 / hash 格式保持；外站凭据和待交不得重新归属。CancelAccountOperation 可从 AsyncDisposalQueue 调用；TextFlow 刷新须 Schedule 并跳过已 Dispose，释放线程直接 Clear 曾导致真实失败。

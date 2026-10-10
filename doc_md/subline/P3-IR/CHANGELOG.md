@@ -1,5 +1,28 @@
 # OMS IR 历史
 
+## 2026-10-11网络服务审查与负载优化
+
+从干净 `master@7d4d8fa9d7d123aa1962a4e4e3583da7137f3afd` 接续，已在线fetch。客户端改动限定 `OmsIrService.cs`、`OmsIrQueue.cs` 和 `OmsIrServiceTests.cs`，实现提交 `f3b8a439f0354c2f9b20e8fc2a0ccd467db3dea0` 的截止、归属与压缩行为取[本线约束](TECHNICAL_CONSTRAINTS.md#凭据与离线)。网站 / Backend独立改动、生产gzip与发布门只在[跨端审查](../../../../websites/oms-web/doc_md/network-service-review-20261011.md)登记，不能由本地客户端结果代签。
+
+临时服务故障使当前原账号队列统一等待，服务器Retry-After写入原v1 NextAttempt，新局、同账号重登、重启和第五次暂停后的新局遵守截止，未发送条不增加Attempts。恢复文件不含原因，未来截止保守保留；运行中的普通连接恢复可手动重试。409 / 422只暂停本条，原body / UUID / owner和5 / 15 / 45 / 120秒 / 五次预算保持。手动补交在worker→state→queue锁内复核真实session与已发布账号一致，落盘IO / 权限失败明确停上传，本地保存仍先于网络。
+
+每个新shell加载 `UseDevelopmentStorage.ps1`，根执行者冻结源码后串行验证：
+
+- 初次Service Release **48/48**，两条新增ConcurrentQueue.Count的CA1836警告随后改IsEmpty；新增2个账号切换竞态后完整r2仅35项完成即阻塞，由核对精确testhost / 父PID后定点停止，不能算软件通过。r3的60秒、r4的100秒有界Blame也中止，原TRX / Sequence保留。
+- r2 / r4真实全线程栈显示登录与Dispose等workerLock，但持锁测试线程已结束。实际Game / Tests IL排除旧产物和“持锁await”猜测：SDK10.0.400 / csc5.9.0的Release结果将外层存储异常筛选器与lockTaken复用同一局部槽；login_required的false筛选先改false，随后finally跳过Monitor.Exit。完整IL / 异常表、工具链、DLL指纹与时间在 `client-retry-filter-il-before.txt`，同型处理器证据在 `client-process-filter-il-before.txt`；不外推所有SDK或把早期猜测当根因。
+- 手动补交改为两个明确类型的存储catch，保留失败行为；处理器持锁区域同型存储catch也作同样最小修正，不吞其他异常。专用同步线程的真实登录竞态2例保持，r5 Release **2/2**（382ms），最终r6重新编译的七fixture **89/89**（24秒）且无构建警告。命令：`dotnet test osu.Game.Tests/osu.Game.Tests.csproj -c Release --no-restore --filter 'FullyQualifiedName~OmsIrServiceTests|FullyQualifiedName~TestSceneOmsAccount|FullyQualifiedName~TestSceneOmsIrOverlay|FullyQualifiedName~TestSceneOmsWebsiteWiring|FullyQualifiedName~OmsWebsiteTests|FullyQualifiedName~TestSceneOmsIrPlayerSave|FullyQualifiedName~OmsIrSubmissionTests' --blame-hang --blame-hang-timeout 60s --blame-hang-dump-type none`，日志 / TRX为 `client-final-r6.log`、`results/oms-network-final-r6.trx`。
+- 默认owned HttpClient及实际有界JSON reader的loopback传输探针5例通过：gzip / deflate / identity解码相等，gzip解压后4MiB+11字节明确invalid_response，307明确redirect_rejected；实际请求协商两种压缩且匿名不带cookie / bearer。证据 `client-owned-transport.json` / `.log`，独立探针有6条CA2007，不冒称产品编译警告；未改固定生产origin或启动用户数据客户端。
+
+本轮证据根 `artifacts/network-review-20261011/`，旧73/73仍取下方2026-10-10记录。传输探针两源文件已完整复制并核SHA至 `transport-probe-source/`；自动审批拒绝临时目录递归清理，`.dev-cache/temp/network-transport-probe/`保持，拒绝及保全见 `transport-probe-cleanup.json`，未绕过策略删除。依赖缓存、用户数据和其他历史探针不清理。
+
+格式初次包含Queue整文件时因基线已有internal常量MaximumPayloadBytes的IDE1006返回2；已核它在开工HEAD原样存在，不将旧命名问题归成本轮。Tests首次格式复查发现新增线程initializer的换行及模式匹配，修复后 `client-format-tests-r7.log` 通过；Service完整格式和Queue空白格式分别在 `client-format-service-final.log`、`client-format-queue-whitespace-final.log` 通过，旧常量命名保持。随后重新编译的最终r7 **89/89**（24秒），证据 `client-final-r7.log` / `results/oms-network-final-r7.trx`，不用旧产物配合no-build签收格式变动。
+
+最终普通Desktop Release / Debug均0警告0错误，命令 `dotnet build osu.Desktop/osu.Desktop.csproj -c Release --no-restore` / `-c Debug --no-restore`，原件 `desktop-release-final.log` / `desktop-debug-final.log`。文档初查拒绝PLAN中的会话级“本轮”措辞、主线STATUS超过建议预算，已改为未来动作并精简当前摘要；`client-docs-pre-source-commit-r2.log`通过201 Markdown / 2143相对链接 / 390锚点 / 123 memory链，既有公开指纹和通用路径提示保持，跨仓登记后还须检查最终导航。
+
+跨仓登记后 `client-docs-final-r1.log` 通过201 Markdown / 2144相对链接 / 390锚点 / 123 memory链，`workspace-final-r1.log` 通过164件协作文档 / 1611链接；新来源先快照、再Client Bridge、再Dev Bridge与Web / Backend消费。原14来源 / 28事实对象逐项保全，现15来源 / 30事实 / 79消费者 / 11待复核；上述检查针对保留开工已有改动的工作区。
+
+客户端没有Windows发行物、publish、安装副本或真实完整游玩；原账号 / 旧待交 / 断网重启、DPI、两端同范围及P/C由用户VS Code非调试验收。
+
 ## 2026-10-11：专项文档与记忆同步
 
 固定 OMSIR 的现行入口与旧 API 的空 EndpointConfiguration 分开，主约束、发行说明和诊断召回退出旧保存连接步骤；账号 / 谱面榜源码及软件仍取 `21daf78`，来源登记和生产版本未更新。当前状态收简旧账号复查、运行指标和治理轮次，原结果继续按日期进入本线历史 / 外部报告，不代签窗口、原账号 / 待交、P/C 或发行。统一检查见 [主线日志](../../mainline/CHANGELOG.md#专项进度与文档记忆健康同步)。

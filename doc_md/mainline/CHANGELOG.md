@@ -7,6 +7,10 @@
 
 ## 2026-10-11
 
+### OMS网络服务审查与负载优化
+
+客户端服务故障下由原账号整队列等待，Retry-After持久保存，重启 / 重登 / 新局不提前；JSON协商压缩后仍受解压预算保护。真实账号切换竞态暴露Release异常筛选器留下worker锁的问题，修复后的完整相关回归89/89；Desktop / 格式、原阻塞与准确验证只取[P3本轮日志](../subline/P3-IR/CHANGELOG.md#2026-10-11网络服务审查与负载优化)。Web / Backend独立优化、共享图片gzip和生产空间门取[跨端审查](../../../websites/oms-web/doc_md/network-service-review-20261011.md)，源码事实沿两桥采用；真人 / P/C与发行门未提升，无Windows发行物。临时探针清理被自动审批阻止，原件和可复跑源码留F。
+
 ### 专项复核：旧 API endpoint 指代补齐
 
 从干净 `master@2b474b6` 只读复核，在线 fetch 后仍 ahead 2 / behind 0；主合同 Phase 3 引言将泛称的默认 endpoint 限定为旧 osu! API，与现行固定 `OmsIrService.ServiceOrigin` 及 `OnlineFeaturesEnabled=false` 的 `CreateEndpoints()` 一致。本轮只补齐文档指代，客户端来源、软件证据与真人 / 发行门不变；开发存储入口后的文档及差异检查结果见 `artifacts/workspace-doc-health-20261011/client-final.log`，不将前次治理日志记作本轮执行。
