@@ -2,12 +2,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using osu.Game.Beatmaps.Formats;
 using osu.Framework.Logging;
+using osu.Game.Beatmaps.Formats;
 using osu.Game.Database;
 
 namespace osu.Game.Beatmaps
@@ -323,10 +324,17 @@ namespace osu.Game.Beatmaps
             int skipped = 0;
             int errors = 0;
             string[] directories;
+            var timer = Stopwatch.StartNew();
+
+            Logger.Log($"Starting {rulesetName} library {mode} scan: {rootPath}", LoggingTarget.Database);
 
             try
             {
-                (directories, errors) = enumerateDirectories(rootPath, rulesetName);
+                (directories, errors) = enumerateDirectories(rootPath, rulesetName, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -334,6 +342,8 @@ namespace osu.Game.Beatmaps
                 progress?.Report(new ScanProgress(rootPath, rootIndex, totalRoots, null, 0, 0, importedSoFar, skippedSoFar, errorsSoFar + 1));
                 return new ScanResult(0, 0, 1);
             }
+
+            long discoveryMilliseconds = timer.ElapsedMilliseconds;
 
             progress?.Report(new ScanProgress(rootPath, rootIndex, totalRoots, null, 0, directories.Length,
                 importedSoFar, skippedSoFar, errorsSoFar + errors));
@@ -395,6 +405,8 @@ namespace osu.Game.Beatmaps
                 }
             }
 
+            Logger.Log($"Finished {rulesetName} library {mode} scan: {directories.Length} directories, {imported} imported, {skipped} skipped, {errors} errors; "
+                       + $"discovery {discoveryMilliseconds} ms, processing {timer.ElapsedMilliseconds - discoveryMilliseconds} ms. Root: {rootPath}", LoggingTarget.Database);
             return new ScanResult(imported, skipped, errors);
         }
 
@@ -427,7 +439,7 @@ namespace osu.Game.Beatmaps
             return sawOsuFile ? DirectoryScanClassification.Rejected : DirectoryScanClassification.NotRelevant;
         }
 
-        private static (string[] Directories, int Errors) enumerateDirectories(string rootPath, string rulesetName)
+        private static (string[] Directories, int Errors) enumerateDirectories(string rootPath, string rulesetName, CancellationToken cancellationToken)
         {
             var directories = new List<string> { rootPath };
             var queue = new Queue<string>();
@@ -437,6 +449,7 @@ namespace osu.Game.Beatmaps
 
             while (queue.Count > 0)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 string current = queue.Dequeue();
                 string[] children;
 

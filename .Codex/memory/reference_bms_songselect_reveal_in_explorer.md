@@ -18,3 +18,7 @@ metadata:
 - 新增Resolved GameHost/Storage要由真实panel scope提供；helper纯单测不能证明scene依赖注入。回归定位FilesystemBeatmapLocationTest、TestScenePanelSet、TestScenePanelBeatmapStandalone，不在此复制旧通过数字。
 
 当前人工定位签收读P1-I STATUS/CHANGELOG；历史“panel加载通过”不等于Explorer真机已确认。相关 [[project_oms_songselect_display_nav]]。
+
+## 便携日志导出定位
+
+`NativeStorage(path)` 的默认 host 可以为空；读写文件仍正常，但外部打开直接返回 false，子 storage 也继承空宿主。完成通知收到点击、压缩包确实存在却反复无响应时，检查数据根创建处是否传入 GameHost，不优先改通知或放宽路径检查。便携入口已在创建处绑定宿主，当前验证和 Explorer 人工门取 [P1-H STATUS](../../doc_md/subline/P1-H/DEVELOPMENT_STATUS.md)，前后真实 Desktop 调用链探针见 [扫描审查](../../doc_md/other/LIBRARY_SCAN_REVIEW_20261010.md)。

@@ -37,11 +37,11 @@
 
 - [构建与测试](reference_build_and_test.md) — 开发磁盘与进程环境、Pylance缓存扫描、构建目录内真实数据 / 旧作者包与容量误判、测试宿主、formatter owning 路径、输出锁、未编译 fixture/空跑、完整基线归因与依赖审计误判。
 - [大曲库选歌性能](reference_song_select_perf.md)
-- [谱库路径身份与历史保全](reference_filesystem_library_identity.md) — 同内容不同目录、失效与物删分离、多文件改名及扫描错误边界。
+- [谱库路径身份与历史保全](reference_filesystem_library_identity.md) — 同内容不同目录、失效与物删分离、多文件改名、重复素材枚举与增量查询放大器。
 - [谱面构成过滤](reference_bms_composition_filter.md) — 单轨上限、共享额度、零宽入口及无解条件。
 - [难度表](reference_bms_difficulty_table.md)
 - [选歌元数据显示](reference_bms_songselect_metadata_display.md) — 署名共用 resolver 与标题/难度名局部清理的边界。
-- [在资源管理器中显示](reference_bms_songselect_reveal_in_explorer.md)
+- [在资源管理器中显示](reference_bms_songselect_reveal_in_explorer.md) — 外部路径 containment 与便携 NativeStorage 宿主绑定。
 - [转谱星数持久化](reference_converted_star_persistence.md) — 转谱星、原生作者等级与密度预览。
 - [转谱键数显示](reference_converted_mania_keycount_display.md) — BMS 键数误入 osu 启发式、转换与展示统一 CircleSize。
 

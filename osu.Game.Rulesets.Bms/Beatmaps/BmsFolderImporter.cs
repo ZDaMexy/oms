@@ -165,18 +165,16 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         private bool hasActiveExternalDirectory(string externalPath, string externalRootPath)
             => realmAccess.Run(realm => realm.All<BeatmapSetInfo>()
-                                          .Where(set => !set.DeletePending && !set.FilesystemUnavailable && set.IsExternalFilesystemStorage)
+                                          .Filter("FilesystemStoragePath ==[c] $0 AND IsExternalFilesystemStorage == true AND DeletePending == false AND FilesystemUnavailable == false", externalPath)
                                           .ToList()
-                                          .Any(set => set.FilesystemStoragePath is string storagePath
-                                                   && string.Equals(normaliseExternalPath(storagePath), externalPath, StringComparison.OrdinalIgnoreCase)
-                                                   && string.Equals(getEffectiveExternalLibraryRootPath(set), externalRootPath, StringComparison.OrdinalIgnoreCase)));
+                                          .Any(set => string.Equals(getEffectiveExternalLibraryRootPath(set), externalRootPath, StringComparison.OrdinalIgnoreCase)
+                                                   && set.Beatmaps.Any(beatmap => beatmap.Ruleset.ShortName == BmsRuleset.SHORT_NAME)));
 
         private bool hasActiveManagedDirectory(string managedPath)
             => realmAccess.Run(realm => realm.All<BeatmapSetInfo>()
-                                          .Where(set => !set.DeletePending && !set.FilesystemUnavailable && !set.IsExternalFilesystemStorage)
+                                          .Filter("FilesystemStoragePath ==[c] $0 AND IsExternalFilesystemStorage == false AND DeletePending == false AND FilesystemUnavailable == false", managedPath)
                                           .ToList()
-                                          .Any(set => !string.IsNullOrEmpty(set.FilesystemStoragePath)
-                                                   && string.Equals(set.FilesystemStoragePath?.ToStandardisedPath(), managedPath, StringComparison.OrdinalIgnoreCase)));
+                                          .Any(set => set.Beatmaps.Any(beatmap => beatmap.Ruleset.ShortName == BmsRuleset.SHORT_NAME)));
 
         private Live<BeatmapSetInfo>? tryReuseExternal(BeatmapSetInfo preparedBeatmapSet, string externalPath)
             => tryReuseExisting(preparedBeatmapSet, existing => existing.IsExternalFilesystemStorage
@@ -295,9 +293,13 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             var skippedBeatmapFiles = new List<string>();
             var importWarnings = new List<ImportWarningSummary>();
             string? firstPreviewFile = null;
-            var beatmapFiles = reader.Filenames.Where(isTopLevelBeatmapFile)
-                                      .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
-                                      .ToArray();
+            // DirectoryArchiveReader enumerates the filesystem on every Filenames access.
+            // Keep one import-local snapshot for charts and all referenced assets.
+            string[] filenames = reader.Filenames.ToArray();
+            ImportFileLookup fileLookup = new ImportFileLookup(filenames);
+            string[] beatmapFiles = filenames.Where(isTopLevelBeatmapFile)
+                                            .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
+                                            .ToArray();
 
             if (beatmapFiles.Length == 0)
             {
@@ -325,7 +327,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 {
                     memoryStream.Position = 0;
                     var loadedBeatmap = BmsImportedBeatmapFactory.Create(memoryStream, beatmapFile);
-                    normaliseBackgroundMetadata(reader, loadedBeatmap);
+                    normaliseBackgroundMetadata(fileLookup, loadedBeatmap);
                     var loadedInfo = loadedBeatmap.BeatmapInfo;
 
                     if (loadedBeatmap.DecodedChart.Warnings.Count > 0)
@@ -390,7 +392,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             // (PreviewTime = 0). Charts without a #PREVIEW get no preview audio at all: BMS gameplay audio is entirely
             // keysound-driven (the converter never uses Metadata.AudioFile), so no other audio file in the folder is
             // treated as a playable track.
-            string? previewFile = resolvePreviewFile(reader, firstPreviewFile);
+            string? previewFile = resolvePreviewFile(fileLookup, firstPreviewFile);
 
             if (previewFile != null)
             {
@@ -473,50 +475,56 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         /// Returns the standardised path if an audio file matching the preview filename (with or without extension
         /// substitution) exists in the archive, or null otherwise.
         /// </summary>
-        private static string? resolvePreviewFile(DirectoryArchiveReader reader, string? previewFilename)
+        private static string? resolvePreviewFile(ImportFileLookup fileLookup, string? previewFilename)
         {
             string[] audioExtensions = { ".mp3", ".ogg", ".flac", ".wav" };
-            return resolveReferencedFile(reader, previewFilename, audioExtensions);
+            return fileLookup.Resolve(previewFilename, audioExtensions);
         }
 
-        private static void normaliseBackgroundMetadata(DirectoryArchiveReader reader, BmsDecodedBeatmap loadedBeatmap)
+        private static void normaliseBackgroundMetadata(ImportFileLookup fileLookup, BmsDecodedBeatmap loadedBeatmap)
         {
             var decodedInfo = loadedBeatmap.DecodedChart.BeatmapInfo;
 
-            decodedInfo.StageFile = resolveReferencedFile(reader, decodedInfo.StageFile, image_extensions);
-            decodedInfo.BackgroundFile = resolveReferencedFile(reader, decodedInfo.BackgroundFile, image_extensions);
-            decodedInfo.BannerFile = resolveReferencedFile(reader, decodedInfo.BannerFile, image_extensions);
+            decodedInfo.StageFile = fileLookup.Resolve(decodedInfo.StageFile, image_extensions);
+            decodedInfo.BackgroundFile = fileLookup.Resolve(decodedInfo.BackgroundFile, image_extensions);
+            decodedInfo.BannerFile = fileLookup.Resolve(decodedInfo.BannerFile, image_extensions);
 
             foreach (int bitmapIndex in decodedInfo.BitmapTable.Keys.ToArray())
-                decodedInfo.BitmapTable[bitmapIndex] = resolveReferencedFile(reader, decodedInfo.BitmapTable[bitmapIndex], image_extensions) ?? decodedInfo.BitmapTable[bitmapIndex];
+                decodedInfo.BitmapTable[bitmapIndex] = fileLookup.Resolve(decodedInfo.BitmapTable[bitmapIndex], image_extensions) ?? decodedInfo.BitmapTable[bitmapIndex];
 
-            loadedBeatmap.BeatmapInfo.Metadata.BackgroundFile = resolveReferencedFile(reader, decodedInfo.GetPreferredBackgroundAssetReference(), image_extensions) ?? string.Empty;
+            loadedBeatmap.BeatmapInfo.Metadata.BackgroundFile = fileLookup.Resolve(decodedInfo.GetPreferredBackgroundAssetReference(), image_extensions) ?? string.Empty;
         }
 
-        private static string? resolveReferencedFile(DirectoryArchiveReader reader, string? referencedFilename, IEnumerable<string> alternateExtensions)
+        private sealed class ImportFileLookup
         {
-            if (!Audio.BmsKeysoundSampleInfo.TryNormaliseFilename(referencedFilename, out string? normalisedFilename))
-                return null;
+            private readonly Dictionary<string, (string Filename, int Order)> files = new Dictionary<string, (string, int)>(StringComparer.OrdinalIgnoreCase);
 
-            var candidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            public ImportFileLookup(IReadOnlyList<string> filenames)
             {
-                normalisedFilename
-            };
-
-            string baseName = Path.ChangeExtension(normalisedFilename, null)?.ToStandardisedPath() ?? normalisedFilename;
-
-            foreach (string ext in alternateExtensions)
-                candidates.Add(baseName + ext);
-
-            foreach (string filename in reader.Filenames)
-            {
-                string standardised = filename.ToStandardisedPath();
-
-                if (candidates.Contains(standardised))
-                    return standardised;
+                for (int i = 0; i < filenames.Count; i++)
+                {
+                    string filename = filenames[i].ToStandardisedPath();
+                    files.TryAdd(filename, (filename, i));
+                }
             }
 
-            return null;
+            public string? Resolve(string? referencedFilename, IEnumerable<string> alternateExtensions)
+            {
+                if (!Audio.BmsKeysoundSampleInfo.TryNormaliseFilename(referencedFilename, out string? normalisedFilename))
+                    return null;
+
+                string baseName = Path.ChangeExtension(normalisedFilename, null)?.ToStandardisedPath() ?? normalisedFilename;
+                (string Filename, int Order)? match = null;
+
+                foreach (string candidate in alternateExtensions.Select(ext => baseName + ext).Prepend(normalisedFilename))
+                {
+                    if (files.TryGetValue(candidate, out var file) && (match == null || file.Order < match.Value.Order))
+                        match = file;
+                }
+
+                // Preserve the old first-file-in-directory preference when multiple extensions match.
+                return match?.Filename;
+            }
         }
 
         public sealed class FolderImportResult

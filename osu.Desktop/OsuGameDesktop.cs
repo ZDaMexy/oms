@@ -10,29 +10,29 @@ using Microsoft.Win32;
 using osu.Desktop.Performance;
 using osu.Desktop.Security;
 using osu.Desktop.Updater;
-using osu.Framework.Platform;
-using osu.Game;
-using osu.Framework;
-using osu.Framework.Logging;
-using osu.Game.Updater;
 using osu.Desktop.Windows;
+using osu.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Input.Handlers;
 using osu.Framework.Input.Handlers.Mouse;
 using osu.Framework.Input.Handlers.Tablet;
 using osu.Framework.Input.Handlers.Touch;
+using osu.Framework.Logging;
+using osu.Framework.Platform;
+using osu.Game;
+using osu.Game.Beatmaps;
 using osu.Game.Configuration;
+using osu.Game.Database;
 using osu.Game.IO;
 using osu.Game.IPC;
-using osu.Game.Online.Multiplayer;
 using osu.Game.Online.Bms;
+using osu.Game.Online.Multiplayer;
 using osu.Game.Online.Sayobot;
 using osu.Game.Overlays.Settings;
 using osu.Game.Performance;
-using osu.Game.Beatmaps;
-using osu.Game.Database;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Mania.Beatmaps;
+using osu.Game.Updater;
 using osu.Game.Utils;
 
 namespace osu.Desktop
@@ -268,7 +268,7 @@ namespace osu.Desktop
             {
                 Logger.Log($"Portable mode active. Data root: {portableDataPath}");
                 Directory.CreateDirectory(portableDataPath);
-                return new OsuStorage(host, new NativeStorage(portableDataPath));
+                return new OsuStorage(host, new NativeStorage(portableDataPath, host));
             }
 
             return base.CreateStorage(host, defaultStorage);

@@ -150,17 +150,15 @@ namespace osu.Game.Rulesets.Mania.Beatmaps
 
         private bool hasActiveExternalDirectory(string externalPath)
             => realmAccess.Run(realm => realm.All<BeatmapSetInfo>()
-                                          .Where(set => !set.DeletePending && !set.FilesystemUnavailable && set.IsExternalFilesystemStorage)
+                                          .Filter("FilesystemStoragePath ==[c] $0 AND IsExternalFilesystemStorage == true AND DeletePending == false AND FilesystemUnavailable == false", externalPath)
                                           .ToList()
-                                          .Any(set => set.FilesystemStoragePath is string storagePath
-                                                   && string.Equals(normaliseExternalPath(storagePath), externalPath, StringComparison.OrdinalIgnoreCase)));
+                                          .Any(set => set.Beatmaps.Any(beatmap => beatmap.Ruleset.ShortName == "mania")));
 
         private bool hasActiveManagedDirectory(string managedPath)
             => realmAccess.Run(realm => realm.All<BeatmapSetInfo>()
-                                          .Where(set => !set.DeletePending && !set.FilesystemUnavailable && !set.IsExternalFilesystemStorage)
+                                          .Filter("FilesystemStoragePath ==[c] $0 AND IsExternalFilesystemStorage == false AND DeletePending == false AND FilesystemUnavailable == false", managedPath)
                                           .ToList()
-                                          .Any(set => !string.IsNullOrEmpty(set.FilesystemStoragePath)
-                                                   && string.Equals(set.FilesystemStoragePath?.ToStandardisedPath(), managedPath, StringComparison.OrdinalIgnoreCase)));
+                                          .Any(set => set.Beatmaps.Any(beatmap => beatmap.Ruleset.ShortName == "mania")));
 
         private Live<BeatmapSetInfo>? tryReuseExternal(BeatmapSetInfo prepared, string externalPath)
             => tryReuseExisting(prepared, existing => existing.IsExternalFilesystemStorage

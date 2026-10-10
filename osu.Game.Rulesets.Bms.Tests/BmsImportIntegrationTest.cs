@@ -6,20 +6,22 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Extensions;
 using osu.Framework.Platform;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
-using osu.Game.Database;
 using osu.Game.Collections;
-using osu.Game.Scoring;
+using osu.Game.Database;
+using osu.Game.IO.Archives;
 using osu.Game.Overlays.Notifications;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Rulesets.Mania.Beatmaps;
+using osu.Game.Scoring;
 
 namespace osu.Game.Rulesets.Bms.Tests
 {
@@ -382,6 +384,102 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 Assert.That(set.Beatmaps.Single().Metadata.BackgroundFile, Is.EqualTo("stage.png"));
             });
+        }
+
+        [Test]
+        public async Task TestAssetLookupPreservesDirectoryPreferenceAndRefreshesForNextImport()
+        {
+            using var storage = new TemporaryNativeStorage($"bms-asset-lookup-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
+            using var rulesets = new RealmRulesetStore(realm, storage);
+            string directory = storage.GetFullPath("external/set");
+            Directory.CreateDirectory(Path.Combine(directory, "Images"));
+            Directory.CreateDirectory(Path.Combine(directory, "Audio"));
+            string chart = buildChartText().Replace("#STAGEFILE stage.png", "#STAGEFILE images/STAGE.bmp\n#PREVIEW audio/PREVIEW.mp3\n#BMP01 images/STAGE.bmp\n#00104:0100");
+            string chartPath = Path.Combine(directory, "chart.bms");
+            File.WriteAllText(chartPath, chart);
+            File.WriteAllText(Path.Combine(directory, "Images", "Stage.jpg"), "first image");
+            File.WriteAllText(Path.Combine(directory, "Images", "Stage.png"), "second image");
+            File.WriteAllText(Path.Combine(directory, "Audio", "Preview.ogg"), "preview");
+            using var reader = new DirectoryArchiveReader(directory);
+            string expectedBackground = reader.Filenames.First(file => Path.GetFileNameWithoutExtension(file).Equals("Stage", StringComparison.OrdinalIgnoreCase)).Replace('\\', '/');
+            var importer = new BmsFolderImporter(storage, realm);
+            var first = await importer.RegisterExternalDirectory(directory).ConfigureAwait(false);
+            first.ImportedBeatmapSet!.PerformRead(set =>
+            {
+                var beatmap = set.Beatmaps.Single();
+                Assert.Multiple(() =>
+                {
+                    Assert.That(beatmap.Metadata.BackgroundFile, Is.EqualTo(expectedBackground));
+                    Assert.That(beatmap.Metadata.AudioFile, Is.EqualTo("Audio/Preview.ogg"));
+                    Assert.That(beatmap.MD5Hash, Is.EqualTo(computeFileMd5(chartPath)));
+                    Assert.That(beatmap.LocalFilePath, Is.EqualTo("chart.bms"));
+                });
+            });
+
+            File.Delete(Path.Combine(directory, "Images", "Stage.jpg"));
+            File.Delete(Path.Combine(directory, "Images", "Stage.png"));
+            File.WriteAllText(Path.Combine(directory, "Images", "Stage.webp"), "replacement image");
+            File.WriteAllText(chartPath, chart.Replace("Filesystem Test", "Updated chart"));
+            var second = await importer.RegisterExternalDirectory(directory).ConfigureAwait(false);
+            second.ImportedBeatmapSet!.PerformRead(set => Assert.That(set.Beatmaps.Single().Metadata.BackgroundFile, Is.EqualTo("Images/Stage.webp")));
+        }
+
+        [Test]
+        public async Task TestIncrementalChecksRespectRulesetRootAndAvailability()
+        {
+            using var storage = new TemporaryNativeStorage($"bms-incremental-query-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
+            using var rulesets = new RealmRulesetStore(realm, storage);
+            string root = storage.GetFullPath("external");
+            string directory = Path.Combine(root, "set");
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(Path.Combine(directory, "chart.bms"), buildChartText());
+            File.WriteAllText(Path.Combine(directory, "chart.osu"), @"osu file format v14
+
+[General]
+Mode: 3
+
+[Metadata]
+Title: Incremental test
+Artist: OMS
+Creator: OMS
+Version: 4K
+
+[Difficulty]
+CircleSize: 4
+OverallDifficulty: 5
+HPDrainRate: 5
+SliderMultiplier: 1.4
+SliderTickRate: 1
+
+[TimingPoints]
+0,500,4,2,1,100,1,0
+
+[HitObjects]
+64,192,1000,1,0,0:0:0:0:
+");
+            var bms = new BmsFolderImporter(storage, realm);
+            var mania = new ManiaFolderImporter(storage, realm);
+            var maniaSet = await mania.RegisterExternalDirectory(directory).ConfigureAwait(false);
+            Assert.That(bms.ShouldImportExternalDirectory(directory, root), Is.True, "a mania index cannot skip a BMS directory");
+            var bmsSet = await bms.RegisterExternalDirectory(directory, root).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(bms.ShouldImportExternalDirectory(directory.ToUpperInvariant() + Path.DirectorySeparatorChar, root.ToUpperInvariant()), Is.False);
+                Assert.That(mania.ShouldImportExternalDirectory(directory.ToUpperInvariant() + Path.DirectorySeparatorChar), Is.False);
+                Assert.That(bms.ShouldImportExternalDirectory(directory, directory), Is.True, "BMS root snapshots remain part of incremental matching");
+            });
+            maniaSet.ImportedBeatmapSet!.PerformWrite(set => set.FilesystemUnavailable = true);
+            Assert.That(mania.ShouldImportExternalDirectory(directory), Is.True, "an active BMS index cannot skip mania recovery");
+            bmsSet.ImportedBeatmapSet!.PerformWrite(set => set.FilesystemUnavailable = true);
+            Assert.That(bms.ShouldImportExternalDirectory(directory, root), Is.True);
+            bmsSet.ImportedBeatmapSet.PerformWrite(set =>
+            {
+                set.FilesystemUnavailable = false;
+                set.DeletePending = true;
+            });
+            Assert.That(bms.ShouldImportExternalDirectory(directory, root), Is.True);
         }
 
         [Test]
@@ -1079,6 +1177,44 @@ SliderTickRate: 1
             Assert.That(realm.Run(r => r.All<BeatmapSetInfo>().Count(s => !s.FilesystemUnavailable)), Is.EqualTo(2));
             Assert.That(File.Exists(Path.Combine(directory, "chart.bms")), Is.True);
             Assert.That(File.Exists(Path.Combine(directory, "chart.osu")), Is.True);
+        }
+
+        [Test]
+        public async Task TestCancelledRebuildDoesNotRetireMissingDirectory()
+        {
+            using var storage = new TemporaryNativeStorage($"bms-cancelled-rebuild-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
+            using var rulesets = new RealmRulesetStore(realm, storage);
+            string root = storage.GetFullPath("external");
+            string available = Path.Combine(root, "a");
+            string missing = Path.Combine(root, "b");
+            Directory.CreateDirectory(available);
+            Directory.CreateDirectory(missing);
+            File.WriteAllText(Path.Combine(available, "chart.bms"), buildChartText());
+            File.WriteAllText(Path.Combine(missing, "chart.bms"), buildChartText());
+            var importer = new BmsFolderImporter(storage, realm);
+            await importer.RegisterExternalDirectory(available, root).ConfigureAwait(false);
+            var original = await importer.RegisterExternalDirectory(missing, root).ConfigureAwait(false);
+            Guid originalId = original.ImportedBeatmapSet!.PerformRead(set => set.ID);
+            File.Delete(Path.Combine(missing, "chart.bms"));
+            using var cancellation = new CancellationTokenSource();
+            var config = new ExternalLibraryConfig(storage);
+            config.AddRoot(root, ExternalLibraryRootType.BMS);
+            var scanner = new ExternalLibraryScanner(config, new FilesystemBeatmapIndex(storage, realm))
+            {
+                BmsDirectoryImporter = async (directory, registeredRoot, ct) =>
+                {
+                    await importer.RegisterExternalDirectory(directory, registeredRoot, ct).ConfigureAwait(false);
+                    cancellation.Cancel();
+                },
+            };
+            Assert.ThrowsAsync<OperationCanceledException>(async () => await scanner.ScanAllRoots(cancellationToken: cancellation.Token).ConfigureAwait(false));
+            Assert.Multiple(() =>
+            {
+                Assert.That(realm.Run(r => r.Find<BeatmapSetInfo>(originalId)!.FilesystemUnavailable), Is.False);
+                Assert.That(realm.Run(r => r.All<BeatmapSetInfo>().Count(set => !set.FilesystemUnavailable && !set.DeletePending)), Is.EqualTo(2));
+                Assert.That(File.Exists(Path.Combine(available, "chart.bms")), Is.True);
+            });
         }
 
         private static string createImportSource(Storage storage, string directoryName)

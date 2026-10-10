@@ -205,7 +205,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         }
 
         /// <summary>
-        /// Storage-based mirror of <c>BmsFolderImporter.resolveReferencedFile</c> for the <c>#PREVIEW</c> audio file:
+        /// Storage-based mirror of the importer's asset lookup for the <c>#PREVIEW</c> audio file:
         /// resolves the header filename against the chart folder, trying the alternate audio extensions. Returns the
         /// resolved relative path or <see langword="null"/> if no matching audio file exists.
         /// </summary>

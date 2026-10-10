@@ -50,7 +50,7 @@ namespace osu.Game.Rulesets.Mania.Tests
         }
 
         [Test]
-        public async Task TestRegisterExternalDirectoryWithOnlyNonManiaBeatmapsReturnsNull()
+        public void TestRegisterExternalDirectoryWithOnlyNonManiaBeatmapsReportsFailure()
         {
             using var storage = new TemporaryNativeStorage($"mania-external-standard-only-{Guid.NewGuid():N}");
             using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
@@ -59,13 +59,12 @@ namespace osu.Game.Rulesets.Mania.Tests
             string importRoot = createImportSource(storage, "standard-only", ("standard.osu", standardOsuFile));
 
             var importer = new ManiaFolderImporter(storage, realm);
-            var result = await importer.RegisterExternalDirectory(importRoot).ConfigureAwait(false);
+            Assert.ThrowsAsync<InvalidDataException>(async () => await importer.RegisterExternalDirectory(importRoot).ConfigureAwait(false));
 
             Assert.Multiple(() =>
             {
-                Assert.That(result.ImportedBeatmapSet, Is.Null);
-                Assert.That(result.SkippedBeatmapFiles, Is.EqualTo(new[] { "standard.osu" }));
                 Assert.That(realm.Run(r => r.All<BeatmapSetInfo>().Count(set => !set.DeletePending)), Is.Zero);
+                Assert.That(File.Exists(Path.Combine(importRoot, "standard.osu")), Is.True);
             });
         }
 

@@ -15,6 +15,33 @@ namespace osu.Game.Rulesets.Mania.Tests
     [TestFixture]
     public class ManiaFilesystemLibraryTest
     {
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task TestIncrementalChecksSkipOnlyAvailableDirectory(bool external)
+        {
+            using var storage = new TemporaryNativeStorage($"mania-incremental-{Guid.NewGuid():N}");
+            string directory = storage.GetFullPath(external ? "external/set" : "chartmania/set");
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(Path.Combine(directory, "chart.osu"), chart);
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
+            using var rulesets = new RealmRulesetStore(realm, storage);
+            var importer = new ManiaFolderImporter(storage, realm);
+            var registered = external
+                ? await importer.RegisterExternalDirectory(directory).ConfigureAwait(false)
+                : await importer.RegisterManagedDirectory(directory).ConfigureAwait(false);
+            bool shouldImport() => external ? importer.ShouldImportExternalDirectory(directory.ToUpperInvariant()) : importer.ShouldImportManagedDirectory(directory.ToUpperInvariant());
+            Assert.That(shouldImport(), Is.False);
+            registered.ImportedBeatmapSet!.PerformWrite(set => set.FilesystemUnavailable = true);
+            Assert.That(shouldImport(), Is.True);
+            registered.ImportedBeatmapSet.PerformWrite(set =>
+            {
+                set.FilesystemUnavailable = false;
+                set.DeletePending = true;
+            });
+            Assert.That(shouldImport(), Is.True);
+            Assert.That(File.Exists(Path.Combine(directory, "chart.osu")), Is.True);
+        }
+
         [Test]
         public async Task TestDuplicateSourcesAndUnavailableRecoveryPreserveManagedFiles()
         {

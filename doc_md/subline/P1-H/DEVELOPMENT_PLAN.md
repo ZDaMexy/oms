@@ -1,6 +1,6 @@
 # P1-H 当前计划：存储拓扑
 
-> 最后核对：2026-10-03（补齐具名旧导入检查维护；隔离根、真实大库与诊断门保留）
+> 最后核对：2026-10-11（扫描优化与旧断言维护已实施；真实大库、日志定位实机与诊断门保留）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，批次及验证命令见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -15,6 +15,7 @@
 2. 验证外部根离线只报错、解除只改可用性；遗留重叠根的剩余覆盖有效，最后解除才隐去。新根重复、父子重叠和链接拒绝应清楚提示。
 3. 表开关/刷新保持当前选歌页面和选中歌曲，检查分组及谱卡文字；记录大库同步耗时、掉帧及输入响应。小库自动测试不能替代。
 4. 对旧 `DeletePending` 遗留保留证据，不猜测自动恢复。本次索引回归没有补充数据根迁移或 held identity 的验收，不能据此扩张已有数据根管理能力。
+5. 对照 [扫描审查](../../other/LIBRARY_SCAN_REVIEW_20261010.md) 的隔离收益，在真实库复验增量/重建时延和输入响应；使用新日志分清目录发现与导入处理成本，不将样本倍数当总耗时承诺。先复验导出通知是否由 Explorer 选中压缩包；现场资源不足读取错误的原因仍待确认。
 
 验收区分临时 fixture、隔离库、用户真实库；没做的人工项明确保留，不用测试数量替代。
 
@@ -25,10 +26,6 @@
 3. 不在筛选路径逐谱加载 working beatmap、全库重算或写 Realm。
 
 验收：解释未匹配/未刷新，不泄露用户绝对路径、不改变库状态，明确下一 owning 子线。
-
-### 3. 旧导入检查维护
-
-按 [STATUS 中的具名失败](DEVELOPMENT_STATUS.md#最近一次验证)对齐 `TestRegisterExternalDirectoryWithOnlyNonManiaBeatmapsReturnsNull`：目录注册无有效谱面应明确报错，普通 `Import` 的空结果通知保持独立合同。维护时运行对应 Register/Import focused；不因旧 null 断言回退正确行为，也不把既有失败归因写成已修复或全绿。
 
 ## 向 P1-A/G1 输出的边界
 
