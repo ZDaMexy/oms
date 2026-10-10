@@ -7,6 +7,10 @@
 
 ## 2026-10-11
 
+### 专项复核：旧 API endpoint 指代补齐
+
+从干净 `master@2b474b6` 只读复核，在线 fetch 后仍 ahead 2 / behind 0；主合同 Phase 3 引言将泛称的默认 endpoint 限定为旧 osu! API，与现行固定 `OmsIrService.ServiceOrigin` 及 `OnlineFeaturesEnabled=false` 的 `CreateEndpoints()` 一致。本轮只补齐文档指代，客户端来源、软件证据与真人 / 发行门不变；开发存储入口后的文档及差异检查结果见 `artifacts/workspace-doc-health-20261011/client-final.log`，不将前次治理日志记作本轮执行。
+
 ### 专项进度与文档记忆健康同步
 
 从干净 `master@d6f0d602ce3cae1f684c58dfc05917c57784cd8a` 接续，fetch 成功，开工在线跟踪为 ahead 1 / behind 0。只读专项复核 P1-A～M / P3-IR 的状态、计划及相关合同，以及全部 57 个诊断叶子和索引；主执行者对照当前源码、近期提交、验证收据及 Client Bridge / Dev Bridge / Web / Backend 采用点统一编辑。Web 开工 `7530d27`、Backend `facc1f9` 在线均 0/0；Backend、两桥和其他项目已有未提交工作已先保存基线，交付只归属本轮增量。

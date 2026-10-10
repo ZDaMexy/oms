@@ -1013,7 +1013,7 @@ The skin system must ship with both non-visual and visual validation:
 
 ## 14. Phase 3 Private Server Integration (authorised opt-in IR trial)
 
-On 2026-10-03 the user explicitly authorised a small request-driven OMS IR, then continued implementation, commits, pushes and direct deployment for real-environment acceptance. This narrows the previous freeze for the independent IR trial; it does not complete Phase 1.x or configure a default client endpoint. There is no current `oms.Server` project in this client repository. The client remains offline by default and `OnlineFeaturesEnabled` stays false.
+On 2026-10-03 the user explicitly authorised a small request-driven OMS IR, then continued implementation, commits, pushes and direct deployment for real-environment acceptance. This narrows the previous freeze for the independent IR trial; it does not complete Phase 1.x or re-enable the old osu! API endpoint. There is no current `oms.Server` project in this client repository. The client remains offline by default and `OnlineFeaturesEnabled` stays false.
 
 ### 14.1 Independent IR Client
 
