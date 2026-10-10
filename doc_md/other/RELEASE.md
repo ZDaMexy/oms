@@ -190,9 +190,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Update-OMS.ps1 -Update
 
 - 游戏内更新：**已禁用**（`IsInAppUpdateEnabled => false`）
 - Velopack 初始化：**已跳过**
-- API / OAuth / SignalR：**默认端点已清空**
+- 旧 osu! API / OAuth / SignalR：**默认端点已清空**
 - 原官网账号/API、官网谱面下载 / 聊天 / 多人：**已隐藏或禁用**
-- 独立 OMS IR：**主动配置地址并启用的试运行**，账号、保存后交分和查榜沿 [P3-IR](../subline/P3-IR/DEVELOPMENT_STATUS.md)，默认仍空地址 / 关闭
+- 独立 OMSIR：**固定官方服务的按需试运行**，原账号窗口直接登录后允许保存的新局上传；未登录可主动读具体谱面公开榜，操作和真人门沿 [P3-IR](../subline/P3-IR/DEVELOPMENT_STATUS.md)。当前工作区能力不冒充已公开发行的客户端
 - 远程静态资源 fallback：**已被离线模式屏蔽**
 
-> 独立 IR 试运行不启用旧在线链或默认端点，也不关闭 Phase 1.x 人工/发行门。多来源与 LR2 历史榜沿[已采纳专项](../subline/P3-IR/DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜实施)实施，目标宿主与真人门独立保留。公共 BMS 难度表 URL、Ginger Rush / 616 BMS 和 Sayobot mania 镜像下载仍是独立窄例外，能力及未签收实网/大包体验见 [P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，边界见 P1-A [BMS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) / [mania](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载)；剩余发行组合沿 [P1-F](../subline/P1-F/DEVELOPMENT_PLAN.md) / [P1-G](../subline/P1-G/DEVELOPMENT_PLAN.md)。
+> 独立 IR 试运行不启用旧在线链或旧 API 端点，也不关闭 Phase 1.x 人工/发行门。多来源与 LR2 历史榜沿[已采纳专项](../subline/P3-IR/DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜实施)实施，目标宿主与真人门独立保留。公共 BMS 难度表 URL、Ginger Rush / 616 BMS 和 Sayobot mania 镜像下载仍是独立窄例外，能力及未签收实网/大包体验见 [P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，边界见 P1-A [BMS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) / [mania](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载)；剩余发行组合沿 [P1-F](../subline/P1-F/DEVELOPMENT_PLAN.md) / [P1-G](../subline/P1-G/DEVELOPMENT_PLAN.md)。

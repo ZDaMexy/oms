@@ -1,6 +1,6 @@
 # P1-F 当前计划：离线发行物与覆盖更新
 
-> 最后核对：2026-10-08（限定已删除候选的历史对照含义；原剩余验收门保持）
+> 最后核对：2026-10-11（发行边界承接固定 OMSIR；原剩余验收门保持）
 > 主线顺序见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定发行红线见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -25,7 +25,7 @@ P1-F 负责离线完整发行物、便携与自定义保存位置、覆盖更新
 
 ## 后续发行必须保持的合同
 
-- 正式入口为 `build-release.ps1`，交付自包含多文件全量 ZIP，完整解压并保留玩法 DLL 和安装原件。游戏内在线更新关闭，默认 endpoint 保持空，不恢复旧在线链、安装器或增量更新承诺；独立主动连接 IR 只沿 P3-IR 合同。
+- 正式入口为 `build-release.ps1`，交付自包含多文件全量 ZIP，完整解压并保留玩法 DLL 和安装原件。游戏内在线更新关闭，旧 osu! API endpoint 保持空，不恢复旧在线链、安装器或增量更新承诺；固定 OMSIR 的直接登录与按需查榜只沿 P3-IR 合同。
 - 只要改变发行文件或保存/启动逻辑，就从新隔离目录复验首次便携、自定义根、坏工作副本恢复及完整覆盖后正常启动；逐项核对实际用户库、日志、缓存、canonical 原件和工作副本，不能仅凭 marker、窗口或进程存活填写通过。
 - `portable.ini` 决定基础保存模式；自定义 `storage.ini` 留在基础数据根。更新必须保留旧模式、用户文件与指针，不把新包 marker 加到非便携目标；程序旁便携 `cache/` 不随用户库重定向。
 - 更新前完全退出程序。随包 `Update-OMS.ps1` 验完整清单、备份旧件、保留中断收据和未知现场；旧 canonical 只移动，不改内容或属性。Windows 标准 ZIP 解包需实证保留原件只读标记，不能由启动检查先补属性。只有针对真实旧版另取的证据才可称跨版本升级通过，同包覆盖结果不能替代。

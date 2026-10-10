@@ -62,7 +62,7 @@ P1-G 只汇总，不实现：发现问题必须回到 owning 子线，修复后�
 
 - fresh extract 冷启动、portable `data/`、custom root 与覆盖更新。
 - 保留 `portable.ini`、`storage.ini` 和用户内容；公开说明与真实能力一致。
-- 当前完整候选复核公共下载、后台任务、失败/取消和入库选歌组合；本次启动尚未首次进入对应浏览分区时不发起该来源请求，关页后已开始的后台下载继续，不扩张官网/旧在线链或默认 endpoint。10 月 3 日同包启动证据见 [P1-F](../P1-F/DEVELOPMENT_STATUS.md)，不能代签本项；独立 IR 真人门只沿 [P3-IR](../P3-IR/DEVELOPMENT_PLAN.md)。缺陷归 P1-A，候选保存/升级问题归 P1-F/P1-H。
+- 当前完整候选复核公共下载、后台任务、失败/取消和入库选歌组合；本次启动尚未首次进入对应浏览分区时不发起该来源请求，关页后已开始的后台下载继续，不扩张旧上游在线链或旧 osu! API endpoint。10 月 3 日同包启动证据见 [P1-F](../P1-F/DEVELOPMENT_STATUS.md)，不能代签本项；独立 IR 真人门只沿 [P3-IR](../P3-IR/DEVELOPMENT_PLAN.md)。缺陷归 P1-A，候选保存/升级问题归 P1-F/P1-H。
 - 本项由 P1-F 提供候选包与步骤，P1-G 记录最终人工结果。
 
 ## 关闭规则

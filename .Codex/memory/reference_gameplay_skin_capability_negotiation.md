@@ -27,6 +27,6 @@ metadata:
 ## 验证地雷
 
 - public-surface fixture 要同时锁 request factory 仍为 internal，以及 definition/policy/negotiator/hard-deny catalog 不公开；只查 property/constructor 不够。
-- `dotnet format --include` 曾把测试实际使用的 `System.Reflection` 判为 unused 并删除，随后出现 `CS0103 BindingFlags`。对新未跟踪 fixture 必须立即编译 owning test project；必要时使用全限定类型绕过误删。
+- 新 fixture 的 formatter 未使用诊断须由 owning test project 编译裁决；Reflection / BindingFlags 误删的原因统一见 [构建召回](reference_build_and_test.md#formatter-与并发误判)，必要时可使用全限定类型明确符号。
 
 精确验证数字与当前接线状态只看 P1-A STATUS/CHANGELOG，不在 memory 重抄。

@@ -5,6 +5,23 @@
 
 ---
 
+## 2026-10-11
+
+### 专项进度与文档记忆健康同步
+
+从干净 `master@d6f0d602ce3cae1f684c58dfc05917c57784cd8a` 接续，fetch 成功，开工在线跟踪为 ahead 1 / behind 0。只读专项复核 P1-A～M / P3-IR 的状态、计划及相关合同，以及全部 57 个诊断叶子和索引；主执行者对照当前源码、近期提交、验证收据及 Client Bridge / Dev Bridge / Web / Backend 采用点统一编辑。Web 开工 `7530d27`、Backend `facc1f9` 在线均 0/0；Backend、两桥和其他项目已有未提交工作已先保存基线，交付只归属本轮增量。
+
+- 主线及路由承接扫描热路径、增量玩法身份和便携日志定位；扫描软件来源 `d6f0d60`、账号 / 榜来源 `21daf78` 各自保留，文档 HEAD 不冒充产品源码或生产。
+- P1-A 移出已完成的 mania 无可玩谱目录旧断言，当前只保留七项具名导航维护；原八项失败记录与既有 full 失败不改判。实际导入 / 下载及 scanner 软件仍取 P1-H，未在本轮重跑。
+- 协作入口、主约束、P1-F、RELEASE、P3-IR 和记忆就地退出手动地址 / 开关 / 保存连接，空 endpoint 限定旧 osu! API；固定 OMSIR 直接登录和匿名具体谱面查榜按已采纳合同读取。P3-IR 的旧账号、运行数字与治理轮次迁入历史，原日期、失败及真人缺口保留。
+- 记忆保留独有诊断，将退休 ReturnsNull 过滤器回链现有 ReportsFailure 回归；Reflection / BindingFlags 的 formatter 误删只在构建记忆完整描述，能力协商记忆链接召回。索引同步诊断主题，无新增平行进度页或拆分叶子。
+- 探针清理按用户执行输出及本轮只读目录 / 证据复核关闭，原策略拦截保留历史；详见 [P1-H 收尾](../subline/P1-H/CHANGELOG.md#临时探针清理收尾)。其他清理与迁移待办未被一并关闭。
+- Backend 计划改从 Web 维护读取当前运行 / 回退，2026-10-08 B879/B0 观察不再指代后续 a85 / b173；Web 维护的空 endpoint 明确为旧 API。无新接口或客户端来源，facts.json 完整字节、14 来源 / 28 事实及 11 待复核不变，共同阶段和生产发布日期不刷新。
+
+本轮仅文档 / 记忆与只读文件核对，未修改产品或检查器、重跑产品 build / test、访问母库 / 私有数据、进行生产观察 / 发布或生成 Windows 发行物。真实大库 / Explorer、现场资源不足原因、Pylance 重载、原账号 / 待交 / 两端同范围、P/C、Skin V1、设备 / 长期及发行门分别留 owning 计划，不以治理通过补签。基线、原件、差异及检查日志长期保存在 `artifacts/documentation-health-20261011/`。
+
+验收在每个新 shell 加载 `UseDevelopmentStorage.ps1` 后执行客户端 `CheckDocumentation.ps1`、总工作区 `verify-workspace.mjs` 和受影响仓的 `git diff --check`；前后检查覆盖 201 个客户端 Markdown 与 160 个工作区文档，当前 14 条线的 STATUS / PLAN、治理 README 和 memory 行长按预算复核。检查器 / 产品未变，不重跑其 fixture 或产品测试；精确计数、既有公开指纹 / 通用路径提示及事实原件一致性以该证据目录的最终日志为准。
+
 ## 2026-10-10
 
 ### OMSIR 直接登录与谱面入口

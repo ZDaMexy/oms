@@ -1,6 +1,6 @@
 # AGENTS.md — OMS 协作入口
 
-OMS 是基于 osu!lazer 的 Windows-only 音游客户端：只保留 osu!mania，新增第一类 BMS；离线优先，默认 endpoint 冻结；用户授权的独立按需 IR 试运行见 P3-IR。项目介绍见 [README](README.md)。
+OMS 是基于 osu!lazer 的 Windows-only 音游客户端：只保留 osu!mania，新增第一类 BMS；离线优先，旧 osu! API endpoint 冻结；固定 OMSIR 的直接登录与按需查榜见 P3-IR。项目介绍见 [README](README.md)。
 
 ## 开始工作
 
@@ -79,7 +79,7 @@ dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj --no-
 
 - 不重新引入 Osu/Taiko/Catch。
 - 不盲目同步上游；按 [UPSTREAM.md](doc_md/other/UPSTREAM.md) 选择性 cherry-pick。
-- 默认 endpoint 为空、旧在线总开关 false，不把在线预留描述成当前能力；2026-10-03 用户明确授权的独立主动连接 / 按需 IR 生产试运行沿 [P3-IR](doc_md/subline/P3-IR/TECHNICAL_CONSTRAINTS.md)，不扩张聊天、presence、多人与官网谱包。用户主动添加公共 BMS 难度表 URL、已授权的 Ginger Rush / 616 公共 BMS 浏览下载与 Sayobot 原生 mania 镜像下载仍为独立窄例外。下载合同见 [BMS](doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) / [mania](doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载)。
+- 旧 osu! API endpoint 为空、旧在线总开关 false，不把在线预留描述成当前能力；固定 OMSIR 的直接登录、保存后上传与匿名公开查榜沿 [P3-IR](doc_md/subline/P3-IR/TECHNICAL_CONSTRAINTS.md)，不扩张聊天、presence、多人与官网谱包。用户主动添加公共 BMS 难度表 URL、已授权的 Ginger Rush / 616 公共 BMS 浏览下载与 Sayobot 原生 mania 镜像下载仍为独立窄例外。下载合同见 [BMS](doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) / [mania](doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载)。
 - BMS 直读 `chartbms/`，mania 直读 `chartmania/`；不转 `.osz`，不经通用 hash-backed `files/`。
 - 发行物不以 osu!lazer 原生默认皮肤作为产品表面；程序化 `OmsSkin` 在 `oms-simple.osk` 通过 parity、完整性、原子恢复与实机 gate 前不得删除，最终产品渲染链必须由只读 canonical 包接管。
 - 皮肤异常期归档只能定点取证，禁止整包 cherry-pick/apply。
