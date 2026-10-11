@@ -1,93 +1,122 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Events;
+using osu.Game.Beatmaps.Drawables.Cards;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
+using osu.Game.Graphics.Sprites;
 using osu.Game.Overlays.BeatmapSet;
 using osuTK;
 
 namespace osu.Game.Overlays.BeatmapListing
 {
-    /// <summary>A horizontal native chart card which never invents an online cover or ppy ID.</summary>
+    /// <summary>A compact native chart card containing only actual source-chart metadata.</summary>
     internal partial class OmsChartCard : OsuClickableContainer
     {
-        private readonly Box background;
+        private readonly OmsChartSummary chart;
+        private Box background = null!;
 
         public OmsChartCard(OmsChartSummary chart, Action open)
         {
-            Width = 420;
-            AutoSizeAxes = Axes.Y;
-            Masking = true;
-            CornerRadius = 6;
+            this.chart = chart;
+            Width = BeatmapCard.WIDTH;
+            Height = BeatmapCardNormal.HEIGHT;
             Action = open;
-            TooltipText = "查看原谱 " + chart.Md5;
+            TooltipText = string.Join("\n", new[] { chart.Title, chart.Artist, chart.Difficulty, "原谱 MD5：" + chart.Md5 }.Where(value => value != null));
+        }
 
-            var metadata = new FillFlowContainer
+        [BackgroundDependencyLoader]
+        private void load(OverlayColourProvider colour)
+        {
+            var content = new BeatmapCardContent(BeatmapCardNormal.HEIGHT);
+            Child = content;
+            content.MainContent = new Container
             {
-                RelativeSizeAxes = Axes.X,
-                AutoSizeAxes = Axes.Y,
-                Direction = FillDirection.Vertical,
-                Spacing = new Vector2(0, 3),
-                Padding = new MarginPadding { Horizontal = 10 },
-            };
-            metadata.Add(text(chart.Title ?? chart.Md5, 18, FontWeight.SemiBold));
-            if (chart.Artist != null) metadata.Add(text(chart.Artist, 15));
-            if (chart.Difficulty != null) metadata.Add(text("难度标注：" + chart.Difficulty, 13));
-            metadata.Add(text((chart.Ruleset == "bms" ? "BMS" : "osu!mania") + " · 公开谱面目录", 12));
-
-            Children = new Drawable[]
-            {
-                background = new Box { RelativeSizeAxes = Axes.Both },
-                new GridContainer
+                RelativeSizeAxes = Axes.Both,
+                Children = new Drawable[]
                 {
-                    RelativeSizeAxes = Axes.X,
-                    AutoSizeAxes = Axes.Y,
-                    Padding = new MarginPadding(12),
-                    ColumnDimensions = new[] { new Dimension(GridSizeMode.Absolute, 40), new Dimension(), new Dimension(GridSizeMode.Absolute, 20) },
-                    RowDimensions = new[] { new Dimension(GridSizeMode.AutoSize) },
-                    Content = new[]
+                    background = new Box { RelativeSizeAxes = Axes.Both, Colour = colour.Background3 },
+                    new Container
                     {
-                        new Drawable[]
+                        Size = new Vector2(BeatmapCardNormal.HEIGHT),
+                        CornerRadius = BeatmapCard.CORNER_RADIUS,
+                        Masking = true,
+                        Children = new Drawable[]
                         {
-                            new Container
+                            new Box { RelativeSizeAxes = Axes.Both, Colour = colour.Background4 },
+                            new SpriteIcon
                             {
-                                RelativeSizeAxes = Axes.X,
-                                Height = 60,
-                                Child = new SpriteIcon
-                                {
-                                    Icon = OsuIcon.Beatmap,
-                                    Anchor = Anchor.Centre,
-                                    Origin = Anchor.Centre,
-                                    Size = new Vector2(30),
-                                },
+                                Icon = OsuIcon.Beatmap,
+                                Anchor = Anchor.Centre,
+                                Origin = Anchor.Centre,
+                                Size = new Vector2(28),
+                                Colour = colour.Light1,
                             },
-                            metadata,
-                            new Container
+                        },
+                    },
+                    new Container
+                    {
+                        X = BeatmapCardNormal.HEIGHT,
+                        Width = BeatmapCard.WIDTH - BeatmapCardNormal.HEIGHT - 28,
+                        RelativeSizeAxes = Axes.Y,
+                        Padding = new MarginPadding { Left = 8, Right = 4, Top = 5, Bottom = 2 },
+                        Child = new FillFlowContainer
+                        {
+                            RelativeSizeAxes = Axes.X,
+                            AutoSizeAxes = Axes.Y,
+                            Direction = FillDirection.Vertical,
+                            Spacing = new Vector2(0, 2),
+                            Children = new Drawable[]
                             {
-                                RelativeSizeAxes = Axes.X,
-                                Height = 60,
-                                Child = new SpriteIcon
+                                new TruncatingSpriteText
                                 {
-                                    Icon = FontAwesome.Solid.ChevronRight,
-                                    Anchor = Anchor.Centre,
-                                    Origin = Anchor.Centre,
-                                    Size = new Vector2(14),
+                                    RelativeSizeAxes = Axes.X,
+                                    Font = OsuFont.GetFont(size: 18, weight: FontWeight.SemiBold),
+                                    Text = chart.Title ?? chart.Md5,
+                                },
+                                new TruncatingSpriteText
+                                {
+                                    RelativeSizeAxes = Axes.X,
+                                    Font = OsuFont.GetFont(size: 13, weight: FontWeight.SemiBold),
+                                    Colour = colour.Light2,
+                                    Text = chart.Artist ?? string.Empty,
+                                },
+                                new TruncatingSpriteText
+                                {
+                                    RelativeSizeAxes = Axes.X,
+                                    Font = OsuFont.GetFont(size: 11),
+                                    Colour = colour.Light1,
+                                    Text = chart.Difficulty == null ? string.Empty : "难度标注：" + chart.Difficulty,
+                                },
+                                new TruncatingSpriteText
+                                {
+                                    RelativeSizeAxes = Axes.X,
+                                    Font = OsuFont.GetFont(size: 11),
+                                    Colour = colour.Light2,
+                                    Text = (chart.Ruleset == "bms" ? "BMS" : "osu!mania") + " · OMS",
                                 },
                             },
                         },
                     },
+                    new SpriteIcon
+                    {
+                        Icon = FontAwesome.Solid.ChevronRight,
+                        Anchor = Anchor.CentreRight,
+                        Origin = Anchor.CentreRight,
+                        Margin = new MarginPadding { Right = 8 },
+                        Size = new Vector2(14),
+                        Colour = colour.Light1,
+                    },
                 },
             };
         }
-
-        [BackgroundDependencyLoader]
-        private void load(OverlayColourProvider colour) => background.Colour = colour.Background4;
 
         protected override bool OnHover(HoverEvent e)
         {
@@ -100,9 +129,5 @@ namespace osu.Game.Overlays.BeatmapListing
             background.FadeTo(1, 120);
             base.OnHoverLost(e);
         }
-
-        private static OsuTextFlowContainer text(string value, int size, FontWeight weight = FontWeight.Regular)
-            => new OsuTextFlowContainer(sprite => sprite.Font = OsuFont.GetFont(size: size, weight: weight))
-            { RelativeSizeAxes = Axes.X, AutoSizeAxes = Axes.Y, Text = value };
     }
 }

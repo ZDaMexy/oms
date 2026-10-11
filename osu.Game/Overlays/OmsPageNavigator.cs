@@ -62,6 +62,15 @@ namespace osu.Game.Overlays
 
         public void Resume() => show(Route, true, activeView?.OmsScroll ?? Route.BoardScroll);
 
+        public void ReplaceBrowserSource(OmsPageRoute requested, float scroll)
+            => show(requested, true, scroll);
+
+        public void OpenBrowser(OmsPageRoute requested, float scroll)
+        {
+            history.Clear();
+            show(requested, true, scroll);
+        }
+
         public Func<bool> BeginTemporaryPage()
         {
             int requestedRevision = ++navigationRevision;

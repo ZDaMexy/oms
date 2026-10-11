@@ -256,7 +256,7 @@ namespace osu.Game.Screens.Menu
             Buttons.OnBeatmapListing = () =>
             {
                 if ((game?.BmsDownloadsEnabled == true || game?.ManiaDownloadsEnabled == true))
-                    game.ToggleBeatmapDownloadBrowser();
+                    game.ToggleBeatmapBrowser();
                 else
                     beatmapListing?.ToggleVisibility();
             };

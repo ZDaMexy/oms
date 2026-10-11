@@ -9,12 +9,9 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
-using osu.Framework.Graphics;
-using osu.Framework.Graphics.Containers;
 using osu.Game.Beatmaps;
 using osu.Game.Online.IR;
 using osu.Game.Overlays.BeatmapListing;
-using osuTK;
 
 namespace osu.Game.Overlays.BeatmapSet
 {
@@ -44,8 +41,8 @@ namespace osu.Game.Overlays.BeatmapSet
             return () =>
             {
                 if (charts.Length == 0)
-                    AddText("没有找到已收录成绩的谱面。可以修改搜索，或到谱面下载页查找原包。", 16);
-                var cards = new ChartCardFlow();
+                    AddText("没有找到已收录成绩的谱面。可以修改搜索，或切换来源查找原包。", 16);
+                var cards = new BeatmapBrowserCardFlow<OmsChartCard> { ReserveExpandedSpace = false };
                 foreach (OmsChartSummary chart in charts)
                 {
                     cards.Add(new OmsChartCard(chart, () => Navigate(new OmsPageRoute
@@ -111,24 +108,5 @@ namespace osu.Game.Overlays.BeatmapSet
             _ => throw new JsonSerializationException("Invalid OMS chart " + field),
         };
 
-        private partial class ChartCardFlow : FillFlowContainer<OmsChartCard>
-        {
-            public ChartCardFlow()
-            {
-                RelativeSizeAxes = Axes.X;
-                AutoSizeAxes = Axes.Y;
-                Direction = FillDirection.Full;
-                Spacing = new Vector2(10);
-            }
-
-            protected override void Update()
-            {
-                base.Update();
-                int columns = Math.Clamp((int)((DrawWidth + Spacing.X) / 420), 1, 3);
-                float width = Math.Max(0, (DrawWidth - Spacing.X * (columns - 1)) / columns);
-                foreach (OmsChartCard card in this)
-                    card.Width = width;
-            }
-        }
     }
 }

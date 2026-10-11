@@ -1,37 +1,29 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
-using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
-using osu.Framework.Graphics.Shapes;
-using osu.Framework.Graphics.Sprites;
 using osu.Framework.Localisation;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
-using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Localisation;
 using osu.Game.Online.Sayobot;
-using osuTK;
+using osu.Game.Overlays.BeatmapListing;
 
 namespace osu.Game.Overlays
 {
-    public partial class ManiaDownloadHeader : OverlayHeader
+    public partial class ManiaDownloadHeader : BeatmapBrowserHeader
     {
-        private BasicSearchTextBox search = null!;
         private KeysDropdown keys = null!;
         private StarsDropdown stars = null!;
         private CategoryDropdown category = null!;
-        private Box background = null!;
-
-        public Bindable<string> Query => search.Current;
         public Bindable<int> Keys => keys.Current;
         public Bindable<StarRange> Stars => stars.Current;
         public Bindable<SayobotCategory> Category => category.Current;
-        public Action? Retry { get; set; }
 
         public SayobotSearchQuery SearchQuery
         {
@@ -59,74 +51,15 @@ namespace osu.Game.Overlays
             TenAndAbove,
         }
 
-        protected override OverlayTitle CreateTitle() => new DownloadTitle();
+        protected override LocalisableString SearchPlaceholder => BeatmapDownloadStrings.SearchMania;
 
-        protected override Drawable CreateContent() => new Container
+        protected override IEnumerable<Drawable> CreateBrowserFilters() => new Drawable[]
         {
-            RelativeSizeAxes = Axes.X,
-            AutoSizeAxes = Axes.Y,
-            Children = new Drawable[]
-            {
-                background = new Box { RelativeSizeAxes = Axes.Both },
-                new FillFlowContainer
-                {
-                    RelativeSizeAxes = Axes.X,
-                    AutoSizeAxes = Axes.Y,
-                    Direction = FillDirection.Vertical,
-                    Padding = new MarginPadding { Horizontal = WaveOverlayContainer.HORIZONTAL_PADDING, Vertical = 20 },
-                    Spacing = new Vector2(0, 20),
-                    Children = new Drawable[]
-                    {
-                        new GridContainer
-                        {
-                            RelativeSizeAxes = Axes.X,
-                            Height = 40,
-                            ColumnDimensions = new[] { new Dimension(), new Dimension(GridSizeMode.Absolute, 40) },
-                            Content = new[]
-                            {
-                                new Drawable[]
-                                {
-                                    search = new DownloadSearchTextBox { RelativeSizeAxes = Axes.X, Height = 40, PlaceholderText = BeatmapDownloadStrings.SearchMania },
-                                    new IconButton
-                                    {
-                                        Anchor = Anchor.CentreRight,
-                                        Origin = Anchor.CentreRight,
-                                        Icon = FontAwesome.Solid.RedoAlt,
-                                        TooltipText = BmsDownloadStrings.SearchNow,
-                                        Action = () => Retry?.Invoke(),
-                                    },
-                                },
-                            },
-                        },
-                        new ReverseChildIDFillFlowContainer<Drawable>
-                        {
-                            RelativeSizeAxes = Axes.X,
-                            AutoSizeAxes = Axes.Y,
-                            Direction = FillDirection.Vertical,
-                            Padding = new MarginPadding { Horizontal = 10 },
-                            Spacing = new Vector2(0, 5),
-                            Children = new Drawable[]
-                            {
-                                new BeatmapDownloadModeSelector(),
-                                filterField(BmsDownloadStrings.Source, new OsuSpriteText { Text = BeatmapDownloadStrings.Sayobot, Font = OsuFont.GetFont(size: 14, weight: FontWeight.Bold) }),
-                                filterField(BeatmapDownloadStrings.Keys, keys = new KeysDropdown()),
-                                filterField(BeatmapDownloadStrings.Stars, stars = new StarsDropdown()),
-                                filterField(BeatmapDownloadStrings.Category, category = new CategoryDropdown()),
-                            },
-                        },
-                    },
-                },
-            },
+            new BeatmapDownloadModeSelector(),
+            filterField(BeatmapDownloadStrings.Keys, keys = new KeysDropdown()),
+            filterField(BeatmapDownloadStrings.Stars, stars = new StarsDropdown()),
+            filterField(BeatmapDownloadStrings.Category, category = new CategoryDropdown()),
         };
-
-        [BackgroundDependencyLoader]
-        private void load(OverlayColourProvider colour)
-        {
-            background.Colour = colour.Dark6;
-            search.OnCommit += (_, _) => Retry?.Invoke();
-        }
-
-        public void FocusSearch() => search.TakeFocus();
 
         private static Drawable filterField(LocalisableString label, Drawable value)
         {
@@ -153,11 +86,6 @@ namespace osu.Game.Overlays
                     },
                 },
             };
-        }
-
-        private partial class DownloadSearchTextBox : BasicSearchTextBox
-        {
-            protected override bool AllowCommit => true;
         }
 
         private partial class KeysDropdown : OsuDropdown<int>
@@ -187,14 +115,5 @@ namespace osu.Game.Overlays
             };
         }
 
-        private partial class DownloadTitle : OverlayTitle
-        {
-            public DownloadTitle()
-            {
-                Title = BeatmapDownloadStrings.Title;
-                Description = BeatmapDownloadStrings.Description;
-                Icon = OsuIcon.Beatmap;
-            }
-        }
     }
 }

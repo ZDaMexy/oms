@@ -29,6 +29,7 @@ using osu.Game.Input.Bindings;
 using osu.Game.Online.API;
 using osu.Game.Online.Bms;
 using osu.Game.Overlays;
+using osu.Game.Overlays.BeatmapListing;
 using osu.Game.Overlays.Notifications;
 using osu.Game.Overlays.Toolbar;
 using osu.Game.Rulesets.Bms.Beatmaps;
@@ -90,7 +91,7 @@ namespace osu.Game.Tests.Visual.Overlays
             AddStep("show toolbar", () => Game.Toolbar.Show());
             AddWaitStep("allow toolbar layout", 2);
             AddAssert("browse entrance is before music and notifications", () =>
-                Game.Toolbar.ChildrenOfType<ToolbarBmsDownloadButton>().Single().ScreenSpaceDrawQuad.Centre.X
+                Game.Toolbar.ChildrenOfType<ToolbarBeatmapListingButton>().Single().ScreenSpaceDrawQuad.Centre.X
                 < Game.Toolbar.ChildrenOfType<ToolbarMusicButton>().Single().ScreenSpaceDrawQuad.Centre.X
                 && Game.Toolbar.ChildrenOfType<ToolbarMusicButton>().Single().ScreenSpaceDrawQuad.Centre.X
                 < Game.Toolbar.ChildrenOfType<ToolbarClock>().Single().ScreenSpaceDrawQuad.Centre.X
@@ -99,11 +100,77 @@ namespace osu.Game.Tests.Visual.Overlays
             AddStep("open from menu browse", () => ((MainMenu)Game.ScreenStack.CurrentScreen).ChildrenOfType<ButtonSystem>().Single().OnBeatmapListing!());
             AddUntilStep("browser shows a result", () => overlay.State.Value == Visibility.Visible && overlay.Cards.Count == 1);
             AddStep("close browser", () => overlay.Hide());
-            AddStep("open from toolbar", () => Game.Toolbar.ChildrenOfType<ToolbarBmsDownloadButton>().Single().Action!());
+            AddStep("open from toolbar", () => Game.Toolbar.ChildrenOfType<ToolbarBeatmapListingButton>().Single().Action!());
             AddUntilStep("toolbar opens browser", () => overlay.State.Value == Visibility.Visible);
             AddStep("close browser again", () => overlay.Hide());
             AddStep("use existing browse shortcut", () => Game.ChildrenOfType<GlobalActionContainer>().Single().TriggerPressed(GlobalAction.ToggleBeatmapListing));
             AddUntilStep("shortcut opens browser", () => overlay.State.Value == Visibility.Visible);
+        }
+
+        [Test]
+        public void TestUnifiedSourceFilterRestoresBmsTableAndGrade()
+        {
+            AddUntilStep("browser and navigation loaded", () => overlay.IsLoaded && Game.OmsPages.IsLoaded);
+            AddStep("use actual table metadata and open unified source", () =>
+            {
+                metadata.Response = tableMetadata;
+                Game.OpenOmsPage(new osu.Game.Online.IR.OmsPageRoute { Kind = osu.Game.Online.IR.OmsPageKind.Library, Ruleset = "bms", Sources = "ginger" });
+            });
+            AddUntilStep("Ginger table is available", () => tableDropdown.Items.Contains(tableId(BmsDownloadSource.Ginger)));
+            AddStep("choose table and its real grade", () => header.Table.Value = tableId(BmsDownloadSource.Ginger));
+            AddUntilStep("Ginger grade list loaded", () => !header.Level.Disabled);
+            AddStep("choose grade two", () => header.Level.Value = new BmsDownloadHeader.TableLevel("2"));
+            AddUntilStep("only the matching original chart is present", () => overlay.Cards.SingleOrDefault()?.Package.Charts.SingleOrDefault()?.Md5 == another_md5
+                && !overlay.ChildrenOfType<LoadingLayer>().Single().IsPresent);
+            AddStep("choose 616 via shared filter", () => header.ChildrenOfType<BeatmapBrowserSourceSelector>().Single().Current.Value = BeatmapBrowserSource.Alvorna);
+            AddUntilStep("616 catalogue is available", () => header.Source.Value == BmsDownloadSource.Konmai && tableDropdown.Items.Contains(tableId(BmsDownloadSource.Konmai))
+                && !overlay.ChildrenOfType<LoadingLayer>().Single().IsPresent);
+            AddStep("return to Ginger via shared filter", () => header.ChildrenOfType<BeatmapBrowserSourceSelector>().Single().Current.Value = BeatmapBrowserSource.Ginger);
+            AddUntilStep("source, table, level and precise chart are restored", () => header.Source.Value == BmsDownloadSource.Ginger
+                && header.Table.Value == tableId(BmsDownloadSource.Ginger) && header.Level.Value.Value == "2"
+                && overlay.Cards.SingleOrDefault()?.Package.Charts.SingleOrDefault()?.Md5 == another_md5);
+            AddAssert("source selection stays in the same browser history", () => Game.OmsPages.HistoryDepth, () => Is.Zero);
+            bool restoringDirectory = false;
+            var late = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            AddStep("choose 616 before holding Ginger directory restore", () => Game.BeatmapBrowserSource.Value = BeatmapBrowserSource.Alvorna);
+            AddUntilStep("616 is ready again", () => header.Source.Value == BmsDownloadSource.Konmai && !overlay.ChildrenOfType<LoadingLayer>().Single().IsPresent);
+            AddStep("hold the next Ginger directory even after cancellation", () => metadata.Response = (request, token) =>
+            {
+                if (request.RequestUri!.AbsolutePath.EndsWith("selectHeaderListWithFullInfo", StringComparison.Ordinal))
+                {
+                    Volatile.Write(ref restoringDirectory, true);
+                    return late.Task;
+                }
+                return tableMetadata(request, token);
+            });
+            AddStep("begin restoring Ginger grade two", () => Game.BeatmapBrowserSource.Value = BeatmapBrowserSource.Ginger);
+            AddUntilStep("saved grade is waiting for its real directory", () => Volatile.Read(ref restoringDirectory) && header.Table.Value.Length == 0);
+            AddStep("leave the source before restoration finishes", () => Game.BeatmapBrowserSource.Value = BeatmapBrowserSource.Alvorna);
+            AddStep("release the obsolete directory and restore normal responses", () =>
+            {
+                late.SetResult(json("[{\"id\":1,\"name\":\"Test Table\",\"originalURL\":\"\"}]"));
+                metadata.Response = tableMetadata;
+            });
+            AddStep("choose Ginger again", () => Game.BeatmapBrowserSource.Value = BeatmapBrowserSource.Ginger);
+            AddUntilStep("interrupted restore retains the original table and grade", () => header.Source.Value == BmsDownloadSource.Ginger
+                && header.Table.Value == tableId(BmsDownloadSource.Ginger) && header.Level.Value.Value == "2"
+                && overlay.Cards.SingleOrDefault()?.Package.Charts.SingleOrDefault()?.Md5 == another_md5);
+        }
+
+        [Test]
+        public void TestUnifiedSourceFailureDoesNotRetainPreviousSourceCards()
+        {
+            AddUntilStep("browser and navigation ready", () => overlay.IsLoaded && Game.OmsPages.IsLoaded);
+            AddStep("open Ginger in the unified browser", () => Game.OpenOmsPage(new osu.Game.Online.IR.OmsPageRoute
+            { Kind = osu.Game.Online.IR.OmsPageKind.Library, Ruleset = "bms", Sources = "ginger" }));
+            AddUntilStep("Ginger cards are ready", () => overlay.Cards.Count > 0 && !overlay.ChildrenOfType<LoadingLayer>().Single().IsPresent);
+            AddStep("choose 616 with an unavailable source", () =>
+            {
+                metadata.Response = (_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+                Game.BeatmapBrowserSource.Value = BeatmapBrowserSource.Alvorna;
+            });
+            AddUntilStep("616 failure offers retry", () => overlay.ChildrenOfType<ShowMoreButton>().Single().Text.ToString() == "Retry");
+            AddAssert("616 failure never presents Ginger cards", () => header.Source.Value == BmsDownloadSource.Konmai && overlay.Cards.Count == 0);
         }
 
         [TestCase(BmsDownloadSource.Ginger)]

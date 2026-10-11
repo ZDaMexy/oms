@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
-using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
@@ -19,12 +18,12 @@ using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Drawables.Cards;
 using osu.Game.Database;
 using osu.Game.Graphics;
-using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Localisation;
 using osu.Game.Online;
 using osu.Game.Online.Bms;
+using osu.Game.Overlays.BeatmapListing;
 using osuTK;
 using osuTK.Graphics;
 
@@ -114,7 +113,7 @@ namespace osu.Game.Overlays
                                     status = new OsuSpriteText { Font = OsuFont.Default.With(size: 18) },
                                 },
                             },
-                            results = new ReverseChildIDFillFlowContainer<BmsDownloadCard>
+                            results = new BeatmapBrowserCardFlow<BmsDownloadCard>
                             {
                                 RelativeSizeAxes = Axes.X,
                                 AutoSizeAxes = Axes.Y,
@@ -165,7 +164,7 @@ namespace osu.Game.Overlays
                     loadTables();
                 if (Header.SelectedTable != null && tableData == null)
                     loadLevels();
-                search(reset: true);
+                if (pendingBrowserFilters == null) search(reset: true);
             };
             downloads.TaskChanged += onTaskChanged;
             State.BindValueChanged(visibilityChanged, true);
@@ -179,6 +178,7 @@ namespace osu.Game.Overlays
                 queryCancellation?.Cancel();
                 tableCancellation?.Cancel();
                 levelCancellation?.Cancel();
+                pendingBrowserFilters = null;
                 revision++;
                 searching = false;
                 more.IsLoading = false;
@@ -190,6 +190,7 @@ namespace osu.Game.Overlays
             }
 
             Header.FocusSearch();
+            game.NotifyBeatmapBrowserShown(CurrentOmsRoute);
             loadTables();
             if (Header.SelectedTable != null && tableData == null)
                 loadLevels();
@@ -205,6 +206,8 @@ namespace osu.Game.Overlays
             if (openingSearch || State.Value != Visibility.Visible)
                 return;
 
+            pendingBrowserFilters = null;
+            browserRestoreScroll = 0;
             queryCancellation?.Cancel();
             revision++;
             debounce?.Cancel();
@@ -234,6 +237,7 @@ namespace osu.Game.Overlays
                     {
                         tableStatus.Hide();
                         Header.SetTables(tables);
+                        restoreBrowserTable();
                     }
                 });
             }
@@ -275,6 +279,7 @@ namespace osu.Game.Overlays
             string? requestedMd5 = table.Length == 0 && level == null && normalisedQuery.Length == 32 && normalisedQuery.All(Uri.IsHexDigit)
                 ? normalisedQuery.ToLowerInvariant() : null;
             var currentTableData = tableData;
+            var requestedBrowserRoute = CurrentOmsRoute;
             if (level != null && currentTableData == null)
                 return;
             searching = true;
@@ -326,6 +331,7 @@ namespace osu.Game.Overlays
                     }
 
                     page = response.Page;
+                    browserResultsRoute = requestedBrowserRoute;
                     totalPages = response.TotalPages;
                     searching = false;
                     paginationPaused = false;
@@ -335,6 +341,7 @@ namespace osu.Game.Overlays
                     more.Text = BmsDownloadStrings.BrowseMore;
                     more.IsLoading = false;
                     more.Action = () => search(reset: false);
+                    if (reset) restoreBrowserScroll();
                 });
             }
             catch (OperationCanceledException)
@@ -379,8 +386,15 @@ namespace osu.Game.Overlays
                         return;
 
                     tableData = data;
+                    bool restoring = pendingBrowserFilters != null;
+                    if (restoring) openingSearch = true;
                     Header.SetLevels(data);
-                    if (Header.Level.Value.Value != null)
+                    if (restoring)
+                    {
+                        openingSearch = false;
+                        restoreBrowserLevel();
+                    }
+                    else if (Header.Level.Value.Value != null)
                         queueSearch();
                 });
             }

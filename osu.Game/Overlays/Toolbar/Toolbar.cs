@@ -181,21 +181,7 @@ namespace osu.Game.Overlays.Toolbar
                                                 new ToolbarClock(),
                                                 new ToolbarNotificationButton(),
                                             }
-                                            : (osuGame?.BmsDownloadsEnabled == true || osuGame?.ManiaDownloadsEnabled == true)
-                                                ? new Drawable[]
-                                                {
-                                                    new ToolbarNewsButton(),
-                                                    new ToolbarWikiButton(),
-                                                    new ToolbarRankingsButton(),
-                                                    new ToolbarBeatmapListingButton(),
-                                                    new ToolbarBmsDownloadButton(),
-                                                    new ToolbarOmsCommunityButton(),
-                                                    new ToolbarMusicButton(),
-                                                    userButton = new ToolbarUserButton(true),
-                                                    new ToolbarClock(),
-                                                    new ToolbarNotificationButton(),
-                                                }
-                                                : new Drawable[]
+                                            : new Drawable[]
                                                 {
                                                     new ToolbarNewsButton(),
                                                     new ToolbarWikiButton(),

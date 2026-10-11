@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using osu.Game.Online.Sayobot;
 
 namespace osu.Game.Online.IR
 {
@@ -32,6 +33,13 @@ namespace osu.Game.Online.IR
         public string Mode { get; init; } = "reference";
         public string? Category { get; init; }
         public string Query { get; init; } = string.Empty;
+
+        // Reading state of the native browser. These source-specific filters are not website query parameters.
+        public string? BrowserTable { get; init; }
+        public string? BrowserLevel { get; init; }
+        public int BrowserKeys { get; init; }
+        public int BrowserStars { get; init; }
+        public SayobotCategory BrowserCategory { get; init; }
 
         public string WebsiteUrl(string origin)
         {

@@ -73,6 +73,134 @@ namespace osu.Game.Tests.Visual.Overlays
         private BeatmapSetOverlay nativeDetails => Game.ChildrenOfType<BeatmapSetOverlay>().Single();
         private NewsOverlay nativeNews => Game.ChildrenOfType<NewsOverlay>().Single();
 
+        [Test]
+        public void TestOneBeatmapBrowserUsesRealSourcesAndRestoresFilters()
+        {
+            BeatmapListingOverlay listing = null!;
+            int maniaSearches = 0;
+            waitForNativePagesAndBrowsers();
+            AddUntilStep("recorded source and toolbar loaded", () => (listing = Game.ChildrenOfType<BeatmapListingOverlay>().Single()).IsLoaded && Game.Toolbar.IsLoaded);
+            AddAssert("there is one beatmap toolbar button and no startup request", () => Game.Toolbar.ChildrenOfType<ToolbarBeatmapListingButton>().Count() == 1
+                && metadata.Requests == 0 && bmsMetadata.Requests == 0 && omsRequests.IsEmpty);
+            AddStep("open the unified toolbar entry", () => Game.Toolbar.ChildrenOfType<ToolbarBeatmapListingButton>().Single().Action!());
+            AddUntilStep("first selected source alone finishes", () => Game.BmsDownloads.State.Value == Visibility.Visible
+                && !Game.BmsDownloads.ChildrenOfType<LoadingLayer>().Single().IsPresent);
+            AddAssert("selected source owns the toolbar state and shared header", () => Game.Toolbar.ChildrenOfType<ToolbarBeatmapListingButton>().Single().StateContainer == Game.BmsDownloads
+                && Game.BmsDownloads.Header.Title.Title.ToString() == "谱面列表" && metadata.Requests == 0 && omsRequests.IsEmpty);
+            AddStep("choose Sayobot from the shared source filter", () => click(sourceTab(Game.BmsDownloads.Header, BeatmapBrowserSource.Sayobot)));
+            AddUntilStep("the same entry shows mania cards", () => overlay.State.Value == Visibility.Visible && overlay.Cards.Count == 1);
+            AddStep("set a real mania search and linked filters", () =>
+            {
+                header.Query.Value = "合并列表";
+                header.Keys.Value = 4;
+                header.Stars.Value = ManiaDownloadHeader.StarRange.TwoToThree;
+                header.Category.Value = SayobotCategory.Ranked;
+            });
+            AddUntilStep("the exact original difficulty matches", () => overlay.Cards.SingleOrDefault()?.Set.Beatmaps.SingleOrDefault()?.Id == another_bid);
+            AddStep("visit news from the toolbar", () => Game.Toolbar.ChildrenOfType<ToolbarNewsButton>().Single().Action!());
+            AddUntilStep("news hides the browser", () => nativeNews.State.Value == Visibility.Visible && overlay.State.Value == Visibility.Hidden);
+            AddStep("reopen the unified browser from news", () => Game.Toolbar.ChildrenOfType<ToolbarBeatmapListingButton>().Single().Action!());
+            AddUntilStep("news detour preserves the exact mania filters", () => overlay.State.Value == Visibility.Visible
+                && header.Query.Value == "合并列表" && header.Keys.Value == 4 && header.Stars.Value == ManiaDownloadHeader.StarRange.TwoToThree
+                && header.Category.Value == SayobotCategory.Ranked && overlay.Cards.SingleOrDefault()?.Set.Beatmaps.SingleOrDefault()?.Id == another_bid);
+            AddStep("remember completed query and choose OMS", () => { maniaSearches = metadata.SearchRequests; click(sourceTab(header, BeatmapBrowserSource.Oms)); });
+            AddUntilStep("OMS catalogue occupies the same browser", () => listing.State.Value == Visibility.Visible && listing.ChildrenOfType<OmsChartCard>().Count() == 20);
+            AddAssert("OMS has one search icon, a real source filter and no inactive download mode", () => listing.Header.ChildrenOfType<IconButton>().Count(button => button.TooltipText.ToString() == "搜索") == 1
+                && listing.Header.ChildrenOfType<BeatmapBrowserSourceSelector>().Count() == 1 && !listing.Header.ChildrenOfType<BeatmapDownloadModeSelector>().Any()
+                && Game.Toolbar.ChildrenOfType<ToolbarBeatmapListingButton>().Single().StateContainer == listing && Game.OmsPages.HistoryDepth == 0);
+            int firstRowCount()
+            {
+                var cards = listing.ChildrenOfType<OmsChartCard>().ToArray();
+                float firstRowY = cards.Min(card => card.ScreenSpaceDrawQuad.Centre.Y);
+                return cards.Count(card => Math.Abs(card.ScreenSpaceDrawQuad.Centre.Y - firstRowY) < 1);
+            }
+            AddStep("use a desktop browser width and normal cards", () =>
+            {
+                listing.RelativeSizeAxes = Axes.Y;
+                listing.Width = 1250;
+                Game.BeatmapBrowserCardSize.Value = BeatmapCardSize.Normal;
+            });
+            AddUntilStep("normal native layout has three columns", () => firstRowCount() == 3);
+            AddStep("choose larger cards from the actual display control", () => listing.Header.ChildrenOfType<BeatmapListingCardSizeTabControl>().Single().Current.Value = BeatmapCardSize.Extra);
+            AddUntilStep("larger native layout has two columns", () => firstRowCount() == 2);
+            AddStep("use a narrow browser window", () => listing.Width = 420);
+            AddUntilStep("narrow layout keeps one fully bounded column", () => firstRowCount() == 1
+                && listing.ChildrenOfType<OmsChartCard>().All(card => card.DrawWidth * card.Scale.X < listing.DrawWidth));
+            AddStep("restore normal browser geometry", () =>
+            {
+                listing.RelativeSizeAxes = Axes.Both;
+                listing.Width = 0.85f;
+                Game.BeatmapBrowserCardSize.Value = BeatmapCardSize.Normal;
+            });
+            AddAssert("changing display layout does not request another catalogue", () => omsRequests.Count(path => path == "/api/ir/v2/charts"), () => Is.EqualTo(1));
+            AddStep("scroll the recorded directory", () => listing.OmsScroll = 60);
+            AddUntilStep("recorded directory has a real reading position", () => listing.OmsScroll > 10);
+            float recordedScroll = 0;
+            AddStep("remember position and close through page back", () => { recordedScroll = listing.OmsScroll; Game.OmsPages.Back(); });
+            AddStep("reopen after page back", () => Game.Toolbar.ChildrenOfType<ToolbarBeatmapListingButton>().Single().Action!());
+            AddUntilStep("page back preserves position without another OMS read", () => listing.State.Value == Visibility.Visible
+                && Math.Abs(listing.OmsScroll - recordedScroll) < 1 && omsRequests.Count(path => path == "/api/ir/v2/charts") == 1);
+            AddStep("return to Sayobot using the shared source filter", () => click(sourceTab(listing.Header, BeatmapBrowserSource.Sayobot)));
+            AddUntilStep("same mania criteria and results are restored", () => overlay.State.Value == Visibility.Visible && overlay.Cards.Count == 1
+                && header.Query.Value == "合并列表" && header.Keys.Value == 4 && header.Stars.Value == ManiaDownloadHeader.StarRange.TwoToThree
+                && header.Category.Value == SayobotCategory.Ranked);
+            AddAssert("restoring an already-read mania source performs no catalogue read", () => metadata.SearchRequests, () => Is.EqualTo(maniaSearches));
+            AddStep("choose 616 directly in the same source filter", () => click(sourceTab(header, BeatmapBrowserSource.Alvorna)));
+            AddUntilStep("616 is the selected BMS source", () => Game.BmsDownloads.State.Value == Visibility.Visible && Game.BmsDownloads.Header.Source.Value == BmsDownloadSource.Konmai
+                && !Game.BmsDownloads.ChildrenOfType<LoadingLayer>().Single().IsPresent);
+            AddAssert("source changes do not add page history or extra entries", () => Game.OmsPages.HistoryDepth == 0
+                && Game.Toolbar.ChildrenOfType<ToolbarBeatmapListingButton>().Count() == 1 && metadata.SearchRequests == maniaSearches
+                && omsRequests.Count(path => path == "/api/ir/v2/charts") == 1);
+            AddStep("close and reopen the unified toolbar button", () =>
+            {
+                var button = Game.Toolbar.ChildrenOfType<ToolbarBeatmapListingButton>().Single();
+                button.Action!();
+                button.Action!();
+            });
+            AddUntilStep("last source is reopened", () => Game.BmsDownloads.State.Value == Visibility.Visible && Game.BmsDownloads.Header.Source.Value == BmsDownloadSource.Konmai);
+        }
+
+        [Test]
+        public void TestRapidSourcesBeforeManiaMountDoNotMisidentifySavedPages()
+        {
+            AddStep("hold the real mania browser load", () => delayNextDownloadLoad = true);
+            CreateNewGame();
+            ConfirmAtMainMenu();
+            AddUntilStep("recorded and BMS sources ready while mania is held", () => downloadLoadStarted?.IsSet == true
+                && Game.OmsPages.IsLoaded && Game.BmsDownloads.IsLoaded && Game.ChildrenOfType<BeatmapListingOverlay>().Single().IsLoaded && !overlay.IsLoaded);
+            AddStep("open OMS directory", () => Game.OpenOmsPage(new OmsPageRoute { Kind = OmsPageKind.Charts }));
+            AddUntilStep("OMS cards are visible", () => Game.ChildrenOfType<BeatmapListingOverlay>().Single().ChildrenOfType<OmsChartCard>().Count() == 20);
+            AddStep("choose mania then BMS before mania mounts", () =>
+            {
+                Game.BeatmapBrowserSource.Value = BeatmapBrowserSource.Sayobot;
+                Game.BeatmapBrowserSource.Value = BeatmapBrowserSource.Ginger;
+            });
+            AddUntilStep("later BMS choice is visible", () => Game.BmsDownloads.State.Value == Visibility.Visible);
+            AddStep("allow mania to finish mounting", () => allowDownloadLoad!.Set());
+            AddUntilStep("mania has loaded without becoming visible", () => overlay.IsLoaded && overlay.State.Value == Visibility.Hidden);
+            AddStep("choose mania again", () => Game.BeatmapBrowserSource.Value = BeatmapBrowserSource.Sayobot);
+            AddUntilStep("mania choice opens actual mania cards", () => overlay.State.Value == Visibility.Visible && overlay.Cards.Count == 1
+                && Game.BeatmapBrowserSource.Value == BeatmapBrowserSource.Sayobot && Game.OmsPages.Route.Kind == OmsPageKind.Library);
+            AddAssert("late mounting did not query or overwrite an OMS source", () => metadata.SearchRequests == 1
+                && omsRequests.Count(path => path == "/api/ir/v2/charts") == 1);
+        }
+
+        [Test]
+        public void TestNewNativeManiaSearchFailureDoesNotRetainPreviousCards()
+        {
+            waitForNativePagesAndBrowsers();
+            AddStep("open the first native mania query", () => Game.OpenOmsPage(new OmsPageRoute { Kind = OmsPageKind.Library, Ruleset = "mania", Query = "first" }));
+            AddUntilStep("first query has a real result", () => overlay.Cards.Count == 1);
+            AddStep("open a different native query which fails", () =>
+            {
+                metadata.Response = (request, token) => request.Method == HttpMethod.Post
+                    ? Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)) : catalogue(request, token);
+                Game.OpenOmsPage(new OmsPageRoute { Kind = OmsPageKind.Library, Ruleset = "mania", Query = "second" });
+            });
+            AddUntilStep("new query offers an explicit retry", () => overlay.ChildrenOfType<ShowMoreButton>().Single().Text.ToString() == "Retry");
+            AddAssert("failed new query never displays the previous query's cards", () => header.Query.Value == "second" && overlay.Cards.Count == 0);
+        }
+
         [TestCase(true)]
         [TestCase(false)]
         public void TestNativeLibraryDoesNotResumeItselfAcrossModeSwitch(bool bms)
@@ -162,7 +290,7 @@ namespace osu.Game.Tests.Visual.Overlays
                 else if (fromBoard)
                 {
                     Game.DownloadMode.Value = BeatmapDownloadMode.Mania;
-                    Game.Toolbar.ChildrenOfType<ToolbarBmsDownloadButton>().Single().Action!();
+                    Game.Toolbar.ChildrenOfType<ToolbarBeatmapListingButton>().Single().Action!();
                 }
                 else Game.Toolbar.ChildrenOfType<ToolbarNewsButton>().Single().Action!();
             });
@@ -172,10 +300,16 @@ namespace osu.Game.Tests.Visual.Overlays
             AddWaitStep("obsolete return actions do not run afterward", 2);
             AddAssert("hiding for another overlay never restores the source over the destination", () => nativeDetails.State.Value == Visibility.Hidden
                 && Game.Ir.State.Value == Visibility.Hidden && Game.Ir.ReturnAction == null
-                && (fromBoard && throughToolbar ? overlay.State.Value == Visibility.Visible && overlay.ReturnAction == null
+                && (fromBoard && throughToolbar ? overlay.State.Value == Visibility.Visible && Game.OmsPages.HistoryDepth == 0
                     : nativeNews.State.Value == Visibility.Visible && overlay.State.Value == Visibility.Hidden && overlay.ReturnAction == null));
             AddAssert("real catalogue manager was used only for the requested download path", () => metadata.SearchRequests,
                 () => Is.EqualTo(fromBoard && !throughToolbar ? 0 : 1));
+            if (fromBoard && throughToolbar)
+            {
+                AddStep("close the toolbar browser", () => overlay.Hide());
+                AddAssert("top-level browser closes without restoring the obsolete chart", () => overlay.State.Value == Visibility.Hidden
+                    && nativeDetails.State.Value == Visibility.Hidden && Game.Ir.State.Value == Visibility.Hidden);
+            }
         }
 
         [TestCase(false)]
@@ -409,7 +543,7 @@ namespace osu.Game.Tests.Visual.Overlays
                 if (keyboard)
                     InputManager.Key(Key.Enter);
                 else
-                    click(header.ChildrenOfType<IconButton>().Single(button => button.TooltipText.ToString() == "Search"));
+                    click(header.ChildrenOfType<IconButton>().Single(button => button.TooltipText.ToString() == "搜索"));
             });
             AddUntilStep("manual retry loaded original set", () => overlay.Cards.SingleOrDefault()?.Set.Id == set_id);
         }
@@ -761,6 +895,9 @@ namespace osu.Game.Tests.Visual.Overlays
         private static FilterTabItem<BeatmapDownloadMode> modeTab(Drawable parent, BeatmapDownloadMode mode) =>
             parent.ChildrenOfType<FilterTabItem<BeatmapDownloadMode>>().Single(tab => tab.Value == mode);
 
+        private static FilterTabItem<BeatmapBrowserSource> sourceTab(Drawable parent, BeatmapBrowserSource source) =>
+            parent.ChildrenOfType<FilterTabItem<BeatmapBrowserSource>>().Single(tab => tab.Value == source);
+
         private static BeatmapDownloadCardButton cardButton(ManiaDownloadCard card, string tooltip) =>
             card.ChildrenOfType<BeatmapDownloadCardButton>().Single(button => button.TooltipText.ToString() == tooltip);
 
@@ -844,6 +981,15 @@ namespace osu.Game.Tests.Visual.Overlays
                     }),
                     ["help"] = new JArray(),
                 };
+            else if (path == "/api/ir/v2/charts")
+            {
+                var items = new JArray(Enumerable.Range(1, 20).Select(index => new JObject
+                {
+                    ["chart"] = new JObject { ["md5"] = index.ToString("x32", CultureInfo.InvariantCulture), ["title"] = "合成目录 " + index, ["artist"] = "OMS synthetic", ["difficulty"] = "☆12" },
+                    ["ruleset"] = "bms",
+                }));
+                response = new JObject { ["items"] = items, ["page"] = 1, ["limit"] = 20, ["total"] = 20 };
+            }
             else if (path == "/api/ir/v2/charts/" + native_bms_md5 || path == "/api/ir/v2/charts/" + native_mania_md5)
             {
                 bool mania = path.EndsWith(native_mania_md5, StringComparison.Ordinal);

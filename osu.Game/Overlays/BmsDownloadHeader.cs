@@ -3,118 +3,45 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
-using osu.Framework.Graphics.Shapes;
-using osu.Framework.Graphics.Sprites;
-using osu.Framework.Graphics.UserInterface;
 using osu.Framework.Localisation;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
-using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Localisation;
 using osu.Game.Online.Bms;
 using osu.Game.Overlays.BeatmapListing;
-using osuTK;
 
 namespace osu.Game.Overlays
 {
-    public partial class BmsDownloadHeader : OverlayHeader
+    public partial class BmsDownloadHeader : BeatmapBrowserHeader
     {
-        private SourceFilterRow source = null!;
+        public Bindable<BmsDownloadSource> Source { get; } = new Bindable<BmsDownloadSource>();
         private TableDropdown tables = null!;
         private LevelDropdown levels = null!;
-        private BasicSearchTextBox search = null!;
-        private Box background = null!;
-
-        public Bindable<BmsDownloadSource> Source => source.Current;
         public Bindable<string> Table => tables.Current;
         public Bindable<TableLevel> Level => levels.Current;
         public BmsDownloadTable? SelectedTable => tables.SelectedTable;
-        public Bindable<string> Query => search.Current;
-        public Action? Retry { get; set; }
 
-        protected override OverlayTitle CreateTitle() => new DownloadTitle();
+        protected override LocalisableString SearchPlaceholder => "搜索曲名、艺术家或原谱 MD5…";
 
-        protected override Drawable CreateContent() => new Container
+        protected override IEnumerable<Drawable> CreateBrowserFilters() => new Drawable[]
         {
-            RelativeSizeAxes = Axes.X,
-            AutoSizeAxes = Axes.Y,
-            Children = new Drawable[]
-            {
-                background = new Box { RelativeSizeAxes = Axes.Both },
-                new FillFlowContainer
-                {
-                    RelativeSizeAxes = Axes.X,
-                    AutoSizeAxes = Axes.Y,
-                    Direction = FillDirection.Vertical,
-                    Padding = new MarginPadding { Horizontal = WaveOverlayContainer.HORIZONTAL_PADDING, Vertical = 20 },
-                    Spacing = new Vector2(0, 20),
-                    Children = new Drawable[]
-                    {
-                        new GridContainer
-                        {
-                            RelativeSizeAxes = Axes.X,
-                            Height = 40,
-                            ColumnDimensions = new[] { new Dimension(), new Dimension(GridSizeMode.Absolute, 40) },
-                            Content = new[]
-                            {
-                                new Drawable[]
-                                {
-                                    search = new DownloadSearchTextBox
-                                    {
-                                        RelativeSizeAxes = Axes.X,
-                                        Height = 40,
-                                        PlaceholderText = BmsDownloadStrings.Search,
-                                    },
-                                    new IconButton
-                                    {
-                                        Anchor = Anchor.CentreRight,
-                                        Origin = Anchor.CentreRight,
-                                        Icon = FontAwesome.Solid.RedoAlt,
-                                        TooltipText = BmsDownloadStrings.SearchNow,
-                                        Action = () => Retry?.Invoke(),
-                                    },
-                                },
-                            },
-                        },
-                        new ReverseChildIDFillFlowContainer<Drawable>
-                        {
-                            RelativeSizeAxes = Axes.X,
-                            AutoSizeAxes = Axes.Y,
-                            Direction = FillDirection.Vertical,
-                            Padding = new MarginPadding { Horizontal = 10 },
-                            Spacing = new Vector2(0, 5),
-                            Children = new Drawable[]
-                            {
-                                new BeatmapDownloadModeSelector(),
-                                source = new SourceFilterRow(),
-                                filterField(BmsDownloadStrings.Table, tables = new TableDropdown()),
-                                filterField(BmsDownloadStrings.TableLevel, levels = new LevelDropdown()),
-                            },
-                        },
-                    },
-                },
-            },
+            new BeatmapDownloadModeSelector(),
+            filterField(BmsDownloadStrings.Table, tables = new TableDropdown()),
+            filterField(BmsDownloadStrings.TableLevel, levels = new LevelDropdown()),
         };
 
-        [BackgroundDependencyLoader]
-        private void load(OverlayColourProvider colour)
-        {
-            background.Colour = colour.Dark6;
-            search.OnCommit += (_, _) => Retry?.Invoke();
-        }
-
-        public void FocusSearch() => search.TakeFocus();
         public void ClearTables() => tables.SetTables(Array.Empty<BmsDownloadTable>());
         public void SetTables(IReadOnlyList<BmsDownloadTable> values) => tables.SetTables(values);
         public void ClearLevels() => levels.Clear();
         public void SetLevelsLoading() => levels.SetStatus(BmsDownloadStrings.LevelsLoading);
         public void SetLevelsFailed() => levels.SetStatus(BmsDownloadStrings.LevelsFailed);
         public void SetLevels(BmsDownloadTableData data) => levels.SetLevels(data.Symbol, data.Levels);
+        public bool SelectTable(string id) => tables.SelectTable(id);
+        public bool HasTable(string id) => tables.HasTable(id);
 
         public readonly record struct TableLevel(string? Value);
 
@@ -145,51 +72,19 @@ namespace osu.Game.Overlays
             };
         }
 
-        private partial class DownloadTitle : OverlayTitle
-        {
-            public DownloadTitle()
-            {
-                Title = BeatmapDownloadStrings.Title;
-                Description = BeatmapDownloadStrings.Description;
-                Icon = OsuIcon.Beatmap;
-            }
-        }
-
-        private partial class DownloadSearchTextBox : BasicSearchTextBox
-        {
-            protected override bool AllowCommit => true;
-        }
-
-        private partial class SourceFilterRow : BeatmapSearchFilterRow<BmsDownloadSource>
-        {
-            public SourceFilterRow()
-                : base(BmsDownloadStrings.Source)
-            {
-            }
-
-            protected override Drawable CreateFilter() => new SourceFilter();
-
-            private partial class SourceFilter : BeatmapSearchFilter
-            {
-                protected override TabItem<BmsDownloadSource> CreateTabItem(BmsDownloadSource value) => new SourceTab(value);
-            }
-
-            private partial class SourceTab : FilterTabItem<BmsDownloadSource>
-            {
-                public SourceTab(BmsDownloadSource value)
-                    : base(value)
-                {
-                }
-
-                protected override LocalisableString LabelFor(BmsDownloadSource value) => value == BmsDownloadSource.Ginger ? "Ginger Rush" : "616 / Alvorna";
-            }
-        }
-
         private partial class TableDropdown : OsuDropdown<string>
         {
             private readonly Dictionary<string, BmsDownloadTable> values = new Dictionary<string, BmsDownloadTable>();
 
             public BmsDownloadTable? SelectedTable => values.GetValueOrDefault(Current.Value);
+            public bool HasTable(string id) => values.ContainsKey(id);
+
+            public bool SelectTable(string id)
+            {
+                if (!values.ContainsKey(id)) return false;
+                Current.Value = id;
+                return true;
+            }
 
             public TableDropdown() => SetTables(Array.Empty<BmsDownloadTable>());
 

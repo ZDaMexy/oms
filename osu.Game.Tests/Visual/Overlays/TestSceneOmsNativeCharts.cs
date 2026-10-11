@@ -12,7 +12,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
-using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -116,9 +115,11 @@ namespace osu.Game.Tests.Visual.Overlays
             {
                 OmsChartCard card = listing.ChildrenOfType<OmsChartCard>().First();
                 SpriteIcon icon = card.ChildrenOfType<SpriteIcon>().First();
-                return hasText(card, "合成艺术家") && hasText(card, "难度标注：☆12") && hasText(card, "公开谱面目录")
-                    && flow(card, "合成谱面 1").ScreenSpaceDrawQuad.Centre.X > icon.ScreenSpaceDrawQuad.Centre.X
-                    && card.DrawWidth < listing.DrawWidth;
+                SpriteText title = card.ChildrenOfType<SpriteText>().First(sprite => sprite.Text.ToString().StartsWith("合成谱面 ", StringComparison.Ordinal));
+                return hasText(card, "合成艺术家") && hasText(card, "难度标注：☆12") && hasText(card, "BMS · OMS")
+                    && title.ScreenSpaceDrawQuad.Centre.X > icon.ScreenSpaceDrawQuad.Centre.X
+                    && card.DrawWidth * card.Scale.X < listing.DrawWidth
+                    && card.Height == osu.Game.Beatmaps.Drawables.Cards.BeatmapCardNormal.HEIGHT;
             });
             AddAssert("one bounded anonymous OMS directory read", () => requests.Count == 1
                 && requests.Single().Path == "/api/ir/v2/charts" && requests.Single().Query == "?q=&page=1&limit=20"
@@ -143,7 +144,7 @@ namespace osu.Game.Tests.Visual.Overlays
             AddStep("type a native Unicode search", () => listing.ChildrenOfType<BasicSearchTextBox>().Single().Text = "中文 & 曲名");
             AddWaitStep("typing alone does not search", 2);
             AddAssert("search is sent on commit only", () => requests.Count == 2);
-            AddStep("commit the native search", () => listing.ChildrenOfType<IconButton>().Single(item => item.TooltipText.ToString() == "搜索已收录谱面").TriggerClick());
+            AddStep("commit the native search", () => listing.ChildrenOfType<IconButton>().Single(item => item.TooltipText.ToString() == "搜索").TriggerClick());
             AddUntilStep("searched cards replace the directory", () => !isLoading(listing) && hasText(listing, "中文 & 曲名 搜索结果"));
             AddAssert("search retains the actual text and resets to page one", () => requests.Count == 3
                 && query(requests.Last().Query)["q"] == "中文 & 曲名" && query(requests.Last().Query)["page"] == "1"
@@ -346,7 +347,7 @@ namespace osu.Game.Tests.Visual.Overlays
             for (int index = first; index <= last; index++)
             {
                 string title = index == 1 && search.Length > 0 ? search + " 搜索结果" : "合成谱面 " + index;
-                // Real long metadata should wrap inside a horizontal card and leave a scrollable directory.
+                // Long metadata is truncated in the compact card and retained in its tooltip.
                 items.Add(chart(index.ToString("x32", CultureInfo.InvariantCulture), title + " · " + new string('曲', 180)));
             }
             return new JObject { ["page"] = page, ["limit"] = 20, ["total"] = 21, ["items"] = items };

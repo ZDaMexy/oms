@@ -16,12 +16,12 @@ using osu.Framework.Threading;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.Drawables.Cards;
 using osu.Game.Database;
-using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Localisation;
 using osu.Game.Online;
 using osu.Game.Online.Sayobot;
+using osu.Game.Overlays.BeatmapListing;
 using osuTK;
 using osuTK.Graphics;
 
@@ -93,7 +93,7 @@ namespace osu.Game.Overlays
                         Children = new Drawable[]
                         {
                             status = new OsuSpriteText(),
-                            results = new ReverseChildIDFillFlowContainer<ManiaDownloadCard>
+                            results = new BeatmapBrowserCardFlow<ManiaDownloadCard>
                             {
                                 RelativeSizeAxes = Axes.X,
                                 AutoSizeAxes = Axes.Y,
@@ -138,6 +138,7 @@ namespace osu.Game.Overlays
             }
 
             Header.FocusSearch();
+            game.NotifyBeatmapBrowserShown(CurrentOmsRoute);
             if (openingSearch) return;
             if (cards.Count == 0)
                 search(true);
@@ -151,6 +152,7 @@ namespace osu.Game.Overlays
             if (openingSearch || State.Value != Visibility.Visible)
                 return;
 
+            browserRestoreScroll = 0;
             queryCancellation?.Cancel();
             revision++;
             debounce?.Cancel();
@@ -175,6 +177,7 @@ namespace osu.Game.Overlays
             var cancellation = queryCancellation;
             int requestRevision = ++revision;
             int requestedOffset = reset ? 0 : nextOffset;
+            var requestedBrowserRoute = CurrentOmsRoute;
             searching = true;
             more.IsLoading = true;
             if (reset)
@@ -207,6 +210,7 @@ namespace osu.Game.Overlays
                     }
 
                     nextOffset = response.NextOffset;
+                    browserResultsRoute = requestedBrowserRoute;
                     hasMore = response.HasMore;
                     searching = false;
                     paginationPaused = false;
@@ -216,6 +220,7 @@ namespace osu.Game.Overlays
                     more.IsLoading = false;
                     more.Text = BmsDownloadStrings.BrowseMore;
                     more.Action = () => search(false);
+                    if (reset) restoreBrowserScroll();
                 });
             }
             catch (OperationCanceledException)
