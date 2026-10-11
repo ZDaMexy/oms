@@ -2,6 +2,52 @@
 
 ## 2026-10-11
 
+### 转谱星数后台资源优化
+
+- 用户报告 VS Code 非调试启动后补算卡顿且计算慢。本轮基线为干净的 `824c208d1a620a7fac5eaf7855b1c015c5ba324d`，在线 fetch 确认与 origin/master 一致。只读用户指定的导出日志，按会话文件名而非相同的导出 mtime 选取 `1791719460`；未扫描、修改用户谱库或运行 live 数据库。
+- 日志 UTC 换算为本地 UTC+8：19:51:07 找到 56,366 张待补算，20:23:07 进入下一阶段，边界耗时 1,920 秒；截图成功 56,307、失败 59，与日志失效缓存次数及不可转换失败数一致。59 项均无可用于 mania 星数计算的判定音符，没有 calculator timeout、transient failure 或 gameplay pause。结束统计 Audio Components 56,531、Realm async reads 57,269，而 working cache 仅 4；日志未记录完整帧时间或 CPU profile。
+- 根因一是 filesystem provider 构造时为每张谱面创建两种 texture store 和 track store。固定依赖 ppy.osu.Framework 2026.303.0 的 [AudioManager](https://github.com/ppy/osu-framework/blob/ba04d538f02cecaabe5ab7dc3b102cd47d59d785/osu.Framework/Audio/AudioManager.cs) 将每个 track store 注册进全局集合，[AudioCollectionManager](https://github.com/ppy/osu-framework/blob/ba04d538f02cecaabe5ab7dc3b102cd47d59d785/osu.Framework/Audio/AudioCollectionManager.cs) 持有并继续更新子项；清 working cache 不会解除该注册。三类 store 改为线程安全的 `Lazy<T>`，读谱和算星只使用文件，实际背景/播放首次使用时才创建一次。首次真实消费承担原先提前支付的初始化成本，后续播放接口保持。
+- 根因二是非调试启动仍使用 Debug 构建时，`Debug.Assert` 参数中的 blob 路径复核对每张 filesystem 谱面额外读取 Realm；此类型没有 Realm blob。该诊断仅保留于 hash-backed 谱面，filesystem 原始字节 MD5 验证保持，修改过的源文件仍拒绝加载。
+- 不改变 mania 星数算法、转换/难度版本、MD5 身份、共享 RulesetData、失败持久化、分块/并行度、批量写回与游玩时暂停；已有效的持久化星数继续复用。未把 59 个不可转换条目当成超时重试，也未通过清库或版本 bump 强制用户重算。
+
+隔离测量使用真实 `WorkingBeatmapCache`、BMS loader 和 mania calculator，三轮各自新进程，生成同一个小型外部 BMS fixture，不打开用户 data root。原始 `*-before-*.json` 来自改动前源码；最终 `*-final-*.json` 包含本轮全部源码修改，Game assembly SHA256 为 `6BE1594032E6138A7848433D87C70E84D39FDA2DD9C9414B551DA044745A27CE`。源码/工程存于 `artifacts/converted-stars-performance-20261011/probe-source/`，原源码快照、汇总脚本、运行时指纹、原始 JSON 和 `probe-summary.json` 同目录保留。
+
+| 每轮 5,000 张计算环境；三轮中位数 | 改动前 | 最终源码 |
+| --- | --- | --- |
+| 创建耗时 | 97.922 ms | 49.164 ms（减少 49.8%） |
+| 累计分配 | 80,099,600 B | 21,806,672 B（减少 72.8%） |
+| 额外注册 track store | 5,000 | 0 |
+| 空全局 track store 更新 sweep | 0.2477 ms | 0.0001 ms |
+
+每轮 128 张同一小谱面的真实转谱/算星，前后六轮共 768 个星数逐值完全一致；累计分配中位数 16,443,656→14,951,992 B（减少 9.1%）。耗时中位数 90.346→83.062 ms，但前后单轮范围重叠，先期三轮资源改动测量为 91.985 ms；小谱面时延有噪声，不据此承诺全库算星提速。上述空集合 sweep 不启动 framework audio thread，仅调用真实 collection.Update，不能代替设备音频或帧时间；Release 测量也不包含 Debug 诊断读取的收益。真实大库改善仍按 [PLAN](DEVELOPMENT_PLAN.md#1-隔离数据根及真实大库验收) 自然补算时复验。
+
+软件验证与失败身份：
+
+- core Debug 资源、原谱 MD5 修改拒绝、真实 mania 算星、persisted star fallback 与 ruleset version 回归 22/22；scanner 9/9；mania Release 导入/下载/样本转换 57/57。新增资源 fixture 验证纯读谱不访问图片/音轨、两类图片与音轨并发首次消费只创建一次；原 hash-backed Debug 诊断保持。
+- BMS Release full：2,561 通过、30 失败、16 跳过，耗时 10 分 17 秒。29 项与 `artifacts/gameplay-performance-20260930/bms-full-final.trx` 的身份及 Message 一致，仅规范化工作区迁移和 DisplayClass 数字后完整栈一致，见 `bms-failure-comparison.json`。
+- 历史报告外的 `BmsManagedFolderSelectionProductTest.TestManagedDeleteFallbackReentrantSelectionNeverSplitsPairAndLatestWins` 在当前源码单项仍失败；用 `baseline-source.targets` 将唯一改动的生产文件替换为已核对干净 HEAD 的原快照重新编译，失败消息与完整栈逐字一致，见 `bms-reentrant-baseline-comparison.json`。记录真实 compile item，未改 checkout 源码、断言或增加等待重试，不把历史报告之外的失败直接归为本次新增。该旧皮肤删除检查仍待 owning P1-A 维护，本轮不改无关皮肤行为。
+- 对照后去掉临时 MSBuild 参数，以普通源码重新非增量构建 `osu.Desktop.slnf` Release 成功，0 错误、2 个原有 BMS 测试工程警告（CS8600/CA2007）；普通 Desktop Debug 0 警告、0 错误。定点 whitespace 与 IDE0005 imports `--verify-no-changes` 通过，未运行完整 style 或 mania full，不称仓库全绿。
+- 首次探针探索的编译错误与启动失败不是软件 gate，旧日志不覆盖；正式前后探针均正常退出。源码快照只忽略 checkout CRLF/LF 差异后与基线 Git blob 比较，`source-binding.json` 保留原字节的不同 SHA，不把换行差异当内容改变或伪称逐字节一致。
+- 临时 `.dev-cache/temp/converted-stars-perf-probe` 的源码已 SHA256 对照归档；确认为无链接、数据库和活动探针，366 文件、653,780,576 B。唯一限定路径 PowerShell 删除被自动审批以 `blocked by policy` 拒绝，随后只读确认目录仍在；没有回收空间或换用删除工具。`probe-cleanup-before/after.json` 与 `probe-cleanup-blocked.txt` 保留，待用户清理后复核；长期日志、源码、测量与 TRX 不属于垃圾。
+- 客户端文档健康、总工作区协作文档验收与 `git diff --check` 通过；新增 checksum 为产品程序集指纹，检查器的公开指纹提示保留。最初 PLAN 会话用语检查失败已修正，原输出保留；统一验收仍有 11 项历史客户端事实待复核，不因单客户端资源优化刷新桥事实或其它产品适用日期。
+
+主要命令（各新 shell 先 `. .\UseDevelopmentStorage.ps1`；原始输出与 TRX 位于上述证据目录）：
+
+```powershell
+dotnet test osu.Game.Tests/osu.Game.Tests.csproj -c Debug --filter 'FullyQualifiedName~WorkingBeatmapResourceTest|FullyQualifiedName~BmsStarRatingResolverTest|FullyQualifiedName~BackgroundDataStoreProcessorRulesetVersionTest' --logger 'trx;LogFileName=core-resource-focused.trx' --results-directory artifacts/converted-stars-performance-20261011
+dotnet build osu.Desktop.slnf -c Release --no-restore
+dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj -c Release --no-build --no-restore --logger 'trx;LogFileName=bms-full.trx' --results-directory artifacts/converted-stars-performance-20261011
+$baselineTargets = (Resolve-Path -LiteralPath artifacts/converted-stars-performance-20261011/baseline-source.targets).Path
+dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj -c Release --no-restore "-p:DirectoryBuildTargetsPath=$baselineTargets" --filter 'FullyQualifiedName~TestManagedDeleteFallbackReentrantSelectionNeverSplitsPairAndLatestWins' --logger 'trx;LogFileName=bms-reentrant-baseline.trx' --results-directory artifacts/converted-stars-performance-20261011
+dotnet build osu.Desktop.slnf -c Release --no-restore --no-incremental
+dotnet test osu.Game.Rulesets.Mania.Tests/osu.Game.Rulesets.Mania.Tests.csproj -c Release --no-build --no-restore --filter 'FullyQualifiedName~ManiaImportIntegrationTest|FullyQualifiedName~ManiaDownloadImporterTest|FullyQualifiedName~ManiaBeatmapSampleConversionTest' --logger 'trx;LogFileName=mania-focused.trx' --results-directory artifacts/converted-stars-performance-20261011
+dotnet test osu.Game.Tests/osu.Game.Tests.csproj -c Debug --no-build --no-restore --filter 'FullyQualifiedName~ExternalLibraryScannerTest' --logger 'trx;LogFileName=core-scanner.trx' --results-directory artifacts/converted-stars-performance-20261011
+dotnet build osu.Desktop/osu.Desktop.csproj -c Debug --no-restore
+dotnet build .dev-cache/temp/converted-stars-perf-probe/ConvertedStarsProbe.csproj -c Release --no-restore
+# 新进程逐轮执行探针 resources/stars 场景；复跑前将归档的两个 probe-source 文件还原到上述临时目录。
+python artifacts/converted-stars-performance-20261011/summarize-probe.py
+```
+
 ### 临时探针清理收尾
 
 自动删除曾被审批以 blocked by policy 拒绝；用户随后自行执行限定路径、链接 / 数据库预检的 PowerShell 命令，删除 `.dev-cache/temp/library-scan-probe` 与 `.dev-cache/temp/log-reveal-probe`。本轮只读复核两目录均不存在，审查目录中的两份源码 / 工程、前后 benchmark、宿主探针 JSON 和 TRX 保留，原 `probe-cleanup-blocked.txt` 不覆盖。删除前两目录逻辑大小合计约 1.22 GiB，未复核实际磁盘回收量。

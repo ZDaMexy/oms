@@ -40,5 +40,7 @@ metadata:
 4. 5万级不要为每谱创建 async lambda/task；sync-first 收集 misses，只对 miss `WhenAll`。
 5. worker 不碰 Realm；并行度保留 UI 核心，batched write 减少竞争。
 6. `parsedDataCache` 写后驱逐旧 JSON key，避免每次 metadata mutation 留一份缓存。
+7. 大库算星后 working cache 很小而音频组件接近谱面数时，检查资源 provider 是否在构造时调用 `AudioManager.GetTrackStore`。全局 track collection 强持有子 store，清 working cache 不会解除该注册；只读/算星路径必须避免先创建不用的播放与图片 store。来源与受控对照见 [P1-H 日志](../../doc_md/subline/P1-H/CHANGELOG.md#转谱星数后台资源优化)。
+8. VS Code 非调试启动仍可能是 Debug 构建。`Debug.Assert` 的参数会执行；filesystem 谱面没有 Realm blob，不应为确认 blob 路径在每张 working beatmap 上额外做 Realm 读取。跳过的是不适用的数据库诊断，原文件 MD5 边界仍须验证；注意勿把 Release 微测量当成这部分 Debug 收益。
 
 K12 曾证明 sample-only 污染可把 scratch-dense star 抬高一倍以上；以后任何新 sample-only 类型都必须同时审查 scorable、combo 和 difficulty 三条链。

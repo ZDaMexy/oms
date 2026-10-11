@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-11（扫描、固定 OMSIR及网络审查；各项软件、人工和发行证据保留原日期）
+> 最后核对：2026-10-11（扫描、转谱补算、固定 OMSIR及网络审查；各项软件、人工和发行证据保留原日期）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -41,7 +41,7 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 | 4 | 真实LN/CN/HCN、音频/特殊谱、BGA、选歌大库与发行组合仍需验收；原生/转谱热路径已优化，BGA多窗已共享内容源，证据与剩余门见记录 | [性能验证](../other/GAMEPLAY_PERFORMANCE_20260930.md) |
 | 5 | V-001～V-005及当前完整候选人工签收，承接公共下载与离线启动组合；2026-07-14恢复和旧 ZIP 验收不能代替新增能力的最终包验证 | [集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)、[P1-F](../subline/P1-F/DEVELOPMENT_STATUS.md)、[P1-G](../subline/P1-G/DEVELOPMENT_STATUS.md) |
 
-谱库缺失恢复与历史保全、当前页难度表刷新及扫描热路径优化已实现，便携日志导出已修复宿主调用链；真实大库响应、现场资源不足原因与 Explorer 选中文件仍取 [P1-H](../subline/P1-H/DEVELOPMENT_STATUS.md) 的剩余门。长伴奏暂停保位、手动转谱长条发声和单轨上限筛选的交互 / 听感门见 [P1-I](../subline/P1-I/DEVELOPMENT_STATUS.md)、[P1-J](../subline/P1-J/DEVELOPMENT_STATUS.md)。发行覆盖须保持原便携模式，非便携真实设备与公开发行组合验收归P1-F/P1-G。
+谱库缺失恢复与历史保全、当前页难度表刷新及扫描热路径优化已实现，便携日志导出已修复宿主调用链，转谱补算的播放/图片资源已改为按需创建；真实大库响应、现场资源不足原因与 Explorer 选中文件仍取 [P1-H](../subline/P1-H/DEVELOPMENT_STATUS.md) 的剩余门。长伴奏暂停保位、手动转谱长条发声和单轨上限筛选的交互 / 听感门见 [P1-I](../subline/P1-I/DEVELOPMENT_STATUS.md)、[P1-J](../subline/P1-J/DEVELOPMENT_STATUS.md)。发行覆盖须保持原便携模式，非便携真实设备与公开发行组合验收归P1-F/P1-G。
 
 旧 C7 安装 / 跨版本及保存根保全证据见 [P1-F](../subline/P1-F/DEVELOPMENT_STATUS.md)；首次误入保存根事故没有事前快照，不能追溯宣称无损，也不代签当前发行。
 
@@ -49,7 +49,7 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 ## 最近一次验证
 
-2026-10-10～11 扫描优化、素材匹配与混合玩法增量、历史身份保全和便携日志定位已有隔离软件及普通 Desktop 双配置证据，来源提交为 `d6f0d60`；范围、受控收益与未验项只取 [P1-H 最新验证](../subline/P1-H/DEVELOPMENT_STATUS.md#最近一次验证)。本轮文档同步未重扫用户库，不将探针调用链或样本耗时提升为真实大库、Explorer 或发行签收。
+2026-10-11 转谱补算资源与 Debug 读取优化已有受控测量、回归及 Desktop 双配置证据；旧皮肤失败已逐项对照。范围、取舍与未验项只取 [P1-H 最新验证](../subline/P1-H/DEVELOPMENT_STATUS.md#最近一次验证)。扫描 / 便携宿主修复的 `d6f0d60` 来源见 [扫描审查](../other/LIBRARY_SCAN_REVIEW_20261010.md)。未重扫用户库，样本或探针不代签真实大库、Explorer 或发行。
 
 2026-10-03下载完成状态修复已有软件与Release证据：首次成功后可直接打开所选难度，删除/目录不可用目标不能误显示可玩。当前能力、验证范围、原坏包/目录修复及未完成门统一见[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)；修复后实站观察、真实大包/听感及原人工门保留。
 

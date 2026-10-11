@@ -126,6 +126,11 @@ namespace osu.Game.Beatmaps
 
         private bool confirmFileHashIsUpToDate(BeatmapInfo beatmapInfo)
         {
+            // Filesystem charts have no Realm blob path to confirm. GetBeatmap validates their actual bytes against
+            // MD5Hash; querying Realm here adds a redundant database read for every chart in Debug library processing.
+            if (!string.IsNullOrEmpty(beatmapInfo.BeatmapSet?.FilesystemStoragePath))
+                return true;
+
             string refetchPath = realm.Run(r => r.Find<BeatmapInfo>(beatmapInfo.ID)?.File?.File.Hash);
             return refetchPath == null || refetchPath == beatmapInfo.File?.File.Hash;
         }
@@ -472,27 +477,29 @@ namespace osu.Game.Beatmaps
             }
         }
 
-        private class FilesystemBackedBeatmapResourceProvider : IBeatmapResourceProvider
+        internal class FilesystemBackedBeatmapResourceProvider : IBeatmapResourceProvider
         {
             private readonly IBeatmapResourceProvider fallback;
             private readonly IResourceStore<byte[]> files;
-            private readonly TextureStore largeTextureStore;
-            private readonly TextureStore beatmapPanelTextureStore;
-            private readonly ITrackStore tracks;
+            private readonly Lazy<TextureStore> largeTextureStore;
+            private readonly Lazy<TextureStore> beatmapPanelTextureStore;
+            private readonly Lazy<ITrackStore> tracks;
 
             public FilesystemBackedBeatmapResourceProvider(IBeatmapResourceProvider fallback, Storage storage)
             {
                 this.fallback = fallback;
 
                 files = new StorageBackedResourceStore(storage);
-                largeTextureStore = new LargeTextureStore(fallback.Renderer, fallback.CreateTextureLoaderStore(files));
-                beatmapPanelTextureStore = new LargeTextureStore(fallback.Renderer, new BeatmapPanelBackgroundTextureLoaderStore(fallback.CreateTextureLoaderStore(files)));
-                tracks = fallback.AudioManager.GetTrackStore(files);
+                // Difficulty calculation only needs chart files. AudioManager retains every registered track store,
+                // so eagerly creating one here makes full-library calculations grow the audio loop indefinitely.
+                largeTextureStore = new Lazy<TextureStore>(() => new LargeTextureStore(fallback.Renderer, fallback.CreateTextureLoaderStore(files)));
+                beatmapPanelTextureStore = new Lazy<TextureStore>(() => new LargeTextureStore(fallback.Renderer, new BeatmapPanelBackgroundTextureLoaderStore(fallback.CreateTextureLoaderStore(files))));
+                tracks = new Lazy<ITrackStore>(() => fallback.AudioManager.GetTrackStore(files));
             }
 
-            TextureStore IBeatmapResourceProvider.LargeTextureStore => largeTextureStore;
-            TextureStore IBeatmapResourceProvider.BeatmapPanelTextureStore => beatmapPanelTextureStore;
-            ITrackStore IBeatmapResourceProvider.Tracks => tracks;
+            TextureStore IBeatmapResourceProvider.LargeTextureStore => largeTextureStore.Value;
+            TextureStore IBeatmapResourceProvider.BeatmapPanelTextureStore => beatmapPanelTextureStore.Value;
+            ITrackStore IBeatmapResourceProvider.Tracks => tracks.Value;
             IRenderer IStorageResourceProvider.Renderer => fallback.Renderer;
             AudioManager IStorageResourceProvider.AudioManager => fallback.AudioManager;
             RealmAccess IStorageResourceProvider.RealmAccess => fallback.RealmAccess;

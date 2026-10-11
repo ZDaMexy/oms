@@ -42,7 +42,7 @@
 - [难度表](reference_bms_difficulty_table.md)
 - [选歌元数据显示](reference_bms_songselect_metadata_display.md) — 署名共用 resolver 与标题/难度名局部清理的边界。
 - [在资源管理器中显示](reference_bms_songselect_reveal_in_explorer.md) — 外部路径 containment 与便携 NativeStorage 宿主绑定。
-- [转谱星数持久化](reference_converted_star_persistence.md) — 转谱星、原生作者等级与密度预览。
+- [转谱星数持久化](reference_converted_star_persistence.md) — 版本复用、后台资源累积、Debug 逐谱数据库读取与原生作者等级。
 - [转谱键数显示](reference_converted_mania_keycount_display.md) — BMS 键数误入 osu 启发式、转换与展示统一 CircleSize。
 
 ## BMS 解析、音频与游玩参考
