@@ -184,9 +184,12 @@ namespace osu.Game.Overlays.Toolbar
                                             : (osuGame?.BmsDownloadsEnabled == true || osuGame?.ManiaDownloadsEnabled == true)
                                                 ? new Drawable[]
                                                 {
+                                                    new ToolbarNewsButton(),
+                                                    new ToolbarWikiButton(),
+                                                    new ToolbarRankingsButton(),
+                                                    new ToolbarBeatmapListingButton(),
                                                     new ToolbarBmsDownloadButton(),
-                                                    new ToolbarOmsRankingsButton(),
-                                                    new ToolbarOmsServicesButton(),
+                                                    new ToolbarOmsCommunityButton(),
                                                     new ToolbarMusicButton(),
                                                     userButton = new ToolbarUserButton(true),
                                                     new ToolbarClock(),
@@ -194,8 +197,11 @@ namespace osu.Game.Overlays.Toolbar
                                                 }
                                                 : new Drawable[]
                                                 {
-                                                    new ToolbarOmsRankingsButton(),
-                                                    new ToolbarOmsServicesButton(),
+                                                    new ToolbarNewsButton(),
+                                                    new ToolbarWikiButton(),
+                                                    new ToolbarRankingsButton(),
+                                                    new ToolbarBeatmapListingButton(),
+                                                    new ToolbarOmsCommunityButton(),
                                                     new ToolbarMusicButton(),
                                                     userButton = new ToolbarUserButton(true),
                                                     new ToolbarClock(),

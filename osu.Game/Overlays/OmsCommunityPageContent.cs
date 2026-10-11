@@ -8,15 +8,23 @@ using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using osu.Framework.Allocation;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Shapes;
 using osu.Framework.Localisation;
+using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.UserInterface;
+using osu.Game.Graphics.UserInterfaceV2;
 using osu.Game.Online.IR;
+using osuTK;
 
 namespace osu.Game.Overlays
 {
-    public partial class OmsServicesOverlay
+    public partial class OmsCommunityPageContent : OmsPageContent
     {
+        protected override Task<Action> LoadPageAsync(OmsPageRoute requested, CancellationToken token)
+            => requested.Kind == OmsPageKind.Topic ? LoadTopicAsync(requested, token) : LoadCommunityAsync(requested, token);
         private readonly Dictionary<string, CommunityDraft> drafts = new Dictionary<string, CommunityDraft>();
         private static readonly string[] categories = { "discussion", "help", "showcase", "development" };
 
@@ -38,19 +46,25 @@ namespace osu.Game.Overlays
             JObject[] items = ReadCommunityPage(response, requested.Page, isPost: true, detail: false);
             return () =>
             {
-                AddText("OMS 社区", 26);
-                AddText("讨论、求助、反馈与作品展示", 16);
                 var search = new OsuTextBox { RelativeSizeAxes = Axes.X, Height = 40, Text = requested.Query, LengthLimit = 80, PlaceholderText = "搜索标题与正文" };
-                rows.Add(search);
-                AddAction("搜索", () => ReplaceRoute(requested with { Query = search.Text, Page = 1 }));
+                rows.Add(new GridContainer
+                {
+                    RelativeSizeAxes = Axes.X,
+                    AutoSizeAxes = Axes.Y,
+                    ColumnDimensions = new[] { new Dimension(), new Dimension(GridSizeMode.Absolute, 100) },
+                    RowDimensions = new[] { new Dimension(GridSizeMode.AutoSize) },
+                    Content = new[] { new Drawable[] { search, new RoundedButton { Text = "搜索", Width = 96, Height = 40,
+                        Action = () => ReplaceRoute(requested with { Query = search.Text, Page = 1 }) } } },
+                });
                 AddCategorySelector(requested.Category, value => ReplaceRoute(requested with { Category = value, Page = 1 }), true);
                 if (items.Length == 0) AddText("当前范围没有帖子。");
                 foreach (JObject post in items)
                 {
                     long id = Integer(post, "id");
-                    AddAction(String(post, "title"), () => Navigate(new OmsPageRoute { Kind = OmsPageKind.Topic, PostId = id }));
                     JObject author = Object(post, "author");
-                    AddText($"{String(author, "username")} · {CategoryLabel(String(post, "category"))} · {Integer(post, "reply_count")} 条回复\n{String(post, "excerpt")}", 16);
+                    rows.Add(new TopicCard(String(post, "title"), String(post, "excerpt"),
+                        $"{String(author, "username")} · {CategoryLabel(String(post, "category"))} · {Integer(post, "reply_count")} 条回复",
+                        () => Navigate(new OmsPageRoute { Kind = OmsPageKind.Topic, PostId = id })));
                 }
                 AddPagination(requested, Integer(response, "total"), Integer(response, "limit"));
                 if (service.State.Account != null && !service.State.RequiresLogin)
@@ -61,6 +75,33 @@ namespace osu.Game.Overlays
                 }
                 else AddAction("登录后发表帖子", () => game?.ShowOmsAccount());
             };
+        }
+
+        private partial class TopicCard : OsuClickableContainer
+        {
+            private readonly Box background;
+
+            public TopicCard(string title, string excerpt, string metadata, Action open)
+            {
+                RelativeSizeAxes = Axes.X;
+                AutoSizeAxes = Axes.Y;
+                Masking = true;
+                CornerRadius = 5;
+                Action = open;
+                Children = new Drawable[]
+                {
+                    background = new Box { RelativeSizeAxes = Axes.Both },
+                    new FillFlowContainer
+                    {
+                        RelativeSizeAxes = Axes.X, AutoSizeAxes = Axes.Y, Direction = FillDirection.Vertical,
+                        Padding = new MarginPadding(16), Spacing = new Vector2(0, 6),
+                        Children = new Drawable[] { Text(title, 22), Text(metadata, 14), Text(excerpt, 16) },
+                    },
+                };
+            }
+
+            [BackgroundDependencyLoader]
+            private void load(OverlayColourProvider colour) => background.Colour = colour.Background4;
         }
 
         private async Task<Action> LoadTopicAsync(OmsPageRoute requested, CancellationToken token)
@@ -142,7 +183,7 @@ namespace osu.Game.Overlays
 
         private void AddCategorySelector(string? value, Action<string?> changed, bool allowAll)
         {
-            var selector = new CommunityCategoryDropdown { RelativeSizeAxes = Axes.X };
+            var selector = new CommunityCategoryDropdown { Width = 260 };
             selector.Items = allowAll ? new[] { string.Empty }.Concat(categories) : categories;
             selector.Current.Value = value ?? (allowAll ? string.Empty : "discussion");
             selector.Current.BindValueChanged(change => changed(change.NewValue.Length == 0 ? null : change.NewValue));
@@ -243,7 +284,6 @@ namespace osu.Game.Overlays
             { status.Text = "账号已变化，请切回原账号；草稿与原提交 ID 已保留。"; return; }
             CancelOperation();
             int requestedRevision = revision;
-            PageFrame requestedFrame = frame;
             var cancellation = operation = new CancellationTokenSource();
             IsLoading = true;
             status.Text = "正在保存…";
@@ -255,13 +295,13 @@ namespace osu.Game.Overlays
                     throw new JsonSerializationException("Community receipt owner mismatch.");
                 Schedule(() =>
                 {
-                    if (!Current(requestedRevision, requestedFrame, expectedOwner, cancellation)) return;
+                    if (!Current(requestedRevision, expectedOwner, cancellation)) return;
                     if (key != null && drafts.TryGetValue(key, out var saved) && ReferenceEquals(saved, draft)
                         && JToken.DeepEquals(saved.Submitted, payload)
                         && saved.Body == payload["body"]?.Value<string>() && (payload["title"] == null
                             || (saved.Title == payload["title"]!.Value<string>() && saved.Category == payload["category"]!.Value<string>())))
                         drafts.Remove(key);
-                    foreach (PageFrame previous in history) previous.Render = null;
+                    InvalidatePages();
                     if (path == "posts") ReplaceRoute(new OmsPageRoute { Kind = OmsPageKind.Topic, PostId = Integer(receipt, "id") });
                     else Reload();
                 });
@@ -271,7 +311,7 @@ namespace osu.Game.Overlays
             {
                 Schedule(() =>
                 {
-                    if (!Current(requestedRevision, requestedFrame, expectedOwner, cancellation)) return;
+                    if (!Current(requestedRevision, expectedOwner, cancellation)) return;
                     if (exception.RetryAfter is TimeSpan wait) retryAfter = DateTimeOffset.UtcNow + wait;
                     status.Text = exception.Message + " 草稿与原提交 ID 已保留。";
                     AddAction("重试这次保存", () => WriteCommunity(path, payload, expectedOwner, key, draft));
@@ -279,7 +319,7 @@ namespace osu.Game.Overlays
             }
             catch (JsonException)
             {
-                Schedule(() => { if (Current(requestedRevision, requestedFrame, expectedOwner, cancellation)) status.Text = "保存收据不符合约定；请核对发布结果，再用原 ID 重试。"; });
+                Schedule(() => { if (Current(requestedRevision, expectedOwner, cancellation)) status.Text = "保存收据不符合约定；请核对发布结果，再用原 ID 重试。"; });
             }
             finally
             {

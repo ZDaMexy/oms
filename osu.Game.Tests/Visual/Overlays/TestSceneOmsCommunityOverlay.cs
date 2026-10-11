@@ -7,7 +7,6 @@ using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -30,9 +29,8 @@ using osuTK.Input;
 
 namespace osu.Game.Tests.Visual.Overlays
 {
-    public partial class TestSceneOmsServicesOverlay : OsuManualInputManagerTestScene
+    public partial class TestSceneOmsCommunityOverlay : OsuManualInputManagerTestScene
     {
-        private const string article_title = "合成公告";
         private const string topic_title = "公开讨论";
         private const string old_topic_title = "迟到的旧帖子";
         private const string first_username = "first_player";
@@ -41,12 +39,13 @@ namespace osu.Game.Tests.Visual.Overlays
         private readonly ConcurrentQueue<RequestSnapshot> requests = new ConcurrentQueue<RequestSnapshot>();
         private OmsIrService service = null!;
         private HttpClient http = null!;
-        private OmsServicesOverlay overlay = null!;
+        private OmsCommunityOverlay overlay = null!;
         private DependencyProvidingContainer scope = null!;
         private HeadlessClipboard clipboard = null!;
         private JObject? publishedPost;
         private volatile bool failNextWrite;
         private volatile bool holdNextRead;
+        private volatile bool failNextRead;
         private volatile TaskCompletionSource<JObject>? delayedRead;
         private CancellationToken delayedToken;
 
@@ -62,12 +61,12 @@ namespace osu.Game.Tests.Visual.Overlays
                 http?.Dispose();
                 requests.Clear();
                 publishedPost = null;
-                failNextWrite = holdNextRead = false;
+                failNextWrite = holdNextRead = failNextRead = false;
                 delayedRead = null;
                 delayedToken = default;
                 clipboard = new HeadlessClipboard();
                 http = new HttpClient(new Handler(response));
-                service = new OmsIrService(LocalStorage.GetStorageForDirectory("oms-services-synthetic-" + Guid.NewGuid()), http, new Credentials());
+                service = new OmsIrService(LocalStorage.GetStorageForDirectory("oms-community-synthetic-" + Guid.NewGuid()), http, new Credentials());
                 Child = scope = new DependencyProvidingContainer
                 {
                     RelativeSizeAxes = Axes.Both,
@@ -77,114 +76,77 @@ namespace osu.Game.Tests.Visual.Overlays
                         (typeof(Clipboard), clipboard),
                         (typeof(OverlayColourProvider), new OverlayColourProvider(OverlayColourScheme.Blue)),
                     },
-                    Child = overlay = new OmsServicesOverlay(),
+                    Child = overlay = new OmsCommunityOverlay(),
                 };
             });
             AddUntilStep("overlay loaded but hidden", () => overlay.IsLoaded && overlay.State.Value == Visibility.Hidden);
         }
 
         [Test]
-        public void TestOnDemandContentAndNativeHelpLinks()
-        {
-            AddWaitStep("remain idle while hidden", 2);
-            AddAssert("hidden startup sends no request", () => requests.Count, () => Is.Zero);
-            AddStep("open services home", () => overlay.Open(new OmsPageRoute()));
-            AddUntilStep("home navigation ready", () => !overlay.IsLoading && buttonExists("新闻"));
-            AddAssert("home does not preload any page", () => requests.Count, () => Is.Zero);
-            AddStep("open news", () => click("新闻"));
-            AddUntilStep("news list loaded", () => !overlay.IsLoading && buttonExists(article_title));
-            AddAssert("one anonymous bounded content read", () => contentRequests == 1
-                && requests.Single().Bearer == null && requests.Single().Path == "/client-content");
-            AddStep("open the actual article", () => click(article_title));
-            AddUntilStep("full article is native", () => !overlay.IsLoading && hasText("完整公告正文") && buttonExists("登录帮助"));
-            AddAssert("article reuses the shared content cache", () => contentRequests, () => Is.EqualTo(1));
-            AddStep("follow the article help fragment", () => click("登录帮助"));
-            AddUntilStep("help selects the stable IR id", () => !overlay.IsLoading && overlay.Route.Kind == OmsPageKind.Help
-                && overlay.Route.HelpAnchor == "ir" && hasText("固定 OMSIR，直接登录。"));
-            AddAssert("section identity does not depend on title or list position", () => !hasText("播放器专用密钥帮助。")
-                && overlay.Route.WebsiteUrl(service.State.ServiceAddress).EndsWith("/help#ir", StringComparison.Ordinal));
-            AddStep("return to cached article", () => click("返回"));
-            AddUntilStep("article and its body restored", () => overlay.Route.Kind == OmsPageKind.Article && hasText("完整公告正文") && !overlay.IsLoading);
-            AddStep("follow the other original help fragment", () => click("播放器帮助"));
-            AddUntilStep("players fragment is native", () => !overlay.IsLoading && overlay.Route.HelpAnchor == "players" && hasText("播放器专用密钥帮助。"));
-            AddStep("return to the article again", () => overlay.Back());
-            AddUntilStep("article cache restored again", () => overlay.Route.Kind == OmsPageKind.Article && buttonExists("登录帮助") && !overlay.IsLoading);
-            AddStep("return to the cached news list", () => overlay.Back());
-            AddUntilStep("original list restored", () => overlay.Route.Kind == OmsPageKind.News && buttonExists(article_title) && !overlay.IsLoading);
-            AddAssert("all article and help navigation made only one HTTP request", () => requests.Count, () => Is.EqualTo(1));
-        }
-
-        [Test]
         public void TestCommunityDraftOwnerAndOriginalSubmissionRetry()
         {
-            AddStep("show the anonymous services home", () => overlay.Open(new OmsPageRoute()));
-            AddUntilStep("anonymous home rendered", () => !overlay.IsLoading && buttonExists("社区"));
             AddStep("login first OMS account", () => service.LoginAsync(first_username, "synthetic-password-123").GetAwaiter().GetResult());
-            AddUntilStep("account change is reflected before opening", () => hasText("请刷新当前页面") && service.State.Account?.Id == 1);
-            AddStep("open community", () => overlay.Open(new OmsPageRoute { Kind = OmsPageKind.Community }));
-            AddUntilStep("community can create a draft", () => !overlay.IsLoading && buttonExists("发表帖子"));
+            AddUntilStep("hidden account change completes before opening", () => service.State.Account?.Id == 1);
+            AddStep("open community", () => overlay.ShowOmsPage(new OmsPageRoute { Kind = OmsPageKind.Community }));
+            AddUntilStep("community can create a draft", () => !page.IsLoading && buttonExists("发表帖子"));
             AddStep("open the native post editor", () => click("发表帖子"));
             AddUntilStep("actual paragraph input loaded", () => overlay.ChildrenOfType<OmsParagraphEditor>().Any()
                 && bodyInput.IsLoaded && titleInput.IsLoaded);
             AddStep("write a draft", () => { titleInput.Text = "保留原提交"; bodyInput.Text = "原账号的草稿正文"; });
             AddStep("simulate a lost write response", () => { failNextWrite = true; click("发布"); });
-            AddUntilStep("failure keeps an explicit retry", () => !overlay.IsLoading && buttonExists("重试这次保存") && writes.Length == 1);
+            AddUntilStep("failure keeps an explicit retry", () => !page.IsLoading && buttonExists("重试这次保存") && writes.Length == 1);
             AddAssert("draft text and an actual submission UUID survive failure", () => bodyInput.Text == "原账号的草稿正文"
                 && Guid.TryParse(writes[0].Body!["submission_id"]?.Value<string>(), out _));
             AddStep("switch to a second OMS account", () => service.LoginAsync(second_username, "synthetic-password-123").GetAwaiter().GetResult());
             AddUntilStep("account switch clears the old view", () => service.State.Account?.Id == 2 && hasText("请刷新当前页面") && !buttonExists("发布"));
-            AddStep("refresh for the new account", () => click("刷新"));
-            AddUntilStep("old draft stays visibly owned by its original account", () => !overlay.IsLoading
+            AddStep("refresh for the new account", () => overlay.ShowOmsPage(page.Route));
+            AddUntilStep("old draft stays visibly owned by its original account", () => !page.IsLoading
                 && hasText("草稿属于 OMS #1") && hasText("当前账号与草稿账号不同") && buttonExists("发布"));
             AddStep("try to publish the old draft as the new account", () => click("发布"));
-            AddUntilStep("cross-account write is rejected", () => hasText("请切回原账号") && !overlay.IsLoading);
+            AddUntilStep("cross-account write is rejected", () => hasText("请切回原账号") && !page.IsLoading);
             AddAssert("no old draft was sent by the second account", () => writes.Length, () => Is.EqualTo(1));
             AddStep("switch back to the original account", () => service.LoginAsync(first_username, "synthetic-password-123").GetAwaiter().GetResult());
             AddUntilStep("original account change reflected", () => service.State.Account?.Id == 1 && hasText("请刷新当前页面"));
-            AddStep("restore original draft", () => click("刷新"));
-            AddUntilStep("original retry and text restored", () => !overlay.IsLoading
+            AddStep("restore original draft", () => overlay.ShowOmsPage(page.Route));
+            AddUntilStep("original retry and text restored", () => !page.IsLoading
                 && buttonExists("重试原提交（保留原内容与 ID）") && bodyInput.Text == "原账号的草稿正文");
             AddStep("retry the original submission", () => click("重试原提交（保留原内容与 ID）"));
-            AddUntilStep("successful original receipt opens its topic", () => !overlay.IsLoading && overlay.Route.Kind == OmsPageKind.Topic
-                && overlay.Route.PostId == 42 && hasText("原账号的草稿正文"));
+            AddUntilStep("successful original receipt opens its topic", () => !page.IsLoading && page.Route.Kind == OmsPageKind.Topic
+                && page.Route.PostId == 42 && hasText("原账号的草稿正文"));
             AddAssert("retry preserves every payload field and original UUID", () => writes.Length == 2
                 && JToken.DeepEquals(writes[0].Body, writes[1].Body)
                 && writes.All(write => write.Bearer == "synthetic-access-1"));
         }
 
         [Test]
-        public void TestHideCancelsReadAndLateCompletionCannotReplaceHome()
+        public void TestHideCancelsReadAndLateCompletionCannotReplaceNewScope()
         {
             AddStep("hold a real community read", () =>
             {
                 holdNextRead = true;
-                overlay.Open(new OmsPageRoute { Kind = OmsPageKind.Community, Query = "old" });
+                overlay.ShowOmsPage(new OmsPageRoute { Kind = OmsPageKind.Community, Query = "old" });
             });
-            AddUntilStep("read is in flight", () => delayedRead != null && overlay.IsLoading);
-            AddStep("close while reading", () => click("关闭"));
+            AddUntilStep("read is in flight", () => delayedRead != null && page.IsLoading);
+            AddStep("close while reading", () => overlay.Hide());
             AddUntilStep("hidden immediately and cancellation reached HTTP", () => overlay.State.Value == Visibility.Hidden
-                && !overlay.IsLoading && delayedToken.IsCancellationRequested);
-            AddStep("open the request-free home", () => overlay.Open(new OmsPageRoute()));
-            AddUntilStep("new home is already ready", () => !overlay.IsLoading && buttonExists("新闻"));
+                && !page.IsLoading && delayedToken.IsCancellationRequested);
+            AddStep("open a new community scope", () => overlay.ShowOmsPage(new OmsPageRoute { Kind = OmsPageKind.Community, Query = "new" }));
             AddStep("finish the old HTTP response late", () => delayedRead!.TrySetResult(communityPage(1, old_topic_title)));
+            AddUntilStep("new scope is ready", () => !page.IsLoading && hasText(topic_title));
             AddUntilStep("old service read settles", () => !service.State.Busy);
             AddWaitStep("allow late scheduled work to run", 2);
-            AddAssert("late data cannot replace the new page", () => overlay.Route.Kind == OmsPageKind.Home
-                && !buttonExists(old_topic_title) && !hasText(old_topic_title) && requests.Count == 1);
+            AddAssert("late data cannot replace the new page", () => page.Route.Kind == OmsPageKind.Community && page.Route.Query == "new"
+                && !buttonExists(old_topic_title) && !hasText(old_topic_title) && requests.Count == 2);
         }
 
         [Test]
-        public void TestAccountChangeRejectsLateViewAndClearsHistory()
+        public void TestAccountChangeRejectsLateCommunityView()
         {
             Task switchAccount = null!;
-            AddStep("show the anonymous services home", () => overlay.Open(new OmsPageRoute()));
-            AddUntilStep("anonymous home rendered", () => !overlay.IsLoading && buttonExists("社区"));
             AddStep("login original account", () => service.LoginAsync(first_username, "synthetic-password-123").GetAwaiter().GetResult());
-            AddUntilStep("original owner reflected", () => service.State.Account?.Id == 1 && hasText("请刷新当前页面"));
-            AddStep("open home", () => overlay.Open(new OmsPageRoute()));
-            AddUntilStep("home ready", () => !overlay.IsLoading && buttonExists("社区"));
-            AddStep("hold community navigation", () => { holdNextRead = true; click("社区"); });
-            AddUntilStep("old page is held with navigation history", () => delayedRead != null && overlay.HistoryDepth == 1 && overlay.IsLoading);
+            AddUntilStep("hidden original account is ready", () => service.State.Account?.Id == 1);
+            AddStep("hold community navigation", () => { holdNextRead = true; overlay.ShowOmsPage(new OmsPageRoute { Kind = OmsPageKind.Community }); });
+            AddUntilStep("old page is held with navigation history", () => delayedRead != null && page.IsLoading);
             AddStep("queue the next account behind the serial HTTP read", () => switchAccount = service.LoginAsync(second_username, "synthetic-password-123"));
             AddAssert("account change waits for the existing request", () => !switchAccount.IsCompleted);
             AddStep("complete HTTP and account change before the next UI frame", () =>
@@ -194,43 +156,32 @@ namespace osu.Game.Tests.Visual.Overlays
                 // must see the new account before this step allows the next UI update.
                 switchAccount.GetAwaiter().GetResult();
             });
-            AddUntilStep("new account invalidates the old page", () => service.State.Account?.Id == 2 && hasText("账号已变化") && !overlay.IsLoading);
+            AddUntilStep("new account invalidates the old page", () => service.State.Account?.Id == 2 && hasText("账号已变化") && !page.IsLoading);
             AddWaitStep("late render callbacks have run", 2);
-            AddAssert("previous account history and late content are cleared", () => overlay.HistoryDepth == 0
-                && !buttonExists(old_topic_title) && !hasText(old_topic_title));
+            AddAssert("previous account history and late content are cleared", () => !buttonExists(old_topic_title) && !hasText(old_topic_title));
         }
 
         [Test]
-        public void TestBackRestoresFiltersAndHistoryIsBounded()
+        public void TestRestoreKeepsScopeAndScrollAndFailedRestoreCannotMoveTheNextPage()
         {
-            var requested = new OmsPageRoute { Kind = OmsPageKind.Community, Query = "原谱 & #", Category = "help", Page = 2 };
-            int readsBeforeBack = 0;
-            int navigation = 0;
-            AddStep("open a specific community scope", () => overlay.Open(requested));
-            AddUntilStep("filtered second page ready", () => !overlay.IsLoading && buttonExists(topic_title));
-            AddAssert("the actual request preserves query category and page", () => requests.Single().Query.Contains("q=原谱 & #", StringComparison.Ordinal)
-                && requests.Single().Query.Contains("category=help", StringComparison.Ordinal)
-                && requests.Single().Query.Contains("page=2", StringComparison.Ordinal));
-            AddStep("open topic from the list", () => click(topic_title));
-            AddUntilStep("topic and replies ready", () => !overlay.IsLoading && overlay.Route.Kind == OmsPageKind.Topic && hasText("帖子正文"));
-            AddStep("return to the previous scope", () => { readsBeforeBack = requests.Count; overlay.Back(); });
-            AddUntilStep("list controls restored", () => !overlay.IsLoading && buttonExists(topic_title));
-            AddAssert("back retains route, search, category and page without re-reading", () => overlay.Route == requested
-                && overlay.ChildrenOfType<OsuTextBox>().Single(input => input.PlaceholderText.ToString() == "搜索标题与正文").Text == requested.Query
-                && overlay.ChildrenOfType<OsuDropdown<string>>().Single().Current.Value == "help"
-                && requests.Count == readsBeforeBack);
-            AddRepeatStep("navigate to another native library scope", () => overlay.OpenRelated(new OmsPageRoute
-            { Kind = OmsPageKind.Library, Query = "scope-" + ++navigation }), 18);
-            AddUntilStep("last scope rendered", () => !overlay.IsLoading && overlay.Route.Query == "scope-18");
-            AddAssert("navigation retains only sixteen previous pages", () => overlay.HistoryDepth, () => Is.EqualTo(16));
-            AddAssert("local library navigation has no HTTP prefetch", () => requests.Count, () => Is.EqualTo(readsBeforeBack));
-            AddStep("back once", () => overlay.Back());
-            AddUntilStep("previous library query restored", () => !overlay.IsLoading && overlay.Route.Query == "scope-17"
-                && overlay.ChildrenOfType<OsuTextBox>().Any(input => input.Text == "scope-17"));
-            AddRepeatStep("walk the retained history", () => overlay.Back(), 15);
-            AddUntilStep("oldest retained page is restored", () => !overlay.IsLoading && overlay.HistoryDepth == 0 && overlay.Route.Query == "scope-2");
-            AddStep("back beyond retained history", () => overlay.Back());
-            AddUntilStep("empty history closes the overlay", () => overlay.State.Value == Visibility.Hidden);
+            var original = new OmsPageRoute { Kind = OmsPageKind.Community, Query = "原谱 & #", Category = "help" };
+            int beforeBack = 0;
+            float scroll = 0;
+            AddStep("open a real community scope", () => overlay.ShowOmsPage(original));
+            AddUntilStep("native discussion cards are loaded", () => !page.IsLoading && hasText(topic_title));
+            AddStep("scroll the actual discussion list", () => overlay.OmsScroll = 180);
+            AddUntilStep("list scroll applied", () => overlay.OmsScroll > 100);
+            AddStep("record position and open the topic", () => { scroll = overlay.OmsScroll; overlay.ShowOmsPage(new OmsPageRoute { Kind = OmsPageKind.Topic, PostId = 42 }); });
+            AddUntilStep("topic body loaded", () => !page.IsLoading && page.Route.Kind == OmsPageKind.Topic && hasText("帖子正文"));
+            AddStep("restore the cached native scope", () => { beforeBack = requests.Count; overlay.RestoreOmsPage(original, scroll); });
+            AddUntilStep("native controls and original scroll restored", () => !page.IsLoading && page.Route == original && Math.Abs(overlay.OmsScroll - scroll) < 2
+                && overlay.ChildrenOfType<OsuTextBox>().Single(input => input.PlaceholderText.ToString() == "搜索标题与正文").Text == original.Query
+                && overlay.ChildrenOfType<OsuDropdown<string>>().Single().Current.Value == "help");
+            AddAssert("return reused the previous anonymous page", () => requests.Count, () => Is.EqualTo(beforeBack));
+            AddStep("fail a cold return read", () => { failNextRead = true; overlay.RestoreOmsPage(original with { Query = "uncached" }, 200); });
+            AddUntilStep("failed return has an explicit failure", () => !page.IsLoading && hasText("HTTP 503"));
+            AddStep("open a normal new scope after failure", () => overlay.ShowOmsPage(original with { Query = "new" }));
+            AddUntilStep("normal navigation starts at the top", () => !page.IsLoading && hasText(topic_title) && overlay.OmsScroll < 2);
         }
 
         [Test]
@@ -289,7 +240,7 @@ namespace osu.Game.Tests.Visual.Overlays
             AddAssert("hidden startup and local text editing make no network request", () => requests.Count, () => Is.Zero);
         }
 
-        private int contentRequests => requests.Count(request => request.Path == "/client-content");
+        private OmsCommunityPageContent page => overlay.ChildrenOfType<OmsCommunityPageContent>().Single();
         private RequestSnapshot[] writes => requests.Where(request => request.Path == "/api/ir/v1/community/posts" && request.Method == "POST").ToArray();
         private OsuTextBox titleInput => overlay.ChildrenOfType<OsuTextBox>().Single(input => input.PlaceholderText.ToString() == "帖子标题");
         private FocusedTextBox bodyInput => overlay.ChildrenOfType<OmsParagraphEditor>().Single().ChildrenOfType<FocusedTextBox>().Single();
@@ -328,13 +279,6 @@ namespace osu.Game.Tests.Visual.Overlays
                 });
             }
             if (path == "/api/ir/v1/auth/logout") return json(new JObject());
-            if (path == "/client-content")
-            {
-                HttpResponseMessage result = json(content());
-                result.Headers.ETag = new EntityTagHeaderValue("\"synthetic-content-v1\"");
-                result.Headers.CacheControl = new CacheControlHeaderValue { Public = true, MaxAge = TimeSpan.FromSeconds(300) };
-                return result;
-            }
             if (path == "/api/ir/v1/community/posts" && request.Method == HttpMethod.Post)
             {
                 long owner = request.Headers.Authorization?.Parameter == "synthetic-access-2" ? 2 : 1;
@@ -350,6 +294,13 @@ namespace osu.Game.Tests.Visual.Overlays
             if (path == "/api/ir/v1/community/posts" && request.Method == HttpMethod.Get)
             {
                 int page = int.Parse(query(request)["page"], CultureInfo.InvariantCulture);
+                if (failNextRead)
+                {
+                    failNextRead = false;
+                    var failure = json(new JObject { ["error"] = new JObject { ["code"] = "service_unavailable", ["message"] = "社区暂时不可用，请稍后重试。" } });
+                    failure.StatusCode = HttpStatusCode.ServiceUnavailable;
+                    return failure;
+                }
                 if (holdNextRead)
                 {
                     holdNextRead = false;
@@ -374,7 +325,7 @@ namespace osu.Game.Tests.Visual.Overlays
 
         private static JObject communityPage(int page, string title) => new JObject
         {
-            ["items"] = new JArray(post(42, title, "帖子正文")),
+            ["items"] = new JArray(Enumerable.Range(0, page == 1 ? 20 : 1).Select(index => post(42 + index, index == 0 ? title : "讨论 " + index, "帖子正文"))),
             ["page"] = page,
             ["limit"] = 20,
             ["total"] = 21,
@@ -392,30 +343,6 @@ namespace osu.Game.Tests.Visual.Overlays
             ["updated_at"] = "2026-10-11T00:00:00Z",
             ["deleted"] = false,
             ["reply_count"] = 0,
-        };
-
-        private static JObject content() => new JObject
-        {
-            ["version"] = 1,
-            ["news"] = new JArray(new JObject
-            {
-                ["slug"] = "synthetic-news",
-                ["title"] = article_title,
-                ["published_at"] = "2026-10-11",
-                ["image"] = JValue.CreateNull(),
-                ["excerpt"] = "公告摘要",
-                ["body"] = new JArray(new JObject
-                {
-                    ["heading"] = "全文",
-                    ["text"] = "完整公告正文",
-                    ["links"] = new JArray(new JObject { ["label"] = "登录帮助", ["href"] = "/help#ir" },
-                        new JObject { ["label"] = "播放器帮助", ["href"] = "/help#players" }),
-                }),
-            }),
-            // The old IR anchor is deliberately second and its title is renamed.
-            ["help"] = new JArray(
-                new JObject { ["id"] = "players", ["heading"] = "其他播放器说明", ["text"] = "播放器专用密钥帮助。" },
-                new JObject { ["id"] = "ir", ["heading"] = "新版登录说明", ["text"] = "固定 OMSIR，直接登录。" }),
         };
 
         private static HttpResponseMessage json(JObject value) => new HttpResponseMessage(HttpStatusCode.OK)

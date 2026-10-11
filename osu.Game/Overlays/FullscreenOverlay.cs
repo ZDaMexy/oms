@@ -1,6 +1,7 @@
 ﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
+using System;
 using System.Diagnostics.CodeAnalysis;
 using osu.Framework.Allocation;
 using osu.Framework.Extensions.Color4Extensions;
@@ -10,8 +11,10 @@ using osu.Framework.Graphics.Effects;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Localisation;
+using osu.Framework.Input.Events;
 using osu.Game.Graphics.Containers;
 using osu.Game.Online.API;
+using osu.Game.Input.Bindings;
 using osuTK.Graphics;
 
 namespace osu.Game.Overlays
@@ -24,6 +27,18 @@ namespace osu.Game.Overlays
         public virtual LocalisableString Description => Header.Title.Description;
 
         public T Header { get; private set; }
+
+        public Action? ReturnAction { get; set; }
+
+        public override bool OnPressed(KeyBindingPressEvent<GlobalAction> e)
+        {
+            if (!e.Repeat && e.Action == GlobalAction.Back && State.Value == Visibility.Visible && ReturnAction != null)
+            {
+                ReturnAction();
+                return true;
+            }
+            return base.OnPressed(e);
+        }
 
         protected virtual Color4 BackgroundColour => ColourProvider.Background5;
 

@@ -3,6 +3,7 @@
 
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Containers;
 
 namespace osu.Game.Overlays.Toolbar
 {
@@ -11,9 +12,15 @@ namespace osu.Game.Overlays.Toolbar
         protected override Anchor TooltipAnchor => Anchor.TopRight;
 
         [BackgroundDependencyLoader(true)]
-        private void load(RankingsOverlay rankings)
+        private void load(RankingsOverlay rankings, OsuGame? game)
         {
             StateContainer = rankings;
+            if (game?.OnlineFeaturesEnabled == false)
+                Action = () =>
+                {
+                    if (rankings.State.Value == Visibility.Visible) rankings.Hide();
+                    else game.OpenOmsRankings();
+                };
         }
     }
 }

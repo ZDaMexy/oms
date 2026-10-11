@@ -16,12 +16,12 @@ namespace osu.Game.Overlays.Wiki
     {
         public Container SidebarContainer { get; }
 
-        public WikiArticlePage(string currentPath, string markdown)
+        public WikiArticlePage(string currentPath, string markdown, Action<string> openLink = null, Drawable omsSidebar = null)
         {
             RelativeSizeAxes = Axes.X;
             AutoSizeAxes = Axes.Y;
 
-            WikiSidebar sidebar;
+            WikiSidebar sidebar = null;
 
             InternalChild = new GridContainer
             {
@@ -43,9 +43,9 @@ namespace osu.Game.Overlays.Wiki
                         SidebarContainer = new Container
                         {
                             AutoSizeAxes = Axes.X,
-                            Child = sidebar = new WikiSidebar(),
+                            Child = omsSidebar ?? (sidebar = new WikiSidebar()),
                         },
-                        new ArticleMarkdownContainer
+                        new ArticleMarkdownContainer(openLink)
                         {
                             RelativeSizeAxes = Axes.X,
                             AutoSizeAxes = Axes.Y,
@@ -58,22 +58,27 @@ namespace osu.Game.Overlays.Wiki
                                 Left = 30,
                                 Right = WaveOverlayContainer.HORIZONTAL_PADDING,
                             },
-                            OnAddHeading = sidebar.AddEntry,
+                            OnAddHeading = sidebar == null ? null : sidebar.AddEntry,
                         }
                     },
                 },
             };
         }
 
-        private partial class ArticleMarkdownContainer : WikiMarkdownContainer
+        private partial class ArticleMarkdownContainer : OmsMarkdownContainer
         {
             public Action<HeadingBlock, MarkdownHeading> OnAddHeading;
+
+            public ArticleMarkdownContainer(Action<string> openLink)
+                : base(openLink)
+            {
+            }
 
             protected override MarkdownHeading CreateHeading(HeadingBlock headingBlock)
             {
                 var heading = base.CreateHeading(headingBlock);
 
-                OnAddHeading(headingBlock, heading);
+                OnAddHeading?.Invoke(headingBlock, heading);
 
                 return heading;
             }

@@ -20,8 +20,8 @@ namespace osu.Game.Overlays
         private CancellationTokenSource cancellationToken;
         private bool displayUpdateRequired = true;
 
-        protected TabbableOnlineOverlay(OverlayColourScheme colourScheme)
-            : base(colourScheme)
+        protected TabbableOnlineOverlay(OverlayColourScheme colourScheme, bool requiresSignIn = true)
+            : base(colourScheme, requiresSignIn)
         {
         }
 

@@ -21,6 +21,8 @@ namespace osu.Game.Overlays.Profile
     {
         public readonly Bindable<OmsIrAccount?> Account = new Bindable<OmsIrAccount?>();
         public readonly Bindable<string> ServiceAddress = new Bindable<string>(string.Empty);
+        public readonly Bindable<OmsIrAccount?> PublicPlayer = new Bindable<OmsIrAccount?>();
+        public readonly Bindable<OmsPageRoute?> PublicRoute = new Bindable<OmsPageRoute?>();
         private IBindable<RulesetInfo> ruleset = null!;
         private IBindable<WorkingBeatmap> beatmap = null!;
 
@@ -97,6 +99,8 @@ namespace osu.Game.Overlays.Profile
             ruleset = currentRuleset.GetBoundCopy();
             beatmap = currentBeatmap.GetBoundCopy();
             Account.BindValueChanged(_ => updateAccount(), true);
+            PublicPlayer.BindValueChanged(_ => updateAccount());
+            PublicRoute.BindValueChanged(_ => updateAccount());
             ServiceAddress.BindValueChanged(_ => updateAccount());
             ruleset.BindValueChanged(_ => updateAccount());
             beatmap.BindValueChanged(_ => updateAccount());
@@ -104,11 +108,18 @@ namespace osu.Game.Overlays.Profile
 
         private void updateAccount()
         {
-            OmsIrAccount? account = Account.Value;
-            username.Text = account?.Username ?? "未登录";
-            identity.Text = account == null ? "完整游玩记录仅本人可见" : $"OMS #{account.Id}";
+            OmsPageRoute? publicRoute = PublicRoute.Value;
+            OmsIrAccount? account = publicRoute == null ? Account.Value : PublicPlayer.Value;
+            username.Text = account?.Username ?? (publicRoute == null ? "未登录" : "加载玩家资料…");
+            identity.Text = publicRoute != null ? $"OMS #{publicRoute.UserId} · 公开资料"
+                : account == null ? "完整游玩记录仅本人可见" : $"OMS #{account.Id} · 本人完整游玩记录";
             externalLink.Link = null;
-            if (account != null && ServiceAddress.Value.Length != 0)
+            if (publicRoute != null && ServiceAddress.Value.Length != 0)
+            {
+                externalLink.Link = publicRoute.WebsiteUrl(ServiceAddress.Value);
+                externalLink.InternalAction = null;
+            }
+            else if (account != null && ServiceAddress.Value.Length != 0)
             {
                 var scope = OmsWebsite.CurrentScope(beatmap.Value.BeatmapInfo, ruleset.Value);
                 externalLink.Link = OmsWebsite.Profile(ServiceAddress.Value, account.Id, scope.Ruleset, scope.Keymode);

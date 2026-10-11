@@ -34,6 +34,7 @@ namespace osu.Game.Overlays.Wiki
         public Action ShowParentPage;
 
         private readonly Bindable<string> githubPath = new Bindable<string>();
+        private bool changingOmsPage;
 
         public WikiHeader()
         {
@@ -94,6 +95,8 @@ namespace osu.Game.Overlays.Wiki
 
         private void onCurrentChange(ValueChangedEvent<LocalisableString?> e)
         {
+            if (changingOmsPage)
+                return;
             if (e.NewValue == TabControl.Items.LastOrDefault())
                 return;
 
@@ -104,6 +107,20 @@ namespace osu.Game.Overlays.Wiki
             }
 
             ShowParentPage?.Invoke();
+        }
+
+        public void SetOmsPage(string title = null)
+        {
+            ((WikiHeaderTitle)Title).UseOmsTitle();
+            changingOmsPage = true;
+            githubPath.Value = null;
+            TabControl.Clear();
+            Current.Value = null;
+            TabControl.AddItem(IndexPageString);
+            if (title != null)
+                TabControl.AddItem(title);
+            Current.Value = title == null ? IndexPageString : title;
+            changingOmsPage = false;
         }
 
         protected override Drawable CreateBackground() => new OverlayHeaderBackground(@"Headers/wiki");
@@ -117,6 +134,12 @@ namespace osu.Game.Overlays.Wiki
                 Title = PageTitleStrings.MainWikiControllerDefault;
                 Description = NamedOverlayComponentStrings.WikiDescription;
                 Icon = OsuIcon.Wiki;
+            }
+
+            public void UseOmsTitle()
+            {
+                Title = "帮助";
+                Description = "OMS 使用帮助";
             }
         }
 

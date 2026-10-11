@@ -35,9 +35,18 @@ namespace osu.Game.Overlays.News.Sidebar
         private Sample sampleClose;
 
         public MonthSection(int month, int year, IEnumerable<APINewsPost> posts)
+            : this(month, year, posts.Select(p => new PostLink(p)))
         {
             Debug.Assert(posts.All(p => p.PublishedAt.Month == month && p.PublishedAt.Year == year));
+        }
 
+        public MonthSection(int month, int year, IEnumerable<OmsNewsPost> posts, Action<OmsNewsPost> openArticle)
+            : this(month, year, posts.Select(post => new OmsPostLink(post, openArticle)))
+        {
+        }
+
+        private MonthSection(int month, int year, IEnumerable<Drawable> links)
+        {
             Year = year;
             Month = month;
 
@@ -59,7 +68,7 @@ namespace osu.Game.Overlays.News.Sidebar
                     new PostsContainer
                     {
                         Expanded = { BindTarget = Expanded },
-                        Children = posts.Select(p => new PostLink(p)).ToArray()
+                        Children = links.ToArray()
                     }
                 }
             };
@@ -131,6 +140,17 @@ namespace osu.Game.Overlays.News.Sidebar
                 RelativeSizeAxes = Axes.X;
                 AutoSizeAxes = Axes.Y;
                 AddLink(post.Title, LinkAction.External, @"/home/news/" + post.Slug, "view in browser");
+            }
+        }
+
+        private partial class OmsPostLink : LinkFlowContainer
+        {
+            public OmsPostLink(OmsNewsPost post, Action<OmsNewsPost> openArticle)
+                : base(t => t.Font = OsuFont.GetFont(size: 12))
+            {
+                RelativeSizeAxes = Axes.X;
+                AutoSizeAxes = Axes.Y;
+                AddLink(post.Title, () => openArticle(post), "阅读新闻");
             }
         }
 

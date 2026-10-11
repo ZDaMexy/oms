@@ -12,6 +12,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Configuration;
@@ -32,6 +33,7 @@ using osu.Game.Online.Sayobot;
 using osu.Game.Overlays;
 using osu.Game.Overlays.BeatmapListing;
 using osu.Game.Overlays.Notifications;
+using osu.Game.Overlays.Toolbar;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Screens.Menu;
@@ -48,10 +50,19 @@ namespace osu.Game.Tests.Visual.Overlays
         private const int set_id = 17;
         private const int normal_bid = 171;
         private const int another_bid = 172;
+        private const string native_bms_md5 = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        private const string native_mania_md5 = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        private const string native_chart_title = "原谱下载测试";
+        private const string native_news_title = "较晚选择的原生新闻";
         private StubHandler metadata = null!;
         private StubHandler packages = null!;
         private StubHandler bmsMetadata = null!;
         private StubHandler covers = null!;
+        private StubHandler omsMetadata = null!;
+        private readonly ConcurrentQueue<string> omsRequests = new ConcurrentQueue<string>();
+        private bool delayNextDownloadLoad;
+        private ManualResetEventSlim? downloadLoadStarted;
+        private ManualResetEventSlim? allowDownloadLoad;
 
         [Resolved]
         private GameHost host { get; set; } = null!;
@@ -59,30 +70,156 @@ namespace osu.Game.Tests.Visual.Overlays
         private ManiaDownloadOverlay overlay => Game.ManiaDownloads;
         private ManiaDownloadHeader header => overlay.Header;
         private ManiaDownloadManager manager => ((DownloadGame)Game).Manager;
+        private BeatmapSetOverlay nativeDetails => Game.ChildrenOfType<BeatmapSetOverlay>().Single();
+        private NewsOverlay nativeNews => Game.ChildrenOfType<NewsOverlay>().Single();
 
         [TestCase(true)]
         [TestCase(false)]
-        public void TestNativeServicesDownloadReturnsToOriginalScopeAcrossModeSwitch(bool bms)
+        public void TestNativeLibraryDoesNotResumeItselfAcrossModeSwitch(bool bms)
         {
             var route = new OmsPageRoute { Kind = OmsPageKind.Library, Query = "native search", Ruleset = bms ? "bms" : "mania" };
-            AddUntilStep("both browsers and services loaded", () => Game.OmsServices.IsLoaded && Game.BmsDownloads.IsLoaded && overlay.IsLoaded);
-            AddStep("open a native library scope", () => Game.OpenOmsPage(route));
-            AddUntilStep("native scope ready", () => Game.OmsServices.State.Value == Visibility.Visible && !Game.OmsServices.IsLoading);
+            waitForNativePagesAndBrowsers();
             AddStep("start with the other download mode", () => Game.DownloadMode.Value = bms ? BeatmapDownloadMode.Mania : BeatmapDownloadMode.Bms);
-            AddStep("open the requested download browser", () => Game.ShowOmsChartDownload(route.Query, bms));
-            AddUntilStep("requested mode visible with native page suspended", () => Game.DownloadMode.Value == (bms ? BeatmapDownloadMode.Bms : BeatmapDownloadMode.Mania)
-                && (bms ? Game.BmsDownloads.State.Value : overlay.State.Value) == Visibility.Visible && Game.OmsServices.State.Value == Visibility.Hidden);
-            AddStep("switch between the real browser mode tabs", () => Game.DownloadMode.Value = bms ? BeatmapDownloadMode.Mania : BeatmapDownloadMode.Bms);
-            AddUntilStep("new browser keeps the return callback without opening services", () => (bms ? overlay.State.Value : Game.BmsDownloads.State.Value) == Visibility.Visible
-                && Game.OmsServices.State.Value == Visibility.Hidden && (bms ? overlay.ReturnAction : Game.BmsDownloads.ReturnAction) != null);
+            AddStep("open the actual library download browser", () => Game.OpenOmsPage(route));
+            AddUntilStep("library opens its real browser and query", () => Game.DownloadMode.Value == (bms ? BeatmapDownloadMode.Bms : BeatmapDownloadMode.Mania)
+                && (bms ? Game.BmsDownloads.State.Value : overlay.State.Value) == Visibility.Visible
+                && (bms ? Game.BmsDownloads.Header.Query.Value : header.Query.Value) == route.Query);
+            AddStep("switch through the actual browser tab", () => click(modeTab(bms ? Game.BmsDownloads.Header : header,
+                bms ? BeatmapDownloadMode.Mania : BeatmapDownloadMode.Bms)));
+            AddUntilStep("other real browser retains the library back action", () => (bms ? overlay.State.Value : Game.BmsDownloads.State.Value) == Visibility.Visible
+                && (bms ? overlay.ReturnAction : Game.BmsDownloads.ReturnAction) != null);
             AddStep("close the new browser", () => { if (bms) overlay.Hide(); else Game.BmsDownloads.Hide(); });
-            AddUntilStep("original native scope restored", () => Game.OmsServices.State.Value == Visibility.Visible && Game.OmsServices.Route == route && !Game.OmsServices.IsLoading);
-            AddStep("open downloads again", () => Game.ShowOmsChartDownload(route.Query, bms));
+            AddWaitStep("library does not reopen its own browser", 2);
+            AddAssert("closing a top-level library exits both browsers", () => Game.BmsDownloads.State.Value == Visibility.Hidden
+                && overlay.State.Value == Visibility.Hidden && nativeDetails.State.Value == Visibility.Hidden
+                && Game.OmsPages.HistoryDepth == 0 && omsRequests.IsEmpty);
+            AddStep("open a real preceding chart page", () => Game.OpenOmsPage(nativeChartRoute(bms)));
+            AddUntilStep("preceding original MD5 ready", () => nativeDetails.State.Value == Visibility.Visible && hasNativeText(nativeDetails, native_chart_title));
+            AddStep("follow a library link from the preceding chart", () => Game.OpenRelatedOmsPage(route));
+            AddUntilStep("linked library is visible", () => (bms ? Game.BmsDownloads.State.Value : overlay.State.Value) == Visibility.Visible);
+            AddStep("close the linked library", () => { if (bms) Game.BmsDownloads.Hide(); else overlay.Hide(); });
+            AddUntilStep("library goes back to its preceding native page", () => nativeDetails.State.Value == Visibility.Visible
+                && Game.OmsPages.Route == nativeChartRoute(bms) && Game.OmsPages.HistoryDepth == 0);
+            AddStep("open library again", () => Game.OpenOmsPage(route));
             AddUntilStep("download browser visible again", () => (bms ? Game.BmsDownloads.State.Value : overlay.State.Value) == Visibility.Visible);
             AddStep("close all overlays as a screen change does", () => Game.CloseAllOverlays());
             AddWaitStep("return callbacks stay suppressed", 2);
-            AddAssert("screen change closes both browsers and the native page", () => Game.OmsServices.State.Value == Visibility.Hidden
+            AddAssert("screen change closes both browsers and the native page", () => nativeDetails.State.Value == Visibility.Hidden
                 && Game.BmsDownloads.State.Value == Visibility.Hidden && overlay.State.Value == Visibility.Hidden);
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void TestNativeChartDownloadRestoresItsOriginalScopeAcrossModeSwitch(bool bms)
+        {
+            OmsPageRoute route = nativeChartRoute(bms);
+            waitForNativePagesAndBrowsers();
+            AddStep("open the real original source page", () => Game.OpenOmsPage(route));
+            AddUntilStep("native chart details ready", () => nativeDetails.State.Value == Visibility.Visible && hasNativeText(nativeDetails, route.Md5!)
+                && nativeDetails.ChildrenOfType<OsuButton>().Any(button => button.Text.ToString() == (bms ? "查找 BMS 原包" : "按歌名查找 mania 原包")));
+            AddStep("start with the other download mode", () => Game.DownloadMode.Value = bms ? BeatmapDownloadMode.Mania : BeatmapDownloadMode.Bms);
+            AddStep("click the actual native original-package action", () => nativeDetails.ChildrenOfType<OsuButton>()
+                .Single(button => button.Text.ToString() == (bms ? "查找 BMS 原包" : "按歌名查找 mania 原包")).TriggerClick());
+            AddUntilStep("requested real browser suspends its source page", () => (bms ? Game.BmsDownloads.State.Value : overlay.State.Value) == Visibility.Visible
+                && nativeDetails.State.Value == Visibility.Hidden && (bms ? Game.BmsDownloads.Header.Query.Value : header.Query.Value) == (bms ? route.Md5 : native_chart_title));
+            AddStep("switch through the real browser mode tab", () => click(modeTab(bms ? Game.BmsDownloads.Header : header,
+                bms ? BeatmapDownloadMode.Mania : BeatmapDownloadMode.Bms)));
+            AddUntilStep("switched browser keeps the source return action", () => (bms ? overlay.State.Value : Game.BmsDownloads.State.Value) == Visibility.Visible
+                && (bms ? overlay.ReturnAction : Game.BmsDownloads.ReturnAction) != null && nativeDetails.State.Value == Visibility.Hidden);
+            AddStep("close the switched browser", () => { if (bms) overlay.Hide(); else Game.BmsDownloads.Hide(); });
+            AddUntilStep("same original native chart is restored", () => nativeDetails.State.Value == Visibility.Visible && Game.OmsPages.Route == route
+                && hasNativeText(nativeDetails, route.Md5!) && Game.BmsDownloads.State.Value == Visibility.Hidden && overlay.State.Value == Visibility.Hidden);
+            AddAssert("restoring a suspended source performs no duplicate OMS read", () => omsRequests.Count, () => Is.EqualTo(1));
+            AddStep("open original-package search again", () => Game.ShowOmsChartDownload(bms ? route.Md5! : native_chart_title, bms));
+            AddUntilStep("requested browser visible again", () => (bms ? Game.BmsDownloads.State.Value : overlay.State.Value) == Visibility.Visible);
+            AddStep("close all overlays", () => Game.CloseAllOverlays());
+            AddWaitStep("close-all does not restore suspended source", 2);
+            AddAssert("all source and download pages stay hidden", () => nativeDetails.State.Value == Visibility.Hidden
+                && Game.BmsDownloads.State.Value == Visibility.Hidden && overlay.State.Value == Visibility.Hidden);
+        }
+
+        [TestCase(true, true)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(false, false)]
+        public void TestShowingAnotherOverlayDoesNotInvokeItsObsoleteReturn(bool fromBoard, bool throughToolbar)
+        {
+            waitForNativePagesAndBrowsers();
+            AddUntilStep("actual board and toolbar loaded", () => Game.Ir.IsLoaded && Game.Toolbar.IsLoaded);
+            AddStep("open a real source chart", () => Game.OpenOmsPage(nativeChartRoute(true)));
+            AddUntilStep("source chart is displayed", () => nativeDetails.State.Value == Visibility.Visible && hasNativeText(nativeDetails, native_chart_title));
+            AddStep("open a board or real download with a return action", () =>
+            {
+                if (fromBoard) Game.OpenRelatedOmsPage(new OmsPageRoute { Kind = OmsPageKind.Board, Md5 = native_mania_md5, Title = native_chart_title, Ruleset = "mania" });
+                else Game.ShowOmsChartDownload("native search", false);
+            });
+            AddUntilStep("returning component is visible", () => fromBoard
+                ? Game.Ir.State.Value == Visibility.Visible && Game.Ir.ReturnAction != null && hasNativeText(Game.Ir, "选择计分条件")
+                : overlay.State.Value == Visibility.Visible && overlay.ReturnAction != null && overlay.Cards.Count == 1);
+            AddStep("show the later actual destination", () =>
+            {
+                if (!throughToolbar) nativeNews.ShowOmsPage(new OmsPageRoute { Kind = OmsPageKind.News });
+                else if (fromBoard)
+                {
+                    Game.DownloadMode.Value = BeatmapDownloadMode.Mania;
+                    Game.Toolbar.ChildrenOfType<ToolbarBmsDownloadButton>().Single().Action!();
+                }
+                else Game.Toolbar.ChildrenOfType<ToolbarNewsButton>().Single().Action!();
+            });
+            AddUntilStep("later destination stays visible", () => fromBoard && throughToolbar
+                ? overlay.State.Value == Visibility.Visible && overlay.Cards.Count == 1
+                : nativeNews.State.Value == Visibility.Visible && hasNativeText(nativeNews, native_news_title));
+            AddWaitStep("obsolete return actions do not run afterward", 2);
+            AddAssert("hiding for another overlay never restores the source over the destination", () => nativeDetails.State.Value == Visibility.Hidden
+                && Game.Ir.State.Value == Visibility.Hidden && Game.Ir.ReturnAction == null
+                && (fromBoard && throughToolbar ? overlay.State.Value == Visibility.Visible && overlay.ReturnAction == null
+                    : nativeNews.State.Value == Visibility.Visible && overlay.State.Value == Visibility.Hidden && overlay.ReturnAction == null));
+            AddAssert("real catalogue manager was used only for the requested download path", () => metadata.SearchRequests,
+                () => Is.EqualTo(fromBoard && !throughToolbar ? 0 : 1));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestLaterNewsWinsOverAnUnloadedDownloadTarget(bool library)
+        {
+            AddStep("delay the next real download component load", () => delayNextDownloadLoad = true);
+            CreateNewGame();
+            ConfirmAtMainMenu();
+            AddUntilStep("native pages ready while actual download target is held", () => downloadLoadStarted?.IsSet == true
+                && Game.OmsPages.IsLoaded && Game.ChildrenOfType<NewsOverlay>().SingleOrDefault()?.IsLoaded == true
+                && Game.ChildrenOfType<BeatmapSetOverlay>().SingleOrDefault()?.IsLoaded == true && !overlay.IsLoaded);
+            AddStep("open a source chart before requesting downloads", () => Game.OpenOmsPage(nativeChartRoute(false)));
+            AddUntilStep("original native chart ready", () => nativeDetails.State.Value == Visibility.Visible && hasNativeText(nativeDetails, native_chart_title));
+            AddStep("request the not-yet-loaded real browser", () =>
+            {
+                if (library) Game.OpenRelatedOmsPage(new OmsPageRoute { Kind = OmsPageKind.Library, Ruleset = "mania", Query = "native search" });
+                else Game.ShowOmsChartDownload(native_chart_title, false);
+            });
+            AddStep("choose the native news page before downloads mount", () => Game.OpenOmsPage(new OmsPageRoute { Kind = OmsPageKind.News }));
+            AddUntilStep("later news is actually displayed", () => nativeNews.State.Value == Visibility.Visible && hasNativeText(nativeNews, native_news_title));
+            AddStep("allow the old download component to mount", () => allowDownloadLoad!.Set());
+            AddUntilStep("old target has loaded", () => overlay.IsLoaded);
+            AddWaitStep("allow stale readiness callbacks", 3);
+            AddAssert("obsolete downloads cannot cover the newer chosen page", () => nativeNews.State.Value == Visibility.Visible
+                && nativeDetails.State.Value == Visibility.Hidden && overlay.State.Value == Visibility.Hidden
+                && overlay.ReturnAction == null && Game.OmsPages.Route.Kind == OmsPageKind.News);
+            AddAssert("the obsolete browser never queried its actual manager", () => metadata.Requests, () => Is.Zero);
+        }
+
+        private void waitForNativePagesAndBrowsers() => AddUntilStep("native pages and real browsers loaded", () => Game.OmsPages.IsLoaded
+            && Game.BmsDownloads.IsLoaded && overlay.IsLoaded && Game.ChildrenOfType<BeatmapSetOverlay>().SingleOrDefault()?.IsLoaded == true
+            && Game.ChildrenOfType<NewsOverlay>().SingleOrDefault()?.IsLoaded == true);
+
+        private static OmsPageRoute nativeChartRoute(bool bms) => new OmsPageRoute
+        { Kind = OmsPageKind.Chart, Md5 = bms ? native_bms_md5 : native_mania_md5, Ruleset = bms ? "bms" : "mania", Title = native_chart_title };
+
+        private static bool hasNativeText(Drawable view, string text) => string.Concat(view.ChildrenOfType<SpriteText>()
+            .Select(sprite => sprite.Text.ToString())).Contains(text, StringComparison.Ordinal);
+
+        public override void TearDownSteps()
+        {
+            AddStep("release any delayed download component", () => allowDownloadLoad?.Set());
+            base.TearDownSteps();
         }
 
         protected override TestOsuGame CreateTestGame()
@@ -93,9 +230,19 @@ namespace osu.Game.Tests.Visual.Overlays
                 Content = new ByteArrayContent(createPackage(int.Parse(request.RequestUri!.Segments.Last(), CultureInfo.InvariantCulture))),
             }));
             bmsMetadata = new StubHandler((request, _) => Task.FromResult(json(request.RequestUri!.AbsolutePath.EndsWith("selectHeaderListWithFullInfo", StringComparison.Ordinal)
-                ? "[]" : "{\"page\":1,\"pageSize\":20,\"pageCount\":1,\"total\":0,\"data\":[]}")));
+                ? "[]" : "{\"page\":1,\"pageSize\":20,\"pageCount\":0,\"total\":0,\"data\":[]}")));
             covers = new StubHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound)));
-            return new DownloadGame(LocalStorage, API, metadata, packages, bmsMetadata, covers);
+            omsRequests.Clear();
+            omsMetadata = new StubHandler(nativeResponse);
+            allowDownloadLoad?.Set();
+            if (delayNextDownloadLoad)
+            {
+                downloadLoadStarted = new ManualResetEventSlim();
+                allowDownloadLoad = new ManualResetEventSlim();
+            }
+            else downloadLoadStarted = allowDownloadLoad = null;
+            delayNextDownloadLoad = false;
+            return new DownloadGame(LocalStorage, API, metadata, packages, bmsMetadata, covers, omsMetadata, downloadLoadStarted, allowDownloadLoad);
         }
 
         [Test]
@@ -676,6 +823,50 @@ namespace osu.Game.Tests.Visual.Overlays
             Content = new StringContent(body, Encoding.UTF8, "application/json"),
         };
 
+        private Task<HttpResponseMessage> nativeResponse(HttpRequestMessage request, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            string path = request.RequestUri!.AbsolutePath;
+            omsRequests.Enqueue(path);
+            JObject response;
+            if (path == "/client-content")
+                response = new JObject
+                {
+                    ["version"] = 1,
+                    ["news"] = new JArray(new JObject
+                    {
+                        ["slug"] = "download-navigation",
+                        ["title"] = native_news_title,
+                        ["published_at"] = "2026-10-12",
+                        ["excerpt"] = "合成导航验收公告",
+                        ["image"] = JValue.CreateNull(),
+                        ["body"] = new JArray(new JObject { ["heading"] = "原生页面导航", ["text"] = "保留玩家最后选择的页面。" }),
+                    }),
+                    ["help"] = new JArray(),
+                };
+            else if (path == "/api/ir/v2/charts/" + native_bms_md5 || path == "/api/ir/v2/charts/" + native_mania_md5)
+            {
+                bool mania = path.EndsWith(native_mania_md5, StringComparison.Ordinal);
+                response = new JObject
+                {
+                    ["chart"] = new JObject
+                    {
+                        ["md5"] = mania ? native_mania_md5 : native_bms_md5,
+                        ["title"] = native_chart_title,
+                        ["artist"] = "OMS synthetic",
+                        ["difficulty"] = mania ? "4K Another" : "☆12",
+                    },
+                    ["ruleset"] = mania ? "mania" : "bms",
+                    ["groups"] = mania ? new JArray(new JObject { ["id"] = new string('c', 64), ["label"] = "mania 原计分条件" }) : new JArray(),
+                    ["available_sources"] = new JArray("oms"),
+                };
+            }
+            else throw new AssertionException("Unexpected isolated download-navigation OMS request: " + path);
+            Assert.That(request.Method, Is.EqualTo(HttpMethod.Get));
+            Assert.That(request.Headers.Authorization, Is.Null);
+            return Task.FromResult(json(response.ToString()));
+        }
+
         private static byte[] createPackage(int setId)
         {
             using var stream = new MemoryStream();
@@ -751,18 +942,27 @@ SliderTickRate: 1
             private readonly StubHandler packages;
             private readonly StubHandler bmsMetadata;
             private readonly StubHandler covers;
+            private readonly HttpClient omsHttp;
+            private readonly ManualResetEventSlim? downloadLoadStarted;
+            private readonly ManualResetEventSlim? allowDownloadLoad;
             public ManiaDownloadManager Manager { get; private set; } = null!;
             public override bool BmsDownloadsEnabled => true;
             public override bool ManiaDownloadsEnabled => true;
 
-            public DownloadGame(Storage storage, IAPIProvider api, StubHandler metadata, StubHandler packages, StubHandler bmsMetadata, StubHandler covers)
+            public DownloadGame(Storage storage, IAPIProvider api, StubHandler metadata, StubHandler packages, StubHandler bmsMetadata, StubHandler covers,
+                                StubHandler omsMetadata, ManualResetEventSlim? downloadLoadStarted, ManualResetEventSlim? allowDownloadLoad)
                 : base(storage, api)
             {
                 this.metadata = metadata;
                 this.packages = packages;
                 this.bmsMetadata = bmsMetadata;
                 this.covers = covers;
+                omsHttp = new HttpClient(omsMetadata);
+                this.downloadLoadStarted = downloadLoadStarted;
+                this.allowDownloadLoad = allowDownloadLoad;
             }
+
+            protected override OmsIrService CreateOmsIrService(Storage storage) => new OmsIrService(storage, omsHttp, new AnonymousCredentials());
 
             protected override ManiaDownloadManager CreateManiaDownloadManager() => Manager = new ManiaDownloadManager(Storage,
                 new ManiaDownloadImporter(Storage, ClientRealm), new SayobotClient(new HttpClient(metadata)), new HttpClient(packages));
@@ -771,7 +971,44 @@ SliderTickRate: 1
                 new BmsDownloadImporter(Storage, ClientRealm), new BmsDownloadClient(new HttpClient(bmsMetadata)), new HttpClient(new StubHandler((_, _) =>
                     Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound)))));
 
-            protected override ManiaDownloadOverlay CreateManiaDownloadOverlay() => new ManiaDownloadOverlay(new BeatmapDownloadCoverResourceStore(covers));
+            protected override ManiaDownloadOverlay CreateManiaDownloadOverlay() => allowDownloadLoad == null
+                ? new ManiaDownloadOverlay(new BeatmapDownloadCoverResourceStore(covers))
+                : new DelayedManiaDownloadOverlay(new BeatmapDownloadCoverResourceStore(covers), downloadLoadStarted!, allowDownloadLoad);
+
+            protected override void Dispose(bool isDisposing)
+            {
+                allowDownloadLoad?.Set();
+                base.Dispose(isDisposing);
+                omsHttp.Dispose();
+            }
+        }
+
+        private partial class DelayedManiaDownloadOverlay : ManiaDownloadOverlay
+        {
+            private readonly ManualResetEventSlim loadStarted;
+            private readonly ManualResetEventSlim allowLoad;
+
+            public DelayedManiaDownloadOverlay(BeatmapDownloadCoverResourceStore covers, ManualResetEventSlim loadStarted, ManualResetEventSlim allowLoad)
+                : base(covers)
+            {
+                this.loadStarted = loadStarted;
+                this.allowLoad = allowLoad;
+            }
+
+            [BackgroundDependencyLoader]
+            private void delayBackgroundLoad()
+            {
+                loadStarted.Set();
+                if (!allowLoad.Wait(TimeSpan.FromSeconds(20)))
+                    throw new TimeoutException("Synthetic download load gate was not released.");
+            }
+        }
+
+        private sealed class AnonymousCredentials : IOmsIrCredentialStore
+        {
+            public OmsIrSession? Read(string target) => null;
+            public void Write(string target, OmsIrSession value) => throw new AssertionException("Download navigation must stay anonymous.");
+            public void Delete(string target) { }
         }
 
         private sealed class StubHandler : HttpMessageHandler

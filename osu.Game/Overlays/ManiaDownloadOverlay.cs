@@ -47,7 +47,6 @@ namespace osu.Game.Overlays
         private bool searching;
         private bool paginationPaused;
         private bool openingSearch;
-        public Action? ReturnAction { get; set; }
 
         public IReadOnlyCollection<ManiaDownloadCard> Cards => cards.Values;
 

@@ -20,6 +20,7 @@ namespace osu.Game.Overlays.News
         public Action ShowFrontPage;
 
         private readonly Bindable<string> article = new Bindable<string>();
+        private bool changingOmsPage;
 
         public NewsHeader()
         {
@@ -34,7 +35,7 @@ namespace osu.Game.Overlays.News
 
             Current.BindValueChanged(e =>
             {
-                if (e.NewValue == FrontPageString)
+                if (!changingOmsPage && e.NewValue == FrontPageString)
                     ShowFrontPage?.Invoke();
             });
         }
@@ -42,6 +43,14 @@ namespace osu.Game.Overlays.News
         public void SetFrontPage() => article.Value = null;
 
         public void SetArticle(string slug) => article.Value = slug;
+
+        public void SetOmsPage(string title = null)
+        {
+            ((NewsHeaderTitle)Title).UseOmsTitle();
+            changingOmsPage = true;
+            article.Value = title;
+            changingOmsPage = false;
+        }
 
         private void onArticleChanged(ValueChangedEvent<string> e)
         {
@@ -70,6 +79,12 @@ namespace osu.Game.Overlays.News
                 Title = PageTitleStrings.MainNewsControllerDefault;
                 Description = NamedOverlayComponentStrings.NewsDescription;
                 Icon = OsuIcon.News;
+            }
+
+            public void UseOmsTitle()
+            {
+                Title = "新闻";
+                Description = "OMS 新闻与发行说明";
             }
         }
     }

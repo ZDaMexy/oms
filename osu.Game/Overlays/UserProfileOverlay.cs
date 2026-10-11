@@ -32,7 +32,7 @@ using osuTK.Graphics;
 
 namespace osu.Game.Overlays
 {
-    public partial class UserProfileOverlay : FullscreenOverlay<ProfileHeader>
+    public partial class UserProfileOverlay : FullscreenOverlay<ProfileHeader>, IOmsPageOverlay
     {
         protected override Container<Drawable> Content => useOmsAccount ? omsViewContainer : onlineViewContainer;
 
@@ -209,6 +209,7 @@ namespace osu.Game.Overlays
 
             sectionsContainer.SelectedSection.ValueChanged += section =>
             {
+                if (useOmsAccount && updatingOmsSections) return;
                 if (lastSection != section.NewValue)
                 {
                     lastSection = section.NewValue;
@@ -218,9 +219,10 @@ namespace osu.Game.Overlays
 
             tabs.Current.ValueChanged += section =>
             {
+                if (useOmsAccount && updatingOmsSections) return;
                 if (lastSection == null)
                 {
-                    lastSection = sectionsContainer.Children.FirstOrDefault();
+                    lastSection = sectionsContainer.Children.FirstOrDefault(candidate => candidate.IsPresent);
                     if (lastSection != null)
                         tabs.Current.Value = lastSection;
                     return;
@@ -319,6 +321,16 @@ namespace osu.Game.Overlays
         private partial class ProfileSectionsContainer : SectionsContainer<ProfileSection>
         {
             private OverlayScrollContainer scroll = null!;
+
+            public float OmsScroll
+            {
+                get => (float)scroll.Current;
+                set
+                {
+                    InvalidateScrollPosition();
+                    scroll.ScrollTo(value, false);
+                }
+            }
 
             public ProfileSectionsContainer()
             {

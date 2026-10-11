@@ -374,7 +374,7 @@ namespace osu.Game
 
             // ordering is important here to ensure foreign keys rules are not broken in ModelStore.Cleanup()
             dependencies.Cache(ScoreManager = new ScoreManager(RulesetStore, () => BeatmapManager, Storage, ClientRealm, API, LocalConfig));
-            dependencies.Cache(OmsIr = new OmsIrService(Storage));
+            dependencies.Cache(OmsIr = CreateOmsIrService(Storage));
 
             dependencies.Cache(BeatmapManager = new BeatmapManager(Storage, ClientRealm, API, Audio, Resources, Host, defaultBeatmap, difficultyCache, performOnlineLookups: OnlineFeaturesEnabled,
                 customBeatmapLoaders: CreateCustomBeatmapLoaders()));
@@ -519,6 +519,8 @@ namespace osu.Game
         }
 
         private void onTrackChanged(WorkingBeatmap beatmap, TrackChangeDirection direction) => beatmapClock.ChangeSource(beatmap.Track);
+
+        protected virtual OmsIrService CreateOmsIrService(Storage storage) => new OmsIrService(storage);
 
         protected virtual void InitialiseFonts()
         {

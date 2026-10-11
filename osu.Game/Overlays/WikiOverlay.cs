@@ -12,11 +12,12 @@ using osu.Game.Localisation;
 using osu.Game.Online.API;
 using osu.Game.Online.API.Requests;
 using osu.Game.Online.API.Requests.Responses;
+using osu.Game.Online.IR;
 using osu.Game.Overlays.Wiki;
 
 namespace osu.Game.Overlays
 {
-    public partial class WikiOverlay : OnlineOverlay<WikiHeader>
+    public partial class WikiOverlay : OnlineOverlay<WikiHeader>, IOmsPageOverlay
     {
         public const string INDEX_PATH = @"Main_page";
 
@@ -38,14 +39,21 @@ namespace osu.Game.Overlays
 
         private bool displayUpdateRequired = true;
 
-        public WikiOverlay()
+        public WikiOverlay(bool omsOnly = false)
             : base(OverlayColourScheme.Orange, false)
         {
+            this.omsOnly = omsOnly;
         }
 
         protected override void LoadComplete()
         {
             base.LoadComplete();
+
+            if (omsOnly)
+            {
+                Header.SetOmsPage();
+                return;
+            }
 
             path.BindValueChanged(onPathChanged);
             wikiData.BindTo(Header.WikiPageData);
@@ -56,6 +64,15 @@ namespace osu.Game.Overlays
 
         public void ShowPage(string pagePath = INDEX_PATH)
         {
+            if (omsOnly)
+            {
+                omsGame?.OpenRelatedOmsPage(new OmsPageRoute
+                {
+                    Kind = OmsPageKind.Help,
+                    HelpAnchor = pagePath == INDEX_PATH ? null : pagePath.Trim('/', '#'),
+                });
+                return;
+            }
             path.Value = pagePath.Trim('/');
             Show();
         }
@@ -69,6 +86,13 @@ namespace osu.Game.Overlays
         protected override void PopIn()
         {
             base.PopIn();
+
+            if (omsOnly)
+            {
+                if (displayUpdateRequired)
+                    beginOmsLoading();
+                return;
+            }
 
             if (displayUpdateRequired)
             {
@@ -182,12 +206,18 @@ namespace osu.Game.Overlays
 
         private void showParentPage()
         {
+            if (omsOnly)
+            {
+                ShowPage();
+                return;
+            }
             string parentPath = string.Join("/", path.Value.Split('/').SkipLast(1));
             ShowPage(parentPath);
         }
 
         protected override void Dispose(bool isDisposing)
         {
+            cancelOmsLoading();
             cancellationToken?.Cancel();
             request?.Cancel();
             base.Dispose(isDisposing);

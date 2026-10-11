@@ -3,6 +3,7 @@
 
 #nullable disable
 
+using System;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
@@ -11,11 +12,12 @@ using osu.Game.Users;
 using osu.Game.Rulesets;
 using osu.Game.Online.API;
 using osu.Game.Online.API.Requests;
+using osu.Game.Online.IR;
 using osu.Game.Overlays.Rankings.Tables;
 
 namespace osu.Game.Overlays
 {
-    public partial class RankingsOverlay : TabbableOnlineOverlay<RankingsOverlayHeader, RankingsScope>
+    public partial class RankingsOverlay : TabbableOnlineOverlay<RankingsOverlayHeader, RankingsScope>, IOmsPageOverlay
     {
         protected Bindable<CountryCode> Country => Header.Country;
 
@@ -29,15 +31,72 @@ namespace osu.Game.Overlays
 
         [Cached]
         private readonly Bindable<RulesetInfo> ruleset = new Bindable<RulesetInfo>();
+        private readonly bool useOmsService;
+        private readonly OmsPlayerPageContent omsContent;
+        private bool omsPageRequested;
+        private bool resumeOmsPage;
+        private bool synchronisingOmsHeader;
+        private float omsRestoreScroll;
 
-        public RankingsOverlay()
-            : base(OverlayColourScheme.Green)
+        [Resolved(canBeNull: true)]
+        private OsuGame omsGame { get; set; }
+
+        [Resolved]
+        private RulesetStore rulesets { get; set; }
+
+        public OmsPageRoute CurrentOmsRoute => useOmsService ? omsContent.Route : null;
+
+        public float OmsScroll
         {
+            get => (float)ScrollFlow.Current;
+            set
+            {
+                omsRestoreScroll = value;
+                if (IsLoaded) ScrollFlow.ScrollTo(value, false);
+            }
+        }
+
+        public RankingsOverlay(bool useOmsService = false)
+            : base(OverlayColourScheme.Green, !useOmsService)
+        {
+            this.useOmsService = useOmsService;
+            if (useOmsService)
+            {
+                Header.EnableOms();
+                Child = omsContent = new OmsPlayerPageContent
+                {
+                    Padding = new MarginPadding { Horizontal = HORIZONTAL_PADDING, Vertical = 20 },
+                };
+                omsContent.Rendered = () => ScheduleAfterChildren(() =>
+                {
+                    ScrollFlow.ScrollTo(omsRestoreScroll, false);
+                    omsRestoreScroll = 0;
+                });
+                omsContent.RouteLoaded += route =>
+                {
+                    synchronisingOmsHeader = true;
+                    Header.SetOmsRoute(route);
+                    Header.Ruleset.Value = rulesets.GetRuleset(route.Ruleset);
+                    synchronisingOmsHeader = false;
+                };
+                Header.OmsMetricChanged += omsContent.SelectMetric;
+            }
         }
 
         protected override void LoadComplete()
         {
             base.LoadComplete();
+
+            if (useOmsService)
+            {
+                Loading.Hide();
+                Header.Ruleset.BindValueChanged(change =>
+                {
+                    if (!synchronisingOmsHeader && change.NewValue != null && change.NewValue.ShortName != omsContent.Route.Ruleset)
+                        omsContent.SelectRuleset(change.NewValue.ShortName);
+                });
+                return;
+            }
 
             Header.Ruleset.BindTo(ruleset);
 
@@ -63,6 +122,19 @@ namespace osu.Game.Overlays
 
         protected override void PopIn()
         {
+            if (useOmsService)
+            {
+                base.PopIn();
+                if (!omsPageRequested)
+                    ShowOmsPage(omsGame?.CurrentOmsRoute(OmsPageKind.Rankings) ?? new OmsPageRoute { Kind = OmsPageKind.Rankings });
+                else if (resumeOmsPage)
+                {
+                    resumeOmsPage = false;
+                    omsContent.Resume(omsContent.Route);
+                }
+                return;
+            }
+
             if (requiresRulesetUpdate)
             {
                 ruleset.Value = parentRuleset.Value;
@@ -74,6 +146,8 @@ namespace osu.Game.Overlays
 
         protected override void OnTabChanged(RankingsScope tab)
         {
+            if (useOmsService) return;
+
             // country filtering is only valid for performance scope.
             if (Header.Current.Value != RankingsScope.Performance)
                 Country.SetDefault();
@@ -87,12 +161,59 @@ namespace osu.Game.Overlays
 
         public void ShowCountry(CountryCode requested)
         {
-            if (requested == default)
+            if (useOmsService || requested == default)
                 return;
 
             Show();
 
             Country.Value = requested;
+        }
+
+        public void ShowOmsPage(OmsPageRoute route)
+        {
+            if (!useOmsService || route.Kind != OmsPageKind.Rankings)
+                throw new ArgumentException("The OMS rankings overlay requires a player ranking route.", nameof(route));
+            omsPageRequested = true;
+            resumeOmsPage = false;
+            omsRestoreScroll = 0;
+            omsContent.Open(route);
+            Show();
+        }
+
+        public void RestoreOmsPage(OmsPageRoute route, float scroll)
+        {
+            if (!useOmsService || route.Kind != OmsPageKind.Rankings)
+                throw new ArgumentException("The OMS rankings overlay requires a player ranking route.", nameof(route));
+            omsPageRequested = true;
+            resumeOmsPage = false;
+            omsRestoreScroll = scroll;
+            omsContent.Resume(route);
+            Show();
+        }
+
+        protected override void PopOut()
+        {
+            if (useOmsService)
+            {
+                omsContent.CancelOperation();
+                resumeOmsPage = true;
+            }
+            base.PopOut();
+        }
+
+        protected override void PopOutComplete()
+        {
+            if (!useOmsService) base.PopOutComplete();
+        }
+
+        protected override void Update()
+        {
+            base.Update();
+            if (useOmsService)
+            {
+                if (omsContent.IsLoading) Loading.Show();
+                else Loading.Hide();
+            }
         }
 
         protected override void CreateDisplayToLoad(RankingsScope tab)

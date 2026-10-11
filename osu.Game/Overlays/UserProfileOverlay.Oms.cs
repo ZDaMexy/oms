@@ -33,6 +33,12 @@ namespace osu.Game.Overlays
 
         private OmsRecentSection omsRecent = null!;
         private OmsAccountSection omsAccount = null!;
+        private OmsPublicSection omsPublic = null!;
+        private OmsPlayerPageContent omsPublicContent = null!;
+        private bool omsPublicMode;
+        private bool resumeOmsPublicPage;
+        private bool updatingOmsSections;
+        private float omsPublicRestoreScroll;
         private CancellationTokenSource? omsRead;
         private int omsRevision;
         private long? omsDisplayedAccount;
@@ -40,6 +46,18 @@ namespace osu.Game.Overlays
         private bool omsDisplayedRequiresLogin;
         private bool omsDisplayedEnabled;
         private bool updatingOmsPagination;
+
+        public OmsPageRoute? CurrentOmsRoute => useOmsAccount && omsPublicMode ? omsPublicContent.Route : null;
+
+        public float OmsScroll
+        {
+            get => sectionsContainer?.OmsScroll ?? 0;
+            set
+            {
+                omsPublicRestoreScroll = value;
+                if (sectionsContainer?.IsLoaded == true) sectionsContainer.OmsScroll = value;
+            }
+        }
 
         private void loadOmsProfile()
         {
@@ -63,6 +81,18 @@ namespace osu.Game.Overlays
                 sectionsContainer!.Add(section);
                 tabs!.AddItem(section);
             }
+            omsPublicContent = new OmsPlayerPageContent();
+            omsPublicContent.PlayerLoaded += (id, name) => ((OmsIrProfileHeader)Header).PublicPlayer.Value = new OmsIrAccount(id, name);
+            omsPublicContent.RouteLoaded += route => ((OmsIrProfileHeader)Header).PublicRoute.Value = route;
+            omsPublicContent.Rendered = () => ScheduleAfterChildren(() =>
+            {
+                if (!omsPublicMode) return;
+                sectionsContainer!.OmsScroll = omsPublicRestoreScroll;
+                omsPublicRestoreScroll = 0;
+            });
+            omsPublic = new OmsPublicSection { Child = omsPublicContent };
+            omsPublic.Hide();
+            sectionsContainer!.Add(omsPublic);
             omsIr!.StateChanged += omsProfileStateChanged;
             applyOmsProfileState(omsIr.State, true);
         }
@@ -71,9 +101,64 @@ namespace osu.Game.Overlays
         {
             if (!useOmsAccount)
                 return;
+            setOmsProfileMode(false);
             applyOmsProfileState(omsIr!.State, true);
             Show();
             readOmsHistory(1);
+        }
+
+        public void ShowOmsPage(OmsPageRoute route)
+        {
+            if (!useOmsAccount || route.Kind != OmsPageKind.Profile)
+                throw new ArgumentException("The public OMS profile requires a player route.", nameof(route));
+            cancelOmsRead();
+            resumeOmsPublicPage = false;
+            omsPublicRestoreScroll = 0;
+            setOmsProfileMode(true);
+            var header = (OmsIrProfileHeader)Header;
+            header.PublicPlayer.Value = null;
+            header.PublicRoute.Value = route;
+            omsPublicContent.Open(route);
+            Show();
+        }
+
+        public void RestoreOmsPage(OmsPageRoute route, float scroll)
+        {
+            if (!useOmsAccount || route.Kind != OmsPageKind.Profile)
+                throw new ArgumentException("The public OMS profile requires a player route.", nameof(route));
+            cancelOmsRead();
+            resumeOmsPublicPage = false;
+            omsPublicRestoreScroll = scroll;
+            setOmsProfileMode(true);
+            var header = (OmsIrProfileHeader)Header;
+            if (header.PublicPlayer.Value?.Id != route.UserId) header.PublicPlayer.Value = null;
+            header.PublicRoute.Value = route;
+            omsPublicContent.Resume(route);
+            Show();
+        }
+
+        private void setOmsProfileMode(bool publicPage)
+        {
+            omsPublicContent.CancelOperation();
+            updatingOmsSections = true;
+            omsPublicMode = publicPage;
+            if (!publicPage) resumeOmsPublicPage = false;
+            if (!publicPage)
+            {
+                ((OmsIrProfileHeader)Header).PublicRoute.Value = null;
+                ((OmsIrProfileHeader)Header).PublicPlayer.Value = null;
+            }
+            omsRecent.FadeTo(publicPage ? 0 : 1);
+            omsAccount.FadeTo(publicPage ? 0 : 1);
+            omsPublic.FadeTo(publicPage ? 1 : 0);
+            sections = publicPage ? new ProfileSection[] { omsPublic } : new ProfileSection[] { omsRecent, omsAccount };
+            tabs!.Clear();
+            foreach (ProfileSection section in sections) tabs.AddItem(section);
+            lastSection = sections[0];
+            tabs.Current.Value = lastSection;
+            sectionsContainer!.SelectedSection.Value = lastSection;
+            sectionsContainer.OmsScroll = 0;
+            updatingOmsSections = false;
         }
 
         private void omsProfileStateChanged(OmsIrState state) => Schedule(() => applyOmsProfileState(omsIr!.State));
@@ -94,6 +179,8 @@ namespace osu.Game.Overlays
                 return;
             cancelOmsRead();
             omsRecent!.ClearRecords();
+            if (omsPublicMode)
+                omsPublicContent?.CancelOperation();
             omsRecent.SetStatus(state.Account == null || state.RequiresLogin ? "请从右上角登录 OMS 账号。游玩记录仅本人可见。"
                 : !state.Enabled ? "IR 已关闭。请在连接设置中启用后查看。"
                 : "刷新后查看已上传的游玩成绩。", false);
@@ -207,10 +294,34 @@ namespace osu.Game.Overlays
             loadingLayer.Hide();
         }
 
+        protected override void PopIn()
+        {
+            base.PopIn();
+            if (useOmsAccount && omsPublicMode && resumeOmsPublicPage)
+            {
+                resumeOmsPublicPage = false;
+                omsPublicContent.Resume(omsPublicContent.Route);
+            }
+        }
+
+        protected override void Update()
+        {
+            base.Update();
+            if (useOmsAccount && omsPublicMode)
+            {
+                if (omsPublicContent.IsLoading) loadingLayer.Show();
+                else loadingLayer.Hide();
+            }
+        }
+
         protected override void PopOut()
         {
             if (useOmsAccount)
+            {
                 cancelOmsRead();
+                omsPublicContent.CancelOperation();
+                resumeOmsPublicPage = omsPublicMode;
+            }
             base.PopOut();
         }
 
@@ -219,7 +330,10 @@ namespace osu.Game.Overlays
             if (useOmsAccount && omsIr != null)
                 omsIr.StateChanged -= omsProfileStateChanged;
             if (useOmsAccount)
+            {
                 cancelOmsRead();
+                omsPublicContent?.CancelOperation();
+            }
             base.Dispose(isDisposing);
         }
 
@@ -237,6 +351,12 @@ namespace osu.Game.Overlays
             AutoSizeAxes = Axes.Y,
             Text = value,
         };
+
+        private partial class OmsPublicSection : ProfileSection
+        {
+            public override LocalisableString Title => "公开资料与成绩";
+            public override string Identifier => "public";
+        }
 
         private partial class OmsRecentSection : ProfileSection
         {

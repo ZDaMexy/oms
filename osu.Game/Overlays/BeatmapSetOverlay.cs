@@ -19,8 +19,10 @@ using osuTK.Graphics;
 
 namespace osu.Game.Overlays
 {
-    public partial class BeatmapSetOverlay : OnlineOverlay<BeatmapSetHeader>
+    public partial class BeatmapSetOverlay(bool useOmsService = false) : OnlineOverlay<BeatmapSetHeader>(OverlayColourScheme.Blue, !useOmsService), IOmsPageOverlay
     {
+        private readonly bool omsOnly = useOmsService;
+
         public const float Y_PADDING = 25;
         public const float RIGHT_WIDTH = 275;
 
@@ -33,8 +35,7 @@ namespace osu.Game.Overlays
 
         private (BeatmapSetLookupType type, int id)? lastLookup;
 
-        public BeatmapSetOverlay()
-            : base(OverlayColourScheme.Blue)
+        private void initialiseLegacyContent()
         {
             Info info;
             CommentsSection comments;
@@ -69,6 +70,13 @@ namespace osu.Game.Overlays
         [BackgroundDependencyLoader]
         private void load()
         {
+            if (omsOnly)
+            {
+                initialiseOmsContent();
+                return;
+            }
+
+            initialiseLegacyContent();
             apiUser = api.LocalUser.GetBoundCopy();
             apiUser.BindValueChanged(_ => Schedule(() =>
             {
@@ -77,7 +85,7 @@ namespace osu.Game.Overlays
             }));
         }
 
-        protected override BeatmapSetHeader CreateHeader() => new BeatmapSetHeader();
+        protected override BeatmapSetHeader CreateHeader() => omsOnly ? new OmsBeatmapSetHeader() : new BeatmapSetHeader();
 
         protected override Color4 BackgroundColour => ColourProvider.Background6;
 
@@ -89,6 +97,9 @@ namespace osu.Game.Overlays
 
         public void FetchAndShowBeatmap(int beatmapId)
         {
+            if (omsOnly)
+                throw new System.InvalidOperationException("OMS chart pages require the actual source MD5.");
+
             lastLookup = (BeatmapSetLookupType.BeatmapId, beatmapId);
             beatmapSet.Value = null;
 
@@ -98,6 +109,9 @@ namespace osu.Game.Overlays
 
         public void FetchAndShowBeatmapSet(int beatmapSetId)
         {
+            if (omsOnly)
+                throw new System.InvalidOperationException("OMS chart pages require the actual source MD5.");
+
             lastLookup = (BeatmapSetLookupType.SetId, beatmapSetId);
 
             beatmapSet.Value = null;
@@ -112,6 +126,9 @@ namespace osu.Game.Overlays
         /// <param name="set">The set to show.</param>
         public void ShowBeatmapSet(APIBeatmapSet set)
         {
+            if (omsOnly)
+                throw new System.InvalidOperationException("OMS chart pages do not use ppy beatmap set identities.");
+
             beatmapSet.Value = set;
             Show();
         }

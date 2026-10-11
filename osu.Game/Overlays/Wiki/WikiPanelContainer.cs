@@ -4,6 +4,7 @@
 #nullable disable
 
 using Markdig.Syntax;
+using System;
 using osu.Framework.Allocation;
 using osu.Framework.Extensions.Color4Extensions;
 using osu.Framework.Graphics;
@@ -15,6 +16,7 @@ using osu.Framework.Graphics.Sprites;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Containers.Markdown;
 using osu.Game.Online.API;
+using osu.Game.Online.IR;
 using osu.Game.Overlays.Wiki.Markdown;
 using osuTK;
 using osuTK.Graphics;
@@ -27,11 +29,13 @@ namespace osu.Game.Overlays.Wiki
 
         private readonly string text;
         private readonly bool isFullWidth;
+        private readonly Action<string> openLink;
 
-        public WikiPanelContainer(string text, bool isFullWidth = false)
+        public WikiPanelContainer(string text, bool isFullWidth = false, Action<string> openLink = null)
         {
             this.text = text;
             this.isFullWidth = isFullWidth;
+            this.openLink = openLink;
         }
 
         private PanelBackground background;
@@ -52,9 +56,9 @@ namespace osu.Game.Overlays.Wiki
                     RelativeSizeAxes = Axes.X,
                     AutoSizeAxes = Axes.Y,
                     Padding = new MarginPadding(padding),
-                    Child = new WikiPanelMarkdownContainer(isFullWidth)
+                    Child = new WikiPanelMarkdownContainer(isFullWidth, openLink)
                     {
-                        CurrentPath = $@"{api.Endpoints.WebsiteUrl}/wiki/",
+                        CurrentPath = openLink == null ? $@"{api.Endpoints.WebsiteUrl}/wiki/" : new Uri(OmsIrService.ServiceOrigin, "help").AbsoluteUri,
                         Text = text,
                         RelativeSizeAxes = Axes.X,
                         AutoSizeAxes = Axes.Y
@@ -96,13 +100,16 @@ namespace osu.Game.Overlays.Wiki
             }
         }
 
-        private partial class WikiPanelMarkdownContainer : WikiMarkdownContainer
+        private partial class WikiPanelMarkdownContainer : OmsMarkdownContainer
         {
             private readonly bool isFullWidth;
+            private readonly Action<string> openLink;
 
-            public WikiPanelMarkdownContainer(bool isFullWidth)
+            public WikiPanelMarkdownContainer(bool isFullWidth, Action<string> openLink)
+                : base(openLink)
             {
                 this.isFullWidth = isFullWidth;
+                this.openLink = openLink;
 
                 LineSpacing = 0;
                 DocumentPadding = new MarginPadding(30);
@@ -116,7 +123,7 @@ namespace osu.Game.Overlays.Wiki
             protected override MarkdownParagraph CreateParagraph(ParagraphBlock paragraphBlock, int level)
                 => base.CreateParagraph(paragraphBlock, level).With(p => p.Margin = new MarginPadding { Bottom = 10 });
 
-            protected override MarkdownHeading CreateHeading(HeadingBlock headingBlock) => new WikiPanelHeading(headingBlock)
+            protected override MarkdownHeading CreateHeading(HeadingBlock headingBlock) => new WikiPanelHeading(headingBlock, openLink)
             {
                 IsFullWidth = isFullWidth,
             };
@@ -125,14 +132,20 @@ namespace osu.Game.Overlays.Wiki
         private partial class WikiPanelHeading : OsuMarkdownHeading
         {
             public bool IsFullWidth;
+            private readonly Action<string> openLink;
+            private readonly int level;
 
-            public WikiPanelHeading(HeadingBlock headingBlock)
+            public WikiPanelHeading(HeadingBlock headingBlock, Action<string> openLink)
                 : base(headingBlock)
             {
+                this.openLink = openLink;
+                level = headingBlock.Level;
                 Margin = new MarginPadding { Bottom = 40 };
             }
 
-            public override MarkdownTextFlowContainer CreateTextFlow() => base.CreateTextFlow().With(f =>
+            public override MarkdownTextFlowContainer CreateTextFlow() => (openLink == null
+                ? base.CreateTextFlow()
+                : new OmsPanelHeadingTextFlow(openLink, GetFontSizeByLevel(level), GetFontWeightByLevel(level))).With(f =>
             {
                 f.Anchor = Anchor.TopCentre;
                 f.Origin = Anchor.TopCentre;
@@ -142,6 +155,22 @@ namespace osu.Game.Overlays.Wiki
             protected override FontWeight GetFontWeightByLevel(int level) => FontWeight.Light;
 
             protected override float GetFontSizeByLevel(int level) => base.GetFontSizeByLevel(IsFullWidth ? level : 3);
+        }
+
+        private partial class OmsPanelHeadingTextFlow : OmsMarkdownContainer.OmsMarkdownTextFlow
+        {
+            private readonly float fontSize;
+            private readonly FontWeight fontWeight;
+
+            public OmsPanelHeadingTextFlow(Action<string> openLink, float fontSize, FontWeight fontWeight)
+                : base(openLink)
+            {
+                this.fontSize = fontSize;
+                this.fontWeight = fontWeight;
+            }
+
+            protected override SpriteText CreateSpriteText()
+                => base.CreateSpriteText().With(text => text.Font = text.Font.With(Typeface.Torus, size: fontSize, weight: fontWeight));
         }
     }
 }

@@ -24,7 +24,6 @@ namespace osu.Game.Overlays.BeatmapSet
 
         public BeatmapSetHeaderContent HeaderContent { get; private set; }
 
-        [Cached]
         public BeatmapRulesetSelector RulesetSelector { get; private set; }
 
         [Cached(typeof(IBindable<RulesetInfo>))]
@@ -41,6 +40,14 @@ namespace osu.Game.Overlays.BeatmapSet
                 Radius = 3,
                 Offset = new Vector2(0f, 1f),
             };
+        }
+
+        protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
+        {
+            var dependencies = new DependencyContainer(base.CreateChildDependencies(parent));
+            if (RulesetSelector != null)
+                dependencies.CacheAs(RulesetSelector);
+            return dependencies;
         }
 
         protected override Drawable CreateContent() => HeaderContent = new BeatmapSetHeaderContent

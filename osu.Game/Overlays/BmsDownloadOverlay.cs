@@ -55,7 +55,6 @@ namespace osu.Game.Overlays
         private bool paginationPaused;
         private bool tablesFailed;
         private bool openingSearch;
-        public Action? ReturnAction { get; set; }
 
         public IReadOnlyCollection<BmsDownloadCard> Cards => cards.Values;
 

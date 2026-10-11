@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
+using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Testing;
@@ -22,6 +23,7 @@ using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Online.IR;
 using osu.Game.Overlays;
+using osu.Game.Overlays.Rankings.Tables;
 
 namespace osu.Game.Tests.Online.IR
 {
@@ -36,8 +38,10 @@ namespace osu.Game.Tests.Online.IR
         private TemporaryNativeStorage storage = null!;
         private HttpClient http = null!;
         private OmsIrService service = null!;
-        private OmsServicesOverlay overlay = null!;
+        private OmsPlayerPageContent overlay = null!;
         private FillFlowContainer rows = null!;
+        private long? displayedPlayer;
+        private string? displayedName;
         private readonly ConcurrentQueue<(string Path, string Query, string? Bearer)> requests = new ConcurrentQueue<(string, string, string?)>();
         private Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> response = null!;
 
@@ -53,17 +57,18 @@ namespace osu.Game.Tests.Online.IR
                 return response(request, token);
             }));
             service = new OmsIrService(storage, http, new Credentials());
-            overlay = new OmsServicesOverlay();
-            rows = new FillFlowContainer();
-            typeof(OmsServicesOverlay).GetProperty("service", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(overlay, service);
-            typeof(OmsServicesOverlay).GetField("rows", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(overlay, rows);
+            overlay = new OmsPlayerPageContent();
+            displayedPlayer = null;
+            displayedName = null;
+            overlay.PlayerLoaded += (id, name) => { displayedPlayer = id; displayedName = name; };
+            typeof(OmsPageContent).GetProperty("service", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(overlay, service);
+            rows = (FillFlowContainer)typeof(OmsPageContent).GetField("rows", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(overlay)!;
         }
 
         [TearDown]
         public void TearDown()
         {
             overlay.Dispose();
-            rows.Dispose();
             service.Dispose();
             http.Dispose();
             storage.Dispose();
@@ -104,10 +109,16 @@ namespace osu.Game.Tests.Online.IR
                 .And.Contain("condition=" + condition_id).And.Contain("page=2&limit=20"));
             Assert.That(requests.ElementAt(1).Query, Does.Contain("page=2&limit=20"));
             Assert.That(requests.Skip(1).All(request => request.Bearer == "synthetic-access-token"), Is.True);
-            Assert.That(buttons().Count(button => button.Text.ToString().StartsWith('#')), Is.EqualTo(20));
-            Assert.That(buttons().Select(button => button.Text.ToString()), Has.Some.Contains("我的全体名次 · #9"));
+            OmsPlayerRankingsTable[] tables = rows.Children.OfType<OmsPlayerRankingsTable>().ToArray();
+            Assert.That(tables.Length, Is.EqualTo(2));
+            Assert.That(tablePlayers(tables[0]).Single().Rank, Is.EqualTo(9));
+            Assert.That(tablePlayers(tables[0]).Single().User.Id, Is.EqualTo(service.State.Account!.Id));
+            Assert.That(tablePlayers(tables[1]).Select(player => player.Rank), Is.EqualTo(Enumerable.Range(21, 20).Select(rank => (long)rank)));
+            Assert.That(tablePlayers(tables[1])[0].User.Id, Is.EqualTo(long.MaxValue));
+            Assert.That(buttons().Any(button => button.Text.ToString().StartsWith('#')), Is.False);
+            Assert.That(text(), Does.Contain("我的全体名次"));
             Assert.That(choices().Single(choice => choice.Current.Value == condition_id).Items, Does.Contain(condition_id));
-            Assert.That(text(), Does.Contain("条件选择第 2 / 2 页").And.Contain("第 2 / 3 页"));
+            Assert.That(text(), Does.Contain("条件：共 21 项 · 第 2 / 2 页").And.Contain("第 2 / 3 页"));
             Assert.That(overlay.Route.Condition, Is.EqualTo(condition_id));
             Assert.That(requests.Any(request => request.Path.Contains("/users/", StringComparison.Ordinal)), Is.False,
                 "Twenty ranking rows must not trigger twenty profile reads.");
@@ -120,7 +131,9 @@ namespace osu.Game.Tests.Online.IR
         {
             (await load(new OmsPageRoute { Kind = OmsPageKind.Rankings, Ruleset = "mania", Keymode = keymode, Condition = condition_id }))();
             Assert.That(requests.Last().Query, Does.Contain("keymode=" + keymode).And.Contain("metric=best_total_score"));
-            Assert.That(buttons().Select(button => button.Text.ToString()), Has.Some.EndsWith(exact_total));
+            IReadOnlyList<OmsPlayerRank> players = tablePlayers(rows.Children.OfType<OmsPlayerRankingsTable>().Single());
+            Assert.That(players.Select(player => player.Value), Is.All.EqualTo(exact_total));
+            Assert.That(players.Select(player => player.Rank), Is.All.EqualTo(1), "Tied global ranks must not become row positions.");
             Assert.That(text(), Does.Contain("精确累加").And.Contain("含未通过局"));
             Assert.That(choices().SelectMany(choice => choice.Items), Does.Not.Contain("lr2oraja_ed"));
         }
@@ -166,8 +179,46 @@ namespace osu.Game.Tests.Online.IR
         {
             (await load(new OmsPageRoute { Kind = OmsPageKind.Profile, UserId = long.MaxValue }))();
             Assert.That(requests.Select(request => request.Path), Is.EqualTo(new[] { "/api/ir/v2/sources", "/api/ir/v1/users/9223372036854775807/profile" }));
-            Assert.That(text(), Does.Contain("OMS #9223372036854775807").And.Contain("请选择实际键型"));
+            Assert.That(displayedPlayer, Is.EqualTo(long.MaxValue));
+            Assert.That(displayedName, Is.EqualTo("synthetic_player"));
+            Assert.That(text(), Does.Contain("请选择实际键型"));
             Assert.That(requests.All(request => request.Bearer == null), Is.True);
+        }
+
+        [TestCase("id")]
+        [TestCase("username")]
+        public void AProfileWithoutItsRealPublicIdentityCannotPopulateTheHeader(string field)
+        {
+            response = (request, _) =>
+            {
+                JObject result = defaultResponse(request);
+                if (request.RequestUri!.AbsolutePath.EndsWith("/profile", StringComparison.Ordinal))
+                    ((JObject)result["user"]!).Remove(field);
+                return Task.FromResult(json(result));
+            };
+            Assert.ThrowsAsync<JsonSerializationException>(async () => await load(new OmsPageRoute { Kind = OmsPageKind.Profile, UserId = 42 }));
+            Assert.That(displayedPlayer, Is.Null);
+            Assert.That(displayedName, Is.Null);
+            Assert.That(rows.Children, Is.Empty);
+            Assert.That(requests.Count, Is.EqualTo(2));
+        }
+
+        [TestCase(1L, true)]
+        [TestCase(42L, false)]
+        public async Task OnlyTheActualAccountOffersItsPrivateHistoryWhileThePageReadsPublicData(long userId, bool ownAccount)
+        {
+            await service.LoginAsync("synthetic_player", "synthetic-password-123");
+            requests.Clear();
+            (await load(new OmsPageRoute { Kind = OmsPageKind.Profile, UserId = userId, Keymode = "bms_7k" }))();
+            Assert.That(buttons().Any(button => button.Text.ToString() == "我的完整游玩记录"), Is.EqualTo(ownAccount));
+            Assert.That(requests.Select(request => request.Path), Is.EqualTo(new[]
+            {
+                "/api/ir/v2/sources",
+                $"/api/ir/v1/users/{userId}/profile",
+                $"/api/ir/v1/users/{userId}/performance",
+                $"/api/ir/v1/users/{userId}/public-bests",
+            }));
+            Assert.That(displayedPlayer, Is.EqualTo(userId));
         }
 
         [TestCase(false)]
@@ -190,14 +241,14 @@ namespace osu.Game.Tests.Online.IR
             Assert.That(requests.Last().Query, Does.Contain("sources=oms,lr2oraja_ed").And.Contain("condition=" + external_condition_id).And.Contain("page=2&limit=20"));
             Assert.That(requests.ElementAt(2).Path, Does.EndWith("/performance"));
             Assert.That(requests.ElementAt(2).Query, Does.Not.Contain("condition="), "Performance totals are not condition-filtered by this API.");
-            Assert.That(text(), Does.Contain("所选来源公开谱面：12").And.Contain("当前最佳条件条目：31"));
+            Assert.That(statistics(), Is.EqualTo(new[] { ("公开谱面", "12"), ("当前最佳条件条目", "31") }));
             Assert.That(text(), Does.Contain("本条最高分记录灯：Normal").And.Contain("独立最佳灯：Hard")
                 .And.Contain("不合成为同一局成绩").And.Contain("游玩时间：未收录").And.Contain("服务器接收时间："));
             Assert.That(text(), Does.Contain("准确率：未开放").And.Contain("未证明字段"));
             if (recent) Assert.That(text(), Does.Contain("最近更新类型：最佳状态改善"));
             Assert.That(requests.Any(request => request.Path.Contains("/scores/user/", StringComparison.Ordinal)), Is.False);
             Assert.That(overlay.Route.Sources, Is.EqualTo("oms,lr2oraja_ed"));
-            var chartRoute = (OmsPageRoute)typeof(OmsServicesOverlay).GetMethod("playerChartRoute", BindingFlags.Static | BindingFlags.NonPublic)!
+            var chartRoute = (OmsPageRoute)typeof(OmsPlayerPageContent).GetMethod("playerChartRoute", BindingFlags.Static | BindingFlags.NonPublic)!
                 .Invoke(null, new object[] { overlay.Route, chart_md5, "合成谱面" })!;
             Assert.That(chartRoute.Kind, Is.EqualTo(OmsPageKind.Chart));
             Assert.That(chartRoute.Md5, Is.EqualTo(chart_md5));
@@ -226,7 +277,8 @@ namespace osu.Game.Tests.Online.IR
             Assert.That(requests.Skip(2).All(request => request.Query.Contains("sources=", StringComparison.Ordinal)
                 && !request.Query.Contains("sources=oms", StringComparison.Ordinal)), Is.True);
             Assert.That(overlay.Route.Sources, Is.Empty);
-            Assert.That(text(), Does.Contain("未选择来源").And.Contain("公开谱面：0").And.Contain("最佳条件条目：0"));
+            Assert.That(text(), Does.Contain("未选择来源"));
+            Assert.That(statistics(), Is.EqualTo(new[] { ("公开谱面", "0"), ("当前最佳条件条目", "0") }));
             Assert.That(text(), Does.Not.Contain("#0").And.Not.Contain("游玩次数"));
         }
 
@@ -268,13 +320,15 @@ namespace osu.Game.Tests.Online.IR
             Assert.That(rows.Children, Is.Empty);
         }
 
-        [Test]
-        public void ADecimalMetricCannotBeRoundedFromAnExponentOrFloatingPointValue()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ADecimalMetricCannotBeRoundedFromAnExponentOrFloatingPointValue(bool numeric)
         {
             response = (request, _) =>
             {
                 JObject result = defaultResponse(request);
-                if (request.RequestUri!.AbsolutePath.EndsWith("/rankings/players", StringComparison.Ordinal)) result["items"]![0]!["value"] = "9.2e18";
+                if (request.RequestUri!.AbsolutePath.EndsWith("/rankings/players", StringComparison.Ordinal))
+                    result["items"]![0]!["value"] = numeric ? new JValue(9.2e18) : new JValue("9.2e18");
                 return Task.FromResult(json(result));
             };
             Assert.ThrowsAsync<JsonSerializationException>(async () => await load(new OmsPageRoute
@@ -334,19 +388,53 @@ namespace osu.Game.Tests.Online.IR
         }
 
         private Task<Action> load(OmsPageRoute requested, CancellationToken token = default)
-            => (Task<Action>)typeof(OmsServicesOverlay).GetMethod(requested.Kind == OmsPageKind.Rankings ? "LoadRankingsAsync" : "LoadProfileAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
+            => (Task<Action>)typeof(OmsPlayerPageContent).GetMethod(requested.Kind == OmsPageKind.Rankings ? "LoadRankingsAsync" : "LoadProfileAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
                 .Invoke(overlay, new object[] { requested, token })!;
 
         private string text()
         {
             // These unit pages have no host update loop; materialise the real framework text parts before reading their drawables.
-            foreach (OsuTextFlowContainer flow in rows.Children.OfType<OsuTextFlowContainer>())
+            OsuTextFlowContainer[] flows = components().OfType<OsuTextFlowContainer>().Distinct().ToArray();
+            foreach (OsuTextFlowContainer flow in flows)
                 typeof(TextFlowContainer).GetMethod("RecreateAllParts", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(flow, null);
-            return string.Join('\n', rows.Children.OfType<OsuTextFlowContainer>()
+            return string.Join('\n', flows
                 .Select(flow => string.Concat(flow.ChildrenOfType<SpriteText>().Select(sprite => sprite.Text.ToString()))));
         }
-        private IEnumerable<OsuButton> buttons() => rows.Children.OfType<OsuButton>();
-        private IEnumerable<OsuDropdown<string>> choices() => rows.Children.OfType<OsuDropdown<string>>();
+        private IEnumerable<OsuButton> buttons() => components().OfType<OsuButton>().Distinct();
+        private IEnumerable<OsuDropdown<string>> choices() => components().OfType<OsuDropdown<string>>().Distinct();
+
+        private IEnumerable<Drawable> components()
+        {
+            foreach (Drawable child in rows.Children)
+            {
+                yield return child;
+                foreach (Drawable descendant in child.ChildrenOfType<Drawable>()) yield return descendant;
+                // Grid cells are created from their real Content during load, which these data tests do not run.
+                if (child is not GridContainer grid) continue;
+                foreach (Drawable cell in grid.Content.SelectMany(row => row))
+                {
+                    yield return cell;
+                    foreach (Drawable descendant in cell.ChildrenOfType<Drawable>()) yield return descendant;
+                }
+            }
+        }
+
+        private IEnumerable<(string Label, string Count)> statistics()
+            => rows.Children.OfType<GridContainer>().Single(grid => grid.Content[0].Count == 2).Content[0]
+                   .Cast<FillFlowContainer>().Select(column =>
+                   {
+                       OsuTextFlowContainer[] texts = column.Children.OfType<OsuTextFlowContainer>().ToArray();
+                       return (flowText(texts[0]), flowText(texts[1]));
+                   });
+
+        private static string flowText(OsuTextFlowContainer flow)
+        {
+            typeof(TextFlowContainer).GetMethod("RecreateAllParts", BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(flow, null);
+            return string.Concat(flow.ChildrenOfType<SpriteText>().Select(sprite => sprite.Text.ToString()));
+        }
+
+        private static IReadOnlyList<OmsPlayerRank> tablePlayers(OmsPlayerRankingsTable table)
+            => (IReadOnlyList<OmsPlayerRank>)typeof(OmsPlayerRankingsTable).GetField("players", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(table)!;
 
         private static JObject defaultResponse(HttpRequestMessage request)
         {

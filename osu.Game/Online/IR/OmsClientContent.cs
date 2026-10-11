@@ -30,6 +30,7 @@ namespace osu.Game.Online.IR
             foreach (JToken section in (JArray)content["help"]!)
             {
                 validateSection(section);
+                text((JObject)section, "heading", 300);
                 string id = text((JObject)section, "id", 100);
                 if (!id.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_') || !ids.Add(id)) invalid();
             }

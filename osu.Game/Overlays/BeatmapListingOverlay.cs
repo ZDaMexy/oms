@@ -31,8 +31,10 @@ using osuTK.Graphics;
 
 namespace osu.Game.Overlays
 {
-    public partial class BeatmapListingOverlay : OnlineOverlay<BeatmapListingHeader>
+    public partial class BeatmapListingOverlay(bool useOmsService = false) : OnlineOverlay<BeatmapListingHeader>(OverlayColourScheme.Blue, !useOmsService), IOmsPageOverlay
     {
+        private readonly bool omsOnly = useOmsService;
+
         [Resolved]
         private PreviewTrackManager previewTrackManager { get; set; }
 
@@ -46,14 +48,15 @@ namespace osu.Game.Overlays
 
         private BeatmapListingFilterControl filterControl => Header.FilterControl;
 
-        public BeatmapListingOverlay()
-            : base(OverlayColourScheme.Blue)
-        {
-        }
-
         [BackgroundDependencyLoader]
         private void load()
         {
+            if (omsOnly)
+            {
+                initialiseOmsContent();
+                return;
+            }
+
             Child = new FillFlowContainer
             {
                 RelativeSizeAxes = Axes.X,
@@ -92,6 +95,9 @@ namespace osu.Game.Overlays
         protected override void LoadComplete()
         {
             base.LoadComplete();
+            if (omsOnly)
+                return;
+
             filterControl.CardSize.BindValueChanged(_ => onCardSizeChanged());
 
             apiUser = api.LocalUser.GetBoundCopy();
@@ -104,6 +110,12 @@ namespace osu.Game.Overlays
 
         public void ShowWithSearch(string query)
         {
+            if (omsOnly)
+            {
+                ShowOmsPage(new osu.Game.Online.IR.OmsPageRoute { Kind = osu.Game.Online.IR.OmsPageKind.Charts, Query = query });
+                return;
+            }
+
             filterControl.Search(query);
             Show();
             ScrollFlow.ScrollToStart();
@@ -111,17 +123,23 @@ namespace osu.Game.Overlays
 
         public void ShowWithGenreFilter(SearchGenre genre)
         {
+            if (omsOnly)
+                throw new System.InvalidOperationException("OMS recorded charts do not expose a genre filter.");
+
             ShowWithSearch(string.Empty);
             filterControl.FilterGenre(genre);
         }
 
         public void ShowWithLanguageFilter(SearchLanguage language)
         {
+            if (omsOnly)
+                throw new System.InvalidOperationException("OMS recorded charts do not expose a language filter.");
+
             ShowWithSearch(string.Empty);
             filterControl.FilterLanguage(language);
         }
 
-        protected override BeatmapListingHeader CreateHeader() => new BeatmapListingHeader();
+        protected override BeatmapListingHeader CreateHeader() => omsOnly ? new OmsBeatmapListingHeader() : new BeatmapListingHeader();
 
         protected override Color4 BackgroundColour => ColourProvider.Background6;
 
@@ -134,6 +152,12 @@ namespace osu.Game.Overlays
         protected override void OnFocus(FocusEvent e)
         {
             base.OnFocus(e);
+
+            if (omsOnly)
+            {
+                ((OmsBeatmapListingHeader)Header).FocusSearch();
+                return;
+            }
 
             filterControl.TakeFocus();
         }
@@ -253,6 +277,7 @@ namespace osu.Game.Overlays
 
         protected override void Dispose(bool isDisposing)
         {
+            omsContent?.CancelOperation();
             cancellationToken?.Cancel();
             base.Dispose(isDisposing);
         }
@@ -366,6 +391,12 @@ namespace osu.Game.Overlays
         protected override void Update()
         {
             base.Update();
+            if (omsOnly)
+            {
+                updateOmsLoading();
+                return;
+            }
+
 
             const int pagination_scroll_distance = 500;
 

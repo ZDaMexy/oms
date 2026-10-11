@@ -9,18 +9,20 @@ using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Game.Online.API.Requests;
+using osu.Game.Online.IR;
 using osu.Game.Overlays.News;
 using osu.Game.Overlays.News.Displays;
 using osu.Game.Overlays.News.Sidebar;
 
 namespace osu.Game.Overlays
 {
-    public partial class NewsOverlay : OnlineOverlay<NewsHeader>
+    public partial class NewsOverlay : OnlineOverlay<NewsHeader>, IOmsPageOverlay
     {
         private readonly Bindable<string> article = new Bindable<string>();
 
         private readonly Container sidebarContainer;
         private readonly NewsSidebar sidebar;
+        private readonly OmsNewsSidebar omsSidebar;
         private readonly Container content;
 
         private GetNewsRequest request;
@@ -36,9 +38,11 @@ namespace osu.Game.Overlays
 
         private bool displayUpdateRequired = true;
 
-        public NewsOverlay()
+        public NewsOverlay(bool omsOnly = false)
             : base(OverlayColourScheme.Purple, false)
         {
+            this.omsOnly = omsOnly;
+
             Child = new GridContainer
             {
                 RelativeSizeAxes = Axes.X,
@@ -59,7 +63,7 @@ namespace osu.Game.Overlays
                         sidebarContainer = new Container
                         {
                             AutoSizeAxes = Axes.X,
-                            Child = sidebar = new NewsSidebar()
+                            Child = omsOnly ? omsSidebar = new OmsNewsSidebar(openOmsYear, openOmsArticle) : sidebar = new NewsSidebar()
                         },
                         content = new Container
                         {
@@ -74,6 +78,12 @@ namespace osu.Game.Overlays
         protected override void LoadComplete()
         {
             base.LoadComplete();
+
+            if (omsOnly)
+            {
+                Header.SetOmsPage();
+                return;
+            }
 
             // should not be run until first pop-in to avoid requesting data before user views.
             article.BindValueChanged(a =>
@@ -91,6 +101,13 @@ namespace osu.Game.Overlays
         {
             base.PopIn();
 
+            if (omsOnly)
+            {
+                if (displayUpdateRequired)
+                    beginOmsLoading();
+                return;
+            }
+
             if (displayUpdateRequired)
             {
                 article.TriggerChange();
@@ -106,18 +123,33 @@ namespace osu.Game.Overlays
 
         public void ShowFrontPage()
         {
+            if (omsOnly)
+            {
+                omsGame?.OpenRelatedOmsPage(new OmsPageRoute { Kind = OmsPageKind.News });
+                return;
+            }
             article.Value = null;
             Show();
         }
 
         public void ShowYear(int year)
         {
+            if (omsOnly)
+            {
+                openOmsYear(year);
+                return;
+            }
             loadListing(year);
             Show();
         }
 
         public void ShowArticle(string slug)
         {
+            if (omsOnly)
+            {
+                omsGame?.OpenRelatedOmsPage(new OmsPageRoute { Kind = OmsPageKind.Article, Slug = slug });
+                return;
+            }
             article.Value = slug;
             Show();
         }
@@ -179,7 +211,6 @@ namespace osu.Game.Overlays
 
         private void loadArticle(string article)
         {
-            // This is not yet implemented nor called from anywhere.
             beginLoading(true);
 
             Header.SetArticle(article);
@@ -197,6 +228,7 @@ namespace osu.Game.Overlays
 
         protected override void Dispose(bool isDisposing)
         {
+            cancelOmsLoading();
             request?.Cancel();
             cancellationToken?.Cancel();
             base.Dispose(isDisposing);
