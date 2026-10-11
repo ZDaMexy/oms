@@ -69,6 +69,15 @@ namespace osu.Game.Overlays
         private string? conditionId;
         private OsuButton websiteButton = null!;
         private OsuButton refreshButton = null!;
+        private OsuScrollContainer scroll = null!;
+        private float restoreScroll;
+        public Action? ReturnAction { get; set; }
+        public OmsPageRoute? CurrentRoute => chartMd5 == null ? null : new OmsPageRoute
+        {
+            Kind = OmsPageKind.Board, Md5 = chartMd5, Title = chartTitle, Ruleset = view == View.ReferenceBoard ? "bms" : "mania",
+            Sources = selectedSources == null ? null : string.Join(',', selectedSources.OrderBy(s => s, StringComparer.Ordinal)),
+            Condition = conditionId, Mode = boardMode, Group = view == View.Board ? group : null, Page = page, BoardScroll = (float)scroll.Current,
+        };
 
         private enum View { None, Board, ReferenceBoard, ManiaConditions }
 
@@ -103,7 +112,7 @@ namespace osu.Game.Overlays
                     Children = new Drawable[]
                     {
                         new Box { RelativeSizeAxes = Axes.Both, Colour = colourProvider.Background4 },
-                        new OsuScrollContainer
+                        scroll = new OsuScrollContainer
                         {
                             RelativeSizeAxes = Axes.Both,
                             Padding = new MarginPadding(24),
@@ -251,12 +260,12 @@ namespace osu.Game.Overlays
             refreshButton.Enabled.Value = !running && chartMd5 != null;
         }
 
-        private void navigate(View next)
+        private void navigate(View next, int requestedPage = 1)
         {
             if (running)
                 return;
             view = next;
-            page = 1;
+            page = requestedPage;
             sourceOptions.Clear();
             conditionOptions.Clear();
             refresh();
@@ -305,6 +314,9 @@ namespace osu.Game.Overlays
                     {
                         sourceRegistry = registry;
                         showResponse(response);
+                        float position = restoreScroll;
+                        restoreScroll = 0;
+                        Schedule(() => scroll.ScrollTo(position, false));
                     }
                     catch (JsonException)
                     {
@@ -396,6 +408,27 @@ namespace osu.Game.Overlays
                 openManiaConditions(md5, title);
             else
                 openReferenceBoard(md5, title, condition);
+        }
+
+        public void ShowRoute(OmsPageRoute route)
+        {
+            restoreScroll = route.BoardScroll;
+            applyState(service.State);
+            cancelOperation();
+            chartMd5 = route.Md5;
+            chartTitle = route.Title ?? route.Md5;
+            group = route.Group;
+            conditionId = route.Condition;
+            boardMode = route.Mode;
+            selectedSources = route.Sources == null ? null : route.Sources.Split(',', StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
+            Show();
+            navigate(route.Ruleset == "bms" ? View.ReferenceBoard : route.Group == null ? View.ManiaConditions : View.Board, route.Page);
+        }
+
+        public void HideForNavigation()
+        {
+            ReturnAction = null;
+            Hide();
         }
 
         private void openManiaConditions(string md5, string title)
@@ -584,8 +617,9 @@ namespace osu.Game.Overlays
 
         private void addProfileLink(List<Drawable> content, long userId, string ruleset, string? keymode)
         {
-            if (OmsWebsite.Profile(displayedService, userId, ruleset, keymode) is string url)
-                content.Add(new ExternalLinkButton(url));
+            if (userId > 0)
+                content.Add(new RoundedButton { Text = "查看玩家资料", RelativeSizeAxes = Axes.X, Height = 36,
+                    Action = () => game?.ShowOmsPublicProfile(userId, ruleset, keymode) });
         }
 
         private string referenceDetails(JObject item)
@@ -769,6 +803,9 @@ namespace osu.Game.Overlays
             cancelOperation();
             this.FadeOut(150);
             base.PopOut();
+            Action? returnAction = ReturnAction;
+            ReturnAction = null;
+            if (view != View.None) returnAction?.Invoke();
         }
 
         protected override void Dispose(bool isDisposing)

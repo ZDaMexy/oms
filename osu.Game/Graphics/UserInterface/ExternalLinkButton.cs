@@ -19,6 +19,7 @@ namespace osu.Game.Graphics.UserInterface
     public partial class ExternalLinkButton : CompositeDrawable, IHasTooltip, IHasContextMenu
     {
         public string? Link { get; set; }
+        public System.Action? InternalAction { get; set; }
 
         private Color4 hoverColour;
 
@@ -62,12 +63,14 @@ namespace osu.Game.Graphics.UserInterface
 
         protected override bool OnClick(ClickEvent e)
         {
-            if (Link != null)
+            if (InternalAction != null)
+                InternalAction();
+            else if (Link != null)
                 game?.OpenUrlExternally(Link);
             return true;
         }
 
-        public LocalisableString TooltipText => "view in browser";
+        public LocalisableString TooltipText => InternalAction != null ? "在客户端查看个人资料" : "view in browser";
 
         public MenuItem[] ContextMenuItems
         {

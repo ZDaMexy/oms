@@ -54,8 +54,21 @@ namespace osu.Game.Overlays
         private bool searching;
         private bool paginationPaused;
         private bool tablesFailed;
+        private bool openingSearch;
+        public Action? ReturnAction { get; set; }
 
         public IReadOnlyCollection<BmsDownloadCard> Cards => cards.Values;
+
+        public void ShowWithSearch(string query)
+        {
+            openingSearch = true;
+            Header.Table.Value = string.Empty;
+            Header.ClearLevels();
+            Header.Query.Value = query;
+            Show();
+            openingSearch = false;
+            search(reset: true);
+        }
 
         public BmsDownloadOverlay()
             : base(OverlayColourScheme.Blue, requiresSignIn: false)
@@ -171,6 +184,9 @@ namespace osu.Game.Overlays
                 searching = false;
                 more.IsLoading = false;
                 Loading.Hide();
+                Action? returnAction = ReturnAction;
+                ReturnAction = null;
+                returnAction?.Invoke();
                 return;
             }
 
@@ -178,6 +194,7 @@ namespace osu.Game.Overlays
             loadTables();
             if (Header.SelectedTable != null && tableData == null)
                 loadLevels();
+            if (openingSearch) return;
             if (cards.Count == 0)
                 search(reset: true);
             else
@@ -186,7 +203,7 @@ namespace osu.Game.Overlays
 
         private void queueSearch()
         {
-            if (State.Value != Visibility.Visible)
+            if (openingSearch || State.Value != Visibility.Visible)
                 return;
 
             queryCancellation?.Cancel();
@@ -255,6 +272,9 @@ namespace osu.Game.Overlays
             string query = Header.Query.Value;
             string table = Header.Table.Value;
             string? level = Header.Level.Value.Value;
+            string normalisedQuery = query.Trim();
+            string? requestedMd5 = table.Length == 0 && level == null && normalisedQuery.Length == 32 && normalisedQuery.All(Uri.IsHexDigit)
+                ? normalisedQuery.ToLowerInvariant() : null;
             var currentTableData = tableData;
             if (level != null && currentTableData == null)
                 return;
@@ -265,10 +285,18 @@ namespace osu.Game.Overlays
 
             try
             {
-                var response = level == null
-                    ? await downloads.Client.SearchAsync(source, query, requestedPage,
-                        table.Length == 0 ? null : table, cancellation.Token).ConfigureAwait(false)
-                    : await downloads.Client.SearchTableLevelAsync(source, currentTableData!, level, query, requestedPage, cancellation.Token).ConfigureAwait(false);
+                BmsDownloadSearchResult response;
+                if (requestedMd5 != null)
+                {
+                    BmsDownloadPackage? package = await downloads.Client.ResolveAsync(source, requestedMd5, cancellation.Token).ConfigureAwait(false);
+                    BmsDownloadPackage[] matching = package == null ? Array.Empty<BmsDownloadPackage>() : new[] { package };
+                    response = new BmsDownloadSearchResult(matching, 1, matching.Length, matching.Length);
+                }
+                else
+                    response = level == null
+                        ? await downloads.Client.SearchAsync(source, query, requestedPage,
+                            table.Length == 0 ? null : table, cancellation.Token).ConfigureAwait(false)
+                        : await downloads.Client.SearchTableLevelAsync(source, currentTableData!, level, query, requestedPage, cancellation.Token).ConfigureAwait(false);
 
                 Schedule(() =>
                 {
@@ -285,10 +313,14 @@ namespace osu.Game.Overlays
                     foreach (var package in response.Packages)
                     {
                         if (cards.TryGetValue(package.Key, out var existing))
+                        {
                             existing.Merge(package);
+                            if (requestedMd5 != null) existing.SelectChart(requestedMd5);
+                        }
                         else
                         {
                             var card = new BmsDownloadCard(package, downloads, covers, findLocal, id => game.PresentDownloadedBmsBeatmap(id));
+                            if (requestedMd5 != null) card.SelectChart(requestedMd5);
                             cards.Add(package.Key, card);
                             results.Add(card);
                         }

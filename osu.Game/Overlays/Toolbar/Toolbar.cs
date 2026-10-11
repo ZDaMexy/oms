@@ -186,6 +186,7 @@ namespace osu.Game.Overlays.Toolbar
                                                 {
                                                     new ToolbarBmsDownloadButton(),
                                                     new ToolbarOmsRankingsButton(),
+                                                    new ToolbarOmsServicesButton(),
                                                     new ToolbarMusicButton(),
                                                     userButton = new ToolbarUserButton(true),
                                                     new ToolbarClock(),
@@ -194,6 +195,7 @@ namespace osu.Game.Overlays.Toolbar
                                                 : new Drawable[]
                                                 {
                                                     new ToolbarOmsRankingsButton(),
+                                                    new ToolbarOmsServicesButton(),
                                                     new ToolbarMusicButton(),
                                                     userButton = new ToolbarUserButton(true),
                                                     new ToolbarClock(),

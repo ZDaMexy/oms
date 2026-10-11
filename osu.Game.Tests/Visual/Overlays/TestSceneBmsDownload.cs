@@ -50,6 +50,7 @@ namespace osu.Game.Tests.Visual.Overlays
         private static readonly string another_md5 = hash(another_chart);
         private StubHandler metadata = null!;
         private StubHandler packages = null!;
+        private TaskCompletionSource<HttpResponseMessage>? pendingResolve;
         private readonly ConcurrentQueue<LogEntry> logEntries = new ConcurrentQueue<LogEntry>();
 
         [Resolved]
@@ -71,7 +72,12 @@ namespace osu.Game.Tests.Visual.Overlays
         public void SetUpLogReceipt() => logEntries.Clear();
 
         [TearDown]
-        public void TearDownLogReceipt() => Logger.NewEntry -= captureLog;
+        public void TearDownLogReceipt()
+        {
+            Logger.NewEntry -= captureLog;
+            pendingResolve?.TrySetCanceled();
+            pendingResolve = null;
+        }
 
         private void captureLog(LogEntry entry) => logEntries.Enqueue(entry);
 
@@ -98,6 +104,188 @@ namespace osu.Game.Tests.Visual.Overlays
             AddStep("close browser again", () => overlay.Hide());
             AddStep("use existing browse shortcut", () => Game.ChildrenOfType<GlobalActionContainer>().Single().TriggerPressed(GlobalAction.ToggleBeatmapListing));
             AddUntilStep("shortcut opens browser", () => overlay.State.Value == Visibility.Visible);
+        }
+
+        [TestCase(BmsDownloadSource.Ginger)]
+        [TestCase(BmsDownloadSource.Konmai)]
+        public void TestNativeMd5SearchResolvesOnceAndSelectsOriginalDifficulty(BmsDownloadSource source)
+        {
+            var resolved = new ConcurrentQueue<(HttpMethod Method, Uri Uri)>();
+            AddUntilStep("browser loaded", () => overlay.IsLoaded);
+            AddStep("provide the existing MD5 resolver", () =>
+            {
+                metadata.Response = async (request, token) =>
+                {
+                    if (request.RequestUri!.AbsolutePath.Contains("files/package/", StringComparison.Ordinal) || request.RequestUri.AbsolutePath.EndsWith("/hash", StringComparison.Ordinal))
+                    {
+                        resolved.Enqueue((request.Method, request.RequestUri));
+                        return await tableMetadata(request, token).ConfigureAwait(false);
+                    }
+                    return await defaultMetadata(request, token).ConfigureAwait(false);
+                };
+                header.Source.Value = source;
+                overlay.ShowWithSearch(another_md5.ToUpperInvariant());
+            });
+            AddUntilStep("resolved card is ready", () => overlay.Cards.Count == 1 && overlay.Cards.Single().IsLoaded && !overlay.ChildrenOfType<LoadingLayer>().Single().IsPresent);
+            AddAssert("only one GET uses the source's MD5 endpoint", () => resolved.Count == 1 && resolved.Single().Method == HttpMethod.Get
+                && resolved.Single().Uri.AbsoluteUri == (source == BmsDownloadSource.Ginger
+                    ? "https://gingerrush.com/api/v1/files/package/" + another_md5 : "https://bms.alvorna.com/api/hash?md5=" + another_md5));
+            AddAssert("MD5 was not sent to a name search", () => metadata.SearchRequests, () => Is.Zero);
+            AddAssert("source and selected original difficulty are retained", () => overlay.Cards.Single().Package.Source == source && overlay.Cards.Single().SelectedMd5 == another_md5);
+            if (source == BmsDownloadSource.Ginger)
+                AddAssert("the requested difficulty is not the package's first chart", () => overlay.Cards.Single().Package.Charts[0].Md5, () => Is.EqualTo(normal_md5));
+            AddStep("attempt another page and move to the bottom", () =>
+            {
+                overlay.ChildrenOfType<ShowMoreButton>().Single().Action!();
+                overlay.ChildrenOfType<OverlayScrollContainer>().Single().ScrollToEnd(false);
+            });
+            AddWaitStep("allow automatic pagination", 5);
+            AddAssert("the single resolved package creates no second metadata query", () => resolved.Count == 1 && metadata.SearchRequests == 0);
+            AddAssert("exact lookup does not fetch the source package", () => packages.Requests, () => Is.Zero);
+        }
+
+        [TestCase(BmsDownloadSource.Ginger)]
+        [TestCase(BmsDownloadSource.Konmai)]
+        public void TestMissingNativeMd5StaysEmptyWithoutFuzzyFallbackOrPaging(BmsDownloadSource source)
+        {
+            int resolves = 0;
+            AddUntilStep("browser loaded", () => overlay.IsLoaded);
+            AddStep("return a genuine missing chart", () =>
+            {
+                metadata.Response = (request, token) =>
+                {
+                    if (request.RequestUri!.AbsolutePath.Contains("files/package/", StringComparison.Ordinal) || request.RequestUri.AbsolutePath.EndsWith("/hash", StringComparison.Ordinal))
+                    {
+                        Interlocked.Increment(ref resolves);
+                        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+                    }
+                    return defaultMetadata(request, token);
+                };
+                header.Source.Value = source;
+                overlay.ShowWithSearch(another_md5);
+            });
+            AddUntilStep("missing chart finishes loading", () => Volatile.Read(ref resolves) == 1 && !overlay.ChildrenOfType<LoadingLayer>().Single().IsPresent);
+            AddStep("attempt another page", () => overlay.ChildrenOfType<ShowMoreButton>().Single().Action!());
+            AddWaitStep("leave the missing chart untouched", 5);
+            AddAssert("missing identity stays an empty result", () => overlay.Cards.Count, () => Is.Zero);
+            AddAssert("no background resolve or fuzzy fallback", () => Volatile.Read(ref resolves) == 1 && metadata.SearchRequests == 0);
+            AddAssert("no source archive was downloaded", () => packages.Requests, () => Is.Zero);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestCancelledNativeMd5DoesNotPublishAfterHidingOrChangingSource(bool changeSource)
+        {
+            var late = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var oldTokens = new ConcurrentQueue<CancellationToken>();
+            AddUntilStep("browser loaded", () => overlay.IsLoaded);
+            AddStep("hold the Ginger MD5 response despite cancellation", () =>
+            {
+                pendingResolve = late;
+                metadata.Response = async (request, token) =>
+                {
+                    if (request.RequestUri!.AbsolutePath.Contains("files/package/", StringComparison.Ordinal))
+                    {
+                        oldTokens.Enqueue(token);
+                        if (oldTokens.Count > 1) return gingerResolvedPackage();
+                        return await late.Task.ConfigureAwait(false);
+                    }
+                    if (request.RequestUri.AbsolutePath.EndsWith("/hash", StringComparison.Ordinal))
+                        return await tableMetadata(request, token).ConfigureAwait(false);
+                    return await defaultMetadata(request, token).ConfigureAwait(false);
+                };
+                overlay.ShowWithSearch(another_md5);
+            });
+            AddUntilStep("original MD5 read is pending", () => oldTokens.Count == 1);
+            AddStep(changeSource ? "choose 616 while resolving" : "close while resolving", () =>
+            {
+                if (changeSource) header.Source.Value = BmsDownloadSource.Konmai;
+                else overlay.Hide();
+            });
+            AddAssert("the original source request is cancelled", () => oldTokens.Single().IsCancellationRequested);
+            if (changeSource)
+                AddUntilStep("new source selects the same original MD5", () => overlay.Cards.SingleOrDefault()?.Package.Source == BmsDownloadSource.Konmai
+                    && overlay.Cards.Single().SelectedMd5 == another_md5);
+            AddStep("release the old cancelled package", () => late.TrySetResult(gingerResolvedPackage()));
+            AddWaitStep("allow the abandoned read to complete", 5);
+            AddAssert("a cancelled identity never falls back to name search", () => metadata.SearchRequests, () => Is.Zero);
+            if (changeSource)
+                AddAssert("late Ginger metadata cannot replace 616", () => overlay.Cards.Single().Package.Source == BmsDownloadSource.Konmai && overlay.Cards.Single().SelectedMd5 == another_md5);
+            else
+            {
+                AddAssert("late response leaves the browser closed and empty", () => overlay.State.Value == Visibility.Hidden && overlay.Cards.Count == 0);
+                AddStep("reopen the original MD5", () => overlay.Show());
+                AddUntilStep("fresh lookup selects the original difficulty", () => oldTokens.Count == 2 && overlay.Cards.SingleOrDefault()?.SelectedMd5 == another_md5);
+                AddAssert("only the reopened lookup can show the package", () => overlay.Cards.Single().Package.Source, () => Is.EqualTo(BmsDownloadSource.Ginger));
+            }
+        }
+
+        [TestCase("OMS")]
+        [TestCase("0000000000000000000000000000000g")]
+        public void TestNativeNameOrNonHexQueryStillUsesCatalogSearch(string query)
+        {
+            var queries = new ConcurrentQueue<string>();
+            int resolves = 0;
+            AddUntilStep("browser loaded", () => overlay.IsLoaded);
+            AddStep("record normal search parameters", () =>
+            {
+                metadata.Response = async (request, token) =>
+                {
+                    if (request.RequestUri!.AbsolutePath.EndsWith("selectList", StringComparison.Ordinal))
+                    {
+                        using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(token).ConfigureAwait(false));
+                        queries.Enqueue(body.RootElement.GetProperty("fuzzyKeyword").GetString()!);
+                    }
+                    if (request.RequestUri.AbsolutePath.Contains("files/package/", StringComparison.Ordinal)) Interlocked.Increment(ref resolves);
+                    return await defaultMetadata(request, token).ConfigureAwait(false);
+                };
+                overlay.ShowWithSearch(query);
+            });
+            AddUntilStep("normal catalog results are displayed", () => overlay.Cards.Count == 1 && !overlay.ChildrenOfType<LoadingLayer>().Single().IsPresent);
+            AddAssert("original name query is preserved", () => !queries.IsEmpty && queries.All(value => value == query));
+            AddAssert("a name or non-hex query never uses MD5 resolution", () => Volatile.Read(ref resolves), () => Is.Zero);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestNativeMd5RetainsSelectedTableAndGradeSearch(bool selectedGrade)
+        {
+            var tableQueries = new ConcurrentQueue<string>();
+            int resolves = 0;
+            AddUntilStep("browser loaded", () => overlay.IsLoaded);
+            AddStep("provide the original difficulty table", () =>
+            {
+                metadata.Response = async (request, token) =>
+                {
+                    if (request.RequestUri!.AbsolutePath.EndsWith("selectList", StringComparison.Ordinal))
+                        tableQueries.Enqueue(await request.Content!.ReadAsStringAsync(token).ConfigureAwait(false));
+                    if (request.RequestUri.AbsolutePath.Contains("files/package/", StringComparison.Ordinal)) Interlocked.Increment(ref resolves);
+                    return await tableMetadata(request, token).ConfigureAwait(false);
+                };
+                overlay.Show();
+            });
+            AddUntilStep("difficulty table is available", () => tableDropdown.Items.Contains("1"));
+            AddStep("choose the difficulty table", () => header.Table.Value = "1");
+            AddUntilStep("table grades finish loading", () => !header.Level.Disabled);
+            AddStep("search MD5 inside the existing table scope", () =>
+            {
+                if (selectedGrade) header.Level.Value = new BmsDownloadHeader.TableLevel("2");
+                header.Query.Value = another_md5;
+            });
+            if (selectedGrade)
+            {
+                AddUntilStep("grade lookup retains only its original chart", () => overlay.Cards.SingleOrDefault()?.Package.Charts.Count == 1 && overlay.Cards.Single().SelectedMd5 == another_md5);
+                AddAssert("the existing table-grade resolver is used once", () => Volatile.Read(ref resolves), () => Is.EqualTo(1));
+            }
+            else
+            {
+                AddUntilStep("MD5 remains a table catalog query", () => tableQueries.Any(value =>
+                {
+                    using var body = JsonDocument.Parse(value);
+                    return body.RootElement.GetProperty("fuzzyKeyword").GetString() == another_md5 && body.RootElement.GetProperty("tableID").GetInt32() == 1;
+                }));
+                AddAssert("table-only search does not switch to unscoped resolution", () => Volatile.Read(ref resolves), () => Is.Zero);
+            }
         }
 
         [TestCase(false)]
@@ -980,18 +1168,7 @@ namespace osu.Game.Tests.Visual.Overlays
                 return gingerTableData(body.RootElement.GetProperty("headerID").GetInt32());
             }
             if (path.Contains("files/package/", StringComparison.Ordinal))
-                return json(JsonSerializer.Serialize(new
-                {
-                    id = 17,
-                    fileName = "OMS Download Test.7z",
-                    downloadURL = "https://gingerrush.com/packages/song.7z",
-                    fileSize = createPackage().Length,
-                    songs = new[]
-                    {
-                        new { md5 = normal_md5, fileName = "normal.bme", title = "OMS Download Test", artist = "OMS", subTitle = "[NORMAL]", mode = "BEAT_7K", playLevel = "3" },
-                        new { md5 = another_md5, fileName = "another.bme", title = "OMS Download Test", artist = "OMS", subTitle = "[ANOTHER]", mode = "BEAT_7K", playLevel = "7" },
-                    },
-                }));
+                return gingerResolvedPackage();
             if (path.EndsWith("/tables", StringComparison.Ordinal))
                 return json(JsonSerializer.Serialize(new
                 {
@@ -1021,6 +1198,19 @@ namespace osu.Game.Tests.Visual.Overlays
             }
             return await defaultMetadata(request, token).ConfigureAwait(false);
         }
+
+        private static HttpResponseMessage gingerResolvedPackage() => json(JsonSerializer.Serialize(new
+        {
+            id = 17,
+            fileName = "OMS Download Test.7z",
+            downloadURL = "https://gingerrush.com/packages/song.7z",
+            fileSize = createPackage().Length,
+            songs = new[]
+            {
+                new { md5 = normal_md5, fileName = "normal.bme", title = "OMS Download Test", artist = "OMS", subTitle = "[NORMAL]", mode = "BEAT_7K", playLevel = "3" },
+                new { md5 = another_md5, fileName = "another.bme", title = "OMS Download Test", artist = "OMS", subTitle = "[ANOTHER]", mode = "BEAT_7K", playLevel = "7" },
+            },
+        }));
 
         private static HttpResponseMessage gingerTableData(int table) => json(JsonSerializer.Serialize(new
         {

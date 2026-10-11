@@ -46,6 +46,9 @@ namespace osu.Game.Online.IR
         private Task? worker;
         private CancellationTokenSource? retryDelay;
         private (OmsIrSubmissionTarget Target, DateTimeOffset Until, bool PreserveDeadline)? uploadBackoff;
+        private JObject? clientContent;
+        private string? clientContentEtag;
+        private DateTimeOffset clientContentExpires;
         private volatile bool disposed;
         private OmsIrState state = new OmsIrState(ServiceOrigin.AbsoluteUri, false, null, 0, 0, 0, false, false, "登录 OMS 账号后上传新成绩，离线游玩无需账号。");
 
@@ -341,6 +344,43 @@ namespace osu.Game.Online.IR
                 + "?page=" + validPage(page) + "&limit=20", null, token);
         }, cancellationToken);
 
+        public Task<JObject> GetPlayerPageAsync(string path, CancellationToken cancellationToken = default) => withNetworkAsync(token =>
+            session != null ? authenticatedAsync(HttpMethod.Get, path, null, token)
+                : sendAsync(requireOrigin(), HttpMethod.Get, path, null, null, token), cancellationToken);
+
+        public Task<JObject> GetCommunityAsync(string path, CancellationToken cancellationToken = default) => withNetworkAsync(token =>
+            sendAsync(requireOrigin(), HttpMethod.Get, "community/" + path, null, null, token), cancellationToken);
+
+        public Task<JObject> PostCommunityAsync(string path, JObject body, long ownerId, CancellationToken cancellationToken = default)
+        {
+            string payload = body.ToString(Formatting.None);
+            return withNetworkAsync(async token =>
+            {
+                if (State.Account?.Id != ownerId || State.RequiresLogin)
+                    throw new OmsIrException("account_changed", "账号已改变；草稿与原提交 ID 已保留，请切回原账号。");
+                JObject response = await authenticatedAsync(HttpMethod.Post, "community/" + path, payload, token).ConfigureAwait(false);
+                string[] parts = path.Split('/');
+                bool reply = parts[0] == "replies" || parts.Length == 3 && parts[2] == "replies";
+                if (response[reply ? "reply" : "post"] is not JObject receipt || receipt["author"] is not JObject author
+                    || !positiveId(author["id"], out long actualOwner) || actualOwner != ownerId || !positiveId(receipt["id"], out long id)
+                    || (parts.Length == 3 && parts[2] is "edit" or "delete" && id.ToString(CultureInfo.InvariantCulture) != parts[1])
+                    || (reply && (!positiveId(receipt["post_id"], out long postId) || (parts[0] == "posts" && postId.ToString(CultureInfo.InvariantCulture) != parts[1]))))
+                    throw new OmsIrException("invalid_receipt", "保存收据不符合原账号或原内容，请核对发布结果后用原 ID 重试。");
+                return response;
+            }, cancellationToken);
+        }
+
+        private static bool positiveId(JToken? value, out long id)
+        {
+            id = 0;
+            return value?.Type == JTokenType.Integer && long.TryParse(value.ToString(), NumberStyles.None, CultureInfo.InvariantCulture, out id) && id > 0;
+        }
+
+        public Task<JObject> GetClientContentAsync(CancellationToken cancellationToken = default) => withNetworkAsync(token =>
+            clientContent != null && DateTimeOffset.UtcNow < clientContentExpires
+                ? Task.FromResult((JObject)clientContent.DeepClone())
+                : sendAsync(requireOrigin(), HttpMethod.Get, "client-content", null, null, token, websiteContent: true), cancellationToken);
+
         private async Task<T> withNetworkAsync<T>(Func<CancellationToken, Task<T>> operation, CancellationToken cancellationToken)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
@@ -439,13 +479,15 @@ namespace osu.Game.Online.IR
             deleteCredential(origin);
         }
 
-        private async Task<JObject> sendAsync(Uri origin, HttpMethod method, string path, string? body, string? accessToken, CancellationToken token, string apiVersion = "v1")
+        private async Task<JObject> sendAsync(Uri origin, HttpMethod method, string path, string? body, string? accessToken, CancellationToken token, string apiVersion = "v1", bool websiteContent = false)
         {
             using var requestDeadline = CancellationTokenSource.CreateLinkedTokenSource(token);
             requestDeadline.CancelAfter(TimeSpan.FromSeconds(20));
             CancellationToken requestToken = requestDeadline.Token;
-            using var request = new HttpRequestMessage(method, new Uri(origin, "api/ir/" + apiVersion + "/" + path));
+            using var request = new HttpRequestMessage(method, new Uri(origin, websiteContent ? path : "api/ir/" + apiVersion + "/" + path));
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            if (websiteContent && clientContentEtag != null)
+                request.Headers.IfNoneMatch.Add(new EntityTagHeaderValue(clientContentEtag));
             if (accessToken != null)
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
             if (body != null)
@@ -454,11 +496,17 @@ namespace osu.Game.Online.IR
             try
             {
                 using HttpResponseMessage response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, requestToken).ConfigureAwait(false);
+                if (websiteContent && response.StatusCode == HttpStatusCode.NotModified && clientContent != null)
+                {
+                    cacheClientContent(response);
+                    return (JObject)clientContent.DeepClone();
+                }
                 if ((int)response.StatusCode is >= 300 and < 400)
                     throw new OmsIrException("redirect_rejected", "OMSIR 返回了异常跳转，登录信息不会被转发。请稍后重试。", response.StatusCode);
                 if (response.StatusCode == HttpStatusCode.NoContent)
                     return new JObject();
-                if (response.Content.Headers.ContentLength > maximum_response_bytes)
+                int responseBudget = websiteContent ? 256 * 1024 : maximum_response_bytes;
+                if (response.Content.Headers.ContentLength > responseBudget)
                     throw new OmsIrException("invalid_response", "IR 响应超过预算，待交会保留。", response.StatusCode);
 
                 using Stream input = await response.Content.ReadAsStreamAsync(requestToken).ConfigureAwait(false);
@@ -467,7 +515,7 @@ namespace osu.Game.Online.IR
                 int read;
                 while ((read = await input.ReadAsync(buffer, requestToken).ConfigureAwait(false)) > 0)
                 {
-                    if (output.Length + read > maximum_response_bytes)
+                    if (output.Length + read > responseBudget)
                         throw new OmsIrException("invalid_response", "IR 响应超过预算，待交会保留。", response.StatusCode);
                     output.Write(buffer, 0, read);
                 }
@@ -490,6 +538,13 @@ namespace osu.Game.Online.IR
                     if (retryAfter == null && response.Headers.RetryAfter?.Date is DateTimeOffset date)
                         retryAfter = date - DateTimeOffset.UtcNow;
                     throw new OmsIrException(code, errorMessage(code, response.StatusCode), response.StatusCode, retryAfter);
+                }
+                if (websiteContent)
+                {
+                    OmsClientContent.Validate(document);
+                    clientContent = (JObject)document.DeepClone();
+                    clientContentEtag = response.Headers.ETag?.Tag;
+                    cacheClientContent(response);
                 }
                 return document;
             }
@@ -559,6 +614,13 @@ namespace osu.Game.Online.IR
         private static string validPage(int page) => page > 0 ? page.ToString(CultureInfo.InvariantCulture)
             : throw new OmsIrException("invalid_page", "页码必须从 1 开始。");
 
+        private void cacheClientContent(HttpResponseMessage response)
+        {
+            CacheControlHeaderValue? policy = response.Headers.CacheControl;
+            double seconds = policy?.NoCache == true || policy?.NoStore == true ? 0 : Math.Clamp(policy?.MaxAge?.TotalSeconds ?? 0, 0, 300);
+            clientContentExpires = DateTimeOffset.UtcNow.AddSeconds(seconds);
+        }
+
         private static string errorMessage(string code, HttpStatusCode status) => code switch
         {
             "invalid_credentials" => "账号名字或密码不正确。",
@@ -571,6 +633,10 @@ namespace osu.Game.Online.IR
             "submission_conflict" => "同一局 ID 已有不同内容；本地成绩与待交已保留，请检查来源。",
             "chart_identity_conflict" => "谱面 MD5 对应的内容或玩法不同；本地成绩与待交已保留。",
             "history_private" => "完整记录仅账号本人可查看。",
+            "community_post_not_found" or "community_reply_not_found" => "这份社区内容不存在，请返回列表刷新。",
+            "community_owner_required" => "只能修改或删除自己的社区内容。",
+            "community_post_deleted" or "community_reply_deleted" => "作者已删除这份内容，无法继续编辑或回复。",
+            "content_unavailable" => "新闻与帮助暂时无法读取，请稍后刷新。",
             "board_not_found" => "这个游玩条件还没有公开榜单。",
             "chart_not_found" => "这个谱面还没有成绩或历史目录。",
             "unsupported_source" => "所选来源未知或尚未开放，请重新读取来源列表。",

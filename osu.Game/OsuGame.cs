@@ -137,6 +137,8 @@ namespace osu.Game
 
         public ManiaDownloadOverlay ManiaDownloads { get; private set; }
         public OmsIrOverlay Ir { get; private set; }
+
+        public OmsServicesOverlay OmsServices { get; private set; }
         public LoginOverlay Account { get; private set; }
         public readonly Bindable<BeatmapDownloadMode> DownloadMode = new Bindable<BeatmapDownloadMode>();
 
@@ -362,6 +364,9 @@ namespace osu.Game
         /// <param name="hideToolbar">Whether the toolbar should also be hidden.</param>
         public void CloseAllOverlays(bool hideToolbar = true)
         {
+            if (BmsDownloads != null) BmsDownloads.ReturnAction = null;
+            if (ManiaDownloads != null) ManiaDownloads.ReturnAction = null;
+            if (Ir != null) Ir.ReturnAction = null;
             foreach (var overlay in focusedOverlays)
                 overlay.Hide();
 
@@ -452,9 +457,12 @@ namespace osu.Game
             {
                 if (BmsDownloads?.State.Value != Visibility.Visible && ManiaDownloads?.State.Value != Visibility.Visible)
                     return;
+                Action returnAction = BmsDownloads?.State.Value == Visibility.Visible ? BmsDownloads.ReturnAction : ManiaDownloads?.ReturnAction;
+                if (BmsDownloads != null) BmsDownloads.ReturnAction = null;
+                if (ManiaDownloads != null) ManiaDownloads.ReturnAction = null;
                 BmsDownloads?.Hide();
                 ManiaDownloads?.Hide();
-                showDownloadBrowser();
+                showDownloadBrowser(returnAction);
             });
 
             sentryLogger.AttachUser(API.LocalUser);
@@ -829,7 +837,7 @@ namespace osu.Game
 
         public void ShowOmsAccount()
         {
-            Ir?.Hide();
+            Ir?.HideForNavigation();
             waitForReady(() => Account, _ => Account.Show());
         }
 
@@ -837,29 +845,76 @@ namespace osu.Game
         {
             if (OnlineFeaturesEnabled)
                 return;
-            Ir?.Hide();
+            Ir?.HideForNavigation();
             waitForReady(() => userProfile, _ => userProfile.ShowOwnOmsUser());
         }
 
         public void ShowOmsScoreBoard(string md5, string title, string condition = null, string maniaGroup = null, string ruleset = "bms")
         {
-            waitForReady(() => Ir, _ => Ir.ShowChartBoard(md5, title, condition, maniaGroup, ruleset));
+            OpenOmsPage(new OmsPageRoute { Kind = OmsPageKind.Board, Md5 = md5, Title = title, Ruleset = ruleset,
+                Condition = condition, Mode = condition == null ? "reference" : "comparable", Group = maniaGroup });
         }
 
-        public void OpenOmsBeatmap(IBeatmapInfo beatmap) => openOmsWebsite(OmsWebsite.Chart(OmsIr.State.ServiceAddress, beatmap));
+        public void OpenOmsBeatmap(IBeatmapInfo beatmap) => OpenOmsPage(new OmsPageRoute
+        { Kind = OmsPageKind.Chart, Md5 = beatmap.MD5Hash.ToLowerInvariant(), Ruleset = beatmap.Ruleset.ShortName, Title = beatmap.Metadata.Title });
 
         public void OpenOmsRankings()
         {
-            var scope = OmsWebsite.CurrentScope(Beatmap.Value.BeatmapInfo, Ruleset.Value);
-            openOmsWebsite(OmsWebsite.Rankings(OmsIr.State.ServiceAddress, scope.Ruleset, scope.Keymode));
+            OpenOmsPage(CurrentOmsRoute(OmsPageKind.Rankings));
         }
 
-        private void openOmsWebsite(string url)
+        public OmsPageRoute CurrentOmsRoute(OmsPageKind kind)
         {
-            if (url == null)
-                ShowOmsAccount();
-            else
-                OpenUrlExternally(url);
+            var scope = OmsWebsite.CurrentScope(Beatmap.Value.BeatmapInfo, Ruleset.Value);
+            return new OmsPageRoute { Kind = kind, Ruleset = scope.Ruleset, Keymode = scope.Keymode, Sources = "oms" };
+        }
+
+        public void OpenOmsPage(OmsPageRoute route)
+        {
+            Ir?.HideForNavigation();
+            waitForReady(() => OmsServices, _ => OmsServices.Open(route));
+        }
+
+        public void OpenOmsLink(string url)
+        {
+            if (OmsPageRoute.TryParse(OmsIr.State.ServiceAddress, url, out var route))
+                waitForReady(() => OmsServices, _ => OmsServices.OpenRelated(route));
+            else OpenUrlExternally(new Uri(new Uri(OmsIr.State.ServiceAddress), url).AbsoluteUri);
+        }
+
+        public void ShowOmsPublicProfile(long id, string ruleset, string keymode = null)
+        {
+            var next = new OmsPageRoute { Kind = OmsPageKind.Profile, UserId = id, Ruleset = ruleset, Keymode = keymode, Sources = "oms" };
+            OmsPageRoute previous = Ir?.CurrentRoute;
+            bool fromBoard = Ir?.State.Value == Visibility.Visible && previous != null;
+            Ir?.HideForNavigation();
+            waitForReady(() => OmsServices, _ =>
+            {
+                if (fromBoard) OmsServices.NavigateFromBoard(next, previous);
+                else OmsServices.OpenRelated(next);
+            });
+        }
+
+        public void ShowOmsBoardFromServices(OmsPageRoute route)
+        {
+            OmsServices.Hide();
+            waitForReady(() => Ir, _ =>
+            {
+                Ir.ReturnAction = OmsServices.ReturnFromBoard;
+                Ir.ShowRoute(route);
+            });
+        }
+
+        public void ShowOmsChartDownload(string query, bool bms)
+        {
+            OmsServices.Hide();
+            if (BmsDownloads != null) BmsDownloads.ReturnAction = null;
+            if (ManiaDownloads != null) ManiaDownloads.ReturnAction = null;
+            BmsDownloads?.Hide();
+            ManiaDownloads?.Hide();
+            DownloadMode.Value = bms ? BeatmapDownloadMode.Bms : BeatmapDownloadMode.Mania;
+            if (bms) waitForReady(() => BmsDownloads, _ => { BmsDownloads.ReturnAction = OmsServices.Resume; BmsDownloads.ShowWithSearch(query); });
+            else waitForReady(() => ManiaDownloads, _ => { ManiaDownloads.ReturnAction = OmsServices.Resume; ManiaDownloads.ShowWithSearch(query); });
         }
 
         public IEnumerable<OsuMenuItem> GetOmsBeatmapActions(BeatmapInfo beatmap)
@@ -1106,12 +1161,12 @@ namespace osu.Game
                 waitForReady(() => ManiaDownloads, overlay => overlay.ToggleVisibility());
         }
 
-        private void showDownloadBrowser()
+        private void showDownloadBrowser(Action returnAction)
         {
             if (DownloadMode.Value == BeatmapDownloadMode.Bms)
-                waitForReady(() => BmsDownloads, overlay => overlay.Show());
+                waitForReady(() => BmsDownloads, overlay => { overlay.ReturnAction = returnAction; overlay.Show(); });
             else
-                waitForReady(() => ManiaDownloads, overlay => overlay.Show());
+                waitForReady(() => ManiaDownloads, overlay => { overlay.ReturnAction = returnAction; overlay.Show(); });
         }
 
         public bool PresentDownloadedBmsBeatmap(Guid beatmapId) => presentDownloadedBeatmap(beatmapId, "bms");
@@ -1126,6 +1181,8 @@ namespace osu.Game
                 return false;
             }
 
+            if (BmsDownloads != null) BmsDownloads.ReturnAction = null;
+            if (ManiaDownloads != null) ManiaDownloads.ReturnAction = null;
             BmsDownloads?.Hide();
             ManiaDownloads?.Hide();
             PerformFromScreen(screen =>
@@ -1785,6 +1842,7 @@ namespace osu.Game
                 loadComponentSingleFile(ManiaDownloads = CreateManiaDownloadOverlay(), overlayContent.Add, true);
 
             loadComponentSingleFile(Ir = new OmsIrOverlay(), overlayContent.Add, true);
+            loadComponentSingleFile(OmsServices = new OmsServicesOverlay(), overlayContent.Add, true);
 
             loadComponentSingleFile(Settings = new SettingsOverlay(), leftFloatingOverlayContent.Add, true);
 

@@ -29,6 +29,9 @@ namespace osu.Game.Overlays.Profile
         private ExternalLinkButton externalLink = null!;
         private Box accountBackground = null!;
 
+        [Resolved]
+        private OsuGame? game { get; set; }
+
         protected override Drawable CreateContent() => new Container
         {
             RelativeSizeAxes = Axes.X,
@@ -109,7 +112,9 @@ namespace osu.Game.Overlays.Profile
             {
                 var scope = OmsWebsite.CurrentScope(beatmap.Value.BeatmapInfo, ruleset.Value);
                 externalLink.Link = OmsWebsite.Profile(ServiceAddress.Value, account.Id, scope.Ruleset, scope.Keymode);
+                externalLink.InternalAction = () => game?.ShowOmsPublicProfile(account.Id, scope.Ruleset, scope.Keymode);
             }
+            else externalLink.InternalAction = null;
             externalLink.Alpha = externalLink.Link == null ? 0 : 1;
         }
 

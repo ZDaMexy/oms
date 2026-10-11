@@ -48,7 +48,7 @@ namespace osu.Game.Tests.Visual.Overlays
                     return new JObject
                     {
                         ["user"] = new JObject { ["id"] = 1, ["username"] = "ir_ui_synthetic" },
-                        ["access_token"] = "synthetic-access",
+                        ["access_token"] = "synthetic-access-token",
                         ["refresh_token"] = "synthetic-refresh",
                         ["expires_in"] = 3600,
                     };

@@ -27,6 +27,7 @@ using osu.Game.Graphics.UserInterface;
 using osu.Game.Online;
 using osu.Game.Online.API;
 using osu.Game.Online.Bms;
+using osu.Game.Online.IR;
 using osu.Game.Online.Sayobot;
 using osu.Game.Overlays;
 using osu.Game.Overlays.BeatmapListing;
@@ -58,6 +59,31 @@ namespace osu.Game.Tests.Visual.Overlays
         private ManiaDownloadOverlay overlay => Game.ManiaDownloads;
         private ManiaDownloadHeader header => overlay.Header;
         private ManiaDownloadManager manager => ((DownloadGame)Game).Manager;
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void TestNativeServicesDownloadReturnsToOriginalScopeAcrossModeSwitch(bool bms)
+        {
+            var route = new OmsPageRoute { Kind = OmsPageKind.Library, Query = "native search", Ruleset = bms ? "bms" : "mania" };
+            AddUntilStep("both browsers and services loaded", () => Game.OmsServices.IsLoaded && Game.BmsDownloads.IsLoaded && overlay.IsLoaded);
+            AddStep("open a native library scope", () => Game.OpenOmsPage(route));
+            AddUntilStep("native scope ready", () => Game.OmsServices.State.Value == Visibility.Visible && !Game.OmsServices.IsLoading);
+            AddStep("start with the other download mode", () => Game.DownloadMode.Value = bms ? BeatmapDownloadMode.Mania : BeatmapDownloadMode.Bms);
+            AddStep("open the requested download browser", () => Game.ShowOmsChartDownload(route.Query, bms));
+            AddUntilStep("requested mode visible with native page suspended", () => Game.DownloadMode.Value == (bms ? BeatmapDownloadMode.Bms : BeatmapDownloadMode.Mania)
+                && (bms ? Game.BmsDownloads.State.Value : overlay.State.Value) == Visibility.Visible && Game.OmsServices.State.Value == Visibility.Hidden);
+            AddStep("switch between the real browser mode tabs", () => Game.DownloadMode.Value = bms ? BeatmapDownloadMode.Mania : BeatmapDownloadMode.Bms);
+            AddUntilStep("new browser keeps the return callback without opening services", () => (bms ? overlay.State.Value : Game.BmsDownloads.State.Value) == Visibility.Visible
+                && Game.OmsServices.State.Value == Visibility.Hidden && (bms ? overlay.ReturnAction : Game.BmsDownloads.ReturnAction) != null);
+            AddStep("close the new browser", () => { if (bms) overlay.Hide(); else Game.BmsDownloads.Hide(); });
+            AddUntilStep("original native scope restored", () => Game.OmsServices.State.Value == Visibility.Visible && Game.OmsServices.Route == route && !Game.OmsServices.IsLoading);
+            AddStep("open downloads again", () => Game.ShowOmsChartDownload(route.Query, bms));
+            AddUntilStep("download browser visible again", () => (bms ? Game.BmsDownloads.State.Value : overlay.State.Value) == Visibility.Visible);
+            AddStep("close all overlays as a screen change does", () => Game.CloseAllOverlays());
+            AddWaitStep("return callbacks stay suppressed", 2);
+            AddAssert("screen change closes both browsers and the native page", () => Game.OmsServices.State.Value == Visibility.Hidden
+                && Game.BmsDownloads.State.Value == Visibility.Hidden && overlay.State.Value == Visibility.Hidden);
+        }
 
         protected override TestOsuGame CreateTestGame()
         {

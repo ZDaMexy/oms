@@ -46,8 +46,19 @@ namespace osu.Game.Overlays
         private bool hasMore;
         private bool searching;
         private bool paginationPaused;
+        private bool openingSearch;
+        public Action? ReturnAction { get; set; }
 
         public IReadOnlyCollection<ManiaDownloadCard> Cards => cards.Values;
+
+        public void ShowWithSearch(string query)
+        {
+            openingSearch = true;
+            Header.Query.Value = query;
+            Show();
+            openingSearch = false;
+            search(true);
+        }
 
         public ManiaDownloadOverlay(BeatmapDownloadCoverResourceStore? coverSource = null)
             : base(OverlayColourScheme.Blue, requiresSignIn: false)
@@ -121,10 +132,14 @@ namespace osu.Game.Overlays
                 searching = false;
                 more.IsLoading = false;
                 Loading.Hide();
+                Action? returnAction = ReturnAction;
+                ReturnAction = null;
+                returnAction?.Invoke();
                 return;
             }
 
             Header.FocusSearch();
+            if (openingSearch) return;
             if (cards.Count == 0)
                 search(true);
             else
@@ -134,7 +149,7 @@ namespace osu.Game.Overlays
 
         private void queueSearch()
         {
-            if (State.Value != Visibility.Visible)
+            if (openingSearch || State.Value != Visibility.Visible)
                 return;
 
             queryCancellation?.Cancel();
