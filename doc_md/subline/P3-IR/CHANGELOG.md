@@ -1,10 +1,18 @@
 # OMS IR 历史
 
+## 2026-10-11用户清理基线编译输出复核
+
+用户按提供的PowerShell指令清理后确认完成。随后逐项只读复核 `artifacts/native-services-20261011/baseline-handoff-toolbar/cleanup-inventory.json`：六个基线工程的12个bin / obj全部不存在，原清单1,079文件、1,517,700,354 B（约1.413 GiB）的编译输出已移除，清理待办关闭。执行者为用户；本次agent只核对并写记录，没有执行删除。
+
+保留的基线源码仍为787c90aafb0e844e2911fb967a7ae45fba740f19、原tree及6,055个跟踪文件，Git无源码差异；原 `evidence-sha256.json` 中36件验证证据的长度 / SHA256全部匹配。最终301的TRX、双配置构建 / 格式日志、逐项失败对照和原交付收据均在；现主Desktop运行目录和依赖缓存保留。本次复核收据为 `artifacts/native-services-20261011/local-cleanup-user-verification.json`，原 `local-cleanup-rejected.json` 完整保留，仍只描述用户清理前的自动审批拒绝。
+
+容量按原清单逻辑字节登记；没有用户删除前的即时盘账，收据中的F空闲空间仅为复核时点观察，不称净增量，也不并入服务器84.22 MiB清理记录。未重建已删基线产物或重跑产品测试；以后需要复跑基线时须从保留源码重新restore / build，不能沿用已删输出作no-build验证。本次不刷新客户端源码 / 软件验收或生产发布时间，真实体验与发行门仍沿原状态。
+
 ## 2026-10-11：原生在线服务与完整链路
 
 实现端内主页 / 玩家榜 / 公开资料 / 真实MD5目录与谱面、社区读写 / 原账号草稿、新闻帮助与内部导航；返回保留范围 / 位置，IR和BMS / mania下载沿现有管理器，BMS准确Resolve MD5、mania明确歌名候选。内容匿名按需、有界ETag缓存；社区复用Bearer / refresh、原正文 / UUID和收据身份，网页原保护保持。准确完整源码、最终301 / Desktop双配置 / 原告警、构造null与mock死锁等已修问题、扩大20失败的独立基线仅取[新快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-client-native-services-snapshot-20261011.md)。服务包 / 同库回退 / 前后备份只取[配套发布](../../../../websites/oms-web/doc_md/client-native-services-20261011.md)；原P-C、实账号 / 整曲 / IME和发行门不提升。
 
-软件原件保留 `artifacts/native-services-20261011/`。本机12个精确bin / obj删除被自动审批策略拒绝，约1.413GiB仍在，未绕过；源码 / 证据 / 依赖缓存保留，原工具返回与目录核对写入local-cleanup-rejected.json。最终文档与选择本轮增量提交 / 推送在收尾记录，开工各仓已有改动不归属本轮。
+软件原件保留 `artifacts/native-services-20261011/`。当时本机12个精确bin / obj删除被自动审批策略拒绝，约1.413GiB仍在，未绕过；源码 / 证据 / 依赖缓存保留，原工具返回与当时目录核对写入local-cleanup-rejected.json。随后用户完成清理，复核取[上方补记](#2026-10-11用户清理基线编译输出复核)。最终文档与选择本轮增量提交 / 推送在收尾记录，开工各仓已有改动不归属本轮。
 
 ## 2026-10-11部署接续与探针编译输出清理
 

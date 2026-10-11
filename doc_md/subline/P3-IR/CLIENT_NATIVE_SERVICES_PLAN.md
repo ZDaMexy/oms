@@ -52,6 +52,6 @@
 
 本轮选择增量提交 / 推送与既有工作保留按开工基线和 `artifacts/native-services-20261011/doc-edits.json` 归属核对，实际交付收据保存 `delivery.json`；文档门及各仓准确远端身份由根收尾记录，不以文档HEAD冒称运行提交。来源链已从最终源码→Client Bridge登记→Dev Bridge合同→Web / Backend采用，不提升11待复核或统一阶段。
 
-服务器两步定点清理观测合计约84.22MiB，当前恢复预留余约82.31MiB。本机12个闲置bin / obj约1.413GiB的删除被自动审批策略拒绝（仅返回blocked by policy），未执行、不绕过，清单和拒绝收据保留。
+服务器两步定点清理观测合计约84.22MiB，当前恢复预留余约82.31MiB。本机12个基线bin / obj已由用户清理，随后复核12/12不存在，源码 / 证据 / 依赖缓存保留，清理待办关闭；容量口径、保全核对与原拒绝历史只取[清理补记](CHANGELOG.md#2026-10-11用户清理基线编译输出复核)。
 
 唯一待签收范围为用户非调试真实窗口 / IME / DPI、实际账号 / 社区写入、两端同谱同范围、真实原包入库 / 整曲 / 重启、原宿主P-C和Windows发行。它们与本轮实施 / 生产配套完成分别记录，不能用自动通过代签。详细当前职责取[状态](DEVELOPMENT_STATUS.md)、软件取[来源快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-client-native-services-snapshot-20261011.md)、实际发布取[配套](../../../../websites/oms-web/doc_md/client-native-services-20261011.md)。
