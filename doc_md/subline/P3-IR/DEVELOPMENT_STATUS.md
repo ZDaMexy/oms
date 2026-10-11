@@ -4,7 +4,7 @@
 
 2026-10-10 当前源码固定连接 OMSIR，右上角直接注册 / 登录即允许支持的新局在本地保存后上传；已删除服务器地址、启用开关、保存连接和账号菜单的连接设置。顶部通用奖杯与端内目录搜索移除，谱面榜从选歌或本人记录的具体谱面进入，未登录可主动查看公开榜。选歌详情 / 复制、谱集逐难度、结算谱名、规范个人页和工具栏玩家排行继续使用真实 MD5 / OMS ID；mania 选择真实计分条件，网页保留来源 / 条件 / 页码。共同职责取[客户端与网页入口](../../../../oms-server/dev_bridge_md/doc_md/subline/oms-player-site/constraints.md#客户端与网页入口)。
 
-网站保持已部署待验收，准确运行包与历次发布 / 失败只取[现行维护](../../../../websites/oms-web/doc_md/production-maintenance.md)。2026-10-11网络审查同步优化客户端待交等待 / 压缩、Web身份 / 下载和Backend元数据；生产图片gzip已调整，应用源码发布门只取[本轮跨端审查](../../../../websites/oms-web/doc_md/network-service-review-20261011.md)，没有Windows发行物。旧 osu! API 地址空 / 在线 false 保持；旧 IR 设置文件不读取也不删除，只恢复官方 origin 凭据，其他 origin 的凭据 / 待交不转移或上传。原 UUID / body / owner 不改；客户端真实点击、原账号与待交、下载入库、两端同范围及 P/C 仍待用户非调试验收。
+网站保持已部署待验收，准确运行包与历次发布 / 失败只取[现行维护](../../../../websites/oms-web/doc_md/production-maintenance.md)。2026-10-11网络审查同步优化客户端待交等待 / 压缩、Web身份 / 下载和Backend元数据；生产图片gzip保持，网站 / Backend已清理后实际部署，三服务同步源 / 有限运行 / 同库往返及前后完整备份只取[本轮跨端审查](../../../../websites/oms-web/doc_md/network-service-review-20261011.md)，没有Windows发行物。旧 osu! API 地址空 / 在线 false 保持；旧 IR 设置文件不读取也不删除，只恢复官方 origin 凭据，其他 origin 的凭据 / 待交不转移或上传。原 UUID / body / owner 不改；客户端真实点击、原账号与待交、下载入库、两端同范围及 P/C 仍待用户非调试验收。
 
 ## 玩家当前能做什么
 

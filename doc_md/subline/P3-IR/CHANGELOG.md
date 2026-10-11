@@ -1,5 +1,11 @@
 # OMS IR 历史
 
+## 2026-10-11部署接续与探针编译输出清理
+
+用户随后明确要求部署并清理本机 / 服务器。Web / Backend实际发布、三服务同库往返、准确清理与前后完整备份仅取[跨端发布记录](../../../../websites/oms-web/doc_md/network-service-review-20261011.md#清理后实际发布已部署待验收)，客户端来源仍f3b8a439，原89/89和双配置证据不刷新；未启动用户数据客户端，无Windows发行物，真人 / P/C保持。
+
+每个开发shell加载本仓存储入口，根执行者先核8个确切probe的bin / obj为F盘、无reparse / 活动引用，再仅清16个可再生目录；cs / csproj另完整复制并核SHA，原probe根 / 源码 / 数据 / 运行证据 / 依赖缓存保留。F可用增加5,823,512,576 B（约5.42GiB），包括network-transport-probe及历史BMS / mania下载渲染probe。先前整目录递归清理的审批拒绝仍在下节，不是此次清理失败，也未绕过重试整目录删除。方法、每个确切目标、前后盘账与源码SHA原件为Web `artifacts/network-deploy-20261011/clean-local-probe-outputs.ps1`、`local-cleanup.json` / `.log` 和 `local-probe-source/`；清理未删除旧软件验证日志 / TRX，不用已删bin / obj作新的no-build验证。
+
 ## 2026-10-11网络服务审查与负载优化
 
 从干净 `master@7d4d8fa9d7d123aa1962a4e4e3583da7137f3afd` 接续，已在线fetch。客户端改动限定 `OmsIrService.cs`、`OmsIrQueue.cs` 和 `OmsIrServiceTests.cs`，实现提交 `f3b8a439f0354c2f9b20e8fc2a0ccd467db3dea0` 的截止、归属与压缩行为取[本线约束](TECHNICAL_CONSTRAINTS.md#凭据与离线)。网站 / Backend独立改动、生产gzip与发布门只在[跨端审查](../../../../websites/oms-web/doc_md/network-service-review-20261011.md)登记，不能由本地客户端结果代签。
