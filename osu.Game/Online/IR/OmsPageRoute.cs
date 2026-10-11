@@ -86,16 +86,36 @@ namespace osu.Game.Online.IR
                 && (!int.TryParse(pageText, NumberStyles.None, CultureInfo.InvariantCulture, out int pageNumber) || pageNumber is < 1 or > 1000000))
                 || (read("scope_page") is string scopeText && (!int.TryParse(scopeText, NumberStyles.None, CultureInfo.InvariantCulture, out int scopeNumber) || scopeNumber is < 1 or > 1000000)))
                 return false;
-            route = route with { Ruleset = ruleset, Keymode = read("keymode"), Sources = read("sources"), Condition = read("condition"),
-                Metric = read("metric"), Page = read("page") == null ? 1 : int.Parse(read("page")!, CultureInfo.InvariantCulture),
-                ScopePage = read("scope_page") == null ? 1 : int.Parse(read("scope_page")!, CultureInfo.InvariantCulture), Recent = read("section") == "recent",
-                Group = read("group"), Mode = read("mode") ?? "reference", Category = read("category"), Query = read("q") ?? string.Empty };
+            route = route with
+            {
+                Ruleset = ruleset,
+                Keymode = read("keymode"),
+                Sources = read("sources"),
+                Condition = read("condition"),
+                Metric = read("metric"),
+                Page = read("page") == null ? 1 : int.Parse(read("page")!, CultureInfo.InvariantCulture),
+                ScopePage = read("scope_page") == null ? 1 : int.Parse(read("scope_page")!, CultureInfo.InvariantCulture),
+                Recent = read("section") == "recent",
+                Group = read("group"),
+                Mode = read("mode") ?? "reference",
+                Category = read("category"),
+                Query = read("q") ?? string.Empty
+            };
             string[] parts = uri.AbsolutePath.Trim('/').Split('/');
             if (parts.Length == 1)
             {
-                OmsPageKind? kind = parts[0] switch { "" => OmsPageKind.Home, "rankings" => OmsPageKind.Rankings, "community" => OmsPageKind.Community,
-                    "news" => OmsPageKind.News, "help" => OmsPageKind.Help, "account" => OmsPageKind.Account,
-                    "beatmapsets" => OmsPageKind.Library, "ir" => OmsPageKind.Charts, _ => null };
+                OmsPageKind? kind = parts[0] switch
+                {
+                    "" => OmsPageKind.Home,
+                    "rankings" => OmsPageKind.Rankings,
+                    "community" => OmsPageKind.Community,
+                    "news" => OmsPageKind.News,
+                    "help" => OmsPageKind.Help,
+                    "account" => OmsPageKind.Account,
+                    "beatmapsets" => OmsPageKind.Library,
+                    "ir" => OmsPageKind.Charts,
+                    _ => null
+                };
                 if (parts[0] is "beatmaps" or "ir" && read("md5") is string md5 && md5.Length == 32 && md5.All(Uri.IsHexDigit)
                     && route.Mode is "reference" or "comparable")
                 { route = route with { Kind = OmsPageKind.Chart, Md5 = md5.ToLowerInvariant() }; return true; }

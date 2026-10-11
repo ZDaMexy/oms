@@ -851,8 +851,16 @@ namespace osu.Game
 
         public void ShowOmsScoreBoard(string md5, string title, string condition = null, string maniaGroup = null, string ruleset = "bms")
         {
-            OpenOmsPage(new OmsPageRoute { Kind = OmsPageKind.Board, Md5 = md5, Title = title, Ruleset = ruleset,
-                Condition = condition, Mode = condition == null ? "reference" : "comparable", Group = maniaGroup });
+            OpenOmsPage(new OmsPageRoute
+            {
+                Kind = OmsPageKind.Board,
+                Md5 = md5,
+                Title = title,
+                Ruleset = ruleset,
+                Condition = condition,
+                Mode = condition == null ? "reference" : "comparable",
+                Group = maniaGroup
+            });
         }
 
         public void OpenOmsBeatmap(IBeatmapInfo beatmap) => OpenOmsPage(new OmsPageRoute

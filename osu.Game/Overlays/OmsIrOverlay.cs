@@ -74,9 +74,16 @@ namespace osu.Game.Overlays
         public Action? ReturnAction { get; set; }
         public OmsPageRoute? CurrentRoute => chartMd5 == null ? null : new OmsPageRoute
         {
-            Kind = OmsPageKind.Board, Md5 = chartMd5, Title = chartTitle, Ruleset = view == View.ReferenceBoard ? "bms" : "mania",
+            Kind = OmsPageKind.Board,
+            Md5 = chartMd5,
+            Title = chartTitle,
+            Ruleset = view == View.ReferenceBoard ? "bms" : "mania",
             Sources = selectedSources == null ? null : string.Join(',', selectedSources.OrderBy(s => s, StringComparer.Ordinal)),
-            Condition = conditionId, Mode = boardMode, Group = view == View.Board ? group : null, Page = page, BoardScroll = (float)scroll.Current,
+            Condition = conditionId,
+            Mode = boardMode,
+            Group = view == View.Board ? group : null,
+            Page = page,
+            BoardScroll = (float)scroll.Current,
         };
 
         private enum View { None, Board, ReferenceBoard, ManiaConditions }
@@ -618,8 +625,13 @@ namespace osu.Game.Overlays
         private void addProfileLink(List<Drawable> content, long userId, string ruleset, string? keymode)
         {
             if (userId > 0)
-                content.Add(new RoundedButton { Text = "查看玩家资料", RelativeSizeAxes = Axes.X, Height = 36,
-                    Action = () => game?.ShowOmsPublicProfile(userId, ruleset, keymode) });
+                content.Add(new RoundedButton
+                {
+                    Text = "查看玩家资料",
+                    RelativeSizeAxes = Axes.X,
+                    Height = 36,
+                    Action = () => game?.ShowOmsPublicProfile(userId, ruleset, keymode)
+                });
         }
 
         private string referenceDetails(JObject item)

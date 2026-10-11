@@ -186,8 +186,12 @@ namespace osu.Game.Overlays
                     foreach (string detail in lane.Details) AddText(detail, 16);
                     AddAction("查看该条件的玩家排行", () => Navigate(current with
                     {
-                        Kind = OmsPageKind.Rankings, Sources = lane.Source, Condition = lane.Condition.Id,
-                        Metric = current.Ruleset == "mania" ? "best_total_score" : "cleared_charts", Page = 1, ScopePage = 1,
+                        Kind = OmsPageKind.Rankings,
+                        Sources = lane.Source,
+                        Condition = lane.Condition.Id,
+                        Metric = current.Ruleset == "mania" ? "best_total_score" : "cleared_charts",
+                        Page = 1,
+                        ScopePage = 1,
                     }));
                 }
                 if (lanes.Length == 0) AddText("所选范围还没有公开统计或参榜名次。", 16);
@@ -294,7 +298,14 @@ namespace osu.Game.Overlays
 
         private static OmsPageRoute playerChartRoute(OmsPageRoute current, string md5, string title) => current with
         {
-            Kind = OmsPageKind.Chart, Md5 = md5, Title = title, Page = 1, ScopePage = 1, Mode = "reference", Condition = null, Group = null,
+            Kind = OmsPageKind.Chart,
+            Md5 = md5,
+            Title = title,
+            Page = 1,
+            ScopePage = 1,
+            Mode = "reference",
+            Condition = null,
+            Group = null,
         };
 
         private static OmsPageRoute normalisePlayerRoute(OmsPageRoute requested, bool ranking)

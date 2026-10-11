@@ -56,13 +56,28 @@ namespace osu.Game.Graphics.UserInterface
                     Schedule(() => input.TakeFocus());
             }
             if (paragraphOffset > 0)
-                Add(new RoundedButton { Text = "前 20 段", RelativeSizeAxes = Axes.X, Height = 36,
-                    Action = () => { paragraphOffset -= paragraphs_per_page; rebuild(); } });
+                Add(new RoundedButton
+                {
+                    Text = "前 20 段",
+                    RelativeSizeAxes = Axes.X,
+                    Height = 36,
+                    Action = () => { paragraphOffset -= paragraphs_per_page; rebuild(); }
+                });
             if (paragraphOffset + paragraphs_per_page < paragraphs.Count)
-                Add(new RoundedButton { Text = "后 20 段", RelativeSizeAxes = Axes.X, Height = 36,
-                    Action = () => { paragraphOffset += paragraphs_per_page; rebuild(); } });
-            Add(new RoundedButton { Text = "新增段落", RelativeSizeAxes = Axes.X, Height = 36,
-                Action = () => insertParagraph(paragraphs.Count) });
+                Add(new RoundedButton
+                {
+                    Text = "后 20 段",
+                    RelativeSizeAxes = Axes.X,
+                    Height = 36,
+                    Action = () => { paragraphOffset += paragraphs_per_page; rebuild(); }
+                });
+            Add(new RoundedButton
+            {
+                Text = "新增段落",
+                RelativeSizeAxes = Axes.X,
+                Height = 36,
+                Action = () => insertParagraph(paragraphs.Count)
+            });
             Add(preview);
             updateText();
         }
