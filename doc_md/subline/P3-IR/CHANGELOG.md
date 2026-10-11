@@ -1,5 +1,11 @@
 # OMS IR 历史
 
+## 2026-10-12统一谱面浏览
+
+统一谱面列表单入口，OMS / Ginger Rush / 616 / Sayobot 来源页签，共用原生搜索 / 筛选 / 卡片显示控制；默认三列、大卡片两列、窄窗一列。来源替换不增加历史，各自搜索 / 筛选 / 滚动及中断恢复意图保留；离开去其它顶部页面或关闭后重开仍保留。只读取当前来源，无启动请求 / 新增轮询或跨源合并；下载任务、准确入库 / 打开沿原管理器。 修复离开至新闻或关闭后丢筛选、快速选择未加载来源时保存键错位、慢目录恢复中等级 / 位置缩水以及新查询失败保留旧卡片。未改Web / Backend源码或重新部署。
+
+源码 589a9624e5605cd872a82bdaab10962c64aec471，Debug 导航 / 下载 / OMS目录与原生服务130项合计226/226；随后仅卡片尾部留白与显示控件回归更新，最终布局 / 下载 / 接线96/96，均0失败、0跳过，两轮有重叠不相加。Desktop.slnf Release / Debug均0错误、各2条原BMS.Tests告警；受改两项目格式和verify-no-changes通过。 准确命令、中途失败与检查取[本次来源](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-unified-beatmap-browser-snapshot-20261012.md)。来源链只更新client-native-service-pages，另两条原生事实仍绑定6381e12；选择暂存 / 推送收据留 artifacts/unified-beatmap-browser-20261012/，旧清理不重做，本次未新建临时探针或工作副本。真人 / 社交 / P-C / 发行仍保留原门。
+
 ## 2026-10-12原生页面纠正与闭环
 
 按用户实机反馈删除统一 OMS 服务面板，恢复原新闻 / 帮助 / 排行 / 玩家 / 谱面容器及独立工具栏，真实表格 / 卡片 / 正文与紧凑页头动作。当前源码 6381e120aea1ff63dfdd34ff0e9fe38ac05f1528；完整点击与范围 / 位置恢复、迟到返回和账号 / 草稿归属修复、准确文件 / 命令 / 中途失败只取[新快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-client-native-pages-snapshot-20261012.md)。

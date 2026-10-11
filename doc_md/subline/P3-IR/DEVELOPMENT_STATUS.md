@@ -2,7 +2,7 @@
 
 ## 原生在线服务（2026-10-11）
 
-2026-10-12 已按用户实测纠正统一面板：新闻、帮助、排行、公开玩家页、谱面目录 / 详情分别使用 lazer 原页面结构和独立工具栏入口。真实排行行 → 玩家 → 公开成绩 → 原谱 → 榜 / 下载 → 返回原位置已贯通；账号与社区草稿保持原归属。当前源码为 6381e12，精确身份和软件 / 真人范围取[新来源](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-client-native-pages-snapshot-20261012.md)，实施闭环取[计划](CLIENT_NATIVE_SERVICES_PLAN.md)。
+2026-10-12现行谱面浏览已按最新截图合并为一个「谱面列表」入口。统一谱面列表单入口，OMS / Ginger Rush / 616 / Sayobot 来源页签，共用原生搜索 / 筛选 / 卡片显示控制；默认三列、大卡片两列、窄窗一列。来源替换不增加历史，各自搜索 / 筛选 / 滚动及中断恢复意图保留；离开去其它顶部页面或关闭后重开仍保留。只读取当前来源，无启动请求 / 新增轮询或跨源合并；下载任务、准确入库 / 打开沿原管理器。 当前源码 589a9624e5605cd872a82bdaab10962c64aec471，准确软件与真人缺口取[本次来源](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-unified-beatmap-browser-snapshot-20261012.md)，闭环取[计划](CLIENT_NATIVE_SERVICES_PLAN.md)。新闻 / 帮助 / 排行 / 玩家、账号与社区沿[此前来源](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-client-native-pages-snapshot-20261012.md)保留各自范围。
 
 旧 f2b495f4 的统一面板与旧软件只属历史，不能认定符合原生体验。网站 / Backend 复用已部署接口，本轮未改代码或重新部署；生产取[原配套发布](../../../../websites/oms-web/doc_md/client-native-services-20261011.md)。聊天、好友、在线状态后续；真实窗口 / IME / DPI、账号 / 下载 / 整曲、P/C 和 Windows 发行仍待签收。
 
@@ -49,10 +49,8 @@
 
 ## 最近一次验证
 
-2026-10-12 格式后 Game.Tests Debug 原生页面与账号 / IR / 下载 / 内容必要回归 **315/315，0失败、0跳过**；Desktop.slnf Release / Debug 均0错误、各2条原 BMS.Tests 告警，受改两项目 whitespace 与 verify-no-changes 通过。完整点击、返回位置、切账号 / 迟到响应、草稿与延迟下载挂载均有当前检查。准确命令、原失败修正与原件取[来源快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-client-native-pages-snapshot-20261012.md#有效软件与失败修正)。
-
-此前网络、登录 / 外跳及统一面板的各软件与独立基线留于[本线历史](CHANGELOG.md)，不算本轮重跑或真人签收；真实账号 / 原包 / 整曲、设备与发行门保持。
+2026-10-12 Debug 导航 / 下载 / OMS目录与原生服务130项合计226/226；随后仅卡片尾部留白与显示控件回归更新，最终布局 / 下载 / 接线96/96，均0失败、0跳过，两轮有重叠不相加。Desktop.slnf Release / Debug均0错误、各2条原BMS.Tests告警；受改两项目格式和verify-no-changes通过。 准确命令、失败修正与原件取[本次快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-unified-beatmap-browser-snapshot-20261012.md#软件与失败修正)。旧315仅属[此前原生页面纠正来源](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-client-native-pages-snapshot-20261012.md)，不计为本轮重跑或真人签收。真实账号 / 原包 / 整曲、设备与发行门保持。
 
 ## 文档治理验证
 
-2026-10-12 CheckDocumentation 与跨仓 verify-workspace 通过，原路径示例 / 公开 checksum 提示保留。选择暂存的全部来源 / 消费者定位及原未提交差异另核通过；当前源码冻结，原文档迁移和删除状态保全。原件为 artifacts/native-pages-correction-20261011/client-docs-final.txt、workspace-facts-final.txt、delivery-scope-audit.json；当前源码、软件与生产分开，不由文档门签真人或发行。此前治理只属[本线历史](CHANGELOG.md)。
+2026-10-12 CheckDocumentation、跨仓verify-workspace与git diff检查通过，原示例 / checksum提示保持；选择暂存保留其它仓全部原未提交差异，来源 / 消费者定位已核。原件取 artifacts/unified-beatmap-browser-20261012/client-docs-final.txt、workspace-facts-final.txt、delivery-scope-audit.json；不由文档门签收真人、生产或发行。旧治理保留于[历史](CHANGELOG.md)。

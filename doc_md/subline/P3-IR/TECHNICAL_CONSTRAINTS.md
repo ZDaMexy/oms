@@ -2,7 +2,7 @@
 
 ## 原生在线服务边界（2026-10-12）
 
-现行各原生新闻 / 帮助 / 排行 / 玩家 / 谱面容器、独立工具栏、非可视有界导航、社区桌面归属与按需缓存沿[共同合同](../../../../oms-server/dev_bridge_md/doc_md/mainline/client-native-services.md)，软件与人工门取[状态](DEVELOPMENT_STATUS.md)。统一面板已删除，Home 路由进入新闻；真实 OMS ID / MD5、原账号保存优先及待交保持。旧 ppy 在线关闭，聊天 / 好友 / 在线状态后续。下方 2026-10-10 的外跳 / 删除目录只属原提交，固定 OMSIR / 直接登录及旧凭据隔离仍适用。
+现行各原生新闻 / 帮助 / 排行 / 玩家 / 谱面容器、非可视导航、社区归属与按需缓存沿[共同合同](../../../../oms-server/dev_bridge_md/doc_md/mainline/client-native-services.md)。谱面目录与下载为一个列表入口，以OMS / Ginger / 616 / Sayobot为真实来源；来源替换不压历史，各自筛选 / 位置及慢读取恢复意图保持。新搜索开始即清旧卡片并取消旧查询，迟到目录 / 搜索 / 挂载不得覆盖新来源；下载任务继续沿原管理器。软件与人工门取[状态](DEVELOPMENT_STATUS.md)。旧ppy关闭、OMS ID / MD5、原账号 / UUID / owner与保存优先保持，社交后续；下方旧外跳 / 删除目录仅属原来源。
 
 ## 2026-10-10 固定 OMSIR 与直接登录
 
