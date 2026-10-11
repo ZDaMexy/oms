@@ -1,5 +1,11 @@
 # OMS IR 接入诊断
 
+## 原生页面布局与返回诊断
+
+- Wiki / Markdown 框架在 AddLinkText 前根据 RootUrl / DocumentUrl 改写链接；DocumentUrl 不能空，根相对 OMS 链接应以真实 OMS origin 为基准，再交原生路由。只重写点击回调不能修正先前已改错的域名。
+- 原 OverlayHeaderTabControl 默认 BottomLeft，不可直接放正文纵向 FillFlow；正文页签明确 TopLeft。Depth 在加入父节点前设定，恢复滚动在子内容完成布局后执行，并用真实可见范围测试。
+- 自动隐藏 IR / 下载前清旧 ReturnAction，迟延加载再挂载须核 navigation revision；隐藏页的 Scheduler 账号通知可能晚于重开，应在发新请求前同步账号。诊断与行为证据回链[P3日志](../../doc_md/subline/P3-IR/CHANGELOG.md#2026-10-12原生页面纠正与闭环)，不在记忆登记进度。
+
 ## 原生覆盖层与异步场景诊断
 
 - OsuGame新overlay在LoadComplete才创建，不在此前依赖容器上以Cached标记发布null；实际构造fixture能暴露全游戏加载失败。

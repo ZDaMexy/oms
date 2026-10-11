@@ -1,5 +1,11 @@
 # OMS IR 历史
 
+## 2026-10-12原生页面纠正与闭环
+
+按用户实机反馈删除统一 OMS 服务面板，恢复原新闻 / 帮助 / 排行 / 玩家 / 谱面容器及独立工具栏，真实表格 / 卡片 / 正文与紧凑页头动作。当前源码 6381e120aea1ff63dfdd34ff0e9fe38ac05f1528；完整点击与范围 / 位置恢复、迟到返回和账号 / 草稿归属修复、准确文件 / 命令 / 中途失败只取[新快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-client-native-pages-snapshot-20261012.md)。
+
+格式后 Debug 必要回归315/315，Desktop.slnf Release / Debug各0错误、各2原告警，受改源码格式与验证通过。最终日志 / TRX：artifacts/native-pages-correction-20261011/native-regression-final.*、desktop-*-final.txt、format*-final.txt。服务 API 与内容复用，未改 Web / Backend 代码或重新部署，旧配套日期保持。三事实来源经两桥回写消费者；工作区 / 暂存保全、文档门与提交推送收据留同目录。本轮未创建额外探针或工作副本；开发缓存复用。聊天 / 好友 / 在线状态后续，真人 / P-C / Windows发行未签收。
+
 ## 2026-10-11用户清理基线编译输出复核
 
 用户按提供的PowerShell指令清理后确认完成。随后逐项只读复核 `artifacts/native-services-20261011/baseline-handoff-toolbar/cleanup-inventory.json`：六个基线工程的12个bin / obj全部不存在，原清单1,079文件、1,517,700,354 B（约1.413 GiB）的编译输出已移除，清理待办关闭。执行者为用户；本次agent只核对并写记录，没有执行删除。

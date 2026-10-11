@@ -2,7 +2,9 @@
 
 ## 原生在线服务（2026-10-11）
 
-玩家可从工具栏在线服务进入端内排行、公开个人页、真实MD5谱面、社区、新闻与帮助；站内跳转和下载返回保留范围 / 位置，明确网页查看和分享地址保持。原生社区草稿绑定原账号 / UUID，失败手动重试原正文；文章 / 帮助与网站同源，按需缓存，无启动预取 / 空闲轮询。源码完整身份、准确301软件回归 / 构建 / 独立基线与真人缺口只取[新来源快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-client-native-services-snapshot-20261011.md)，实施与闭环取[计划](CLIENT_NATIVE_SERVICES_PLAN.md)；实际服务器配套只取[发布记录](../../../../websites/oms-web/doc_md/client-native-services-20261011.md)。当前为开发源码，真实窗口 / IME / 账号 / 下载 / 整曲、P-C及Windows发行仍待签收。
+2026-10-12 已按用户实测纠正统一面板：新闻、帮助、排行、公开玩家页、谱面目录 / 详情分别使用 lazer 原页面结构和独立工具栏入口。真实排行行 → 玩家 → 公开成绩 → 原谱 → 榜 / 下载 → 返回原位置已贯通；账号与社区草稿保持原归属。当前源码为 6381e12，精确身份和软件 / 真人范围取[新来源](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-client-native-pages-snapshot-20261012.md)，实施闭环取[计划](CLIENT_NATIVE_SERVICES_PLAN.md)。
+
+旧 f2b495f4 的统一面板与旧软件只属历史，不能认定符合原生体验。网站 / Backend 复用已部署接口，本轮未改代码或重新部署；生产取[原配套发布](../../../../websites/oms-web/doc_md/client-native-services-20261011.md)。聊天、好友、在线状态后续；真实窗口 / IME / DPI、账号 / 下载 / 整曲、P/C 和 Windows 发行仍待签收。
 
 ## 2026-10-10 登录与网页接线来源
 
@@ -47,16 +49,10 @@
 
 ## 最近一次验证
 
-2026-10-11网络优化最终r7有效Release复编：IR service、保存投射、原账号 / 个人页、网站链接 / 键型、原选歌 / 工具栏和BMS / mania谱面榜共 **89/89** 通过，新增覆盖整队列等待、持久截止、新局 / 重登 / 重启 / 第五次暂停、原账号分离、手动落盘失败及真实session尚未publish时拒绝旧账号重试。默认owned传输的5项loopback探针通过，解压后超限 / 307仍明确拒绝；普通Desktop Release / Debug均0警告0错误，受改源码格式通过、Queue旧常量命名提示保留。实际并发阻塞、Release异常筛选 / 持锁槽复用及修复、精确命令和原件取[本轮日志](CHANGELOG.md#2026-10-11网络服务审查与负载优化)，不签真实客户端账号、整曲、P/C或发行。
+2026-10-12 格式后 Game.Tests Debug 原生页面与账号 / IR / 下载 / 内容必要回归 **315/315，0失败、0跳过**；Desktop.slnf Release / Debug 均0错误、各2条原 BMS.Tests 告警，受改两项目 whitespace 与 verify-no-changes 通过。完整点击、返回位置、切账号 / 迟到响应、草稿与延迟下载挂载均有当前检查。准确命令、原失败修正与原件取[来源快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-client-native-pages-snapshot-20261012.md#有效软件与失败修正)。
 
-此前固定OMSIR的73/73与Desktop双配置保留于[2026-10-10日志](CHANGELOG.md#2026-10-10固定omsir登录与谱面榜入口简化)，不冒称本轮重跑所有早期验证。
-
-同日此前网站接线的 65/65、Desktop 双配置和匿名 8 页上下文 / 空来源榜保留于[前轮日志](CHANGELOG.md#2026-10-10客户端与网站入口恢复)，其 HTTP 只证明参数承接，不升级为本轮公开或真人验证。
-
-旧 D1 / 22b 维护与原 observer false、OpenLR2 R4 专用软件 Host、旧 25d / 37f 统计规模和各自限制只取 [历史范围与原件](CHANGELOG.md#2026-10-11专项文档与记忆同步)。正式 DLL / 真实宿主 ABI、标准 LN、UI、缓存 / 线程和 P/C 仍待验，旧软件或有限读取不代签当前资源 / 真人门。
-
-较早客户端适用证据保留原日期：2026-10-05 mania六类判定修正取[当次记录](../../other/OMS_PLAYER_SITE_20261005.md)，原账号 / 个人页软件门取[本线日志](CHANGELOG.md#2026-10-05原登录和个人页复用)，2026-10-04多来源 / 真实Mod保存投射取[当日记录](CHANGELOG.md#2026-10-04多来源正式采用与客户端查询)，2026-10-03 Player / Realm、合成受理与已退役发行候选取[客户端发布记录](../../other/OMS_IR_CLIENT_RELEASE_20261003.md)。原失败、TRX、两编译警告及保存 / UUID / owner语义均保留；上述旧轮次不代签本轮软件、真人与Phase 1.x原门；本轮未生成Windows发行物。
+此前网络、登录 / 外跳及统一面板的各软件与独立基线留于[本线历史](CHANGELOG.md)，不算本轮重跑或真人签收；真实账号 / 原包 / 整曲、设备与发行门保持。
 
 ## 文档治理验证
 
-2026-10-11 将空 endpoint 限定为旧 osu! API，发行 / 主约束 / 记忆承接已采用的固定 OMSIR 与直接登录；旧账号步骤、运行数字及此前治理记录退出当前摘要并保留于 [本线历史](CHANGELOG.md#2026-10-11专项文档与记忆同步)。本轮未复编客户端、请求生产或代签真人，源码 / 软件仍取上方原日期；统一检查取 [主线日志](../../mainline/CHANGELOG.md#专项进度与文档记忆健康同步)。
+2026-10-12 CheckDocumentation 与跨仓 verify-workspace 通过，原路径示例 / 公开 checksum 提示保留。选择暂存的全部来源 / 消费者定位及原未提交差异另核通过；当前源码冻结，原文档迁移和删除状态保全。原件为 artifacts/native-pages-correction-20261011/client-docs-final.txt、workspace-facts-final.txt、delivery-scope-audit.json；当前源码、软件与生产分开，不由文档门签真人或发行。此前治理只属[本线历史](CHANGELOG.md)。
