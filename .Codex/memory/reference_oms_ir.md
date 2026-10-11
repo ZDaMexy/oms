@@ -1,5 +1,12 @@
 # OMS IR 接入诊断
 
+## 原生覆盖层与异步场景诊断
+
+- OsuGame新overlay在LoadComplete才创建，不在此前依赖容器上以Cached标记发布null；实际构造fixture能暴露全游戏加载失败。
+- Headless update线程中手动GetResult等待mock时，mock内部await不能捕获同一context；测试传输以ConfigureAwait(false)处理，真实异步生产调用仍正常调度。
+- 无Host的TextFlow文本parts延迟生成，字符断言前用实际framework的RecreateAllParts；真实drawable加载与用户IME / DPI另验。
+- 扩大组合失败须按完整测试身份以独立原源码 / 独立程序集复现，不能凭未改文件或数量相似定基线；参数化身份、差异与偶发单跑通过都保留。诊断证据回链[P3日志](../../doc_md/subline/P3-IR/CHANGELOG.md#2026-10-11原生在线服务与完整链路)，不在记忆重复项目状态。
+
 ## 权威入口与证据时效
 
 当前能力读 [P3-IR STATUS](../../doc_md/subline/P3-IR/DEVELOPMENT_STATUS.md)，行为读[客户端合同](../../doc_md/subline/P3-IR/TECHNICAL_CONSTRAINTS.md)，多来源执行从[计划](../../doc_md/subline/P3-IR/DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜实施)进入。各轮失败、报告身份和指标查[本线历史](../../doc_md/subline/P3-IR/CHANGELOG.md)；这里按故障保留原因和诊断方法，不维护中途待办或第二套进度。

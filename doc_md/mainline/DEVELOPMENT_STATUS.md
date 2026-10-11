@@ -9,7 +9,7 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 ## 产品与仓库基线
 
-玩家从原账号窗口直接登录固定 OMSIR，登录即允许保存后新局上传；从选歌 / 本人记录的具体谱面进入公开榜，未登录也可主动查榜，顶部通用奖杯已移除。2026-10-08 原版 osu-web 官网已部署待验收，最新客户端软件、网站实际运行与真实账号 / 下载、VS Code 非调试 OMS 及先导 P / 完整 C 的未签收项只取[P3-IR 状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。旧 osu! API 地址空与在线总开关 false 不变，日常验收不生成 Windows 发行物，Phase 1.x 原门保留。
+玩家直接登录固定OMSIR，保存后新局上传；具体谱面可匿名主动查榜，原账号待交和旧origin隔离保持。2026-10-11端内排行、公开个人页 / 原谱、社区、新闻帮助及网站配套已接续；准确源码 / 生产与真实窗口、账号 / 下载、两端同范围、IME / DPI和P-C缺口只取[P3-IR状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。旧ppy API为空 / 在线false，日常验收无Windows发行，Phase1.x原门保持。
 
 静线当前布局、作者能力与按模式选择 / 刷新 / 编辑路径统一见 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)；开发构建只同步 simple 源，外观打磨暂停，历史双内置和旧截图不代签当前体验。
 

@@ -1,5 +1,11 @@
 # OMS IR 历史
 
+## 2026-10-11：原生在线服务与完整链路
+
+实现端内主页 / 玩家榜 / 公开资料 / 真实MD5目录与谱面、社区读写 / 原账号草稿、新闻帮助与内部导航；返回保留范围 / 位置，IR和BMS / mania下载沿现有管理器，BMS准确Resolve MD5、mania明确歌名候选。内容匿名按需、有界ETag缓存；社区复用Bearer / refresh、原正文 / UUID和收据身份，网页原保护保持。准确完整源码、最终301 / Desktop双配置 / 原告警、构造null与mock死锁等已修问题、扩大20失败的独立基线仅取[新快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-client-native-services-snapshot-20261011.md)。服务包 / 同库回退 / 前后备份只取[配套发布](../../../../websites/oms-web/doc_md/client-native-services-20261011.md)；原P-C、实账号 / 整曲 / IME和发行门不提升。
+
+软件原件保留 `artifacts/native-services-20261011/`。本机12个精确bin / obj删除被自动审批策略拒绝，约1.413GiB仍在，未绕过；源码 / 证据 / 依赖缓存保留，原工具返回与目录核对写入local-cleanup-rejected.json。最终文档与选择本轮增量提交 / 推送在收尾记录，开工各仓已有改动不归属本轮。
+
 ## 2026-10-11部署接续与探针编译输出清理
 
 用户随后明确要求部署并清理本机 / 服务器。Web / Backend实际发布、三服务同库往返、准确清理与前后完整备份仅取[跨端发布记录](../../../../websites/oms-web/doc_md/network-service-review-20261011.md#清理后实际发布已部署待验收)，客户端来源仍f3b8a439，原89/89和双配置证据不刷新；未启动用户数据客户端，无Windows发行物，真人 / P/C保持。
