@@ -2,9 +2,15 @@
 
 ## 2026-10-11
 
+### 转谱补算探针清理收尾
+
+- 用户用 PowerShell 7.6.6 执行限定路径、链接 / 数据库 / 活动进程及源码归档校验的清理命令，报告删除成功。随后只读确认 `.dev-cache/temp/converted-stars-perf-probe` 不存在；原 `evidence-manifest.json` 中 73 份源码、测量、日志与 TRX 的 SHA256 全部一致。
+- 删除前为 366 文件、653,780,576 B（约 0.61 GiB）逻辑大小，未测量实际磁盘回收量。新增 `artifacts/converted-stars-performance-20261011/probe-cleanup-user-verified.json` 记录人工清理及复核；原清单、自动删除拦截回执与软件交付快照均保留，历史拒绝不再作为当前清理待办。
+- STATUS 更新清理状态，PLAN 移除已完成项；文档检查输出另存 `cleanup-documentation-check.log` 与 `cleanup-workspace-check.log`。仅做清理及文档收尾，不重复软件测试，产品源码与原验证继续取 `55741b5`；真实大库、Explorer 与现场读取错误的人工门仍待，未重扫或修改用户库。
+
 ### 转谱星数后台资源优化
 
-- 用户报告 VS Code 非调试启动后补算卡顿且计算慢。本轮基线为干净的 `824c208d1a620a7fac5eaf7855b1c015c5ba324d`，在线 fetch 确认与 origin/master 一致。只读用户指定的导出日志，按会话文件名而非相同的导出 mtime 选取 `1791719460`；未扫描、修改用户谱库或运行 live 数据库。
+- 用户报告 VS Code 非调试启动后补算卡顿且计算慢。本轮基线为干净的 `824c208d1a620a7fac5eaf7855b1c015c5ba324d`，在线 fetch 确认与 origin/master 一致。只读用户指定的导出日志，按会话文件名而非相同的导出 mtime 选取最新完整补算会话；未扫描、修改用户谱库或运行 live 数据库。
 - 日志 UTC 换算为本地 UTC+8：19:51:07 找到 56,366 张待补算，20:23:07 进入下一阶段，边界耗时 1,920 秒；截图成功 56,307、失败 59，与日志失效缓存次数及不可转换失败数一致。59 项均无可用于 mania 星数计算的判定音符，没有 calculator timeout、transient failure 或 gameplay pause。结束统计 Audio Components 56,531、Realm async reads 57,269，而 working cache 仅 4；日志未记录完整帧时间或 CPU profile。
 - 根因一是 filesystem provider 构造时为每张谱面创建两种 texture store 和 track store。固定依赖 ppy.osu.Framework 2026.303.0 的 [AudioManager](https://github.com/ppy/osu-framework/blob/ba04d538f02cecaabe5ab7dc3b102cd47d59d785/osu.Framework/Audio/AudioManager.cs) 将每个 track store 注册进全局集合，[AudioCollectionManager](https://github.com/ppy/osu-framework/blob/ba04d538f02cecaabe5ab7dc3b102cd47d59d785/osu.Framework/Audio/AudioCollectionManager.cs) 持有并继续更新子项；清 working cache 不会解除该注册。三类 store 改为线程安全的 `Lazy<T>`，读谱和算星只使用文件，实际背景/播放首次使用时才创建一次。首次真实消费承担原先提前支付的初始化成本，后续播放接口保持。
 - 根因二是非调试启动仍使用 Debug 构建时，`Debug.Assert` 参数中的 blob 路径复核对每张 filesystem 谱面额外读取 Realm；此类型没有 Realm blob。该诊断仅保留于 hash-backed 谱面，filesystem 原始字节 MD5 验证保持，修改过的源文件仍拒绝加载。
@@ -28,7 +34,7 @@
 - 历史报告外的 `BmsManagedFolderSelectionProductTest.TestManagedDeleteFallbackReentrantSelectionNeverSplitsPairAndLatestWins` 在当前源码单项仍失败；用 `baseline-source.targets` 将唯一改动的生产文件替换为已核对干净 HEAD 的原快照重新编译，失败消息与完整栈逐字一致，见 `bms-reentrant-baseline-comparison.json`。记录真实 compile item，未改 checkout 源码、断言或增加等待重试，不把历史报告之外的失败直接归为本次新增。该旧皮肤删除检查仍待 owning P1-A 维护，本轮不改无关皮肤行为。
 - 对照后去掉临时 MSBuild 参数，以普通源码重新非增量构建 `osu.Desktop.slnf` Release 成功，0 错误、2 个原有 BMS 测试工程警告（CS8600/CA2007）；普通 Desktop Debug 0 警告、0 错误。定点 whitespace 与 IDE0005 imports `--verify-no-changes` 通过，未运行完整 style 或 mania full，不称仓库全绿。
 - 首次探针探索的编译错误与启动失败不是软件 gate，旧日志不覆盖；正式前后探针均正常退出。源码快照只忽略 checkout CRLF/LF 差异后与基线 Git blob 比较，`source-binding.json` 保留原字节的不同 SHA，不把换行差异当内容改变或伪称逐字节一致。
-- 临时 `.dev-cache/temp/converted-stars-perf-probe` 的源码已 SHA256 对照归档；确认为无链接、数据库和活动探针，366 文件、653,780,576 B。唯一限定路径 PowerShell 删除被自动审批以 `blocked by policy` 拒绝，随后只读确认目录仍在；没有回收空间或换用删除工具。`probe-cleanup-before/after.json` 与 `probe-cleanup-blocked.txt` 保留，待用户清理后复核；长期日志、源码、测量与 TRX 不属于垃圾。
+- 临时 `.dev-cache/temp/converted-stars-perf-probe` 的源码已 SHA256 对照归档；确认为无链接、数据库和活动探针，366 文件、653,780,576 B。唯一限定路径 PowerShell 删除被自动审批以 `blocked by policy` 拒绝，当时只读确认目录仍在；没有回收空间或换用删除工具。`probe-cleanup-before/after.json` 与 `probe-cleanup-blocked.txt` 保留；随后用户清理与复核结果见 [清理收尾](#转谱补算探针清理收尾)，长期日志、源码、测量与 TRX 不属于垃圾。
 - 客户端文档健康、总工作区协作文档验收与 `git diff --check` 通过；新增 checksum 为产品程序集指纹，检查器的公开指纹提示保留。最初 PLAN 会话用语检查失败已修正，原输出保留；统一验收仍有 11 项历史客户端事实待复核，不因单客户端资源优化刷新桥事实或其它产品适用日期。
 
 主要命令（各新 shell 先 `. .\UseDevelopmentStorage.ps1`；原始输出与 TRX 位于上述证据目录）：
