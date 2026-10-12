@@ -1,5 +1,13 @@
 # OMS IR 历史
 
+## 2026-10-12谱面列表模式与来源分层
+
+用户纠正三个来源不应顶层并列；源码 dd795fadde163fc082be550d9344d81c717357a2 恢复模式先行：BMS仅Ginger Rush / 616，osu!mania仅Sayobot，切回BMS记住上次来源。原全局来源负责路由，隐藏页只同步所属来源；晚挂载等待中立即撤下旧模式，快速改选 / 返回 / 关闭取消旧目标。616测试目录与搜索输入分开，旧真实MD5详情 / 榜、卡片、筛选 / 阅读位置和后台下载保持。稳定合同取[P1-A](../P1-A/TECHNICAL_CONSTRAINTS.md#谱面列表展示与来源能力)。
+
+最终 dotnet test osu.Game.Tests/osu.Game.Tests.csproj --no-build --no-restore -c Debug --filter 'FullyQualifiedName~TestSceneBmsDownload|FullyQualifiedName~TestSceneManiaDownload|FullyQualifiedName~TestSceneOmsWebsiteWiring|FullyQualifiedName~TestSceneOmsNativeCharts' 为99/99；Game.Tests Debug0错误 / 告警；Desktop Debug / Release均0错误 / 各2条原BMS.Tests告警；whitespace / IDE0005 verify-no-changes通过。四张隔离实际游戏渲染逐图核模式 / 来源宽窄窗口，独立复审无阻断；此前244 / 26图及具名旧失败保留原记录。证据在 artifacts/beatmap-browser-modes-20261012。
+
+新来源仅更新 client-native-service-pages，经Client Bridge / Dev Bridge / Web / Backend采用，原19来源与其它32事实 / 全消费者保持；数量只取[事实登记](../../../../oms-server/oms_client_bridge_md/doc_md/mainline/facts.md)。没有服务实现 / API / 部署或Windows打包，真人 / 发行门保持；文档验收及各仓选择暂存取[主线日志](../../mainline/CHANGELOG.md#2026-10-12谱面列表模式与来源分层)。
+
 ## 2026-10-12三来源与 lazer 布局闭环
 
 用户要求根据可实现能力对标 lazer 并规划至闭环，随后纠正仅接 Ginger Rush / 616 / Sayobot。源码 fff09a2431b9cbc80206bf0d83c69192963b5347 已撤出 OMS 目录来源 / UI / 客户端列表读取和重复玩法切换，保留具体原MD5详情 / 榜；落实紧凑实际筛选、普通345×80 / 大卡345×112、固定字号 / 窄窗、稳定包标题、独立匹配谱数 / 收录信息 / 任务状态、真实封面共用纹理与原生展开 / 悬停动作。完整合同取[P1-A](../P1-A/TECHNICAL_CONSTRAINTS.md#谱面列表展示与来源能力)。

@@ -22,6 +22,8 @@ metadata:
 - BasicSearchTextBox继承SearchTextBox的AllowCommit=false；只订阅OnCommit不会触发回车重试。拥有提交动作的子类显式开启AllowCommit，保留原IME处理。ShowMoreButton的文字在加载时才创建，设置Text要等LoadComplete；其点击会开启IsLoading，查询成功/失败须主动结束。
 - 真鼠标Click可在下一次update才触发下载动作，同一探针step立即捕获GetTask可能得到旧null；等待任务实际登记再读取，不把探针捕获时序错误当成按钮失效。桌面两源以源页签、表/等级菜单和动作的真实鼠标输入核对。
 
+- 模式控件不能直接 BindTo 三来源：隐藏 mania / BMS header 会把不属本模式的值写回。模式投影全局来源，来源行只同步所属模式；基类构造器会虚调用 CreateFilter，固定模式 item 集合须在派生构造体中收窄。等待另一个 overlay 挂载时仅晚回调 Hide 会残留旧模式来源；立即隐藏后还要保留当前导航回调用于快速改选，并把有效等待视作列表已打开，使再次点击入口能关闭。核真实控件 held mount / 关闭及迟到零查询，合同取[P3-IR](../../doc_md/subline/P3-IR/TECHNICAL_CONSTRAINTS.md#原生在线服务边界2026-10-12)。
+
 ## 完整表等级与包身份
 
 - Ginger `table/selectDataList` 最高100条一页，不能请求大pageSize便把单页当完整表。完整读取后才发布等级；headerID、每页数量、总数/页数要一致，共享JSON预算避免每页限额无限累加。两源资料是独立快照，不能跨源补齐；当时Satellite的不同条目数见[完整表取证](../../doc_md/other/BMS_DOWNLOAD_FILTERS_20261001.md)，不作为当前站点数量。

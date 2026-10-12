@@ -9,7 +9,7 @@
 - [反馈工作流](feedback_workflow.md) — 默认产品语言、反过度防御、真机证据与本轮结束边界。
 - [选歌展示与导航](project_oms_songselect_display_nav.md) — 状态分离、祖先可见性、谱卡重绑与大库诊断。
 - [内置音乐播放器](project_oms_music_player.md) — 共用音轨/试听与队列接入、已定展开壳体和 core 依赖方向。
-- [内置 BMS 下载](reference_bms_builtin_download.md) — 统一入口的旧追加按钮、原生大卡正文 / 展开起点、跨行 / 末卡留白、完整表与包身份、目录手动恢复、归档预算 / CRC / 释放、首次完成旧快照与精确选歌。
+- [内置 BMS 下载](reference_bms_builtin_download.md) — 统一入口的旧追加按钮、模式 / 所属来源同步与挂载中关闭、原生大卡正文 / 展开起点、跨行 / 末卡留白、完整表与包身份、目录手动恢复、归档预算 / CRC / 释放、首次完成旧快照与精确选歌。
 - [Sayobot mania 下载](reference_mania_sayobot_download.md) — 原游标/混合包、原sid/bid与实际MD5、镜像节点；两玩法共享封面、首次完成旧快照的回链与退出诊断。
 - [OMS IR 接入](reference_oms_ir.md) — 保存 / 固定凭据、共同等待与账号竞态、原生页面 Markdown 根地址 / 正文页签 / 延迟返回、异步来源保存键 / 慢筛选恢复意图、直接登录与查榜、多来源 / SDK、SQL / HTTP资源、systemd终态、备份 / 缓存；源码、工具、运行时效分开，指标与当前状态回链P3-IR。
 

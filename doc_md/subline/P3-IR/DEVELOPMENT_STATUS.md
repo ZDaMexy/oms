@@ -2,7 +2,7 @@
 
 ## 原生在线服务
 
-2026-10-12 现行「谱面列表」只含 Ginger Rush / 616 / Sayobot 三个批准来源，撤出此前错误混入的 OMS 目录来源 / UI / 列表读取，具体原 MD5 详情与榜保留。按实际字段对标 lazer 的紧凑筛选、普通 / 大卡和悬停 / 展开；稳定标题、匹配谱数及真实收录 / 难度信息独立于下载状态，固定字体 / 窄窗换行。来源条件 / 阅读位置、慢恢复、当前路由与后台准确入库打开保持；没有启动预抓或新轮询。当前源码、软件和隔离桌面渲染取[三来源快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-beatmap-browser-lazer-snapshot-20261012.md)，剩余真人体验取[接续计划](CLIENT_NATIVE_SERVICES_PLAN.md)。
+2026-10-12 现行「谱面列表」先选 BMS / osu!mania 模式，再显示所属来源：BMS 仅 Ginger Rush / 616，osu!mania 仅 Sayobot；切回 BMS 恢复上次来源，各来源条件 / 阅读位置保持。等待模式首次挂载时立即撤下旧模式，关闭 / 改选阻止旧页弹出。原生实际筛选、普通 / 大卡、固定字体与原MD5详情 / 榜沿原实现，OMS不作目录来源；没有启动预抓、轮询或下载链改动。当前源码、软件与隔离渲染取[模式分层快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-beatmap-browser-mode-snapshot-20261012.md)，真人体验取[接续计划](CLIENT_NATIVE_SERVICES_PLAN.md)。
 
 新闻、帮助、排行、玩家、真实 MD5 详情与账号沿原生页面；社区继续已有列表 / 正文 / 回复与作者操作。旧统一服务面板已被用户否定并删除，聊天、好友和在线状态后续。Web / Backend 复用已部署接口，客户端页面纠正未改变服务代码或重新部署。
 
@@ -16,7 +16,7 @@
 
 | 范围 | 已绑定来源 |
 | --- | --- |
-| 三个批准源 / 原生卡片 / 来源恢复 | 2026-10-12 源码 fff09a2431b9cbc80206bf0d83c69192963b5347，[三来源与 lazer 布局快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-beatmap-browser-lazer-snapshot-20261012.md) |
+| 模式→所属来源 / 来源恢复 / 等待关闭 | 2026-10-12 源码 dd795fadde163fc082be550d9344d81c717357a2，[模式分层快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-beatmap-browser-mode-snapshot-20261012.md)；未改卡片布局 / 下载，旧证据仍取 fff09a2 |
 | 其余原生页面、社区归属与内容缓存 | 2026-10-12 源码 6381e120aea1ff63dfdd34ff0e9fe38ac05f1528，[原生页面纠正快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-client-native-pages-snapshot-20261012.md) |
 | 原账号统一等待、持久期限、手动账号复核与 JSON 压缩 | 2026-10-11 源码 f3b8a439f0354c2f9b20e8fc2a0ccd467db3dea0，[网络快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-ir-network-snapshot-20261011.md) |
 | 固定 OMSIR、直接登录与官方凭据 / 待交隔离 | 2026-10-10 源码 21daf78ddc97c4b801dc5fe5fd92dda48df95525，[账号快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-ir-account-login-snapshot-20261010.md) |
@@ -42,8 +42,8 @@ D01～D09 修订 3 已采纳，OMS M1 / M4 的实际保存 Mod 投射、来源�
 
 ## 最近一次验证
 
-2026-10-12 当前相关回归244/244，0失败 / 跳过；含三来源、实际筛选 / 路由 / 恢复、下载 / 精确打开与原生卡片相关行为。Desktop Debug / Release均0错误，各2条原BMS.Tests告警；受改项目格式 verify-no-changes通过。26张隔离桌面截图已逐图核对宽 / 窄、普通 / 大卡、中文长名 / 末卡展开、无图 / 合成封面及下载 / 失败 / 重试 / 完成。另两项原生卡片扩测失败的身份 / 消息 / 堆栈与原HEAD基线一致，最终filter显式排除，不称全套全绿。准确命令、修正和原件取[本次快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-beatmap-browser-lazer-snapshot-20261012.md#软件与渲染证据)与[本线历史](CHANGELOG.md#2026-10-12三来源与-lazer-布局闭环)；旧软件 / 生产保留各自日期，真实账号 / 原包 / 整曲、设备与发行未签收。
+2026-10-12 当前模式分层相关回归99/99，0失败 / 跳过；实际控件验证所属来源、模式先后、616恢复、原条件 / bid与无额外读取，补齐等待中隐藏旧模式及实际工具栏关闭后的迟到挂载。Desktop Debug / Release均0错误，各2条原BMS.Tests告警；受改项目格式验证通过。4张隔离桌面图逐图核 BMS / mania 宽窗与420内容宽度、来源归属和换行；只读复审无剩余阻断。准确命令与原件取[本次快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-beatmap-browser-mode-snapshot-20261012.md#软件与渲染证据)，此前244回归 / 26图与两项具名原生卡片旧失败仍取[原布局来源](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-beatmap-browser-lazer-snapshot-20261012.md#软件与渲染证据)，未冒充本轮重跑。真实账号 / 原包 / 整曲、设备与发行未签收。
 
 ## 文档治理验证
 
-2026-10-12 专项对照实现来源、各仓采用点与诊断记忆，收简计划中的已完成步骤，纠正旧入口、旧源码和历史证据的当前称谓。文档检查、来源保全与选择暂存结果只取[主线本轮日志](../../mainline/CHANGELOG.md#2026-10-12进度与文档记忆健康同步)；产品软件 / 生产 / 真人证据保留原日期。
+2026-10-12 专项对照模式分层实现、各仓采用点与诊断记忆，新来源只更新 client-native-service-pages，其它事实 / 消费者与11待复核保持。文档检查、来源保全、选择暂存及临时目录清理拦截取[主线本轮日志](../../mainline/CHANGELOG.md#2026-10-12谱面列表模式与来源分层)；生产 / 真人证据保留原日期。
