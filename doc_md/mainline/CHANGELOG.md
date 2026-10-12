@@ -1,5 +1,13 @@
 # OMS 更新日志
 
+## 2026-10-12客户端当前入口与记忆一致性复核
+
+从干净客户端 HEAD `305d2f1`、`master` 本地跟踪记录领先 6 提交的基线出发，核对子线路由、P1-A～M / P3-IR 当前状态、任务相关计划 / 合同和诊断记忆。源码 `fff09a2` 已删除 `OmsIrService.GetSourceChartsAsync`、`OmsPageKind.Charts` 与 `BeatmapListingOverlay.Oms.cs` 的客户端成绩目录路径；`dd795fa` 的模式控件与 `OsuGame.SelectBeatmapBrowserMode` / `lastBmsBrowserSource` 明确先选模式、BMS 来源恢复。当前专项状态和来源登记已正确，仍遗漏三语 README、主合同 14.2 及 P3-IR 查询条款中的旧目录入口。
+
+本轮就地修正上述消费段落，三语操作统一为模式→所属来源、普通 / 大卡及返回 BMS 恢复来源；具体 MD5 详情 / 榜、网站成绩目录、原账号 / 保存和下载任务不改。现有治理记忆补同文件后半条款与三语入口漏同步的诊断并更新索引，没有新增记忆叶子或平行进度账本。没有新客户端源码、产品构建 / 测试、渲染、网络 / 生产观察、部署、打包或清理；原来源 / 产品日期和真实窗口、账号 / 原包 / 整曲、P/C、设备 / 皮肤 / 发行未签收门保持。
+
+在新 shell 加载 `. .\UseDevelopmentStorage.ps1` 后执行 `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\CheckDocumentation.ps1`，通过 202 Markdown / 2204 相对链接 / 432 本地锚点 / 123 memory wiki；`git diff --check` 通过。当前 STATUS / PLAN 行数与 memory 单行预算合格，旧目录入口残留检索为空。检查原样日志在 `artifacts/document-health-followup-20261012/client-documentation.log`；原路径 / 公开制品摘要提示不作产品或真人通过依据。
+
 ## 2026-10-12谱面列表专项进度与文档记忆审查
 
 专项覆盖OMS P1-A / P3-IR进度、计划、展示合同与相关诊断记忆，以及Client Bridge → Dev Bridge → Web / Backend采用链。当前实现仍为dd795fa模式 / 来源、fff09a2布局与6381e12其余原生事实；本次只更正隔离内容宽度证据和正常窗口验收口径，原来源对象 / 声明 / sourceIds / reviewStatus / 全消费者与其它32事实保持，不新增源码快照。
