@@ -86,6 +86,7 @@ using osu.Game.Utils;
 using osuTK;
 using osuTK.Graphics;
 using Sentry;
+using BrowserMode = osu.Game.Overlays.BeatmapListing.BeatmapBrowserMode;
 using BrowserSource = osu.Game.Overlays.BeatmapListing.BeatmapBrowserSource;
 using IntroScreen = osu.Game.Screens.Menu.IntroScreen;
 using MatchType = osu.Game.Online.Rooms.MatchType;
@@ -146,6 +147,8 @@ namespace osu.Game
         public readonly Bindable<BeatmapCardSize> BeatmapBrowserCardSize = new Bindable<BeatmapCardSize>(BeatmapCardSize.Normal);
         private readonly Dictionary<BrowserSource, (OmsPageRoute Route, float Scroll)> browserReadingStates = new Dictionary<BrowserSource, (OmsPageRoute, float)>();
         private bool selectingBrowserSource;
+        private BrowserSource lastBmsBrowserSource = BrowserSource.Ginger;
+        private Func<bool> waitingForBeatmapBrowser;
 
         public OverlayContainer BeatmapBrowserOverlay => BeatmapBrowserSource.Value switch
         {
@@ -468,11 +471,12 @@ namespace osu.Game
             LocalConfig.BindWith(OsuSetting.BeatmapListingCardSize, BeatmapBrowserCardSize);
             BeatmapBrowserSource.BindValueChanged(change =>
             {
+                if (change.NewValue != BrowserSource.Sayobot) lastBmsBrowserSource = change.NewValue;
                 if (selectingBrowserSource) return;
                 OverlayContainer previous = visibleBeatmapBrowser();
                 if (previous is IOmsPageOverlay page && page.CurrentOmsRoute is { } route)
                     browserReadingStates[browserSourceFor(route)] = (route, page.OmsScroll);
-                if (previous == null) return;
+                if (previous == null && waitingForBeatmapBrowser?.Invoke() != true) return;
                 var state = browserReadingStates.TryGetValue(change.NewValue, out var saved)
                     ? saved : (newBrowserRoute(change.NewValue), 0f);
                 OmsPages.ReplaceBrowserSource(state.Item1, state.Item2);
@@ -957,6 +961,13 @@ namespace osu.Game
                     });
                     break;
                 case OmsPageKind.Library:
+                    waitingForBeatmapBrowser = isCurrent;
+                    OverlayContainer previousBrowser = visibleBeatmapBrowser();
+                    if (previousBrowser != null && (previousBrowser == BmsDownloads) != (route.Ruleset == "bms"))
+                    {
+                        hideOverlayForNavigation(previousBrowser);
+                        previousBrowser.FinishTransforms();
+                    }
                     if (route.Ruleset == "bms")
                         waitForReady(() => BmsDownloads, view => show(view, view));
                     else
@@ -976,7 +987,10 @@ namespace osu.Game
                 if (!isCurrent()) return;
                 HideOmsPages(overlay);
                 if (route.Kind == OmsPageKind.Library)
+                {
+                    waitingForBeatmapBrowser = null;
                     selectBrowserSource(browserSourceFor(route));
+                }
                 overlay.ReturnAction = OmsPages.Back;
                 overlay.Header.SetPageActions(OmsPages.Back,
                     () => page.ShowOmsPage(page.CurrentOmsRoute ?? route),
@@ -1258,8 +1272,9 @@ namespace osu.Game
         internal void ToggleBeatmapBrowser()
         {
             OverlayContainer visible = visibleBeatmapBrowser();
-            if (visible is IOmsPageOverlay)
+            if (visible is IOmsPageOverlay || waitingForBeatmapBrowser?.Invoke() == true)
             {
+                waitingForBeatmapBrowser = null;
                 OmsPages.BeginTemporaryPage();
                 HideOmsPages();
                 return;
@@ -1287,6 +1302,12 @@ namespace osu.Game
             selectingBrowserSource = true;
             BeatmapBrowserSource.Value = source;
             selectingBrowserSource = false;
+        }
+
+        internal void SelectBeatmapBrowserMode(BrowserMode mode)
+        {
+            if ((BeatmapBrowserSource.Value == BrowserSource.Sayobot) == (mode == BrowserMode.Mania)) return;
+            BeatmapBrowserSource.Value = mode == BrowserMode.Mania ? BrowserSource.Sayobot : lastBmsBrowserSource;
         }
 
         internal void NotifyBeatmapBrowserShown(OmsPageRoute route)

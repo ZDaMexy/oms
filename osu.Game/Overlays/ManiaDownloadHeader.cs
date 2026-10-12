@@ -48,6 +48,7 @@ namespace osu.Game.Overlays
         }
 
         protected override LocalisableString SearchPlaceholder => BeatmapDownloadStrings.SearchMania;
+        protected override BeatmapBrowserMode BrowserMode => BeatmapBrowserMode.Mania;
 
         protected override IEnumerable<Drawable> CreateBrowserFilters() => new Drawable[]
         {

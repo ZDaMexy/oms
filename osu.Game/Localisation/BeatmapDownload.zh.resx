@@ -4,7 +4,7 @@
   <resheader name="version"><value>2.0</value></resheader>
   <data name="title" xml:space="preserve"><value>浏览谱面</value></data>
   <data name="description" xml:space="preserve"><value>查找、下载 BMS 与 osu!mania 谱面，加入谱库后直接游玩。</value></data>
-  <data name="mode" xml:space="preserve"><value>玩法</value></data>
+  <data name="mode" xml:space="preserve"><value>模式</value></data>
   <data name="keys" xml:space="preserve"><value>键数</value></data>
   <data name="stars" xml:space="preserve"><value>星级</value></data>
   <data name="category" xml:space="preserve"><value>谱面状态</value></data>

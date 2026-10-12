@@ -86,11 +86,20 @@ namespace osu.Game.Tests.Visual.Overlays
             AddStep("open the unified toolbar entry", () => Game.Toolbar.ChildrenOfType<ToolbarBeatmapListingButton>().Single().Action!());
             AddUntilStep("first selected source alone finishes", () => Game.BmsDownloads.State.Value == Visibility.Visible
                 && !Game.BmsDownloads.ChildrenOfType<LoadingLayer>().Single().IsPresent);
-            AddAssert("source selector contains exactly the three approved services", () => Game.BmsDownloads.Header.ChildrenOfType<FilterTabItem<BeatmapBrowserSource>>()
-                .Select(tab => tab.Value).ToHashSet().SetEquals(new[] { BeatmapBrowserSource.Ginger, BeatmapBrowserSource.Alvorna, BeatmapBrowserSource.Sayobot })
+            AddAssert("mode precedes sources and BMS exposes only its two providers", () => Game.BmsDownloads.Header.ChildrenOfType<FilterTabItem<BeatmapBrowserMode>>()
+                .Select(tab => tab.Value).ToHashSet().SetEquals(new[] { BeatmapBrowserMode.Bms, BeatmapBrowserMode.Mania })
+                && Game.BmsDownloads.Header.ChildrenOfType<FilterTabItem<BeatmapBrowserSource>>()
+                .Select(tab => tab.Value).ToHashSet().SetEquals(new[] { BeatmapBrowserSource.Ginger, BeatmapBrowserSource.Alvorna })
+                && Game.BmsDownloads.Header.ChildrenOfType<BeatmapBrowserModeSelector>().Single().Current.Value == BeatmapBrowserMode.Bms
+                && Game.BmsDownloads.Header.ChildrenOfType<BeatmapBrowserModeSelector>().Single().ScreenSpaceDrawQuad.TopLeft.Y
+                    < Game.BmsDownloads.Header.ChildrenOfType<BeatmapBrowserSourceSelector>().Single().ScreenSpaceDrawQuad.TopLeft.Y
                 && Game.Toolbar.ChildrenOfType<ToolbarBeatmapListingButton>().Single().StateContainer == Game.BmsDownloads && omsRequests.IsEmpty);
-            AddStep("choose Sayobot from the shared source filter", () => click(sourceTab(Game.BmsDownloads.Header, BeatmapBrowserSource.Sayobot)));
+            AddStep("choose osu!mania through its mode filter", () => click(modeTab(Game.BmsDownloads.Header, BeatmapBrowserMode.Mania)));
             AddUntilStep("same entry shows mania cards", () => overlay.State.Value == Visibility.Visible && overlay.Cards.Count == 1);
+            AddAssert("mania exposes only Sayobot with the correct selected mode", () => header.ChildrenOfType<FilterTabItem<BeatmapBrowserSource>>()
+                .Select(tab => tab.Value).SequenceEqual(new[] { BeatmapBrowserSource.Sayobot })
+                && header.ChildrenOfType<BeatmapBrowserSourceSelector>().Single().Current.Value == BeatmapBrowserSource.Sayobot
+                && header.ChildrenOfType<BeatmapBrowserModeSelector>().Single().Current.Value == BeatmapBrowserMode.Mania);
             AddStep("set real mania search", () => header.Query.Value = "合并列表");
             AddStep("choose keys using compact options", () => click(header.ChildrenOfType<FilterTabItem<int>>().Single(tab => tab.Value == 4)));
             AddUntilStep("real key option selected", () => header.Keys.Value == 4);
@@ -111,15 +120,24 @@ namespace osu.Game.Tests.Visual.Overlays
             AddStep("return to normal display", () => Game.BeatmapBrowserCardSize.Value = BeatmapCardSize.Normal);
             AddUntilStep("normal body restored", () => overlay.Cards.Single().Height == BeatmapCardNormal.HEIGHT);
             AddAssert("display changes retain filters and do not read another source", () => metadata.SearchRequests == maniaSearches && omsRequests.All(path => path != "/api/ir/v2/charts"));
-            AddStep("choose 616 in the same source filter", () => click(sourceTab(header, BeatmapBrowserSource.Alvorna)));
+            AddStep("return to BMS through its mode filter", () => click(modeTab(header, BeatmapBrowserMode.Bms)));
+            AddUntilStep("BMS alone is visible again", () => Game.BmsDownloads.State.Value == Visibility.Visible && overlay.State.Value == Visibility.Hidden);
+            AddStep("choose 616 inside BMS", () => click(sourceTab(Game.BmsDownloads.Header, BeatmapBrowserSource.Alvorna)));
             AddUntilStep("616 is selected", () => Game.BmsDownloads.State.Value == Visibility.Visible && Game.BmsDownloads.Header.Source.Value == BmsDownloadSource.Konmai
                 && !Game.BmsDownloads.ChildrenOfType<LoadingLayer>().Single().IsPresent);
             AddAssert("source changes do not add page history", () => Game.OmsPages.HistoryDepth == 0 && metadata.SearchRequests == maniaSearches);
-            AddStep("return to cached Sayobot", () => click(sourceTab(Game.BmsDownloads.Header, BeatmapBrowserSource.Sayobot)));
+            AddStep("return to cached mania through its mode filter", () => click(modeTab(Game.BmsDownloads.Header, BeatmapBrowserMode.Mania)));
             AddUntilStep("same criteria and selected original restored", () => overlay.State.Value == Visibility.Visible && header.Query.Value == "合并列表"
                 && header.Keys.Value == 4 && header.Stars.Value == ManiaDownloadHeader.StarRange.TwoToThree && header.Category.Value == SayobotCategory.Ranked
                 && overlay.Cards.SingleOrDefault()?.Set.Beatmaps.SingleOrDefault()?.Id == another_bid);
             AddAssert("restoring read source performs no catalogue read", () => metadata.SearchRequests, () => Is.EqualTo(maniaSearches));
+            AddStep("return to remembered BMS provider", () => click(modeTab(header, BeatmapBrowserMode.Bms)));
+            AddUntilStep("BMS mode retains its previous 616 selection", () => Game.BmsDownloads.State.Value == Visibility.Visible
+                && Game.BmsDownloads.Header.Source.Value == BmsDownloadSource.Konmai
+                && Game.BmsDownloads.Header.ChildrenOfType<BeatmapBrowserSourceSelector>().Single().Current.Value == BeatmapBrowserSource.Alvorna);
+            AddStep("select mania for reopening check", () => click(modeTab(Game.BmsDownloads.Header, BeatmapBrowserMode.Mania)));
+            AddUntilStep("mania retains its exact previous criteria", () => overlay.State.Value == Visibility.Visible
+                && header.Keys.Value == 4 && overlay.Cards.SingleOrDefault()?.Set.Beatmaps.SingleOrDefault()?.Id == another_bid);
             AddStep("close and reopen from the same entrance", () => { Game.OmsPages.Back(); Game.Toolbar.ChildrenOfType<ToolbarBeatmapListingButton>().Single().Action!(); });
             AddUntilStep("last source and filters reopen", () => overlay.State.Value == Visibility.Visible && header.Query.Value == "合并列表" && header.Keys.Value == 4);
         }
@@ -164,6 +182,38 @@ namespace osu.Game.Tests.Visual.Overlays
             AddStep("capture wrapped filter layout if requested", () => screenshot = captureScreenshot("-filters"));
             AddUntilStep("filter screenshot completes", () => screenshot!.IsCompleted);
             AddStep("surface filter screenshot failure", () => screenshot!.GetAwaiter().GetResult());
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestWaitingForManiaMountHidesThePreviousModeSources(bool closeWhileWaiting)
+        {
+            AddStep("hold the real mania browser load", () => delayNextDownloadLoad = true);
+            CreateNewGame();
+            ConfirmAtMainMenu();
+            AddUntilStep("BMS ready while mania is held", () => downloadLoadStarted?.IsSet == true
+                && Game.OmsPages.IsLoaded && Game.BmsDownloads.IsLoaded && !overlay.IsLoaded);
+            AddStep("open BMS from the shared entrance", () => Game.Toolbar.ChildrenOfType<ToolbarBeatmapListingButton>().Single().Action!());
+            AddUntilStep("BMS source is visible", () => Game.BmsDownloads.State.Value == Visibility.Visible);
+            AddStep("choose actual mania mode while loading", () => click(modeTab(Game.BmsDownloads.Header, BeatmapBrowserMode.Mania)));
+            AddWaitStep("keep waiting for the chosen mode", 2);
+            AddAssert("previous mode sources are absent while mania waits", () => Game.BmsDownloads.State.Value == Visibility.Hidden
+                && !Game.BmsDownloads.IsPresent && !overlay.IsLoaded && metadata.Requests == 0
+                && Game.OmsPages.Route.Ruleset == "mania");
+            if (closeWhileWaiting)
+                AddStep("close the waiting browser using its actual toolbar", () => Game.Toolbar.ChildrenOfType<ToolbarBeatmapListingButton>().Single().Action!());
+            AddStep("allow mania to mount", () => allowDownloadLoad!.Set());
+            if (closeWhileWaiting)
+            {
+                AddUntilStep("cancelled target finishes mounting", () => overlay.IsLoaded);
+                AddWaitStep("allow stale readiness callbacks", 3);
+                AddAssert("closing while waiting prevents a late browser and any query", () => overlay.State.Value == Visibility.Hidden
+                    && Game.BmsDownloads.State.Value == Visibility.Hidden && metadata.Requests == 0);
+            }
+            else
+                AddUntilStep("chosen mode exposes only its own source", () => overlay.State.Value == Visibility.Visible && overlay.Cards.Count == 1
+                    && header.ChildrenOfType<FilterTabItem<BeatmapBrowserSource>>().Select(tab => tab.Value).SequenceEqual(new[] { BeatmapBrowserSource.Sayobot })
+                    && header.ChildrenOfType<BeatmapBrowserModeSelector>().Single().Current.Value == BeatmapBrowserMode.Mania);
         }
 
         [Test]
@@ -218,8 +268,8 @@ namespace osu.Game.Tests.Visual.Overlays
             AddUntilStep("library opens its real browser and query", () => Game.BeatmapBrowserSource.Value == (bms ? BeatmapBrowserSource.Ginger : BeatmapBrowserSource.Sayobot)
                 && (bms ? Game.BmsDownloads.State.Value : overlay.State.Value) == Visibility.Visible
                 && (bms ? Game.BmsDownloads.Header.Query.Value : header.Query.Value) == route.Query);
-            AddStep("switch through the actual browser tab", () => click(sourceTab(bms ? Game.BmsDownloads.Header : header,
-                bms ? BeatmapBrowserSource.Sayobot : BeatmapBrowserSource.Ginger)));
+            AddStep("switch through the actual browser mode", () => click(modeTab(bms ? Game.BmsDownloads.Header : header,
+                bms ? BeatmapBrowserMode.Mania : BeatmapBrowserMode.Bms)));
             AddUntilStep("other real browser retains the library back action", () => (bms ? overlay.State.Value : Game.BmsDownloads.State.Value) == Visibility.Visible
                 && (bms ? overlay.ReturnAction : Game.BmsDownloads.ReturnAction) != null);
             AddStep("close the new browser", () => { if (bms) overlay.Hide(); else Game.BmsDownloads.Hide(); });
@@ -256,8 +306,8 @@ namespace osu.Game.Tests.Visual.Overlays
                 .Single(button => button.Text.ToString() == (bms ? "查找 BMS 原包" : "按歌名查找 mania 原包")).TriggerClick());
             AddUntilStep("requested real browser suspends its source page", () => (bms ? Game.BmsDownloads.State.Value : overlay.State.Value) == Visibility.Visible
                 && nativeDetails.State.Value == Visibility.Hidden && (bms ? Game.BmsDownloads.Header.Query.Value : header.Query.Value) == (bms ? route.Md5 : native_chart_title));
-            AddStep("switch through the real browser mode tab", () => click(sourceTab(bms ? Game.BmsDownloads.Header : header,
-                bms ? BeatmapBrowserSource.Sayobot : BeatmapBrowserSource.Ginger)));
+            AddStep("switch through the real browser mode tab", () => click(modeTab(bms ? Game.BmsDownloads.Header : header,
+                bms ? BeatmapBrowserMode.Mania : BeatmapBrowserMode.Bms)));
             AddUntilStep("switched browser keeps the source return action", () => (bms ? overlay.State.Value : Game.BmsDownloads.State.Value) == Visibility.Visible
                 && (bms ? overlay.ReturnAction : Game.BmsDownloads.ReturnAction) != null && nativeDetails.State.Value == Visibility.Hidden);
             AddStep("close the switched browser", () => { if (bms) overlay.Hide(); else Game.BmsDownloads.Hide(); });
@@ -369,8 +419,12 @@ namespace osu.Game.Tests.Visual.Overlays
             {
                 Content = new ByteArrayContent(createPackage(int.Parse(request.RequestUri!.Segments.Last(), CultureInfo.InvariantCulture))),
             }));
-            bmsMetadata = new StubHandler((request, _) => Task.FromResult(json(request.RequestUri!.AbsolutePath.EndsWith("selectHeaderListWithFullInfo", StringComparison.Ordinal)
-                ? "[]" : "{\"page\":1,\"pageSize\":20,\"pageCount\":0,\"total\":0,\"data\":[]}")));
+            bmsMetadata = new StubHandler((request, _) => Task.FromResult(json(request.RequestUri!.Host == "bms.alvorna.com"
+                ? request.RequestUri.AbsolutePath.EndsWith("/tables", StringComparison.Ordinal)
+                    ? "{\"result\":\"success\",\"tables\":[]}"
+                    : "{\"result\":\"success\",\"page\":1,\"page_size\":20,\"total_pages\":0,\"total\":0,\"data\":[]}"
+                : request.RequestUri.AbsolutePath.EndsWith("selectHeaderListWithFullInfo", StringComparison.Ordinal)
+                    ? "[]" : "{\"page\":1,\"pageSize\":20,\"pageCount\":0,\"total\":0,\"data\":[]}")));
             covers = new StubHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound)));
             omsRequests.Clear();
             omsMetadata = new StubHandler(nativeResponse);
@@ -469,13 +523,13 @@ namespace osu.Game.Tests.Visual.Overlays
             AddStep("record BMS requests and click mania tab", () =>
             {
                 bmsRequests = bmsMetadata.Requests;
-                click(sourceTab(Game.BmsDownloads.Header, BeatmapBrowserSource.Sayobot));
+                click(modeTab(Game.BmsDownloads.Header, BeatmapBrowserMode.Mania));
             });
             AddUntilStep("mania catalogue loaded", () => overlay.State.Value == Visibility.Visible && overlay.Cards.Count == 1);
             AddAssert("mode switch hides BMS browser", () => Game.BmsDownloads.State.Value, () => Is.EqualTo(Visibility.Hidden));
             AddAssert("mania uses Sayobot on demand", () => metadata.SearchRequests, () => Is.EqualTo(1));
             AddAssert("mode switch does not query BMS again", () => bmsMetadata.Requests, () => Is.EqualTo(bmsRequests));
-            AddStep("click BMS tab", () => click(sourceTab(header, BeatmapBrowserSource.Ginger)));
+            AddStep("click BMS tab", () => click(modeTab(header, BeatmapBrowserMode.Bms)));
             AddUntilStep("BMS browser returns", () => Game.BmsDownloads.State.Value == Visibility.Visible && overlay.State.Value == Visibility.Hidden);
             AddAssert("switching back issues no mania request", () => metadata.SearchRequests, () => Is.EqualTo(1));
         }
@@ -517,12 +571,12 @@ namespace osu.Game.Tests.Visual.Overlays
                 request.Method == HttpMethod.Post && metadata.SearchRequests == 1 ? late.Task : catalogue(request, token));
             AddStep("open mania", showMania);
             AddUntilStep("mania search started", () => metadata.SearchRequests == 1);
-            AddStep("click BMS while mania is loading", () => click(sourceTab(header, BeatmapBrowserSource.Ginger)));
+            AddStep("click BMS while mania is loading", () => click(modeTab(header, BeatmapBrowserMode.Bms)));
             AddUntilStep("BMS takes over", () => Game.BmsDownloads.State.Value == Visibility.Visible && overlay.State.Value == Visibility.Hidden);
             AddStep("release old mania results", () => late.SetResult(list(0, set_id)));
             AddWaitStep("allow late response callback", 3);
             AddAssert("late results cannot repopulate hidden browser", () => overlay.Cards.Count, () => Is.Zero);
-            AddStep("reopen mania through tab", () => click(sourceTab(Game.BmsDownloads.Header, BeatmapBrowserSource.Sayobot)));
+            AddStep("reopen mania through tab", () => click(modeTab(Game.BmsDownloads.Header, BeatmapBrowserMode.Mania)));
             AddUntilStep("fresh mania results loaded", () => overlay.Cards.SingleOrDefault()?.Set.Id == set_id && overlay.State.Value == Visibility.Visible);
         }
 
@@ -908,6 +962,9 @@ namespace osu.Game.Tests.Visual.Overlays
 
         private static FilterTabItem<BeatmapBrowserSource> sourceTab(Drawable parent, BeatmapBrowserSource source) =>
             parent.ChildrenOfType<FilterTabItem<BeatmapBrowserSource>>().Single(tab => tab.Value == source);
+
+        private static FilterTabItem<BeatmapBrowserMode> modeTab(Drawable parent, BeatmapBrowserMode mode) =>
+            parent.ChildrenOfType<FilterTabItem<BeatmapBrowserMode>>().Single(tab => tab.Value == mode);
 
         private static BeatmapDownloadCardButton cardButton(ManiaDownloadCard card, string tooltip) =>
             card.ChildrenOfType<BeatmapDownloadCardButton>().Single(button => button.TooltipText.ToString() == tooltip);

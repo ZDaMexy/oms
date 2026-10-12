@@ -35,6 +35,7 @@ namespace osu.Game.Overlays.BeatmapListing
         protected virtual LocalisableString SearchPlaceholder => "搜索曲名、艺术家或谱面…";
 
         protected abstract IEnumerable<Drawable> CreateBrowserFilters();
+        protected abstract BeatmapBrowserMode BrowserMode { get; }
 
         protected virtual void CommitSearch() => Retry?.Invoke();
 
@@ -50,7 +51,8 @@ namespace osu.Game.Overlays.BeatmapListing
                 Padding = new MarginPadding { Horizontal = 10 },
                 Spacing = new Vector2(0, 5),
             };
-            filters.Add(new BeatmapBrowserSourceSelector());
+            filters.Add(new BeatmapBrowserModeSelector());
+            filters.Add(new BeatmapBrowserSourceSelector(BrowserMode));
             filters.AddRange(CreateBrowserFilters());
 
             return new FillFlowContainer

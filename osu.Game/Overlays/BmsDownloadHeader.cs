@@ -22,6 +22,7 @@ namespace osu.Game.Overlays
         public BmsDownloadTable? SelectedTable => tables.SelectedTable;
 
         protected override LocalisableString SearchPlaceholder => "搜索曲名、艺术家或原谱 MD5…";
+        protected override BeatmapBrowserMode BrowserMode => BeatmapBrowserMode.Bms;
 
         protected override IEnumerable<Drawable> CreateBrowserFilters() => new Drawable[]
         {
