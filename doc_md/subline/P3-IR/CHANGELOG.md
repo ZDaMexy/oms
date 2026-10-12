@@ -1,5 +1,25 @@
 # OMS IR 历史
 
+## 2026-10-12三来源与 lazer 布局闭环
+
+用户要求根据可实现能力对标 lazer 并规划至闭环，随后纠正仅接 Ginger Rush / 616 / Sayobot。源码 fff09a2431b9cbc80206bf0d83c69192963b5347 已撤出 OMS 目录来源 / UI / 客户端列表读取和重复玩法切换，保留具体原MD5详情 / 榜；落实紧凑实际筛选、普通345×80 / 大卡345×112、固定字号 / 窄窗、稳定包标题、独立匹配谱数 / 收录信息 / 任务状态、真实封面共用纹理与原生展开 / 悬停动作。完整合同取[P1-A](../P1-A/TECHNICAL_CONSTRAINTS.md#谱面列表展示与来源能力)。
+
+最终 Debug filter：
+
+```text
+FullyQualifiedName~TestSceneBmsDownload|FullyQualifiedName~TestSceneManiaDownload|FullyQualifiedName~TestSceneOmsNativeCharts|FullyQualifiedName~TestSceneOmsWebsiteWiring|FullyQualifiedName~OmsNativeServiceTests|FullyQualifiedName~SourceBoardsKeepAllEmptyMultipleAndComparableRequestsDistinct|FullyQualifiedName~TestSceneBeatmapCard&FullyQualifiedName!~TestPlayButtonByTouchInput&FullyQualifiedName!~TestThumbnailPreview
+```
+
+执行 dotnet test osu.Game.Tests/osu.Game.Tests.csproj -c Debug --no-build --no-restore --filter 上述文本，browser-regression-accepted.trx为244/244、0失败 / 跳过。137项聚焦与其重叠不相加。两项原生卡片失败身份 / 原消息 / 完整归一化堆栈与旧HEAD一致，native-card-failure-comparison.json保存比对，最终filter显式排除。末卡展开的重复网格初始化覆写、原目录等待残留、双Sprite纹理断言及新筛选请求等待均保留红绿证据。Desktop Debug / Release均0错误、各原CS8600 / CA2007；受改两工程 style / whitespace verify-no-changes通过。
+
+F盘独立 PortableInstallation宿主的26张实际PNG已逐图核普通 / 大卡、宽 / 窄、中文长名 / 多排 / 末卡 / 展开、无图 / 合成封面、下载 / 失败 / 重试 / 完成；非实站资料或真人签收。证据、渲染源码和准确修正取[新快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-beatmap-browser-lazer-snapshot-20261012.md)及F:/zdamexy-workspace/oms/artifacts/beatmap-browser-lazer-20261012。独立最终复审无阻断。客户端来源→Client Bridge事实→Dev Bridge共同采用→Web / Backend投影同步，只改 client-native-service-pages，旧社区 / 缓存来源和待复核数保持。没有服务重验、部署、发行包或真人 / 原包 / 整曲 / P-C提升。
+
+文档与收尾：CheckDocumentation通过202 Markdown / 2188相对链接 / 418锚点 / 123 memory链，未增加预算告警，原公开checksum / 通用路径提示保留；workspace校验通过172文档 / 1787链接 / 19来源 / 33事实 / 11待复核。独立核对确认其它32事实 / 87消费者 / 原18来源保真，最后一个旧BeatmapListingOverlay容器称谓已改为实际header与两下载覆盖层。未重跑服务器或未变产品门。
+
+跨仓仅选择暂存本轮增量：Client Bridge f7df985、Dev Bridge 1033ca4、Backend d308c51、OMS Web 961e6985ab；三共享文档从HEAD只加入本轮事实采用，既有重写的完整工作区字节与其它未提交差异保留。工作区仍以当前文档验收，不把旧未提交部分归属本轮。客户端实现提交为fff09a2，本轮不推送。
+
+临时宿主源码及26图、日志已保全于artifacts证据根。包含文档提交与删除F:/zdamexy-workspace/oms/.dev-cache/temp/browser-lazer-render-host的合并收尾命令被自动审批拒绝，仅返回“blocked by policy”，无具体原因；该命令未执行。随后只完成安全的独立文档提交，未重试删除或绕过拦截，临时目录保留为未完成清理。收据为owned-staging-receipt.json、projection-semantic-staging.json、document-commits.json与probe-cleanup.json。
+
 ## 2026-10-12证据导航与诊断记忆接续
 
 计划中的网络优化回到带日期的 10 月 11 日记录，M1 / M4 与 OpenR4 回到[多来源状态](DEVELOPMENT_STATUS.md#多来源扩展状态)，避免有效的“最近一次验证”锚点在改成统一浏览软件后仍被当成旧专项证据。查询合同明确 OMS 是同一谱面列表内的目录来源；既有治理记忆只补该语义漂移诊断并同步索引。

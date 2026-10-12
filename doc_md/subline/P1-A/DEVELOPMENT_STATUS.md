@@ -9,7 +9,7 @@
 
 ## 当前产品能力与剩余门
 
-现行客户端只有一个谱面列表入口，OMS已收录成绩目录、Ginger Rush / 616 BMS与Sayobot mania作为页内来源；原生共用搜索 / 筛选 / 显示方式，后台下载、原包入库、指定难度打开保持。2026-10-12本次布局 / 切源 / 返回软件取[P3-IR状态](../P3-IR/DEVELOPMENT_STATUS.md#最近一次验证)，不刷新实际两源小包、素材窗口和旧下载网络日期；这些仍取[下载闭环](../../other/BMS_DOWNLOAD_20261001.md)、[三级筛选](../../other/BMS_DOWNLOAD_FILTERS_20261001.md)和[视觉复用](../../other/BMS_DOWNLOAD_VISUAL_20261001.md)。
+谱面列表只接 Ginger Rush / 616 BMS与Sayobot mania；OMS不作目录来源，原MD5详情与榜保留。紧凑筛选、普通 / 大卡及固定字体取[展示合同](TECHNICAL_CONSTRAINTS.md#谱面列表展示与来源能力)，后台下载 / 精确打开保持。2026-10-12软件与隔离桌面渲染取[P3-IR](../P3-IR/DEVELOPMENT_STATUS.md#最近一次验证)，不刷新实站原包、素材与旧网络日期；原证据仍取[下载闭环](../../other/BMS_DOWNLOAD_20261001.md)、[三级筛选](../../other/BMS_DOWNLOAD_FILTERS_20261001.md)和[视觉记录](../../other/BMS_DOWNLOAD_VISUAL_20261001.md)。
 
 | 产品面 | 当前可用结果 | 必须保持的边界与未完成项 |
 | --- | --- | --- |

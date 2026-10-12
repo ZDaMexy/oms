@@ -2,7 +2,7 @@
 
 ## 原生在线服务
 
-2026-10-12 现行谱面目录与下载已合为一个「谱面列表」入口，OMS / Ginger Rush / 616 / Sayobot 在页内切换，共用原生搜索、实际筛选与卡片显示。各来源保留条件和阅读位置，详情、榜与下载返回原页，慢读取及迟到挂载按当前导航归属处理。只请求当前来源，无启动预抓或新增轮询；后台下载与准确入库 / 打开沿原管理器。当前源码与软件取[统一浏览来源](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-unified-beatmap-browser-snapshot-20261012.md)，剩余实际体验取[接续计划](CLIENT_NATIVE_SERVICES_PLAN.md)。
+2026-10-12 现行「谱面列表」只含 Ginger Rush / 616 / Sayobot 三个批准来源，撤出此前错误混入的 OMS 目录来源 / UI / 列表读取，具体原 MD5 详情与榜保留。按实际字段对标 lazer 的紧凑筛选、普通 / 大卡和悬停 / 展开；稳定标题、匹配谱数及真实收录 / 难度信息独立于下载状态，固定字体 / 窄窗换行。来源条件 / 阅读位置、慢恢复、当前路由与后台准确入库打开保持；没有启动预抓或新轮询。当前源码、软件和隔离桌面渲染取[三来源快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-beatmap-browser-lazer-snapshot-20261012.md)，剩余真人体验取[接续计划](CLIENT_NATIVE_SERVICES_PLAN.md)。
 
 新闻、帮助、排行、玩家、真实 MD5 详情与账号沿原生页面；社区继续已有列表 / 正文 / 回复与作者操作。旧统一服务面板已被用户否定并删除，聊天、好友和在线状态后续。Web / Backend 复用已部署接口，客户端页面纠正未改变服务代码或重新部署。
 
@@ -16,7 +16,7 @@
 
 | 范围 | 已绑定来源 |
 | --- | --- |
-| 单一谱面列表与来源恢复 | 2026-10-12 源码 589a9624e5605cd872a82bdaab10962c64aec471，[统一浏览快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-unified-beatmap-browser-snapshot-20261012.md) |
+| 三个批准源 / 原生卡片 / 来源恢复 | 2026-10-12 源码 fff09a2431b9cbc80206bf0d83c69192963b5347，[三来源与 lazer 布局快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-beatmap-browser-lazer-snapshot-20261012.md) |
 | 其余原生页面、社区归属与内容缓存 | 2026-10-12 源码 6381e120aea1ff63dfdd34ff0e9fe38ac05f1528，[原生页面纠正快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-client-native-pages-snapshot-20261012.md) |
 | 原账号统一等待、持久期限、手动账号复核与 JSON 压缩 | 2026-10-11 源码 f3b8a439f0354c2f9b20e8fc2a0ccd467db3dea0，[网络快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-ir-network-snapshot-20261011.md) |
 | 固定 OMSIR、直接登录与官方凭据 / 待交隔离 | 2026-10-10 源码 21daf78ddc97c4b801dc5fe5fd92dda48df95525，[账号快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-ir-account-login-snapshot-20261010.md) |
@@ -42,7 +42,7 @@ D01～D09 修订 3 已采纳，OMS M1 / M4 的实际保存 Mod 投射、来源�
 
 ## 最近一次验证
 
-2026-10-12 Debug 导航 / 下载 / OMS目录与原生服务130项合计226/226；随后仅卡片尾部留白与显示控件回归更新，最终布局 / 下载 / 接线96/96，均0失败、0跳过，两轮有重叠不相加。Desktop.slnf Release / Debug均0错误、各2条原BMS.Tests告警；受改两项目格式和verify-no-changes通过。 准确命令、失败修正与原件取[本次快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-unified-beatmap-browser-snapshot-20261012.md#软件与失败修正)。旧315仅属[此前原生页面纠正来源](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-client-native-pages-snapshot-20261012.md)，不计为本轮重跑或真人签收。真实账号 / 原包 / 整曲、设备与发行门保持。
+2026-10-12 当前相关回归244/244，0失败 / 跳过；含三来源、实际筛选 / 路由 / 恢复、下载 / 精确打开与原生卡片相关行为。Desktop Debug / Release均0错误，各2条原BMS.Tests告警；受改项目格式 verify-no-changes通过。26张隔离桌面截图已逐图核对宽 / 窄、普通 / 大卡、中文长名 / 末卡展开、无图 / 合成封面及下载 / 失败 / 重试 / 完成。另两项原生卡片扩测失败的身份 / 消息 / 堆栈与原HEAD基线一致，最终filter显式排除，不称全套全绿。准确命令、修正和原件取[本次快照](../../../../oms-server/oms_client_bridge_md/doc_md/other/oms-beatmap-browser-lazer-snapshot-20261012.md#软件与渲染证据)与[本线历史](CHANGELOG.md#2026-10-12三来源与-lazer-布局闭环)；旧软件 / 生产保留各自日期，真实账号 / 原包 / 整曲、设备与发行未签收。
 
 ## 文档治理验证
 
