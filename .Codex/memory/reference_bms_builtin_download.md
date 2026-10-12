@@ -16,13 +16,15 @@ metadata:
 - 全屏 Loading 层只用于清空结果的初次查询。追加页保留卡片操作，只禁用加载更多；单测在下一页回应挂起时点击实际下载按钮，避免已有结果仍被等待层吞掉输入。
 - `OsuGameTestScene` 的步骤执行时才创建新 Game。`AddStep(..., overlay.Show)` 会在构造步骤时捕获上一实例；使用 `() => overlay.Show()`，否则看似依赖注入错误，实际访问旧 overlay。
 - 旧 Toolbar 在 Children 后用 Concat 追加下载按钮，曾把入口放到通知右侧；诊断应核实际子节点顺序及坐标。当前只核唯一谱面列表按钮在音乐、时钟、通知之前，不据旧修复再次新增下载入口。
-- 原卡片 BeatmapCardContent 的展开区超出主卡；外层 masking、后续卡片或末排空间不足会裁切难度并吞点击。历史整卡缩放实现已退役；当前固定字体 / 原生宽度，展开留白取原容器高度。切换大卡不能只改外层 Height：正文高度与 dropdown 起点须一起更新，否则下半卡被裁切、展开区从普通卡底开始。用跨行 / 末卡真实坐标核输入，行为回链[P1-A 合同](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#谱面列表展示与来源能力)。BeatmapCardIconButton 加载时强制 RelativeSizeAxes=Both，需固定尺寸动作槽；复用外观不能伪造 APIBeatmapSet 或加载官网纹理。
+- BeatmapCardContent展开区超出主卡，父级masking / 后续卡片 / 末排空间会裁切并吞输入；大卡外层Height、BodyHeight和dropdown起点须同步。BMS末卡复现还来自两个overlay的initializer重设Margin，只保留Bottom而抹掉共享网格Top=15默认值；Update仅计算横向Padding。保留共同边距，并用跨行 / 末卡真实坐标核输入。BeatmapCardIconButton加载强制RelativeSizeAxes=Both，需固定动作槽；显示行为取[P1-A合同](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#谱面列表展示与来源能力)。
 - OsuAnimatedButton构造器在Content放入hover层，子类再用Children赋值会清除并dispose它；追加难度行用AddRange保留。图标Action不是设置式Button的同一个启用合同，从不支持难度切到local/活动任务时必须恢复Enabled=true，避免Open/Cancel继承禁用。
 - 两种玩法共用封面读取与owner；慢图筛选重建、同URL未完成查询、单卡取消和退出清理的独有诊断见[共享封面记忆](reference_mania_sayobot_download.md#共享封面读取与退出)，不在两份叶子复制。
 - BasicSearchTextBox继承SearchTextBox的AllowCommit=false；只订阅OnCommit不会触发回车重试。拥有提交动作的子类显式开启AllowCommit，保留原IME处理。ShowMoreButton的文字在加载时才创建，设置Text要等LoadComplete；其点击会开启IsLoading，查询成功/失败须主动结束。
 - 真鼠标Click可在下一次update才触发下载动作，同一探针step立即捕获GetTask可能得到旧null；等待任务实际登记再读取，不把探针捕获时序错误当成按钮失效。桌面两源以源页签、表/等级菜单和动作的真实鼠标输入核对。
 
-- 模式控件不能直接 BindTo 三来源：隐藏 mania / BMS header 会把不属本模式的值写回。模式投影全局来源，来源行只同步所属模式；基类构造器会虚调用 CreateFilter，固定模式 item 集合须在派生构造体中收窄。等待另一个 overlay 挂载时仅晚回调 Hide 会残留旧模式来源；立即隐藏后还要保留当前导航回调用于快速改选，并把有效等待视作列表已打开，使再次点击入口能关闭。核真实控件 held mount / 关闭及迟到零查询，合同取[P3-IR](../../doc_md/subline/P3-IR/TECHNICAL_CONSTRAINTS.md#原生在线服务边界2026-10-12)。
+- 固定模式的来源控件若无条件BindTo全局来源，隐藏header会同步不属本模式的值，晚挂载还可能反写当前来源。来源行只同步所属模式，模式控件从全局来源投影；基类构造器虚调用CreateFilter，所属来源item集合要在派生构造体中收窄。
+
+- 仅在晚挂载回调隐藏旧overlay会残留旧模式来源；提前隐藏后，改选须保留有效导航回调，并把等待视作列表已打开，使再次点击入口能关闭。用held mount / 真实关闭与迟到零查询核对，行为取[P3-IR合同](../../doc_md/subline/P3-IR/TECHNICAL_CONSTRAINTS.md#原生在线服务边界2026-10-12)。
 
 ## 完整表等级与包身份
 
@@ -49,7 +51,7 @@ metadata:
 
 ## 失败反馈与任务收尾
 
-- 表目录与选中表资料是两次独立读取；目录503后并无选中表，Header.Retry仅读等级/歌曲无法恢复目录。实际鼠标/Enter需核对目录请求、恢复选项、迟到回应及独立提示；歌曲成功不能清掉目录故障。新增错误文案仍用单行组件时，须检查已支持窄窗口的实际文字宽度，不把中文或英文长提示截在内容区外。
+- 表目录与选中表资料是两次独立读取；目录503后并无选中表，Header.Retry仅读等级/歌曲无法恢复目录。实际鼠标/Enter需核对目录请求、恢复选项、迟到回应及独立提示；歌曲成功不能清掉目录故障。新增错误文案仍用单行组件时，须在受控内容区宽度下检查文字边界，不把中文或英文长提示截在内容区外。
 - BMS与Sayobot已处理失败都沿Network/默认Verbose保留完整异常，由页面/本地化任务通知承接。仅把Logger.Error的target改Network仍会转发英文系统诊断；Debug默认可能不留日志。用真实游戏转发器核对本来源无双提示并正向核对完整LogEntry，不能把其它迟到诊断算作下载重复提示。
 - `InvalidDataException` 直接继承 SystemException，不属于 IOException；坏 JSON/归档的可恢复失败必须明确列入对应边界，否则任务/UI 异步方法会异常退出而没有失败状态。
 - 在任务集合锁内登记 Completion，终态在释放流、独占暂存和队列资源后发布；退出先 cancel + join，再释放 Realm。否则可能漏等任务或让重试替换仍在收尾的所有者。

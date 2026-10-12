@@ -21,6 +21,8 @@ metadata:
 - 临时目录日志会被清理；复核时分别标明可回读TRX、历史执行记录和新运行证据。比较既有失败需逐项核对名称、错误与堆栈，不能仅靠失败总数。
 - 先前 relevant 范围未覆盖的方法，不能只凭修改日期认定旧失败。`TestRegisterExternalDirectoryWithOnlyNonManiaBeatmapsReturnsNull` 的旧 null 预期与 InvalidDataException 合同冲突，2026-09-30 full 发现后，以恢复原生产 HEAD 并重新编译的具名单项确认基线，再逐字节恢复优化；过程见上述性能记录。该旧名称已退休，现行回归为 `ManiaImportIntegrationTest.TestRegisterExternalDirectoryWithOnlyNonManiaBeatmapsReportsFailure`，验证明确失败、零记录及源文件保全，来源见 [P1-H 验证](../../doc_md/subline/P1-H/DEVELOPMENT_STATUS.md#最近一次验证)。复制旧过滤器无匹配不能算通过。
 
+- 隔离DesktopGameHost / ExactVisualTestGame的PNG属于测试资料渲染；设置overlay.RelativeSizeAxes / Width只改变覆盖层内容区，不改变宿主窗口 / DPI。先核尺寸作用对象，不能由“narrow”文件名或实际像素截图推定玩家缩窗和设计已验。正常OMS窗口的lazer体验仍须实际使用反馈，具名误称与范围见[来源勘误](../../../oms-server/oms_client_bridge_md/doc_md/other/oms-beatmap-browser-mode-snapshot-20261012.md#证据范围勘误)。
+
 ## formatter 与并发误判
 
 - 本机 `dotnet format --include` 传绝对路径曾成功退出但 report 为 0，漏掉实际 `ENDOFLINE`；从仓库根传 `git diff/ls-files` 的相对路径后才真正命中。检查 report 与已知改动，不以退出码单独证明 include 范围已执行。

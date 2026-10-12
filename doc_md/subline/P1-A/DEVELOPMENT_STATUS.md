@@ -9,7 +9,7 @@
 
 ## 当前产品能力与剩余门
 
-谱面列表先选模式：BMS仅Ginger Rush / 616，osu!mania仅Sayobot，切回BMS恢复上次来源。展示取[合同](TECHNICAL_CONSTRAINTS.md#谱面列表展示与来源能力)，2026-10-12模式软件 / 隔离渲染取[P3-IR](../P3-IR/DEVELOPMENT_STATUS.md#最近一次验证)。后台下载 / 精确打开、实站原包与旧网络日期保持，旧证据取[下载闭环](../../other/BMS_DOWNLOAD_20261001.md)、[三级筛选](../../other/BMS_DOWNLOAD_FILTERS_20261001.md)和[视觉记录](../../other/BMS_DOWNLOAD_VISUAL_20261001.md)。
+谱面列表按[展示合同](TECHNICAL_CONSTRAINTS.md#谱面列表展示与来源能力)先选模式，再显示所属来源，保留BMS上次来源。2026-10-12软件 / 隔离内容宽度证据取[P3-IR](../P3-IR/DEVELOPMENT_STATUS.md#最近一次验证)，正常OMS窗口的lazer体验待签收。后台下载 / 精确打开与旧实站日期保持，原证据取[下载闭环](../../other/BMS_DOWNLOAD_20261001.md)、[三级筛选](../../other/BMS_DOWNLOAD_FILTERS_20261001.md)和[视觉记录](../../other/BMS_DOWNLOAD_VISUAL_20261001.md)。
 
 | 产品面 | 当前可用结果 | 必须保持的边界与未完成项 |
 | --- | --- | --- |
