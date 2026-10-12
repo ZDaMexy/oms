@@ -16,7 +16,7 @@ metadata:
 - 全屏 Loading 层只用于清空结果的初次查询。追加页保留卡片操作，只禁用加载更多；单测在下一页回应挂起时点击实际下载按钮，避免已有结果仍被等待层吞掉输入。
 - `OsuGameTestScene` 的步骤执行时才创建新 Game。`AddStep(..., overlay.Show)` 会在构造步骤时捕获上一实例；使用 `() => overlay.Show()`，否则看似依赖注入错误，实际访问旧 overlay。
 - 旧 Toolbar 在 Children 后用 Concat 追加下载按钮，曾把入口放到通知右侧；诊断应核实际子节点顺序及坐标。当前只核唯一谱面列表按钮在音乐、时钟、通知之前，不据旧修复再次新增下载入口。
-- 原卡片 BeatmapCardContent 的展开区超出主卡；外层 masking、后续卡片或末排空间不足会裁切难度并吞点击。共享网格按实际卡片缩放预留展开空间，不能沿旧固定 220px 值；用跨行 / 末卡展开的真实坐标核输入，当前行为回链[P1-A 合同](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载)。BeatmapCardIconButton 加载时强制 RelativeSizeAxes=Both，需固定尺寸动作槽；复用外观不能伪造 APIBeatmapSet 或加载官网纹理。
+- 原卡片 BeatmapCardContent 的展开区超出主卡；外层 masking、后续卡片或末排空间不足会裁切难度并吞点击。历史整卡缩放实现已退役；当前固定字体 / 原生宽度，展开留白取原容器高度。切换大卡不能只改外层 Height：正文高度与 dropdown 起点须一起更新，否则下半卡被裁切、展开区从普通卡底开始。用跨行 / 末卡真实坐标核输入，行为回链[P1-A 合同](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#谱面列表展示与来源能力)。BeatmapCardIconButton 加载时强制 RelativeSizeAxes=Both，需固定尺寸动作槽；复用外观不能伪造 APIBeatmapSet 或加载官网纹理。
 - OsuAnimatedButton构造器在Content放入hover层，子类再用Children赋值会清除并dispose它；追加难度行用AddRange保留。图标Action不是设置式Button的同一个启用合同，从不支持难度切到local/活动任务时必须恢复Enabled=true，避免Open/Cancel继承禁用。
 - 两种玩法共用封面读取与owner；慢图筛选重建、同URL未完成查询、单卡取消和退出清理的独有诊断见[共享封面记忆](reference_mania_sayobot_download.md#共享封面读取与退出)，不在两份叶子复制。
 - BasicSearchTextBox继承SearchTextBox的AllowCommit=false；只订阅OnCommit不会触发回车重试。拥有提交动作的子类显式开启AllowCommit，保留原IME处理。ShowMoreButton的文字在加载时才创建，设置Text要等LoadComplete；其点击会开启IsLoading，查询成功/失败须主动结束。

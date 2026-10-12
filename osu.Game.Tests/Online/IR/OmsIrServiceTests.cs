@@ -918,11 +918,8 @@ namespace osu.Game.Tests.Online.IR
         public async Task SourceBoardsKeepAllEmptyMultipleAndComparableRequestsDistinct()
         {
             var requests = new ConcurrentQueue<(string Path, string? Bearer)>();
-            string? escapedSearch = null;
             using var http = new HttpClient(new Handler((request, _) =>
             {
-                if (request.RequestUri!.AbsolutePath == "/api/ir/v2/charts")
-                    escapedSearch = request.RequestUri.Query;
                 requests.Enqueue((Uri.UnescapeDataString(request.RequestUri!.PathAndQuery), request.Headers.Authorization?.Parameter));
                 return Task.FromResult(request.RequestUri.AbsolutePath.EndsWith("/auth/login", StringComparison.Ordinal)
                     ? json(loginResponse(1)) : json(new JObject { ["items"] = new JArray(), ["total"] = 0 }));
@@ -930,7 +927,6 @@ namespace osu.Game.Tests.Online.IR
             using var service = new OmsIrService(storage, http, credentials);
             string md5 = new string('a', 32);
             await service.GetSourcesAsync();
-            await service.GetSourceChartsAsync("中文谱名&作者");
             await service.GetSourceChartAsync(md5);
             await service.GetSourceChartScoresAsync(md5);
             await service.GetSourceChartScoresAsync(md5, Array.Empty<string>());
@@ -942,16 +938,14 @@ namespace osu.Game.Tests.Online.IR
             Assert.Multiple(() =>
             {
                 Assert.That(reads[0].Path, Is.EqualTo("/api/ir/v2/sources"));
-                Assert.That(reads[1].Path, Does.Contain("q=中文谱名&作者"));
-                Assert.That(escapedSearch, Does.Contain("%26"));
-                Assert.That(reads[2].Path, Is.EqualTo("/api/ir/v2/charts/" + md5));
-                Assert.That(reads[3].Path, Does.Not.Contain("sources="));
-                Assert.That(reads[4].Path, Does.EndWith("&sources="));
-                Assert.That(reads[5].Path, Does.EndWith("&sources=oms,lr2ir.v3.lr2"));
-                Assert.That(reads[6].Path, Does.Contain("mode=comparable&page=2"));
-                Assert.That(reads[6].Path, Does.EndWith("&condition=" + condition));
-                Assert.That(reads.Take(6).All(request => request.Bearer == null), Is.True);
-                Assert.That(reads[6].Bearer, Is.EqualTo(accessFor(1)));
+                Assert.That(reads[1].Path, Is.EqualTo("/api/ir/v2/charts/" + md5));
+                Assert.That(reads[2].Path, Does.Not.Contain("sources="));
+                Assert.That(reads[3].Path, Does.EndWith("&sources="));
+                Assert.That(reads[4].Path, Does.EndWith("&sources=oms,lr2ir.v3.lr2"));
+                Assert.That(reads[5].Path, Does.Contain("mode=comparable&page=2"));
+                Assert.That(reads[5].Path, Does.EndWith("&condition=" + condition));
+                Assert.That(reads.Take(5).All(request => request.Bearer == null), Is.True);
+                Assert.That(reads[5].Bearer, Is.EqualTo(accessFor(1)));
             });
         }
 

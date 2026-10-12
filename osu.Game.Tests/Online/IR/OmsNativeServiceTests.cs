@@ -49,7 +49,6 @@ namespace osu.Game.Tests.Online.IR
         [TestCase("/news", OmsPageKind.News)]
         [TestCase("/news/oms-ir_trial-1", OmsPageKind.Article)]
         [TestCase("/help#ir", OmsPageKind.Help)]
-        [TestCase("/ir", OmsPageKind.Charts)]
         [TestCase("/beatmapsets", OmsPageKind.Library)]
         [TestCase("/account", OmsPageKind.Account)]
         public void ParsesNativePagesFromRelativeAndOfficialWebsiteLinks(string path, OmsPageKind kind)
@@ -86,8 +85,30 @@ namespace osu.Game.Tests.Online.IR
         [TestCase("/rankings?page=1&page=2")]
         [TestCase("/rankings?%70age=1&page=2")]
         [TestCase("/beatmaps?md5=not-a-chart")]
+        [TestCase("/ir")]
+        [TestCase("/ir?md5=")]
+        [TestCase("/ir?md5=not-a-chart")]
+        [TestCase("/ir?md5=0123456789abcdef0123456789abcdef&mode=invalid")]
         public void LeavesExternalAndInvalidNativeLinksToTheCaller(string url) =>
             Assert.That(OmsPageRoute.TryParse(origin, url, out _), Is.False);
+
+        [TestCase("reference")]
+        [TestCase("comparable")]
+        public void IrLinksOpenOnlyTheExactOriginalChartAndRetainItsBoardScope(string mode)
+        {
+            string path = $"/ir?md5={chart_md5.ToUpperInvariant()}&ruleset=bms&mode={mode}&condition=known-condition&sources=table-b,table-a&page=4";
+            foreach (string link in new[] { path, new Uri(new Uri(origin), path).AbsoluteUri })
+            {
+                Assert.That(OmsPageRoute.TryParse(origin, link, out OmsPageRoute route), Is.True);
+                Assert.That(route.Kind, Is.EqualTo(OmsPageKind.Chart));
+                Assert.That(route.Md5, Is.EqualTo(chart_md5));
+                Assert.That(route.Ruleset, Is.EqualTo("bms"));
+                Assert.That(route.Mode, Is.EqualTo(mode));
+                Assert.That(route.Condition, Is.EqualTo("known-condition"));
+                Assert.That(route.Sources, Is.EqualTo("table-b,table-a"));
+                Assert.That(route.Page, Is.EqualTo(4));
+            }
+        }
 
         [Test]
         public void RejectsOversizedNavigationInput() =>
@@ -125,7 +146,6 @@ namespace osu.Game.Tests.Online.IR
         }
 
         [TestCase(OmsPageKind.Community)]
-        [TestCase(OmsPageKind.Charts)]
         [TestCase(OmsPageKind.Library)]
         public void SearchShareLinksRetainLiteralQueryTextAndPagination(OmsPageKind kind)
         {

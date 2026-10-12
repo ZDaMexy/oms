@@ -296,14 +296,6 @@ namespace osu.Game.Online.IR
         public Task<JObject> GetSourcesAsync(CancellationToken cancellationToken = default) => withNetworkAsync(token =>
             sendAsync(requireOrigin(), HttpMethod.Get, "sources", null, null, token, "v2"), cancellationToken);
 
-        public Task<JObject> GetSourceChartsAsync(string query = "", int page = 1, CancellationToken cancellationToken = default)
-        {
-            if (query.Length > 200)
-                throw new OmsIrException("invalid_search", "请将谱名、作者或原谱 MD5 限制在 200 字以内。");
-            return withNetworkAsync(token => sendAsync(requireOrigin(), HttpMethod.Get,
-                "charts?q=" + Uri.EscapeDataString(query) + "&page=" + validPage(page) + "&limit=20", null, null, token, "v2"), cancellationToken);
-        }
-
         public Task<JObject> GetSourceChartAsync(string md5, CancellationToken cancellationToken = default)
         {
             validateChartMd5(md5);

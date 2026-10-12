@@ -1,4 +1,4 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 #nullable disable
@@ -10,18 +10,18 @@ using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Extensions.IEnumerableExtensions;
-using osu.Framework.Localisation;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.Input.Events;
+using osu.Framework.Localisation;
 using osu.Game.Audio;
 using osu.Game.Beatmaps.Drawables.Cards;
 using osu.Game.Graphics;
-using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.Containers;
+using osu.Game.Graphics.Sprites;
 using osu.Game.Online.API;
 using osu.Game.Online.API.Requests.Responses;
 using osu.Game.Overlays.BeatmapListing;
@@ -31,9 +31,9 @@ using osuTK.Graphics;
 
 namespace osu.Game.Overlays
 {
-    public partial class BeatmapListingOverlay(bool useOmsService = false) : OnlineOverlay<BeatmapListingHeader>(OverlayColourScheme.Blue, !useOmsService), IOmsPageOverlay
+    public partial class BeatmapListingOverlay : OnlineOverlay<BeatmapListingHeader>
     {
-        private readonly bool omsOnly = useOmsService;
+        public BeatmapListingOverlay() : base(OverlayColourScheme.Blue) { }
 
         [Resolved]
         private PreviewTrackManager previewTrackManager { get; set; }
@@ -51,12 +51,6 @@ namespace osu.Game.Overlays
         [BackgroundDependencyLoader]
         private void load()
         {
-            if (omsOnly)
-            {
-                initialiseOmsContent();
-                return;
-            }
-
             Child = new FillFlowContainer
             {
                 RelativeSizeAxes = Axes.X,
@@ -95,8 +89,6 @@ namespace osu.Game.Overlays
         protected override void LoadComplete()
         {
             base.LoadComplete();
-            if (omsOnly)
-                return;
 
             filterControl.CardSize.BindValueChanged(_ => onCardSizeChanged());
 
@@ -110,12 +102,6 @@ namespace osu.Game.Overlays
 
         public void ShowWithSearch(string query)
         {
-            if (omsOnly)
-            {
-                ShowOmsPage(new osu.Game.Online.IR.OmsPageRoute { Kind = osu.Game.Online.IR.OmsPageKind.Charts, Query = query });
-                return;
-            }
-
             filterControl.Search(query);
             Show();
             ScrollFlow.ScrollToStart();
@@ -123,23 +109,17 @@ namespace osu.Game.Overlays
 
         public void ShowWithGenreFilter(SearchGenre genre)
         {
-            if (omsOnly)
-                throw new System.InvalidOperationException("OMS recorded charts do not expose a genre filter.");
-
             ShowWithSearch(string.Empty);
             filterControl.FilterGenre(genre);
         }
 
         public void ShowWithLanguageFilter(SearchLanguage language)
         {
-            if (omsOnly)
-                throw new System.InvalidOperationException("OMS recorded charts do not expose a language filter.");
-
             ShowWithSearch(string.Empty);
             filterControl.FilterLanguage(language);
         }
 
-        protected override BeatmapListingHeader CreateHeader() => omsOnly ? new OmsBeatmapListingHeader() : new BeatmapListingHeader();
+        protected override BeatmapListingHeader CreateHeader() => new BeatmapListingHeader();
 
         protected override Color4 BackgroundColour => ColourProvider.Background6;
 
@@ -152,12 +132,6 @@ namespace osu.Game.Overlays
         protected override void OnFocus(FocusEvent e)
         {
             base.OnFocus(e);
-
-            if (omsOnly)
-            {
-                ((OmsBeatmapListingHeader)Header).FocusSearch();
-                return;
-            }
 
             filterControl.TakeFocus();
         }
@@ -277,7 +251,6 @@ namespace osu.Game.Overlays
 
         protected override void Dispose(bool isDisposing)
         {
-            omsContent?.CancelOperation();
             cancellationToken?.Cancel();
             base.Dispose(isDisposing);
         }
@@ -391,12 +364,6 @@ namespace osu.Game.Overlays
         protected override void Update()
         {
             base.Update();
-            if (omsOnly)
-            {
-                updateOmsLoading();
-                return;
-            }
-
 
             const int pagination_scroll_distance = 500;
 

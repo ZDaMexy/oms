@@ -8,7 +8,7 @@ using osu.Game.Online.Sayobot;
 
 namespace osu.Game.Online.IR
 {
-    public enum OmsPageKind { Home, Rankings, Profile, Charts, Chart, Board, Library, Account, Community, Topic, News, Article, Help }
+    public enum OmsPageKind { Home, Rankings, Profile, Chart, Board, Library, Account, Community, Topic, News, Article, Help }
 
     /// <summary>OMS identities and the selected public scope, independent of ppy online IDs.</summary>
     public sealed record OmsPageRoute
@@ -50,7 +50,6 @@ namespace osu.Game.Online.IR
             {
                 OmsPageKind.Profile => "users/" + UserId.ToString(CultureInfo.InvariantCulture),
                 OmsPageKind.Rankings => "rankings",
-                OmsPageKind.Charts => "ir",
                 OmsPageKind.Library => "beatmapsets",
                 OmsPageKind.Account => "account",
                 OmsPageKind.Community => "community",
@@ -67,7 +66,7 @@ namespace osu.Game.Online.IR
             if (Kind == OmsPageKind.Rankings && ScopePage != 1) values.Add(("scope_page", ScopePage.ToString(CultureInfo.InvariantCulture)));
             if (Kind == OmsPageKind.Community)
                 values.AddRange(new[] { ("category", Category), ("q", Query.Length == 0 ? null : Query) });
-            if (Kind is OmsPageKind.Charts or OmsPageKind.Library)
+            if (Kind == OmsPageKind.Library)
                 values.AddRange(new[] { ("ruleset", (string?)Ruleset), ("q", Query.Length == 0 ? null : Query) });
             if (Page != 1) values.Add(("page", Page.ToString(CultureInfo.InvariantCulture)));
             string query = string.Join("&", values.Where(v => v.Value != null).Select(v => Uri.EscapeDataString(v.Key) + "=" + Uri.EscapeDataString(v.Value!)));
@@ -121,7 +120,6 @@ namespace osu.Game.Online.IR
                     "help" => OmsPageKind.Help,
                     "account" => OmsPageKind.Account,
                     "beatmapsets" => OmsPageKind.Library,
-                    "ir" => OmsPageKind.Charts,
                     _ => null
                 };
                 if (parts[0] is "beatmaps" or "ir" && read("md5") is string md5 && md5.Length == 32 && md5.All(Uri.IsHexDigit)

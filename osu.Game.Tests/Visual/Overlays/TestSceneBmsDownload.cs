@@ -17,6 +17,7 @@ using osu.Framework.Allocation;
 using osu.Framework.Configuration;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Sprites;
 using osu.Framework.Localisation;
 using osu.Framework.Logging;
 using osu.Framework.Platform;
@@ -37,6 +38,7 @@ using osu.Game.Screens.Menu;
 using osu.Game.Screens.Play;
 using osu.Game.Screens.Select;
 using osu.Game.Tests.Resources;
+using osuTK;
 using osuTK.Input;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -1142,6 +1144,81 @@ namespace osu.Game.Tests.Visual.Overlays
             AddStep("capture browser if requested", () => screenshot = captureScreenshot());
             AddUntilStep("screenshot completes", () => screenshot!.IsCompleted);
             AddStep("surface screenshot failure", () => screenshot!.GetAwaiter().GetResult());
+        }
+
+        [TestCase(BmsDownloadSource.Ginger)]
+        [TestCase(BmsDownloadSource.Konmai)]
+        public void TestNativeCardMetadataSurvivesDifficultyAndDisplayChanges(BmsDownloadSource source)
+        {
+            BmsDownloadCard? card = null;
+            string packageName = string.Empty;
+            int searches = 0;
+            AddUntilStep("browser loaded", () => overlay.IsLoaded);
+            AddStep("open source with normal cards", () =>
+            {
+                if (source == BmsDownloadSource.Konmai)
+                    metadata.Response = (request, token) => request.RequestUri!.AbsolutePath.EndsWith("search", StringComparison.Ordinal)
+                        ? Task.FromResult(json(JsonSerializer.Serialize(new
+                        {
+                            result = "success",
+                            page = 1,
+                            page_size = 20,
+                            total_pages = 1,
+                            total = 2,
+                            data = new[]
+                            {
+                                new { md5 = normal_md5, chart_name = "[NORMAL]", title = "OMS Download Test", artist = "OMS", song_name = "Stable original song", song_url = "https://bms.alvorna.com/package.zip" },
+                                new { md5 = another_md5, chart_name = "[ANOTHER]", title = "Another chart title", artist = "OMS", song_name = "Stable original song", song_url = "https://bms.alvorna.com/package.zip" },
+                            },
+                        }))) : defaultMetadata(request, token);
+                header.Source.Value = source;
+                Game.BeatmapBrowserCardSize.Value = BeatmapCardSize.Normal;
+                overlay.Show();
+            });
+            AddUntilStep("matching difficulties merged", () => overlay.Cards.SingleOrDefault()?.Package.Charts.Count == 2);
+            AddUntilStep("card accepts input", () => !overlay.ChildrenOfType<LoadingLayer>().Single().IsPresent);
+            AddStep("remember the stable original package", () =>
+            {
+                card = overlay.Cards.Single();
+                packageName = card.Package.Name;
+                searches = metadata.SearchRequests;
+                card.SelectChart(another_md5);
+            });
+            AddAssert("chosen difficulty does not rename the package", () => card!.ChildrenOfType<SpriteText>().Any(text => text.Text.ToString() == packageName)
+                && card!.SelectedMd5 == another_md5);
+            AddAssert("normal card uses the native height and unscaled text", () => card!.Height == BeatmapCardNormal.HEIGHT && card.Scale == Vector2.One);
+            AddAssert("matching chart count is independently visible", () => card!.ChildrenOfType<SpriteText>().Any(text => text.IsPresent && text.Text.ToString().Contains("2 matching charts", StringComparison.Ordinal)));
+            AddStep("choose actual extra layout", () => header.ChildrenOfType<BeatmapListingCardSizeTabControl>().Single().Current.Value = BeatmapCardSize.Extra);
+            AddUntilStep("extra card gains its own information space", () => card!.Height == BeatmapBrowserCard.EXTRA_HEIGHT
+                && card!.ChildrenOfType<SpriteText>().Any(text => text.IsPresent && text.Text.ToString().Contains("[ANOTHER]", StringComparison.Ordinal)));
+            AddAssert("actual extra body matches the card height", () => card!.ChildrenOfType<BeatmapCardContent>().Single().BodyHeight == BeatmapBrowserCard.EXTRA_HEIGHT);
+            AddStep("expand the extra card through its native action", () => click(cardButton(card!, "Charts")));
+            AddUntilStep("extra difficulty list is open", () => card!.ChildrenOfType<BeatmapCardContent>().Single().Expanded.Value);
+            AddWaitStep("allow extra expansion geometry", 3);
+            AddAssert("expanded rows begin below the real extra card body", () => card!.ChildrenOfType<BmsDownloadChartRow>().First().ScreenSpaceDrawQuad.TopLeft.Y
+                >= card!.ScreenSpaceDrawQuad.BottomRight.Y);
+            AddStep("close expanded chart list", () => card!.ToggleCharts());
+            AddStep("use a narrow browser", () => { overlay.RelativeSizeAxes = Axes.Y; overlay.Width = 320; });
+            AddWaitStep("allow bounded native layout", 2);
+            AddAssert("narrow cards shrink their text area without scaling fonts", () => card!.Width < BeatmapCard.WIDTH && card.Scale == Vector2.One
+                && card.ChildrenOfType<SpriteText>().Where(text => text.Text.ToString() == packageName).All(text => text.Font.Size == 18));
+            AddAssert("display changes preserve query and selected original", () => metadata.SearchRequests == searches && card!.SelectedMd5 == another_md5);
+            AddStep("restore desktop layout before download", () =>
+            {
+                overlay.RelativeSizeAxes = Axes.Both;
+                overlay.Width = 0.85f;
+                Game.BeatmapBrowserCardSize.Value = BeatmapCardSize.Normal;
+            });
+            AddWaitStep("allow restored layout", 2);
+            AddStep("download selected original through its action", () => click(cardButton(card!, "Download")));
+            AddUntilStep("selected original is available", () => manager.GetTask(card!.Package.Key)?.Progress.State == BmsDownloadState.Completed
+                && card.ChildrenOfType<BeatmapDownloadCardButton>().Any(button => button.TooltipText.ToString() == "Open in song select"));
+            AddAssert("availability keeps the original package and matching count", () => card!.ChildrenOfType<SpriteText>().Any(text => text.Text.ToString() == packageName)
+                && card.ChildrenOfType<SpriteText>().Any(text => text.IsPresent && text.Text.ToString().Contains("2 matching charts", StringComparison.Ordinal))
+                && manager.GetTask(card!.Package.Key)!.RequestedMd5 == another_md5);
+            AddAssert("selected difficulty and footer do not overlap", () => card!.ChildrenOfType<SpriteText>().Single(text => text.Font.Size == 11
+                && text.Text.ToString().Contains("[ANOTHER]", StringComparison.Ordinal)).ScreenSpaceDrawQuad.BottomRight.Y
+                <= card.ChildrenOfType<SpriteText>().Single(text => text.Text.ToString().Contains("2 matching charts", StringComparison.Ordinal)).ScreenSpaceDrawQuad.TopLeft.Y);
         }
 
         [TestCase(".bmson", "BEAT_7K")]

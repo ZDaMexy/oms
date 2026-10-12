@@ -14,7 +14,6 @@ using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Framework.Threading;
 using osu.Game.Beatmaps;
-using osu.Game.Beatmaps.Drawables.Cards;
 using osu.Game.Database;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
@@ -93,14 +92,7 @@ namespace osu.Game.Overlays
                         Children = new Drawable[]
                         {
                             status = new OsuSpriteText(),
-                            results = new BeatmapBrowserCardFlow<ManiaDownloadCard>
-                            {
-                                RelativeSizeAxes = Axes.X,
-                                AutoSizeAxes = Axes.Y,
-                                Direction = FillDirection.Full,
-                                Spacing = new Vector2(10),
-                                Margin = new MarginPadding { Bottom = ExpandedContentScrollContainer.HEIGHT + 20 },
-                            },
+                            results = new BeatmapBrowserCardFlow<ManiaDownloadCard>(),
                             more = new ShowMoreButton { Anchor = Anchor.TopCentre, Origin = Anchor.TopCentre, Action = () => search(false), Alpha = 0 },
                         },
                     },

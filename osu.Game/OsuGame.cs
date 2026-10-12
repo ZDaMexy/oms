@@ -142,7 +142,6 @@ namespace osu.Game
 
         public OmsPageNavigator OmsPages { get; private set; }
         public LoginOverlay Account { get; private set; }
-        public readonly Bindable<BeatmapDownloadMode> DownloadMode = new Bindable<BeatmapDownloadMode>();
         public readonly Bindable<BrowserSource> BeatmapBrowserSource = new Bindable<BrowserSource>();
         public readonly Bindable<BeatmapCardSize> BeatmapBrowserCardSize = new Bindable<BeatmapCardSize>(BeatmapCardSize.Normal);
         private readonly Dictionary<BrowserSource, (OmsPageRoute Route, float Scroll)> browserReadingStates = new Dictionary<BrowserSource, (OmsPageRoute, float)>();
@@ -150,7 +149,6 @@ namespace osu.Game
 
         public OverlayContainer BeatmapBrowserOverlay => BeatmapBrowserSource.Value switch
         {
-            BrowserSource.Oms => beatmapListing,
             BrowserSource.Sayobot => ManiaDownloads,
             _ => BmsDownloads,
         };
@@ -461,15 +459,12 @@ namespace osu.Game
         [BackgroundDependencyLoader]
         private void load()
         {
-            dependencies.Cache(DownloadMode);
-            if (!BmsDownloadsEnabled && ManiaDownloadsEnabled)
-                DownloadMode.Value = BeatmapDownloadMode.Mania;
             if (BmsDownloadsEnabled)
                 dependencies.Cache(bmsDownloadManager = CreateBmsDownloadManager());
             if (ManiaDownloadsEnabled)
                 dependencies.Cache(maniaDownloadManager = CreateManiaDownloadManager());
 
-            BeatmapBrowserSource.Value = BmsDownloadsEnabled ? BrowserSource.Ginger : ManiaDownloadsEnabled ? BrowserSource.Sayobot : BrowserSource.Oms;
+            BeatmapBrowserSource.Value = BmsDownloadsEnabled ? BrowserSource.Ginger : BrowserSource.Sayobot;
             LocalConfig.BindWith(OsuSetting.BeatmapListingCardSize, BeatmapBrowserCardSize);
             BeatmapBrowserSource.BindValueChanged(change =>
             {
@@ -477,18 +472,10 @@ namespace osu.Game
                 OverlayContainer previous = visibleBeatmapBrowser();
                 if (previous is IOmsPageOverlay page && page.CurrentOmsRoute is { } route)
                     browserReadingStates[browserSourceFor(route)] = (route, page.OmsScroll);
-                setDownloadModeForSource(change.NewValue);
                 if (previous == null) return;
                 var state = browserReadingStates.TryGetValue(change.NewValue, out var saved)
                     ? saved : (newBrowserRoute(change.NewValue), 0f);
                 OmsPages.ReplaceBrowserSource(state.Item1, state.Item2);
-            });
-            DownloadMode.BindValueChanged(_ =>
-            {
-                if (selectingBrowserSource) return;
-                BeatmapBrowserSource.Value = DownloadMode.Value == BeatmapDownloadMode.Mania ? BrowserSource.Sayobot
-                    : browserReadingStates.ContainsKey(BrowserSource.Alvorna) && BmsDownloads?.Header.Source.Value == BmsDownloadSource.Konmai
-                        ? BrowserSource.Alvorna : BrowserSource.Ginger;
             });
 
             sentryLogger.AttachUser(API.LocalUser);
@@ -950,9 +937,6 @@ namespace osu.Game
                 case OmsPageKind.Profile:
                     waitForReady(() => userProfile, view => show(view, view));
                     break;
-                case OmsPageKind.Charts:
-                    waitForReady(() => beatmapListing, view => show(view, view));
-                    break;
                 case OmsPageKind.Chart:
                     waitForReady(() => beatmapSetOverlay, view => show(view, view));
                     break;
@@ -991,7 +975,7 @@ namespace osu.Game
             {
                 if (!isCurrent()) return;
                 HideOmsPages(overlay);
-                if (route.Kind is OmsPageKind.Charts or OmsPageKind.Library)
+                if (route.Kind == OmsPageKind.Library)
                     selectBrowserSource(browserSourceFor(route));
                 overlay.ReturnAction = OmsPages.Back;
                 overlay.Header.SetPageActions(OmsPages.Back,
@@ -1288,12 +1272,12 @@ namespace osu.Game
         }
 
         private OverlayContainer visibleBeatmapBrowser()
-            => new OverlayContainer[] { beatmapListing, BmsDownloads, ManiaDownloads }.FirstOrDefault(view => view?.State.Value == Visibility.Visible);
+            => new OverlayContainer[] { BmsDownloads, ManiaDownloads }.FirstOrDefault(view => view?.State.Value == Visibility.Visible);
 
         private static OmsPageRoute newBrowserRoute(BrowserSource source)
             => new OmsPageRoute
             {
-                Kind = source == BrowserSource.Oms ? OmsPageKind.Charts : OmsPageKind.Library,
+                Kind = OmsPageKind.Library,
                 Ruleset = source == BrowserSource.Sayobot ? "mania" : "bms",
                 Sources = source == BrowserSource.Alvorna ? "alvorna" : source == BrowserSource.Ginger ? "ginger" : null,
             };
@@ -1302,7 +1286,6 @@ namespace osu.Game
         {
             selectingBrowserSource = true;
             BeatmapBrowserSource.Value = source;
-            setDownloadModeForSource(source);
             selectingBrowserSource = false;
         }
 
@@ -1310,18 +1293,8 @@ namespace osu.Game
             => selectBrowserSource(browserSourceFor(route));
 
         private static BrowserSource browserSourceFor(OmsPageRoute route)
-            => route.Kind == OmsPageKind.Charts ? BrowserSource.Oms
-                : route.Ruleset == "mania" ? BrowserSource.Sayobot
+            => route.Ruleset == "mania" ? BrowserSource.Sayobot
                 : route.Sources == "alvorna" ? BrowserSource.Alvorna : BrowserSource.Ginger;
-
-        private void setDownloadModeForSource(BrowserSource source)
-        {
-            if (source == BrowserSource.Oms) return;
-            bool wasSelecting = selectingBrowserSource;
-            selectingBrowserSource = true;
-            DownloadMode.Value = source == BrowserSource.Sayobot ? BeatmapDownloadMode.Mania : BeatmapDownloadMode.Bms;
-            selectingBrowserSource = wasSelecting;
-        }
 
         public bool PresentDownloadedBmsBeatmap(Guid beatmapId) => presentDownloadedBeatmap(beatmapId, "bms");
 
@@ -1987,7 +1960,8 @@ namespace osu.Game
                 loadComponentSingleFile(new MessageNotifier(), Add, true);
             }
 
-            loadComponentSingleFile(beatmapListing = new BeatmapListingOverlay(!OnlineFeaturesEnabled), overlayContent.Add, true);
+            if (OnlineFeaturesEnabled)
+                loadComponentSingleFile(beatmapListing = new BeatmapListingOverlay(), overlayContent.Add, true);
             loadComponentSingleFile(news = new NewsOverlay(!OnlineFeaturesEnabled), overlayContent.Add, true);
             rankingsOverlay = loadComponentSingleFile(omsRankings = new RankingsOverlay(!OnlineFeaturesEnabled), overlayContent.Add, true);
             loadComponentSingleFile(beatmapSetOverlay = new BeatmapSetOverlay(!OnlineFeaturesEnabled), overlayContent.Add, true);
@@ -2000,7 +1974,7 @@ namespace osu.Game
             if (ManiaDownloadsEnabled)
                 loadComponentSingleFile(ManiaDownloads = CreateManiaDownloadOverlay(), overlayContent.Add, true);
 
-            foreach (var browser in new OverlayContainer[] { beatmapListing, BmsDownloads, ManiaDownloads }.Where(view => view != null))
+            foreach (var browser in new OverlayContainer[] { BmsDownloads, ManiaDownloads }.Where(view => view != null))
                 browser.State.BindValueChanged(change =>
                 {
                     if (change.OldValue == Visibility.Visible && change.NewValue == Visibility.Hidden

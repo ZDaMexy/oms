@@ -27,7 +27,6 @@ using osu.Game.Localisation;
 using osu.Game.Online.API;
 using osu.Game.Online.IR;
 using osu.Game.Overlays;
-using osu.Game.Overlays.BeatmapListing;
 using osu.Game.Overlays.News;
 using osu.Game.Overlays.Profile;
 using osu.Game.Overlays.Profile.Sections;
@@ -51,10 +50,10 @@ namespace osu.Game.Tests.Visual.Navigation
             AddUntilStep("native pages and navigation have loaded", () => Game.OmsPages.IsLoaded
                 && Game.ChildrenOfType<NewsOverlay>().SingleOrDefault()?.IsLoaded == true
                 && Game.ChildrenOfType<WikiOverlay>().SingleOrDefault()?.IsLoaded == true
-                && Game.ChildrenOfType<BeatmapListingOverlay>().SingleOrDefault()?.IsLoaded == true
                 && Game.ChildrenOfType<BeatmapSetOverlay>().SingleOrDefault()?.IsLoaded == true
                 && Game.ChildrenOfType<UserProfileOverlay>().SingleOrDefault()?.IsLoaded == true
                 && Game.ChildrenOfType<RankingsOverlay>().SingleOrDefault()?.IsLoaded == true);
+            AddAssert("OMS has no self-owned chart catalogue UI", () => !Game.ChildrenOfType<BeatmapListingOverlay>().Any());
             showToolbar();
         }
 
@@ -146,23 +145,13 @@ namespace osu.Game.Tests.Visual.Navigation
         [Test]
         public void TestNativeChartAndPlayerEntriesKeepIdentitiesAndFilters()
         {
-            BeatmapListingOverlay listing = null!;
             BeatmapSetOverlay details = null!;
             UserProfileOverlay profile = null!;
-            var route = new OmsPageRoute { Kind = OmsPageKind.Charts, Query = "原谱 & #", Page = 2 };
-            int beforeBack = 0;
-            AddStep("open a specific chart-directory scope", () => Game.OpenOmsPage(route));
-            AddUntilStep("real native chart cards loaded", () => (listing = Game.ChildrenOfType<BeatmapListingOverlay>().Single()).State.Value == Visibility.Visible
-                && listing.ChildrenOfType<OmsChartCard>().Any(card => card.IsLoaded));
-            AddStep("click a real chart card", () => click(listing.ChildrenOfType<OmsChartCard>().Single()));
+            AddStep("open a specific original chart", () => Game.OpenOmsPage(new OmsPageRoute { Kind = OmsPageKind.Chart, Md5 = chart_md5, Ruleset = "bms" }));
             AddUntilStep("MD5 detail opens its native information page", () => (details = Game.ChildrenOfType<BeatmapSetOverlay>().Single()).State.Value == Visibility.Visible
                 && hasText(details, chart_md5) && Game.OmsPages.Route.Kind == OmsPageKind.Chart);
-            AddAssert("no ppy online set identity is fabricated", () => Game.OmsPages.Route.Md5 == chart_md5 && Game.OmsPages.Route.Ruleset == "bms"
-                && details.Header.BeatmapSet.Value == null && listing.State.Value == Visibility.Hidden);
-            AddStep("return to cached directory", () => { beforeBack = requests.Count; Game.OmsPages.Back(); });
-            AddUntilStep("actual search and page are restored", () => listing.State.Value == Visibility.Visible && Game.OmsPages.Route == route
-                && listing.ChildrenOfType<BasicSearchTextBox>().Single().Text == route.Query);
-            AddAssert("back does not read the directory again", () => requests.Count, () => Is.EqualTo(beforeBack));
+            AddAssert("no ppy or OMS package identity is fabricated", () => Game.OmsPages.Route.Md5 == chart_md5 && Game.OmsPages.Route.Ruleset == "bms"
+                && details.Header.BeatmapSet.Value == null && !Game.ChildrenOfType<BeatmapListingOverlay>().Any());
             showToolbar();
             AddStep("open the actual ranking toolbar entry", () => click(Game.ChildrenOfType<ToolbarRankingsButton>().Single()));
             AddUntilStep("original native ranking header is visible", () => Game.ChildrenOfType<RankingsOverlay>().Single().State.Value == Visibility.Visible
@@ -299,7 +288,6 @@ namespace osu.Game.Tests.Visual.Navigation
                 { ["md5"] = chart_md5, ["title"] = "真实原谱", ["artist"] = "原作者", ["difficulty"] = "原难度" }
             };
             if (path == "/api/ir/v2/charts/" + chart_md5) return chart;
-            if (path == "/api/ir/v2/charts") return new JObject { ["items"] = new JArray(chart), ["page"] = 2, ["limit"] = 20, ["total"] = 21 };
             throw new AssertionException("Unexpected native-page HTTP request: " + path);
         }
 

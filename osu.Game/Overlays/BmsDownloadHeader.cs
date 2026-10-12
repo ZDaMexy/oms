@@ -5,11 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
-using osu.Framework.Graphics.Containers;
 using osu.Framework.Localisation;
-using osu.Game.Graphics;
-using osu.Game.Graphics.Containers;
-using osu.Game.Graphics.UserInterface;
 using osu.Game.Localisation;
 using osu.Game.Online.Bms;
 using osu.Game.Overlays.BeatmapListing;
@@ -29,9 +25,8 @@ namespace osu.Game.Overlays
 
         protected override IEnumerable<Drawable> CreateBrowserFilters() => new Drawable[]
         {
-            new BeatmapDownloadModeSelector(),
-            filterField(BmsDownloadStrings.Table, tables = new TableDropdown()),
-            filterField(BmsDownloadStrings.TableLevel, levels = new LevelDropdown()),
+            FilterField(BmsDownloadStrings.Table, tables = new TableDropdown()),
+            FilterField(BmsDownloadStrings.TableLevel, levels = new LevelDropdown()),
         };
 
         public void ClearTables() => tables.SetTables(Array.Empty<BmsDownloadTable>());
@@ -45,34 +40,7 @@ namespace osu.Game.Overlays
 
         public readonly record struct TableLevel(string? Value);
 
-        private static Drawable filterField(LocalisableString label, Drawable dropdown)
-        {
-            dropdown.RelativeSizeAxes = Axes.X;
-            return new GridContainer
-            {
-                RelativeSizeAxes = Axes.X,
-                AutoSizeAxes = Axes.Y,
-                ColumnDimensions = new[] { new Dimension(GridSizeMode.Absolute, 100), new Dimension() },
-                RowDimensions = new[] { new Dimension(GridSizeMode.AutoSize) },
-                Content = new[]
-                {
-                    new[]
-                    {
-                        new OsuTextFlowContainer(t => t.Font = OsuFont.GetFont(size: 13))
-                        {
-                            RelativeSizeAxes = Axes.X,
-                            AutoSizeAxes = Axes.Y,
-                            Anchor = Anchor.CentreLeft,
-                            Origin = Anchor.CentreLeft,
-                            Text = label,
-                        },
-                        dropdown,
-                    },
-                },
-            };
-        }
-
-        private partial class TableDropdown : OsuDropdown<string>
+        private partial class TableDropdown : BeatmapBrowserDropdown<string>
         {
             private readonly Dictionary<string, BmsDownloadTable> values = new Dictionary<string, BmsDownloadTable>();
 
@@ -101,7 +69,7 @@ namespace osu.Game.Overlays
             protected override LocalisableString GenerateItemText(string item) => item.Length == 0 ? BmsDownloadStrings.AllTables : values[item].Name;
         }
 
-        private partial class LevelDropdown : OsuDropdown<TableLevel>
+        private partial class LevelDropdown : BeatmapBrowserDropdown<TableLevel>
         {
             private string symbol = string.Empty;
             private LocalisableString emptyText = BmsDownloadStrings.SelectTable;

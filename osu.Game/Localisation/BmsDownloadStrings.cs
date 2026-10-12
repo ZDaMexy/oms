@@ -30,6 +30,10 @@ namespace osu.Game.Localisation
         public static LocalisableString Downloading => text("downloading", "Downloading");
         public static LocalisableString DownloadProgress(int percent) => text("download_progress", "Downloading {0}%", percent);
         public static LocalisableString ChartsCount(int count) => text("charts_count", "{0} charts", count);
+        public static LocalisableString MatchingChartsCount(int count) => text("matching_charts_count", "{0} matching charts", count);
+        public static LocalisableString CreatedBy(string creator) => text("created_by", "mapped by {0}", creator);
+        public static LocalisableString OriginalIds(int set, int chart) => text("original_ids", "Original set #{0} · chart #{1}", set, chart);
+        public static LocalisableString SourceOrder => text("source_order", "Sort order: source default");
         public static LocalisableString AuthorLevel(string level) => text("author_level", "Author level {0}", level);
         public static LocalisableString Importing => text("importing", "Adding to library");
         public static LocalisableString Available => text("available", "Ready to play");

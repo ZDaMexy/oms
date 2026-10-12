@@ -2,7 +2,7 @@
 
 ## 多来源浏览恢复诊断
 
-- 共享来源bindable的OldValue可能是尚未挂载的选择；保存键必须从实际可见页route取得，否则快速切来源会把OMS目录存成Sayobot。统一在Visible→Hidden捕获route / scroll，才能覆盖顶部页面跳转、Esc与屏幕切换，不能只在工具栏Toggle中保存。
+- 共享来源bindable的OldValue可能是尚未挂载的选择；保存键必须从实际可见页route取得，否则快速切来源会把上一可见页存成尚未挂载的来源。统一在Visible→Hidden捕获route / scroll，才能覆盖顶部页面跳转、Esc与屏幕切换，不能只在工具栏Toggle中保存。旧 OMS 目录案例仅属历史；当前浏览只含三个批准来源。
 - BMS表 / 等级异步恢复过程中Header还只是半恢复值；对外CurrentRoute与scroll须保留pending完整意图，直到元数据 / 布局实际落地。新路由开始时取消旧query / debounce并推进revision，等目录期间也不准旧搜索回填或失败后显示旧来源卡片。
 - 命中同一会话视图缓存要比对产生卡片的实际条件，不能仅看请求route等于当前Header；隐藏期间改条件可能让两者相等但卡片仍属旧查询。具名故障与软件仅回链[P3记录](../../doc_md/subline/P3-IR/CHANGELOG.md#2026-10-12统一谱面浏览)。
 

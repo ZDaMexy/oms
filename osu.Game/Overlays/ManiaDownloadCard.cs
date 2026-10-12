@@ -71,8 +71,12 @@ namespace osu.Game.Overlays
             var task = downloads.GetTask(Set.Key);
             var local = findLocal(selected.Id);
             TitleText.Text = Set.Title;
-            ArtistText.Text = $"{Set.Artist} · {Set.Creator}";
-            DifficultyText.Text = GetBeatmapDetails(selected);
+            ArtistText.Text = Set.Artist;
+            CreatorText.Text = BmsDownloadStrings.CreatedBy(Set.Creator);
+            SelectedText.Text = GetBeatmapDetails(selected);
+            DifficultyText.Text = LocalisableString.Interpolate($"{statusLabel(Set.Status)} · {selected.KeyCount}K · ★{selected.StarRating.ToString("0.##", CultureInfo.InvariantCulture)} · {BmsDownloadStrings.MatchingChartsCount(Set.Beatmaps.Count)}");
+            ExtraText.Text = BmsDownloadStrings.OriginalIds(Set.Id, selected.Id);
+            TooltipText = LocalisableString.Interpolate($"{Set.Title}\n{Set.Artist}\n{BmsDownloadStrings.CreatedBy(Set.Creator)}\n{GetBeatmapDetails(selected)}\n{BmsDownloadStrings.MatchingChartsCount(Set.Beatmaps.Count)}");
             ExternalButton.Alpha = 0;
             foreach (var row in ChartList.OfType<ManiaDownloadDifficultyRow>())
                 row.SetSelected(row.Beatmap.Id == selected.Id);
@@ -113,7 +117,7 @@ namespace osu.Game.Overlays
             {
                 ManiaDownloadState.Failed => BmsDownloadStrings.Failed,
                 ManiaDownloadState.Cancelled => BmsDownloadStrings.Cancelled,
-                _ => LocalisableString.Interpolate($"{statusLabel(Set.Status)} · {BmsDownloadStrings.ChartsCount(Set.Beatmaps.Count)}"),
+                _ => string.Empty,
             };
             ActionButton.ButtonIcon = task == null ? FontAwesome.Solid.Download : FontAwesome.Solid.RedoAlt;
             ActionButton.TooltipText = task == null ? BmsDownloadStrings.Download : BmsDownloadStrings.Retry;

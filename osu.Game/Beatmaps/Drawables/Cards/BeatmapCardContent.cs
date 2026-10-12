@@ -28,6 +28,16 @@ namespace osu.Game.Beatmaps.Drawables.Cards
 
         public IBindable<bool> Expanded => expanded;
 
+        public float BodyHeight
+        {
+            get => bodyContent.Height;
+            set
+            {
+                Height = bodyContent.Height = value;
+                dropdownContent.Margin = new MarginPadding { Top = value };
+            }
+        }
+
         private readonly BindableBool expanded = new BindableBool();
 
         private readonly Box background;

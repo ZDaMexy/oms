@@ -38,4 +38,8 @@
   <data name="outside_gameplay" xml:space="preserve"><value>请在当前游玩结束后打开谱面。</value></data>
   <data name="no_longer_available" xml:space="preserve"><value>这张谱面当前已不在可用谱库中。</value></data>
   <data name="external_preview" xml:space="preserve"><value>在网站查看谱面</value></data>
+  <data name="matching_charts_count" xml:space="preserve"><value>{0} 张匹配谱面</value></data>
+  <data name="created_by" xml:space="preserve"><value>谱师：{0}</value></data>
+  <data name="original_ids" xml:space="preserve"><value>原谱面集 #{0} · 谱面 #{1}</value></data>
+  <data name="source_order" xml:space="preserve"><value>排序方式：来源默认</value></data>
 </root>

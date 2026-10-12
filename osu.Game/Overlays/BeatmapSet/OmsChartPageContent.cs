@@ -11,7 +11,6 @@ using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Game.Beatmaps;
 using osu.Game.Online.IR;
-using osu.Game.Overlays.BeatmapListing;
 
 namespace osu.Game.Overlays.BeatmapSet
 {
@@ -23,40 +22,9 @@ namespace osu.Game.Overlays.BeatmapSet
 
         protected override Task<Action> LoadPageAsync(OmsPageRoute requested, CancellationToken token) => requested.Kind switch
         {
-            OmsPageKind.Charts => loadChartsAsync(requested, token),
             OmsPageKind.Chart => loadChartAsync(requested, token),
             _ => throw new ArgumentException("This content requires a chart or charts route.", nameof(requested)),
         };
-
-        private async Task<Action> loadChartsAsync(OmsPageRoute requested, CancellationToken token)
-        {
-            JObject response = await service.GetSourceChartsAsync(requested.Query, requested.Page, token).ConfigureAwait(false);
-            OmsChartSummary[] charts = Array(response, "items").Select(item => readChart(item as JObject
-                ?? throw new JsonSerializationException("Invalid OMS chart entry."))).ToArray();
-            long total = Integer(response, "total");
-            long limit = Integer(response, "limit");
-            if (charts.Length > 20 || Integer(response, "page") != requested.Page || limit != 20 || total < charts.Length)
-                throw new JsonSerializationException("Invalid OMS chart pagination.");
-
-            return () =>
-            {
-                if (charts.Length == 0)
-                    AddText("没有找到已收录成绩的谱面。可以修改搜索，或切换来源查找原包。", 16);
-                var cards = new BeatmapBrowserCardFlow<OmsChartCard> { ReserveExpandedSpace = false };
-                foreach (OmsChartSummary chart in charts)
-                {
-                    cards.Add(new OmsChartCard(chart, () => Navigate(new OmsPageRoute
-                    {
-                        Kind = OmsPageKind.Chart,
-                        Md5 = chart.Md5,
-                        Ruleset = chart.Ruleset,
-                        Title = chart.Title,
-                    })));
-                }
-                rows.Add(cards);
-                AddPagination(requested, total, limit);
-            };
-        }
 
         private async Task<Action> loadChartAsync(OmsPageRoute requested, CancellationToken token)
         {

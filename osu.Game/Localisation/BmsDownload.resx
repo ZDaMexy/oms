@@ -38,4 +38,8 @@
   <data name="outside_gameplay"><value>Open this chart after the current play finishes.</value></data>
   <data name="no_longer_available"><value>This chart is no longer available in your library.</value></data>
   <data name="external_preview"><value>View chart on website</value></data>
+  <data name="matching_charts_count" xml:space="preserve"><value>{0} matching charts</value></data>
+  <data name="created_by" xml:space="preserve"><value>mapped by {0}</value></data>
+  <data name="original_ids" xml:space="preserve"><value>Original set #{0} · chart #{1}</value></data>
+  <data name="source_order" xml:space="preserve"><value>Sort order: source default</value></data>
 </root>

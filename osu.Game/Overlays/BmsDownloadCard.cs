@@ -73,9 +73,14 @@ namespace osu.Game.Overlays
 
             var task = downloads.GetTask(Package.Key);
             var local = findLocal(selected.Md5);
-            TitleText.Text = selected.Title;
-            ArtistText.Text = selected.Artist;
-            DifficultyText.Text = GetChartDetails(selected);
+            TitleText.Text = Package.Name;
+            ArtistText.Text = Package.Charts[0].Artist;
+            SelectedText.Text = GetChartDetails(selected);
+            if (SelectedText.Text == string.Empty) SelectedText.Text = selected.DifficultyName;
+            DifficultyText.Text = LocalisableString.Interpolate($"BMS · {BmsDownloadStrings.MatchingChartsCount(Package.Charts.Count)}");
+            ExtraText.Text = Package.Size.HasValue
+                ? LocalisableString.Interpolate($"{selected.Title} · {Package.Size.Value / 1048576.0:0.##} MiB") : selected.Title;
+            TooltipText = LocalisableString.Interpolate($"{Package.Name}\n{selected.Title}\n{selected.Artist}\n{GetChartDetails(selected)}\n{BmsDownloadStrings.MatchingChartsCount(Package.Charts.Count)}\nMD5 · {selected.Md5}");
             ExternalButton.Alpha = selected.PreviewUrl == null ? 0 : 1;
             ExternalButton.Action = () => Game.OpenUrlExternally(selected.PreviewUrl!.AbsoluteUri);
             foreach (var row in ChartList.OfType<BmsDownloadChartRow>())
@@ -120,7 +125,7 @@ namespace osu.Game.Overlays
             {
                 BmsDownloadState.Failed => BmsDownloadStrings.Failed,
                 BmsDownloadState.Cancelled => BmsDownloadStrings.Cancelled,
-                _ => BmsDownloadStrings.ChartsCount(Package.Charts.Count),
+                _ => string.Empty,
             };
             ActionButton.ButtonIcon = task == null ? FontAwesome.Solid.Download : FontAwesome.Solid.RedoAlt;
             ActionButton.TooltipText = task == null ? BmsDownloadStrings.Download : BmsDownloadStrings.Retry;

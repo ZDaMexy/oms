@@ -2,7 +2,7 @@
 
 ## 原生在线服务边界（2026-10-12）
 
-现行各原生新闻 / 帮助 / 排行 / 玩家 / 谱面容器、非可视导航、社区归属与按需缓存沿[共同合同](../../../../oms-server/dev_bridge_md/doc_md/mainline/client-native-services.md)。谱面目录与下载为一个列表入口，以OMS / Ginger / 616 / Sayobot为真实来源；来源替换不压历史，各自筛选 / 位置及慢读取恢复意图保持。新搜索开始即清旧卡片并取消旧查询，迟到目录 / 搜索 / 挂载不得覆盖新来源；下载任务继续沿原管理器。软件与人工门取[状态](DEVELOPMENT_STATUS.md)。旧ppy关闭、OMS ID / MD5、原账号 / UUID / owner与保存优先保持，社交后续；旧默认外跳 / 目录删除的原行为取[历史](CHANGELOG.md)。
+现行各原生新闻 / 帮助 / 排行 / 玩家 / 原谱详情容器、非可视导航、社区归属与按需缓存沿[共同合同](../../../../oms-server/dev_bridge_md/doc_md/mainline/client-native-services.md)。谱面列表只有 Ginger Rush / 616 / Sayobot 三个批准来源，OMS 不提供目录来源或自建谱包。移除客户端成绩目录 UI / 列表读取；真实 MD5 详情与榜继续由选谱、记录和实际链接进入，`/ir` 无有效 MD5 不回退成目录。来源替换不压历史，各自筛选 / 位置及慢读取恢复意图保持。新搜索开始即清旧卡片并取消旧查询，迟到目录 / 搜索 / 挂载不得覆盖新来源；下载任务继续沿原管理器。展示能力和 lazer 对标取[P1-A 合同](../P1-A/TECHNICAL_CONSTRAINTS.md#谱面列表展示与来源能力)，软件与人工门取[状态](DEVELOPMENT_STATUS.md)。旧ppy关闭、OMS ID / MD5、原账号 / UUID / owner与保存优先保持，社交后续；旧默认外跳 / 目录删除的原行为取[历史](CHANGELOG.md)。
 
 ## 固定 OMSIR 与直接登录
 

@@ -15,7 +15,6 @@ using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Framework.Threading;
 using osu.Game.Beatmaps;
-using osu.Game.Beatmaps.Drawables.Cards;
 using osu.Game.Database;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Sprites;
@@ -113,14 +112,7 @@ namespace osu.Game.Overlays
                                     status = new OsuSpriteText { Font = OsuFont.Default.With(size: 18) },
                                 },
                             },
-                            results = new BeatmapBrowserCardFlow<BmsDownloadCard>
-                            {
-                                RelativeSizeAxes = Axes.X,
-                                AutoSizeAxes = Axes.Y,
-                                Direction = FillDirection.Full,
-                                Spacing = new Vector2(10),
-                                Margin = new MarginPadding { Bottom = ExpandedContentScrollContainer.HEIGHT + 20 },
-                            },
+                            results = new BeatmapBrowserCardFlow<BmsDownloadCard>(),
                             more = new ShowMoreButton
                             {
                                 Anchor = Anchor.TopCentre,

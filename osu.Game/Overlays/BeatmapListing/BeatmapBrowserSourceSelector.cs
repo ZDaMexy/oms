@@ -7,7 +7,7 @@ using osu.Framework.Localisation;
 
 namespace osu.Game.Overlays.BeatmapListing
 {
-    public enum BeatmapBrowserSource { Oms, Ginger, Alvorna, Sayobot }
+    public enum BeatmapBrowserSource { Ginger, Alvorna, Sayobot }
 
     public partial class BeatmapBrowserSourceSelector : BeatmapSearchFilterRow<BeatmapBrowserSource>
     {
@@ -48,7 +48,6 @@ namespace osu.Game.Overlays.BeatmapListing
 
             protected override LocalisableString LabelFor(BeatmapBrowserSource value) => value switch
             {
-                BeatmapBrowserSource.Oms => "OMS",
                 BeatmapBrowserSource.Ginger => "Ginger Rush",
                 BeatmapBrowserSource.Alvorna => "616 / Alvorna",
                 _ => "Sayobot",

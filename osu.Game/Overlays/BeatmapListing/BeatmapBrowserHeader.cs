@@ -13,6 +13,7 @@ using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
+using osu.Game.Localisation;
 using osuTK;
 
 namespace osu.Game.Overlays.BeatmapListing
@@ -94,12 +95,13 @@ namespace osu.Game.Overlays.BeatmapListing
                         Children = new Drawable[]
                         {
                             layoutBackground = new Box { RelativeSizeAxes = Axes.Both },
-                            new OsuSpriteText
+                            new TruncatingSpriteText
                             {
+                                RelativeSizeAxes = Axes.X,
                                 Anchor = Anchor.CentreLeft,
                                 Origin = Anchor.CentreLeft,
-                                Margin = new MarginPadding { Left = 20 },
-                                Text = "显示方式",
+                                Padding = new MarginPadding { Left = 20, Right = 110 },
+                                Text = BmsDownloadStrings.SourceOrder,
                                 Font = OsuFont.GetFont(size: 13),
                             },
                             cardSize = new BeatmapListingCardSizeTabControl
@@ -127,6 +129,45 @@ namespace osu.Game.Overlays.BeatmapListing
         public void SetQuery(string query) => search.Text = query;
 
         public void FocusSearch() => search.TakeFocus();
+
+        protected static Drawable FilterField(LocalisableString label, Drawable dropdown) => new BrowserFilterField(label, dropdown);
+
+        private partial class BrowserFilterField : CompositeDrawable
+        {
+            private readonly Container field;
+
+            public BrowserFilterField(LocalisableString label, Drawable dropdown)
+            {
+                RelativeSizeAxes = Axes.X;
+                AutoSizeAxes = Axes.Y;
+                dropdown.RelativeSizeAxes = Axes.X;
+                InternalChild = new GridContainer
+                {
+                    RelativeSizeAxes = Axes.X,
+                    AutoSizeAxes = Axes.Y,
+                    ColumnDimensions = new[] { new Dimension(GridSizeMode.Absolute, 100), new Dimension() },
+                    RowDimensions = new[] { new Dimension(GridSizeMode.AutoSize) },
+                    Content = new[]
+                    {
+                        new Drawable[]
+                        {
+                            new OsuTextFlowContainer(t => t.Font = OsuFont.GetFont(size: 13))
+                            {
+                                RelativeSizeAxes = Axes.X, AutoSizeAxes = Axes.Y,
+                                Anchor = Anchor.CentreLeft, Origin = Anchor.CentreLeft, Text = label,
+                            },
+                            field = new Container { AutoSizeAxes = Axes.Y, Child = dropdown },
+                        },
+                    },
+                };
+            }
+
+            protected override void Update()
+            {
+                base.Update();
+                field.Width = Math.Min(400, Math.Max(0, DrawWidth - 100));
+            }
+        }
 
         private partial class BrowserSearchTextBox : BasicSearchTextBox
         {
