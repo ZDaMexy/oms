@@ -16,6 +16,8 @@ BGA 尺寸与纵向位置现由 `[Bms]` 的公开 `BgaWidth/BgaHeight/BgaVertica
 
 build/test 由主执行者统一调度；源码在对应检查期间停止写入，最终格式检查使用只读 verify 模式。日志与 TRX 留存于本地忽略目录 `artifacts/skin-simple-layout-20260912/`。以下为本次真实运行，不沿用旧 C7 发行物的通过结论。
 
+2026-10-13清理根目录时，散落的`.codex-simple*.log`原样迁入`artifacts/cleanup-audit-20261013/root-logs-20260912/`，包括下文主动中止的完整运行日志；原字节和失败结论保留，未重新运行产品验证。迁移收据见[清理日志](../mainline/CHANGELOG.md#2026-10-13工作区残留专项清理)。
+
 | 检查 | 本次实际结果 |
 | --- | --- |
 | 聚焦成品信息、按键反馈、布局及 fallback | `simple-focused-verified.trx`：56 Passed；真实输入、Lift、窄窗口文字与 BGA/键区兼容 |

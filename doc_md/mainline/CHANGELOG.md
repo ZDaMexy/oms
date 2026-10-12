@@ -1,5 +1,19 @@
 # OMS 更新日志
 
+## 2026-10-13工作区残留专项清理
+
+用户要求清理OMS残留文件及根目录散落日志。从干净`master@dee416b`开始，fetch成功，基线领先`origin/master`7个提交、无落后和已有diff。本轮只处理当前客户端checkout，旧F:/oms空目录、系统盘遗留及其它项目不在本轮范围。
+
+根目录72份`.codex-simple*` / `.codex-builtin*`日志均为2026-09-12验证记录，共3.234 MiB，包含文档仍引用的失败现场；逐份核对SHA256后用原生PowerShell同卷移入`artifacts/cleanup-audit-20261013/root-logs-20260912/`，移动后摘要一致，根目录`.log`为零。原失败、空输出和历史验证日期保留，归档不计磁盘回收；静线记录补归档导航。
+
+只删除逐项确认的31个工程 / 模板`bin`或`obj`，以及`.dev-cache/temp/browser-mode-render-host`与`browser-lazer-render-host`两套闲置截图探针，合计4284个文件、5.490 GiB逻辑大小；另非递归删除767个确实为空的随机临时目录。F盘可用空间实测增加5.498 GiB，这是本轮磁盘观察，不用逻辑大小代替。两套探针的7份源码分别与长期`render/source`保留副本SHA256一致，4图 / 26图及原日志留在各自证据目录；10月12日自动审批拒绝保留为历史，本次重新授权后完成精确清理。
+
+每项删除前确认解析后的绝对路径在当前checkout内、目录及父链无重解析点、工程归属明确、无tracked文件、曲库 / 存档 / 诊断收据标记或活动OMS / build / test / 探针进程，并核对可独占读取及快照未变。输出中的每份`.osk`均匹配独立保留原件；`osu.Desktop/bin`整个运行目录前后逐文件SHA256、大小、mtime、属性和目录清单一致，删除完成时tracked工作区仍干净。`artifacts`历史资料、`TestResults`、`release-repo`、原作者源 / 包、NuGet与工具链缓存，以及混有SDK、网站资料和数据库的其余临时内容保留。
+
+执行脚本、逐项清单、日志归档映射、皮肤原件核对、删除收据与运行目录前后快照留在`artifacts/cleanup-audit-20261013/`。本轮没有重新编译、启动客户端、访问私有数据入口、部署或生成发行物；下一次开发启动需正常restore / build，已清除工程不能用旧`--no-build`或`--no-restore`，产品 / 实机 / 生产日期不刷新。
+
+每个新shell加载`UseDevelopmentStorage.ps1`后，客户端`CheckDocumentation.ps1`与总工作区`verify-workspace.mjs`通过，结构、相对链接、锚点及记忆导航合格。差异检查通过，治理检查原样输出为`documentation-check.log`与`workspace-check.log`；已有公开指纹 / 通用路径提示保留。首次客户端检查新增STATUS建议预算提示，随后收简治理历史摘要，将完整旧结果留在原CHANGELOG，不改检查器或产品。
+
 ## 2026-10-12客户端当前入口与记忆一致性复核
 
 从干净客户端 HEAD `305d2f1`、`master` 本地跟踪记录领先 6 提交的基线出发，核对子线路由、P1-A～M / P3-IR 当前状态、任务相关计划 / 合同和诊断记忆。源码 `fff09a2` 已删除 `OmsIrService.GetSourceChartsAsync`、`OmsPageKind.Charts` 与 `BeatmapListingOverlay.Oms.cs` 的客户端成绩目录路径；`dd795fa` 的模式控件与 `OsuGame.SelectBeatmapBrowserMode` / `lastBmsBrowserSource` 明确先选模式、BMS 来源恢复。当前专项状态和来源登记已正确，仍遗漏三语 README、主合同 14.2 及 P3-IR 查询条款中的旧目录入口。
