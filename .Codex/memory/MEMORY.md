@@ -6,7 +6,7 @@
 
 - [项目总览](project_oms_overview.md) — 范围、独立 IR 与旧在线链边界、数据根与便携标记。
 - [文档治理](project_oms_docs_governance.md) — 主约束/三语操作与归线漏同步、已移除来源和旧登录步骤残留、历史候选演练误读、清理范围、网络时效、不可达验收格、开发环境、暂存引用闭合、有效锚点漂移、截图证据范围与检查器误判。
-- [反馈工作流](feedback_workflow.md) — 默认产品语言、反过度防御、真机证据与本轮结束边界。
+- [协作反馈与取证入口](feedback_workflow.md) — 已归 AGENTS 的历史反馈来源与大曲库现场方法回链。
 - [选歌展示与导航](project_oms_songselect_display_nav.md) — 状态分离、祖先可见性、谱卡重绑与大库诊断。
 - [内置音乐播放器](project_oms_music_player.md) — 共用音轨/试听与队列接入、已定展开壳体和 core 依赖方向。
 - [内置 BMS 下载](reference_bms_builtin_download.md) — 统一入口的旧追加按钮、模式 / 所属来源同步与挂载中关闭、原生大卡正文 / 展开起点、跨行 / 末卡留白、完整表与包身份、目录手动恢复、归档预算 / CRC / 释放、首次完成旧快照与精确选歌。

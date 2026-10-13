@@ -1064,7 +1064,7 @@ mania/BMS 共享外部 ini/asset/scene/event/script runtime、唯一 layout、�
 
 ### Future Scope
 
-真正随机分支选择、LR2IR 排行兼容、SHA256 + sabun linkage。现有固定分支兼容行为以 P1-K 为准；macOS / Linux 不在 OMS 产品计划内。
+真正随机分支选择与难度表的 SHA256 + sabun linkage 仍为后续范围，现有固定分支兼容行为以 P1-K 为准。已采用的 LR2IR 公开历史参考混榜与多播放器接入沿 [P3-IR 计划](../subline/P3-IR/DEVELOPMENT_PLAN.md#多播放器与-lr2-历史榜实施)；经典 LR2 实时接入、真实宿主及 P/C 未完成范围只取 [P3-IR 状态](../subline/P3-IR/DEVELOPMENT_STATUS.md#多来源扩展状态)。macOS / Linux 不在 OMS 产品计划内。
 
 ---
 
