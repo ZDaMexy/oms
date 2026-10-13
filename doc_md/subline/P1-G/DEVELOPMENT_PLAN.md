@@ -1,11 +1,11 @@
 # P1-G 当前计划：Phase 1.x 人工验收汇总
 
-> 最后核对：2026-10-04（候选证据与独立 IR 归属对齐；原人工门保留）
+> 最后核对：2026-10-13（补齐客户端品牌与候选验收导航；无新增人工签收）
 > 全局 gate 见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)，当前分项见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，历史结论见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线目标
 
-建立一份可追溯的 Phase 1.x 人工 release checklist，统一承接皮肤、真实输入、长条/音频、Song Select、公共下载、Gimmick/BGA 和发行物中无法由自动测试证明的结果。
+建立一份可追溯的 Phase 1.x 人工 release checklist，统一承接皮肤、客户端品牌、真实输入、长条/音频、Song Select、公共下载、Gimmick/BGA 和发行物中无法由自动测试证明的结果。
 
 P1-G 只汇总，不实现：发现问题必须回到 owning 子线，修复后只重测受影响矩阵格。
 
@@ -60,6 +60,7 @@ P1-G 只汇总，不实现：发现问题必须回到 owning 子线，修复后�
 
 ### 6. 候选发行物
 
+- 客户端品牌先按 [P1-A 正常窗口计划](../P1-A/DEVELOPMENT_PLAN.md#客户端品牌正常窗口验收)记录当前工作区的启动、主菜单 / 选歌共用徽章、用户主题 / DPI 与 Windows 图标缓存表现；后续用户形成实际候选时再核新包的标题 / 图标及相同路径。P1-A 软件 / 隔离截图和 10 月 3 日旧候选不能代签，缺陷归 P1-A，包与覆盖问题归 P1-F。
 - fresh extract 冷启动、portable `data/`、custom root 与覆盖更新。
 - 保留 `portable.ini`、`storage.ini` 和用户内容；公开说明与真实能力一致。
 - 当前完整候选复核公共下载、后台任务、失败/取消和入库选歌组合；本次启动尚未首次进入对应浏览分区时不发起该来源请求，关页后已开始的后台下载继续，不扩张旧上游在线链或旧 osu! API endpoint。10 月 3 日同包启动证据见 [P1-F](../P1-F/DEVELOPMENT_STATUS.md)，不能代签本项；独立 IR 真人门只沿 [P3-IR](../P3-IR/DEVELOPMENT_PLAN.md)。缺陷归 P1-A，候选保存/升级问题归 P1-F/P1-H。

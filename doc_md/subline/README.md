@@ -4,13 +4,13 @@
 
 | 子线 | 负责范围 | 当前判定 | 下一道门 |
 | --- | --- | --- | --- |
-| [P1-A](P1-A/DEVELOPMENT_STATUS.md) | 产品面、Skin V1、release gate | Ginger Rush/616筛选下载及精确选歌可用，坏包/目录恢复与首次完成可玩状态已回归；Sayobot共用浏览/入库有素材证据；静线唯一内置，选择/刷新/编辑器与作者手册保留，外观暂停 | Sayobot真实包成功门及修复后实站观察待补，网络证据日期见STATUS；大包/听感、BGA作者、V-001～V-005与设备/长时门保留，Skin V1/release未完成 |
+| [P1-A](P1-A/DEVELOPMENT_STATUS.md) | 产品面、Skin V1、release gate | OMS品牌、启动与窗口标识已落；Ginger Rush/616下载与精确选歌可用，坏包/目录与首次完成状态已回归；Sayobot有素材证据；静线唯一内置，选择/刷新/编辑器与作者手册保留，外观暂停 | 品牌正常窗口及Sayobot真实包、修复后实站观察待验；网络日期见STATUS，大包/听感、BGA作者、V-001～V-005与设备/长时门保留，Skin V1/release未完成 |
 | [P1-B](P1-B/DEVELOPMENT_STATUS.md) | 输入语义与硬件 | 软件链可用，真实 HID 覆盖未闭合 | analog scratch 跨设备与实机验收 |
 | [P1-C](P1-C/DEVELOPMENT_STATUS.md) | 判定语义与反馈 | 判定 parity、TOTAL 兼容与自动调整偏移互斥 style 已落；常驻反馈卡已删除 | 保持演奏/回放/结算一致性，补实谱判定与偏移收敛、真实设备验收 |
 | [P1-D](P1-D/DEVELOPMENT_STATUS.md) | 控制器校准与诊断 | 未完成 | deadzone、sensitivity、live diagnostics |
 | [P1-E](P1-E/DEVELOPMENT_STATUS.md) | gameplay 与 LN/CN/HCN | 自动链已具备，真实谱面验校未闭合 | 真实谱面长条与输入验收 |
-| [P1-F](P1-F/DEVELOPMENT_STATUS.md) | 离线发行物与覆盖更新 | 2026-10-03 候选同包隔离启动/恢复/覆盖已有证据，生成物随后删除；旧跨版本和事故事后保全分别保留 | 当前 Windows Shell 解包、跨版本、新作者演练、独立账户非便携与整体人工门未新签收；不追溯宣称旧事故无损 |
-| [P1-G](P1-G/DEVELOPMENT_STATUS.md) | 人工验收汇总 | 静态皮肤与 portable 已有分项证据；总清单未闭合 | 汇总皮肤、输入、长条/音频、Song Select、公共下载、BGA 与发行矩阵 |
+| [P1-F](P1-F/DEVELOPMENT_STATUS.md) | 离线发行物与覆盖更新 | 2026-10-03 候选同包隔离启动/恢复/覆盖已有证据，生成物随后删除；旧跨版本和事故事后保全分别保留 | 后续候选须承接品牌更新；Windows Shell、跨版本、新作者演练、独立账户非便携与整体人工门未新签收，不追溯宣称旧事故无损 |
+| [P1-G](P1-G/DEVELOPMENT_STATUS.md) | 人工验收汇总 | 静态皮肤与 portable 已有分项证据；总清单未闭合 | 汇总品牌正常窗口、皮肤、输入、长条/音频、Song Select、公共下载、BGA 与发行矩阵 |
 | [P1-H](P1-H/DEVELOPMENT_STATUS.md) | 存储拓扑 | 缺失恢复、历史保全、当前页难度表刷新及扫描热路径优化已落；便携日志定位宿主链已修复 | 隔离数据根与真实大库、Explorer 实机定位及现场读取错误诊断 |
 | [P1-I](P1-I/DEVELOPMENT_STATUS.md) | BMS 选歌筛选与搜索 | read-model/搜索与单轨上限筛选已落 | 拖拽手感、窄窗口与真实大库体验 |
 | [P1-J](P1-J/DEVELOPMENT_STATUS.md) | gameplay 性能与音频 | 原生/转谱第二轮热路径优化；自动键音、长伴奏暂停保位与手动 LN 基线保留 | 双模式实谱听感、按现场证据触发50k profile、人工清单 |

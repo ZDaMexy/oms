@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-13（工作区残留清理；产品及生产验证保持原日期）
+> 最后核对：2026-10-13（专项进度与文档记忆同步；各产品及生产证据保持原日期）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -11,7 +11,7 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 玩家直接登录固定OMSIR，保存后新局上传；新闻 / 帮助 / 排行 / 玩家沿原生页面。谱面列表先选模式：BMS 仅 Ginger Rush / 616，osu!mania 仅 Sayobot，恢复上次 BMS 来源；紧凑筛选、原生卡片和各来源阅读状态保持。正常OMS窗口的lazer体验仍待签收，隔离内容宽度检查不代签；源码 / 软件及剩余门取[P3-IR状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。社交后续，旧ppy关闭；Phase1.x原门保持。
 
-静线当前布局、作者能力与按模式选择 / 刷新 / 编辑路径统一见 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)；开发构建只同步 simple 源，外观打磨暂停，历史双内置和旧截图不代签当前体验。
+客户端共用徽章、启动字标、窗口标题和应用图标已统一为 OMS；正常窗口与 Windows 图标表现待验，范围见 [P1-A 品牌计划](../subline/P1-A/DEVELOPMENT_PLAN.md#客户端品牌正常窗口验收)。静线布局、作者能力与按模式选择 / 刷新 / 编辑路径取 [P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md)；只同步 simple 源，外观打磨暂停。
 
 - Windows-only，保留osu!mania与第一类BMS，Osu/Taiko/Catch已删除；离线优先，旧 osu! API endpoint 为空。固定 OMSIR 的直接登录与按需公开查榜沿 P3-IR，不扩大旧全套在线产品面。公共BMS难度表URL、用户指定Ginger Rush / 616 BMS与Sayobot原生mania镜像下载为窄例外，合同见 P1-A [BMS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) / [mania](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载)。
 - BMS直读`chartbms/`，mania直读`chartmania/`；支持portable `data/`与自定义数据根。主要工程为`osu.Desktop.slnf`、`osu.Game.Rulesets.Bms`及`oms.Input`。
@@ -19,15 +19,13 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 ## 工作区与开发环境
 
-客户端当前位于 F:/zdamexy-workspace/oms，入口见 [AGENTS](../../AGENTS.md)；总工作区提供客户端、网站、后端与两桥路由。2026-10-09 已完成文件搬迁、原 tracked 字节保全核对、两个关联工作副本连接修复，以及 Python / 工具链活动入口迁移。旧 F:/oms 仅有六个空目录容器，旧 Codex oms 项目保留历史；用户不再在旧项目协作。
+客户端当前位于 F:/zdamexy-workspace/oms，入口见 [AGENTS](../../AGENTS.md)；总工作区提供客户端、网站、后端与两桥路由。2026-10-09 搬迁、原 tracked 字节保全、工作副本连接与工具链迁移及开发环境验证已完成，证据只取 [迁移日志](CHANGELOG.md#2026-10-09)。仍待用户从新 VS Code 目录非调试启动确认谱库 / 待交及必要时重新登录 IR；旧 F:/oms 空容器和系统盘遗留分别待收尾。
 
 2026-10-10 已在[VS Code工作区设置](../../.vscode/settings.json)为Pylance排除开发缓存 / 虚拟环境、验证产物与编译输出，主动打开的Python脚本仍可分析。配置与目录范围检查取[本轮日志](CHANGELOG.md#2026-10-10)，提示消失及编辑器实际表现待重新加载窗口确认；本轮不刷新客户端产品或发行验证。
 
-2026-10-13 已将根目录72份历史验证日志核对后归档到`artifacts/`，根目录`.log`为零；清除重新生成的工程 / 模板输出、两套闲置截图探针和空临时目录。Desktop整个运行目录、曲库 / 存档、原作者包、历史验收 / 发行资料和依赖缓存保留，客户端运行目录字节及元数据前后一致。下一次开发启动正常restore / build，不复用已清除工程的`--no-build`或`--no-restore`。范围、回收和验收取[清理日志](CHANGELOG.md#2026-10-13工作区残留专项清理)，产品与实机日期保留。
+2026-10-13 根目录历史日志已归档，工程 / 模板输出、两套旧截图探针和空临时目录清理已完成；Desktop 运行目录、曲库 / 存档、作者原件和验收证据在清理前后保全，范围只取 [清理日志](CHANGELOG.md#2026-10-13工作区残留专项清理)。后续开发按当前工程实际产物正常 restore / build，不能复用已清除输出的 `--no-build` / `--no-restore`。
 
-2026-10-11 用户已手动清理扫描审查的两个临时探针目录，本轮只读复核均不存在；源码、前后测量和 TRX 仍在长期证据目录。此前自动删除拦截保留为历史，收尾取 [P1-H 日志](../subline/P1-H/CHANGELOG.md#临时探针清理收尾)；旧 F:/oms 空目录及系统盘遗留是不同待办。
-
-新路径下普通 Desktop Debug restore / build、脚本语法、三套 Java SDK 探针编译、统一文档及客户端文档校验通过；本轮方法、原失败、证据位置和人工接续见 [迁移日志](CHANGELOG.md#2026-10-09)。尚待用户在新 VS Code 目录非调试启动确认谱库 / 待交及必要时重新登录 IR；旧空目录清理被自动审批拦截，本轮保留，后续待监视释放后人工清理。此结果只验证迁移后的开发环境，不代签原软件来源、玩家体验、生产或发行门。
+同日后续品牌验证新建的 `.dev-cache/temp/brand-render-host` 仍保留：自动审批拒绝删除，源码 / 截图 / 日志已另存长期证据目录，具体见 [品牌记录](../subline/P1-A/CHANGELOG.md#2026-10-13客户端品牌标识专项)。此前扫描与补算探针的清理收尾取 [P1-H 历史](../subline/P1-H/CHANGELOG.md)，不能用较早清理结果宣称后续临时目录也已清除。
 
 ## 当前执行门与全局风险
 
@@ -49,15 +47,15 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 ## 最近一次验证
 
+2026-10-13 客户端品牌的共用控件、启动、加载和两玩法资源选择已有软件、Desktop 双配置构建及隔离绘制证据；范围、初次失败和原件只取 [P1-A 品牌记录](../subline/P1-A/CHANGELOG.md#2026-10-13客户端品牌标识专项)。正常窗口 / 用户主题与曲库、DPI、图标缓存及后续候选仍待验，未重签皮肤、设备或发行门。
+
 2026-10-11 转谱补算资源与 Debug 读取优化已有受控测量、回归及 Desktop 双配置证据；旧皮肤失败已逐项对照。范围、取舍与未验项只取 [P1-H 最新验证](../subline/P1-H/DEVELOPMENT_STATUS.md#最近一次验证)。扫描 / 便携宿主修复的 `d6f0d60` 来源见 [扫描审查](../other/LIBRARY_SCAN_REVIEW_20261010.md)。未重扫用户库，样本或探针不代签真实大库、Explorer 或发行。
 
-2026-10-03下载完成状态修复已有软件与Release证据：首次成功后可直接打开所选难度，删除/目录不可用目标不能误显示可玩。当前能力、验证范围、原坏包/目录修复及未完成门统一见[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)；修复后实站观察、真实大包/听感及原人工门保留。
-
-2026-10-01的两源BMS小包桌面成功、Sayobot素材路径与实站查询/包连接失败证据见[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)及其历史记录。Sayobot真实包成功入库仍未签收，旧连接结果不代表节点持续故障。官网批准两BMS源 / Sayobot元数据查询与原包外链获取沿[P3-IR合同](../subline/P3-IR/TECHNICAL_CONSTRAINTS.md#身份结算与保存)；未采用的官网谱包、聊天、多人和旧在线面仍冻结。
+下载完成状态的 2026-10-03 软件、两源 BMS 小包的 10 月 1 日桌面成功及 Sayobot 素材 / 原连接失败分别保留原日期，从 [P1-A 状态与证据索引](../subline/P1-A/DEVELOPMENT_STATUS.md)读取。Sayobot 真实包成功、修复后实站观察与大包 / 听感仍待验，旧连接结果不表示节点持续故障；已采用官网外链获取沿 [P3-IR 合同](../subline/P3-IR/TECHNICAL_CONSTRAINTS.md#身份结算与保存)。
 
 2026-09-30 的 BGA 作者窗口 / 共享会话、完整手册及原生 / 转谱性能软件证据分别见 [作者能力验证](../other/BGA_SKIN_AUTHORING_20260930.md)与 [性能记录](../other/GAMEPLAY_PERFORMANCE_20260930.md)。真实素材、设备 / 听感、静线外观和发行门保留。
 
-2026-10-11 P3-IR减少故障时重复补交、保全服务器等待期限并启用有界JSON压缩；账号切换时手动补交阻塞已修复，软件 / 编译取[专项验证](../subline/P3-IR/DEVELOPMENT_STATUS.md#最近一次验证)。真实账号 / 两端同范围、P/C与发行仍待用户验收；跨端优化与生产另行留证。
+2026-10-12 P3-IR 模式→所属来源、BMS 来源恢复与等待关闭已有软件和隔离内容宽度证据，取 [模式分层记录](../subline/P3-IR/CHANGELOG.md#2026-10-12谱面列表模式与来源分层)；正常 OMS 窗口体验未签收。10 月 11 日等待 / 压缩和手动补交修复仍取 [具名网络来源](../../../oms-server/oms_client_bridge_md/doc_md/other/oms-ir-network-snapshot-20261011.md)；真实账号 / 两端同范围、P/C 和发行门保持。
 
 已有完整回归记录并非全绿：逐项身份、原因与业务堆栈对照集中于上述报告，遗留测试维护归各 owning 子线；专项通过不代表整个仓库全绿。较早的谱库/选歌、偏移/TOTAL 和设置/编辑证据从相应 STATUS 或 [CHANGELOG](CHANGELOG.md)检索，不在本页累计历轮结果。
 
@@ -65,6 +63,6 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 ## 文档治理验证
 
-2026-10-13残留清理及日志证据导航通过客户端文档、总工作区与差异检查，范围及原样收据见[本轮日志](CHANGELOG.md#2026-10-13工作区残留专项清理)。三语入口修正与窗口证据勘误保留在10月12日历史记录；产品 / 实机 / 生产日期不刷新，正常OMS窗口的lazer体验继续待签收。
+2026-10-13 专项审查覆盖 P1-A～M / P3-IR 当前入口、诊断记忆与两桥采用边界，补品牌和后续候选验收导航、纠正已完成项的待办语气，并固定具名证据链接。客户端文档、总工作区与差异检查结果取 [本轮收据](CHANGELOG.md#2026-10-13专项进度与文档记忆健康同步)。来源与 11 待复核保持；没有新产品、实网、生产或人工验证。
 
 开发存储继续遵守 [AGENTS](../../AGENTS.md#开发磁盘约束)。旧系统盘产物回收和 Codex 全局迁移未完成，不能因文档检查通过而宣称已释放或零增长；待办保留在 [PLAN](DEVELOPMENT_PLAN.md#改动验收矩阵)。
