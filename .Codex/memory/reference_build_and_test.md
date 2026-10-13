@@ -33,6 +33,8 @@ metadata:
 
 ## 检查脚本与环境
 
+- `osu.Game` 内新增 `Resources/Textures/` 资源时，`DllResourceStore` 只剥程序集名称，仍保留 `Resources/`。直接加 store 后按 `Textures/` 请求会返回 null；应通过 `NamespacedResourceStore` 接入该目录。控件 `IsLoaded` 和旧启动测试可在缺图时通过，须核实际绘制尺寸或截图。`LogoAnimation` 的 R/G 分别是时间/覆盖率，不能换成普通 RGBA 图；其高亮先于填充绘制，外侧描边才能保留。资源合同见 [品牌资源](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#客户端品牌资源)，失败与修正来源见 [品牌日志](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-13客户端品牌标识专项)。
+
 - Pylance提示大量源文件时，先按目录枚举`.py/.pyi`，缓存 / 验证产物可能含成千依赖文件。工作区`python.analysis.exclude`排除目录扫描，打开或被实际源码导入的文件仍可分析；`ignore`只静音诊断，不能替代排除。区分目录数量、配置验证与重新加载后的实际编辑器结果；本机实例和采用范围取[2026-10-10日志](../../doc_md/mainline/CHANGELOG.md#2026-10-10)。
 - 仓库在非系统盘不代表开发零占用系统盘：旧工作副本有独立 bin/obj，默认 NuGet/TEMP 与 Codex 聊天也分开存放。每个新 shell 按 [开发磁盘约束](../../AGENTS.md#开发磁盘约束)加载 `UseDevelopmentStorage.ps1`；进程环境不跨工具调用保留，旧 assets 的绝对 packageFolders 也不会随环境变量自动重写，切换后先 restore。运行数据和验收资料不能因位于 bin/artifacts/AppData 就认定为垃圾；清理被策略拦截时不能记为已释放。
 - 清理构建输出前须查看真实内容：Desktop的`bin/.../data`可能含正在使用的Realm、谱库和配置，应保护整个运行目录；Game的`obj/canonical`还可能残留退役皮肤包，先按内容摘要确认独立保留副本，不能仅凭`bin/obj`名或忽略规则删除。清除`obj`后需正常restore / build；容量复核区分文件逻辑大小与磁盘可用空间差值。实例和边界取[清理日志](../../doc_md/mainline/CHANGELOG.md#确认后清理构建输出)。

@@ -79,10 +79,10 @@ namespace osu.Game
     public partial class OsuGameBase : Framework.Game, ICanAcceptFiles, IBeatSyncProvider
     {
 #if DEBUG
-        public const string GAME_NAME = "osu! (development)";
+        public const string GAME_NAME = "OMS (development)";
         public const string STORAGE_NAME = "oms-development";
 #else
-        public const string GAME_NAME = "osu!";
+        public const string GAME_NAME = "OMS";
         public const string STORAGE_NAME = "oms";
 #endif
 
@@ -325,6 +325,7 @@ namespace osu.Game
             }
 
             Resources.AddStore(new DllResourceStore(OsuResources.ResourceAssembly));
+            Resources.AddStore(new NamespacedResourceStore<byte[]>(new DllResourceStore(typeof(OsuGameBase).Assembly), @"Resources"));
 
             dependencies.Cache(ClientRealm = new RealmAccess(Storage, CLIENT_DATABASE_FILENAME, Host.UpdateThread));
 

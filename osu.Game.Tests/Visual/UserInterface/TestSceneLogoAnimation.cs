@@ -22,7 +22,7 @@ namespace osu.Game.Tests.Visual.UserInterface
             {
                 RelativeSizeAxes = Axes.Both,
                 FillMode = FillMode.Fit,
-                Texture = textures.Get("Intro/Triangles/logo-highlight"),
+                Texture = textures.Get("OMS/logo-intro-highlight"),
                 Colour = Colour4.White,
             });
 
@@ -32,7 +32,7 @@ namespace osu.Game.Tests.Visual.UserInterface
             {
                 RelativeSizeAxes = Axes.Both,
                 FillMode = FillMode.Fit,
-                Texture = textures.Get("Intro/Triangles/logo-background"),
+                Texture = textures.Get("OMS/logo-intro-background"),
                 Colour = OsuColour.Gray(0.6f),
             });
 

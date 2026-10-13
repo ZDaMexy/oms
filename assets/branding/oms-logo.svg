@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>OMS circular wordmark</title>
+  <desc>Transparent menu artwork. The client supplies the animated background and spectrum.</desc>
+  <defs>
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="140%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="10" stdDeviation="7" flood-color="#24121d" flood-opacity="0.38"/>
+    </filter>
+  </defs>
+  <g fill="none" stroke="#fff" filter="url(#shadow)">
+    <circle cx="512" cy="512" r="460" stroke-width="48"/>
+    <g stroke-width="46" stroke-linecap="round" stroke-linejoin="round">
+      <ellipse cx="278" cy="512" rx="78" ry="88"/>
+      <path d="M432 600V424L512 535L592 424V600"/>
+      <path d="M825 443C809 426 788 424 764 424C725 424 695 444 695 474C695 504 731 512 765 520C799 528 830 539 830 566C830 592 802 600 770 600C740 600 714 592 695 577"/>
+    </g>
+  </g>
+</svg>

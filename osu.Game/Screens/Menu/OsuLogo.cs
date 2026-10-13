@@ -29,14 +29,14 @@ using osuTK.Input;
 namespace osu.Game.Screens.Menu
 {
     /// <summary>
-    /// osu! logo and its attachments (pulsing, visualiser etc.)
+    /// OMS logo and its attachments (pulsing, visualiser etc.)
     /// </summary>
     public partial class OsuLogo : BeatSyncedContainer
     {
         private const double transition_length = 300;
 
         /// <summary>
-        /// The osu! logo sprite has a shadow included in its texture.
+        /// The OMS logo sprite has a shadow included in its texture.
         /// This adjustment vector is used to match the precise edge of the border of the logo.
         /// </summary>
         public static readonly Vector2 SCALE_ADJUST = new Vector2(0.94f);
@@ -282,8 +282,8 @@ namespace osu.Game.Screens.Menu
             SampleBeat = audio.Samples.Get(@"Menu/osu-logo-heartbeat");
             SampleDownbeat = audio.Samples.Get(@"Menu/osu-logo-downbeat");
 
-            logo.Texture = textures.Get(@"Menu/logo");
-            ripple.Texture = textures.Get(@"Menu/logo");
+            logo.Texture = textures.Get(@"OMS/logo");
+            ripple.Texture = textures.Get(@"OMS/logo");
         }
 
         private int lastBeatIndex;

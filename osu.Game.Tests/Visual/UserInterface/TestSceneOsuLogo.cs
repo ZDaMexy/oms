@@ -38,6 +38,9 @@ namespace osu.Game.Tests.Visual.UserInterface
                     Scale = new Vector2(scale),
                 };
             });
+
+            AddUntilStep("wait for logo load", () => logo!.IsLoaded);
+            AddAssert("logo artwork has a size", () => logo!.SizeForFlow, () => Is.GreaterThan(0));
         }
 
         [Test]
@@ -52,6 +55,9 @@ namespace osu.Game.Tests.Visual.UserInterface
                     Scale = new Vector2(scale),
                 };
             });
+
+            AddUntilStep("wait for logo load", () => logo!.IsLoaded);
+            AddAssert("logo artwork has a size", () => logo!.SizeForFlow, () => Is.GreaterThan(0));
         }
     }
 }

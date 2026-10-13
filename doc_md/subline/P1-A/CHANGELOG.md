@@ -1,5 +1,27 @@
 # P1-A 变动日志
 
+## 2026-10-13客户端品牌标识专项
+
+用户授权将客户端遗留粉饼美术改为 OMS，并交由代理决定制作方式。从干净 `master@95051a2` 开始，fetch 成功，领先 `origin/master` 8、无落后及已有 diff；范围限 OMS 客户端品牌，不解除静线外观暂停或进入其它产品开发。
+
+新增单一可编辑矢量源稿与确定性导出器，白色圆润 OMS 字标沿原粉色圆形结构、三角形与频谱使用；透明主贴图由共用控件的主体/节拍残影加载。普通和节日三角形启动字标采用相同几何的 R/G 数据贴图，外侧描边适配既有高亮先于填充的绘制顺序；欢迎文字、Debug/Release 窗口名称与 Desktop 产品元数据统一 OMS。展开菜单的“开始游玩”旧品牌图标替换为标准播放图标，动作/快捷键保持。九尺寸应用 ICO 沿原文件名接入，保留 executable/storage/IPC/protocol 身份、数据根与 gameplay 皮肤合同。完整制作入口只在 [品牌资源](../../../assets/branding/README.md)维护，普通构建无需美术导出运行库。
+
+资源初稿直接接入 `DllResourceStore`，却未剥 `Resources/` 命名空间；缺图时旧控件 `IsLoaded` 仍成立。首轮 core 49/50、`TestMoveFacade` 失败；补实际显示尺寸后，`TestBasic` / `TestChristmas` 均复现 0 尺寸。通过 `NamespacedResourceStore` 修正加载入口后具名检查及最终范围全部通过；红/绿 TRX 和实际报错留在 `artifacts/brand-refresh-20261013/tests/`。新诊断回写原[构建召回](../../../.Codex/memory/reference_build_and_test.md)，不另建进度账本。
+
+本轮实际验证：
+
+- Debug core focused：标识/追踪/启动/菜单/Loader/皮肤资源与真实 PlayerLoader handoff 共50/50；最终 `branding-focused-final.trx`。源码已排除的上游 SongSelectNavigation 不算覆盖，选歌返回另由本轮隔离运行核对。
+- Debug BMS：`TestSceneBmsPlayerSkinEntry` 四个 native/mania × Player/预览组合及 `CanonicalSkinBuiltInSelectionProductTest` 共5/5；`branding-bms-entry.trx`。测试编译报告未修改文件的 CS8600/CA2007，不屏蔽告警。
+- Debug mania：内置资源与选择2/2；`branding-mania-resources.trx`。本轮不修改玩法皮肤、fallback authority、parser、scene/event 或作者接口，未运行三套全量及设备/长期体验；局部通过不代表旧欠账已消失。
+- `dotnet build osu.Desktop/osu.Desktop.csproj -c Debug` 与 `-c Release` 均0错误/0警告。未执行 publish/打包，不生成额外安装副本。
+- Node 语法、PNG尺寸/透明度、启动通道覆盖/时间上限及九个ICO条目解码通过；C#原六文件定点 `dotnet format --verify-no-changes` 通过。ButtonSystem的全info检查提示未改行的IDE0300/IDE0028/IDE0090集合写法及OLOC001日志本地化，保留初始report；一行图标改动改做owning项目whitespace定点校验，未重构旧菜单或加suppression。命令和原样日志位于同一证据目录，所有新 shell 均加载 `UseDevelopmentStorage.ps1`。
+
+隔离桌面渲染使用独立 F 盘 probe 输出、framework portable storage 与空测试库，不读取当前用户曲库/存档。主菜单、菜单展开、选歌角落与返回使用实际共用标识；启动shader分别观察0/40/100%。首次 probe 将 Game 移出测试输入父链后模拟点击未送达，保留 `render-run-initial.log`；修正为调用控件 `TriggerClick` 后核菜单状态，模拟鼠标或截图不代签正常客户端真机体验。源码和图片保存在 `artifacts/brand-refresh-20261013/render/`；生产色彩/主题、真实曲库、窗口/DPI和Windows图标缓存表现继续由用户正常VS Code非调试启动确认。
+
+最终隔离运行7图已逐张观察并正常退出0，启动数据通道显示 OMS 而无旧字标。Release 编译元数据中的 `GAME_NAME` 常量为 OMS，Desktop 产品名称为 OMS、内嵌 ICO 与本轮源文件逐字节匹配，结果见 `compiled-branding.json`；读取常量的初始反射探针受依赖加载上下文影响返回 null，后改用 PE 元数据直接读取，不属于产品启动失败。
+
+客户端文档与总工作区导航/登记检查通过；P1-A当前状态收简历史导航并保持建议预算，旧皮肤/下载/发行证据日期与剩余门不刷新。当前分支只提交本轮增量，不推送。新建 `.dev-cache/temp/brand-render-host` 的递归清理请求被自动审批拒绝（blocked by policy，未提供细化原因），没有执行删除或改用其它工具重试；临时目录保留，源码/截图/日志已在长期证据目录另存。
+
 ## 2026-10-12谱面列表专项进度与文档记忆审查
 
 展示矩阵按模式分组，正文以可用内容宽度描述响应布局；正常OMS窗口对标lazer仍待用户签收，人工缩宽只作边界证据。状态与合同就地同步，软件 / 实站 / 设备 / 发行门不刷新；治理和来源勘误取[主线收据](../../mainline/CHANGELOG.md#2026-10-12谱面列表专项进度与文档记忆审查)。
