@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IIDX 本地素材库</title>
+<style>
+  :root{color-scheme:dark;font:15px/1.6 system-ui,sans-serif;background:#101718;color:#e0eeea}
+  body{margin:0}main{max-width:1600px;margin:auto;padding:32px}h1{margin:0;font-size:30px}
+  .muted{color:#a3b7b1}header{margin-bottom:24px}.stats{color:#6ee5bb;font-size:18px;margin:14px 0}
+  .toolbar{position:sticky;top:0;z-index:1;display:flex;gap:12px;flex-wrap:wrap;padding:16px 0;background:#101718}
+  input,select,button{font:inherit;background:#1d2a29;color:inherit;border:1px solid #405951;border-radius:8px;padding:10px}
+  input{flex:1;min-width:220px}button{cursor:pointer}a{color:#83dfc5}
+  #grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+  article{background:#1a2524;border:1px solid #344942;border-radius:12px;overflow:hidden}
+  article img{display:block;width:100%;height:190px;object-fit:contain;image-rendering:auto;
+    background:repeating-conic-gradient(#293633 0% 25%,#1d2825 0% 50%) 0/20px 20px}
+  article .info{padding:12px}article strong{display:block;overflow-wrap:anywhere;font-size:14px}
+  article .source{font-size:11px;color:#a3b7b1;overflow-wrap:anywhere;margin-top:5px}
+  article .links{display:flex;gap:14px;font-size:12px;margin-top:9px}
+  #count{margin:4px 0 16px}footer{margin:28px 0}#more{margin:22px auto}#more:not([hidden]){display:block}
+</style>
+<main>
+  <header>
+    <h1>IIDX 本地素材库</h1>
+    <div class="muted">原始纹理、有效裁切与来源对应保留在一起。此页展示已解出资源，皮肤还原程度另行验收。</div>
+    <div class="stats" id="stats"></div>
+    <div class="muted">代数只依据明确命名的框体候选；共用件的编号代表素材变体，不作为版本归属。</div>
+  </header>
+  <div class="toolbar">
+    <input id="search" type="search" aria-label="搜索" placeholder="搜索文件名或来源，如 unit_main、notes、gameparts">
+    <select id="style" aria-label="框体代数"><option value="">全部代数与共用件</option><option value="shared">共用 / 未确认代数</option></select>
+    <select id="category" aria-label="组件类型"><option value="">全部组件</option></select>
+    <select id="sort" aria-label="排序"><option value="source">按来源与名称</option><option value="area">大图优先</option></select>
+  </div>
+  <div id="count" class="muted"></div><div id="grid"></div><button id="more">继续显示</button>
+  <footer class="muted">PNG 均已校验；预览优先显示按 UV 裁切的精灵。原图和原始清单仍完整保留。
+    <a href="library.json">资源与裁切索引</a> · <a href="source-inventory.json">源目录清单</a>
+  </footer>
+</main>
+<script>
+  const library = __LIBRARY_DATA__;
+  const $ = id => document.getElementById(id);
+  $('stats').textContent = `${library.packages.length} 个资源包 · ${library.textures.length} 张有效精灵 · ${library.uniqueSpriteContents} 组不同图片内容 · 源文件核对一致`;
+  for (const n of [...new Set(library.textures.map(t => t.candidateStyle).filter(n => n !== null))].sort((a,b) => a-b)) {
+    $('style').add(new Option(`${n} 代框体候选`, String(n)));
+  }
+  for (const label of [...new Set(library.textures.map(t => t.category))].sort()) $('category').add(new Option(label,label));
+  let filtered = [], shown = 0;
+  function addBatch() {
+    const batch = filtered.slice(shown, shown+120);
+    const fragment = document.createDocumentFragment();
+    for (const t of batch) {
+      const card=document.createElement('article'), img=document.createElement('img');
+      img.src=t.sprite;img.alt=t.name;img.loading='lazy';card.append(img);
+      const info=document.createElement('div');info.className='info';
+      const name=document.createElement('strong');name.textContent=t.name;info.append(name);
+      const dimensions=document.createElement('div');dimensions.textContent=`${t.width} × ${t.height} · ${t.category}`;info.append(dimensions);
+      const source=document.createElement('div');source.className='source';source.textContent=t.package;info.append(source);
+      const links=document.createElement('div');links.className='links';
+      for (const [label,url] of [['有效精灵',t.sprite],['原始纹理',t.raw]]) {
+        const a=document.createElement('a');a.textContent=label;a.href=url;a.target='_blank';a.rel='noopener';links.append(a);
+      }
+      info.append(links);card.append(info);fragment.append(card);
+    }
+    $('grid').append(fragment);shown+=batch.length;$('more').hidden=shown>=filtered.length;
+    $('count').textContent=`匹配 ${filtered.length} 张，已显示 ${shown} 张`;
+  }
+  function filter() {
+    const query=$('search').value.toLocaleLowerCase(), style=$('style').value, category=$('category').value;
+    filtered=library.textures.filter(t => (!query || `${t.name} ${t.package}`.toLocaleLowerCase().includes(query))
+      && (!style || (style==='shared' ? t.candidateStyle===null : t.candidateStyle===Number(style)))
+      && (!category || t.category===category));
+    if ($('sort').value==='area') filtered.sort((a,b)=>b.width*b.height-a.width*a.height);
+    else filtered.sort((a,b)=>`${a.package}/${a.name}`.localeCompare(`${b.package}/${b.name}`));
+    shown=0;$('grid').replaceChildren();addBatch();
+  }
+  for (const id of ['search','style','category','sort']) $(id).addEventListener('input',filter);
+  $('more').addEventListener('click',addBatch);filter();
+</script>
+</html>

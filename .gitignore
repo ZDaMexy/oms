@@ -262,6 +262,12 @@ __pycache__/
 !/tools/SkinScriptCompiler/
 !/tools/SkinScriptCompiler/SkinScriptCompiler.csproj
 !/tools/SkinScriptCompiler/Program.cs
+!/tools/IidxSkinAssets/
+!/tools/IidxSkinAssets/build_library.py
+!/tools/IidxSkinAssets/browser.html
+!/tools/IidxSkinAssets/selection-33-hdd.json
+!/tools/IidxSkinAssets/requirements.txt
+!/tools/IidxSkinAssets/README.md
 /build/tools/**
 /build/temp/**
 

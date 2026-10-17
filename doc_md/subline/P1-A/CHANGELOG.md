@@ -1,5 +1,21 @@
 # P1-A 变动日志
 
+## 2026-10-18IIDX 历代作品取材启动
+
+从干净的 `master@9521d17` 开始，fetch 成功，领先 `origin/master` 12、无落后及已有 diff。用户授权 1st style～33 Sparkle Shower 作品制作、以现有本地 33 HDD 先行取材、缺少对应代组件时由用户从其网盘补下载，并允许按真实组件需要补齐 OMS 表现代码。该作品线不恢复静线打磨，不重计 Skin V1 campaign；后续选曲 / 结算页面保留原界面选项。稳定边界维护在[素材作品约束](TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)，顺序只在[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。
+
+新增[本地素材工具](../../../tools/IidxSkinAssets/README.md)，第三方 ifstools 3.1 只处理独立目录中的摘要一致副本，保留原始纹理、清单、AFP / 几何和按原 UV 解码的有效精灵。明确编号的框体只登记候选代数，00 号等共用素材编号不解释成代数。素材与生成库不进入 Git、canonical 或发行物；Git 忽略例外仅开放工具源码及固定选择文件。
+
+先前只读评估在 `artifacts/iidx-assessment-20261018/` 留存六包抽样及源清单，作为本轮输入保留。本轮从当前原件重新复制选择文件中的 19 包，工具实际解出并校验 2,448 张有效精灵、1,929 组不同图片内容；整个源美术清单前后文件名 / 大小 / 最后写入时间一致，源包摘要前后一致，未向 HDD 写入或启动游戏。原图及精灵 PNG 完整性、UV 尺寸与 4,896 个索引目标均已检查。实际命令在先执行 `. .\UseDevelopmentStorage.ps1` 的 shell 中运行：
+
+```powershell
+python -B tools/IidxSkinAssets/build_library.py --game-root '<本地 HDD 安装根>' --output '<独立本地素材库>' --ifstools-path .dev-cache/tools/iidx-assets
+```
+
+三项 CLI 拒绝检查均以退出码 2 明确失败且不创建目标：输出与游戏根重叠、覆盖已有素材库、输出落系统盘。图集通过仅监听 `127.0.0.1` 的本地 HTTP 服务观察，搜索 `unit_main` 得到跨包候选，筛选 33 后保留四项对应框体图，图片透明区域正常；浏览器实图保存在同目录。内置浏览器拒绝 `file://` 协议，未绕过该限制，直接文件打开未由该浏览器验证。
+
+长期本地证据位于 `artifacts/iidx-skin-library-20261018/` 的 `library.json`、`source-inventory.json`、`packages.json`、`tool-verification.json` 与 `browser-33-preview.png`；依赖复用在 `.dev-cache/tools/iidx-assets/`。没有客户端运行时、玩法规则、作者 ABI、canonical 或发行构建改动；完整皮肤、动画还原、挂载与原人工门未验收。文档检查通过，新增 X / Y 盘路径均为通用示例；原 STATUS 具名验证保留历史来源并收简摘要，未刷新原软件 / 人工结论。最终文档、工作区与差异检查收据保存在同一证据目录。
+
 ## 2026-10-17跨线皮肤检查欠账同步
 
 P1-H 的 2026-10-11 补算完整回归已将额外皮肤删除检查交给本线，当前 STATUS/PLAN 却仍只列原29项旧工作区/编辑器预期。本轮补齐 `BmsManagedFolderSelectionProductTest.TestManagedDeleteFallbackReentrantSelectionNeverSplitsPairAndLatestWins` 的维护入口，来源与原对照保持在 [P1-H 记录](../P1-H/CHANGELOG.md#转谱星数后台资源优化)。只读回核留存的 `bms-failure-comparison.json` 与 `bms-reentrant-baseline-comparison.json`：原29项逐项一致，额外单项在原 `824c208` 生产源码下复现同名、同消息及同堆栈；这是未由补算改动引入的证据，不能据此断言只是旧预期或已修复。

@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-17（专项进度与文档记忆同步；各产品及生产证据保持原日期）
+> 最后核对：2026-10-18（接入用户授权的 IIDX 作品取材；既有产品与生产证据保持原日期）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -9,9 +9,11 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 ## 产品与仓库基线
 
+新增 IIDX 历代作品已授权，首批取材可用；可玩皮肤及增量页面待做，范围与证据见[P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。
+
 玩家直接登录固定OMSIR，保存后新局上传；新闻 / 帮助 / 排行 / 玩家沿原生页面。谱面列表先选模式：BMS 仅 Ginger Rush / 616，osu!mania 仅 Sayobot，恢复上次 BMS 来源；紧凑筛选、原生卡片和各来源阅读状态保持。正常OMS窗口的lazer体验仍待签收，隔离内容宽度检查不代签；源码 / 软件及剩余门取[P3-IR状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。社交后续，旧ppy关闭；Phase1.x原门保持。
 
-客户端共用徽章、启动字标、窗口标题和应用图标已统一为 OMS；正常窗口与 Windows 图标表现待验，范围见 [P1-A 品牌计划](../subline/P1-A/DEVELOPMENT_PLAN.md#客户端品牌正常窗口验收)。静线布局、作者能力与按模式选择 / 刷新 / 编辑路径取 [P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md)；只同步 simple 源，外观打磨暂停。
+客户端品牌、静线与作者 / 选择 / 刷新 / 编辑能力只取[P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md)；正常窗口及完整视觉待验，只同步 simple 源，外观打磨暂停。
 
 - Windows-only，保留osu!mania与第一类BMS，Osu/Taiko/Catch已删除；离线优先，旧 osu! API endpoint 为空。固定 OMSIR 的直接登录与按需公开查榜沿 P3-IR，不扩大旧全套在线产品面。公共BMS难度表URL、用户指定Ginger Rush / 616 BMS与Sayobot原生mania镜像下载为窄例外，合同见 P1-A [BMS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) / [mania](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载)。
 - BMS直读`chartbms/`，mania直读`chartmania/`；支持portable `data/`与自定义数据根。主要工程为`osu.Desktop.slnf`、`osu.Game.Rulesets.Bms`及`oms.Input`。
