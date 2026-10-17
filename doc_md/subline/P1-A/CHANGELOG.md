@@ -1,5 +1,11 @@
 # P1-A 变动日志
 
+## 2026-10-17跨线皮肤检查欠账同步
+
+P1-H 的 2026-10-11 补算完整回归已将额外皮肤删除检查交给本线，当前 STATUS/PLAN 却仍只列原29项旧工作区/编辑器预期。本轮补齐 `BmsManagedFolderSelectionProductTest.TestManagedDeleteFallbackReentrantSelectionNeverSplitsPairAndLatestWins` 的维护入口，来源与原对照保持在 [P1-H 记录](../P1-H/CHANGELOG.md#转谱星数后台资源优化)。只读回核留存的 `bms-failure-comparison.json` 与 `bms-reentrant-baseline-comparison.json`：原29项逐项一致，额外单项在原 `824c208` 生产源码下复现同名、同消息及同堆栈；这是未由补算改动引入的证据，不能据此断言只是旧预期或已修复。
+
+mania 注册断言维护的具名来源改为带日期的扫描审查，避免后续 P1-H “最近一次验证”换专项后漂移。稳定合同及产品代码未改，没有新测试、窗口/网络/设备或发行验证；文档和差异检查由 [主线本轮收据](../../mainline/CHANGELOG.md#2026-10-17专项进度与文档记忆一致性复核)统一记录。
+
 ## 2026-10-13客户端品牌标识专项
 
 用户授权将客户端遗留粉饼美术改为 OMS，并交由代理决定制作方式。从干净 `master@95051a2` 开始，fetch 成功，领先 `origin/master` 8、无落后及已有 diff；范围限 OMS 客户端品牌，不解除静线外观暂停或进入其它产品开发。

@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-13（新增客户端品牌正常窗口验收；下载与皮肤原门保持）
+> 最后核对：2026-10-17（补齐跨线皮肤检查维护；品牌、下载与皮肤原门保持）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -48,6 +48,7 @@ P1-A拥有浏览产品面，P1-H/P1-K提供谱库及导入合同；两源授权�
 以下保留为用户恢复开发或正式验收后的待办，不自行启动新的产品改动：
 
 - 整理已移除工作区/旧编辑器禁用预期的测试欠账：29项在[9月30日完整回归](../../other/BGA_SKIN_AUTHORING_20260930.md)中仍逐项复现，修改前证据见[TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md#完整回归失败的基线复现)。按现行固定目录与原编辑器用户路径更新测试；仍有效的后端安全合同保留验证，不为旧测试恢复已删除功能。归因不等于维护完成。
+- 同时维护 `BmsManagedFolderSelectionProductTest.TestManagedDeleteFallbackReentrantSelectionNeverSplitsPairAndLatestWins`：2026-10-11完整回归在上述29项外检出，修改前生产源码单项已复现同消息/堆栈，来源见[P1-H记录](../P1-H/CHANGELOG.md#转谱星数后台资源优化)。先区分 fixture 时序、有效断言和产品行为，再按实际缺陷修复并验证删除回落/重入选择；原证据只排除补算改动引入，不能直接当成过时预期或已维护完成。
 - 外部皮肤的隐式/显式选择串行 fixture 应等待前一请求实际提交，再发同值重选；10月1日整套偶发超时及五次独立复查见[下载验证记录](../../other/BMS_DOWNLOAD_20261001.md#有效自动验证)。产品 same-ID no-op 合同不变，不能用固定等待或改选择语义掩盖测试竞态。
 - 用完整歌曲核对黑白/皿轨比例与note边界、14K第二侧键序、小窗口判定/连击、键区/血槽/仪表衔接；维持旧包等宽兼容和横向布局不改变滚动时间。当前证据见[轨道记录](../../other/SKIN_SIMPLE_LANE_PROPORTIONS_20260913.md)。
 - 核对曲名和多表归类截断、作者标级独立性、实时判定读数、BPM变速与HiSpeed、不同宽高比/单双舞台。信息数据接通不等于整体视觉签收，见[信息区记录](../../other/SKIN_SIMPLE_INFORMATION_20260913.md)。

@@ -23,7 +23,7 @@
 
 2026-09-30 长条稳态与 LN/CN/HCN 的 tick 撤销、重新判定和池化复用专项通过；后续 BGA/作者工作最终 BMS full 仍通过上述三种模式的回退/复用及 HCN body gauge 用例。前后测量见 [性能验证](../../other/GAMEPLAY_PERFORMANCE_20260930.md)，最新完整回归的既有失败边界见 [作者能力验证](../../other/BGA_SKIN_AUTHORING_20260930.md)。这些自动结果不替代真实谱 checklist、长条手感或输入组合签收。
 
-2026-09-22 TOTAL 的 LN/CN/HCN 物量与辅助前后计数证据仍按原日期保留，见 [P1-C 验证](../P1-C/DEVELOPMENT_STATUS.md#最近一次验证)及本线 [CHANGELOG](CHANGELOG.md)。
+2026-09-22 TOTAL 的 LN/CN/HCN 物量与辅助前后计数证据仍按原日期保留，见 [TOTAL 原验证](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md#验证状态)及本线 [CHANGELOG](CHANGELOG.md)。
 
 ## 文档治理验证
 

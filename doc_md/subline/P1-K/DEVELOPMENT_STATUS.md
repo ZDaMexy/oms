@@ -39,7 +39,7 @@ K1–K12 主体已阶段性收口：解析 authority、主要控制事件、proj
 
 2026-09-29 自动键音的 converter/Mod/clone 证明见 [P1-J 历史记录](../P1-J/CHANGELOG.md#bms-与-bmsmania-自动键音)；同日后续手动 LN 的 Player/store 路由证明见[体验验证](../../other/EXPERIENCE_CLOSURE_20260929.md)。
 
-2026-09-22 TOTAL 的decoder/converter/cache、演奏/回放与results专项，以及BMS full和Release结果统一见[P1-C最新验证](../P1-C/DEVELOPMENT_STATUS.md#最近一次验证)与[TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。完整回归包含已逐项复现的旧皮肤失败，不能沿用旧C3全绿数字作为当前结论。2026-09-23仅回读留存证据，未新增产品测试。
+2026-09-22 TOTAL 的decoder/converter/cache、演奏/回放与results专项，以及BMS full和Release结果统一见[TOTAL 原验证](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md#验证状态)。完整回归包含已逐项复现的旧皮肤失败，不能沿用旧C3全绿数字作为当前结论。2026-09-23仅回读留存证据，未新增产品测试。
 
 2026-08-30 C3解析/keymode/lane/shared-store证明仍作为历史专项证据保留，详细计数和边界见[CHANGELOG](CHANGELOG.md)；它不代签当前全部代码或真实特殊谱验收。
 

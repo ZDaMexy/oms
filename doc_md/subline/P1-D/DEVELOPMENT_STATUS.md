@@ -18,7 +18,7 @@
 
 ## 最近一次验证
 
-2026-09-22 BMS full 留存 TRX 中，`TestDeviceDiscoveryRunsOffCallingThread` 通过；它只证明设备枚举离开调用线程，不是 live capture、完整设置 UI 或真实校准体验验收。完整回归与其既有失败见 [P1-C 最新验证](../P1-C/DEVELOPMENT_STATUS.md#最近一次验证)。
+2026-09-22 BMS full 留存 TRX 中，`TestDeviceDiscoveryRunsOffCallingThread` 通过；它只证明设备枚举离开调用线程，不是 live capture、完整设置 UI 或真实校准体验验收。同日完整回归与其既有失败见 [TOTAL 原验证](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md#验证状态)。
 
 ## 文档治理验证
 

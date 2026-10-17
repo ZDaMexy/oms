@@ -23,7 +23,7 @@
 
 ## 最近一次验证
 
-2026-09-22 BMS full 留存 TRX 中，`TestSceneOmsScratchGameplayBridge` 43/43 通过。它证明所覆盖的软件输入/玩法桥，不代表真实 HID、控制器或 cross-device 人工清单通过。完整回归的旧皮肤失败与 Release 历史执行边界见 [P1-C 最新验证](../P1-C/DEVELOPMENT_STATUS.md#最近一次验证)；desktop 设置裁剪的原始构建记录见 [CHANGELOG](CHANGELOG.md#2026-05-09)。
+2026-09-22 BMS full 留存 TRX 中，`TestSceneOmsScratchGameplayBridge` 43/43 通过。它证明所覆盖的软件输入/玩法桥，不代表真实 HID、控制器或 cross-device 人工清单通过。同日完整回归的旧皮肤失败与 Release 历史执行边界见 [TOTAL 原验证](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md#验证状态)；desktop 设置裁剪的原始构建记录见 [CHANGELOG](CHANGELOG.md#2026-05-09)。
 
 ## 文档治理验证
 
