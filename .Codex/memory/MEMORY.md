@@ -35,7 +35,7 @@
 
 ## 构建、存储与产品面参考
 
-- [构建与测试](reference_build_and_test.md) — 开发磁盘与进程环境、Pylance缓存扫描、构建目录内真实数据 / 旧作者包与容量误判、测试宿主、formatter owning 路径、输出锁、隔离渲染 / 内容宽度与真实窗口、品牌贴图命名空间与启动动画通道、未编译 / 退休 fixture 空跑、完整基线归因与依赖审计误判。
+- [构建与测试](reference_build_and_test.md) — 开发磁盘与进程环境、Pylance缓存扫描、构建目录内真实数据 / 旧作者包与容量误判、测试宿主与未加载Drawable失效、formatter owning 路径、输出锁、隔离渲染 / 内容宽度与真实窗口、品牌贴图命名空间与启动动画通道、未编译 / 退休 fixture 空跑、完整基线归因与依赖审计误判。
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱库路径身份与历史保全](reference_filesystem_library_identity.md) — 同内容不同目录、失效与物删分离、多文件改名、重复素材枚举与增量查询放大器。
 - [谱面构成过滤](reference_bms_composition_filter.md) — 单轨上限、共享额度、零宽入口及无解条件。
@@ -65,10 +65,10 @@
 - [BMS 默认皮肤几何](reference_bms_default_skin_geometry.md)
 - [BMS 皮肤编辑器边界](reference_bms_skin_editor.md) — 原编辑器异步独立草稿、关闭保存/回收、预览资源与 CLR 反射构造地雷。
 - [gameplay skin slot 三态合同](reference_gameplay_skin_slot_contract.md) — 三态、provider 优先级与候选生命周期。
-- [gameplay skin shared codec/material](reference_gameplay_skin_codec_material.md) — Common/Bms 元素族、样式选择、导入说明误报与持久诊断范围。
+- [gameplay skin shared codec/material](reference_gameplay_skin_codec_material.md) — Common/Bms元素族、样式选择、typed Note/LN材料导致scene空匹配、导入说明误报与持久诊断范围。
 - [gameplay skin lane identity/topology](reference_gameplay_skin_lane_identity.md) — stable lane ID 与 topology 投影。
 - [gameplay skin topology publication/revision](reference_gameplay_skin_topology_revision.md) — owner-local revision 与 publication 区别。
-- [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — 唯一 layout、选中包声明、HUD 坐标与作者 BGA 碰撞、分隔纹理缩放及重打包摘要。
+- [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — 唯一 layout、选中包声明、HUD 坐标/离屏缓冲与作者 BGA 碰撞、分隔纹理缩放及重打包摘要。
 - [gameplay skin config presence](reference_gameplay_skin_config_presence.md) — accepted presence、synthetic default 与 per-index mask。
 - [gameplay skin lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md) — lane provenance、9K/14K 候选映射与资源退役。
 - [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — 事件顺序、seek 时钟收敛与完整 Reset、callback 拷贝及真实显示取证。

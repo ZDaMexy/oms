@@ -17,6 +17,7 @@ using osu.Game.Database;
 using osu.Game.Extensions;
 using osu.Game.IO;
 using osu.Game.Rulesets.Bms.Difficulty;
+using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
 using osuTK.Graphics;
@@ -613,11 +614,33 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 : GameplaySkinConfigurationDeclaration<float>.Absent;
         }
 
-        internal GameplaySkinBgaLayout? GetAcceptedBgaLayout(BmsKeymode keymode)
-            => bmsConfigurations.TryGetValue(keymode, out BmsSkinConfiguration? configuration) ? configuration.BgaLayout : null;
+        internal GameplaySkinBgaLayout? GetAcceptedBgaLayout(BmsKeymode keymode, BmsPlayfieldStyle? style = null)
+        {
+            if (!bmsConfigurations.TryGetValue(keymode, out BmsSkinConfiguration? configuration))
+                return null;
 
-        internal string? GetBgaLayoutDiagnostic(BmsKeymode keymode)
-            => bmsConfigurations.TryGetValue(keymode, out BmsSkinConfiguration? configuration) ? configuration.BgaLayoutDiagnostic : null;
+            return style switch
+            {
+                null => configuration.BgaLayout,
+                BmsPlayfieldStyle.P1 => configuration.BgaLayoutP1,
+                BmsPlayfieldStyle.P2 => configuration.BgaLayoutP2,
+                _ => throw new ArgumentOutOfRangeException(nameof(style)),
+            };
+        }
+
+        internal string? GetBgaLayoutDiagnostic(BmsKeymode keymode, BmsPlayfieldStyle? style = null)
+        {
+            if (!bmsConfigurations.TryGetValue(keymode, out BmsSkinConfiguration? configuration))
+                return null;
+
+            return style switch
+            {
+                null => configuration.BgaLayoutDiagnostic,
+                BmsPlayfieldStyle.P1 => configuration.BgaLayoutP1Diagnostic,
+                BmsPlayfieldStyle.P2 => configuration.BgaLayoutP2Diagnostic,
+                _ => throw new ArgumentOutOfRangeException(nameof(style)),
+            };
+        }
 
         internal GameplaySkinConfigurationDeclaration<string> GetAcceptedBmsOrdinaryNoteResource(
             BmsKeymode keymode,

@@ -14,6 +14,98 @@ namespace osu.Game.Tests.NonVisual.Skinning
     [TestFixture]
     public sealed class GameplaySkinSceneCodecTest
     {
+        [TestCase("object.long-note-mode", "none|ln|cn|hcn")]
+        [TestCase("object.long-note-appearance", "none|ln|ln-holding|ln-released|cn|cn-holding|cn-released|hcn|hcn-holding|hcn-released")]
+        [TestCase("gauge.type", "none|assist-easy|easy|normal|hard|ex-hard|hazard")]
+        [TestCase("gauge.clear-state", "unavailable|uncleared|clear")]
+        public void TestTypedObjectAndGaugeVariantVocabulariesRoundTripAndRejectUnknownKeys(string source, string keys)
+        {
+            GameplaySkinSceneManifest manifest = decodeManifest(valid_manifest).Value!;
+            JObject scene = JObject.Parse(valid_scene);
+            scene["bindings"]![0]!["source"] = source;
+            scene["variants"] = new JArray(new JObject
+            {
+                ["id"] = "variant.typed-state",
+                ["target"] = "node.note",
+                ["property"] = "resource",
+                ["source"] = source,
+                ["default"] = "texture.note",
+                ["cases"] = new JArray(keys.Split('|').Select((key, index) => new JObject
+                {
+                    ["id"] = $"variant.typed-state-{index}",
+                    ["key"] = key,
+                    ["resource"] = "texture.frame-2",
+                })),
+            });
+            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> result = decodeScene(scene.ToString(), manifest);
+            Assert.That(result.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid), string.Join(",", result.Diagnostics.Select(d => d.Code)));
+            string encoded = GameplaySkinSceneCodec.EncodeScene(result.Value!);
+            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> roundTrip = decodeScene(encoded, manifest);
+            Assert.That(roundTrip.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+            Assert.That(roundTrip.Value!.Variants.Single().Cases.Select(@case => @case.Key), Is.EqualTo(keys.Split('|')));
+            Assert.That(GameplaySkinSceneCodec.EncodeScene(roundTrip.Value), Is.EqualTo(encoded));
+
+            scene["variants"]![0]!["cases"]![0]!["key"] = "author-guessed-state";
+            assertInvalidWith(decodeScene(scene.ToString(), manifest), GameplaySkinSceneDiagnosticCode.InvalidPropertyValue);
+        }
+
+        [TestCase("gauge.maximum")]
+        [TestCase("gauge.clear-threshold")]
+        public void TestGaugeNumericProjectionSupportsNumberBindings(string source)
+        {
+            GameplaySkinSceneManifest manifest = decodeManifest(valid_manifest).Value!;
+            JObject scene = JObject.Parse(valid_scene);
+            scene["bindings"]![0]!["source"] = source;
+            scene["bindings"]![0]!["property"] = "scale-x";
+            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> result = decodeScene(scene.ToString(), manifest);
+            Assert.That(result.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+            Assert.That(decodeScene(GameplaySkinSceneCodec.EncodeScene(result.Value!), manifest).Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+            scene["bindings"]![0]!["source"] = "gauge.type";
+            assertInvalidWith(decodeScene(scene.ToString(), manifest), GameplaySkinSceneDiagnosticCode.InvalidPropertyValue);
+        }
+
+        [Test]
+        public void TestJudgementTrackTriggerRoundTripsAndAbsentTriggerPreservesGlobalEncoding()
+        {
+            var manifest = new GameplaySkinSceneManifest(Array.Empty<GameplaySkinSceneResource>());
+            JObject scene = JObject.Parse(createSceneWithKeyframes(2));
+            var track = (JObject)scene["tracks"]![0]!;
+            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> global = decodeScene(scene.ToString(), manifest);
+            Assert.That(global.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+            Assert.That(global.Value!.Tracks.Single().Trigger, Is.EqualTo(GameplaySkinSceneEvent.Unspecified));
+            string globalEncoded = GameplaySkinSceneCodec.EncodeScene(global.Value);
+            Assert.That(JObject.Parse(globalEncoded)["tracks"]![0]!["trigger"], Is.Null);
+
+            track["trigger"] = "judgement.hit";
+            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> triggered = decodeScene(scene.ToString(), manifest);
+            Assert.That(triggered.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+            string encoded = GameplaySkinSceneCodec.EncodeScene(triggered.Value!);
+            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> roundTrip = decodeScene(encoded, manifest);
+            Assert.Multiple(() =>
+            {
+                Assert.That(roundTrip.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+                Assert.That(roundTrip.Value!.Tracks.Single().Trigger, Is.EqualTo(GameplaySkinSceneEvent.JudgementHit));
+                Assert.That(GameplaySkinSceneCodec.EncodeScene(roundTrip.Value), Is.EqualTo(encoded));
+            });
+        }
+
+        [TestCase("judgement.fake", GameplaySkinSceneDiagnosticCode.UnknownEvent)]
+        [TestCase("input.key.down", GameplaySkinSceneDiagnosticCode.InvalidAnimation)]
+        [TestCase("gameplay.start", GameplaySkinSceneDiagnosticCode.InvalidAnimation)]
+        public void TestJudgementTrackTriggerRejectsUnsupportedEvents(string trigger, GameplaySkinSceneDiagnosticCode diagnostic)
+        {
+            var manifest = new GameplaySkinSceneManifest(Array.Empty<GameplaySkinSceneResource>());
+            JObject scene = JObject.Parse(createSceneWithKeyframes(2));
+            scene["tracks"]![0]!["trigger"] = trigger;
+            assertInvalidWith(decodeScene(scene.ToString(), manifest), diagnostic);
+
+            foreach (JToken invalid in new JToken[] { JValue.CreateNull(), new JValue(1), new JObject() })
+            {
+                scene["tracks"]![0]!["trigger"] = invalid;
+                assertInvalidWith(decodeScene(scene.ToString(), manifest), GameplaySkinSceneDiagnosticCode.InvalidValueType);
+            }
+        }
+
         [Test]
         public void TestMaterialTemplateAndExplicitPresentationPropertiesRoundTrip()
         {

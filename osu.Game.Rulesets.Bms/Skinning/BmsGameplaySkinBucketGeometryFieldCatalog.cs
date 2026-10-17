@@ -20,6 +20,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 {
                     [nameof(BmsSkinConfigurationLookups.PlayfieldWidth)] = BmsSkinConfigurationLookups.PlayfieldWidth,
                     [nameof(BmsSkinConfigurationLookups.PlayfieldHeight)] = BmsSkinConfigurationLookups.PlayfieldHeight,
+                    [nameof(BmsSkinConfigurationLookups.PlayfieldSideInset)] = BmsSkinConfigurationLookups.PlayfieldSideInset,
+                    [nameof(BmsSkinConfigurationLookups.LaneSidePadding)] = BmsSkinConfigurationLookups.LaneSidePadding,
+                    [nameof(BmsSkinConfigurationLookups.DualStageGap)] = BmsSkinConfigurationLookups.DualStageGap,
                     [nameof(BmsSkinConfigurationLookups.BgaWidth)] = BmsSkinConfigurationLookups.BgaWidth,
                     [nameof(BmsSkinConfigurationLookups.BgaHeight)] = BmsSkinConfigurationLookups.BgaHeight,
                     [nameof(BmsSkinConfigurationLookups.BgaVerticalPosition)] = BmsSkinConfigurationLookups.BgaVerticalPosition,
@@ -44,6 +47,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
         {
             BmsSkinConfigurationLookups.PlayfieldWidth,
             BmsSkinConfigurationLookups.PlayfieldHeight,
+            BmsSkinConfigurationLookups.PlayfieldSideInset,
+            BmsSkinConfigurationLookups.LaneSidePadding,
+            BmsSkinConfigurationLookups.DualStageGap,
             BmsSkinConfigurationLookups.BgaWidth,
             BmsSkinConfigurationLookups.BgaHeight,
             BmsSkinConfigurationLookups.BgaVerticalPosition,
@@ -67,6 +73,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
         public static bool IsCanonical(BmsSkinConfigurationLookups field)
             => field is BmsSkinConfigurationLookups.PlayfieldWidth
                 or BmsSkinConfigurationLookups.PlayfieldHeight
+                or BmsSkinConfigurationLookups.PlayfieldSideInset
+                or BmsSkinConfigurationLookups.LaneSidePadding
+                or BmsSkinConfigurationLookups.DualStageGap
                 or BmsSkinConfigurationLookups.BgaWidth
                 or BmsSkinConfigurationLookups.BgaHeight
                 or BmsSkinConfigurationLookups.BgaVerticalPosition

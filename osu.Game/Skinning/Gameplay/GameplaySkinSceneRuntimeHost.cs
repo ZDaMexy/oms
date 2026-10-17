@@ -188,6 +188,10 @@ namespace osu.Game.Skinning.Gameplay
 
         internal long? BoundObjectId { get; set; }
 
+        internal double? JudgementAnimationStart { get; set; }
+
+        internal long? JudgementAnimationEpoch { get; set; }
+
         internal GameplaySkinPreparedSceneNode PreparedNode { get; }
 
         internal GameplaySkinSceneScriptBaseline? ScriptBaseline { get; set; }
@@ -226,6 +230,7 @@ namespace osu.Game.Skinning.Gameplay
 
         private readonly GameplaySkinEventSubscription subscription;
         private readonly Action<GameplaySkinEventRecord> consumeEventAction;
+        private readonly bool hasJudgementTriggeredTracks;
         private readonly Queue<PendingNode> pendingNodes = new Queue<PendingNode>();
         private readonly Queue<PendingSemantic> pendingSemantics = new Queue<PendingSemantic>();
         private readonly Dictionary<string, GameplaySkinSceneRuntimeNode> runtimeNodes = new Dictionary<string, GameplaySkinSceneRuntimeNode>(StringComparer.Ordinal);
@@ -256,6 +261,7 @@ namespace osu.Game.Skinning.Gameplay
         private readonly List<RegisteredProgrammaticVisual> registeredProgrammaticVisuals = new List<RegisteredProgrammaticVisual>();
 
         private GameplaySkinLifecycleState lifecycleState;
+        private GameplaySkinCompletionStateSnapshot? completion;
         private GameplaySkinCurrentJudgementStateSnapshot? globalJudgement;
         private GameplaySkinScoreStateSnapshot scoreState;
         private GameplaySkinSongInformation? songInformation;
@@ -314,6 +320,16 @@ namespace osu.Game.Skinning.Gameplay
 
         public bool IsSceneReady => pendingNodes.Count == 0 && pendingSemantics.Count == 0;
 
+        /// <summary>
+        /// Only the exact validated and healthy author scene may request a bounded full-combo outro.
+        /// The Player supplies the current engine score outcome rather than a possibly queued renderer projection.
+        /// </summary>
+        internal double GetCompletionOutroDuration(bool fullCombo)
+            => fullCombo && !disposed && IsSceneReady && runtimeFaults.Count == 0 ? PreparedScene.Program.CompletionOutro : 0;
+
+        internal double GetCompletionOutroEndTime(double gameplayTime, double duration)
+            => (EventStream.CaptureCompletion()?.AppliedTime ?? gameplayTime) + duration;
+
         public long CurrentEpoch { get; private set; } = -1;
 
         public long LastSequence { get; private set; } = -1;
@@ -331,10 +347,12 @@ namespace osu.Game.Skinning.Gameplay
 
             subscription = eventStream.Subscribe();
             consumeEventAction = consumeEvent;
+            hasJudgementTriggeredTracks = PreparedScene.Program.Tracks.Any(track => track.Trigger == GameplaySkinSceneEvent.JudgementHit);
             RelativeSizeAxes = Axes.Both;
 
             GameplaySkinEventStateSnapshot initialState = PreparedScene.InitialEventState;
             lifecycleState = initialState.LifecycleState;
+            completion = initialState.Completion;
             scoreState = initialState.Score;
             songInformation = initialState.SongInformation;
             timingState = initialState.Timing;
@@ -461,6 +479,12 @@ namespace osu.Game.Skinning.Gameplay
             updateSemanticState(gameplayTime, semanticFamilies);
 
             runScriptFrame(gameplayTime);
+
+            // Text/resource programs have now selected this frame's exact prepared glyphs and textures. The
+            // same local measurement is available before drawable loading and for every independent clone.
+            foreach (GameplaySkinSceneRuntimeNode node in runtimeNodes.Values)
+                if (node.ContentDrawable is GameplaySkinHorizontalContainer row)
+                    row.LayoutCells();
 
             // Keep a judged object's exact result through the frame which consumes its despawn edge so pooled
             // scene variants/bindings and state machines observe the same terminal state. Retire only after all
@@ -742,6 +766,8 @@ namespace osu.Game.Skinning.Gameplay
                             + (float)getNumber(prepared.Source.Properties, "z", 0)
                 };
                 applyGeometryAndBlend(root, prepared.Rect, parentRect, prepared.Source.Blend);
+                if (parent is GameplaySkinHorizontalContainer horizontal)
+                    horizontal.RegisterCell(root, content, prepared.Source);
                 parent.Add(root);
                 attachedParent = parent;
 
@@ -930,7 +956,14 @@ namespace osu.Game.Skinning.Gameplay
                     RelativeSizeAxes = Axes.Both,
                     Texture = prepared.ResolvedTexture,
                 },
-                GameplaySkinSceneNodeType.Container => new Container { RelativeSizeAxes = Axes.Both },
+                GameplaySkinSceneNodeType.ProjectiveSprite => new GameplaySkinProjectiveSprite
+                {
+                    RelativeSizeAxes = Axes.Both,
+                    Texture = prepared.ResolvedTexture,
+                },
+                GameplaySkinSceneNodeType.Container => GameplaySkinSceneCodec.IsHorizontalContainer(prepared.Source)
+                    ? new GameplaySkinHorizontalContainer((float)getNumber(prepared.Source.Properties, "gap-px", 0))
+                    : new Container { RelativeSizeAxes = Axes.Both },
                 GameplaySkinSceneNodeType.Text => createText(prepared),
                 // V1 Mask is a resource-free, allowlisted elliptical shape stencil. Clip is the distinct
                 // rectangular/rounded-bounds stencil. Neither node admits arbitrary author shaders.
@@ -969,6 +1002,14 @@ namespace osu.Game.Skinning.Gameplay
                 throw new InvalidOperationException();
 
             runtimeTextGlyphs += reservation;
+            GameplaySkinPreparedBitmapFont? bitmapFont = PreparedScene.GetBitmapFont(source.Id);
+            if (bitmapFont != null)
+            {
+                var bitmap = new GameplaySkinBitmapText(bitmapFont, (float)getNumber(source.Properties, "font-size", 16));
+                bitmap.SetAuthorText(text);
+                return bitmap;
+            }
+
             OsuSpriteText drawable = getString(source.Properties, "text-overflow", string.Empty) == "ellipsis"
                 ? new GameplaySkinBoundedSpriteText()
                 : new OsuSpriteText();
@@ -1227,6 +1268,10 @@ namespace osu.Game.Skinning.Gameplay
 
                 case GameplaySkinEventPayloadFamily.Lifecycle:
                     lifecycleState = envelope.Payload.GetLifecycle();
+                    completion = lifecycleState == GameplaySkinLifecycleState.Completed
+                        ? completion ?? new GameplaySkinCompletionStateSnapshot(envelope.GameplayTime, envelope.Payload.GetCompletionFullCombo())
+                        : null;
+                    changedStateFamilies |= GameplaySkinSceneStateFamily.Score;
                     break;
 
                 case GameplaySkinEventPayloadFamily.Input:
@@ -1335,7 +1380,17 @@ namespace osu.Game.Skinning.Gameplay
 
         private void applyCompleteState(GameplaySkinEventStateSnapshot state)
         {
+            foreach (GameplaySkinSceneRuntimeNode node in runtimeNodes.Values)
+            {
+                if (node.JudgementAnimationEpoch != CurrentEpoch)
+                {
+                    node.JudgementAnimationStart = null;
+                    node.JudgementAnimationEpoch = null;
+                }
+            }
+
             lifecycleState = state.LifecycleState;
+            completion = state.Completion;
             scoreState = state.Score;
             songInformation = state.SongInformation;
             timingState = state.Timing;
@@ -1891,10 +1946,9 @@ namespace osu.Game.Skinning.Gameplay
             => $"{machine.Id}@{runtime.RuntimeScopeId}";
 
         /// <summary>
-        /// Samples every V1 track against the exact stream's authoritative gameplay time. Track phase is global to
-        /// the committed publication (including pooled specialised clones); object-relative effects retain their
-        /// engine-owned lifetime and state instead of introducing a renderer-local clock or an OnApply phase origin.
-        /// A reused clone is therefore fully resampled on its next frame and cannot retain a prior object's phase.
+        /// Samples tracks against the exact stream's authoritative gameplay time. The default phase remains global;
+        /// an explicit judgement trigger subtracts only the matching engine snapshot's application time. Pooled
+        /// clones retain that origin through object retirement and clear it on free/reapply or complete-state reset.
         /// </summary>
         private void sampleTracks(double gameplayTime)
         {
@@ -1906,6 +1960,25 @@ namespace osu.Game.Skinning.Gameplay
 
                 if (!runtimeNodesBySourceId.TryGetValue(track.TargetNodeId, out List<GameplaySkinSceneRuntimeNode>? targets))
                     continue;
+
+                if (track.Trigger is GameplaySkinSceneEvent.JudgementHit or GameplaySkinSceneEvent.GameplayComplete)
+                {
+                    for (int targetIndex = targets.Count - 1; targetIndex >= 0; targetIndex--)
+                    {
+                        GameplaySkinSceneRuntimeNode target = targets[targetIndex];
+                        double time = track.Trigger == GameplaySkinSceneEvent.JudgementHit
+                            ? judgementTrackTime(target, gameplayTime)
+                            : completion.HasValue ? Math.Max(0, gameplayTime - completion.Value.AppliedTime) : 0;
+                        bool applied = track.Type == GameplaySkinSceneTrackType.Tween
+                            ? tryApplyRuntimeNumberProperty(target, track.Property, sampleTweenTrack(track, time))
+                            : tryApplyRuntimeProperty(target, track.Property, sampleFrameTrack(track, time));
+
+                        if (!applied)
+                            break;
+                    }
+
+                    continue;
+                }
 
                 if (track.Type == GameplaySkinSceneTrackType.Tween)
                 {
@@ -1928,6 +2001,38 @@ namespace osu.Game.Skinning.Gameplay
                     }
                 }
             }
+        }
+
+        private double judgementTrackTime(GameplaySkinSceneRuntimeNode node, double gameplayTime)
+        {
+            // An engine effect may have been applied in a newer epoch while this bounded consumer still drains
+            // the preceding snapshot. Do not project the older epoch over that exact captured application.
+            if (node.JudgementAnimationEpoch.HasValue && node.JudgementAnimationEpoch.Value != CurrentEpoch)
+                return 0;
+
+            GameplaySkinCurrentJudgementStateSnapshot? judgement;
+            GameplaySkinResolvedMaterialTarget? target = node.PreparedNode.MaterialTarget;
+
+            if (node.BoundObjectId.HasValue)
+                judgement = judgementsByObject.TryGetValue(node.BoundObjectId.Value, out GameplaySkinCurrentJudgementStateSnapshot exact) ? exact : null;
+            else if (target?.LaneId != null)
+                judgement = judgementsByLane.TryGetValue(target.LaneId, out GameplaySkinCurrentJudgementStateSnapshot lane) ? lane : null;
+            else if (target?.GroupId != null)
+                judgement = judgementsByGroup.TryGetValue(target.GroupId, out GameplaySkinCurrentJudgementStateSnapshot group) ? group : null;
+            else
+                judgement = globalJudgement;
+
+            // A pooled hit visual is one application, even when CN head and tail share the same object ID.
+            // Its first exact judgement origin must not be replaced by a later result for that same object.
+            if (judgement is { } current && (!node.BoundObjectId.HasValue || !node.JudgementAnimationStart.HasValue))
+            {
+                node.JudgementAnimationStart = current.AppliedTime;
+                node.JudgementAnimationEpoch = CurrentEpoch;
+            }
+
+            // An untriggered/reused node starts at its first frame. Visibility remains the existing slot/state or
+            // native pooled consumer's responsibility; absence never falls through to another lane's judgement.
+            return node.JudgementAnimationStart.HasValue ? Math.Max(0, gameplayTime - node.JudgementAnimationStart.Value) : 0;
         }
 
         private static GameplaySkinPreparedSceneValue sampleFrameTrack(GameplaySkinPreparedSceneTrack track, double gameplayTime)
@@ -1971,7 +2076,7 @@ namespace osu.Game.Skinning.Gameplay
 
             int nextIndex = 1;
 
-            while (nextIndex < frames.Count && frames[nextIndex].Time < time)
+            while (nextIndex < frames.Count && frames[nextIndex].Time <= time)
                 nextIndex++;
 
             GameplaySkinPreparedSceneKeyframe previous = frames[nextIndex - 1];
@@ -2036,12 +2141,7 @@ namespace osu.Game.Skinning.Gameplay
                     {
                         VariantApplicationCount++;
                         string key = variantKey(variant.Source, target);
-                        GameplaySkinPreparedSceneResource resource = variant.SelectResource(key);
-
-                        if (target.ContentDrawable is not Sprite sprite)
-                            throw new InvalidOperationException();
-
-                        sprite.Texture = resource.Texture!;
+                        applyRuntimeProperty(target, variant.Property, variant.SelectValue(key));
                     }
                     catch
                     {
@@ -2064,6 +2164,10 @@ namespace osu.Game.Skinning.Gameplay
             return source switch
             {
                 GameplaySkinSceneBindingSource.ObjectState => objectStateId(obj?.State ?? GameplaySkinObjectState.Scheduled),
+                GameplaySkinSceneBindingSource.ObjectLongNoteMode => longNoteModeId(obj?.LongNoteMode ?? GameplaySkinLongNoteMode.None),
+                GameplaySkinSceneBindingSource.ObjectLongNoteAppearance => longNoteAppearanceId(obj),
+                GameplaySkinSceneBindingSource.GaugeType => gaugeTypeId(scoreState.GaugeState.Type),
+                GameplaySkinSceneBindingSource.GaugeClearState => gaugeClearStateId(scoreState.GaugeState.ClearState),
                 GameplaySkinSceneBindingSource.JudgementResult => judgementGradeId(judgement?.Grade ?? GameplaySkinJudgementGrade.Miss),
                 GameplaySkinSceneBindingSource.BgaContentState => bgaStateId(bgaState?.ContentState ?? GameplaySkinBgaContentState.Empty),
                 _ => throw new InvalidOperationException(),
@@ -2207,8 +2311,20 @@ namespace osu.Game.Skinning.Gameplay
                     applyRuntimeBooleanProperty(target, binding.Property, input?.IsPressed ?? false);
                     return;
 
+                case GameplaySkinSceneBindingSource.GameplayFullCombo:
+                    applyRuntimeBooleanProperty(target, binding.Property, lifecycleState == GameplaySkinLifecycleState.Completed && completion?.IsFullCombo == true);
+                    return;
+
                 case GameplaySkinSceneBindingSource.ObjectState:
                     applyRuntimeStringProperty(target, binding.Property, objectStateId(obj?.State ?? GameplaySkinObjectState.Scheduled));
+                    return;
+
+                case GameplaySkinSceneBindingSource.ObjectLongNoteMode:
+                    applyRuntimeStringProperty(target, binding.Property, longNoteModeId(obj?.LongNoteMode ?? GameplaySkinLongNoteMode.None));
+                    return;
+
+                case GameplaySkinSceneBindingSource.ObjectLongNoteAppearance:
+                    applyRuntimeStringProperty(target, binding.Property, longNoteAppearanceId(obj));
                     return;
 
                 case GameplaySkinSceneBindingSource.JudgementResult:
@@ -2284,7 +2400,7 @@ namespace osu.Game.Skinning.Gameplay
                     return;
 
                 case GameplaySkinSceneBindingSource.ScoreAccuracy:
-                    if (binding.Property == GameplaySkinSceneProperty.Text)
+                    if (binding.Property == GameplaySkinSceneProperty.Text && target.ContentDrawable is not GameplaySkinBitmapText)
                         applyRuntimeStringProperty(target, binding.Property, formatAccuracy(scoreState.Accuracy));
                     else
                         applyRuntimeNumberProperty(target, binding.Property, scoreState.Accuracy);
@@ -2296,6 +2412,22 @@ namespace osu.Game.Skinning.Gameplay
 
                 case GameplaySkinSceneBindingSource.GaugeValue:
                     applyRuntimeNumberProperty(target, binding.Property, scoreState.Gauge);
+                    return;
+
+                case GameplaySkinSceneBindingSource.GaugeType:
+                    applyRuntimeStringProperty(target, binding.Property, gaugeTypeId(scoreState.GaugeState.Type));
+                    return;
+
+                case GameplaySkinSceneBindingSource.GaugeMaximum:
+                    applyRuntimeNumberProperty(target, binding.Property, scoreState.GaugeState.Maximum);
+                    return;
+
+                case GameplaySkinSceneBindingSource.GaugeClearThreshold:
+                    applyRuntimeNumberProperty(target, binding.Property, scoreState.GaugeState.ClearThreshold);
+                    return;
+
+                case GameplaySkinSceneBindingSource.GaugeClearState:
+                    applyRuntimeStringProperty(target, binding.Property, gaugeClearStateId(scoreState.GaugeState.ClearState));
                     return;
 
                 case GameplaySkinSceneBindingSource.TimingBeat:
@@ -2311,7 +2443,7 @@ namespace osu.Game.Skinning.Gameplay
                     return;
 
                 case GameplaySkinSceneBindingSource.TimingProgress:
-                    if (binding.Property == GameplaySkinSceneProperty.Text)
+                    if (binding.Property == GameplaySkinSceneProperty.Text && target.ContentDrawable is not GameplaySkinBitmapText)
                         applyRuntimeStringProperty(target, binding.Property, formatProgress(timingState.Progress));
                     else
                         applyRuntimeNumberProperty(target, binding.Property, timingState.Progress);
@@ -2443,6 +2575,11 @@ namespace osu.Game.Skinning.Gameplay
 
             switch (value.Kind)
             {
+                case GameplaySkinScenePropertyValueKind.ProjectiveQuad when property == GameplaySkinSceneProperty.ProjectiveQuad
+                                                                            && node.ContentDrawable is GameplaySkinProjectiveSprite projective:
+                    projective.ApplyQuad(value.ProjectiveQuad!);
+                    return;
+
                 case GameplaySkinScenePropertyValueKind.Number:
                     applyRuntimeNumberProperty(node, property, value.NumberValue);
                     return;
@@ -2505,6 +2642,9 @@ namespace osu.Game.Skinning.Gameplay
                     node.TransformDrawable.Alpha = value ? 1 : 0;
                     return;
 
+                case GameplaySkinSceneProperty.Text when node.ContentDrawable is GameplaySkinBitmapText:
+                    throw new InvalidOperationException("An author bitmap text cannot display boolean words.");
+
                 case GameplaySkinSceneProperty.Text when node.ContentDrawable is SpriteText text:
                     string booleanText = value ? "true" : "false";
 
@@ -2528,6 +2668,12 @@ namespace osu.Game.Skinning.Gameplay
             {
                 case GameplaySkinSceneProperty.Resource:
                     throw new InvalidOperationException();
+
+                case GameplaySkinSceneProperty.Text when node.ContentDrawable is GameplaySkinBitmapText bitmap:
+                    if (value.Length > PreparedScene.GetTextGlyphReservation(node.PreparedNode.Source.Id))
+                        throw new InvalidOperationException();
+                    bitmap.SetAuthorText(value);
+                    return;
 
                 case GameplaySkinSceneProperty.Text when node.ContentDrawable is SpriteText text:
                     if (getString(node.PreparedNode.Source.Properties, "format", string.Empty) == "uppercase")
@@ -2660,11 +2806,16 @@ namespace osu.Game.Skinning.Gameplay
                     clip.Masking = true;
                     return;
 
+                case GameplaySkinSceneProperty.Text when node.ContentDrawable is GameplaySkinBitmapText bitmap:
+                    bitmap.SetNumber(value, getString(node.PreparedNode.Source.Properties, "format", string.Empty));
+                    return;
+
                 case GameplaySkinSceneProperty.Text when node.ContentDrawable is SpriteText text:
                     string display = getString(node.PreparedNode.Source.Properties, "format", string.Empty) switch
                     {
                         "percent" => (value * 100).ToString("0", CultureInfo.InvariantCulture) + "%",
                         "fixed-2" => value.ToString("0.00", CultureInfo.InvariantCulture),
+                        "integer" => value.ToString("0", CultureInfo.InvariantCulture),
                         _ => value.ToString("0.###", CultureInfo.InvariantCulture),
                     };
 
@@ -2688,7 +2839,7 @@ namespace osu.Game.Skinning.Gameplay
         {
             foreach ((string property, GameplaySkinScenePropertyValue value) in properties)
             {
-                if (property == "z")
+                if (property is "z" or "layout" or "gap-px" or "width-px" or "height-px")
                     continue;
 
                 Drawable target = property is "opacity" or "visible" or "x" or "y" or "width" or "height"
@@ -2697,7 +2848,7 @@ namespace osu.Game.Skinning.Gameplay
                     : content;
                 applyProperty(target, property, value);
             }
-            if (content is SpriteText text && getString(properties, "format", string.Empty) == "uppercase")
+            if (content is SpriteText text && content is not GameplaySkinBitmapText && getString(properties, "format", string.Empty) == "uppercase")
                 text.Text = text.Text.ToString().ToUpperInvariant();
         }
 
@@ -2770,6 +2921,7 @@ namespace osu.Game.Skinning.Gameplay
                 case "text-overflow":
                 case "layout-surface":
                 case "format":
+                case "bitmap-font":
                     break;
 
                 case "reveal-x" when drawable is Container clip:
@@ -2778,6 +2930,10 @@ namespace osu.Game.Skinning.Gameplay
 
                 case "font-size" when value.Kind == GameplaySkinScenePropertyValueKind.Number && drawable is SpriteText text:
                     text.Font = text.Font.With(size: (float)value.NumberValue);
+                    break;
+
+                case "text" when drawable is GameplaySkinBitmapText bitmap:
+                    bitmap.SetAuthorText(value.StringValue ?? string.Empty);
                     break;
 
                 case "text" when drawable is SpriteText text:
@@ -2889,6 +3045,52 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinObjectState.Completed => "completed",
             GameplaySkinObjectState.Despawned => "despawned",
             _ => "scheduled",
+        };
+
+        private static string longNoteModeId(GameplaySkinLongNoteMode mode) => mode switch
+        {
+            GameplaySkinLongNoteMode.None => "none",
+            GameplaySkinLongNoteMode.Standard => "ln",
+            GameplaySkinLongNoteMode.Charge => "cn",
+            GameplaySkinLongNoteMode.HellCharge => "hcn",
+            _ => throw new ArgumentOutOfRangeException(nameof(mode)),
+        };
+
+        private static string longNoteAppearanceId(GameplaySkinObjectStateSnapshot? obj)
+        {
+            if (obj is not { } current)
+                return "none";
+
+            return (current.LongNoteMode, current.State) switch
+            {
+                (GameplaySkinLongNoteMode.Standard, GameplaySkinObjectState.Holding) => "ln-holding",
+                (GameplaySkinLongNoteMode.Standard, GameplaySkinObjectState.Missed) => "ln-released",
+                (GameplaySkinLongNoteMode.Charge, GameplaySkinObjectState.Holding) => "cn-holding",
+                (GameplaySkinLongNoteMode.Charge, GameplaySkinObjectState.Missed) => "cn-released",
+                (GameplaySkinLongNoteMode.HellCharge, GameplaySkinObjectState.Holding) => "hcn-holding",
+                (GameplaySkinLongNoteMode.HellCharge, GameplaySkinObjectState.Missed) => "hcn-released",
+                _ => longNoteModeId(current.LongNoteMode),
+            };
+        }
+
+        private static string gaugeTypeId(GameplaySkinGaugeType type) => type switch
+        {
+            GameplaySkinGaugeType.None => "none",
+            GameplaySkinGaugeType.AssistEasy => "assist-easy",
+            GameplaySkinGaugeType.Easy => "easy",
+            GameplaySkinGaugeType.Normal => "normal",
+            GameplaySkinGaugeType.Hard => "hard",
+            GameplaySkinGaugeType.ExHard => "ex-hard",
+            GameplaySkinGaugeType.Hazard => "hazard",
+            _ => throw new ArgumentOutOfRangeException(nameof(type)),
+        };
+
+        private static string gaugeClearStateId(GameplaySkinGaugeClearState state) => state switch
+        {
+            GameplaySkinGaugeClearState.Unavailable => "unavailable",
+            GameplaySkinGaugeClearState.Uncleared => "uncleared",
+            GameplaySkinGaugeClearState.Clear => "clear",
+            _ => throw new ArgumentOutOfRangeException(nameof(state)),
         };
 
         private static string judgementGradeId(GameplaySkinJudgementGrade grade) => grade switch

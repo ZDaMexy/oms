@@ -13,10 +13,11 @@ using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Bms.Scoring
 {
-    public partial class BmsGaugeProcessor : HealthProcessor
+    public partial class BmsGaugeProcessor : HealthProcessor, IGameplaySkinGaugeStateSource
     {
         public const double DEFAULT_TOTAL = 200;
         public const double STARTING_GAUGE = 0.2;
@@ -91,6 +92,21 @@ namespace osu.Game.Rulesets.Bms.Scoring
         public BmsKeymode Keymode => currentKeymode ?? throw new InvalidOperationException("bms.keymode.missing-gauge-authority");
 
         public bool IsClear => MeetsClearCondition(GaugeType, GaugeRulesFamily, Keymode, Health.Value, HasFailed);
+
+        GameplaySkinGaugeStateSnapshot IGameplaySkinGaugeStateSource.GameplaySkinGaugeState => new GameplaySkinGaugeStateSnapshot(
+            GaugeType switch
+            {
+                BmsGaugeType.AssistEasy => GameplaySkinGaugeType.AssistEasy,
+                BmsGaugeType.Easy => GameplaySkinGaugeType.Easy,
+                BmsGaugeType.Normal => GameplaySkinGaugeType.Normal,
+                BmsGaugeType.Hard => GameplaySkinGaugeType.Hard,
+                BmsGaugeType.ExHard => GameplaySkinGaugeType.ExHard,
+                BmsGaugeType.Hazard => GameplaySkinGaugeType.Hazard,
+                _ => throw new InvalidOperationException("bms.gauge.invalid-type-authority"),
+            },
+            CurrentMaximumGauge,
+            CurrentClearThreshold,
+            IsClear);
 
         public BmsGaugeProcessor(double drainStartTime, BmsGaugeType gaugeType = BmsGaugeType.Normal, BmsGaugeRulesFamily gaugeRulesFamily = BmsGaugeRulesFamily.Legacy)
         {

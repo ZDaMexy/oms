@@ -135,7 +135,8 @@ namespace osu.Game.Rulesets.Bms.UI
             hitPolicy = new BmsOrderedHitPolicy(HitObjectContainer);
 
             RelativeSizeAxes = Axes.Both;
-            Masking = true;
+            // Scrolling notes are clipped inside BmsHitObjectArea. The hit target is its sibling so authored
+            // judgement effects can extend across neighbouring lanes and below the judgement line.
 
             laneSurfaceVisual = new SkinnableDrawable(createLookup(BmsLaneSkinElements.Background))
             {

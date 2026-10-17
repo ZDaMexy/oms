@@ -139,7 +139,7 @@ namespace SkinAuthoring
                 errors.Add($"skin.ini:{diagnostic.LineNumber}: {diagnostic.Id}");
             foreach (var line in document.LegacySections.Where(section => section.Name == "Bms").SelectMany(section => section.Lines))
             {
-                if (line.Key == GameplaySkinBgaLayout.CONFIGURATION_KEY && line.Value != null
+                if (line.Key is GameplaySkinBgaLayout.CONFIGURATION_KEY or "BgaViewportsP1" or "BgaViewportsP2" && line.Value != null
                     && !GameplaySkinBgaLayout.TryParse(line.Value, out _, out string? diagnostic))
                     errors.Add($"skin.ini:{line.LineNumber}: {diagnostic}");
             }

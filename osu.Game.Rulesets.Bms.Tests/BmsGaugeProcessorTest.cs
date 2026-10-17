@@ -11,12 +11,72 @@ using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Scoring;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Bms.Tests
 {
     [TestFixture]
     public class BmsGaugeProcessorTest
     {
+        [TestCase(BmsGaugeType.AssistEasy, GameplaySkinGaugeType.AssistEasy)]
+        [TestCase(BmsGaugeType.Easy, GameplaySkinGaugeType.Easy)]
+        [TestCase(BmsGaugeType.Normal, GameplaySkinGaugeType.Normal)]
+        [TestCase(BmsGaugeType.Hard, GameplaySkinGaugeType.Hard)]
+        [TestCase(BmsGaugeType.ExHard, GameplaySkinGaugeType.ExHard)]
+        [TestCase(BmsGaugeType.Hazard, GameplaySkinGaugeType.Hazard)]
+        public void TestReadOnlyGaugeProjectionUsesActualProcessorRules(BmsGaugeType type, GameplaySkinGaugeType expectedType)
+        {
+            foreach (BmsGaugeRulesFamily family in new[] { BmsGaugeRulesFamily.Legacy, BmsGaugeRulesFamily.Beatoraja, BmsGaugeRulesFamily.LR2, BmsGaugeRulesFamily.IIDX })
+            {
+                var processor = new BmsGaugeProcessor(0, type, family);
+                processor.ApplyBeatmap(createBeatmap(200, 1000));
+                var source = (IGameplaySkinGaugeStateSource)processor;
+
+                foreach (double value in new[] { 0, 0.59, 0.6, 0.79, 0.8, 1 })
+                {
+                    processor.Health.Value = value;
+                    GameplaySkinGaugeStateSnapshot state = source.GameplaySkinGaugeState;
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(state.Type, Is.EqualTo(expectedType), family.ToString());
+                        Assert.That(state.Maximum, Is.EqualTo(processor.CurrentMaximumGauge));
+                        Assert.That(state.ClearThreshold, Is.EqualTo(processor.CurrentClearThreshold));
+                        Assert.That(state.IsClear, Is.EqualTo(processor.IsClear));
+                        Assert.That(state.ClearState, Is.EqualTo(processor.IsClear ? GameplaySkinGaugeClearState.Clear : GameplaySkinGaugeClearState.Uncleared));
+                    });
+                }
+            }
+        }
+
+        [Test]
+        public void TestReadOnlyGaugeProjectionRequiresAppliedBeatmapAuthority()
+        {
+            var source = (IGameplaySkinGaugeStateSource)new BmsGaugeProcessor(0);
+            Assert.That(() => _ = source.GameplaySkinGaugeState,
+                Throws.InvalidOperationException.With.Message.EqualTo("bms.keymode.missing-gauge-authority"));
+        }
+
+        [Test]
+        public void TestReadOnlyGaugeProjectionFollowsActualGasDowngrade()
+        {
+            var beatmap = createBeatmap(200, 1000);
+            var processor = new BmsGasGaugeProcessor(0, BmsGaugeType.ExHard, BmsGaugeType.Normal);
+            processor.ApplyBeatmap(beatmap);
+            var source = (IGameplaySkinGaugeStateSource)processor;
+            Assert.That(source.GameplaySkinGaugeState.Type, Is.EqualTo(GameplaySkinGaugeType.ExHard));
+
+            for (int i = 0; i < 30; i++)
+                processor.ApplyResult(createResult(beatmap.HitObjects[0], HitResult.Meh));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(processor.GaugeType, Is.EqualTo(BmsGaugeType.Normal));
+                Assert.That(source.GameplaySkinGaugeState.Type, Is.EqualTo(GameplaySkinGaugeType.Normal));
+                Assert.That(source.GameplaySkinGaugeState.ClearThreshold, Is.EqualTo(processor.CurrentClearThreshold));
+                Assert.That(source.GameplaySkinGaugeState.IsClear, Is.EqualTo(processor.IsClear));
+            });
+        }
+
         [Test]
         public void TestRulesetCreatesBmsGaugeProcessor()
             => Assert.That(new BmsRuleset().CreateHealthProcessor(0), Is.TypeOf<BmsGaugeProcessor>());

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Primitives;
 using osu.Framework.Graphics.Sprites;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
@@ -219,6 +220,7 @@ namespace osu.Game.Screens.Play
                 throw new InvalidOperationException("A prepared HUD clip must remain inside the exact screen bounds.");
 
             BufferedContainerView<Drawable> view = capture.CreateView();
+            view.RelativeSizeAxes = Axes.Both;
             var fullCanvas = new Container
             {
                 RelativeSizeAxes = Axes.Both,
@@ -292,7 +294,13 @@ namespace osu.Game.Screens.Play
                 RelativePositionAxes = Axes.X;
                 X = 2;
                 AlwaysPresent = true;
+                // Initialise and draw the shared buffer before any foreground partition can read it.
+                Depth = 1;
             }
+
+            // This is an offscreen source for visible HUD views. AlwaysPresent alone does not bypass
+            // geometry masking; culling the source would leave its shared renderer uninitialised.
+            protected override bool ComputeIsMaskedAway(RectangleF maskingBounds) => false;
 
             protected override void Update()
             {

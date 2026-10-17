@@ -240,7 +240,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 RelativeSizeAxes = Axes.Both,
                 Position = new osuTK.Vector2(LayoutSnapshot.PlayfieldRect.X, LayoutSnapshot.PlayfieldRect.Y),
                 Size = new osuTK.Vector2(LayoutSnapshot.PlayfieldRect.Width, LayoutSnapshot.PlayfieldRect.Height),
-                Masking = true,
+                // Notes and bar lines own their scrolling masks. This frame must leave hit-target effects free
+                // to extend outside the field without enlarging the engine-owned note or input geometry.
                 Children = playfieldChildren,
             });
 

@@ -100,7 +100,7 @@
 
 2026-10-18 用户授权历代 IIDX 第三方皮肤作品，以及由实际资源需要驱动的 OMS 表现能力补齐。来源与交付边界如下：
 
-1. 所有用户 HDD 安装根只读。工具不启动游戏、不调整 spice2x / 配置、不注入、不向安装根写文件或重打包 IFS；第三方解包器只处理经摘要核对的独立副本。输出目录与整个游戏根不得重叠，不覆盖既有素材库；成功前核对源包摘要和美术目录元数据。
+1. 所有用户原 HDD 安装根只读，不从原根启动游戏或向其写配置、日志、缓存、补丁和重打包 IFS。第三方解包器只处理经摘要核对的独立副本；输出与整个原游戏根不得重叠，不覆盖既有素材库。用户已允许通过 spice2x API 观察与操作，运行参照限完整独立可玩副本，路径、配置及输出均与原安装分离；副本不使用真实卡或账号。副本启动检查调整和实际刷新率须留证，不能代签原安装或原版时序。采集后复核原安装元数据与关键文件摘要，解包另核对源包摘要和源美术清单。
 2. 用户保有整理的历代 HDD 网盘资源。先用已提供本地来源，实际缺口按“版本 / 组件 / 已查来源 / 缺口”登记，由用户下载相应版本后告知路径。网盘储备不等于已读取或已确认的素材覆盖，不提前获取全部版本。
 3. 原版素材、源清单、摘要和生成的作者作品保留在本地忽略目录或仓库外；公共仓库只收工具、映射与文档，不把原版美术并入静线作者源、canonical、制作套件或公开发行。默认与保底继续使用静线，原用户皮肤保全。
 4. 纹理须保留原始图和 `imgrect/uvrect`，按有效区域解码，不靠缩放或重绘掩盖裁切问题；动画、几何、关联清单同源保留。文件名与素材编号只提供候选归属，解包成功和 PNG 有效不证明组件齐全、动画还原或完整可玩。
@@ -269,7 +269,19 @@ L12. lane-resource candidate/snapshot与configuration candidate已经接入BMS e
 
 ## scene、事件与脚本约束
 
-`instances`的`target`与`material`二选一；后者只按选定包同一ContentRevision的Global/Stage Provide声明及精确slot/resource匹配，模板根slot相同，准备仍复核exact owner，不借用canonical scene/resources。实际展开参与既有节点、帧、事件与文字预算，Stage实例使用实际舞台事实，Global实例只生成一次。`reveal-x`只用于clip，范围0..1，保留完整子坐标；`format`只允许静态percent/uppercase/fixed-2，格式化后继续限制长度，accuracy/progress保留既有专用格式。BMS `GaugeHeight`仅选定包读取，默认0.036、范围0.02..0.12，由唯一solver与键区/BGA/底部信息共同避让。参考[模板与血槽证据](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md)。
+`instances`的`target`与`material`二选一；后者只按选定包同一ContentRevision的Global/Stage/Lane Provide声明及精确slot/resource匹配，模板根slot相同，准备仍复核exact owner，不借用canonical scene/resources。实际展开参与既有节点、帧、事件与文字预算，Stage/Lane实例使用真实目标事实，Global实例只生成一次。`reveal-x`只用于clip，范围0..1，保留完整子坐标；`format`只允许静态percent/uppercase/fixed-2/integer，格式化后继续限制长度，accuracy/progress保留既有专用格式。BMS `GaugeHeight`仅选定包读取，默认0.036、范围0.02..0.12，由唯一solver与键区/BGA/底部信息共同避让。原模板与血槽证据见[历史记录](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md)，新增能力验证取本线STATUS。
+
+清单可选 `bitmapFonts` 只引用同包已准备的纹理，Text通过静态 `bitmap-font` 选用。字体、字形、字符、像素与运行文字均有硬预算；缺字或超限明确失败，不回落系统字形，不在update线程读文件或建新图集。尺寸、格式和完整字段见[公开参考](../../../skin-authoring/docs/REFERENCE.md#用自己的图片字形显示数字)。普通Text未声明该字段时保留原表现。
+
+Container可静态声明 `layout: horizontal`，只排列普通Sprite与图片数字叶子；有符号间距、指定高度/可选宽度及自然字形画布范围参与整体并集居中，单位与font-size一致，不替换C3矩形。布局字段禁止动画/绑定/状态/脚本写入，行、祖先及直接孩子不能挂缓冲效果；图片依本帧已准备纹理求比例，数字首帧取AuthorText与同一字体，无系统字体或新I/O。`visible`变体只把既有只读枚举映射为布尔值，资源变体保持原语法与owner/冲突/预算合同，不能动态更换图片字体。完整规则取[横排参考](../../../skin-authoring/docs/REFERENCE.md#标签与数字整体居中的横排)。
+
+轨迹可选 `trigger: judgement.hit` 以目标真实判定的AppliedTime起播；省略仍使用全局游玩时间。局部目标不借用其它车道事件，池化击打实例各自保留起点，CN头尾可同时播放；暂停冻结，reset/epoch替换及复用清理旧起点。BMS滚动内容保留自身蒙版，击打效果可越过单车道和落键区边缘，仍使用原生目标、既有池上限与同一场景预算。
+
+`gameplay.full-combo` 取真实 `HasCompleted && MaximumCombo > 0 && Combo == MaximumCombo`，空谱、首判失败及中途断连不能触发；`gameplay.complete` 轨迹使用留存的原完成时刻，重附着及演出内seek不得重新起播。scene可声明0～2500ms的 `completionOutro`，正值必须有对应全连可见绑定与覆盖尾段的非循环完成轨迹；仅健康选定场景的真实全连适用，暂停/速率继续使用游玩时钟，默认包仍走原结算等待。
+
+`projective-sprite` 只消费已校验的四角坐标、正倒数W与透明度帧，使用同一准备、资源、帧和时钟预算；不提供作者shader、相机或任意几何。坐标有限且在±4内，倒数W为1/256～256，采用固定完整UV和双面绘制。纹理清单可选 `filter: nearest/linear`，默认linear，按具体已准备资源隔离采样设置；nearest只上传原始层，不由图形后端自动生成缩小平均层。公开语法及不适用的属性见[四角动画参考](../../../skin-authoring/docs/REFERENCE.md#已投影纹理的四角动画)。
+
+对象长条模式随原生对象、compact事件和完整快照传递，epoch内不可改变；appearance只由同一模式与现有对象状态派生。血槽类型、最大值、阈值和通关状态只读实际处理器，语义变化沿既有GaugeChanged发布；无提供者明确unavailable，不按mania血量猜通关。字段闭集见[只读绑定](../../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)，不另建输入、判定、计分或时间权威。
 
 公开只读绑定`song.title/artist/difficulty/level`、`timing.bpm-min/bpm-max`、`scroll.speed`、`judgement.count.perfect/great/good/ok/meh/miss`及`combo.breaks`。静态SongInformation只随完整快照携带，聚合器重附着/epoch替换必须保留。每项元数据最多256个UTF-16单元，截断不能分裂代理对；判定计数字形预留10，其余既有动态数字预留384，总字形预算8192，纹理字节/像素及每帧创建限制不变。计数内联值类型随Score payload传递，每帧和reset屏障从真实ScoreProcessor.Statistics读取，不能以皮肤事件自行累计；BMS中Perfect/Great/Good/Meh/Miss/Ok分别是PG/GR/GD/BD/PR/空POOR，ComboBreak仅真正断连，mania保留自身档位语义。BMS MIN/MAX来自转换器音乐时间线，STOP不改变真实BPM，未使用定义和SCROLL不参与；HiSpeed来自SelectedHiSpeed，mania来自实际ScrollSpeed设置，不以滚动倍率、TimeRange或绿数冒充。
 
@@ -352,6 +364,8 @@ C7 必要信息补齐：公开 `score.accuracy` 和 `timing.progress` 数值均�
 
 BMS选定包`BlackLaneWidth`是与NormalLaneWidth同单位的0.25..4横向权重，缺失/非法回到已解析普通宽度，不继承canonical的新黑键权重。5K/7K/14K按每deck规范键序2/4/6识别黑键，不以palette颜色或当前显示位置识别；9K/PMS不应用。该参数不能改变场高、TimeRange、GN、判定或输入身份。静线参考比例与实际验证见[轨道记录](../../other/SKIN_SIMPLE_LANE_PROPORTIONS_20260913.md)。
 
+选定包可额外声明 `PlayfieldSideInset`（0..0.5、缺省0.05，仅5K/7K侧置）、`LaneSidePadding`（0..0.25、缺省0，每deck外框的左右内边距）和 `DualStageGap`（0..0.5，仅14K整体外框的中间空隙比例）。缺省/非法保留既有间距，显式0才取消双deck空隙；先分deck再收进内边距。全部由唯一solver写入同一neutral快照，保留外框、BGA避让及真实lane身份，不由renderer重新求几何或继承canonical的新声明。
+
 1. P1-K parser单点产出的immutable `BmsKeymodeResolution`是BMS keymode唯一authority，并绑定selected keymode、source、evidence、diagnostic code与稳定脱敏token。precedence固定为：兼容性校验后的explicit override → P2 channel evidence（强于`.bme`；`.pms`+P2冲突必须拒绝）→ `.pms` → `.bme` → complete 9K set → distinctive 9K high channel → complete 7K set → complete 5K set。visible、LN、invisible、mine等lane object family贡献同一normalized evidence；普通`.bms/.bml`只有不完整非distinctive evidence、无lane evidence或extension/override/channel冲突时必须fail-closed。显式纠正只经production decoder options进入；converter、manager、layout owner与renderer只携带同一resolution，不得按最高出现channel、hit object、enum ordinal、总lane count或layout宽度二次猜测。
 2. per-lane keysound timeline及相邻mine/armed边界必须使用`BmsRuleset.GetLaneCount()`（keys+scratch），不得使用`GetKeyCount()`。自动gate必须逐类覆盖5K/7K最右键、9K全部lane、14K K14/Scratch2的visible note、LN head/tail armed entry、invisible object与mine；真实player/autoplay必须进入同一`BmsKeysoundStore`并实际发声。Mirror/Random只改变mod后对象目标lane；对象、keysound与skin lookup最终使用同一stable LaneId，不得改固定topology、sample pool、判定或binding。
 3. shared gameplay layout唯一中性authority为`GameplaySkinLayoutPublication`中的同一个immutable `GameplaySkinLayoutSnapshot`；ruleset typed adapter与neutral snapshot必须共存于该单一publication并指向exact同一context。`GameplaySkinLayoutContext`绑定exact native context/keymode、topology、presentation style、safe bounds/aspect/DPI、package/current/content/topology/layout revision；snapshot、context、surface、group、lane及adapter输入都须防御性复制，consumer不得取得可变数组/集合或另造第二组stable ID。
@@ -364,6 +378,7 @@ BMS选定包`BlackLaneWidth`是与NormalLaneWidth同单位的0.25..4横向权重
 
 8a1. 独立按键区可额外声明 `ScratchKeyWidth`（相对scratch轨道宽度，`1..4`，缺省`1`），仅扩展转盘视觉，不改音符、判定或输入轨道。solver从贴近普通键的边缘向外求解并限制在safe bounds及旁侧BGA之外；真实按键视觉消费同一snapshot中的矩形。缺声明不继承canonical倍率。纯纹理`hud.gauge`保持完整暗槽，亮层按真实gauge比例裁切揭露，不缩放格距；0值仍可见全槽。作者scene仍自行控制既有绑定，不追加该纯纹理表现。
 8b. BGA 窗口数量、位置、尺寸和缩放属于皮肤系统。每个 `[Bms] Keymode` 桶可声明 `BgaViewports: x,y,width,height,fit;...`，坐标相对安全区，模式为 `fit/fill/stretch`，最多16窗；`none` 显式零窗。共享 parser 在作者输入边界验证有限数值、正尺寸、边界、模式与预算，decoder/作者工具共用，不另造 INI tokenizer。声明只从 exact selected source 读取；无声明仍使用既有 `BgaWidth/BgaHeight` 最大框（`0.01..1`）、`BgaVerticalPosition`（`0..1`）与默认14K四角/窄屏底部退让，旧尺寸继续按4:3装入。新声明尺寸不限制4:3，不继承 canonical 的选择；invalid duplicate 不擦此前有效声明，同时保留稳定诊断。
+8b0. 同桶可选精确字段 `BgaViewportsP1/P2` 只在5K/7K对应侧置样式覆盖generic窗口。缺失或尚无合法声明时保留同桶generic/default，显式none关闭该侧；合法覆盖若与安全区域冲突仍整组省略，不回退generic。Center、9K和14K忽略两侧声明。各字段沿同一共享parser保留最后合法重复值和自身诊断，CLI也检查这两个字段；窗口、缩放模式和避让继续由同一个solver/publication输出。
 8b1. 作者窗口由唯一 BMS solver 投影到相同 immutable snapshot，缩放模式按同索引保存在该 publication 的 typed adapter；consumer不得再次求几何。完整排列若压住轨道、键区、血条、HUD或信息带无法安全放下，则整组零窗并报告 `bms.layout.bga-viewports-unavailable`，不移动作者窗口、不复活默认四窗。`bms.layout.bga-viewports`前缀的稳定代码沿现有成功publication的材料诊断出口写入`runtime.log`，不含作者值或路径；其它临时layout诊断不因此并入持久错误批次。无BGA窗时，只省略该窗口的scene装饰，不让其它音符/HUD失效；非空布局的非法scene索引仍拒绝，mania BGA仍NotApplicable。`BgaInformationHeight` 独立控制信息带，零窗时由同一solver保留原安全信息区锚点，必要时沿旧窄屏规则缩短field；关闭BGA不隐藏曲目、判定或节奏信息。
 8b2. `fit/fill/stretch` 对完整只读合成画面执行留边、居中裁剪或拉伸。BMS timeline 的合成画布保持4:3，各层内部仍按原Fit合成；不能把裁剪合成画布宣称为自动去除素材自身或内部letterbox黑边。无timeline的静态背景按自身比例。旧式键图继续随真实Lift与滚动方向移动，独立键区转盘按比例居中；公共HUD避让保持。
 8b3. BGA native scene 池按实际窗口数保留。Global源在各窗口显示，显式BGA索引只显示在对应窗口；准备期按每个实际窗口投影累计节点/文字/效果面积及动画、绑定、状态赋值的source fanout。不得按首窗面积统一估算不同大小的窗口，也不把所有显式索引节点再次乘总窗数。零窗仍完整校验作者声明、所有者和资源，再省略专属装饰与其宿主。
@@ -485,6 +500,7 @@ BMS选定包`BlackLaneWidth`是与NormalLaneWidth同单位的0.25..4横向权重
 5. pre-start lane preview 若重启，仍属于 playfield/lane slot，不属于 HUD/toast；第一轨解释为第一非 scratch 普通轨。
 6. 当前 strip 必须显式覆盖 `ComboCounter`、`LegacyDefaultComboCounter` 和 `DrawableGameplayLeaderboard`；`LegacyDefaultComboCounter` 不是 `ComboCounter` 子类，测试不得只匹配前者。
 7. 当前 `BmsGaugeBar : HealthDisplay` 必须在真实 `HUDOverlay` 下压过 `ShowHealthBar=false` 的淡出并保持可见；裸 dependency container 不能作为该路径的唯一测试。
+8. 分区复用的原生HUD capture即使放在屏幕外，也必须保留缓冲绘制并先于所有前景view；view须填满其前景画布，再由各分区裁剪。不得以离屏owner的屏幕蒙版判定跳过用户仍可见的复用内容，不能靠隐藏fallback或忽略绘制异常代替此顺序。
 
 ## 既有 LN 视觉状态合同
 

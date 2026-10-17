@@ -1,5 +1,49 @@
 # P1-A 变动日志
 
+## 2026-10-18IIDX33 游玩皮肤与公共表现能力
+
+接续 `master@88e0867` 的本地制作改动，fetch成功；保全已有差异，在当前分支实施、不推送。本线已获授权持续制作33默认Lightning、1920×1080，先7K P1再P2/14K，历代来源与后续页面按既有计划推进。
+
+本地生成器使用普通公开作者包接入原框体、轨道、音符、CN/HCN、按键/光柱、击打、血槽和原数字字形。按实机校准SP中心/BGA位置、四像素轨道内边距、440px框体、432px轨道、14K原130px间隔与右侧键序，明确Suppress重复的canonical BGA外框。音符和长条头尾使用源15/24px高度转换，原始纹理不重新绘制。框体装饰目前固定AFP181帧，长条脉冲、转盘动态及判定色相仍需继续比对，不能把生成成功等同完成还原。
+
+新增能力均有此包的实际消费者：同包预备图片字形、精确材料模板、真实判定起播、LN/CN/HCN只读状态、血槽语义、选定包布局和P1/P2 BGA窗口；全连使用真实完成快照和最多2500ms尾段。四角投影节点保留源UV、正倒数W、透明度与近邻采样，不运行作者shader。源全连19纹理、150帧、60FPS的时间与float32属性保留；最终候选20共153资源、8,150,067解码像素、7字体、197轨迹/5,493关键帧，scene486,958B，未烘焙整屏帧或放宽原纹理/scene预算。语法、预算和限制只在[作者参考](../../../skin-authoring/docs/REFERENCE.md)维护。
+
+修复实际自动演奏隐藏全部击打效果的问题：只显示计分对象的判定，自动皿/自动键等明确不计分对象仍沿原语义；滚动音符保留自身蒙版，效果允许越过单车道。完成快照不以末次判定或最大连击猜全连；完成内seek保持原始起点，重试及完成前reset清除。最初测试错误包括层级fixture遗漏exact owner、NaN编码期望错误、未加载Drawable不能验证失效，以及捕获fixture缺少using，均保留失败后修正；未弱化生产校验。全连数值轨迹使用step tween，资源与四角使用frame，修复step精确边界延迟；单叶宽度4.615411改为等价的半宽/双倍scale-x，在既有宽度范围内保留float32结果。
+
+同排判定增加静态横排与只读枚举驱动的布尔可见变体，保留原label/glyph比例及末字形超advance画布，P1/P2原图实测锚点与100px共同高度；独立combo Suppress后共享判定消失时刻。148张引用原图按逐项XML证据显式nearest，源像素不改。独立只读审查发现Veldrid自动mip与源nearest不一致，修为仅nearest上传原始层，linear保持旧行为；实际Direct3D11游玩已覆盖。四角权重/UV/正反面、裁切失效、分数时刻和固定carrier缓冲预算审查未发现其它确定缺陷，报告在 `artifacts/iidx-fcombo-research-20261018/projective-renderer-readonly-review-final.json`。
+
+候选19初次四段Player虽正常完成，逐像素验图仍发现普通音符中心不透明区约26px，未达到源12px。根因是material模板仅接受`GameplaySkinPublicSlotMaterial`，真实BMS Note/LN携带`IBmsResolvedNoteMaterial`，导致合法原生图显示而模板匹配零个实例；同源模板数值存在不能证明实际消费。core771通过后的全量BMS被主动中断并保全为 `bms-full-interrupted-before-note-fix.log`，该轮不计full gate；后续按精确绑定公共声明匹配并补真实挂载、普通15px/CN24px与holding资源证据，最终结果另记本条。
+
+最终视觉审查发现P2镜向血槽仍从左增长；候选20仅调整P2亮层遮罩与子图的两次180度变换，从右侧增长并保持原纹理朝向。Normal/Hard/EX-Hard/Hazard共用，0/28/100%几何与107,940源texel往返通过；175张PNG、manifest、skin.ini与其它模板/轨迹和变体逐字节或语义不变。源窗口、差异与验证在 `artifacts/iidx-gauge-research-20261018/candidate20-p2-gauge-check.json`。生成说明明确当前工作区、7K须选1P/2P，默认Center保留canonical，不修改用户偏好。
+
+最终软件证据在 `artifacts/iidx33-skin-20261018/validation/`：
+
+- Debug core Skinning最终777/777通过，`core-skin-hudfix-final-02.trx`；涵盖新增HUD capture两种分区回归和构造检查。BMS材料/原生挂载及实际Player模式/seek聚焦9/9通过，`bms-hudfix-mode-focused.trx`；完成/自动演奏13项的此前绿测保留原文件。原6项测试初次失败包含时钟catch-up未到位及等待隐藏备用Drawable；修正fixture等真实时钟/材料发布，没有放宽原生判定或生产校验。
+- HUD首帧修复后的BMS相关662/662通过，`bms-related-hudfix-final.trx`，覆盖布局、gauge、BGA共享会话、作者场景/状态、材料、自动演奏、完成/outro和HUD相关路径；完整filter保留于 `post-hud-validation-stages.json`。没有以此局部绿测覆盖下方旧全量失败。
+- 后述HUD首帧修复前的BMS全量2671通过、29失败、17跳过；与2026-10-11 Release基线逐项核对，28项旧工作区Single无元素和1项旧删除断言的错误消息、业务栈及源行均相同，仅闭包编号和两条测试宿主帧不同。当前为Debug、基线为Release，配置差异单列；没有新增失败身份或业务差异，不称全绿。原额外reentrant删除项本次Passed，不据单次结果宣称已修复。raw及严格复核分别在 `bms-full-failure-comparison.json` / `bms-full-failure-independent-audit.json`。
+- HUD修复后的mania全量919通过、4失败；与2026-09-30基线四项同名、同消息、同业务栈，来源 `mania-full-hudfix-final.trx` / `mania-full-hudfix-failure-comparison.json`。旧非mania普通目录null断言已由10月谱库专项维护，本次通过，不归本轮皮肤修复。
+- 最终Desktop Release编译0警告/0错误，`desktop-release-hudfix-final.log`；没有publish或Windows发行打包。BMS测试构建的既有CS8600/CA2007仍保留。初始全info格式检查未通过，修正新增确定问题及空白；最终5个owning项目的本轮C# whitespace验证全通过，`whitespace-final-results.json`，不把初始全style检查改称通过。
+
+光看环境变量或`#LNMODE`不能证明实际HCN：首轮取景的默认玩法将声明覆盖为LN。捕获fixture改为选择真实CN/HCN玩法选项，并断言原生ruleset和所有长条模式，保留实际Holding快照和15/24px挂载断言；早期候选截图不代签最终包。
+
+补拍又在14K CN启动前连续两次复现绘制线程空引用；末尾Until超时是后果。原生HUD共用capture位于屏外且被默认mask裁切，前景view在owner首次Draw前读取MainBuffer；锁定[框架view实现](https://raw.githubusercontent.com/ppy/osu-framework/ba04d538f02cecaabe5ab7dc3b102cd47d59d785/osu.Framework/Graphics/Sprites/BufferedContainerView.cs)与[缓冲初始化](https://raw.githubusercontent.com/ppy/osu-framework/ba04d538f02cecaabe5ab7dc3b102cd47d59d785/osu.Framework/Graphics/BufferedDrawNodeSharedData.cs)确认该顺序。仅修正HUD capture的离屏mask与先绘制Depth，并令前景view填满全画布；不关闭fallback、不吞异常、不扩大scene预算。新回归调用真实工厂，覆盖单/双侧mask、完整画布及hide→restore；首次测试误读框架internal属性而编译失败，改用测试反射后通过，未为测试新增生产API。此项修复晚于上述BMS全量，最终回归和实际Player补拍另保留最新收据。
+
+最终候选20作者CLI及 `render-candidate20-hudfix-{p1,p2,14k,p1-hcn}/` 四段真实Player全部退出0，走普通导入、选用、整曲及结算；三布局另核全连32/60/90/120/145帧和原完成起点不漂移、真实2.5秒尾段。实际快照确认前三段Charge、第四段HellCharge及8/16条Holding，15px普通音符/24px头尾确实挂载，HCN body使用notes-hcn00的beam1。四段框架error、材料诊断与scene runtime fault均为空，39张1920×1080图完整； `final-player-evidence.json` 汇总同一包摘要、尺寸、原生模式、资源ID与帧时间，交付在本地 `delivery-final/`，与已验包字节相同。临时宿主只用独立F盘portable根，不读写普通玩家数据。正常曲库、完整歌曲/听感、设备、原版逐帧一致和发行门未签收。
+
+全量检查与构建按以下命令串行运行；日志/TRX保留精确参数与退出码，失败未被过滤掉：
+
+```powershell
+. .\UseDevelopmentStorage.ps1
+dotnet test osu.Game.Tests/osu.Game.Tests.csproj -c Debug --no-restore --filter FullyQualifiedName~Skinning
+dotnet test osu.Game.Rulesets.Bms.Tests/osu.Game.Rulesets.Bms.Tests.csproj -c Debug --no-restore
+dotnet test osu.Game.Rulesets.Mania.Tests/osu.Game.Rulesets.Mania.Tests.csproj -c Debug --no-restore
+dotnet build osu.Desktop/osu.Desktop.csproj -c Release --no-restore -m:1 -v:minimal
+```
+
+最终Python语法、作者目录/OSK内容与交付副本核验通过；39图及模式/厚度/全连帧聚合检查通过。文档、工作区导航与差异检查完成后，本轮客户端增量在当前分支本地提交，不推送。参考游戏已关闭；F盘临时渲染宿主保留供重跑，其源码/工程已另存 `validation/render-host-source/`，长期证据不只留在临时缓存。
+
+原版只运行 `E:\oms-iidx-reference-20261018` 完整物理副本；副本配置、内存启动检查调整、API密码、日志和捕获均独立本地保留。真实原版P1及双SP演示已取到正常画面；单P2及DP导航仍未取得可校准画面，不把双SP演示当成单P2或DP。副本进程已核对可执行路径后关闭，`source-integrity-final-reference06.json`证明D盘原安装14,154文件零新增/删除/大小或修改时间差，七项关键摘要一致；原件没有启动。API客户端只连接会话内localhost，不能由此声称Spice服务仅监听回环。工具和文档入Git，原版美术、精确清单、账号/配置和生成作品只在忽略目录保留，未改静线/canonical或普通玩家数据。
+
 ## 2026-10-18IIDX 历代作品取材启动
 
 从干净的 `master@9521d17` 开始，fetch 成功，领先 `origin/master` 12、无落后及已有 diff。用户授权 1st style～33 Sparkle Shower 作品制作、以现有本地 33 HDD 先行取材、缺少对应代组件时由用户从其网盘补下载，并允许按真实组件需要补齐 OMS 表现代码。该作品线不恢复静线打磨，不重计 Skin V1 campaign；后续选曲 / 结算页面保留原界面选项。稳定边界维护在[素材作品约束](TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)，顺序只在[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。

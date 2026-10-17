@@ -39,6 +39,7 @@ using osu.Game.Scoring;
 using osu.Game.Scoring.Legacy;
 using osu.Game.Screens.Ranking;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osu.Game.Users;
 using osu.Game.Utils;
 using osuTK.Graphics;
@@ -881,10 +882,22 @@ namespace osu.Game.Screens.Play
             ValidForResume = false;
 
             double delay = withDelay ? RESULTS_DISPLAY_DELAY : 0;
+            GameplaySkinSceneRuntimeHost sceneRuntime = (DrawableRuleset as IGameplaySkinSceneRuntimeSource)?.GameplaySkinSceneRuntime;
+            double completionOutro = withDelay && !GameplayState.HasFailed
+                ? sceneRuntime?.GetCompletionOutroDuration(ScoreProcessor.IsFullCombo) ?? 0
+                : 0;
+            double? completionOutroEnd = completionOutro > RESULTS_DISPLAY_DELAY
+                ? sceneRuntime.GetCompletionOutroEndTime(GameplayClockContainer.CurrentTime, completionOutro)
+                : null;
 
             resultsDisplayDelegate?.Cancel();
             resultsDisplayDelegate = new ScheduledDelegate(() =>
             {
+                // Author animation follows the existing gameplay clock, including rate and pause. Keep the
+                // normal scheduler delay unchanged; only a validated full-combo outro may hold this transition.
+                if (completionOutroEnd is double end && GameplayClockContainer.CurrentTime < end)
+                    return;
+
                 if (prepareScoreForDisplayTask == null)
                 {
                     // Try importing score since the task hasn't been invoked yet.

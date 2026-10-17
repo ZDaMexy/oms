@@ -35,7 +35,10 @@ namespace osu.Game.Rulesets.Bms.UI
         {
         }
 
-        public override bool DisplayResult => AcceptsPlayerInput;
+        // Autoplay disables player input while retaining scored judgements. Presentation must follow the
+        // judgement's scoring contract, otherwise replay/autoplay hides both the judgement and its hit effect.
+        // Auto Scratch / Auto Note explicitly remove scoring and continue to suppress those results.
+        public override bool DisplayResult => HitObject.Judgement is BmsHitObjectJudgement { CountsForScore: true };
 
         protected override double InitialLifetimeOffset => 2000;
 

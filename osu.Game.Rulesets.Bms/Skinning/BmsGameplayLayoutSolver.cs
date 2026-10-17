@@ -92,6 +92,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
         public float? ScratchLaneRelativeSpacing { get; init; }
         public float? PlayfieldWidth { get; init; }
         public float? PlayfieldHeight { get; init; }
+        public float? PlayfieldSideInset { get; init; }
+        public float? LaneSidePadding { get; init; }
+        public float? DualStageGap { get; init; }
         public float? KeyAreaHeight { get; init; }
         public float? GaugeHeight { get; init; }
         public float? ScratchKeyWidth { get; init; }
@@ -101,6 +104,10 @@ namespace osu.Game.Rulesets.Bms.Skinning
         public float? BgaInformationHeight { get; init; }
         public GameplaySkinBgaLayout? BgaLayout { get; init; }
         public string? BgaLayoutDiagnostic { get; init; }
+        public GameplaySkinBgaLayout? BgaLayoutP1 { get; init; }
+        public string? BgaLayoutP1Diagnostic { get; init; }
+        public GameplaySkinBgaLayout? BgaLayoutP2 { get; init; }
+        public string? BgaLayoutP2Diagnostic { get; init; }
         public float? HitTargetHeight { get; init; }
         public float? HitTargetBarHeight { get; init; }
         public float? HitTargetLineHeight { get; init; }
@@ -121,6 +128,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 ScratchLaneRelativeSpacing = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.ScratchLaneSpacing, keymode)?.Value,
                 PlayfieldWidth = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.PlayfieldWidth, keymode)?.Value,
                 PlayfieldHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.PlayfieldHeight, keymode)?.Value,
+                PlayfieldSideInset = selectedLayoutValue(BmsSkinConfigurationLookups.PlayfieldSideInset),
+                LaneSidePadding = selectedLayoutValue(BmsSkinConfigurationLookups.LaneSidePadding),
+                DualStageGap = selectedLayoutValue(BmsSkinConfigurationLookups.DualStageGap),
                 KeyAreaHeight = selectedLayoutValue(BmsSkinConfigurationLookups.KeyAreaHeight),
                 GaugeHeight = selectedLayoutValue(BmsSkinConfigurationLookups.GaugeHeight),
                 ScratchKeyWidth = selectedLayoutValue(BmsSkinConfigurationLookups.ScratchKeyWidth),
@@ -130,6 +140,10 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 BgaInformationHeight = selectedLayoutValue(BmsSkinConfigurationLookups.BgaInformationHeight),
                 BgaLayout = (selectedLayoutSkin as BmsLegacySkin)?.GetAcceptedBgaLayout(keymode),
                 BgaLayoutDiagnostic = (selectedLayoutSkin as BmsLegacySkin)?.GetBgaLayoutDiagnostic(keymode),
+                BgaLayoutP1 = (selectedLayoutSkin as BmsLegacySkin)?.GetAcceptedBgaLayout(keymode, BmsPlayfieldStyle.P1),
+                BgaLayoutP1Diagnostic = (selectedLayoutSkin as BmsLegacySkin)?.GetBgaLayoutDiagnostic(keymode, BmsPlayfieldStyle.P1),
+                BgaLayoutP2 = (selectedLayoutSkin as BmsLegacySkin)?.GetAcceptedBgaLayout(keymode, BmsPlayfieldStyle.P2),
+                BgaLayoutP2Diagnostic = (selectedLayoutSkin as BmsLegacySkin)?.GetBgaLayoutDiagnostic(keymode, BmsPlayfieldStyle.P2),
                 HitTargetHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetHeight, keymode)?.Value,
                 HitTargetBarHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetBarHeight, keymode)?.Value,
                 HitTargetLineHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetLineHeight, keymode)?.Value,
@@ -199,6 +213,14 @@ namespace osu.Game.Rulesets.Bms.Skinning
             float defaultFieldWidth = Math.Clamp(laneCount * 0.06f, 0.35f, 0.8f) * 0.825f;
             float requestedFieldWidth = field(configuration.PlayfieldWidth, defaultFieldWidth, 0.15f, 0.95f, "playfield-width", diagnostics);
             float requestedFieldHeight = field(configuration.PlayfieldHeight, BmsPlayfieldLayoutProfile.DEFAULT_PLAYFIELD_HEIGHT, 0.45f, 0.94f, "playfield-height", diagnostics);
+            float requestedSideInset = field(configuration.PlayfieldSideInset, side_inset, 0f, 0.5f, "playfield-side-inset", diagnostics);
+            float laneSidePadding = field(configuration.LaneSidePadding, 0f, 0f, 0.25f, "lane-side-padding", diagnostics);
+            float? dualStageGap = configuration.DualStageGap;
+            if (dualStageGap.HasValue && (!float.IsFinite(dualStageGap.Value) || dualStageGap.Value is < 0 or > 0.5f))
+            {
+                diagnostics.Add(new GameplaySkinLayoutDiagnostic("bms.layout.invalid-dual-stage-gap"));
+                dualStageGap = null;
+            }
             float targetHeight = field(configuration.HitTargetHeight, 16f, 1f, 128f, "hit-target-height", diagnostics);
             float targetBarHeight = field(configuration.HitTargetBarHeight, Math.Min(12f, targetHeight), 0.5f, targetHeight, "hit-target-bar-height", diagnostics);
             float targetLineHeight = field(configuration.HitTargetLineHeight, Math.Min(3f, targetHeight), 0.5f, targetHeight, "hit-target-line-height", diagnostics);
@@ -227,7 +249,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             float dpiScale = Math.Clamp(MathF.Pow(environment.DpiScale, 0.08f), 0.94f, 1.08f);
             float fieldWidth = Math.Min(safe.Width, requestedFieldWidth * safe.Width * aspectScale * dpiScale);
             float fieldHeight = Math.Min(safe.Height, requestedFieldHeight * safe.Height);
-            float inset = Math.Min(side_inset * safe.Width, Math.Max(0, (safe.Width - fieldWidth) / 2));
+            float inset = Math.Min(requestedSideInset * safe.Width, Math.Max(0, (safe.Width - fieldWidth) / 2));
             float fieldX = style switch
             {
                 BmsPlayfieldStyle.P1 => safe.Left + inset,
@@ -246,15 +268,24 @@ namespace osu.Game.Rulesets.Bms.Skinning
             var playfieldRect = GameplaySkinLayoutRect.Create(fieldX, safe.Top, fieldWidth, fieldHeight);
 
             float informationHeight = field(configuration.BgaInformationHeight, 0f, 0f, 0.30f, "bga-information-height", diagnostics) * safe.Height;
-            if (configuration.BgaLayoutDiagnostic != null)
+            (GameplaySkinBgaLayout? sideBgaLayout, string? sideBgaDiagnostic) = style switch
+            {
+                BmsPlayfieldStyle.P1 => (configuration.BgaLayoutP1, configuration.BgaLayoutP1Diagnostic),
+                BmsPlayfieldStyle.P2 => (configuration.BgaLayoutP2, configuration.BgaLayoutP2Diagnostic),
+                _ => (null, null),
+            };
+            GameplaySkinBgaLayout? bgaLayout = sideBgaLayout ?? configuration.BgaLayout;
+            if (sideBgaDiagnostic != null)
+                diagnostics.Add(new GameplaySkinLayoutDiagnostic(sideBgaDiagnostic));
+            if (sideBgaLayout == null && configuration.BgaLayoutDiagnostic != null && configuration.BgaLayoutDiagnostic != sideBgaDiagnostic)
                 diagnostics.Add(new GameplaySkinLayoutDiagnostic(configuration.BgaLayoutDiagnostic));
 
-            GameplaySkinLayoutRect[] bgaRects = configuration.BgaLayout is { } authoredBga
+            GameplaySkinLayoutRect[] bgaRects = bgaLayout is { } authoredBga
                 ? solveAuthoredBgaViewports(authoredBga, safe, playfieldRect, gaugeHeight + keyAreaHeight, informationHeight, diagnostics)
                 : solveBgaViewports(keymode, style, safe, playfieldRect, environment.AspectRatio, gaugeHeight + keyAreaHeight, configuration, diagnostics, informationHeight, ref fieldHeight);
             IEnumerable<GameplaySkinBgaScaleMode> bgaScaleModes = bgaRects.Length == 0
                 ? Array.Empty<GameplaySkinBgaScaleMode>()
-                : configuration.BgaLayout?.ScaleModes ?? Enumerable.Repeat(GameplaySkinBgaScaleMode.Fit, bgaRects.Length);
+                : bgaLayout?.ScaleModes ?? Enumerable.Repeat(GameplaySkinBgaScaleMode.Fit, bgaRects.Length);
 
             // Song/statistics/player information remains usable when BGA is hidden or its authored windows cannot fit.
             // Reuse the existing safe information-band layout, without publishing these anchors as BGA viewports.
@@ -334,6 +365,51 @@ namespace osu.Game.Rulesets.Bms.Skinning
                                                                    group,
                                                                    GameplaySkinLayoutRect.Union(group.LanesInLogicalOrder.Select(lane => neutralLanes[lane.GlobalLogicalIndex].Rect))))
                                                                .ToArray();
+
+            if (keymode == BmsKeymode.Key14K && dualStageGap.HasValue)
+            {
+                float gapWidth = playfieldRect.Width * dualStageGap.Value;
+                float groupWidth = (playfieldRect.Width - gapWidth) / 2;
+
+                for (int groupIndex = 0; groupIndex < groups.Length; groupIndex++)
+                {
+                    GameplaySkinLayoutGroup group = groups[groupIndex];
+                    var groupRect = GameplaySkinLayoutRect.Create(
+                        playfieldRect.Left + groupIndex * (groupWidth + gapWidth), playfieldRect.Top, groupWidth, playfieldRect.Height);
+                    foreach (GameplaySkinLaneTopologyEntry lane in group.TopologyGroup.LanesInLogicalOrder)
+                    {
+                        GameplaySkinLayoutRect source = neutralLanes[lane.GlobalLogicalIndex].Rect;
+                        var rect = GameplaySkinLayoutRect.Create(
+                            groupRect.Left + (source.Left - group.Rect.Left) / group.Rect.Width * groupRect.Width,
+                            source.Top, source.Width / group.Rect.Width * groupRect.Width, source.Height);
+                        neutralLanes[lane.GlobalLogicalIndex] = new GameplaySkinLayoutLane(lane, rect);
+                    }
+                    groups[groupIndex] = new GameplaySkinLayoutGroup(group.TopologyGroup, groupRect);
+                }
+            }
+
+            if (laneSidePadding > 0)
+            {
+                // Keep each stage's outer frame, center gap and BGA exclusion bounds unchanged. The same solver
+                // projects the lane content into its symmetric inner rectangle; renderers consume these exact rects.
+                float contentScale = 1 - laneSidePadding * 2;
+
+                foreach (GameplaySkinLayoutGroup group in groups)
+                {
+                    float contentLeft = group.Rect.Left + group.Rect.Width * laneSidePadding;
+
+                    foreach (GameplaySkinLaneTopologyEntry lane in group.TopologyGroup.LanesInLogicalOrder)
+                    {
+                        GameplaySkinLayoutRect outer = neutralLanes[lane.GlobalLogicalIndex].Rect;
+                        var inner = GameplaySkinLayoutRect.Create(
+                            contentLeft + (outer.Left - group.Rect.Left) * contentScale,
+                            outer.Top,
+                            outer.Width * contentScale,
+                            outer.Height);
+                        neutralLanes[lane.GlobalLogicalIndex] = new GameplaySkinLayoutLane(lane, inner);
+                    }
+                }
+            }
 
             var context = GameplaySkinLayoutContext.Create(
                 "bms",

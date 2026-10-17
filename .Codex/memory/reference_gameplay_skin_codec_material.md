@@ -20,6 +20,7 @@ public ID/字段/适用性只读 [public catalog](../../doc_md/other/GAMEPLAY_SK
 - legacy beatmap direct visual compatibility 优先于 selected public；但它不读取 public section。selected public/legacy、ruleset resource与真实canonical的顺序以合同为准；旧programmatic阶段仅作历史/隔离测试，不重新接入产品链，也不构造伪canonical candidate。
 - Required/Recommended 不可 Suppress；Optional 仍受 applicability/runtime capability。null、缺 entry、异常、Drawable.Empty 都不是三态声明。
 - Target 的 ruleset/keymode/stage/presentation/scope、LaneId/GroupId 与四类 index 须对应 exact topology；不要从 lane count、geometry、RelativeStart 或 drawable 顺序推导。
+- 原图正确、材料诊断为空，却不响应scene尺寸或LN变体时，先核真实native consumer的RoutedNodes、AppliedSceneNodeIds及fallback隐藏，不能只核模板JSON。BMS Note/LN的C4 payload是`IBmsResolvedNoteMaterial`，并非`GameplaySkinPublicSlotMaterial`；按后者CLR类型筛material实例会合法匹配零个节点，留下原生尺寸。匹配应追同publication绑定文档的精确声明，再以真实pool实例与屏幕高度验证；具名26px/12px诊断见[IIDX33记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-18iidx33-游玩皮肤与公共表现能力)。
 - BMS 5/7K 皮肤曾同时写左右皿两组 exact visual index，却没有区分适用样式；GetEntry 可选对当前素材，BindToPublication 仍会诊断另一组，因此“能进入游玩”不证明声明无错。必须用公开 presentation 选择实际样式，再严格验当前坐标；省略/any不获得推断许可，valid peer或合法排列不能掩盖wrong coordinates。旧包通过普通作者更新解决，不改用户源；版本与完整语法见public catalog。
 - 完整成品矩阵应同时核 requested style、实际同一配置/布局以及MaterialSet.Diagnostics全空。故意缺省可由canonical补齐，不能因此笼统豁免第三方diagnostic；另保留当前样式误坐标与非当前样式不应用的正反用例。
 

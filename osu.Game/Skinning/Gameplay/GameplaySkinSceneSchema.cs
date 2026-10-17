@@ -56,6 +56,7 @@ namespace osu.Game.Skinning.Gameplay
         public const int MAX_STATE_PROPERTY_APPLICATIONS_PER_EVENT = 8_192;
         public const int MAX_TEXT_CHARACTERS = 64 * 1024;
         public const double MAX_TRACK_TIME = 86_400_000;
+        public const double MAX_COMPLETION_OUTRO = 2500;
         public const double MAX_ABSOLUTE_POSITION = 4;
         public const double MAX_RELATIVE_SIZE = 4;
         public const double MAX_SCALE = 8;
@@ -90,6 +91,8 @@ namespace osu.Game.Skinning.Gameplay
                 GameplaySkinSceneProperty.Rotation => Math.Abs(value) <= GameplaySkinSceneBudgets.MAX_ABSOLUTE_ROTATION,
                 GameplaySkinSceneProperty.Z => Math.Abs(value) <= GameplaySkinSceneBudgets.MAX_ABSOLUTE_Z,
                 GameplaySkinSceneProperty.FontSize => value is >= GameplaySkinSceneBudgets.MIN_FONT_SIZE and <= GameplaySkinSceneBudgets.MAX_FONT_SIZE,
+                GameplaySkinSceneProperty.GapPixels => value is >= -512 and <= 512,
+                GameplaySkinSceneProperty.WidthPixels or GameplaySkinSceneProperty.HeightPixels => value is >= 1 and <= 512,
                 GameplaySkinSceneProperty.CornerRadius => value is >= 0 and <= GameplaySkinSceneBudgets.MAX_CORNER_RADIUS,
                 // Numeric sources may be rendered as bounded text without changing geometry or allocating a new atlas.
                 GameplaySkinSceneProperty.Text => true,
@@ -244,6 +247,12 @@ namespace osu.Game.Skinning.Gameplay
         Texture = 1,
     }
 
+    public enum GameplaySkinSceneTextureFiltering
+    {
+        Linear = 0,
+        Nearest = 1,
+    }
+
     public sealed class GameplaySkinSceneResource
     {
         public string Id { get; }
@@ -252,11 +261,15 @@ namespace osu.Game.Skinning.Gameplay
 
         public string Path { get; }
 
-        internal GameplaySkinSceneResource(string id, GameplaySkinSceneResourceType type, string path)
+        public GameplaySkinSceneTextureFiltering Filtering { get; }
+
+        internal GameplaySkinSceneResource(string id, GameplaySkinSceneResourceType type, string path,
+            GameplaySkinSceneTextureFiltering filtering = GameplaySkinSceneTextureFiltering.Linear)
         {
             Id = id;
             Type = type;
             Path = path;
+            Filtering = filtering;
         }
 
         public override string ToString() => $"{nameof(GameplaySkinSceneResource)}:{Id}:{Type}";
@@ -276,9 +289,15 @@ namespace osu.Game.Skinning.Gameplay
 
         public IReadOnlyList<GameplaySkinSceneResource> Resources { get; }
 
-        private readonly IReadOnlyDictionary<string, GameplaySkinSceneResource> resourcesById;
+        public IReadOnlyList<GameplaySkinBitmapFont> BitmapFonts { get; }
 
-        internal GameplaySkinSceneManifest(IEnumerable<GameplaySkinSceneResource> resources, string? scriptFile = null)
+        private readonly IReadOnlyDictionary<string, GameplaySkinSceneResource> resourcesById;
+        private readonly IReadOnlyDictionary<string, GameplaySkinBitmapFont> bitmapFontsById;
+
+        internal GameplaySkinSceneManifest(
+            IEnumerable<GameplaySkinSceneResource> resources,
+            string? scriptFile = null,
+            IEnumerable<GameplaySkinBitmapFont>? bitmapFonts = null)
         {
             ArgumentNullException.ThrowIfNull(resources);
 
@@ -290,6 +309,9 @@ namespace osu.Game.Skinning.Gameplay
             ScriptFile = scriptFile;
             Resources = Array.AsReadOnly(copiedResources);
             resourcesById = new ReadOnlyDictionary<string, GameplaySkinSceneResource>(copiedResources.ToDictionary(resource => resource.Id, StringComparer.Ordinal));
+            GameplaySkinBitmapFont[] copiedFonts = bitmapFonts?.ToArray() ?? Array.Empty<GameplaySkinBitmapFont>();
+            BitmapFonts = Array.AsReadOnly(copiedFonts);
+            bitmapFontsById = new ReadOnlyDictionary<string, GameplaySkinBitmapFont>(copiedFonts.ToDictionary(font => font.Id, StringComparer.Ordinal));
         }
 
         public bool TryGetResource(string id, out GameplaySkinSceneResource resource)
@@ -297,6 +319,9 @@ namespace osu.Game.Skinning.Gameplay
             ArgumentNullException.ThrowIfNull(id);
             return resourcesById.TryGetValue(id, out resource!);
         }
+
+        public bool TryGetBitmapFont(string id, out GameplaySkinBitmapFont font)
+            => bitmapFontsById.TryGetValue(id, out font!);
 
         public override string ToString() => $"{nameof(GameplaySkinSceneManifest)}:{Resources.Count}";
     }
@@ -308,6 +333,7 @@ namespace osu.Game.Skinning.Gameplay
         Text = 3,
         Mask = 4,
         Clip = 5,
+        ProjectiveSprite = 6,
     }
 
     public enum GameplaySkinSceneTargetKind
@@ -334,6 +360,7 @@ namespace osu.Game.Skinning.Gameplay
         Boolean = 1,
         Number = 2,
         String = 3,
+        ProjectiveQuad = 4,
     }
 
     /// <summary>
@@ -368,6 +395,12 @@ namespace osu.Game.Skinning.Gameplay
         Format = 23,
         LayoutSurface = 24,
         TextOverflow = 25,
+        BitmapFont = 26,
+        ProjectiveQuad = 27,
+        Layout = 28,
+        GapPixels = 29,
+        WidthPixels = 30,
+        HeightPixels = 31,
     }
 
     public enum GameplaySkinSceneBindingSource
@@ -404,6 +437,13 @@ namespace osu.Game.Skinning.Gameplay
         JudgementCountMiss = 29,
         ComboBreaks = 30,
         SongTableClassification = 31,
+        ObjectLongNoteMode = 32,
+        ObjectLongNoteAppearance = 33,
+        GaugeType = 34,
+        GaugeMaximum = 35,
+        GaugeClearThreshold = 36,
+        GaugeClearState = 37,
+        GameplayFullCombo = 38,
     }
 
     public enum GameplaySkinSceneEvent
@@ -437,12 +477,16 @@ namespace osu.Game.Skinning.Gameplay
 
         public string? StringValue { get; }
 
-        private GameplaySkinScenePropertyValue(GameplaySkinScenePropertyValueKind kind, bool booleanValue, double numberValue, string? stringValue)
+        public GameplaySkinProjectiveQuad? ProjectiveQuad { get; }
+
+        private GameplaySkinScenePropertyValue(GameplaySkinScenePropertyValueKind kind, bool booleanValue, double numberValue, string? stringValue,
+            GameplaySkinProjectiveQuad? projectiveQuad = null)
         {
             Kind = kind;
             BooleanValue = booleanValue;
             NumberValue = numberValue;
             StringValue = stringValue;
+            ProjectiveQuad = projectiveQuad;
         }
 
         internal static GameplaySkinScenePropertyValue FromBoolean(bool value) => new GameplaySkinScenePropertyValue(GameplaySkinScenePropertyValueKind.Boolean, value, 0, null);
@@ -450,6 +494,9 @@ namespace osu.Game.Skinning.Gameplay
         internal static GameplaySkinScenePropertyValue FromNumber(double value) => new GameplaySkinScenePropertyValue(GameplaySkinScenePropertyValueKind.Number, false, value, null);
 
         internal static GameplaySkinScenePropertyValue FromString(string value) => new GameplaySkinScenePropertyValue(GameplaySkinScenePropertyValueKind.String, false, 0, value);
+
+        internal static GameplaySkinScenePropertyValue FromProjectiveQuad(GameplaySkinProjectiveQuad value)
+            => new GameplaySkinScenePropertyValue(GameplaySkinScenePropertyValueKind.ProjectiveQuad, false, 0, null, value);
 
         public override string ToString() => $"{nameof(GameplaySkinScenePropertyValue)}:{Kind}";
     }
@@ -595,6 +642,14 @@ namespace osu.Game.Skinning.Gameplay
 
         public bool Loop { get; }
 
+        /// <summary>
+        /// Optional engine event whose retained application time is the track origin. V1 accepts only
+        /// <see cref="GameplaySkinSceneEvent.JudgementHit"/>; unspecified tracks retain the global gameplay phase.
+        /// Global targets follow the latest judgement, stage/group targets their exact group, lane targets their
+        /// exact lane, and pooled object visuals the first matching bound-object judgement after apply.
+        /// </summary>
+        public GameplaySkinSceneEvent Trigger { get; }
+
         public IReadOnlyList<GameplaySkinSceneKeyframe> Keyframes { get; }
 
         internal GameplaySkinSceneTrack(
@@ -604,7 +659,8 @@ namespace osu.Game.Skinning.Gameplay
             string propertyId,
             GameplaySkinSceneEasing easing,
             bool loop,
-            IEnumerable<GameplaySkinSceneKeyframe> keyframes)
+            IEnumerable<GameplaySkinSceneKeyframe> keyframes,
+            GameplaySkinSceneEvent trigger = GameplaySkinSceneEvent.Unspecified)
         {
             Id = id;
             Type = type;
@@ -613,6 +669,7 @@ namespace osu.Game.Skinning.Gameplay
             Property = GameplaySkinSceneVocabulary.ParseProperty(propertyId);
             Easing = easing;
             Loop = loop;
+            Trigger = trigger;
             Keyframes = Array.AsReadOnly(keyframes.ToArray());
         }
 
@@ -735,8 +792,8 @@ namespace osu.Game.Skinning.Gameplay
     }
 
     /// <summary>
-    /// One typed enum-key to already-prepared sprite resource mapping. Both identifiers are author ABI; the runtime
-    /// never interprets a path or performs resource lookup outside the immutable prepared scene.
+    /// One typed enum-key to resource or boolean mapping. Resources are resolved during preparation; visibility
+    /// remains a typed boolean through the same bounded variant program.
     /// </summary>
     public sealed class GameplaySkinSceneVariantCase
     {
@@ -744,20 +801,27 @@ namespace osu.Game.Skinning.Gameplay
 
         public string Key { get; }
 
-        public string ResourceId { get; }
+        public GameplaySkinScenePropertyValue Value { get; }
+
+        public string ResourceId => Value.StringValue!;
 
         internal GameplaySkinSceneVariantCase(string id, string key, string resourceId)
+            : this(id, key, GameplaySkinScenePropertyValue.FromString(resourceId))
+        {
+        }
+
+        internal GameplaySkinSceneVariantCase(string id, string key, GameplaySkinScenePropertyValue value)
         {
             Id = id;
             Key = key;
-            ResourceId = resourceId;
+            Value = value;
         }
 
         public override string ToString() => $"{nameof(GameplaySkinSceneVariantCase)}:{Id}";
     }
 
     /// <summary>
-    /// A closed, typed V1 sprite variant driven only by one read-only engine enum source.
+    /// A closed resource or visibility variant driven only by one read-only engine enum source.
     /// </summary>
     public sealed class GameplaySkinSceneVariant
     {
@@ -765,13 +829,15 @@ namespace osu.Game.Skinning.Gameplay
 
         public string TargetNodeId { get; }
 
-        public GameplaySkinSceneProperty Property => GameplaySkinSceneProperty.Resource;
+        public GameplaySkinSceneProperty Property { get; }
 
         public string SourceId { get; }
 
         public GameplaySkinSceneBindingSource Source { get; }
 
-        public string DefaultResourceId { get; }
+        public GameplaySkinScenePropertyValue DefaultValue { get; }
+
+        public string DefaultResourceId => DefaultValue.StringValue!;
 
         public IReadOnlyList<GameplaySkinSceneVariantCase> Cases { get; }
 
@@ -783,12 +849,25 @@ namespace osu.Game.Skinning.Gameplay
             string sourceId,
             string defaultResourceId,
             IEnumerable<GameplaySkinSceneVariantCase> cases)
+            : this(id, targetNodeId, GameplaySkinSceneProperty.Resource, sourceId,
+                GameplaySkinScenePropertyValue.FromString(defaultResourceId), cases)
+        {
+        }
+
+        internal GameplaySkinSceneVariant(
+            string id,
+            string targetNodeId,
+            GameplaySkinSceneProperty property,
+            string sourceId,
+            GameplaySkinScenePropertyValue defaultValue,
+            IEnumerable<GameplaySkinSceneVariantCase> cases)
         {
             Id = id;
             TargetNodeId = targetNodeId;
+            Property = property;
             SourceId = sourceId;
             Source = GameplaySkinSceneVocabulary.ParseBindingSource(sourceId);
-            DefaultResourceId = defaultResourceId;
+            DefaultValue = defaultValue;
             GameplaySkinSceneVariantCase[] copiedCases = cases.ToArray();
             Cases = Array.AsReadOnly(copiedCases);
             casesByKey = new ReadOnlyDictionary<string, GameplaySkinSceneVariantCase>(
@@ -796,7 +875,10 @@ namespace osu.Game.Skinning.Gameplay
         }
 
         public string SelectResource(string key)
-            => casesByKey.TryGetValue(key, out GameplaySkinSceneVariantCase? item) ? item.ResourceId : DefaultResourceId;
+            => SelectValue(key).StringValue!;
+
+        public GameplaySkinScenePropertyValue SelectValue(string key)
+            => casesByKey.TryGetValue(key, out GameplaySkinSceneVariantCase? item) ? item.Value : DefaultValue;
 
         public override string ToString() => $"{nameof(GameplaySkinSceneVariant)}:{Id}";
     }
@@ -830,6 +912,12 @@ namespace osu.Game.Skinning.Gameplay
             "format" => GameplaySkinSceneProperty.Format,
             "layout-surface" => GameplaySkinSceneProperty.LayoutSurface,
             "text-overflow" => GameplaySkinSceneProperty.TextOverflow,
+            "bitmap-font" => GameplaySkinSceneProperty.BitmapFont,
+            "projective-quad" => GameplaySkinSceneProperty.ProjectiveQuad,
+            "layout" => GameplaySkinSceneProperty.Layout,
+            "gap-px" => GameplaySkinSceneProperty.GapPixels,
+            "width-px" => GameplaySkinSceneProperty.WidthPixels,
+            "height-px" => GameplaySkinSceneProperty.HeightPixels,
             _ => GameplaySkinSceneProperty.Unspecified,
         };
 
@@ -860,6 +948,12 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneProperty.Format => "format",
             GameplaySkinSceneProperty.LayoutSurface => "layout-surface",
             GameplaySkinSceneProperty.TextOverflow => "text-overflow",
+            GameplaySkinSceneProperty.BitmapFont => "bitmap-font",
+            GameplaySkinSceneProperty.ProjectiveQuad => "projective-quad",
+            GameplaySkinSceneProperty.Layout => "layout",
+            GameplaySkinSceneProperty.GapPixels => "gap-px",
+            GameplaySkinSceneProperty.WidthPixels => "width-px",
+            GameplaySkinSceneProperty.HeightPixels => "height-px",
             _ => throw new ArgumentOutOfRangeException(nameof(property), property, "Unknown scene property."),
         };
 
@@ -869,13 +963,20 @@ namespace osu.Game.Skinning.Gameplay
             "layout.group" => GameplaySkinSceneBindingSource.LayoutGroup,
             "layout.lane" => GameplaySkinSceneBindingSource.LayoutLane,
             "input.pressed" => GameplaySkinSceneBindingSource.InputPressed,
+            "gameplay.full-combo" => GameplaySkinSceneBindingSource.GameplayFullCombo,
             "object.state" => GameplaySkinSceneBindingSource.ObjectState,
+            "object.long-note-mode" => GameplaySkinSceneBindingSource.ObjectLongNoteMode,
+            "object.long-note-appearance" => GameplaySkinSceneBindingSource.ObjectLongNoteAppearance,
             "judgement.result" => GameplaySkinSceneBindingSource.JudgementResult,
             "judgement.offset" => GameplaySkinSceneBindingSource.JudgementOffset,
             "score.value" => GameplaySkinSceneBindingSource.ScoreValue,
             "score.accuracy" => GameplaySkinSceneBindingSource.ScoreAccuracy,
             "combo.value" => GameplaySkinSceneBindingSource.ComboValue,
             "gauge.value" => GameplaySkinSceneBindingSource.GaugeValue,
+            "gauge.type" => GameplaySkinSceneBindingSource.GaugeType,
+            "gauge.maximum" => GameplaySkinSceneBindingSource.GaugeMaximum,
+            "gauge.clear-threshold" => GameplaySkinSceneBindingSource.GaugeClearThreshold,
+            "gauge.clear-state" => GameplaySkinSceneBindingSource.GaugeClearState,
             "timing.beat" => GameplaySkinSceneBindingSource.TimingBeat,
             "timing.measure" => GameplaySkinSceneBindingSource.TimingMeasure,
             "timing.bpm" => GameplaySkinSceneBindingSource.TimingBpm,
@@ -981,6 +1082,11 @@ namespace osu.Game.Skinning.Gameplay
 
         public IReadOnlyList<GameplaySkinSceneInstance> Instances { get; }
 
+        /// <summary>
+        /// Optional bounded full-combo outro duration in gameplay milliseconds. Zero retains the Player default.
+        /// </summary>
+        public double CompletionOutro { get; }
+
         internal GameplaySkinSceneDocument(
             GameplaySkinSceneNode root,
             IEnumerable<GameplaySkinSceneTrack> tracks,
@@ -999,7 +1105,8 @@ namespace osu.Game.Skinning.Gameplay
             IEnumerable<GameplaySkinSceneBinding> bindings,
             IEnumerable<GameplaySkinSceneVariant> variants,
             IEnumerable<GameplaySkinSceneTemplate> templates,
-            IEnumerable<GameplaySkinSceneInstance> instances)
+            IEnumerable<GameplaySkinSceneInstance> instances,
+            double completionOutro = 0)
         {
             Root = root;
             Contract = GameplaySkinSceneContracts.SCENE_CONTRACT_ID;
@@ -1009,6 +1116,7 @@ namespace osu.Game.Skinning.Gameplay
             Variants = Array.AsReadOnly(variants.ToArray());
             Templates = Array.AsReadOnly(templates.ToArray());
             Instances = Array.AsReadOnly(instances.ToArray());
+            CompletionOutro = completionOutro;
         }
 
         public override string ToString()

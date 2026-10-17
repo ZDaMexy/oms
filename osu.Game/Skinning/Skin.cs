@@ -138,7 +138,10 @@ namespace osu.Game.Skinning
             Texture? texture = null;
             try
             {
-                texture = resources.Renderer.CreateTexture(upload.Width, upload.Height);
+                bool nearest = captured.Source.Filtering == GameplaySkinSceneTextureFiltering.Nearest;
+                texture = resources.Renderer.CreateTexture(upload.Width, upload.Height,
+                    // Author nearest sampling uses the original pixels at every size, including Veldrid backends.
+                    manualMipmaps: nearest, filteringMode: nearest ? TextureFilteringMode.Nearest : TextureFilteringMode.Linear);
                 // Texture.SetData transfers this upload to the draw-thread queue. Its pixel buffer must remain
                 // alive until the native texture completes the upload and disposes it.
                 texture.SetData(upload);

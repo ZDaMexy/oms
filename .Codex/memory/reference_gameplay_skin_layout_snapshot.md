@@ -25,6 +25,7 @@ metadata:
 - BGA 的最终 viewport/rect 属于该 layout；内容/timeline/seek 仍属 P1-L。统一 viewport 不能证明统一 decoder/clock；会话与显示替换的释放边界见 [[reference_bms_bga_chain]]。
 - 可选布局字段不能直接查聚合 `ISkinSource.GetConfig`：选定包缺项会继续命中 canonical 的作者值，使旧包意外启用独立键区或另一套 BGA 窗口。`KeyAreaHeight`、`BgaViewports` 等作者布局字段须从同一 package revision 的 exact selected BMS source 读取 accepted declaration，缺项交 solver 默认；必须用普通导入旧包核实，直接传配置对象的 solver 测试看不到此问题。
 - 同一 HUD slot 可以有多个平级作者节点。`TryGetHostedDrawable` 的兼容入口只返回首根，首根可能只是面板，不能据其没有 `SpriteText` 判断准确率消失；完整 HUD 检查需遍历该 slot 的已路由节点并核真实文字，同时保留 native/residual 隐藏与同一 publication 断言。
+- 屏外 `BufferedContainer` 的 `AlwaysPresent` 不会取消屏幕蒙版裁切。HUD 共用 capture 固定在 `X=2` 时须显式保留离屏绘制并先于前景 view；否则框架的 `MainBuffer` getter 会在 owner 初始化 renderer 前被 view 访问，表现为启动绘制线程空引用，之后捕获步骤才超时。不能把末尾 Until 超时当根因，也不能靠隐藏 fallback 或吞异常修复。view 还须明确填满前景画布；默认零尺寸不是有效镜像。合同见[P1-A HUD约束](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#hud-与既有迁移约束)。
 - menu/shell/background 不因使用 skin texture 就成为作者 gameplay layout surface。
 
 ## 从真实截图排查分区遮挡

@@ -63,6 +63,14 @@ namespace osu.Game.Skinning.Gameplay
         Despawned = 7,
     }
 
+    public enum GameplaySkinLongNoteMode
+    {
+        None = 0,
+        Standard = 1,
+        Charge = 2,
+        HellCharge = 3,
+    }
+
     public enum GameplaySkinJudgementGrade
     {
         Unspecified = 0,
@@ -126,6 +134,8 @@ namespace osu.Game.Skinning.Gameplay
 
         public GameplaySkinObjectState State { get; }
 
+        public GameplaySkinLongNoteMode LongNoteMode { get; }
+
         public GameplaySkinLaneGroupId GroupId { get; }
 
         public GameplaySkinLaneId? LaneId { get; }
@@ -144,7 +154,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinLaneId? laneId,
             double startTime,
             double endTime,
-            double progress)
+            double progress,
+            GameplaySkinLongNoteMode? longNoteMode = null)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(objectId);
             ArgumentNullException.ThrowIfNull(groupId);
@@ -154,6 +165,15 @@ namespace osu.Game.Skinning.Gameplay
 
             if (state == GameplaySkinObjectState.Unspecified || !Enum.IsDefined(state))
                 throw new ArgumentOutOfRangeException(nameof(state), state, "Object state must be specified.");
+
+            GameplaySkinLongNoteMode resolvedLongNoteMode = longNoteMode
+                                                          ?? (kind == GameplaySkinObjectKind.LongNote ? GameplaySkinLongNoteMode.Standard : GameplaySkinLongNoteMode.None);
+
+            if (!Enum.IsDefined(resolvedLongNoteMode))
+                throw new ArgumentOutOfRangeException(nameof(longNoteMode), longNoteMode, "Long-note mode must be a known engine-owned value.");
+
+            if ((kind == GameplaySkinObjectKind.LongNote) != (resolvedLongNoteMode != GameplaySkinLongNoteMode.None))
+                throw new ArgumentException("Only a long note can carry a non-empty long-note mode.", nameof(longNoteMode));
 
             if (kind != GameplaySkinObjectKind.BarLine && laneId == null)
                 throw new ArgumentNullException(nameof(laneId), "Lane objects must carry a stable lane ID.");
@@ -170,6 +190,7 @@ namespace osu.Game.Skinning.Gameplay
             ObjectId = objectId;
             Kind = kind;
             State = state;
+            LongNoteMode = resolvedLongNoteMode;
             GroupId = groupId;
             LaneId = laneId;
             StartTime = startTime;
@@ -361,7 +382,10 @@ namespace osu.Game.Skinning.Gameplay
 
         public GameplaySkinJudgementStatistics Statistics { get; }
 
-        internal GameplaySkinScoreStateSnapshot(long score, int combo, int maxCombo, double accuracy, double gauge, GameplaySkinJudgementStatistics statistics = default)
+        public GameplaySkinGaugeStateSnapshot GaugeState { get; }
+
+        internal GameplaySkinScoreStateSnapshot(long score, int combo, int maxCombo, double accuracy, double gauge,
+                                               GameplaySkinJudgementStatistics statistics = default, GameplaySkinGaugeStateSnapshot gaugeState = default)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(score);
             ArgumentOutOfRangeException.ThrowIfNegative(combo);
@@ -378,6 +402,7 @@ namespace osu.Game.Skinning.Gameplay
             Accuracy = accuracy;
             Gauge = gauge;
             Statistics = statistics;
+            GaugeState = gaugeState;
         }
 
         private static void validateUnitValue(double value, string name)
@@ -466,11 +491,32 @@ namespace osu.Game.Skinning.Gameplay
     }
 
     /// <summary>
+    /// The retained origin and outcome of the engine-owned completion edge, in gameplay milliseconds.
+    /// </summary>
+    public readonly record struct GameplaySkinCompletionStateSnapshot
+    {
+        public double AppliedTime { get; }
+
+        public bool IsFullCombo { get; }
+
+        internal GameplaySkinCompletionStateSnapshot(double appliedTime, bool isFullCombo)
+        {
+            if (!double.IsFinite(appliedTime))
+                throw new ArgumentOutOfRangeException(nameof(appliedTime));
+
+            AppliedTime = appliedTime;
+            IsFullCombo = isFullCombo;
+        }
+    }
+
+    /// <summary>
     /// Complete, defensively copied gameplay state used for attach and every epoch reset.
     /// </summary>
     public sealed class GameplaySkinEventStateSnapshot
     {
         public GameplaySkinLifecycleState LifecycleState { get; }
+
+        public GameplaySkinCompletionStateSnapshot? Completion { get; }
 
         public IReadOnlyList<GameplaySkinInputStateSnapshot> Inputs { get; }
 
@@ -496,10 +542,14 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinScoreStateSnapshot score,
             GameplaySkinTimingStateSnapshot timing,
             IEnumerable<GameplaySkinBgaStateSnapshot> bgaViewports,
-            GameplaySkinSongInformation? songInformation = null)
+            GameplaySkinSongInformation? songInformation = null,
+            GameplaySkinCompletionStateSnapshot? completion = null)
         {
             if (lifecycleState == GameplaySkinLifecycleState.Unspecified || !Enum.IsDefined(lifecycleState))
                 throw new ArgumentOutOfRangeException(nameof(lifecycleState), lifecycleState, "Lifecycle state must be specified.");
+
+            if (completion.HasValue && lifecycleState != GameplaySkinLifecycleState.Completed)
+                throw new ArgumentException("Only completed gameplay can retain a completion origin.", nameof(completion));
 
             ArgumentNullException.ThrowIfNull(inputs);
             ArgumentNullException.ThrowIfNull(activeObjects);
@@ -529,7 +579,8 @@ namespace osu.Game.Skinning.Gameplay
                     obj.LaneId,
                     obj.StartTime,
                     obj.EndTime,
-                    obj.Progress);
+                    obj.Progress,
+                    obj.LongNoteMode);
             }
 
             foreach (GameplaySkinCurrentJudgementStateSnapshot retained in copiedJudgements)
@@ -546,7 +597,7 @@ namespace osu.Game.Skinning.Gameplay
                 _ = new GameplaySkinCurrentJudgementStateSnapshot(retained.Scope, judgement, retained.AppliedTime, retained.DisplayUntil);
             }
 
-            _ = new GameplaySkinScoreStateSnapshot(score.Score, score.Combo, score.MaxCombo, score.Accuracy, score.Gauge, score.Statistics);
+            _ = new GameplaySkinScoreStateSnapshot(score.Score, score.Combo, score.MaxCombo, score.Accuracy, score.Gauge, score.Statistics, score.GaugeState);
             _ = new GameplaySkinTimingStateSnapshot(timing.Beat, timing.BarIndex, timing.Bpm, timing.IsStopped, timing.ScrollMultiplier, timing.Progress, timing.ScrollSpeed);
 
             foreach (GameplaySkinBgaStateSnapshot viewport in copiedBga)
@@ -581,6 +632,7 @@ namespace osu.Game.Skinning.Gameplay
             Array.Sort(copiedBga, static (left, right) => left.ViewportIndex.CompareTo(right.ViewportIndex));
 
             LifecycleState = lifecycleState;
+            Completion = completion;
             Inputs = Array.AsReadOnly(copiedInputs);
             ActiveObjects = Array.AsReadOnly(copiedObjects);
             CurrentJudgements = Array.AsReadOnly(copiedJudgements);
@@ -615,6 +667,9 @@ namespace osu.Game.Skinning.Gameplay
         {
             if (!double.IsFinite(gameplayTime))
                 throw new ArgumentOutOfRangeException(nameof(gameplayTime));
+
+            if (Completion is { } completion && completion.AppliedTime > gameplayTime)
+                throw new ArgumentException("A complete snapshot cannot contain a completion from the future.", nameof(gameplayTime));
 
             foreach (GameplaySkinCurrentJudgementStateSnapshot retained in CurrentJudgements)
             {
@@ -675,7 +730,9 @@ namespace osu.Game.Skinning.Gameplay
     {
         public GameplaySkinLifecycleState State { get; }
 
-        internal GameplaySkinLifecycleEventPayload(GameplaySkinEventKind eventKind, GameplaySkinLifecycleState state)
+        public bool IsFullCombo { get; }
+
+        internal GameplaySkinLifecycleEventPayload(GameplaySkinEventKind eventKind, GameplaySkinLifecycleState state, bool isFullCombo = false)
             : base(GameplaySkinEventDeliveryKind.Edge, eventKind)
         {
             if (eventKind is < GameplaySkinEventKind.GameplayLoaded or > GameplaySkinEventKind.GameplayFailed)
@@ -697,7 +754,11 @@ namespace osu.Game.Skinning.Gameplay
             if (state != requiredState)
                 throw new ArgumentException("Lifecycle event kind must match the complete lifecycle state.", nameof(state));
 
+            if (isFullCombo && state != GameplaySkinLifecycleState.Completed)
+                throw new ArgumentException("Only the completion edge can carry a full-combo outcome.", nameof(isFullCombo));
+
             State = state;
+            IsFullCombo = isFullCombo;
         }
     }
 

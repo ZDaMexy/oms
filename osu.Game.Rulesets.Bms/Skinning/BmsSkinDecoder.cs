@@ -8,6 +8,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using osu.Game.Rulesets.Bms.Difficulty;
+using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Skinning.Gameplay;
 using osuTK.Graphics;
 
@@ -45,6 +46,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
         {
             BmsSkinConfigurationLookups.PlayfieldWidth,
             BmsSkinConfigurationLookups.PlayfieldHeight,
+            BmsSkinConfigurationLookups.PlayfieldSideInset,
+            BmsSkinConfigurationLookups.LaneSidePadding,
+            BmsSkinConfigurationLookups.DualStageGap,
             BmsSkinConfigurationLookups.BgaWidth,
             BmsSkinConfigurationLookups.BgaHeight,
             BmsSkinConfigurationLookups.BgaVerticalPosition,
@@ -169,10 +173,19 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
         private static void applyKey(BmsSkinConfiguration config, string key, string value)
         {
-            if (key == GameplaySkinBgaLayout.CONFIGURATION_KEY)
+            switch (key)
             {
-                config.AcceptBgaLayout(value);
-                return;
+                case GameplaySkinBgaLayout.CONFIGURATION_KEY:
+                    config.AcceptBgaLayout(value);
+                    return;
+
+                case BmsSkinConfiguration.BGA_VIEWPORTS_P1:
+                    config.AcceptBgaLayout(value, BmsPlayfieldStyle.P1);
+                    return;
+
+                case BmsSkinConfiguration.BGA_VIEWPORTS_P2:
+                    config.AcceptBgaLayout(value, BmsPlayfieldStyle.P2);
+                    return;
             }
 
             // Per-lane texture slots keep their full ini key (lane token embedded), matching mania's ImageLookups.

@@ -125,6 +125,12 @@ namespace osu.Game.Rulesets.Scoring
         public int MaximumCombo { get; private set; }
 
         /// <summary>
+        /// Whether this completed play achieved every combo increase available in the playable beatmap.
+        /// This is independent of ruleset clear lamps and is false for an empty beatmap.
+        /// </summary>
+        public bool IsFullCombo => HasCompleted.Value && MaximumCombo > 0 && Combo.Value == MaximumCombo;
+
+        /// <summary>
         /// The maximum sum of accuracy-affecting judgements at the current point in time.
         /// </summary>
         /// <remarks>

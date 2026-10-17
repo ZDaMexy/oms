@@ -4,9 +4,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Sprites;
 using osu.Framework.Testing;
 using osu.Game.Database;
 using osu.Game.Extensions;
@@ -18,11 +20,176 @@ using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace osu.Game.Rulesets.Bms.Tests.Skinning
 {
     public partial class BmsManagedFolderSelectionProductTest
     {
+        [Test]
+        public void TestJudgementTriggeredAnimationUsesRealChargeHeadTailTimesAndIndependentNativeExplosions()
+        {
+            Live<SkinInfo> candidate = null!;
+            ExactLayoutJourneyHost renderer = null!;
+            GameplaySkinSceneRuntimeHost sceneHost = null!;
+            DrawableBmsHoldNote hold = null!;
+            BmsLane lane = null!;
+            BmsPoolableHitExplosion first = null!;
+            BmsPoolableHitExplosion second = null!;
+            GameplaySkinSceneRuntimeNode judgement = null!;
+
+            AddStep("select judgement-triggered author package", () =>
+            {
+                (_, candidate) = createCandidate(writeJudgementTriggeredFiveKeyPackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                manager.CurrentSkinInfo.Value = candidate;
+            });
+            AddUntilStep("exact triggered revision selected", () => manager.CurrentSkinInfo.Value.ID == candidate.ID
+                                                                 && ReferenceEquals(manager.CurrentRevision.Owner, manager.CurrentSkin.Value));
+            AddStep("mount real charge-note renderer and fixed gameplay clock", () =>
+            {
+                Add(renderer = new ExactLayoutJourneyHost(manager, useFiveKeyBeatmap: true, useChargeLongNotes: true));
+                renderer.ShowBms();
+            });
+            AddUntilStep("native long-note head and tail loaded", () =>
+            {
+                if (!renderer.BmsReady || renderer.BmsDrawable.GameplaySkinSceneRuntime?.IsSceneReady != true)
+                    return false;
+
+                hold = renderer.BmsDrawable.Playfield.AllHitObjects.OfType<DrawableBmsHoldNote>().SingleOrDefault()!;
+                return hold != null
+                       && hold.NestedHitObjects.OfType<DrawableBmsHoldNoteHead>().Count() == 1
+                       && hold.NestedHitObjects.OfType<DrawableBmsHoldNoteTail>().Count() == 1;
+            });
+            AddStep("real head judgement starts frame zero", () =>
+            {
+                sceneHost = renderer.BmsDrawable.GameplaySkinSceneRuntime!;
+                lane = renderer.BmsDrawable.Playfield.Lanes.Single(candidateLane => candidateLane.LaneIndex == ((BmsHoldNote)hold.HitObject).LaneIndex);
+                Assert.That(sceneHost.TryGetRuntimeNode("node.triggered-judgement", out GameplaySkinSceneRuntimeNode? node), Is.True);
+                judgement = node!;
+                hold.NestedHitObjects.OfType<DrawableBmsHoldNoteHead>().Single().ApplyHeadResult(HitResult.Perfect);
+                sceneHost.ProcessFrame();
+                first = lane.ActiveHitExplosions.Single();
+                assertTriggeredNativeFrame(first.SpecialisedSceneVisual!.RuntimeNodes.Single(), 0, 11);
+                assertTriggeredNativeFrame(judgement, 0, 11);
+            });
+            AddStep("wide author effect remains visible across lane and field edges", () =>
+            {
+                GameplaySkinSceneRuntimeNode node = first.SpecialisedSceneVisual!.RuntimeNodes.Single();
+                Assert.That(node.TransformDrawable.Size, Is.EqualTo(new osuTK.Vector2(3, 4)));
+                Drawable image = node.ContentDrawable;
+                var expected = image.ScreenSpaceDrawQuad.AABBFloat;
+                var laneBounds = lane.ScreenSpaceDrawQuad.AABBFloat;
+                Assert.That(expected.Left, Is.LessThan(laneBounds.Left));
+                Assert.That(expected.Right, Is.GreaterThan(laneBounds.Right));
+                Assert.That(expected.Bottom, Is.GreaterThan(laneBounds.Bottom));
+                for (Drawable? ancestor = image.Parent; ancestor != null; ancestor = ancestor.Parent)
+                {
+                    if (ancestor is not CompositeDrawable { Masking: true })
+                        continue;
+                    var clip = ancestor.ScreenSpaceDrawQuad.AABBFloat;
+                    Assert.That(clip.Left, Is.LessThanOrEqualTo(expected.Left + 0.1f), ancestor.GetType().Name);
+                    Assert.That(clip.Right, Is.GreaterThanOrEqualTo(expected.Right - 0.1f), ancestor.GetType().Name);
+                    Assert.That(clip.Bottom, Is.GreaterThanOrEqualTo(expected.Bottom - 0.1f), ancestor.GetType().Name);
+                }
+            });
+            AddStep("head animation advances on the production gameplay clock", () =>
+            {
+                renderer.AdvanceBmsTo(1_550);
+                sceneHost.ProcessFrame();
+                assertTriggeredNativeFrame(first.SpecialisedSceneVisual!.RuntimeNodes.Single(), 50, 19);
+                assertTriggeredNativeFrame(judgement, 50, 19);
+            });
+            AddStep("real tail judgement starts a separate native effect", () =>
+            {
+                hold.NestedHitObjects.OfType<DrawableBmsHoldNoteTail>().Single().ApplyTailResult(HitResult.Perfect);
+                sceneHost.ProcessFrame();
+                second = lane.ActiveHitExplosions.Single(explosion => !ReferenceEquals(explosion, first));
+                Assert.That(second.BoundObjectId, Is.EqualTo(first.BoundObjectId), "CN head and tail share the exact parent identity.");
+                assertTriggeredNativeFrame(first.SpecialisedSceneVisual!.RuntimeNodes.Single(), 50, 19);
+                assertTriggeredNativeFrame(second.SpecialisedSceneVisual!.RuntimeNodes.Single(), 0, 11);
+                assertTriggeredNativeFrame(judgement, 0, 11);
+            });
+            AddStep("overlapping real effects retain separate phases after object retirement", () =>
+            {
+                renderer.AdvanceBmsTo(1_580);
+                sceneHost.ProcessFrame();
+                assertTriggeredNativeFrame(first.SpecialisedSceneVisual!.RuntimeNodes.Single(), 80, 19);
+                assertTriggeredNativeFrame(second.SpecialisedSceneVisual!.RuntimeNodes.Single(), 30, 11);
+                assertTriggeredNativeFrame(judgement, 30, 11);
+                Assert.That(sceneHost.RuntimeFaults, Is.Empty);
+            });
+        }
+
+        private static void assertTriggeredNativeFrame(GameplaySkinSceneRuntimeNode node, float rotation, int textureWidth)
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(node.TransformDrawable.Rotation, Is.EqualTo(rotation).Within(0.001f));
+                Assert.That(((Sprite)node.ContentDrawable).Texture!.Width, Is.EqualTo(textureWidth));
+            });
+        }
+
+        private static void writeJudgementTriggeredFiveKeyPackage(string root)
+        {
+            writeHitExplosionOnlyFiveKeyPackage(root);
+            using (var image = new Image<Rgba32>(19, 17, new Rgba32(210, 120, 35, 255)))
+            using (Stream output = File.Create(Path.Combine(root, "notes", "triggered-second.png")))
+                image.SaveAsPng(output);
+
+            string manifestPath = Path.Combine(root, GameplaySkinSceneContracts.MANIFEST_FILE_NAME);
+            JObject manifest = JObject.Parse(File.ReadAllText(manifestPath));
+            ((JArray)manifest["resources"]!).Add(new JObject
+            {
+                ["id"] = "texture.triggered-second",
+                ["type"] = "texture",
+                ["path"] = "notes/triggered-second.png",
+            });
+            File.WriteAllText(manifestPath, manifest.ToString());
+            string path = Path.Combine(root, GameplaySkinSceneContracts.SCENE_FILE_NAME);
+            JObject scene = JObject.Parse(File.ReadAllText(path));
+            JObject explosion = ((JArray)scene["root"]!["children"]!).OfType<JObject>()
+                .Single(child => (string?)child["id"] == "node.hit-explosion");
+            explosion["properties"] = new JObject { ["x"] = -1, ["y"] = 0, ["width"] = 3, ["height"] = 4 };
+            ((JArray)scene["root"]!["children"]!).Add(JObject.Parse("""
+                {"id":"node.triggered-judgement","type":"sprite","target":{"kind":"stage","id":"bms.group.deck-1","index":0},
+                 "slot":"hud.judgement","resource":"texture.public-note","blend":"alpha","properties":{},"effects":[],"children":[]}
+                """));
+            var tracks = (JArray)scene["tracks"]!;
+
+            foreach (string target in new[] { "node.hit-explosion", "node.triggered-judgement" })
+            {
+                tracks.Add(new JObject
+                {
+                    ["id"] = $"{target}.frames",
+                    ["type"] = "frame",
+                    ["target"] = target,
+                    ["property"] = "resource",
+                    ["easing"] = "step",
+                    ["loop"] = false,
+                    ["trigger"] = "judgement.hit",
+                    ["keyframes"] = new JArray(
+                        new JObject { ["id"] = $"{target}.frame-0", ["time"] = 0, ["value"] = "texture.public-note" },
+                        new JObject { ["id"] = $"{target}.frame-1", ["time"] = 40, ["value"] = "texture.triggered-second" }),
+                });
+                tracks.Add(new JObject
+                {
+                    ["id"] = $"{target}.rotation",
+                    ["type"] = "tween",
+                    ["target"] = target,
+                    ["property"] = "rotation",
+                    ["easing"] = "linear",
+                    ["loop"] = false,
+                    ["trigger"] = "judgement.hit",
+                    ["keyframes"] = new JArray(
+                        new JObject { ["id"] = $"{target}.rotation-0", ["time"] = 0, ["value"] = 0 },
+                        new JObject { ["id"] = $"{target}.rotation-1", ["time"] = 100, ["value"] = 100 }),
+                });
+            }
+
+            File.WriteAllText(path, scene.ToString());
+        }
+
         [Test]
         public void TestHitExplosionUsesExactOverlappingBoundedProductionPool()
         {

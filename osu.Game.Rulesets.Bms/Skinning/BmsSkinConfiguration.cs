@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using osu.Game.Rulesets.Bms.Difficulty;
+using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Skinning.Gameplay;
 using osuTK.Graphics;
 
@@ -16,6 +17,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
     /// </summary>
     public class BmsSkinConfiguration
     {
+        internal const string BGA_VIEWPORTS_P1 = "BgaViewportsP1";
+        internal const string BGA_VIEWPORTS_P2 = "BgaViewportsP2";
+
         private readonly Dictionary<(GameplaySkinLaneResourceField Field, string LaneToken), string> acceptedLaneResources = new();
         private readonly Dictionary<BmsSkinConfigurationLookups, float> acceptedGeometry = new();
 
@@ -24,6 +28,14 @@ namespace osu.Game.Rulesets.Bms.Skinning
         public GameplaySkinBgaLayout? BgaLayout { get; private set; }
 
         public string? BgaLayoutDiagnostic { get; private set; }
+
+        public GameplaySkinBgaLayout? BgaLayoutP1 { get; private set; }
+
+        public string? BgaLayoutP1Diagnostic { get; private set; }
+
+        public GameplaySkinBgaLayout? BgaLayoutP2 { get; private set; }
+
+        public string? BgaLayoutP2Diagnostic { get; private set; }
 
         /// <summary>Numeric geometry overrides (the geometry subset of <see cref="BmsSkinConfigurationLookups"/>).</summary>
         public readonly Dictionary<BmsSkinConfigurationLookups, float> Geometry = new Dictionary<BmsSkinConfigurationLookups, float>();
@@ -44,13 +56,33 @@ namespace osu.Game.Rulesets.Bms.Skinning
             Keymode = keymode;
         }
 
-        internal void AcceptBgaLayout(string value)
+        internal void AcceptBgaLayout(string value, BmsPlayfieldStyle? style = null)
         {
-            if (GameplaySkinBgaLayout.TryParse(value, out GameplaySkinBgaLayout? layout, out string? diagnostic))
-                BgaLayout = layout;
-
             // Invalid duplicates retain the last accepted declaration, as other native BMS fields do.
-            BgaLayoutDiagnostic = diagnostic;
+            bool accepted = GameplaySkinBgaLayout.TryParse(value, out GameplaySkinBgaLayout? layout, out string? diagnostic);
+            switch (style)
+            {
+                case null:
+                    if (accepted)
+                        BgaLayout = layout;
+                    BgaLayoutDiagnostic = diagnostic;
+                    break;
+
+                case BmsPlayfieldStyle.P1:
+                    if (accepted)
+                        BgaLayoutP1 = layout;
+                    BgaLayoutP1Diagnostic = diagnostic;
+                    break;
+
+                case BmsPlayfieldStyle.P2:
+                    if (accepted)
+                        BgaLayoutP2 = layout;
+                    BgaLayoutP2Diagnostic = diagnostic;
+                    break;
+
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(style));
+            }
         }
 
         /// <summary>

@@ -650,7 +650,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 laneId,
                 hitObject.StartTime,
                 hitObject.GetEndTime(),
-                getGameplaySkinObjectProgress(hitObject));
+                getGameplaySkinObjectProgress(hitObject),
+                getGameplaySkinLongNoteMode(hitObject));
         }
 
         private void synchroniseExistingGameplaySkinObjectUsages()
@@ -689,7 +690,8 @@ namespace osu.Game.Rulesets.Bms.UI
                     laneId,
                     hitObject.StartTime,
                     hitObject.GetEndTime(),
-                    0);
+                    0,
+                    getGameplaySkinLongNoteMode(hitObject));
 
                 // A seek can briefly leave the retiring and rebuilt pooled drawables for one logical hit object in
                 // the engine-owned usage graph together. They intentionally retain the same stable object ID; the
@@ -781,7 +783,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 laneId,
                 hitObject.StartTime,
                 hitObject.GetEndTime(),
-                1);
+                1,
+                getGameplaySkinLongNoteMode(hitObject));
 
             GameplaySkinEventRuntime!.PublishObject(
                 objectId,
@@ -792,7 +795,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 laneId,
                 hitObject.StartTime,
                 hitObject.GetEndTime(),
-                1);
+                1,
+                getGameplaySkinLongNoteMode(hitObject));
         }
 
         private void onGameplaySkinJudgement(JudgementResult result)
@@ -836,7 +840,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 // An early long-note release resolves its parent before the authored duration ends. Its next
                 // real body-state update uses the same clock progress; reporting one here would manufacture a
                 // backwards object update and reset every skin consumer's otherwise valid performance history.
-                getGameplaySkinObjectProgress(identityOwner));
+                getGameplaySkinObjectProgress(identityOwner),
+                getGameplaySkinLongNoteMode(identityOwner));
         }
 
         private bool tryGetGameplaySkinObjectTarget(
@@ -912,6 +917,17 @@ namespace osu.Game.Rulesets.Bms.UI
         private HitObject getGameplaySkinObjectIdentityOwner(HitObject hitObject)
             => gameplaySkinObjectIdentityOwners.TryGetValue(hitObject, out HitObject? owner) ? owner : hitObject;
 
+        private static GameplaySkinLongNoteMode getGameplaySkinLongNoteMode(HitObject hitObject)
+            => hitObject is BmsHoldNote hold
+                ? hold.LongNoteMode switch
+                {
+                    BmsLongNoteMode.LN => GameplaySkinLongNoteMode.Standard,
+                    BmsLongNoteMode.CN => GameplaySkinLongNoteMode.Charge,
+                    BmsLongNoteMode.HCN => GameplaySkinLongNoteMode.HellCharge,
+                    _ => throw new InvalidOperationException("bms.long-note.invalid-mode-authority"),
+                }
+                : GameplaySkinLongNoteMode.None;
+
         private void registerGameplaySkinObjectIdentityTree(HitObject hitObject, HitObject identityOwner)
         {
             if (gameplaySkinObjectIdentityOwners.TryGetValue(hitObject, out HitObject? existingOwner))
@@ -971,7 +987,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 laneId,
                 hitObject.StartTime,
                 hitObject.GetEndTime(),
-                getGameplaySkinObjectProgress(hitObject));
+                getGameplaySkinObjectProgress(hitObject),
+                getGameplaySkinLongNoteMode(hitObject));
         }
 
         private double getGameplaySkinObjectProgress(HitObject hitObject)

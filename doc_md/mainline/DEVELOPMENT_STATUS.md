@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-18（接入用户授权的 IIDX 作品取材；既有产品与生产证据保持原日期）
+> 最后核对：2026-10-18（IIDX33 本地游玩候选；既有产品与生产证据保持原日期）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -9,11 +9,11 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 ## 产品与仓库基线
 
-新增 IIDX 历代作品已授权，首批取材可用；可玩皮肤及增量页面待做，范围与证据见[P1-A](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。
+IIDX33 已有可导入并完成游玩的本地候选，原素材全连演出已在真实 Player 捕获；继续按原版校准。所需字形、对象状态及演出能力走公共作者链，原 HDD 只读。当前证据与剩余差异取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，历代覆盖及后续增量页面仍按[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)推进，原发行门保持。
 
 玩家直接登录固定OMSIR，保存后新局上传；新闻 / 帮助 / 排行 / 玩家沿原生页面。谱面列表先选模式：BMS 仅 Ginger Rush / 616，osu!mania 仅 Sayobot，恢复上次 BMS 来源；紧凑筛选、原生卡片和各来源阅读状态保持。正常OMS窗口的lazer体验仍待签收，隔离内容宽度检查不代签；源码 / 软件及剩余门取[P3-IR状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。社交后续，旧ppy关闭；Phase1.x原门保持。
 
-客户端品牌、静线与作者 / 选择 / 刷新 / 编辑能力只取[P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md)；正常窗口及完整视觉待验，只同步 simple 源，外观打磨暂停。
+客户端品牌、静线及作者能力取[P1-A 状态](../subline/P1-A/DEVELOPMENT_STATUS.md)；只同步 simple 源，静线打磨暂停。
 
 - Windows-only，保留osu!mania与第一类BMS，Osu/Taiko/Catch已删除；离线优先，旧 osu! API endpoint 为空。固定 OMSIR 的直接登录与按需公开查榜沿 P3-IR，不扩大旧全套在线产品面。公共BMS难度表URL、用户指定Ginger Rush / 616 BMS与Sayobot原生mania镜像下载为窄例外，合同见 P1-A [BMS](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) / [mania](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载)。
 - BMS直读`chartbms/`，mania直读`chartmania/`；支持portable `data/`与自定义数据根。主要工程为`osu.Desktop.slnf`、`osu.Game.Rulesets.Bms`及`oms.Input`。
@@ -25,7 +25,7 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 2026-10-10 已在[VS Code工作区设置](../../.vscode/settings.json)为Pylance排除开发缓存 / 虚拟环境、验证产物与编译输出，主动打开的Python脚本仍可分析。配置与目录范围检查取[本轮日志](CHANGELOG.md#2026-10-10)，提示消失及编辑器实际表现待重新加载窗口确认；本轮不刷新客户端产品或发行验证。
 
-2026-10-13 根目录历史日志已归档，工程 / 模板输出、两套旧截图探针和空临时目录清理已完成；Desktop 运行目录、曲库 / 存档、作者原件和验收证据在清理前后保全，范围只取 [清理日志](CHANGELOG.md#2026-10-13工作区残留专项清理)。后续开发按当前工程实际产物正常 restore / build，不能复用已清除输出的 `--no-build` / `--no-restore`。
+2026-10-13 历史日志、工程/模板输出和旧截图探针清理及用户数据保全取[清理日志](CHANGELOG.md#2026-10-13工作区残留专项清理)。后续按实际产物 restore/build，不复用已清除输出。
 
 同日后续品牌验证新建的 `.dev-cache/temp/brand-render-host` 仍保留：自动审批拒绝删除，源码 / 截图 / 日志已另存长期证据目录，具体见 [品牌记录](../subline/P1-A/CHANGELOG.md#2026-10-13客户端品牌标识专项)。此前扫描与补算探针的清理收尾取 [P1-H 历史](../subline/P1-H/CHANGELOG.md)，不能用较早清理结果宣称后续临时目录也已清除。
 
@@ -49,7 +49,7 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 ## 最近一次验证
 
-2026-10-13 客户端品牌的共用控件、启动、加载和两玩法资源选择已有软件、Desktop 双配置构建及隔离绘制证据；范围、初次失败和原件只取 [P1-A 品牌记录](../subline/P1-A/CHANGELOG.md#2026-10-13客户端品牌标识专项)。正常窗口 / 用户主题与曲库、DPI、图标缓存及后续候选仍待验，未重签皮肤、设备或发行门。
+2026-10-18 IIDX33候选已完成普通导入、7K P1/P2和14K整曲、CN/HCN及原素材全连演出捕获，共享HUD首帧异常已修复。软件范围、隔离窗口、逐项旧失败与剩余还原差异取[P1-A记录](../subline/P1-A/CHANGELOG.md#2026-10-18iidx33-游玩皮肤与公共表现能力)，不代签设备或发行；品牌历史保留原日期。
 
 2026-10-11 转谱补算资源与 Debug 读取优化已有受控测量、回归及 Desktop 双配置证据；旧皮肤失败已逐项对照。范围、取舍与未验项只取 [P1-H 最新验证](../subline/P1-H/DEVELOPMENT_STATUS.md#最近一次验证)。扫描 / 便携宿主修复的 `d6f0d60` 来源见 [扫描审查](../other/LIBRARY_SCAN_REVIEW_20261010.md)。未重扫用户库，样本或探针不代签真实大库、Explorer 或发行。
 

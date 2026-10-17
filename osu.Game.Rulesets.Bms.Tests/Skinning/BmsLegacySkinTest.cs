@@ -211,6 +211,45 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
+        public void TestPlayfieldSideInsetUsesOnlyAcceptedSelectedPackageBucket()
+        {
+            using var fallback = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nPlayfieldSideInset: 0.036979167\n");
+            using var selected = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\n");
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key7K, fallback).PlayfieldSideInset, Is.EqualTo(71f / 1920).Within(0.0000001));
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key7K, selected).PlayfieldSideInset, Is.Null,
+                "An undeclared selected package must not inherit the fallback's author placement.");
+            getBmsConfiguration(selected, BmsKeymode.Key7K).Geometry[BmsSkinConfigurationLookups.PlayfieldSideInset] = 0.2f;
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key7K, selected).PlayfieldSideInset, Is.Null,
+                "Compatibility mutations cannot forge an accepted author placement.");
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key14K, fallback).PlayfieldSideInset, Is.Null);
+        }
+
+        [Test]
+        public void TestLaneSidePaddingUsesOnlyAcceptedSelectedPackageBucket()
+        {
+            using var fallback = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nLaneSidePadding: 0.009090909\n");
+            using var selected = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\n");
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key7K, fallback).LaneSidePadding, Is.EqualTo(4f / 440).Within(0.0000001));
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key7K, selected).LaneSidePadding, Is.Null);
+            getBmsConfiguration(selected, BmsKeymode.Key7K).Geometry[BmsSkinConfigurationLookups.LaneSidePadding] = 0.1f;
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key7K, selected).LaneSidePadding, Is.Null,
+                "Compatibility mutations cannot forge accepted lane padding.");
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key14K, fallback).LaneSidePadding, Is.Null);
+        }
+
+        [Test]
+        public void TestDualStageGapUsesOnlyTheAcceptedSelectedPackageBucket()
+        {
+            using var fallback = new TestBmsLegacySkin("[Bms]\nKeymode: 14K\nDualStageGap: 0.1287128713\n");
+            using var selected = new TestBmsLegacySkin("[Bms]\nKeymode: 14K\n");
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key14K, fallback).DualStageGap,
+                Is.EqualTo(130f / 1010).Within(0.0000001));
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key14K, selected).DualStageGap, Is.Null);
+            getBmsConfiguration(selected, BmsKeymode.Key14K).Geometry[BmsSkinConfigurationLookups.DualStageGap] = 0.1f;
+            Assert.That(BmsGameplayLayoutConfiguration.FromSkin(fallback, BmsKeymode.Key14K, selected).DualStageGap, Is.Null);
+        }
+
+        [Test]
         public void TestBgaWindowsUseOnlyTheAcceptedSelectedPackageBucket()
         {
             using var fallback = new TestBmsLegacySkin("[Bms]\nKeymode: 7K\nBgaViewports: .7,.1,.2,.2,fill\n");

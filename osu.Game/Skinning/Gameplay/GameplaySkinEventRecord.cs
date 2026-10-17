@@ -32,6 +32,7 @@ namespace osu.Game.Skinning.Gameplay
         private readonly long integral1;
         private readonly int scalar0;
         private readonly int scalar1;
+        private readonly int scalar2;
         private readonly double number0;
         private readonly double number1;
         private readonly double number2;
@@ -61,6 +62,7 @@ namespace osu.Game.Skinning.Gameplay
             long integral1 = 0,
             int scalar0 = 0,
             int scalar1 = 0,
+            int scalar2 = 0,
             double number0 = 0,
             double number1 = 0,
             double number2 = 0,
@@ -78,6 +80,7 @@ namespace osu.Game.Skinning.Gameplay
             this.integral1 = integral1;
             this.scalar0 = scalar0;
             this.scalar1 = scalar1;
+            this.scalar2 = scalar2;
             this.number0 = number0;
             this.number1 = number1;
             this.number2 = number2;
@@ -96,8 +99,8 @@ namespace osu.Game.Skinning.Gameplay
         internal static GameplaySkinEventValue Publication(GameplaySkinEventStateSnapshot state)
             => publicationValue(state, null);
 
-        internal static GameplaySkinEventValue Lifecycle(GameplaySkinEventKind eventKind, GameplaySkinLifecycleState state)
-            => lifecycleValue(eventKind, state, null);
+        internal static GameplaySkinEventValue Lifecycle(GameplaySkinEventKind eventKind, GameplaySkinLifecycleState state, bool isFullCombo = false)
+            => lifecycleValue(eventKind, state, isFullCombo, null);
 
         internal static GameplaySkinEventValue Input(GameplaySkinEventKind eventKind, GameplaySkinInputStateSnapshot state)
             => inputValue(eventKind, state, null);
@@ -134,7 +137,8 @@ namespace osu.Game.Skinning.Gameplay
                 laneId,
                 number0,
                 number1,
-                number2);
+                number2,
+                (GameplaySkinLongNoteMode)integral1);
         }
 
         internal GameplaySkinJudgementStateSnapshot GetJudgement(GameplaySkinLaneGroupId? groupId, GameplaySkinLaneId? laneId)
@@ -152,7 +156,8 @@ namespace osu.Game.Skinning.Gameplay
         internal GameplaySkinScoreStateSnapshot GetScore()
         {
             requireFamily(GameplaySkinEventPayloadFamily.Score);
-            return new GameplaySkinScoreStateSnapshot(integral0, scalar0, scalar1, number0, number1, statistics);
+            return new GameplaySkinScoreStateSnapshot(integral0, scalar0, scalar1, number0, number1, statistics,
+                new GameplaySkinGaugeStateSnapshot((GameplaySkinGaugeType)scalar2, number2, number3, integral1 != 0));
         }
 
         internal GameplaySkinTimingStateSnapshot GetTiming()
@@ -173,6 +178,12 @@ namespace osu.Game.Skinning.Gameplay
             return (GameplaySkinLifecycleState)scalar0;
         }
 
+        internal bool GetCompletionFullCombo()
+        {
+            requireFamily(GameplaySkinEventPayloadFamily.Lifecycle);
+            return scalar1 != 0;
+        }
+
         internal GameplaySkinEventPayload Materialize(GameplaySkinLaneGroupId? groupId, GameplaySkinLaneId? laneId)
         {
             if (materializedPayload != null)
@@ -182,7 +193,7 @@ namespace osu.Game.Skinning.Gameplay
             {
                 GameplaySkinEventPayloadFamily.State => new GameplaySkinStateEventPayload(DeliveryKind, CompleteState, ResetReason),
                 GameplaySkinEventPayloadFamily.Publication => new GameplaySkinPublicationEventPayload(CompleteState),
-                GameplaySkinEventPayloadFamily.Lifecycle => new GameplaySkinLifecycleEventPayload(EventKind, GetLifecycle()),
+                GameplaySkinEventPayloadFamily.Lifecycle => new GameplaySkinLifecycleEventPayload(EventKind, GetLifecycle(), GetCompletionFullCombo()),
                 GameplaySkinEventPayloadFamily.Input => new GameplaySkinInputEventPayload(EventKind, GetInput(requireGroup(groupId), requireLane(laneId))),
                 GameplaySkinEventPayloadFamily.Object => new GameplaySkinObjectEventPayload(EventKind, GetObject(requireGroup(groupId), laneId)),
                 GameplaySkinEventPayloadFamily.Judgement => new GameplaySkinJudgementEventPayload(GetJudgement(groupId, laneId)),
@@ -258,6 +269,7 @@ namespace osu.Game.Skinning.Gameplay
         private static GameplaySkinEventValue lifecycleValue(
             GameplaySkinEventKind eventKind,
             GameplaySkinLifecycleState state,
+            bool isFullCombo,
             GameplaySkinEventPayload? materialized)
         {
             GameplaySkinLifecycleState expected = eventKind switch
@@ -273,12 +285,16 @@ namespace osu.Game.Skinning.Gameplay
             if (state != expected)
                 throw new ArgumentException("Lifecycle event kind must match the complete lifecycle state.", nameof(state));
 
+            if (isFullCombo && state != GameplaySkinLifecycleState.Completed)
+                throw new ArgumentException("Only the completion edge can carry a full-combo outcome.", nameof(isFullCombo));
+
             return new GameplaySkinEventValue(
                 GameplaySkinEventPayloadFamily.Lifecycle,
                 GameplaySkinEventDeliveryKind.Edge,
                 eventKind,
                 materialized,
-                scalar0: (int)state);
+                scalar0: (int)state,
+                scalar1: isFullCombo ? 1 : 0);
         }
 
         private static GameplaySkinEventValue inputValue(
@@ -317,7 +333,8 @@ namespace osu.Game.Skinning.Gameplay
                 state.LaneId,
                 state.StartTime,
                 state.EndTime,
-                state.Progress);
+                state.Progress,
+                state.LongNoteMode);
 
             if (eventKind is not GameplaySkinEventKind.ObjectSpawned
                 and not GameplaySkinEventKind.ObjectDespawned
@@ -333,6 +350,7 @@ namespace osu.Game.Skinning.Gameplay
                 eventKind,
                 materialized,
                 integral0: state.ObjectId,
+                integral1: (int)state.LongNoteMode,
                 scalar0: (int)state.Kind,
                 scalar1: (int)state.State,
                 number0: state.StartTime,
@@ -367,7 +385,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinScoreStateSnapshot state,
             GameplaySkinEventPayload? materialized)
         {
-            _ = new GameplaySkinScoreStateSnapshot(state.Score, state.Combo, state.MaxCombo, state.Accuracy, state.Gauge, state.Statistics);
+            _ = new GameplaySkinScoreStateSnapshot(state.Score, state.Combo, state.MaxCombo, state.Accuracy, state.Gauge, state.Statistics, state.GaugeState);
 
             if (eventKind is not GameplaySkinEventKind.ScoreChanged
                 and not GameplaySkinEventKind.ComboChanged
@@ -380,10 +398,14 @@ namespace osu.Game.Skinning.Gameplay
                 eventKind,
                 materialized,
                 integral0: state.Score,
+                integral1: state.GaugeState.IsClear ? 1 : 0,
                 scalar0: state.Combo,
                 scalar1: state.MaxCombo,
+                scalar2: (int)state.GaugeState.Type,
                 number0: state.Accuracy,
                 number1: state.Gauge,
+                number2: state.GaugeState.Maximum,
+                number3: state.GaugeState.ClearThreshold,
                 statistics: state.Statistics);
         }
 

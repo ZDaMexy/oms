@@ -15,6 +15,223 @@ namespace osu.Game.Rulesets.Bms.Tests
     [TestFixture]
     public class BmsGameplayLayoutSolverTest
     {
+        [TestCase(BmsPlayfieldStyle.P1, 71)]
+        [TestCase(BmsPlayfieldStyle.P2, 1409)]
+        public void TestAuthoredSideInsetPlacesActualSevenKeySnapshotAtReferencePixels(BmsPlayfieldStyle style, float expectedLeft)
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(BmsKeymode.Key7K));
+            BmsGameplayLayoutSnapshot layout = provider.PublishForTesting(style, new BmsGameplayLayoutConfiguration
+            {
+                PlayfieldWidth = 440f / 1920,
+                PlayfieldHeight = 728f / 1080,
+                PlayfieldSideInset = 71f / 1920,
+            });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(layout.PlayfieldRect.Left * 1920, Is.EqualTo(expectedLeft).Within(0.001));
+                Assert.That(layout.PlayfieldRect.Top * 1080, Is.Zero);
+                Assert.That(layout.PlayfieldRect.Width * 1920, Is.EqualTo(440).Within(0.001));
+                Assert.That(layout.PlayfieldRect.Height * 1080, Is.EqualTo(728).Within(0.001));
+                Assert.That(layout.Profile.HitTargetVerticalOffset, Is.Zero);
+                Assert.That(layout.LanesInLogicalOrder.Min(lane => lane.NeutralLane.Rect.Left), Is.EqualTo(layout.PlayfieldRect.Left));
+                Assert.That(layout.LanesInLogicalOrder.Max(lane => lane.NeutralLane.Rect.Right), Is.EqualTo(layout.PlayfieldRect.Right).Within(0.00001));
+                Assert.That(layout.BgaViewports.All(rect => !rect.Intersects(layout.PlayfieldRect) && !rect.Intersects(layout.GaugeRect)), Is.True);
+            });
+            assertCompleteAndBounded(layout);
+        }
+
+        [TestCase(null)]
+        [TestCase(-0.001f)]
+        [TestCase(0.501f)]
+        [TestCase(float.NaN)]
+        [TestCase(float.PositiveInfinity)]
+        public void TestMissingOrInvalidSideInsetRetainsExistingFivePercentDock(float? inset)
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(BmsKeymode.Key7K));
+            var layout = provider.PublishForTesting(BmsPlayfieldStyle.P1, new BmsGameplayLayoutConfiguration { PlayfieldSideInset = inset });
+            Assert.That(layout.PlayfieldRect.Left, Is.EqualTo(0.05f));
+            assertCompleteAndBounded(layout);
+        }
+
+        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.Center)]
+        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.CenterRightScratch)]
+        [TestCase(BmsKeymode.Key14K, BmsPlayfieldStyle.Center)]
+        public void TestAuthoredSideInsetDoesNotMoveCenteredOrDoubleDeckLayouts(BmsKeymode keymode, BmsPlayfieldStyle style)
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(keymode));
+            var baseline = provider.PublishForTesting(style, new BmsGameplayLayoutConfiguration());
+            var authored = provider.PublishForTesting(style, new BmsGameplayLayoutConfiguration { PlayfieldSideInset = 0.4f });
+            Assert.Multiple(() =>
+            {
+                Assert.That(authored.PlayfieldRect, Is.EqualTo(baseline.PlayfieldRect));
+                Assert.That(authored.KeyAreaRect, Is.EqualTo(baseline.KeyAreaRect));
+                Assert.That(authored.GaugeRect, Is.EqualTo(baseline.GaugeRect));
+                Assert.That(authored.BgaViewports, Is.EqualTo(baseline.BgaViewports));
+                Assert.That(authored.LanesInLogicalOrder.Select(lane => lane.Action), Is.EqualTo(baseline.LanesInLogicalOrder.Select(lane => lane.Action)));
+                Assert.That(authored.Profile.HitTargetVerticalOffset, Is.Zero);
+            });
+        }
+
+        [TestCase(BmsPlayfieldStyle.P1, 16f / 9)]
+        [TestCase(BmsPlayfieldStyle.P2, 16f / 9)]
+        [TestCase(BmsPlayfieldStyle.P1, 4f / 3)]
+        [TestCase(BmsPlayfieldStyle.P2, 4f / 3)]
+        public void TestAuthoredSideInsetClampsToAvailableSpaceForWidePlayfields(BmsPlayfieldStyle style, float aspect)
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(BmsKeymode.Key7K));
+            var bounds = GameplaySkinLayoutRect.Create(0, 0, 1, 1);
+            var layout = provider.PublishForTesting(style,
+                new BmsGameplayLayoutConfiguration { PlayfieldWidth = 0.95f, PlayfieldSideInset = 0.4f },
+                new BmsGameplayLayoutEnvironment(bounds, bounds, aspect, 1));
+            Assert.That(layout.PlayfieldRect.Left, Is.EqualTo((1 - layout.PlayfieldRect.Width) / 2).Within(0.00001));
+            assertCompleteAndBounded(layout);
+        }
+
+        [TestCase(BmsPlayfieldStyle.P1)]
+        [TestCase(BmsPlayfieldStyle.P2)]
+        public void TestLaneSidePaddingPlacesExactReferenceNotesInsideUnchangedOuterStage(BmsPlayfieldStyle style)
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(BmsKeymode.Key7K));
+            var layout = provider.PublishForTesting(style, referenceLaneGeometry(4f / 440));
+            float[] starts = style == BmsPlayfieldStyle.P1
+                ? new float[] { 75, 167, 221, 263, 317, 359, 413, 455 }
+                : new float[] { 1755, 1413, 1467, 1509, 1563, 1605, 1659, 1701 };
+            float[] widths = { 90, 52, 40, 52, 40, 52, 40, 52 };
+            Assert.That(layout.PlayfieldRect.Width * 1920, Is.EqualTo(440).Within(0.001));
+            GameplaySkinLayoutRect groupRect = layout.Neutral.GroupsInLogicalOrder.Single().Rect;
+            Assert.That(groupRect.Left, Is.EqualTo(layout.PlayfieldRect.Left).Within(0.000001));
+            Assert.That(groupRect.Top, Is.EqualTo(layout.PlayfieldRect.Top).Within(0.000001));
+            Assert.That(groupRect.Width, Is.EqualTo(layout.PlayfieldRect.Width).Within(0.000001));
+            Assert.That(groupRect.Height, Is.EqualTo(layout.PlayfieldRect.Height).Within(0.000001));
+
+            foreach (BmsGameplayLayoutLane lane in layout.LanesInLogicalOrder)
+            {
+                Assert.That(lane.NeutralLane.Rect.Left * 1920, Is.EqualTo(starts[lane.LogicalIndex]).Within(0.001));
+                Assert.That(lane.NeutralLane.Rect.Width * 1920, Is.EqualTo(widths[lane.LogicalIndex]).Within(0.001));
+                Assert.That(lane.NeutralLane.Rect.Top, Is.Zero);
+                Assert.That(lane.NeutralLane.Rect.Height * 1080, Is.EqualTo(728).Within(0.001));
+            }
+            assertCompleteAndBounded(layout);
+        }
+
+        [TestCase(null)]
+        [TestCase(0f)]
+        [TestCase(-0.001f)]
+        [TestCase(0.251f)]
+        [TestCase(float.NaN)]
+        [TestCase(float.PositiveInfinity)]
+        public void TestMissingOrInvalidLaneSidePaddingKeepsExistingLaneEdges(float? padding)
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(BmsKeymode.Key7K));
+            var baseline = provider.PublishForTesting(BmsPlayfieldStyle.P1, referenceLaneGeometry(null));
+            var authored = provider.PublishForTesting(BmsPlayfieldStyle.P1, referenceLaneGeometry(padding));
+            Assert.That(authored.PlayfieldRect, Is.EqualTo(baseline.PlayfieldRect));
+            Assert.That(authored.LanesInLogicalOrder.Select(lane => lane.NeutralLane.Rect),
+                Is.EqualTo(baseline.LanesInLogicalOrder.Select(lane => lane.NeutralLane.Rect)));
+            bool invalid = padding.HasValue && (!float.IsFinite(padding.Value) || padding.Value < 0 || padding.Value > 0.25f);
+            Assert.That(authored.Neutral.Diagnostics.Any(diagnostic => diagnostic.Code == "bms.layout.invalid-lane-side-padding"), Is.EqualTo(invalid));
+        }
+
+        [Test]
+        public void TestDoubleDeckPaddingIsIndependentInsideEachUnchangedStage()
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(BmsKeymode.Key14K));
+            var baseline = provider.PublishForTesting(BmsPlayfieldStyle.Center, new BmsGameplayLayoutConfiguration());
+            var padded = provider.PublishForTesting(BmsPlayfieldStyle.Center, new BmsGameplayLayoutConfiguration { LaneSidePadding = 0.02f });
+            Assert.Multiple(() =>
+            {
+                Assert.That(padded.PlayfieldRect, Is.EqualTo(baseline.PlayfieldRect));
+                Assert.That(padded.Neutral.GroupsInLogicalOrder.Select(group => group.Rect), Is.EqualTo(baseline.Neutral.GroupsInLogicalOrder.Select(group => group.Rect)));
+                Assert.That(padded.BgaViewports, Is.EqualTo(baseline.BgaViewports));
+                Assert.That(padded.GaugeRect, Is.EqualTo(baseline.GaugeRect));
+                Assert.That(padded.LanesInLogicalOrder.Select(lane => lane.Action), Is.EqualTo(baseline.LanesInLogicalOrder.Select(lane => lane.Action)));
+                Assert.That(padded.Profile.HitTargetVerticalOffset, Is.Zero);
+            });
+
+            foreach (GameplaySkinLayoutGroup group in padded.Neutral.GroupsInLogicalOrder)
+            {
+                var lanes = group.TopologyGroup.LanesInLogicalOrder.Select(lane => padded.GetLane(lane.Identity.Id)).ToArray();
+                Assert.That(lanes.Min(lane => lane.NeutralLane.Rect.Left), Is.EqualTo(group.Rect.Left + group.Rect.Width * 0.02f).Within(0.00001));
+                Assert.That(lanes.Max(lane => lane.NeutralLane.Rect.Right), Is.EqualTo(group.Rect.Right - group.Rect.Width * 0.02f).Within(0.00001));
+                Assert.That(lanes.Select(lane => lane.NeutralLane.Rect.Top), Is.All.EqualTo(group.Rect.Top));
+                Assert.That(lanes.Select(lane => lane.NeutralLane.Rect.Height), Is.All.EqualTo(group.Rect.Height));
+            }
+            assertCompleteAndBounded(padded);
+        }
+
+        [Test]
+        public void TestAuthoredDualStageGapPlacesBothReferenceDecksAndNotes()
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(BmsKeymode.Key14K));
+            var layout = provider.PublishForTesting(BmsPlayfieldStyle.Center, new BmsGameplayLayoutConfiguration
+            {
+                PlayfieldWidth = 1010f / 1920,
+                PlayfieldHeight = 728f / 1080,
+                DualStageGap = 130f / 1010,
+                LaneSidePadding = 4f / 440,
+                NormalLaneRelativeWidth = 1,
+                BlackLaneRelativeWidth = 40f / 52,
+                ScratchLaneRelativeWidth = 90f / 52,
+                NormalLaneRelativeSpacing = 2f / 52,
+                ScratchLaneRelativeSpacing = 2f / 52,
+            });
+            float[] starts = { 459, 551, 605, 647, 701, 743, 797, 839, 1029, 1083, 1125, 1179, 1221, 1275, 1317, 1371 };
+            float[] widths = { 90, 52, 40, 52, 40, 52, 40, 52, 52, 40, 52, 40, 52, 40, 52, 90 };
+            Assert.That(layout.PlayfieldRect.Left * 1920, Is.EqualTo(455).Within(0.001));
+            Assert.That(layout.Neutral.GroupsInLogicalOrder.Select(group => group.Rect.Width * 1920), Is.All.EqualTo(440).Within(0.001));
+            Assert.That((layout.Neutral.GroupsInLogicalOrder[1].Rect.Left - layout.Neutral.GroupsInLogicalOrder[0].Rect.Right) * 1920,
+                Is.EqualTo(130).Within(0.001));
+            foreach (BmsGameplayLayoutLane lane in layout.LanesInLogicalOrder)
+            {
+                Assert.That(lane.NeutralLane.Rect.Left * 1920, Is.EqualTo(starts[lane.LogicalIndex]).Within(0.001));
+                Assert.That(lane.NeutralLane.Rect.Width * 1920, Is.EqualTo(widths[lane.LogicalIndex]).Within(0.001));
+                Assert.That(lane.NeutralLane.Rect.Height * 1080, Is.EqualTo(728).Within(0.001));
+            }
+            Assert.That(layout.Profile.HitTargetVerticalOffset, Is.Zero);
+            assertCompleteAndBounded(layout);
+        }
+
+        [TestCase(null)]
+        [TestCase(-0.001f)]
+        [TestCase(0.501f)]
+        [TestCase(float.NaN)]
+        [TestCase(float.PositiveInfinity)]
+        public void TestMissingOrInvalidDualStageGapRetainsExistingDoubleDeckGeometry(float? gap)
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(BmsKeymode.Key14K));
+            var baseline = provider.PublishForTesting(BmsPlayfieldStyle.Center, new BmsGameplayLayoutConfiguration());
+            var authored = provider.PublishForTesting(BmsPlayfieldStyle.Center, new BmsGameplayLayoutConfiguration { DualStageGap = gap });
+            Assert.That(authored.LanesInLogicalOrder.Select(lane => lane.NeutralLane.Rect),
+                Is.EqualTo(baseline.LanesInLogicalOrder.Select(lane => lane.NeutralLane.Rect)));
+            Assert.That(authored.Neutral.GroupsInLogicalOrder.Select(group => group.Rect),
+                Is.EqualTo(baseline.Neutral.GroupsInLogicalOrder.Select(group => group.Rect)));
+            Assert.That(authored.Neutral.Diagnostics.Any(diagnostic => diagnostic.Code == "bms.layout.invalid-dual-stage-gap"), Is.EqualTo(gap.HasValue));
+        }
+
+        [Test]
+        public void TestDualStageGapDoesNotMoveSingleDeckNotes()
+        {
+            var provider = new BmsGameplayLayoutProvider(createBeatmap(BmsKeymode.Key7K));
+            var baseline = provider.PublishForTesting(BmsPlayfieldStyle.P1, new BmsGameplayLayoutConfiguration());
+            var authored = provider.PublishForTesting(BmsPlayfieldStyle.P1, new BmsGameplayLayoutConfiguration { DualStageGap = 0.13f });
+            Assert.That(authored.LanesInLogicalOrder.Select(lane => lane.NeutralLane.Rect),
+                Is.EqualTo(baseline.LanesInLogicalOrder.Select(lane => lane.NeutralLane.Rect)));
+        }
+
+        private static BmsGameplayLayoutConfiguration referenceLaneGeometry(float? padding) => new BmsGameplayLayoutConfiguration
+        {
+            PlayfieldWidth = 440f / 1920,
+            PlayfieldHeight = 728f / 1080,
+            PlayfieldSideInset = 71f / 1920,
+            LaneSidePadding = padding,
+            NormalLaneRelativeWidth = 1,
+            BlackLaneRelativeWidth = 40f / 52,
+            ScratchLaneRelativeWidth = 90f / 52,
+            NormalLaneRelativeSpacing = 2f / 52,
+            ScratchLaneRelativeSpacing = 2f / 52,
+        };
+
         [TestCase(BmsKeymode.Key5K, BmsPlayfieldStyle.P1, new[] { 2, 4 })]
         [TestCase(BmsKeymode.Key5K, BmsPlayfieldStyle.P2, new[] { 2, 4 })]
         [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P1, new[] { 2, 4, 6 })]

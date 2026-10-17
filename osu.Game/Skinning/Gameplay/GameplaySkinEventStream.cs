@@ -53,6 +53,29 @@ namespace osu.Game.Skinning.Gameplay
             }
         }
 
+        /// <summary>
+        /// Captures the already folded engine judgement when a native pooled effect is applied. This preserves
+        /// separate origins for two results of one object produced before the scene consumes its next frame.
+        /// </summary>
+        internal GameplaySkinCurrentJudgementStateSnapshot? CaptureObjectJudgement(long objectId, out long epoch)
+        {
+            lock (sync)
+            {
+                throwIfDisposed();
+                epoch = latestRecord.Epoch;
+                return state.ObjectJudgement(objectId);
+            }
+        }
+
+        internal GameplaySkinCompletionStateSnapshot? CaptureCompletion()
+        {
+            lock (sync)
+            {
+                throwIfDisposed();
+                return state.Completion;
+            }
+        }
+
         internal GameplaySkinEventStream(
             GameplaySkinLayoutPublication publication,
             double gameplayTime,
@@ -457,6 +480,7 @@ namespace osu.Game.Skinning.Gameplay
         private sealed class MutableState
         {
             private GameplaySkinLifecycleState lifecycleState;
+            private GameplaySkinCompletionStateSnapshot? completion;
             private readonly Dictionary<GameplaySkinLaneId, GameplaySkinInputStateSnapshot> inputs;
             private readonly Dictionary<long, GameplaySkinObjectStateSnapshot> objects;
             private readonly HashSet<long> objectResynchronisationAllowed;
@@ -472,6 +496,7 @@ namespace osu.Game.Skinning.Gameplay
             public MutableState(GameplaySkinEventStateSnapshot snapshot, bool allowInitialResynchronisation)
             {
                 lifecycleState = snapshot.LifecycleState;
+                completion = snapshot.Completion;
                 inputs = snapshot.Inputs.ToDictionary(input => input.LaneId);
                 objects = snapshot.ActiveObjects.ToDictionary(obj => obj.ObjectId);
                 objectResynchronisationAllowed = allowInitialResynchronisation
@@ -565,6 +590,9 @@ namespace osu.Game.Skinning.Gameplay
                 {
                     case GameplaySkinEventPayloadFamily.Lifecycle:
                         lifecycleState = payload.GetLifecycle();
+                        completion = lifecycleState == GameplaySkinLifecycleState.Completed
+                            ? completion ?? new GameplaySkinCompletionStateSnapshot(gameplayTime, payload.GetCompletionFullCombo())
+                            : null;
                         break;
 
                     case GameplaySkinEventPayloadFamily.Input:
@@ -644,7 +672,13 @@ namespace osu.Game.Skinning.Gameplay
                     score,
                     Timing,
                     bga.Values.OrderBy(viewport => viewport.ViewportIndex),
-                    songInformation);
+                    songInformation,
+                    completion);
+
+            public GameplaySkinCurrentJudgementStateSnapshot? ObjectJudgement(long objectId)
+                => judgementsByObject.TryGetValue(objectId, out GameplaySkinCurrentJudgementStateSnapshot judgement) ? judgement : null;
+
+            public GameplaySkinCompletionStateSnapshot? Completion => completion;
 
             private IEnumerable<GameplaySkinCurrentJudgementStateSnapshot> currentJudgements(double gameplayTime)
             {
@@ -718,6 +752,7 @@ namespace osu.Game.Skinning.Gameplay
                             throw new InvalidOperationException("An object state edge requires an active object ID.");
 
                         if (obj.Kind != previous.Kind
+                            || obj.LongNoteMode != previous.LongNoteMode
                             || obj.GroupId != previous.GroupId
                             || obj.LaneId != previous.LaneId
                             || obj.StartTime != previous.StartTime
@@ -736,6 +771,7 @@ namespace osu.Game.Skinning.Gameplay
                             throw new InvalidOperationException("An object despawn requires an active object ID.");
 
                         if (obj.Kind != despawned.Kind
+                            || obj.LongNoteMode != despawned.LongNoteMode
                             || obj.GroupId != despawned.GroupId
                             || obj.LaneId != despawned.LaneId
                             || obj.StartTime != despawned.StartTime

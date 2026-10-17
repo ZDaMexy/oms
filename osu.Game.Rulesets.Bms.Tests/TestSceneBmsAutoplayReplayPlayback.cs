@@ -7,6 +7,7 @@ using osu.Game.Beatmaps;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Bms;
 using osu.Game.Rulesets.Bms.Beatmaps;
+using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Tests.Visual;
 
@@ -45,6 +46,33 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             AddUntilStep("replay handler loaded", () => Player.DrawableRuleset != null && Player.DrawableRuleset.HasReplayLoaded.Value);
             AddUntilStep("key counter receives replay input", () => Player.HUDOverlay != null && Player.HUDOverlay.InputCountController.Triggers.Any(trigger => trigger.ActivationCount.Value > 0));
+        }
+
+        [Test]
+        public void TestAutoplayRetainsScoredJudgementAndNativeHitExplosion()
+        {
+            DrawableBmsRuleset renderer = null!;
+            bool displayedScoredResult = false;
+            bool createdNativeExplosion = false;
+
+            CreateTest();
+            AddUntilStep("autoplay renderer loaded", () =>
+            {
+                if (Player.DrawableRuleset is not DrawableBmsRuleset loaded || !loaded.HasReplayLoaded.Value)
+                    return false;
+                renderer = loaded;
+                return true;
+            });
+            AddStep("observe real autoplay judgements", () => renderer.Playfield.NewResult += (drawable, result) =>
+            {
+                if (!drawable.DisplayResult || !result.IsHit)
+                    return;
+
+                displayedScoredResult = true;
+                createdNativeExplosion |= renderer.Playfield.Lanes.Any(lane => lane.HitExplosionsInUse > 0);
+            });
+            AddUntilStep("scored autoplay result produces a native hit effect", () => displayedScoredResult && createdNativeExplosion);
+            AddUntilStep("same autoplay chart completes", () => Player.ScoreProcessor.HasCompleted.Value);
         }
 
         private IBeatmap createBeatmap()

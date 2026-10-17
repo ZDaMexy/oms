@@ -57,16 +57,16 @@ my-skin/
 | --- | --- | --- | --- |
 | 普通短音符 | `bms/note-white.png`、`note-accent.png`；128×24；mania同类也为128×24 | `NoteImage{lane}` / `object.note` | 支持连续编号帧；按车道宽度显示，过多透明边会使可见音符显得细窄 |
 | 长条头与尾 | `head-white.png`、`tail-white.png`；128×24 | `NoteImage{lane}H/T` / `object.long-note.head/tail` | 各自独立图或编号帧；尾部可显式关闭，头不能关闭 |
-| 长条身体 | `body-white.png`；128×128 | `NoteImage{lane}L` / `object.long-note.body` | 身体随真实长条长度显示，BMS相对宽度由 `LongNoteBodyWidth` 控制；不要在整张身体图上画一个固定时长的完整长条 |
+| 长条身体 | `body-white.png`；128×128 | `NoteImage{lane}L` / `object.long-note.body` | 身体随真实长条长度显示，BMS相对宽度由 `LongNoteBodyWidth` 控制；scene可按真实LN/CN/HCN与保持/断持状态换图 |
 | 白键/黑键/转盘轨道底色 | `bms/lane-white.png` 等；256×32 | `playfield.lane-surface` | 铺在车道区域，底色与音符应有足够对比；分隔线单独画 |
 | 轨道分隔、小节线、判定线 | `bms/divider.png`、`bar.png`、`target.png`；后两者256×32 | `playfield.lane-divider/bar-line/judgement-line/hit-target` | 厚度和位置由真实布局处理；皮肤不能平移实际判定时刻 |
 | 键帽松开/按下 | `bms/key-white.png` 128×128、`pressed-white.png` 128×72；mania键图128×72 | `KeyImage{lane}`、`KeyImage{lane}D` / `playfield.key` | 两张图片响应真实按键；应保留相同视觉中心，避免按下时跳动 |
 | 转盘控制图 | `bms/scratch-platter.png`；1254×1254 | BMS `KeyImageS`，独立键区配 `ScratchKeyWidth` | 正方形画布适合圆盘；独立键区按原图比例居中。装饰转盘/光束另有 `playfield.turntable/laser` |
-| 命中闪光 | `bms/explosion.png`；256×256；`flash.png` | `effect.hit-explosion/key-flash` | 真实输入/命中控制生存期；scene可改表现，可选项可关闭 |
+| 命中闪光 | `bms/explosion.png`；256×256；`flash.png` | `effect.hit-explosion/key-flash` | 真实输入/命中控制生存期；击打scene可用 `trigger: judgement.hit` 从首帧播放，可选项可关闭 |
 | 地雷 | `bms/mine.png`；128×256 | `object.mine` | 原生BMS适用；mania无此对象表现。不要用长条尾图替代地雷 |
 | 判定、连击 | `bms/hud.png` 与场景中的文字节点 | `hud.judgement/combo` | 可绑定等级/连击或用变体换图；不是一张名叫PERFECT的图就会自动生效 |
-| 血槽 | `bms/gauge.png`；1024×96 | `hud.gauge` | 纯图片以全长暗槽加从左揭露的亮层显示；scene用 `gauge.value` 绑定，分段格距不应随血量压缩 |
-| 曲名、分数、BPM、统计、进度 | 场景文字；`scene/white.png`可画条形 | `hud.text` 和只读 bindings | 每项直接读游戏事实，无需脚本；长曲名可用 `text-overflow: ellipsis` |
+| 血槽 | `bms/gauge.png`；1024×96 | `hud.gauge` | 纯图片以全长暗槽加从左揭露的亮层显示；scene可读真实 `gauge.type/clear-state`，分段格距不应随血量压缩 |
+| 曲名、分数、BPM、统计、进度 | 场景文字；自制数字PNG可声明bitmapFonts | `hud.text` 和只读 bindings | 每项直接读游戏事实，无需脚本；数字可保留图片字形，普通长曲名可用 `text-overflow: ellipsis` |
 | 舞台背景、边框、底板 | `scene/cabinet.png` 1536×1024，`bms/frame.png`、`plate.png` | `stage.background/foreground`、`playfield.backdrop/baseplate` | 可用公共素材或scene；不要用老的 `Stage*` 字段猜BMS支持情况 |
 | SUDDEN+/HIDDEN+/LIFT遮挡区 | `bms/cover.png` | `playfield.lane-cover.fill/decoration` | 皮肤画填充和装饰，游戏控制真实遮挡/位移；必要填充不能关闭 |
 | BGA画面与外框 | `bms/bga-frame.png`；1024×768 | `bga.viewport/frame`、`BgaViewports` | 仅原生BMS；框是皮肤图片，画面来自谱面，共享同一播放内容 |
@@ -126,6 +126,9 @@ hud.text: resource Provide "scene/white"
 | 字段 | 值与作用 |
 | --- | --- |
 | `PlayfieldWidth / PlayfieldHeight` | 0.15～0.95 / 0.45～0.94；落键区宽高比例 |
+| `PlayfieldSideInset` | 0～0.5，默认0.05；5K/7K的1P/2P距对应安全区边缘的宽度比例，过大时夹到可用左右余量一半；居中、9K、14K不受影响 |
+| `LaneSidePadding` | 0～0.25，默认0；每侧deck外框宽度的左右对称内边距，真实车道与间隔一起缩入；双deck各自应用，外框与BGA避让范围不变 |
+| `DualStageGap` | 0～0.5；仅14K，中间空隙占整体落键区宽的比例，两deck平分剩余宽度；省略或非法保留旧间距，显式0才取消该空隙 |
 | `NormalLaneWidth / BlackLaneWidth / ScratchLaneWidth` | 0.25～4的相对宽度权重；黑键宽只用于5K/7K/14K每侧2/4/6键，9K不应用 |
 | `NormalLaneSpacing / ScratchLaneSpacing` | 0～2的相对间隔权重 |
 | `KeyAreaHeight` | 0～0.18；判定线下独立控制区，默认0 |
@@ -136,7 +139,7 @@ hud.text: resource Provide "scene/white"
 | `HitTargetHeight / HitTargetBarHeight / HitTargetLineHeight` | 区域1～128，条/线0.5～区域高度；是布局尺寸，不能更改实际判定偏移 |
 | `HitTargetGlowRadius / BarLineHeight` | 0～96 / 0.5～32 |
 
-空间不足时布局会同时处理键区、血条和信息区的避让，不能把一个比例当作最终像素保证。非法字段会有诊断并使用该字段的确定默认值。`HitTargetVerticalOffset` 不是公开INI字段。实际默认值和更多说明见[参考](REFERENCE.md#真实车道布局与-ini)。
+空间不足时布局会同时处理键区、血条和信息区的避让，不能把一个比例当作最终像素保证。上述三个新增宽度字段只取选定包对应键数块，不继承默认静线的布局；均要求有限数，非法值会产生对应诊断并使用表中缺省行为。比如每侧外框宽400像素且 `LaneSidePadding: 0.01` 时，两边各留4像素，轨道内容宽392像素；`DualStageGap` 先划分两deck，再分别应用内边距。输入身份、滚动时间和BGA内容时钟仍由游戏控制。`HitTargetVerticalOffset` 不是公开INI字段。实际默认值和更多说明见[参考](REFERENCE.md#真实车道布局与-ini)。
 
 mania沿对应 `[Mania] Keys` 块的 `ColumnWidth`、`ColumnSpacing`、`HitPosition` 等兼容设置；数组项数须匹配该块。不能把它们复制进 `[Bms]` 期待生效。当前原生mania谱面的产品入口最高18K；内部目录上限或模板组合不等于20K谱面可用。
 
@@ -152,6 +155,10 @@ Keymode: 7K
 PlayfieldWidth: 0.25
 BgaViewports: 0.70,0.10,0.25,0.25,fit; 0.72,0.50,0.20,0.15,fill
 ```
+
+同一个键数块可另写 `BgaViewportsP1` 与 `BgaViewportsP2`，分别给1P/2P停靠样式提供完整安排，格式仍是上述列表或 `none`。它们不会自动镜像；两侧不同的框体布局应各写实际坐标。缺少该侧合法声明时保留同桶 `BgaViewports`，再缺省才使用旧自动布局。居中两样式、9K和14K仍只看通用声明，因此通用窗口也应保留合适的安排。
+
+三种声明独立保存最后一次合法值；非法重复行保留该种旧值并记录解析错误，不影响另一侧。该侧没有合法值时使用通用/自动布局并保留其错误；未使用侧不参与当前样式诊断。只取当前选定包对应键数桶，不借用默认包。已接受的侧置窗口若与键区等区域冲突，整组不显示，不改回通用窗口；显式 `none` 也不回退。细则见[参考](REFERENCE.md#真实车道布局与-ini)。
 
 每组依次为 `x,y,width,height,mode`，坐标/尺寸均相对安全区域；用分号分隔，最多16窗，顺序对应scene的BGA索引。`fit` 保留完整画面并允许留边，`fill` 居中放大裁切，`stretch` 拉伸到矩形。这里适配的是谱面叠层合成后的4:3画布；没有时间线的静态背景按图片自然比例处理。宽屏窗口不等于重写谱面合成坐标。
 
@@ -176,7 +183,7 @@ BgaViewports: 0.70,0.10,0.25,0.25,fit; 0.72,0.50,0.20,0.15,fill
 
 ## 6. 从图片到动画和实时信息
 
-scene包含固定字段 `contract/root/tracks/stateMachines/bindings/templates/instances`；不用的数组写 `[]`，`variants` 可省略。节点必填 `id/type/target/blend/properties/effects/children`；类型为 `container/sprite/text/mask/clip`。完整结构从[First Scene](examples/first-scene/gameplay-skin.scene.json)复制，不把本节片段当整文件。
+scene包含固定字段 `contract/root/tracks/stateMachines/bindings/templates/instances`；不用的数组写 `[]`，`variants` 可省略。节点必填 `id/type/target/blend/properties/effects/children`；类型为 `container/sprite/text/mask/clip/projective-sprite`。完整结构从[First Scene](examples/first-scene/gameplay-skin.scene.json)复制，不把本节片段当整文件。
 
 可见节点须属于本包自己 `Provide` 的公开部件。在所有者节点写 `slot`，孩子沿用；分派不同部件的外层根容器应为空属性、无资源/效果、`blend: inherit`。`Inherit` 不会同时继承默认包的scene供自己修改。
 
@@ -184,11 +191,11 @@ scene包含固定字段 `contract/root/tracks/stateMachines/bindings/templates/i
 | --- | --- | --- |
 | 节点属性 | 坐标、大小、颜色、透明度、锚点、混合、文字与遮罩 | 任意引擎对象属性 |
 | `tween` 轨迹 | 按毫秒关键帧旋转、缩放、移动、渐变 | wall-clock动画或判定时序修改 |
-| `frame` 轨迹 | 在清单已声明图片间切换 | 任意GIF/视频解码器 |
+| `frame` 轨迹 | 在清单已声明图片间切换；可显式相对当前判定起播 | 任意GIF/视频解码器 |
 | `bindings` | 将当前分数、血量、BPM等映射到属性 | 公式、字符串拼接或历史累计语言 |
 | `stateMachines` | 当前运行、输入、对象或判定状态的表现 | 任意连续历史事件状态机；暂停时即时更新的界面（整个游玩场景冻结） |
-| `variants` | 根据对象状态、判定等级、BGA状态选择资源 | 任意表达式或文件路径计算 |
-| `templates / instances` | 复用节点树，按同包的已选素材生成舞台实例 | 无上限动态创建、任意参数函数 |
+| `variants` | 根据对象状态/长条外观、判定等级、血槽类型/通关状态、BGA状态选择资源或可见性 | 任意表达式或文件路径计算 |
+| `templates / instances` | 复用节点树，按同包的已选素材生成全局、舞台或车道实例 | 无上限动态创建、任意参数函数 |
 | 可选脚本 | 将多个数值和有限历史组合成数值表现 | 文字、图片路径、网络、游戏规则脚本 |
 
 ### 坐标、属性与效果
@@ -196,6 +203,22 @@ scene包含固定字段 `contract/root/tracks/stateMachines/bindings/templates/i
 `target` 可为global、带精确id/index的stage/group/lane、hud、bga。`x/y/width/height` 是相对区域比例，父容器变换继续作用于孩子；不是固定屏幕像素。锚点/原点有九宫格值，`z` 只能调整所在层中的顺序。布局与单位完整表见[属性参考](REFERENCE.md#节点目标和属性)。
 
 数字范围：`x/y` 为-4～4；width/height为0～4；scale为0～8；rotation为±36000度；opacity/reveal-x为0～1；font-size为1～128。颜色用 `#RRGGBB` 或 `#RRGGBBAA`。混合有inherit/alpha/additive/multiply/screen；效果为blur/glow/outline/shadow。大面积效果和很多音符clone一起占预算，不能只按源JSON节点数估计成本。
+
+### 用PNG字形显示数字
+
+清单texture资源可选 `filter:"nearest"` 保留像素边缘；省略或linear使用平滑采样。需要复用已有透视纹理动画时，projective-sprite可逐帧提供四角位置、正倒数W及透明度，保留正确纹理插值，仍使用同一游玩时钟和原预算。它不执行作者着色器或相机代码，具体字段与例子见[四角动画](REFERENCE.md#已投影纹理的四角动画)。
+
+分数、BPM和连击可以使用自己的数字图片。在 `gameplay-skin.json` 的可选 `bitmapFonts` 数组中，每个字体填 `id/lineHeight/glyphs`，每个字形填 `character/resource/advance`；resource引用同一清单已声明的texture id。文字节点静态选择 `"bitmap-font": "字体id"`，配合 `font-size`、`alignment` 和数值binding；未声明字体的旧文字保持原有表现。完整十位数字声明和节点见[位图数字参考](REFERENCE.md#用自己的图片字形显示数字)。
+
+最多8字体，每字体1～16字形；字符仅限 `0`～`9`、`.`、`,`、`%`、`+`、`-`、小写 `x`。每个字符只声明一次，不含空格。图片每边1～512像素，图片高度不超过 `lineHeight`；`lineHeight/advance` 为1～512的有限原图像素数。字形顶端对齐，按 `font-size / lineHeight` 缩放；advance控制横向间距，不必等于图片宽度。
+
+数字绑定须提供0～9全部字形。BPM等整数显示可用 `"format": "integer"`，将数值舍入为无小数数字；`fixed-2` 需要点号，`percent` 需要百分号，未指定格式的非整数来源需要点号。判定偏差与拍数还要求负号；前奏的小节索引也可能为-1，应提供负号。位图准确率和进度同样按显式format显示，想显示百分比应选percent。`,`、`+`、`x` 不会自动生成，只供静态文字等已明确字符使用。
+
+位图文字每节点最多64字符，只接受数值binding，不接受曲名、状态词、布尔值、`uppercase` 或 `text-overflow`；需要状态图时使用variants。字体选择不能被动画、绑定、状态机或脚本更换。缺字、超长或非法字形会报场景错误，不会悄悄改成系统字体。图片仍占普通资源预算，每个动态数字节点另预留64字形，真实对象实例一起计入运行上限。
+
+标签与连击需要一起居中时，在已有槽位所有者内建立 `container`，静态声明 `"layout":"horizontal"`。直接孩子仅可为无children、无独立slot的sprite或位图text；sprite必填 `height-px:1..512`，可选 `width-px:1..512`，省宽时按当前纹理比例求宽。位图文字按字形图片与advance的实际范围求宽，例如74宽、55步长的两位数字占129宽。整组占位并集在父容器内居中，`gap-px:-512..512`（缺省0）允许重叠；隐藏孩子保留占位。
+
+这些像素与font-size使用相同逻辑单位；1080高源图换到768高逻辑画布时，字号、高度与间距都乘768/1080。父行继续使用既有x/y/origin等比例属性。布局与像素尺寸不可由任何程序修改，直接孩子也不可另行移动/缩放/旋转或改alignment；横排及其祖先、孩子不支持C5 effects。文字、字号、换图与显隐可继续读真实游戏状态，不需脚本。完整片段与全部限制见[横排参考](REFERENCE.md#标签与数字整体居中的横排)。
 
 ### 常用绑定
 
@@ -207,7 +230,11 @@ scene包含固定字段 `contract/root/tracks/stateMachines/bindings/templates/i
 
 | 读取内容 | source | 值与显示 |
 | --- | --- | --- |
-| 得分、准确率、连击、血量 | `score.value`、`score.accuracy`、`combo.value`、`gauge.value` | 准确率/血量0～1；准确率text显示两位小数百分比 |
+| 得分、准确率、连击、血量 | `score.value`、`score.accuracy`、`combo.value`、`gauge.value` | 原生BMS得分为EX SCORE；准确率/血量0～1；普通字体准确率显示两位小数百分比 |
+| 实际血槽类型 | `gauge.type` | none/assist-easy/easy/normal/hard/ex-hard/hazard；沿当前处理器，包括GAS切换 |
+| 实际血槽上限和通关阈值 | `gauge.maximum`、`gauge.clear-threshold` | 与血量相同0～1量纲；无投影时为0 |
+| 当前通关条件 | `gauge.clear-state` | unavailable/uncleared/clear，直接取引擎状态，不由图片或数值比较推算 |
+| 已完成全连 | `gameplay.full-combo` | 布尔；真实完成且当前连击达到最大可达连击、未失败；未完成、空谱为false，可绑定visible或普通text |
 | 谱面进度 | `timing.progress` | 0～1；首物件前0，末物件后1，零时长0；text显示整数百分比 |
 | 拍、小节、当前/最低/最高BPM | `timing.beat/measure/bpm/bpm-min/bpm-max` | 真实音乐时间线，STOP不伪装成低BPM |
 | 已选滚速 | `scroll.speed` | 当前玩法设置数值，不是统一物理单位或绿数 |
@@ -215,9 +242,13 @@ scene包含固定字段 `contract/root/tracks/stateMachines/bindings/templates/i
 | 累计判定、断连 | `judgement.count.perfect/great/good/ok/meh/miss`、`combo.breaks` | 从真实计分器读取，跳转与重试正确恢复 |
 | 当前判定 | `judgement.result/offset` | 等级字符串/偏差毫秒；没有当前判定时为miss/0，不代表新发生一次Miss |
 | 轨道输入、当前对象 | `input.pressed`、`object.state` | 布尔值/状态字符串，作用于对应目标 |
+| 真实长条模式 | `object.long-note-mode` | none/ln/cn/hcn；普通mania长条为ln，非长条或无当前对象为none |
+| 模式与保持外观 | `object.long-note-appearance` | 基础ln/cn/hcn；holding加-holding，missed加-released；无长条为none，HCN重抓回hcn-holding |
 | BGA | `bga.content-state` | empty/ready/playing/paused/failed，只在适用玩法使用 |
 
-字符串只写text；布尔值可写visible/text；数值可写受支持的数值属性或text。资源换图用variants。`format: percent/fixed-2/uppercase` 与 `text-overflow: ellipsis` 是文字的静态格式选择，不写进绑定公式。
+字符串只写普通text；布尔值可写visible/普通text；数值可写受支持的数值属性或text，位图文字还受上述字形要求约束。资源换图用variants。`format: percent/fixed-2/integer/uppercase` 与 `text-overflow: ellipsis` 是文字的静态格式选择，不写进绑定公式。
+
+长条外观取当前真实对象，不是整局模式开关；`-released` 对应missed状态，也包含未命中或断持外观，不是另一次释放事件。模式和当前状态随seek/reset恢复，原生对象的头、身、尾保持同一长条身份。`gauge.clear-state` 也随完整快照恢复；clear是当前通关条件成立，不代表已结算或全连。生存槽不能只比较血量与阈值，未提供能力的玩法保持unavailable。
 
 做进度条时固定父容器宽度，把0～1绑定到孩子的width；不要用 `scale-x=0` 表达完全隐藏，底层极小缩放可能留下细线。分段血槽可用clip的 `reveal-x`，暗槽和外框放在clip之外。
 
@@ -225,9 +256,17 @@ scene包含固定字段 `contract/root/tracks/stateMachines/bindings/templates/i
 
 轨迹每项必填id/type/target/property/easing/loop/keyframes；帧为id/time/value，时间必须严格递增。easing为step/linear/in/out/in-out；循环周期由最后帧决定。2秒一周的完整写法在 `lesson.turn`，修改最后帧2000即可调整。
 
+省略 `trigger` 继续使用全局游玩时间。判定或击打动画可加 `"trigger": "judgement.hit"`，让帧时间相对真实判定从0开始。局部节点只读自己的对象/车道/舞台判定，不借用其它车道；普通局部或global判定显示在新判定后重新起播，池化击打实例各保留自己的起点，CN头尾重叠不会重启先前实例。暂停冻结，重试、跳转、epoch替换与池化复用不继承旧相位。未触发只采样首帧，可见性和生存期仍由状态/槽位或原生效果控制；事件也包含真实Miss。
+
+完成演出可使用另一个合法trigger `"gameplay.complete"`，从引擎真正完成整张谱面的时刻计时。全连演出把 `gameplay.full-combo` 绑定到父容器的visible，换帧、位置和透明度轨迹放在孩子上；该布尔取真实最大可达连击，不用已达到的最高连击、清灯或“断连次数为0”猜测。晚挂载和快照替换保留完成原点，暂停、变速沿游玩时钟；回退到完成前或重试清除旧起点，仍位于同次完成后的跳转不会重播。末帧应显式透明。
+
+场景根可选 `"completionOutro":2500`，给实际全连保留从完成原点起最多2500毫秒的演出；缺省或0、非全连、失败仍保持原1000毫秒等待。正值要求同一场景有 `gameplay.full-combo → visible`，并有至少一条覆盖声明时长的非循环完成轨迹，完成轨迹均不可loop；仅准备完毕且无运行故障的选定场景参与。它不是在原等待后再增加2500毫秒，也不允许脚本或无限循环阻止结算。完整边界见[参考](REFERENCE.md#动画状态机绑定变体模板)。
+
 状态机事件为 `gameplay.attach/loaded/start/pause/complete/fail`、`input.key.down/up`、`object.spawn/state`、`judgement.hit`、`timing.stop`、`bga.state`。`gameplay.resume` 不是合法作者事件；恢复、跳转和重试从完整当前状态重建。`judgement.hit` 表示存在当前判定，也包括真实Miss。要累计“最近N次”，使用脚本事件而非不断读取绑定中的miss。
 
-variants仅接受 `object.state / judgement.result / bga.content-state` 作为来源，必须给default与至少一条case；图片均引用清单资源id。模板实例在`target`和`material`中二选一；素材匹配可按Global/Stage的同包Provide部件和精确资源名挂载，未匹配时不生成，但模板语法/资源仍要合法。完整例子与全部字段见[参考](REFERENCE.md#动画状态机绑定变体模板)。
+variants接受 `object.state / object.long-note-mode / object.long-note-appearance / judgement.result / gauge.type / gauge.clear-state / bga.content-state`，必须给default与至少一条case，key只能用各来源的闭集字符串。property=resource保持sprite换图语法：default是清单资源id，case写resource；property=visible则接受container/text/sprite，default与case的value必须是JSON布尔。按等级显示不同静态字体时，可用visible分别控制两条横排，不能动态换bitmap-font。长条模式与保持状态宜合成一个appearance变体，避免两个变体争抢同一资源；空态与判定显示期限仍沿真实槽位/状态管理，不由visible变体延长。
+
+模板实例在`target`和`material`中二选一。素材匹配按当前选定包同一版本的公共Provide部件与精确资源基名挂载，目标可为Global、Stage、Lane：全局一次、每个实际舞台或匹配车道各一次。Lane模板沿真实车道身份取输入/对象/判定，音符和击打效果仍交给原生池化所有者；不需把每种键数/左右皿索引硬写进同一场景。模板根slot须与material.slot相同，Group不在素材匹配集合内。未匹配不生成，但模板语法/资源仍须合法；默认包、旧兼容图片字段和另一版本的素材不能借来挂载。完整例子与全部字段见[参考](REFERENCE.md#动画状态机绑定变体模板)。
 
 ## 7. 可以直接验证的完整例子
 
@@ -247,6 +286,8 @@ variants仅接受 `object.state / judgement.result / bga.content-state` 作为�
 | `skin.ini` / 名称与作者 | 1MiB；各256字符、无控制字符 |
 | manifest / scene JSON / JSON深度 | 64KiB / 512KiB / 32 |
 | scene资源 | 256项；单资源16MiB、合计64MiB；单图16×1024²像素、合计64×1024²像素；解码合计256MiB |
+| 位图字体 | 最多8字体，每字体1～16字形；每节点最多64字符；字符仅0～9及`.`、`,`、`%`、`+`、`-`、`x` |
+| 位图字形尺寸 | 每边1～512像素且高度≤lineHeight；lineHeight/advance为1～512；图片仍计入上述scene资源预算 |
 | BMS音符编号帧专用上限 | 每组件256帧；单边8192、单帧16×1024²像素；组件解码64MiB、包解码256MiB；声明帧4096、唯一纹理2048。作者工具的更小整包上限仍适用 |
 | scene源节点 / 树深 / 每节点孩子 | 2048 / 16 / 128 |
 | 模板 / 实例 / 展开节点 | 128 / 1024 / 8192 |
@@ -254,7 +295,7 @@ variants仅接受 `object.state / judgement.result / bga.content-state` 作为�
 | 状态机 / 状态 / 赋值 / 转移 | 128 / 1024 / 4096 / 2048 |
 | 绑定 / 变体 / 每变体case / 总case | 512 / 512 / 32 / 4096 |
 | 单节点效果 / 源效果 / 运行效果 | 8 / 512 / 8192；运行节点32768 |
-| 运行文字 | 总字形8192、像素64×1024²、字节256MiB；动态文字通常每节点预留384字形，曲目元数据256、判定计数10 |
+| 运行文字 | 总字形8192、普通字形图集像素64×1024²/字节256MiB；动态位图每节点预留64，普通文字通常384、曲目元数据256、判定计数10；位图像素只计普通scene纹理，不重复入图集 |
 | 运行效果表面 | 128×1024²像素、512MiB |
 | 每帧属性应用 / 每事件状态赋值 / 每帧创建 | 16384 / 8192 / 256 |
 | 脚本源码 / 字节码 / 行 / 编译指令 | 64KiB / 256KiB / 4096 / 2048 |

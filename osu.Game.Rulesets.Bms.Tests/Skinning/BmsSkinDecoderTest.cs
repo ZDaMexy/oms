@@ -113,6 +113,30 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [Test]
+        public void TestSideInsetRetainsAcceptedBucketAndRejectsMalformedDuplicate()
+        {
+            var decoder = decode("[Bms]\nPlayfieldSideInset: 0.036979167\nLaneSidePadding: 0.009090909\nKeymode: 7K\n"
+                                 + "PlayfieldSideInset: invalid\nLaneSidePadding: invalid\n[Bms]\nKeymode: 14K\nPlayfieldSideInset: 0.125\nLaneSidePadding: 0.02\n");
+            Assert.That(config(decoder, BmsKeymode.Key7K).GetAcceptedGeometry(BmsSkinConfigurationLookups.PlayfieldSideInset).Value,
+                Is.EqualTo(71f / 1920).Within(0.0000001));
+            Assert.That(config(decoder, BmsKeymode.Key14K).GetAcceptedGeometry(BmsSkinConfigurationLookups.PlayfieldSideInset).Value,
+                Is.EqualTo(0.125f));
+            Assert.That(config(decoder, BmsKeymode.Key7K).GetAcceptedGeometry(BmsSkinConfigurationLookups.LaneSidePadding).Value,
+                Is.EqualTo(4f / 440).Within(0.0000001));
+            Assert.That(config(decoder, BmsKeymode.Key14K).GetAcceptedGeometry(BmsSkinConfigurationLookups.LaneSidePadding).Value,
+                Is.EqualTo(0.02f));
+        }
+
+        [Test]
+        public void TestDualStageGapRetainsTheAcceptedAuthorValue()
+        {
+            var decoder = decode("[Bms]\nKeymode: 14K\nDualStageGap: 0.1287128713\nDualStageGap: invalid\n");
+            Assert.That(config(decoder, BmsKeymode.Key14K).GetAcceptedGeometry(BmsSkinConfigurationLookups.DualStageGap).Value,
+                Is.EqualTo(130f / 1010).Within(0.0000001));
+            Assert.That(decoder.Configurations.Any(configuration => configuration.Keymode == BmsKeymode.Key7K), Is.False);
+        }
+
+        [Test]
         public void TestMalformedColourIgnored()
         {
             var decoder = decode(

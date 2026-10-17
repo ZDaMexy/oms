@@ -89,5 +89,14 @@ namespace osu.Game.Rulesets.Bms.Skinning
         ScratchKeyWidth,
         GaugeHeight,
         BlackLaneWidth,
+
+        /// <summary>Safe-width-relative inset from the docked edge for P1/P2. Centered layouts retain their existing position.</summary>
+        PlayfieldSideInset,
+
+        /// <summary>Symmetric content padding as a fraction of each stage's outer width. Defaults to zero.</summary>
+        LaneSidePadding,
+
+        /// <summary>Optional gap between 14K stages as a fraction of the complete playfield width.</summary>
+        DualStageGap,
     }
 }

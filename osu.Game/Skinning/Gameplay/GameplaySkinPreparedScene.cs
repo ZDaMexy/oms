@@ -352,6 +352,8 @@ namespace osu.Game.Skinning.Gameplay
 
         public string? StringValue { get; }
 
+        public GameplaySkinProjectiveQuad? ProjectiveQuad { get; }
+
         public GameplaySkinPreparedSceneResource? Resource { get; }
 
         public Texture? Texture => Resource?.Texture;
@@ -364,6 +366,7 @@ namespace osu.Game.Skinning.Gameplay
             Kind = source.Kind;
             BooleanValue = source.BooleanValue;
             NumberValue = source.NumberValue;
+            ProjectiveQuad = source.ProjectiveQuad;
             StringValue = property == GameplaySkinSceneProperty.Resource ? null : source.StringValue;
 
             if (property != GameplaySkinSceneProperty.Resource)
@@ -415,6 +418,8 @@ namespace osu.Game.Skinning.Gameplay
 
         public bool Loop { get; }
 
+        public GameplaySkinSceneEvent Trigger { get; }
+
         public IReadOnlyList<GameplaySkinPreparedSceneKeyframe> Keyframes { get; }
 
         internal GameplaySkinPreparedSceneTrack(
@@ -427,6 +432,7 @@ namespace osu.Game.Skinning.Gameplay
             Property = source.Property;
             Easing = source.Easing;
             Loop = source.Loop;
+            Trigger = source.Trigger;
             Keyframes = Array.AsReadOnly(source.Keyframes
                                                .Select(keyframe => new GameplaySkinPreparedSceneKeyframe(keyframe, Property, resources))
                                                .ToArray());
@@ -555,17 +561,20 @@ namespace osu.Game.Skinning.Gameplay
 
         public string Key { get; }
 
-        public GameplaySkinPreparedSceneResource Resource { get; }
+        public GameplaySkinPreparedSceneValue Value { get; }
+
+        public GameplaySkinPreparedSceneResource Resource => Value.Resource!;
 
         public Texture Texture => Resource.Texture!;
 
         internal GameplaySkinPreparedSceneVariantCase(
             GameplaySkinSceneVariantCase source,
+            GameplaySkinSceneProperty property,
             IReadOnlyDictionary<string, GameplaySkinPreparedSceneResource> resources)
         {
             Id = source.Id;
             Key = source.Key;
-            Resource = RequireTexture(source.ResourceId, resources);
+            Value = new GameplaySkinPreparedSceneValue(property, source.Value, resources);
         }
 
         internal static GameplaySkinPreparedSceneResource RequireTexture(
@@ -590,11 +599,15 @@ namespace osu.Game.Skinning.Gameplay
 
         public string TargetNodeId { get; }
 
+        public GameplaySkinSceneProperty Property { get; }
+
         public GameplaySkinSceneBindingSource Source { get; }
 
         internal GameplaySkinSceneStateFamily StateFamily { get; }
 
-        public GameplaySkinPreparedSceneResource DefaultResource { get; }
+        public GameplaySkinPreparedSceneValue DefaultValue { get; }
+
+        public GameplaySkinPreparedSceneResource DefaultResource => DefaultValue.Resource!;
 
         public Texture DefaultTexture => DefaultResource.Texture!;
 
@@ -606,11 +619,12 @@ namespace osu.Game.Skinning.Gameplay
         {
             Id = source.Id;
             TargetNodeId = source.TargetNodeId;
+            Property = source.Property;
             Source = source.Source;
             StateFamily = GameplaySkinPreparedSceneProgram.StateFamilyFor(source.Source);
-            DefaultResource = GameplaySkinPreparedSceneVariantCase.RequireTexture(source.DefaultResourceId, resources);
+            DefaultValue = new GameplaySkinPreparedSceneValue(source.Property, source.DefaultValue, resources);
             GameplaySkinPreparedSceneVariantCase[] cases = source.Cases
-                                                                  .Select(item => new GameplaySkinPreparedSceneVariantCase(item, resources))
+                                                                  .Select(item => new GameplaySkinPreparedSceneVariantCase(item, source.Property, resources))
                                                                   .ToArray();
             Cases = Array.AsReadOnly(cases);
             casesByKey = new ReadOnlyDictionary<string, GameplaySkinPreparedSceneVariantCase>(
@@ -618,7 +632,10 @@ namespace osu.Game.Skinning.Gameplay
         }
 
         public GameplaySkinPreparedSceneResource SelectResource(string key)
-            => casesByKey.TryGetValue(key, out GameplaySkinPreparedSceneVariantCase? item) ? item.Resource : DefaultResource;
+            => SelectValue(key).Resource!;
+
+        public GameplaySkinPreparedSceneValue SelectValue(string key)
+            => casesByKey.TryGetValue(key, out GameplaySkinPreparedSceneVariantCase? item) ? item.Value : DefaultValue;
     }
 
     /// <summary>
@@ -640,11 +657,14 @@ namespace osu.Game.Skinning.Gameplay
 
         public IReadOnlyList<GameplaySkinPreparedSceneVariant> Variants { get; }
 
+        public double CompletionOutro { get; }
+
         internal GameplaySkinPreparedSceneProgram(
             GameplaySkinSceneDocument? document,
             IReadOnlyDictionary<string, GameplaySkinPreparedSceneResource> resources)
         {
             HasAuthorScene = document != null;
+            CompletionOutro = document?.CompletionOutro ?? 0;
             Tracks = Array.AsReadOnly((document?.Tracks ?? Array.Empty<GameplaySkinSceneTrack>())
                                       .Select(track => new GameplaySkinPreparedSceneTrack(track, resources))
                                       .ToArray());
@@ -680,12 +700,19 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBindingSource.LayoutLane => GameplaySkinSceneStateFamily.Layout,
             GameplaySkinSceneBindingSource.InputPressed => GameplaySkinSceneStateFamily.Input,
             GameplaySkinSceneBindingSource.ObjectState => GameplaySkinSceneStateFamily.Object,
+            GameplaySkinSceneBindingSource.ObjectLongNoteMode => GameplaySkinSceneStateFamily.Object,
+            GameplaySkinSceneBindingSource.ObjectLongNoteAppearance => GameplaySkinSceneStateFamily.Object,
             GameplaySkinSceneBindingSource.JudgementResult => GameplaySkinSceneStateFamily.Judgement,
             GameplaySkinSceneBindingSource.JudgementOffset => GameplaySkinSceneStateFamily.Judgement,
             GameplaySkinSceneBindingSource.ScoreValue => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.GameplayFullCombo => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.ScoreAccuracy => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.ComboValue => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.GaugeValue => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.GaugeType => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.GaugeMaximum => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.GaugeClearThreshold => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.GaugeClearState => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.TimingBeat => GameplaySkinSceneStateFamily.Timing,
             GameplaySkinSceneBindingSource.TimingMeasure => GameplaySkinSceneStateFamily.Timing,
             GameplaySkinSceneBindingSource.TimingBpm => GameplaySkinSceneStateFamily.Timing,
@@ -871,6 +898,7 @@ namespace osu.Game.Skinning.Gameplay
     public sealed class GameplaySkinPreparedScene : IDisposable
     {
         private readonly IReadOnlyDictionary<string, int> textGlyphReservationsByNodeId;
+        private readonly IReadOnlyDictionary<string, GameplaySkinPreparedBitmapFont> bitmapFontsByNodeId;
         private IDisposable? retirement;
 
         public GameplaySkinLayoutSnapshot Snapshot { get; }
@@ -969,6 +997,7 @@ namespace osu.Game.Skinning.Gameplay
                 var resourcesById = new ReadOnlyDictionary<string, GameplaySkinPreparedSceneResource>(
                     copiedResources.ToDictionary(resource => resource.Id, StringComparer.Ordinal));
                 Program = new GameplaySkinPreparedSceneProgram(document, resourcesById);
+                bitmapFontsByNodeId = createBitmapFonts(manifest, document, resourcesById);
                 textGlyphReservationsByNodeId = createTextGlyphReservations(document);
                 IReadOnlyDictionary<string, double> textFontSizesByNodeId = createTextFontSizeReservations(document);
 
@@ -1054,6 +1083,9 @@ namespace osu.Game.Skinning.Gameplay
             ArgumentException.ThrowIfNullOrEmpty(nodeId);
             return textGlyphReservationsByNodeId.GetValueOrDefault(nodeId);
         }
+
+        internal GameplaySkinPreparedBitmapFont? GetBitmapFont(string nodeId)
+            => bitmapFontsByNodeId.GetValueOrDefault(nodeId);
 
         /// <summary>
         /// Transfers the provisional resource lifetime to the exact publication which admits this scene.
@@ -1330,7 +1362,9 @@ namespace osu.Game.Skinning.Gameplay
                 node.Source.Effects.Count,
                 countOwnEffectSurfacePixels(node, context, projectedRect),
                 glyphs,
-                glyphs == 0 ? 0 : reserveGlyphPixels(glyphs, fontSize, context));
+                // Bitmap glyph pixels already belong to the captured Texture resources and do not enter a
+                // FontStore atlas. They still reserve the same bounded runtime glyph/layout capacity.
+                glyphs == 0 || node.Source.Properties.ContainsKey("bitmap-font") ? 0 : reserveGlyphPixels(glyphs, fontSize, context));
         }
 
         private static IEnumerable<GameplaySkinPreparedSceneNode> enumeratePreparedNodes(
@@ -1462,9 +1496,36 @@ namespace osu.Game.Skinning.Gameplay
             return checked(current + node.Children.Sum(child => countReservedTextGlyphPixels(child, reservations, fontSizes)));
         }
 
+        private static IReadOnlyDictionary<string, GameplaySkinPreparedBitmapFont> createBitmapFonts(
+            GameplaySkinSceneManifest? manifest,
+            GameplaySkinSceneDocument? document,
+            IReadOnlyDictionary<string, GameplaySkinPreparedSceneResource> resources)
+        {
+            var fonts = new Dictionary<string, GameplaySkinPreparedBitmapFont>(StringComparer.Ordinal);
+            var byNode = new Dictionary<string, GameplaySkinPreparedBitmapFont>(StringComparer.Ordinal);
+            if (manifest != null)
+            {
+                foreach (GameplaySkinBitmapFont source in manifest.BitmapFonts)
+                    fonts.Add(source.Id, new GameplaySkinPreparedBitmapFont(source, resources));
+            }
+
+            if (document != null)
+            {
+                foreach (GameplaySkinSceneNode node in enumerateNodes(document.Root)
+                                                         .Concat(document.Templates.SelectMany(template => enumerateNodes(template.Root))))
+                {
+                    if (node.Properties.TryGetValue("bitmap-font", out GameplaySkinScenePropertyValue? declaration))
+                        byNode.Add(node.Id, fonts[declaration.StringValue!]);
+                }
+            }
+
+            return new ReadOnlyDictionary<string, GameplaySkinPreparedBitmapFont>(byNode);
+        }
+
         private static IReadOnlyDictionary<string, int> createTextGlyphReservations(GameplaySkinSceneDocument? document)
         {
             var reservations = new Dictionary<string, int>(StringComparer.Ordinal);
+            var bitmapTextNodes = new HashSet<string>(StringComparer.Ordinal);
 
             if (document == null)
                 return new ReadOnlyDictionary<string, int>(reservations);
@@ -1482,6 +1543,8 @@ namespace osu.Game.Skinning.Gameplay
                     ? value.StringValue?.Length ?? 0
                     : 0;
                 reservations.Add(node.Id, initial);
+                if (node.Properties.ContainsKey("bitmap-font"))
+                    bitmapTextNodes.Add(node.Id);
             }
 
             foreach (GameplaySkinSceneTrack track in document.Tracks)
@@ -1501,7 +1564,9 @@ namespace osu.Game.Skinning.Gameplay
             foreach (GameplaySkinSceneBinding binding in document.Bindings)
             {
                 if (binding.Property == GameplaySkinSceneProperty.Text && reservations.ContainsKey(binding.TargetNodeId))
-                    reserve(binding.TargetNodeId, binding.Source is GameplaySkinSceneBindingSource.SongTitle or GameplaySkinSceneBindingSource.SongArtist
+                    reserve(binding.TargetNodeId, bitmapTextNodes.Contains(binding.TargetNodeId)
+                        ? GameplaySkinBitmapFontBudgets.MAX_TEXT_CHARACTERS
+                        : binding.Source is GameplaySkinSceneBindingSource.SongTitle or GameplaySkinSceneBindingSource.SongArtist
                         or GameplaySkinSceneBindingSource.SongDifficulty or GameplaySkinSceneBindingSource.SongLevel
                         or GameplaySkinSceneBindingSource.SongTableClassification
                         ? GameplaySkinSongInformation.MAX_TEXT_LENGTH
@@ -1686,8 +1751,27 @@ namespace osu.Game.Skinning.Gameplay
                     programmedNodeIds.Add(variant.TargetNodeId);
 
                 if (package.ScriptProgram != null)
+                {
+                    var horizontalChildren = new HashSet<string>(StringComparer.Ordinal);
+                    collectHorizontalChildren(document.Root);
+                    foreach (GameplaySkinSceneTemplate template in document.Templates)
+                        collectHorizontalChildren(template.Root);
                     foreach (ScriptTarget target in package.ScriptProgram.Targets)
+                    {
+                        if (horizontalChildren.Contains(target.NodeId) && target.Property != GameplaySkinScriptProperty.Alpha)
+                            throw fail(GameplaySkinSceneDiagnosticCode.InvalidReference);
                         programmedNodeIds.Add(target.NodeId);
+                    }
+
+                    void collectHorizontalChildren(GameplaySkinSceneNode node)
+                    {
+                        if (GameplaySkinSceneCodec.IsHorizontalContainer(node))
+                            foreach (GameplaySkinSceneNode child in node.Children)
+                                horizontalChildren.Add(child.Id);
+                        foreach (GameplaySkinSceneNode child in node.Children)
+                            collectHorizontalChildren(child);
+                    }
+                }
 
                 int preparedNodeCount = 0;
                 var roots = new List<GameplaySkinPreparedSceneNode>();
@@ -1708,13 +1792,23 @@ namespace osu.Game.Skinning.Gameplay
                     if (instance.MaterialSlot != null)
                     {
                         foreach (GameplaySkinResolvedMaterialEntry entry in ResolveMaterialTemplateEntries(
-                                     instance, materialSet, selectedDocument.Identity.ContentRevision))
+                                     instance, materialSet, selectedDocument))
                         {
-                            bool global = entry.Target.Kind == GameplaySkinResolvedMaterialTargetKind.Global;
-                            var target = global
-                                ? new GameplaySkinSceneTarget(GameplaySkinSceneTargetKind.Global, null, null)
-                                : new GameplaySkinSceneTarget(GameplaySkinSceneTargetKind.Stage, entry.Target.GroupId!.Value, entry.Target.GroupLogicalIndex);
-                            string prefix = global ? $"{instance.Id}/global/" : $"{instance.Id}/{entry.Target.GroupLogicalIndex}/";
+                            GameplaySkinSceneTarget target = entry.Target.Kind switch
+                            {
+                                GameplaySkinResolvedMaterialTargetKind.Global => new GameplaySkinSceneTarget(GameplaySkinSceneTargetKind.Global, null, null),
+                                GameplaySkinResolvedMaterialTargetKind.Stage => new GameplaySkinSceneTarget(
+                                    GameplaySkinSceneTargetKind.Stage, entry.Target.GroupId!.Value, entry.Target.GroupLogicalIndex),
+                                GameplaySkinResolvedMaterialTargetKind.Lane => new GameplaySkinSceneTarget(
+                                    GameplaySkinSceneTargetKind.Lane, entry.Target.LaneId!.Value, entry.Target.GlobalLogicalIndex),
+                                _ => throw new InvalidOperationException(),
+                            };
+                            string prefix = entry.Target.Kind switch
+                            {
+                                GameplaySkinResolvedMaterialTargetKind.Global => $"{instance.Id}/global/",
+                                GameplaySkinResolvedMaterialTargetKind.Lane => $"{instance.Id}/lane-{entry.Target.GlobalLogicalIndex}/",
+                                _ => $"{instance.Id}/{entry.Target.GroupLogicalIndex}/",
+                            };
                             GameplaySkinPreparedSceneNode? preparedTemplate = prepareNode(template.Root, target, prefix,
                                 snapshot, materialSet, selectedDocument, resourcesById, programmedNodeIds, ref preparedNodeCount,
                                 null, null, false, cancellationToken, useOwnedSurface: true);
@@ -1765,15 +1859,30 @@ namespace osu.Game.Skinning.Gameplay
         }
 
         internal static IEnumerable<GameplaySkinResolvedMaterialEntry> ResolveMaterialTemplateEntries(
-            GameplaySkinSceneInstance instance, GameplaySkinResolvedMaterialSet materialSet, string documentRevision)
-            => materialSet.Entries.Where(entry =>
+            GameplaySkinSceneInstance instance, GameplaySkinResolvedMaterialSet materialSet, GameplaySkinDocument selectedDocument)
+        {
+            if (!ReferenceEquals(selectedDocument.BoundPublicationSnapshot, materialSet.Snapshot))
+                throw new ArgumentException("Material template matching requires the exact bound selected document.", nameof(selectedDocument));
+
+            return materialSet.Entries.Where(entry =>
                 entry.Slot.Id == instance.MaterialSlot
-                && entry.Target.Kind is GameplaySkinResolvedMaterialTargetKind.Stage or GameplaySkinResolvedMaterialTargetKind.Global
+                && entry.Target.Kind is GameplaySkinResolvedMaterialTargetKind.Stage or GameplaySkinResolvedMaterialTargetKind.Global or GameplaySkinResolvedMaterialTargetKind.Lane
                 && entry.State == GameplaySkinResolvedMaterialState.Provide
                 && entry.Source.IsSelectedDocumentDeclaration
-                && entry.Source.ContentRevision == documentRevision
-                && entry.Material is GameplaySkinPublicSlotMaterial material
-                && material.ResourceName == instance.MaterialResource);
+                && entry.Source.ContentRevision == selectedDocument.Identity.ContentRevision
+                && matchesDeclaration(entry));
+
+            bool matchesDeclaration(GameplaySkinResolvedMaterialEntry entry)
+            {
+                // The selected declaration owns the resource name. A final ruleset payload may be a typed Note/LN
+                // material rather than a public texture; its CLR type must not erase that authored identity.
+                GameplaySkinDocumentEntry declaration = selectedDocument.GetEntry(entry.Slot, entry.Target);
+                return declaration.Presence == GameplaySkinDocumentDeclarationPresence.Declared
+                       && declaration.Validity == GameplaySkinDocumentValueValidity.Valid
+                       && declaration.Operation == GameplaySkinDocumentOperation.Provide
+                       && declaration.Value == instance.MaterialResource;
+            }
+        }
 
         private static GameplaySkinPreparedSceneNode? prepareNode(
             GameplaySkinSceneNode node,
@@ -1856,8 +1965,8 @@ namespace osu.Game.Skinning.Gameplay
             if (slot == null && inheritedOwner != null && !inheritedOwner.Target.Equals(materialTarget))
                 throw fail(GameplaySkinSceneDiagnosticCode.InvalidReference);
 
-            // Material-selected templates author their children within the owned slot, rather than the
-            // whole Stage. Explicit-target templates retain their existing absolute target geometry.
+            // Material-selected templates author their children within the exact owned native surface.
+            // Explicit-target templates retain their existing absolute target geometry.
             if (useOwnedSurface && slot == null && inheritedOwner != null
                 && !GameplaySkinSceneSurfaceResolver.TryResolve(snapshot, inheritedOwner.Slot, inheritedOwner.Target,
                     rect, target.Kind, out rect) && !bgaSurfaceUnavailable)
@@ -1920,7 +2029,7 @@ namespace osu.Game.Skinning.Gameplay
 
             Texture? resolvedTexture = resource?.Texture;
 
-            if (node.Type == GameplaySkinSceneNodeType.Sprite && resolvedTexture == null)
+            if (node.Type is GameplaySkinSceneNodeType.Sprite or GameplaySkinSceneNodeType.ProjectiveSprite && resolvedTexture == null)
             {
                 if (owningSlotKey == null
                     || !materialSet.TryGet(owningSlotKey, out GameplaySkinResolvedMaterialEntry? ownerEntry)

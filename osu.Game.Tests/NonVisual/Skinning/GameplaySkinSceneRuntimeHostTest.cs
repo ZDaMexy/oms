@@ -17,7 +17,7 @@ using osu.Game.Skinning.Gameplay;
 namespace osu.Game.Tests.NonVisual.Skinning
 {
     [TestFixture]
-    public sealed class GameplaySkinSceneRuntimeHostTest
+    public sealed partial class GameplaySkinSceneRuntimeHostTest
     {
         [TestCase("song.title", "A song")]
         [TestCase("song.artist", "An artist")]
@@ -100,7 +100,8 @@ namespace osu.Game.Tests.NonVisual.Skinning
                     GameplaySkinResolvedMaterialSourceIdentity.CreateSelectedDocument("selected", "v1")),
             });
             var instance = new GameplaySkinSceneInstance("hud", "style", "hud.text", "textures/TextHud.png");
-            GameplaySkinResolvedMaterialEntry[] matches = GameplaySkinScenePreparer.ResolveMaterialTemplateEntries(instance, materials, "v1").ToArray();
+            GameplaySkinResolvedMaterialEntry[] matches = GameplaySkinScenePreparer.ResolveMaterialTemplateEntries(instance, materials,
+                CreateMaterialTemplateDocument(materials, "v1")).ToArray();
             Assert.That(matches, Has.Length.EqualTo(1));
             Assert.That(matches[0].Target.Kind, Is.EqualTo(GameplaySkinResolvedMaterialTargetKind.Global));
         }
@@ -158,7 +159,8 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 provide(GameplaySkinSlotCatalog.GaugeVisual, GameplaySkinResolvedMaterialTarget.ForStage(layout.Group), texture, identity),
             });
             var instance = new GameplaySkinSceneInstance("gauge", "style", "hud.gauge", resource);
-            Assert.That(GameplaySkinScenePreparer.ResolveMaterialTemplateEntries(instance, materials, revision).Count(), Is.EqualTo(count));
+            Assert.That(GameplaySkinScenePreparer.ResolveMaterialTemplateEntries(instance, materials,
+                CreateMaterialTemplateDocument(materials, revision)).Count(), Is.EqualTo(count));
         }
 
         [Test]
@@ -1965,7 +1967,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 prepared(first, layout.Groups[0].Rect, firstTarget, slot, preparedResource),
                 prepared(second, layout.Groups[1].Rect, secondTarget, slot, preparedResource));
             GameplaySkinPreparedSceneNode[] roots = materialTemplate
-                ? GameplaySkinScenePreparer.ResolveMaterialTemplateEntries(instance, materialSet, "v1")
+                ? GameplaySkinScenePreparer.ResolveMaterialTemplateEntries(instance, materialSet, CreateMaterialTemplateDocument(materialSet, "v1"))
                     .Select((entry, index) => prepared(templateRoot, layout.Groups[index].Rect, entry.Target, slot, preparedResource,
                         $"scope.instance/{entry.Target.GroupLogicalIndex}/{templateRoot.Id}")).ToArray()
                 : new[] { preparedRoot };
@@ -1985,7 +1987,9 @@ namespace osu.Game.Tests.NonVisual.Skinning
         private static CompiledProgramFixture createCompiledProgramFixture(
             Texture texture1,
             Texture texture2,
-            string? invalidReference = null)
+            string? invalidReference = null,
+            string variantSource = "object.state",
+            string variantKey = "visible")
         {
             const string missing = "texture.missing";
 
@@ -2057,11 +2061,11 @@ namespace osu.Game.Tests.NonVisual.Skinning
                     new GameplaySkinSceneVariant(
                         "compiled.variant",
                         sprite.Id,
-                        "object.state",
+                        variantSource,
                         defaultResource,
                         new[]
                         {
-                            new GameplaySkinSceneVariantCase("compiled.variant-visible", "visible", caseResource),
+                            new GameplaySkinSceneVariantCase("compiled.variant-visible", variantKey, caseResource),
                         }),
                 },
                 Array.Empty<GameplaySkinSceneTemplate>(),

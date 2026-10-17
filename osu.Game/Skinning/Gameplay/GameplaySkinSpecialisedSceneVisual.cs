@@ -347,7 +347,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinLayoutRect? parentRect,
             long visualId,
             List<GameplaySkinSceneRuntimeNode> nodes,
-            HashSet<string> builtPreparedIds)
+            HashSet<string> builtPreparedIds,
+            GameplaySkinHorizontalContainer? horizontalParent = null)
         {
             if (prepared.MaterialTarget?.Equals(key.Target) != true
                 || prepared.Slot != null && !ReferenceEquals(prepared.Slot, key.Slot))
@@ -382,6 +383,8 @@ namespace osu.Game.Skinning.Gameplay
                     root.Blending = ResolveBlend(prepared.Source.Blend);
                 }
 
+                horizontalParent?.RegisterCell(root, content, prepared.Source);
+
                 string runtimeId = $"specialised.{visualId}/{prepared.InstanceId}";
                 var runtime = new GameplaySkinSceneRuntimeNode(prepared, root, content, transform, runtimeId, $"specialised.{visualId}");
                 runtimeNodes.Add(runtimeId, runtime);
@@ -398,7 +401,8 @@ namespace osu.Game.Skinning.Gameplay
                 foreach (GameplaySkinPreparedSceneNode child in prepared.Children)
                 {
                     builtPreparedIds.Add(child.InstanceId);
-                    Drawable childRoot = buildSpecialisedNode(key, child, prepared.Rect, visualId, nodes, builtPreparedIds);
+                    Drawable childRoot = buildSpecialisedNode(key, child, prepared.Rect, visualId, nodes, builtPreparedIds,
+                        transform as GameplaySkinHorizontalContainer);
                     transform.Add(childRoot);
                 }
 
@@ -492,8 +496,21 @@ namespace osu.Game.Skinning.Gameplay
             if (!specialisedVisuals.Contains(visual))
                 return;
 
+            GameplaySkinCurrentJudgementStateSnapshot? judgement = null;
+            long? epoch = null;
+
+            if (objectId.HasValue && hasJudgementTriggeredTracks)
+            {
+                judgement = EventStream.CaptureObjectJudgement(objectId.Value, out long capturedEpoch);
+                epoch = capturedEpoch;
+            }
+
             foreach (GameplaySkinSceneRuntimeNode node in visual.RuntimeNodes)
+            {
                 node.BoundObjectId = objectId;
+                node.JudgementAnimationStart = judgement?.AppliedTime;
+                node.JudgementAnimationEpoch = epoch;
+            }
 
             resetSpecialisedStateMachineScope(visual.RuntimeScopeId);
             bindingStateFamiliesDirty |= GameplaySkinSceneStateFamily.Object | GameplaySkinSceneStateFamily.Judgement;
@@ -506,7 +523,11 @@ namespace osu.Game.Skinning.Gameplay
                 return;
 
             foreach (GameplaySkinSceneRuntimeNode node in visual.RuntimeNodes)
+            {
                 node.BoundObjectId = null;
+                node.JudgementAnimationStart = null;
+                node.JudgementAnimationEpoch = null;
+            }
 
             resetSpecialisedStateMachineScope(visual.RuntimeScopeId);
             bindingStateFamiliesDirty |= GameplaySkinSceneStateFamily.Object | GameplaySkinSceneStateFamily.Judgement;
