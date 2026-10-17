@@ -1,5 +1,27 @@
 # P1-A 变动日志
 
+## 2026-10-18IIDX32 Pinky Crush 游玩候选
+
+从干净的 `master@0c3044e` 接续，fetch成功，本地领先远端14次且无远端新增；用户指定尝试32代。只在客户端修改生成器与说明，不改C#、canonical或玩家数据，不推送。全部取材来自既有F盘独立提取库，没有重新从D盘取材或启动D/E盘游戏。
+
+当前库的gmframe32含150张纹理、22个AFP与832个GEO。新研究目录 `artifacts/iidx32-afp-research-20261018/` 单独解析32的SP/DP布局并导出固定181帧，未覆盖33证据。32框体、装饰、数字和转盘按实际来源接入；残留EPOLIS图在全部832个GEO及七布局采样中无引用，不按旧文件名猜默认归属。正式名称参照[KONAMI产品页](https://www.konami.com/arcadegames/products/am_bmiidx32/)。
+
+生成器新增 `--style 32`，默认仍为33；拒绝style与五个实际消费布局的包归属不符。32数字/血槽使用其源位置，歌曲信息采用SP/DP源占位矩形；四处转盘各保留原矩形和源缩放，2P负X用既有恒定projective quad保留原图UV与镜像，没有重绘纹理或扩引擎。Hard/EX-Hard取当前共用包明确命名的图，Hazard外观暂沿普通血槽；不把缺失的33三张专色图偷换到32。
+
+候选01首次作者检查因转盘ID含纯数字段报 `OMS-SKIN-SCENE-008`；改为n0/n1后生成新候选02，不覆盖旧包或证据。候选02作者检查通过；152资源、7字体、198轨迹/5,494关键帧和487,872字节场景均在既有预算内。独立审查及原像素核验分别在 `artifacts/iidx32-generator-audit-20261018/audit.json`、`artifacts/iidx32-material-audit-20261018/candidate02-source-preservation.json`：147张原图逐字节相同、源尺寸/XML采样一致，无gmframe33资源混入；四处转盘矩形/角点和三张背景重合成一致，本地源元数据未变。33默认回生成181个内容文件与候选20逐字节无差异，只分离记录generation中的输出文件名。
+
+实际验证集中在 `artifacts/iidx32-skin-20261018/validation/`：
+
+- `candidate02-author-check.log`：使用与当前未改C#对应的既有Debug作者CLI，文件、设置、图片与场景检查通过。
+- `render-candidate02-final-{p1,p2,14k,p1-hcn}/` 四段均经正常导入、选用、真实自动演奏和结算，退出0；前三段原生Charge、第四段HellCharge，实际8/16条Holding和对应beam1资源、15px普通音符/24px长条头尾已核对。
+- 三布局另捕获全连32/60/90/120/145帧，原完成起点与2.5秒尾段一致；39张1920×1080 PNG完整，材料诊断、scene fault与框架error为空。`final-player-evidence.json` 与 `runtime-log-summary.json` 汇总证据；只用F盘临时portable宿主，不接触普通玩家存储。
+- 最终交付复制到本地 `delivery-final/IIDX32-Pinky-Crush-OMS.osk`，逐字节等于已验候选；附使用说明及真实Player预览。包内生成时状态与验证后收据分开，不回写包伪造生成阶段的验收。
+- 无C#或公共运行能力变化，未重跑BMS/mania/core全量、Release或格式器；不刷新33的旧软件失败/发行结论。实际运行与作者检查复用此前已成功编译且匹配当前源码的宿主。
+
+运行命令及隔离环境保留为同目录 `capture-player.ps1` / `audit-player-evidence.py`；开发shell先加载 `UseDevelopmentStorage.ps1`。32专属框体能游玩不等于历史完整默认：共用音符/判定/全连的历史搭配、Hard类配色、中心±270、判定锚点、轨道背景固定纵缩、DP Hi-Speed细小排距及真实动态仍待原32参照。当前不需为首包下载额外HDD，不将33运行截图作为32证据；选歌/结算仍OMS，设备、正常曲库/完整歌曲听感与发行未签收。
+
+文档健康检查与工作区导航通过；分别覆盖204份Markdown/2,255相对链接、185份跨项目文档/2,054链接，私有数据排除。初次状态预算提示已压缩，历史通用路径/公开checksum提示保持；没有新产品结论由文档检查代签。差异检查通过，研究探针与复用宿主源码已复制到本轮长期证据，参考/捕获进程均已退出。
+
 ## 2026-10-18IIDX33 游玩皮肤与公共表现能力
 
 接续 `master@88e0867` 的本地制作改动，fetch成功；保全已有差异，在当前分支实施、不推送。本线已获授权持续制作33默认Lightning、1920×1080，先7K P1再P2/14K，历代来源与后续页面按既有计划推进。

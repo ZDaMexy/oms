@@ -27,17 +27,19 @@ python -B tools/IidxSkinAssets/build_library.py --game-root 'X:\IIDX-HDD' --outp
 
 原版素材、精确源清单与生成库只留本地忽略目录或仓库外，不加入 Git、内置静线或公开发行。工具本身不启动游戏、不安装注入器、不重打包 IFS、不操作 OMS 玩家数据。
 
-## 生成本地 33 游玩作者包
+## 生成本地 32 / 33 游玩作者包
 
-`build_skin.py` 消费已核对的独立素材库和 AFP 研究输出，保留原图字形与帧序，生成普通公开作者包及相邻 `.osk`。研究输入须包含 `skin-reference-map.json`、`gameplay-assets.json`、`extra-note-library/library.json` 与过滤后的 `static-frames/`；另以 `--fullcombo-research` 指向含 `fcombo00-author-data.json` 的全连研究目录。全连使用原纹理、源帧时间与透视四边形，不烘焙整屏序列。这些来源资料和美术同样只保留本地，不由脚本从游戏安装根读取。
+`build_skin.py` 消费已核对的独立素材库和 AFP 研究输出，保留原图字形与帧序，生成普通公开作者包及相邻 `.osk`。`--style 32` 选择 Pinky Crush，省略或指定 `--style 33` 保持既有 33 输出。研究输入须包含 `skin-reference-map.json`、`gameplay-assets.json`、`extra-note-library/library.json` 与过滤后的 `static-frames/`，布局包必须与 style 一致；另以 `--fullcombo-research` 指向含 `fcombo00-author-data.json` 的全连研究目录。全连使用原纹理、源帧时间与透视四边形，不烘焙整屏序列。这些来源资料和美术同样只保留本地，不由脚本从游戏安装根读取。
 
 ```powershell
 . .\UseDevelopmentStorage.ps1
-python -B tools/IidxSkinAssets/build_skin.py --library 'Y:\IIDX-Art-Library' --research 'Y:\IIDX-AFP-Research' --fullcombo-research 'Y:\IIDX-FullCombo-Research' --output 'Y:\IIDX33-Author-Candidate' --image-tools-path .dev-cache/tools/iidx-assets --game-root 'X:\IIDX-HDD'
-dotnet run --project tools/SkinAuthoring -- check 'Y:\IIDX33-Author-Candidate'
+python -B tools/IidxSkinAssets/build_skin.py --style 32 --library 'Y:\IIDX-Art-Library' --research 'Y:\IIDX32-AFP-Research' --fullcombo-research 'Y:\IIDX-FullCombo-Research' --output 'Y:\IIDX32-Author-Candidate' --image-tools-path .dev-cache/tools/iidx-assets --game-root 'X:\IIDX-HDD'
+dotnet run --project tools/SkinAuthoring -- check 'Y:\IIDX32-Author-Candidate'
 ```
 
 输出目录及 `.osk` 均须尚不存在，不能与输入、受保护的游戏根重叠，也不能落系统盘。资源在生成后检查 PNG、总像素和资源数；`generation.json` 只有整包写入成功后标记 complete。作者检查通过仍须正常导入 OMS 并观察真实 Player；`local-study.json` 和 `READ-ME.txt` 明确记录当前还原缺口，不能把生成成功当成完成作品。
+
+32 使用当前 HDD 保留的 `gmframe32` 框体、数字和逐布局转盘坐标；2P 负 X 变换保留原图镜像。普通血槽来自该框体，Hard/EX-Hard 采用当前共用包中明确命名的图，Hazard 暂沿普通血槽外观。音符、CN/HCN、判定、击打与全连同样来自当前共用包，尚无历史 32 默认组合的实机证明；32 的中心平移、轨道背景上沿、判定锚点、文字字体与装饰动画也须继续校准。不能将 33 的实机截图记为 32 验收。
 
 使用包含本次作者能力的 OMS 工作区导入 `.osk`，切到 BMS 并选择该皮肤。7K 在 BMS 设置“游玩区域样式”选择“1P（居左）”或“2P（居右）”，14K 使用双侧布局；默认居中的 7K 和其它键数保留 canonical 材料。生成器不会修改玩家的布局偏好。当前作品只覆盖游玩，选歌与结算页面仍沿原 OMS。
 

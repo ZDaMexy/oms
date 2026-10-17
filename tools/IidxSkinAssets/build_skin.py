@@ -1,4 +1,4 @@
-"""Create a local IIDX 33 gameplay author package from independently extracted art.
+"""Create a local IIDX 32 or 33 gameplay author package from independently extracted art.
 
 The source HDD is never an input to this command. Only an existing art library and
 the recorded AFP layout evidence are consumed. Generated art and OSKs stay local.
@@ -110,9 +110,15 @@ def rendered_float_value(value):
 
 
 class Builder:
-    def __init__(self, library, research, fullcombo_research, output, image_class):
+    def __init__(self, library, research, fullcombo_research, output, image_class, style=33):
         self.library, self.research, self.output, self.Image = library, research, output, image_class
+        self.style = style
+        self.prefix, self.frame_package = f"iidx{style}", f"gmframe{style}"
+        self.name = "IIDX 32 Pinky Crush" if style == 32 else "IIDX 33 Sparkle Shower"
         self.map = read_json(research / "skin-reference-map.json")
+        for movie in ("1p_frame", "2p_frame", "dp_frame_1p", "center_frame_sp", "center_frame_dp_1p"):
+            if self.map["layouts"][movie]["package"] != self.frame_package:
+                raise ValueError(f"The {movie} research is not for {self.frame_package}")
         self.gameplay = read_json(research / "gameplay-assets.json")
         self.fullcombo = read_json(within(fullcombo_research, "fcombo00-author-data.json"))
         if (self.fullcombo["schemaVersion"] != 1 or self.fullcombo["fps"] != FPS
@@ -122,8 +128,8 @@ class Builder:
         self.source_libraries = {"primary": library, "extra": research / "extra-note-library"}
         self.resources, self.resource_paths, self.fonts = [], {}, []
         self.templates, self.instances, self.bindings, self.variants, self.tracks, self.machines = [], [], [], [], [], []
-        self.ini = ["// Local IIDX 33 study. Original art is not part of the OMS distribution.",
-                    "[General]", "Name: IIDX 33 Sparkle Shower · local study", "Author: local IIDX study", "Version: 2.7", ""]
+        self.ini = [f"// Local IIDX {style} study. Original art is not part of the OMS distribution.",
+                    "[General]", f"Name: {self.name} · local study", "Author: local IIDX study", "Version: 2.7", ""]
         self.material_ini = []
         self.used_source_assets = []
         self.calibration_receipts = []
@@ -142,7 +148,7 @@ class Builder:
         relative = Path(relative).as_posix()
         if relative in self.resource_paths:
             return self.resource_paths[relative]
-        identifier = "iidx33." + stable(relative.removesuffix(".png").replace("/", "."))
+        identifier = self.prefix + "." + stable(relative.removesuffix(".png").replace("/", "."))
         if len(identifier) > 128 or any(r["id"] == identifier for r in self.resources):
             raise ValueError(f"Non-unique or oversized resource identifier: {relative}")
         self.resources.append({"id": identifier, "type": "texture", "path": relative})
@@ -201,9 +207,9 @@ class Builder:
         return relative.removesuffix(".png")
 
     def template(self, name, root, slot, material):
-        identifier = f"iidx33.template.{name}"
+        identifier = f"{self.prefix}.template.{name}"
         self.templates.append({"id": identifier, "root": root})
-        self.instances.append({"id": f"iidx33.instance.{name}", "template": identifier,
+        self.instances.append({"id": f"{self.prefix}.instance.{name}", "template": identifier,
                                "material": {"slot": slot, "resource": material}})
 
     def bind(self, target, prop, source):
@@ -233,22 +239,22 @@ class Builder:
             resource = self.asset(package, texture)
             glyphs.append({"character": character, "resource": resource,
                            "advance": advance if isinstance(advance, (int, float)) else advance[character]})
-        identifier = f"iidx33.font.{name}"
+        identifier = f"{self.prefix}.font.{name}"
         self.fonts.append({"id": identifier, "lineHeight": line_height, "glyphs": glyphs})
         return identifier
 
     def fonts_for_numbers(self):
-        self.score_font = self.font("score", "gmframe33", {str(i): f"playm_sco{i:02}" for i in range(10)}, 24, 36)
-        self.bpm_font = self.font("bpm", "gmframe33", {str(i): f"playm_bpm{i:02}" for i in range(10)}, 28, 36)
+        self.score_font = self.font("score", self.frame_package, {str(i): f"playm_sco{i:02}" for i in range(10)}, 24, 36)
+        self.bpm_font = self.font("bpm", self.frame_package, {str(i): f"playm_bpm{i:02}" for i in range(10)}, 28, 36)
         self.small_bpm_font = self.font("bpm-small", "1/gameparts", {str(i): f"playm_bpm_m{i:02}" for i in range(10)}, 18, 25)
-        self.hs_font = self.font("hs", "gmframe33", {str(i): f"playm_hs_{i:02}" for i in range(10)}, 19, 27)
-        dot_source = within(self.library, self.source_index[("primary", "gmframe33", "playm_hs_dot")]["sprite"])
+        self.hs_font = self.font("hs", self.frame_package, {str(i): f"playm_hs_{i:02}" for i in range(10)}, 19, 27)
+        dot_source = within(self.library, self.source_index[("primary", self.frame_package, "playm_hs_dot")]["sprite"])
         with self.Image.open(dot_source) as dot:
             canvas = self.Image.new("RGBA", (8, 19))
             canvas.paste(dot, (0, 13))
         dot_resource = self.generated("font/hs-dot.png", canvas)
         self.fonts[-1]["glyphs"].append({"character": ".", "resource": dot_resource, "advance": 8})
-        self.gauge_font = self.font("gauge", "gmframe33", {str(i): f"playm_gg_{i:02}" for i in range(10)}, 28, 38)
+        self.gauge_font = self.font("gauge", self.frame_package, {str(i): f"playm_gg_{i:02}" for i in range(10)}, 28, 38)
         # The original static cabinet already owns its fixed percent symbol.
         self.fonts[-1]["glyphs"].append({"character": "%", "resource": self.empty, "advance": 1})
         self.combo_font = self.font("combo", "judge00", {str(i): f"judge_combo_{i}y" for i in range(10)}, 100, 55)
@@ -442,10 +448,36 @@ class Builder:
                         "layering": "Authored stage.background Underlay; native BGA video remains above it."})
         relative = f"backgrounds/{layout}.png"
         resource = self.generated(relative, background)
-        self.template(f"{layout}.background", node(f"iidx33.{layout}.background", "sprite", resource=resource,
+        self.template(f"{layout}.background", node(f"{self.prefix}.{layout}.background", "sprite", resource=resource,
                                                   slot="stage.background"), "stage.background", relative.removesuffix(".png"))
         background.save(self.output / f"preview-{layout}-static.png")
         return relative.removesuffix(".png")
+
+    def turntable_material_32(self, layout, group=0):
+        movie = "dp_frame_1p" if layout == "dp" else "2p_frame" if layout == "p2" else "1p_frame"
+        binding = "turn_2p" if layout == "p2" or group == 1 else "turn_1p"
+        draw = next(draw for draw in self.map["layouts"][movie]["draws"] if binding in draw["game_bindings"])
+        key_left = (399 if group == 0 else 1371) if layout == "dp" else 1755 if layout == "p2" else 15
+        surface = (key_left, 728, 150, 120)
+        identifier = f"{self.prefix}.{layout}.turntable.n{group}"
+        resource = self.asset(self.frame_package, draw["texture"])
+        material = self.copy_marker(f"{layout}-scratch-{group}", resource)
+        properties = geometry(draw["bounds"], surface)
+        mirrored = draw["matrix"]["a"] < 0
+        root = node(identifier, "projective-sprite" if mirrored else "sprite", properties, resource, "playfield.key")
+        if mirrored:
+            # A held affine quad preserves the source negative-X transform and the original PNG bytes.
+            self.tracks.append({"id": f"{identifier}.orientation", "type": "frame", "target": identifier,
+                "property": "projective-quad", "easing": "step", "loop": False,
+                "keyframes": [{"id": f"{identifier}.orientation.fixed", "time": 0,
+                    "value": {"vertices": [[1, 0, 1], [0, 0, 1], [0, 1, 1], [1, 1, 1]], "opacity": 1}}]})
+        self.template(f"{layout}.turntable.n{group}", root, "playfield.key", material)
+        self.calibration_receipts.append({"change": "32-source-turntable-geometry", "layout": layout, "group": group,
+            "sourceMovie": movie, "sourceBinding": binding, "sourceBounds": draw["bounds"],
+            "sourceMatrix": draw["matrix"], "nativeKeySurface": surface, "appliedProperties": properties,
+            "mirrored": mirrored, "inputBinding": None,
+            "scope": "Source AFP frame181 placement; historical executable feedback and default selection remain unverified."})
+        return material
 
     def common_lane_consumers(self):
         self.lane_materials = {}
@@ -463,7 +495,7 @@ class Builder:
             note_name = {"white": "notes_white", "black": "notes_black", "scratch": "notes_turn"}[colour]
             note_resource = self.asset("notes00", note_name)
             note_material = next(r["path"] for r in self.resources if r["id"] == note_resource).removesuffix(".png")
-            root = node(f"iidx33.note.{colour}", "sprite", {"height": 15 * REFERENCE_FONT_SCALE / 22.5,
+            root = node(f"{self.prefix}.note.{colour}", "sprite", {"height": 15 * REFERENCE_FONT_SCALE / 22.5,
                         "y": -5 * REFERENCE_FONT_SCALE / 22.5,
                         "anchor": "bottom-left", "origin": "bottom-left"}, note_resource, "object.note")
             self.template(f"note.{colour}", root, "object.note", note_material)
@@ -472,7 +504,7 @@ class Builder:
                 texture = f"notes_bss_{suffix}" if colour == "scratch" else f"notes_cn_{colour}_{suffix}"
                 resource = self.asset("notes_cn00", texture, "extra")
                 material = next(r["path"] for r in self.resources if r["id"] == resource).removesuffix(".png")
-                identifier = f"iidx33.long.{colour}.{part}"
+                identifier = f"{self.prefix}.long.{colour}.{part}"
                 properties = {} if part == "body" else {"height": 24 * REFERENCE_FONT_SCALE / 22.5,
                     "anchor": "bottom-left", "origin": "bottom-left", "y": -5 * REFERENCE_FONT_SCALE / 22.5}
                 self.template(f"long.{colour}.{part}", node(identifier, "sprite", properties, resource,
@@ -502,48 +534,51 @@ class Builder:
                 "longBodyGeometry": "Native duration geometry is unchanged; source body templates keep empty properties.",
                 "explosionGeometry": "Unchanged; already normalized against its native authored SourceStage size."})
 
-            if colour == "scratch":
-                key = self.asset("gmframe33", "usr_turn00")
+            if colour == "scratch" and self.style == 32:
+                values["playfield.key"] = self.turntable_material_32("p1")
+            elif colour == "scratch":
+                key = self.asset(self.frame_package, "usr_turn00")
                 key_properties = {"x": 50 / 150, "y": 44 / 120, "width": 47 / 150, "height": 47 / 120}
             else:
                 key = self.asset("1/gameparts", f"light_{colour}_key")
                 key_properties = {"x": -4 / width, "y": 0 if colour == "white" else -5 / 120,
                                   "width": (60 if colour == "white" else 48) / width,
                                   "height": (90 if colour == "white" else 74) / 120}
-            key_material = self.copy_marker(f"key-{colour}", key)
-            key_id = f"iidx33.key.{colour}"
-            self.template(f"key.{colour}", node(key_id, "sprite", key_properties, key, "playfield.key",
-                          "alpha" if colour == "scratch" else "additive"),
-                          "playfield.key", key_material)
-            if colour != "scratch":
-                self.bind(key_id, "visible", "input.pressed")
-            else:
-                self.calibration_receipts.append({"change": "default-turntable-centre-always-visible",
-                    "sourceMovie": "1p_frame", "sourceBinding": "turn_1p", "sourceTexture": "gmframe33/usr_turn00",
-                    "sourceBounds": self.source_bounds(["1p_frame"], "turn_1p"), "sourceBlend": 0,
-                    "appliedBlend": "alpha", "inputBinding": None,
-                    "limit": "No unverified press/release or rotation animation is added."})
-            values["playfield.key"] = key_material
+            if colour != "scratch" or self.style != 32:
+                key_material = self.copy_marker(f"key-{colour}", key)
+                key_id = f"{self.prefix}.key.{colour}"
+                self.template(f"key.{colour}", node(key_id, "sprite", key_properties, key, "playfield.key",
+                              "alpha" if colour == "scratch" else "additive"),
+                              "playfield.key", key_material)
+                if colour != "scratch":
+                    self.bind(key_id, "visible", "input.pressed")
+                else:
+                    self.calibration_receipts.append({"change": "default-turntable-centre-always-visible",
+                        "sourceMovie": "1p_frame", "sourceBinding": "turn_1p", "sourceTexture": f"{self.frame_package}/usr_turn00",
+                        "sourceBounds": self.source_bounds(["1p_frame"], "turn_1p"), "sourceBlend": 0,
+                        "appliedBlend": "alpha", "inputBinding": None,
+                        "limit": "No unverified press/release or rotation animation is added."})
+                values["playfield.key"] = key_material
 
             beam = self.asset("beam00", f"playm_bar_{'turn' if colour == 'scratch' else colour}")
             beam_material = self.copy_marker(f"beam-{colour}", beam)
-            beam_id = f"iidx33.beam.{colour}"
+            beam_id = f"{self.prefix}.beam.{colour}"
             self.template(f"beam.{colour}", node(beam_id, "sprite", {"height": 723 / 728}, beam, "decoration", "additive"),
                           "decoration", beam_material)
             self.bind(beam_id, "visible", "input.pressed")
             values["decoration"] = beam_material
 
             effect_material = self.copy_marker(f"explosion-{colour}", hit_resources[0])
-            effect_id = f"iidx33.explosion.{colour}.frame"
+            effect_id = f"{self.prefix}.explosion.{colour}.frame"
             frame = node(effect_id, "sprite", {"x": (width / 2 + hit_bounds["left"] - hit_centre_x) / (width * 4),
                          "y": (22.5 - 5 + hit_bounds["top"] - hit_centre_y) / 90,
                          "width": (hit_bounds["right"] - hit_bounds["left"]) / (width * 4),
                          "height": (hit_bounds["bottom"] - hit_bounds["top"]) / 90}, hit_resources[0], blend="additive")
-            root = node(f"iidx33.explosion.{colour}", properties={"width": 4, "height": 4}, slot="effect.hit-explosion", children=[frame])
+            root = node(f"{self.prefix}.explosion.{colour}", properties={"width": 4, "height": 4}, slot="effect.hit-explosion", children=[frame])
             self.template(f"explosion.{colour}", root, "effect.hit-explosion", effect_material)
-            self.tracks.append({"id": f"iidx33.explosion.{colour}.track", "type": "frame", "target": effect_id,
+            self.tracks.append({"id": f"{self.prefix}.explosion.{colour}.track", "type": "frame", "target": effect_id,
                                 "property": "resource", "easing": "step", "loop": False, "trigger": "judgement.hit",
-                                "keyframes": [{"id": f"iidx33.explosion.{colour}.f{i}", "time": timing["time_ms"], "value": resource}
+                                "keyframes": [{"id": f"{self.prefix}.explosion.{colour}.f{i}", "time": timing["time_ms"], "value": resource}
                                               for i, (timing, resource) in enumerate(zip(hit["frames"], hit_resources))]})
             values["effect.hit-explosion"] = effect_material
             self.lane_materials[colour] = values
@@ -569,7 +604,7 @@ class Builder:
                 digit_count = len(score_bindings)
                 if digit_count != 4:
                     raise ValueError(f"The recorded {layout} score needs a different digit-background consumer")
-                information_children.append(node(f"iidx33.{layout}.score.zeros", "text", {
+                information_children.append(node(f"{self.prefix}.{layout}.score.zeros", "text", {
                     **geometry(bounds), "text": "0" * digit_count, "font-size": size * REFERENCE_FONT_SCALE,
                     "bitmap-font": font, "alignment": "right", "colour": "#404040ff"}))
                 self.calibration_receipts.append({"change": "score-dark-zero-background", "layout": layout,
@@ -580,22 +615,32 @@ class Builder:
                 original_bounds = bounds
                 bounds = shifted_bounds(bounds, centre_dx)
                 self.calibration_receipts.append({"change": "sp-centre-number-placement", "layout": layout,
-                    "node": f"iidx33.{layout}.{suffix}", "sourceMovie": "center_frame_sp", "sourceBounds": original_bounds,
+                    "node": f"{self.prefix}.{layout}.{suffix}", "sourceMovie": "center_frame_sp", "sourceBounds": original_bounds,
                     "dx": centre_dx, "appliedBounds": bounds})
-            information_children.append(self.numeric(f"iidx33.{layout}.{suffix}", source, font, size, bounds, fmt=fmt))
+            information_children.append(self.numeric(f"{self.prefix}.{layout}.{suffix}", source, font, size, bounds, fmt=fmt))
         for suffix, source, y, size in [("title", "song.title", 43, 24), ("artist", "song.artist", 72, 18)]:
-            identifier = f"iidx33.{layout}.{suffix}"
-            information_children.append(node(identifier, "text", {"x": (610 + centre_dx) / WIDTH, "y": y / HEIGHT, "width": 700 / WIDTH,
-                "height": 28 / HEIGHT, "font-size": size * REFERENCE_FONT_SCALE, "text": "", "alignment": "centre", "text-overflow": "ellipsis", "colour": "#ffffffff"}))
+            identifier = f"{self.prefix}.{layout}.{suffix}"
+            properties = {"x": (610 + centre_dx) / WIDTH, "y": y / HEIGHT, "width": 700 / WIDTH,
+                "height": 28 / HEIGHT, "font-size": size * REFERENCE_FONT_SCALE, "text": "", "alignment": "centre", "text-overflow": "ellipsis", "colour": "#ffffffff"}
+            if self.style == 32:
+                movie = "center_frame_dp_1p" if dp else "center_frame_sp"
+                source_bounds = self.source_bounds([movie], suffix)
+                bounds = shifted_bounds(source_bounds, centre_dx)
+                properties.update({**geometry(bounds), "alignment": "left" if dp else "centre"})
+                self.calibration_receipts.append({"change": "32-source-song-information-placement", "layout": layout,
+                    "node": identifier, "sourceMovie": movie, "sourceBinding": suffix, "sourceBounds": source_bounds,
+                    "dx": centre_dx, "appliedBounds": bounds,
+                    "limit": "Source placeholder bounds; text uses the existing OMS metadata font, not an extracted game font. DP left alignment remains a candidate."})
+            information_children.append(node(identifier, "text", properties))
             self.bind(identifier, "text", source)
-            if not dp:
+            if not dp and self.style == 33:
                 self.calibration_receipts.append({"change": "sp-centre-song-information-placement", "layout": layout,
                     "node": identifier, "sourceMovie": "center_frame_sp", "sourceBinding": suffix,
                     "sourceBounds": self.source_bounds(["center_frame_sp"], suffix), "dx": centre_dx,
                     "appliedCentreX": WIDTH / 2 + centre_dx,
                     "limit": "Existing metadata font, text width and vertical placement are retained."})
         information_children.append(self.fullcombo_overlay(layout))
-        self.template(f"{layout}.information", node(f"iidx33.{layout}.information", slot="decoration", children=information_children),
+        self.template(f"{layout}.information", node(f"{self.prefix}.{layout}.information", slot="decoration", children=information_children),
                       "decoration", information_material)
 
         # Stage HUD slots use the outer frame; the four-pixel padding applies only to lane content.
@@ -605,12 +650,16 @@ class Builder:
         gauge_draw = next(d for movie in movies for d in self.map["layouts"][movie]["draws"]
                           if any(n == f"gg_bar_{player}" for n in d["game_bindings"]))
         gauge_resource = self.asset(gauge_draw["asset"]["package"], gauge_draw["texture"])
-        gauge_modes = {"hard": self.asset("gmframe33", "unit_groove_gauge_exc_r"),
-                       "ex-hard": self.asset("gmframe33", "unit_groove_gauge_exc_y"),
-                       "hazard": self.asset("gmframe33", "unit_groove_gauge_exc_b")}
+        if self.style == 32:
+            gauge_modes = {"hard": self.asset("1/gameparts", "playm_gauge_hard"),
+                           "ex-hard": self.asset("1/gameparts", "playm_gauge_exhard")}
+        else:
+            gauge_modes = {"hard": self.asset(self.frame_package, "unit_groove_gauge_exc_r"),
+                           "ex-hard": self.asset(self.frame_package, "unit_groove_gauge_exc_y"),
+                           "hazard": self.asset(self.frame_package, "unit_groove_gauge_exc_b")}
         gauge_material = self.copy_marker(f"{layout}-gauge", gauge_resource)
         gauge_geometry = geometry(gauge_draw["bounds"], slot_surface)
-        gauge_id = f"iidx33.{layout}.gauge.reveal"
+        gauge_id = f"{self.prefix}.{layout}.gauge.reveal"
         fill_id = f"{gauge_id}.fill"
         gauge_properties = {**gauge_geometry, "clip-mode": "bounds", "reveal-x": 0}
         fill_properties = {}
@@ -632,14 +681,14 @@ class Builder:
         self.bind(gauge_id, "reveal-x", "gauge.value")
         self.variant(fill_id, "gauge.type", gauge_resource, gauge_modes)
         percent_bounds = self.source_bounds(movies, f"percent_{player}_", exclude=("playm_gg_hyphen",))
-        children = [node(f"iidx33.{layout}.gauge.dark", "sprite", {**gauge_geometry, "colour": "#404040ff"}, gauge_resource), gauge,
-                    self.numeric(f"iidx33.{layout}.gauge.percent", "gauge.value", self.gauge_font, 28, percent_bounds, slot_surface, "percent")]
-        self.variant(f"iidx33.{layout}.gauge.dark", "gauge.type", gauge_resource, gauge_modes)
-        self.template(f"{layout}.gauge", node(f"iidx33.{layout}.gauge", slot="hud.gauge", children=children), "hud.gauge", gauge_material)
+        children = [node(f"{self.prefix}.{layout}.gauge.dark", "sprite", {**gauge_geometry, "colour": "#404040ff"}, gauge_resource), gauge,
+                    self.numeric(f"{self.prefix}.{layout}.gauge.percent", "gauge.value", self.gauge_font, 28, percent_bounds, slot_surface, "percent")]
+        self.variant(f"{self.prefix}.{layout}.gauge.dark", "gauge.type", gauge_resource, gauge_modes)
+        self.template(f"{layout}.gauge", node(f"{self.prefix}.{layout}.gauge", slot="hud.gauge", children=children), "hud.gauge", gauge_material)
 
         judgement_resource = self.asset("judge00", "judge_p_great_blue")
         judgement_material = self.copy_marker(f"{layout}-judgement", judgement_resource)
-        judgement_root = f"iidx33.{layout}.judgement"
+        judgement_root = f"{self.prefix}.{layout}.judgement"
         judgement_native_centre_y = 728 * 0.81
         judgement_slot_height = 728 * 0.12
         centre_dx = {"p1": -4, "p2": -8, "dp": 0}[layout]
@@ -679,6 +728,10 @@ class Builder:
             "otherGrades": "Previous yellow glyph choice retained; label natural aspect follows its original250/204/160px width. Actual grade pairing and zero-combo display still need reference.",
             "lifetime": "Both children share the JudgementDisplay current-judgement/expiry gate. No speculative original fade track is introduced.",
             "independentHudCombo": "Suppress; actual combo.value is displayed only in the judgement owner."})
+        if self.style == 32:
+            self.calibration_receipts[-1].update({
+                "sourceEvidenceScope": "Current-HDD judge00 measurements; not a historical32 executable capture.",
+                "positionEvidence": "Retained33 measured P1/P2 anchors or native DP anchor; historical32 placement still needs comparison."})
         self.write_materials(layout, background, information_material, gauge_material, judgement_material)
 
     def write_materials(self, layout, background, information, gauge, judgement):
@@ -716,7 +769,10 @@ class Builder:
                 self.material_ini.append(f"Target: Lane {suffix} group=bms.group.deck-{group + 1} group-logical={group} group-visual={group} "
                     f"lane={lane} global-logical={global_logical} global-visual={global_visual} "
                     f"group-local-logical={local_logical} group-local-visual={local_visual}")
-                self.material_ini += [f'{slot}: resource Provide "{value}"' for slot, value in self.lane_materials[colour].items()]
+                materials = self.lane_materials[colour]
+                if self.style == 32 and scratch and layout != "p1":
+                    materials = {**materials, "playfield.key": self.turntable_material_32(layout, group)}
+                self.material_ini += [f'{slot}: resource Provide "{value}"' for slot, value in materials.items()]
                 self.material_ini += ['playfield.lane-surface: resource Provide "common/empty"', 'playfield.lane-divider: resource Provide "common/empty"',
                                       'playfield.hit-target: resource Provide "common/empty"', "effect.key-flash: resource Suppress"]
                 if dp:
@@ -772,7 +828,7 @@ class Builder:
         (self.output / "skin.ini").write_text("\n".join([*self.ini, *self.material_ini, ""]), encoding="utf-8")
         manifest = {"contract": MANIFEST_CONTRACT, "scene": "gameplay-skin.scene.json", "sceneContract": SCENE_CONTRACT,
                     "eventContract": "oms-gameplay-skin-event.v1", "resources": self.resources, "bitmapFonts": self.fonts}
-        scene = {"contract": SCENE_CONTRACT, "root": node("iidx33.root", blend="inherit"), "tracks": self.tracks,
+        scene = {"contract": SCENE_CONTRACT, "root": node(f"{self.prefix}.root", blend="inherit"), "tracks": self.tracks,
                  "stateMachines": self.machines, "bindings": self.bindings, "variants": self.variants,
                  "templates": self.templates, "instances": self.instances, "completionOutro": 2500}
         write_json(self.output / "gameplay-skin.json", manifest)
@@ -803,8 +859,21 @@ class Builder:
             "Default blue turntable centres remain visible without a press. Additional turntable feedback and rotation are not yet calibrated.",
             "Full combo consumes original fcombo00 textures, held60FPS affine frames and UV-correct projective quads. It uses actual completion/full-combo state and a2.5s outro; original executable eligibility and appearance still need comparison.",
             "Only 7K P1/P2 and 14K materials are authored. Other keymodes retain the existing canonical fallback; centred 7K uses canonical materials with the shared 7K geometry."]
+        if self.style == 32:
+            limitations[2] = ("Judgement rows use current-HDD judge00 art and metrics, with the33 measured P1/P2 anchors "
+                              "and native DP anchor. Historical32 default colours, placement and animation need comparison.")
+            limitations[3] = ("7K P1/P2 shift the32 AFP centre frame and BGA viewport by +270/-270 reference pixels. "
+                              "Both are candidates awaiting a32 executable capture; the33 P1 capture is not32 evidence.")
+            limitations[6] = ("Hard/EX-Hard use named common playm_gauge_hard/exhard art from the current HDD. "
+                              "Hazard retains the normal gauge artwork because no historical32 Hazard mapping is established. "
+                              "Ruleset gauge behaviour is unchanged; historical32 palette selection remains unverified.")
+            limitations[8] = ("The32 usr_turn00 blue-heart centre remains visible without a press. "
+                              "Its historical default selection, feedback and rotation need comparison.")
+            limitations.append("The cabinet and its fonts are actual gmframe32 data retained in the current HDD. "
+                               "Common notes/CN/HCN, judgement, key lights, beams and fcombo00 come from that same current HDD; "
+                               "this does not prove a complete historical32 default asset set. Song select and results remain OMS.")
         usage = ["请使用本工作区更新后的 OMS 客户端运行此包。",
-            "7K：在 BMS 设置 → 游玩区域样式 选择 1P（居左）或 2P（居右）。默认 Center 使用 canonical，不显示此 IIDX33 布局。",
+            f"7K：在 BMS 设置 → 游玩区域样式 选择 1P（居左）或 2P（居右）。默认 Center 使用 canonical，不显示此 IIDX{self.style} 布局。",
             "14K 自动使用双打布局；皮肤不会覆盖用户的布局偏好。"]
         write_json(self.output / "local-study.json", {"status": "generated-awaiting-OMS-validation", "reference": {"width": WIDTH, "height": HEIGHT, "fps": FPS},
             "resources": len(self.resources), "decodedTexturePixels": total_pixels, "sourceAssets": self.used_source_assets,
@@ -812,20 +881,25 @@ class Builder:
             "tracks": len(self.tracks), "keyframes": sum(len(track["keyframes"]) for track in self.tracks),
             "calibrationReceipts": "calibration-receipts.json",
             "usage": usage, "limitations": limitations})
+        placement = {
+            "p1": {"status": "capture-confirmed", "dx": SP_CENTER_OFFSETS["p1"],
+                "capture": "artifacts/iidx33-reference-20261018/captures/reference05-p1-gameplay-001-main.jpg"},
+            "p2": {"status": "symmetric-candidate-awaiting-real-game-capture", "dx": SP_CENTER_OFFSETS["p2"]},
+            "sourceGeometry": "gameplay-assets.json/native_bga_placeholders and skin-reference-map.json/layouts"}
+        if self.style == 32:
+            placement["p1"] = {"status": "candidate-awaiting32-real-game-capture", "dx": SP_CENTER_OFFSETS["p1"]}
+            placement["p2"]["status"] = "candidate-awaiting32-real-game-capture"
         write_json(self.output / "calibration-receipts.json", {"status": "generated-awaiting-Player-comparison",
             "reference": {"width": WIDTH, "height": HEIGHT},
-            "placementEvidence": {
-                "p1": {"status": "capture-confirmed", "dx": SP_CENTER_OFFSETS["p1"],
-                    "capture": "artifacts/iidx33-reference-20261018/captures/reference05-p1-gameplay-001-main.jpg"},
-                "p2": {"status": "symmetric-candidate-awaiting-real-game-capture", "dx": SP_CENTER_OFFSETS["p2"]},
-                "sourceGeometry": "gameplay-assets.json/native_bga_placeholders and skin-reference-map.json/layouts"},
+            "placementEvidence": placement,
             "changes": self.calibration_receipts})
-        (self.output / "READ-ME.txt").write_text("IIDX 33 Sparkle Shower local study\n\n" + "\n".join(usage)
+        (self.output / "READ-ME.txt").write_text(self.name + " local study\n\n" + "\n".join(usage)
             + "\n\n" + "\n".join(limitations) + "\n", encoding="utf-8")
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--style", type=int, choices=(32, 33), default=33, help="Frame style; default33 preserves the existing author package")
     parser.add_argument("--library", type=Path, required=True, help="Existing independent IIDX art library")
     parser.add_argument("--research", type=Path, required=True, help="AFP research output with maps and filtered static frames")
     parser.add_argument("--fullcombo-research", type=Path, required=True, help="Exact original fcombo00 author-data export")
@@ -853,7 +927,7 @@ def main():
         within(research, relative)
     output.mkdir()
     write_json(output / "generation.json", {"status": "running"})
-    builder = Builder(library, research, fullcombo_research, output, Image)
+    builder = Builder(library, research, fullcombo_research, output, Image, args.style)
     builder.finish()
     completed = {"status": "complete", "archive": archive.name}
     with zipfile.ZipFile(archive, "x", compression=zipfile.ZIP_DEFLATED) as zipped:

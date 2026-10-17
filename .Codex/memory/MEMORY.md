@@ -65,7 +65,7 @@
 - [BMS 默认皮肤几何](reference_bms_default_skin_geometry.md)
 - [BMS 皮肤编辑器边界](reference_bms_skin_editor.md) — 原编辑器异步独立草稿、关闭保存/回收、预览资源与 CLR 反射构造地雷。
 - [gameplay skin slot 三态合同](reference_gameplay_skin_slot_contract.md) — 三态、provider 优先级与候选生命周期。
-- [gameplay skin shared codec/material](reference_gameplay_skin_codec_material.md) — Common/Bms元素族、样式选择、typed Note/LN材料导致scene空匹配、导入说明误报与持久诊断范围。
+- [gameplay skin shared codec/material](reference_gameplay_skin_codec_material.md) — Common/Bms元素族、样式选择、typed Note/LN材料空匹配、scene数字ID段与导入说明误报的诊断区别。
 - [gameplay skin lane identity/topology](reference_gameplay_skin_lane_identity.md) — stable lane ID 与 topology 投影。
 - [gameplay skin topology publication/revision](reference_gameplay_skin_topology_revision.md) — owner-local revision 与 publication 区别。
 - [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — 唯一 layout、选中包声明、HUD 坐标/离屏缓冲与作者 BGA 碰撞、分隔纹理缩放及重打包摘要。
