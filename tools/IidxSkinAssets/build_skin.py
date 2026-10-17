@@ -1,4 +1,4 @@
-"""Create a local IIDX 32 or 33 gameplay author package from independently extracted art.
+"""Create a local IIDX 31, 32 or 33 gameplay author package from independently extracted art.
 
 The source HDD is never an input to this command. Only an existing art library and
 the recorded AFP layout evidence are consumed. Generated art and OSKs stay local.
@@ -114,7 +114,7 @@ class Builder:
         self.library, self.research, self.output, self.Image = library, research, output, image_class
         self.style = style
         self.prefix, self.frame_package = f"iidx{style}", f"gmframe{style}"
-        self.name = "IIDX 32 Pinky Crush" if style == 32 else "IIDX 33 Sparkle Shower"
+        self.name = {31: "IIDX 31 EPOLIS", 32: "IIDX 32 Pinky Crush", 33: "IIDX 33 Sparkle Shower"}[style]
         self.map = read_json(research / "skin-reference-map.json")
         for movie in ("1p_frame", "2p_frame", "dp_frame_1p", "center_frame_sp", "center_frame_dp_1p"):
             if self.map["layouts"][movie]["package"] != self.frame_package:
@@ -453,7 +453,7 @@ class Builder:
         background.save(self.output / f"preview-{layout}-static.png")
         return relative.removesuffix(".png")
 
-    def turntable_material_32(self, layout, group=0):
+    def source_turntable_material(self, layout, group=0):
         movie = "dp_frame_1p" if layout == "dp" else "2p_frame" if layout == "p2" else "1p_frame"
         binding = "turn_2p" if layout == "p2" or group == 1 else "turn_1p"
         draw = next(draw for draw in self.map["layouts"][movie]["draws"] if binding in draw["game_bindings"])
@@ -472,7 +472,7 @@ class Builder:
                 "keyframes": [{"id": f"{identifier}.orientation.fixed", "time": 0,
                     "value": {"vertices": [[1, 0, 1], [0, 0, 1], [0, 1, 1], [1, 1, 1]], "opacity": 1}}]})
         self.template(f"{layout}.turntable.n{group}", root, "playfield.key", material)
-        self.calibration_receipts.append({"change": "32-source-turntable-geometry", "layout": layout, "group": group,
+        self.calibration_receipts.append({"change": f"{self.style}-source-turntable-geometry", "layout": layout, "group": group,
             "sourceMovie": movie, "sourceBinding": binding, "sourceBounds": draw["bounds"],
             "sourceMatrix": draw["matrix"], "nativeKeySurface": surface, "appliedProperties": properties,
             "mirrored": mirrored, "inputBinding": None,
@@ -534,8 +534,8 @@ class Builder:
                 "longBodyGeometry": "Native duration geometry is unchanged; source body templates keep empty properties.",
                 "explosionGeometry": "Unchanged; already normalized against its native authored SourceStage size."})
 
-            if colour == "scratch" and self.style == 32:
-                values["playfield.key"] = self.turntable_material_32("p1")
+            if colour == "scratch" and self.style != 33:
+                values["playfield.key"] = self.source_turntable_material("p1")
             elif colour == "scratch":
                 key = self.asset(self.frame_package, "usr_turn00")
                 key_properties = {"x": 50 / 150, "y": 44 / 120, "width": 47 / 150, "height": 47 / 120}
@@ -544,7 +544,7 @@ class Builder:
                 key_properties = {"x": -4 / width, "y": 0 if colour == "white" else -5 / 120,
                                   "width": (60 if colour == "white" else 48) / width,
                                   "height": (90 if colour == "white" else 74) / 120}
-            if colour != "scratch" or self.style != 32:
+            if colour != "scratch" or self.style == 33:
                 key_material = self.copy_marker(f"key-{colour}", key)
                 key_id = f"{self.prefix}.key.{colour}"
                 self.template(f"key.{colour}", node(key_id, "sprite", key_properties, key, "playfield.key",
@@ -622,12 +622,12 @@ class Builder:
             identifier = f"{self.prefix}.{layout}.{suffix}"
             properties = {"x": (610 + centre_dx) / WIDTH, "y": y / HEIGHT, "width": 700 / WIDTH,
                 "height": 28 / HEIGHT, "font-size": size * REFERENCE_FONT_SCALE, "text": "", "alignment": "centre", "text-overflow": "ellipsis", "colour": "#ffffffff"}
-            if self.style == 32:
+            if self.style != 33:
                 movie = "center_frame_dp_1p" if dp else "center_frame_sp"
                 source_bounds = self.source_bounds([movie], suffix)
                 bounds = shifted_bounds(source_bounds, centre_dx)
                 properties.update({**geometry(bounds), "alignment": "left" if dp else "centre"})
-                self.calibration_receipts.append({"change": "32-source-song-information-placement", "layout": layout,
+                self.calibration_receipts.append({"change": f"{self.style}-source-song-information-placement", "layout": layout,
                     "node": identifier, "sourceMovie": movie, "sourceBinding": suffix, "sourceBounds": source_bounds,
                     "dx": centre_dx, "appliedBounds": bounds,
                     "limit": "Source placeholder bounds; text uses the existing OMS metadata font, not an extracted game font. DP left alignment remains a candidate."})
@@ -650,7 +650,7 @@ class Builder:
         gauge_draw = next(d for movie in movies for d in self.map["layouts"][movie]["draws"]
                           if any(n == f"gg_bar_{player}" for n in d["game_bindings"]))
         gauge_resource = self.asset(gauge_draw["asset"]["package"], gauge_draw["texture"])
-        if self.style == 32:
+        if self.style != 33:
             gauge_modes = {"hard": self.asset("1/gameparts", "playm_gauge_hard"),
                            "ex-hard": self.asset("1/gameparts", "playm_gauge_exhard")}
         else:
@@ -728,10 +728,10 @@ class Builder:
             "otherGrades": "Previous yellow glyph choice retained; label natural aspect follows its original250/204/160px width. Actual grade pairing and zero-combo display still need reference.",
             "lifetime": "Both children share the JudgementDisplay current-judgement/expiry gate. No speculative original fade track is introduced.",
             "independentHudCombo": "Suppress; actual combo.value is displayed only in the judgement owner."})
-        if self.style == 32:
+        if self.style != 33:
             self.calibration_receipts[-1].update({
-                "sourceEvidenceScope": "Current-HDD judge00 measurements; not a historical32 executable capture.",
-                "positionEvidence": "Retained33 measured P1/P2 anchors or native DP anchor; historical32 placement still needs comparison."})
+                "sourceEvidenceScope": f"Current-HDD judge00 measurements; not a historical{self.style} executable capture.",
+                "positionEvidence": f"Retained33 measured P1/P2 anchors or native DP anchor; historical{self.style} placement still needs comparison."})
         self.write_materials(layout, background, information_material, gauge_material, judgement_material)
 
     def write_materials(self, layout, background, information, gauge, judgement):
@@ -770,8 +770,8 @@ class Builder:
                     f"lane={lane} global-logical={global_logical} global-visual={global_visual} "
                     f"group-local-logical={local_logical} group-local-visual={local_visual}")
                 materials = self.lane_materials[colour]
-                if self.style == 32 and scratch and layout != "p1":
-                    materials = {**materials, "playfield.key": self.turntable_material_32(layout, group)}
+                if self.style != 33 and scratch and layout != "p1":
+                    materials = {**materials, "playfield.key": self.source_turntable_material(layout, group)}
                 self.material_ini += [f'{slot}: resource Provide "{value}"' for slot, value in materials.items()]
                 self.material_ini += ['playfield.lane-surface: resource Provide "common/empty"', 'playfield.lane-divider: resource Provide "common/empty"',
                                       'playfield.hit-target: resource Provide "common/empty"', "effect.key-flash: resource Suppress"]
@@ -859,19 +859,19 @@ class Builder:
             "Default blue turntable centres remain visible without a press. Additional turntable feedback and rotation are not yet calibrated.",
             "Full combo consumes original fcombo00 textures, held60FPS affine frames and UV-correct projective quads. It uses actual completion/full-combo state and a2.5s outro; original executable eligibility and appearance still need comparison.",
             "Only 7K P1/P2 and 14K materials are authored. Other keymodes retain the existing canonical fallback; centred 7K uses canonical materials with the shared 7K geometry."]
-        if self.style == 32:
+        if self.style != 33:
             limitations[2] = ("Judgement rows use current-HDD judge00 art and metrics, with the33 measured P1/P2 anchors "
-                              "and native DP anchor. Historical32 default colours, placement and animation need comparison.")
-            limitations[3] = ("7K P1/P2 shift the32 AFP centre frame and BGA viewport by +270/-270 reference pixels. "
-                              "Both are candidates awaiting a32 executable capture; the33 P1 capture is not32 evidence.")
+                              f"and native DP anchor. Historical{self.style} default colours, placement and animation need comparison.")
+            limitations[3] = (f"7K P1/P2 shift the{self.style} AFP centre frame and BGA viewport by +270/-270 reference pixels. "
+                              f"Both are candidates awaiting a{self.style} executable capture; the33 P1 capture is not{self.style} evidence.")
             limitations[6] = ("Hard/EX-Hard use named common playm_gauge_hard/exhard art from the current HDD. "
-                              "Hazard retains the normal gauge artwork because no historical32 Hazard mapping is established. "
-                              "Ruleset gauge behaviour is unchanged; historical32 palette selection remains unverified.")
-            limitations[8] = ("The32 usr_turn00 blue-heart centre remains visible without a press. "
+                              f"Hazard retains the normal gauge artwork because no historical{self.style} Hazard mapping is established. "
+                              f"Ruleset gauge behaviour is unchanged; historical{self.style} palette selection remains unverified.")
+            limitations[8] = (f"The{self.style} usr_turn00 blue-heart centre remains visible without a press. "
                               "Its historical default selection, feedback and rotation need comparison.")
-            limitations.append("The cabinet and its fonts are actual gmframe32 data retained in the current HDD. "
+            limitations.append(f"The cabinet and its fonts are actual {self.frame_package} data retained in the current HDD. "
                                "Common notes/CN/HCN, judgement, key lights, beams and fcombo00 come from that same current HDD; "
-                               "this does not prove a complete historical32 default asset set. Song select and results remain OMS.")
+                               f"this does not prove a complete historical{self.style} default asset set. Song select and results remain OMS.")
         usage = ["请使用本工作区更新后的 OMS 客户端运行此包。",
             f"7K：在 BMS 设置 → 游玩区域样式 选择 1P（居左）或 2P（居右）。默认 Center 使用 canonical，不显示此 IIDX{self.style} 布局。",
             "14K 自动使用双打布局；皮肤不会覆盖用户的布局偏好。"]
@@ -886,9 +886,9 @@ class Builder:
                 "capture": "artifacts/iidx33-reference-20261018/captures/reference05-p1-gameplay-001-main.jpg"},
             "p2": {"status": "symmetric-candidate-awaiting-real-game-capture", "dx": SP_CENTER_OFFSETS["p2"]},
             "sourceGeometry": "gameplay-assets.json/native_bga_placeholders and skin-reference-map.json/layouts"}
-        if self.style == 32:
-            placement["p1"] = {"status": "candidate-awaiting32-real-game-capture", "dx": SP_CENTER_OFFSETS["p1"]}
-            placement["p2"]["status"] = "candidate-awaiting32-real-game-capture"
+        if self.style != 33:
+            placement["p1"] = {"status": f"candidate-awaiting{self.style}-real-game-capture", "dx": SP_CENTER_OFFSETS["p1"]}
+            placement["p2"]["status"] = f"candidate-awaiting{self.style}-real-game-capture"
         write_json(self.output / "calibration-receipts.json", {"status": "generated-awaiting-Player-comparison",
             "reference": {"width": WIDTH, "height": HEIGHT},
             "placementEvidence": placement,
@@ -899,7 +899,7 @@ class Builder:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--style", type=int, choices=(32, 33), default=33, help="Frame style; default33 preserves the existing author package")
+    parser.add_argument("--style", type=int, choices=(31, 32, 33), default=33, help="Frame style; default33 preserves the existing author package")
     parser.add_argument("--library", type=Path, required=True, help="Existing independent IIDX art library")
     parser.add_argument("--research", type=Path, required=True, help="AFP research output with maps and filtered static frames")
     parser.add_argument("--fullcombo-research", type=Path, required=True, help="Exact original fcombo00 author-data export")

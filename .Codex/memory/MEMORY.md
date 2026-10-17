@@ -68,7 +68,7 @@
 - [gameplay skin shared codec/material](reference_gameplay_skin_codec_material.md) — Common/Bms元素族、样式选择、typed Note/LN材料空匹配、scene数字ID段与导入说明误报的诊断区别。
 - [gameplay skin lane identity/topology](reference_gameplay_skin_lane_identity.md) — stable lane ID 与 topology 投影。
 - [gameplay skin topology publication/revision](reference_gameplay_skin_topology_revision.md) — owner-local revision 与 publication 区别。
-- [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — 唯一 layout、选中包声明、HUD 坐标/离屏缓冲与作者 BGA 碰撞、分隔纹理缩放及重打包摘要。
+- [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — 唯一 layout、选中包声明、AFP同名实例对照、HUD坐标/离屏缓冲、BGA碰撞与重打包摘要。
 - [gameplay skin config presence](reference_gameplay_skin_config_presence.md) — accepted presence、synthetic default 与 per-index mask。
 - [gameplay skin lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md) — lane provenance、9K/14K 候选映射与资源退役。
 - [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — 事件顺序、seek 时钟收敛与完整 Reset、callback 拷贝及真实显示取证。

@@ -1,5 +1,25 @@
 # P1-A 变动日志
 
+## 2026-10-18IIDX31 EPOLIS 游玩候选
+
+从干净的 `master@ffa9648` 接续，fetch成功，本地领先远端15次且无远端新增；用户追加指定31代。生成器新增 `--style 31`，通过现有公共作者能力使用gmframe31，未改C#、canonical或玩家存储，未推送。取材全部来自既有F盘独立库，没有重新从D盘取材或启动D/E游戏。
+
+独立解析gmframe31的20个AFP、456个GEO和137张原图，正式名称参照[KONAMI产品页](https://www.konami.com/arcadegames/products/am_bmiidx31/)。来源矩阵、布局与静态181帧在 `artifacts/iidx31-afp-research-20261018/`。31的SP/DP分数、Hi-Speed、血槽与BPM位置均由本代map消费；四处转盘沿实际矩形和缩放，P2保留负X与原UV，框体使用31整图而非按同名尺寸套32。BGA窗口、轨宽和DP gap130仍与现布局一致。DP同名binding会重复，初版按名称作单值索引会覆盖另一侧；最终对照保留全部occurrence于 `geometry-diff-vs32-occurrences.json`，不由假差异修改原生几何。
+
+31轨道背景在f60～300稳定为缩放矩阵、底693.164px；源白键灯仍728px、黑键723px、红线716～723px。AFP本地Action未给出外部host是否重设背景的证据，因此保留现有原生演奏高度728，不根据背景单独改判定/键区。该项、中心±270、判定锚点及历史默认共用搭配仍待31运行参照；DP Hi-Speed沿用现字体，细微排距与源不同。Hard/EX-Hard取当前共用包明确命名的图片，Hazard暂沿普通血槽；均不假称原31默认配色已核准。
+
+候选01作者CLI与四段真实Player通过。证据在 `artifacts/iidx31-skin-20261018/validation/`：
+
+- `candidate01-author-check.log`：公开设置、图片和场景语法通过；复用与当前未改C#一致的既有Debug产物。
+- `render-candidate01-final-{p1,p2,14k,p1-hcn}/` 均经正常OSK导入、选择、实际自动演奏及结算，退出0；原生Charge/HellCharge、8/16条Holding及对应beam1、15px普通音符/24px长条头尾挂载已核对。
+- 三布局捕获全连32/60/90/120/145帧，完成起点与2.5秒尾段一致；39张1080p PNG完整，材料诊断、scene fault与框架error为空。汇总在 `final-player-evidence.json` / `runtime-log-summary.json`；独立F盘portable宿主不接触普通玩家存储。
+- `previous-styles-regression.json`：32回生成183个、33回生成181个内容文件逐字节无差异，generation仅输出文件名不同且均complete；31指定32研究输入被明确拒绝。
+- 源保真审计在 `artifacts/iidx31-material-audit-20261018/candidate01-source-preservation.json`：147张原图与库登记、尺寸、XML采样全匹配，无gmframe32/33框体资源混入；四处转盘/UV及三背景独立重合成精确相同，1,961个本地源文件与开工基线一致。生成器独立审查在 `artifacts/iidx31-generator-audit-20261018/audit.json`。
+
+本地交付 `delivery-final/IIDX31-EPOLIS-OMS.osk` 与已验候选逐字节相同，附说明和真实Player预览；原图与包保持忽略、不进Git。未改公共运行能力，未重跑BMS/mania/core全量或Release，不刷新32/33既有软件和人工结论。选曲/结算仍OMS，装饰固定源帧、滤镜/配色/反馈及原版对位未完成；正常曲库/完整歌曲听感、设备与发行未签收。目前首版不需另下HDD，后续按实际缺口补源。
+
+文档健康与工作区导航检查通过，分别为204份Markdown/2,257相对链接、185份跨项目文档/2,054链接，私有数据排除；原通用路径/公开checksum提示保持，不刷新产品签收。研究探针及复用宿主源码已复制到本轮长期证据，参考/捕获进程均退出；差异检查通过。
+
 ## 2026-10-18IIDX32 Pinky Crush 游玩候选
 
 从干净的 `master@0c3044e` 接续，fetch成功，本地领先远端14次且无远端新增；用户指定尝试32代。只在客户端修改生成器与说明，不改C#、canonical或玩家数据，不推送。全部取材来自既有F盘独立提取库，没有重新从D盘取材或启动D/E盘游戏。

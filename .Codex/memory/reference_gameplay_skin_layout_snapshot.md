@@ -30,6 +30,7 @@ metadata:
 
 ## 从真实截图排查分区遮挡
 
+- AFP跨版本矩阵对照须保留同名binding的全部实例与深度路径；DP两侧可同时叫lane_1p，仅用名称作字典键会覆盖一侧并制造假差异。按movie/name/occurrence逐项比较，再与红线、键灯和实机交叉核定，不能由背景矩阵单独推出原生演奏几何变更。诊断例见[31制作记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-18iidx31-epolis-游玩候选)。
 - `hud.text` 容器下的显式 `global` 子节点不会自然继承 HUD 坐标区，而是沿安全屏幕定位；顶部信息跨入落键区时先看实际 prepared target/slot 路由。平级节点可各自拥有 `hud.text`，也可由一个 owner 容器组织无 slot 子节点，位置取决于实际 target 与 layout-surface；不能把合法 owner 容器误禁，也不能嵌套 slot owner 来修位置，后者被 preparation 拒绝是合同保护。
 - BMS 原键图在落键区的裁剪链中。只把键图画高或扩 `HitTargetHeight` 既不能得到独立控制台，还可能侵占判定附近；应在唯一 solver 产生独立键区，保留缺省旧包位置，不改判定/滚动长度。
 - BGA 的 scene 外框放大不等于真实播放器 viewport 放大；应从公开尺寸参数进入唯一 solver，再由现有播放宿主消费。外部截图只用于比较视觉关系，不能推导出播放/timeline 新 authority。
