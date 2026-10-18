@@ -231,6 +231,7 @@ scene包含固定字段 `contract/root/tracks/stateMachines/bindings/templates/i
 | 读取内容 | source | 值与显示 |
 | --- | --- | --- |
 | 得分、准确率、连击、血量 | `score.value`、`score.accuracy`、`combo.value`、`gauge.value` | 原生BMS得分为EX SCORE；准确率/血量0～1；普通字体准确率显示两位小数百分比 |
+| 本局最高连击 | `combo.maximum` | 已经达到的最高连击，断连后保留；跳转读取重建快照，重试归零。不是谱面理论最大连击，不用于判断全连；可绑定普通文字或十个数字的图片字体 |
 | 实际血槽类型 | `gauge.type` | none/assist-easy/easy/normal/hard/ex-hard/hazard；沿当前处理器，包括GAS切换 |
 | 实际血槽上限和通关阈值 | `gauge.maximum`、`gauge.clear-threshold` | 与血量相同0～1量纲；无投影时为0 |
 | 当前通关条件 | `gauge.clear-state` | unavailable/uncleared/clear，直接取引擎状态，不由图片或数值比较推算 |

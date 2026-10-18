@@ -91,7 +91,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Author.ps1 -Action imp
 
 `bitmap-font` 只能静态引用已声明字体，不能由绑定、轨迹、状态机或脚本更换。位图文字每节点最多64字符，静态文字和状态赋值中的每个字符都必须有字形。绑定只接受数值来源；曲名、状态词、身份和布尔值不能写入这种数字节点。它不接受 `uppercase` 或 `text-overflow`，也不会在缺字时切换系统字体。
 
-数值绑定必须声明全部十个数字。`fixed-2` 还需要 `.`，`percent` 还需要 `%`；未给 `format` 时使用最多三位小数，非整数来源还需要 `.`。这里的整数来源只有 `score.value`、`combo.value`、`timing.measure`、六档 `judgement.count.*` 和 `combo.breaks`；例如希望BPM只使用数字字形，应显式选 `integer`。`judgement.offset` 与 `timing.beat` 还必须声明 `-`。其它可能出现负值的显示也应提供负号，例如前奏中的 `timing.measure` 可为-1。`,`、`+`、`x` 可用于自己写的静态数字文字，不会自动添加千位分隔或倍率前缀。
+数值绑定必须声明全部十个数字。`fixed-2` 还需要 `.`，`percent` 还需要 `%`；未给 `format` 时使用最多三位小数，非整数来源还需要 `.`。这里的整数来源只有 `score.value`、`combo.value`、`combo.maximum`、`timing.measure`、六档 `judgement.count.*` 和 `combo.breaks`；例如希望BPM只使用数字字形，应显式选 `integer`。`judgement.offset` 与 `timing.beat` 还必须声明 `-`。其它可能出现负值的显示也应提供负号，例如前奏中的 `timing.measure` 可为-1。`,`、`+`、`x` 可用于自己写的静态数字文字，不会自动添加千位分隔或倍率前缀。
 
 位图节点的数字统一沿 `format`：缺省最多三位小数，`integer` 舍入为无小数数字，`fixed-2` 固定两位小数，`percent` 乘100后显示整数和百分号。因此位图准确率/进度要显示百分比时也应显式选择 `percent`。所有已声明字体都会准备；超尺寸、缺资源或运行数值超出64字符/缺少字形会报对应场景错误。字形图片计入普通资源的文件、像素与解码预算，不另建字体图集；动态位图文字每节点预留64字形，仍计入全场景8192字形和真实实例预算。
 
@@ -349,6 +349,7 @@ bindings每项必填id/target/property/source，例如：
 | score.value | 当前计分器分数；原生BMS为EX SCORE，mania为自身计分器分数 | 数值或text |
 | score.accuracy | 0..1；text为两位小数百分比 | 数值或text |
 | combo.value / gauge.value | 连击 / 归一化能量 | 数值或text |
+| combo.maximum | 本局已经达到的最高连击；真实计分器快照的非负整数，断连后保留 | 数值或text |
 | gauge.type | none/assist-easy/easy/normal/hard/ex-hard/hazard | text |
 | gauge.maximum / gauge.clear-threshold | 实际血槽最大值 / 通关阈值，与gauge.value使用相同0..1量纲；无此能力时都为0 | 数值或text |
 | gauge.clear-state | unavailable/uncleared/clear；引擎当前通关条件状态 | text |
@@ -363,6 +364,8 @@ bindings每项必填id/target/property/source，例如：
 | bga.content-state | empty/ready/playing/paused/failed | text |
 
 字符串不能直接驱动数字或资源；换图用variants。数值限制在目标属性范围内，不修改玩法。首物件前进度0、末物件后1、零时长0；暂停保持、重试和跳转反映新位置。局部对象、轨道和组沿自身范围取值，不应由另一轨道的判定驱动。
+
+`combo.maximum` 直接读取与 `combo.value` 同一不可变计分快照的 `MaxCombo`，由真实计分器的 `HighestCombo` 提供。例如当前连击从19断到0，最高连击仍显示19；跳转采用重建快照中的最高值，重试归零，晚挂载保留当前快照。它不是谱面理论最大可达连击 `MaximumCombo`，也不是全连资格；不用皮肤脚本累计或取最大值。只显示整数的图片字体可以省略 `format`，仅声明十个数字即可。
 
 BMS统计映射是perfect→PG、great→GR、good→GD、meh→BD、miss→PR、ok→空POOR，combo.breaks为真正断连；mania的ok仍是其自身判定档位，不叫空POOR。统计从真实计分器读取，随撤销、回放跳转和重试恢复，不以judgement.hit自行累计。曲目信息在完整快照中携带，重附着和epoch替换保留；BMS难度来自原始DIFFICULTY类别，等级保留PLAYLEVEL字符串，缺失保持空，不冒用星级。MIN/MAX取实际音乐时间线，未使用的BPM定义不计入范围。BMS scroll.speed为当前NHS/FHS/CHS选中数值，mania为自身ScrollSpeed设置；该绑定不输出模式名称，不把不同玩法数值当作同一物理单位。
 

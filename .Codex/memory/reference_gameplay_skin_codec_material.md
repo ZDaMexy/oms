@@ -38,6 +38,7 @@ Legacy raw index、source-bound frame/width 与 borrow 地雷见 [[reference_gam
 
 - manifest/scene 的唯一 codec 在 background prepare 做 UTF-8、duplicate/unknown/path/type/target/resource/canonical 与预算检查；renderer 只读 prepared graph，不重读来源或二次 resolve。
 - 作者CLI报 `OMS-SKIN-SCENE-008` 时先递归核JSON中的稳定ID段；生成器插入组号曾形成 `.turntable.0`，矩形/quad数值全部合法仍被拒绝。改用n0/n1等合法段并生成新候选；先看完整诊断命名空间，勿套用上文 `OMS-SKIN-CODEC-008` 的注释解析修复。复现取[32制作记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-18iidx32-pinky-crush-游玩候选)。
+- 原红线已在其它作者层绘制时，必需 `playfield.judgement-line` 槽仍不能写 `Suppress`，否则CLI报 `OMS-SKIN-CODEC-016`；用显式透明材质Provide替换原生重复线，保持原槽合同和实际红线消费者。字体预算计算全部声明，不只当前布局使用的字体；SP/DP相同字形和度量应复用，不能按布局重复声明到超过8套。作品合同见[P1-A素材边界](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)。
 - Snapshot/Reset 与运行事件来自 engine-owned bounded stream；engine 可发 GameplayResumed，scene ABI 不接受 gameplay.resume，因为 Snapshot 重建 Running。CLR envelope 构造能力不等于 scene author ABI。
 - scene/slot 故障只隔离其自身表现，不能获得判定、input、score、clock、BGA 内容 authority。
 - 新 beatmap-local public authoring 不在已开放面；真实 WorkingBeatmap.Skin 仍可惰性返回同一只读 LegacyBeatmapSkin direct compatibility。没有 sidecar/producer/revision authoring ownership 时，测试注入不能当用户能力。

@@ -52,7 +52,7 @@ namespace osu.Game.Skinning.Gameplay
         private static readonly HashSet<string> binding_source_ids = new HashSet<string>(StringComparer.Ordinal)
         {
             "layout.stage", "layout.group", "layout.lane", "input.pressed", "gameplay.full-combo", "object.state", "judgement.result", "judgement.offset",
-            "score.value", "score.accuracy", "combo.value", "gauge.value", "timing.beat", "timing.measure", "timing.bpm", "timing.progress", "bga.content-state",
+            "score.value", "score.accuracy", "combo.value", "combo.maximum", "gauge.value", "timing.beat", "timing.measure", "timing.bpm", "timing.progress", "bga.content-state",
             "song.table-classification", "song.title", "song.artist", "song.difficulty", "song.level", "timing.bpm-min", "timing.bpm-max", "scroll.speed", "judgement.count.perfect", "judgement.count.great", "judgement.count.good", "judgement.count.ok", "judgement.count.meh", "judgement.count.miss", "combo.breaks",
             "object.long-note-mode", "object.long-note-appearance", "gauge.type", "gauge.maximum", "gauge.clear-threshold", "gauge.clear-state",
         };
@@ -580,7 +580,7 @@ namespace osu.Game.Skinning.Gameplay
             }
 
             static bool integerSource(GameplaySkinSceneBindingSource source)
-                => source is GameplaySkinSceneBindingSource.ScoreValue or GameplaySkinSceneBindingSource.ComboValue
+                => source is GameplaySkinSceneBindingSource.ScoreValue or GameplaySkinSceneBindingSource.ComboValue or GameplaySkinSceneBindingSource.ComboMaximum
                     or GameplaySkinSceneBindingSource.TimingMeasure or GameplaySkinSceneBindingSource.JudgementCountPerfect
                     or GameplaySkinSceneBindingSource.JudgementCountGreat or GameplaySkinSceneBindingSource.JudgementCountGood
                     or GameplaySkinSceneBindingSource.JudgementCountOk or GameplaySkinSceneBindingSource.JudgementCountMeh
@@ -1739,7 +1739,7 @@ namespace osu.Game.Skinning.Gameplay
             if (property == "text")
                 return true;
 
-            bool sourceIsNumber = source is "judgement.offset" or "score.value" or "score.accuracy" or "combo.value" or "gauge.value" or "gauge.maximum" or "gauge.clear-threshold"
+            bool sourceIsNumber = source is "judgement.offset" or "score.value" or "score.accuracy" or "combo.value" or "combo.maximum" or "gauge.value" or "gauge.maximum" or "gauge.clear-threshold"
                 or "timing.beat" or "timing.measure" or "timing.bpm" or "timing.progress"
                 or "timing.bpm-min" or "timing.bpm-max" or "scroll.speed" or "judgement.count.perfect" or "judgement.count.great" or "judgement.count.good" or "judgement.count.ok" or "judgement.count.meh" or "judgement.count.miss" or "combo.breaks";
             bool sourceIsBoolean = source is "input.pressed" or "gameplay.full-combo";

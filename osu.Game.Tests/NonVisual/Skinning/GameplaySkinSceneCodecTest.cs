@@ -65,6 +65,27 @@ namespace osu.Game.Tests.NonVisual.Skinning
         }
 
         [Test]
+        public void TestMaximumComboBindingIsNumericAndKeepsItsPublicSourceOnRoundTrip()
+        {
+            GameplaySkinSceneManifest manifest = decodeManifest(valid_manifest).Value!;
+            JObject scene = JObject.Parse(valid_scene);
+            scene["bindings"]![0]!["source"] = "combo.maximum";
+            scene["bindings"]![0]!["property"] = "rotation";
+            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> result = decodeScene(scene.ToString(), manifest);
+            Assert.That(result.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> roundTrip = decodeScene(GameplaySkinSceneCodec.EncodeScene(result.Value!), manifest);
+            Assert.Multiple(() =>
+            {
+                Assert.That(roundTrip.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+                Assert.That(roundTrip.Value!.Bindings.Single().Source, Is.EqualTo(GameplaySkinSceneBindingSource.ComboMaximum));
+                Assert.That(roundTrip.Value.Bindings.Single().SourceId, Is.EqualTo("combo.maximum"));
+            });
+
+            scene["bindings"]![0]!["property"] = "visible";
+            assertInvalidWith(decodeScene(scene.ToString(), manifest), GameplaySkinSceneDiagnosticCode.InvalidPropertyValue);
+        }
+
+        [Test]
         public void TestJudgementTrackTriggerRoundTripsAndAbsentTriggerPreservesGlobalEncoding()
         {
             var manifest = new GameplaySkinSceneManifest(Array.Empty<GameplaySkinSceneResource>());

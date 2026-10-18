@@ -230,6 +230,67 @@ namespace osu.Game.Tests.NonVisual.Skinning
         }
 
         [Test]
+        public void TestMaximumComboDigitsUseAchievedPeakAcrossBreakSeekRetryAndReattach()
+        {
+            using Texture texture = new DummyRenderer().CreateTexture(40, 28);
+            GameplaySkinSceneManifest manifest = decodeManifest(manifestJson());
+            JObject scene = sceneJson();
+            ((JObject)scene["root"]!["children"]![0]!["properties"]!).Remove("format");
+            scene["bindings"]![0]!["source"] = "combo.maximum";
+            using GameplaySkinLayoutPublication publication = prepare(texture, manifest, decodeScene(scene, manifest));
+            GameplaySkinEventStateSnapshot initial = withScore(new GameplaySkinScoreStateSnapshot(100, 3, 19, 1, 0.5));
+            using var stream = new GameplaySkinEventStream(publication, 0, initial);
+            GameplaySkinEventProducer producer = stream.CreateProducer();
+            try
+            {
+                using var host = new GameplaySkinSceneRuntimeHost(publication, stream);
+                host.ProcessFrame();
+                Assert.That(authorText(host, "value"), Is.EqualTo("19"), "The achieved peak differs from the current combo on first attachment.");
+
+                stream.Publish(producer, 10, GameplaySkinEventValue.Score(GameplaySkinEventKind.ComboChanged,
+                    new GameplaySkinScoreStateSnapshot(100, 0, 19, 0.5, 0.5)), null, null);
+                host.ProcessFrame();
+                Assert.That(authorText(host, "value"), Is.EqualTo("19"), "Breaking the current combo does not erase the engine's achieved maximum.");
+
+                long applications = host.BindingApplicationCount;
+                producer.SynchroniseTiming(15, new GameplaySkinTimingStateSnapshot(1, 0, 120, false, 1));
+                host.ProcessFrame();
+                Assert.That(host.BindingApplicationCount, Is.EqualTo(applications), "A timing-only frame must not reformat a score-family display.");
+
+                stream.Publish(producer, 20, GameplaySkinEventValue.Score(GameplaySkinEventKind.ComboChanged,
+                    new GameplaySkinScoreStateSnapshot(200, 23, 23, 0.75, 0.5)), null, null);
+                host.ProcessFrame();
+                Assert.That(authorText(host, "value"), Is.EqualTo("23"));
+
+                producer = producer.Reset(5, withScore(new GameplaySkinScoreStateSnapshot(50, 1, 7, 1, 0.5)), GameplaySkinEventResetReason.Seek);
+                host.ProcessFrame();
+                Assert.That(authorText(host, "value"), Is.EqualTo("7"), "A seek takes the rebuilt snapshot's peak, not a skin-maintained maximum.");
+                using (var reattached = new GameplaySkinSceneRuntimeHost(publication, stream))
+                {
+                    reattached.ProcessFrame();
+                    Assert.That(authorText(reattached, "value"), Is.EqualTo("7"));
+                    Assert.That(reattached.RuntimeFaults, Is.Empty);
+                }
+
+                producer = producer.Reset(0, withScore(new GameplaySkinScoreStateSnapshot(0, 0, 0, 1, 0.5)), GameplaySkinEventResetReason.Retry);
+                host.ProcessFrame();
+                Assert.That(authorText(host, "value"), Is.EqualTo("0"));
+                Assert.That(host.RuntimeFaults, Is.Empty);
+            }
+            finally
+            {
+                producer.Dispose();
+            }
+
+            GameplaySkinEventStateSnapshot withScore(GameplaySkinScoreStateSnapshot score)
+            {
+                GameplaySkinEventStateSnapshot state = publication.PreparedScene.InitialEventState;
+                return new GameplaySkinEventStateSnapshot(state.LifecycleState, state.Inputs, state.ActiveObjects, state.CurrentJudgements,
+                    score, state.Timing, state.BgaViewports, state.SongInformation);
+            }
+        }
+
+        [Test]
         public void TestStateTextAssignmentsUseAuthorGlyphPath()
         {
             using Texture texture = new DummyRenderer().CreateTexture(40, 28);

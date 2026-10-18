@@ -1,4 +1,4 @@
-"""Create a local IIDX 31, 32 or 33 gameplay author package from independently extracted art.
+"""Create a local IIDX 27-33 gameplay author package from independently extracted art.
 
 The source HDD is never an input to this command. Only an existing art library and
 the recorded AFP layout evidence are consumed. Generated art and OSKs stay local.
@@ -27,6 +27,8 @@ FPS = 60
 COMMON = "[GameplaySkin.Common:1]"
 MANIFEST_CONTRACT = "oms-gameplay-skin-manifest.v1"
 SCENE_CONTRACT = "oms-gameplay-skin-scene.v1"
+STYLE_NAMES = {27: "IIDX 27 HEROIC VERSE", 28: "IIDX 28 BISTROVER", 29: "IIDX 29 CastHour",
+               30: "IIDX 30 RESIDENT", 31: "IIDX 31 EPOLIS", 32: "IIDX 32 Pinky Crush", 33: "IIDX 33 Sparkle Shower"}
 
 
 def read_json(path):
@@ -110,12 +112,18 @@ def rendered_float_value(value):
 
 
 class Builder:
-    def __init__(self, library, research, fullcombo_research, output, image_class, style=33):
+    def __init__(self, library, research, fullcombo_research, output, image_class, style=33, legacy_library=None):
         self.library, self.research, self.output, self.Image = library, research, output, image_class
         self.style = style
         self.prefix, self.frame_package = f"iidx{style}", f"gmframe{style}"
-        self.name = {31: "IIDX 31 EPOLIS", 32: "IIDX 32 Pinky Crush", 33: "IIDX 33 Sparkle Shower"}[style]
+        self.name = STYLE_NAMES[style]
         self.map = read_json(research / "skin-reference-map.json")
+        self.sd = style < 30
+        self.source_scale = 1.5 if self.sd else 1
+        stage = self.map["stage"]
+        if (stage["width"], stage["height"], stage["fps"]) != ((1280, 720, FPS) if self.sd else (WIDTH, HEIGHT, FPS)):
+            raise ValueError("The research stage does not match the selected source canvas")
+        self.stage_width, self.stage_height = (438, 726) if self.sd else (440, 728)
         for movie in ("1p_frame", "2p_frame", "dp_frame_1p", "center_frame_sp", "center_frame_dp_1p"):
             if self.map["layouts"][movie]["package"] != self.frame_package:
                 raise ValueError(f"The {movie} research is not for {self.frame_package}")
@@ -126,6 +134,13 @@ class Builder:
                 or not self.fullcombo["last30FramesTransparent"]):
             raise ValueError("The full-combo source requires a different timing consumer")
         self.source_libraries = {"primary": library, "extra": research / "extra-note-library"}
+        if self.sd:
+            if legacy_library is None:
+                raise ValueError("27-29 require the independently extracted 0/common and 0/gameparts library")
+            self.source_libraries["legacy"] = legacy_library
+            self.bga_apertures = read_json(research / "effective-bga-viewports.json")
+            if style == 29:
+                self.score_slots = read_json(research / "candidate-score-slots.json")
         self.resources, self.resource_paths, self.fonts = [], {}, []
         self.templates, self.instances, self.bindings, self.variants, self.tracks, self.machines = [], [], [], [], [], []
         self.ini = [f"// Local IIDX {style} study. Original art is not part of the OMS distribution.",
@@ -233,10 +248,10 @@ class Builder:
                                          {"id": f"{target}.active", "set": [{"id": f"{target}.show", "target": target, "property": "opacity", "value": 1}]}],
                               "transitions": [{"id": f"{target}.arrive", "from": f"{target}.empty", "to": f"{target}.active", "event": "judgement.hit"}]})
 
-    def font(self, name, package, names, line_height, advance):
+    def font(self, name, package, names, line_height, advance, group="primary"):
         glyphs = []
         for character, texture in names.items():
-            resource = self.asset(package, texture)
+            resource = self.asset(package, texture, group)
             glyphs.append({"character": character, "resource": resource,
                            "advance": advance if isinstance(advance, (int, float)) else advance[character]})
         identifier = f"{self.prefix}.font.{name}"
@@ -244,6 +259,9 @@ class Builder:
         return identifier
 
     def fonts_for_numbers(self):
+        if self.sd:
+            self.sd_fonts_for_numbers()
+            return
         self.score_font = self.font("score", self.frame_package, {str(i): f"playm_sco{i:02}" for i in range(10)}, 24, 36)
         self.bpm_font = self.font("bpm", self.frame_package, {str(i): f"playm_bpm{i:02}" for i in range(10)}, 28, 36)
         self.small_bpm_font = self.font("bpm-small", "1/gameparts", {str(i): f"playm_bpm_m{i:02}" for i in range(10)}, 18, 25)
@@ -260,6 +278,44 @@ class Builder:
         self.combo_font = self.font("combo", "judge00", {str(i): f"judge_combo_{i}y" for i in range(10)}, 100, 55)
         self.perfect_combo_font = self.font("combo-blue", "judge00", {str(i): f"judge_combo_{i}b" for i in range(10)}, 100, 55)
 
+    def sd_fonts_for_numbers(self):
+        # Only the glyph sizes and HS digit steps are established by the AFP.
+        # Score/BPM multi-digit advances are explicitly labelled author candidates.
+        self.score_font = self.font("score", self.frame_package, {str(i): f"playm_sco{i:02}" for i in range(10)}, 22, 26)
+        self.bpm_font = self.font("bpm", self.frame_package, {str(i): f"playm_bpm{i:02}" for i in range(10)}, 22, 26)
+        self.small_bpm_font = self.font("bpm-small", "0/gameparts", {str(i): f"playm_bpm_m{i:02}" for i in range(10)}, 18, 25, "legacy")
+        height = 12 if self.style == 27 else 18
+        self.hs_fonts = {}
+        hs_metrics = {}
+        for layout, movie, player in [("p1", "1p_frame", "1p"), ("p2", "2p_frame", "2p"), ("dp", "dp_frame_1p", "1p")]:
+            digits = sorted((draw["bounds"]["left"] for draw in self.map["layouts"][movie]["draws"]
+                             if any(name in {f"hs_{player}_{i}" for i in range(4)} for name in draw["game_bindings"])))
+            if len(digits) != 4 or digits[1] - digits[0] != digits[3] - digits[2]:
+                raise ValueError("The source HS row requires a different digit consumer")
+            advance = digits[1] - digits[0]
+            dot_advance = digits[2] - digits[1] - advance
+            metrics = (height, advance, dot_advance)
+            if metrics not in hs_metrics:
+                hs_metrics[metrics] = self.font(f"hs-{layout}", self.frame_package,
+                    {str(i): f"playm_hs_{i:02}" for i in range(10)}, height, advance)
+                self.fonts[-1]["glyphs"].append({"character": ".", "resource": self.empty, "advance": dot_advance})
+            self.hs_fonts[layout] = hs_metrics[metrics]
+        self.gauge_font = self.font("gauge", self.frame_package, {str(i): f"playm_gg_{i:02}" for i in range(10)}, 24,
+                                    {str(i): 18 if i == 1 else 26 for i in range(10)})
+        self.fonts[-1]["glyphs"].append({"character": "%", "resource": self.empty, "advance": 1})
+        self.combo_font = self.font("combo", "judge00", {str(i): f"judge_combo_{i}y" for i in range(10)}, 100, 55)
+        self.perfect_combo_font = self.font("combo-blue", "judge00", {str(i): f"judge_combo_{i}b" for i in range(10)}, 100, 55)
+        self.calibration_receipts.append({"change": "sd-source-font-metrics", "sourceStage": self.map["stage"],
+            "projection": self.source_scale, "scoreBpmGlyph": [30, 22], "candidateScoreBpmAdvance": 26,
+            "hsGlyph": [14, 12] if self.style == 27 else [22, 18], "hsDigitAdvance": "Derived independently from each layout's four source hooks.",
+            "hsDot": "Original sprite placed independently at each layout's source transform; transparent text separator carries the measured step.",
+            "smallBpm": "Original28x18 PNG, full UV on19x16 source GEO; anisotropic scene transform retains the image bytes.",
+            "gaugeGlyph": [26, 24], "candidateGaugeAdvance": "26, except narrow1 uses18; host number logic remains unverified.",
+            "scope": "Glyph dimensions/HS hooks are source evidence. Score/BPM clone counts/advances and gauge text layout are author candidates."})
+
+    def projected(self, bounds):
+        return {key: value * self.source_scale for key, value in bounds.items()}
+
     def numeric(self, identifier, source, font, font_size, bounds, surface=(0, 0, WIDTH, HEIGHT), fmt="integer"):
         properties = {**geometry(bounds, surface), "text": "", "font-size": font_size * REFERENCE_FONT_SCALE, "bitmap-font": font,
                       "format": fmt, "alignment": "right", "colour": "#ffffffff"}
@@ -268,9 +324,10 @@ class Builder:
         return value
 
     def source_bounds(self, movies, binding_prefix, exclude=()):
-        return union(draw["bounds"] for movie in movies for draw in self.map["layouts"][movie]["draws"]
+        bounds = union(draw["bounds"] for movie in movies for draw in self.map["layouts"][movie]["draws"]
                      if draw["texture"] not in exclude and any(name.startswith(binding_prefix)
                         and (binding_prefix != "bpm_" or name.removeprefix("bpm_").isdigit()) for name in draw["game_bindings"]))
+        return self.projected(bounds) if self.sd else bounds
 
     def fullcombo_track(self, target, prop, frames, convert=lambda value: value):
         identifier = f"f.t{self.fullcombo_track_index}"
@@ -411,6 +468,8 @@ class Builder:
         return root
 
     def background(self, layout):
+        if self.sd:
+            return self.sd_background(layout)
         filename = {"p1": "1p_frame", "p2": "2p_frame", "dp": "center_frame_dp_1p"}[layout]
         source = within(self.research, f"static-frames/{filename}-static181.png")
         with self.Image.open(source) as image:
@@ -453,16 +512,56 @@ class Builder:
         background.save(self.output / f"preview-{layout}-static.png")
         return relative.removesuffix(".png")
 
+    def sd_bga_windows(self, movie):
+        windows = []
+        for viewport in self.bga_apertures["viewports"]:
+            if viewport["movie"] == movie:
+                left, top, right, bottom = viewport["fullyTransparentRectangularViewportCandidate"]["bounds"]
+                windows.append(self.projected({"left": left, "top": top, "right": right, "bottom": bottom}))
+        if not windows:
+            raise ValueError(f"No effective BGA opening for {movie}")
+        return windows
+
+    def sd_background(self, layout):
+        def original(movie):
+            with self.Image.open(within(self.research, f"static-frames/{movie}-static181.png")) as image:
+                if image.size != (1280, 720):
+                    raise ValueError("SD source static frames must retain their original1280x720 canvas")
+                return image.convert("RGBA").resize((WIDTH, HEIGHT), self.Image.Resampling.NEAREST)
+
+        movie = "center_frame_dp_1p" if layout == "dp" else "center_frame_sp"
+        centre = original(movie)
+        background = self.Image.new("RGBA", (WIDTH, HEIGHT))
+        dx = 0 if layout == "dp" else SP_CENTER_OFFSETS[layout]
+        applied = [shifted_bounds(bounds, dx) for bounds in self.sd_bga_windows(movie)]
+        for bounds in applied:
+            background.paste((0, 0, 0, 255), (math.floor(bounds["left"]), math.floor(bounds["top"]),
+                                                      math.ceil(bounds["right"]), math.ceil(bounds["bottom"])))
+        # Underlay first: even a movie whose raw bounds cross the lane cannot erase cabinet art.
+        background.alpha_composite(centre, (dx, 0))
+        background.alpha_composite(original("dp_frame_1p" if layout == "dp" else "2p_frame" if layout == "p2" else "1p_frame"))
+        relative = f"backgrounds/{layout}.png"
+        resource = self.generated(relative, background)
+        self.template(f"{layout}.background", node(f"{self.prefix}.{layout}.background", "sprite", resource=resource,
+                                                  slot="stage.background"), "stage.background", relative.removesuffix(".png"))
+        background.save(self.output / f"preview-{layout}-static.png")
+        self.calibration_receipts.append({"change": "sd-source-cabinet-and-safe-bga-aperture", "layout": layout,
+            "sourceStage": self.map["stage"], "authorReference": [WIDTH, HEIGHT], "projectionCandidate": self.source_scale,
+            "sampling": "nearest", "sourceMovie": movie, "effectiveBgaEvidence": "effective-bga-viewports.json",
+            "appliedBgaBounds": applied, "centreDx": dx, "layering": "Black safe apertures, centre cabinet, then source side/fixed-symbol layer.",
+            "scope": "Safe all-transparent frame opening; original host crop/fit and SD-to-HD presentation remain unverified."})
+        return relative.removesuffix(".png")
+
     def source_turntable_material(self, layout, group=0):
         movie = "dp_frame_1p" if layout == "dp" else "2p_frame" if layout == "p2" else "1p_frame"
         binding = "turn_2p" if layout == "p2" or group == 1 else "turn_1p"
         draw = next(draw for draw in self.map["layouts"][movie]["draws"] if binding in draw["game_bindings"])
         key_left = (399 if group == 0 else 1371) if layout == "dp" else 1755 if layout == "p2" else 15
-        surface = (key_left, 728, 150, 120)
+        surface = (key_left, self.stage_height, 150, 120)
         identifier = f"{self.prefix}.{layout}.turntable.n{group}"
         resource = self.asset(self.frame_package, draw["texture"])
         material = self.copy_marker(f"{layout}-scratch-{group}", resource)
-        properties = geometry(draw["bounds"], surface)
+        properties = geometry(self.projected(draw["bounds"]), surface)
         mirrored = draw["matrix"]["a"] < 0
         root = node(identifier, "projective-sprite" if mirrored else "sprite", properties, resource, "playfield.key")
         if mirrored:
@@ -491,7 +590,7 @@ class Builder:
                          for frame in hit["frames"]]
         hit_centre_x = (hit_stage["left"] + hit_stage["right"]) / 2
         hit_centre_y = (hit_stage["top"] + hit_stage["bottom"]) / 2
-        for colour, width in [("white", 52), ("black", 40), ("scratch", 90)]:
+        for colour, width in [("white", 51 if self.sd else 52), ("black", 39 if self.sd else 40), ("scratch", 90)]:
             note_name = {"white": "notes_white", "black": "notes_black", "scratch": "notes_turn"}[colour]
             note_resource = self.asset("notes00", note_name)
             note_material = next(r["path"] for r in self.resources if r["id"] == note_resource).removesuffix(".png")
@@ -563,7 +662,7 @@ class Builder:
             beam = self.asset("beam00", f"playm_bar_{'turn' if colour == 'scratch' else colour}")
             beam_material = self.copy_marker(f"beam-{colour}", beam)
             beam_id = f"{self.prefix}.beam.{colour}"
-            self.template(f"beam.{colour}", node(beam_id, "sprite", {"height": 723 / 728}, beam, "decoration", "additive"),
+            self.template(f"beam.{colour}", node(beam_id, "sprite", {"height": (self.stage_height - 5) / self.stage_height}, beam, "decoration", "additive"),
                           "decoration", beam_material)
             self.bind(beam_id, "visible", "input.pressed")
             values["decoration"] = beam_material
@@ -591,12 +690,14 @@ class Builder:
         background = self.background(layout)
         information_material = self.copy_marker(f"{layout}-information")
         information_children = []
-        for suffix, source, font, size, prefix, fmt in [
+        if self.sd:
+            information_children.extend(self.sd_information_numbers(layout, movies, player, centre_dx))
+        for suffix, source, font, size, prefix, fmt in ([] if self.sd else [
             ("score", "score.value", self.score_font, 24, f"score_{player}_", "integer"),
             ("hs", "scroll.speed", self.hs_font, 19, f"hs_{player}_", "fixed-2"),
             ("bpm", "timing.bpm", self.bpm_font, 28, "bpm_", "integer"),
             ("bpm-min", "timing.bpm-min", self.small_bpm_font, 18, "bpm_min_", "integer"),
-            ("bpm-max", "timing.bpm-max", self.small_bpm_font, 18, "bpm_max_", "integer")]:
+            ("bpm-max", "timing.bpm-max", self.small_bpm_font, 18, "bpm_max_", "integer")]):
             bounds = self.source_bounds(movies, prefix)
             if suffix == "score":
                 score_bindings = {name for movie in movies for draw in self.map["layouts"][movie]["draws"]
@@ -619,6 +720,9 @@ class Builder:
                     "dx": centre_dx, "appliedBounds": bounds})
             information_children.append(self.numeric(f"{self.prefix}.{layout}.{suffix}", source, font, size, bounds, fmt=fmt))
         for suffix, source, y, size in [("title", "song.title", 43, 24), ("artist", "song.artist", 72, 18)]:
+            if self.style == 27:
+                # The frame181 centre panel is SCORE/MAXCOMBO; it has no song-text hook.
+                continue
             identifier = f"{self.prefix}.{layout}.{suffix}"
             properties = {"x": (610 + centre_dx) / WIDTH, "y": y / HEIGHT, "width": 700 / WIDTH,
                 "height": 28 / HEIGHT, "font-size": size * REFERENCE_FONT_SCALE, "text": "", "alignment": "centre", "text-overflow": "ellipsis", "colour": "#ffffffff"}
@@ -626,6 +730,12 @@ class Builder:
                 movie = "center_frame_dp_1p" if dp else "center_frame_sp"
                 source_bounds = self.source_bounds([movie], suffix)
                 bounds = shifted_bounds(source_bounds, centre_dx)
+                if self.sd and dp:
+                    left_openings = [window for window in self.sd_bga_windows(movie) if window["left"] < WIDTH / 2]
+                    bounds["right"] = min(bounds["right"], min(window["right"] for window in left_openings))
+                    self.calibration_receipts.append({"change": "sd-dp-song-text-safe-area", "node": identifier,
+                        "projectedSourcePlaceholder": source_bounds, "appliedBounds": bounds,
+                        "scope": "Author candidate limits long metadata to the visible left cabinet column with ellipsis; the raw placeholder extends beneath the lane and is not native text-clipping evidence."})
                 properties.update({**geometry(bounds), "alignment": "left" if dp else "centre"})
                 self.calibration_receipts.append({"change": f"{self.style}-source-song-information-placement", "layout": layout,
                     "node": identifier, "sourceMovie": movie, "sourceBinding": suffix, "sourceBounds": source_bounds,
@@ -644,21 +754,22 @@ class Builder:
                       "decoration", information_material)
 
         # Stage HUD slots use the outer frame; the four-pixel padding applies only to lane content.
-        first_stage_left = 455 if dp else 1409 if p2 else 71
-        stage_width = 440
-        slot_surface = (first_stage_left, 728 + 120 + 0.006 * HEIGHT, stage_width, 110)
+        first_stage_left = (456 if dp else 1410 if p2 else 72) if self.sd else (455 if dp else 1409 if p2 else 71)
+        stage_width = self.stage_width
+        slot_surface = (first_stage_left, self.stage_height + 120 + 0.006 * HEIGHT, stage_width, 110)
         gauge_draw = next(d for movie in movies for d in self.map["layouts"][movie]["draws"]
                           if any(n == f"gg_bar_{player}" for n in d["game_bindings"]))
-        gauge_resource = self.asset(gauge_draw["asset"]["package"], gauge_draw["texture"])
+        gauge_resource = self.asset(gauge_draw["asset"]["package"], gauge_draw["texture"], gauge_draw["asset"].get("root", "primary"))
         if self.style != 33:
-            gauge_modes = {"hard": self.asset("1/gameparts", "playm_gauge_hard"),
-                           "ex-hard": self.asset("1/gameparts", "playm_gauge_exhard")}
+            package, group = ("0/gameparts", "legacy") if self.sd else ("1/gameparts", "primary")
+            gauge_modes = {"hard": self.asset(package, "playm_gauge_hard", group),
+                           "ex-hard": self.asset(package, "playm_gauge_exhard", group)}
         else:
             gauge_modes = {"hard": self.asset(self.frame_package, "unit_groove_gauge_exc_r"),
                            "ex-hard": self.asset(self.frame_package, "unit_groove_gauge_exc_y"),
                            "hazard": self.asset(self.frame_package, "unit_groove_gauge_exc_b")}
         gauge_material = self.copy_marker(f"{layout}-gauge", gauge_resource)
-        gauge_geometry = geometry(gauge_draw["bounds"], slot_surface)
+        gauge_geometry = geometry(self.projected(gauge_draw["bounds"]), slot_surface)
         gauge_id = f"{self.prefix}.{layout}.gauge.reveal"
         fill_id = f"{gauge_id}.fill"
         gauge_properties = {**gauge_geometry, "clip-mode": "bounds", "reveal-x": 0}
@@ -682,15 +793,15 @@ class Builder:
         self.variant(fill_id, "gauge.type", gauge_resource, gauge_modes)
         percent_bounds = self.source_bounds(movies, f"percent_{player}_", exclude=("playm_gg_hyphen",))
         children = [node(f"{self.prefix}.{layout}.gauge.dark", "sprite", {**gauge_geometry, "colour": "#404040ff"}, gauge_resource), gauge,
-                    self.numeric(f"{self.prefix}.{layout}.gauge.percent", "gauge.value", self.gauge_font, 28, percent_bounds, slot_surface, "percent")]
+                    self.numeric(f"{self.prefix}.{layout}.gauge.percent", "gauge.value", self.gauge_font, 36 if self.sd else 28, percent_bounds, slot_surface, "percent")]
         self.variant(f"{self.prefix}.{layout}.gauge.dark", "gauge.type", gauge_resource, gauge_modes)
         self.template(f"{layout}.gauge", node(f"{self.prefix}.{layout}.gauge", slot="hud.gauge", children=children), "hud.gauge", gauge_material)
 
         judgement_resource = self.asset("judge00", "judge_p_great_blue")
         judgement_material = self.copy_marker(f"{layout}-judgement", judgement_resource)
         judgement_root = f"{self.prefix}.{layout}.judgement"
-        judgement_native_centre_y = 728 * 0.81
-        judgement_slot_height = 728 * 0.12
+        judgement_native_centre_y = self.stage_height * 0.81
+        judgement_slot_height = self.stage_height * 0.12
         centre_dx = {"p1": -4, "p2": -8, "dp": 0}[layout]
         centre_dy = 0 if dp else 565 - judgement_native_centre_y
         row_properties = {"x": 0.5 + centre_dx / stage_width, "y": 0.5 + centre_dy / judgement_slot_height,
@@ -734,6 +845,58 @@ class Builder:
                 "positionEvidence": f"Retained33 measured P1/P2 anchors or native DP anchor; historical{self.style} placement still needs comparison."})
         self.write_materials(layout, background, information_material, gauge_material, judgement_material)
 
+    def sd_information_numbers(self, layout, movies, player, centre_dx):
+        children = []
+        entries = [("score", "score.value", self.score_font, 33, f"score_{player}_", "integer"),
+                   ("hs", "scroll.speed", self.hs_fonts[layout], 18 if self.style == 27 else 27, f"hs_{player}_", "fixed-2"),
+                   ("bpm", "timing.bpm", self.bpm_font, 33, "bpm_", "integer"),
+                   ("bpm-min", "timing.bpm-min", self.small_bpm_font, 24, "bpm_min_", "integer"),
+                   ("bpm-max", "timing.bpm-max", self.small_bpm_font, 24, "bpm_max_", "integer")]
+        if self.style == 27:
+            entries.append(("maxcombo", "combo.maximum", self.score_font, 33, f"maxcombo_{player}_", "integer"))
+        for suffix, source, font, size, prefix, fmt in entries:
+            bounds = self.source_bounds(movies, prefix, exclude=("playm_hs_dot",))
+            hook = dict(bounds)
+            if suffix in {"score", "maxcombo"}:
+                bounds["right"] = bounds["left"] + 108 * self.source_scale
+                if self.style == 29 and suffix == "score":
+                    movie = "center_frame_dp_1p" if layout == "dp" else "2p_frame" if layout == "p2" else "1p_frame"
+                    slot = next(item for item in self.score_slots["slots"] if item["movie"] == movie)
+                    left, top, right, bottom = slot["fullyOpaqueBlackCandidateRectangle"]["bounds"]
+                    bounds["left"] = min(max(bounds["left"], left * self.source_scale), (right - 108) * self.source_scale)
+                    bounds["right"] = bounds["left"] + 108 * self.source_scale
+                    if bounds["top"] < top * self.source_scale or bounds["bottom"] > bottom * self.source_scale:
+                        raise ValueError("The candidate score digits do not fit the measured source black slot")
+            elif suffix == "bpm":
+                bounds["right"] = bounds["left"] + 82 * self.source_scale
+            elif suffix in {"bpm-min", "bpm-max"}:
+                bounds["right"] = bounds["left"] + (19 + 2 * 25 / 28 * 19) * self.source_scale
+            if layout != "dp" and (suffix.startswith("bpm") or self.style == 27 and suffix in {"score", "maxcombo"}):
+                bounds = shifted_bounds(bounds, centre_dx)
+            identifier = f"{self.prefix}.{layout}.{suffix}"
+            if suffix in {"score", "maxcombo"}:
+                children.append(node(identifier + ".zeros", "text", {**geometry(bounds), "text": "0000",
+                    "font-size": size * REFERENCE_FONT_SCALE, "bitmap-font": font, "alignment": "right", "colour": "#404040ff"}))
+            text = self.numeric(identifier, source, font, size, bounds, fmt=fmt)
+            if suffix in {"bpm-min", "bpm-max"}:
+                # Preserve full UV while reproducing19x16 GEO from the28x18 common image.
+                sx = (19 / 28) / (16 / 18)
+                text["properties"]["width"] /= sx
+                text["properties"]["scale-x"] = sx
+            children.append(text)
+            self.calibration_receipts.append({"change": "sd-number-consumer", "layout": layout, "number": suffix,
+                "sourceProjectedHook": hook, "appliedBounds": bounds, "fontSizeReferencePixels": size,
+                "scope": "Original glyph/hook. Four score/maxcombo digits, three BPM digits and their advances are author candidates, not source host-code evidence."})
+        for movie in movies:
+            for index, draw in enumerate(self.map["layouts"][movie]["draws"]):
+                if draw["texture"] not in {"playm_hs_dot", "playm_red_line"}:
+                    continue
+                asset = draw["asset"]
+                resource = self.asset(asset["package"], draw["texture"], asset["root"])
+                children.append(node(f"{self.prefix}.{layout}.fixed.{stable(movie)}.n{index}", "sprite",
+                    geometry(self.projected(draw["bounds"])), resource))
+        return children
+
     def write_materials(self, layout, background, information, gauge, judgement):
         dp = layout == "dp"
         keymode, stage_mode = ("14k", "dual") if dp else ("7k", "single")
@@ -752,7 +915,8 @@ class Builder:
                                   f'decoration: resource Provide "{self.fullcombo_core_material}"']
             for slot, material in [("hud.gauge", gauge), ("hud.judgement", judgement)]:
                 self.material_ini.append(f'{slot}: resource Provide "{material}"' if group == 0 else f"{slot}: resource Suppress")
-            self.material_ini += ["hud.combo: resource Suppress", "hud.text: resource Suppress", f'playfield.judgement-line: resource Provide "art/primary/1/gameparts/playm_red_line"',
+            self.material_ini += ["hud.combo: resource Suppress", "hud.text: resource Suppress",
+                                  'playfield.judgement-line: resource Provide "common/empty"' if self.sd else 'playfield.judgement-line: resource Provide "art/primary/1/gameparts/playm_red_line"',
                                   'stage.foreground: resource Provide "common/empty"', 'playfield.backdrop: resource Provide "common/empty"',
                                   'playfield.baseplate: resource Provide "common/empty"']
         lane_receipts = []
@@ -787,6 +951,9 @@ class Builder:
                 "lanes": lane_receipts})
 
     def legacy_configuration(self):
+        if self.sd:
+            self.sd_configuration()
+            return
         for keymode in ["7K", "14K"]:
             dp = keymode == "14K"
             windows = "23,253,345.5859375,259.189453125;23,547,345.5859375,259.189453125;1551,253,345.5859375,259.189453125;1551,547,345.5859375,259.189453125" if dp else "610,100,700,821.25"
@@ -818,6 +985,30 @@ class Builder:
                 self.ini.append("")
         self.asset("1/gameparts", "playm_red_line")
 
+    def sd_configuration(self):
+        for keymode in ["7K", "14K"]:
+            dp = keymode == "14K"
+            values = {"PlayfieldWidth": (1008 if dp else 438) / WIDTH, "PlayfieldHeight": 726 / HEIGHT,
+                      "PlayfieldSideInset": 72 / WIDTH, "LaneSidePadding": 3 / 438,
+                      "NormalLaneWidth": 1, "BlackLaneWidth": 39 / 51, "ScratchLaneWidth": 90 / 51,
+                      "NormalLaneSpacing": 3 / 51, "ScratchLaneSpacing": 3 / 51, "LongNoteBodyWidth": 1,
+                      "KeyAreaHeight": 120 / HEIGHT, "ScratchKeyWidth": 150 / 90, "GaugeHeight": 110 / HEIGHT,
+                      "BarLineHeight": 1, "HitTargetLineHeight": 7 * REFERENCE_FONT_SCALE, "BgaInformationHeight": 0}
+            if dp:
+                values["DualStageGap"] = 132 / 1008
+            windows = self.sd_bga_windows("center_frame_dp_1p" if dp else "center_frame_sp")
+            self.ini += ["[Bms]", f"Keymode: {keymode}", *[f"{key}: {value:.12g}" for key, value in values.items()],
+                         "BgaViewports: " + "; ".join(viewport_configuration(bounds) for bounds in windows), ""]
+            if not dp:
+                for layout, field in [("p1", "BgaViewportsP1"), ("p2", "BgaViewportsP2")]:
+                    self.ini.append(field + ": " + "; ".join(viewport_configuration(shifted_bounds(bounds, SP_CENTER_OFFSETS[layout])) for bounds in windows))
+                self.ini.append("")
+        self.calibration_receipts.append({"change": "sd-native-lane-geometry", "sourceLaneSize": [292, 484],
+            "authorReferenceScale": 1.5, "stageSize": [438, 726], "laneWidths": {"white": 51, "black": 39, "scratch": 90},
+            "sidePadding": 3, "spacing": 3, "dpGap": 132,
+            "scope": "True lane GEO, not294x494 decorative lane_base. Small source affine differences, native key host and original host projection remain unverified.",
+            "commonArtScope": "Current shared HD notes/effects keep their own source-pixel metrics; they are not multiplied by the SD projection."})
+
     def finish(self):
         self.fonts_for_numbers()
         self.legacy_configuration()
@@ -841,6 +1032,8 @@ class Builder:
             raise ValueError("Generated tracks exceed the bounded C5 contract")
         if len(self.resources) > 256:
             raise ValueError("Generated scene exceeds the 256 resource contract")
+        if len(self.fonts) > 8:
+            raise ValueError("Generated manifest exceeds the eight bitmap-font contract")
         total_pixels = 0
         for resource in self.resources:
             with self.Image.open(self.output / resource["path"]) as image:
@@ -872,6 +1065,13 @@ class Builder:
             limitations.append(f"The cabinet and its fonts are actual {self.frame_package} data retained in the current HDD. "
                                "Common notes/CN/HCN, judgement, key lights, beams and fcombo00 come from that same current HDD; "
                                f"this does not prove a complete historical{self.style} default asset set. Song select and results remain OMS.")
+        if self.sd:
+            limitations[4] = "The original1280x720 SD layout uses an explicit1.5 author projection:438x726 lane stages,51/39/90 lanes,3px gaps/padding and132px DP gap. Source affine differences and the original host presentation still need comparison."
+            limitations[8] = f"The{self.style} original turn00 remains visible at its own source geometry; historical default selection, feedback and rotation remain unverified."
+            limitations.append("SD small BPM preserves the original full-UV19x16 GEO of the28x18 common PNG through an anisotropic transform. HS uses per-layout measured digit steps and an independently placed original dot. Score/maxcombo four-digit and BPM three-digit layouts are labelled author candidates because the AFP has only one placeholder; gauge numeral layout also awaits host evidence.")
+            limitations.append("SD BGA windows use safe transparent cabinet apertures, with black beneath the original frame. Original host crop/fit, multiple-window content mapping, key-light positions and historical default common-art selection remain unverified.")
+            if self.style == 27:
+                limitations.append("The27 centre score/maxcombo panel uses actual score and highest attained combo. Frame181 has no title/artist hook, so those texts are not drawn over its score panel.")
         usage = ["请使用本工作区更新后的 OMS 客户端运行此包。",
             f"7K：在 BMS 设置 → 游玩区域样式 选择 1P（居左）或 2P（居右）。默认 Center 使用 canonical，不显示此 IIDX{self.style} 布局。",
             "14K 自动使用双打布局；皮肤不会覆盖用户的布局偏好。"]
@@ -899,8 +1099,9 @@ class Builder:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--style", type=int, choices=(31, 32, 33), default=33, help="Frame style; default33 preserves the existing author package")
+    parser.add_argument("--style", type=int, choices=tuple(STYLE_NAMES), default=33, help="Frame style; default33 preserves the existing author package")
     parser.add_argument("--library", type=Path, required=True, help="Existing independent IIDX art library")
+    parser.add_argument("--legacy-library", type=Path, help="Independent 0/common and 0/gameparts library, required for27-29")
     parser.add_argument("--research", type=Path, required=True, help="AFP research output with maps and filtered static frames")
     parser.add_argument("--fullcombo-research", type=Path, required=True, help="Exact original fcombo00 author-data export")
     parser.add_argument("--output", type=Path, required=True, help="New local author directory; an adjacent OSK is also created")
@@ -909,13 +1110,16 @@ def main():
     args = parser.parse_args()
     library, research = args.library.resolve(strict=True), args.research.resolve(strict=True)
     fullcombo_research = args.fullcombo_research.resolve(strict=True)
+    legacy_library = args.legacy_library.resolve(strict=True) if args.legacy_library else None
+    if args.style < 30 and legacy_library is None:
+        parser.error("27-29 require --legacy-library with verified independent source copies.")
     output = args.output.resolve()
     archive = output.with_name(output.name + ".osk")
     if not output.parent.is_dir() or output.exists() or archive.exists():
         parser.error("Use a new output directory and OSK with an existing parent.")
     if output.drive.lower() == os.environ.get("SystemDrive", "C:").lower():
         parser.error("Generated art and packages must stay on a non-system drive.")
-    for protected in [library, research, fullcombo_research, *[p.resolve() for p in args.game_root]]:
+    for protected in [library, research, fullcombo_research, *([legacy_library] if legacy_library else []), *[p.resolve() for p in args.game_root]]:
         if output.is_relative_to(protected) or protected.is_relative_to(output):
             parser.error("Output must not overlap an art library, evidence directory, or protected game installation.")
     if args.image_tools_path:
@@ -925,9 +1129,12 @@ def main():
                 *[f"static-frames/{name}-static181.png" for name in ["1p_frame", "2p_frame", "center_frame_sp", "center_frame_dp_1p"]]]
     for relative in required:
         within(research, relative)
+    if args.style < 30:
+        for relative in ["effective-bga-viewports.json", "static-frames/dp_frame_1p-static181.png"]:
+            within(research, relative)
     output.mkdir()
     write_json(output / "generation.json", {"status": "running"})
-    builder = Builder(library, research, fullcombo_research, output, Image, args.style)
+    builder = Builder(library, research, fullcombo_research, output, Image, args.style, legacy_library)
     builder.finish()
     completed = {"status": "complete", "archive": archive.name}
     with zipfile.ZipFile(archive, "x", compression=zipfile.ZIP_DEFLATED) as zipped:

@@ -444,6 +444,7 @@ namespace osu.Game.Skinning.Gameplay
         GaugeClearThreshold = 36,
         GaugeClearState = 37,
         GameplayFullCombo = 38,
+        ComboMaximum = 39,
     }
 
     public enum GameplaySkinSceneEvent
@@ -972,6 +973,7 @@ namespace osu.Game.Skinning.Gameplay
             "score.value" => GameplaySkinSceneBindingSource.ScoreValue,
             "score.accuracy" => GameplaySkinSceneBindingSource.ScoreAccuracy,
             "combo.value" => GameplaySkinSceneBindingSource.ComboValue,
+            "combo.maximum" => GameplaySkinSceneBindingSource.ComboMaximum,
             "gauge.value" => GameplaySkinSceneBindingSource.GaugeValue,
             "gauge.type" => GameplaySkinSceneBindingSource.GaugeType,
             "gauge.maximum" => GameplaySkinSceneBindingSource.GaugeMaximum,

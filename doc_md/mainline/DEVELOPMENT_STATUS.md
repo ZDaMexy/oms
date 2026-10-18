@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-18（IIDX31/32/33 本地游玩候选；既有产品与生产证据保持原日期）
+> 最后核对：2026-10-18（IIDX27～33本地游玩候选；既有产品/生产证据保持原日期）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -9,7 +9,7 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 ## 产品与仓库基线
 
-IIDX31 EPOLIS、32 Pinky Crush、33 已有可导入并完成游玩的本地候选，原素材全连演出已在真实 Player 捕获；继续按原版校准。字形、对象状态及演出走公共作者链，31/32复用现有能力；原 HDD 只读。当前证据与剩余差异取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，历代覆盖及后续增量页面按[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)推进，原发行门保持。
+IIDX27～33已有可导入并完成游玩的本地候选；27～29按SD来源消费，27的最高连击连同公开读取能力交付。原HDD只读，26及更早游玩来源待补，用户确认先下载26再给路径。当前验证与还原缺口取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，历代及后续增量页面沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)推进，原发行门保持。
 
 玩家直接登录固定OMSIR，保存后新局上传；新闻 / 帮助 / 排行 / 玩家沿原生页面。谱面列表先选模式：BMS 仅 Ginger Rush / 616，osu!mania 仅 Sayobot，恢复上次 BMS 来源；紧凑筛选、原生卡片和各来源阅读状态保持。正常OMS窗口的lazer体验仍待签收，隔离内容宽度检查不代签；源码 / 软件及剩余门取[P3-IR状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。社交后续，旧ppy关闭；Phase1.x原门保持。
 

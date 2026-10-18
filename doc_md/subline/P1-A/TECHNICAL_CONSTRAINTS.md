@@ -103,7 +103,7 @@
 1. 所有用户原 HDD 安装根只读，不从原根启动游戏或向其写配置、日志、缓存、补丁和重打包 IFS。第三方解包器只处理经摘要核对的独立副本；输出与整个原游戏根不得重叠，不覆盖既有素材库。用户已允许通过 spice2x API 观察与操作，运行参照限完整独立可玩副本，路径、配置及输出均与原安装分离；副本不使用真实卡或账号。副本启动检查调整和实际刷新率须留证，不能代签原安装或原版时序。采集后复核原安装元数据与关键文件摘要，解包另核对源包摘要和源美术清单。
 2. 用户保有整理的历代 HDD 网盘资源。先用已提供本地来源，实际缺口按“版本 / 组件 / 已查来源 / 缺口”登记，由用户下载相应版本后告知路径。网盘储备不等于已读取或已确认的素材覆盖，不提前获取全部版本。
 3. 原版素材、源清单、摘要和生成的作者作品保留在本地忽略目录或仓库外；公共仓库只收工具、映射与文档，不把原版美术并入静线作者源、canonical、制作套件或公开发行。默认与保底继续使用静线，原用户皮肤保全。
-4. 纹理须保留原始图和 `imgrect/uvrect`，按有效区域解码，不靠缩放或重绘掩盖裁切问题；动画、几何、关联清单同源保留。文件名与素材编号只提供候选归属，解包成功和 PNG 有效不证明组件齐全、动画还原或完整可玩。
+4. 纹理须保留原始图和 `imgrect/uvrect`，按有效区域解码，不靠缩放或重绘掩盖裁切问题；动画、几何、关联清单同源保留。PNG尺寸不代替GEO网格/UV，画布投影须明示来源与比例，共用素材按自身stage处理；单个数字占位符不证明原版动态排布，视频裸矩形不代替框体遮挡后的开口。文件名与素材编号只提供候选归属，解包成功和PNG有效不证明组件齐全、动画还原或完整可玩。
 5. 允许补齐真实缺少的作者表现和页面能力；版本、资源、布局、事件与性能边界仍沿既有唯一 authority。每项新增能力同时指定第一个真实组件 / 作者包 / 页面消费者，验证原包、BMS / mania、canonical 回落和实际画面；不由皮肤改判定、计分、输入或 BGA 时钟，不引入整个 IIDX 运行时。
 6. 游玩候选按用户指定代数与已确认资源推进；可导入、真实 Player 可玩和经原版完整歌曲校准须分别记录，未完成还原不伪称完成，也不阻止用户指定下一代的资源尝试。完整选曲 / 结算界面属于后续增量页面，保留原界面可选和共用数据；当前 gameplay V1 不因本授权被描述为已经支持这些页面。静线暂停及原设备 / 发行门保持。
 
@@ -283,7 +283,7 @@ Container可静态声明 `layout: horizontal`，只排列普通Sprite与图片�
 
 对象长条模式随原生对象、compact事件和完整快照传递，epoch内不可改变；appearance只由同一模式与现有对象状态派生。血槽类型、最大值、阈值和通关状态只读实际处理器，语义变化沿既有GaugeChanged发布；无提供者明确unavailable，不按mania血量猜通关。字段闭集见[只读绑定](../../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)，不另建输入、判定、计分或时间权威。
 
-公开只读绑定`song.title/artist/difficulty/level`、`timing.bpm-min/bpm-max`、`scroll.speed`、`judgement.count.perfect/great/good/ok/meh/miss`及`combo.breaks`。静态SongInformation只随完整快照携带，聚合器重附着/epoch替换必须保留。每项元数据最多256个UTF-16单元，截断不能分裂代理对；判定计数字形预留10，其余既有动态数字预留384，总字形预算8192，纹理字节/像素及每帧创建限制不变。计数内联值类型随Score payload传递，每帧和reset屏障从真实ScoreProcessor.Statistics读取，不能以皮肤事件自行累计；BMS中Perfect/Great/Good/Meh/Miss/Ok分别是PG/GR/GD/BD/PR/空POOR，ComboBreak仅真正断连，mania保留自身档位语义。BMS MIN/MAX来自转换器音乐时间线，STOP不改变真实BPM，未使用定义和SCROLL不参与；HiSpeed来自SelectedHiSpeed，mania来自实际ScrollSpeed设置，不以滚动倍率、TimeRange或绿数冒充。
+公开只读绑定`song.title/artist/difficulty/level`、`timing.bpm-min/bpm-max`、`scroll.speed`、`judgement.count.perfect/great/good/ok/meh/miss`及`combo.breaks/maximum`。静态SongInformation只随完整快照携带，聚合器重附着/epoch替换必须保留。每项元数据最多256个UTF-16单元，截断不能分裂代理对；判定计数字形预留10，其余既有动态数字预留384，总字形预算8192，纹理字节/像素及每帧创建限制不变。计数内联值类型随Score payload传递，每帧和reset屏障从真实ScoreProcessor.Statistics读取，不能以皮肤事件自行累计；BMS中Perfect/Great/Good/Meh/Miss/Ok分别是PG/GR/GD/BD/PR/空POOR，ComboBreak仅真正断连，mania保留自身档位语义。`combo.maximum`只读同一ScoreSnapshot.MaxCombo（真实计分器HighestCombo），表示本局已达到的最高连击；断连、完整重建、晚挂载及seek/retry沿原快照语义，不读取谱面理论MaximumCombo、不由皮肤累计、不增event或SDK写侧。它是Score family整数来源，图片数字可不声明小数点。BMS MIN/MAX来自转换器音乐时间线，STOP不改变真实BPM，未使用定义和SCROLL不参与；HiSpeed来自SelectedHiSpeed，mania来自实际ScrollSpeed设置，不以滚动倍率、TimeRange或绿数冒充。
 
 静态`layout-surface`仅接受`information.song/judgements/tempo/player`，且仅限拥有hud.text的节点及其无slot子树；保留选定包exact Provide/content revision与owner校验，禁止绑定/动画/状态/脚本写入，缺失区域必须准备失败。子节点继承当前区域，显式不同区域可重新选区，普通模板仍保留原坐标规则。BMS选定包`BgaInformationHeight`默认0、合法0..0.30，正值由唯一solver在BGA上下预留信息区域并发布四个全局surface，14K须使用Global hud.text模板避免按Stage重复曲目信息；无声明不改旧布局。实现与验证边界见[演奏信息记录](../../other/SKIN_SIMPLE_INFORMATION_20260913.md)，不得据合同文字宣称验证通过。
 

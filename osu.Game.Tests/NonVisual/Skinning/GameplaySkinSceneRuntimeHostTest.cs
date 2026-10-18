@@ -34,6 +34,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
         [TestCase("judgement.count.meh", "6")]
         [TestCase("judgement.count.miss", "5")]
         [TestCase("combo.breaks", "4")]
+        [TestCase("combo.maximum", "19")]
         public void TestInformationBindingsReadCompleteSnapshotAndReattach(string binding, string expected)
         {
             using var texture = new DummyRenderer().CreateTexture(8, 8);
@@ -56,6 +57,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
 
         [TestCase("judgement.count.perfect", "20")]
         [TestCase("combo.breaks", "3")]
+        [TestCase("combo.maximum", "20")]
         [TestCase("scroll.speed", "1.25")]
         public void TestInformationBindingsRefreshAfterScoreAndTimingEdges(string binding, string expected)
         {

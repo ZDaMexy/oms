@@ -708,6 +708,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBindingSource.GameplayFullCombo => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.ScoreAccuracy => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.ComboValue => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.ComboMaximum => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.GaugeValue => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.GaugeType => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.GaugeMaximum => GameplaySkinSceneStateFamily.Score,

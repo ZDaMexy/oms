@@ -2410,6 +2410,10 @@ namespace osu.Game.Skinning.Gameplay
                     applyRuntimeNumberProperty(target, binding.Property, scoreState.Combo);
                     return;
 
+                case GameplaySkinSceneBindingSource.ComboMaximum:
+                    applyRuntimeNumberProperty(target, binding.Property, scoreState.MaxCombo);
+                    return;
+
                 case GameplaySkinSceneBindingSource.GaugeValue:
                     applyRuntimeNumberProperty(target, binding.Property, scoreState.Gauge);
                     return;

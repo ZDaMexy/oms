@@ -27,9 +27,9 @@ python -B tools/IidxSkinAssets/build_library.py --game-root 'X:\IIDX-HDD' --outp
 
 原版素材、精确源清单与生成库只留本地忽略目录或仓库外，不加入 Git、内置静线或公开发行。工具本身不启动游戏、不安装注入器、不重打包 IFS、不操作 OMS 玩家数据。
 
-## 生成本地 31 / 32 / 33 游玩作者包
+## 生成本地 27～33 游玩作者包
 
-`build_skin.py` 消费已核对的独立素材库和 AFP 研究输出，保留原图字形与帧序，生成普通公开作者包及相邻 `.osk`。`--style 31` 选择 EPOLIS，`--style 32` 选择 Pinky Crush，省略或指定 `--style 33` 保持既有 33 输出。研究输入须包含 `skin-reference-map.json`、`gameplay-assets.json`、`extra-note-library/library.json` 与过滤后的 `static-frames/`，布局包必须与 style 一致；另以 `--fullcombo-research` 指向含 `fcombo00-author-data.json` 的全连研究目录。全连使用原纹理、源帧时间与透视四边形，不烘焙整屏序列。这些来源资料和美术同样只保留本地，不由脚本从游戏安装根读取。
+`build_skin.py` 消费已核对的独立素材库和 AFP 研究输出，保留原图字形与帧序，生成普通公开作者包及相邻 `.osk`。`--style` 支持 27 HEROIC VERSE、28 BISTROVER、29 CastHour、30 RESIDENT、31 EPOLIS、32 Pinky Crush；省略或指定 33 保持既有 Sparkle Shower 输出。研究输入须包含 `skin-reference-map.json`、`gameplay-assets.json`、`extra-note-library/library.json` 与过滤后的 `static-frames/`，布局包及原画布须与 style 一致；另以 `--fullcombo-research` 指向含 `fcombo00-author-data.json` 的全连研究目录。全连使用原纹理、源帧时间与透视四边形，不烘焙整屏序列。这些来源资料和美术同样只保留本地，不由脚本从游戏安装根读取。
 
 ```powershell
 . .\UseDevelopmentStorage.ps1
@@ -39,7 +39,13 @@ dotnet run --project tools/SkinAuthoring -- check 'Y:\IIDX31-Author-Candidate'
 
 输出目录及 `.osk` 均须尚不存在，不能与输入、受保护的游戏根重叠，也不能落系统盘。资源在生成后检查 PNG、总像素和资源数；`generation.json` 只有整包写入成功后标记 complete。作者检查通过仍须正常导入 OMS 并观察真实 Player；`local-study.json` 和 `READ-ME.txt` 明确记录当前还原缺口，不能把生成成功当成完成作品。
 
-31 / 32 分别使用当前 HDD 保留的 `gmframe31` / `gmframe32` 框体、数字和逐布局转盘坐标；2P 负 X 变换保留原图镜像。普通血槽来自该框体，Hard/EX-Hard 采用当前共用包中明确命名的图，Hazard 暂沿普通血槽外观。音符、CN/HCN、判定、击打与全连同样来自当前共用包，尚无各代历史默认组合的实机证明；中心平移、轨道背景变换、判定锚点、文字字体与装饰动画也须继续校准。31 背景轨道的源矩阵底部约693px，红线和键灯仍在716/728px附近，仅据背景不修改原生演奏高度。不能将 33 的实机截图记为其它代验收。
+27～29 还需 `--legacy-library 'Y:\IIDX-Legacy-Common-Library'`，指向经过独立副本核对的 `0/common` / `0/gameparts` 库；研究输入增加 `effective-bga-viewports.json` 和真实渲染的 `dp_frame_1p-static181.png` 固定符号层，29另需 `candidate-score-slots.json`。源图保持1280×720，生成器明确采用1.5倍作者投影，轨道438×726、白/黑/皿51/39/90、间隔及边距3、双侧间距132；未将当前共用HD音符和击打几何重复放大。小BPM保留28×18原PNG，在scene中按原19×16全UV几何显示。HS按各布局源位置取步进，并独立放置原始小数点；相同度量共用字体，保持最多8套字形预算。分数/BPM的多位排布是框内候选，单个源占位符不证明原版动态数字算法。
+
+27保留原SCORE/MAXCOMBO面板，最高连击读取公开 `combo.maximum`（本局实际已达最高连击）；源181帧没有曲名/作者hook，不在分数面板上叠文字。SD视频使用实际框体透明开口内的安全矩形，将黑底置于原框体下方；窗口候选不证明原版的视频裁切、复制或适配规则，负坐标裸movie矩形不能直接盖在轨道上。1～26已找到真实版本标识，但已查来源未覆盖对应原版游玩框体、几何、动画及默认绑定；待用户提供26 HDD后继续逐代核对，不用标识图冒充整代皮肤。
+
+SD源红线按原GEO在scene显示，原生必需判定线槽用透明材质 `Provide` 避免重复；该槽不允许 `Suppress`，不能为作者包放宽合同。28/29双打曲名/作者限制在可见左列，长文本显示省略号；原文字占位图的宽度延到轨道下方，不能直接当成有效可见文字区。这些排布候选仍需当代实机对照。
+
+各代使用当前 HDD 保留的对应 `gmframe` 框体、数字和逐布局转盘坐标；只按实际世界矩阵决定2P镜像，30的转盘正X不沿用31/32负X。普通血槽来自该框体，Hard/EX-Hard采用当前共用包中明确命名的图，Hazard暂沿普通血槽外观。音符、CN/HCN、判定、击打与全连同样来自当前共用包，尚无各代历史默认组合的实机证明；中心平移、轨道背景变换、判定锚点、文字字体与装饰动画也须继续校准。31背景轨道的源矩阵底部约693px，红线和键灯仍在716/728px附近，仅据背景不修改原生演奏高度。不能将33的实机截图记为其它代验收。
 
 使用包含本次作者能力的 OMS 工作区导入 `.osk`，切到 BMS 并选择该皮肤。7K 在 BMS 设置“游玩区域样式”选择“1P（居左）”或“2P（居右）”，14K 使用双侧布局；默认居中的 7K 和其它键数保留 canonical 材料。生成器不会修改玩家的布局偏好。当前作品只覆盖游玩，选歌与结算页面仍沿原 OMS。
 
