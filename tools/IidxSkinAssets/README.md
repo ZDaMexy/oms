@@ -4,7 +4,9 @@
 
 ## 统一 Lightning 时期作品
 
-当前整合入口为 `build_omni_skin.py`，输出名称固定 **Lighting Model Skin Omni Until 33**，默认33；27～33和八支BPL进入同一Game Frame选项。旧各代candidate09保留作来源/历史，不再作为本轮多套交付。Until34不在本轮范围。
+当前整合入口为 `build_omni_skin.py`，输出名称固定 **Lighting Model Skin Omni Until 33**，默认33；27～33和八支BPL进入同一Game Frame选项。各代及BPL的candidate09目录是整合器当前读取的Frame来源，重建时须保留；它们不再作为多套成品交付，已被替代的旧包和暂存可清理。Until34不在本轮范围。
+
+Omni 是供作者使用及熟人间私下分享的独立 `.osk`，不内置到 OMS，也不随客户端公开发行或公开制作套件分发。客户端的通用皮肤能力和素材作品分开交付；默认与保底仍为静线。
 
 新增来源工具 `build_customization_catalog.py` 建完整原始UV/AFP/GEO库；`build_fullcombo_catalog.py` 与 `export_customization_animations.py` 输出中立记录数据；`customization_modules.py` 生成共用选项和贡献闭包。整合工具仅打开经过核对的独立库，不打开游戏安装。已有冻结模块可用 `--modules-directory` 重用，逐文件SHA一致后复制，避免重复提取。
 
@@ -48,7 +50,7 @@ python -B tools/IidxSkinAssets/build_library.py --game-root 'X:\IIDX-HDD' --outp
 - `library.json`：每张图的包来源、原始/UV 矩形、精灵尺寸、图片摘要；相同内容只登记，不删除或跨代替换。
 - `run.json`、`packages.json`：完成状态、工具版本与每包回执。成功前核对所有 PNG、有效尺寸、源包摘要及整个美术清单的文件名/大小/最后写入时间。
 
-原版素材、精确源清单与生成库只留本地忽略目录或仓库外，不加入 Git、内置静线或公开发行。工具本身不启动游戏、不安装注入器、不重打包 IFS、不操作 OMS 玩家数据。
+原版素材、精确源清单与生成库只留本地忽略目录或仓库外，不加入 Git、内置静线或公开发行；独立作品按上方私下分享边界交付。工具本身不启动游戏、不安装注入器、不重打包 IFS、不操作 OMS 玩家数据。
 
 ## 旧分代生成器（27～33来源保留）
 

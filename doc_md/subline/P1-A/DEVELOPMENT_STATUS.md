@@ -24,7 +24,7 @@
 | 实时演奏信息 | 实时判定与断连统计、EX SCORE/HiSpeed、MIN/当前/MAX BPM；曲名、作者标级与独立的表名/表内等级 | 读取规则真实状态；表归类不替代作者难度，皮肤不改变判定/计分、时间或难度表导入 |
 | 皮肤布局与公共能力 | 共用作者声明可给真实stage/lane指定位置、留空槽及独立键区，不创建输入。BMS保留键区、血槽、信息区与最多16个 `BgaViewports`，逐窗 fit/fill/stretch 或 none | 显式field不被旧BGA自适应挪动/压缩，放不下整组零窗并诊断；9K/PMS不应用黑白轨比。BGA内容/时钟归[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，选歌/结算面未扩展 |
 | 作者制作与可选演出 | [完整套件](../../../skin-authoring/README.md)含从零制作、按可见元素查文件/尺寸/动画、INI/scene/script字段与预算、刷新打包步骤；First Scene、Reference Study和BGA Layout明确完整包与练习片段 | 主手册与图片随套件发行，无需源码仓库；历史实机图与素材示意已区分。新增例子的工具检查/打包和真实挂载已验证，详见作者能力记录。原编辑器可编辑已有组件并保存独立副本，完整scene/script没有可视化编辑器；不据手册代签视觉或旧三包演练 |
-| IIDX 与 BPL 第三方作品 | Lighting Model Skin Omni Until 33默认33；27～33及八支BPL为15项Game Frame。全部现有CUSTOM、25FC及独立尺寸/长度已接入，目录及来源取[工具](../../../tools/IidxSkinAssets/README.md)。BMS5/7/14K、mania5/6/7/8/14/16K由作者布局支持，单侧1P/2P、双侧真实stage | 共用件取源00，原host默认绑定、动态框体与滤镜仍待校准。Graph为作者适配；辅助屏为可收起浮层，展开会遮挡主屏，不是第二显示器，LIFT跟随BMS原生几何。七队S5、SUPERNOVA S3高清；26来源待补。HDD只读，作品仅本地，不进canonical或公开套件；Until34不在范围 |
+| IIDX 与 BPL 第三方作品 | Lighting Model Skin Omni Until 33默认33；27～33及八支BPL为15项Game Frame。全部现有CUSTOM、25FC及独立尺寸/长度已接入，目录及来源取[工具](../../../tools/IidxSkinAssets/README.md)。BMS5/7/14K、mania5/6/7/8/14/16K由作者布局支持，单侧1P/2P、双侧真实stage | 共用件取源00，原host默认绑定、动态框体与滤镜仍待校准。Graph为作者适配；辅助屏为可收起浮层，展开会遮挡主屏，不是第二显示器，LIFT跟随BMS原生几何。七队S5、SUPERNOVA S3高清；26来源待补。HDD只读；作品独立私下分享，不内置OMS或进入公开发行/制作套件；Until34不在范围 |
 | 安装与发行 | 旧选择迁移证据保留；2026-10-03 候选已有便携/自定义根、恢复及同包覆盖启动证据，见 [P1-F](../P1-F/DEVELOPMENT_STATUS.md) | 生成物已按用户要求删除；实网下载、新作者独立演练、跨版本、独立账户非便携及设备/长期/公开发行门未新签收 |
 
 C2～C6共享同一 package/layout/material/scene publication、lease/detach 与脚本隔离合同；无游玩宿主的菜单也检查整包。授权撤销不扩大 reload 准入，具体合同只在[技术约束](TECHNICAL_CONSTRAINTS.md)维护。
@@ -69,4 +69,4 @@ core1044通过，mania937通过/4旧失败/2跳过；BMS2689通过/32失败/17�
 
 ## 文档治理验证
 
-2026-10-18：统一Omni实现、取景及验证说明同步，文档/差异检查见[记录](CHANGELOG.md#2026-10-18统一omni与完整custom接入)；历史网络、设备和发行证据保持原日期。
+2026-10-18：工作区清理、源码/玩家数据/重建输入保全、Omni独立私下分享边界已核对，文档及差异检查见[记录](CHANGELOG.md#2026-10-18工作区清理与omni独立分享边界)。

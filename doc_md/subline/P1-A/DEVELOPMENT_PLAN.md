@@ -18,7 +18,7 @@
 
 2026-10-18追加授权的扩展键数、皮肤配置项与BPL结果只在[STATUS](DEVELOPMENT_STATUS.md)维护。后续修改继续复验真实键数/两侧、选择保存/重置及未声明普通包；新能力须随实际作者消费者交付，不能把作品留空、素材组合或默认布局写成引擎专例。原 Skin V1、设备、完整歌曲和发行门保持，原版美术不并入 canonical 或公开发行。
 
-现有Lightning时期资源统一交付为 **Lighting Model Skin Omni Until 33**，27～33与八支BPL只作同一包的Game Frame选项。默认框体为33，其它部件使用现有默认源；Until34暂不纳入。实际已完成能力、来源和验证只取[STATUS](DEVELOPMENT_STATUS.md)，旧15候选及取景证据作为历史保留。
+现有Lightning时期资源统一交付为 **Lighting Model Skin Omni Until 33**，27～33与八支BPL只作同一包的Game Frame选项。默认框体为33，其它部件使用现有默认源；Until34暂不纳入。实际已完成能力、来源和验证只取[STATUS](DEVELOPMENT_STATUS.md)；15份candidate09目录保留为当前Frame重建输入，废弃候选包已清理，历史取景及结果收据保留。作品独立私下分享，不随OMS分发。
 
 后续原版校准须分别核27～33的默认CUSTOM组合、尺寸/长度精确档位、滤镜合成、动态框体、数字/视频开口、真实转盘角度和原曲完整播放。当前Graph只显示真实当前分数/理论满分与作者比较柱，不用虚构对手或历史曲线；Concentration四档原版亮度阈值仍需对照。资源存在、可选择、OMS实际绘制与原版逐像素一致分别登记，不能以导出或检查通过代签后两者。
 
