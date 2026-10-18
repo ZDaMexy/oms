@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-18（皮肤配置项、IIDX扩展键数与BPL候选；26来源及原人工/发行门保持）
+> 最后核对：2026-10-18（IIDX CUSTOM来源完整性只读复核；原产品验证、26来源及人工/发行门保持）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -24,7 +24,7 @@
 | 实时演奏信息 | 实时判定与断连统计、EX SCORE/HiSpeed、MIN/当前/MAX BPM；曲名、作者标级与独立的表名/表内等级 | 读取规则真实状态；表归类不替代作者难度，皮肤不改变判定/计分、时间或难度表导入 |
 | 皮肤布局与公共能力 | 共用作者声明可给真实stage/lane指定位置、留空槽及独立键区，不创建输入。BMS保留键区、血槽、信息区与最多16个 `BgaViewports`，逐窗 fit/fill/stretch 或 none | 显式field不被旧BGA自适应挪动/压缩，放不下整组零窗并诊断；9K/PMS不应用黑白轨比。BGA内容/时钟归[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，选歌/结算面未扩展 |
 | 作者制作与可选演出 | [完整套件](../../../skin-authoring/README.md)含从零制作、按可见元素查文件/尺寸/动画、INI/scene/script字段与预算、刷新打包步骤；First Scene、Reference Study和BGA Layout明确完整包与练习片段 | 主手册与图片随套件发行，无需源码仓库；历史实机图与素材示意已区分。新增例子的工具检查/打包和真实挂载已验证，详见作者能力记录。原编辑器可编辑已有组件并保存独立副本，完整scene/script没有可视化编辑器；不据手册代签视觉或旧三包演练 |
-| IIDX 与 BPL 第三方作品 | 27～33及八支BPL共15包支持BMS5/7/14K、mania5/6/7/8/14/16K；单侧可选1P/2P，双侧保持真实stage。12种音符、4种光柱、7种挡板及爆炸/判定选项有实际消费者。[工具](../../../tools/IidxSkinAssets/README.md)保留来源 | 七队S5，SUPERNOVA为S3高清；27～29按SD投影。原版动态、默认组合与逐帧对位未完成；26来源待用户提供。原HDD只读，原美术/作品只留本地；[后续计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)保持 |
+| IIDX 与 BPL 第三方作品 | 27～33及八支BPL共15包支持BMS5/7/14K、mania5/6/7/8/14/16K；单侧可选1P/2P，双侧保持真实stage。12种音符、4种光柱、7种挡板及爆炸/判定选项有实际消费者。[工具](../../../tools/IidxSkinAssets/README.md)保留来源 | CUSTOM仍是素材子集：FC、爆炸及判定字目前仅00设计，尺寸/长度等尚待补齐，见[完整性记录](CHANGELOG.md#2026-10-18iidx-custom完整性核对)。七队S5、SUPERNOVA S3高清；原版动态/默认组合待校准，26来源待提供。原HDD只读，作品只留本地；[计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)保持 |
 | 安装与发行 | 旧选择迁移证据保留；2026-10-03 候选已有便携/自定义根、恢复及同包覆盖启动证据，见 [P1-F](../P1-F/DEVELOPMENT_STATUS.md) | 生成物已按用户要求删除；实网下载、新作者独立演练、跨版本、独立账户非便携及设备/长期/公开发行门未新签收 |
 
 C2～C6共享同一 package/layout/material/scene publication、lease/detach 与脚本隔离合同；无游玩宿主的菜单也检查整包。授权撤销不扩大 reload 准入，具体合同只在[技术约束](TECHNICAL_CONSTRAINTS.md)维护。
@@ -67,4 +67,4 @@ mania 无可玩谱目录旧断言已于2026-10-10～11维护，来源及保全�
 
 ## 文档治理验证
 
-2026-10-18：配置项、作者布局与15包证据同步；文档、工作区导航及差异检查取[本轮记录](CHANGELOG.md#2026-10-18皮肤配置项与bpl作品)。历史网络、设备及发行证据保持原日期。
+2026-10-18：CUSTOM来源、现有消费及作者边界只读复核，文档/差异检查取[完整性记录](CHANGELOG.md#2026-10-18iidx-custom完整性核对)；既有15包与历史网络、设备、发行证据保持原日期。

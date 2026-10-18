@@ -9,7 +9,7 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 ## 产品与仓库基线
 
-皮肤作者可声明配置项、默认表现及真实轨道布局；玩家按作品和模式保存，无声明的包保留原几何。IIDX27～33与八支BPL共15套本地候选扩展BMS5/7/14K和mania5/6/7/8/14/16K，留空与变体均由包声明。原HDD只读，26及更早来源仍待用户提供；当前验证及还原缺口取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)推进，原发行门保持。
+皮肤作者可声明配置项、默认表现及真实轨道布局；玩家按作品和模式保存，无声明的包保留原几何。IIDX27～33与八支BPL共15套本地候选扩展BMS5/7/14K和mania5/6/7/8/14/16K，留空与变体均由包声明，CUSTOM仍是素材子集。原HDD只读，26及更早来源仍待用户提供；当前验证及还原缺口取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)推进，原发行门保持。
 
 玩家直接登录固定OMSIR，保存后新局上传；新闻 / 帮助 / 排行 / 玩家沿原生页面。谱面列表先选模式：BMS 仅 Ginger Rush / 616，osu!mania 仅 Sayobot，恢复上次 BMS 来源；紧凑筛选、原生卡片和各来源阅读状态保持。正常OMS窗口的lazer体验仍待签收，隔离内容宽度检查不代签；源码 / 软件及剩余门取[P3-IR状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。社交后续，旧ppy关闭；Phase1.x原门保持。
 
@@ -65,6 +65,6 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 ## 文档治理验证
 
-2026-10-18皮肤作者合同、专项状态与诊断同步；文档导航和差异检查见[P1-A收据](../subline/P1-A/CHANGELOG.md#2026-10-18皮肤配置项与bpl作品)。跨线事实仍走原权威链，未刷新实网、生产或人工签收。
+2026-10-18 CUSTOM来源完整性与作者边界只读复核，文档检查见[P1-A收据](../subline/P1-A/CHANGELOG.md#2026-10-18iidx-custom完整性核对)。跨线事实仍走原权威链，未刷新实网、生产或人工签收。
 
 开发存储继续遵守 [AGENTS](../../AGENTS.md#开发磁盘约束)。旧系统盘产物回收和 Codex 全局迁移未完成，不能因文档检查通过而宣称已释放或零增长；待办保留在 [PLAN](DEVELOPMENT_PLAN.md#改动验收矩阵)。
