@@ -3082,7 +3082,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
             return values[groupId];
         }
 
-        private static LayoutFixture createLayout(string rulesetId = "mania", int bgaViewportCount = 1)
+        private static LayoutFixture createLayout(string rulesetId = "mania", int bgaViewportCount = 1, GameplaySkinOptionValues? optionValues = null)
         {
             GameplaySkinLaneGroupIdentity groupIdentity = GameplaySkinLaneGroupIdentity.Create(
                 GameplaySkinLaneGroupId.Create("test.group"),
@@ -3111,20 +3111,21 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 GameplaySkinScrollDirection.Down,
                 package,
                 0,
-                1);
+                1,
+                optionValues: optionValues);
             GameplaySkinLayoutSnapshot snapshot = GameplaySkinLayoutSnapshot.Create(
                 context,
                 new[] { new GameplaySkinLayoutGroup(group, stageRect) },
                 new[] { new GameplaySkinLayoutLane(lane, laneRect) },
                 new[]
                 {
-                    new GameplaySkinLayoutSurface("mania.playfield", stageRect, 10, true, true),
-                    new GameplaySkinLayoutSurface("mania.barline", GameplaySkinLayoutRect.Create(0.2f, 0.1f, 0.6f, 0.02f), 20, true, false),
-                    new GameplaySkinLayoutSurface("mania.hit-target", GameplaySkinLayoutRect.Create(0.2f, 0.82f, 0.6f, 0.02f), 40, true, false),
-                    new GameplaySkinLayoutSurface("mania.judgement", GameplaySkinLayoutRect.Create(0.25f, 0.65f, 0.5f, 0.1f), 50, false, false),
-                    new GameplaySkinLayoutSurface("mania.hud", GameplaySkinLayoutRect.Create(0, 0, 1, 0.08f), 60, false, false),
-                    new GameplaySkinLayoutSurface("mania.gauge", GameplaySkinLayoutRect.Create(0, 0, 0.25f, 0.08f), 61, false, false),
-                    new GameplaySkinLayoutSurface("mania.combo", GameplaySkinLayoutRect.Create(0.4f, 0.2f, 0.2f, 0.1f), 62, false, false),
+                    new GameplaySkinLayoutSurface($"{rulesetId}.playfield", stageRect, 10, true, true),
+                    new GameplaySkinLayoutSurface($"{rulesetId}.barline", GameplaySkinLayoutRect.Create(0.2f, 0.1f, 0.6f, 0.02f), 20, true, false),
+                    new GameplaySkinLayoutSurface($"{rulesetId}.hit-target", GameplaySkinLayoutRect.Create(0.2f, 0.82f, 0.6f, 0.02f), 40, true, false),
+                    new GameplaySkinLayoutSurface($"{rulesetId}.judgement", GameplaySkinLayoutRect.Create(0.25f, 0.65f, 0.5f, 0.1f), 50, false, false),
+                    new GameplaySkinLayoutSurface($"{rulesetId}.hud", GameplaySkinLayoutRect.Create(0, 0, 1, 0.08f), 60, false, false),
+                    new GameplaySkinLayoutSurface($"{rulesetId}.gauge", GameplaySkinLayoutRect.Create(0, 0, 0.25f, 0.08f), 61, false, false),
+                    new GameplaySkinLayoutSurface($"{rulesetId}.combo", GameplaySkinLayoutRect.Create(0.4f, 0.2f, 0.2f, 0.1f), 62, false, false),
                 },
                 Enumerable.Range(0, bgaViewportCount)
                           .Select(index => GameplaySkinLayoutRect.Create(0.65f - index * 0.32f, 0.1f, 0.3f, 0.4f)));

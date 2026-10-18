@@ -220,6 +220,9 @@ namespace osu.Game.Skinning.Gameplay
 
         public string PresentationStyleId { get; }
 
+        /// <summary>Validated author defaults plus user overrides, frozen before solving this gameplay root.</summary>
+        public GameplaySkinOptionValues OptionValues { get; }
+
         public GameplaySkinLaneTopologySnapshot Topology { get; }
 
         public GameplaySkinLayoutRect ScreenBounds { get; }
@@ -261,7 +264,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinScrollDirection scrollDirection,
             GameplaySkinPackageRevision packageRevision,
             long topologyRevision,
-            long layoutRevision)
+            long layoutRevision,
+            GameplaySkinOptionValues optionValues)
         {
             RulesetId = rulesetId;
             NativeContextId = nativeContextId;
@@ -278,6 +282,7 @@ namespace osu.Game.Skinning.Gameplay
             PackageRevision = packageRevision;
             TopologyRevision = topologyRevision;
             LayoutRevision = layoutRevision;
+            OptionValues = optionValues;
         }
 
         public static GameplaySkinLayoutContext Create(
@@ -295,7 +300,8 @@ namespace osu.Game.Skinning.Gameplay
             long topologyRevision,
             long layoutRevision,
             int renderPixelWidth = 0,
-            int renderPixelHeight = 0)
+            int renderPixelHeight = 0,
+            GameplaySkinOptionValues? optionValues = null)
         {
             validateToken(rulesetId, nameof(rulesetId));
             validateToken(nativeContextId, nameof(nativeContextId));
@@ -348,7 +354,8 @@ namespace osu.Game.Skinning.Gameplay
                 scrollDirection,
                 packageRevision,
                 topologyRevision,
-                layoutRevision);
+                layoutRevision,
+                optionValues ?? GameplaySkinOptionValues.Empty);
         }
 
         private static void validateToken(string value, string parameterName)

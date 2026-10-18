@@ -85,6 +85,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
     /// </summary>
     public sealed class BmsGameplayLayoutConfiguration
     {
+        public GameplaySkinAuthorLayout? AuthorLayout { get; init; }
+        public GameplaySkinOptionValues? OptionValues { get; init; }
         public float? NormalLaneRelativeWidth { get; init; }
         public float? BlackLaneRelativeWidth { get; init; }
         public float? ScratchLaneRelativeWidth { get; init; }
@@ -114,13 +116,17 @@ namespace osu.Game.Rulesets.Bms.Skinning
         public float? HitTargetGlowRadius { get; init; }
         public float? BarLineHeight { get; init; }
 
-        public static BmsGameplayLayoutConfiguration FromSkin(ISkin? skin, BmsKeymode keymode, ISkin? selectedLayoutSkin)
+        public static BmsGameplayLayoutConfiguration FromSkin(
+            ISkin? skin, BmsKeymode keymode, ISkin? selectedLayoutSkin,
+            GameplaySkinAuthorLayout? authorLayout = null, GameplaySkinOptionValues? optionValues = null)
         {
             if (skin == null)
                 return new BmsGameplayLayoutConfiguration();
 
             return new BmsGameplayLayoutConfiguration
             {
+                AuthorLayout = authorLayout,
+                OptionValues = optionValues,
                 BlackLaneRelativeWidth = selectedLayoutValue(BmsSkinConfigurationLookups.BlackLaneWidth),
                 NormalLaneRelativeWidth = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.NormalLaneWidth, keymode)?.Value,
                 ScratchLaneRelativeWidth = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.ScratchLaneWidth, keymode)?.Value,
@@ -265,7 +271,37 @@ namespace osu.Game.Rulesets.Bms.Skinning
             if (fieldHeight + requiredBottomBand > safe.Height)
                 fieldHeight = safe.Height - requiredBottomBand;
 
-            var playfieldRect = GameplaySkinLayoutRect.Create(fieldX, safe.Top, fieldWidth, fieldHeight);
+            GameplaySkinAuthorLayout? authorLayout = configuration.AuthorLayout;
+            if (authorLayout != null && (!authorLayout.Matches("bms", KeymodeId(keymode), StyleId(style))
+                                         || !authorLayout.FitsTopology(topologyPublication.Publication.Topology)
+                                         || authorLayout.HitPosition != 1))
+            {
+                diagnostics.Add(new GameplaySkinLayoutDiagnostic("bms.layout.author-topology-mismatch"));
+                authorLayout = null;
+            }
+
+            if (authorLayout != null)
+            {
+                GameplaySkinLayoutRect authoredField = GameplaySkinLayoutRect.Union(authorLayout.Stages.Select(stage => project(stage.Rect, safe)));
+                float authoredKeyHeight = (float)authorLayout.KeyAreaHeight * safe.Height;
+                float authoredGaugeHeight = authorLayout.GaugeHeight > 0 ? (float)authorLayout.GaugeHeight * safe.Height : gaugeHeight;
+                if (authoredField.Bottom + authoredKeyHeight + authoredGaugeHeight + surface_gap * safe.Height > safe.Bottom + 0.000001f)
+                {
+                    diagnostics.Add(new GameplaySkinLayoutDiagnostic("bms.layout.author-band-out-of-bounds"));
+                    authorLayout = null;
+                }
+                else
+                {
+                    fieldX = authoredField.X;
+                    fieldWidth = authoredField.Width;
+                    fieldHeight = authoredField.Height;
+                    keyAreaHeight = authoredKeyHeight;
+                    gaugeHeight = authoredGaugeHeight;
+                }
+            }
+
+            var playfieldRect = GameplaySkinLayoutRect.Create(fieldX,
+                authorLayout == null ? safe.Top : safe.Top + authorLayout.Stages[0].Rect.Top * safe.Height, fieldWidth, fieldHeight);
 
             float informationHeight = field(configuration.BgaInformationHeight, 0f, 0f, 0.30f, "bga-information-height", diagnostics) * safe.Height;
             (GameplaySkinBgaLayout? sideBgaLayout, string? sideBgaDiagnostic) = style switch
@@ -282,7 +318,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
             GameplaySkinLayoutRect[] bgaRects = bgaLayout is { } authoredBga
                 ? solveAuthoredBgaViewports(authoredBga, safe, playfieldRect, gaugeHeight + keyAreaHeight, informationHeight, diagnostics)
-                : solveBgaViewports(keymode, style, safe, playfieldRect, environment.AspectRatio, gaugeHeight + keyAreaHeight, configuration, diagnostics, informationHeight, ref fieldHeight);
+                : solveBgaViewports(keymode, style, safe, playfieldRect, environment.AspectRatio, gaugeHeight + keyAreaHeight, configuration, diagnostics, informationHeight, ref fieldHeight, authorLayout == null);
             IEnumerable<GameplaySkinBgaScaleMode> bgaScaleModes = bgaRects.Length == 0
                 ? Array.Empty<GameplaySkinBgaScaleMode>()
                 : bgaLayout?.ScaleModes ?? Enumerable.Repeat(GameplaySkinBgaScaleMode.Fit, bgaRects.Length);
@@ -290,11 +326,11 @@ namespace osu.Game.Rulesets.Bms.Skinning
             // Song/statistics/player information remains usable when BGA is hidden or its authored windows cannot fit.
             // Reuse the existing safe information-band layout, without publishing these anchors as BGA viewports.
             GameplaySkinLayoutRect[] informationAnchors = bgaRects.Length == 0 && informationHeight > 0
-                ? solveBgaViewports(keymode, style, safe, playfieldRect, environment.AspectRatio, gaugeHeight + keyAreaHeight, configuration, diagnostics, informationHeight, ref fieldHeight)
+                ? solveBgaViewports(keymode, style, safe, playfieldRect, environment.AspectRatio, gaugeHeight + keyAreaHeight, configuration, diagnostics, informationHeight, ref fieldHeight, authorLayout == null)
                 : bgaRects;
 
             // A bottom BGA fallback may shorten the field. Recreate the complete snapshot geometry from that one result.
-            playfieldRect = GameplaySkinLayoutRect.Create(fieldX, safe.Top, fieldWidth, fieldHeight);
+            playfieldRect = GameplaySkinLayoutRect.Create(fieldX, playfieldRect.Top, fieldWidth, fieldHeight);
             float gaugeY = playfieldRect.Bottom + keyAreaHeight + surface_gap * safe.Height;
             var gaugeRect = GameplaySkinLayoutRect.Create(fieldX, gaugeY, fieldWidth, gaugeHeight);
 
@@ -411,11 +447,29 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 }
             }
 
+            if (authorLayout != null)
+            {
+                for (int groupIndex = 0; groupIndex < groups.Length; groupIndex++)
+                {
+                    GameplaySkinLaneTopologyGroup topologyGroup = topology.GroupsInLogicalOrder[groupIndex];
+                    GameplaySkinAuthorLayoutStage declaration = authorLayout.Stages[groupIndex];
+                    GameplaySkinLayoutRect groupRect = project(declaration.Rect, safe);
+                    groups[groupIndex] = new GameplaySkinLayoutGroup(topologyGroup, groupRect);
+                    foreach (GameplaySkinLaneTopologyEntry lane in topologyGroup.LanesInLogicalOrder)
+                    {
+                        GameplaySkinAuthorLaneSpan span = declaration.Lanes[lane.GroupLocalLogicalIndex];
+                        neutralLanes[lane.GlobalLogicalIndex] = new GameplaySkinLayoutLane(lane,
+                            GameplaySkinLayoutRect.Create(groupRect.Left + (float)span.X * groupRect.Width,
+                                groupRect.Top, (float)span.Width * groupRect.Width, groupRect.Height));
+                    }
+                }
+            }
+
             var context = GameplaySkinLayoutContext.Create(
                 "bms",
                 nativeContextId(keymode),
-                keymodeId(keymode),
-                styleId(style),
+                KeymodeId(keymode),
+                StyleId(style),
                 topology,
                 environment.ScreenBounds,
                 environment.SafeBounds,
@@ -426,7 +480,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 topologyPublication.Publication.Revision,
                 layoutRevision,
                 environment.RenderPixelWidth,
-                environment.RenderPixelHeight);
+                environment.RenderPixelHeight,
+                configuration.OptionValues);
 
             var surfaces = new List<GameplaySkinLayoutSurface>
             {
@@ -447,7 +502,15 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 GameplaySkinLayoutRect laneRect = lane.Rect;
                 float left = laneRect.Left;
                 float right = laneRect.Right;
-                if (keyAreaHeight > 0 && lane.TopologyEntry.Identity.Role == GameplaySkinLaneRole.Scratch)
+                if (authorLayout != null)
+                {
+                    GameplaySkinLaneTopologyGroup topologyGroup = topology.GroupsInLogicalOrder.Single(group => group.Identity.Id == lane.TopologyEntry.Identity.Group.Id);
+                    GameplaySkinLayoutRect groupRect = groups[topologyGroup.LogicalIndex].Rect;
+                    GameplaySkinAuthorLaneSpan span = authorLayout.Stages[topologyGroup.LogicalIndex].Keys[lane.TopologyEntry.GroupLocalLogicalIndex];
+                    left = groupRect.Left + (float)span.X * groupRect.Width;
+                    right = left + (float)span.Width * groupRect.Width;
+                }
+                else if (keyAreaHeight > 0 && lane.TopologyEntry.Identity.Role == GameplaySkinLaneRole.Scratch)
                 {
                     // Expand only away from the neighbouring keys. The note/input lane remains untouched.
                     GameplaySkinLayoutRect groupRect = groups.Single(group => group.TopologyGroup.Identity.Id.Equals(lane.TopologyEntry.Identity.Group.Id)).Rect;
@@ -559,7 +622,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
             BmsGameplayLayoutConfiguration configuration,
             ICollection<GameplaySkinLayoutDiagnostic> diagnostics,
             float informationHeight,
-            ref float fieldHeight)
+            ref float fieldHeight,
+            bool allowFieldResize)
         {
             float headerHeight = informationHeight * 0.4f;
             float footerHeight = informationHeight - headerHeight;
@@ -622,7 +686,13 @@ namespace osu.Game.Rulesets.Bms.Skinning
             if (authoredSize)
                 bottomHeight = bottomWidth * aspectRatio / (4f / 3f);
             float gaugeAndGaps = exactGaugeHeight + surface_gap * safe.Height * 2;
-            fieldHeight = Math.Min(fieldHeight, safe.Height * (1 - hud_height) - footerHeight - bottomHeight - headerHeight - gaugeAndGaps);
+            if (allowFieldResize)
+                fieldHeight = Math.Min(fieldHeight, safe.Height * (1 - hud_height) - footerHeight - bottomHeight - headerHeight - gaugeAndGaps);
+            else if (playfield.Bottom + gaugeAndGaps > availableBottom - bottomHeight)
+            {
+                diagnostics.Add(new GameplaySkinLayoutDiagnostic("bms.layout.bga-no-safe-viewport"));
+                return Array.Empty<GameplaySkinLayoutRect>();
+            }
             return new[]
             {
                 GameplaySkinLayoutRect.Create(safe.Left + (safe.Width - bottomWidth) / 2, availableBottom - bottomHeight, bottomWidth, bottomHeight),
@@ -668,7 +738,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             _ => throw new ArgumentOutOfRangeException(nameof(keymode)),
         };
 
-        private static string keymodeId(BmsKeymode keymode) => keymode switch
+        internal static string KeymodeId(BmsKeymode keymode) => keymode switch
         {
             BmsKeymode.Key5K => "5k",
             BmsKeymode.Key7K => "7k",
@@ -678,7 +748,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             _ => throw new ArgumentOutOfRangeException(nameof(keymode)),
         };
 
-        private static string styleId(BmsPlayfieldStyle style) => style switch
+        internal static string StyleId(BmsPlayfieldStyle style) => style switch
         {
             BmsPlayfieldStyle.P1 => "p1",
             BmsPlayfieldStyle.P2 => "p2",
@@ -686,5 +756,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
             BmsPlayfieldStyle.CenterRightScratch => "center-p2",
             _ => throw new ArgumentOutOfRangeException(nameof(style)),
         };
+
+        private static GameplaySkinLayoutRect project(GameplaySkinLayoutRect rect, GameplaySkinLayoutRect safe)
+            => GameplaySkinLayoutRect.Create(safe.Left + rect.X * safe.Width, safe.Top + rect.Y * safe.Height,
+                rect.Width * safe.Width, rect.Height * safe.Height);
     }
 }

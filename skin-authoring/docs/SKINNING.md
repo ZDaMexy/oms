@@ -6,6 +6,8 @@ OMS 皮肤可以改变 **BMS 与 osu!mania 的游玩画面**：音符、长条�
 
 | 从哪里开始 | 内容 |
 | --- | --- |
+| [皮肤配置项与默认表现](REFERENCE.md#皮肤配置项) | 声明下拉、开关、数值及玩法适用范围；玩家按皮肤和模式保存，下一次游玩生效 |
+| [显式舞台与留空位置](REFERENCE.md#显式舞台与留空位置) | 给真实轨道指定位置、预留空槽；未声明的皮肤仍用原有布局 |
 | [第一次制作](START_HERE.md) | 从静线复制，改名字/配色，检查、导入、刷新 |
 | [按画面元素查文件](#3-按画面元素查找文件) | 实际位置、素材、尺寸起点、动画与注意事项 |
 | [布局和玩法差异](#5-布局与-bmsmania-差异) | 轨宽、键盘、HUD、BGA、多舞台 |
@@ -265,7 +267,7 @@ scene包含固定字段 `contract/root/tracks/stateMachines/bindings/templates/i
 
 状态机事件为 `gameplay.attach/loaded/start/pause/complete/fail`、`input.key.down/up`、`object.spawn/state`、`judgement.hit`、`timing.stop`、`bga.state`。`gameplay.resume` 不是合法作者事件；恢复、跳转和重试从完整当前状态重建。`judgement.hit` 表示存在当前判定，也包括真实Miss。要累计“最近N次”，使用脚本事件而非不断读取绑定中的miss。
 
-variants接受 `object.state / object.long-note-mode / object.long-note-appearance / judgement.result / gauge.type / gauge.clear-state / bga.content-state`，必须给default与至少一条case，key只能用各来源的闭集字符串。property=resource保持sprite换图语法：default是清单资源id，case写resource；property=visible则接受container/text/sprite，default与case的value必须是JSON布尔。按等级显示不同静态字体时，可用visible分别控制两条横排，不能动态换bitmap-font。长条模式与保持状态宜合成一个appearance变体，避免两个变体争抢同一资源；空态与判定显示期限仍沿真实槽位/状态管理，不由visible变体延长。
+variants接受 `object.state / object.long-note-mode / object.long-note-appearance / judgement.result / gauge.type / gauge.clear-state / bga.content-state / layout.ruleset` 及[配置项](REFERENCE.md#皮肤配置项)的choice/toggle来源，必须给default与至少一条case，key只能用各来源的闭集字符串。property=resource保持sprite换图语法：default是清单资源id，case写resource；property=visible则接受container/text/sprite，default与case的value必须是JSON布尔。按等级显示不同静态字体时，可用visible分别控制两条横排，不能动态换bitmap-font。长条模式与保持状态宜合成一个appearance变体，避免两个变体争抢同一资源；空态与判定显示期限仍沿真实槽位/状态管理，不由visible变体延长。
 
 模板实例在`target`和`material`中二选一。素材匹配按当前选定包同一版本的公共Provide部件与精确资源基名挂载，目标可为Global、Stage、Lane：全局一次、每个实际舞台或匹配车道各一次。Lane模板沿真实车道身份取输入/对象/判定，音符和击打效果仍交给原生池化所有者；不需把每种键数/左右皿索引硬写进同一场景。模板根slot须与material.slot相同，Group不在素材匹配集合内。未匹配不生成，但模板语法/资源仍须合法；默认包、旧兼容图片字段和另一版本的素材不能借来挂载。完整例子与全部字段见[参考](REFERENCE.md#动画状态机绑定变体模板)。
 

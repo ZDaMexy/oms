@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using oms.Input;
+using osu.Framework.Allocation;
 using osu.Framework.Audio.Sample;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
@@ -297,7 +298,15 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             var ruleset = new BmsRuleset();
             var config = (BmsRulesetConfigManager)RulesetConfigs.GetConfigFor(ruleset)!;
-            config.SetValue(BmsRulesetSetting.PlayfieldStyle, style);
+            Skin selected = Dependencies.Get<SkinManager>().CurrentSkin.Value;
+            GameplaySkinOptionDefinition presentation = selected.GameplayOptions.Single(option => option.Effect == GameplaySkinOptionEffect.Presentation);
+            Dependencies.Get<SkinOptionPreferences>().SetOverride(selected.SkinInfo.ID, "bms", presentation.Id, style switch
+            {
+                BmsPlayfieldStyle.P1 => "p1",
+                BmsPlayfieldStyle.P2 => "p2",
+                BmsPlayfieldStyle.CenterRightScratch => "center-p2",
+                _ => "center-p1",
+            });
 
             Child = harness = new ProductionHarness(ruleset, beatmap, config, skin, initialGameplayTime);
         }

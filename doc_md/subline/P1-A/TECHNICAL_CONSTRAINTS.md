@@ -1,6 +1,6 @@
 # P1-A 技术约束：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-13（新增客户端品牌资源边界；下载及皮肤原验收日期保持）
+> 最后核对：2026-10-18（皮肤拥有配置项、显式舞台及IIDX作品边界；此前验收保留原日期）
 > 本文件是 P1-A 产品面及 Skin V1 的硬约束源。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，皮肤设计证据见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。若代码与本文冲突，先确认新事实并同步修正文档/代码，不能用历史 CHANGELOG 覆盖当前 authority。
 
 ## 按任务定位
@@ -16,6 +16,7 @@
 | public catalog、shared codec、legacy accepted-token | [ini兼容](#ini-兼容约束) |
 | 三态、资源所有权、Note/LN和canonical fallback | [fallback](#fallback-与最小可玩约束)、[LN状态](#既有-ln-视觉状态合同) |
 | manifest、prepared graph、动画、event、capability | [scene/event](#scene事件与脚本约束) |
+| 皮肤配置、默认值、留空与舞台声明 | [配置与显式舞台](#皮肤配置项与显式舞台) |
 | P1-K authority、geometry、BGA viewport | [playfield/BGA](#playfield-与-bga-布局约束) |
 | path/capture/factory、selection/Workspace/startup | [G1 capture](#g1路径capture与factory)、[选择与UI](#g1选择ui与startup协调) |
 | 任何consumer的prepare、commit、borrow/lease、detach/retire | [C2 publication](#c2-current-revision与publication)，3m～3m5 |
@@ -96,6 +97,15 @@
 5. 首次启动向导、settings trim 等既有产品面继续遵守 desktop-only 装配、OMS localisation 和模块缺失优雅退化约束；它们不因 Skin V1 重写。
 6. 新增shared slot/topology/config/event/capability/candidate合同必须在同一切片或紧随切片指定真实production host、renderer或authoring consumer；无consumer的DTO/fixture不得作为产品进度，也不得继续横向扩张来替代端到端能力。
 
+## 皮肤配置项与显式舞台
+
+2026-10-18用户授权以皮肤配置项替代旧全局BMS游玩区域样式。作者在同一manifest声明choice/toggle/number、默认值与玩法/键数适用范围；玩家覆盖按皮肤记录和规则集保存在用户配置，不写包或external源。旧全局PlayfieldStyle只保留历史配置键，production不再将它作为布局authority。静线与制作示例仅声明原有四种视觉布局，默认居中左皿，不改其素材或比例。
+
+1. 选项在每次root准备时验证并冻结于同一LayoutContext；偏好改变只影响下一次游玩/重新打开预览，不监听或修改活跃publication。无声明/失效覆盖使用作者默认或原有布局，不增设reload、watcher、publication authority。
+2. `option.<id>`沿现有scene binding/variant与完整资源预算消费；备用分支也完整准备和校验，选中值不授予动态文件访问权。`layout.ruleset`只读同一context。类型、适用性、默认值、预算和作者语法的唯一实现是shared codec，参考见[作者手册](../../../skin-authoring/docs/REFERENCE.md#皮肤配置项)。
+3. 可选manifest.layouts仅为原solver的显式作者输入，真实stage/逻辑lane序与immutable topology保持。矩形、空白和键图外扩不得制造输入、移动action/role、改变判定/计分/时间；同一solver输出所有native/scene消费者的几何。未匹配旧包不走新几何分支；规则集不得硬编码IIDX键数、留空、样式或贴图。
+4. IIDX包自身声明BMS5/7/14K与mania5/6/7/8/14/16K。5K忽略远皿两普通槽；mania5/7/14保留空皿，6/8/16将其作为普通可打列；mania原SpecialKey身份和实际双stage向量保持。其余皮肤的原生布局、声音、长条和fallback必须回归，不把作者作品规则推广成玩法合同。
+
 ## IIDX 素材作品约束
 
 2026-10-18 用户授权历代 IIDX 第三方皮肤作品，以及由实际资源需要驱动的 OMS 表现能力补齐。来源与交付边界如下：
@@ -113,7 +123,7 @@
 2. settings 可显示 Hi-Speed 模式、当前模式值和未启用 `Sudden / Hidden / Lift` 时的基础下落时间；不得在 settings 显示 runtime-adjusted `GreenNumber`/可见毫秒或暗示完整 BPM 补偿/FHS。
 3. `Lift` 是 geometry control，`Hidden` 是下遮挡；命名、状态、HUD 与 pre-start overlay 不得混写。
 4. Hi-Speed 范围保持 `Normal 1.0–20.0`、`Floating 0.5–10.0`、`Classic 0.5–10.0`；`GreenNumber = Round(VisibleLaneTime_ms × 0.6)`，`WhiteNumber = SuddenUnits`，`VisibleLaneUnits = 1000 - SuddenUnits - HiddenUnits`，Lift 只经几何间接影响可见时间。Classic 映射保持 `TimeRange = (100000 / 13) / HS`，`HS 10 + WN 350 => GN 300` 必须成立。
-5. ruleset runtime geometry profile 继续冻结；`Playfield Scale` 固定 `1.0` 且不可配置。除 `Sudden/Hidden/Lift` 与 5K/7K `Playfield Style` 外，旧 playfield/receptor/bar-line config 不得作为用户可见 runtime contract 影响速度/几何。Skin package geometry 是独立、受 descriptor/合法域约束的作者面，不能借此恢复旧 runtime sliders。
+5. ruleset runtime geometry profile 继续冻结；`Playfield Scale` 固定 `1.0` 且不可配置。除 `Sudden/Hidden/Lift` 外，旧 playfield/receptor/bar-line config 不得作为用户可见 runtime contract 影响速度/几何；旧全局PlayfieldStyle已按上方皮肤配置合同废弃。Skin package geometry 是受合法域约束的作者面，不能借此恢复旧 runtime sliders。
 6. `UI_PreStartHold` 继续承担“前 5 秒阻止开始 + 全程调速修饰键”；若 delay 在 hold 中耗尽，松开时必须重新调度完整 delay，不能立即开谱。`UI_LaneCoverFocus` 是 click-to-cycle 持久 target；`READY HOLD` 只用于阻止开谱窗口，`BMS speed` toast 在 hold 调速期间持续可见。
 7. BMS mod/config 记忆必须 ruleset-local；不得隐式共享到 mania/全局 `SelectedMods`。局内 `Sudden/Hidden/Lift` 调整只在 `RememberGameplayChanges=true` 时回写所选 mod 与持久快照，关闭时保持 current-play-only。
 8. 冷启动不得在 `RulesetConfigCache` ready 前调用 `GetConfigFor()` 构建 BMS mod persistence；先允许无 config 首轮 apply，再在 cache ready 后 replay 当前 ruleset restore。
@@ -513,7 +523,7 @@ BMS选定包`BlackLaneWidth`是与NormalLaneWidth同单位的0.25..4横向权重
 用户对作品整体动画、美术安排或精细度的明确否定是产品修改依据，不能降格为“尚未观察”，也不能被可导入、渲染链/自动检查通过或历史 campaign 关闭记录抵消。总体反馈不自动提供特定玩法、键数、分辨率、设备或矩阵单项结果；未证实项继续未签收，不凭它为另一款皮肤签收或推断具体实现根因。当前状态和修改时机分别由 STATUS/PLAN 维护；用户明确结束本轮时只完成获准收尾，不借未达质量目标越过停止边界继续开发。
 
 1. 验证按实际改动面分层：仅改BMS ruleset组件且未触碰shared skin、mania compatibility或fallback authority时，至少覆盖用户package、Provide/Inherit/Suppress、BMS relevant/full与Release；修改shared skin、mania compatibility、scene/event或fallback authority时，必须追加core skin focused、mania relevant/full、BMS relevant/full与Release。C4还必须覆盖shared codec/catalog/resolver、三源exact material，C5还必须覆盖scene codec/runtime、event Snapshot/Reset、全部适用slot与revision并发矩阵；C6追加真实source/CLI bytecode作者包、Settings授权/拒绝/撤销/重启、版本失效、暂停及并发授权、预算熔断、三源无host整包验证与备份数据根G1。C7的真实静线、第三方缺件、canonical完整性/工作副本恢复、旧journal和保护记录迁移、真实设置导出、portable/custom-root/覆盖更新均属于自动gate；实际结论见STATUS，原人工签收门前仍保留`OmsSkin`隔离对照。
-2. parser/type assertion 不能替代真实 `SkinManager`、选择链、folder authority、event order 和生产 host 测试。进入画面必须另有真实 `OsuGame` → `PlayerLoader` → 普通 Player/自动演示的回归：宿主不得预先缓存具体 ruleset config；layout preparer 从游戏的 `IRulesetConfigCache` 读取与实际 renderer 相同的最终配置，不能依赖后加载的 drawable 子树。以非默认样式/方向验证进入、重试、退出及 live reload 拒绝；`OsuTestScene.CreateRuleset()` 自动注入的 `DrawableRulesetDependencies` 不能充当这一入口证据。
+2. parser/type assertion 不能替代真实 `SkinManager`、选择链、folder authority、event order 和生产 host 测试。进入画面必须另有真实 `OsuGame` → `PlayerLoader` → 普通 Player/自动演示的回归：宿主不得预先缓存具体 ruleset config；需要玩法配置的 layout preparer（如 mania 方向）从游戏的 `IRulesetConfigCache` 读取与实际 renderer 相同的最终配置，不能依赖后加载的 drawable 子树；BMS 外观样式只取选定包声明与该包配置覆盖。以非默认样式/方向验证进入、重试、退出及 live reload 拒绝；`OsuTestScene.CreateRuleset()` 自动注入的 `DrawableRulesetDependencies` 不能充当这一入口证据。
 3. layout最低矩阵：P1-K decode/override→converter→manager/layout owner→真实renderer；5K/7K × P1/P2/CenterP1/CenterP2、9K BMS、9K PMS、14K及mania single/dual。每格覆盖stable identity、explicit logical/visual/global/group-local index、lane order/bounds/scratch/deck/centre gap、BGA viewport、gauge/combo/HUD safe slot、aspect/DPI/safe-area、逐字段fallback、mod后LaneId与时序不变，并证明全部production consumer持同一snapshot reference。
 4. sandbox 最低矩阵：权限拒绝、无限循环、内存/节点超限、异常熔断、replay determinism、seek/retry/pause/reload 和 profiler。
 5. V1 release 以普通 `oms-simple.osk` 覆盖 mania/BMS，并验证第三方公开作者路径；不得补出已显式 suppress 的可选件，不得使用私有作者接口。历史 complex 不再是 release gate。

@@ -12,6 +12,10 @@ metadata:
 
 ## 判断是否同一结果
 
+- 显式作者stage/lanes是同一solver的输入，不是新拓扑；按真实group-local logical顺序映射，空槽不进lane集合。BMS不得重建field时丢authorTop，旧BGA退让也不能重新移动作者field；键区/默认血槽越safe应整profile诊断回退，不留半套几何。
+- Mania键区放到field底下后，ColumnFlow仍有滚动mask。仅有显式key surface时使用现有TopLevelContainer proxy出mask；修改snapshot正确不证明真实按键图可见，需原输入和framebuffer证明。无声明路径不改。
+- 同一stage-relative判定模板可按两个真实group分别Provide，状态机/事件须按实例scope隔离。明确Suppress第二group会丢该stage独立判定，不能靠另一侧同时命中或全局combo增长证明已显示。
+
 - GameplaySkinLayoutContext 绑定 native/ruleset context、既有 topology、presentation/environment 与 exact package/revision；Snapshot 是一次 solve 的完整 immutable 结果。
 - GameplaySkinLayoutPublication 绑定 neutral snapshot、引用它的 typed adapter、resolved material 与 prepared scene。Current 是 view，不是第二交换点；event target/revision 也从同一 publication 取得。
 - 同值 snapshot 不等于同一 authority。consumer 不能从 drawable size、raw profile、默认 fixed rect、event payload 或 topology-only revision 再算一份，也不能重跑 source/material lookup。
@@ -50,9 +54,11 @@ metadata:
 
 - 作者输入的数值边界与 solver 的实际安全布局分开验证；无论缺省还是拒绝结果，都一次产出完整 snapshot，不拼部分新/旧 geometry。不要把旧标量的默认布局推广到显式 `BgaViewports`：合法排列在当前画面放不下时整组零窗并诊断，不擅自换回默认；`none` 也不是缺省。窗口与独立信息带边界见 [[reference_bms_bga_chain]]。
 - 测试复现要包括窄/宽 aspect、DPI、safe-area 与 14K 双 field/scratch/gap/BGA/HUD；普通 7K 正常不证明这些关系。
+- 显式作者矩形允许小于一像素的高度，判定线须限制到实际field高度再Clamp；Union会带来float减法误差，几何断言用合理容差。scene的RootDrawables是ownership wrapper，可见绑定写RuntimeNode.TransformDrawable；检查键灯时按源节点ID选中实际transform，验证原生松开→按下→松开，不能凭wrapper的Alpha证明输入响应。
+- 同一specialised槽名不保证不同规则集的原生owner尺寸一致。BMS爆炸填命中区，mania爆炸填ColumnHitObjectArea有效全列；移植作者模板时须按实际host核世界尺寸，不能为了某作品修改公共host。首帧可能尚未布局，取有效实绘矩形并核宽高/命中锚点；素材与runtime无诊断仍可能出现成屏拉伸。
 - 完整 host 在 child load 前通过 enclosing exact dependency scope 完成 publication。无 publication/material 不临时借 compatibility/default geometry 或 post-commit fallback。
 - prepared carrier 只属于签发 owner；另一 owner carrier、同 root 第二 provider、compatibility→exact 升级、adapter 未引用 exact neutral snapshot 都属于 authority 违约。
 - isolated compatibility 是显式 detached test seam，也应一次构造完整 graph；不能先让真实 provider 可见，再升级。
-- Player 先加载皮肤布局根，之后才装入 DrawableRuleset；具体 ruleset config 缓存在 drawable 子树，不能从父布局根直接 Get。布局准备通过游戏 IRulesetConfigCache.GetConfigFor(ruleset) 取得同一最终配置，不合成默认值或另建缓存。真实入口回归须用不 override CreateRuleset 的 OsuGameTestScene：OsuTestScene 的 CreateRuleset 非空时会预注入 DrawableRulesetDependencies，连 PlayerTestScene 也会因此掩盖缺失依赖。用非默认样式/方向核实际 PlayerLoader、自动演示及重试。
+- Player 先加载皮肤布局根，之后才装入 DrawableRuleset；具体 ruleset config 缓存在 drawable 子树，不能从父布局根直接 Get。需要玩法配置时（如 mania 方向），布局准备通过游戏 IRulesetConfigCache.GetConfigFor(ruleset) 取得同一最终配置，不合成默认值或另建缓存；BMS 外观样式只取选定包声明及其配置覆盖，不重新读取旧全局样式。真实入口回归须用不 override CreateRuleset 的 OsuGameTestScene：OsuTestScene 的 CreateRuleset 非空时会预注入 DrawableRulesetDependencies，连 PlayerTestScene 也会因此掩盖缺失依赖。用非默认样式/方向核实际 PlayerLoader、自动演示及重试。
 
 Prepare/commit、取消窄窗、late attach、lease/detach/retire 统一去 [[reference_skin_atomic_reload_detach]]；不要在 layout consumer 再做一套可交换状态。素材解析见 [[reference_gameplay_skin_codec_material]]，stable identity 见 [[reference_gameplay_skin_lane_identity]]。

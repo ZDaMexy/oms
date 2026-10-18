@@ -89,7 +89,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             AddStep("select exact authored placement package", () =>
             {
-                (_, candidate) = createCandidate(root => File.WriteAllText(Path.Combine(root, "skin.ini"), """
+                (_, candidate) = createCandidate(root =>
+                {
+                    File.WriteAllText(Path.Combine(root, "skin.ini"), """
                     [General]
                     Name: authored side placement
                     Author: OMS tests
@@ -99,7 +101,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     PlayfieldWidth: 0.229166667
                     PlayfieldHeight: 0.674074074
                     PlayfieldSideInset: 0.036979167
-                    """ + (padded ? "\nLaneSidePadding: 0.009090909\nNormalLaneWidth: 1\nBlackLaneWidth: 0.769230769\nScratchLaneWidth: 1.730769231\nNormalLaneSpacing: 0.038461538\nScratchLaneSpacing: 0.038461538\n" : "")), typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
+                    """ + (padded ? "\nLaneSidePadding: 0.009090909\nNormalLaneWidth: 1\nBlackLaneWidth: 0.769230769\nScratchLaneWidth: 1.730769231\nNormalLaneSpacing: 0.038461538\nScratchLaneSpacing: 0.038461538\n" : ""));
+                    writePresentationOnlyTestPackage(root);
+                }, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
                 manager.CurrentSkinInfo.Value = candidate;
             });
             AddUntilStep("exact placement package committed", () => manager.CurrentSkinInfo.Value.ID == candidate.ID

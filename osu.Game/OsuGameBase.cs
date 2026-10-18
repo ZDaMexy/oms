@@ -65,6 +65,7 @@ using osu.Game.Rulesets.Configuration;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Scoring;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osu.Game.Utils;
 using RuntimeInfo = osu.Framework.RuntimeInfo;
 
@@ -354,6 +355,7 @@ namespace osu.Game
 
             dependencies.Cache(SkinManager = new SkinManager(Storage, ClientRealm, Host, Resources, Audio, Scheduler));
             dependencies.CacheAs<ISkinSource>(SkinManager);
+            dependencies.Cache(new SkinOptionPreferences(LocalConfig));
 
             EndpointConfiguration endpoints = CreateEndpoints();
 

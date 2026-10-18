@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using oms.Input;
 using osu.Framework.Allocation;
@@ -1893,7 +1894,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         {
             File.WriteAllText(
                 Path.Combine(root, GameplaySkinSceneContracts.MANIFEST_FILE_NAME),
-                """
+                $$"""
                 {
                   "contract": "oms-gameplay-skin-manifest.v1",
                   "scene": "gameplay-skin.scene.json",
@@ -1901,7 +1902,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                   "eventContract": "oms-gameplay-skin-event.v1",
                   "resources": [
                     { "id": "texture.public-note", "type": "texture", "path": "notes/public-note.png" }
-                  ]
+                  ],
+                  "options": {{testPresentationOptions()}}
                 }
                 """);
             File.WriteAllText(
@@ -2029,13 +2031,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         {
             File.WriteAllText(
                 Path.Combine(root, GameplaySkinSceneContracts.MANIFEST_FILE_NAME),
-                """
+                $$"""
                 {
                   "contract": "oms-gameplay-skin-manifest.v1",
                   "scene": "gameplay-skin.scene.json",
                   "sceneContract": "oms-gameplay-skin-scene.v1",
                   "eventContract": "oms-gameplay-skin-event.v1",
-                  "resources": []
+                  "resources": [],
+                  "options": {{testPresentationOptions()}}
                 }
                 """);
             File.WriteAllText(
@@ -2061,6 +2064,13 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 }
                 """);
         }
+
+        private static JArray testPresentationOptions() => JArray.Parse("""
+            [{"id":"layout","type":"choice","label":"Layout","default":"center-p1",
+              "choices":[{"value":"p1","label":"1P"},{"value":"p2","label":"2P"},
+                         {"value":"center-p1","label":"Centre 1P"},{"value":"center-p2","label":"Centre 2P"}],
+              "rulesets":["bms"],"keymodes":["5k","7k"],"effect":"presentation"}]
+            """);
 
         private static void writeInvalidAuthorSceneManifest(string root)
         {
@@ -2684,10 +2694,21 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
             {
-                // Configure the same instance that the production preparer and drawable ruleset resolve.
-                // Do this before loading either provider, including hosts loaded asynchronously for cancellation tests.
-                var config = (BmsRulesetConfigManager)parent.Get<IRulesetConfigCache>().GetConfigFor(bmsRuleset)!;
-                config.SetValue(BmsRulesetSetting.PlayfieldStyle, requestedBmsStyle);
+                // Freeze the same declared player choice that the production preparer resolves, before either
+                // provider loads (including asynchronously loaded cancellation fixtures).
+                Skin selected = skinManager.CurrentSkin.Value;
+                GameplaySkinOptionDefinition? option = selected.GameplayOptions.SingleOrDefault(definition =>
+                    definition.Effect == GameplaySkinOptionEffect.Presentation);
+                if (option != null)
+                    parent.Get<SkinOptionPreferences>().SetOverride(selected.SkinInfo.ID, "bms", option.Id, requestedBmsStyle switch
+                    {
+                        BmsPlayfieldStyle.P1 => "p1",
+                        BmsPlayfieldStyle.P2 => "p2",
+                        BmsPlayfieldStyle.CenterRightScratch => "center-p2",
+                        _ => "center-p1",
+                    });
+                else
+                    Assert.That(requestedBmsStyle, Is.EqualTo(BmsPlayfieldStyle.Center), "A production style fixture must declare its skin presentation option.");
                 return base.CreateChildDependencies(parent);
             }
 

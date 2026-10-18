@@ -45,6 +45,7 @@ namespace osu.Game.Configuration
             // the default config lets existing installations migrate without changing the meaning of Skin.
             SetDefault(OsuSetting.SkinBms, string.Empty);
             SetDefault(OsuSetting.SkinMania, string.Empty);
+            SetDefault(OsuSetting.SkinOptions, "{}");
 
             SetDefault(OsuSetting.BeatmapDetailTab, BeatmapDetailTab.Local);
             SetDefault(OsuSetting.BeatmapLeaderboardSortMode, LeaderboardSortMode.Score);
@@ -546,5 +547,8 @@ namespace osu.Game.Configuration
         /// Optional skin override for the osu!mania ruleset. An empty value follows the legacy global skin during startup.
         /// </summary>
         SkinMania,
+
+        /// <summary>Player overrides for author-declared options, isolated by skin record and ruleset.</summary>
+        SkinOptions,
     }
 }

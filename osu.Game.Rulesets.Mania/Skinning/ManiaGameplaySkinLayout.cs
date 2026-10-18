@@ -31,6 +31,7 @@ namespace osu.Game.Rulesets.Mania.Skinning
         public const string HUD_SURFACE = "mania.hud";
         public const string GAUGE_SURFACE = "mania.gauge";
         public const string COMBO_SURFACE = "mania.combo";
+        public const string KEY_VISUAL_SURFACE_PREFIX = "mania.key-visual.";
 
         public GameplaySkinLayoutSnapshot Snapshot { get; }
 
@@ -65,7 +66,8 @@ namespace osu.Game.Rulesets.Mania.Skinning
             GameHost host,
             GameplaySkinScrollDirection direction,
             CancellationToken cancellationToken,
-            [NotNullWhen(true)] out GameplaySkinLayoutPublication? publication)
+            [NotNullWhen(true)] out GameplaySkinLayoutPublication? publication,
+            SkinOptionPreferences? optionPreferences = null)
         {
             ArgumentNullException.ThrowIfNull(beatmap);
             ArgumentNullException.ThrowIfNull(skin);
@@ -93,13 +95,23 @@ namespace osu.Game.Rulesets.Mania.Skinning
                         var topologyOwner = new ManiaGameplaySkinLaneTopologyRevisionOwner();
                         ManiaGameplaySkinLaneTopologyPublication topologyPublication = topologyOwner.Publish(beatmap);
                         ManiaGameplaySkinLayoutEnvironment environment = ManiaGameplaySkinLayoutEnvironment.FromHost(host);
+                        Skin? selected = findSelectedSkin(skin, owner.PackageRevision);
+                        string keymode = string.Join("-", topologyPublication.StageColumnCounts.Select(count => $"{count}k"));
+                        GameplaySkinOptionValues options = GameplaySkinOptionValues.Resolve(
+                            selected?.GameplayOptions ?? Array.Empty<GameplaySkinOptionDefinition>(),
+                            optionPreferences?.GetOverrides(owner.PackageRevision.RecordId, "mania"), "mania", keymode);
+                        string presentation = options.Presentation ?? (topologyPublication.StageColumnCounts.Count == 1 ? "mania-single" : "mania-dual");
+                        GameplaySkinAuthorLayout? authorLayout = GameplaySkinAuthorLayout.Select(
+                            selected?.GameplayLayouts ?? Array.Empty<GameplaySkinAuthorLayout>(), "mania", keymode, presentation);
                         GameplaySkinLayoutSnapshot snapshot = ManiaGameplaySkinLayoutSolver.Solve(
                             topologyPublication,
                             skin,
                             owner.PackageRevision,
                             layoutRevision,
                             environment,
-                            direction);
+                            direction,
+                            authorLayout,
+                            options);
                         cancellationToken.ThrowIfCancellationRequested();
                         var adapter = new ManiaGameplaySkinLayout(snapshot);
                         GameplaySkinResolvedMaterialSet materials = ManiaGameplaySkinMaterialResolver.Resolve(snapshot, skin, cancellationToken);
@@ -133,6 +145,20 @@ namespace osu.Game.Rulesets.Mania.Skinning
 
             publication = owner.CurrentPublication;
             return true;
+        }
+
+        private static Skin? findSelectedSkin(ISkin skin, GameplaySkinPackageRevision package)
+        {
+            IEnumerable<ISkin> sources = skin is ISkinSource aggregate ? aggregate.AllSources : new[] { skin };
+            foreach (ISkin source in sources)
+            {
+                ISkin raw = source;
+                while (raw is ISkinTransformer transformer)
+                    raw = transformer.Skin;
+                if (raw is Skin selected && package.RetainsExactSource(selected))
+                    return selected;
+            }
+            return null;
         }
 
         public static ManiaGameplaySkinLayout CreateCompatibility(
@@ -359,7 +385,9 @@ namespace osu.Game.Rulesets.Mania.Skinning
             GameplaySkinPackageRevision packageRevision,
             long layoutRevision,
             ManiaGameplaySkinLayoutEnvironment environment,
-            GameplaySkinScrollDirection direction)
+            GameplaySkinScrollDirection direction,
+            GameplaySkinAuthorLayout? authorLayout = null,
+            GameplaySkinOptionValues? optionValues = null)
         {
             ArgumentNullException.ThrowIfNull(topologyPublication);
             ArgumentNullException.ThrowIfNull(skin);
@@ -370,6 +398,15 @@ namespace osu.Game.Rulesets.Mania.Skinning
 
             if (environment.UsedFallback)
                 diagnostics.Add(new GameplaySkinLayoutDiagnostic("mania.layout.environment-fallback"));
+
+            string keymode = string.Join("-", topologyPublication.StageColumnCounts.Select(count => $"{count}k"));
+            string presentation = optionValues?.Presentation ?? (topologyPublication.StageColumnCounts.Count == 1 ? "mania-single" : "mania-dual");
+            if (authorLayout != null)
+            {
+                if (authorLayout.Matches("mania", keymode, presentation) && authorLayout.FitsTopology(topology))
+                    return solveAuthored(topologyPublication, packageRevision, layoutRevision, environment, direction, authorLayout, optionValues, diagnostics);
+                diagnostics.Add(new GameplaySkinLayoutDiagnostic("mania.layout.author-topology-mismatch"));
+            }
 
             float hitPosition = readField(
                 skin,
@@ -557,7 +594,7 @@ namespace osu.Game.Rulesets.Mania.Skinning
                 "mania",
                 $"stages-{string.Join("-", topologyPublication.StageColumnCounts)}",
                 string.Join("-", topologyPublication.StageColumnCounts.Select(count => $"{count}k")),
-                topologyPublication.StageColumnCounts.Count == 1 ? "mania-single" : "mania-dual",
+                presentation,
                 topology,
                 environment.ScreenBounds,
                 environment.SafeBounds,
@@ -568,7 +605,8 @@ namespace osu.Game.Rulesets.Mania.Skinning
                 topologyRevision: topologyPublication.Publication.Revision,
                 layoutRevision,
                 environment.RenderPixelWidth,
-                environment.RenderPixelHeight);
+                environment.RenderPixelHeight,
+                optionValues);
 
             return GameplaySkinLayoutSnapshot.Create(
                 context,
@@ -591,6 +629,81 @@ namespace osu.Game.Rulesets.Mania.Skinning
                             comboTop, environment.SafeBounds.Width * 0.25f, comboHeight), 62, false, false),
                 },
                 diagnostics: diagnostics);
+        }
+
+        private static GameplaySkinLayoutSnapshot solveAuthored(
+            ManiaGameplaySkinLaneTopologyPublication publication,
+            GameplaySkinPackageRevision packageRevision,
+            long layoutRevision,
+            ManiaGameplaySkinLayoutEnvironment environment,
+            GameplaySkinScrollDirection direction,
+            GameplaySkinAuthorLayout author,
+            GameplaySkinOptionValues? options,
+            List<GameplaySkinLayoutDiagnostic> diagnostics)
+        {
+            GameplaySkinLaneTopologySnapshot topology = publication.Publication.Topology;
+            GameplaySkinLayoutRect safe = environment.SafeBounds;
+            var groups = new List<GameplaySkinLayoutGroup>(author.Stages.Count);
+            var lanes = new GameplaySkinLayoutLane[topology.LanesInLogicalOrder.Count];
+            var keys = new List<GameplaySkinLayoutSurface>();
+            float keyHeight = (float)author.KeyAreaHeight * safe.Height;
+            float gaugeHeight = (float)author.GaugeHeight * safe.Height;
+            for (int stageIndex = 0; stageIndex < author.Stages.Count; stageIndex++)
+            {
+                GameplaySkinAuthorLayoutStage stage = author.Stages[stageIndex];
+                GameplaySkinLaneTopologyGroup topologyGroup = topology.GroupsInLogicalOrder[stageIndex];
+                GameplaySkinLayoutRect declared = stage.Rect;
+                var rect = GameplaySkinLayoutRect.Create(safe.Left + declared.Left * safe.Width, safe.Top + declared.Top * safe.Height,
+                    declared.Width * safe.Width, declared.Height * safe.Height);
+                groups.Add(new GameplaySkinLayoutGroup(topologyGroup, rect));
+                foreach (GameplaySkinLaneTopologyEntry lane in topologyGroup.LanesInLogicalOrder)
+                {
+                    GameplaySkinAuthorLaneSpan span = stage.Lanes[lane.GroupLocalLogicalIndex];
+                    lanes[lane.GlobalLogicalIndex] = new GameplaySkinLayoutLane(lane,
+                        GameplaySkinLayoutRect.Create(rect.Left + (float)span.X * rect.Width, rect.Top, (float)span.Width * rect.Width, rect.Height));
+                    if (keyHeight > 0)
+                    {
+                        GameplaySkinAuthorLaneSpan key = stage.Keys[lane.GroupLocalLogicalIndex];
+                        keys.Add(new GameplaySkinLayoutSurface(ManiaGameplaySkinLayout.KEY_VISUAL_SURFACE_PREFIX + lane.Identity.Id.Value,
+                            GameplaySkinLayoutRect.Create(rect.Left + (float)key.X * rect.Width, rect.Bottom, (float)key.Width * rect.Width, keyHeight), 39, false, false));
+                    }
+                }
+            }
+
+            GameplaySkinLayoutRect field = GameplaySkinLayoutRect.Union(groups.Select(group => group.Rect));
+            float lineHeight = Math.Min(field.Height, Math.Max(safe.Height / environment.RenderPixelHeight, 0.000001f));
+            float hitY = direction == GameplaySkinScrollDirection.Down
+                ? field.Top + field.Height * (float)author.HitPosition - lineHeight
+                : field.Bottom - field.Height * (float)author.HitPosition;
+            hitY = Math.Clamp(hitY, field.Top, field.Bottom - lineHeight);
+            var hitTarget = GameplaySkinLayoutRect.Create(field.Left, hitY, field.Width, lineHeight);
+            float judgementHeight = field.Height * 0.12f;
+            float judgementCentre = direction == GameplaySkinScrollDirection.Down ? field.Top + field.Height * 0.81f : field.Top + field.Height * 0.19f;
+            var judgement = GameplaySkinLayoutRect.Create(field.Left + field.Width * 0.15f, judgementCentre - judgementHeight / 2, field.Width * 0.7f, judgementHeight);
+            float hudHeight = safe.Height * 0.08f;
+            GameplaySkinLayoutRect gauge = gaugeHeight > 0
+                ? GameplaySkinLayoutRect.Create(field.Left, field.Bottom + keyHeight + safe.Height * 0.006f, field.Width, gaugeHeight)
+                : GameplaySkinLayoutRect.Create(safe.Left, safe.Top, safe.Width * 0.25f, hudHeight);
+            string keymode = string.Join("-", publication.StageColumnCounts.Select(count => $"{count}k"));
+            string presentation = options?.Presentation ?? (publication.StageColumnCounts.Count == 1 ? "mania-single" : "mania-dual");
+            GameplaySkinLayoutContext context = GameplaySkinLayoutContext.Create("mania", $"stages-{string.Join("-", publication.StageColumnCounts)}",
+                keymode, presentation, topology, environment.ScreenBounds, safe, environment.AspectRatio, environment.DpiScale, direction,
+                packageRevision, publication.Publication.Revision, layoutRevision, environment.RenderPixelWidth, environment.RenderPixelHeight, options);
+            var surfaces = new List<GameplaySkinLayoutSurface>
+            {
+                new GameplaySkinLayoutSurface(ManiaGameplaySkinLayout.PLAYFIELD_SURFACE, field, 10, true, true),
+                new GameplaySkinLayoutSurface(ManiaGameplaySkinLayout.BARLINE_SURFACE,
+                    GameplaySkinLayoutRect.Create(field.Left, field.Top, field.Width, lineHeight), 20, true, false),
+                new GameplaySkinLayoutSurface(ManiaGameplaySkinLayout.HIT_TARGET_SURFACE, hitTarget, 40, true, false),
+                new GameplaySkinLayoutSurface(ManiaGameplaySkinLayout.JUDGEMENT_SURFACE, judgement, 50, false, false),
+                new GameplaySkinLayoutSurface(ManiaGameplaySkinLayout.HUD_SURFACE,
+                    GameplaySkinLayoutRect.Create(safe.Left, safe.Top, safe.Width, hudHeight), 60, false, false),
+                new GameplaySkinLayoutSurface(ManiaGameplaySkinLayout.GAUGE_SURFACE, gauge, 61, false, false),
+                new GameplaySkinLayoutSurface(ManiaGameplaySkinLayout.COMBO_SURFACE,
+                    GameplaySkinLayoutRect.Create(field.Left + field.Width * 0.19f, judgement.Bottom, field.Width * 0.62f, field.Height * 0.065f), 62, false, false),
+            };
+            surfaces.AddRange(keys);
+            return GameplaySkinLayoutSnapshot.Create(context, groups, lanes, surfaces, diagnostics: diagnostics);
         }
 
         private static float readField(

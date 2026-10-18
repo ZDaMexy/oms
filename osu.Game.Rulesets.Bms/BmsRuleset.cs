@@ -84,24 +84,22 @@ namespace osu.Game.Rulesets.Bms
             if (owner.PackageRevision.SourceKind == GameplaySkinPackageSourceKind.Compatibility)
                 throw new InvalidOperationException("A managed BMS gameplay root requires an exact package revision.");
 
-            BmsRulesetConfigManager config = dependencies.Get<IRulesetConfigCache>().GetConfigFor(this) as BmsRulesetConfigManager
-                                            ?? throw new InvalidOperationException("BMS gameplay layout preparation requires the final ruleset configuration.");
             ISkinSource skinSource = dependencies.Get<ISkinSource>()
                                          ?? throw new InvalidOperationException("BMS gameplay layout preparation requires the exact package skin source.");
 
             if (owner.CurrentPublication != null)
                 throw new InvalidOperationException("A BMS gameplay root may publish exactly one immutable layout.");
 
-            BmsPlayfieldStyle style = config.GetBindable<BmsPlayfieldStyle>(BmsRulesetSetting.PlayfieldStyle).Value;
             if (!BmsGameplayLayoutProvider.TryPrepareExact(
                     owner,
                     bmsBeatmap,
-                    style,
+                    BmsPlayfieldStyle.Center,
                     skinSource,
                     dependencies.Get<GameHost>(),
                     dependencies.Get<ISafeArea>(),
                     cancellationToken,
-                    out _))
+                    out _,
+                    dependencies.Get<SkinOptionPreferences>()))
             {
                 return GameplaySkinLayoutPreparationResult.Retry;
             }

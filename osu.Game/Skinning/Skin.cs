@@ -106,6 +106,12 @@ namespace osu.Game.Skinning
 
         internal GameplaySkinPreparedPackage? PreparedGameplaySkinPackage { get; private set; }
 
+        public GameplaySkinSceneManifest? PreparedGameplaySkinManifest => PreparedGameplaySkinPackage?.Manifest;
+
+        public IReadOnlyList<GameplaySkinOptionDefinition> GameplayOptions => PreparedGameplaySkinManifest?.Options ?? Array.Empty<GameplaySkinOptionDefinition>();
+
+        public IReadOnlyList<GameplaySkinAuthorLayout> GameplayLayouts => PreparedGameplaySkinManifest?.AuthorLayouts ?? Array.Empty<GameplaySkinAuthorLayout>();
+
         internal GameplaySkinPreparedPackage PrepareGameplaySkinPackage(CancellationToken cancellationToken)
         {
             lock (gameplayPackagePrepareGate)

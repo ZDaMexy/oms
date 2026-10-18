@@ -11,7 +11,6 @@ using osu.Framework.Platform;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Beatmaps;
-using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Mods;
@@ -61,8 +60,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 var skins = Game.Dependencies.Get<SkinManager>();
                 Assert.That(CanonicalSkinPackage.IsCanonicalSkin(skins.DefaultOmsSkin), Is.True);
                 skins.CurrentSkinInfo.Value = skins.DefaultOmsSkin.SkinInfo;
-                var configs = Game.Dependencies.Get<IRulesetConfigCache>();
-                ((BmsRulesetConfigManager)configs.GetConfigFor(ruleset)!).SetValue(BmsRulesetSetting.PlayfieldStyle, BmsPlayfieldStyle.P1);
+                GameplaySkinOptionDefinition layout = skins.DefaultOmsSkin.GameplayOptions.Single(option => option.Effect == GameplaySkinOptionEffect.Presentation);
+                Game.Dependencies.Get<SkinOptionPreferences>().SetOverride(skins.DefaultOmsSkin.SkinInfo.ID, "bms", layout.Id, "p1");
                 Game.Ruleset.Value = ruleset.RulesetInfo;
                 Game.Beatmap.Value = CreateWorkingBeatmap(createChart(ruleset));
                 Game.SelectedMods.Value = new[] { ruleset.GetAutoplayMod()! };

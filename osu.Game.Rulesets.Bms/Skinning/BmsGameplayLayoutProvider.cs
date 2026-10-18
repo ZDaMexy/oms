@@ -148,20 +148,41 @@ namespace osu.Game.Rulesets.Bms.Skinning
             GameHost? host,
             ISafeArea? safeArea,
             CancellationToken cancellationToken,
-            [NotNullWhen(true)] out BmsGameplayLayoutSnapshot? snapshot)
+            [NotNullWhen(true)] out BmsGameplayLayoutSnapshot? snapshot,
+            SkinOptionPreferences? optionPreferences = null)
         {
             cancellationToken.ThrowIfCancellationRequested();
             snapshot = tryPrepareAndCommit(
                 owner,
                 beatmap,
                 style,
-                keymode => BmsGameplayLayoutConfiguration.FromSkin(skin, keymode,
-                    BmsGameplayResolvedNoteMaterialPreparer.FindExactSelectedSource(skin, owner.PackageRevision)),
+                keymode =>
+                {
+                    BmsLegacySkin? selected = BmsGameplayResolvedNoteMaterialPreparer.FindExactSelectedSource(skin, owner.PackageRevision);
+                    string keymodeId = BmsGameplayLayoutSolver.KeymodeId(keymode);
+                    GameplaySkinOptionValues options = GameplaySkinOptionValues.Resolve(
+                        selected?.GameplayOptions ?? Array.Empty<GameplaySkinOptionDefinition>(),
+                        optionPreferences?.GetOverrides(owner.PackageRevision.RecordId, "bms"), "bms", keymodeId);
+                    BmsPlayfieldStyle selectedStyle = ResolvePresentation(options);
+                    GameplaySkinAuthorLayout? authorLayout = GameplaySkinAuthorLayout.Select(
+                        selected?.GameplayLayouts ?? Array.Empty<GameplaySkinAuthorLayout>(), "bms", keymodeId,
+                        BmsGameplayLayoutSolver.StyleId(selectedStyle.GetAppliedStyle(keymode)));
+                    return BmsGameplayLayoutConfiguration.FromSkin(skin, keymode, selected, authorLayout, options);
+                },
                 () => CreateProductionEnvironment(host, safeArea),
                 cancellationToken,
                 layout => BmsGameplayResolvedNoteMaterialPreparer.Prepare(skin, layout, cancellationToken));
             return snapshot != null;
         }
+
+        internal static BmsPlayfieldStyle ResolvePresentation(GameplaySkinOptionValues? values)
+            => values?.Presentation switch
+            {
+                "p1" => BmsPlayfieldStyle.P1,
+                "p2" => BmsPlayfieldStyle.P2,
+                "center-p2" => BmsPlayfieldStyle.CenterRightScratch,
+                _ => BmsPlayfieldStyle.Center,
+            };
 
         private static BmsGameplayLayoutSnapshot? tryPrepareAndCommit(
             GameplaySkinLayoutRevisionOwner owner,
@@ -191,14 +212,17 @@ namespace osu.Game.Rulesets.Bms.Skinning
                         cancellationToken.ThrowIfCancellationRequested();
                         BmsGameplayLayoutEnvironment environment = environmentFactory();
                         cancellationToken.ThrowIfCancellationRequested();
+                        BmsPlayfieldStyle resolvedStyle = owner.PackageRevision.SourceKind == GameplaySkinPackageSourceKind.Compatibility
+                            ? style
+                            : ResolvePresentation(configuration.OptionValues);
                         var topologyOwner = new BmsGameplaySkinLaneTopologyRevisionOwner();
                         // Topology is parser keymode + presentation order only. Geometry is solved exactly once below; no
                         // provisional profile/lane geometry is allowed on this production prepare path.
-                        BmsGameplaySkinLaneTopologyPublication topology = topologyOwner.Publish(keymode, style);
+                        BmsGameplaySkinLaneTopologyPublication topology = topologyOwner.Publish(keymode, resolvedStyle);
 
                         candidate = BmsGameplayLayoutSolver.Solve(
                             beatmap.BmsInfo.KeymodeResolution,
-                            style,
+                            resolvedStyle,
                             configuration,
                             environment,
                             owner.PackageRevision,

@@ -102,6 +102,7 @@ namespace osu.Game.Overlays.Settings.Sections
                 },
                 new ReloadCurrentSkinButton(),
                 new OpenSkinFolderButton(),
+                new SkinOptionsSettings(),
                 scriptSettings = new SkinScriptSettings(),
                 authorActions = new SkinAuthorActionsContainer
                 {

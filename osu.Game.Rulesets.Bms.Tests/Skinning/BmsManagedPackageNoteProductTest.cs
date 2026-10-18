@@ -246,7 +246,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 () => createOskWithIni(
                     createSkinHeader() +
                     "\n[Mania]\nKeys: 8\nNoteImage7: notes/right-scratch\n",
-                    ("notes/right-scratch.png", createPng(3, 5, new Rgba32(40, 210, 120, 255)))));
+                    withPresentationOption(("notes/right-scratch.png", createPng(3, 5, new Rgba32(40, 210, 120, 255))))));
 
             ExactManagedPackageRenderer renderer = null!;
             BmsAsyncNoteDrawable scratchHost = null!;
@@ -295,7 +295,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     (Key: "NoteImage" + suffix, Resource: "notes/scratch-width"),
                     (Key: "NoteImage" + suffix + "H", Resource: "notes/scratch-width"),
                     (Key: "NoteImage" + suffix + "T", Resource: "notes/scratch-width"),
-                }, ("notes/scratch-width.png", createPng(31, 7, new Rgba32(250, 100, 110, 255)))));
+                }, withPresentationOption(("notes/scratch-width.png", createPng(31, 7, new Rgba32(250, 100, 110, 255))))));
             ExactManagedPackageRenderer renderer = null!;
             AddStep("mount actual scratch lane with note and hold", () =>
                 renderer = mountExactProductionRenderer(keymode, style, includeScratchHold: true));
@@ -2366,7 +2366,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             var ruleset = new BmsRuleset();
             BmsBeatmap beatmap = createExactProductionBeatmap(ruleset, keymode, includeScratchHold);
             var config = (BmsRulesetConfigManager)RulesetConfigs.GetConfigFor(ruleset)!;
-            config.SetValue(BmsRulesetSetting.PlayfieldStyle, style);
+            GameplaySkinOptionDefinition? presentation = skinManager.CurrentSkin.Value.GameplayOptions.SingleOrDefault(option => option.Effect == GameplaySkinOptionEffect.Presentation);
+            if (presentation != null)
+                Dependencies.Get<SkinOptionPreferences>().SetOverride(skinManager.CurrentSkin.Value.SkinInfo.ID, "bms", presentation.Id,
+                    style == BmsPlayfieldStyle.CenterRightScratch ? "center-p2" : "center-p1");
+            else
+                Assert.That(style, Is.EqualTo(BmsPlayfieldStyle.Center), "The exact production package must declare any alternate presentation.");
 
             Child = new ExactManagedPackageRenderer(ruleset, beatmap, config);
             return (ExactManagedPackageRenderer)Child;
@@ -2714,6 +2719,23 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             output.Position = 0;
             return output;
         }
+
+        private static (string Name, byte[] Content)[] withPresentationOption(params (string Name, byte[] Content)[] entries)
+            => entries.Concat(new[]
+            {
+                (GameplaySkinSceneContracts.MANIFEST_FILE_NAME, Encoding.UTF8.GetBytes("""
+                    {"contract":"oms-gameplay-skin-manifest.v1","scene":"gameplay-skin.scene.json",
+                     "sceneContract":"oms-gameplay-skin-scene.v1","eventContract":"oms-gameplay-skin-event.v1","resources":[],
+                     "options":[{"id":"layout","type":"choice","label":"Layout","default":"center-p1",
+                       "choices":[{"value":"center-p1","label":"Left scratch"},{"value":"center-p2","label":"Right scratch"}],
+                       "rulesets":["bms"],"keymodes":["5k","7k"],"effect":"presentation"}]}
+                    """)),
+                (GameplaySkinSceneContracts.SCENE_FILE_NAME, Encoding.UTF8.GetBytes("""
+                    {"contract":"oms-gameplay-skin-scene.v1","root":{"id":"root","type":"container",
+                      "target":{"kind":"global"},"blend":"inherit","properties":{},"effects":[],"children":[]},
+                     "tracks":[],"stateMachines":[],"bindings":[],"templates":[],"instances":[]}
+                    """)),
+            }).ToArray();
 
         private static byte[] createPng(int width, int height, Rgba32 colour)
         {

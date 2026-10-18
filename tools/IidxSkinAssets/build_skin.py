@@ -112,13 +112,14 @@ def rendered_float_value(value):
 
 
 class Builder:
-    def __init__(self, library, research, fullcombo_research, output, image_class, style=33, legacy_library=None):
+    def __init__(self, library, research, fullcombo_research, output, image_class, style=33, legacy_library=None,
+                 customization_library=None, frame_package=None, name=None, identity=None):
         self.library, self.research, self.output, self.Image = library, research, output, image_class
         self.style = style
-        self.prefix, self.frame_package = f"iidx{style}", f"gmframe{style}"
-        self.name = STYLE_NAMES[style]
+        self.prefix, self.frame_package = identity or f"iidx{style}", frame_package or f"gmframe{style}"
+        self.name = name or STYLE_NAMES[style]
         self.map = read_json(research / "skin-reference-map.json")
-        self.sd = style < 30
+        self.sd = self.map["stage"]["width"] == 1280
         self.source_scale = 1.5 if self.sd else 1
         stage = self.map["stage"]
         if (stage["width"], stage["height"], stage["fps"]) != ((1280, 720, FPS) if self.sd else (WIDTH, HEIGHT, FPS)):
@@ -134,6 +135,10 @@ class Builder:
                 or not self.fullcombo["last30FramesTransparent"]):
             raise ValueError("The full-combo source requires a different timing consumer")
         self.source_libraries = {"primary": library, "extra": research / "extra-note-library"}
+        if customization_library:
+            self.source_libraries["custom"] = customization_library
+        self.customization = customization_library is not None
+        self.bga_apertures = read_json(research / "effective-bga-viewports.json") if (research / "effective-bga-viewports.json").is_file() else None
         if self.sd:
             if legacy_library is None:
                 raise ValueError("27-29 require the independently extracted 0/common and 0/gameparts library")
@@ -159,22 +164,83 @@ class Builder:
                 self.source_index[(group, package, Path(item["name"]).stem)] = item
         self.empty = self.generated("common/empty.png", self.Image.new("RGBA", (1, 1)))
 
+    def options(self):
+        result = [{"id": "layout", "type": "choice", "label": "游玩区域样式", "default": "p1",
+                   "choices": [{"value": "p1", "label": "1P（左皿）"}, {"value": "p2", "label": "2P（右皿）"}],
+                   "keymodes": ["5k", "6k", "7k", "8k"], "effect": "presentation"}]
+        if self.customization:
+            for identifier, label, keys in [("notes", "音符样式", [f"n{i:02}" for i in range(12)]),
+                                            ("beam", "按键光柱", [f"n{i:02}" for i in range(4)]),
+                                            ("cover", "挡板样式", [f"n{i:03}" for i in range(7)]),
+                                            ("bomb", "击打爆炸", ["original", "compact"]),
+                                            ("judgement", "判定文字", ["normal", "label-only"])]:
+                result.append({"id": identifier, "type": "choice", "label": label, "default": keys[0],
+                               "choices": [{"value": key, "label": "素材 " + str(int(key[1:])) if key.startswith("n") and key[1:].isdigit() else
+                                            {"original": "原尺寸", "compact": "紧凑", "normal": "判定与连击", "label-only": "仅判定"}[key]}
+                                           for key in keys]})
+            result.extend([{"id": "beam-visible", "type": "toggle", "label": "显示按键光柱", "default": True},
+                           {"id": "bomb-scale", "type": "number", "label": "爆炸缩放", "default": 1, "min": 0.5, "max": 1.5, "step": 0.05}])
+        return result
+
+    def layout_profiles(self):
+        """Place only real logical lanes in source cabinet slots; unassigned slots remain inert art."""
+        width, height = self.stage_width, self.stage_height
+        pad, white, black, gap = (3, 51, 39, 3) if self.sd else (4, 52, 40, 2)
+        result = []
+        for ruleset, modes in [("bms", [5, 7, 14]), ("mania", [5, 6, 7, 8, 14, 16])]:
+            for mode in modes:
+                dual = mode > 8
+                count = (8 if ruleset == "bms" else mode // 2) if dual else (mode + 1 if ruleset == "bms" else mode)
+                keymode = f"{mode}k" if ruleset == "bms" or not dual else f"{count}k-{count}k"
+                for presentation in (["any"] if dual else ["p1", "p2"]):
+                    stages = []
+                    for group in range(2 if dual else 1):
+                        right = group == 1 if dual else presentation == "p2"
+                        widths = ([white, black, white, black, white, black, white, 90] if right else
+                                  [90, white, black, white, black, white, black, white])
+                        starts, cursor = [], pad
+                        for lane_width in widths:
+                            starts.append(cursor)
+                            cursor += lane_width + gap
+                        if ruleset == "bms":
+                            slots = ([*range(8)] if dual else ([7, *range(2 if mode == 5 else 0, 7)] if right else list(range(count))))
+                        elif count in (5, 7):
+                            slots = list(range(7 - count, 7)) if right else list(range(1, count + 1))
+                        else:
+                            slots = list(range(8 - count, 8)) if right else list(range(count))
+                        x = ((456 if group == 0 else 1026) if self.sd else (455 if group == 0 else 1025)) if dual else (
+                            (1410 if right else 72) if self.sd else (1409 if right else 71))
+                        lanes = [[starts[slot] / width, widths[slot] / width] for slot in slots]
+                        keys = [[(starts[slot] - (60 if slot == 0 and not right else 0)) / width,
+                                 (150 if slot == (7 if right else 0) else widths[slot]) / width] for slot in slots]
+                        stages.append({"rect": [x / WIDTH, 0, width / WIDTH, height / HEIGHT], "lanes": lanes, "keys": keys})
+                    result.append({"id": f"{ruleset}.keys-{keymode}.{presentation}", "ruleset": ruleset, "keymode": keymode,
+                                   "presentation": presentation, "stages": stages, "keyAreaHeight": 120 / HEIGHT,
+                                   "gaugeHeight": 110 / HEIGHT, "hitPosition": 1})
+        return result
+
     def register(self, relative):
         relative = Path(relative).as_posix()
         if relative in self.resource_paths:
             return self.resource_paths[relative]
-        identifier = self.prefix + "." + stable(relative.removesuffix(".png").replace("/", "."))
+        # The same effect frames are referenced by both native-host templates and every animation key.
+        # Short IDs retain the bounded scene size without altering original paths or image bytes.
+        identifier = (stable(Path(relative).stem.replace("exp00_", "e").replace("exp00-", "e")) if relative.startswith("art/primary/exp00/")
+                      else self.prefix + "." + stable(relative.removesuffix(".png").replace("/", ".")))
         if len(identifier) > 128 or any(r["id"] == identifier for r in self.resources):
             raise ValueError(f"Non-unique or oversized resource identifier: {relative}")
         self.resources.append({"id": identifier, "type": "texture", "path": relative})
         self.resource_paths[relative] = identifier
         return identifier
 
-    def generated(self, relative, image):
+    def generated(self, relative, image, filtering=None):
         target = self.output / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         image.save(target)
-        return self.register(relative)
+        identifier = self.register(relative)
+        if filtering is not None:
+            next(resource for resource in self.resources if resource["id"] == identifier)["filter"] = filtering
+        return identifier
 
     def asset(self, package, name, group="primary"):
         item = self.source_index[(group, package, name)]
@@ -270,7 +336,7 @@ class Builder:
         with self.Image.open(dot_source) as dot:
             canvas = self.Image.new("RGBA", (8, 19))
             canvas.paste(dot, (0, 13))
-        dot_resource = self.generated("font/hs-dot.png", canvas)
+        dot_resource = self.generated("font/hs-dot.png", canvas, filtering="nearest")
         self.fonts[-1]["glyphs"].append({"character": ".", "resource": dot_resource, "advance": 8})
         self.gauge_font = self.font("gauge", self.frame_package, {str(i): f"playm_gg_{i:02}" for i in range(10)}, 28, 38)
         # The original static cabinet already owns its fixed percent symbol.
@@ -321,7 +387,38 @@ class Builder:
                       "format": fmt, "alignment": "right", "colour": "#ffffffff"}
         value = node(identifier, "text", properties)
         self.bind(identifier, "text", source)
+        if source == "score.value":
+            value["id"] = identifier + ".bms"
+            self.bindings[-1]["target"] = value["id"]
+            mania = json.loads(json.dumps(value))
+            mania["id"] = identifier + ".mania"
+            # The original four-EX-digit panel also accommodates mania's seven-digit native score.
+            # Expand the local text canvas before horizontal compression so its right edge stays fixed.
+            mania["properties"]["width"] *= 7 / 4
+            mania["properties"]["scale-x"] = 4 / 7
+            self.bind(mania["id"], "text", source)
+            self.visible_variant(value["id"], "layout.ruleset", ["bms"])
+            self.visible_variant(mania["id"], "layout.ruleset", ["mania"])
+            return node(identifier + ".formats", children=[value, mania])
         return value
+
+    def static_turntable_nodes(self, layout):
+        movie = "dp_frame_1p" if layout == "dp" else "2p_frame" if layout == "p2" else "1p_frame"
+        result = []
+        for group in range(2 if layout == "dp" else 1):
+            binding = "turn_2p" if group == 1 or layout == "p2" else "turn_1p"
+            draw = next(draw for draw in self.map["layouts"][movie]["draws"] if binding in draw["game_bindings"])
+            identifier = f"{self.prefix}.{layout}.fixed-turn.n{group}"
+            asset = draw["asset"]
+            resource = self.asset(asset["package"], draw["texture"], asset.get("root", "primary"))
+            mirrored = draw["matrix"]["a"] < 0
+            result.append(node(identifier, "projective-sprite" if mirrored else "sprite", geometry(self.projected(draw["bounds"])), resource))
+            if mirrored:
+                self.tracks.append({"id": identifier + ".orientation", "type": "frame", "target": identifier,
+                    "property": "projective-quad", "easing": "step", "loop": False,
+                    "keyframes": [{"id": identifier + ".orientation.fixed", "time": 0,
+                        "value": {"vertices": [[1, 0, 1], [0, 0, 1], [0, 1, 1], [1, 1, 1]], "opacity": 1}}]})
+        return result
 
     def source_bounds(self, movies, binding_prefix, exclude=()):
         bounds = union(draw["bounds"] for movie in movies for draw in self.map["layouts"][movie]["draws"]
@@ -468,7 +565,7 @@ class Builder:
         return root
 
     def background(self, layout):
-        if self.sd:
+        if self.sd or self.bga_apertures is not None:
             return self.sd_background(layout)
         filename = {"p1": "1p_frame", "p2": "2p_frame", "dp": "center_frame_dp_1p"}[layout]
         source = within(self.research, f"static-frames/{filename}-static181.png")
@@ -506,7 +603,7 @@ class Builder:
                         "rasterBounds": "floor left/top; ceil right/bottom",
                         "layering": "Authored stage.background Underlay; native BGA video remains above it."})
         relative = f"backgrounds/{layout}.png"
-        resource = self.generated(relative, background)
+        resource = self.generated(relative, background, filtering="nearest")
         self.template(f"{layout}.background", node(f"{self.prefix}.{layout}.background", "sprite", resource=resource,
                                                   slot="stage.background"), "stage.background", relative.removesuffix(".png"))
         background.save(self.output / f"preview-{layout}-static.png")
@@ -525,8 +622,8 @@ class Builder:
     def sd_background(self, layout):
         def original(movie):
             with self.Image.open(within(self.research, f"static-frames/{movie}-static181.png")) as image:
-                if image.size != (1280, 720):
-                    raise ValueError("SD source static frames must retain their original1280x720 canvas")
+                if image.size != (self.map["stage"]["width"], self.map["stage"]["height"]):
+                    raise ValueError("Source static frames must retain their original research canvas")
                 return image.convert("RGBA").resize((WIDTH, HEIGHT), self.Image.Resampling.NEAREST)
 
         movie = "center_frame_dp_1p" if layout == "dp" else "center_frame_sp"
@@ -541,7 +638,7 @@ class Builder:
         background.alpha_composite(centre, (dx, 0))
         background.alpha_composite(original("dp_frame_1p" if layout == "dp" else "2p_frame" if layout == "p2" else "1p_frame"))
         relative = f"backgrounds/{layout}.png"
-        resource = self.generated(relative, background)
+        resource = self.generated(relative, background, filtering="nearest")
         self.template(f"{layout}.background", node(f"{self.prefix}.{layout}.background", "sprite", resource=resource,
                                                   slot="stage.background"), "stage.background", relative.removesuffix(".png"))
         background.save(self.output / f"preview-{layout}-static.png")
@@ -551,32 +648,6 @@ class Builder:
             "appliedBgaBounds": applied, "centreDx": dx, "layering": "Black safe apertures, centre cabinet, then source side/fixed-symbol layer.",
             "scope": "Safe all-transparent frame opening; original host crop/fit and SD-to-HD presentation remain unverified."})
         return relative.removesuffix(".png")
-
-    def source_turntable_material(self, layout, group=0):
-        movie = "dp_frame_1p" if layout == "dp" else "2p_frame" if layout == "p2" else "1p_frame"
-        binding = "turn_2p" if layout == "p2" or group == 1 else "turn_1p"
-        draw = next(draw for draw in self.map["layouts"][movie]["draws"] if binding in draw["game_bindings"])
-        key_left = (399 if group == 0 else 1371) if layout == "dp" else 1755 if layout == "p2" else 15
-        surface = (key_left, self.stage_height, 150, 120)
-        identifier = f"{self.prefix}.{layout}.turntable.n{group}"
-        resource = self.asset(self.frame_package, draw["texture"])
-        material = self.copy_marker(f"{layout}-scratch-{group}", resource)
-        properties = geometry(self.projected(draw["bounds"]), surface)
-        mirrored = draw["matrix"]["a"] < 0
-        root = node(identifier, "projective-sprite" if mirrored else "sprite", properties, resource, "playfield.key")
-        if mirrored:
-            # A held affine quad preserves the source negative-X transform and the original PNG bytes.
-            self.tracks.append({"id": f"{identifier}.orientation", "type": "frame", "target": identifier,
-                "property": "projective-quad", "easing": "step", "loop": False,
-                "keyframes": [{"id": f"{identifier}.orientation.fixed", "time": 0,
-                    "value": {"vertices": [[1, 0, 1], [0, 0, 1], [0, 1, 1], [1, 1, 1]], "opacity": 1}}]})
-        self.template(f"{layout}.turntable.n{group}", root, "playfield.key", material)
-        self.calibration_receipts.append({"change": f"{self.style}-source-turntable-geometry", "layout": layout, "group": group,
-            "sourceMovie": movie, "sourceBinding": binding, "sourceBounds": draw["bounds"],
-            "sourceMatrix": draw["matrix"], "nativeKeySurface": surface, "appliedProperties": properties,
-            "mirrored": mirrored, "inputBinding": None,
-            "scope": "Source AFP frame181 placement; historical executable feedback and default selection remain unverified."})
-        return material
 
     def common_lane_consumers(self):
         self.lane_materials = {}
@@ -598,6 +669,9 @@ class Builder:
                         "y": -5 * REFERENCE_FONT_SCALE / 22.5,
                         "anchor": "bottom-left", "origin": "bottom-left"}, note_resource, "object.note")
             self.template(f"note.{colour}", root, "object.note", note_material)
+            if self.customization:
+                self.variant(root["id"], "option.notes", note_resource, {"n00": note_resource, **{
+                    f"n{i:02}": self.asset(f"notes{i:02}", note_name, "custom") for i in range(1, 12)}})
             values = {"object.note": note_material}
             for part, suffix in [("head", "start"), ("body", "beam0"), ("tail", "end")]:
                 texture = f"notes_bss_{suffix}" if colour == "scratch" else f"notes_cn_{colour}_{suffix}"
@@ -631,56 +705,86 @@ class Builder:
                 "appliedHeadTailRelativeHeight": 24 * REFERENCE_FONT_SCALE / 22.5,
                 "appliedRelativeYOffset": -5 * REFERENCE_FONT_SCALE / 22.5,
                 "longBodyGeometry": "Native duration geometry is unchanged; source body templates keep empty properties.",
-                "explosionGeometry": "Unchanged; already normalized against its native authored SourceStage size."})
+                "explosionGeometry": "BMS retains its native hit-target host; mania normalizes against its full-column host."})
 
-            if colour == "scratch" and self.style != 33:
-                values["playfield.key"] = self.source_turntable_material("p1")
-            elif colour == "scratch":
-                key = self.asset(self.frame_package, "usr_turn00")
-                key_properties = {"x": 50 / 150, "y": 44 / 120, "width": 47 / 150, "height": 47 / 120}
+            if colour == "scratch":
+                # Constant centres are owned once by the full cabinet, including vacant mania scratch slots.
+                values["playfield.key"] = "common/empty"
             else:
                 key = self.asset("1/gameparts", f"light_{colour}_key")
                 key_properties = {"x": -4 / width, "y": 0 if colour == "white" else -5 / 120,
                                   "width": (60 if colour == "white" else 48) / width,
                                   "height": (90 if colour == "white" else 74) / 120}
-            if colour != "scratch" or self.style == 33:
                 key_material = self.copy_marker(f"key-{colour}", key)
                 key_id = f"{self.prefix}.key.{colour}"
                 self.template(f"key.{colour}", node(key_id, "sprite", key_properties, key, "playfield.key",
-                              "alpha" if colour == "scratch" else "additive"),
+                              "additive"),
                               "playfield.key", key_material)
-                if colour != "scratch":
-                    self.bind(key_id, "visible", "input.pressed")
-                else:
-                    self.calibration_receipts.append({"change": "default-turntable-centre-always-visible",
-                        "sourceMovie": "1p_frame", "sourceBinding": "turn_1p", "sourceTexture": f"{self.frame_package}/usr_turn00",
-                        "sourceBounds": self.source_bounds(["1p_frame"], "turn_1p"), "sourceBlend": 0,
-                        "appliedBlend": "alpha", "inputBinding": None,
-                        "limit": "No unverified press/release or rotation animation is added."})
+                self.bind(key_id, "visible", "input.pressed")
                 values["playfield.key"] = key_material
 
             beam = self.asset("beam00", f"playm_bar_{'turn' if colour == 'scratch' else colour}")
             beam_material = self.copy_marker(f"beam-{colour}", beam)
             beam_id = f"{self.prefix}.beam.{colour}"
-            self.template(f"beam.{colour}", node(beam_id, "sprite", {"height": (self.stage_height - 5) / self.stage_height}, beam, "decoration", "additive"),
+            beam_root = node(beam_id, "sprite", {"height": (self.stage_height - 5) / self.stage_height}, beam, "decoration", "additive")
+            if self.customization:
+                art_id = f"{beam_id}.art"
+                beam_root = node(beam_id, properties={"height": (self.stage_height - 5) / self.stage_height}, slot="decoration",
+                                 children=[node(art_id, "sprite", resource=beam, blend="additive")])
+                self.variant(art_id, "option.beam", beam, {"n00": beam, **{
+                    f"n{i:02}": self.asset(f"beam{i:02}", f"playm_bar_{'turn' if colour == 'scratch' else colour}", "custom") for i in range(1, 4)}})
+                self.bind(art_id, "visible", "option.beam-visible")
+            self.template(f"beam.{colour}", beam_root,
                           "decoration", beam_material)
             self.bind(beam_id, "visible", "input.pressed")
             values["decoration"] = beam_material
 
-            effect_material = self.copy_marker(f"explosion-{colour}", hit_resources[0])
-            effect_id = f"{self.prefix}.explosion.{colour}.frame"
-            frame = node(effect_id, "sprite", {"x": (width / 2 + hit_bounds["left"] - hit_centre_x) / (width * 4),
+            for ruleset in ("bms", "mania"):
+                effect_material = self.copy_marker(f"explosion-{ruleset}-{colour}", hit_resources[0])
+                effect_id = f"x.{ruleset[0]}.{colour[0]}.f"
+                frame = node(effect_id, "sprite", {"x": (width / 2 + hit_bounds["left"] - hit_centre_x) / (width * 4),
                          "y": (22.5 - 5 + hit_bounds["top"] - hit_centre_y) / 90,
                          "width": (hit_bounds["right"] - hit_bounds["left"]) / (width * 4),
                          "height": (hit_bounds["bottom"] - hit_bounds["top"]) / 90}, hit_resources[0], blend="additive")
-            root = node(f"{self.prefix}.explosion.{colour}", properties={"width": 4, "height": 4}, slot="effect.hit-explosion", children=[frame])
-            self.template(f"explosion.{colour}", root, "effect.hit-explosion", effect_material)
-            self.tracks.append({"id": f"{self.prefix}.explosion.{colour}.track", "type": "frame", "target": effect_id,
+                properties = {"width": 4, "height": 4}
+                if ruleset == "mania":
+                    # The existing mania pool fills the column down to target.Top (one pixel above the bottom).
+                    # Give this package a source-pixel effect band; changing the engine host would alter old skins.
+                    host_height = self.stage_height - 1
+                    properties = {"width": 4, "height": 90 / host_height, "y": (host_height - 22.5) / host_height}
+                root = node(f"x.{ruleset[0]}.{colour[0]}", properties=properties, slot="effect.hit-explosion", children=[frame])
+                if self.customization:
+                    group_id = f"{root['id']}.s"
+                    compact = json.loads(json.dumps(frame))
+                    compact["id"] = effect_id + ".c"
+                    root["children"] = [node(group_id + ".o", children=[frame]),
+                                        node(group_id + ".c", properties={"scale-x": 0.7, "scale-y": 0.7}, children=[compact])]
+                    self.visible_variant(group_id + ".o", "option.bomb", ["original"])
+                    self.visible_variant(group_id + ".c", "option.bomb", ["compact"])
+                    for prop in ("scale-x", "scale-y"):
+                        self.bind(root["id"], prop, "option.bomb-scale")
+                self.template(f"x.{ruleset[0]}.{colour[0]}", root, "effect.hit-explosion", effect_material)
+                self.tracks.append({"id": f"{root['id']}.t", "type": "frame", "target": effect_id,
                                 "property": "resource", "easing": "step", "loop": False, "trigger": "judgement.hit",
-                                "keyframes": [{"id": f"{self.prefix}.explosion.{colour}.f{i}", "time": timing["time_ms"], "value": resource}
+                                "keyframes": [{"id": f"{effect_id}.n{i}", "time": timing["time_ms"], "value": resource}
                                               for i, (timing, resource) in enumerate(zip(hit["frames"], hit_resources))]})
-            values["effect.hit-explosion"] = effect_material
+                if self.customization:
+                    compact_track = json.loads(json.dumps(self.tracks[-1]))
+                    compact_track["id"] += ".c"
+                    compact_track["target"] += ".c"
+                    for keyframe in compact_track["keyframes"]:
+                        keyframe["id"] += ".c"
+                    self.tracks.append(compact_track)
+                values[f"effect.hit-explosion.{ruleset}"] = effect_material
             self.lane_materials[colour] = values
+        if self.customization:
+            cover = self.asset("lane000", "lane000")
+            material = self.copy_marker("lane-cover", cover)
+            identifier = f"{self.prefix}.lane-cover"
+            self.template("lane-cover", node(identifier, "sprite", resource=cover, slot="playfield.lane-cover.fill"),
+                          "playfield.lane-cover.fill", material)
+            self.variant(identifier, "option.cover", cover, {"n000": cover, **{
+                f"n{i:03}": self.asset(f"lane{i:03}", f"lane{i:03}", "custom") for i in range(1, 7)}})
 
     def layout_consumers(self, layout):
         dp, p2 = layout == "dp", layout == "p2"
@@ -689,7 +793,7 @@ class Builder:
         movies = ["center_frame_dp_1p", "dp_frame_1p"] if dp else ["2p_frame" if p2 else "1p_frame", "center_frame_sp"]
         background = self.background(layout)
         information_material = self.copy_marker(f"{layout}-information")
-        information_children = []
+        information_children = self.static_turntable_nodes(layout)
         if self.sd:
             information_children.extend(self.sd_information_numbers(layout, movies, player, centre_dx))
         for suffix, source, font, size, prefix, fmt in ([] if self.sd else [
@@ -817,6 +921,8 @@ class Builder:
             combo = node(combo_id, "text", {"text": "", "font-size": 100 * REFERENCE_FONT_SCALE,
                          "bitmap-font": font, "format": "integer", "colour": "#ffffffff"})
             self.bind(combo_id, "text", "combo.value")
+            if self.customization:
+                self.visible_variant(combo_id, "option.judgement", ["normal"])
             row = node(row_id, properties={**row_properties, "visible": False}, children=[label, combo])
             self.visible_variant(row_id, "judgement.result", grades)
             if suffix == "other":
@@ -899,43 +1005,67 @@ class Builder:
 
     def write_materials(self, layout, background, information, gauge, judgement):
         dp = layout == "dp"
-        keymode, stage_mode = ("14k", "dual") if dp else ("7k", "single")
-        suffix = f"ruleset=bms keymode={keymode} stage-mode={stage_mode}" + (f" presentation={layout}" if not dp else "")
+        for ruleset, mode in [("bms", 5), ("bms", 7), ("bms", 14), ("mania", 5), ("mania", 6),
+                              ("mania", 7), ("mania", 8), ("mania", 14), ("mania", 16)]:
+            if dp == (mode > 8):
+                self.write_material_context(layout, background, information, gauge, judgement, ruleset, mode)
+
+    def write_material_context(self, layout, background, information, gauge, judgement, ruleset, mode):
+        dp = mode > 8
+        count = (8 if ruleset == "bms" else mode // 2) if dp else (mode + 1 if ruleset == "bms" else mode)
+        keymode = f"{mode}k" if ruleset == "bms" or not dp else f"{count}k-{count}k"
+        stage_mode = "dual" if dp else "single"
+        suffix = f"ruleset={ruleset} keymode={keymode} stage-mode={stage_mode}" + (f" presentation={layout}" if not dp else "")
         self.material_ini += [COMMON, f"Target: Global {suffix}", f'stage.background: resource Provide "{background}"',
-                              f'decoration: resource Provide "{information}"', "hud.text: resource Suppress",
-                              "bga.frame: resource Suppress"]
-        self.calibration_receipts.append({"change": "native-bga-frame-explicit-suppression", "layout": layout,
-            "target": f"Global {suffix}", "slot": "bga.frame", "state": "Suppress",
-            "source": "BgaFrame catalog scopeGlobal and BmsBgaPanel single global key replicated per viewport",
-            "reason": "The authored original cabinet already includes the source BGA frame; avoid the canonical silver border."})
+                              f'decoration: resource Provide "{information}"', "hud.text: resource Suppress"]
+        if ruleset == "bms":
+            self.material_ini.append("bga.frame: resource Suppress")
+            self.calibration_receipts.append({"change": "native-bga-frame-explicit-suppression", "layout": layout,
+                "target": f"Global {suffix}", "slot": "bga.frame", "state": "Suppress",
+                "source": "BgaFrame catalog scopeGlobal and BmsBgaPanel single global key replicated per viewport",
+                "reason": "The authored original cabinet already includes the source BGA frame; avoid the canonical silver border."})
         # This package keeps each critical HUD slot independently owned and recoverable.
         for group in range(2 if dp else 1):
-            self.material_ini.append(f"Target: Stage {suffix} group=bms.group.deck-{group + 1} group-logical={group} group-visual={group}")
+            group_id = f"bms.group.deck-{group + 1}" if ruleset == "bms" else f"mania.group.stage-{group + 1}"
+            self.material_ini.append(f"Target: Stage {suffix} group={group_id} group-logical={group} group-visual={group}")
             self.material_ini += ['stage.background: resource Provide "common/empty"',
                                   f'decoration: resource Provide "{self.fullcombo_core_material}"']
             for slot, material in [("hud.gauge", gauge), ("hud.judgement", judgement)]:
-                self.material_ini.append(f'{slot}: resource Provide "{material}"' if group == 0 else f"{slot}: resource Suppress")
+                self.material_ini.append(f'{slot}: resource Provide "{material}"' if group == 0 or slot == "hud.judgement" else f"{slot}: resource Suppress")
             self.material_ini += ["hud.combo: resource Suppress", "hud.text: resource Suppress",
                                   'playfield.judgement-line: resource Provide "common/empty"' if self.sd else 'playfield.judgement-line: resource Provide "art/primary/1/gameparts/playm_red_line"',
                                   'stage.foreground: resource Provide "common/empty"', 'playfield.backdrop: resource Provide "common/empty"',
                                   'playfield.baseplate: resource Provide "common/empty"']
+            if self.customization:
+                self.material_ini.append('playfield.lane-cover.fill: resource Provide "markers/lane-cover"')
         lane_receipts = []
+        profile = next(profile for profile in self.layout_profiles() if profile["ruleset"] == ruleset
+                       and profile["keymode"] == keymode and profile["presentation"] == ("any" if dp else layout))
         for group in range(2 if dp else 1):
-            for local_logical in range(8):
+            group_id = f"bms.group.deck-{group + 1}" if ruleset == "bms" else f"mania.group.stage-{group + 1}"
+            for local_logical in range(count):
                 right_deck = dp and group == 1
-                scratch = local_logical == (7 if right_deck else 0)
-                global_logical = group * 8 + local_logical
-                global_visual = (7 if scratch else local_logical - 1) if layout == "p2" else global_logical
-                local_visual = global_visual - group * 8
-                lane = f"bms.lane.scratch-{group + 1}" if scratch else f"bms.lane.key-{global_logical}"
-                key_ordinal = local_logical + 1 if right_deck else local_logical
-                colour = "scratch" if scratch else "black" if key_ordinal % 2 == 0 else "white"
-                self.material_ini.append(f"Target: Lane {suffix} group=bms.group.deck-{group + 1} group-logical={group} group-visual={group} "
+                global_logical = group * count + local_logical
+                if ruleset == "bms":
+                    scratch = local_logical == (count - 1 if right_deck else 0)
+                    local_visual = (count - 1 if scratch else local_logical - 1) if layout == "p2" else local_logical
+                    lane = f"bms.lane.scratch-{group + 1}" if scratch else f"bms.lane.key-{global_logical}"
+                else:
+                    scratch = count in (6, 8) and local_logical == (count - 1 if right_deck or layout == "p2" else 0)
+                    local_visual = local_logical
+                    lane = f"mania.lane.column-{global_logical + 1}"
+                global_visual = group * count + local_visual
+                lane_width = profile["stages"][group]["lanes"][local_logical][1] * self.stage_width
+                colour = "scratch" if scratch else "black" if abs(lane_width - (39 if self.sd else 40)) < 0.01 else "white"
+                self.material_ini.append(f"Target: Lane {suffix} group={group_id} group-logical={group} group-visual={group} "
                     f"lane={lane} global-logical={global_logical} global-visual={global_visual} "
                     f"group-local-logical={local_logical} group-local-visual={local_visual}")
                 materials = self.lane_materials[colour]
-                if self.style != 33 and scratch and layout != "p1":
-                    materials = {**materials, "playfield.key": self.source_turntable_material(layout, group)}
+                materials = {slot: value for slot, value in materials.items() if not slot.startswith("effect.hit-explosion.")}
+                materials["effect.hit-explosion"] = self.lane_materials[colour][f"effect.hit-explosion.{ruleset}"]
+                if scratch:
+                    # The source centre is a constant decoration, including when mania leaves the scratch slot empty.
+                    materials = {**materials, "playfield.key": "common/empty"}
                 self.material_ini += [f'{slot}: resource Provide "{value}"' for slot, value in materials.items()]
                 self.material_ini += ['playfield.lane-surface: resource Provide "common/empty"', 'playfield.lane-divider: resource Provide "common/empty"',
                                       'playfield.hit-target: resource Provide "common/empty"', "effect.key-flash: resource Suppress"]
@@ -954,13 +1084,15 @@ class Builder:
         if self.sd:
             self.sd_configuration()
             return
-        for keymode in ["7K", "14K"]:
+        for keymode in ["5K", "7K", "14K"]:
             dp = keymode == "14K"
             windows = "23,253,345.5859375,259.189453125;23,547,345.5859375,259.189453125;1551,253,345.5859375,259.189453125;1551,547,345.5859375,259.189453125" if dp else "610,100,700,821.25"
             viewports = []
             for window in windows.split(";"):
                 x, y, width, height = map(float, window.split(","))
                 viewports.append(f"{x / WIDTH:.12g},{y / HEIGHT:.12g},{width / WIDTH:.12g},{height / HEIGHT:.12g},fit")
+            if self.bga_apertures is not None:
+                viewports = [viewport_configuration(bounds) for bounds in self.sd_bga_windows("center_frame_dp_1p" if dp else "center_frame_sp")]
             values = {"PlayfieldWidth": (1010 if dp else 440) / WIDTH, "PlayfieldHeight": 728 / HEIGHT,
                       "PlayfieldSideInset": 71 / WIDTH, "LaneSidePadding": 4 / 440,
                       "NormalLaneWidth": 1, "BlackLaneWidth": 40 / 52, "ScratchLaneWidth": 90 / 52,
@@ -976,7 +1108,8 @@ class Builder:
                               if viewport["movie"] == "center_frame_sp")
                 for layout, field in [("p1", "BgaViewportsP1"), ("p2", "BgaViewportsP2")]:
                     bounds = shifted_bounds(source["bounds"], SP_CENTER_OFFSETS[layout])
-                    value = viewport_configuration(bounds)
+                    value = "; ".join(viewport_configuration(shifted_bounds(window, SP_CENTER_OFFSETS[layout]))
+                                      for window in self.sd_bga_windows("center_frame_sp")) if self.bga_apertures is not None else viewport_configuration(bounds)
                     self.ini.append(f"{field}: {value}")
                     self.calibration_receipts.append({"change": "presentation-native-bga-viewport", "layout": layout,
                         "sourceMovie": source["movie"], "sourceInstance": source["instance"], "sourceBounds": source["bounds"],
@@ -986,7 +1119,7 @@ class Builder:
         self.asset("1/gameparts", "playm_red_line")
 
     def sd_configuration(self):
-        for keymode in ["7K", "14K"]:
+        for keymode in ["5K", "7K", "14K"]:
             dp = keymode == "14K"
             values = {"PlayfieldWidth": (1008 if dp else 438) / WIDTH, "PlayfieldHeight": 726 / HEIGHT,
                       "PlayfieldSideInset": 72 / WIDTH, "LaneSidePadding": 3 / 438,
@@ -1018,11 +1151,13 @@ class Builder:
             self.layout_consumers(layout)
         (self.output / "skin.ini").write_text("\n".join([*self.ini, *self.material_ini, ""]), encoding="utf-8")
         manifest = {"contract": MANIFEST_CONTRACT, "scene": "gameplay-skin.scene.json", "sceneContract": SCENE_CONTRACT,
-                    "eventContract": "oms-gameplay-skin-event.v1", "resources": self.resources, "bitmapFonts": self.fonts}
+                    "eventContract": "oms-gameplay-skin-event.v1", "resources": self.resources, "bitmapFonts": self.fonts,
+                    "options": self.options(), "layouts": self.layout_profiles()}
         scene = {"contract": SCENE_CONTRACT, "root": node(f"{self.prefix}.root", blend="inherit"), "tracks": self.tracks,
                  "stateMachines": self.machines, "bindings": self.bindings, "variants": self.variants,
                  "templates": self.templates, "instances": self.instances, "completionOutro": 2500}
-        write_json(self.output / "gameplay-skin.json", manifest)
+        manifest["layouts"] = rendered_float_value(manifest["layouts"])
+        write_json(self.output / "gameplay-skin.json", manifest, compact=True)
         write_json(self.output / "gameplay-skin.scene.json", scene, compact=True)
         if (self.output / "gameplay-skin.json").stat().st_size > 64 * 1024:
             raise ValueError("Generated manifest exceeds the64KiB contract")
@@ -1051,7 +1186,7 @@ class Builder:
             "The fixed percent mark remains original static art. Its bitmap-font percent character is transparent to avoid duplicate drawing.",
             "Default blue turntable centres remain visible without a press. Additional turntable feedback and rotation are not yet calibrated.",
             "Full combo consumes original fcombo00 textures, held60FPS affine frames and UV-correct projective quads. It uses actual completion/full-combo state and a2.5s outro; original executable eligibility and appearance still need comparison.",
-            "Only 7K P1/P2 and 14K materials are authored. Other keymodes retain the existing canonical fallback; centred 7K uses canonical materials with the shared 7K geometry."]
+            "BMS5/7/14K and native mania5/6/7/8/14/16K are authored. Scratch/outer key vacancies are package geometry, not extra gameplay lanes; unsupported modes retain canonical materials."]
         if self.style != 33:
             limitations[2] = ("Judgement rows use current-HDD judge00 art and metrics, with the33 measured P1/P2 anchors "
                               f"and native DP anchor. Historical{self.style} default colours, placement and animation need comparison.")
@@ -1073,8 +1208,10 @@ class Builder:
             if self.style == 27:
                 limitations.append("The27 centre score/maxcombo panel uses actual score and highest attained combo. Frame181 has no title/artist hook, so those texts are not drawn over its score panel.")
         usage = ["请使用本工作区更新后的 OMS 客户端运行此包。",
-            f"7K：在 BMS 设置 → 游玩区域样式 选择 1P（居左）或 2P（居右）。默认 Center 使用 canonical，不显示此 IIDX{self.style} 布局。",
-            "14K 自动使用双打布局；皮肤不会覆盖用户的布局偏好。"]
+            "BMS 支持5K／7K／14K；mania 支持5／6／7／8／14／16K。",
+            "皮肤设置 → 皮肤配置项：默认1P，可选2P；选择按皮肤及模式独立保存，下次游玩生效。",
+            "5K保留靠皿的五个普通键位，mania5／7／14K的皿位空置；6／8／16K的皿位承载实际按键。",
+            "双侧布局依据谱面的真实双stage结构；其他键数使用原有后备表现。"]
         write_json(self.output / "local-study.json", {"status": "generated-awaiting-OMS-validation", "reference": {"width": WIDTH, "height": HEIGHT, "fps": FPS},
             "resources": len(self.resources), "decodedTexturePixels": total_pixels, "sourceAssets": self.used_source_assets,
             "sceneBytes": (self.output / "gameplay-skin.scene.json").stat().st_size,
@@ -1102,6 +1239,10 @@ def main():
     parser.add_argument("--style", type=int, choices=tuple(STYLE_NAMES), default=33, help="Frame style; default33 preserves the existing author package")
     parser.add_argument("--library", type=Path, required=True, help="Existing independent IIDX art library")
     parser.add_argument("--legacy-library", type=Path, help="Independent 0/common and 0/gameparts library, required for27-29")
+    parser.add_argument("--customization-library", type=Path, help="Verified independent notes, beams and lane-cover variants")
+    parser.add_argument("--frame-package", help="Verified alternative cabinet archive identity, including BPL frames")
+    parser.add_argument("--name", help="Local display name for a researched alternative cabinet")
+    parser.add_argument("--identity", help="Stable node prefix for an alternative cabinet")
     parser.add_argument("--research", type=Path, required=True, help="AFP research output with maps and filtered static frames")
     parser.add_argument("--fullcombo-research", type=Path, required=True, help="Exact original fcombo00 author-data export")
     parser.add_argument("--output", type=Path, required=True, help="New local author directory; an adjacent OSK is also created")
@@ -1111,6 +1252,7 @@ def main():
     library, research = args.library.resolve(strict=True), args.research.resolve(strict=True)
     fullcombo_research = args.fullcombo_research.resolve(strict=True)
     legacy_library = args.legacy_library.resolve(strict=True) if args.legacy_library else None
+    customization_library = args.customization_library.resolve(strict=True) if args.customization_library else None
     if args.style < 30 and legacy_library is None:
         parser.error("27-29 require --legacy-library with verified independent source copies.")
     output = args.output.resolve()
@@ -1119,7 +1261,8 @@ def main():
         parser.error("Use a new output directory and OSK with an existing parent.")
     if output.drive.lower() == os.environ.get("SystemDrive", "C:").lower():
         parser.error("Generated art and packages must stay on a non-system drive.")
-    for protected in [library, research, fullcombo_research, *([legacy_library] if legacy_library else []), *[p.resolve() for p in args.game_root]]:
+    for protected in [library, research, fullcombo_research, *([legacy_library] if legacy_library else []),
+                      *([customization_library] if customization_library else []), *[p.resolve() for p in args.game_root]]:
         if output.is_relative_to(protected) or protected.is_relative_to(output):
             parser.error("Output must not overlap an art library, evidence directory, or protected game installation.")
     if args.image_tools_path:
@@ -1134,7 +1277,8 @@ def main():
             within(research, relative)
     output.mkdir()
     write_json(output / "generation.json", {"status": "running"})
-    builder = Builder(library, research, fullcombo_research, output, Image, args.style, legacy_library)
+    builder = Builder(library, research, fullcombo_research, output, Image, args.style, legacy_library,
+                      customization_library, args.frame_package, args.name, args.identity)
     builder.finish()
     completed = {"status": "complete", "archive": archive.name}
     with zipfile.ZipFile(archive, "x", compression=zipfile.ZIP_DEFLATED) as zipped:

@@ -15,7 +15,7 @@ namespace osu.Game.Skinning.Gameplay
     /// The only codec for the V1 gameplay skin manifest and declarative scene document.
     /// It consumes already-captured bytes and performs no package, filesystem, network, reflection or runtime work.
     /// </summary>
-    public static class GameplaySkinSceneCodec
+    public static partial class GameplaySkinSceneCodec
     {
         private static readonly UTF8Encoding strict_utf8 = new UTF8Encoding(false, true);
 
@@ -51,7 +51,7 @@ namespace osu.Game.Skinning.Gameplay
 
         private static readonly HashSet<string> binding_source_ids = new HashSet<string>(StringComparer.Ordinal)
         {
-            "layout.stage", "layout.group", "layout.lane", "input.pressed", "gameplay.full-combo", "object.state", "judgement.result", "judgement.offset",
+            "layout.ruleset", "layout.stage", "layout.group", "layout.lane", "input.pressed", "gameplay.full-combo", "object.state", "judgement.result", "judgement.offset",
             "score.value", "score.accuracy", "combo.value", "combo.maximum", "gauge.value", "timing.beat", "timing.measure", "timing.bpm", "timing.progress", "bga.content-state",
             "song.table-classification", "song.title", "song.artist", "song.difficulty", "song.level", "timing.bpm-min", "timing.bpm-max", "scroll.speed", "judgement.count.perfect", "judgement.count.great", "judgement.count.good", "judgement.count.ok", "judgement.count.meh", "judgement.count.miss", "combo.breaks",
             "object.long-note-mode", "object.long-note-appearance", "gauge.type", "gauge.maximum", "gauge.clear-threshold", "gauge.clear-state",
@@ -60,6 +60,7 @@ namespace osu.Game.Skinning.Gameplay
         private static readonly IReadOnlyDictionary<string, HashSet<string>> variant_source_keys =
             new Dictionary<string, HashSet<string>>(StringComparer.Ordinal)
             {
+                ["layout.ruleset"] = new HashSet<string>(new[] { "bms", "mania" }, StringComparer.Ordinal),
                 ["object.state"] = new HashSet<string>(
                     new[] { "scheduled", "visible", "holding", "hit", "missed", "completed", "despawned" },
                     StringComparer.Ordinal),
@@ -150,6 +151,12 @@ namespace osu.Game.Skinning.Gameplay
                 }));
             }
 
+            if (manifest.Options.Count > 0)
+                root["options"] = encodeOptions(manifest.Options);
+
+            if (manifest.AuthorLayouts.Count > 0)
+                root["layouts"] = GameplaySkinAuthorLayoutCodec.Encode(manifest.AuthorLayouts);
+
             return root.ToString(Formatting.None);
         }
 
@@ -222,7 +229,7 @@ namespace osu.Game.Skinning.Gameplay
             if (root == null)
                 return context.Invalid<GameplaySkinSceneManifest>();
 
-            validateFields(root, context, new[] { "contract", "scene", "sceneContract", "eventContract", "resources" }, new[] { "script", "bitmapFonts" });
+            validateFields(root, context, new[] { "contract", "scene", "sceneContract", "eventContract", "resources" }, new[] { "script", "bitmapFonts", "options", "layouts" });
             validateExactContract(root, "contract", GameplaySkinSceneContracts.MANIFEST_CONTRACT_ID, context);
             validateExactContract(root, "scene", GameplaySkinSceneContracts.SCENE_FILE_NAME, context);
             validateExactContract(root, "sceneContract", GameplaySkinSceneContracts.SCENE_CONTRACT_ID, context);
@@ -289,11 +296,16 @@ namespace osu.Game.Skinning.Gameplay
             }
 
             List<GameplaySkinBitmapFont> bitmapFonts = parseBitmapFonts(root["bitmapFonts"], resources, context);
+            List<GameplaySkinOptionDefinition> options = parseOptions(root["options"], context);
+            var layoutDiagnostics = new List<GameplaySkinSceneDiagnostic>();
+            IReadOnlyList<GameplaySkinAuthorLayout> authorLayouts = GameplaySkinAuthorLayoutCodec.Decode(root["layouts"], layoutDiagnostics);
+            foreach (GameplaySkinSceneDiagnostic diagnostic in layoutDiagnostics)
+                context.Add(diagnostic.Code);
 
             if (context.HasDiagnostics)
                 return context.Invalid<GameplaySkinSceneManifest>();
 
-            return valid(new GameplaySkinSceneManifest(resources, scriptFile, bitmapFonts));
+            return valid(new GameplaySkinSceneManifest(resources, scriptFile, bitmapFonts, options, authorLayouts));
         }
 
         private static List<GameplaySkinBitmapFont> parseBitmapFonts(
@@ -553,7 +565,7 @@ namespace osu.Game.Skinning.Gameplay
 
                 // These textures represent finite numeric values. Metadata, IDs, booleans and status words
                 // cannot silently lose letters or switch to a system font when bound to this numeric node.
-                if (!bindingSourceCanDriveProperty(binding.SourceId, "font-size"))
+                if (!bindingSourceCanDriveProperty(binding.SourceId, "font-size", context.Manifest))
                 {
                     context.Add(GameplaySkinSceneDiagnosticCode.InvalidPropertyValue);
                     continue;
@@ -562,8 +574,12 @@ namespace osu.Game.Skinning.Gameplay
                 if (!declaration.Font.CanRender("0123456789")
                     || declaration.Format == "fixed-2" && !declaration.Font.CanRender(".")
                     || declaration.Format == "percent" && !declaration.Font.CanRender("%")
-                    || declaration.Format.Length == 0 && !integerSource(binding.Source) && !declaration.Font.CanRender(".")
-                    || (binding.Source is GameplaySkinSceneBindingSource.JudgementOffset or GameplaySkinSceneBindingSource.TimingBeat)
+                    || declaration.Format.Length == 0 && !integerSource(binding.Source)
+                        && !(optionSource(binding.SourceId, context.Manifest) is { } option && (option.Kind == GameplaySkinOptionKind.Toggle
+                            || option.Kind == GameplaySkinOptionKind.Number && option.Minimum == Math.Truncate(option.Minimum) && option.Step == Math.Truncate(option.Step)))
+                        && !declaration.Font.CanRender(".")
+                    || (binding.Source is GameplaySkinSceneBindingSource.JudgementOffset or GameplaySkinSceneBindingSource.TimingBeat
+                        || optionSource(binding.SourceId, context.Manifest) is { Kind: GameplaySkinOptionKind.Number, Minimum: < 0 })
                         && !declaration.Font.CanRender("-"))
                 {
                     context.Add(GameplaySkinSceneDiagnosticCode.InvalidReference);
@@ -1185,11 +1201,11 @@ namespace osu.Game.Skinning.Gameplay
                         context.Add(GameplaySkinSceneDiagnosticCode.UnknownProperty);
                 }
 
-                if (source != null && !binding_source_ids.Contains(source))
+                if (source != null && !isKnownBindingSource(source, context.Manifest))
                     context.Add(GameplaySkinSceneDiagnosticCode.UnknownBindingSource);
 
-                if (property != null && source != null && binding_source_ids.Contains(source)
-                    && !bindingSourceCanDriveProperty(source, property))
+                if (property != null && source != null && isKnownBindingSource(source, context.Manifest)
+                    && !bindingSourceCanDriveProperty(source, property, context.Manifest))
                 {
                     context.Add(GameplaySkinSceneDiagnosticCode.InvalidPropertyValue);
                 }
@@ -1251,7 +1267,7 @@ namespace osu.Game.Skinning.Gameplay
 
                 HashSet<string>? allowedKeys = null;
 
-                if (source == null || !variant_source_keys.TryGetValue(source, out allowedKeys))
+                if (source == null || !tryGetVariantKeys(source, context.Manifest, out allowedKeys))
                     context.Add(GameplaySkinSceneDiagnosticCode.UnknownBindingSource);
 
                 var cases = new List<GameplaySkinSceneVariantCase>();
@@ -1300,7 +1316,7 @@ namespace osu.Game.Skinning.Gameplay
                 }
 
                 if (id != null && target != null && (isResource || isVisibility) && source != null
-                    && variant_source_keys.ContainsKey(source) && defaultValue != null)
+                    && allowedKeys != null && defaultValue != null)
                 {
                     variants.Add(new GameplaySkinSceneVariant(id, target, GameplaySkinSceneVocabulary.ParseProperty(property!), source, defaultValue, cases));
                 }
@@ -1731,13 +1747,19 @@ namespace osu.Game.Skinning.Gameplay
             };
         }
 
-        private static bool bindingSourceCanDriveProperty(string source, string property)
+        private static bool bindingSourceCanDriveProperty(string source, string property, GameplaySkinSceneManifest? manifest = null)
         {
             if (isStaticProperty(property))
                 return false;
 
             if (property == "text")
                 return true;
+
+            if (optionSource(source, manifest) is { } option)
+            {
+                return option.Kind == GameplaySkinOptionKind.Number && number_properties.Contains(property)
+                       || option.Kind == GameplaySkinOptionKind.Toggle && (number_properties.Contains(property) || boolean_properties.Contains(property));
+            }
 
             bool sourceIsNumber = source is "judgement.offset" or "score.value" or "score.accuracy" or "combo.value" or "combo.maximum" or "gauge.value" or "gauge.maximum" or "gauge.clear-threshold"
                 or "timing.beat" or "timing.measure" or "timing.bpm" or "timing.progress"

@@ -97,7 +97,8 @@ namespace osu.Game.Rulesets.Mania
                     dependencies.Get<GameHost>(),
                     direction,
                     cancellationToken,
-                    out GameplaySkinLayoutPublication? publication))
+                    out GameplaySkinLayoutPublication? publication,
+                    dependencies.Get<SkinOptionPreferences>()))
             {
                 return GameplaySkinLayoutPreparationResult.Retry;
             }

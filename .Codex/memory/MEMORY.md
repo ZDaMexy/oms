@@ -31,7 +31,7 @@
 - [canonical 构建、安装与用户数据保护](reference_skin_canonical_installation.md) — 静线唯一保底、source→原件/摘要与解压字节核对、星轨退役迁移、缺行修复；便携误入、缓存隔离、冷启动线程、取消资源移交。
 - [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 随包手册与示例闭合、作者边界、用户决定与诊断入口。
 - [Skin V1 价值与工作预算](project_oms_skin_product_progress.md) — 区分效果能力、成品与创作便利度；星轨实际体验否定、有限反馈与本轮停止边界，当前状态读 P1-A。
-- [按模式皮肤选择](reference_skin_mode_selection.md) — BMS/mania 独立配置、旧全局迁移、规则集切换回落与设置页空状态收简。
+- [按模式皮肤选择](reference_skin_mode_selection.md) — BMS/mania 独立选择、配置冻结与数值步进、旧ID预算、设置生命周期和删除重入顺序对照。
 
 ## 构建、存储与产品面参考
 
@@ -68,7 +68,7 @@
 - [gameplay skin shared codec/material](reference_gameplay_skin_codec_material.md) — 元素族/样式、typed Note/LN空匹配、scene数字ID段、必需槽透明Provide与字体复用预算。
 - [gameplay skin lane identity/topology](reference_gameplay_skin_lane_identity.md) — stable lane ID 与 topology 投影。
 - [gameplay skin topology publication/revision](reference_gameplay_skin_topology_revision.md) — owner-local revision 与 publication 区别。
-- [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — 唯一layout、AFP同名实例/SD网格与PNG差异、HUD坐标/离屏缓冲、BGA遮挡及重打包摘要。
+- [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — 唯一layout、显式空位/authorTop、mania键图mask、双stage判定、AFP/SD与BGA遮挡。
 - [gameplay skin config presence](reference_gameplay_skin_config_presence.md) — accepted presence、synthetic default 与 per-index mask。
 - [gameplay skin lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md) — lane provenance、9K/14K 候选映射与资源退役。
 - [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — 事件顺序、seek 时钟收敛与完整 Reset、callback 拷贝及真实显示取证。

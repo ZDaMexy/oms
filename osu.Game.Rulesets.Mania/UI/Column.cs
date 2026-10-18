@@ -60,6 +60,8 @@ namespace osu.Game.Rulesets.Mania.UI
         private ManiaGameplaySkinFailClosedSkinnableDrawable columnBackground = null!;
         private Container specialisedKeyVisualOwner = null!;
         private GameplaySkinSpecialisedSceneVisual? specialisedKeyVisual;
+        internal bool UsesSeparateKeyArea { get; private set; }
+        internal GameplaySkinSpecialisedSceneVisual? PreparedKeyVisual => specialisedKeyVisual;
         private IDisposable? keyVisualProgrammaticRegistration;
         private readonly List<IDisposable> programmaticVisualPartRegistrations = new List<IDisposable>();
         private readonly HashSet<Drawable> registeredProgrammaticVisualPartOwners = new HashSet<Drawable>();
@@ -200,6 +202,24 @@ namespace osu.Game.Rulesets.Mania.UI
 
             if (sceneRuntime != null && materialContext.UsesResolvedMaterial)
             {
+                GameplaySkinLayoutSurface? keySurface = LayoutSnapshot.Surfaces.FirstOrDefault(surface =>
+                    surface.Id == ManiaGameplaySkinLayout.KEY_VISUAL_SURFACE_PREFIX + LayoutLaneId.Value);
+                if (keySurface != null)
+                {
+                    UsesSeparateKeyArea = true;
+                    GameplaySkinLayoutRect lane = layoutLaneContext.Lane.Rect;
+                    GameplaySkinLayoutRect key = keySurface.Rect;
+                    foreach (Drawable visual in new Drawable[] { keyArea, specialisedKeyVisualOwner })
+                    {
+                        visual.RelativePositionAxes = Axes.Both;
+                        visual.Position = new Vector2((key.Left - lane.Left) / lane.Width, (key.Top - lane.Top) / lane.Height);
+                        visual.Size = new Vector2(key.Width / lane.Width, key.Height / lane.Height);
+                    }
+                    // ColumnFlow owns the scrolling mask. Keys in an authored band below that field must use the
+                    // existing unmasked stage proxy path, just like explosions; input/note columns stay untouched.
+                    TopLevelContainer.Add(keyArea.CreateProxy());
+                    TopLevelContainer.Add(specialisedKeyVisualOwner.CreateProxy());
+                }
                 sceneRuntime.TryGetVisualGate(
                     new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.KeyVisual, materialContext.Target),
                     out keyVisualGate);

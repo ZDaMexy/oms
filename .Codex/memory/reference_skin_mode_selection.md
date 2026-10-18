@@ -23,4 +23,10 @@ metadata:
 
 ## 验证与踩坑
 
+- 皮肤选项与选择皮肤不同：`SkinOptionPreferences`只存record+ruleset覆盖，root准备才冻结到Context；不要为了更换图案触发reload、重选current或改包。首次显示控件不写覆盖，失效旧值读作者默认；声明删除后的旧ID仅在玩家主动保存时清理，避免占满32项。
+- 数值网格以作者min为原点，不能直接把step给BindableDouble.Precision（framework按0取整）。提交时按min+n×step吸附，再保存canonical值。控件重建要验证值和store一致；未加载就Dispose必须容许Resolved尚为空。
+- SettingsSection的旧独立caller可能没有应用级preferences/ruleset服务；可选边界保持空块，不能让无关删除/脚本/刷新入口因新块加载失败。正常GameHost缓存唯一服务，真实UI验证走该scope。
+- 旧style测试仍写BmsRulesetSetting.PlayfieldStyle时，即使canonical已有选项也不会改变新root。真实非默认布局fixture应由该临时作者包声明presentation，再写包级偏好；不能为通过测试恢复全局读取、借canonical声明或放宽生产guard。另用原样无声明包加旧P2配置证明仍居中，历史complex源保持原样。
+- 删除重入检查可能受前序测试状态影响，孤立通过不证明修复；先核对完整消息与失败阶段，再用干净修改前源码按实际前序顺序对照。路径只替换明确的worktree前缀，不能归一化行号、空白或业务栈来抹平差异；原失败分类保留，补充证据见[P1-A记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-18皮肤配置项与bpl作品)。
+
 `TestSceneStartupRuleset.TestRulesetSpecificSkinPreferences` 用真实 `OsuGame` 在 BMS → mania 切换后断言两条配置和当前皮肤互不污染；`TestSceneStartupSkinMigration` 覆盖旧全局值迁移。设置布局变化后仍需保留现有 `ChildrenOfType` caller（删除、脚本授权、刷新）并运行 P1-A 规定的 focused tests。不要把移除工作区 UI 写成删除旧用户数据，也不要在设置页绕过 `SkinManager.CurrentSkinInfo` 直接写提交 bindable。

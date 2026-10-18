@@ -12,6 +12,7 @@
 | 跟做一个小而完整的跨玩法场景 | [First Scene](docs/examples/first-scene/README.md) |
 | 练习换图、模板实例和击打历史组合 | [Reference Study](docs/examples/reference-study/README.md) |
 | 查 JSON 字段、绑定、状态机、上限及错误码 | [逐字段参考](docs/REFERENCE.md) |
+| 声明皮肤配置项、默认表现和保留空位的舞台 | [选项与显式布局](docs/REFERENCE.md#皮肤配置项) |
 | 查所有公开部件与适用范围 | [部件目录](docs/CATALOG.md) |
 | 编写可选的数值脚本 | [脚本指南](docs/SCRIPTING.md) |
 

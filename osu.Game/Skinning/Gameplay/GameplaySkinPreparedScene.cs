@@ -543,6 +543,8 @@ namespace osu.Game.Skinning.Gameplay
 
         public GameplaySkinSceneBindingSource Source { get; }
 
+        public string? OptionId { get; }
+
         internal GameplaySkinSceneStateFamily StateFamily { get; }
 
         internal GameplaySkinPreparedSceneBinding(GameplaySkinSceneBinding source)
@@ -551,6 +553,7 @@ namespace osu.Game.Skinning.Gameplay
             TargetNodeId = source.TargetNodeId;
             Property = source.Property;
             Source = source.Source;
+            OptionId = source.Source == GameplaySkinSceneBindingSource.Option ? source.SourceId[7..] : null;
             StateFamily = GameplaySkinPreparedSceneProgram.StateFamilyFor(source.Source);
         }
     }
@@ -603,6 +606,8 @@ namespace osu.Game.Skinning.Gameplay
 
         public GameplaySkinSceneBindingSource Source { get; }
 
+        public string? OptionId { get; }
+
         internal GameplaySkinSceneStateFamily StateFamily { get; }
 
         public GameplaySkinPreparedSceneValue DefaultValue { get; }
@@ -621,6 +626,7 @@ namespace osu.Game.Skinning.Gameplay
             TargetNodeId = source.TargetNodeId;
             Property = source.Property;
             Source = source.Source;
+            OptionId = source.Source == GameplaySkinSceneBindingSource.Option ? source.SourceId[7..] : null;
             StateFamily = GameplaySkinPreparedSceneProgram.StateFamilyFor(source.Source);
             DefaultValue = new GameplaySkinPreparedSceneValue(source.Property, source.DefaultValue, resources);
             GameplaySkinPreparedSceneVariantCase[] cases = source.Cases
@@ -698,6 +704,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBindingSource.LayoutStage => GameplaySkinSceneStateFamily.Layout,
             GameplaySkinSceneBindingSource.LayoutGroup => GameplaySkinSceneStateFamily.Layout,
             GameplaySkinSceneBindingSource.LayoutLane => GameplaySkinSceneStateFamily.Layout,
+            GameplaySkinSceneBindingSource.LayoutRuleset => GameplaySkinSceneStateFamily.Layout,
+            GameplaySkinSceneBindingSource.Option => GameplaySkinSceneStateFamily.Layout,
             GameplaySkinSceneBindingSource.InputPressed => GameplaySkinSceneStateFamily.Input,
             GameplaySkinSceneBindingSource.ObjectState => GameplaySkinSceneStateFamily.Object,
             GameplaySkinSceneBindingSource.ObjectLongNoteMode => GameplaySkinSceneStateFamily.Object,

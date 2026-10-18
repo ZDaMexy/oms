@@ -80,7 +80,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 if (mania)
                     ((ManiaRulesetConfigManager)configs.GetConfigFor(ruleset)!).SetValue(ManiaRulesetSetting.ScrollDirection, ManiaScrollingDirection.Up);
                 else
-                    ((BmsRulesetConfigManager)configs.GetConfigFor(ruleset)!).SetValue(BmsRulesetSetting.PlayfieldStyle, BmsPlayfieldStyle.P2);
+                {
+                    var skins = Game.Dependencies.Get<SkinManager>();
+                    GameplaySkinOptionDefinition layout = skins.CurrentSkin.Value.GameplayOptions.Single(option => option.Effect == GameplaySkinOptionEffect.Presentation);
+                    Game.Dependencies.Get<SkinOptionPreferences>().SetOverride(skins.CurrentSkin.Value.SkinInfo.ID, "bms", layout.Id, "p2");
+                }
 
                 Game.Ruleset.Value = ruleset.RulesetInfo;
                 Game.Beatmap.Value = CreateWorkingBeatmap(createEntryBeatmap(ruleset, mania));

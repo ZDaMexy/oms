@@ -657,6 +657,19 @@ namespace SkinAuthoring
                 ["scene"] = GameplaySkinSceneContracts.SCENE_FILE_NAME,
                 ["sceneContract"] = GameplaySkinSceneContracts.SCENE_CONTRACT_ID,
                 ["eventContract"] = GameplaySkinSceneContracts.EVENT_CONTRACT_ID,
+                ["options"] = new[]
+                {
+                    new
+                    {
+                        id = "layout", type = "choice", label = "游玩区域样式", @default = "center-p1", effect = "presentation",
+                        rulesets = new[] { "bms" }, keymodes = new[] { "5k", "7k" },
+                        choices = new[]
+                        {
+                            new { value = "p1", label = "1P（居左）" }, new { value = "p2", label = "2P（居右）" },
+                            new { value = "center-p1", label = "居中（左皿）" }, new { value = "center-p2", label = "居中（右皿）" },
+                        },
+                    },
+                },
                 ["resources"] = (profile.Complex ? new[] { "white", "orbit", "prism", "console" } : profile.CompactLayout ? new[] { "white", "instrument", "gauge-frame", "gauge-cells" } : new[] { "white" })
                     .Select(id => new { id = "texture." + id, type = "texture", path = "scene/" + id + ".png" }).ToArray(),
             };
@@ -693,21 +706,32 @@ namespace SkinAuthoring
             if (!profile.Complex && profile.CompactLayout)
             {
                 children.Add(stageTemplateNode("still.cabinet", "sprite", new() { ["colour"] = "#adb6c0ff" }, slot: "stage.background"));
-                templates.Add(new { id = "still.judgement-style", root = stageTemplateNode("still.judgement", "container", new() { ["opacity"] = 0 }, new object[]
+                templates.Add(new
+                {
+                    id = "still.judgement-style",
+                    root = stageTemplateNode("still.judgement", "container", new() { ["opacity"] = 0 }, new object[]
                 {
                     stageTemplateNode("still.judgement.result", "text", new()
                     {
                         ["text"] = "", ["format"] = "uppercase", ["font-size"] = 32, ["alignment"] = "centre", ["colour"] = "#eaf8ffff",
                     }),
-                }, slot: "hud.judgement") });
-                templates.Add(new { id = "still.combo-style", root = stageTemplateNode("still.combo", "container", new() { ["y"] = -0.8 }, new object[]
+                }, slot: "hud.judgement")
+                });
+                templates.Add(new
+                {
+                    id = "still.combo-style",
+                    root = stageTemplateNode("still.combo", "container", new() { ["y"] = -0.8 }, new object[]
                 {
                     stageTemplateNode("still.combo.value", "text", new()
                     {
                         ["text"] = "0", ["font-size"] = 22, ["alignment"] = "centre", ["colour"] = "#a7e6f0ff",
                     }),
-                }, slot: "hud.combo") });
-                templates.Add(new { id = "still.gauge-style", root = stageTemplateNode("still.gauge", "container", new(), new object[]
+                }, slot: "hud.combo")
+                });
+                templates.Add(new
+                {
+                    id = "still.gauge-style",
+                    root = stageTemplateNode("still.gauge", "container", new(), new object[]
                 {
                     stageTemplateNode("still.gauge.frame", "sprite", new(), resource: "texture.gauge-frame"),
                     stageTemplateNode("still.gauge.label", "text", new()
@@ -728,7 +752,8 @@ namespace SkinAuthoring
                     {
                         ["x"] = 0.025, ["y"] = 0.52, ["width"] = 0.95, ["height"] = 0.38, ["clip-mode"] = "bounds", ["reveal-x"] = 1,
                     }, new[] { stageTemplateNode("still.gauge.fill", "sprite", new(), resource: "texture.gauge-cells") }),
-                }, slot: "hud.gauge") });
+                }, slot: "hud.gauge")
+                });
                 foreach ((string name, string slot, string resource) in new[]
                          { ("judgement", "hud.judgement", "bms/hud"), ("combo", "hud.combo", "bms/hud"), ("gauge", "hud.gauge", "bms/gauge") })
                     instances.Add(new { id = "still." + name + "-stage", template = "still." + name + "-style", material = new { slot, resource } });
@@ -740,7 +765,8 @@ namespace SkinAuthoring
                     bindings.Add(new { id = "still.stage-bind." + target + "." + property, target = "still." + target, property, source });
                 machines.Add(new
                 {
-                    id = "still.current-judgement", initial = "still.judgement.empty",
+                    id = "still.current-judgement",
+                    initial = "still.judgement.empty",
                     states = new[]
                     {
                         new { id = "still.judgement.empty", set = new[] { new { id = "still.judgement.hide", target = "still.judgement", property = "opacity", value = 0 } } },
@@ -861,8 +887,14 @@ namespace SkinAuthoring
                     bindings.Add(new { id = "still.bms-bind." + name, target = id, property = "text", source });
                 var properties = new Dictionary<string, object>
                 {
-                    ["text"] = value, ["x"] = x, ["y"] = y, ["width"] = width, ["height"] = height,
-                    ["font-size"] = size, ["colour"] = colour, ["alignment"] = alignment,
+                    ["text"] = value,
+                    ["x"] = x,
+                    ["y"] = y,
+                    ["width"] = width,
+                    ["height"] = height,
+                    ["font-size"] = size,
+                    ["colour"] = colour,
+                    ["alignment"] = alignment,
                 };
                 if (format != null) properties["format"] = format;
                 if (source?.StartsWith("song.", StringComparison.Ordinal) == true)
@@ -872,13 +904,18 @@ namespace SkinAuthoring
             object region(string name, params object[] content)
                 => stageTemplateNode("still.bms-hud." + name, "clip", new()
                 {
-                    ["layout-surface"] = "information." + name, ["clip-mode"] = "bounds",
+                    ["layout-surface"] = "information." + name,
+                    ["clip-mode"] = "bounds",
                 }, new[] { stageTemplateNode("still.bms-hud." + name + ".panel", "sprite", new(), resource: "texture.instrument") }.Concat(content).ToArray());
 
             object inset(string name, double x, double y, double width, double height, string colour)
                 => stageTemplateNode("still.bms-hud." + name, "sprite", new()
                 {
-                    ["x"] = x, ["y"] = y, ["width"] = width, ["height"] = height, ["colour"] = colour,
+                    ["x"] = x,
+                    ["y"] = y,
+                    ["width"] = width,
+                    ["height"] = height,
+                    ["colour"] = colour,
                 }, resource: "texture.white");
 
             var judgements = new List<object>
@@ -941,8 +978,13 @@ namespace SkinAuthoring
         {
             var node = new Dictionary<string, object>
             {
-                ["id"] = id, ["type"] = type, ["target"] = new { kind = "global" }, ["blend"] = "alpha", ["properties"] = properties,
-                ["effects"] = effects ?? Array.Empty<object>(), ["children"] = children ?? Array.Empty<object>(),
+                ["id"] = id,
+                ["type"] = type,
+                ["target"] = new { kind = "global" },
+                ["blend"] = "alpha",
+                ["properties"] = properties,
+                ["effects"] = effects ?? Array.Empty<object>(),
+                ["children"] = children ?? Array.Empty<object>(),
             };
             if (resource != null) node["resource"] = resource;
             if (slot != null) node["slot"] = slot;

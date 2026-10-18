@@ -55,6 +55,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         private BmsPlayfieldStyle style;
         private BmsLongNoteMode longNoteMode;
         private bool doublePlay;
+        private bool fiveKey;
         private bool freezeHitPhase;
         private double? frozenHitPhase;
         private int sampledHitFrames;
@@ -92,6 +93,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 outputDirectory = Path.GetFullPath(output!);
                 Directory.CreateDirectory(outputDirectory);
                 doublePlay = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_KEYMODE") == "14K";
+                fiveKey = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_KEYMODE") == "5K";
                 longNoteMode = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_LONG_NOTE_MODE") switch
                 {
                     null or "cn" => BmsLongNoteMode.CN,
@@ -112,18 +114,18 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddStep("select the imported package and a repeatable BMS chart", () =>
             {
                 var ruleset = new BmsRuleset();
-                ((BmsRulesetConfigManager)Game.Dependencies.Get<IRulesetConfigCache>().GetConfigFor(ruleset)!)
-                    .SetValue(BmsRulesetSetting.PlayfieldStyle, style);
                 Game.Ruleset.Value = ruleset.RulesetInfo;
-                Game.Beatmap.Value = CreateWorkingBeatmap(createChart(ruleset, doublePlay));
+                Game.Beatmap.Value = CreateWorkingBeatmap(createChart(ruleset, doublePlay, fiveKey));
                 Mod autoplay = ruleset.GetAutoplayMod()!;
-                Game.SelectedMods.Value = longNoteMode switch
+                Mod[] selectedMods = longNoteMode switch
                 {
                     BmsLongNoteMode.LN => new[] { autoplay },
                     BmsLongNoteMode.CN => new Mod[] { autoplay, new BmsModChargeNote() },
                     BmsLongNoteMode.HCN => new Mod[] { autoplay, new BmsModHellChargeNote() },
                     _ => throw new InvalidOperationException("The author capture long-note mode is invalid."),
                 };
+                Game.SelectedMods.Value = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_COVER") == "1"
+                    ? selectedMods.Append(new BmsModSudden()).ToArray() : selectedMods;
                 DismissAnyNotifications();
             });
             AddStep("select the author package after BMS restores its mode preference", () =>
@@ -135,6 +137,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
             AddStep("enter the real replay player", () =>
             {
+                var preferences = Game.Dependencies.Get<SkinOptionPreferences>();
+                preferences.SetOverride(import!.GetAwaiter().GetResult().ID, "bms", "layout", style == BmsPlayfieldStyle.P2 ? "p2" : "p1");
+                if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_OPTIONS") is string overrides)
+                    foreach (var choice in System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, string>>(overrides)!)
+                        preferences.SetOverride(import.GetAwaiter().GetResult().ID, "bms", choice.Key, choice.Value);
                 var ruleset = new BmsRuleset();
                 Game.ScreenStack.Push(new PlayerLoader(() => player = new ReplayPlayer(ruleset.GetAutoplayMod()!.CreateScoreFromReplayData)));
             });
@@ -395,13 +402,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             }
         }
 
-        private static IBeatmap createChart(BmsRuleset ruleset, bool doublePlay)
+        private static IBeatmap createChart(BmsRuleset ruleset, bool doublePlay, bool fiveKey)
         {
             var text = new StringBuilder("#TITLE SPARKLE SHOWER / OMS author capture\n#ARTIST Offline reference chart\n#DIFFICULTY 3\n#PLAYLEVEL 10\n#BPM 150\n#LNTYPE 1\n#BPM01 180\n#00408:01\n#WAV01 note.wav\n");
             if (doublePlay)
                 text.Append("#PLAYER 3\n");
             string[] channels = doublePlay
                 ? new[] { "11", "12", "13", "14", "15", "18", "19", "16", "21", "22", "23", "24", "25", "28", "29", "26" }
+                : fiveKey ? new[] { "11", "12", "13", "14", "15", "16" }
                 : new[] { "11", "12", "13", "14", "15", "18", "19", "16" };
             for (int measure = 1; measure <= 8; measure++)
             {
@@ -414,7 +422,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                         .Append(measure % 2 == 0 ? "01000100" : lane % 2 == 0 ? "01000001" : "00010000").Append('\n');
                 }
             }
-            var decoded = new BmsBeatmapDecoder().DecodeText(text.ToString(), "author-capture.bme");
+            var decoded = new BmsBeatmapDecoder().DecodeText(text.ToString(), fiveKey ? "author-capture.bms" : "author-capture.bme");
             return new BmsDecodedBeatmap(decoded) { BeatmapInfo = { Ruleset = ruleset.RulesetInfo } };
         }
 

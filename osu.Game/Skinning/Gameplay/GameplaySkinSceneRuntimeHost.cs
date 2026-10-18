@@ -2140,7 +2140,7 @@ namespace osu.Game.Skinning.Gameplay
                     try
                     {
                         VariantApplicationCount++;
-                        string key = variantKey(variant.Source, target);
+                        string key = variantKey(variant, target);
                         applyRuntimeProperty(target, variant.Property, variant.SelectValue(key));
                     }
                     catch
@@ -2152,8 +2152,12 @@ namespace osu.Game.Skinning.Gameplay
             }
         }
 
-        private string variantKey(GameplaySkinSceneBindingSource source, GameplaySkinSceneRuntimeNode target)
+        private string variantKey(GameplaySkinPreparedSceneVariant variant, GameplaySkinSceneRuntimeNode target)
         {
+            GameplaySkinSceneBindingSource source = variant.Source;
+            if (source == GameplaySkinSceneBindingSource.Option)
+                return Publication.Snapshot.Context.OptionValues.TryGetValue(variant.OptionId!, out GameplaySkinOptionValue option) ? option.CanonicalValue : string.Empty;
+
             GameplaySkinResolvedMaterialTarget? materialTarget = target.PreparedNode.MaterialTarget;
             GameplaySkinLaneId? laneId = materialTarget?.LaneId;
             GameplaySkinLaneGroupId? groupId = materialTarget?.GroupId;
@@ -2163,6 +2167,7 @@ namespace osu.Game.Skinning.Gameplay
 
             return source switch
             {
+                GameplaySkinSceneBindingSource.LayoutRuleset => Publication.Snapshot.Context.RulesetId,
                 GameplaySkinSceneBindingSource.ObjectState => objectStateId(obj?.State ?? GameplaySkinObjectState.Scheduled),
                 GameplaySkinSceneBindingSource.ObjectLongNoteMode => longNoteModeId(obj?.LongNoteMode ?? GameplaySkinLongNoteMode.None),
                 GameplaySkinSceneBindingSource.ObjectLongNoteAppearance => longNoteAppearanceId(obj),
@@ -2298,6 +2303,23 @@ namespace osu.Game.Skinning.Gameplay
 
             switch (binding.Source)
             {
+                case GameplaySkinSceneBindingSource.LayoutRuleset:
+                    applyRuntimeStringProperty(target, binding.Property, Publication.Snapshot.Context.RulesetId);
+                    return;
+
+                case GameplaySkinSceneBindingSource.Option:
+                    if (!Publication.Snapshot.Context.OptionValues.TryGetValue(binding.OptionId!, out GameplaySkinOptionValue option))
+                        return;
+                    if (option.Kind == GameplaySkinOptionKind.Choice)
+                        applyRuntimeStringProperty(target, binding.Property, option.StringValue!);
+                    else if (option.Kind == GameplaySkinOptionKind.Toggle
+                             && (binding.Property == GameplaySkinSceneProperty.Visible
+                                 || binding.Property == GameplaySkinSceneProperty.Text && target.ContentDrawable is not GameplaySkinBitmapText))
+                        applyRuntimeBooleanProperty(target, binding.Property, option.BooleanValue);
+                    else
+                        applyRuntimeNumberProperty(target, binding.Property, option.NumberValue);
+                    return;
+
                 case GameplaySkinSceneBindingSource.LayoutStage:
                 case GameplaySkinSceneBindingSource.LayoutGroup:
                     applyRuntimeStringProperty(target, binding.Property, groupId?.Value ?? string.Empty);

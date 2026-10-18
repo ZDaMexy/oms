@@ -7,6 +7,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Graphics;
@@ -17,6 +18,7 @@ using osu.Game.Audio;
 using osu.Game.Database;
 using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Difficulty;
+using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Screens.Play;
 using osu.Game.Skinning;
@@ -76,7 +78,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         [TestCaseSource(nameof(canonicalBmsCases))]
         public void TestCanonicalProductsBmsAllModesStylesAndScreens(string package, BmsKeymode keymode, BmsPlayfieldStyle style, int viewport)
         {
-            addSelectCanonicalProduct(package);
+            addSelectCanonicalProduct(package, declareBmsPresentation: true);
             ExactLayoutJourneyHost renderer = null!;
             GameplaySkinSceneRuntimeHost scene = null!;
             AddStep("mount complete skin with the actual BMS decoder and renderer", () =>
@@ -90,14 +92,15 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 renderer.ShowBms();
             });
             AddUntilStep("the full skin reaches actual lanes and background viewport", () => renderer.BmsReady);
-            AddStep("the requested style reaches the shared configuration and actual playfield", () =>
+            AddStep("the declared skin choice reaches the immutable publication and actual playfield", () =>
             {
                 var config = (BmsRulesetConfigManager)RulesetConfigs.GetConfigFor(renderer.BmsDrawable.Ruleset)!;
                 Assert.Multiple(() =>
                 {
                     Assert.That(renderer.BmsProvider.Dependencies.Get<IRulesetConfigCache>(), Is.SameAs(RulesetConfigs));
                     Assert.That(renderer.BmsDrawable.Dependencies.Get<BmsRulesetConfigManager>(), Is.SameAs(config));
-                    Assert.That(config.Get<BmsPlayfieldStyle>(BmsRulesetSetting.PlayfieldStyle), Is.EqualTo(style));
+                    Assert.That(BmsGameplayLayoutProvider.ResolvePresentation(renderer.BmsDrawable.LayoutSnapshot.Neutral.Context.OptionValues),
+                        Is.EqualTo(style.GetAppliedStyle(keymode)));
                     Assert.That(renderer.BmsDrawable.LayoutSnapshot.Style, Is.EqualTo(style.GetAppliedStyle(keymode)));
                     Assert.That(renderer.BmsDrawable.Playfield.LayoutSnapshot, Is.SameAs(renderer.BmsDrawable.LayoutSnapshot));
                 });
@@ -117,6 +120,53 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
             AddStep("detach complete BMS playfield", () => renderer.Expire());
             AddUntilStep("all skin consumers detached", () => renderer.Parent == null);
+        }
+
+        [TestCase("oms-complex")]
+        [TestCase("third-party")]
+        public void TestUndeclaredPackagesIgnoreStoredPresentationAndLegacyGlobalStyle(string package)
+        {
+            addSelectCanonicalProduct(package);
+            ExactLayoutJourneyHost renderer = null!;
+            BmsRulesetConfigManager legacyConfig = null!;
+            BmsPlayfieldStyle previousLegacyStyle = default;
+            AddStep("retain the unmodified old package and stale right-side settings", () =>
+            {
+                Skin selected = manager.CurrentSkin.Value;
+                Assert.That(selected.GameplayOptions, Is.Empty);
+                Assert.That(selected.GameplayLayouts, Is.Empty);
+                Dependencies.Get<SkinOptionPreferences>().SetOverride(selected.SkinInfo.ID, "bms", "layout", "p2");
+                renderer = new ExactLayoutJourneyHost(manager, exactBmsFixture: new ExactBmsProductionFixture(
+                    createC5MatrixChart(BmsKeymode.Key7K), "undeclared.bms", BmsPlayfieldStyle.Center,
+                    initialGameplayTime: 2_000, keymodeOverride: BmsKeymode.Key7K));
+                legacyConfig = (BmsRulesetConfigManager)RulesetConfigs.GetConfigFor(renderer.BmsDrawable.Ruleset)!;
+                previousLegacyStyle = legacyConfig.Get<BmsPlayfieldStyle>(BmsRulesetSetting.PlayfieldStyle);
+                legacyConfig.SetValue(BmsRulesetSetting.PlayfieldStyle, BmsPlayfieldStyle.P2);
+                Add(renderer);
+                renderer.ShowBms();
+            });
+            AddUntilStep("the original package reaches the real renderer", () => renderer.BmsReady
+                && renderer.BmsDrawable.GameplaySkinSceneRuntime?.IsSceneReady == true);
+            AddStep("undeclared preferences cannot borrow canonical presentation or create inputs", () =>
+            {
+                BmsGameplayLayoutSnapshot snapshot = renderer.BmsDrawable.LayoutSnapshot;
+                Assert.Multiple(() =>
+                {
+                    Assert.That(legacyConfig.Get<BmsPlayfieldStyle>(BmsRulesetSetting.PlayfieldStyle), Is.EqualTo(BmsPlayfieldStyle.P2));
+                    Assert.That(snapshot.Context.OptionValues.Values, Is.Empty);
+                    Assert.That(snapshot.Context.OptionValues.Presentation, Is.Null);
+                    Assert.That(snapshot.Context.PresentationStyleId, Is.EqualTo("center-p1"));
+                    Assert.That(snapshot.Style, Is.EqualTo(BmsPlayfieldStyle.Center));
+                    Assert.That(snapshot.KeymodeResolution, Is.SameAs(renderer.BmsBeatmap.BmsInfo.KeymodeResolution));
+                    Assert.That(snapshot.LanesInLogicalOrder, Has.Count.EqualTo(8));
+                    Assert.That(snapshot.LanesInLogicalOrder.Count(lane => lane.IsScratch), Is.EqualTo(1));
+                    Assert.That(renderer.BmsDrawable.Playfield.Lanes.All(lane => ReferenceEquals(lane.LayoutSnapshot, snapshot)), Is.True);
+                    Assert.That(renderer.BmsLayoutProbe.Publication!.Snapshot, Is.SameAs(snapshot.Neutral));
+                });
+            });
+            AddStep("detach the original package", () => renderer.Expire());
+            AddUntilStep("original package consumers detached", () => renderer.Parent == null);
+            AddStep("restore the test-owned historical setting", () => legacyConfig.SetValue(BmsRulesetSetting.PlayfieldStyle, previousLegacyStyle));
         }
 
         private static IEnumerable<TestCaseData> canonicalManiaCases()
@@ -172,7 +222,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddUntilStep("all mania consumers detached", () => renderer.Parent == null);
         }
 
-        private void addSelectCanonicalProduct(string package)
+        private void addSelectCanonicalProduct(string package, bool declareBmsPresentation = false)
         {
             Task<Live<SkinInfo>>? import = null;
             Live<SkinInfo>? imported = null;
@@ -187,11 +237,13 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 return;
             }
 
-            AddStep("import the deliverable using the ordinary player importer", () =>
+            AddStep(declareBmsPresentation ? "import a test-owned package with declared BMS presentation" : "import the deliverable using the ordinary player importer", () =>
             {
                 string archive = package == "third-party"
                     ? createCanonicalThirdPartyFixture()
                     : createCanonicalImportCopy(package);
+                if (declareBmsPresentation && package is ("oms-complex" or "third-party"))
+                    addTestPresentationDeclarationToArchive(archive);
                 import = Task.Run(async () => await manager.Import(new ImportTask(archive)).ConfigureAwait(false));
             });
             AddUntilStep("ordinary import completes", () => import?.IsCompleted == true);
@@ -285,6 +337,52 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                          + "decoration: resource Suppress\n");
             return archive;
         }
+
+        private static void addTestPresentationDeclarationToArchive(string archive)
+        {
+            // Only a LocalStorage import copy reaches this helper. The preserved historical archive is never opened for writing.
+            using var zip = ZipFile.Open(archive, ZipArchiveMode.Update);
+            ZipArchiveEntry? existing = zip.GetEntry(GameplaySkinSceneContracts.MANIFEST_FILE_NAME);
+            JObject manifest;
+            if (existing != null)
+            {
+                using (var reader = new StreamReader(existing.Open()))
+                    manifest = JObject.Parse(reader.ReadToEnd());
+                existing.Delete();
+                manifest["options"] = testPresentationOptions();
+            }
+            else
+            {
+                manifest = presentationOnlyTestManifest();
+                using var sceneWriter = new StreamWriter(zip.CreateEntry(GameplaySkinSceneContracts.SCENE_FILE_NAME).Open(), new UTF8Encoding(false));
+                sceneWriter.Write(presentation_only_test_scene);
+            }
+            using var writer = new StreamWriter(zip.CreateEntry(GameplaySkinSceneContracts.MANIFEST_FILE_NAME).Open(), new UTF8Encoding(false));
+            writer.Write(manifest.ToString());
+        }
+
+        private static void writePresentationOnlyTestPackage(string root)
+        {
+            File.WriteAllText(Path.Combine(root, GameplaySkinSceneContracts.MANIFEST_FILE_NAME), presentationOnlyTestManifest().ToString());
+            File.WriteAllText(Path.Combine(root, GameplaySkinSceneContracts.SCENE_FILE_NAME), presentation_only_test_scene);
+        }
+
+        private static JObject presentationOnlyTestManifest() => new JObject
+        {
+            ["contract"] = GameplaySkinSceneContracts.MANIFEST_CONTRACT_ID,
+            ["scene"] = GameplaySkinSceneContracts.SCENE_FILE_NAME,
+            ["sceneContract"] = GameplaySkinSceneContracts.SCENE_CONTRACT_ID,
+            ["eventContract"] = GameplaySkinSceneContracts.EVENT_CONTRACT_ID,
+            ["resources"] = new JArray(),
+            ["options"] = testPresentationOptions(),
+        };
+
+        private const string presentation_only_test_scene = """
+            {"contract":"oms-gameplay-skin-scene.v1",
+             "root":{"id":"fixture.presentation.root","type":"container","target":{"kind":"global"},
+               "blend":"inherit","properties":{},"effects":[],"children":[]},
+             "tracks":[],"stateMachines":[],"bindings":[],"variants":[],"templates":[],"instances":[]}
+            """;
 
         private static void setCanonicalViewport(ExactLayoutJourneyHost renderer, int viewport)
         {

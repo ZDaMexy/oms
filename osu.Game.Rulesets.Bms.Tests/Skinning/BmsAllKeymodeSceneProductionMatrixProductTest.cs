@@ -670,6 +670,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     ["scene"] = GameplaySkinSceneContracts.SCENE_FILE_NAME,
                     ["sceneContract"] = GameplaySkinSceneContracts.SCENE_CONTRACT_ID,
                     ["eventContract"] = GameplaySkinSceneContracts.EVENT_CONTRACT_ID,
+                    ["options"] = testPresentationOptions(),
                     ["resources"] = new JArray(new JObject
                     {
                         ["id"] = "texture.matrix",

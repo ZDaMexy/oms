@@ -110,12 +110,6 @@ namespace osu.Game.Rulesets.Bms
                                + "仅影响视觉定位；判定/计分不变。",
                     Current = config.GetBindable<BmsGimmickScrollMode>(BmsRulesetSetting.GimmickScrollMode),
                 }),
-                new SettingsItemV2(new FormEnumDropdown<BmsPlayfieldStyle>
-                {
-                    Caption = @"游玩区域样式",
-                    HintText = @"仅作用于5K/7K",
-                    Current = config.GetBindable<BmsPlayfieldStyle>(BmsRulesetSetting.PlayfieldStyle),
-                }),
                 new SettingsItemV2(new FormCheckBox
                 {
                     Caption = @"显示 BGA",

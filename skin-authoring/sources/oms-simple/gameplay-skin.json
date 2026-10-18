@@ -3,6 +3,40 @@
   "scene": "gameplay-skin.scene.json",
   "sceneContract": "oms-gameplay-skin-scene.v1",
   "eventContract": "oms-gameplay-skin-event.v1",
+  "options": [
+    {
+      "id": "layout",
+      "type": "choice",
+      "label": "\u6E38\u73A9\u533A\u57DF\u6837\u5F0F",
+      "default": "center-p1",
+      "effect": "presentation",
+      "rulesets": [
+        "bms"
+      ],
+      "keymodes": [
+        "5k",
+        "7k"
+      ],
+      "choices": [
+        {
+          "value": "p1",
+          "label": "1P\uFF08\u5C45\u5DE6\uFF09"
+        },
+        {
+          "value": "p2",
+          "label": "2P\uFF08\u5C45\u53F3\uFF09"
+        },
+        {
+          "value": "center-p1",
+          "label": "\u5C45\u4E2D\uFF08\u5DE6\u76BF\uFF09"
+        },
+        {
+          "value": "center-p2",
+          "label": "\u5C45\u4E2D\uFF08\u53F3\u76BF\uFF09"
+        }
+      ]
+    }
+  ],
   "resources": [
     {
       "id": "texture.white",

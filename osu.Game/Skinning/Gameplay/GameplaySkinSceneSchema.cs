@@ -291,13 +291,20 @@ namespace osu.Game.Skinning.Gameplay
 
         public IReadOnlyList<GameplaySkinBitmapFont> BitmapFonts { get; }
 
+        public IReadOnlyList<GameplaySkinOptionDefinition> Options { get; }
+
+        public IReadOnlyList<GameplaySkinAuthorLayout> AuthorLayouts { get; }
+
         private readonly IReadOnlyDictionary<string, GameplaySkinSceneResource> resourcesById;
         private readonly IReadOnlyDictionary<string, GameplaySkinBitmapFont> bitmapFontsById;
+        private readonly IReadOnlyDictionary<string, GameplaySkinOptionDefinition> optionsById;
 
         internal GameplaySkinSceneManifest(
             IEnumerable<GameplaySkinSceneResource> resources,
             string? scriptFile = null,
-            IEnumerable<GameplaySkinBitmapFont>? bitmapFonts = null)
+            IEnumerable<GameplaySkinBitmapFont>? bitmapFonts = null,
+            IEnumerable<GameplaySkinOptionDefinition>? options = null,
+            IEnumerable<GameplaySkinAuthorLayout>? authorLayouts = null)
         {
             ArgumentNullException.ThrowIfNull(resources);
 
@@ -312,6 +319,10 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinBitmapFont[] copiedFonts = bitmapFonts?.ToArray() ?? Array.Empty<GameplaySkinBitmapFont>();
             BitmapFonts = Array.AsReadOnly(copiedFonts);
             bitmapFontsById = new ReadOnlyDictionary<string, GameplaySkinBitmapFont>(copiedFonts.ToDictionary(font => font.Id, StringComparer.Ordinal));
+            GameplaySkinOptionDefinition[] copiedOptions = options?.ToArray() ?? Array.Empty<GameplaySkinOptionDefinition>();
+            Options = Array.AsReadOnly(copiedOptions);
+            optionsById = new ReadOnlyDictionary<string, GameplaySkinOptionDefinition>(copiedOptions.ToDictionary(option => option.Id, StringComparer.Ordinal));
+            AuthorLayouts = Array.AsReadOnly(authorLayouts?.ToArray() ?? Array.Empty<GameplaySkinAuthorLayout>());
         }
 
         public bool TryGetResource(string id, out GameplaySkinSceneResource resource)
@@ -322,6 +333,9 @@ namespace osu.Game.Skinning.Gameplay
 
         public bool TryGetBitmapFont(string id, out GameplaySkinBitmapFont font)
             => bitmapFontsById.TryGetValue(id, out font!);
+
+        public bool TryGetOption(string id, out GameplaySkinOptionDefinition option)
+            => optionsById.TryGetValue(id, out option!);
 
         public override string ToString() => $"{nameof(GameplaySkinSceneManifest)}:{Resources.Count}";
     }
@@ -445,6 +459,8 @@ namespace osu.Game.Skinning.Gameplay
         GaugeClearState = 37,
         GameplayFullCombo = 38,
         ComboMaximum = 39,
+        Option = 40,
+        LayoutRuleset = 41,
     }
 
     public enum GameplaySkinSceneEvent
@@ -960,6 +976,8 @@ namespace osu.Game.Skinning.Gameplay
 
         public static GameplaySkinSceneBindingSource ParseBindingSource(string id) => id switch
         {
+            _ when id.StartsWith("option.", StringComparison.Ordinal) => GameplaySkinSceneBindingSource.Option,
+            "layout.ruleset" => GameplaySkinSceneBindingSource.LayoutRuleset,
             "layout.stage" => GameplaySkinSceneBindingSource.LayoutStage,
             "layout.group" => GameplaySkinSceneBindingSource.LayoutGroup,
             "layout.lane" => GameplaySkinSceneBindingSource.LayoutLane,

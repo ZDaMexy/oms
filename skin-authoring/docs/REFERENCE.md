@@ -43,7 +43,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Author.ps1 -Action imp
 }
 ```
 
-可选字段为 `bitmapFonts` 和 `script`；旧清单省略 `bitmapFonts` 时仍使用原有文字路径。仅在需要脚本时增加 `"script": "gameplay-skin.script"`。也接受固定文件 `gameplay-skin.bytecode`，必须由兼容编译器生成并通过验证；作者日常直接保留源码即可。场景和脚本不接受自定义路径或自动发现其它文件。
+可选字段包括 `bitmapFonts`、`script`、[皮肤配置项](#皮肤配置项)的 `options` 和[显式布局](#显式舞台与留空位置)的 `layouts`；旧清单省略它们时保持原有路径。仅在需要脚本时增加 `"script": "gameplay-skin.script"`。也接受固定文件 `gameplay-skin.bytecode`，必须由兼容编译器生成并通过验证；作者日常直接保留源码即可。场景和脚本不接受自定义路径或自动发现其它文件。
 
 每个 texture 资源可选 `"filter":"nearest"` 或 `"filter":"linear"`；缺省保持 linear。nearest始终取原始图层的最近像素，不自动生成缩小平均层；linear保留原有平滑采样。选择在准备该资源专属纹理时生效，不修改其它皮肤或共用纹理；不开放自定义采样器或作者着色器。
 
@@ -89,7 +89,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Author.ps1 -Action imp
 { "id": "my.score.value", "target": "my.score", "property": "text", "source": "score.value" }
 ```
 
-`bitmap-font` 只能静态引用已声明字体，不能由绑定、轨迹、状态机或脚本更换。位图文字每节点最多64字符，静态文字和状态赋值中的每个字符都必须有字形。绑定只接受数值来源；曲名、状态词、身份和布尔值不能写入这种数字节点。它不接受 `uppercase` 或 `text-overflow`，也不会在缺字时切换系统字体。
+`bitmap-font` 只能静态引用已声明字体，不能由绑定、轨迹、状态机或脚本更换。位图文字每节点最多64字符，静态文字和状态赋值中的每个字符都必须有字形。绑定接受数值来源及配置开关的0/1投影；曲名、状态词、身份和其它布尔来源不能写入这种数字节点。它不接受 `uppercase` 或 `text-overflow`，也不会在缺字时切换系统字体。
 
 数值绑定必须声明全部十个数字。`fixed-2` 还需要 `.`，`percent` 还需要 `%`；未给 `format` 时使用最多三位小数，非整数来源还需要 `.`。这里的整数来源只有 `score.value`、`combo.value`、`combo.maximum`、`timing.measure`、六档 `judgement.count.*` 和 `combo.breaks`；例如希望BPM只使用数字字形，应显式选 `integer`。`judgement.offset` 与 `timing.beat` 还必须声明 `-`。其它可能出现负值的显示也应提供负号，例如前奏中的 `timing.measure` 可为-1。`,`、`+`、`x` 可用于自己写的静态数字文字，不会自动添加千位分隔或倍率前缀。
 
@@ -190,6 +190,46 @@ container可静态声明 `"layout":"horizontal"`。直接孩子按源文件顺�
 这些px与font-size同属引擎逻辑像素，不能直接当窗口像素；来源画布高1080、游戏逻辑高768时，所有高度、间距和字号均乘768/1080。横排会随当前文字和资源变化重新测量，首帧、晚挂载与独立模板实例使用相同规则，无需脚本或额外时钟。
 
 layout/gap-px/width-px/height-px不能被动画、绑定、状态机或脚本写入；gap-px只能随horizontal声明，两个像素尺寸只用于横排的sprite直接孩子。直接孩子不能声明或被程序修改x/y、width/height、scale、rotation、anchor/origin、alignment、layout-surface；可改文字、字号、资源、颜色、透明度与可见性。脚本对直接孩子只可写alpha。横排、直接孩子及其祖先不能挂C5 effects，避免动态自然宽绕过固定效果缓冲预算。需要统一位移、缩放或旋转时，控制父横排容器。
+
+## 皮肤配置项
+
+玩家在设置的“皮肤配置项”调整当前模式所选皮肤。选择按皮肤记录与 BMS / mania 分别保存，恢复默认只清除此组合的覆盖值。配置在下次进入游玩或重新打开预览时冻结，不改进行中的一局，不写皮肤或外部来源目录。未声明选项的旧包继续使用原有表现。
+
+清单可选 `options` 数组，支持 `choice`、`toggle`、`number`：
+
+```json
+"options": [
+  {"id":"layout","type":"choice","label":"游玩区域样式","default":"p1",
+   "choices":[{"value":"p1","label":"1P"},{"value":"p2","label":"2P"}],
+   "keymodes":["5k","7k"],"effect":"presentation"},
+  {"id":"beam","type":"toggle","label":"显示光柱","default":true},
+  {"id":"strength","type":"number","label":"效果缩放","default":1,"min":0.5,"max":1.5,"step":0.05}
+]
+```
+
+每项必填 `id/type/label/default`；choice 必填非空 `choices`，每项为 `value/label`；number 必填有限 `min/max/step`，要求min<max、step>0，范围和默认值都在min+n×step上。默认值使用对应 JSON 类型。id和choice value沿现有stable ID语法，最多128字符；可选 `rulesets`（`bms/mania`）和 `keymodes` 为非空数组，token仅小写ASCII字母、数字、点、连字符，最多80字符。省略表示通用；它们不会增加玩法或可打车道。mania 双舞台使用实际键数向量，例如 `7k-7k`。
+
+`effect:"presentation"` 只用于 choice，值限 `p1/p2/center-p1/center-p2`，交给各玩法既有布局准备入口；每个适用组合只能有一项。作者默认替代旧全局 BMS 样式设置，未声明仍取原居中默认。mania侧置还需匹配的layouts；仅声明choice而没有布局时保留原居中几何。
+
+只读来源 `layout.ruleset` 将当前context投影为 `bms/mania`，可写普通文字或用于resource/visible variants；不修改玩法。需要给两种计分格式不同排版时分别放节点并按此显隐。option toggle显式投影的0/1，以及min和step均为整数的number，还可用于已有整数位图格式；其它bool来源和不符合整数约束的option不因此获准。
+
+场景 binding 的 `source:"option.<id>"` 读取冻结值：toggle 可驱动 visible / 普通文字或作0/1数值；number 可驱动已有受限数值属性或数值文字；choice 写普通文字。variants 同样接受 `option.<id>`：choice 的 case key 来自 choices，toggle 为 `true/false`；按原规则提供 default 与至少一条 case，控制 resource 或 visible。所有资源仍须提前声明并受完整包预算限制。没有命中适用范围时，binding 保留作者原值，variant 使用自己的 default；未知来源拒绝。用不同节点承载输入显隐和用户开关，避免两个写入者争抢同一属性。
+
+最多32项、每项32个选择、标签128字符，每个适用列表最多32个token；数值绝对值最多1,000,000、区间最多10,000步。坏声明拒绝整份清单；保存值失效、越界或类型失配时使用作者默认。配置只控制表现，不能改输入、计分、判定、谱面或视频时钟。
+
+## 显式舞台与留空位置
+
+保留框体空位时可在同一清单添加 `layouts`，交给原玩法 solver 一次解算后发布；没有匹配声明仍走原 INI / 默认布局。最多32种配置、每种2个舞台、每舞台10条真实轨道。以下仅为已有4列舞台的片段：
+
+```json
+"layouts": [{"id":"example.four","ruleset":"mania","keymode":"4k","presentation":"any",
+  "stages":[{"rect":[0.25,0,0.5,0.7],"lanes":[[0.1,0.18],[0.3,0.18],[0.5,0.18],[0.7,0.18]]}],
+  "keyAreaHeight":0.1,"gaugeHeight":0.08,"hitPosition":1}]
+```
+
+`ruleset/keymode/presentation` 匹配当前上下文，精确 presentation 优先于 `any`。stages 按真实逻辑舞台顺序；`rect:[x,y,width,height]` 相对安全区。`lanes:[[x,width],...]` 按舞台真实逻辑轨道顺序，相对完整stage；缺口只是空白，不是新的输入轨道。可选 keys 同样逐轨描述键图宽度，允许向外扩展，但须保持在安全区且互不重叠；省略沿用 lanes。
+
+keyAreaHeight / gaugeHeight 相对安全区高度，分别限0..0.18 / 0..0.25；hitPosition 相对舞台高度，mania限0..1，BMS须为1。舞台和轨道不得重叠，双舞台保持共同纵向跨度，预留键区、血条及间隙。声明必须与实际stage向量和轨道顺序一致；不能安全使用时记录稳定诊断并保留原有布局，不伪造轨道。`layout` 等名字没有隐藏的 IIDX 行为。
 
 ## 真实车道布局与 INI
 
