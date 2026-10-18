@@ -24,11 +24,8 @@ namespace osu.Game.Rulesets.Mania.UI
         private readonly GameplaySkinResolvedMaterialKey? resolvedMaterialKey;
         private SkinnableDrawable skinnableExplosion = null!;
         private Container specialisedSceneOwner = null!;
-        private GameplaySkinSpecialisedSceneVisual? specialisedSceneVisual;
         private GameplaySkinSceneHostedSlot? sceneVisualGate;
         private IDisposable? programmaticVisualRegistration;
-        private IReadOnlyList<string> appliedSceneNodeIds = Array.Empty<string>();
-        private long? boundObjectId;
 
         public GameplaySkinResolvedMaterialSet ResolvedMaterialSet
             => sceneRuntime?.MaterialSet
@@ -42,11 +39,11 @@ namespace osu.Game.Rulesets.Mania.UI
             => sceneVisualGate
                ?? throw new InvalidOperationException("A compatibility mania hit explosion has no specialised C5 visual gate.");
 
-        public IReadOnlyList<string> AppliedSceneNodeIds => appliedSceneNodeIds;
+        public IReadOnlyList<string> AppliedSceneNodeIds { get; private set; } = Array.Empty<string>();
 
-        public long? BoundObjectId => boundObjectId;
+        public long? BoundObjectId { get; private set; }
 
-        internal GameplaySkinSpecialisedSceneVisual? SpecialisedSceneVisual => specialisedSceneVisual;
+        internal GameplaySkinSpecialisedSceneVisual? SpecialisedSceneVisual { get; private set; }
 
         internal Drawable ProgrammaticVisual => skinnableExplosion;
 
@@ -90,16 +87,16 @@ namespace osu.Game.Rulesets.Mania.UI
 
             if (sceneVisualGate.Route == GameplaySkinSceneHostRoute.Specialised)
             {
-                specialisedSceneVisual = sceneRuntime.PrepareSpecialisedVisual(resolvedMaterialKey, specialisedSceneOwner);
+                SpecialisedSceneVisual = sceneRuntime.PrepareSpecialisedVisual(resolvedMaterialKey, specialisedSceneOwner);
 
-                if (specialisedSceneVisual != null)
+                if (SpecialisedSceneVisual != null)
                 {
-                    appliedSceneNodeIds = Array.AsReadOnly(
-                        specialisedSceneVisual.RuntimeNodes.Select(node => node.PreparedNode.InstanceId).ToArray());
+                    AppliedSceneNodeIds = Array.AsReadOnly(
+                        SpecialisedSceneVisual.RuntimeNodes.Select(node => node.PreparedNode.InstanceId).ToArray());
                 }
             }
 
-            if (sceneVisualGate.Route == GameplaySkinSceneHostRoute.Suppressed || specialisedSceneVisual != null)
+            if (sceneVisualGate.Route == GameplaySkinSceneHostRoute.Suppressed || SpecialisedSceneVisual != null)
                 programmaticVisualRegistration = sceneRuntime.RegisterProgrammaticVisual(resolvedMaterialKey, skinnableExplosion);
         }
 
@@ -107,8 +104,8 @@ namespace osu.Game.Rulesets.Mania.UI
         {
             Result = result ?? throw new ArgumentNullException(nameof(result));
             ArgumentOutOfRangeException.ThrowIfNegative(objectId);
-            boundObjectId = objectId;
-            specialisedSceneVisual?.OnApply(objectId);
+            BoundObjectId = objectId;
+            SpecialisedSceneVisual?.OnApply(objectId);
         }
 
         /// <summary>
@@ -124,7 +121,7 @@ namespace osu.Game.Rulesets.Mania.UI
             // Exact production pools must bind every lease to the judged gameplay object before any author-scene
             // state can observe it. Compatibility previews and legacy standalone hosts deliberately have no event
             // runtime or object identity authority and retain the historical load-only/programmatic fallback path.
-            if (sceneRuntime != null && (Result == null || boundObjectId == null))
+            if (sceneRuntime != null && (Result == null || BoundObjectId == null))
                 throw new InvalidOperationException("A pooled mania hit explosion must receive one exact judgement identity before use.");
 
             LifetimeStart = Time.Current;
@@ -132,14 +129,14 @@ namespace osu.Game.Rulesets.Mania.UI
             if (Result != null)
                 (skinnableExplosion?.Drawable as IHitExplosion)?.Animate(Result);
 
-            this.Delay(DURATION).Then().Expire();
+            this.Delay(SpecialisedSceneVisual?.RequestedJudgementDuration ?? DURATION).Then().Expire();
         }
 
         protected override void FreeAfterUse()
         {
-            specialisedSceneVisual?.OnFree();
+            SpecialisedSceneVisual?.OnFree();
             Alpha = 0;
-            boundObjectId = null;
+            BoundObjectId = null;
             Result = null;
             base.FreeAfterUse();
         }

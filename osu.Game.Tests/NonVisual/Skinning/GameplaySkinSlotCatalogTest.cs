@@ -16,7 +16,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
     [TestFixture]
     public sealed class GameplaySkinSlotCatalogTest
     {
-        private const string canonical_contract_sha256 = "cecd9335e7666c98b4bdaa815c0e4bbf5ec5e6f87747a0f0ef9144c10ece81f7";
+        private const string canonical_contract_sha256 = "e2816b782ffb916c3745f898d7484385a1182ffbd17b6c49230069cd89814f01";
 
         private const string catalog_block_begin = "<!-- GAMEPLAY-SKIN-CATALOG:BEGIN -->";
         private const string catalog_block_end = "<!-- GAMEPLAY-SKIN-CATALOG:END -->";
@@ -115,10 +115,29 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 Assert.That(bms, Is.All.Matches<GameplaySkinSlotDescriptor>(slot =>
                     slot.CatalogVersion == GameplaySkinSlotCatalog.BMS_EXTENSION_VERSION
                     && slot.Applicability.Rulesets == GameplaySkinRulesetApplicability.Bms
-                    && slot.Applicability.Keymodes == (GameplaySkinKeymodeApplicability.Bms5K | GameplaySkinKeymodeApplicability.Bms7K | GameplaySkinKeymodeApplicability.Bms14K)
-                    && slot.Applicability.LaneRoles == GameplaySkinLaneRoleApplicability.Scratch
                     && slot.Applicability.MinimumKeyCount == 5
                     && slot.Applicability.MaximumKeyCount == 14));
+                Assert.That(bms, Is.EqualTo(new[]
+                {
+                    GameplaySkinSlotCatalog.Turntable, GameplaySkinSlotCatalog.Laser,
+                    GameplaySkinSlotCatalog.LiftFill, GameplaySkinSlotCatalog.LiftDecoration,
+                }));
+                Assert.That(new[] { GameplaySkinSlotCatalog.Turntable, GameplaySkinSlotCatalog.Laser }, Is.All.Matches<GameplaySkinSlotDescriptor>(slot =>
+                    slot.AllowedScopes == GameplaySkinSlotScope.Lane
+                    && slot.Applicability.Keymodes == (GameplaySkinKeymodeApplicability.Bms5K | GameplaySkinKeymodeApplicability.Bms7K | GameplaySkinKeymodeApplicability.Bms14K)
+                    && slot.Applicability.LaneRoles == GameplaySkinLaneRoleApplicability.Scratch));
+                Assert.That(new[] { GameplaySkinSlotCatalog.LiftFill, GameplaySkinSlotCatalog.LiftDecoration }, Is.All.Matches<GameplaySkinSlotDescriptor>(slot =>
+                    slot.AllowedScopes == GameplaySkinSlotScope.Stage
+                    && slot.Applicability.Keymodes == (GameplaySkinKeymodeApplicability.Bms5K | GameplaySkinKeymodeApplicability.Bms7K
+                                                     | GameplaySkinKeymodeApplicability.Bms9K | GameplaySkinKeymodeApplicability.Bms14K)
+                    && slot.Applicability.LaneRoles == GameplaySkinLaneRoleApplicability.None
+                    && slot.Classification == GameplaySkinSlotClassification.Optional
+                    && slot.SuppressEligibility == GameplaySkinSlotSuppressEligibility.Allowed));
+                Assert.That(new[] { GameplaySkinSlotCatalog.AuxiliaryDisplay, GameplaySkinSlotCatalog.AuxiliaryConcentrationDisplay },
+                    Is.All.Matches<GameplaySkinSlotDescriptor>(slot => slot.AllowedScopes == GameplaySkinSlotScope.Global
+                                                                   && slot.Applicability.LaneRoles == GameplaySkinLaneRoleApplicability.None
+                                                                   && slot.Classification == GameplaySkinSlotClassification.Optional
+                                                                   && slot.SuppressEligibility == GameplaySkinSlotSuppressEligibility.Allowed));
                 Assert.That(GameplaySkinSlotCatalog.All.Select(slot => slot.DiagnosticId),
                     Is.EqualTo(Enumerable.Range(1, GameplaySkinSlotCatalog.All.Count).Select(index => $"OMS-SKIN-SLOT-{index:000}")));
                 Assert.That(GameplaySkinSlotCatalog.Note.AllowedScopes, Is.EqualTo(GameplaySkinSlotScope.Lane));

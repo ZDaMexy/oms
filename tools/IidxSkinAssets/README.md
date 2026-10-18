@@ -2,6 +2,29 @@
 
 读取用户提供的现有 HDD 美术目录，建立来源清单，并在独立非系统盘目录中处理 IFS 副本。原始图、原始 XML / AFP / 几何数据和按 UV 裁切的 PNG 分别保留；`index.html` 可离线搜索、筛选和预览。
 
+## 统一 Lightning 时期作品
+
+当前整合入口为 `build_omni_skin.py`，输出名称固定 **Lighting Model Skin Omni Until 33**，默认33；27～33和八支BPL进入同一Game Frame选项。旧各代candidate09保留作来源/历史，不再作为本轮多套交付。Until34不在本轮范围。
+
+新增来源工具 `build_customization_catalog.py` 建完整原始UV/AFP/GEO库；`build_fullcombo_catalog.py` 与 `export_customization_animations.py` 输出中立记录数据；`customization_modules.py` 生成共用选项和贡献闭包。整合工具仅打开经过核对的独立库，不打开游戏安装。已有冻结模块可用 `--modules-directory` 重用，逐文件SHA一致后复制，避免重复提取。
+
+```powershell
+. .\UseDevelopmentStorage.ps1
+$env:PYTHONPATH = (Resolve-Path '.dev-cache/tools/iidx-assets').Path
+python -X utf8 tools/IidxSkinAssets/build_omni_skin.py --frames-root 'Y:\FrameCandidates' --custom-library 'Y:\OriginalCustomLibrary' --fc-catalog 'Y:\FullComboLibrary\runtime-v2-catalog.json' --modules-directory 'Y:\FrozenModules' --output 'Y:\OmniAuthor'
+dotnet run --project tools/SkinAuthoring -- check 'Y:\OmniAuthor'
+```
+
+重新导出模块时省略 `--modules-directory`，改为提供 `--bemani-root`（与来源收据一致的独立 bemaniutils checkout）、`--image-tools`（下方依赖目录）和 `--frame-maps`。后者是15个Frame ID到各自原始 `skin-reference-map.json` 的JSON映射，路径相对映射文件所在目录并须位于其下；例如 `{"iidx33":"iidx33/skin-reference-map.json",...}`。`customization_modules.py` 接受相同三项参数；单独导出动画也须显式提供前两项，不再依赖某天的研究缓存路径。AFP解析器版本取来源收据，不由脚本自动下载或更新；玩家导入成品只需要对应OMS版本。
+
+实际选项包括15框体、27爆炸、46转盘、21判定、12音符、11套CN/HCN、15光柱、366挡板、25FC、103背景与11图标；Graph Area和LIFT可独立选择空白或366同源艺术。音符/CN尺寸、EXP缩放、光柱长度独立于设计。notes11缺少原尺寸档，复用同11原图做显式作者纵缩，不能换00冒充；HCN额外配色是同款CN原材质的作者选项，不声称已确认官方颜色编号。
+
+根options使用33框体、源00部件、normal尺寸；Graph和辅助屏默认关闭。Graph只有真实当前/理论满分与标明作者适配的比较柱；没有对手/历史数据。辅助屏承载Premium背景/图标、专注背景/亮度与触摸恢复，不改变主BGA；LIFT仅跟随BMS原生抬升。源静止20帧图标不等于完整账号/触控菜单。FC保留三布局终止空帧和原时长，19为3500ms、24为3000ms，其它2500ms；滤镜顺序和真实host设置仍待原版画面校准。
+
+辅助屏当前显示为可收起的游玩浮层，展开时可能遮住主屏内容；它与BGA使用独立画布和状态，不是第二显示器输出。Graph读数采用作者排布避开OMS右上按钮，可先收起浮层查看。早期取材收据中的“never overlays”是位置描述错误，不据旧记账语句改变成品或运行代码。
+
+整合输出只将引用闭包写入OSK，研究/来源收据留在作者目录，不能把generation或独立PNG可解码当作导入/游玩验收。内容目录能力、边界与可复跑CLI检查取[作者参考](../../skin-authoring/docs/REFERENCE.md#按选项组合内容)，本轮实际验证取[P1-A状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)。全部原版素材和作品仍仅留本地忽略目录或仓库外，不进入canonical/制作套件/公开发行。
+
 ## 使用
 
 在 OMS 仓库根目录的新 PowerShell 中运行。Python 3.11 以上；依赖安装到本仓开发缓存，不安装进游戏目录或系统 Python。
@@ -27,7 +50,9 @@ python -B tools/IidxSkinAssets/build_library.py --game-root 'X:\IIDX-HDD' --outp
 
 原版素材、精确源清单与生成库只留本地忽略目录或仓库外，不加入 Git、内置静线或公开发行。工具本身不启动游戏、不安装注入器、不重打包 IFS、不操作 OMS 玩家数据。
 
-## 生成本地 27～33 游玩作者包
+## 旧分代生成器（27～33来源保留）
+
+本节记录旧`build_skin.py`和已保留的分代候选，供统一包取材与复现历史使用；新交付从上方统一入口生成。
 
 `build_skin.py` 消费已核对的独立素材库和 AFP 研究输出，保留原图字形与帧序，生成普通公开作者包及相邻 `.osk`。`--style` 支持 27 HEROIC VERSE、28 BISTROVER、29 CastHour、30 RESIDENT、31 EPOLIS、32 Pinky Crush；省略或指定 33 保持既有 Sparkle Shower 输出。研究输入须包含 `skin-reference-map.json`、`gameplay-assets.json`、`extra-note-library/library.json` 与过滤后的 `static-frames/`，布局包及原画布须与 style 一致；另以 `--fullcombo-research` 指向含 `fcombo00-author-data.json` 的全连研究目录。全连使用原纹理、源帧时间与透视四边形，不烘焙整屏序列。这些来源资料和美术同样只保留本地，不由脚本从游戏安装根读取。
 
@@ -51,7 +76,7 @@ SD源红线按原GEO在scene显示，原生必需判定线槽用透明材质 `Pr
 
 `--customization-library`可提供独立核验的notes01..11、beam01..03与lane001..006来源；连同原00变体，包内生成12种音符、4种光柱和7种挡板选择。爆炸有原尺寸/紧凑及0.5..1.5缩放，判定有连击/仅文字，光柱可关闭；这些选项通过同一公开binding/variant使用原资源，不改变判定、输入或长条时序。没有该来源参数时不暴露对应选择。新增素材仍以独立selection交给build_library，保留原包与UV数据，不能给Builder指向游戏根。
 
-上述仅为当前素材子集，不能视为完整Play Customization。FC、爆炸和判定字目前只消费00设计，连击显示开关不等于判定字体选择，紧凑/缩放不等于爆炸设计选择。完整来源、普通/CN头尾厚度及beam原档图对照、全部FC结构与辅助区缺口见[P1-A完整性记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-18iidx-custom完整性核对)；当前工具尚未提供这些完整选择，不修改旧包内generation状态冒充接入。
+上述旧分代生成器仅消费素材子集：FC、爆炸和判定字只消费00设计，连击显示开关不等于判定字体选择，紧凑/缩放不等于爆炸设计选择。该轮来源审查见[P1-A完整性记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-18iidx-custom完整性核对)。统一入口已接入上方完整选项，不修改旧包内generation状态或原字节来刷新历史结论。
 
 爆炸按BMS命中区与mania全列宿主分别定义作者模板，复用同一原始帧、时间和采样；mania通过包内静态坐标保持原帧宽高，不能改公共宿主来适配某套作品。固定转盘中心已归框体，过时的键区转盘模板不再生成。scene仍守512KiB上限，短效果ID用于节省重复引用；框体当前按向下落键设计，反向滚动尚未专门校准。
 

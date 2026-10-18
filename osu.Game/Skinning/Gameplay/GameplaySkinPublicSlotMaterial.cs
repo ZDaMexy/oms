@@ -52,10 +52,10 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSlotDescriptor slot,
             string resourceName,
             Texture texture)
-            => new GameplaySkinPublicSlotMaterial(slot, resourceName, texture);
+            => new(slot, resourceName, texture);
 
         public static GameplaySkinPublicSlotMaterial CreateProgrammaticFallback(GameplaySkinSlotDescriptor slot)
-            => new GameplaySkinPublicSlotMaterial(slot, null, null);
+            => new(slot, null, null);
 
         public override string ToString()
             => $"{nameof(GameplaySkinPublicSlotMaterial)}:{Slot.Id}:{(IsProgrammaticFallback ? "Programmatic" : "PreparedResource")}";
@@ -205,7 +205,7 @@ namespace osu.Game.Skinning.Gameplay
                 }
             }
 
-            GameplaySkinSlotDescriptor[] copiedDescriptors = descriptors.ToArray();
+            GameplaySkinSlotDescriptor[] copiedDescriptors = [.. descriptors];
 
             if (copiedDescriptors.Any(descriptor => descriptor == null
                                                     || !GameplaySkinSlotCatalog.TryGet(descriptor.Id, out GameplaySkinSlotDescriptor? catalogued)
@@ -242,6 +242,17 @@ namespace osu.Game.Skinning.Gameplay
                 foreach (GameplaySkinResolvedMaterialTarget target in GameplaySkinPublicSlotMaterialTargets.Enumerate(descriptor, snapshot))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    // New optional display owners have no programmatic visual to replace. Admit them only
+                    // when this selected skin explicitly declares the exact target; legacy skins retain the
+                    // same material set and drawable tree as before these author capabilities were added.
+                    if ((ReferenceEquals(descriptor, GameplaySkinSlotCatalog.AuxiliaryDisplay)
+                         || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.AuxiliaryConcentrationDisplay)
+                         || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LiftFill)
+                         || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LiftDecoration))
+                        && (selectedDocument == null
+                            || selectedDocument.GetEntry(descriptor, target).Presence != GameplaySkinDocumentDeclarationPresence.Declared))
+                        continue;
+
                     var context = new PublicSlotContext(descriptor, target);
                     var providers = new List<IGameplaySkinSlotProvider<GameplaySkinSlotLookup<PublicSlotContext>, GameplaySkinPublicSlotMaterial>>();
 

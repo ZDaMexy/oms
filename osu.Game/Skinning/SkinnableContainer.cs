@@ -71,7 +71,15 @@ namespace osu.Game.Skinning
 
         public override bool IsPresent => base.IsPresent || Scheduler.HasPendingTasks; // ensure that components are loaded even if the target container is hidden (ie. due to user toggle).
 
-        public bool ComponentsLoaded { get; private set; }
+        private bool componentsLoaded;
+
+        public bool ComponentsLoaded
+        {
+            get => Volatile.Read(ref componentsLoaded)
+                   && Volatile.Read(ref revisionWorkShutdownRequested) == 0
+                   && !IsDisposed;
+            private set => Volatile.Write(ref componentsLoaded, value);
+        }
 
         private CancellationTokenSource? cancellationSource;
         private PendingAsyncDrawableOwnership<Container>? pendingContentLoad;

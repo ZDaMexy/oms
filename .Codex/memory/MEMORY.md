@@ -15,7 +15,7 @@
 
 ## 皮肤恢复与存储
 
-- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage背景与作者乘色、轨宽/每侧键序、原谱难度表资料与转换丢失、共享字体预算与省略文字、固定血槽裁切及真实绘制限制。
+- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage背景与装饰继承、轨宽/每侧键序、共享字体/固定血槽；组合包预算、C4声明身份、损坏PNG、裁后三角形/池成本、真实输入起点与退出期HUD readiness。
 
 - [2026-07-10 皮肤恢复](reference_skin_recovery_20260710.md) — 恢复锚点、归档与重新准入；**皮肤任务先读**。
 - [2026-07-13 schema 56 皮肤清点](reference_skin_schema56_inventory_20260713.md) — 只读取证、失效类型与 Realm mtime 误判。

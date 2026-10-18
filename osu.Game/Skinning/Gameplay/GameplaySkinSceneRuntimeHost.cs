@@ -38,6 +38,8 @@ namespace osu.Game.Skinning.Gameplay
         GameplayEffects = 4,
         Overlay = 5,
         HudForeground = 6,
+        Auxiliary = 7,
+        AuxiliaryConcentration = 8,
     }
 
     /// <summary>
@@ -57,6 +59,10 @@ namespace osu.Game.Skinning.Gameplay
 
         public Container HudForeground { get; } = create("gameplay-skin.hud-foreground");
 
+        public Container Auxiliary { get; } = create("gameplay-skin.auxiliary");
+
+        public Container AuxiliaryConcentration { get; } = create("gameplay-skin.auxiliary-concentration");
+
         private bool disposed;
 
         internal Container Get(GameplaySkinSceneLayer layer) => layer switch
@@ -67,6 +73,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneLayer.GameplayEffects => GameplayEffects,
             GameplaySkinSceneLayer.Overlay => Overlay,
             GameplaySkinSceneLayer.HudForeground => HudForeground,
+            GameplaySkinSceneLayer.Auxiliary => Auxiliary,
+            GameplaySkinSceneLayer.AuxiliaryConcentration => AuxiliaryConcentration,
             _ => throw new ArgumentOutOfRangeException(nameof(layer)),
         };
 
@@ -82,9 +90,11 @@ namespace osu.Game.Skinning.Gameplay
             GameplayEffects.Dispose();
             Overlay.Dispose();
             HudForeground.Dispose();
+            Auxiliary.Dispose();
+            AuxiliaryConcentration.Dispose();
         }
 
-        private static Container create(string name) => new Container
+        private static Container create(string name) => new()
         {
             Name = name,
             RelativeSizeAxes = Axes.Both,
@@ -191,6 +201,7 @@ namespace osu.Game.Skinning.Gameplay
         internal double? JudgementAnimationStart { get; set; }
 
         internal long? JudgementAnimationEpoch { get; set; }
+        internal bool IsAnimationActive { get; set; } = true;
 
         internal GameplaySkinPreparedSceneNode PreparedNode { get; }
 
@@ -231,34 +242,34 @@ namespace osu.Game.Skinning.Gameplay
         private readonly GameplaySkinEventSubscription subscription;
         private readonly Action<GameplaySkinEventRecord> consumeEventAction;
         private readonly bool hasJudgementTriggeredTracks;
-        private readonly Queue<PendingNode> pendingNodes = new Queue<PendingNode>();
-        private readonly Queue<PendingSemantic> pendingSemantics = new Queue<PendingSemantic>();
-        private readonly Dictionary<string, GameplaySkinSceneRuntimeNode> runtimeNodes = new Dictionary<string, GameplaySkinSceneRuntimeNode>(StringComparer.Ordinal);
-        private readonly Dictionary<string, List<GameplaySkinSceneRuntimeNode>> runtimeNodesBySourceId = new Dictionary<string, List<GameplaySkinSceneRuntimeNode>>(StringComparer.Ordinal);
-        private readonly Dictionary<GameplaySkinResolvedMaterialKey, Drawable> hostedDrawables = new Dictionary<GameplaySkinResolvedMaterialKey, Drawable>();
-        private readonly Dictionary<GameplaySkinResolvedMaterialKey, SemanticVisual> semanticVisuals = new Dictionary<GameplaySkinResolvedMaterialKey, SemanticVisual>();
-        private readonly Dictionary<GameplaySkinResolvedMaterialKey, GameplaySkinSceneHostedSlot> hostedSlotsByKey = new Dictionary<GameplaySkinResolvedMaterialKey, GameplaySkinSceneHostedSlot>();
-        private readonly Dictionary<GameplaySkinResolvedMaterialKey, SceneOwnerBuild> sceneOwnerBuildsByKey = new Dictionary<GameplaySkinResolvedMaterialKey, SceneOwnerBuild>();
-        private readonly Dictionary<GameplaySkinLaneId, GameplaySkinInputStateSnapshot> inputs = new Dictionary<GameplaySkinLaneId, GameplaySkinInputStateSnapshot>();
-        private readonly Dictionary<long, GameplaySkinObjectStateSnapshot> objects = new Dictionary<long, GameplaySkinObjectStateSnapshot>();
-        private readonly Dictionary<int, GameplaySkinBgaStateSnapshot> bga = new Dictionary<int, GameplaySkinBgaStateSnapshot>();
-        private readonly Dictionary<GameplaySkinLaneId, GameplaySkinCurrentJudgementStateSnapshot> judgementsByLane = new Dictionary<GameplaySkinLaneId, GameplaySkinCurrentJudgementStateSnapshot>();
-        private readonly Dictionary<GameplaySkinLaneGroupId, GameplaySkinCurrentJudgementStateSnapshot> judgementsByGroup = new Dictionary<GameplaySkinLaneGroupId, GameplaySkinCurrentJudgementStateSnapshot>();
-        private readonly Dictionary<long, GameplaySkinCurrentJudgementStateSnapshot> judgementsByObject = new Dictionary<long, GameplaySkinCurrentJudgementStateSnapshot>();
-        private readonly List<long> objectJudgementsToRetire = new List<long>(GameplaySkinEventBudgets.MAX_EVENTS_CONSUMED_PER_FRAME);
-        private readonly List<GameplaySkinLaneId> expiredLaneJudgements = new List<GameplaySkinLaneId>(GameplaySkinEventBudgets.MAX_INPUT_STATES);
-        private readonly List<GameplaySkinLaneGroupId> expiredGroupJudgements = new List<GameplaySkinLaneGroupId>(GameplaySkinEventBudgets.MAX_INPUT_STATES);
-        private readonly Dictionary<string, string> stateMachineStates = new Dictionary<string, string>(StringComparer.Ordinal);
-        private readonly List<StateMachineInstance> stateMachineInstances = new List<StateMachineInstance>();
-        private readonly Dictionary<GameplaySkinLaneGroupId, GameplaySkinInputStateSnapshot> firstInputByGroup = new Dictionary<GameplaySkinLaneGroupId, GameplaySkinInputStateSnapshot>();
-        private readonly Dictionary<GameplaySkinLaneId, GameplaySkinObjectStateSnapshot> firstObjectByLane = new Dictionary<GameplaySkinLaneId, GameplaySkinObjectStateSnapshot>();
-        private readonly Dictionary<GameplaySkinLaneGroupId, GameplaySkinObjectStateSnapshot> firstObjectByGroup = new Dictionary<GameplaySkinLaneGroupId, GameplaySkinObjectStateSnapshot>();
-        private readonly ObjectIdMinHeap objectIds = new ObjectIdMinHeap();
-        private readonly Dictionary<GameplaySkinLaneId, ObjectIdMinHeap> objectIdsByLane = new Dictionary<GameplaySkinLaneId, ObjectIdMinHeap>();
-        private readonly Dictionary<GameplaySkinLaneGroupId, ObjectIdMinHeap> objectIdsByGroup = new Dictionary<GameplaySkinLaneGroupId, ObjectIdMinHeap>();
-        private readonly List<GameplaySkinSceneRuntimeFault> runtimeFaults = new List<GameplaySkinSceneRuntimeFault>();
-        private readonly List<GameplaySkinSceneHostedSlot> hostedSlots = new List<GameplaySkinSceneHostedSlot>();
-        private readonly List<RegisteredProgrammaticVisual> registeredProgrammaticVisuals = new List<RegisteredProgrammaticVisual>();
+        private readonly Queue<PendingNode> pendingNodes = new();
+        private readonly Queue<PendingSemantic> pendingSemantics = new();
+        private readonly Dictionary<string, GameplaySkinSceneRuntimeNode> runtimeNodes = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, List<GameplaySkinSceneRuntimeNode>> runtimeNodesBySourceId = new(StringComparer.Ordinal);
+        private readonly Dictionary<GameplaySkinResolvedMaterialKey, Drawable> hostedDrawables = [];
+        private readonly Dictionary<GameplaySkinResolvedMaterialKey, SemanticVisual> semanticVisuals = [];
+        private readonly Dictionary<GameplaySkinResolvedMaterialKey, GameplaySkinSceneHostedSlot> hostedSlotsByKey = [];
+        private readonly Dictionary<GameplaySkinResolvedMaterialKey, SceneOwnerBuild> sceneOwnerBuildsByKey = [];
+        private readonly Dictionary<GameplaySkinLaneId, GameplaySkinInputStateSnapshot> inputs = [];
+        private readonly Dictionary<long, GameplaySkinObjectStateSnapshot> objects = [];
+        private readonly Dictionary<int, GameplaySkinBgaStateSnapshot> bga = [];
+        private readonly Dictionary<GameplaySkinLaneId, GameplaySkinCurrentJudgementStateSnapshot> judgementsByLane = [];
+        private readonly Dictionary<GameplaySkinLaneGroupId, GameplaySkinCurrentJudgementStateSnapshot> judgementsByGroup = [];
+        private readonly Dictionary<long, GameplaySkinCurrentJudgementStateSnapshot> judgementsByObject = [];
+        private readonly List<long> objectJudgementsToRetire = new(GameplaySkinEventBudgets.MAX_EVENTS_CONSUMED_PER_FRAME);
+        private readonly List<GameplaySkinLaneId> expiredLaneJudgements = new(GameplaySkinEventBudgets.MAX_INPUT_STATES);
+        private readonly List<GameplaySkinLaneGroupId> expiredGroupJudgements = new(GameplaySkinEventBudgets.MAX_INPUT_STATES);
+        private readonly Dictionary<string, string> stateMachineStates = new(StringComparer.Ordinal);
+        private readonly List<StateMachineInstance> stateMachineInstances = [];
+        private readonly Dictionary<GameplaySkinLaneGroupId, GameplaySkinInputStateSnapshot> firstInputByGroup = [];
+        private readonly Dictionary<GameplaySkinLaneId, GameplaySkinObjectStateSnapshot> firstObjectByLane = [];
+        private readonly Dictionary<GameplaySkinLaneGroupId, GameplaySkinObjectStateSnapshot> firstObjectByGroup = [];
+        private readonly ObjectIdMinHeap objectIds = new();
+        private readonly Dictionary<GameplaySkinLaneId, ObjectIdMinHeap> objectIdsByLane = [];
+        private readonly Dictionary<GameplaySkinLaneGroupId, ObjectIdMinHeap> objectIdsByGroup = [];
+        private readonly List<GameplaySkinSceneRuntimeFault> runtimeFaults = [];
+        private readonly List<GameplaySkinSceneHostedSlot> hostedSlots = [];
+        private readonly List<RegisteredProgrammaticVisual> registeredProgrammaticVisuals = [];
 
         private GameplaySkinLifecycleState lifecycleState;
         private GameplaySkinCompletionStateSnapshot? completion;
@@ -347,7 +358,8 @@ namespace osu.Game.Skinning.Gameplay
 
             subscription = eventStream.Subscribe();
             consumeEventAction = consumeEvent;
-            hasJudgementTriggeredTracks = PreparedScene.Program.Tracks.Any(track => track.Trigger == GameplaySkinSceneEvent.JudgementHit);
+            hasJudgementTriggeredTracks = PreparedScene.Program.Tracks.Any(track => track.Trigger == GameplaySkinSceneEvent.JudgementHit)
+                || PreparedScene.RecordedAnimations.Values.Any(animation => animation.Trigger == "judgement.hit");
             RelativeSizeAxes = Axes.Both;
 
             GameplaySkinEventStateSnapshot initialState = PreparedScene.InitialEventState;
@@ -455,12 +467,15 @@ namespace osu.Game.Skinning.Gameplay
             while (CreatedThisFrame < GameplaySkinPreparedSceneBudgets.MAX_CREATIONS_PER_FRAME
                    && (pendingNodes.Count > 0 || pendingSemantics.Count > 0))
             {
+                int creationCost = pendingNodes.Count > 0 ? runtimeInstanceCost(pendingNodes.Peek().Node) : 1;
+                if (CreatedThisFrame + creationCost > GameplaySkinPreparedSceneBudgets.MAX_CREATIONS_PER_FRAME)
+                    break;
                 if (pendingNodes.Count > 0)
                     createNode(pendingNodes.Dequeue());
                 else
                     createSemantic(pendingSemantics.Dequeue());
 
-                CreatedThisFrame++;
+                CreatedThisFrame += creationCost;
             }
 
             sampleTracks(gameplayTime);
@@ -473,6 +488,8 @@ namespace osu.Game.Skinning.Gameplay
                 applyBindings(bindingFamilies);
                 applyVariants(bindingFamilies);
             }
+
+            sampleRecordedAnimations(gameplayTime);
 
             GameplaySkinSceneStateFamily semanticFamilies = semanticStateFamiliesDirty;
             semanticStateFamiliesDirty = GameplaySkinSceneStateFamily.None;
@@ -565,7 +582,7 @@ namespace osu.Game.Skinning.Gameplay
             ArgumentNullException.ThrowIfNull(keys);
             ArgumentNullException.ThrowIfNull(wrapper);
 
-            GameplaySkinResolvedMaterialKey[] copiedKeys = keys.ToArray();
+            GameplaySkinResolvedMaterialKey[] copiedKeys = [.. keys];
 
             if (copiedKeys.Length == 0)
                 throw new ArgumentException("A partitioned programmatic visual requires at least one exact key.", nameof(keys));
@@ -606,9 +623,9 @@ namespace osu.Game.Skinning.Gameplay
             ArgumentNullException.ThrowIfNull(allKeys);
             ArgumentNullException.ThrowIfNull(wrapper);
 
-            GameplaySkinResolvedMaterialKey[] copiedAnyKeys = anyKeys.ToArray();
-            GameplaySkinResolvedMaterialKey[] copiedAllKeys = allKeys.ToArray();
-            GameplaySkinResolvedMaterialKey[] copiedKeys = copiedAnyKeys.Concat(copiedAllKeys).ToArray();
+            GameplaySkinResolvedMaterialKey[] copiedAnyKeys = [.. anyKeys];
+            GameplaySkinResolvedMaterialKey[] copiedAllKeys = [.. allKeys];
+            GameplaySkinResolvedMaterialKey[] copiedKeys = [.. copiedAnyKeys, .. copiedAllKeys];
 
             if (copiedAllKeys.Length == 0)
                 throw new ArgumentException("A residual programmatic visual requires at least one exact stage key.", nameof(allKeys));
@@ -700,6 +717,8 @@ namespace osu.Game.Skinning.Gameplay
             Layers.GameplayEffects.Alpha = alpha;
             Layers.Overlay.Alpha = alpha;
             Layers.HudForeground.Alpha = alpha;
+            Layers.Auxiliary.Alpha = alpha;
+            Layers.AuxiliaryConcentration.Alpha = alpha;
 
             foreach (RegisteredProgrammaticVisual registration in registeredProgrammaticVisuals)
                 registration.Refresh(IsSceneReady);
@@ -709,6 +728,9 @@ namespace osu.Game.Skinning.Gameplay
 
         private void unregister(RegisteredProgrammaticVisual registration)
             => registeredProgrammaticVisuals.Remove(registration);
+
+        private int runtimeInstanceCost(GameplaySkinPreparedSceneNode node)
+            => 1 + (node.Source.AnimationId == null ? 0 : PreparedScene.RecordedAnimations[node.Source.AnimationId].MaximumFramePieces);
 
         private void createNode(PendingNode pending)
         {
@@ -743,7 +765,7 @@ namespace osu.Game.Skinning.Gameplay
                         return;
                 }
 
-                if (RuntimeInstanceCount >= GameplaySkinPreparedSceneBudgets.MAX_RUNTIME_INSTANCES)
+                if (RuntimeInstanceCount + runtimeInstanceCost(prepared) > GameplaySkinPreparedSceneBudgets.MAX_RUNTIME_INSTANCES)
                     throw new InvalidOperationException();
 
                 GameplaySkinSceneLayer layer = prepared.Layer;
@@ -773,10 +795,10 @@ namespace osu.Game.Skinning.Gameplay
 
                 runtime = new GameplaySkinSceneRuntimeNode(prepared, root, content, transform);
                 runtimeNodes.Add(runtime.InstanceId, runtime);
-                RuntimeInstanceCount++;
+                RuntimeInstanceCount += runtimeInstanceCost(prepared);
 
                 if (!runtimeNodesBySourceId.TryGetValue(prepared.Source.Id, out List<GameplaySkinSceneRuntimeNode>? bySource))
-                    runtimeNodesBySourceId.Add(prepared.Source.Id, bySource = new List<GameplaySkinSceneRuntimeNode>());
+                    runtimeNodesBySourceId.Add(prepared.Source.Id, bySource = []);
 
                 bySource.Add(runtime);
                 registerStateMachineScopes(runtime);
@@ -844,9 +866,7 @@ namespace osu.Game.Skinning.Gameplay
             // A runtime program fault belongs to the exact prepared slot, not just the clone which happened to
             // observe it first. Retire every prebuilt native clone for that key before exposing the immutable
             // prepared failure route; unrelated slots and gameplay state remain mounted.
-            GameplaySkinSpecialisedSceneVisual[] failedSpecialised = specialisedVisuals
-                                                                     .Where(visual => visual.Key.Equals(owner.Gate.Key))
-                                                                     .ToArray();
+            GameplaySkinSpecialisedSceneVisual[] failedSpecialised = [.. specialisedVisuals.Where(visual => visual.Key.Equals(owner.Gate.Key))];
 
             foreach (GameplaySkinSpecialisedSceneVisual visual in failedSpecialised)
                 visual.Dispose();
@@ -876,7 +896,7 @@ namespace osu.Game.Skinning.Gameplay
                 }
             }
 
-            RuntimeInstanceCount = Math.Max(0, RuntimeInstanceCount - owner.Nodes.Count);
+            RuntimeInstanceCount = Math.Max(0, RuntimeInstanceCount - owner.Nodes.Sum(node => runtimeInstanceCost(node.PreparedNode)));
             runtimeEffectCount = Math.Max(0, runtimeEffectCount - owner.RuntimeEffectCost);
             runtimeTextGlyphs = Math.Max(0, runtimeTextGlyphs - owner.RuntimeTextGlyphCost);
             hostedDrawables.Remove(owner.Gate.Key);
@@ -961,6 +981,8 @@ namespace osu.Game.Skinning.Gameplay
                     RelativeSizeAxes = Axes.Both,
                     Texture = prepared.ResolvedTexture,
                 },
+                GameplaySkinSceneNodeType.RecordedAnimation => new GameplaySkinRecordedAnimationDrawable(
+                    PreparedScene.RecordedAnimations[prepared.Source.AnimationId!], PreparedScene.Resources),
                 GameplaySkinSceneNodeType.Container => GameplaySkinSceneCodec.IsHorizontalContainer(prepared.Source)
                     ? new GameplaySkinHorizontalContainer((float)getNumber(prepared.Source.Properties, "gap-px", 0))
                     : new Container { RelativeSizeAxes = Axes.Both },
@@ -1162,7 +1184,7 @@ namespace osu.Game.Skinning.Gameplay
                     visual.Children = new Drawable[] { track, gaugeReveal };
                 }
                 else
-                    visual.Children = text == null ? new Drawable[] { sprite } : new Drawable[] { sprite, text };
+                    visual.Children = text == null ? new Drawable[] { sprite } : [sprite, text];
                 applyGeometryAndBlend(visual, rect, null, GameplaySkinSceneBlendMode.Alpha);
                 GameplaySkinSceneLayer layer = pending.PreparedRoute.Layer;
                 attachedParent = Layers.Get(layer);
@@ -2003,6 +2025,51 @@ namespace osu.Game.Skinning.Gameplay
             }
         }
 
+        private void sampleRecordedAnimations(double gameplayTime)
+        {
+            foreach (GameplaySkinSceneRuntimeNode node in runtimeNodes.Values)
+            {
+                if (node.ContentDrawable is not GameplaySkinRecordedAnimationDrawable animation)
+                    continue;
+                if (!node.IsAnimationActive)
+                {
+                    animation.ApplyTime(-1);
+                    continue;
+                }
+                if (animation.Program.HeldLoop.HasValue)
+                {
+                    GameplaySkinResolvedMaterialTarget? target = node.PreparedNode.MaterialTarget;
+                    GameplaySkinInputStateSnapshot? input = target == null ? firstInput : inputFor(target);
+                    double sincePress = input?.PressedAt is { } pressStart ? gameplayTime - pressStart : -1;
+                    double sinceRelease = input?.ReleasedAt is { } releaseStart ? gameplayTime - releaseStart : -1;
+                    animation.ApplyInputTime(sincePress, sinceRelease, input?.IsPressed == true);
+                    continue;
+                }
+                double elapsed = animation.Program.Trigger switch
+                {
+                    "gameplay.attach" => Math.Max(0, gameplayTime),
+                    "gameplay.complete" => completion.HasValue ? gameplayTime - completion.Value.AppliedTime : -1,
+                    "judgement.hit" => judgementTrackTime(node, gameplayTime),
+                    "input.key.down" => inputAnimationTime(node, gameplayTime),
+                    _ => throw new InvalidOperationException(),
+                };
+                animation.ApplyTime(elapsed);
+            }
+        }
+
+        private double inputAnimationTime(GameplaySkinSceneRuntimeNode node, double gameplayTime)
+        {
+            GameplaySkinResolvedMaterialTarget? target = node.PreparedNode.MaterialTarget;
+            if (target?.LaneId != null)
+                return inputs.TryGetValue(target.LaneId, out GameplaySkinInputStateSnapshot lane)
+                    ? lane.PressedAt is { } start ? gameplayTime - start : lane.IsPressed ? 0 : -1 : -1;
+            double latest = double.NegativeInfinity;
+            foreach (GameplaySkinInputStateSnapshot input in inputs.Values)
+                if ((target?.GroupId == null || input.GroupId == target.GroupId) && input.PressedAt is { } start)
+                    latest = Math.Max(latest, start);
+            return double.IsNegativeInfinity(latest) ? target != null && anyInputPressed(target) ? 0 : -1 : gameplayTime - latest;
+        }
+
         private double judgementTrackTime(GameplaySkinSceneRuntimeNode node, double gameplayTime)
         {
             // An engine effect may have been applied in a newer epoch while this bounded consumer still drains
@@ -2419,6 +2486,35 @@ namespace osu.Game.Skinning.Gameplay
 
                 case GameplaySkinSceneBindingSource.ScoreValue:
                     applyRuntimeNumberProperty(target, binding.Property, scoreState.Score);
+                    return;
+
+                case GameplaySkinSceneBindingSource.ScoreMaximum:
+                    applyRuntimeNumberProperty(target, binding.Property, scoreState.MaximumScore);
+                    return;
+
+                case GameplaySkinSceneBindingSource.ScoreProgress:
+                    applyRuntimeNumberProperty(target, binding.Property, scoreState.MaximumScore > 0
+                        ? Math.Clamp((double)scoreState.Score / scoreState.MaximumScore, 0, 1) : 0);
+                    return;
+
+                case GameplaySkinSceneBindingSource.ScoreMaximumAvailable:
+                    applyRuntimeBooleanProperty(target, binding.Property, scoreState.MaximumScore > 0);
+                    return;
+
+                case GameplaySkinSceneBindingSource.LiftValue:
+                    applyRuntimeNumberProperty(target, binding.Property, timingState.LiftState.Units);
+                    return;
+
+                case GameplaySkinSceneBindingSource.LiftOffset:
+                    applyRuntimeNumberProperty(target, binding.Property, timingState.LiftState.OffsetRatio);
+                    return;
+
+                case GameplaySkinSceneBindingSource.LiftReversed:
+                    applyRuntimeBooleanProperty(target, binding.Property, timingState.LiftState.Reversed);
+                    return;
+
+                case GameplaySkinSceneBindingSource.LiftAvailable:
+                    applyRuntimeBooleanProperty(target, binding.Property, timingState.LiftState.IsAvailable);
                     return;
 
                 case GameplaySkinSceneBindingSource.ScoreAccuracy:
@@ -3160,7 +3256,8 @@ namespace osu.Game.Skinning.Gameplay
                && first.Bpm.Equals(second.Bpm)
                && first.IsStopped == second.IsStopped
                && first.ScrollMultiplier.Equals(second.ScrollMultiplier)
-               && first.Progress.Equals(second.Progress);
+               && first.Progress.Equals(second.Progress)
+               && first.LiftState.Equals(second.LiftState);
 
         internal static GameplaySkinSceneLayer LayerFor(GameplaySkinSlotDescriptor descriptor)
             => GameplaySkinSceneHostPolicy.LayerFor(descriptor);
@@ -3227,7 +3324,7 @@ namespace osu.Game.Skinning.Gameplay
         /// </summary>
         private sealed class ObjectIdMinHeap
         {
-            private readonly List<long> values = new List<long>();
+            private readonly List<long> values = [];
 
             public int Count => values.Count;
 
@@ -3302,8 +3399,8 @@ namespace osu.Game.Skinning.Gameplay
 
         private sealed class SceneOwnerBuild
         {
-            private readonly List<GameplaySkinSceneRuntimeNode> nodes = new List<GameplaySkinSceneRuntimeNode>();
-            private readonly List<(Container Parent, Drawable Root)> roots = new List<(Container, Drawable)>();
+            private readonly List<GameplaySkinSceneRuntimeNode> nodes = [];
+            private readonly List<(Container Parent, Drawable Root)> roots = [];
 
             public GameplaySkinSceneHostedSlot Gate { get; }
 

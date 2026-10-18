@@ -17,42 +17,43 @@ namespace osu.Game.Skinning.Gameplay
     /// </summary>
     public static partial class GameplaySkinSceneCodec
     {
-        private static readonly UTF8Encoding strict_utf8 = new UTF8Encoding(false, true);
+        private static readonly UTF8Encoding strict_utf8 = new(false, true);
 
         private static readonly SearchValues<char> hexadecimal_characters = SearchValues.Create("0123456789abcdefABCDEF");
 
-        private static readonly HashSet<string> anchor_values = new HashSet<string>(StringComparer.Ordinal)
+        private static readonly HashSet<string> anchor_values = new(StringComparer.Ordinal)
         {
             "top-left", "top-centre", "top-right", "centre-left", "centre", "centre-right", "bottom-left", "bottom-centre", "bottom-right",
         };
 
-        private static readonly HashSet<string> colour_properties = new HashSet<string>(StringComparer.Ordinal)
+        private static readonly HashSet<string> colour_properties = new(StringComparer.Ordinal)
         {
             "colour",
         };
 
-        private static readonly HashSet<string> number_properties = new HashSet<string>(StringComparer.Ordinal)
+        private static readonly HashSet<string> number_properties = new(StringComparer.Ordinal)
         {
             "opacity", "x", "y", "width", "height", "scale-x", "scale-y", "rotation", "z", "font-size", "corner-radius", "reveal-x",
             "gap-px", "width-px", "height-px",
         };
 
-        private static readonly HashSet<string> boolean_properties = new HashSet<string>(StringComparer.Ordinal)
+        private static readonly HashSet<string> boolean_properties = new(StringComparer.Ordinal)
         {
             "visible",
         };
 
-        private static readonly HashSet<string> event_ids = new HashSet<string>(StringComparer.Ordinal)
+        private static readonly HashSet<string> event_ids = new(StringComparer.Ordinal)
         {
             "gameplay.attach", "gameplay.loaded", "gameplay.start", "gameplay.pause", "gameplay.complete", "gameplay.fail",
             "input.key.down", "input.key.up", "object.spawn", "object.state",
             "judgement.hit", "timing.stop", "bga.state",
         };
 
-        private static readonly HashSet<string> binding_source_ids = new HashSet<string>(StringComparer.Ordinal)
+        private static readonly HashSet<string> binding_source_ids = new(StringComparer.Ordinal)
         {
             "layout.ruleset", "layout.stage", "layout.group", "layout.lane", "input.pressed", "gameplay.full-combo", "object.state", "judgement.result", "judgement.offset",
             "score.value", "score.accuracy", "combo.value", "combo.maximum", "gauge.value", "timing.beat", "timing.measure", "timing.bpm", "timing.progress", "bga.content-state",
+            "score.maximum", "score.progress", "score.maximum-available", "lift.value", "lift.offset", "lift.reversed", "lift.available",
             "song.table-classification", "song.title", "song.artist", "song.difficulty", "song.level", "timing.bpm-min", "timing.bpm-max", "scroll.speed", "judgement.count.perfect", "judgement.count.great", "judgement.count.good", "judgement.count.ok", "judgement.count.meh", "judgement.count.miss", "combo.breaks",
             "object.long-note-mode", "object.long-note-appearance", "gauge.type", "gauge.maximum", "gauge.clear-threshold", "gauge.clear-state",
         };
@@ -136,26 +137,36 @@ namespace osu.Game.Skinning.Gameplay
             if (manifest.ScriptFile != null)
                 root["script"] = manifest.ScriptFile;
 
+            if (manifest.ContentCatalogFile != null)
+                root["contentCatalog"] = manifest.ContentCatalogFile;
+
             if (manifest.BitmapFonts.Count > 0)
             {
                 root["bitmapFonts"] = new JArray(manifest.BitmapFonts.Select(font => new JObject
                 {
                     ["id"] = font.Id,
                     ["lineHeight"] = font.LineHeight,
-                    ["glyphs"] = new JArray(font.Glyphs.Select(glyph => new JObject
-                    {
-                        ["character"] = glyph.Character.ToString(),
-                        ["resource"] = glyph.ResourceId,
-                        ["advance"] = glyph.Advance,
-                    })),
+                    ["glyphs"] = new JArray(font.Glyphs.Select(encodeBitmapGlyph)),
                 }));
             }
 
-            if (manifest.Options.Count > 0)
-                root["options"] = encodeOptions(manifest.Options);
+            GameplaySkinOptionDefinition[] ordinaryOptions = [.. manifest.Options.Where(option => !option.IsContentCatalog)];
+            if (ordinaryOptions.Length > 0)
+                root["options"] = encodeOptions(ordinaryOptions);
 
             if (manifest.AuthorLayouts.Count > 0)
                 root["layouts"] = GameplaySkinAuthorLayoutCodec.Encode(manifest.AuthorLayouts);
+
+            if (manifest.Animations.Count > 0)
+                root["animations"] = EncodeRecordedAnimations(manifest.Animations);
+
+            if (manifest.AuxiliaryDisplay is { } auxiliary)
+                root["auxiliaryDisplay"] = new JObject
+                {
+                    ["enabledOption"] = auxiliary.EnabledOption,
+                    ["concentrationOption"] = auxiliary.ConcentrationOption,
+                    ["brightnessOption"] = auxiliary.BrightnessOption,
+                };
 
             return root.ToString(Formatting.None);
         }
@@ -229,7 +240,7 @@ namespace osu.Game.Skinning.Gameplay
             if (root == null)
                 return context.Invalid<GameplaySkinSceneManifest>();
 
-            validateFields(root, context, new[] { "contract", "scene", "sceneContract", "eventContract", "resources" }, new[] { "script", "bitmapFonts", "options", "layouts" });
+            validateFields(root, context, new[] { "contract", "scene", "sceneContract", "eventContract", "resources" }, new[] { "script", "bitmapFonts", "options", "layouts", "contentCatalog", "animations", "auxiliaryDisplay" });
             validateExactContract(root, "contract", GameplaySkinSceneContracts.MANIFEST_CONTRACT_ID, context);
             validateExactContract(root, "scene", GameplaySkinSceneContracts.SCENE_FILE_NAME, context);
             validateExactContract(root, "sceneContract", GameplaySkinSceneContracts.SCENE_CONTRACT_ID, context);
@@ -241,6 +252,14 @@ namespace osu.Game.Skinning.Gameplay
                 scriptFile = getString(root, "script", context);
                 if (scriptFile is not GameplaySkinSceneContracts.SCRIPT_FILE_NAME and not GameplaySkinSceneContracts.BYTECODE_FILE_NAME)
                     context.Add(GameplaySkinSceneDiagnosticCode.InvalidReference);
+            }
+
+            string? contentCatalogFile = null;
+            if (root.ContainsKey("contentCatalog"))
+            {
+                string? rawCatalog = getString(root, "contentCatalog", context);
+                if (rawCatalog != null && !tryNormalizeRelativeResourcePath(rawCatalog, out contentCatalogFile))
+                    context.Add(GameplaySkinSceneDiagnosticCode.UnsafeResourcePath);
             }
 
             var resources = new List<GameplaySkinSceneResource>();
@@ -297,15 +316,20 @@ namespace osu.Game.Skinning.Gameplay
 
             List<GameplaySkinBitmapFont> bitmapFonts = parseBitmapFonts(root["bitmapFonts"], resources, context);
             List<GameplaySkinOptionDefinition> options = parseOptions(root["options"], context);
+            GameplaySkinAuxiliaryDisplayDefinition? auxiliaryDisplay = parseAuxiliaryDisplay(root["auxiliaryDisplay"], options, context);
             var layoutDiagnostics = new List<GameplaySkinSceneDiagnostic>();
             IReadOnlyList<GameplaySkinAuthorLayout> authorLayouts = GameplaySkinAuthorLayoutCodec.Decode(root["layouts"], layoutDiagnostics);
             foreach (GameplaySkinSceneDiagnostic diagnostic in layoutDiagnostics)
+                context.Add(diagnostic.Code);
+            var animationDiagnostics = new List<GameplaySkinSceneDiagnostic>();
+            IReadOnlyList<GameplaySkinRecordedAnimationDefinition> animations = ParseRecordedAnimations(root["animations"], resources, animationDiagnostics);
+            foreach (GameplaySkinSceneDiagnostic diagnostic in animationDiagnostics)
                 context.Add(diagnostic.Code);
 
             if (context.HasDiagnostics)
                 return context.Invalid<GameplaySkinSceneManifest>();
 
-            return valid(new GameplaySkinSceneManifest(resources, scriptFile, bitmapFonts, options, authorLayouts));
+            return valid(new GameplaySkinSceneManifest(resources, scriptFile, bitmapFonts, options, authorLayouts, contentCatalogFile, animations, auxiliaryDisplay));
         }
 
         private static List<GameplaySkinBitmapFont> parseBitmapFonts(
@@ -376,13 +400,14 @@ namespace osu.Game.Skinning.Gameplay
                         continue;
                     }
 
-                    validateFields(glyphObject, context, new[] { "character", "resource", "advance" });
+                    validateFields(glyphObject, context, new[] { "character", "resource", "advance" }, new[] { "rect" });
                     string? character = getString(glyphObject, "character", context);
                     string? resourceId = getStableId(glyphObject, "resource", context);
                     double? advance = getNumber(glyphObject, "advance", context);
                     bool validCharacter = character?.Length == 1 && GameplaySkinBitmapFontBudgets.IsAllowedCharacter(character![0]);
                     bool validAdvance = advance is >= GameplaySkinBitmapFontBudgets.MIN_ADVANCE and <= GameplaySkinBitmapFontBudgets.MAX_ADVANCE;
                     bool knownTexture = resourceId != null && textureIds.Contains(resourceId);
+                    GameplaySkinBitmapGlyphRect? rect = parseBitmapGlyphRect(glyphObject["rect"], lineHeight, context, out bool validRect);
 
                     if (character != null && !validCharacter || advance.HasValue && !validAdvance)
                         context.Add(GameplaySkinSceneDiagnosticCode.InvalidPropertyValue);
@@ -394,8 +419,8 @@ namespace osu.Game.Skinning.Gameplay
                         validCharacter = false;
                     }
 
-                    if (validCharacter && validAdvance && knownTexture)
-                        glyphs.Add(new GameplaySkinBitmapGlyph(character![0], resourceId!, advance!.Value));
+                    if (validCharacter && validAdvance && knownTexture && validRect)
+                        glyphs.Add(new GameplaySkinBitmapGlyph(character![0], resourceId!, advance!.Value, rect));
                     else
                         validFont = false;
                 }
@@ -405,6 +430,55 @@ namespace osu.Game.Skinning.Gameplay
             }
 
             return result;
+        }
+
+        private static JObject encodeBitmapGlyph(GameplaySkinBitmapGlyph glyph)
+        {
+            var result = new JObject
+            {
+                ["character"] = glyph.Character.ToString(),
+                ["resource"] = glyph.ResourceId,
+                ["advance"] = glyph.Advance,
+            };
+            if (glyph.Rect is { } rect)
+                result["rect"] = new JArray(rect.X, rect.Y, rect.Width, rect.Height);
+            return result;
+        }
+
+        private static GameplaySkinBitmapGlyphRect? parseBitmapGlyphRect(JToken? token, double? lineHeight, DecodeContext context, out bool validRect)
+        {
+            validRect = token == null;
+            if (token == null)
+                return null;
+            if (token is not JArray rect || rect.Count != 4 || rect.Any(value => value.Type != JTokenType.Integer))
+            {
+                context.Add(GameplaySkinSceneDiagnosticCode.InvalidValueType);
+                return null;
+            }
+            int[] values = new int[4];
+            for (int index = 0; index < values.Length; index++)
+            {
+                try
+                {
+                    values[index] = rect[index]!.Value<int>();
+                }
+                catch (Exception exception) when (exception is OverflowException or FormatException or InvalidCastException)
+                {
+                    context.Add(GameplaySkinSceneDiagnosticCode.InvalidPropertyValue);
+                    return null;
+                }
+            }
+            int x = values[0], y = values[1], width = values[2], height = values[3];
+            if (x < 0 || y < 0 || width is <= 0 or > GameplaySkinBitmapFontBudgets.MAX_GLYPH_DIMENSION
+                || height is <= 0 or > GameplaySkinBitmapFontBudgets.MAX_GLYPH_DIMENSION
+                || lineHeight.HasValue && height > lineHeight.Value
+                || (long)x + width > int.MaxValue || (long)y + height > int.MaxValue)
+            {
+                context.Add(GameplaySkinSceneDiagnosticCode.InvalidPropertyValue);
+                return null;
+            }
+            validRect = true;
+            return new GameplaySkinBitmapGlyphRect(x, y, width, height);
         }
 
         private static GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> decodeScene(ReadOnlyMemory<byte> content, GameplaySkinSceneManifest? manifest)
@@ -530,7 +604,7 @@ namespace osu.Game.Skinning.Gameplay
             DecodeContext context)
         {
             var fontsByNode = new Dictionary<string, (GameplaySkinBitmapFont Font, string Format)>(StringComparer.Ordinal);
-            IEnumerable<GameplaySkinSceneNode> nodes = (root == null ? Enumerable.Empty<GameplaySkinSceneNode>() : enumerate(root))
+            IEnumerable<GameplaySkinSceneNode> nodes = (root == null ? [] : enumerate(root))
                 .Concat(templates.SelectMany(template => enumerate(template.Root)));
             foreach (GameplaySkinSceneNode node in nodes)
             {
@@ -600,7 +674,8 @@ namespace osu.Game.Skinning.Gameplay
                     or GameplaySkinSceneBindingSource.TimingMeasure or GameplaySkinSceneBindingSource.JudgementCountPerfect
                     or GameplaySkinSceneBindingSource.JudgementCountGreat or GameplaySkinSceneBindingSource.JudgementCountGood
                     or GameplaySkinSceneBindingSource.JudgementCountOk or GameplaySkinSceneBindingSource.JudgementCountMeh
-                    or GameplaySkinSceneBindingSource.JudgementCountMiss or GameplaySkinSceneBindingSource.ComboBreaks;
+                    or GameplaySkinSceneBindingSource.JudgementCountMiss or GameplaySkinSceneBindingSource.ComboBreaks
+                    or GameplaySkinSceneBindingSource.ScoreMaximum;
 
             static IEnumerable<GameplaySkinSceneNode> enumerate(GameplaySkinSceneNode node)
             {
@@ -678,7 +753,7 @@ namespace osu.Game.Skinning.Gameplay
             if (context.TotalNodeCount > GameplaySkinSceneBudgets.MAX_NODES || depth > GameplaySkinSceneBudgets.MAX_NODE_DEPTH)
                 context.Add(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
 
-            validateFields(node, context, new[] { "id", "type", "target", "blend", "properties", "effects", "children" }, new[] { "slot", "resource" });
+            validateFields(node, context, new[] { "id", "type", "target", "blend", "properties", "effects", "children" }, new[] { "slot", "resource", "animation" });
             string? id = getStableId(node, "id", context);
 
             if (id != null && !context.AllStableIds.Add(id))
@@ -692,6 +767,18 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBlendMode? blend = parseBlend(node["blend"], context);
             string? slotId = null;
             string? resourceId = null;
+            string? animationId = null;
+
+            if (node.TryGetValue("animation", out JToken? animationToken))
+            {
+                animationId = getStableId(animationToken, context);
+                if (parsedType != GameplaySkinSceneNodeType.RecordedAnimation)
+                    context.Add(GameplaySkinSceneDiagnosticCode.InvalidReference);
+                if (animationId != null && context.Manifest?.Animations.Any(animation => animation.Id == animationId) != true)
+                    context.Add(GameplaySkinSceneDiagnosticCode.InvalidReference);
+            }
+            if (parsedType == GameplaySkinSceneNodeType.RecordedAnimation && animationId == null)
+                context.Add(GameplaySkinSceneDiagnosticCode.MissingField);
 
             if (node.TryGetValue("slot", out JToken? slotToken))
             {
@@ -746,7 +833,9 @@ namespace osu.Game.Skinning.Gameplay
             if (id == null || !parsedType.HasValue || target == null || !blend.HasValue)
                 return null;
 
-            return new GameplaySkinSceneNode(id, type, target, slotId, resourceId, blend.Value, properties, effects, children);
+            if (type == GameplaySkinSceneNodeType.RecordedAnimation && children.Count > 0)
+                context.Add(GameplaySkinSceneDiagnosticCode.InvalidReference);
+            return new GameplaySkinSceneNode(id, type, target, slotId, resourceId, blend.Value, properties, effects, children, animationId);
         }
 
         private static IReadOnlyDictionary<string, GameplaySkinScenePropertyValue> parseNodeProperties(
@@ -1482,7 +1571,7 @@ namespace osu.Game.Skinning.Gameplay
                     validateFields(
                         target,
                         context,
-                        hasHudId && hasHudIndex ? new[] { "kind", "id", "index" } : new[] { "kind" },
+                        hasHudId && hasHudIndex ? new[] { "kind", "id", "index" } : ["kind"],
                         hasHudId && hasHudIndex ? null : new[] { "id", "index" });
 
                     if (hasHudId != hasHudIndex)
@@ -1507,7 +1596,7 @@ namespace osu.Game.Skinning.Gameplay
                     validateFields(
                         target,
                         context,
-                        target["index"] == null ? new[] { "kind" } : new[] { "kind", "index" },
+                        target["index"] == null ? new[] { "kind" } : ["kind", "index"],
                         target["index"] == null ? new[] { "index" } : null);
                     int? bgaIndex = target["index"] == null ? null : getNonNegativeInt(target, "index", context);
                     return target["index"] == null || bgaIndex.HasValue
@@ -1762,9 +1851,10 @@ namespace osu.Game.Skinning.Gameplay
             }
 
             bool sourceIsNumber = source is "judgement.offset" or "score.value" or "score.accuracy" or "combo.value" or "combo.maximum" or "gauge.value" or "gauge.maximum" or "gauge.clear-threshold"
+                or "score.maximum" or "score.progress" or "lift.value" or "lift.offset"
                 or "timing.beat" or "timing.measure" or "timing.bpm" or "timing.progress"
                 or "timing.bpm-min" or "timing.bpm-max" or "scroll.speed" or "judgement.count.perfect" or "judgement.count.great" or "judgement.count.good" or "judgement.count.ok" or "judgement.count.meh" or "judgement.count.miss" or "combo.breaks";
-            bool sourceIsBoolean = source is "input.pressed" or "gameplay.full-combo";
+            bool sourceIsBoolean = source is "input.pressed" or "gameplay.full-combo" or "score.maximum-available" or "lift.reversed" or "lift.available";
             return sourceIsNumber && number_properties.Contains(property)
                    || sourceIsBoolean && boolean_properties.Contains(property);
         }
@@ -1804,6 +1894,7 @@ namespace osu.Game.Skinning.Gameplay
             {
                 "sprite" => GameplaySkinSceneNodeType.Sprite,
                 "projective-sprite" => GameplaySkinSceneNodeType.ProjectiveSprite,
+                "recorded-animation" => GameplaySkinSceneNodeType.RecordedAnimation,
                 "container" => GameplaySkinSceneNodeType.Container,
                 "text" => GameplaySkinSceneNodeType.Text,
                 "mask" => GameplaySkinSceneNodeType.Mask,
@@ -1926,6 +2017,8 @@ namespace osu.Game.Skinning.Gameplay
 
             if (node.ResourceId != null)
                 result["resource"] = node.ResourceId;
+            if (node.AnimationId != null)
+                result["animation"] = node.AnimationId;
 
             result["blend"] = encodeBlend(node.Blend);
             result["properties"] = encodeProperties(node.Properties);
@@ -2028,7 +2121,7 @@ namespace osu.Game.Skinning.Gameplay
             return result;
         }
 
-        private static JObject encodeStateMachine(GameplaySkinSceneStateMachine machine) => new JObject
+        private static JObject encodeStateMachine(GameplaySkinSceneStateMachine machine) => new()
         {
             ["id"] = machine.Id,
             ["initial"] = machine.InitialStateId,
@@ -2086,6 +2179,7 @@ namespace osu.Game.Skinning.Gameplay
         {
             GameplaySkinSceneNodeType.Sprite => "sprite",
             GameplaySkinSceneNodeType.ProjectiveSprite => "projective-sprite",
+            GameplaySkinSceneNodeType.RecordedAnimation => "recorded-animation",
             GameplaySkinSceneNodeType.Container => "container",
             GameplaySkinSceneNodeType.Text => "text",
             GameplaySkinSceneNodeType.Mask => "mask",
@@ -2237,7 +2331,7 @@ namespace osu.Game.Skinning.Gameplay
 
         private static void validateFields(JObject value, DecodeContext context, IEnumerable<string> required, IEnumerable<string>? optional = null)
         {
-            string[] requiredFields = required.ToArray();
+            string[] requiredFields = [.. required];
             var allowed = new HashSet<string>(requiredFields, StringComparer.Ordinal);
 
             if (optional != null)
@@ -2492,20 +2586,20 @@ namespace osu.Game.Skinning.Gameplay
 
         private static GameplaySkinSceneDecodeResult<T> absent<T>()
             where T : class
-            => new GameplaySkinSceneDecodeResult<T>(GameplaySkinSceneDecodeStatus.Absent, null, Array.Empty<GameplaySkinSceneDiagnostic>());
+            => new(GameplaySkinSceneDecodeStatus.Absent, null, Array.Empty<GameplaySkinSceneDiagnostic>());
 
         private static GameplaySkinSceneDecodeResult<T> invalid<T>(GameplaySkinSceneDiagnosticCode code)
             where T : class
-            => new GameplaySkinSceneDecodeResult<T>(GameplaySkinSceneDecodeStatus.Invalid, null, new[] { new GameplaySkinSceneDiagnostic(code) });
+            => new(GameplaySkinSceneDecodeStatus.Invalid, null, new[] { new GameplaySkinSceneDiagnostic(code) });
 
         private static GameplaySkinSceneDecodeResult<T> valid<T>(T value)
             where T : class
-            => new GameplaySkinSceneDecodeResult<T>(GameplaySkinSceneDecodeStatus.Valid, value, Array.Empty<GameplaySkinSceneDiagnostic>());
+            => new(GameplaySkinSceneDecodeStatus.Valid, value, Array.Empty<GameplaySkinSceneDiagnostic>());
 
         private sealed class DecodeContext
         {
-            private readonly List<GameplaySkinSceneDiagnostic> diagnostics = new List<GameplaySkinSceneDiagnostic>();
-            private readonly HashSet<GameplaySkinSceneDiagnosticCode> diagnosticCodes = new HashSet<GameplaySkinSceneDiagnosticCode>();
+            private readonly List<GameplaySkinSceneDiagnostic> diagnostics = [];
+            private readonly HashSet<GameplaySkinSceneDiagnosticCode> diagnosticCodes = [];
 
             public GameplaySkinSceneManifest? Manifest { get; }
 

@@ -7,6 +7,8 @@ OMS 皮肤可以改变 **BMS 与 osu!mania 的游玩画面**：音符、长条�
 | 从哪里开始 | 内容 |
 | --- | --- |
 | [皮肤配置项与默认表现](REFERENCE.md#皮肤配置项) | 声明下拉、开关、数值及玩法适用范围；玩家按皮肤和模式保存，下一次游玩生效 |
+| [内容目录与大型备选库](REFERENCE.md#按选项组合内容) | 同一皮肤组合框体和部件，只准备冻结选择，旧包保持原路径 |
+| [记录动画与辅助屏](REFERENCE.md#记录动画) | 保留复杂源几何和逐帧数据；辅助屏与主BGA分别承载 |
 | [显式舞台与留空位置](REFERENCE.md#显式舞台与留空位置) | 给真实轨道指定位置、预留空槽；未声明的皮肤仍用原有布局 |
 | [第一次制作](START_HERE.md) | 从静线复制，改名字/配色，检查、导入、刷新 |
 | [按画面元素查文件](#3-按画面元素查找文件) | 实际位置、素材、尺寸起点、动画与注意事项 |
@@ -212,7 +214,7 @@ scene包含固定字段 `contract/root/tracks/stateMachines/bindings/templates/i
 
 分数、BPM和连击可以使用自己的数字图片。在 `gameplay-skin.json` 的可选 `bitmapFonts` 数组中，每个字体填 `id/lineHeight/glyphs`，每个字形填 `character/resource/advance`；resource引用同一清单已声明的texture id。文字节点静态选择 `"bitmap-font": "字体id"`，配合 `font-size`、`alignment` 和数值binding；未声明字体的旧文字保持原有表现。完整十位数字声明和节点见[位图数字参考](REFERENCE.md#用自己的图片字形显示数字)。
 
-最多8字体，每字体1～16字形；字符仅限 `0`～`9`、`.`、`,`、`%`、`+`、`-`、小写 `x`。每个字符只声明一次，不含空格。图片每边1～512像素，图片高度不超过 `lineHeight`；`lineHeight/advance` 为1～512的有限原图像素数。字形顶端对齐，按 `font-size / lineHeight` 缩放；advance控制横向间距，不必等于图片宽度。
+最多9字体，每字体1～16字形；字符仅限 `0`～`9`、`.`、`,`、`%`、`+`、`-`、小写 `x`。每个字符只声明一次，不含空格。图片每边1～512像素，图片高度不超过 `lineHeight`；`lineHeight/advance` 为1～512的有限原图像素数。字形顶端对齐，按 `font-size / lineHeight` 缩放；advance控制横向间距，不必等于图片宽度。
 
 数字绑定须提供0～9全部字形。BPM等整数显示可用 `"format": "integer"`，将数值舍入为无小数数字；`fixed-2` 需要点号，`percent` 需要百分号，未指定格式的非整数来源需要点号。判定偏差与拍数还要求负号；前奏的小节索引也可能为-1，应提供负号。位图准确率和进度同样按显式format显示，想显示百分比应选percent。`,`、`+`、`x` 不会自动生成，只供静态文字等已明确字符使用。
 
@@ -263,7 +265,7 @@ scene包含固定字段 `contract/root/tracks/stateMachines/bindings/templates/i
 
 完成演出可使用另一个合法trigger `"gameplay.complete"`，从引擎真正完成整张谱面的时刻计时。全连演出把 `gameplay.full-combo` 绑定到父容器的visible，换帧、位置和透明度轨迹放在孩子上；该布尔取真实最大可达连击，不用已达到的最高连击、清灯或“断连次数为0”猜测。晚挂载和快照替换保留完成原点，暂停、变速沿游玩时钟；回退到完成前或重试清除旧起点，仍位于同次完成后的跳转不会重播。末帧应显式透明。
 
-场景根可选 `"completionOutro":2500`，给实际全连保留从完成原点起最多2500毫秒的演出；缺省或0、非全连、失败仍保持原1000毫秒等待。正值要求同一场景有 `gameplay.full-combo → visible`，并有至少一条覆盖声明时长的非循环完成轨迹，完成轨迹均不可loop；仅准备完毕且无运行故障的选定场景参与。它不是在原等待后再增加2500毫秒，也不允许脚本或无限循环阻止结算。完整边界见[参考](REFERENCE.md#动画状态机绑定变体模板)。
+场景根可选 `"completionOutro":2500`，给实际全连保留从完成原点起2500毫秒的演出，可声明的上限为3500毫秒；缺省或0、非全连、失败仍保持原1000毫秒等待。正值要求同一场景有 `gameplay.full-combo → visible`，并有至少一条覆盖声明时长的非循环完成轨迹，完成轨迹均不可loop；仅准备完毕且无运行故障的选定场景参与。它不是在原等待后再增加2500毫秒，也不允许脚本或无限循环阻止结算。完整边界见[参考](REFERENCE.md#动画状态机绑定变体模板)。
 
 状态机事件为 `gameplay.attach/loaded/start/pause/complete/fail`、`input.key.down/up`、`object.spawn/state`、`judgement.hit`、`timing.stop`、`bga.state`。`gameplay.resume` 不是合法作者事件；恢复、跳转和重试从完整当前状态重建。`judgement.hit` 表示存在当前判定，也包括真实Miss。要累计“最近N次”，使用脚本事件而非不断读取绑定中的miss。
 
@@ -288,8 +290,8 @@ variants接受 `object.state / object.long-note-mode / object.long-note-appearan
 | 作者工具整目录 | 128MiB、4096普通文件，不接受链接 |
 | `skin.ini` / 名称与作者 | 1MiB；各256字符、无控制字符 |
 | manifest / scene JSON / JSON深度 | 64KiB / 512KiB / 32 |
-| scene资源 | 256项；单资源16MiB、合计64MiB；单图16×1024²像素、合计64×1024²像素；解码合计256MiB |
-| 位图字体 | 最多8字体，每字体1～16字形；每节点最多64字符；字符仅0～9及`.`、`,`、`%`、`+`、`-`、`x` |
+| scene资源 | 256项；单资源16MiB、合计64MiB；单图16×1024²像素、合计64×1024²像素；解码合计256MiB；显式内容目录的选中组合96MiP/384MiB，其它门不变 |
+| 位图字体 | 最多9字体，每字体1～16字形；每节点最多64字符；字符仅0～9及`.`、`,`、`%`、`+`、`-`、`x` |
 | 位图字形尺寸 | 每边1～512像素且高度≤lineHeight；lineHeight/advance为1～512；图片仍计入上述scene资源预算 |
 | BMS音符编号帧专用上限 | 每组件256帧；单边8192、单帧16×1024²像素；组件解码64MiB、包解码256MiB；声明帧4096、唯一纹理2048。作者工具的更小整包上限仍适用 |
 | scene源节点 / 树深 / 每节点孩子 | 2048 / 16 / 128 |

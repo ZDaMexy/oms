@@ -34,7 +34,7 @@ namespace osu.Game.Rulesets.Mania.Skinning
                 return GameplaySkinResolvedMaterialSet.CreateEmpty(snapshot);
 
             GameplaySkinPackageRevision package = snapshot.Context.PackageRevision;
-            ISkin[] sources = skinSource.AllSources.ToArray();
+            ISkin[] sources = [.. skinSource.AllSources];
             Skin? validatedCanonical = sources.Select(unwrapSkin).OfType<Skin>()
                 .FirstOrDefault(CanonicalSkinPackage.IsCanonicalSkin);
             cancellationToken.ThrowIfCancellationRequested();
@@ -46,7 +46,7 @@ namespace osu.Game.Rulesets.Mania.Skinning
             if (!selected.Raw!.AllowsGameplaySkinDocumentAuthoring)
                 throw new InvalidOperationException("The selected mania package is not eligible for gameplay-skin document authoring.");
 
-            GameplaySkinDocument selectedDocument = selected.Raw.GameplaySkinDocument.BindToPublication(snapshot);
+            GameplaySkinDocument selectedDocument = selected.Raw.GetGameplaySkinDocument(snapshot.Context).BindToPublication(snapshot);
             GameplaySkinResolvedMaterialSourceIdentity selectedIdentity = GameplaySkinResolvedMaterialSourceIdentity.CreateSelectedDocument(
                 "selected-common",
                 selectedDocument.Identity.ContentRevision);
@@ -286,13 +286,13 @@ namespace osu.Game.Rulesets.Mania.Skinning
         }
 
         private static readonly ManiaSkinComponents[] supported_components =
-        {
+        [
             ManiaSkinComponents.Note,
             ManiaSkinComponents.HoldNoteHead,
             ManiaSkinComponents.HoldNoteBody,
             ManiaSkinComponents.HoldNoteTail,
             ManiaSkinComponents.KeyArea,
-        };
+        ];
 
         private static readonly IReadOnlySet<GameplaySkinSlotDescriptor> specialised_descriptors =
             new HashSet<GameplaySkinSlotDescriptor>(supported_components.Select(component =>

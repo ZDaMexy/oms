@@ -2,8 +2,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
+using osu.Framework.Graphics.Primitives;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.Text;
 using osuTK;
@@ -13,7 +13,7 @@ namespace osu.Game.Skinning.Gameplay
     /// <summary>Fixed limits for author-provided numeric glyphs, independent of the system font atlas.</summary>
     public static class GameplaySkinBitmapFontBudgets
     {
-        public const int MAX_FONTS = 8;
+        public const int MAX_FONTS = 9;
         public const int MAX_GLYPHS_PER_FONT = 16;
         public const int MAX_TEXT_CHARACTERS = 64;
         public const int MAX_GLYPH_DIMENSION = 512;
@@ -26,7 +26,9 @@ namespace osu.Game.Skinning.Gameplay
             => character is >= '0' and <= '9' or '.' or ',' or '%' or '+' or '-' or 'x';
     }
 
-    /// <summary>One explicitly named existing texture, with its horizontal advance in source pixels.</summary>
+    public readonly record struct GameplaySkinBitmapGlyphRect(int X, int Y, int Width, int Height);
+
+    /// <summary>One explicitly named existing texture or pixel region, with its horizontal advance in source pixels.</summary>
     public sealed class GameplaySkinBitmapGlyph
     {
         public char Character { get; }
@@ -35,11 +37,14 @@ namespace osu.Game.Skinning.Gameplay
 
         public double Advance { get; }
 
-        internal GameplaySkinBitmapGlyph(char character, string resourceId, double advance)
+        public GameplaySkinBitmapGlyphRect? Rect { get; }
+
+        internal GameplaySkinBitmapGlyph(char character, string resourceId, double advance, GameplaySkinBitmapGlyphRect? rect = null)
         {
             Character = character;
             ResourceId = resourceId;
             Advance = advance;
+            Rect = rect;
         }
     }
 
@@ -61,7 +66,7 @@ namespace osu.Game.Skinning.Gameplay
         {
             Id = id;
             LineHeight = lineHeight;
-            GameplaySkinBitmapGlyph[] copiedGlyphs = glyphs.ToArray();
+            GameplaySkinBitmapGlyph[] copiedGlyphs = [.. glyphs];
             Glyphs = Array.AsReadOnly(copiedGlyphs);
 
             foreach (GameplaySkinBitmapGlyph glyph in copiedGlyphs)
@@ -109,21 +114,34 @@ namespace osu.Game.Skinning.Gameplay
             {
                 GameplaySkinPreparedSceneResource resource = GameplaySkinPreparedSceneVariantCase.RequireTexture(declaration.ResourceId, resources);
                 Texture texture = resource.Texture!;
+                GameplaySkinBitmapGlyphRect? rect = declaration.Rect;
+                int width = rect?.Width ?? texture.Width;
+                int height = rect?.Height ?? texture.Height;
 
-                if (texture.Width <= 0 || texture.Height <= 0
-                    || texture.Width > GameplaySkinBitmapFontBudgets.MAX_GLYPH_DIMENSION
-                    || texture.Height > GameplaySkinBitmapFontBudgets.MAX_GLYPH_DIMENSION
-                    || texture.Height > source.LineHeight)
+                if (width <= 0 || height <= 0
+                    || width > GameplaySkinBitmapFontBudgets.MAX_GLYPH_DIMENSION
+                    || height > GameplaySkinBitmapFontBudgets.MAX_GLYPH_DIMENSION
+                    || height > source.LineHeight
+                    || rect is { } bounds && (bounds.X < 0 || bounds.Y < 0
+                                              || (long)bounds.X + bounds.Width > texture.Width
+                                              || (long)bounds.Y + bounds.Height > texture.Height))
                 {
                     throw new GameplaySkinScenePreparationException(GameplaySkinSceneDiagnosticCode.InvalidResource);
                 }
 
+                Texture glyphTexture = rect is { } region
+                    ? new TextureRegion(texture, new RectangleI(region.X, region.Y, region.Width, region.Height), WrapMode.ClampToEdge, WrapMode.ClampToEdge)
+                    {
+                        ScaleAdjust = texture.ScaleAdjust,
+                    }
+                    : texture;
+
                 var glyph = new TexturedCharacterGlyph(
                     new CharacterGlyph(declaration.Character, 0, 0, (float)declaration.Advance, (float)source.LineHeight, null),
-                    texture, 1f / (float)source.LineHeight);
+                    glyphTexture, 1f / (float)source.LineHeight);
                 glyphs[declaration.Character] = glyph;
                 glyphTasks[declaration.Character] = Task.FromResult<ITexturedCharacterGlyph?>(glyph);
-                imageWidths[declaration.Character] = texture.Width;
+                imageWidths[declaration.Character] = width;
                 advances[declaration.Character] = (float)declaration.Advance;
             }
         }

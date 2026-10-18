@@ -12,7 +12,7 @@ namespace osu.Game.Rulesets.Bms.UI
 {
     public partial class BmsHitObjectArea : Container
     {
-        private readonly BindableDouble scrollLengthRatio = new BindableDouble(1);
+        private readonly BindableDouble scrollLengthRatio = new(1);
 
         public IBindable<double> ScrollLengthRatio => scrollLengthRatio;
 
@@ -24,6 +24,18 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly BmsHitObjectAreaLayoutController layoutController;
 
         internal BmsGameplayLayoutSnapshot? LayoutSnapshot { get; }
+
+        internal bool HasAppliedProjection => layoutController.HasAppliedProjection;
+
+        internal float AppliedOffsetPixels => layoutController.AppliedOffsetPixels;
+
+        internal float AppliedOffsetRatio => layoutController.AppliedOffsetRatio;
+
+        internal float AppliedHeight => layoutController.AppliedHeight;
+
+        internal float AppliedLiftUnits => layoutController.AppliedLiftUnits;
+
+        internal bool AppliedReverse => layoutController.AppliedReverse;
 
         public BmsHitObjectArea(
             BmsHitTarget hitTarget,
@@ -86,10 +98,22 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly Container target;
         private readonly Drawable? anchoredTarget;
         private readonly BmsPlayfieldLayoutProfile layoutProfile;
-        private readonly BindableFloat liftUnits = new BindableFloat();
+        private readonly BindableFloat liftUnits = new();
         private readonly IBindable<ScrollingDirection> direction = new Bindable<ScrollingDirection>();
         private float appliedOffset = float.NaN;
         private bool? appliedReverse;
+
+        internal bool HasAppliedProjection => appliedReverse.HasValue;
+
+        internal float AppliedOffsetPixels => HasAppliedProjection ? appliedOffset : 0;
+
+        internal float AppliedHeight { get; private set; }
+
+        internal float AppliedLiftUnits { get; private set; }
+
+        internal float AppliedOffsetRatio => HasAppliedProjection && AppliedHeight > 0 ? Math.Clamp(appliedOffset / AppliedHeight, 0, 1) : 0;
+
+        internal bool AppliedReverse => appliedReverse == true;
 
         public BmsHitObjectAreaLayoutController(
             Container target,
@@ -116,7 +140,9 @@ namespace osu.Game.Rulesets.Bms.UI
             bool reverse = direction.Value == ScrollingDirection.Up;
 
             float availableHeight = Math.Max(0, target.DrawHeight);
-            float liftOffset = availableHeight > 0 ? availableHeight * Math.Clamp(liftUnits.Value, 0, 1000) / 1000f : 0;
+            AppliedHeight = availableHeight;
+            AppliedLiftUnits = Math.Clamp(liftUnits.Value, 0, 1000);
+            float liftOffset = availableHeight > 0 ? availableHeight * AppliedLiftUnits / 1000f : 0;
             float effectiveOffset = Math.Clamp(layoutProfile.HitTargetVerticalOffset + liftOffset, 0, availableHeight);
 
             if (Math.Abs(appliedOffset - effectiveOffset) <= 0.01f && appliedReverse == reverse)

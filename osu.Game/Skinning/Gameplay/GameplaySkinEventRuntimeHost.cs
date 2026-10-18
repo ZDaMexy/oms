@@ -9,6 +9,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Scoring;
+using osu.Game.Rulesets.UI;
 using osu.Game.Screens.Play;
 
 namespace osu.Game.Skinning.Gameplay
@@ -54,16 +55,17 @@ namespace osu.Game.Skinning.Gameplay
         private readonly Dictionary<GameplaySkinLaneId, GameplaySkinInputStateSnapshot> inputs;
         private readonly Dictionary<long, GameplaySkinObjectStateSnapshot> activeObjects;
         private readonly Dictionary<int, GameplaySkinBgaStateSnapshot> bga;
-        private readonly Dictionary<long, GameplaySkinCurrentJudgementStateSnapshot> judgementsByObject = new Dictionary<long, GameplaySkinCurrentJudgementStateSnapshot>();
-        private readonly Dictionary<GameplaySkinLaneId, GameplaySkinCurrentJudgementStateSnapshot> judgementsByLane = new Dictionary<GameplaySkinLaneId, GameplaySkinCurrentJudgementStateSnapshot>();
-        private readonly Dictionary<GameplaySkinLaneGroupId, GameplaySkinCurrentJudgementStateSnapshot> judgementsByGroup = new Dictionary<GameplaySkinLaneGroupId, GameplaySkinCurrentJudgementStateSnapshot>();
-        private readonly HashSet<long> objectResynchronisationAllowed = new HashSet<long>();
-        private readonly HashSet<int> bgaResynchronisationAllowed = new HashSet<int>();
+        private readonly Dictionary<long, GameplaySkinCurrentJudgementStateSnapshot> judgementsByObject = [];
+        private readonly Dictionary<GameplaySkinLaneId, GameplaySkinCurrentJudgementStateSnapshot> judgementsByLane = [];
+        private readonly Dictionary<GameplaySkinLaneGroupId, GameplaySkinCurrentJudgementStateSnapshot> judgementsByGroup = [];
+        private readonly HashSet<long> objectResynchronisationAllowed = [];
+        private readonly HashSet<int> bgaResynchronisationAllowed = [];
 
         private GameplaySkinEventProducer? producer;
         private ScoreProcessor? scoreProcessor;
         private HealthProcessor? healthProcessor;
         private GameplayClockContainer? gameplayClockContainer;
+        private DrawableRuleset? drawableRuleset;
         private GameplaySkinLifecycleState lifecycle;
         private GameplaySkinCompletionStateSnapshot? completion;
         private GameplaySkinCurrentJudgementStateSnapshot? globalJudgement;
@@ -133,11 +135,13 @@ namespace osu.Game.Skinning.Gameplay
         }
 
         [BackgroundDependencyLoader(true)]
-        private void load(ScoreProcessor? scoreProcessor, HealthProcessor? healthProcessor, GameplayClockContainer? gameplayClockContainer)
+        private void load(ScoreProcessor? scoreProcessor, HealthProcessor? healthProcessor, GameplayClockContainer? gameplayClockContainer,
+                          DrawableRuleset? drawableRuleset)
         {
             this.scoreProcessor = scoreProcessor;
             this.healthProcessor = healthProcessor;
             this.gameplayClockContainer = gameplayClockContainer;
+            this.drawableRuleset = drawableRuleset;
         }
 
         protected override void LoadComplete()
@@ -150,6 +154,7 @@ namespace osu.Game.Skinning.Gameplay
             timingStopped = timing.IsStopped;
             double announcementTime = currentTime;
             synchroniseActiveObjectsFromEngine(announcementTime);
+            discardFutureInputOrigins(announcementTime);
             producer = producer.AnnounceCurrentPublication(announcementTime, buildSnapshot(announcementTime));
             allowOneStateResynchronisation();
             previousBeat = (long)Math.Floor(timing.Beat);
@@ -221,13 +226,34 @@ namespace osu.Game.Skinning.Gameplay
         internal void PublishInput(GameplaySkinLaneGroupId groupId, GameplaySkinLaneId laneId, bool pressed, float strength = 1)
         {
             validateExactTarget(groupId, laneId);
-            var state = new GameplaySkinInputStateSnapshot(groupId, laneId, pressed, pressed ? strength : 0);
+            double time = AuthoritativeGameplayTime;
+
+            // The first rebuilt input callback can precede this drawable's update at an implicit rewind.
+            // Invalidate the old epoch's origins before retaining that real callback's new origin.
+            if (double.IsFinite(previousTime) && time < previousTime && pendingReset == GameplaySkinEventResetReason.Unspecified)
+                RequestReset(GameplaySkinEventResetReason.Rewind);
+
+            GameplaySkinInputStateSnapshot state = SnapshotInputAt(inputs[laneId], pressed, strength, time);
             inputs[laneId] = state;
             publish(
+                time,
                 GameplaySkinEventValue.Input(pressed ? GameplaySkinEventKind.InputPressed : GameplaySkinEventKind.InputReleased, state),
                 groupId,
                 laneId);
         }
+
+        internal static GameplaySkinInputStateSnapshot SnapshotInputAt(GameplaySkinInputStateSnapshot previous, bool pressed, float strength, double gameplayTime)
+        {
+            previous = SnapshotInputForEpoch(previous, gameplayTime);
+            return new GameplaySkinInputStateSnapshot(previous.GroupId, previous.LaneId, pressed, pressed ? strength : 0,
+                pressed && !previous.IsPressed ? gameplayTime : previous.PressedAt,
+                pressed ? null : previous.IsPressed ? gameplayTime : previous.ReleasedAt);
+        }
+
+        internal static GameplaySkinInputStateSnapshot SnapshotInputForEpoch(GameplaySkinInputStateSnapshot input, double gameplayTime)
+            => input.PressedAt > gameplayTime || input.ReleasedAt > gameplayTime
+                ? new GameplaySkinInputStateSnapshot(input.GroupId, input.LaneId, input.IsPressed, input.Strength)
+                : input;
 
         /// <summary>
         /// Samples object progress from the same engine-owned gameplay clock used to stamp event envelopes.
@@ -448,7 +474,10 @@ namespace osu.Game.Skinning.Gameplay
             }
 
             if (reason is GameplaySkinEventResetReason.Seek or GameplaySkinEventResetReason.Rewind or GameplaySkinEventResetReason.Retry)
+            {
+                clearInputOrigins();
                 restoreLifecycleAfterDiscontinuity(retainCompletion: reason != GameplaySkinEventResetReason.Retry);
+            }
         }
 
         protected override void Update()
@@ -473,13 +502,7 @@ namespace osu.Game.Skinning.Gameplay
             double time = AuthoritativeGameplayTime;
 
             if (double.IsFinite(previousTime) && time < previousTime && pendingReset == GameplaySkinEventResetReason.Unspecified)
-            {
-                pendingReset = GameplaySkinEventResetReason.Rewind;
-                restoreLifecycleAfterDiscontinuity(retainCompletion: true);
-
-                if (objectSnapshotSource != null)
-                    deferDiscontinuityResetForDrawableState = true;
-            }
+                RequestReset(GameplaySkinEventResetReason.Rewind);
 
             // Frame stability may traverse many intermediate positions while catching up to a seek. A single
             // update there only rebuilds that intermediate playfield, not the destination stamped on the Reset.
@@ -519,6 +542,11 @@ namespace osu.Game.Skinning.Gameplay
                 timing = createTimingState(time);
                 synchroniseActiveObjectsFromEngine(time);
                 synchroniseCompletionAtReset(time);
+                // Editor/frame-stable clocks can rewind while an object resynchronisation or backpressure
+                // reset is already pending. Callbacks during a deferred reset may also sample an intermediate
+                // clock position. Preserve real input state, but do not carry those future origins across the
+                // final epoch barrier or replace them with its time.
+                discardFutureInputOrigins(time);
                 producer = producer.Reset(time, buildSnapshot(time), reason);
                 allowOneStateResynchronisation();
                 previousBeat = (long)Math.Floor(timing.Beat);
@@ -528,9 +556,10 @@ namespace osu.Game.Skinning.Gameplay
             }
 
             GameplaySkinJudgementStatistics previousStatistics = score.Statistics;
+            long previousMaximumScore = score.MaximumScore;
             GameplaySkinGaugeStateSnapshot previousGaugeState = score.GaugeState;
             synchroniseScoreState();
-            if (previousStatistics != score.Statistics)
+            if (previousStatistics != score.Statistics || previousMaximumScore != score.MaximumScore)
                 publish(time, GameplaySkinEventValue.Score(GameplaySkinEventKind.ScoreChanged, score));
 
             if (previousGaugeState != score.GaugeState)
@@ -554,6 +583,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinTimingStateSnapshot next = createTimingState(time);
             bool stoppedChanged = timingStopped != next.IsStopped;
             bool speedChanged = timing.ScrollSpeed != next.ScrollSpeed;
+            bool liftChanged = timing.LiftState != next.LiftState;
             timing = next;
             long wholeBeat = (long)Math.Floor(timing.Beat);
 
@@ -563,7 +593,7 @@ namespace osu.Game.Skinning.Gameplay
                 previousBpm = timing.Bpm;
             }
 
-            if (!previousScroll.Equals(timing.ScrollMultiplier) || speedChanged)
+            if (!previousScroll.Equals(timing.ScrollMultiplier) || speedChanged || liftChanged)
             {
                 publish(time, GameplaySkinEventValue.Timing(GameplaySkinEventKind.TimingScrollChanged, timing));
                 previousScroll = timing.ScrollMultiplier;
@@ -595,7 +625,9 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinTimingStateSnapshot sample = timingProjection.Sample(time);
             double duration = lastHitTime - firstHitTime;
             double progress = duration == 0 ? 0 : Math.Clamp((time - firstHitTime) / duration, 0, 1);
-            return new GameplaySkinTimingStateSnapshot(sample.Beat, sample.BarIndex, sample.Bpm, sample.IsStopped, sample.ScrollMultiplier, progress, scrollSpeed?.Invoke() ?? 0);
+            GameplaySkinLiftState lift = (drawableRuleset?.Playfield as IGameplaySkinLiftStateSource)?.GameplaySkinLiftState ?? default;
+            return new GameplaySkinTimingStateSnapshot(sample.Beat, sample.BarIndex, sample.Bpm, sample.IsStopped, sample.ScrollMultiplier, progress,
+                scrollSpeed?.Invoke() ?? 0, lift);
         }
 
         private void synchroniseActiveObjectsFromEngine(double gameplayTime)
@@ -786,6 +818,7 @@ namespace osu.Game.Skinning.Gameplay
         private void synchroniseScoreState()
         {
             long total = scoreProcessor?.TotalScore.Value ?? score.Score;
+            long maximumScore = scoreProcessor?.MaximumTotalScore ?? score.MaximumScore;
             int combo = scoreProcessor?.Combo.Value ?? score.Combo;
             int maxCombo = Math.Max(combo, scoreProcessor?.HighestCombo.Value ?? score.MaxCombo);
             double accuracy = scoreProcessor?.Accuracy.Value ?? score.Accuracy;
@@ -801,11 +834,11 @@ namespace osu.Game.Skinning.Gameplay
                     counts.GetValueOrDefault(HitResult.ComboBreak));
             }
             GameplaySkinGaugeStateSnapshot gaugeState = (healthProcessor as IGameplaySkinGaugeStateSource)?.GameplaySkinGaugeState ?? default;
-            score = new GameplaySkinScoreStateSnapshot(total, combo, maxCombo, accuracy, gauge, statistics, gaugeState);
+            score = new GameplaySkinScoreStateSnapshot(total, combo, maxCombo, accuracy, gauge, statistics, gaugeState, maximumScore);
         }
 
         private GameplaySkinEventStateSnapshot buildSnapshot(double gameplayTime)
-            => new GameplaySkinEventStateSnapshot(
+            => new(
                 lifecycle,
                 inputs.Values.OrderBy(input => input.LaneId.Value, StringComparer.Ordinal),
                 activeObjects.Values.OrderBy(obj => obj.ObjectId).Select(obj => SnapshotObjectAt(obj, gameplayTime)),
@@ -878,6 +911,20 @@ namespace osu.Game.Skinning.Gameplay
             judgementsByLane.Clear();
         }
 
+        private void clearInputOrigins()
+        {
+            // Ruleset input adapters deduplicate held states. Preserve that engine-owned state, but do not
+            // invent an edge at the seek destination if the input was held across the discontinuity.
+            foreach (GameplaySkinInputStateSnapshot input in inputs.Values.ToArray())
+                inputs[input.LaneId] = new GameplaySkinInputStateSnapshot(input.GroupId, input.LaneId, input.IsPressed, input.Strength);
+        }
+
+        private void discardFutureInputOrigins(double gameplayTime)
+        {
+            foreach (GameplaySkinInputStateSnapshot input in inputs.Values.ToArray())
+                inputs[input.LaneId] = SnapshotInputForEpoch(input, gameplayTime);
+        }
+
         internal static GameplaySkinObjectStateSnapshot SnapshotObjectAt(GameplaySkinObjectStateSnapshot state, double gameplayTime)
         {
             double duration = state.EndTime - state.StartTime;
@@ -915,6 +962,7 @@ namespace osu.Game.Skinning.Gameplay
             if (double.IsFinite(previousTime) && gameplayTime < previousTime)
             {
                 pendingReset = GameplaySkinEventResetReason.Rewind;
+                clearInputOrigins();
                 return;
             }
 
@@ -951,6 +999,7 @@ namespace osu.Game.Skinning.Gameplay
                 pendingReset = GameplaySkinEventResetReason.Retry;
             deferDiscontinuityResetForDrawableState = objectSnapshotSource != null;
             pendingDiscontinuityGameplayTime = gameplayClockContainer?.LastSeekTarget;
+            clearInputOrigins();
             restoreLifecycleAfterDiscontinuity(retainCompletion: seeking);
         }
 
@@ -967,6 +1016,7 @@ namespace osu.Game.Skinning.Gameplay
                 : GameplaySkinEventResetReason.Seek;
             deferDiscontinuityResetForDrawableState = objectSnapshotSource != null;
             pendingDiscontinuityGameplayTime = seekDestination;
+            clearInputOrigins();
             restoreLifecycleAfterDiscontinuity(retainCompletion: true);
         }
 
@@ -975,6 +1025,7 @@ namespace osu.Game.Skinning.Gameplay
             pendingReset = GameplaySkinEventResetReason.Retry;
             deferDiscontinuityResetForDrawableState = objectSnapshotSource != null;
             pendingDiscontinuityGameplayTime = gameplayClockContainer?.LastSeekTarget;
+            clearInputOrigins();
             restoreLifecycleAfterDiscontinuity();
         }
 

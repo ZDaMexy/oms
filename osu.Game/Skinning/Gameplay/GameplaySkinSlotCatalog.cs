@@ -114,8 +114,20 @@ namespace osu.Game.Skinning.Gameplay
         public static GameplaySkinSlotDescriptor LaneDivider { get; } = recommended(
             "playfield.lane-divider", "LaneDivider", GameplaySkinSlotScope.Lane, commonLane(), "OMS-SKIN-SLOT-028");
 
-        public static IReadOnlyList<GameplaySkinSlotDescriptor> All { get; } = Array.AsReadOnly(new[]
-        {
+        public static GameplaySkinSlotDescriptor AuxiliaryDisplay { get; } = optional(
+            "hud.auxiliary", "AuxiliaryDisplay", GameplaySkinSlotScope.Global, commonNonLane(), "OMS-SKIN-SLOT-029");
+
+        public static GameplaySkinSlotDescriptor AuxiliaryConcentrationDisplay { get; } = optional(
+            "hud.auxiliary-concentration", "AuxiliaryConcentrationDisplay", GameplaySkinSlotScope.Global, commonNonLane(), "OMS-SKIN-SLOT-030");
+
+        public static GameplaySkinSlotDescriptor LiftFill { get; } = bmsOptional(
+            "playfield.lift.fill", "LiftFill", GameplaySkinSlotScope.Stage, bmsNonLane(), "OMS-SKIN-SLOT-031");
+
+        public static GameplaySkinSlotDescriptor LiftDecoration { get; } = bmsOptional(
+            "playfield.lift.decoration", "LiftDecoration", GameplaySkinSlotScope.Stage, bmsNonLane(), "OMS-SKIN-SLOT-032");
+
+        public static IReadOnlyList<GameplaySkinSlotDescriptor> All { get; } = Array.AsReadOnly(
+        [
             LaneSurface,
             JudgementLine,
             Note,
@@ -144,7 +156,11 @@ namespace osu.Game.Skinning.Gameplay
             Decoration,
             HitTarget,
             LaneDivider,
-        });
+            AuxiliaryDisplay,
+            AuxiliaryConcentrationDisplay,
+            LiftFill,
+            LiftDecoration,
+        ]);
 
         public static IReadOnlyList<GameplaySkinSlotDescriptor> Common { get; } = Array.AsReadOnly(All.Where(slot => slot.CatalogFamily == GameplaySkinSlotCatalogFamily.Common).ToArray());
 
@@ -219,7 +235,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSlotSuppressEligibility suppressEligibility,
             GameplaySkinSlotApplicability applicability,
             string diagnosticId)
-            => new GameplaySkinSlotDescriptor(
+            => new(
                 id,
                 stableName,
                 family,
@@ -233,13 +249,23 @@ namespace osu.Game.Skinning.Gameplay
                 diagnosticId);
 
         private static GameplaySkinSlotApplicability commonLane()
-            => new GameplaySkinSlotApplicability(common_rulesets, all_stages, all_lane_roles, all_keymodes, 1, 20);
+            => new(common_rulesets, all_stages, all_lane_roles, all_keymodes, 1, 20);
 
         private static GameplaySkinSlotApplicability commonNonLane()
-            => new GameplaySkinSlotApplicability(common_rulesets, all_stages, GameplaySkinLaneRoleApplicability.None, all_keymodes, 1, 20);
+            => new(common_rulesets, all_stages, GameplaySkinLaneRoleApplicability.None, all_keymodes, 1, 20);
+
+        private static GameplaySkinSlotApplicability bmsNonLane()
+            => new(
+                GameplaySkinRulesetApplicability.Bms,
+                all_stages,
+                GameplaySkinLaneRoleApplicability.None,
+                GameplaySkinKeymodeApplicability.Bms5K | GameplaySkinKeymodeApplicability.Bms7K
+                | GameplaySkinKeymodeApplicability.Bms9K | GameplaySkinKeymodeApplicability.Bms14K,
+                5,
+                14);
 
         private static GameplaySkinSlotApplicability bmsScratchLane()
-            => new GameplaySkinSlotApplicability(
+            => new(
                 GameplaySkinRulesetApplicability.Bms,
                 all_stages,
                 GameplaySkinLaneRoleApplicability.Scratch,

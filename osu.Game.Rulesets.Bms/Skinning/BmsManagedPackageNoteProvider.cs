@@ -140,8 +140,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
     /// </summary>
     internal static class BmsManagedPackageNoteLoadContext
     {
-        private static readonly AsyncLocal<CancellationToken?> current_cancellation_token = new AsyncLocal<CancellationToken?>();
-        private static readonly AsyncLocal<SkinCurrentRevisionLeaseTransfer?> current_revision_lease_transfer = new AsyncLocal<SkinCurrentRevisionLeaseTransfer?>();
+        private static readonly AsyncLocal<CancellationToken?> current_cancellation_token = new();
+        private static readonly AsyncLocal<SkinCurrentRevisionLeaseTransfer?> current_revision_lease_transfer = new();
 
         public static CancellationToken CurrentCancellationToken => current_cancellation_token.Value ?? CancellationToken.None;
 
@@ -210,12 +210,12 @@ namespace osu.Game.Rulesets.Bms.Skinning
     internal static class BmsPreparedNoteMaterialAuthorityIdentity
     {
         public static IReadOnlyList<BmsPreparedNoteMaterialAuthority> SelectedInPrecedenceOrder { get; } =
-            Array.AsReadOnly(new[]
-            {
+            Array.AsReadOnly(
+            [
                 BmsPreparedNoteMaterialAuthority.SelectedDocument,
                 BmsPreparedNoteMaterialAuthority.SelectedLegacyBms,
                 BmsPreparedNoteMaterialAuthority.SelectedLegacyMania,
-            });
+            ]);
 
         public static GameplaySkinResolvedMaterialSourceIdentity CreateSelected(
             BmsPreparedNoteMaterialAuthority authority,
@@ -408,10 +408,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 normalisedFiles.Add(normalised);
             }
 
-            this.files = normalisedFiles
+            this.files = [.. normalisedFiles
                          .OrderBy(file => file.PackageName, StringComparer.OrdinalIgnoreCase)
-                         .ThenBy(file => file.ContentHash, StringComparer.Ordinal)
-                         .ToArray();
+                         .ThenBy(file => file.ContentHash, StringComparer.Ordinal)];
 
             bool parsedConfigurationMatchesPackage = !string.IsNullOrWhiteSpace(parsedConfigurationContentHash)
                                                        && filesByName.TryGetValue("skin.ini", out BmsManagedPackageFileRevision? configurationFile)
@@ -605,7 +604,16 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
             string configurationRevision = SourceRevision.ParsedConfigurationContentHash
                                            ?? throw new InvalidOperationException("An exact selected-package material must retain its configuration content revision.");
+            // The immutable source revision still guards the original package/configuration. Public declarations
+            // are resolved from the selected content combination, whose merged INI has its own exact identity.
+            string documentRevision = layout.Neutral.Context.ContentSelection?.MaterialDocument.Identity.ContentRevision ?? configurationRevision;
             var entries = new List<GameplaySkinResolvedMaterialEntry>(materials.Count + suppressedSlots.Count);
+
+            GameplaySkinResolvedMaterialSourceIdentity sourceFor(BmsPreparedNoteMaterialAuthority authority)
+                => authority == BmsPreparedNoteMaterialAuthority.ProgrammaticFallback
+                    ? BmsPreparedNoteMaterialAuthorityIdentity.Programmatic
+                    : BmsPreparedNoteMaterialAuthorityIdentity.CreateSelected(authority,
+                        authority == BmsPreparedNoteMaterialAuthority.SelectedDocument ? documentRevision : configurationRevision);
 
             foreach ((BmsManagedPackageNoteSlotKey slot, IBmsResolvedNoteMaterial material) in materials)
             {
@@ -617,9 +625,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 GameplaySkinSlotDescriptor descriptor = getDescriptor(slot.Element);
                 GameplaySkinResolvedMaterialTarget target = BmsGameplayNoteMaterialTarget.Create(layout, lane);
                 BmsPreparedNoteMaterialAuthority authority = materialAuthorities[slot];
-                GameplaySkinResolvedMaterialSourceIdentity sourceIdentity = authority == BmsPreparedNoteMaterialAuthority.ProgrammaticFallback
-                    ? BmsPreparedNoteMaterialAuthorityIdentity.Programmatic
-                    : BmsPreparedNoteMaterialAuthorityIdentity.CreateSelected(authority, configurationRevision);
+                GameplaySkinResolvedMaterialSourceIdentity sourceIdentity = sourceFor(authority);
                 entries.Add(GameplaySkinResolvedMaterialEntry.Provide(descriptor, target, sourceIdentity, material));
             }
 
@@ -633,22 +639,17 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 entries.Add(GameplaySkinResolvedMaterialEntry.Suppress(
                     getDescriptor(slot.Element),
                     BmsGameplayNoteMaterialTarget.Create(layout, lane),
-                    BmsPreparedNoteMaterialAuthorityIdentity.CreateSelected(
-                        BmsPreparedNoteMaterialAuthority.SelectedDocument,
-                        configurationRevision)));
+                    sourceFor(BmsPreparedNoteMaterialAuthority.SelectedDocument)));
             }
 
-            GameplaySkinResolvedMaterialDiagnostic[] resolvedDiagnostics = diagnostics
+            GameplaySkinResolvedMaterialDiagnostic[] resolvedDiagnostics = [.. diagnostics
                 .Select(diagnostic =>
                 {
-                    GameplaySkinResolvedMaterialSourceIdentity source = diagnostic.Authority == BmsPreparedNoteMaterialAuthority.ProgrammaticFallback
-                        ? BmsPreparedNoteMaterialAuthorityIdentity.Programmatic
-                        : BmsPreparedNoteMaterialAuthorityIdentity.CreateSelected(diagnostic.Authority, configurationRevision);
+                    GameplaySkinResolvedMaterialSourceIdentity source = sourceFor(diagnostic.Authority);
                     return diagnostic.Key != null
                         ? new GameplaySkinResolvedMaterialDiagnostic(diagnostic.Code, diagnostic.Key, source)
                         : GameplaySkinResolvedMaterialDiagnostic.ForDocument(diagnostic.Code, source, diagnostic.CatalogSlot);
-                })
-                .ToArray();
+                })];
 
             return GameplaySkinResolvedMaterialSet.Create(layout.Neutral, contractIdentity, entries, resolvedDiagnostics);
         }
@@ -740,9 +741,13 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     if (!source.AllowsGameplaySkinDocumentAuthoring)
                         throw new InvalidOperationException("This selected source is not eligible for package-author gameplay skin declarations.");
 
-                    document = source.GameplaySkinDocument.BindToPublication(layout.Neutral);
+                    bool exactSelected = layout.Neutral.Context.PackageRevision.RetainsExactSource(source);
+                    document = (exactSelected ? source.GetGameplaySkinDocument(layout.Neutral.Context) : source.GameplaySkinDocument).BindToPublication(layout.Neutral);
 
-                    if (!string.Equals(document.Identity.ContentRevision, sourceRevision.ParsedConfigurationContentHash, StringComparison.Ordinal)
+                    string? documentRevision = exactSelected
+                        ? layout.Neutral.Context.ContentSelection?.MaterialDocument.Identity.ContentRevision ?? sourceRevision.ParsedConfigurationContentHash
+                        : sourceRevision.ParsedConfigurationContentHash;
+                    if (!string.Equals(document.Identity.ContentRevision, documentRevision, StringComparison.Ordinal)
                         || document.Identity.SourceId != sourceRevision.SkinId)
                     {
                         throw new InvalidOperationException("The retained gameplay skin document does not match the exact selected package revision.");
@@ -1111,7 +1116,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             if (decodedBytes > MAX_COMPONENT_DECODED_BYTES)
                 throw new InvalidDataException("The gameplay note component exceeds its decoded-byte budget.");
 
-            return new NotePlan(frames.ToArray());
+            return new NotePlan([.. frames]);
         }
 
         private static CandidateResult resolveFrame(
@@ -1564,7 +1569,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 throw new InvalidDataException("The declared gameplay note resource name is not a valid package-relative name.");
             }
 
-            string[] segments = resourceName.Split(new[] { '/', '\\' });
+            string[] segments = resourceName.Split(['/', '\\']);
 
             if (segments.Any(segment => string.IsNullOrEmpty(segment) || segment is "." or ".."))
                 throw new InvalidDataException("The declared gameplay note resource name is not contained by its package.");
@@ -1591,7 +1596,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             private readonly BmsManagedPackageSourceRevision sourceRevision;
             private readonly BmsKeymode keymode;
             private readonly CancellationToken cancellationToken;
-            private readonly List<PlannedNoteComponent> components = new List<PlannedNoteComponent>();
+            private readonly List<PlannedNoteComponent> components = [];
             private bool disposed;
 
             public NotePlanOwner(

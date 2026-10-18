@@ -173,7 +173,13 @@ namespace osu.Game.Tests.NonVisual.Skinning
             Assert.That(decoded.Value.Tracks.Count(track => track.Trigger == GameplaySkinSceneEvent.GameplayComplete), Is.EqualTo(3));
 
             JObject json = JObject.Parse(encoded);
-            json["completionOutro"] = 2501;
+            json["completionOutro"] = 3500;
+            json["tracks"]![0]!["keyframes"]!.Last!["time"] = 3500;
+            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> extended = GameplaySkinSceneCodec.DecodeScene(json.ToString(), manifest);
+            Assert.That(extended.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+            Assert.That(extended.Value!.CompletionOutro, Is.EqualTo(3500));
+            Assert.That(JObject.Parse(GameplaySkinSceneCodec.EncodeScene(extended.Value))["completionOutro"]!.Value<double>(), Is.EqualTo(3500));
+            json["completionOutro"] = 3501;
             invalid(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
             json["completionOutro"] = -1;
             invalid(GameplaySkinSceneDiagnosticCode.InvalidAnimation);

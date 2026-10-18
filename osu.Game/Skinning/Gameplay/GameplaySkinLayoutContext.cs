@@ -74,7 +74,7 @@ namespace osu.Game.Skinning.Gameplay
         }
 
         internal static GameplaySkinPackageRevision CreateCompatibility()
-            => new GameplaySkinPackageRevision(0, Guid.Empty, "unversioned", GameplaySkinPackageSourceKind.Compatibility, null);
+            => new(0, Guid.Empty, "unversioned", GameplaySkinPackageSourceKind.Compatibility, null);
 
         internal bool RetainsExact(SkinCurrentRevision revision) => ReferenceEquals(exactRevision, revision);
 
@@ -166,7 +166,7 @@ namespace osu.Game.Skinning.Gameplay
         public static GameplaySkinLayoutRect Union(IEnumerable<GameplaySkinLayoutRect> rectangles)
         {
             ArgumentNullException.ThrowIfNull(rectangles);
-            GameplaySkinLayoutRect[] copied = rectangles.ToArray();
+            GameplaySkinLayoutRect[] copied = [.. rectangles];
 
             if (copied.Length == 0)
                 throw new ArgumentException("At least one rectangle is required.", nameof(rectangles));
@@ -223,6 +223,9 @@ namespace osu.Game.Skinning.Gameplay
         /// <summary>Validated author defaults plus user overrides, frozen before solving this gameplay root.</summary>
         public GameplaySkinOptionValues OptionValues { get; }
 
+        /// <summary>The exact content combination frozen before this layout is solved.</summary>
+        public GameplaySkinContentSelection? ContentSelection { get; }
+
         public GameplaySkinLaneTopologySnapshot Topology { get; }
 
         public GameplaySkinLayoutRect ScreenBounds { get; }
@@ -265,7 +268,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinPackageRevision packageRevision,
             long topologyRevision,
             long layoutRevision,
-            GameplaySkinOptionValues optionValues)
+            GameplaySkinOptionValues optionValues,
+            GameplaySkinContentSelection? contentSelection)
         {
             RulesetId = rulesetId;
             NativeContextId = nativeContextId;
@@ -283,6 +287,7 @@ namespace osu.Game.Skinning.Gameplay
             TopologyRevision = topologyRevision;
             LayoutRevision = layoutRevision;
             OptionValues = optionValues;
+            ContentSelection = contentSelection;
         }
 
         public static GameplaySkinLayoutContext Create(
@@ -301,7 +306,8 @@ namespace osu.Game.Skinning.Gameplay
             long layoutRevision,
             int renderPixelWidth = 0,
             int renderPixelHeight = 0,
-            GameplaySkinOptionValues? optionValues = null)
+            GameplaySkinOptionValues? optionValues = null,
+            GameplaySkinContentSelection? contentSelection = null)
         {
             validateToken(rulesetId, nameof(rulesetId));
             validateToken(nativeContextId, nameof(nativeContextId));
@@ -309,6 +315,12 @@ namespace osu.Game.Skinning.Gameplay
             validateToken(presentationStyleId, nameof(presentationStyleId));
             ArgumentNullException.ThrowIfNull(topology);
             ArgumentNullException.ThrowIfNull(packageRevision);
+            if (contentSelection != null)
+            {
+                contentSelection.ValidatePackage(packageRevision);
+                if (optionValues != null && !ReferenceEquals(optionValues, contentSelection.OptionValues))
+                    throw new ArgumentException("A layout must retain the content selection's exact frozen options.", nameof(optionValues));
+            }
 
             if (!screenBounds.Contains(safeBounds))
                 throw new ArgumentException("Safe bounds must be contained by the screen bounds.", nameof(safeBounds));
@@ -355,7 +367,8 @@ namespace osu.Game.Skinning.Gameplay
                 packageRevision,
                 topologyRevision,
                 layoutRevision,
-                optionValues ?? GameplaySkinOptionValues.Empty);
+                optionValues ?? contentSelection?.OptionValues ?? GameplaySkinOptionValues.Empty,
+                contentSelection);
         }
 
         private static void validateToken(string value, string parameterName)

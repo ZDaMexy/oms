@@ -4396,7 +4396,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.Multiple(() =>
                 {
                     Assert.That(scan.IsSuccess, Is.True);
-                    Assert.That(rename.IsSuccess, Is.True);
+                    Assert.That(rename.IsSuccess, Is.True, $"Rename: {rename.Status}; authority: {rename.AuthorityRejectionReason}");
                     Assert.That(candidate.PerformRead(info => info.FilesystemStoragePath), Is.EqualTo(targetManagedPath));
                     Assert.That(Directory.Exists(sourceRoot), Is.False);
                     Assert.That(Directory.Exists(targetRoot), Is.True);

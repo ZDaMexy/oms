@@ -68,6 +68,12 @@ namespace osu.Game.Skinning.Gameplay
     {
         public static GameplaySkinSceneLayer LayerFor(GameplaySkinSlotDescriptor descriptor)
         {
+            if (ReferenceEquals(descriptor, GameplaySkinSlotCatalog.AuxiliaryDisplay))
+                return GameplaySkinSceneLayer.Auxiliary;
+
+            if (ReferenceEquals(descriptor, GameplaySkinSlotCatalog.AuxiliaryConcentrationDisplay))
+                return GameplaySkinSceneLayer.AuxiliaryConcentration;
+
             if (ReferenceEquals(descriptor, GameplaySkinSlotCatalog.StageBackground)
                 || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.PlayfieldBackdrop)
                 || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.BgaViewport))
@@ -127,6 +133,8 @@ namespace osu.Game.Skinning.Gameplay
                    && string.Equals(rulesetId, "bms", StringComparison.Ordinal))
                || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LaneCoverFill)
                || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LaneCoverDecoration)
+               || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LiftFill)
+               || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LiftDecoration)
                || ((ReferenceEquals(descriptor, GameplaySkinSlotCatalog.BgaViewport)
                     || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.BgaFrame))
                    && string.Equals(rulesetId, "bms", StringComparison.Ordinal))
@@ -134,7 +142,9 @@ namespace osu.Game.Skinning.Gameplay
 
         public static int SpecialisedPoolCapacity(GameplaySkinSlotDescriptor descriptor, GameplaySkinLayoutSnapshot snapshot)
         {
-            if (ReferenceEquals(descriptor, GameplaySkinSlotCatalog.KeyVisual))
+            if (ReferenceEquals(descriptor, GameplaySkinSlotCatalog.KeyVisual)
+                || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LiftFill)
+                || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LiftDecoration))
                 return 1;
 
             if (ReferenceEquals(descriptor, GameplaySkinSlotCatalog.BgaViewport)
@@ -171,6 +181,19 @@ namespace osu.Game.Skinning.Gameplay
             ArgumentNullException.ThrowIfNull(target);
 
             rect = targetRect;
+
+            if (ReferenceEquals(slot, GameplaySkinSlotCatalog.AuxiliaryDisplay)
+                || ReferenceEquals(slot, GameplaySkinSlotCatalog.AuxiliaryConcentrationDisplay))
+            {
+                rect = GameplaySkinLayoutRect.Create(0, 0, 1, 1);
+                return true;
+            }
+
+            // LIFT is projected by its native stage owner. Its full stage carrier must not be narrowed to
+            // the lane-cover or hit-target band; only the native owner knows the applied cover edge.
+            if (ReferenceEquals(slot, GameplaySkinSlotCatalog.LiftFill)
+                || ReferenceEquals(slot, GameplaySkinSlotCatalog.LiftDecoration))
+                return true;
 
             // These drawables retain native scrolling/object geometry. The scene visual is local to that owner.
             if (ReferenceEquals(slot, GameplaySkinSlotCatalog.Note)
@@ -515,9 +538,7 @@ namespace osu.Game.Skinning.Gameplay
         {
             Id = source.Id;
             InitialStateId = source.InitialStateId;
-            GameplaySkinPreparedSceneState[] states = source.States
-                                                             .Select(state => new GameplaySkinPreparedSceneState(state, resources))
-                                                             .ToArray();
+            GameplaySkinPreparedSceneState[] states = [.. source.States.Select(state => new GameplaySkinPreparedSceneState(state, resources))];
             States = Array.AsReadOnly(states);
             Transitions = Array.AsReadOnly(source.Transitions.Select(transition => new GameplaySkinPreparedSceneTransition(transition)).ToArray());
             statesById = new ReadOnlyDictionary<string, GameplaySkinPreparedSceneState>(
@@ -629,9 +650,7 @@ namespace osu.Game.Skinning.Gameplay
             OptionId = source.Source == GameplaySkinSceneBindingSource.Option ? source.SourceId[7..] : null;
             StateFamily = GameplaySkinPreparedSceneProgram.StateFamilyFor(source.Source);
             DefaultValue = new GameplaySkinPreparedSceneValue(source.Property, source.DefaultValue, resources);
-            GameplaySkinPreparedSceneVariantCase[] cases = source.Cases
-                                                                  .Select(item => new GameplaySkinPreparedSceneVariantCase(item, source.Property, resources))
-                                                                  .ToArray();
+            GameplaySkinPreparedSceneVariantCase[] cases = [.. source.Cases.Select(item => new GameplaySkinPreparedSceneVariantCase(item, source.Property, resources))];
             Cases = Array.AsReadOnly(cases);
             casesByKey = new ReadOnlyDictionary<string, GameplaySkinPreparedSceneVariantCase>(
                 cases.ToDictionary(item => item.Key, StringComparer.Ordinal));
@@ -713,6 +732,9 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBindingSource.JudgementResult => GameplaySkinSceneStateFamily.Judgement,
             GameplaySkinSceneBindingSource.JudgementOffset => GameplaySkinSceneStateFamily.Judgement,
             GameplaySkinSceneBindingSource.ScoreValue => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.ScoreMaximum => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.ScoreProgress => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.ScoreMaximumAvailable => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.GameplayFullCombo => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.ScoreAccuracy => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.ComboValue => GameplaySkinSceneStateFamily.Score,
@@ -741,6 +763,10 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBindingSource.JudgementCountMiss => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.ComboBreaks => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.TimingProgress => GameplaySkinSceneStateFamily.Timing,
+            GameplaySkinSceneBindingSource.LiftValue => GameplaySkinSceneStateFamily.Timing,
+            GameplaySkinSceneBindingSource.LiftOffset => GameplaySkinSceneStateFamily.Timing,
+            GameplaySkinSceneBindingSource.LiftReversed => GameplaySkinSceneStateFamily.Timing,
+            GameplaySkinSceneBindingSource.LiftAvailable => GameplaySkinSceneStateFamily.Timing,
             GameplaySkinSceneBindingSource.BgaContentState => GameplaySkinSceneStateFamily.Bga,
             _ => throw new InvalidOperationException(),
         };
@@ -938,6 +964,10 @@ namespace osu.Game.Skinning.Gameplay
 
         internal GameplaySkinScriptAuthorization? ScriptAuthorization { get; }
 
+        public IReadOnlyDictionary<string, GameplaySkinRecordedAnimationProgram> RecordedAnimations { get; }
+
+        public GameplaySkinAuxiliaryDisplayDefinition? AuxiliaryDisplay { get; }
+
         public IReadOnlyList<GameplaySkinPreparedSceneResource> Resources { get; }
 
         public IReadOnlyList<GameplaySkinPreparedSceneNode> Roots { get; }
@@ -987,8 +1017,12 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinPreparedPackage? package = null)
         {
             this.retirement = retirement;
+            AuxiliaryDisplay = manifest?.AuxiliaryDisplay;
             ScriptProgram = package?.ScriptProgram;
             ScriptAuthorization = package?.ScriptAuthorization;
+            RecordedAnimations = package?.RecordedAnimations
+                                 ?? new ReadOnlyDictionary<string, GameplaySkinRecordedAnimationProgram>(
+                                     new Dictionary<string, GameplaySkinRecordedAnimationProgram>(StringComparer.Ordinal));
 
             try
             {
@@ -996,8 +1030,8 @@ namespace osu.Game.Skinning.Gameplay
                 MaterialSet = materialSet;
                 ContentRevision = contentRevision;
 
-                GameplaySkinPreparedSceneResource[] copiedResources = resources.ToArray();
-                GameplaySkinPreparedSceneNode[] copiedRoots = roots.ToArray();
+                GameplaySkinPreparedSceneResource[] copiedResources = [.. resources];
+                GameplaySkinPreparedSceneNode[] copiedRoots = [.. roots];
                 Resources = Array.AsReadOnly(copiedResources);
                 Roots = Array.AsReadOnly(copiedRoots);
                 HostedSlots = createHostedSlots(snapshot, materialSet, copiedRoots);
@@ -1058,6 +1092,7 @@ namespace osu.Game.Skinning.Gameplay
 
                 if (preparedNodeCount > GameplaySkinPreparedSceneBudgets.MAX_PREPARED_NODES
                     || preparedVisuals > GameplaySkinPreparedSceneBudgets.MAX_RUNTIME_INSTANCES
+                    || reservation.RecordedTriangles > GameplaySkinRecordedAnimationBudgets.MAX_RUNTIME_TRIANGLES
                     || preparedEffectCount > GameplaySkinPreparedSceneBudgets.MAX_RUNTIME_EFFECT_INSTANCES
                     || preparedEffectSurfacePixels > GameplaySkinPreparedSceneBudgets.MAX_RUNTIME_EFFECT_SURFACE_PIXELS
                     || checked(preparedEffectSurfacePixels * 4) > GameplaySkinPreparedSceneBudgets.MAX_RUNTIME_EFFECT_SURFACE_BYTES
@@ -1109,10 +1144,10 @@ namespace osu.Game.Skinning.Gameplay
         internal static GameplaySkinPreparedScene CreateEmpty(
             GameplaySkinLayoutSnapshot snapshot,
             GameplaySkinResolvedMaterialSet materialSet)
-            => new GameplaySkinPreparedScene(
+            => new(
                 snapshot,
                 materialSet,
-                Convert.ToHexString(SHA256.HashData(Array.Empty<byte>())).ToLowerInvariant(),
+                Convert.ToHexString(SHA256.HashData([])).ToLowerInvariant(),
                 null,
                 null,
                 Array.Empty<GameplaySkinPreparedSceneResource>(),
@@ -1133,7 +1168,7 @@ namespace osu.Game.Skinning.Gameplay
                 var key = new GameplaySkinResolvedMaterialKey(node.Slot, node.MaterialTarget);
 
                 if (!sceneClaims.TryGetValue(key, out List<GameplaySkinPreparedSceneNode>? claims))
-                    sceneClaims.Add(key, claims = new List<GameplaySkinPreparedSceneNode>());
+                    sceneClaims.Add(key, claims = []);
 
                 claims.Add(node);
             }
@@ -1217,7 +1252,7 @@ namespace osu.Game.Skinning.Gameplay
             return rect;
         }
 
-        private static RuntimeReservation reserveRuntime(
+        private RuntimeReservation reserveRuntime(
             IReadOnlyList<GameplaySkinPreparedSceneNode> roots,
             IReadOnlyList<GameplaySkinPreparedHostedSlot> hostedSlots,
             GameplaySkinLayoutSnapshot snapshot,
@@ -1317,7 +1352,7 @@ namespace osu.Game.Skinning.Gameplay
             }
         }
 
-        private static RuntimeReservation reserveMountedTree(
+        private RuntimeReservation reserveMountedTree(
             GameplaySkinPreparedSceneNode node,
             IReadOnlyDictionary<GameplaySkinResolvedMaterialKey, GameplaySkinPreparedHostedSlot> plans,
             GameplaySkinLayoutContext context,
@@ -1341,7 +1376,7 @@ namespace osu.Game.Skinning.Gameplay
             return result;
         }
 
-        private static RuntimeReservation reserveWholeTree(
+        private RuntimeReservation reserveWholeTree(
             GameplaySkinPreparedSceneNode node,
             GameplaySkinLayoutContext context,
             IReadOnlyDictionary<string, int> glyphReservations,
@@ -1355,7 +1390,7 @@ namespace osu.Game.Skinning.Gameplay
             return result;
         }
 
-        private static RuntimeReservation reserveOneNode(
+        private RuntimeReservation reserveOneNode(
             GameplaySkinPreparedSceneNode node,
             GameplaySkinLayoutContext context,
             IReadOnlyDictionary<string, int> glyphReservations,
@@ -1366,14 +1401,21 @@ namespace osu.Game.Skinning.Gameplay
                 ? glyphReservations.GetValueOrDefault(node.Source.Id)
                 : 0;
             double fontSize = fontSizes.GetValueOrDefault(node.Source.Id, 16);
+            GameplaySkinRecordedAnimationProgram? animation = node.Source.AnimationId == null ? null : RecordedAnimations[node.Source.AnimationId];
+            if (animation?.MaximumFramePieces >= GameplaySkinPreparedSceneBudgets.MAX_CREATIONS_PER_FRAME)
+                throw fail(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
+            if (animation != null && node.OwningSlotKey?.Slot == GameplaySkinSlotCatalog.HitExplosion
+                && (animation.Loop || animation.Duration > GameplaySkinRecordedAnimationBudgets.MAX_JUDGEMENT_VISUAL_DURATION))
+                throw fail(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
             return new RuntimeReservation(
-                1,
+                1 + (animation?.MaximumFramePieces ?? 0),
                 node.Source.Effects.Count,
                 countOwnEffectSurfacePixels(node, context, projectedRect),
                 glyphs,
                 // Bitmap glyph pixels already belong to the captured Texture resources and do not enter a
                 // FontStore atlas. They still reserve the same bounded runtime glyph/layout capacity.
-                glyphs == 0 || node.Source.Properties.ContainsKey("bitmap-font") ? 0 : reserveGlyphPixels(glyphs, fontSize, context));
+                glyphs == 0 || node.Source.Properties.ContainsKey("bitmap-font") ? 0 : reserveGlyphPixels(glyphs, fontSize, context),
+                animation?.MaximumFrameTriangles ?? 0);
         }
 
         private static IEnumerable<GameplaySkinPreparedSceneNode> enumeratePreparedNodes(
@@ -1395,31 +1437,35 @@ namespace osu.Game.Skinning.Gameplay
             public readonly long EffectSurfacePixels;
             public readonly long TextGlyphs;
             public readonly long TextGlyphPixels;
+            public readonly long RecordedTriangles;
 
-            public RuntimeReservation(long instances, long effects, long effectSurfacePixels, long textGlyphs, long textGlyphPixels)
+            public RuntimeReservation(long instances, long effects, long effectSurfacePixels, long textGlyphs, long textGlyphPixels, long recordedTriangles = 0)
             {
                 Instances = instances;
                 Effects = effects;
                 EffectSurfacePixels = effectSurfacePixels;
                 TextGlyphs = textGlyphs;
                 TextGlyphPixels = textGlyphPixels;
+                RecordedTriangles = recordedTriangles;
             }
 
             public RuntimeReservation Add(RuntimeReservation other)
-                => new RuntimeReservation(
+                => new(
                     checked(Instances + other.Instances),
                     checked(Effects + other.Effects),
                     checked(EffectSurfacePixels + other.EffectSurfacePixels),
                     checked(TextGlyphs + other.TextGlyphs),
-                    checked(TextGlyphPixels + other.TextGlyphPixels));
+                    checked(TextGlyphPixels + other.TextGlyphPixels),
+                    checked(RecordedTriangles + other.RecordedTriangles));
 
             public RuntimeReservation Multiply(int factor)
-                => new RuntimeReservation(
+                => new(
                     checked(Instances * factor),
                     checked(Effects * factor),
                     checked(EffectSurfacePixels * factor),
                     checked(TextGlyphs * factor),
-                    checked(TextGlyphPixels * factor));
+                    checked(TextGlyphPixels * factor),
+                    checked(RecordedTriangles * factor));
         }
 
         private static int countNodes(GameplaySkinPreparedSceneNode node)
@@ -1438,9 +1484,10 @@ namespace osu.Game.Skinning.Gameplay
                 return 0;
 
             GameplaySkinLayoutRect rect = projectedRect ?? node.Rect;
-            double width = Math.Ceiling(context.RenderPixelWidth * rect.Width / context.ScreenBounds.Width);
-            double height = Math.Ceiling(context.RenderPixelHeight * rect.Height / context.ScreenBounds.Height);
-            double logicalPixelScale = Math.Max(context.DpiScale, context.RenderPixelHeight / 768d);
+            bool auxiliary = node.Layer is GameplaySkinSceneLayer.Auxiliary or GameplaySkinSceneLayer.AuxiliaryConcentration;
+            double width = Math.Ceiling(auxiliary ? 1920 * rect.Width : context.RenderPixelWidth * rect.Width / context.ScreenBounds.Width);
+            double height = Math.Ceiling(auxiliary ? 1080 * rect.Height : context.RenderPixelHeight * rect.Height / context.ScreenBounds.Height);
+            double logicalPixelScale = auxiliary ? 1080d / 768 : Math.Max(context.DpiScale, context.RenderPixelHeight / 768d);
             long result = 0;
 
             foreach (GameplaySkinSceneEffect effect in node.Source.Effects)
@@ -1662,12 +1709,8 @@ namespace osu.Game.Skinning.Gameplay
 
         private static GameplaySkinEventStateSnapshot createInitialEventState(GameplaySkinLayoutSnapshot snapshot)
         {
-            GameplaySkinInputStateSnapshot[] inputs = snapshot.Context.Topology.LanesInLogicalOrder
-                .Select(lane => new GameplaySkinInputStateSnapshot(lane.Identity.Group.Id, lane.Identity.Id, false, 0))
-                .ToArray();
-            GameplaySkinBgaStateSnapshot[] bga = snapshot.BgaViewports
-                .Select((viewport, index) => new GameplaySkinBgaStateSnapshot(index, viewport, GameplaySkinBgaContentState.Empty, 0))
-                .ToArray();
+            GameplaySkinInputStateSnapshot[] inputs = [.. snapshot.Context.Topology.LanesInLogicalOrder.Select(lane => new GameplaySkinInputStateSnapshot(lane.Identity.Group.Id, lane.Identity.Id, false, 0))];
+            GameplaySkinBgaStateSnapshot[] bga = [.. snapshot.BgaViewports.Select((viewport, index) => new GameplaySkinBgaStateSnapshot(index, viewport, GameplaySkinBgaContentState.Empty, 0))];
 
             return new GameplaySkinEventStateSnapshot(
                 GameplaySkinLifecycleState.Loaded,
@@ -1680,7 +1723,7 @@ namespace osu.Game.Skinning.Gameplay
         }
 
         private static GameplaySkinScenePreparationException fail(GameplaySkinSceneDiagnosticCode code)
-            => new GameplaySkinScenePreparationException(code);
+            => new(code);
     }
 
     /// <summary>
@@ -1710,7 +1753,7 @@ namespace osu.Game.Skinning.Gameplay
             if (!selected.AllowsGameplaySkinDocumentAuthoring)
                 throw fail(GameplaySkinSceneDiagnosticCode.InvalidResource);
 
-            GameplaySkinDocument selectedDocument = selected.GameplaySkinDocument.BindToPublication(snapshot);
+            GameplaySkinDocument selectedDocument = selected.GetGameplaySkinDocument(snapshot.Context).BindToPublication(snapshot);
 
             if (selectedDocument.Identity.SourceId != snapshot.Context.PackageRevision.RecordId
                 || selectedDocument.Identity.PackageRevision != snapshot.Context.PackageRevision.Generation
@@ -1720,7 +1763,9 @@ namespace osu.Game.Skinning.Gameplay
                 throw fail(GameplaySkinSceneDiagnosticCode.InvalidResource);
             }
 
-            GameplaySkinPreparedPackage package = selected.PrepareGameplaySkinPackage(cancellationToken);
+            GameplaySkinPreparedPackage package = snapshot.Context.ContentSelection?.PreparedPackage ?? selected.PrepareGameplaySkinPackage(cancellationToken);
+            if (snapshot.Context.ContentSelection == null && package.ContentCatalog != null)
+                throw fail(GameplaySkinSceneDiagnosticCode.InvalidReference);
             if (package.Manifest == null)
                 return GameplaySkinPreparedScene.CreateEmpty(snapshot, materialSet);
 
@@ -2001,9 +2046,7 @@ namespace osu.Game.Skinning.Gameplay
             {
                 if (owningSlotKey == null || !ReferenceEquals(owningSlotKey.Slot, GameplaySkinSlotCatalog.TextHud))
                     throw fail(GameplaySkinSceneDiagnosticCode.InvalidReference);
-                GameplaySkinLayoutSurface? surface = snapshot.Surfaces.FirstOrDefault(candidate => candidate.Id == surfaceProperty.StringValue);
-                if (surface == null)
-                    throw fail(GameplaySkinSceneDiagnosticCode.UnknownTarget);
+                GameplaySkinLayoutSurface? surface = snapshot.Surfaces.FirstOrDefault(candidate => candidate.Id == surfaceProperty.StringValue) ?? throw fail(GameplaySkinSceneDiagnosticCode.UnknownTarget);
                 informationSurface = surface.Rect;
             }
             if (informationSurface.HasValue)
@@ -2213,11 +2256,11 @@ namespace osu.Game.Skinning.Gameplay
         }
 
         private static GameplaySkinScenePreparationException fail(GameplaySkinSceneDiagnosticCode code)
-            => new GameplaySkinScenePreparationException(code);
+            => new(code);
 
         private sealed class PreparedSceneResourceRetirement : IDisposable
         {
-            private List<IDisposable>? resources = new List<IDisposable>();
+            private List<IDisposable>? resources = [];
 
             public void Add(IDisposable resource)
             {

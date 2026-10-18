@@ -94,7 +94,7 @@ namespace osu.Game.Screens.Play
 
         private readonly IBindable<bool> gameActive = new Bindable<bool>(true);
 
-        private readonly Bindable<bool> samplePlaybackDisabled = new Bindable<bool>();
+        private readonly Bindable<bool> samplePlaybackDisabled = new();
 
         /// <summary>
         /// Whether gameplay should pause when the game window focus is lost.
@@ -106,12 +106,12 @@ namespace osu.Game.Screens.Play
         private bool isRestarting;
         private bool skipExitTransition;
 
-        private readonly Bindable<bool> storyboardReplacesBackground = new Bindable<bool>();
+        private readonly Bindable<bool> storyboardReplacesBackground = new();
 
         public IBindable<bool> LocalUserPlaying => localUserPlaying;
 
-        private readonly Bindable<bool> localUserPlaying = new Bindable<bool>();
-        private readonly Bindable<LocalUserPlayingState> playingState = new Bindable<LocalUserPlayingState>();
+        private readonly Bindable<bool> localUserPlaying = new();
+        private readonly Bindable<LocalUserPlayingState> playingState = new();
 
         public int RestartCount;
 
@@ -129,7 +129,7 @@ namespace osu.Game.Screens.Play
         // Should match PlayerLoader for consistency. Cached here for the rare case we push a Player
         // without the loading screen (one such usage is the skin editor's scene library).
         [Cached]
-        private OverlayColourProvider colourProvider = new OverlayColourProvider(OverlayColourScheme.Purple);
+        private OverlayColourProvider colourProvider = new(OverlayColourScheme.Purple);
 
         [Resolved]
         private ScoreManager scoreManager { get; set; }
@@ -206,6 +206,8 @@ namespace osu.Game.Screens.Play
         private ScreenSuspensionHandler screenSuspension;
 
         private DependencyContainer dependencies;
+        private Container gameplayOverlayComponents;
+        private GameplaySkinAuxiliaryPanel auxiliaryPanel;
 
         protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
             => dependencies = new DependencyContainer(base.CreateChildDependencies(parent));
@@ -218,6 +220,16 @@ namespace osu.Game.Screens.Play
                 return;
 
             PrepareReplay();
+
+            if (DrawableRuleset is IGameplaySkinSceneRuntimeSource { GameplaySkinSceneRuntime: { } sceneRuntime })
+            {
+                auxiliaryPanel = GameplaySkinAuxiliaryPanel.TryCreate(sceneRuntime);
+                if (auxiliaryPanel != null)
+                {
+                    gameplayOverlayComponents.Add(auxiliaryPanel);
+                    updateGameplayState();
+                }
+            }
 
             ScoreProcessor.NewJudgement += _ => ScoreProcessor.PopulateScore(Score.ScoreInfo);
             ScoreProcessor.OnResetFromReplayFrame += () => ScoreProcessor.PopulateScore(Score.ScoreInfo);
@@ -553,10 +565,11 @@ namespace osu.Game.Screens.Play
                 skipOutroOverlay.Expire();
             }
 
+            gameplayOverlayComponents = container;
             return container;
         }
 
-        protected virtual SkipOverlay CreateSkipOverlay(double startTime) => new SkipOverlay(startTime);
+        protected virtual SkipOverlay CreateSkipOverlay(double startTime) => new(startTime);
 
         private void onBreakTimeChanged(ValueChangedEvent<bool> isBreakTime)
         {
@@ -569,6 +582,7 @@ namespace osu.Game.Screens.Play
         {
             bool inGameplay = !DrawableRuleset.HasReplayLoaded.Value && !GameplayState.HasPassed && !GameplayState.HasFailed;
             bool inBreak = breakTracker.IsBreakTime.Value || DrawableRuleset.IsPaused.Value;
+            auxiliaryPanel?.SetPlaying(!GameplayState.HasPassed && !GameplayState.HasFailed && !inBreak);
 
             if (inGameplay)
                 playingState.Value = inBreak ? LocalUserPlayingState.Break : LocalUserPlayingState.Playing;
@@ -837,6 +851,7 @@ namespace osu.Game.Screens.Play
                 resultsDisplayDelegate = null;
 
                 GameplayState.HasPassed = false;
+                auxiliaryPanel?.SetPlaying(!DrawableRuleset.IsPaused.Value && !breakTracker.IsBreakTime.Value);
                 ValidForResume = true;
                 skipOutroOverlay.Hide();
                 return;
@@ -847,6 +862,7 @@ namespace osu.Game.Screens.Play
                 return;
 
             GameplayState.HasPassed = true;
+            auxiliaryPanel?.SetPlaying(false);
 
             // Setting this early in the process means that even if something were to go wrong in the order of events following, there
             // is no chance that a user could return to the (already completed) Player instance from a child screen.
@@ -1230,6 +1246,7 @@ namespace osu.Game.Screens.Play
             GameplayClockContainer.FadeInFromZero(750, Easing.OutQuint);
 
             StartGameplay();
+            auxiliaryPanel?.StartSession();
             OnGameplayStarted?.Invoke();
         }
 
@@ -1297,7 +1314,7 @@ namespace osu.Game.Screens.Play
         /// </summary>
         /// <param name="beatmap"></param>
         /// <returns>The <see cref="Scoring.Score"/>.</returns>
-        protected virtual Score CreateScore(IBeatmap beatmap) => new Score
+        protected virtual Score CreateScore(IBeatmap beatmap) => new()
         {
             ScoreInfo = new ScoreInfo
             {

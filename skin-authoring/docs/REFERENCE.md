@@ -43,7 +43,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Author.ps1 -Action imp
 }
 ```
 
-可选字段包括 `bitmapFonts`、`script`、[皮肤配置项](#皮肤配置项)的 `options` 和[显式布局](#显式舞台与留空位置)的 `layouts`；旧清单省略它们时保持原有路径。仅在需要脚本时增加 `"script": "gameplay-skin.script"`。也接受固定文件 `gameplay-skin.bytecode`，必须由兼容编译器生成并通过验证；作者日常直接保留源码即可。场景和脚本不接受自定义路径或自动发现其它文件。
+可选字段包括 `bitmapFonts`、`script`、[皮肤配置项](#皮肤配置项)的 `options`、[按选项组合内容](#按选项组合内容)的 `contentCatalog`、[记录动画](#记录动画)的 `animations`、[辅助显示区](#辅助显示区)的 `auxiliaryDisplay`，以及[显式布局](#显式舞台与留空位置)的 `layouts`；旧清单省略它们时保持原有路径。仅在需要脚本时增加 `"script": "gameplay-skin.script"`。也接受固定文件 `gameplay-skin.bytecode`，必须由兼容编译器生成并通过验证；作者日常直接保留源码即可。普通场景和脚本使用固定路径；内容目录的子贡献须逐项显式声明，没有自动发现。
 
 每个 texture 资源可选 `"filter":"nearest"` 或 `"filter":"linear"`；缺省保持 linear。nearest始终取原始图层的最近像素，不自动生成缩小平均层；linear保留原有平滑采样。选择在准备该资源专属纹理时生效，不修改其它皮肤或共用纹理；不开放自定义采样器或作者着色器。
 
@@ -51,7 +51,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Author.ps1 -Action imp
 
 ### 用自己的图片字形显示数字
 
-清单的 `bitmapFonts` 是可选数组。每个字体必填 `id/lineHeight/glyphs`；每个字形只接受 `character/resource/advance`。`resource` 引用同一清单 `resources` 中已有的 texture id，不是文件路径或裁切坐标。字体id在此数组中唯一，同一字体内字符不得重复，字形数组不能空。
+清单的 `bitmapFonts` 是可选数组。每个字体必填 `id/lineHeight/glyphs`；每个字形接受 `character/resource/advance` 和可选 `rect:[x,y,width,height]`。`resource` 引用同一清单已有的 texture id；省略rect使用整张图片，声明rect则从同一张已准备图片取像素区域，不额外解码或复制纹理。坐标为非负整数，尺寸为正整数且必须完全位于图片内；字形尺寸上限继续适用于区域。字体id在此数组中唯一，同一字体内字符不得重复，字形数组不能空。
 
 以下是清单片段，应与前面的必填字段合并。先在 `resources` 中分别声明 `digit.0`～`digit.9` 的图片；每张图片只画一个字形，示例图片高度不超过32像素：
 
@@ -72,7 +72,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Author.ps1 -Action imp
 ] }
 ```
 
-`character` 必须是一个字符，只允许 `0`～`9`、`.`、`,`、`%`、`+`、`-`、小写 `x`，不包括空格、换行或其它字母。每份清单最多8字体，每字体最多16字形。`lineHeight` 与 `advance` 都是有限数，范围1..512，单位为原图像素；字形图片每边1..512像素，高度还必须不超过 `lineHeight`。图片顶端对齐，没有独立偏移、基线或自动补字。显示时以 `font-size / lineHeight` 缩放图片和横向步长；`advance` 可与图片宽度不同，用来控制数字间距。
+`character` 必须是一个字符，只允许 `0`～`9`、`.`、`,`、`%`、`+`、`-`、小写 `x`，不包括空格、换行或其它字母。每份清单最多9字体，每字体最多16字形。`lineHeight` 与 `advance` 都是有限数，范围1..512，单位为原图像素；字形图片每边1..512像素，高度还必须不超过 `lineHeight`。图片顶端对齐，没有独立偏移、基线或自动补字。显示时以 `font-size / lineHeight` 缩放图片和横向步长；`advance` 可与图片宽度不同，用来控制数字间距。
 
 在 `text` 节点的静态 `properties` 中选择字体，例如以下节点和绑定分别放入已有树与 `bindings` 数组；所属 `hud.text` 仍须由本包 `Provide`：
 
@@ -91,9 +91,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Author.ps1 -Action imp
 
 `bitmap-font` 只能静态引用已声明字体，不能由绑定、轨迹、状态机或脚本更换。位图文字每节点最多64字符，静态文字和状态赋值中的每个字符都必须有字形。绑定接受数值来源及配置开关的0/1投影；曲名、状态词、身份和其它布尔来源不能写入这种数字节点。它不接受 `uppercase` 或 `text-overflow`，也不会在缺字时切换系统字体。
 
-数值绑定必须声明全部十个数字。`fixed-2` 还需要 `.`，`percent` 还需要 `%`；未给 `format` 时使用最多三位小数，非整数来源还需要 `.`。这里的整数来源只有 `score.value`、`combo.value`、`combo.maximum`、`timing.measure`、六档 `judgement.count.*` 和 `combo.breaks`；例如希望BPM只使用数字字形，应显式选 `integer`。`judgement.offset` 与 `timing.beat` 还必须声明 `-`。其它可能出现负值的显示也应提供负号，例如前奏中的 `timing.measure` 可为-1。`,`、`+`、`x` 可用于自己写的静态数字文字，不会自动添加千位分隔或倍率前缀。
+数值绑定必须声明全部十个数字。`fixed-2` 还需要 `.`，`percent` 还需要 `%`；未给 `format` 时使用最多三位小数，非整数来源还需要 `.`。这里的整数来源包括 `score.maximum`、`score.value`、`combo.value`、`combo.maximum`、`timing.measure`、六档 `judgement.count.*` 和 `combo.breaks`；例如希望BPM只使用数字字形，应显式选 `integer`。`judgement.offset` 与 `timing.beat` 还必须声明 `-`。其它可能出现负值的显示也应提供负号，例如前奏中的 `timing.measure` 可为-1。`,`、`+`、`x` 可用于自己写的静态数字文字，不会自动添加千位分隔或倍率前缀。
 
-位图节点的数字统一沿 `format`：缺省最多三位小数，`integer` 舍入为无小数数字，`fixed-2` 固定两位小数，`percent` 乘100后显示整数和百分号。因此位图准确率/进度要显示百分比时也应显式选择 `percent`。所有已声明字体都会准备；超尺寸、缺资源或运行数值超出64字符/缺少字形会报对应场景错误。字形图片计入普通资源的文件、像素与解码预算，不另建字体图集；动态位图文字每节点预留64字形，仍计入全场景8192字形和真实实例预算。
+位图节点的数字统一沿 `format`：缺省最多三位小数，`integer` 舍入为无小数数字，`fixed-2` 固定两位小数，`percent` 乘100后显示整数和百分号。因此位图准确率/进度要显示百分比时也应显式选择 `percent`。所有已声明字体都会准备；超尺寸、缺资源或运行数值超出64字符/缺少字形会报对应场景错误。字形图片和可选区域计入普通资源的文件、像素与解码预算，区域共享同一已准备纹理；动态位图文字每节点预留64字形，仍计入全场景8192字形和真实实例预算。
 
 | 场景顶层字段 | 内容 | 必填 |
 | --- | --- | --- |
@@ -103,7 +103,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Author.ps1 -Action imp
 | `stateMachines` | 状态机数组 | 是，可 `[]` |
 | `bindings` | 只读绑定数组 | 是，可 `[]` |
 | `variants` | 图片变体数组 | 否，建议明确 `[]` |
-| `completionOutro` | 全连演出总时长，有限数值0..2500毫秒；缺省0保持Player原等待 | 否 |
+| `completionOutro` | 全连演出总时长，有限数值0..3500毫秒；缺省0保持Player原等待 | 否 |
 | `templates`、`instances` | 模板、实例数组 | 是，可 `[]` |
 
 id 使用稳定 ASCII 名字，如 `my.hud.score`。场景中的节点、轨迹、帧、状态、赋值、转移、绑定、变体、分支、模板和实例共用唯一名字空间。JSON 不允许重复或未知字段。下面短例子是对应数组的一项；整份文件见上面的完整练习。
@@ -216,6 +216,47 @@ layout/gap-px/width-px/height-px不能被动画、绑定、状态机或脚本写
 场景 binding 的 `source:"option.<id>"` 读取冻结值：toggle 可驱动 visible / 普通文字或作0/1数值；number 可驱动已有受限数值属性或数值文字；choice 写普通文字。variants 同样接受 `option.<id>`：choice 的 case key 来自 choices，toggle 为 `true/false`；按原规则提供 default 与至少一条 case，控制 resource 或 visible。所有资源仍须提前声明并受完整包预算限制。没有命中适用范围时，binding 保留作者原值，variant 使用自己的 default；未知来源拒绝。用不同节点承载输入显隐和用户开关，避免两个写入者争抢同一属性。
 
 最多32项、每项32个选择、标签128字符，每个适用列表最多32个token；数值绝对值最多1,000,000、区间最多10,000步。坏声明拒绝整份清单；保存值失效、越界或类型失配时使用作者默认。配置只控制表现，不能改输入、计分、判定、谱面或视频时钟。
+
+## 按选项组合内容
+
+大量备选美术可放在同一包，根清单声明 `"contentCatalog":"gameplay/content.json"`。目录合同为 `oms-gameplay-skin-content.v1`，必填 `modules` 数组；每个模块使用 `id/label/default/choices`，可选 `rulesets/keymodes`，会成为玩家可搜索的下拉配置项。它与根options共用最多32项的上限。
+
+```json
+{"contract":"oms-gameplay-skin-content.v1","modules":[
+  {"id":"frame","label":"Game Frame","default":"modern","choices":[
+    {"value":"modern","label":"Modern","manifest":"parts/modern/manifest.json","scene":"parts/modern/scene.json","ini":"parts/modern/materials.ini"},
+    {"value":"classic","label":"Classic","manifest":"parts/classic/manifest.json","scene":"parts/classic/scene.json","ini":"parts/classic/materials.ini"}
+  ]}
+]}
+```
+
+每个choice可省略全部贡献，表示此项不添加内容；manifest与scene必须成对，ini可独立提供。子清单沿普通资源、字形、layouts和animations语法，不允许嵌套contentCatalog、options、脚本或auxiliaryDisplay。根scene与子scene的root都必须是没有属性、效果及槽位的global中性container。选择完成后合并实际资源、场景、INI；相同ID的资源/字体等声明必须完全相同才可复用，不按“最后一个覆盖”掩盖冲突。INI按模块顺序合并，选定材料与布局在同一个root准备中冻结。
+
+子清单的`scene`字段仍填写合同固定值`gameplay-skin.scene.json`；实际子场景路径取上方choice或variant的`scene`字段。这与根清单读取固定根场景的规则不同，不能把子场景的物理路径写进manifest合同头。
+
+choice可声明 `variants`，例如 `{"when":{"layout":"p2","note-size":"short"},"manifest":"…","scene":"…","ini":"…"}`。when只读取另一项已冻结的choice/toggle，不引用自身、数值选项或未知项；同choice各variant条件键集合一致、值组合唯一。命中后使用该variant的整份贡献；没有命中使用choice基本贡献。它不重新选择其它选项、不产生循环求值，也不允许游玩中换文件。
+
+每模块最多1024个choice、全目录4096个、每choice64个variant；普通inline choice仍最多32个。目录最多4MiB，捕获闭包最多8192文件、512MiB，结构文件合计64MiB；普通作者工具整包4096文件/128MiB限制不因未声明目录而放宽。归档自身仍有16MiB配置总量门。所有分支的结构和图片头在选择前校验，实际选中的组合才解码像素，仍受256资源、64MiB图片字节、96MiP像素/384MiB解码及既有场景预算约束；普通未声明目录的包继续64MiP/256MiB。作者工具另外逐个完整解码全部PNG、检查每个choice/variant的代表组合；这不等于穷举所有独立选项的笛卡尔积，作者应检查自己允许的重型混搭。
+
+## 辅助显示区
+
+根清单可声明 `auxiliaryDisplay:{"enabledOption":"auxiliary-display","concentrationOption":"concentration","brightnessOption":"concentration-brightness"}`，对应根options必须分别为toggle、toggle、0..1范围number，且适用范围完全一致。只有显式声明且enabledOption开启的皮肤才创建独立辅助面板，关闭时不额外显示按钮；素材分别由Global `hud.auxiliary`、`hud.auxiliary-concentration` 的Provide和场景模板提供。两个画布的坐标均为完整0..1矩形，固定16:9，在主游玩之外的可收起面板显示；不使用主BGA开关，不改变主屏图层亮度或视频时钟。
+
+游玩开始且正在演奏时，concentration选项可切换到第二画布，亮度只作用于其外层。暂停恢复普通画布；点击/触摸辅助内容恢复本局普通显示，暂停/恢复不会取消这次恢复，重新开局才重新进入专注状态。自定义图标只是作者组件；它不会凭空获得账号、真实触控菜单或新游戏操作。
+
+BMS可额外显式Provide Stage `playfield.lift.fill` 与 `playfield.lift.decoration`，显示位置跟随原生LIFT已经应用的几何结果。fill保留完整stage画布并裁切下端/反向上端，不压缩源图；decoration的局部y=0位于实际边缘，文字不会倒置。未声明的包不会新增这两种材料或显示节点；mania没有原生LIFT机制，不能用皮肤配置伪造。
+
+只读 `lift.value` 是原生已应用的0..1000单位，`lift.offset`为实际几何偏移比例0..1；`lift.available`和`lift.reversed`为布尔。它们随同Timing快照、跳转与重试更新，不允许皮肤修改挡板参数。理论满分 `score.maximum`取真实计分器的MaximumTotalScore，`score.maximum-available`在其大于0时为true，`score.progress`是当前分数/理论满分的0..1比例；不可用时为0，应使用available控制未知满分显示。它不是对手成绩、历史曲线或IIDX EX SCORE的统一刻度；BMS/mania各自保持原计分语义。
+
+## 记录动画
+
+复杂逐帧图形可使用数据记录文件，不需要把源游戏的脚本或运行时加入OMS。清单声明 `animations:[{"id":"clip.example","path":"clips/example.json.br","resources":["texture.example"]}]`；节点使用 `type:"recorded-animation"` 和 `animation:"clip.example"`，不再指定resource。文件可为JSON或Brotli压缩JSON，路径必须在包内闭包中。
+
+合同为 `oms-gameplay-recorded-animation.v1`。必填width/height/fps/loop/trigger以及geometries/nodes/states/frames：geometry保留XYZUV顶点、三角形索引和纹理ID；纯色图形使用resource:null及colour RGBA。nodes使用指向前序父节点的parent、geometry索引或-1、normal/additive混合；state保留12个矩阵数、三维origin、affine/perspective投影、multiply/add/HSL颜色以及可空mask/20系数colourMatrix。frame按父先子后顺序给nodes的[node,state]对及可空camera[cx,cy,cz,focal]。最后必须有一个没有节点的终止帧；时长按其前面的实际源帧计算，循环不重复终止帧。
+
+trigger限gameplay.attach/gameplay.complete/judgement.hit/input.key.down。按键光柱可另外声明heldLoop:[start,end]与releaseFrame，分别保留按下的开头、按住的循环和放开的尾段；它们只用于input.key.down且loop=false。镜像、剪切、透视裁切、真实祖先多边形mask和源三角形由同一游玩时钟采样。滤镜处理顺序属于此数据合同的渲染定义，不能仅凭成功导出声称与某外部游戏逐像素一致。
+
+每选中组合最多32记录，单条最多3600帧/4096节点，单文件编码16MiB、解压128MiB；总状态131072、节点32768、顶点262144、帧内应用200万均有界。记录资源继续占普通纹理预算；实际原生对象池会计入节点与三角形开销。用于原生HitExplosion的一次性记录最多1000ms，完整时长由对应效果池保留；全连仍须有gameplay.full-combo可见绑定及有界completionOutro/结束轨迹，不能延长音符或游戏判定。
 
 ## 显式舞台与留空位置
 
@@ -355,7 +396,7 @@ tween只改变数值属性；tween配step可逐帧保持数值，在关键帧的
 
 全连演出可用 `gameplay.full-combo → visible` 绑定控制父容器，子图片的换帧、位置、透明度轨迹写 `"trigger":"gameplay.complete"`。该触发取引擎完成整张谱面的真实时刻，全局和各舞台共用一个起点，不取最后一次击打或BGA结束时间。完成前采样首帧，因此仍需父容器绑定；非全连完成也会有完成触发。暂停与变速沿既有游玩时钟，晚挂载和完整快照恢复保留原起点，已经结束的演出不会重新播放。跳转仍位于同一次已完成演出后时保留起点，回退到完成前或重试后按新的真实完成恢复。不要让父容器的visible绑定与孩子的透明度动画写同一节点；透明尾应显式写到末帧，防止末图一直保留。
 
-需要超过原1000毫秒结算等待时，在场景顶层写 `"completionOutro":2500`。这是从完成原点计算的演出总时长，不是额外再加2500毫秒。正值仅在同一合法场景含 `gameplay.full-combo → visible` 绑定、至少一条覆盖声明时长的非循环 `gameplay.complete` 轨迹，且全部完成轨迹均不循环时接受；上限2500毫秒，越界为025预算错误，缺少这些消费者为023动画错误。只有实际全连且当前作者场景准备完毕、没有运行故障时才延长等待；0、缺省、非全连或失败保持原等待，玩家主动跳过结尾仍沿原操作。等待读取同一游玩时钟，暂停不会用墙钟耗尽演出，也不会因状态机重投影而重启等待。不提供脚本或任意循环延迟结算的能力。
+需要超过原1000毫秒结算等待时，在场景顶层写 `"completionOutro":2500`。这是从完成原点计算的演出总时长，不是额外再加2500毫秒。正值仅在同一合法场景含 `gameplay.full-combo → visible` 绑定、至少一条覆盖声明时长的非循环 `gameplay.complete` 轨迹，且全部完成轨迹均不循环时接受；上限3500毫秒，越界为025预算错误，缺少这些消费者为023动画错误。只有实际全连且当前作者场景准备完毕、没有运行故障时才延长等待；0、缺省、非全连或失败保持原等待，玩家主动跳过结尾仍沿原操作。等待读取同一游玩时钟，暂停不会用墙钟耗尽演出，也不会因状态机重投影而重启等待。不提供脚本或任意循环延迟结算的能力。
 
 编号PNG短键/长条动画是另一条路径：名字-0.png、名字-1.png等，从0连续编号、固定60帧/秒，不写上述关键帧JSON。
 
@@ -547,18 +588,18 @@ event-value是单一数值：输入强度、对象进度、判定偏差毫秒、
 
 | 项目 | 上限 |
 | --- | --- |
-| 作者目录打包 | 128MiB、4096普通文件，不接受链接 |
+| 作者目录打包 | 普通包128MiB、4096普通文件；显式内容目录512MiB、8192文件，物理目录含子目录仍须通过8192条目门；不接受链接 |
 | skin.ini / 名称与作者 | 1MiB；各256字符，无控制字符 |
 | 清单 / 场景 / JSON深度 | 64KiB / 512KiB / 32 |
 | 稳定id / 资源路径 | 128 / 240字符 |
 | 资源数 / 单资源 / 总资源 | 256 / 16MiB / 64MiB |
-| 单图像素 / 总图像素 / 解码字节 | 16×1024² / 64×1024² / 256MiB |
-| 位图字体 / 每字体字形 / 每节点字符 | 8 / 16 / 64 |
+| 单图像素 / 总图像素 / 解码字节 | 16×1024² / 普通64×1024²、显式目录选中组合96×1024² / 普通256MiB、选中组合384MiB |
+| 位图字体 / 每字体字形 / 每节点字符 | 9 / 16 / 64 |
 | 位图字形图片 / lineHeight / advance | 每边1..512像素，图片高度不超过lineHeight；lineHeight与advance均1..512、有限 |
 | 源节点 / 树深 / 每节点孩子 | 2048 / 16 / 128 |
 | 每对象属性 / 单节点效果 / 总效果 | 32 / 8 / 512 |
 | 动画 / 每条帧 / 总帧 | 512 / 512 / 8192 |
-| 全连演出完成等待 | `completionOutro`为0..2500毫秒；缺省0保持原1000毫秒等待 |
+| 全连演出完成等待 | `completionOutro`为0..3500毫秒；缺省0保持原1000毫秒等待 |
 | 状态机 / 状态 / 赋值 / 转移 | 128 / 1024 / 4096 / 2048 |
 | 绑定 / 变体 / 单变体分支 / 总分支 | 512 / 512 / 32 / 4096 |
 | 模板 / 实例 / 展开节点 | 128 / 1024 / 8192 |

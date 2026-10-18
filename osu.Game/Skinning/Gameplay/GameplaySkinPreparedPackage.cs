@@ -25,14 +25,20 @@ namespace osu.Game.Skinning.Gameplay
         public GameplaySkinScriptProgram? ScriptProgram { get; }
         public GameplaySkinScriptAuthorization? ScriptAuthorization { get; }
         public string ContentRevision { get; }
+        public IReadOnlyDictionary<string, GameplaySkinRecordedAnimationProgram> RecordedAnimations { get; }
+        internal GameplaySkinCapturedContentCatalog? ContentCatalog { get; }
+        internal GameplaySkinDocument? MaterialDocument { get; }
 
-        private GameplaySkinPreparedPackage(
+        internal GameplaySkinPreparedPackage(
             string contentRevision,
             GameplaySkinSceneManifest? manifest,
             GameplaySkinSceneDocument? document,
             IEnumerable<GameplaySkinCapturedSceneResource> resources,
             GameplaySkinScriptProgram? scriptProgram,
-            GameplaySkinScriptAuthorization? scriptAuthorization)
+            GameplaySkinScriptAuthorization? scriptAuthorization,
+            GameplaySkinCapturedContentCatalog? contentCatalog = null,
+            IReadOnlyDictionary<string, GameplaySkinRecordedAnimationProgram>? recordedAnimations = null,
+            GameplaySkinDocument? materialDocument = null)
         {
             ContentRevision = contentRevision;
             Manifest = manifest;
@@ -40,7 +46,14 @@ namespace osu.Game.Skinning.Gameplay
             Resources = Array.AsReadOnly(resources.ToArray());
             ScriptProgram = scriptProgram;
             ScriptAuthorization = scriptAuthorization;
+            ContentCatalog = contentCatalog;
+            MaterialDocument = materialDocument;
+            RecordedAnimations = recordedAnimations ?? new System.Collections.ObjectModel.ReadOnlyDictionary<string, GameplaySkinRecordedAnimationProgram>(
+                new Dictionary<string, GameplaySkinRecordedAnimationProgram>(StringComparer.Ordinal));
         }
+
+        internal GameplaySkinPreparedPackage Select(GameplaySkinOptionValues options, CancellationToken cancellationToken)
+            => ContentCatalog?.PrepareSelected(options, cancellationToken) ?? this;
 
         public static GameplaySkinPreparedPackage Prepare(
             Func<string, int, byte[]?> read,
@@ -54,15 +67,34 @@ namespace osu.Game.Skinning.Gameplay
             if (manifestBytes == null)
                 return new GameplaySkinPreparedPackage(packageRevision, null, null, Array.Empty<GameplaySkinCapturedSceneResource>(), null, null);
 
-            GameplaySkinSceneManifest manifest = requireValid(GameplaySkinSceneCodec.DecodeManifest(manifestBytes));
+            GameplaySkinSceneManifest manifest = RequireValid(GameplaySkinSceneCodec.DecodeManifest(manifestBytes));
+            if (manifest.ContentCatalogFile != null)
+                return GameplaySkinCapturedContentCatalog.Capture(read, packageRevision, recordId, authorizations, manifest, manifestBytes, cancellationToken);
             byte[] sceneBytes = read(manifest.SceneFile, GameplaySkinSceneBudgets.MAX_SCENE_BYTES)
                                 ?? throw fail(GameplaySkinSceneDiagnosticCode.InvalidReference);
             cancellationToken.ThrowIfCancellationRequested();
-            GameplaySkinSceneDocument document = requireValid(GameplaySkinSceneCodec.DecodeScene(sceneBytes, manifest));
+            GameplaySkinSceneDocument document = RequireValid(GameplaySkinSceneCodec.DecodeScene(sceneBytes, manifest));
+            return PrepareActive(read, packageRevision, recordId, authorizations, manifest, document, cancellationToken);
+        }
+
+        internal static GameplaySkinPreparedPackage PrepareActive(
+            Func<string, int, byte[]?> read,
+            string packageRevision,
+            Guid recordId,
+            GameplaySkinScriptAuthorizationStore? authorizations,
+            GameplaySkinSceneManifest manifest,
+            GameplaySkinSceneDocument document,
+            CancellationToken cancellationToken,
+            GameplaySkinDocument? materialDocument = null)
+        {
             var captured = new List<(GameplaySkinSceneResource Source, byte[] Bytes, ImageInfo Info)>();
             var resources = new List<GameplaySkinCapturedSceneResource>();
             long encodedBytes = 0;
             long totalPixels = 0;
+            long pixelBudget = materialDocument == null ? GameplaySkinPreparedSceneBudgets.MAX_TOTAL_TEXTURE_PIXELS
+                : GameplaySkinContentBudgets.MAX_SELECTED_TEXTURE_PIXELS;
+            long decodedBudget = materialDocument == null ? GameplaySkinPreparedSceneBudgets.MAX_TOTAL_DECODED_TEXTURE_BYTES
+                : GameplaySkinContentBudgets.MAX_SELECTED_DECODED_TEXTURE_BYTES;
 
             // Inspect the complete footprint before any decoder allocates a pixel buffer. Decoding is capped at
             // one image frame: scene frame animation is the existing versioned track/resource contract.
@@ -71,14 +103,14 @@ namespace osu.Game.Skinning.Gameplay
                 cancellationToken.ThrowIfCancellationRequested();
                 byte[] bytes = read(resource.Path, GameplaySkinPreparedSceneBudgets.MAX_RESOURCE_BYTES)
                                ?? throw fail(GameplaySkinSceneDiagnosticCode.InvalidResource);
-                ImageInfo info = identify(bytes);
+                ImageInfo info = Identify(bytes);
                 long pixels = (long)info.Width * info.Height;
                 encodedBytes += bytes.Length;
                 totalPixels += pixels;
                 if (encodedBytes > GameplaySkinPreparedSceneBudgets.MAX_TOTAL_RESOURCE_BYTES
                     || pixels <= 0 || pixels > GameplaySkinPreparedSceneBudgets.MAX_TEXTURE_PIXELS
-                    || totalPixels > GameplaySkinPreparedSceneBudgets.MAX_TOTAL_TEXTURE_PIXELS
-                    || totalPixels * 4 > GameplaySkinPreparedSceneBudgets.MAX_TOTAL_DECODED_TEXTURE_BYTES)
+                    || totalPixels > pixelBudget
+                    || totalPixels * 4 > decodedBudget)
                     throw fail(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
                 captured.Add((resource, bytes, info));
             }
@@ -118,7 +150,10 @@ namespace osu.Game.Skinning.Gameplay
                 authorization = authorizations?.Bind(recordId, authorizationRevision, program.Requests);
             }
             cancellationToken.ThrowIfCancellationRequested();
-            return new GameplaySkinPreparedPackage(packageRevision, manifest, document, resources, program, authorization);
+            IReadOnlyDictionary<string, GameplaySkinRecordedAnimationProgram> animations =
+                GameplaySkinRecordedAnimationCodec.PrepareAnimations(manifest, read, cancellationToken);
+            return new GameplaySkinPreparedPackage(packageRevision, manifest, document, resources, program, authorization,
+                recordedAnimations: animations, materialDocument: materialDocument);
         }
 
         private static IEnumerable<GameplaySkinSceneNode> enumerateNodes(GameplaySkinSceneNode node)
@@ -129,14 +164,13 @@ namespace osu.Game.Skinning.Gameplay
                     yield return descendant;
         }
 
-        private static ImageInfo identify(byte[] bytes)
+        internal static ImageInfo Identify(byte[] bytes)
         {
             try
             {
                 return Image.Identify(new DecoderOptions { MaxFrames = 1 }, bytes) ?? throw fail(GameplaySkinSceneDiagnosticCode.InvalidResource);
             }
-            catch (UnknownImageFormatException) { throw fail(GameplaySkinSceneDiagnosticCode.InvalidResource); }
-            catch (InvalidImageContentException) { throw fail(GameplaySkinSceneDiagnosticCode.InvalidResource); }
+            catch (ImageFormatException) { throw fail(GameplaySkinSceneDiagnosticCode.InvalidResource); }
         }
 
         private static Image<Rgba32> decode(byte[] bytes)
@@ -145,16 +179,15 @@ namespace osu.Game.Skinning.Gameplay
             {
                 return Image.Load<Rgba32>(new DecoderOptions { MaxFrames = 1 }, bytes);
             }
-            catch (UnknownImageFormatException) { throw fail(GameplaySkinSceneDiagnosticCode.InvalidResource); }
-            catch (InvalidImageContentException) { throw fail(GameplaySkinSceneDiagnosticCode.InvalidResource); }
+            catch (ImageFormatException) { throw fail(GameplaySkinSceneDiagnosticCode.InvalidResource); }
         }
 
-        private static T requireValid<T>(GameplaySkinSceneDecodeResult<T> result) where T : class
+        internal static T RequireValid<T>(GameplaySkinSceneDecodeResult<T> result) where T : class
             => result.Status == GameplaySkinSceneDecodeStatus.Valid && result.Value != null
                 ? result.Value
                 : throw fail(result.Diagnostics.FirstOrDefault()?.Code ?? GameplaySkinSceneDiagnosticCode.InvalidReference);
 
-        private static GameplaySkinScenePreparationException fail(GameplaySkinSceneDiagnosticCode code) => new GameplaySkinScenePreparationException(code);
+        private static GameplaySkinScenePreparationException fail(GameplaySkinSceneDiagnosticCode code) => new(code);
     }
 
     internal sealed class GameplaySkinCapturedSceneResource

@@ -17,9 +17,9 @@ namespace osu.Game.Skinning.Gameplay
     /// </remarks>
     public sealed class GameplaySkinEventStream : IDisposable
     {
-        private readonly object sync = new object();
-        private readonly List<GameplaySkinEventSubscription> subscriptions = new List<GameplaySkinEventSubscription>();
-        private readonly GameplaySkinEventStreamCursor producerCursor = new GameplaySkinEventStreamCursor(GameplaySkinEventApiVersions.V1);
+        private readonly object sync = new();
+        private readonly List<GameplaySkinEventSubscription> subscriptions = [];
+        private readonly GameplaySkinEventStreamCursor producerCursor = new(GameplaySkinEventApiVersions.V1);
         private readonly int pendingEventBudget;
 
         private GameplaySkinEventRevision revision;
@@ -190,7 +190,7 @@ namespace osu.Game.Skinning.Gameplay
 
                 ensureEveryQueueHasCapacity();
 
-                state.ValidateApply(payload, groupId, laneId);
+                state.ValidateApply(payload, groupId, laneId, gameplayTime);
                 GameplaySkinTimingStateSnapshot authoritativeTiming = payload.Family == GameplaySkinEventPayloadFamily.Timing
                     ? payload.GetTiming()
                     : state.Timing;
@@ -480,13 +480,12 @@ namespace osu.Game.Skinning.Gameplay
         private sealed class MutableState
         {
             private GameplaySkinLifecycleState lifecycleState;
-            private GameplaySkinCompletionStateSnapshot? completion;
             private readonly Dictionary<GameplaySkinLaneId, GameplaySkinInputStateSnapshot> inputs;
             private readonly Dictionary<long, GameplaySkinObjectStateSnapshot> objects;
             private readonly HashSet<long> objectResynchronisationAllowed;
-            private readonly Dictionary<long, GameplaySkinCurrentJudgementStateSnapshot> judgementsByObject = new Dictionary<long, GameplaySkinCurrentJudgementStateSnapshot>();
-            private readonly Dictionary<GameplaySkinLaneId, GameplaySkinCurrentJudgementStateSnapshot> judgementsByLane = new Dictionary<GameplaySkinLaneId, GameplaySkinCurrentJudgementStateSnapshot>();
-            private readonly Dictionary<GameplaySkinLaneGroupId, GameplaySkinCurrentJudgementStateSnapshot> judgementsByGroup = new Dictionary<GameplaySkinLaneGroupId, GameplaySkinCurrentJudgementStateSnapshot>();
+            private readonly Dictionary<long, GameplaySkinCurrentJudgementStateSnapshot> judgementsByObject = [];
+            private readonly Dictionary<GameplaySkinLaneId, GameplaySkinCurrentJudgementStateSnapshot> judgementsByLane = [];
+            private readonly Dictionary<GameplaySkinLaneGroupId, GameplaySkinCurrentJudgementStateSnapshot> judgementsByGroup = [];
             private GameplaySkinCurrentJudgementStateSnapshot? globalJudgement;
             private GameplaySkinScoreStateSnapshot score;
             private readonly GameplaySkinSongInformation? songInformation;
@@ -496,31 +495,33 @@ namespace osu.Game.Skinning.Gameplay
             public MutableState(GameplaySkinEventStateSnapshot snapshot, bool allowInitialResynchronisation)
             {
                 lifecycleState = snapshot.LifecycleState;
-                completion = snapshot.Completion;
+                Completion = snapshot.Completion;
                 inputs = snapshot.Inputs.ToDictionary(input => input.LaneId);
                 objects = snapshot.ActiveObjects.ToDictionary(obj => obj.ObjectId);
                 objectResynchronisationAllowed = allowInitialResynchronisation
-                    ? objects.Keys.ToHashSet()
-                    : new HashSet<long>();
+                    ? [.. objects.Keys]
+                    : [];
                 restoreJudgements(snapshot.CurrentJudgements);
                 score = snapshot.Score;
                 songInformation = snapshot.SongInformation;
                 Timing = snapshot.Timing;
                 bga = snapshot.BgaViewports.ToDictionary(viewport => viewport.ViewportIndex);
                 bgaResynchronisationAllowed = allowInitialResynchronisation
-                    ? bga.Keys.ToHashSet()
-                    : new HashSet<int>();
+                    ? [.. bga.Keys]
+                    : [];
             }
 
             public void ValidateApply(
                 GameplaySkinEventValue payload,
                 GameplaySkinLaneGroupId? groupId,
-                GameplaySkinLaneId? laneId)
+                GameplaySkinLaneId? laneId,
+                double gameplayTime)
             {
                 switch (payload.Family)
                 {
                     case GameplaySkinEventPayloadFamily.Input:
                         GameplaySkinInputStateSnapshot input = payload.GetInput(requireGroup(groupId), requireLane(laneId));
+                        input.ValidateForGameplayTime(gameplayTime);
 
                         if (inputs.TryGetValue(input.LaneId, out GameplaySkinInputStateSnapshot previousInput))
                         {
@@ -590,8 +591,8 @@ namespace osu.Game.Skinning.Gameplay
                 {
                     case GameplaySkinEventPayloadFamily.Lifecycle:
                         lifecycleState = payload.GetLifecycle();
-                        completion = lifecycleState == GameplaySkinLifecycleState.Completed
-                            ? completion ?? new GameplaySkinCompletionStateSnapshot(gameplayTime, payload.GetCompletionFullCombo())
+                        Completion = lifecycleState == GameplaySkinLifecycleState.Completed
+                            ? Completion ?? new GameplaySkinCompletionStateSnapshot(gameplayTime, payload.GetCompletionFullCombo())
                             : null;
                         break;
 
@@ -664,7 +665,7 @@ namespace osu.Game.Skinning.Gameplay
             }
 
             public GameplaySkinEventStateSnapshot CreateSnapshot(double gameplayTime)
-                => new GameplaySkinEventStateSnapshot(
+                => new(
                     lifecycleState,
                     inputs.Values.OrderBy(input => input.LaneId.Value, StringComparer.Ordinal),
                     objects.Values.OrderBy(obj => obj.ObjectId).Select(obj => GameplaySkinEventRuntimeHost.SnapshotObjectAt(obj, gameplayTime)),
@@ -673,12 +674,12 @@ namespace osu.Game.Skinning.Gameplay
                     Timing,
                     bga.Values.OrderBy(viewport => viewport.ViewportIndex),
                     songInformation,
-                    completion);
+                    Completion);
 
             public GameplaySkinCurrentJudgementStateSnapshot? ObjectJudgement(long objectId)
                 => judgementsByObject.TryGetValue(objectId, out GameplaySkinCurrentJudgementStateSnapshot judgement) ? judgement : null;
 
-            public GameplaySkinCompletionStateSnapshot? Completion => completion;
+            public GameplaySkinCompletionStateSnapshot? Completion { get; private set; }
 
             private IEnumerable<GameplaySkinCurrentJudgementStateSnapshot> currentJudgements(double gameplayTime)
             {
@@ -819,7 +820,7 @@ namespace osu.Game.Skinning.Gameplay
     {
         private readonly GameplaySkinEventStream owner;
         private readonly Queue<GameplaySkinEventRecord> pending;
-        private readonly GameplaySkinEventStreamCursor cursor = new GameplaySkinEventStreamCursor(GameplaySkinEventApiVersions.V1);
+        private readonly GameplaySkinEventStreamCursor cursor = new(GameplaySkinEventApiVersions.V1);
 
         internal bool IsDisposed { get; private set; }
 

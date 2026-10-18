@@ -27,7 +27,6 @@ using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Database;
 using osu.Game.Extensions;
 using osu.Game.Rulesets.Bms.Beatmaps;
-using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Mods;
 using osu.Game.Rulesets.Bms.Objects;
@@ -655,8 +654,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 GameplaySkinResolvedMaterialEntry selectedStageBackground = materialSet.Entries.Single(candidateEntry =>
                     ReferenceEquals(candidateEntry.Slot, GameplaySkinSlotCatalog.StageBackground)
                     && candidateEntry.Target.Kind == GameplaySkinResolvedMaterialTargetKind.Stage);
-                GameplaySkinResolvedMaterialEntry[] selectedEntries = materialSet.Entries.Where(candidateEntry =>
-                    candidateEntry.Source.Kind == GameplaySkinResolvedMaterialSourceKind.SelectedPackage).ToArray();
+                GameplaySkinResolvedMaterialEntry[] selectedEntries = [.. materialSet.Entries.Where(candidateEntry =>
+                    candidateEntry.Source.Kind == GameplaySkinResolvedMaterialSourceKind.SelectedPackage)];
                 GameplaySkinResolvedMaterialEntry bgaViewportEntry = selectedEntries.Single(candidateEntry =>
                     ReferenceEquals(candidateEntry.Slot, GameplaySkinSlotCatalog.BgaViewport));
                 GameplaySkinResolvedMaterialEntry bgaFrameEntry = selectedEntries.Single(candidateEntry =>
@@ -667,8 +666,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     ReferenceEquals(candidateEntry.Slot, GameplaySkinSlotCatalog.Laser));
                 GameplaySkinResolvedMaterialEntry keyVisualEntry = selectedEntries.Single(candidateEntry =>
                     candidateEntry.Key.Equals(new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.KeyVisual, key.Target)));
-                GameplaySkinResolvedMaterialEntry[] decorationEntries = selectedEntries.Where(candidateEntry =>
-                    ReferenceEquals(candidateEntry.Slot, GameplaySkinSlotCatalog.Decoration)).ToArray();
+                GameplaySkinResolvedMaterialEntry[] decorationEntries = [.. selectedEntries.Where(candidateEntry =>
+                    ReferenceEquals(candidateEntry.Slot, GameplaySkinSlotCatalog.Decoration))];
 
                 GameplaySkinSceneHostedSlot requireGate(GameplaySkinResolvedMaterialKey requiredKey)
                 {
@@ -677,8 +676,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     return requiredGate!;
                 }
 
-                GameplaySkinSceneHostedSlot[] selectedGates = selectedEntries.Select(candidateEntry => requireGate(candidateEntry.Key)).ToArray();
-                GameplaySkinSceneHostedSlot[] decorationGates = decorationEntries.Select(candidateEntry => requireGate(candidateEntry.Key)).ToArray();
+                GameplaySkinSceneHostedSlot[] selectedGates = [.. selectedEntries.Select(candidateEntry => requireGate(candidateEntry.Key))];
+                GameplaySkinSceneHostedSlot[] decorationGates = [.. decorationEntries.Select(candidateEntry => requireGate(candidateEntry.Key))];
                 GameplaySkinSceneHostedSlot hitTargetGate = requireGate(hitTargetKey);
                 GameplaySkinSceneHostedSlot judgementLineGate = requireGate(judgementLineKey);
                 GameplaySkinSceneHostedSlot laneDividerGate = requireGate(laneDividerKey);
@@ -707,7 +706,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 BmsGaugeBar gaugeBar = renderer.BmsDrawable.ChildrenOfType<BmsGaugeBar>().Single();
                 BmsComboCounter comboCounter = renderer.BmsDrawable.ChildrenOfType<BmsComboCounter>().Single();
                 BmsHudLayoutSnapshotCarrier hudCarrier = renderer.BmsDrawable.ChildrenOfType<BmsHudLayoutSnapshotCarrier>().Single();
-                BmsLaneCover[] laneCovers = renderer.BmsDrawable.Playfield.LaneCovers.ToArray();
+                BmsLaneCover[] laneCovers = [.. renderer.BmsDrawable.Playfield.LaneCovers];
                 Assert.That(bgaPanel.TryGetContentState(0, out GameplaySkinBgaContentState bgaContentState, out long bgaContentRevision), Is.True);
                 var attachState = (GameplaySkinStateEventPayload)observedEvents[0].Payload;
                 GameplaySkinBgaStateSnapshot attachedBga = attachState.State.BgaViewports.Single(viewport => viewport.ViewportIndex == 0);
@@ -720,7 +719,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     .Single(candidate => candidate.Key.Equals(bgaFrameEntry.Key));
 
                 GameplaySkinSlotDescriptor[] specialisedSlots =
-                {
+                [
                     GameplaySkinSlotCatalog.Note,
                     GameplaySkinSlotCatalog.LongNoteHead,
                     GameplaySkinSlotCatalog.LongNoteBody,
@@ -733,7 +732,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     GameplaySkinSlotCatalog.LaneCoverDecoration,
                     GameplaySkinSlotCatalog.BgaViewport,
                     GameplaySkinSlotCatalog.BgaFrame,
-                };
+                ];
 
                 Assert.Multiple(() =>
                 {
@@ -760,19 +759,19 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                         Is.True,
                         "Every authored exact target in this product slice must retain selected-package authority.");
                     Assert.That(materialSet.Entries, Has.Count.EqualTo(
-                        GameplaySkinSlotCatalog.All.Sum(descriptor =>
+                        GameplaySkinSlotCatalog.All.Take(28).Sum(descriptor =>
                             GameplaySkinPublicSlotMaterialTargets.Enumerate(descriptor, publication.Snapshot).Count)));
                     Assert.That(materialSet.Entries.Select(candidateEntry => candidateEntry.Slot).Distinct(),
-                        Is.EquivalentTo(GameplaySkinSlotCatalog.All));
+                        Is.EquivalentTo(GameplaySkinSlotCatalog.All.Take(28)));
                     Assert.That(selectedEntries.Select(candidateEntry => candidateEntry.Slot).Distinct(),
-                        Is.EquivalentTo(GameplaySkinSlotCatalog.All),
-                        "The production package must author at least one real exact target for every advertised public slot.");
+                        Is.EquivalentTo(GameplaySkinSlotCatalog.All.Take(28)),
+                        "The production package must author at least one real exact target for each of the original public slots; new optional displays require their own explicit declarations.");
                     Assert.That(selectedGates.All(gate => gate.SuppressesProgrammaticVisual), Is.True,
                         "Every authored exact key must have a ready production replacement before the old BMS visual is hidden.");
                     Assert.That(selectedEntries.Where(candidateEntry => !specialisedSlots.Contains(candidateEntry.Slot))
                                                .All(candidateEntry => sceneHost.TryGetHostedDrawable(candidateEntry.Key, out _)), Is.True,
                         "Every authored shared static/effect/HUD/root key must own a mounted production drawable.");
-                    Assert.That(BmsGameplayResolvedNoteMaterialPreparer.RuntimeCapabilities.Support, Has.Count.EqualTo(28));
+                    Assert.That(BmsGameplayResolvedNoteMaterialPreparer.RuntimeCapabilities.Support, Has.Count.EqualTo(32));
                     Assert.That(materialSet.PackageRevision.RecordId, Is.EqualTo(revision.RecordId));
                     Assert.That(materialSet.PackageRevision.ContentRevision, Is.EqualTo(revision.ContentRevision));
                     Assert.That(preparedScene.HasAuthorScene, Is.True);
@@ -1450,7 +1449,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     CancellationToken.None,
                     out _),
                     Throws.TypeOf<InvalidOperationException>()
-                          .With.Message.EqualTo("The selected BMS package content revision does not match its exact layout publication."));
+                          .With.Message.EqualTo("Selected content must retain the layout's exact package revision."));
                 Assert.Multiple(() =>
                 {
                     Assert.That(staleOwner.CurrentPublication, Is.Null);
@@ -1543,9 +1542,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddUntilStep("wait for exact diagnostic material publication", () => renderer.BmsReady);
             AddStep("assert BMS diagnostic has catalog identity but no fabricated target", () =>
             {
-                GameplaySkinResolvedMaterialDiagnostic[] codecDiagnostics = renderer.BmsLayoutProbe.Publication!.MaterialSet.Diagnostics
-                    .Where(diagnostic => diagnostic.Code.StartsWith("OMS-SKIN-CODEC-", StringComparison.Ordinal))
-                    .ToArray();
+                GameplaySkinResolvedMaterialDiagnostic[] codecDiagnostics = [.. renderer.BmsLayoutProbe.Publication!.MaterialSet.Diagnostics.Where(diagnostic => diagnostic.Code.StartsWith("OMS-SKIN-CODEC-", StringComparison.Ordinal))];
 
                 Assert.Multiple(() =>
                 {
@@ -1649,7 +1646,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddStep("unsubscribe and assert one persistence-safe diagnostic", () =>
             {
                 Logger.NewEntry -= capture;
-                LogEntry[] entries = logEntries.ToArray();
+                LogEntry[] entries = [.. logEntries];
 
                 Assert.That(entries, Has.Length.EqualTo(1));
                 string message = entries[0].Message;
@@ -1706,9 +1703,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 BmsGameplayLayoutSnapshot layout = publication.GetAdapter<BmsGameplayLayoutSnapshot>();
                 BmsGameplayLayoutLane lane = layout.GetLane(GameplaySkinLaneId.Create("bms.lane.key-1"));
                 GameplaySkinResolvedMaterialTarget target = BmsGameplayNoteMaterialTarget.Create(layout, lane);
-                GameplaySkinResolvedMaterialDiagnostic[] capabilityDiagnostics = publication.MaterialSet.Diagnostics
-                    .Where(diagnostic => diagnostic.Code == "bms.capability.unsupported-slot")
-                    .ToArray();
+                GameplaySkinResolvedMaterialDiagnostic[] capabilityDiagnostics = [.. publication.MaterialSet.Diagnostics.Where(diagnostic => diagnostic.Code == "bms.capability.unsupported-slot")];
                 bool found = publication.MaterialSet.TryGet(
                     new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.KeyVisual, target),
                     out GameplaySkinResolvedMaterialEntry? keyVisual);
@@ -1754,9 +1749,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddStep("assert non-applicable selector emitted no BMS capability diagnostic", () =>
             {
                 GameplaySkinDocument document = manager.CurrentSkin.Value.GameplaySkinDocument;
-                GameplaySkinResolvedMaterialDiagnostic[] capabilityDiagnostics = renderer.BmsLayoutProbe.Publication!.MaterialSet.Diagnostics
-                    .Where(diagnostic => diagnostic.Code == "bms.capability.unsupported-slot")
-                    .ToArray();
+                GameplaySkinResolvedMaterialDiagnostic[] capabilityDiagnostics = [.. renderer.BmsLayoutProbe.Publication!.MaterialSet.Diagnostics.Where(diagnostic => diagnostic.Code == "bms.capability.unsupported-slot")];
 
                 Assert.Multiple(() =>
                 {
@@ -2183,7 +2176,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             GameplaySkinLayoutPublication publication = renderer.BmsLayoutProbe.Publication!;
             BmsGameplayLayoutSnapshot snapshot = renderer.BmsDrawable.LayoutSnapshot;
             GameplaySkinResolvedMaterialSet materialSet = publication.MaterialSet;
-            DrawableBmsHitObject[] notes = renderer.BmsDrawable.ChildrenOfType<DrawableBmsHitObject>().ToArray();
+            DrawableBmsHitObject[] notes = [.. renderer.BmsDrawable.ChildrenOfType<DrawableBmsHitObject>()];
             BmsManagedPackageSourceRevision? selectedSourceRevision =
                 (revision.Owner as BmsLegacySkin)?.CaptureManagedPackageSourceRevision();
 
@@ -2192,10 +2185,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(publication.GetAdapter<BmsGameplayLayoutSnapshot>(), Is.SameAs(snapshot));
                 Assert.That(materialSet.Entries, Is.Not.Empty, "A production BMS publication must resolve every hosted note material during prepare.");
                 Assert.That(materialSet.Entries, Has.Count.EqualTo(
-                    GameplaySkinSlotCatalog.All.Sum(descriptor =>
+                    GameplaySkinSlotCatalog.All.Take(28).Sum(descriptor =>
                         GameplaySkinPublicSlotMaterialTargets.Enumerate(descriptor, publication.Snapshot).Count)));
-                Assert.That(materialSet.Entries.Select(entry => entry.Slot).Distinct(), Is.EquivalentTo(GameplaySkinSlotCatalog.All));
-                Assert.That(BmsGameplayResolvedNoteMaterialPreparer.RuntimeCapabilities.Support, Has.Count.EqualTo(28));
+                Assert.That(materialSet.Entries.Select(entry => entry.Slot).Distinct(), Is.EquivalentTo(GameplaySkinSlotCatalog.All.Take(28)));
+                Assert.That(BmsGameplayResolvedNoteMaterialPreparer.RuntimeCapabilities.Support, Has.Count.EqualTo(32));
                 Assert.That(materialSet.Snapshot, Is.SameAs(snapshot.Neutral));
                 Assert.That(selectedSourceRevision, Is.Not.Null);
                 Assert.That(selectedSourceRevision!.SkinId, Is.EqualTo(revision.RecordId));
@@ -2222,14 +2215,18 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             assertExactLayoutPair(renderer.ManiaLayoutProbe, revision, "mania");
             GameplaySkinLayoutPublication publication = renderer.ManiaLayoutProbe.Publication!;
             GameplaySkinLayoutSnapshot snapshot = renderer.ManiaDrawable.LayoutSnapshot;
+            GameplaySkinSlotDescriptor[] expectedSlots = [.. GameplaySkinSlotCatalog.Common
+                .Where(GameplaySkinRuntimeSupportProfile.Mania.IsSupported)
+                .Where(descriptor => !ReferenceEquals(descriptor, GameplaySkinSlotCatalog.AuxiliaryDisplay)
+                                     && !ReferenceEquals(descriptor, GameplaySkinSlotCatalog.AuxiliaryConcentrationDisplay))];
 
             Assert.Multiple(() =>
             {
                 Assert.That(publication.MaterialSet.Entries, Has.Count.EqualTo(
-                    GameplaySkinSlotCatalog.Common.Where(GameplaySkinRuntimeSupportProfile.Mania.IsSupported).Sum(descriptor =>
+                    expectedSlots.Sum(descriptor =>
                         GameplaySkinPublicSlotMaterialTargets.Enumerate(descriptor, snapshot).Count)));
                 Assert.That(publication.MaterialSet.Entries.Select(entry => entry.Slot).Distinct(),
-                    Is.EquivalentTo(GameplaySkinSlotCatalog.Common.Where(GameplaySkinRuntimeSupportProfile.Mania.IsSupported)));
+                    Is.EquivalentTo(expectedSlots), "This ordinary reload fixture does not declare either optional auxiliary display.");
                 Assert.That(publication.PreparedScene.Snapshot, Is.SameAs(snapshot));
                 Assert.That(publication.PreparedScene.MaterialSet, Is.SameAs(publication.MaterialSet));
                 Assert.That(renderer.ManiaDrawable.GameplaySkinEventStream.CurrentRevision, Is.EqualTo(publication.EventRevision));
@@ -2946,7 +2943,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             private readonly byte[] noteTexture;
 
             public NoteResourceBmsRuleset()
-                : this(Array.Empty<byte>())
+                : this([])
             {
                 // RulesetInfo creates a parameterless instance only to query bindings. The production material fixture
                 // uses the explicit texture constructor below.
@@ -2972,7 +2969,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             public bool PrepareEntered { get; private set; }
 
             public CancellationProbeBmsRuleset()
-                : this(Array.Empty<byte>())
+                : this([])
             {
                 // RulesetInfo may create a parameterless instance only to query bindings. It must never inherit the
                 // product fixture's blocking resource gate.
@@ -3001,10 +2998,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         private sealed class BlockingNoteResourceStore : IResourceStore<byte[]>
         {
             private static readonly string[] resource_names =
-            {
+            [
                 "Textures/mania-note1.png",
                 "Textures/mania-note2.png",
-            };
+            ];
 
             private readonly byte[] noteTexture;
             private int entered;
@@ -3059,10 +3056,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         private sealed class NoteResourceStore : IResourceStore<byte[]>
         {
             private static readonly string[] resource_names =
-            {
+            [
                 "Textures/mania-note1.png",
                 "Textures/mania-note2.png",
-            };
+            ];
 
             private readonly byte[] noteTexture;
 

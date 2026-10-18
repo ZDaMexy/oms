@@ -35,6 +35,13 @@ namespace osu.Game.Tests.NonVisual.Skinning
         [TestCase("judgement.count.miss", "5")]
         [TestCase("combo.breaks", "4")]
         [TestCase("combo.maximum", "19")]
+        [TestCase("score.maximum", "100")]
+        [TestCase("score.progress", "0.29")]
+        [TestCase("score.maximum-available", "true")]
+        [TestCase("lift.value", "250.5")]
+        [TestCase("lift.offset", "0.25")]
+        [TestCase("lift.reversed", "true")]
+        [TestCase("lift.available", "true")]
         public void TestInformationBindingsReadCompleteSnapshotAndReattach(string binding, string expected)
         {
             using var texture = new DummyRenderer().CreateTexture(8, 8);
@@ -42,8 +49,9 @@ namespace osu.Game.Tests.NonVisual.Skinning
             GameplaySkinEventStateSnapshot initial = publication.PreparedScene.InitialEventState;
             var snapshot = new GameplaySkinEventStateSnapshot(initial.LifecycleState, initial.Inputs, initial.ActiveObjects,
                 initial.CurrentJudgements, new GameplaySkinScoreStateSnapshot(29, 0, 19, 0.8, 0.5,
-                    new GameplaySkinJudgementStatistics(10, 9, 8, 7, 6, 5, 4)),
-                new GameplaySkinTimingStateSnapshot(0, 0, 150, false, 1, scrollSpeed: 2.25), initial.BgaViewports,
+                    new GameplaySkinJudgementStatistics(10, 9, 8, 7, 6, 5, 4), maximumScore: 100),
+                new GameplaySkinTimingStateSnapshot(0, 0, 150, false, 1, scrollSpeed: 2.25,
+                    liftState: new GameplaySkinLiftState(true, 250.5, 0.25, true)), initial.BgaViewports,
                 new GameplaySkinSongInformation("A song", "An artist", "ANOTHER", "12", 120, 240, "Satellite sl4 / Insane ★8"));
             using var stream = new GameplaySkinEventStream(publication, 0, snapshot);
             for (int i = 0; i < 2; i++)

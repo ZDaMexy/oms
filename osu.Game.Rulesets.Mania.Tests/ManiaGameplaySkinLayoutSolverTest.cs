@@ -92,7 +92,7 @@ namespace osu.Game.Rulesets.Mania.Tests
             skin.Set(LegacyManiaSkinConfigurationLookups.ColumnWidth, 24, 8);
 
             GameplaySkinLayoutSnapshot snapshot = solve(
-                new[] { 4, 5 },
+                [4, 5],
                 skin,
                 ManiaGameplaySkinLayoutEnvironment.CreateCompatibility());
             GameplaySkinLaneTopologyGroup secondGroup = snapshot.GroupsInLogicalOrder[1].TopologyGroup;
@@ -164,9 +164,9 @@ namespace osu.Game.Rulesets.Mania.Tests
             GameplaySkinLaneTopologyGroup group = snapshot.Context.Topology.GroupsInLogicalOrder[0];
             GameplaySkinLaneTopologyEntry lane = group.LanesInLogicalOrder[0];
             GameplaySkinResolvedMaterialTarget target = GameplaySkinResolvedMaterialTarget.ForLane(group, lane);
-            GameplaySkinSlotDescriptor[] supportedSlots = GameplaySkinRuntimeSupportProfile.Mania.Capabilities.Support.Values
+            GameplaySkinSlotDescriptor[] supportedSlots = [.. GameplaySkinRuntimeSupportProfile.Mania.Capabilities.Support.Values
                 .Select(support => support.Descriptor)
-                .ToArray();
+                .Where(slot => slot != GameplaySkinSlotCatalog.AuxiliaryDisplay && slot != GameplaySkinSlotCatalog.AuxiliaryConcentrationDisplay)];
 
             Assert.Multiple(() =>
             {
@@ -178,8 +178,8 @@ namespace osu.Game.Rulesets.Mania.Tests
                     GameplaySkinPublicSlotMaterialTargets.Enumerate(descriptor, snapshot).Count)));
                 Assert.That(materials.Entries.Select(entry => entry.Key), Is.Unique);
                 Assert.That(materials.Entries.Select(entry => entry.Slot).Distinct(), Is.EquivalentTo(supportedSlots));
-                Assert.That(GameplaySkinRuntimeSupportProfile.Mania.Decisions, Has.Count.EqualTo(28));
-                Assert.That(ManiaGameplaySkinMaterialResolver.RuntimeCapabilities.Support, Has.Count.EqualTo(23));
+                Assert.That(GameplaySkinRuntimeSupportProfile.Mania.Decisions, Has.Count.EqualTo(32));
+                Assert.That(ManiaGameplaySkinMaterialResolver.RuntimeCapabilities.Support, Has.Count.EqualTo(25));
                 Assert.That(ManiaGameplaySkinMaterialResolver.RuntimeCapabilities.TryGet(GameplaySkinSlotCatalog.Mine, out _), Is.False);
                 Assert.That(ManiaGameplaySkinMaterialResolver.RuntimeCapabilities.TryGet(GameplaySkinSlotCatalog.BgaViewport, out _), Is.False);
                 Assert.That(ManiaGameplaySkinMaterialResolver.RuntimeCapabilities.TryGet(GameplaySkinSlotCatalog.BgaFrame, out _), Is.False);
@@ -243,13 +243,11 @@ namespace osu.Game.Rulesets.Mania.Tests
                 ManiaGameplaySkinLayoutEnvironment.CreateCompatibility(),
                 GameplaySkinScrollDirection.Down);
             GameplaySkinResolvedMaterialSet materials = ManiaGameplaySkinMaterialResolver.Resolve(snapshot, source);
-            GameplaySkinLaneTopologyGroup[] groups = snapshot.Context.Topology.GroupsInLogicalOrder.ToArray();
-            GameplaySkinLaneTopologyEntry[] specialLanes = snapshot.Context.Topology.LanesInLogicalOrder
-                                                                     .Where(lane => lane.Identity.Role == GameplaySkinLaneRole.SpecialKey)
-                                                                     .ToArray();
-            GameplaySkinSlotDescriptor[] supportedSlots = GameplaySkinRuntimeSupportProfile.Mania.Capabilities.Support.Values
+            GameplaySkinLaneTopologyGroup[] groups = [.. snapshot.Context.Topology.GroupsInLogicalOrder];
+            GameplaySkinLaneTopologyEntry[] specialLanes = [.. snapshot.Context.Topology.LanesInLogicalOrder.Where(lane => lane.Identity.Role == GameplaySkinLaneRole.SpecialKey)];
+            GameplaySkinSlotDescriptor[] supportedSlots = [.. GameplaySkinRuntimeSupportProfile.Mania.Capabilities.Support.Values
                 .Select(support => support.Descriptor)
-                .ToArray();
+                .Where(slot => slot != GameplaySkinSlotCatalog.AuxiliaryDisplay && slot != GameplaySkinSlotCatalog.AuxiliaryConcentrationDisplay)];
 
             Assert.Multiple(() =>
             {
@@ -321,11 +319,10 @@ namespace osu.Game.Rulesets.Mania.Tests
                 GameplaySkinScrollDirection.Down);
 
             GameplaySkinResolvedMaterialSet materials = ManiaGameplaySkinMaterialResolver.Resolve(snapshot, source);
-            string[] notApplicable = materials.Diagnostics
+            string[] notApplicable = [.. materials.Diagnostics
                                               .Where(diagnostic => diagnostic.Code == "mania.runtime-support.not-applicable.v1")
                                               .Select(diagnostic => diagnostic.Key!.Slot.Id)
-                                              .OrderBy(id => id, StringComparer.Ordinal)
-                                              .ToArray();
+                                              .OrderBy(id => id, StringComparer.Ordinal)];
 
             Assert.Multiple(() =>
             {
@@ -434,7 +431,7 @@ namespace osu.Game.Rulesets.Mania.Tests
                 _ => { });
             var dependencies = new DependencyContainer();
             dependencies.Cache(new GameplaySkinLayoutRevisionOwner(GameplaySkinPackageRevision.Create(revision)));
-            var playfield = new DependencyProbeManiaPlayfield(new List<StageDefinition> { new StageDefinition(4) });
+            var playfield = new DependencyProbeManiaPlayfield([new StageDefinition(4)]);
 
             Assert.That(
                 () => playfield.InvokeCreateChildDependencies(dependencies),
@@ -457,7 +454,7 @@ namespace osu.Game.Rulesets.Mania.Tests
             dependencies.Cache(new GameplaySkinLayoutRevisionOwner(GameplaySkinPackageRevision.Create(revision)));
             dependencies.Cache(ManiaGameplaySkinLayout.CreateCompatibility(
                 new[] { new StageDefinition(4) }, new TestSkinSource()).Snapshot);
-            var playfield = new DependencyProbeManiaPlayfield(new List<StageDefinition> { new StageDefinition(4) });
+            var playfield = new DependencyProbeManiaPlayfield([new StageDefinition(4)]);
 
             Assert.That(
                 () => playfield.InvokeCreateChildDependencies(dependencies),
@@ -472,7 +469,7 @@ namespace osu.Game.Rulesets.Mania.Tests
             var screen = GameplaySkinLayoutRect.Create(0, 0, 1, 1);
             var safe = GameplaySkinLayoutRect.Create(0.08f, 0.04f, 0.84f, 0.9f);
             GameplaySkinLayoutSnapshot snapshot = solve(
-                new[] { 5, 5 },
+                [5, 5],
                 new TestSkinSource(),
                 new ManiaGameplaySkinLayoutEnvironment(screen, safe, aspectRatio, dpiScale));
 
@@ -491,11 +488,11 @@ namespace osu.Game.Rulesets.Mania.Tests
         public void TestDpiParticipatesWithoutChangingStableIdentity()
         {
             GameplaySkinLayoutSnapshot lowDpi = solve(
-                new[] { 4 },
+                [4],
                 new TestSkinSource(),
                 new ManiaGameplaySkinLayoutEnvironment(fullBounds(), fullBounds(), 16f / 9f, 1));
             GameplaySkinLayoutSnapshot highDpi = solve(
-                new[] { 4 },
+                [4],
                 new TestSkinSource(),
                 new ManiaGameplaySkinLayoutEnvironment(fullBounds(), fullBounds(), 16f / 9f, 2.25f));
 
@@ -523,8 +520,8 @@ namespace osu.Game.Rulesets.Mania.Tests
             skin.Set(LegacyManiaSkinConfigurationLookups.BarLineHeight, float.NaN);
             skin.Set(LegacyManiaSkinConfigurationLookups.ComboPosition, float.PositiveInfinity);
 
-            GameplaySkinLayoutSnapshot snapshot = solve(new[] { 5 }, skin, ManiaGameplaySkinLayoutEnvironment.CreateCompatibility());
-            string[] diagnostics = snapshot.Diagnostics.Select(diagnostic => diagnostic.Code).ToArray();
+            GameplaySkinLayoutSnapshot snapshot = solve([5], skin, ManiaGameplaySkinLayoutEnvironment.CreateCompatibility());
+            string[] diagnostics = [.. snapshot.Diagnostics.Select(diagnostic => diagnostic.Code)];
 
             Assert.Multiple(() =>
             {
@@ -550,7 +547,7 @@ namespace osu.Game.Rulesets.Mania.Tests
             var skin = new TestSkinSource();
             skin.Set(LegacyManiaSkinConfigurationLookups.ComboPosition, 384);
 
-            GameplaySkinLayoutSnapshot snapshot = solve(new[] { 5 }, skin, new ManiaGameplaySkinLayoutEnvironment(fullBounds(), fullBounds(), 4f / 3f, 1));
+            GameplaySkinLayoutSnapshot snapshot = solve([5], skin, new ManiaGameplaySkinLayoutEnvironment(fullBounds(), fullBounds(), 4f / 3f, 1));
             GameplaySkinLayoutRect combo = snapshot.GetSurface(ManiaGameplaySkinLayout.COMBO_SURFACE).Rect;
 
             Assert.Multiple(() =>
@@ -627,7 +624,7 @@ namespace osu.Game.Rulesets.Mania.Tests
 
         private sealed class TestSkinSource : ISkinSource
         {
-            private readonly Dictionary<(LegacyManiaSkinConfigurationLookups Lookup, int? Column), float> values = new();
+            private readonly Dictionary<(LegacyManiaSkinConfigurationLookups Lookup, int? Column), float> values = [];
 
             public event Action? SourceChanged;
 
@@ -780,7 +777,7 @@ namespace osu.Game.Rulesets.Mania.Tests
                 this.configuration = configuration;
             }
 
-            public byte[] Get(string name) => name == "skin.ini" ? configuration.ToArray() : null!;
+            public byte[] Get(string name) => name == "skin.ini" ? [.. configuration] : null!;
 
             public Task<byte[]> GetAsync(string name, CancellationToken cancellationToken = default)
                 => Task.FromResult(Get(name));

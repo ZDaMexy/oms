@@ -56,7 +56,7 @@ namespace osu.Game.Skinning.Gameplay
         public const int MAX_STATE_PROPERTY_APPLICATIONS_PER_EVENT = 8_192;
         public const int MAX_TEXT_CHARACTERS = 64 * 1024;
         public const double MAX_TRACK_TIME = 86_400_000;
-        public const double MAX_COMPLETION_OUTRO = 2500;
+        public const double MAX_COMPLETION_OUTRO = 3500;
         public const double MAX_ABSOLUTE_POSITION = 4;
         public const double MAX_RELATIVE_SIZE = 4;
         public const double MAX_SCALE = 8;
@@ -225,7 +225,7 @@ namespace osu.Game.Skinning.Gameplay
                 throw new ArgumentException("Only a valid decode result may carry a value.", nameof(value));
             }
 
-            GameplaySkinSceneDiagnostic[] copiedDiagnostics = diagnostics.ToArray();
+            GameplaySkinSceneDiagnostic[] copiedDiagnostics = [.. diagnostics];
 
             if (status == GameplaySkinSceneDecodeStatus.Valid && copiedDiagnostics.Length > 0
                 || status == GameplaySkinSceneDecodeStatus.Absent && copiedDiagnostics.Length > 0
@@ -287,6 +287,8 @@ namespace osu.Game.Skinning.Gameplay
 
         public string? ScriptFile { get; }
 
+        public string? ContentCatalogFile { get; }
+
         public IReadOnlyList<GameplaySkinSceneResource> Resources { get; }
 
         public IReadOnlyList<GameplaySkinBitmapFont> BitmapFonts { get; }
@@ -294,6 +296,10 @@ namespace osu.Game.Skinning.Gameplay
         public IReadOnlyList<GameplaySkinOptionDefinition> Options { get; }
 
         public IReadOnlyList<GameplaySkinAuthorLayout> AuthorLayouts { get; }
+
+        public IReadOnlyList<GameplaySkinRecordedAnimationDefinition> Animations { get; }
+
+        public GameplaySkinAuxiliaryDisplayDefinition? AuxiliaryDisplay { get; }
 
         private readonly IReadOnlyDictionary<string, GameplaySkinSceneResource> resourcesById;
         private readonly IReadOnlyDictionary<string, GameplaySkinBitmapFont> bitmapFontsById;
@@ -304,25 +310,31 @@ namespace osu.Game.Skinning.Gameplay
             string? scriptFile = null,
             IEnumerable<GameplaySkinBitmapFont>? bitmapFonts = null,
             IEnumerable<GameplaySkinOptionDefinition>? options = null,
-            IEnumerable<GameplaySkinAuthorLayout>? authorLayouts = null)
+            IEnumerable<GameplaySkinAuthorLayout>? authorLayouts = null,
+            string? contentCatalogFile = null,
+            IEnumerable<GameplaySkinRecordedAnimationDefinition>? animations = null,
+            GameplaySkinAuxiliaryDisplayDefinition? auxiliaryDisplay = null)
         {
             ArgumentNullException.ThrowIfNull(resources);
 
-            GameplaySkinSceneResource[] copiedResources = resources.ToArray();
+            GameplaySkinSceneResource[] copiedResources = [.. resources];
             Contract = GameplaySkinSceneContracts.MANIFEST_CONTRACT_ID;
             SceneFile = GameplaySkinSceneContracts.SCENE_FILE_NAME;
             SceneContract = GameplaySkinSceneContracts.SCENE_CONTRACT_ID;
             EventContract = GameplaySkinSceneContracts.EVENT_CONTRACT_ID;
             ScriptFile = scriptFile;
+            ContentCatalogFile = contentCatalogFile;
             Resources = Array.AsReadOnly(copiedResources);
             resourcesById = new ReadOnlyDictionary<string, GameplaySkinSceneResource>(copiedResources.ToDictionary(resource => resource.Id, StringComparer.Ordinal));
-            GameplaySkinBitmapFont[] copiedFonts = bitmapFonts?.ToArray() ?? Array.Empty<GameplaySkinBitmapFont>();
+            GameplaySkinBitmapFont[] copiedFonts = bitmapFonts?.ToArray() ?? [];
             BitmapFonts = Array.AsReadOnly(copiedFonts);
             bitmapFontsById = new ReadOnlyDictionary<string, GameplaySkinBitmapFont>(copiedFonts.ToDictionary(font => font.Id, StringComparer.Ordinal));
-            GameplaySkinOptionDefinition[] copiedOptions = options?.ToArray() ?? Array.Empty<GameplaySkinOptionDefinition>();
+            GameplaySkinOptionDefinition[] copiedOptions = options?.ToArray() ?? [];
             Options = Array.AsReadOnly(copiedOptions);
             optionsById = new ReadOnlyDictionary<string, GameplaySkinOptionDefinition>(copiedOptions.ToDictionary(option => option.Id, StringComparer.Ordinal));
-            AuthorLayouts = Array.AsReadOnly(authorLayouts?.ToArray() ?? Array.Empty<GameplaySkinAuthorLayout>());
+            AuthorLayouts = Array.AsReadOnly(authorLayouts?.ToArray() ?? []);
+            Animations = Array.AsReadOnly(animations?.ToArray() ?? []);
+            AuxiliaryDisplay = auxiliaryDisplay;
         }
 
         public bool TryGetResource(string id, out GameplaySkinSceneResource resource)
@@ -348,6 +360,7 @@ namespace osu.Game.Skinning.Gameplay
         Mask = 4,
         Clip = 5,
         ProjectiveSprite = 6,
+        RecordedAnimation = 7,
     }
 
     public enum GameplaySkinSceneTargetKind
@@ -461,6 +474,13 @@ namespace osu.Game.Skinning.Gameplay
         ComboMaximum = 39,
         Option = 40,
         LayoutRuleset = 41,
+        ScoreMaximum = 42,
+        ScoreProgress = 43,
+        ScoreMaximumAvailable = 44,
+        LiftValue = 45,
+        LiftOffset = 46,
+        LiftReversed = 47,
+        LiftAvailable = 48,
     }
 
     public enum GameplaySkinSceneEvent
@@ -506,14 +526,14 @@ namespace osu.Game.Skinning.Gameplay
             ProjectiveQuad = projectiveQuad;
         }
 
-        internal static GameplaySkinScenePropertyValue FromBoolean(bool value) => new GameplaySkinScenePropertyValue(GameplaySkinScenePropertyValueKind.Boolean, value, 0, null);
+        internal static GameplaySkinScenePropertyValue FromBoolean(bool value) => new(GameplaySkinScenePropertyValueKind.Boolean, value, 0, null);
 
-        internal static GameplaySkinScenePropertyValue FromNumber(double value) => new GameplaySkinScenePropertyValue(GameplaySkinScenePropertyValueKind.Number, false, value, null);
+        internal static GameplaySkinScenePropertyValue FromNumber(double value) => new(GameplaySkinScenePropertyValueKind.Number, false, value, null);
 
-        internal static GameplaySkinScenePropertyValue FromString(string value) => new GameplaySkinScenePropertyValue(GameplaySkinScenePropertyValueKind.String, false, 0, value);
+        internal static GameplaySkinScenePropertyValue FromString(string value) => new(GameplaySkinScenePropertyValueKind.String, false, 0, value);
 
         internal static GameplaySkinScenePropertyValue FromProjectiveQuad(GameplaySkinProjectiveQuad value)
-            => new GameplaySkinScenePropertyValue(GameplaySkinScenePropertyValueKind.ProjectiveQuad, false, 0, null, value);
+            => new(GameplaySkinScenePropertyValueKind.ProjectiveQuad, false, 0, null, value);
 
         public override string ToString() => $"{nameof(GameplaySkinScenePropertyValue)}:{Kind}";
     }
@@ -575,6 +595,8 @@ namespace osu.Game.Skinning.Gameplay
 
         public string? ResourceId { get; }
 
+        public string? AnimationId { get; }
+
         public GameplaySkinSceneBlendMode Blend { get; }
 
         public IReadOnlyDictionary<string, GameplaySkinScenePropertyValue> Properties { get; }
@@ -592,13 +614,15 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBlendMode blend,
             IReadOnlyDictionary<string, GameplaySkinScenePropertyValue> properties,
             IEnumerable<GameplaySkinSceneEffect> effects,
-            IEnumerable<GameplaySkinSceneNode> children)
+            IEnumerable<GameplaySkinSceneNode> children,
+            string? animationId = null)
         {
             Id = id;
             Type = type;
             Target = target;
             SlotId = slotId;
             ResourceId = resourceId;
+            AnimationId = animationId;
             Blend = blend;
             Properties = new ReadOnlyDictionary<string, GameplaySkinScenePropertyValue>(properties
                                                                                          .OrderBy(pair => pair.Key, StringComparer.Ordinal)
@@ -885,7 +909,7 @@ namespace osu.Game.Skinning.Gameplay
             SourceId = sourceId;
             Source = GameplaySkinSceneVocabulary.ParseBindingSource(sourceId);
             DefaultValue = defaultValue;
-            GameplaySkinSceneVariantCase[] copiedCases = cases.ToArray();
+            GameplaySkinSceneVariantCase[] copiedCases = [.. cases];
             Cases = Array.AsReadOnly(copiedCases);
             casesByKey = new ReadOnlyDictionary<string, GameplaySkinSceneVariantCase>(
                 copiedCases.ToDictionary(item => item.Key, StringComparer.Ordinal));
@@ -989,6 +1013,13 @@ namespace osu.Game.Skinning.Gameplay
             "judgement.result" => GameplaySkinSceneBindingSource.JudgementResult,
             "judgement.offset" => GameplaySkinSceneBindingSource.JudgementOffset,
             "score.value" => GameplaySkinSceneBindingSource.ScoreValue,
+            "score.maximum" => GameplaySkinSceneBindingSource.ScoreMaximum,
+            "score.progress" => GameplaySkinSceneBindingSource.ScoreProgress,
+            "score.maximum-available" => GameplaySkinSceneBindingSource.ScoreMaximumAvailable,
+            "lift.value" => GameplaySkinSceneBindingSource.LiftValue,
+            "lift.offset" => GameplaySkinSceneBindingSource.LiftOffset,
+            "lift.reversed" => GameplaySkinSceneBindingSource.LiftReversed,
+            "lift.available" => GameplaySkinSceneBindingSource.LiftAvailable,
             "score.accuracy" => GameplaySkinSceneBindingSource.ScoreAccuracy,
             "combo.value" => GameplaySkinSceneBindingSource.ComboValue,
             "combo.maximum" => GameplaySkinSceneBindingSource.ComboMaximum,

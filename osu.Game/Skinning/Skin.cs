@@ -50,7 +50,7 @@ namespace osu.Game.Skinning
         public IDictionary<GlobalSkinnableContainers, SkinLayoutInfo> LayoutInfos => layoutInfos;
 
         private readonly Dictionary<GlobalSkinnableContainers, SkinLayoutInfo> layoutInfos =
-            new Dictionary<GlobalSkinnableContainers, SkinLayoutInfo>();
+            [];
 
         public abstract ISample? GetSample(ISampleInfo sampleInfo);
 
@@ -62,7 +62,7 @@ namespace osu.Game.Skinning
             where TLookup : notnull
             where TValue : notnull;
 
-        private readonly ResourceStore<byte[]> store = new ResourceStore<byte[]>();
+        private readonly ResourceStore<byte[]> store = new();
 
         public string Name { get; }
 
@@ -102,7 +102,7 @@ namespace osu.Game.Skinning
             metadata.Write(json);
         }
 
-        private readonly object gameplayPackagePrepareGate = new object();
+        private readonly object gameplayPackagePrepareGate = new();
 
         internal GameplaySkinPreparedPackage? PreparedGameplaySkinPackage { get; private set; }
 
@@ -111,6 +111,24 @@ namespace osu.Game.Skinning
         public IReadOnlyList<GameplaySkinOptionDefinition> GameplayOptions => PreparedGameplaySkinManifest?.Options ?? Array.Empty<GameplaySkinOptionDefinition>();
 
         public IReadOnlyList<GameplaySkinAuthorLayout> GameplayLayouts => PreparedGameplaySkinManifest?.AuthorLayouts ?? Array.Empty<GameplaySkinAuthorLayout>();
+
+        /// <summary>Freezes one selected combination for a new gameplay root, without changing this skin or an active root.</summary>
+        public GameplaySkinContentSelection PrepareGameplaySkinContent(GameplaySkinOptionValues options, CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(options);
+            GameplaySkinPreparedPackage package = PrepareGameplaySkinPackage(cancellationToken);
+            GameplaySkinPreparedPackage selected = package.Select(options, cancellationToken);
+            return new GameplaySkinContentSelection(this, options, selected, selected.MaterialDocument ?? GameplaySkinDocument);
+        }
+
+        public GameplaySkinDocument GetGameplaySkinDocument(GameplaySkinLayoutContext context)
+        {
+            ArgumentNullException.ThrowIfNull(context);
+            if (context.ContentSelection == null)
+                return GameplaySkinDocument;
+            context.ContentSelection.ValidateOwner(this);
+            return context.ContentSelection.MaterialDocument;
+        }
 
         internal GameplaySkinPreparedPackage PrepareGameplaySkinPackage(CancellationToken cancellationToken)
         {
@@ -221,14 +239,14 @@ namespace osu.Game.Skinning
 
             if (captured == null)
             {
-                bytes = Array.Empty<byte>();
+                bytes = [];
                 return false;
             }
 
             if (captured.Length > maximumBytes)
                 throw new InvalidDataException("A gameplay scene resource exceeds its prepared byte budget.");
 
-            bytes = captured.ToArray();
+            bytes = [.. captured];
             return true;
         }
 
@@ -337,7 +355,7 @@ namespace osu.Game.Skinning
         }
 
         private static SkinInfo createDetachedInfoSnapshot(SkinInfo source)
-            => new SkinInfo
+            => new()
             {
                 ID = source.ID,
                 Name = source.Name,
@@ -424,7 +442,7 @@ namespace osu.Game.Skinning
             if (!LayoutInfos.TryGetValue(targetContainer.Lookup.Lookup, out var layoutInfo))
                 layoutInfos[targetContainer.Lookup.Lookup] = layoutInfo = new SkinLayoutInfo();
 
-            layoutInfo.Update(targetContainer.Lookup.Ruleset, ((ISerialisableDrawableContainer)targetContainer).CreateSerialisedInfo().ToArray());
+            layoutInfo.Update(targetContainer.Lookup.Ruleset, [.. ((ISerialisableDrawableContainer)targetContainer).CreateSerialisedInfo()]);
         }
 
         public virtual Drawable? GetDrawableComponent(ISkinComponentLookup lookup)
@@ -488,7 +506,7 @@ namespace osu.Game.Skinning
                     return null;
 
                 layout = new SkinLayoutInfo { Version = 0 };
-                layout.Update(null, deserializedContent.ToArray());
+                layout.Update(null, [.. deserializedContent]);
 
                 Logger.Log($"Ferrying {deserializedContent.Count()} components in {target} to global section of new {nameof(SkinLayoutInfo)} format");
             }
@@ -503,7 +521,7 @@ namespace osu.Game.Skinning
                 foreach (var di in kvp.Value)
                 {
                     if (!isValidDrawable(di))
-                        layout.DrawableInfo[kvp.Key] = kvp.Value.Where(i => i.Type != di.Type).ToArray();
+                        layout.DrawableInfo[kvp.Key] = [.. kvp.Value.Where(i => i.Type != di.Type)];
                 }
             }
 
@@ -542,14 +560,14 @@ namespace osu.Game.Skinning
                         c.Type.Name == nameof(DefaultComboCounter) ||
                         c.Type.Name == nameof(ArgonComboCounter)).ToArray();
 
-                    layout.Update(null, globalHUDComponents.Except(comboCounters).ToArray());
+                    layout.Update(null, [.. globalHUDComponents.Except(comboCounters)]);
 
                     resources.RealmAccess.Run(r =>
                     {
                         foreach (var ruleset in r.All<RulesetInfo>())
                         {
                             layout.Update(ruleset, layout.TryGetDrawableInfo(ruleset, out var rulesetHUDComponents)
-                                ? rulesetHUDComponents.Concat(comboCounters).ToArray()
+                                ? [.. rulesetHUDComponents, .. comboCounters]
                                 : comboCounters);
                         }
                     });
@@ -597,7 +615,7 @@ namespace osu.Game.Skinning
 
         public override string ToString() => $"{GetType().ReadableName()} {{ Name: {Name} }}";
 
-        private static readonly ThreadLocal<int> nested_level = new ThreadLocal<int>(() => 0);
+        private static readonly ThreadLocal<int> nested_level = new(() => 0);
 
         [Conditional("SKIN_LOOKUP_DEBUG")]
         internal static void LogLookupDebug(object callingClass, object lookup, LookupDebugType type, [CallerMemberName] string callerMethod = "")

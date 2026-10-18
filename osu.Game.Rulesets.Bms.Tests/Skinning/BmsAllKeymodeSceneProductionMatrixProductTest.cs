@@ -5,9 +5,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using NUnit.Framework;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using NUnit.Framework;
 using oms.Input;
 using osu.Framework.Graphics;
 using osu.Framework.Input.Events;
@@ -16,7 +16,6 @@ using osu.Game.Database;
 using osu.Game.Extensions;
 using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Beatmaps;
-using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Mods;
@@ -33,6 +32,15 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 {
     public partial class BmsManagedFolderSelectionProductTest
     {
+        // This matrix exercises the original gameplay owners without creating the opt-in auxiliary screen or
+        // changing the native LIFT controller. Their explicit display owners have separate production fixtures.
+        private static readonly IReadOnlyList<GameplaySkinSlotDescriptor> matrix_slots = GameplaySkinSlotCatalog.All
+            .Where(descriptor => !ReferenceEquals(descriptor, GameplaySkinSlotCatalog.AuxiliaryDisplay)
+                                 && !ReferenceEquals(descriptor, GameplaySkinSlotCatalog.AuxiliaryConcentrationDisplay)
+                                 && !ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LiftFill)
+                                 && !ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LiftDecoration))
+            .ToArray();
+
         [TestCase(BmsKeymode.Key5K, BmsPlayfieldStyle.P1, "c5-matrix-5k.bms", 28)]
         [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P2, "c5-matrix-7k.bme", 28)]
         [TestCase(BmsKeymode.Key9K_Bms, BmsPlayfieldStyle.Center, "c5-matrix-9k.bms", 26)]
@@ -248,7 +256,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
                 renderer.BmsDrawable.Playfield.KeysoundStore.ClearPlaybackLogForTesting();
                 renderer.AdvanceBmsTo(movedNote.StartTime + 100);
-                _ = targetLane.OnPressed(new KeyBindingPressEvent<BmsAction>(new osu.Framework.Input.States.InputState(), targetLane.LayoutLane.Action));
+                _ = targetLane.OnPressed(new KeyBindingPressEvent<BmsAction>(new Framework.Input.States.InputState(), targetLane.LayoutLane.Action));
             });
             AddStep("assert one final LaneId owns material scene events and actual WAV", () =>
             {
@@ -340,16 +348,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
         private static string? selectedProductionOwnerIssue(ExactLayoutJourneyHost renderer, GameplaySkinSceneRuntimeHost sceneHost)
         {
-            GameplaySkinResolvedMaterialEntry[] selected = renderer.BmsLayoutProbe.Publication!.MaterialSet.Entries
-                                                                    .Where(entry => entry.Source.IsSelectedDocumentDeclaration)
-                                                                    .ToArray();
+            GameplaySkinResolvedMaterialEntry[] selected = [.. renderer.BmsLayoutProbe.Publication!.MaterialSet.Entries.Where(entry => entry.Source.IsSelectedDocumentDeclaration)];
 
             if (selected.Length == 0)
                 return "no selected author declarations";
 
-            GameplaySkinSpecialisedSceneVisual[] specialised = renderer.BmsDrawable
-                                                                       .ChildrenOfType<GameplaySkinSpecialisedSceneVisual>()
-                                                                       .ToArray();
+            GameplaySkinSpecialisedSceneVisual[] specialised = [.. renderer.BmsDrawable.ChildrenOfType<GameplaySkinSpecialisedSceneVisual>()];
 
             foreach (GameplaySkinResolvedMaterialEntry entry in selected)
             {
@@ -398,7 +402,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     continue;
                 }
 
-                GameplaySkinResolvedMaterialKey[] selectedKeys = group.Select(entry => entry.Key).ToArray();
+                GameplaySkinResolvedMaterialKey[] selectedKeys = [.. group.Select(entry => entry.Key)];
 
                 if (!specialised.Any(visual => ReferenceEquals(visual.Key.Slot, group.Key)
                                                && selectedKeys.Contains(visual.Key)
@@ -421,13 +425,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             GameplaySkinLayoutPublication publication = renderer.BmsLayoutProbe.Publication!;
             BmsGameplayLayoutSnapshot layout = publication.GetAdapter<BmsGameplayLayoutSnapshot>();
             GameplaySkinLaneTopologySnapshot topology = layout.Neutral.Context.Topology;
-            GameplaySkinSlotDescriptor[] applicable = GameplaySkinSlotCatalog.All
+            GameplaySkinSlotDescriptor[] applicable = [.. matrix_slots
                                                                       .Where(descriptor => GameplaySkinPublicSlotMaterialTargets
-                                                                          .Enumerate(descriptor, layout.Neutral).Count > 0)
-                                                                      .ToArray();
-            GameplaySkinResolvedMaterialEntry[] selected = publication.MaterialSet.Entries
-                                                                      .Where(entry => entry.Source.IsSelectedDocumentDeclaration)
-                                                                      .ToArray();
+                                                                          .Enumerate(descriptor, layout.Neutral).Count > 0)];
+            GameplaySkinResolvedMaterialEntry[] selected = [.. publication.MaterialSet.Entries.Where(entry => entry.Source.IsSelectedDocumentDeclaration)];
 
             Assert.Multiple(() =>
             {
@@ -453,12 +454,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(support!.Capabilities.HasFlag(GameplaySkinRuntimeSlotCapability.Provide), Is.True, entry.Key.ToString());
             }
 
-            GameplaySkinLaneTopologyEntry[] scratch = topology.LanesInLogicalOrder
-                                                              .Where(lane => lane.Identity.Role == GameplaySkinLaneRole.Scratch)
-                                                              .ToArray();
-            GameplaySkinLaneTopologyEntry[] special = topology.LanesInLogicalOrder
-                                                              .Where(lane => lane.Identity.Role == GameplaySkinLaneRole.SpecialKey)
-                                                              .ToArray();
+            GameplaySkinLaneTopologyEntry[] scratch = [.. topology.LanesInLogicalOrder.Where(lane => lane.Identity.Role == GameplaySkinLaneRole.Scratch)];
+            GameplaySkinLaneTopologyEntry[] special = [.. topology.LanesInLogicalOrder.Where(lane => lane.Identity.Role == GameplaySkinLaneRole.SpecialKey)];
 
             if (keymode is BmsKeymode.Key9K_Bms or BmsKeymode.Key9K_Pms)
             {
@@ -515,7 +512,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             Directory.CreateDirectory(notes);
 
             BmsGameplaySkinLaneTopologyProjection projection = BmsGameplaySkinLaneTopologyFactory.Create(keymode, style);
-            MatrixDeclaration[] declarations = createMatrixDeclarations(projection.Topology, everyLaneNoteOnly).ToArray();
+            MatrixDeclaration[] declarations = [.. createMatrixDeclarations(projection.Topology, everyLaneNoteOnly)];
             string keymodeId = getKeymodeId(keymode);
             string stageMode = projection.Topology.GroupsInLogicalOrder.Count == 2 ? "dual" : "single";
             var common = new StringBuilder();
@@ -571,7 +568,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 yield break;
             }
 
-            foreach (GameplaySkinSlotDescriptor descriptor in GameplaySkinSlotCatalog.All)
+            foreach (GameplaySkinSlotDescriptor descriptor in matrix_slots)
             {
                 if ((descriptor.AllowedScopes & GameplaySkinSlotScope.Global) != 0)
                 {

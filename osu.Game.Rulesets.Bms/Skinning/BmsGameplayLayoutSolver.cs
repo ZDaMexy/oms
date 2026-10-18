@@ -33,7 +33,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
         public GameplaySkinScrollDirection ScrollDirection { get; }
 
         public IReadOnlyList<GameplaySkinLayoutDiagnostic> Diagnostics
-            => Array.AsReadOnly(diagnostics ?? Array.Empty<GameplaySkinLayoutDiagnostic>());
+            => Array.AsReadOnly(diagnostics ?? []);
 
         public BmsGameplayLayoutEnvironment(
             GameplaySkinLayoutRect screenBounds,
@@ -70,7 +70,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             RenderPixelWidth = renderPixelWidth;
             RenderPixelHeight = renderPixelHeight;
             ScrollDirection = scrollDirection;
-            this.diagnostics = diagnostics?.ToArray() ?? Array.Empty<GameplaySkinLayoutDiagnostic>();
+            this.diagnostics = diagnostics?.ToArray() ?? [];
         }
 
         public static BmsGameplayLayoutEnvironment Default { get; } = new BmsGameplayLayoutEnvironment(
@@ -87,6 +87,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
     {
         public GameplaySkinAuthorLayout? AuthorLayout { get; init; }
         public GameplaySkinOptionValues? OptionValues { get; init; }
+        public GameplaySkinContentSelection? ContentSelection { get; init; }
         public float? NormalLaneRelativeWidth { get; init; }
         public float? BlackLaneRelativeWidth { get; init; }
         public float? ScratchLaneRelativeWidth { get; init; }
@@ -118,22 +119,34 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
         public static BmsGameplayLayoutConfiguration FromSkin(
             ISkin? skin, BmsKeymode keymode, ISkin? selectedLayoutSkin,
-            GameplaySkinAuthorLayout? authorLayout = null, GameplaySkinOptionValues? optionValues = null)
+            GameplaySkinAuthorLayout? authorLayout = null, GameplaySkinOptionValues? optionValues = null,
+            GameplaySkinContentSelection? contentSelection = null)
         {
             if (skin == null)
                 return new BmsGameplayLayoutConfiguration();
+
+            BmsSkinConfiguration? selectedConfiguration = null;
+            bool hasSelectedDocument = contentSelection != null && selectedLayoutSkin is Skin selectedSource
+                && !ReferenceEquals(contentSelection.MaterialDocument, selectedSource.GameplaySkinDocument);
+            if (hasSelectedDocument)
+            {
+                var decoder = new BmsSkinDecoder();
+                decoder.Parse(contentSelection!.MaterialDocument);
+                selectedConfiguration = decoder.Configurations.SingleOrDefault(configuration => configuration.Keymode == keymode);
+            }
 
             return new BmsGameplayLayoutConfiguration
             {
                 AuthorLayout = authorLayout,
                 OptionValues = optionValues,
+                ContentSelection = contentSelection,
                 BlackLaneRelativeWidth = selectedLayoutValue(BmsSkinConfigurationLookups.BlackLaneWidth),
-                NormalLaneRelativeWidth = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.NormalLaneWidth, keymode)?.Value,
-                ScratchLaneRelativeWidth = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.ScratchLaneWidth, keymode)?.Value,
-                NormalLaneRelativeSpacing = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.NormalLaneSpacing, keymode)?.Value,
-                ScratchLaneRelativeSpacing = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.ScratchLaneSpacing, keymode)?.Value,
-                PlayfieldWidth = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.PlayfieldWidth, keymode)?.Value,
-                PlayfieldHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.PlayfieldHeight, keymode)?.Value,
+                NormalLaneRelativeWidth = selectedContentValue(BmsSkinConfigurationLookups.NormalLaneWidth),
+                ScratchLaneRelativeWidth = selectedContentValue(BmsSkinConfigurationLookups.ScratchLaneWidth),
+                NormalLaneRelativeSpacing = selectedContentValue(BmsSkinConfigurationLookups.NormalLaneSpacing),
+                ScratchLaneRelativeSpacing = selectedContentValue(BmsSkinConfigurationLookups.ScratchLaneSpacing),
+                PlayfieldWidth = selectedContentValue(BmsSkinConfigurationLookups.PlayfieldWidth),
+                PlayfieldHeight = selectedContentValue(BmsSkinConfigurationLookups.PlayfieldHeight),
                 PlayfieldSideInset = selectedLayoutValue(BmsSkinConfigurationLookups.PlayfieldSideInset),
                 LaneSidePadding = selectedLayoutValue(BmsSkinConfigurationLookups.LaneSidePadding),
                 DualStageGap = selectedLayoutValue(BmsSkinConfigurationLookups.DualStageGap),
@@ -144,21 +157,23 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 BgaHeight = selectedLayoutValue(BmsSkinConfigurationLookups.BgaHeight),
                 BgaVerticalPosition = selectedLayoutValue(BmsSkinConfigurationLookups.BgaVerticalPosition),
                 BgaInformationHeight = selectedLayoutValue(BmsSkinConfigurationLookups.BgaInformationHeight),
-                BgaLayout = (selectedLayoutSkin as BmsLegacySkin)?.GetAcceptedBgaLayout(keymode),
-                BgaLayoutDiagnostic = (selectedLayoutSkin as BmsLegacySkin)?.GetBgaLayoutDiagnostic(keymode),
-                BgaLayoutP1 = (selectedLayoutSkin as BmsLegacySkin)?.GetAcceptedBgaLayout(keymode, BmsPlayfieldStyle.P1),
-                BgaLayoutP1Diagnostic = (selectedLayoutSkin as BmsLegacySkin)?.GetBgaLayoutDiagnostic(keymode, BmsPlayfieldStyle.P1),
-                BgaLayoutP2 = (selectedLayoutSkin as BmsLegacySkin)?.GetAcceptedBgaLayout(keymode, BmsPlayfieldStyle.P2),
-                BgaLayoutP2Diagnostic = (selectedLayoutSkin as BmsLegacySkin)?.GetBgaLayoutDiagnostic(keymode, BmsPlayfieldStyle.P2),
-                HitTargetHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetHeight, keymode)?.Value,
-                HitTargetBarHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetBarHeight, keymode)?.Value,
-                HitTargetLineHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetLineHeight, keymode)?.Value,
-                HitTargetGlowRadius = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.HitTargetGlowRadius, keymode)?.Value,
-                BarLineHeight = skin.GetBmsSkinConfig<float>(BmsSkinConfigurationLookups.BarLineHeight, keymode)?.Value,
+                BgaLayout = hasSelectedDocument ? selectedConfiguration?.BgaLayout : (selectedLayoutSkin as BmsLegacySkin)?.GetAcceptedBgaLayout(keymode),
+                BgaLayoutDiagnostic = hasSelectedDocument ? selectedConfiguration?.BgaLayoutDiagnostic : (selectedLayoutSkin as BmsLegacySkin)?.GetBgaLayoutDiagnostic(keymode),
+                BgaLayoutP1 = hasSelectedDocument ? selectedConfiguration?.BgaLayoutP1 : (selectedLayoutSkin as BmsLegacySkin)?.GetAcceptedBgaLayout(keymode, BmsPlayfieldStyle.P1),
+                BgaLayoutP1Diagnostic = hasSelectedDocument ? selectedConfiguration?.BgaLayoutP1Diagnostic : (selectedLayoutSkin as BmsLegacySkin)?.GetBgaLayoutDiagnostic(keymode, BmsPlayfieldStyle.P1),
+                BgaLayoutP2 = hasSelectedDocument ? selectedConfiguration?.BgaLayoutP2 : (selectedLayoutSkin as BmsLegacySkin)?.GetAcceptedBgaLayout(keymode, BmsPlayfieldStyle.P2),
+                BgaLayoutP2Diagnostic = hasSelectedDocument ? selectedConfiguration?.BgaLayoutP2Diagnostic : (selectedLayoutSkin as BmsLegacySkin)?.GetBgaLayoutDiagnostic(keymode, BmsPlayfieldStyle.P2),
+                HitTargetHeight = selectedContentValue(BmsSkinConfigurationLookups.HitTargetHeight),
+                HitTargetBarHeight = selectedContentValue(BmsSkinConfigurationLookups.HitTargetBarHeight),
+                HitTargetLineHeight = selectedContentValue(BmsSkinConfigurationLookups.HitTargetLineHeight),
+                HitTargetGlowRadius = selectedContentValue(BmsSkinConfigurationLookups.HitTargetGlowRadius),
+                BarLineHeight = selectedContentValue(BmsSkinConfigurationLookups.BarLineHeight),
             };
 
             float? selectedLayoutValue(BmsSkinConfigurationLookups field)
             {
+                if (hasSelectedDocument)
+                    return selectedConfiguration?.Geometry.TryGetValue(field, out float value) == true ? value : null;
                 // New layout choices are opt-in declarations of the selected package. An absent declaration must
                 // not inherit the installation skin's controller or enlarged BGA through the aggregate source.
                 if (selectedLayoutSkin is BmsLegacySkin selected)
@@ -169,6 +184,10 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
                 return selectedLayoutSkin?.GetBmsSkinConfig<float>(field, keymode)?.Value;
             }
+
+            float? selectedContentValue(BmsSkinConfigurationLookups field)
+                => hasSelectedDocument ? selectedLayoutValue(field)
+                    : skin.GetBmsSkinConfig<float>(field, keymode)?.Value;
         }
     }
 
@@ -396,11 +415,10 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 neutralLanes[lane.LaneIndex] = new GameplaySkinLayoutLane(entry, rect);
             }
 
-            GameplaySkinLayoutGroup[] groups = topology.GroupsInLogicalOrder
+            GameplaySkinLayoutGroup[] groups = [.. topology.GroupsInLogicalOrder
                                                                .Select(group => new GameplaySkinLayoutGroup(
                                                                    group,
-                                                                   GameplaySkinLayoutRect.Union(group.LanesInLogicalOrder.Select(lane => neutralLanes[lane.GlobalLogicalIndex].Rect))))
-                                                               .ToArray();
+                                                                   GameplaySkinLayoutRect.Union(group.LanesInLogicalOrder.Select(lane => neutralLanes[lane.GlobalLogicalIndex].Rect))))];
 
             if (keymode == BmsKeymode.Key14K && dualStageGap.HasValue)
             {
@@ -481,20 +499,21 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 layoutRevision,
                 environment.RenderPixelWidth,
                 environment.RenderPixelHeight,
-                configuration.OptionValues);
+                configuration.OptionValues,
+                configuration.ContentSelection);
 
             var surfaces = new List<GameplaySkinLayoutSurface>
             {
-                new GameplaySkinLayoutSurface(BmsGameplayLayoutSurfaceIds.Playfield, playfieldRect, 100, true, true),
-                new GameplaySkinLayoutSurface(BmsGameplayLayoutSurfaceIds.HitTarget, targetRect, 500, false, false),
-                new GameplaySkinLayoutSurface(BmsGameplayLayoutSurfaceIds.KEY_AREA, keyAreaRect, 505, false, false),
-                new GameplaySkinLayoutSurface(BmsGameplayLayoutSurfaceIds.JudgementLine, judgementLineRect, 510, false, false),
-                new GameplaySkinLayoutSurface(BmsGameplayLayoutSurfaceIds.Judgement, judgementRect, 520, false, false),
-                new GameplaySkinLayoutSurface(BmsGameplayLayoutSurfaceIds.LaneCover, playfieldRect, 600, true, false),
-                new GameplaySkinLayoutSurface(BmsGameplayLayoutSurfaceIds.PreStartPreview, playfieldRect, 550, true, false),
-                new GameplaySkinLayoutSurface(BmsGameplayLayoutSurfaceIds.Gauge, gaugeRect, 700, true, false),
-                new GameplaySkinLayoutSurface(BmsGameplayLayoutSurfaceIds.Combo, comboRect, 710, false, false),
-                new GameplaySkinLayoutSurface(BmsGameplayLayoutSurfaceIds.Hud, hudRect, 690, false, false),
+                new(BmsGameplayLayoutSurfaceIds.Playfield, playfieldRect, 100, true, true),
+                new(BmsGameplayLayoutSurfaceIds.HitTarget, targetRect, 500, false, false),
+                new(BmsGameplayLayoutSurfaceIds.KEY_AREA, keyAreaRect, 505, false, false),
+                new(BmsGameplayLayoutSurfaceIds.JudgementLine, judgementLineRect, 510, false, false),
+                new(BmsGameplayLayoutSurfaceIds.Judgement, judgementRect, 520, false, false),
+                new(BmsGameplayLayoutSurfaceIds.LaneCover, playfieldRect, 600, true, false),
+                new(BmsGameplayLayoutSurfaceIds.PreStartPreview, playfieldRect, 550, true, false),
+                new(BmsGameplayLayoutSurfaceIds.Gauge, gaugeRect, 700, true, false),
+                new(BmsGameplayLayoutSurfaceIds.Combo, comboRect, 710, false, false),
+                new(BmsGameplayLayoutSurfaceIds.Hud, hudRect, 690, false, false),
             };
 
             foreach (GameplaySkinLayoutLane lane in neutralLanes)
@@ -606,7 +625,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 return viewports;
 
             diagnostics.Add(new GameplaySkinLayoutDiagnostic("bms.layout.bga-viewports-unavailable"));
-            return Array.Empty<GameplaySkinLayoutRect>();
+            return [];
 
             bool isAvailable(GameplaySkinLayoutRect rect)
                 => safe.Contains(rect) && !rect.Intersects(controller) && !rect.Intersects(hud);
@@ -663,18 +682,18 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     float verticalInset = Math.Max(0, availableHeight / 2 - height) * verticalPosition;
                     float yTop = availableTop + verticalInset;
                     float yBottom = availableBottom - height - verticalInset;
-                    return new[]
-                    {
+                    return
+                    [
                         GameplaySkinLayoutRect.Create(xLeft, yTop, width, height),
                         GameplaySkinLayoutRect.Create(xRight, yTop, width, height),
                         GameplaySkinLayoutRect.Create(xLeft, yBottom, width, height),
                         GameplaySkinLayoutRect.Create(xRight, yBottom, width, height),
-                    };
+                    ];
                 }
 
                 bool placeLeft = style == BmsPlayfieldStyle.P2 || leftSpace > rightSpace;
                 float x = placeLeft ? safe.Left : safe.Right - width;
-                return new[] { GameplaySkinLayoutRect.Create(x, availableTop + (availableHeight - height) * verticalPosition, width, height) };
+                return [GameplaySkinLayoutRect.Create(x, availableTop + (availableHeight - height) * verticalPosition, width, height)];
             }
 
             // Extremely narrow matrices cannot fit a useful side viewport. Reserve a deterministic bottom band and
@@ -691,12 +710,12 @@ namespace osu.Game.Rulesets.Bms.Skinning
             else if (playfield.Bottom + gaugeAndGaps > availableBottom - bottomHeight)
             {
                 diagnostics.Add(new GameplaySkinLayoutDiagnostic("bms.layout.bga-no-safe-viewport"));
-                return Array.Empty<GameplaySkinLayoutRect>();
+                return [];
             }
-            return new[]
-            {
+            return
+            [
                 GameplaySkinLayoutRect.Create(safe.Left + (safe.Width - bottomWidth) / 2, availableBottom - bottomHeight, bottomWidth, bottomHeight),
-            };
+            ];
         }
 
         private static float field(float? candidate, float fallback, float minimum, float maximum, string id, ICollection<GameplaySkinLayoutDiagnostic> diagnostics)

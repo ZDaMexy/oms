@@ -29,13 +29,10 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly Container programmaticVisual;
         private readonly Circle programmaticPulse;
         private readonly Container specialisedSceneOwner;
-        private GameplaySkinSpecialisedSceneVisual? specialisedSceneVisual;
         private GameplaySkinResolvedMaterialKey? resolvedMaterialKey;
         private GameplaySkinSceneHostedSlot? sceneVisualGate;
         private IDisposable? programmaticVisualRegistration;
-        private IReadOnlyList<string> appliedSceneNodeIds = Array.Empty<string>();
         private JudgementResult? result;
-        private long? boundObjectId;
 
         public GameplaySkinResolvedMaterialSet ResolvedMaterialSet
             => materialSet ?? throw new InvalidOperationException("A compatibility BMS hit explosion has no exact C4 material publication.");
@@ -46,11 +43,11 @@ namespace osu.Game.Rulesets.Bms.UI
         public GameplaySkinSceneHostedSlot SceneVisualGate
             => sceneVisualGate ?? throw new InvalidOperationException("A compatibility BMS hit explosion has no specialised C5 visual gate.");
 
-        public IReadOnlyList<string> AppliedSceneNodeIds => appliedSceneNodeIds;
+        public IReadOnlyList<string> AppliedSceneNodeIds { get; private set; } = Array.Empty<string>();
 
-        public long? BoundObjectId => boundObjectId;
+        public long? BoundObjectId { get; private set; }
 
-        internal GameplaySkinSpecialisedSceneVisual? SpecialisedSceneVisual => specialisedSceneVisual;
+        internal GameplaySkinSpecialisedSceneVisual? SpecialisedSceneVisual { get; private set; }
 
         internal Drawable ProgrammaticVisual => programmaticVisual;
 
@@ -121,16 +118,16 @@ namespace osu.Game.Rulesets.Bms.UI
 
             if (sceneVisualGate.Route == GameplaySkinSceneHostRoute.Specialised)
             {
-                specialisedSceneVisual = sceneRuntime.PrepareSpecialisedVisual(resolvedMaterialKey, specialisedSceneOwner);
+                SpecialisedSceneVisual = sceneRuntime.PrepareSpecialisedVisual(resolvedMaterialKey, specialisedSceneOwner);
 
-                if (specialisedSceneVisual != null)
+                if (SpecialisedSceneVisual != null)
                 {
-                    appliedSceneNodeIds = Array.AsReadOnly(
-                        specialisedSceneVisual.RuntimeNodes.Select(node => node.PreparedNode.InstanceId).ToArray());
+                    AppliedSceneNodeIds = Array.AsReadOnly(
+                        SpecialisedSceneVisual.RuntimeNodes.Select(node => node.PreparedNode.InstanceId).ToArray());
                 }
             }
 
-            if (sceneVisualGate.Route == GameplaySkinSceneHostRoute.Suppressed || specialisedSceneVisual != null)
+            if (sceneVisualGate.Route == GameplaySkinSceneHostRoute.Suppressed || SpecialisedSceneVisual != null)
                 programmaticVisualRegistration = sceneRuntime.RegisterProgrammaticVisual(resolvedMaterialKey, programmaticVisual);
         }
 
@@ -138,8 +135,8 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             result = judgementResult ?? throw new ArgumentNullException(nameof(judgementResult));
             ArgumentOutOfRangeException.ThrowIfNegative(objectId);
-            boundObjectId = objectId;
-            specialisedSceneVisual?.OnApply(objectId);
+            BoundObjectId = objectId;
+            SpecialisedSceneVisual?.OnApply(objectId);
         }
 
         protected override void PrepareForUse()
@@ -147,7 +144,7 @@ namespace osu.Game.Rulesets.Bms.UI
             base.PrepareForUse();
             Alpha = 1;
 
-            if (result == null || boundObjectId == null)
+            if (result == null || BoundObjectId == null)
                 throw new InvalidOperationException("A pooled BMS hit explosion must receive one exact judgement identity before use.");
 
             LifetimeStart = Time.Current;
@@ -157,14 +154,14 @@ namespace osu.Game.Rulesets.Bms.UI
             programmaticPulse.Scale = new Vector2(0.35f);
             programmaticPulse.ScaleTo(1.6f, DURATION, Easing.OutQuint);
             programmaticPulse.FadeOut(DURATION, Easing.Out);
-            this.Delay(DURATION).Then().Expire();
+            this.Delay(SpecialisedSceneVisual?.RequestedJudgementDuration ?? DURATION).Then().Expire();
         }
 
         protected override void FreeAfterUse()
         {
-            specialisedSceneVisual?.OnFree();
+            SpecialisedSceneVisual?.OnFree();
             Alpha = 0;
-            boundObjectId = null;
+            BoundObjectId = null;
             programmaticPulse.ClearTransforms();
             programmaticPulse.Alpha = 0;
             result = null;

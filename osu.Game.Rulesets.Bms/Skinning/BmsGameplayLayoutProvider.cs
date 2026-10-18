@@ -164,10 +164,11 @@ namespace osu.Game.Rulesets.Bms.Skinning
                         selected?.GameplayOptions ?? Array.Empty<GameplaySkinOptionDefinition>(),
                         optionPreferences?.GetOverrides(owner.PackageRevision.RecordId, "bms"), "bms", keymodeId);
                     BmsPlayfieldStyle selectedStyle = ResolvePresentation(options);
+                    GameplaySkinContentSelection? content = selected?.PrepareGameplaySkinContent(options, cancellationToken);
                     GameplaySkinAuthorLayout? authorLayout = GameplaySkinAuthorLayout.Select(
-                        selected?.GameplayLayouts ?? Array.Empty<GameplaySkinAuthorLayout>(), "bms", keymodeId,
+                        content?.Manifest?.AuthorLayouts ?? selected?.GameplayLayouts ?? Array.Empty<GameplaySkinAuthorLayout>(), "bms", keymodeId,
                         BmsGameplayLayoutSolver.StyleId(selectedStyle.GetAppliedStyle(keymode)));
-                    return BmsGameplayLayoutConfiguration.FromSkin(skin, keymode, selected, authorLayout, options);
+                    return BmsGameplayLayoutConfiguration.FromSkin(skin, keymode, selected, authorLayout, options, content);
                 },
                 () => CreateProductionEnvironment(host, safeArea),
                 cancellationToken,

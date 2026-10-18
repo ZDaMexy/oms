@@ -27,10 +27,10 @@ using osu.Game.Skinning.Gameplay;
 namespace osu.Game.Rulesets.Bms.UI
 {
     [Cached]
-    public partial class BmsPlayfield : ScrollingPlayfield
+    public partial class BmsPlayfield : ScrollingPlayfield, IGameplaySkinLiftStateSource
     {
-        private readonly BindableDouble scrollLengthRatio = new BindableDouble(1);
-        private readonly Bindable<BmsGimmickScrollMode> gimmickScrollMode = new Bindable<BmsGimmickScrollMode>();
+        private readonly BindableDouble scrollLengthRatio = new(1);
+        private readonly Bindable<BmsGimmickScrollMode> gimmickScrollMode = new();
         private IBindable<double>? laneScrollLengthRatio;
 
         // BMS-side scrolling info re-cached to lanes so the stop-motion bypass can be injected without touching shared
@@ -49,7 +49,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
 #pragma warning disable IDE0032 // [Cached] must remain on a field for the dependency source generator.
         [Cached]
-        private readonly BmsKeysoundStore keysoundStore = new BmsKeysoundStore();
+        private readonly BmsKeysoundStore keysoundStore = new();
 
         public BmsKeysoundStore KeysoundStore => keysoundStore;
 #pragma warning restore IDE0032
@@ -57,6 +57,19 @@ namespace osu.Game.Rulesets.Bms.UI
         public IBindable<double> ScrollLengthRatio => scrollLengthRatio;
 
         public BindableFloat LiftUnits { get; } = new BindableFloat();
+
+        public GameplaySkinLiftState GameplaySkinLiftState
+        {
+            get
+            {
+                if (lanes.Length == 0)
+                    return default;
+                BmsHitObjectArea area = lanes[0].HitObjectArea;
+                return area.HasAppliedProjection && area.AppliedHeight > 0
+                    ? new GameplaySkinLiftState(true, area.AppliedLiftUnits, area.AppliedOffsetRatio, area.AppliedReverse)
+                    : default;
+            }
+        }
 
         public BindableDouble VisualOffset { get; } = new BindableDouble();
 
@@ -75,29 +88,32 @@ namespace osu.Game.Rulesets.Bms.UI
 
         internal IReadOnlyList<BmsBarLinePlayfield> BarLinePlayfields => barLinePlayfields;
 
+        internal IReadOnlyList<BmsLiftDisplay> LiftDisplays => liftDisplays;
+
         public int DisplayColumnCount => LaneLayout.Lanes.Count;
 
-        private BmsLane[] lanes = Array.Empty<BmsLane>();
-        private BmsBarLinePlayfield[] barLinePlayfields = Array.Empty<BmsBarLinePlayfield>();
-        private BmsGameplayLayoutGroupContainer[] groupContainers = Array.Empty<BmsGameplayLayoutGroupContainer>();
+        private BmsLane[] lanes = [];
+        private BmsBarLinePlayfield[] barLinePlayfields = [];
+        private BmsGameplayLayoutGroupContainer[] groupContainers = [];
+        private BmsLiftDisplay[] liftDisplays = [];
         private readonly BmsBeatmap beatmap;
         private bool layoutGraphInitialised;
 
         internal BmsGameplayLayoutProvider LayoutProvider { get; }
         private readonly HitResult[] gameplay_judgements =
-        {
+        [
             HitResult.Perfect,
             HitResult.Great,
             HitResult.Good,
             HitResult.Meh,
             HitResult.Miss,
             HitResult.Ok,
-        };
-        private readonly HashSet<BmsKeysoundSampleInfo> prewarmedKeysounds = new HashSet<BmsKeysoundSampleInfo>();
+        ];
+        private readonly HashSet<BmsKeysoundSampleInfo> prewarmedKeysounds = [];
 
         private Container playfieldContainer = null!;
-        private BmsPlayfieldStageFallbackVisual[] gameplaySkinStageFallbackVisuals = Array.Empty<BmsPlayfieldStageFallbackVisual>();
-        private readonly List<IDisposable> gameplaySkinSceneVisualRegistrations = new List<IDisposable>();
+        private BmsPlayfieldStageFallbackVisual[] gameplaySkinStageFallbackVisuals = [];
+        private readonly List<IDisposable> gameplaySkinSceneVisualRegistrations = [];
 
         [Resolved(CanBeNull = true)]
         private GameplaySkinSceneRuntimeHost? gameplaySkinSceneRuntime { get; set; }
@@ -199,14 +215,13 @@ namespace osu.Game.Rulesets.Bms.UI
                     throw new InvalidOperationException("A compatibility BMS playfield cannot enter an exact production root.");
             }
 
-            gameplaySkinStageFallbackVisuals = LayoutSnapshot.Neutral.Context.Topology.GroupsInLogicalOrder
+            gameplaySkinStageFallbackVisuals = [.. LayoutSnapshot.Neutral.Context.Topology.GroupsInLogicalOrder
                                                         .Select(group => new BmsPlayfieldStageFallbackVisual(
                                                             group,
                                                             LayoutSnapshot,
                                                             LaneLayout.Keymode,
                                                             DisplayColumnCount,
-                                                            gameplay_judgements))
-                                                        .ToArray();
+                                                            gameplay_judgements))];
 
             var playfieldChildren = new List<Drawable>();
             playfieldChildren.AddRange(gameplaySkinStageFallbackVisuals.Select(stage => stage.BaseplateVisual));
@@ -221,6 +236,15 @@ namespace osu.Game.Rulesets.Bms.UI
                 Masking = true,
                 Child = HitObjectContainer,
             });
+            liftDisplays = [.. LayoutSnapshot.Neutral.Context.Topology.GroupsInLogicalOrder
+                                         .Select(group => BmsLiftDisplay.TryCreate(
+                                             group,
+                                             lanes.First(lane => lane.LayoutSnapshotLane!.NeutralLane.TopologyEntry.Identity.Group.Id.Equals(group.Identity.Id)).HitObjectArea,
+                                             LayoutSnapshot,
+                                             ResolvedMaterialSet,
+                                             gameplaySkinSceneRuntime))
+                                         .OfType<BmsLiftDisplay>()];
+            playfieldChildren.AddRange(liftDisplays);
             playfieldChildren.Add(CoverContainer);
             playfieldChildren.AddRange(gameplaySkinStageFallbackVisuals.Select(stage => stage.JudgementVisual));
             playfieldChildren.AddRange(gameplaySkinStageFallbackVisuals.Select(stage => stage.JudgementPooler));
@@ -293,6 +317,13 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             base.LoadComplete();
             NewResult += OnNewResult;
+        }
+
+        protected override void UpdateAfterChildren()
+        {
+            base.UpdateAfterChildren();
+            foreach (BmsLiftDisplay lift in liftDisplays)
+                lift.RefreshProjection();
         }
 
         protected override void Dispose(bool isDisposing)
@@ -496,11 +527,9 @@ namespace osu.Game.Rulesets.Bms.UI
                 throw new InvalidOperationException("The BMS playfield material set does not retain its exact layout publication.");
 
             LaneLayout = snapshot.LaneLayout;
-            lanes = LaneLayout.Lanes.Select(createLane).ToArray();
-            barLinePlayfields = LayoutSnapshot.Neutral.GroupsInLogicalOrder
-                                                  .Select(group => new BmsBarLinePlayfield(group, LayoutSnapshot, ResolvedMaterialSet, LiftUnits))
-                                                  .ToArray();
-            groupContainers = LayoutSnapshot.Neutral.GroupsInLogicalOrder.Select(createGroupContainer).ToArray();
+            lanes = [.. LaneLayout.Lanes.Select(createLane)];
+            barLinePlayfields = [.. LayoutSnapshot.Neutral.GroupsInLogicalOrder.Select(group => new BmsBarLinePlayfield(group, LayoutSnapshot, ResolvedMaterialSet, LiftUnits))];
+            groupContainers = [.. LayoutSnapshot.Neutral.GroupsInLogicalOrder.Select(createGroupContainer)];
 
             if (lanes.Length > 0)
             {
@@ -651,7 +680,7 @@ namespace osu.Game.Rulesets.Bms.UI
             GameplaySkinLayoutRect rect,
             GameplaySkinLayoutRect parent,
             Drawable child)
-            => new Container
+            => new()
             {
                 Anchor = Anchor.TopLeft,
                 Origin = Anchor.TopLeft,

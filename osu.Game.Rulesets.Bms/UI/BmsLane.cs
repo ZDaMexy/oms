@@ -44,7 +44,7 @@ namespace osu.Game.Rulesets.Bms.UI
         internal const int MAXIMUM_NOTE_POOL_SIZE = 256;
         internal const int MAXIMUM_BODY_TICK_POOL_SIZE = 512;
 
-        internal readonly Bindable<BmsAction> Action = new Bindable<BmsAction>();
+        internal readonly Bindable<BmsAction> Action = new();
 
         public int LaneIndex { get; }
 
@@ -62,16 +62,16 @@ namespace osu.Game.Rulesets.Bms.UI
 
         internal Drawable GameplaySkinLaneDividerFallbackVisual => laneDividerVisual;
 
-        public Container PreviewContainer => hitObjectArea.PreviewContainer;
+        public Container PreviewContainer => HitObjectArea.PreviewContainer;
+        internal BmsHitObjectArea HitObjectArea { get; }
 
-        public IBindable<double> ScrollLengthRatio => hitObjectArea.ScrollLengthRatio;
+        public IBindable<double> ScrollLengthRatio => HitObjectArea.ScrollLengthRatio;
 
         protected BmsPlayfieldLayoutProfile LayoutProfile { get; }
 
         private readonly BmsOrderedHitPolicy hitPolicy;
         private readonly int laneCount;
         private readonly BmsKeymode keymode;
-        private readonly BmsHitObjectArea hitObjectArea;
         private readonly SkinnableDrawable laneSurfaceVisual;
         private readonly SkinnableDrawable laneDividerVisual;
         private readonly DrawablePool<BmsPoolableHitExplosion> hitExplosionPool;
@@ -148,7 +148,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 RelativeSizeAxes = Axes.Both,
                 CentreComponent = false,
             };
-            hitObjectArea = createHitObjectArea();
+            HitObjectArea = createHitObjectArea();
 
             HitExplosionPoolCapacity = GameplaySkinPreparedSceneBudgets.MAX_HIT_EXPLOSION_VISUALS_PER_KEY;
 
@@ -206,10 +206,10 @@ namespace osu.Game.Rulesets.Bms.UI
                 hitExplosionPool,
                 laneSurfaceVisual,
                 laneDividerVisual,
-                hitObjectArea,
+                HitObjectArea,
             });
 
-            HitTarget = hitObjectArea.HitTarget;
+            HitTarget = HitObjectArea.HitTarget;
         }
 
         internal int HitExplosionPoolCapacity { get; }
@@ -268,7 +268,7 @@ namespace osu.Game.Rulesets.Bms.UI
             }
 
             protected override BmsPoolableHitExplosion CreateNewDrawable()
-                => new BmsPoolableHitExplosion(layout, materials, lane);
+                => new(layout, materials, lane);
         }
 
         [BackgroundDependencyLoader(true)]
@@ -311,7 +311,7 @@ namespace osu.Game.Rulesets.Bms.UI
             }
 
             protected override DrawableBmsHitObject CreateNewDrawable()
-                => new DrawableBmsHitObject(new BmsHitObject
+                => new(new BmsHitObject
                 {
                     Keymode = layout.Keymode,
                     LaneIndex = lane.LogicalIndex,
@@ -334,7 +334,7 @@ namespace osu.Game.Rulesets.Bms.UI
             }
 
             protected override DrawableBmsHoldNote CreateNewDrawable()
-                => new DrawableBmsHoldNote(new BmsHoldNote
+                => new(new BmsHoldNote
                 {
                     Keymode = layout.Keymode,
                     LaneIndex = lane.LogicalIndex,
@@ -357,7 +357,7 @@ namespace osu.Game.Rulesets.Bms.UI
             }
 
             protected override DrawableBmsHoldNoteHead CreateNewDrawable()
-                => new DrawableBmsHoldNoteHead(new BmsHoldNoteHead
+                => new(new BmsHoldNoteHead
                 {
                     Keymode = layout.Keymode,
                     LaneIndex = lane.LogicalIndex,
@@ -380,7 +380,7 @@ namespace osu.Game.Rulesets.Bms.UI
             }
 
             protected override DrawableBmsHoldNoteTail CreateNewDrawable()
-                => new DrawableBmsHoldNoteTail(new BmsHoldNoteTailEvent
+                => new(new BmsHoldNoteTailEvent
                 {
                     Keymode = layout.Keymode,
                     LaneIndex = lane.LogicalIndex,
@@ -396,7 +396,7 @@ namespace osu.Game.Rulesets.Bms.UI
             }
 
             protected override DrawableBmsHoldNoteBodyTick CreateNewDrawable()
-                => new DrawableBmsHoldNoteBodyTick(new BmsHoldNoteBodyTick());
+                => new(new BmsHoldNoteBodyTick());
         }
 
         private sealed partial class ExactMinePool : DrawablePool<DrawableBmsMine>
@@ -414,11 +414,11 @@ namespace osu.Game.Rulesets.Bms.UI
             }
 
             protected override DrawableBmsMine CreateNewDrawable()
-                => new DrawableBmsMine(new BmsMine { LaneIndex = lane.LogicalIndex }, layout, materials, lane);
+                => new(new BmsMine { LaneIndex = lane.LogicalIndex }, layout, materials, lane);
         }
 
         protected BmsLaneSkinLookup createLookup(BmsLaneSkinElements element, bool isMajorBarLine = true)
-            => new BmsLaneSkinLookup(
+            => new(
                 element,
                 LaneIndex,
                 laneCount,
@@ -429,10 +429,10 @@ namespace osu.Game.Rulesets.Bms.UI
                 element == BmsLaneSkinElements.HitTarget ? LayoutProfile : null,
                 element == BmsLaneSkinElements.HitTarget ? LayoutSnapshot : null);
 
-        protected virtual BmsHitTarget createHitTarget() => new BmsHitTarget(createLookup(BmsLaneSkinElements.HitTarget), LayoutProfile, LayoutSnapshot);
+        protected virtual BmsHitTarget createHitTarget() => new(createLookup(BmsLaneSkinElements.HitTarget), LayoutProfile, LayoutSnapshot);
 
         protected virtual BmsHitObjectArea createHitObjectArea()
-            => new BmsHitObjectArea(createHitTarget(), LayoutProfile, HitObjectContainer, liftUnits, LayoutSnapshot)
+            => new(createHitTarget(), LayoutProfile, HitObjectContainer, liftUnits, LayoutSnapshot)
             {
                 RelativeSizeAxes = Axes.Both,
             };

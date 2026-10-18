@@ -53,6 +53,7 @@ namespace osu.Game.Skinning.Gameplay
         public IReadOnlyList<GameplaySkinSceneRuntimeNode> RuntimeNodes { get; }
 
         public IReadOnlyList<Drawable> RootDrawables { get; }
+        public double? RequestedJudgementDuration { get; }
 
         public bool IsApplied { get; private set; }
 
@@ -71,7 +72,12 @@ namespace osu.Game.Skinning.Gameplay
             this.host = host;
             Key = key;
             RuntimeNodes = Array.AsReadOnly(runtimeNodes.ToArray());
-            Drawable[] copiedRoots = roots.ToArray();
+            foreach (GameplaySkinSceneRuntimeNode node in RuntimeNodes)
+                node.IsAnimationActive = false;
+            double duration = RuntimeNodes.Select(node => node.ContentDrawable).OfType<GameplaySkinRecordedAnimationDrawable>()
+                .Where(animation => animation.Program.Trigger == "judgement.hit").Select(animation => animation.Program.Duration).DefaultIfEmpty(0).Max();
+            RequestedJudgementDuration = duration > 0 ? duration : null;
+            Drawable[] copiedRoots = [.. roots];
             RootDrawables = Array.AsReadOnly(copiedRoots);
             RelativeSizeAxes = Axes.Both;
             Alpha = 0;
@@ -164,13 +170,13 @@ namespace osu.Game.Skinning.Gameplay
     public partial class GameplaySkinSceneRuntimeHost
     {
         private readonly Dictionary<GameplaySkinResolvedMaterialKey, int> specialisedVisualCounts =
-            new Dictionary<GameplaySkinResolvedMaterialKey, int>();
+            [];
 
         private readonly HashSet<GameplaySkinSpecialisedSceneVisual> specialisedVisuals =
-            new HashSet<GameplaySkinSpecialisedSceneVisual>();
+            [];
 
         private readonly HashSet<GameplaySkinResolvedMaterialKey> failedSpecialisedKeys =
-            new HashSet<GameplaySkinResolvedMaterialKey>();
+            [];
 
         private long nextSpecialisedVisualId;
 
@@ -318,7 +324,7 @@ namespace osu.Game.Skinning.Gameplay
                 return;
 
             rollbackSpecialisedNodes(visual.RuntimeNodes);
-            int untrackedInstances = visual.RuntimeInstanceCost - visual.RuntimeNodes.Count;
+            int untrackedInstances = visual.RuntimeInstanceCost - visual.RuntimeNodes.Sum(node => runtimeInstanceCost(node.PreparedNode));
 
             if (untrackedInstances > 0)
                 RuntimeInstanceCount = Math.Max(0, RuntimeInstanceCount - untrackedInstances);
@@ -354,7 +360,7 @@ namespace osu.Game.Skinning.Gameplay
                 || prepared.Slot != null && !ReferenceEquals(prepared.Slot, key.Slot))
                 throw new InvalidOperationException("A specialised subtree cannot cross its exact target or public-slot ownership boundary.");
 
-            if (RuntimeInstanceCount >= GameplaySkinPreparedSceneBudgets.MAX_RUNTIME_INSTANCES)
+            if (RuntimeInstanceCount + runtimeInstanceCost(prepared) > GameplaySkinPreparedSceneBudgets.MAX_RUNTIME_INSTANCES)
                 throw new InvalidOperationException("The specialised visual exceeds the runtime instance budget.");
 
             Drawable content = createNodeContent(prepared);
@@ -388,10 +394,10 @@ namespace osu.Game.Skinning.Gameplay
                 string runtimeId = $"specialised.{visualId}/{prepared.InstanceId}";
                 var runtime = new GameplaySkinSceneRuntimeNode(prepared, root, content, transform, runtimeId, $"specialised.{visualId}");
                 runtimeNodes.Add(runtimeId, runtime);
-                RuntimeInstanceCount++;
+                RuntimeInstanceCount += runtimeInstanceCost(prepared);
 
                 if (!runtimeNodesBySourceId.TryGetValue(prepared.Source.Id, out List<GameplaySkinSceneRuntimeNode>? bySource))
-                    runtimeNodesBySourceId.Add(prepared.Source.Id, bySource = new List<GameplaySkinSceneRuntimeNode>());
+                    runtimeNodesBySourceId.Add(prepared.Source.Id, bySource = []);
 
                 bySource.Add(runtime);
                 nodes.Add(runtime);
@@ -438,8 +444,7 @@ namespace osu.Game.Skinning.Gameplay
                         runtimeNodesBySourceId.Remove(node.PreparedNode.Source.Id);
                 }
 
-                if (RuntimeInstanceCount > 0)
-                    RuntimeInstanceCount--;
+                RuntimeInstanceCount = Math.Max(0, RuntimeInstanceCount - runtimeInstanceCost(node.PreparedNode));
             }
         }
 
@@ -460,15 +465,13 @@ namespace osu.Game.Skinning.Gameplay
             if (!failedSpecialisedKeys.Add(key))
                 return;
 
-            GameplaySkinSpecialisedSceneVisual[] failedVisuals = specialisedVisuals
-                                                                  .Where(visual => visual.Key.Equals(key))
-                                                                  .ToArray();
+            GameplaySkinSpecialisedSceneVisual[] failedVisuals = [.. specialisedVisuals.Where(visual => visual.Key.Equals(key))];
 
             foreach (GameplaySkinSpecialisedSceneVisual visual in failedVisuals)
             {
                 specialisedVisuals.Remove(visual);
                 rollbackSpecialisedNodes(visual.RuntimeNodes);
-                int untrackedInstances = visual.RuntimeInstanceCost - visual.RuntimeNodes.Count;
+                int untrackedInstances = visual.RuntimeInstanceCost - visual.RuntimeNodes.Sum(node => runtimeInstanceCost(node.PreparedNode));
 
                 if (untrackedInstances > 0)
                     RuntimeInstanceCount = Math.Max(0, RuntimeInstanceCount - untrackedInstances);
@@ -508,6 +511,7 @@ namespace osu.Game.Skinning.Gameplay
             foreach (GameplaySkinSceneRuntimeNode node in visual.RuntimeNodes)
             {
                 node.BoundObjectId = objectId;
+                node.IsAnimationActive = true;
                 node.JudgementAnimationStart = judgement?.AppliedTime;
                 node.JudgementAnimationEpoch = epoch;
             }
@@ -525,6 +529,7 @@ namespace osu.Game.Skinning.Gameplay
             foreach (GameplaySkinSceneRuntimeNode node in visual.RuntimeNodes)
             {
                 node.BoundObjectId = null;
+                node.IsAnimationActive = false;
                 node.JudgementAnimationStart = null;
                 node.JudgementAnimationEpoch = null;
             }

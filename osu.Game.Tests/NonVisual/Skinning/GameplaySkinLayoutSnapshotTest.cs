@@ -785,10 +785,11 @@ namespace osu.Game.Tests.NonVisual.Skinning
 
             Assert.Multiple(() =>
             {
-                Assert.That(capabilities.Support, Has.Count.EqualTo(28));
+                Assert.That(capabilities.Support, Has.Count.EqualTo(32));
                 Assert.That(resolution.Entries, Has.Count.EqualTo(93));
                 Assert.That(resolution.Entries.Select(entry => entry.Key), Is.Unique);
-                Assert.That(resolution.Entries.Select(entry => entry.Slot).Distinct(), Is.EquivalentTo(GameplaySkinSlotCatalog.All));
+                Assert.That(resolution.Entries.Select(entry => entry.Slot).Distinct(), Is.EquivalentTo(GameplaySkinSlotCatalog.All.Take(28)),
+                    "New optional owners require an explicit author declaration; ordinary material expansion remains unchanged.");
 
                 GameplaySkinResolvedMaterialEntry surface = materials.Entries.Single(entry =>
                     ReferenceEquals(entry.Slot, GameplaySkinSlotCatalog.LaneSurface) && entry.Target.Equals(laneTarget));
@@ -949,8 +950,8 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 Assert.That(mania.Decisions.Select(decision => decision.Descriptor), Is.EqualTo(GameplaySkinSlotCatalog.All));
                 Assert.That(bms.Decisions.Select(decision => decision.Descriptor.Id), Is.Unique);
                 Assert.That(mania.Decisions.Select(decision => decision.Descriptor.Id), Is.Unique);
-                Assert.That(bms.Capabilities.Support, Has.Count.EqualTo(28));
-                Assert.That(mania.Capabilities.Support, Has.Count.EqualTo(23));
+                Assert.That(bms.Capabilities.Support, Has.Count.EqualTo(32));
+                Assert.That(mania.Capabilities.Support, Has.Count.EqualTo(25));
                 Assert.That(mania.Decisions
                                  .Where(decision => decision.Kind == GameplaySkinRuntimeSupportDecisionKind.NotApplicable)
                                  .Select(decision => decision.Descriptor),
@@ -961,6 +962,8 @@ namespace osu.Game.Tests.NonVisual.Skinning
                         GameplaySkinSlotCatalog.Laser,
                         GameplaySkinSlotCatalog.BgaViewport,
                         GameplaySkinSlotCatalog.BgaFrame,
+                        GameplaySkinSlotCatalog.LiftFill,
+                        GameplaySkinSlotCatalog.LiftDecoration,
                     }));
             });
         }

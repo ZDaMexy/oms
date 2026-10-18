@@ -47,12 +47,12 @@ namespace osu.Game.Rulesets.Bms.Skinning
                         throw new InvalidOperationException("The selected BMS package content revision does not match its exact layout publication.");
                     }
 
-                    selectedDocument = selectedSource.GameplaySkinDocument.BindToPublication(layout.Neutral);
+                    selectedDocument = selectedSource.GetGameplaySkinDocument(layout.Neutral.Context).BindToPublication(layout.Neutral);
 
                     if (selectedDocument.Identity.SourceId != sourceBeforePrepare.SkinId
                         || !StringComparer.Ordinal.Equals(
                             selectedDocument.Identity.ContentRevision,
-                            sourceBeforePrepare.ParsedConfigurationContentHash))
+                            layout.Neutral.Context.ContentSelection?.MaterialDocument.Identity.ContentRevision ?? sourceBeforePrepare.ParsedConfigurationContentHash))
                     {
                         throw new InvalidOperationException("The selected BMS public material document does not match its exact package revision.");
                     }
@@ -82,7 +82,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
                 IReadOnlyList<ISkin> aggregateSources = skin is ISkinSource aggregate
                     ? aggregate.AllSources.ToArray()
-                    : new[] { skin };
+                    : [skin];
                 Skin? validatedCanonical = aggregateSources.Select(unwrap).OfType<Skin>()
                     .FirstOrDefault(CanonicalSkinPackage.IsCanonicalSkin);
                 var providers = new List<FinalProviderRegistration>();
@@ -319,13 +319,13 @@ namespace osu.Game.Rulesets.Bms.Skinning
         {
             string column = getFallbackColumn(layout, lane);
             string note = $"mania-note{column}";
-            string[] candidates = declaredResource != null ? new[] { declaredResource } : element switch
+            string[] candidates = declaredResource != null ? [declaredResource] : element switch
             {
-                BmsNoteSkinElements.Note => new[] { note },
-                BmsNoteSkinElements.LongNoteHead => new[] { $"{note}H", note },
-                BmsNoteSkinElements.LongNoteBody => new[] { $"{note}L" },
-                BmsNoteSkinElements.LongNoteTail => new[] { $"{note}T", $"{note}H", note },
-                _ => Array.Empty<string>(),
+                BmsNoteSkinElements.Note => [note],
+                BmsNoteSkinElements.LongNoteHead => [$"{note}H", note],
+                BmsNoteSkinElements.LongNoteBody => [$"{note}L"],
+                BmsNoteSkinElements.LongNoteTail => [$"{note}T", $"{note}H", note],
+                _ => [],
             };
 
             foreach (string candidate in candidates)
@@ -440,12 +440,12 @@ namespace osu.Game.Rulesets.Bms.Skinning
         }
 
         private static readonly BmsNoteSkinElements[] note_elements =
-        {
+        [
             BmsNoteSkinElements.Note,
             BmsNoteSkinElements.LongNoteHead,
             BmsNoteSkinElements.LongNoteBody,
             BmsNoteSkinElements.LongNoteTail,
-        };
+        ];
 
         private static readonly IReadOnlySet<GameplaySkinSlotDescriptor> specialised_descriptors =
             new HashSet<GameplaySkinSlotDescriptor>(note_elements.Select(element =>

@@ -95,9 +95,9 @@ namespace osu.Game.Rulesets.Bms.Tests
             var provider = new BmsGameplayLayoutProvider(createBeatmap(BmsKeymode.Key7K));
             var layout = provider.PublishForTesting(style, referenceLaneGeometry(4f / 440));
             float[] starts = style == BmsPlayfieldStyle.P1
-                ? new float[] { 75, 167, 221, 263, 317, 359, 413, 455 }
-                : new float[] { 1755, 1413, 1467, 1509, 1563, 1605, 1659, 1701 };
-            float[] widths = { 90, 52, 40, 52, 40, 52, 40, 52 };
+                ? [75, 167, 221, 263, 317, 359, 413, 455]
+                : [1755, 1413, 1467, 1509, 1563, 1605, 1659, 1701];
+            float[] widths = [90, 52, 40, 52, 40, 52, 40, 52];
             Assert.That(layout.PlayfieldRect.Width * 1920, Is.EqualTo(440).Within(0.001));
             GameplaySkinLayoutRect groupRect = layout.Neutral.GroupsInLogicalOrder.Single().Rect;
             Assert.That(groupRect.Left, Is.EqualTo(layout.PlayfieldRect.Left).Within(0.000001));
@@ -176,8 +176,8 @@ namespace osu.Game.Rulesets.Bms.Tests
                 NormalLaneRelativeSpacing = 2f / 52,
                 ScratchLaneRelativeSpacing = 2f / 52,
             });
-            float[] starts = { 459, 551, 605, 647, 701, 743, 797, 839, 1029, 1083, 1125, 1179, 1221, 1275, 1317, 1371 };
-            float[] widths = { 90, 52, 40, 52, 40, 52, 40, 52, 52, 40, 52, 40, 52, 40, 52, 90 };
+            float[] starts = [459, 551, 605, 647, 701, 743, 797, 839, 1029, 1083, 1125, 1179, 1221, 1275, 1317, 1371];
+            float[] widths = [90, 52, 40, 52, 40, 52, 40, 52, 52, 40, 52, 40, 52, 40, 52, 90];
             Assert.That(layout.PlayfieldRect.Left * 1920, Is.EqualTo(455).Within(0.001));
             Assert.That(layout.Neutral.GroupsInLogicalOrder.Select(group => group.Rect.Width * 1920), Is.All.EqualTo(440).Within(0.001));
             Assert.That((layout.Neutral.GroupsInLogicalOrder[1].Rect.Left - layout.Neutral.GroupsInLogicalOrder[0].Rect.Right) * 1920,
@@ -219,7 +219,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Is.EqualTo(baseline.LanesInLogicalOrder.Select(lane => lane.NeutralLane.Rect)));
         }
 
-        private static BmsGameplayLayoutConfiguration referenceLaneGeometry(float? padding) => new BmsGameplayLayoutConfiguration
+        private static BmsGameplayLayoutConfiguration referenceLaneGeometry(float? padding) => new()
         {
             PlayfieldWidth = 440f / 1920,
             PlayfieldHeight = 728f / 1080,
@@ -342,7 +342,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                     Is.EqualTo(left ? previous.KeyVisualRect.Right : previous.KeyVisualRect.Left).Within(0.00001f));
             }
 
-            BmsGameplayLayoutConfiguration configuration(float width) => new BmsGameplayLayoutConfiguration
+            BmsGameplayLayoutConfiguration configuration(float width) => new()
             {
                 PlayfieldWidth = keymode == BmsKeymode.Key14K ? 0.5f : 0.25f,
                 PlayfieldHeight = 0.70f,
@@ -372,7 +372,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 BgaVerticalPosition = 0.45f,
                 BgaInformationHeight = 0.18f,
             }, environment);
-            GameplaySkinLayoutSurface[] information = layout.Neutral.Surfaces.Where(surface => surface.Id.StartsWith("information.", StringComparison.Ordinal)).ToArray();
+            GameplaySkinLayoutSurface[] information = [.. layout.Neutral.Surfaces.Where(surface => surface.Id.StartsWith("information.", StringComparison.Ordinal))];
             Assert.That(information, Has.Length.EqualTo(4));
             foreach (GameplaySkinLayoutSurface surface in information)
             {
@@ -584,11 +584,11 @@ namespace osu.Game.Rulesets.Bms.Tests
             });
         }
 
-        [TestCase(BmsKeymode.Key5K, BmsPlayfieldStyle.P1, 93)]
-        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P1, 117)]
-        [TestCase(BmsKeymode.Key9K_Bms, BmsPlayfieldStyle.Center, 127)]
-        [TestCase(BmsKeymode.Key9K_Pms, BmsPlayfieldStyle.Center, 127)]
-        [TestCase(BmsKeymode.Key14K, BmsPlayfieldStyle.Center, 229)]
+        [TestCase(BmsKeymode.Key5K, BmsPlayfieldStyle.P1, 97)]
+        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P1, 121)]
+        [TestCase(BmsKeymode.Key9K_Bms, BmsPlayfieldStyle.Center, 131)]
+        [TestCase(BmsKeymode.Key9K_Pms, BmsPlayfieldStyle.Center, 131)]
+        [TestCase(BmsKeymode.Key14K, BmsPlayfieldStyle.Center, 235)]
         public void TestEveryPublicSlotExpandsToExactApplicableBmsTargets(
             BmsKeymode keymode,
             BmsPlayfieldStyle style,
@@ -596,20 +596,20 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             BmsGameplayLayoutSnapshot layout = new BmsGameplayLayoutProvider(createBeatmap(keymode))
                                                        .PublishForTesting(style, new BmsGameplayLayoutConfiguration());
-            GameplaySkinResolvedMaterialKey[] keys = GameplaySkinSlotCatalog.All
+            GameplaySkinResolvedMaterialKey[] keys = [.. GameplaySkinSlotCatalog.All
                                                                           .SelectMany(descriptor =>
                                                                               GameplaySkinPublicSlotMaterialTargets.Enumerate(descriptor, layout.Neutral)
-                                                                                                                   .Select(target => new GameplaySkinResolvedMaterialKey(descriptor, target)))
-                                                                          .ToArray();
+                                                                                                                   .Select(target => new GameplaySkinResolvedMaterialKey(descriptor, target)))];
 
             Assert.Multiple(() =>
             {
-                Assert.That(BmsGameplayResolvedNoteMaterialPreparer.RuntimeCapabilities.Support, Has.Count.EqualTo(28));
+                Assert.That(BmsGameplayResolvedNoteMaterialPreparer.RuntimeCapabilities.Support, Has.Count.EqualTo(32));
                 Assert.That(keys, Has.Length.EqualTo(expectedEntryCount));
                 Assert.That(keys, Is.Unique);
                 Assert.That(keys.Select(key => key.Slot).Distinct(), Is.EquivalentTo(
                     keymode is BmsKeymode.Key9K_Bms or BmsKeymode.Key9K_Pms
-                        ? GameplaySkinSlotCatalog.Common
+                        ? GameplaySkinSlotCatalog.All.Where(descriptor => !ReferenceEquals(descriptor, GameplaySkinSlotCatalog.Turntable)
+                                                                         && !ReferenceEquals(descriptor, GameplaySkinSlotCatalog.Laser))
                         : GameplaySkinSlotCatalog.All));
                 Assert.That(keys.Where(key => key.Target.Kind == GameplaySkinResolvedMaterialTargetKind.Lane)
                                 .All(key => key.Target.GroupId != null
@@ -622,9 +622,9 @@ namespace osu.Game.Rulesets.Bms.Tests
                                             && key.Target.GroupLocalVisualIndex.HasValue), Is.True);
             });
 
-            GameplaySkinResolvedMaterialKey[] scratchExtension = keys.Where(key =>
+            GameplaySkinResolvedMaterialKey[] scratchExtension = [.. keys.Where(key =>
                 ReferenceEquals(key.Slot, GameplaySkinSlotCatalog.Turntable)
-                || ReferenceEquals(key.Slot, GameplaySkinSlotCatalog.Laser)).ToArray();
+                || ReferenceEquals(key.Slot, GameplaySkinSlotCatalog.Laser))];
             int expectedScratchExtensionCount = keymode is BmsKeymode.Key9K_Bms or BmsKeymode.Key9K_Pms
                 ? 0
                 : keymode == BmsKeymode.Key14K ? 4 : 2;
@@ -632,7 +632,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             if (keymode == BmsKeymode.Key14K)
             {
-                GameplaySkinLaneTopologyGroup[] groups = layout.Neutral.Context.Topology.GroupsInLogicalOrder.ToArray();
+                GameplaySkinLaneTopologyGroup[] groups = [.. layout.Neutral.Context.Topology.GroupsInLogicalOrder];
 
                 Assert.Multiple(() =>
                 {
@@ -719,7 +719,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 BarLineHeight = 0,
             });
 
-            string[] diagnostics = snapshot.Neutral.Diagnostics.Select(diagnostic => diagnostic.Code).ToArray();
+            string[] diagnostics = [.. snapshot.Neutral.Diagnostics.Select(diagnostic => diagnostic.Code)];
 
             Assert.Multiple(() =>
             {
@@ -780,7 +780,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         private static BmsBeatmap createBeatmap(BmsKeymode keymode)
-            => new BmsBeatmap
+            => new()
             {
                 BmsInfo = new BmsBeatmapInfo { Keymode = keymode },
             };

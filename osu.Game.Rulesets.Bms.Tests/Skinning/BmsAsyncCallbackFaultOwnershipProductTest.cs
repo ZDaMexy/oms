@@ -1,6 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -608,6 +609,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             int admissionBaseline = 0;
             int skinChangedCallbacks = 0;
             int callbackBaseline = 0;
+            ISerialisableDrawable[] publishedComponents = Array.Empty<ISerialisableDrawable>();
             var sourceChangeScheduled = new ManualResetEventSlim();
             var allowSourceChangeReturn = new ManualResetEventSlim();
 
@@ -637,6 +639,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             {
                 admissionBaseline = Volatile.Read(ref admissionCount);
                 callbackBaseline = Volatile.Read(ref skinChangedCallbacks);
+                publishedComponents = host.Components.ToArray();
                 host.SkinChangeScheduledTestHook = () =>
                 {
                     sourceChangeScheduled.Set();
@@ -668,7 +671,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 {
                     Assert.That(Volatile.Read(ref admissionCount), Is.EqualTo(admissionBaseline));
                     Assert.That(Volatile.Read(ref skinChangedCallbacks), Is.EqualTo(callbackBaseline));
-                    Assert.That(host.ComponentsLoaded, Is.True);
+                    Assert.That(host.ComponentsLoaded, Is.False, "Terminal ownership cannot be offered to a late HUD routing callback.");
+                    Assert.That(host.Parent, Is.SameAs(sourceHost), "Stopping work must not impersonate visual detachment.");
+                    Assert.That(host.Components, Is.EqualTo(publishedComponents), "Already published components retain their real owner until detachment.");
                     Assert.That(isolatedManager.CurrentRevision.WorkDetached.IsCompletedSuccessfully, Is.True);
                 });
 

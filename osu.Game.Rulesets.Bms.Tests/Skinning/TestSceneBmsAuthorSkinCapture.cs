@@ -15,9 +15,7 @@ using osu.Framework.Platform;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
 using osu.Game.Database;
-using osu.Game.Extensions;
 using osu.Game.Rulesets.Bms.Beatmaps;
-using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Mods;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
@@ -80,6 +78,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             bool captureNoteGeometry = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_NOTE_GEOMETRY") == "1";
             double completionOrigin = 0;
             double completionSeekTime = 0;
+            double completionDuration = 0;
+            int[] completionFrames = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_FC_FRAMES") is string frameList
+                ? [.. frameList.Split(',').Select(int.Parse)] : [32, 60, 90, 120, 145];
             AddStep("require an isolated desktop and a local author package", () =>
             {
                 if (host is HeadlessGameHost)
@@ -119,13 +120,16 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Mod autoplay = ruleset.GetAutoplayMod()!;
                 Mod[] selectedMods = longNoteMode switch
                 {
-                    BmsLongNoteMode.LN => new[] { autoplay },
-                    BmsLongNoteMode.CN => new Mod[] { autoplay, new BmsModChargeNote() },
-                    BmsLongNoteMode.HCN => new Mod[] { autoplay, new BmsModHellChargeNote() },
+                    BmsLongNoteMode.LN => [autoplay],
+                    BmsLongNoteMode.CN => [autoplay, new BmsModChargeNote()],
+                    BmsLongNoteMode.HCN => [autoplay, new BmsModHellChargeNote()],
                     _ => throw new InvalidOperationException("The author capture long-note mode is invalid."),
                 };
-                Game.SelectedMods.Value = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_COVER") == "1"
-                    ? selectedMods.Append(new BmsModSudden()).ToArray() : selectedMods;
+                if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_COVER") == "1")
+                    selectedMods = [.. selectedMods, new BmsModSudden()];
+                if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_LIFT") == "1")
+                    selectedMods = [.. selectedMods, new BmsModLift()];
+                Game.SelectedMods.Value = selectedMods;
                 DismissAnyNotifications();
             });
             AddStep("select the author package after BMS restores its mode preference", () =>
@@ -133,6 +137,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddUntilStep("wait for the exact imported skin selection", () =>
             {
                 var skins = Game.Dependencies.Get<SkinManager>();
+                Assert.That(skins.LastSelectionRejectionReason, Is.EqualTo(SkinSelectionRejectionReason.None));
                 return skins.CurrentSkin.Value.SkinInfo.ID == import!.GetAwaiter().GetResult().ID;
             });
             AddStep("enter the real replay player", () =>
@@ -176,6 +181,28 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     })));
                 Assert.That(renderer.GameplaySkinSceneRuntime.MaterialSet.Diagnostics, Is.Empty,
                     "A component fallback must not be reported as a successful author-package capture.");
+                GameplaySkinOptionValues publishedOptions = owner.CurrentPublication!.Snapshot.Context.OptionValues;
+                File.WriteAllText(Path.Combine(outputDirectory, "options.json"), System.Text.Json.JsonSerializer.Serialize(
+                    publishedOptions.Values.ToDictionary(pair => pair.Key, pair => pair.Value.CanonicalValue)));
+                if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_OPTIONS") is string requestedOptions)
+                    foreach (var requested in System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, string>>(requestedOptions)!)
+                    {
+                        GameplaySkinOptionDefinition definition = skins.CurrentSkin.Value.PreparedGameplaySkinPackage!.Manifest!.Options.Single(option => option.Id == requested.Key);
+                        Assert.That(definition.TryValidateValue(requested.Value, out GameplaySkinOptionValue expected), Is.True, requested.Key);
+                        Assert.That(publishedOptions.TryGetValue(requested.Key, out GameplaySkinOptionValue actual), Is.True, requested.Key);
+                        Assert.That(actual.CanonicalValue, Is.EqualTo(expected.CanonicalValue), requested.Key);
+                    }
+                if (owner.CurrentPublication!.Snapshot.Context.OptionValues.TryGetValue("frame", out _))
+                {
+                    GameplaySkinResolvedMaterialEntry[] information = renderer.GameplaySkinSceneRuntime.MaterialSet.Entries
+                        .Where(entry => entry.State == GameplaySkinResolvedMaterialState.Provide
+                                        && entry.Material is GameplaySkinPublicSlotMaterial { ResourceName: { } resource }
+                                        && resource.StartsWith("markers/frame-", StringComparison.Ordinal)
+                                        && resource.EndsWith("-information", StringComparison.Ordinal)).ToArray();
+                    Assert.That(information, Has.Length.EqualTo(1));
+                    Assert.That(information[0].Target.Kind, Is.EqualTo(GameplaySkinResolvedMaterialTargetKind.Global),
+                        "Frame information must not be inherited and redrawn inside stages, groups or lanes.");
+                }
 
                 OsuGameBase? outer = null;
                 for (Drawable? ancestor = Parent; ancestor != null; ancestor = ancestor.Parent)
@@ -209,17 +236,17 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 });
                 AddStep("capture the original effect beyond its lane and judgement line", () =>
                 {
-                    if (captureNoteGeometry)
-                        recordAndAssertNoteGeometry("hit");
                     string prefix = doublePlay ? "14k" : style.ToString().ToLowerInvariant();
                     File.WriteAllText(Path.Combine(outputDirectory, "hit-phase.json"),
                         System.Text.Json.JsonSerializer.Serialize(new { gameplayTime = renderer.GameplaySkinEventRuntime!.AuthoritativeGameplayTime, phase = frozenHitPhase }));
                     capture = saveCapture($"{prefix}-hit-middle.png");
                 });
                 AddUntilStep("wait for the judgement frame PNG", () => capture?.IsCompleted == true);
-                AddStep("resume the same complete chart", () =>
+                AddStep("verify the frozen note geometry and resume the same complete chart", () =>
                 {
                     capture!.GetAwaiter().GetResult();
+                    if (captureNoteGeometry)
+                        recordAndAssertNoteGeometry("hit");
                     gameplayClock.Start();
                 });
             }
@@ -251,15 +278,21 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     subscription.DrainFrame(envelope => completion = ((GameplaySkinStateEventPayload)envelope.Payload).State.Completion);
                     Assert.That(completion?.IsFullCombo, Is.True);
                     completionOrigin = completion!.Value.AppliedTime;
-                    Assert.That(renderer.GameplaySkinSceneRuntime!.GetCompletionOutroDuration(true), Is.EqualTo(2500));
+                    completionDuration = renderer.GameplaySkinSceneRuntime!.GetCompletionOutroDuration(true);
+                    Assert.That(completionDuration, Is.InRange(2500, 3500));
+                    double[] recordedDurations = [.. renderer.GameplaySkinSceneRuntime.PreparedScene.RecordedAnimations.Values
+                        .Where(program => program.Trigger == "gameplay.complete").Select(program => program.Duration).Distinct()];
+                    if (recordedDurations.Length != 0)
+                        Assert.That(recordedDurations, Is.EqualTo(new[] { completionDuration }));
                     gameplayClock.Stop();
                 });
-                foreach (int frame in new[] { 32, 60, 90, 120, 145 })
+                foreach (int frame in completionFrames)
                 {
                     int sourceFrame = frame;
                     AddStep($"seek the real completed replay to full-combo frame {sourceFrame}", () =>
                     {
                         completionSeekTime = completionOrigin + (sourceFrame - 1) * 1000.0 / 60 + 0.01;
+                        Assert.That(completionSeekTime - completionOrigin, Is.InRange(0, completionDuration - 0.001));
                         gameplayClock.Seek(completionSeekTime);
                         gameplayClock.Stop();
                     });
@@ -362,8 +395,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
             if (phase == "holding")
                 Assert.That(hasHoldingNote, Is.True, "The long-note screenshot must sample a real hold, rather than its scheduled successor.");
-            BmsAsyncNoteDrawable[] notes = renderer.ChildrenOfType<BmsAsyncNoteDrawable>()
-                                                   .Where(note => note.Lookup.UsesResolvedMaterial).ToArray();
+            BmsAsyncNoteDrawable[] notes = [.. renderer.ChildrenOfType<BmsAsyncNoteDrawable>().Where(note => note.Lookup.UsesResolvedMaterial)];
             File.WriteAllText(Path.Combine(outputDirectory, $"notes-{phase}-geometry.json"), System.Text.Json.JsonSerializer.Serialize(notes.Select(note => new
             {
                 element = note.Lookup.Element.ToString(),
@@ -380,13 +412,13 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     rootHeight = node.RootDrawable.DrawHeight,
                     contentHeight = node.ContentDrawable.ScreenSpaceDrawQuad.Height,
                     alpha = node.ContentDrawable.Alpha,
-                    texture = node.ContentDrawable is osu.Framework.Graphics.Sprites.Sprite sprite
+                    texture = node.ContentDrawable is Framework.Graphics.Sprites.Sprite sprite
                         ? renderer.GameplaySkinSceneRuntime!.PreparedScene.Resources.FirstOrDefault(resource => ReferenceEquals(resource.Texture, sprite.Texture))?.Id
                         : null,
                 }).ToArray(),
             })));
 
-            BmsAsyncNoteDrawable[] activeNotes = notes.Where(note => note.SpecialisedSceneVisual?.IsApplied == true).ToArray();
+            BmsAsyncNoteDrawable[] activeNotes = [.. notes.Where(note => note.SpecialisedSceneVisual?.IsApplied == true)];
             Assert.That(activeNotes.Any(note => note.Lookup.Element == BmsNoteSkinElements.Note), Is.True,
                 "The actual native note must consume its authored scene, rather than only the texture fallback.");
             foreach (BmsAsyncNoteDrawable note in activeNotes)
@@ -408,9 +440,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             if (doublePlay)
                 text.Append("#PLAYER 3\n");
             string[] channels = doublePlay
-                ? new[] { "11", "12", "13", "14", "15", "18", "19", "16", "21", "22", "23", "24", "25", "28", "29", "26" }
-                : fiveKey ? new[] { "11", "12", "13", "14", "15", "16" }
-                : new[] { "11", "12", "13", "14", "15", "18", "19", "16" };
+                ? ["11", "12", "13", "14", "15", "18", "19", "16", "21", "22", "23", "24", "25", "28", "29", "26"]
+                : fiveKey ? ["11", "12", "13", "14", "15", "16"]
+                : ["11", "12", "13", "14", "15", "18", "19", "16"];
             for (int measure = 1; measure <= 8; measure++)
             {
                 for (int lane = 0; lane < channels.Length; lane++)

@@ -87,8 +87,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         private DrawableHoldNote productionHold = null!;
         private SkinManager? publicMaterialSkinManager;
         private Action<LogEntry>? exactRootLogObserver;
-        private readonly HashSet<string> publicMaterialExternalRoots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        private readonly Dictionary<CurrentRevisionManiaMaterialHost, int> hudReadinessAttempts = new Dictionary<CurrentRevisionManiaMaterialHost, int>();
+        private readonly HashSet<string> publicMaterialExternalRoots = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<CurrentRevisionManiaMaterialHost, int> hudReadinessAttempts = [];
 
         protected override bool UseFreshStoragePerRun => true;
 
@@ -285,7 +285,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddStep("press the real mania lane", () =>
             {
                 ManiaAction action = renderer.FirstColumn.Action.Value;
-                ManiaInputManager[] inputManagers = renderer.Drawable.ChildrenOfType<ManiaInputManager>().ToArray();
+                ManiaInputManager[] inputManagers = [.. renderer.Drawable.ChildrenOfType<ManiaInputManager>()];
                 Assert.That(inputManagers, Is.Not.Empty);
 
                 foreach (ManiaInputManager inputManager in inputManagers)
@@ -306,29 +306,28 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddStep("assert shared document declarations reached one exact production material set", () =>
             {
                 GameplaySkinDocument document = revision.Owner.GameplaySkinDocument;
-                GameplaySkinDocumentEntry[] declarations = document.Sections
+                GameplaySkinDocumentEntry[] declarations = [.. document.Sections
                                                                      .Where(section => section.Family == GameplaySkinSlotCatalogFamily.Common
                                                                                        && section.Version == GameplaySkinSlotCatalog.COMMON_VERSION)
-                                                                     .SelectMany(section => section.Entries)
-                                                                     .ToArray();
+                                                                     .SelectMany(section => section.Entries)];
                 GameplaySkinLayoutPublication publication = renderer.Drawable.LayoutRevisionOwner.CurrentPublication!;
                 GameplaySkinResolvedMaterialSet materialSet = publication.MaterialSet;
                 GameplaySkinLaneTopologyGroup group = publication.Snapshot.Context.Topology.GroupsInLogicalOrder.Single();
                 GameplaySkinLaneTopologyEntry lane = group.LanesInLogicalOrder[0];
                 GameplaySkinResolvedMaterialTarget target = GameplaySkinResolvedMaterialTarget.ForLane(group, lane);
                 GameplaySkinSlotDescriptor[] slots =
-                {
+                [
                     GameplaySkinSlotCatalog.Note,
                     GameplaySkinSlotCatalog.LongNoteHead,
                     GameplaySkinSlotCatalog.LongNoteBody,
                     GameplaySkinSlotCatalog.LongNoteTail,
                     GameplaySkinSlotCatalog.KeyVisual,
-                };
-                GameplaySkinResolvedMaterialEntry[] entries = slots.Select(slot =>
+                ];
+                GameplaySkinResolvedMaterialEntry[] entries = [.. slots.Select(slot =>
                 {
                     Assert.That(materialSet.TryGet(new GameplaySkinResolvedMaterialKey(slot, target), out GameplaySkinResolvedMaterialEntry? entry), Is.True);
                     return entry!;
-                }).ToArray();
+                })];
                 var laneSurfaceKey = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LaneSurface, target);
                 var keyFlashKey = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.KeyFlash, target);
                 GameplaySkinLaneTopologyEntry suppressedLane = group.LanesInLogicalOrder[1];
@@ -372,16 +371,14 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 IManiaGameplaySkinProgrammaticVisualPartProvider secondBackgroundParts =
                     (IManiaGameplaySkinProgrammaticVisualPartProvider)getPrivateField<SkinnableDrawable>(suppressedColumn, "columnBackground").Drawable;
                 ManiaGameplaySkinProgrammaticVisualPart[] stageBackgroundParts =
-                    ((IManiaGameplaySkinProgrammaticVisualPartProvider)stageBackgroundWrapper.Drawable)
-                    .GameplaySkinProgrammaticVisualParts.ToArray();
-                Drawable[] stageShellOwners = stageBackgroundParts
+                    [.. ((IManiaGameplaySkinProgrammaticVisualPartProvider)stageBackgroundWrapper.Drawable)
+                    .GameplaySkinProgrammaticVisualParts];
+                Drawable[] stageShellOwners = [.. stageBackgroundParts
                     .Where(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.StageBackground))
-                    .Select(part => part.Owner)
-                    .ToArray();
-                Drawable[] playfieldBackdropOwners = stageBackgroundParts
+                    .Select(part => part.Owner)];
+                Drawable[] playfieldBackdropOwners = [.. stageBackgroundParts
                     .Where(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.PlayfieldBackdrop))
-                    .Select(part => part.Owner)
-                    .ToArray();
+                    .Select(part => part.Owner)];
                 Drawable firstLaneSurfaceOwner = stageBackgroundParts.Single(part =>
                     ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.LaneSurface) && part.GroupLocalLaneIndex == 0).Owner;
                 Drawable secondLaneSurfaceOwner = stageBackgroundParts.Single(part =>
@@ -394,15 +391,12 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.HitTarget) && part.GroupLocalLaneIndex == 0).Owner;
                 Drawable secondHitTargetOwner = stageBackgroundParts.Single(part =>
                     ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.HitTarget) && part.GroupLocalLaneIndex == 1).Owner;
-                Drawable[] judgementLineOwners = stageBackgroundParts.Where(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.JudgementLine))
-                                                                     .Select(part => part.Owner).ToArray();
+                Drawable[] judgementLineOwners = [.. stageBackgroundParts.Where(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.JudgementLine)).Select(part => part.Owner)];
                 Drawable firstKeyFlashOwner = firstBackgroundParts.GameplaySkinProgrammaticVisualParts.Single(part =>
                     ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.KeyFlash)).Owner;
                 Drawable secondKeyFlashOwner = secondBackgroundParts.GameplaySkinProgrammaticVisualParts.Single(part =>
                     ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.KeyFlash)).Owner;
-                Drawable[] comboWrappers = renderer.Hud!.Children
-                                                   .Where(child => child is OmsManiaComboCounter or LegacyManiaComboCounter)
-                                                   .ToArray();
+                Drawable[] comboWrappers = [.. renderer.Hud!.Children.Where(child => child is OmsManiaComboCounter or LegacyManiaComboCounter)];
                 ManiaGameplaySkinNoteMaterial noteMaterial = entries[0].GetMaterial<ManiaGameplaySkinNoteMaterial>();
                 ManiaGameplaySkinNoteMaterial headMaterial = entries[1].GetMaterial<ManiaGameplaySkinNoteMaterial>();
                 ManiaGameplaySkinBodyMaterial bodyMaterial = entries[2].GetMaterial<ManiaGameplaySkinBodyMaterial>();
@@ -416,10 +410,9 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 GameplaySkinResolvedMaterialEntry authoredGlobalTextHud = materialSet.Entries.Single(candidateEntry =>
                     ReferenceEquals(candidateEntry.Slot, GameplaySkinSlotCatalog.TextHud)
                     && candidateEntry.Target.Kind == GameplaySkinResolvedMaterialTargetKind.Global);
-                GameplaySkinResolvedMaterialEntry[] authoredEntries = materialSet.Entries
+                GameplaySkinResolvedMaterialEntry[] authoredEntries = [.. materialSet.Entries
                     .Where(candidateEntry => candidateEntry.State == GameplaySkinResolvedMaterialState.Provide
-                                             && candidateEntry.Source.Kind == GameplaySkinResolvedMaterialSourceKind.SelectedPackage)
-                    .ToArray();
+                                             && candidateEntry.Source.Kind == GameplaySkinResolvedMaterialSourceKind.SelectedPackage)];
                 var specialisedSlots = new HashSet<GameplaySkinSlotDescriptor>
                 {
                     GameplaySkinSlotCatalog.Note,
@@ -432,11 +425,11 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     GameplaySkinSlotCatalog.LaneCoverFill,
                     GameplaySkinSlotCatalog.LaneCoverDecoration,
                 };
-                GameplaySkinSceneHostedSlot[] specialisedGates = entries.Select(candidateEntry =>
+                GameplaySkinSceneHostedSlot[] specialisedGates = [.. entries.Select(candidateEntry =>
                 {
                     Assert.That(sceneHost.TryGetVisualGate(candidateEntry.Key, out GameplaySkinSceneHostedSlot? gate), Is.True);
                     return gate!;
-                }).ToArray();
+                })];
                 Assert.That(sceneHost.TryGetVisualGate(laneSurfaceKey, out GameplaySkinSceneHostedSlot? laneSurfaceGate), Is.True);
                 Assert.That(sceneHost.TryGetVisualGate(keyFlashKey, out GameplaySkinSceneHostedSlot? keyFlashGate), Is.True);
                 Assert.That(sceneHost.TryGetVisualGate(suppressedKeyVisualKey, out GameplaySkinSceneHostedSlot? suppressedKeyVisualGate), Is.True);
@@ -444,22 +437,22 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Assert.That(sceneHost.TryGetVisualGate(barLineKey, out GameplaySkinSceneHostedSlot? barLineGate), Is.True);
                 Assert.That(sceneHost.TryGetVisualGate(authoredGlobalTextHud.Key, out GameplaySkinSceneHostedSlot? globalTextGate), Is.True);
                 Assert.That(sceneHost.TryGetHostedDrawable(keyFlashKey, out Drawable? keyFlashDrawable), Is.True);
-                GameplaySkinSlotDescriptor[] supportedSlots = ManiaGameplaySkinMaterialResolver.RuntimeCapabilities.Support.Values
+                GameplaySkinSlotDescriptor[] supportedSlots = [.. ManiaGameplaySkinMaterialResolver.RuntimeCapabilities.Support.Values
                     .Select(support => support.Descriptor)
-                    .ToArray();
+                    .Where(slot => slot != GameplaySkinSlotCatalog.AuxiliaryDisplay && slot != GameplaySkinSlotCatalog.AuxiliaryConcentrationDisplay)];
                 GameplaySkinSlotDescriptor[] notApplicableSlots =
-                {
+                [
                     GameplaySkinSlotCatalog.Mine,
                     GameplaySkinSlotCatalog.BgaViewport,
                     GameplaySkinSlotCatalog.BgaFrame,
                     GameplaySkinSlotCatalog.Turntable,
                     GameplaySkinSlotCatalog.Laser,
-                };
-                GameplaySkinSceneHostedSlot[] authoredGates = authoredEntries.Select(candidateEntry =>
+                ];
+                GameplaySkinSceneHostedSlot[] authoredGates = [.. authoredEntries.Select(candidateEntry =>
                 {
                     Assert.That(sceneHost.TryGetVisualGate(candidateEntry.Key, out GameplaySkinSceneHostedSlot? gate), Is.True);
                     return gate!;
-                }).ToArray();
+                })];
                 GameplaySkinSpecialisedSceneVisual noteSceneVisual = note.ChildrenOfType<GameplaySkinSpecialisedSceneVisual>()
                     .Single(candidateVisual => candidateVisual.Key.Equals(entries[0].Key));
                 GameplaySkinSpecialisedSceneVisual headSceneVisual = hold.Head.ChildrenOfType<GameplaySkinSpecialisedSceneVisual>()
@@ -470,10 +463,9 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     .Single(candidateVisual => candidateVisual.Key.Equals(entries[3].Key));
                 GameplaySkinSpecialisedSceneVisual barLineSceneVisual = barLine.ChildrenOfType<GameplaySkinSpecialisedSceneVisual>()
                     .Single(candidateVisual => candidateVisual.Key.Equals(barLineKey));
-                long[] spawnedObjectIds = observedEvents
+                long[] spawnedObjectIds = [.. observedEvents
                     .Where(envelope => envelope.EventKind == GameplaySkinEventKind.ObjectSpawned)
-                    .Select(envelope => ((GameplaySkinObjectEventPayload)envelope.Payload).State.ObjectId)
-                    .ToArray();
+                    .Select(envelope => ((GameplaySkinObjectEventPayload)envelope.Payload).State.ObjectId)];
 
                 Assert.Multiple(() =>
                 {
@@ -513,8 +505,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                         supportedSlots.Sum(descriptor =>
                             GameplaySkinPublicSlotMaterialTargets.Enumerate(descriptor, publication.Snapshot).Count)));
                     Assert.That(materialSet.Entries.Select(entry => entry.Slot).Distinct(), Is.EquivalentTo(supportedSlots));
-                    Assert.That(ManiaGameplaySkinMaterialResolver.RuntimeCapabilities.Support, Has.Count.EqualTo(23));
-                    Assert.That(GameplaySkinRuntimeSupportProfile.Mania.Decisions, Has.Count.EqualTo(28));
+                    Assert.That(ManiaGameplaySkinMaterialResolver.RuntimeCapabilities.Support, Has.Count.EqualTo(25));
+                    Assert.That(GameplaySkinRuntimeSupportProfile.Mania.Decisions, Has.Count.EqualTo(32));
                     Assert.That(notApplicableSlots.All(descriptor =>
                     {
                         Assert.That(GameplaySkinRuntimeSupportProfile.Mania.TryGetDecision(descriptor, out GameplaySkinRuntimeSupportDecision? decision), Is.True);
@@ -825,7 +817,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                                                                         && envelope.DeliveryKind == GameplaySkinEventDeliveryKind.Reset
                                                                         && envelope.Epoch > completedEpoch);
                 GameplaySkinStateEventPayload payload = (GameplaySkinStateEventPayload)reset.Payload;
-                GameplaySkinObjectStateSnapshot[] matchingStates = payload.State.ActiveObjects.Where(obj => obj.ObjectId == holdObjectId).ToArray();
+                GameplaySkinObjectStateSnapshot[] matchingStates = [.. payload.State.ActiveObjects.Where(obj => obj.ObjectId == holdObjectId)];
                 Assert.That(matchingStates, Has.Length.EqualTo(1),
                     "Reset must rebuild the active long note directly from the production drawable snapshot source.");
                 GameplaySkinObjectStateSnapshot state = matchingStates[0];
@@ -956,10 +948,9 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 sceneHost = renderer.Drawable.ChildrenOfType<GameplaySkinSceneRuntimeHost>().Single());
             AddUntilStep("wait for real stage-local bar-line owners", () =>
             {
-                barLines = renderer.Drawable.Playfield.Stages
+                barLines = [.. renderer.Drawable.Playfield.Stages
                                    .SelectMany(stage => stage.HitObjectContainer.Objects.OfType<DrawableBarLine>())
-                                   .Where(line => ReferenceEquals(line.HitObject, renderer.BarLine))
-                                   .ToArray();
+                                   .Where(line => ReferenceEquals(line.HitObject, renderer.BarLine))];
                 return barLines.Length == 2;
             });
             AddUntilStep("wait for bounded dual-stage scene preparation", () => sceneHost.PendingCreationCount == 0);
@@ -975,7 +966,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddStep("press suppressed lane on stage two", () =>
             {
                 ManiaAction action = renderer.Drawable.Playfield.Stages[1].Columns[0].Action.Value;
-                ManiaInputManager[] inputManagers = renderer.Drawable.ChildrenOfType<ManiaInputManager>().ToArray();
+                ManiaInputManager[] inputManagers = [.. renderer.Drawable.ChildrenOfType<ManiaInputManager>()];
                 Assert.That(inputManagers, Is.Not.Empty);
 
                 foreach (ManiaInputManager inputManager in inputManagers)
@@ -1075,13 +1066,11 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 SkinnableDrawable secondWrapper = getPrivateField<SkinnableDrawable>(secondLine, "programmaticVisual");
                 Drawable firstStageJudgements = getPrivateField<Drawable>(renderer.Drawable.Playfield.Stages[0], "judgements");
                 Drawable secondStageJudgements = getPrivateField<Drawable>(renderer.Drawable.Playfield.Stages[1], "judgements");
-                Drawable[] comboOwners = renderer.Hud!.Children
-                                                  .Where(child => child is OmsManiaComboCounter or LegacyManiaComboCounter)
-                                                  .ToArray();
+                Drawable[] comboOwners = [.. renderer.Hud!.Children.Where(child => child is OmsManiaComboCounter or LegacyManiaComboCounter)];
                 SkinnableDrawable secondStageBackground = getPrivateField<SkinnableDrawable>(renderer.Drawable.Playfield.Stages[1], "stageBackground");
                 ManiaGameplaySkinProgrammaticVisualPart[] secondStageParts =
-                    ((IManiaGameplaySkinProgrammaticVisualPartProvider)secondStageBackground.Drawable)
-                    .GameplaySkinProgrammaticVisualParts.ToArray();
+                    [.. ((IManiaGameplaySkinProgrammaticVisualPartProvider)secondStageBackground.Drawable)
+                    .GameplaySkinProgrammaticVisualParts];
                 Drawable secondStageLaneSurfaceOwner = secondStageParts.Single(part =>
                     ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.LaneSurface)
                     && part.GroupLocalLaneIndex == 0).Owner;
@@ -1126,14 +1115,10 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Assert.That(sceneHost.TryGetVisualGate(firstStageTextKey, out GameplaySkinSceneHostedSlot? firstStageTextGate), Is.True);
                 Assert.That(sceneHost.TryGetVisualGate(secondStageTextKey, out GameplaySkinSceneHostedSlot? secondStageTextGate), Is.True);
 
-                GameplaySkinHudProgrammaticVisualPartition[] firstGaugePartitions = renderer.CoreHud!.GameplaySkinGaugePartitions
-                    .Where(partition => partition.StageKey.Equals(firstStageGaugeKey)).ToArray();
-                GameplaySkinHudProgrammaticVisualPartition[] secondGaugePartitions = renderer.CoreHud.GameplaySkinGaugePartitions
-                    .Where(partition => partition.StageKey.Equals(secondStageGaugeKey)).ToArray();
-                GameplaySkinHudProgrammaticVisualPartition[] firstTextPartitions = renderer.CoreHud.GameplaySkinTextPartitions
-                    .Where(partition => partition.StageKey.Equals(firstStageTextKey)).ToArray();
-                GameplaySkinHudProgrammaticVisualPartition[] secondTextPartitions = renderer.CoreHud.GameplaySkinTextPartitions
-                    .Where(partition => partition.StageKey.Equals(secondStageTextKey)).ToArray();
+                GameplaySkinHudProgrammaticVisualPartition[] firstGaugePartitions = [.. renderer.CoreHud!.GameplaySkinGaugePartitions.Where(partition => partition.StageKey.Equals(firstStageGaugeKey))];
+                GameplaySkinHudProgrammaticVisualPartition[] secondGaugePartitions = [.. renderer.CoreHud.GameplaySkinGaugePartitions.Where(partition => partition.StageKey.Equals(secondStageGaugeKey))];
+                GameplaySkinHudProgrammaticVisualPartition[] firstTextPartitions = [.. renderer.CoreHud.GameplaySkinTextPartitions.Where(partition => partition.StageKey.Equals(firstStageTextKey))];
+                GameplaySkinHudProgrammaticVisualPartition[] secondTextPartitions = [.. renderer.CoreHud.GameplaySkinTextPartitions.Where(partition => partition.StageKey.Equals(secondStageTextKey))];
                 Assert.Multiple(() =>
                 {
                     Assert.That(firstEntry!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.CanonicalPackage));
@@ -1243,7 +1228,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 + GameplaySkinEventBudgets.JUDGEMENT_DISPLAY_DURATION + 1));
             AddUntilStep("first-stage judgement retires while second-stage author suppression remains", () =>
             {
-                GameplaySkinLaneTopologyGroup[] groups = renderer.Drawable.LayoutSnapshot.Context.Topology.GroupsInLogicalOrder.ToArray();
+                GameplaySkinLaneTopologyGroup[] groups = [.. renderer.Drawable.LayoutSnapshot.Context.Topology.GroupsInLogicalOrder];
                 var firstKey = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.JudgementDisplay, GameplaySkinResolvedMaterialTarget.ForStage(groups[0]));
                 var secondKey = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.JudgementDisplay, GameplaySkinResolvedMaterialTarget.ForStage(groups[1]));
                 return sceneHost.TryGetHostedDrawable(firstKey, out Drawable? first) && first!.Alpha == 0
@@ -1341,20 +1326,20 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 SkinnableDrawable secondSecondHitTarget = secondStageSecondColumn.HitObjectArea.HitTarget;
                 SkinnableDrawable secondUnauthoredHitTarget = secondStageUnauthoredColumn.HitObjectArea.HitTarget;
                 ManiaGameplaySkinProgrammaticVisualPart[] secondFirstBackgroundParts =
-                    ((IManiaGameplaySkinProgrammaticVisualPartProvider)secondFirstBackground.Drawable)
-                    .GameplaySkinProgrammaticVisualParts.ToArray();
+                    [.. ((IManiaGameplaySkinProgrammaticVisualPartProvider)secondFirstBackground.Drawable)
+                    .GameplaySkinProgrammaticVisualParts];
                 ManiaGameplaySkinProgrammaticVisualPart[] secondSecondBackgroundParts =
-                    ((IManiaGameplaySkinProgrammaticVisualPartProvider)secondSecondBackground.Drawable)
-                    .GameplaySkinProgrammaticVisualParts.ToArray();
+                    [.. ((IManiaGameplaySkinProgrammaticVisualPartProvider)secondSecondBackground.Drawable)
+                    .GameplaySkinProgrammaticVisualParts];
                 ManiaGameplaySkinProgrammaticVisualPart[] secondFirstTargetParts =
-                    ((IManiaGameplaySkinProgrammaticVisualPartProvider)secondFirstHitTarget.Drawable)
-                    .GameplaySkinProgrammaticVisualParts.ToArray();
+                    [.. ((IManiaGameplaySkinProgrammaticVisualPartProvider)secondFirstHitTarget.Drawable)
+                    .GameplaySkinProgrammaticVisualParts];
                 ManiaGameplaySkinProgrammaticVisualPart[] secondSecondTargetParts =
-                    ((IManiaGameplaySkinProgrammaticVisualPartProvider)secondSecondHitTarget.Drawable)
-                    .GameplaySkinProgrammaticVisualParts.ToArray();
+                    [.. ((IManiaGameplaySkinProgrammaticVisualPartProvider)secondSecondHitTarget.Drawable)
+                    .GameplaySkinProgrammaticVisualParts];
                 ManiaGameplaySkinProgrammaticVisualPart[] secondUnauthoredTargetParts =
-                    ((IManiaGameplaySkinProgrammaticVisualPartProvider)secondUnauthoredHitTarget.Drawable)
-                    .GameplaySkinProgrammaticVisualParts.ToArray();
+                    [.. ((IManiaGameplaySkinProgrammaticVisualPartProvider)secondUnauthoredHitTarget.Drawable)
+                    .GameplaySkinProgrammaticVisualParts];
 
                 Assert.Multiple(() =>
                 {
@@ -1444,7 +1429,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 int ownerCount = owners.Count;
                 var provider = new FaultingProgrammaticPartProvider();
 
-                TargetInvocationException? exception = Assert.Throws<TargetInvocationException>(() => method.Invoke(column, new object[] { provider }));
+                TargetInvocationException? exception = Assert.Throws<TargetInvocationException>(() => method.Invoke(column, [provider]));
 
                 Assert.Multiple(() =>
                 {
@@ -1456,7 +1441,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 });
 
                 provider.UseValidPartsOnly();
-                Assert.DoesNotThrow(() => method.Invoke(column, new object[] { provider }));
+                Assert.DoesNotThrow(() => method.Invoke(column, [provider]));
                 Assert.Multiple(() =>
                 {
                     Assert.That(registrations, Has.Count.EqualTo(registrationCount + 1));
@@ -1510,19 +1495,17 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddStep("assert all-stage gauge and text suppression", () =>
             {
                 GameplaySkinLayoutPublication publication = renderer.Drawable.LayoutRevisionOwner.CurrentPublication!;
-                GameplaySkinResolvedMaterialKey[] gaugeKeys = publication.Snapshot.Context.Topology.GroupsInLogicalOrder
+                GameplaySkinResolvedMaterialKey[] gaugeKeys = [.. publication.Snapshot.Context.Topology.GroupsInLogicalOrder
                     .Select(group => new GameplaySkinResolvedMaterialKey(
                         GameplaySkinSlotCatalog.GaugeVisual,
-                        GameplaySkinResolvedMaterialTarget.ForStage(group)))
-                    .ToArray();
+                        GameplaySkinResolvedMaterialTarget.ForStage(group)))];
                 var textKey = new GameplaySkinResolvedMaterialKey(
                     GameplaySkinSlotCatalog.TextHud,
                     GameplaySkinResolvedMaterialTarget.Global);
-                GameplaySkinResolvedMaterialKey[] stageTextKeys = publication.Snapshot.Context.Topology.GroupsInLogicalOrder
+                GameplaySkinResolvedMaterialKey[] stageTextKeys = [.. publication.Snapshot.Context.Topology.GroupsInLogicalOrder
                     .Select(group => new GameplaySkinResolvedMaterialKey(
                         GameplaySkinSlotCatalog.TextHud,
-                        GameplaySkinResolvedMaterialTarget.ForStage(group)))
-                    .ToArray();
+                        GameplaySkinResolvedMaterialTarget.ForStage(group)))];
                 GameplaySkinResolvedMaterialEntry entryFor(GameplaySkinResolvedMaterialKey key)
                     => publication.MaterialSet.Entries.Single(entry => entry.Key.Equals(key));
 
@@ -1603,7 +1586,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddStep("assert exact non-overlapping HUD partition authority", () =>
             {
                 GameplaySkinLayoutPublication publication = renderer.Drawable.LayoutRevisionOwner.CurrentPublication!;
-                GameplaySkinLaneTopologyGroup[] groups = publication.Snapshot.Context.Topology.GroupsInLogicalOrder.ToArray();
+                GameplaySkinLaneTopologyGroup[] groups = [.. publication.Snapshot.Context.Topology.GroupsInLogicalOrder];
                 var globalTextKey = new GameplaySkinResolvedMaterialKey(
                     GameplaySkinSlotCatalog.TextHud,
                     GameplaySkinResolvedMaterialTarget.Global);
@@ -1626,10 +1609,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                         GameplaySkinSlotCatalog.TextHud,
                         GameplaySkinResolvedMaterialTarget.ForStage(groups[stageIndex]));
                     bool authored = stageIndex == authoredStageIndex;
-                    GameplaySkinHudProgrammaticVisualPartition[] gaugePartitions = coreHud.GameplaySkinGaugePartitions
-                        .Where(partition => partition.StageKey.Equals(gaugeKey)).ToArray();
-                    GameplaySkinHudProgrammaticVisualPartition[] textPartitions = coreHud.GameplaySkinTextPartitions
-                        .Where(partition => partition.StageKey.Equals(textKey)).ToArray();
+                    GameplaySkinHudProgrammaticVisualPartition[] gaugePartitions = [.. coreHud.GameplaySkinGaugePartitions.Where(partition => partition.StageKey.Equals(gaugeKey))];
+                    GameplaySkinHudProgrammaticVisualPartition[] textPartitions = [.. coreHud.GameplaySkinTextPartitions.Where(partition => partition.StageKey.Equals(textKey))];
 
                     Assert.That(sceneHost.TryGetVisualGate(gaugeKey, out GameplaySkinSceneHostedSlot? gaugeGate), Is.True);
                     Assert.That(sceneHost.TryGetVisualGate(textKey, out GameplaySkinSceneHostedSlot? textGate), Is.True);
@@ -1719,19 +1700,16 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Stage stage = renderer.Drawable.Playfield.Stages[authoredStageIndex];
                 SkinnableDrawable wrapper = getPrivateField<SkinnableDrawable>(stage, "stageBackground");
                 ManiaGameplaySkinProgrammaticVisualPart[] parts =
-                    ((IManiaGameplaySkinProgrammaticVisualPartProvider)wrapper.Drawable).GameplaySkinProgrammaticVisualParts.ToArray();
-                Drawable[] shellOwners = parts.Where(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.StageBackground))
-                                              .Select(part => part.Owner).ToArray();
-                Drawable[] backdropOwners = parts.Where(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.PlayfieldBackdrop))
-                                                 .Select(part => part.Owner).ToArray();
-                Drawable[] baseplateOwners = parts.Where(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.PlayfieldBaseplate))
-                                                  .Select(part => part.Owner).ToArray();
-                Drawable[] independentLaneAndTargetOwners = parts.Where(part =>
+                    [.. ((IManiaGameplaySkinProgrammaticVisualPartProvider)wrapper.Drawable).GameplaySkinProgrammaticVisualParts];
+                Drawable[] shellOwners = [.. parts.Where(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.StageBackground)).Select(part => part.Owner)];
+                Drawable[] backdropOwners = [.. parts.Where(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.PlayfieldBackdrop)).Select(part => part.Owner)];
+                Drawable[] baseplateOwners = [.. parts.Where(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.PlayfieldBaseplate)).Select(part => part.Owner)];
+                Drawable[] independentLaneAndTargetOwners = [.. parts.Where(part =>
                     ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.LaneSurface)
                     || ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.LaneDivider)
                     || ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.HitTarget)
                     || ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.JudgementLine))
-                                                                 .Select(part => part.Owner).ToArray();
+                                                                 .Select(part => part.Owner)];
 
                 Assert.That(publication.MaterialSet.TryGet(key, out GameplaySkinResolvedMaterialEntry? entry), Is.True);
                 Assert.That(sceneHost.TryGetVisualGate(key, out GameplaySkinSceneHostedSlot? gate), Is.True);
@@ -1770,18 +1748,18 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 if (dualStage)
                 {
                     SkinnableDrawable otherWrapper = getPrivateField<SkinnableDrawable>(renderer.Drawable.Playfield.Stages[0], "stageBackground");
-                    Drawable[] otherShellOwners = ((IManiaGameplaySkinProgrammaticVisualPartProvider)otherWrapper.Drawable)
+                    Drawable[] otherShellOwners = [.. ((IManiaGameplaySkinProgrammaticVisualPartProvider)otherWrapper.Drawable)
                                                   .GameplaySkinProgrammaticVisualParts
                                                   .Where(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.StageBackground))
-                                                  .Select(part => part.Owner).ToArray();
-                    Drawable[] otherBaseplateOwners = ((IManiaGameplaySkinProgrammaticVisualPartProvider)otherWrapper.Drawable)
+                                                  .Select(part => part.Owner)];
+                    Drawable[] otherBaseplateOwners = [.. ((IManiaGameplaySkinProgrammaticVisualPartProvider)otherWrapper.Drawable)
                                                       .GameplaySkinProgrammaticVisualParts
                                                       .Where(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.PlayfieldBaseplate))
-                                                      .Select(part => part.Owner).ToArray();
-                    Drawable[] otherBackdropOwners = ((IManiaGameplaySkinProgrammaticVisualPartProvider)otherWrapper.Drawable)
+                                                      .Select(part => part.Owner)];
+                    Drawable[] otherBackdropOwners = [.. ((IManiaGameplaySkinProgrammaticVisualPartProvider)otherWrapper.Drawable)
                                                      .GameplaySkinProgrammaticVisualParts
                                                      .Where(part => ReferenceEquals(part.Slot, GameplaySkinSlotCatalog.PlayfieldBackdrop))
-                                                     .Select(part => part.Owner).ToArray();
+                                                     .Select(part => part.Owner)];
                     Assert.Multiple(() =>
                     {
                         Assert.That(otherShellOwners, Is.Not.Empty);
@@ -1936,7 +1914,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddStep("press first real column on stage two", () =>
             {
                 Stage secondStage = drawableRuleset.Playfield.Stages[1];
-                ManiaInputManager[] inputManagers = drawableRuleset.ChildrenOfType<ManiaInputManager>().ToArray();
+                ManiaInputManager[] inputManagers = [.. drawableRuleset.ChildrenOfType<ManiaInputManager>()];
                 Assert.That(inputManagers, Is.Not.Empty);
 
                 foreach (ManiaInputManager inputManager in inputManagers)
@@ -1966,7 +1944,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 && ReferenceEquals(drawableRuleset.LayoutRevisionOwner.CurrentPublication?.MaterialSet.Snapshot, drawableRuleset.LayoutSnapshot)
                 && drawableRuleset.LayoutRevisionOwner.CurrentPublication?.MaterialSet.IsEmpty == false
                 && drawableRuleset.LayoutRevisionOwner.CurrentPublication?.MaterialSet.Entries.Count
-                == GameplaySkinSlotCatalog.Common.Where(GameplaySkinRuntimeSupportProfile.Mania.IsSupported).Sum(descriptor =>
+                == GameplaySkinSlotCatalog.All.Take(28).Where(GameplaySkinRuntimeSupportProfile.Mania.IsSupported).Sum(descriptor =>
                     GameplaySkinPublicSlotMaterialTargets.Enumerate(descriptor, drawableRuleset.LayoutSnapshot).Count));
             AddStep("prepare is background", () => Assert.That(drawableRuleset.LayoutRevisionOwner.LastPrepareWasUpdateThread, Is.False));
             AddStep("commit is update thread", () => Assert.That(drawableRuleset.LayoutRevisionOwner.LastCommitWasUpdateThread, Is.True));
@@ -2092,9 +2070,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                                                .SingleOrDefault(note => ReferenceEquals(note.HitObject, materialNote))!;
                 productionHold = drawableRuleset.Playfield.GetColumn(materialHold.Column).HitObjectContainer.Objects.OfType<DrawableHoldNote>()
                                                .SingleOrDefault(hold => ReferenceEquals(hold.HitObject, materialHold))!;
-                sharedBarLineDrawables = this.ChildrenOfType<DrawableBarLine>()
-                                             .Where(line => ReferenceEquals(line.HitObject, sharedBarLine))
-                                             .ToArray();
+                sharedBarLineDrawables = [.. this.ChildrenOfType<DrawableBarLine>().Where(line => ReferenceEquals(line.HitObject, sharedBarLine))];
 
                 return productionNote?.IsLoaded == true
                        && productionHold?.IsLoaded == true
@@ -2166,12 +2142,12 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             });
             AddStep("assert shared barline stage identities are distinct and exact", () =>
             {
-                GameplaySkinEventEnvelope[] spawns = observedEvents.Where(envelope =>
+                GameplaySkinEventEnvelope[] spawns = [.. observedEvents.Where(envelope =>
                     envelope.EventKind == GameplaySkinEventKind.ObjectSpawned
                     && envelope.Payload is GameplaySkinObjectEventPayload
                     {
                         State.Kind: GameplaySkinObjectKind.BarLine
-                    }).ToArray();
+                    })];
 
                 Assert.Multiple(() =>
                 {
@@ -2196,22 +2172,20 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             });
             AddStep("assert shared barline despawns preserve per-stage object identity", () =>
             {
-                GameplaySkinObjectStateSnapshot[] spawns = observedEvents.Where(envelope =>
+                GameplaySkinObjectStateSnapshot[] spawns = [.. observedEvents.Where(envelope =>
                         envelope.EventKind == GameplaySkinEventKind.ObjectSpawned
                         && envelope.Payload is GameplaySkinObjectEventPayload
                         {
                             State.Kind: GameplaySkinObjectKind.BarLine
                         })
-                    .Select(envelope => ((GameplaySkinObjectEventPayload)envelope.Payload).State)
-                    .ToArray();
-                GameplaySkinObjectStateSnapshot[] despawns = observedEvents.Where(envelope =>
+                    .Select(envelope => ((GameplaySkinObjectEventPayload)envelope.Payload).State)];
+                GameplaySkinObjectStateSnapshot[] despawns = [.. observedEvents.Where(envelope =>
                         envelope.EventKind == GameplaySkinEventKind.ObjectDespawned
                         && envelope.Payload is GameplaySkinObjectEventPayload
                         {
                             State.Kind: GameplaySkinObjectKind.BarLine
                         })
-                    .Select(envelope => ((GameplaySkinObjectEventPayload)envelope.Payload).State)
-                    .ToArray();
+                    .Select(envelope => ((GameplaySkinObjectEventPayload)envelope.Payload).State)];
 
                 Assert.That(despawns.Select(state => (state.GroupId, state.ObjectId)),
                     Is.EquivalentTo(spawns.Select(state => (state.GroupId, state.ObjectId))));
@@ -2228,10 +2202,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 && productionHold.Tail.ResolvedMaterialKey?.Slot == GameplaySkinSlotCatalog.LongNoteTail);
             AddStep("hit targets and core adjustment share exact snapshot", () =>
             {
-                HitPositionPaddedContainer[] targets = drawableRuleset.Playfield.Stages
-                                                                    .SelectMany(stage => stage.ChildrenOfType<HitPositionPaddedContainer>())
-                                                                    .ToArray();
-                ManiaPlayfieldAdjustmentContainer[] adjustments = drawableRuleset.ChildrenOfType<ManiaPlayfieldAdjustmentContainer>().ToArray();
+                HitPositionPaddedContainer[] targets = [.. drawableRuleset.Playfield.Stages.SelectMany(stage => stage.ChildrenOfType<HitPositionPaddedContainer>())];
+                ManiaPlayfieldAdjustmentContainer[] adjustments = [.. drawableRuleset.ChildrenOfType<ManiaPlayfieldAdjustmentContainer>()];
 
                 Assert.Multiple(() =>
                 {
@@ -2451,7 +2423,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddAssert("invalid fields retain one exact complete fallback snapshot", () =>
             {
                 GameplaySkinLayoutSnapshot snapshot = invalidRuleset.LayoutSnapshot;
-                string[] diagnostics = snapshot.Diagnostics.Select(diagnostic => diagnostic.Code).ToArray();
+                string[] diagnostics = [.. snapshot.Diagnostics.Select(diagnostic => diagnostic.Code)];
 
                 return snapshot.Context.PackageRevision.SourceKind != GameplaySkinPackageSourceKind.Compatibility
                        && diagnostics.Contains("mania.layout.column-width-fallback")
@@ -2815,13 +2787,13 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 };
                 beatmap.Stages.Add(new StageDefinition(5));
 
-                objects = Enumerable.Range(0, beatmap.TotalColumns)
+                objects = [.. Enumerable.Range(0, beatmap.TotalColumns)
                                     .Select(column => (ManiaHitObject)new Note
                                     {
                                         Column = column,
                                         StartTime = Time.Current + 5000 + column * 10,
-                                    }).ToArray();
-                originalColumns = objects.Select(hitObject => hitObject.Column).ToArray();
+                                    })];
+                originalColumns = [.. objects.Select(hitObject => hitObject.Column)];
 
                 foreach (ManiaHitObject hitObject in objects)
                 {
@@ -2829,9 +2801,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     beatmap.HitObjects.Add(hitObject);
                 }
 
-                baselineLaneIds = ManiaGameplaySkinLaneTopologyFactory.Create(beatmap).LanesInLogicalOrder
-                                                                         .Select(lane => lane.Identity.Id.Value)
-                                                                         .ToArray();
+                baselineLaneIds = [.. ManiaGameplaySkinLaneTopologyFactory.Create(beatmap).LanesInLogicalOrder.Select(lane => lane.Identity.Id.Value)];
 
                 Mod mod;
 
@@ -3178,8 +3148,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         private static void writeGameplayHudLayout(string packageRoot)
         {
             var layout = new SkinLayoutInfo();
-            layout.Update(null, new[]
-            {
+            layout.Update(null,
+            [
                 new SerialisedDrawableInfo(new DefaultHealthDisplay()),
                 new SerialisedDrawableInfo(new DefaultScoreCounter()),
                 new SerialisedDrawableInfo(new DefaultAccuracyCounter()),
@@ -3191,7 +3161,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 new SerialisedDrawableInfo(new TrianglesUnstableRateCounter()),
                 new SerialisedDrawableInfo(new JudgementCounterDisplay()),
                 new SerialisedDrawableInfo(new DefaultRankDisplay()),
-            });
+            ]);
             File.WriteAllText(
                 Path.Combine(packageRoot, $"{GlobalSkinnableContainers.MainHUDComponents}.json"),
                 JsonConvert.SerializeObject(layout));
@@ -3542,16 +3512,13 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             Assert.That(partitions.Count % stageCount, Is.Zero);
 
             GameplaySkinLayoutRect screen = snapshot.Context.ScreenBounds;
-            GameplaySkinHudProgrammaticVisualResidual[] residuals = hud.GameplaySkinHudResidualPartitions
-                .Where(partition => ReferenceEquals(partition.Slot, slot))
-                .ToArray();
+            GameplaySkinHudProgrammaticVisualResidual[] residuals = [.. hud.GameplaySkinHudResidualPartitions.Where(partition => ReferenceEquals(partition.Slot, slot))];
 
             for (int sourceIndex = 0; sourceIndex < partitions.Count / stageCount; sourceIndex++)
             {
-                GameplaySkinHudProgrammaticVisualPartition[] sourcePartitions = partitions
+                GameplaySkinHudProgrammaticVisualPartition[] sourcePartitions = [.. partitions
                     .Where(partition => partition.SourceIndex == sourceIndex)
-                    .OrderBy(partition => partition.RelativeStart)
-                    .ToArray();
+                    .OrderBy(partition => partition.RelativeStart)];
 
                 Assert.That(sourcePartitions, Has.Length.EqualTo(stageCount));
 
@@ -3590,7 +3557,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         }
 
         private static readonly Type[] required_text_hud_owner_types =
-        {
+        [
             typeof(DefaultScoreCounter),
             typeof(DefaultAccuracyCounter),
             typeof(DefaultSongProgress),
@@ -3601,17 +3568,17 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             typeof(TrianglesUnstableRateCounter),
             typeof(JudgementCounterDisplay),
             typeof(DefaultRankDisplay),
-        };
+        ];
 
         private static bool hasRequiredTextHudOwners(HUDOverlay hud)
         {
-            Type[] actual = hud.GameplaySkinTextPartitions.Select(partition => partition.Visual.GetType()).Distinct().ToArray();
+            Type[] actual = [.. hud.GameplaySkinTextPartitions.Select(partition => partition.Visual.GetType()).Distinct()];
             return required_text_hud_owner_types.All(actual.Contains);
         }
 
         private static void assertRequiredTextHudOwners(HUDOverlay hud)
         {
-            Type[] actual = hud.GameplaySkinTextPartitions.Select(partition => partition.Visual.GetType()).Distinct().ToArray();
+            Type[] actual = [.. hud.GameplaySkinTextPartitions.Select(partition => partition.Visual.GetType()).Distinct()];
 
             Assert.That(actual, Is.SupersetOf(required_text_hud_owner_types),
                 "TextHud must own every real score/stat/text component; only non-data chrome may fall back to Decoration.");
@@ -3706,7 +3673,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             private readonly SkinManager skinManager;
             private readonly GameplayClockContainer gameplayClock;
             private readonly GameplayState gameplayState;
-            private readonly List<Note> stageActivationNotes = new List<Note>();
+            private readonly List<Note> stageActivationNotes = [];
 
             public Note Note { get; private set; } = null!;
 

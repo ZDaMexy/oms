@@ -102,7 +102,7 @@
 2026-10-18用户授权以皮肤配置项替代旧全局BMS游玩区域样式。作者在同一manifest声明choice/toggle/number、默认值与玩法/键数适用范围；玩家覆盖按皮肤记录和规则集保存在用户配置，不写包或external源。旧全局PlayfieldStyle只保留历史配置键，production不再将它作为布局authority。静线与制作示例仅声明原有四种视觉布局，默认居中左皿，不改其素材或比例。
 
 1. 选项在每次root准备时验证并冻结于同一LayoutContext；偏好改变只影响下一次游玩/重新打开预览，不监听或修改活跃publication。无声明/失效覆盖使用作者默认或原有布局，不增设reload、watcher、publication authority。
-2. `option.<id>`沿现有scene binding/variant与完整资源预算消费；备用分支也完整准备和校验，选中值不授予动态文件访问权。`layout.ruleset`只读同一context。类型、适用性、默认值、预算和作者语法的唯一实现是shared codec，参考见[作者手册](../../../skin-authoring/docs/REFERENCE.md#皮肤配置项)。
+2. `option.<id>`沿现有scene binding/variant与完整资源预算消费；普通inline分支沿原准备路径；显式contentCatalog先捕获全部闭包、校验所有结构/图片头，再只解码冻结组合，作者CLI另外逐张完整解码备用PNG。选中值不授予动态文件访问权。`layout.ruleset`只读同一context。类型、适用性、默认值、预算和作者语法的唯一实现是shared codec，参考见[作者手册](../../../skin-authoring/docs/REFERENCE.md#皮肤配置项)。
 3. 可选manifest.layouts仅为原solver的显式作者输入，真实stage/逻辑lane序与immutable topology保持。矩形、空白和键图外扩不得制造输入、移动action/role、改变判定/计分/时间；同一solver输出所有native/scene消费者的几何。未匹配旧包不走新几何分支；规则集不得硬编码IIDX键数、留空、样式或贴图。
 4. IIDX包自身声明BMS5/7/14K与mania5/6/7/8/14/16K。5K忽略远皿两普通槽；mania5/7/14保留空皿，6/8/16将其作为普通可打列；mania原SpecialKey身份和实际双stage向量保持。其余皮肤的原生布局、声音、长条和fallback必须回归，不把作者作品规则推广成玩法合同。
 
@@ -117,6 +117,9 @@
 5. 允许补齐真实缺少的作者表现和页面能力；版本、资源、布局、事件与性能边界仍沿既有唯一 authority。每项新增能力同时指定第一个真实组件 / 作者包 / 页面消费者，验证原包、BMS / mania、canonical 回落和实际画面；不由皮肤改判定、计分、输入或 BGA 时钟，不引入整个 IIDX 运行时。
 6. 游玩候选按用户指定代数与已确认资源推进；可导入、真实 Player 可玩和经原版完整歌曲校准须分别记录，未完成还原不伪称完成，也不阻止用户指定下一代的资源尝试。完整选曲 / 结算界面属于后续增量页面，保留原界面可选和共用数据；当前 gameplay V1 不因本授权被描述为已经支持这些页面。静线暂停及原设备 / 发行门保持。
 7. CUSTOM的设计选择、视觉尺寸/厚度及光束长度分别核原素材与实际消费者；CN头尾外观不能缩放长条时间主体或改判定/HCN机制。原图/动画存在、菜单预览存在、实际可选与OMS已接入不是同一状态，不能用单一默认设计、开关或近似缩放代签全部设计。Graph Area须有真实数据消费者；Premium图标/背景与Concentration属于辅助区，不能以主屏BGA开关或装饰降亮冒称已支持。
+8. Lightning时期统一作品名称为Lighting Model Skin Omni Until 33；27～33与八支BPL作为Game Frame，默认33，不扩展未来Until34。source00等共享默认属于当前作者组合，未核原host菜单绑定的细节不得冒称原版完整默认。源素材与生成物仍仅留本地。
+9. 内容目录只扩展有界备选和选中内容能力，不改变无声明普通包的解码/材料路径。原图证明三类独立动态艺术与Frame/FC无法容纳于64MiP后，仅显式目录的冻结组合允许96MiP/384MiB；普通包仍64MiP/256MiB，单图16MiP、单资源16MiB、总编码64MiB、资源256和其它运行上限不变。详细输入边界只取[作者参考](../../../skin-authoring/docs/REFERENCE.md#按选项组合内容)。
+10. 按键记录动画起点只能来自原生输入的真实游玩时间边沿；完整快照、队列重建和晚挂载保留，seek/retry不得伪造旧起点。持续按住但旧边沿未知时仅投影稳定held帧，真实release仍可独立播放尾段。原生EXP按选中记录的完整时长保留，不能因历史200ms效果寿命截断；裁切后真实三角形、片数与原生池重复均计入准备预算。
 
 ## 既有产品面硬约束（未被 Skin V1 取代）
 
@@ -185,7 +188,7 @@
 ## ini 兼容约束
 
 1. 每个 package 的根 `skin.ini` bytes 只允许由 core `GameplaySkinDocumentCodec` 捕获、hash、tokenize 一次；legacy `[General]/[Colours]/[Mania]/[Bms]` decoder 必须读取同一不可变文档保留的 semantic key/value，不得重开 stream、再次 `SplitKeyVal` 或在 ruleset 复制 tokenizer。既有 compatibility 行为与素材名继续由回归保护。
-2. gameplay 作者公共目录唯一 authority 是 `GameplaySkinSlotCatalog`：合同 `oms-gameplay-skin-catalog.v1` 固定 28 个稳定 ID、Common v1 与 BMS v1 extension、scope、value type、Required/Recommended/Optional、默认继承、Suppress eligibility、ruleset/stage/lane-role/keymode 适用性及 `OMS-SKIN-SLOT-NNN`。可读投影见 [公共目录](../../other/GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)；ruleset、renderer、测试与文档不得维护第二张 ID 表。
+2. gameplay 作者公共目录唯一 authority 是 `GameplaySkinSlotCatalog`：合同 `oms-gameplay-skin-catalog.v1` 当前32个稳定 ID、Common v1 与 BMS v1 extension、scope、value type、Required/Recommended/Optional、默认继承、Suppress eligibility、ruleset/stage/lane-role/keymode 适用性及 `OMS-SKIN-SLOT-NNN`。新增辅助屏/专注与LIFT四槽仅在选定包显式声明时扩展材质，不改变普通包原有28槽展开。可读投影见 [公共目录](../../other/GAMEPLAY_SKIN_PUBLIC_CATALOG_V1.md)；ruleset、renderer、测试与文档不得维护第二张 ID 表。
 3. author catalog、runtime capability与Suppress eligibility分层；capability不得改变catalog分类或扩大Suppress。当前逐slot决定与全部host矩阵唯一维护于[Runtime capability](#runtime-capabilityslot与性能预算)。
 4. 公共 author section 仅为区分大小写的 `[GameplaySkin.Common:1]` / `[GameplaySkin.Bms:1]`。Target、scope、type、state、selector、stable ID 与全部 logical/visual/global/group-local index 都使用严格 canonical grammar；未知版本/字段/slot、非法 scope/type/index、重复、转义、BOM、注释与空白行为产生稳定 `OMS-SKIN-CODEC-NNN`，不得被 ruleset 重命名。
 4a. 公共 section 只在 `parseGameplayLine` 对 trim 后以 `//` 开头的整行作注释跳过；引号外 `#`/`;` 的行内注释规则不变，不新增行内 `//` 截断。原始 normalized token line 保留，quoted resource 中的 `//` 不改写，资源准入仍独立校验。该兼容处理普通 `SkinImporter` 在公共段末尾追加说明再进入 `[General]` 的真实路径，已导入内容无需迁移或重新写入；不改变 importer、owner、权限或外部目录零写入合同。外层 BOM、完整 header、未知字段及其它 malformed declaration 仍严格诊断，注释不能把真正错误变成成功。
@@ -288,7 +291,7 @@ Container可静态声明 `layout: horizontal`，只排列普通Sprite与图片�
 
 轨迹可选 `trigger: judgement.hit` 以目标真实判定的AppliedTime起播；省略仍使用全局游玩时间。局部目标不借用其它车道事件，池化击打实例各自保留起点，CN头尾可同时播放；暂停冻结，reset/epoch替换及复用清理旧起点。BMS滚动内容保留自身蒙版，击打效果可越过单车道和落键区边缘，仍使用原生目标、既有池上限与同一场景预算。
 
-`gameplay.full-combo` 取真实 `HasCompleted && MaximumCombo > 0 && Combo == MaximumCombo`，空谱、首判失败及中途断连不能触发；`gameplay.complete` 轨迹使用留存的原完成时刻，重附着及演出内seek不得重新起播。scene可声明0～2500ms的 `completionOutro`，正值必须有对应全连可见绑定与覆盖尾段的非循环完成轨迹；仅健康选定场景的真实全连适用，暂停/速率继续使用游玩时钟，默认包仍走原结算等待。
+`gameplay.full-combo` 取真实 `HasCompleted && MaximumCombo > 0 && Combo == MaximumCombo`，空谱、首判失败及中途断连不能触发；`gameplay.complete` 轨迹使用留存的原完成时刻，重附着及演出内seek不得重新起播。scene可声明0～3500ms的 `completionOutro`，正值必须有对应全连可见绑定与覆盖尾段的非循环完成轨迹；仅健康选定场景的真实全连适用，暂停/速率继续使用游玩时钟，默认包仍走原结算等待。
 
 `projective-sprite` 只消费已校验的四角坐标、正倒数W与透明度帧，使用同一准备、资源、帧和时钟预算；不提供作者shader、相机或任意几何。坐标有限且在±4内，倒数W为1/256～256，采用固定完整UV和双面绘制。纹理清单可选 `filter: nearest/linear`，默认linear，按具体已准备资源隔离采样设置；nearest只上传原始层，不由图形后端自动生成缩小平均层。公开语法及不适用的属性见[四角动画参考](../../../skin-authoring/docs/REFERENCE.md#已投影纹理的四角动画)。
 

@@ -105,7 +105,18 @@ namespace osu.Game.Skinning.Gameplay
 
         public float Strength { get; }
 
-        internal GameplaySkinInputStateSnapshot(GameplaySkinLaneGroupId groupId, GameplaySkinLaneId laneId, bool isPressed, float strength)
+        /// <summary>
+        /// Authoritative gameplay time of the most recent observed press, or null when its edge is not known in this epoch.
+        /// </summary>
+        public double? PressedAt { get; }
+
+        /// <summary>
+        /// Authoritative gameplay time of the most recent observed release. A new press clears this value.
+        /// </summary>
+        public double? ReleasedAt { get; }
+
+        internal GameplaySkinInputStateSnapshot(GameplaySkinLaneGroupId groupId, GameplaySkinLaneId laneId, bool isPressed, float strength,
+                                               double? pressedAt = null, double? releasedAt = null)
         {
             ArgumentNullException.ThrowIfNull(groupId);
             ArgumentNullException.ThrowIfNull(laneId);
@@ -116,10 +127,30 @@ namespace osu.Game.Skinning.Gameplay
             if (!isPressed && strength != 0)
                 throw new ArgumentException("A released input must have zero strength.", nameof(strength));
 
+            if (pressedAt.HasValue && !double.IsFinite(pressedAt.Value))
+                throw new ArgumentOutOfRangeException(nameof(pressedAt));
+
+            if (releasedAt.HasValue && !double.IsFinite(releasedAt.Value))
+                throw new ArgumentOutOfRangeException(nameof(releasedAt));
+
+            if (isPressed && releasedAt.HasValue)
+                throw new ArgumentException("A pressed input cannot retain an earlier release origin.", nameof(releasedAt));
+
+            if (pressedAt.HasValue && releasedAt.HasValue && releasedAt.Value < pressedAt.Value)
+                throw new ArgumentException("A release origin cannot precede its press.", nameof(releasedAt));
+
             GroupId = groupId;
             LaneId = laneId;
             IsPressed = isPressed;
             Strength = strength;
+            PressedAt = pressedAt;
+            ReleasedAt = releasedAt;
+        }
+
+        internal void ValidateForGameplayTime(double gameplayTime)
+        {
+            if (PressedAt > gameplayTime || ReleasedAt > gameplayTime)
+                throw new ArgumentException("An input snapshot cannot contain an edge origin from the future.", nameof(gameplayTime));
         }
     }
 
@@ -372,6 +403,11 @@ namespace osu.Game.Skinning.Gameplay
     {
         public long Score { get; }
 
+        /// <summary>
+        /// The engine's maximum achievable total score, or zero when no denominator is available.
+        /// </summary>
+        public long MaximumScore { get; }
+
         public int Combo { get; }
 
         public int MaxCombo { get; }
@@ -385,9 +421,11 @@ namespace osu.Game.Skinning.Gameplay
         public GameplaySkinGaugeStateSnapshot GaugeState { get; }
 
         internal GameplaySkinScoreStateSnapshot(long score, int combo, int maxCombo, double accuracy, double gauge,
-                                               GameplaySkinJudgementStatistics statistics = default, GameplaySkinGaugeStateSnapshot gaugeState = default)
+                                               GameplaySkinJudgementStatistics statistics = default, GameplaySkinGaugeStateSnapshot gaugeState = default,
+                                               long maximumScore = 0)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(score);
+            ArgumentOutOfRangeException.ThrowIfNegative(maximumScore);
             ArgumentOutOfRangeException.ThrowIfNegative(combo);
             ArgumentOutOfRangeException.ThrowIfNegative(maxCombo);
 
@@ -397,6 +435,7 @@ namespace osu.Game.Skinning.Gameplay
             validateUnitValue(accuracy, nameof(accuracy));
             validateUnitValue(gauge, nameof(gauge));
             Score = score;
+            MaximumScore = maximumScore;
             Combo = combo;
             MaxCombo = maxCombo;
             Accuracy = accuracy;
@@ -432,7 +471,10 @@ namespace osu.Game.Skinning.Gameplay
 
         public double ScrollSpeed { get; }
 
-        internal GameplaySkinTimingStateSnapshot(double beat, long barIndex, double bpm, bool isStopped, double scrollMultiplier, double progress = 0, double scrollSpeed = 0)
+        public GameplaySkinLiftState LiftState { get; }
+
+        internal GameplaySkinTimingStateSnapshot(double beat, long barIndex, double bpm, bool isStopped, double scrollMultiplier, double progress = 0,
+                                                double scrollSpeed = 0, GameplaySkinLiftState liftState = default)
         {
             if (!double.IsFinite(beat))
                 throw new ArgumentOutOfRangeException(nameof(beat), beat, "Beat must be finite.");
@@ -453,6 +495,7 @@ namespace osu.Game.Skinning.Gameplay
                 throw new ArgumentOutOfRangeException(nameof(scrollSpeed));
 
             ScrollSpeed = scrollSpeed;
+            LiftState = liftState;
             Beat = beat;
             BarIndex = barIndex;
             Bpm = bpm;
@@ -556,10 +599,10 @@ namespace osu.Game.Skinning.Gameplay
             ArgumentNullException.ThrowIfNull(currentJudgements);
             ArgumentNullException.ThrowIfNull(bgaViewports);
 
-            GameplaySkinInputStateSnapshot[] copiedInputs = inputs.ToArray();
-            GameplaySkinObjectStateSnapshot[] copiedObjects = activeObjects.ToArray();
-            GameplaySkinCurrentJudgementStateSnapshot[] copiedJudgements = currentJudgements.ToArray();
-            GameplaySkinBgaStateSnapshot[] copiedBga = bgaViewports.ToArray();
+            GameplaySkinInputStateSnapshot[] copiedInputs = [.. inputs];
+            GameplaySkinObjectStateSnapshot[] copiedObjects = [.. activeObjects];
+            GameplaySkinCurrentJudgementStateSnapshot[] copiedJudgements = [.. currentJudgements];
+            GameplaySkinBgaStateSnapshot[] copiedBga = [.. bgaViewports];
 
             validateCollection(copiedInputs, GameplaySkinEventBudgets.MAX_INPUT_STATES, nameof(inputs));
             validateCollection(copiedObjects, GameplaySkinEventBudgets.MAX_ACTIVE_OBJECTS, nameof(activeObjects));
@@ -567,7 +610,7 @@ namespace osu.Game.Skinning.Gameplay
             validateCollection(copiedBga, GameplaySkinEventBudgets.MAX_BGA_VIEWPORTS, nameof(bgaViewports));
 
             foreach (GameplaySkinInputStateSnapshot input in copiedInputs)
-                _ = new GameplaySkinInputStateSnapshot(input.GroupId, input.LaneId, input.IsPressed, input.Strength);
+                _ = new GameplaySkinInputStateSnapshot(input.GroupId, input.LaneId, input.IsPressed, input.Strength, input.PressedAt, input.ReleasedAt);
 
             foreach (GameplaySkinObjectStateSnapshot obj in copiedObjects)
             {
@@ -597,8 +640,8 @@ namespace osu.Game.Skinning.Gameplay
                 _ = new GameplaySkinCurrentJudgementStateSnapshot(retained.Scope, judgement, retained.AppliedTime, retained.DisplayUntil);
             }
 
-            _ = new GameplaySkinScoreStateSnapshot(score.Score, score.Combo, score.MaxCombo, score.Accuracy, score.Gauge, score.Statistics, score.GaugeState);
-            _ = new GameplaySkinTimingStateSnapshot(timing.Beat, timing.BarIndex, timing.Bpm, timing.IsStopped, timing.ScrollMultiplier, timing.Progress, timing.ScrollSpeed);
+            _ = new GameplaySkinScoreStateSnapshot(score.Score, score.Combo, score.MaxCombo, score.Accuracy, score.Gauge, score.Statistics, score.GaugeState, score.MaximumScore);
+            _ = new GameplaySkinTimingStateSnapshot(timing.Beat, timing.BarIndex, timing.Bpm, timing.IsStopped, timing.ScrollMultiplier, timing.Progress, timing.ScrollSpeed, timing.LiftState);
 
             foreach (GameplaySkinBgaStateSnapshot viewport in copiedBga)
                 _ = new GameplaySkinBgaStateSnapshot(viewport.ViewportIndex, viewport.Viewport, viewport.ContentState, viewport.ContentRevision);
@@ -615,7 +658,7 @@ namespace osu.Game.Skinning.Gameplay
             if (copiedJudgements.GroupBy(judgementKey).Any(group => group.Skip(1).Any()))
                 throw new ArgumentException("A complete event snapshot cannot contain duplicate judgement scopes.", nameof(currentJudgements));
 
-            HashSet<long> activeObjectIds = copiedObjects.Select(obj => obj.ObjectId).ToHashSet();
+            HashSet<long> activeObjectIds = [.. copiedObjects.Select(obj => obj.ObjectId)];
 
             if (copiedJudgements.Any(retained => retained.Scope == GameplaySkinJudgementScope.Object
                                                  && !activeObjectIds.Contains(retained.Judgement.ObjectId!.Value)))
@@ -670,6 +713,9 @@ namespace osu.Game.Skinning.Gameplay
 
             if (Completion is { } completion && completion.AppliedTime > gameplayTime)
                 throw new ArgumentException("A complete snapshot cannot contain a completion from the future.", nameof(gameplayTime));
+
+            foreach (GameplaySkinInputStateSnapshot input in Inputs)
+                input.ValidateForGameplayTime(gameplayTime);
 
             foreach (GameplaySkinCurrentJudgementStateSnapshot retained in CurrentJudgements)
             {

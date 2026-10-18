@@ -4,7 +4,7 @@
 
 读表：`ID`是写进INI/scene的名字；`Scope`是所在区域；`Required/Recommended`不能关闭，只有`Optional + Allowed`可写`Suppress`。资源缺失时继续使用可用的默认部件。表里的键数上界是格式适用范围，不等于当前所有谱面入口都支持该键数。
 
-实际玩法有差异：原生BMS使用28项（9K无装饰转盘/皿光束）；mania可用23项，`object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame`不适用。**BMS转谱使用mania表现，也没有BGA。** 不要将表中宽泛的目录适用性当作mania实际支持全部28项。
+实际玩法有差异：原有主画面部件中，原生BMS使用28项（9K无装饰转盘/皿光束）；mania可用23项，`object.mine`、`playfield.turntable`、`playfield.laser`、`bga.viewport`、`bga.frame`不适用。**BMS转谱使用mania表现，也没有BGA。** 新增的两项辅助屏部件仅在manifest明确声明`auxiliaryDisplay`时用于独立辅助面板；两项LIFT部件仅用于BMS原生LIFT区域，且需选定包明确声明。普通皮肤不会因此新增这些部件或改变主画面。不要将目录适用性当作所有玩法的实际支持清单。
 
 | 找什么 | ID前缀或名称 |
 | --- | --- |
@@ -48,6 +48,10 @@
 | `decoration` | `Decoration` | `Common:1` | Global/Stage/Group/Lane | Resource | Optional | InheritToLowerAuthorityThenCanonicalFallback | Allowed | Mania/Bms | Single/Dual | Key/SpecialKey/Scratch | Mania/Bms5K/Bms7K/Bms9K/Bms14K | 1-20 | `OMS-SKIN-SLOT-026` |
 | `playfield.hit-target` | `HitTarget` | `Common:1` | Lane | Resource | Recommended | InheritToLowerAuthorityThenCanonicalFallback | Forbidden | Mania/Bms | Single/Dual | Key/SpecialKey/Scratch | Mania/Bms5K/Bms7K/Bms9K/Bms14K | 1-20 | `OMS-SKIN-SLOT-027` |
 | `playfield.lane-divider` | `LaneDivider` | `Common:1` | Lane | Resource | Recommended | InheritToLowerAuthorityThenCanonicalFallback | Forbidden | Mania/Bms | Single/Dual | Key/SpecialKey/Scratch | Mania/Bms5K/Bms7K/Bms9K/Bms14K | 1-20 | `OMS-SKIN-SLOT-028` |
+| `hud.auxiliary` | `AuxiliaryDisplay` | `Common:1` | Global | Resource | Optional | InheritToLowerAuthorityThenCanonicalFallback | Allowed | Mania/Bms | Single/Dual | None | Mania/Bms5K/Bms7K/Bms9K/Bms14K | 1-20 | `OMS-SKIN-SLOT-029` |
+| `hud.auxiliary-concentration` | `AuxiliaryConcentrationDisplay` | `Common:1` | Global | Resource | Optional | InheritToLowerAuthorityThenCanonicalFallback | Allowed | Mania/Bms | Single/Dual | None | Mania/Bms5K/Bms7K/Bms9K/Bms14K | 1-20 | `OMS-SKIN-SLOT-030` |
+| `playfield.lift.fill` | `LiftFill` | `Bms:1` | Stage | Resource | Optional | InheritToLowerAuthorityThenCanonicalFallback | Allowed | Bms | Single/Dual | None | Bms5K/Bms7K/Bms9K/Bms14K | 5-14 | `OMS-SKIN-SLOT-031` |
+| `playfield.lift.decoration` | `LiftDecoration` | `Bms:1` | Stage | Resource | Optional | InheritToLowerAuthorityThenCanonicalFallback | Allowed | Bms | Single/Dual | None | Bms5K/Bms7K/Bms9K/Bms14K | 5-14 | `OMS-SKIN-SLOT-032` |
 <!-- GAMEPLAY-SKIN-CATALOG:END -->
 
 ## 作者格式

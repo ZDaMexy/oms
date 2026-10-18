@@ -1,1 +1,2 @@
 ifstools==3.1
+brotli==1.2.0

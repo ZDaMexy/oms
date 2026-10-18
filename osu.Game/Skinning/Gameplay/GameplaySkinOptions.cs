@@ -58,9 +58,13 @@ namespace osu.Game.Skinning.Gameplay
         public IReadOnlyList<string> Keymodes { get; }
         public GameplaySkinOptionEffect Effect { get; }
 
+        /// <summary>A bounded external content directory, rather than an inline runtime variant list.</summary>
+        public bool IsContentCatalog { get; }
+
         internal GameplaySkinOptionDefinition(string id, string label, GameplaySkinOptionKind kind, string defaultValue,
                                              IEnumerable<GameplaySkinOptionChoice> choices, double minimum, double maximum, double step,
-                                             IEnumerable<string> rulesets, IEnumerable<string> keymodes, GameplaySkinOptionEffect effect)
+                                             IEnumerable<string> rulesets, IEnumerable<string> keymodes, GameplaySkinOptionEffect effect,
+                                             bool isContentCatalog = false)
         {
             Id = id;
             Label = label;
@@ -73,6 +77,7 @@ namespace osu.Game.Skinning.Gameplay
             Rulesets = Array.AsReadOnly(rulesets.ToArray());
             Keymodes = Array.AsReadOnly(keymodes.ToArray());
             Effect = effect;
+            IsContentCatalog = isContentCatalog;
         }
 
         public bool AppliesTo(string rulesetId, string keymodeId)
@@ -129,9 +134,9 @@ namespace osu.Game.Skinning.Gameplay
             CanonicalValue = canonical;
         }
 
-        internal static GameplaySkinOptionValue FromChoice(string value) => new GameplaySkinOptionValue(GameplaySkinOptionKind.Choice, value, false, 0, value);
-        internal static GameplaySkinOptionValue FromBoolean(bool value) => new GameplaySkinOptionValue(GameplaySkinOptionKind.Toggle, null, value, value ? 1 : 0, value ? "true" : "false");
-        internal static GameplaySkinOptionValue FromNumber(double value) => new GameplaySkinOptionValue(GameplaySkinOptionKind.Number, null, false, value, value.ToString("G17", CultureInfo.InvariantCulture));
+        internal static GameplaySkinOptionValue FromChoice(string value) => new(GameplaySkinOptionKind.Choice, value, false, 0, value);
+        internal static GameplaySkinOptionValue FromBoolean(bool value) => new(GameplaySkinOptionKind.Toggle, null, value, value ? 1 : 0, value ? "true" : "false");
+        internal static GameplaySkinOptionValue FromNumber(double value) => new(GameplaySkinOptionKind.Number, null, false, value, value.ToString("G17", CultureInfo.InvariantCulture));
     }
 
     /// <summary>
@@ -139,7 +144,7 @@ namespace osu.Game.Skinning.Gameplay
     /// </summary>
     public sealed class GameplaySkinOptionValues
     {
-        public static GameplaySkinOptionValues Empty { get; } = new GameplaySkinOptionValues(new Dictionary<string, GameplaySkinOptionValue>(), null);
+        public static GameplaySkinOptionValues Empty { get; } = new GameplaySkinOptionValues([], null);
 
         public IReadOnlyDictionary<string, GameplaySkinOptionValue> Values { get; }
         public string? Presentation { get; }
@@ -163,8 +168,7 @@ namespace osu.Game.Skinning.Gameplay
                 if (!definition.AppliesTo(rulesetId, keymodeId))
                     continue;
 
-                GameplaySkinOptionValue value;
-                if (overrides == null || !overrides.TryGetValue(definition.Id, out string? raw) || !definition.TryValidateValue(raw, out value))
+                if (overrides == null || !overrides.TryGetValue(definition.Id, out string? raw) || !definition.TryValidateValue(raw, out var value))
                 {
                     if (!definition.TryValidateValue(definition.DefaultValue, out value))
                         throw new InvalidOperationException("A prepared option must have a valid author default.");

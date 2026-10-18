@@ -67,7 +67,7 @@ namespace osu.Game.Overlays.Settings.Sections
             Add(text("皮肤配置项 · " + (mode == "bms" ? "BMS" : "osu!mania")));
             GameplaySkinOptionDefinition[] definitions = skin.PreparedGameplaySkinPackage?.Manifest?.Options
                 .Where(option => option.Rulesets.Count == 0 || option.Rulesets.Contains(mode, StringComparer.Ordinal)).ToArray()
-                ?? Array.Empty<GameplaySkinOptionDefinition>();
+                ?? [];
             if (definitions.Length == 0)
             {
                 Add(text("此皮肤未声明可调整的配置项，使用作者默认表现。"));
@@ -92,6 +92,7 @@ namespace osu.Game.Overlays.Settings.Sections
                         {
                             Caption = definition.Label,
                             HintText = hint,
+                            AlwaysShowSearchBar = definition.IsContentCatalog,
                             Current = choice,
                             Items = definition.Choices.Select(item => item.Value),
                         }));
@@ -157,7 +158,7 @@ namespace osu.Game.Overlays.Settings.Sections
             }
         }
 
-        private static OsuTextFlowContainer text(string value) => new OsuTextFlowContainer
+        private static OsuTextFlowContainer text(string value) => new()
         {
             RelativeSizeAxes = Axes.X,
             AutoSizeAxes = Axes.Y,
@@ -176,11 +177,12 @@ namespace osu.Game.Overlays.Settings.Sections
 
         private partial class OptionDropdown : FormDropdown<string>
         {
-            private readonly IReadOnlyList<GameplaySkinOptionChoice> choices;
+            private readonly IReadOnlyDictionary<string, string> labels;
 
-            public OptionDropdown(IReadOnlyList<GameplaySkinOptionChoice> choices) => this.choices = choices;
+            public OptionDropdown(IReadOnlyList<GameplaySkinOptionChoice> choices)
+                => labels = choices.ToDictionary(choice => choice.Value, choice => choice.Label, StringComparer.Ordinal);
 
-            protected override LocalisableString GenerateItemText(string item) => choices.First(choice => choice.Value == item).Label;
+            protected override LocalisableString GenerateItemText(string item) => labels[item];
         }
     }
 }
