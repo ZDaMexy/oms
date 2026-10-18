@@ -564,22 +564,8 @@ namespace osu.Game.Screens.Play
             player.RestartCount = restartCount++;
             player.PrepareLoaderForRestart = prepareForRestart;
 
-            SkinRevisionParticipantRegistration initialParticipant;
-
-            try
-            {
-                initialParticipant = skinManager.RegisterRevisionParticipant(
-                    SkinRevisionParticipantKind.LiveGameplayHost,
-                    $"{nameof(PlayerLoader)} (initial load)",
-                    blocksRevisionPublication: true);
-            }
-            catch
-            {
-                CurrentPlayer = null;
-                player.Dispose();
-                throw;
-            }
-
+            var initialParticipant = new InitialPlayerSkinProtection(skinManager);
+            player.PrepareInitialGameplaySkinProtection = initialParticipant.TryAcquire;
             var ownership = new PendingAsyncDrawableOwnership<Player>(player, initialParticipant.Dispose);
             var cancellation = new CancellationTokenSource();
             pendingPlayerOwnership = ownership;
@@ -639,6 +625,62 @@ namespace osu.Game.Screens.Play
 
         protected virtual void OnPlayerLoaded()
         {
+        }
+
+        /// <summary>
+        /// Owned by the same pending-load claim as the player. No skin-dependent gameplay graph exists before
+        /// Player requests this registration; thereafter it blocks publication through transfer or exact reclaim.
+        /// </summary>
+        private sealed class InitialPlayerSkinProtection : IDisposable
+        {
+            private readonly SkinManager skins;
+            private readonly object gate = new object();
+            private SkinRevisionParticipantRegistration? participant;
+            private bool disposed;
+
+            public InitialPlayerSkinProtection(SkinManager skins) => this.skins = skins;
+
+            public bool TryAcquire(Guid expectedSkinId, CancellationToken cancellationToken)
+            {
+                lock (gate)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (disposed)
+                        throw new OperationCanceledException("The pending player load has ended.");
+                    if (participant != null)
+                        throw new InvalidOperationException("The initial player skin protection was already registered.");
+
+                    SkinRevisionParticipantRegistration? candidate = skins.RegisterRevisionParticipant(
+                        SkinRevisionParticipantKind.LiveGameplayHost,
+                        $"{nameof(PlayerLoader)} (initial load)",
+                        blocksRevisionPublication: true);
+                    try
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (candidate.CurrentRevision.RecordId != expectedSkinId)
+                            return false;
+                        participant = candidate;
+                        candidate = null;
+                        return true;
+                    }
+                    finally
+                    {
+                        candidate?.Dispose();
+                    }
+                }
+            }
+
+            public void Dispose()
+            {
+                SkinRevisionParticipantRegistration? release;
+                lock (gate)
+                {
+                    disposed = true;
+                    release = participant;
+                    participant = null;
+                }
+                release?.Dispose();
+            }
         }
 
         /// <summary>

@@ -48,9 +48,9 @@ using osu.Game.Input.Bindings;
 using osu.Game.IO;
 using osu.Game.Localisation;
 using osu.Game.Online;
-using osu.Game.Online.IR;
 using osu.Game.Online.API;
 using osu.Game.Online.Chat;
+using osu.Game.Online.IR;
 using osu.Game.Online.Leaderboards;
 using osu.Game.Online.Metadata;
 using osu.Game.Online.Multiplayer;
@@ -356,6 +356,9 @@ namespace osu.Game
             dependencies.Cache(SkinManager = new SkinManager(Storage, ClientRealm, Host, Resources, Audio, Scheduler));
             dependencies.CacheAs<ISkinSource>(SkinManager);
             dependencies.Cache(new SkinOptionPreferences(LocalConfig));
+            var skinSelectionPreferences = new SkinSelectionPreferences(LocalConfig);
+            dependencies.Cache(skinSelectionPreferences);
+            SkinManager.SelectionPreferences = skinSelectionPreferences;
 
             EndpointConfiguration endpoints = CreateEndpoints();
 

@@ -26,11 +26,12 @@ namespace osu.Game.Skinning.Gameplay
         private readonly string baseIni;
         private readonly IReadOnlyDictionary<string, byte[]> files;
         private readonly IReadOnlyDictionary<GameplaySkinContentChoice, Branch> branches;
+        private readonly GameplaySkinOptionPreviews optionPreviews;
 
         private GameplaySkinCapturedContentCatalog(string packageRevision, Guid recordId, GameplaySkinScriptAuthorizationStore? authorizations,
                                                   GameplaySkinContentCatalog catalog, GameplaySkinSceneManifest manifest,
                                                   GameplaySkinSceneDocument scene, string baseIni, Dictionary<string, byte[]> files,
-                                                  Dictionary<GameplaySkinContentChoice, Branch> branches)
+                                                  Dictionary<GameplaySkinContentChoice, Branch> branches, GameplaySkinOptionPreviews optionPreviews)
         {
             this.packageRevision = packageRevision;
             this.recordId = recordId;
@@ -41,6 +42,7 @@ namespace osu.Game.Skinning.Gameplay
             this.baseIni = baseIni;
             this.files = files;
             this.branches = branches;
+            this.optionPreviews = optionPreviews;
         }
 
         internal static GameplaySkinPreparedPackage Capture(Func<string, int, byte[]?> read, string packageRevision, Guid recordId,
@@ -59,6 +61,7 @@ namespace osu.Game.Skinning.Gameplay
             if (options.Select(option => option.Id).Distinct(StringComparer.Ordinal).Count() != options.Length)
                 throw fail(GameplaySkinSceneDiagnosticCode.DuplicateStableId);
             manifest = withOptions(manifest, options, manifest.ContentCatalogFile);
+            GameplaySkinOptionPreviews optionPreviews = GameplaySkinOptionPreviews.Capture(options, read, token);
             validateContentVariantSelectors(catalog, manifest);
             GameplaySkinSceneDocument scene = GameplaySkinPreparedPackage.RequireValid(GameplaySkinSceneCodec.DecodeScene(
                 capture.Read(manifest.SceneFile, GameplaySkinSceneBudgets.MAX_SCENE_BYTES, structured: true), manifest));
@@ -119,9 +122,9 @@ namespace osu.Game.Skinning.Gameplay
             }
             token.ThrowIfCancellationRequested();
             var captured = new GameplaySkinCapturedContentCatalog(packageRevision, recordId, authorizations,
-                catalog, manifest, scene, baseIni, capture.Files, branches);
+                catalog, manifest, scene, baseIni, capture.Files, branches, optionPreviews);
             return new GameplaySkinPreparedPackage(packageRevision, manifest, scene,
-                Array.Empty<GameplaySkinCapturedSceneResource>(), null, null, captured);
+                Array.Empty<GameplaySkinCapturedSceneResource>(), null, null, captured, optionPreviews: optionPreviews);
         }
 
         private static void validateContentVariantSelectors(GameplaySkinContentCatalog catalog, GameplaySkinSceneManifest manifest)
@@ -147,7 +150,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneDocument document = mergeScene(baseScene, selected.Where(branch => branch.Scene != null).Select(branch => branch.Scene!), manifest);
             GameplaySkinDocument materials = decodeIni(Encoding.UTF8.GetBytes(baseIni + "\n" + string.Join("\n", selected.Select(branch => branch.Ini))));
             return GameplaySkinPreparedPackage.PrepareActive(readCaptured, packageRevision, recordId, authorizations,
-                manifest, document, token, materials);
+                manifest, document, token, materials, optionPreviews);
         }
 
         private byte[]? readCaptured(string path, int limit)

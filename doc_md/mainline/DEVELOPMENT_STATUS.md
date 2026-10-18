@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-18（皮肤内容组合、统一IIDX Omni与完整CUSTOM接入；既有产品/生产门保持）
+> 最后核对：2026-10-19（按键数皮肤设置与素材预览；既有产品/生产门保持）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -9,7 +9,7 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 ## 产品与仓库基线
 
-作者可声明配置、默认表现与真实轨道布局，大型素材库可搜索组合；玩家按作品和模式保存，未声明的包保持原表现。Lighting Model Skin Omni Until 33默认33；27～33与八支BPL作为Game Frame，接入现有CUSTOM、全连及尺寸/长度，扩展键数由作者布局提供。作品独立私下分享，不内置OMS或进入公开发行/制作套件。原HDD只读，26及更早来源待补；验证及原版还原缺口取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)推进，原发行门保持。
+作者可声明配置、默认表现、真实轨道布局和可选素材缩略图；玩家通过单一卡片设置模式默认/键数覆盖，管理目标明确，未声明的包保持原表现。Lighting Model Skin Omni Until 33默认33，27～33与八支BPL为Game Frame，现有CUSTOM/全连/尺寸/长度及六类缩略图已接入。作品独立私下分享，不内置或进入公开发行/制作套件。原HDD只读，26及更早来源待补；验证与还原缺口取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)推进，原发行门保持。
 
 玩家直接登录固定OMSIR，保存后新局上传；新闻 / 帮助 / 排行 / 玩家沿原生页面。谱面列表先选模式：BMS 仅 Ginger Rush / 616，osu!mania 仅 Sayobot，恢复上次 BMS 来源；紧凑筛选、原生卡片和各来源阅读状态保持。正常OMS窗口的lazer体验仍待签收，隔离内容宽度检查不代签；源码 / 软件及剩余门取[P3-IR状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。社交后续，旧ppy关闭；Phase1.x原门保持。
 

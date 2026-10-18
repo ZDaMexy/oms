@@ -21,6 +21,9 @@ import zipfile
 import brotli
 from PIL import Image
 
+from choice_previews import (MODULES as PREVIEW_MODULES, audit_previews, build_choice_previews,
+                             preview_files, preview_path)
+
 NAME = "Lighting Model Skin Omni Until 33"
 MANIFEST_CONTRACT = "oms-gameplay-skin-manifest.v1"
 SCENE_CONTRACT = "oms-gameplay-skin-scene.v1"
@@ -455,9 +458,12 @@ def package_closure(output: Path):
             if data.get("contract") == MANIFEST_CONTRACT:
                 additions.extend(resource["path"] for resource in data.get("resources", []))
                 additions.extend(animation["path"] for animation in data.get("animations", []))
+                additions.extend(choice["preview"] for option in data.get("options", [])
+                                 for choice in option.get("choices", []) if choice.get("preview"))
                 if relative == "gameplay-skin.json":
                     additions.extend(data[key] for key in ("scene", "contentCatalog") if data.get(key))
             elif data.get("contract") == "oms-gameplay-skin-content.v1":
+                additions.extend(preview_files(data))
                 for contribution in catalog_contributions(data):
                     additions.extend(contribution[key] for key in ("manifest", "scene", "ini") if contribution.get(key))
         for addition in additions:
@@ -681,6 +687,7 @@ def audit_package(output: Path, files):
                          "recordedNodes": 32768, "recordedStates": 131072}.items():
         if totals[key] > maximum:
             aggregate_violations.append({"budget": key, "upperBound": totals[key], "limit": maximum})
+    previews = audit_previews(output, catalog)
     total_bytes = sum(exact_file(output, path).stat().st_size for path in files)
     config_bytes = sum(exact_file(output, path).stat().st_size for path in files if path.endswith((".json", ".ini")))
     if len(files) > 8192 or total_bytes > 512 * 1024 * 1024 or config_bytes > 16 * 1024 * 1024:
@@ -688,6 +695,7 @@ def audit_package(output: Path, files):
     return {"method": "independent maximum per selected content module, then sum; no runtime acceptance asserted",
             "files": len(files), "uncompressedBytes": total_bytes, "configurationBytes": config_bytes,
             "contentChoices": sum(item["choices"] for item in module_bounds), "options": len(ordinary_options) + len(module_ids),
+            "choicePreviews": previews,
             "selectedUpperBound": totals, "perModule": module_bounds, "uniqueRecordedPrograms": len(programs),
             "textureSharingComponents": texture_components, "unsharedIndependentSum": independent_resource_sum,
             "textureBudget": {"pixels": 96 * 1024 * 1024, "decodedBytes": 384 * 1024 * 1024,
@@ -917,17 +925,21 @@ def verify_repackage(source: Path, output: Path, files):
                 original = part[key]
                 paths.add(original)
                 part[key] = flat_configuration_path(original, kind)
+    for module in expected_catalog["modules"]:
+        if module["id"] in PREVIEW_MODULES:
+            for choice in module["choices"]:
+                choice["preview"] = preview_path(module["id"], choice["value"])
     for path in manifests:
         expected = read_json(exact_file(source, path))
         expected["scene"] = SCENE_HEADER_FILE
         if read_json(exact_file(output, flat_configuration_path(path, "m"))) != expected:
             raise ValueError(f"Repackaging changed a manifest beyond its fixed C1 scene header: {path}")
     if read_json(output / "gameplay/content.json") != expected_catalog:
-        raise ValueError("Repackaging changed a catalog beyond its configuration paths")
+        raise ValueError("Repackaging changed a catalog beyond its configuration paths and exact option illustrations")
     mappings = {**{path: flat_configuration_path(path, "m") for path in manifests},
                 **{path: flat_configuration_path(path, "s") for path in scenes}}
-    if sorted(mappings.get(path, path) for path in original_files) != files:
-        raise ValueError("Repackaging changed the original reference closure")
+    if sorted({mappings.get(path, path) for path in original_files} | preview_files(expected_catalog)) != files:
+        raise ValueError("Repackaging changed the original reference closure beyond its exact option illustrations")
     unchanged, byte_equal_scenes = 0, 0
     corrected_scenes, corrected_frame_inis = [], []
     frame_inis = set(frame_ini_paths(original_catalog))
@@ -964,7 +976,9 @@ def verify_repackage(source: Path, output: Path, files):
             unchanged += 1
     return {"source": str(source), "unchangedPathAndBytes": unchanged, "relocatedByteEqualScenes": byte_equal_scenes,
             "manifestsCheckedForFixedSceneHeader": len(manifests), "manifestSceneHeader": SCENE_HEADER_FILE,
-            "actualSceneAuthority": "C2 catalog contribution.scene", "catalogChangedOnlyContributionPaths": True,
+            "actualSceneAuthority": "C2 catalog contribution.scene",
+            "catalogChanges": ["contribution configuration paths", "per-choice optional preview paths"],
+            "newPreviewFiles": len(preview_files(expected_catalog) - set(original_files)),
             "allPngClipAndOtherIniBytesPreserved": True,
             "frameIniScopeCorrections": corrected_frame_inis,
             "sceneContractCorrections": corrected_scenes, "otherSceneFieldsPreserved": True,
@@ -997,6 +1011,7 @@ def prepare_package(output: Path, receipt, repackage_source: Path | None = None)
         receipt["codecValidation"] = {"status": "pending", "reason": "Author scene declarations changed; the source package codec receipt is historical evidence only"}
     receipt["frameDecorationScopeCorrections"] = correct_frame_ini_scopes(output)
     receipt["graphStatistics"]["readoutLayout"] = graph_readout_receipt()
+    receipt["choicePreviews"] = build_choice_previews(output)
     files = package_closure(output)
     if repackage_source:
         receipt["sourcePreservation"] = verify_repackage(repackage_source, output, files)

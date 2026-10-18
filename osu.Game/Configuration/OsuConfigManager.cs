@@ -46,6 +46,7 @@ namespace osu.Game.Configuration
             SetDefault(OsuSetting.SkinBms, string.Empty);
             SetDefault(OsuSetting.SkinMania, string.Empty);
             SetDefault(OsuSetting.SkinOptions, "{}");
+            SetDefault(OsuSetting.SkinKeyOverrides, "{}");
 
             SetDefault(OsuSetting.BeatmapDetailTab, BeatmapDetailTab.Local);
             SetDefault(OsuSetting.BeatmapLeaderboardSortMode, LeaderboardSortMode.Score);
@@ -550,5 +551,8 @@ namespace osu.Game.Configuration
 
         /// <summary>Player overrides for author-declared options, isolated by skin record and ruleset.</summary>
         SkinOptions,
+
+        /// <summary>Sparse per-key skin assignments which inherit the BMS/mania mode defaults.</summary>
+        SkinKeyOverrides,
     }
 }

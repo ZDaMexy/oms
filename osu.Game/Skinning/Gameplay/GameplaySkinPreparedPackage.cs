@@ -28,6 +28,7 @@ namespace osu.Game.Skinning.Gameplay
         public IReadOnlyDictionary<string, GameplaySkinRecordedAnimationProgram> RecordedAnimations { get; }
         internal GameplaySkinCapturedContentCatalog? ContentCatalog { get; }
         internal GameplaySkinDocument? MaterialDocument { get; }
+        internal GameplaySkinOptionPreviews OptionPreviews { get; }
 
         internal GameplaySkinPreparedPackage(
             string contentRevision,
@@ -38,7 +39,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinScriptAuthorization? scriptAuthorization,
             GameplaySkinCapturedContentCatalog? contentCatalog = null,
             IReadOnlyDictionary<string, GameplaySkinRecordedAnimationProgram>? recordedAnimations = null,
-            GameplaySkinDocument? materialDocument = null)
+            GameplaySkinDocument? materialDocument = null,
+            GameplaySkinOptionPreviews? optionPreviews = null)
         {
             ContentRevision = contentRevision;
             Manifest = manifest;
@@ -48,6 +50,7 @@ namespace osu.Game.Skinning.Gameplay
             ScriptAuthorization = scriptAuthorization;
             ContentCatalog = contentCatalog;
             MaterialDocument = materialDocument;
+            OptionPreviews = optionPreviews ?? GameplaySkinOptionPreviews.Empty;
             RecordedAnimations = recordedAnimations ?? new System.Collections.ObjectModel.ReadOnlyDictionary<string, GameplaySkinRecordedAnimationProgram>(
                 new Dictionary<string, GameplaySkinRecordedAnimationProgram>(StringComparer.Ordinal));
         }
@@ -85,8 +88,10 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneManifest manifest,
             GameplaySkinSceneDocument document,
             CancellationToken cancellationToken,
-            GameplaySkinDocument? materialDocument = null)
+            GameplaySkinDocument? materialDocument = null,
+            GameplaySkinOptionPreviews? optionPreviews = null)
         {
+            optionPreviews ??= GameplaySkinOptionPreviews.Capture(manifest.Options, read, cancellationToken);
             var captured = new List<(GameplaySkinSceneResource Source, byte[] Bytes, ImageInfo Info)>();
             var resources = new List<GameplaySkinCapturedSceneResource>();
             long encodedBytes = 0;
@@ -153,7 +158,7 @@ namespace osu.Game.Skinning.Gameplay
             IReadOnlyDictionary<string, GameplaySkinRecordedAnimationProgram> animations =
                 GameplaySkinRecordedAnimationCodec.PrepareAnimations(manifest, read, cancellationToken);
             return new GameplaySkinPreparedPackage(packageRevision, manifest, document, resources, program, authorization,
-                recordedAnimations: animations, materialDocument: materialDocument);
+                recordedAnimations: animations, materialDocument: materialDocument, optionPreviews: optionPreviews);
         }
 
         private static IEnumerable<GameplaySkinSceneNode> enumerateNodes(GameplaySkinSceneNode node)

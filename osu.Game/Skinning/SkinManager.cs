@@ -91,7 +91,7 @@ namespace osu.Game.Skinning
     /// This is also exposed and cached as <see cref="ISkinSource"/> to allow for any component to potentially have skinning support.
     /// For gameplay components, see <see cref="RulesetSkinProvidingContainer"/> which adds extra legacy and toggle logic that may affect the lookup process.
     /// </remarks>
-    public class SkinManager : ModelManager<SkinInfo>, ISkinSource, IStorageResourceProvider, IModelImporter<SkinInfo>
+    public partial class SkinManager : ModelManager<SkinInfo>, ISkinSource, IStorageResourceProvider, IModelImporter<SkinInfo>
     {
         internal const string CURRENT_REALM_PACKAGE_MUTATION_DISABLED_DIAGNOSTIC =
             "The current Realm skin package can only change through revision preparation and publication.";
@@ -236,6 +236,7 @@ namespace osu.Game.Skinning
         private int currentRevisionManagerLeaseReleased;
         private int currentRevisionPublicationBroadcast;
         private int currentSkinProjectionInProgress;
+        private int protectedSkinTransitionProjection;
         private CancellationTokenSource activeManagedFolderRenameCancellation;
         private Task<SkinManagedFolderRenameOperationResult> activeManagedFolderRenameTask;
         private CancellationTokenSource activeManagedFolderStagedImportCancellation;
@@ -550,6 +551,9 @@ namespace osu.Game.Skinning
         internal bool IsCurrentRevisionPublicationBroadcast
             => Volatile.Read(ref currentRevisionPublicationBroadcast) != 0;
 
+        /// <summary>Internal fallback/rollback projections preserve the player's saved mode and key assignments.</summary>
+        internal bool IsProjectingProtectedSkinTransition => Volatile.Read(ref protectedSkinTransitionProjection) != 0;
+
         internal SkinRevisionParticipantRegistration RegisterRevisionHolderForOwner(
             Skin owner,
             string diagnosticName)
@@ -694,7 +698,15 @@ namespace osu.Game.Skinning
                 return false;
             }
 
-            completePublishedCurrentRevision(preparedPair, previousRevision, usesCoherentBarrier: true);
+            Interlocked.Increment(ref protectedSkinTransitionProjection);
+            try
+            {
+                completePublishedCurrentRevision(preparedPair, previousRevision, usesCoherentBarrier: true);
+            }
+            finally
+            {
+                Interlocked.Decrement(ref protectedSkinTransitionProjection);
+            }
 
             return ReferenceEquals(currentRevisionPublication.Current, preparedRevision)
                    && ReferenceEquals(CurrentSkin.Value, preparedRevision.Owner)
@@ -718,13 +730,16 @@ namespace osu.Game.Skinning
             if (!ThreadSafety.IsUpdateThread)
                 throw new InvalidOperationException("Current skin selection publication must run on the update thread.");
 
+            // Scoped cancellation and commit claim one admission winner. Once commit owns this boundary, the caller
+            // observes its C2 result even if cancellation arrives while committed projections are being notified.
             if (CurrentSkinInfo.Disabled
                 || CurrentSkin.Disabled
                 || !ReferenceEquals(CurrentSkinInfo.Value, expectedSelection)
                 || !ReferenceEquals(CurrentSkin.Value, expectedOwner)
                 || !ReferenceEquals(currentRevisionPublication.Current, expectedRevision)
                 || preparedRevision.RecordId != authoritativeSelection.ID
-                || preparedRevision.Owner.SkinInfo.ID != authoritativeSelection.ID)
+                || preparedRevision.Owner.SkinInfo.ID != authoritativeSelection.ID
+                || !tryClaimSkinScopeCommit())
             {
                 rejectionReason = SkinRevisionBarrierRejectionReason.CurrentRevisionChanged;
                 return false;
@@ -826,6 +841,8 @@ namespace osu.Game.Skinning
                     Volatile.Write(ref managedFolderDeleteFallbackSourceChangePending, 1);
                 else
                     notifySourceChanged();
+
+                completeSkinScopeSelection(pair.Selection.ID);
             }
             finally
             {
@@ -4060,6 +4077,7 @@ namespace osu.Game.Skinning
 
         private void shutdownManagedFolderSelections()
         {
+            finishSkinScopeSelection(false);
             CancellationTokenSource pendingSelection = null;
             PendingManagedFolderSelectionCompletion[] pendingCompletions;
             PendingExternalFolderSelectionCompletion[] pendingExternalCompletions;
@@ -4781,6 +4799,8 @@ namespace osu.Game.Skinning
 
         private bool requestSelection(Live<SkinInfo> target)
         {
+            if (!admittingSkinScopeSelection)
+                finishSkinScopeSelection(false);
             // Clear at request admission only. A successful publication notifies arbitrary observers; one of those may
             // issue and reject a newer reentrant request whose diagnostic must not be erased by the outer completion.
             LastSelectionRejectionReason = SkinSelectionRejectionReason.None;
@@ -5579,6 +5599,7 @@ namespace osu.Game.Skinning
 
         private void trackManagedFolderSelectionWorkerHeld(Task workerTask)
         {
+            ScopedSelection scopeSelection = Volatile.Read(ref pendingSkinScopeSelection);
             managedFolderSelectionWorkerTasks.Add(workerTask);
 
             _ = workerTask.ContinueWith(
@@ -5591,6 +5612,8 @@ namespace osu.Game.Skinning
                     {
                         Logger.Log($"Internal skin selection worker fault ({unexpected.GetBaseException().GetType().Name}).",
                             level: LogLevel.Error);
+                        if (ReferenceEquals(Volatile.Read(ref pendingSkinScopeSelection), scopeSelection))
+                            finishSkinScopeSelection(false);
                     }
                 },
                 CancellationToken.None,
@@ -6176,6 +6199,8 @@ namespace osu.Game.Skinning
 
         private void cancelPendingSelection()
         {
+            if (!admittingSkinScopeSelection)
+                finishSkinScopeSelection(false);
             CancellationTokenSource cancellation = Interlocked.Exchange(ref pendingSelectionCancellation, null);
 
             if (cancellation == null)
@@ -6193,6 +6218,7 @@ namespace osu.Game.Skinning
         private void rejectSelection(SkinSelectionRejectionReason reason)
         {
             LastSelectionRejectionReason = reason;
+            finishSkinScopeSelection(false);
         }
 
         private void rejectSelection(long generation, SkinSelectionRejectionReason reason)

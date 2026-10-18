@@ -918,7 +918,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 };
                 Add(callerHost = new FullSkinSettingsCallerHost(manager));
             });
-            AddUntilStep("wait for real ordinary delete caller", () => callerHost.CurrentDeleteButton.Enabled.Value);
+            addExpandSkinManagement(() => callerHost, () => selectionA.ID);
+            AddUntilStep("wait for real ordinary delete caller", () =>
+                callerHost.CurrentDeleteButton.IsLoaded && callerHost.CurrentDeleteButton.Enabled.Value);
             AddStep("open ordinary delete confirmation", () => callerHost.CurrentDeleteButton.TriggerClick());
             AddUntilStep("wait for ordinary delete confirmation", () =>
                 callerHost.DialogOverlay.CurrentDialog is SkinSection.SkinDeleteDialog dialog
@@ -927,6 +929,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 callerHost.DialogOverlay.CurrentDialog!.PerformAction<PopupDialogDangerousButton>());
             AddUntilStep("wait for failed ordinary deletion observation", () =>
                 realmCommitAttempts == 1
+                && callerHost.Section.IsTargetReady
+                && callerHost.Section.DisplayedSkinId == selectionA.ID
+                && callerHost.CurrentDeleteButton.IsLoaded
                 && callerHost.CurrentDeleteButton.Enabled.Value
                 && ReferenceEquals(manager.CurrentRevision, revisionA));
             AddStep("assert ordinary failure restored exact A and every blob", () =>

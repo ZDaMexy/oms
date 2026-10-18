@@ -29,12 +29,17 @@ namespace osu.Game.Overlays.Settings.Sections
         [Resolved(CanBeNull = true)]
         private IBindable<RulesetInfo> ruleset { get; set; } = null!;
 
-        private Bindable<Skin> current = null!;
+        private IBindable<Skin> current = null!;
         private IBindable<RulesetInfo> currentRuleset = null!;
+        private readonly IBindable<Skin>? targetSkin;
+        private readonly IBindable<SkinSelectionScope>? targetScope;
+        private IBindable<SkinSelectionScope>? scope;
         private string? saveError;
 
-        public SkinOptionsSettings()
+        public SkinOptionsSettings(IBindable<Skin>? targetSkin = null, IBindable<SkinSelectionScope>? targetScope = null)
         {
+            this.targetSkin = targetSkin;
+            this.targetScope = targetScope;
             RelativeSizeAxes = Axes.X;
             AutoSizeAxes = Axes.Y;
             Direction = FillDirection.Vertical;
@@ -45,12 +50,20 @@ namespace osu.Game.Overlays.Settings.Sections
         {
             base.LoadComplete();
             // Detached settings hosts can omit the application preferences / mode service.
-            if (preferences == null || ruleset == null)
+            if (preferences == null || (targetScope == null && ruleset == null))
                 return;
-            current = skins.CurrentSkin.GetBoundCopy();
-            currentRuleset = ruleset.GetBoundCopy();
+            current = targetSkin?.GetBoundCopy() ?? skins.CurrentSkin.GetBoundCopy();
             current.BindValueChanged(_ => { saveError = null; rebuild(); });
-            currentRuleset.BindValueChanged(_ => { saveError = null; rebuild(); });
+            if (targetScope != null)
+            {
+                scope = targetScope.GetBoundCopy();
+                scope.BindValueChanged(_ => { saveError = null; rebuild(); });
+            }
+            else
+            {
+                currentRuleset = ruleset.GetBoundCopy();
+                currentRuleset.BindValueChanged(_ => { saveError = null; rebuild(); });
+            }
             preferences.Changed += preferencesChanged;
             rebuild();
         }
@@ -62,11 +75,17 @@ namespace osu.Game.Overlays.Settings.Sections
             if (IsDisposed)
                 return;
             Clear();
-            Skin skin = current.Value;
-            string mode = currentRuleset.Value.ShortName;
-            Add(text("皮肤配置项 · " + (mode == "bms" ? "BMS" : "osu!mania")));
+            SkinSelectionScope target = scope?.Value ?? new SkinSelectionScope(currentRuleset.Value.ShortName);
+            string mode = target.RulesetId;
+            Add(text("皮肤配置项 · " + target));
+            if (current.Value is not Skin skin)
+            {
+                Add(text("正在读取所选皮肤。"));
+                return;
+            }
             GameplaySkinOptionDefinition[] definitions = skin.PreparedGameplaySkinPackage?.Manifest?.Options
-                .Where(option => option.Rulesets.Count == 0 || option.Rulesets.Contains(mode, StringComparer.Ordinal)).ToArray()
+                .Where(option => (option.Rulesets.Count == 0 || option.Rulesets.Contains(mode, StringComparer.Ordinal))
+                    && appliesToKeyCount(option, target)).ToArray()
                 ?? [];
             if (definitions.Length == 0)
             {
@@ -74,12 +93,19 @@ namespace osu.Game.Overlays.Settings.Sections
                 return;
             }
 
-            Add(text("仅修改此皮肤在当前模式的配置；下次进入游玩或重新打开预览时生效。"));
+            Add(text(target.KeyCount == null
+                ? "未单独配置的键数跟随这里；下次进入游玩或预览时生效。"
+                : $"仅设置此皮肤的 {target.KeyCount}K 表现；未修改的配置跟随同皮肤的模式默认。"));
             if (saveError != null)
                 Add(text(saveError));
-            IReadOnlyDictionary<string, string> saved = preferences.GetOverrides(skin.SkinInfo.ID, mode);
+            IReadOnlyDictionary<string, string> saved = preferences.GetOverrides(skin.SkinInfo.ID, mode, target.KeyCount);
+            IReadOnlyDictionary<string, string> inherited = target.KeyCount == null
+                ? new Dictionary<string, string>() : preferences.GetOverrides(skin.SkinInfo.ID, mode);
             foreach (GameplaySkinOptionDefinition definition in definitions)
             {
+                string inheritedValue = inherited.GetValueOrDefault(definition.Id) ?? definition.DefaultValue;
+                if (!definition.TryValidateValue(inheritedValue, out _))
+                    inheritedValue = definition.DefaultValue;
                 string raw = saved.GetValueOrDefault(definition.Id) ?? definition.DefaultValue;
                 if (!definition.TryValidateValue(raw, out GameplaySkinOptionValue value))
                     definition.TryValidateValue(definition.DefaultValue, out value);
@@ -87,26 +113,33 @@ namespace osu.Game.Overlays.Settings.Sections
                 switch (definition.Kind)
                 {
                     case GameplaySkinOptionKind.Choice:
-                        var choice = new Bindable<string>(value.CanonicalValue) { Default = definition.DefaultValue };
-                        Add(new SettingsItemV2(new OptionDropdown(definition.Choices)
+                        var choice = new Bindable<string>(value.CanonicalValue) { Default = inheritedValue };
+                        if (definition.Choices.Any(item => item.PreviewPath != null))
                         {
-                            Caption = definition.Label,
-                            HintText = hint,
-                            AlwaysShowSearchBar = definition.IsContentCatalog,
-                            Current = choice,
-                            Items = definition.Choices.Select(item => item.Value),
-                        }));
+                            Add(new SkinOptionChoiceSettings(definition, skin.PreparedGameplaySkinPackage!.OptionPreviews, choice, hint));
+                        }
+                        else
+                        {
+                            Add(new SettingsItemV2(new OptionDropdown(definition.Choices)
+                            {
+                                Caption = definition.Label,
+                                HintText = hint,
+                                AlwaysShowSearchBar = definition.IsContentCatalog,
+                                Current = choice,
+                                Items = definition.Choices.Select(item => item.Value),
+                            }));
+                        }
                         choice.BindValueChanged(change => save(definition, change.NewValue));
                         break;
 
                     case GameplaySkinOptionKind.Toggle:
-                        var toggle = new BindableBool(value.BooleanValue) { Default = definition.DefaultValue == "true" };
+                        var toggle = new BindableBool(value.BooleanValue) { Default = inheritedValue == "true" };
                         Add(new SettingsItemV2(new FormCheckBox { Caption = definition.Label, HintText = hint, Current = toggle }));
                         toggle.BindValueChanged(change => save(definition, change.NewValue ? "true" : "false"));
                         break;
 
                     case GameplaySkinOptionKind.Number:
-                        definition.TryValidateValue(definition.DefaultValue, out GameplaySkinOptionValue defaultNumber);
+                        definition.TryValidateValue(inheritedValue, out GameplaySkinOptionValue defaultNumber);
                         var number = new BindableDouble
                         {
                             MinValue = definition.Minimum,
@@ -134,19 +167,21 @@ namespace osu.Game.Overlays.Settings.Sections
             }
             Add(new SettingsButtonV2
             {
-                Text = "恢复此皮肤的默认配置",
-                Action = () => { saveError = null; preferences.Reset(skin.SkinInfo.ID, mode); },
+                Text = target.KeyCount == null ? "恢复此皮肤的作者默认配置" : $"清除 {target.KeyCount}K 单独配置，跟随模式默认",
+                Action = () => { saveError = null; preferences.Reset(skin.SkinInfo.ID, mode, target.KeyCount); },
             });
 
             void save(GameplaySkinOptionDefinition definition, string value)
             {
-                if (definition.TryValidateValue(value, out GameplaySkinOptionValue validated))
+                if (ReferenceEquals(current.Value, skin) && (scope == null || scope.Value == target)
+                    && definition.TryValidateValue(value, out GameplaySkinOptionValue validated))
                 {
                     try
                     {
+                        string defaultValue = inherited.GetValueOrDefault(definition.Id) ?? definition.DefaultValue;
                         preferences.SetOverride(skin.SkinInfo.ID, mode, definition.Id,
-                            validated.CanonicalValue == definition.DefaultValue ? null : validated.CanonicalValue,
-                            definitions.Select(item => item.Id).ToArray());
+                            validated.CanonicalValue == defaultValue ? null : validated.CanonicalValue,
+                            skin.PreparedGameplaySkinPackage!.Manifest!.Options.Select(item => item.Id).ToArray(), target.KeyCount);
                         saveError = null;
                     }
                     catch (SkinOptionPreferenceBudgetException)
@@ -156,6 +191,25 @@ namespace osu.Game.Overlays.Settings.Sections
                     }
                 }
             }
+        }
+
+        private static bool appliesToKeyCount(GameplaySkinOptionDefinition option, SkinSelectionScope target)
+        {
+            if (target.KeyCount == null || option.Keymodes.Count == 0)
+                return true;
+            return option.Keymodes.Any(key =>
+            {
+                if (target.RulesetId == "bms")
+                    return key == target.KeyCount + "k" || (target.KeyCount == 9 && key is "9k-bms" or "9k-pms");
+                int total = 0;
+                foreach (string stage in key.Split('-'))
+                {
+                    if (!stage.EndsWith('k') || !int.TryParse(stage.AsSpan(0, stage.Length - 1), out int count))
+                        return false;
+                    total += count;
+                }
+                return total == target.KeyCount;
+            });
         }
 
         private static OsuTextFlowContainer text(string value) => new()
@@ -172,6 +226,7 @@ namespace osu.Game.Overlays.Settings.Sections
                 preferences.Changed -= preferencesChanged;
             current?.UnbindAll();
             currentRuleset?.UnbindAll();
+            scope?.UnbindAll();
             base.Dispose(isDisposing);
         }
 

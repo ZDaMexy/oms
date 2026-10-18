@@ -193,7 +193,7 @@ layout/gap-px/width-px/height-px不能被动画、绑定、状态机或脚本写
 
 ## 皮肤配置项
 
-玩家在设置的“皮肤配置项”调整当前模式所选皮肤。选择按皮肤记录与 BMS / mania 分别保存，恢复默认只清除此组合的覆盖值。配置在下次进入游玩或重新打开预览时冻结，不改进行中的一局，不写皮肤或外部来源目录。未声明选项的旧包继续使用原有表现。
+玩家在设置中选择 BMS / mania、模式默认或某个键数，再调整卡片上皮肤的配置。皮肤选择和配置分别支持键数覆盖：未指定的键数跟随模式默认；未修改的配置继承同一皮肤的模式配置，再取作者默认，不跨皮肤继承。恢复操作只清除当前层。浏览设置不会切换玩法、谱面或当前皮肤；配置在下次进入游玩或重新打开预览时冻结，不改进行中的一局，不写皮肤或外部来源目录。未声明选项的旧包继续使用原有表现。
 
 清单可选 `options` 数组，支持 `choice`、`toggle`、`number`：
 
@@ -202,6 +202,8 @@ layout/gap-px/width-px/height-px不能被动画、绑定、状态机或脚本写
   {"id":"layout","type":"choice","label":"游玩区域样式","default":"p1",
    "choices":[{"value":"p1","label":"1P"},{"value":"p2","label":"2P"}],
    "keymodes":["5k","7k"],"effect":"presentation"},
+  {"id":"notes","type":"choice","label":"音符","default":"normal",
+   "choices":[{"value":"normal","label":"普通","preview":"previews/notes-normal.png"}]},
   {"id":"beam","type":"toggle","label":"显示光柱","default":true},
   {"id":"strength","type":"number","label":"效果缩放","default":1,"min":0.5,"max":1.5,"step":0.05}
 ]
@@ -217,6 +219,10 @@ layout/gap-px/width-px/height-px不能被动画、绑定、状态机或脚本写
 
 最多32项、每项32个选择、标签128字符，每个适用列表最多32个token；数值绝对值最多1,000,000、区间最多10,000步。坏声明拒绝整份清单；保存值失效、越界或类型失配时使用作者默认。配置只控制表现，不能改输入、计分、判定、谱面或视频时钟。
 
+choice可选`preview`，引用包根相对路径的静态PNG；不允许绝对/网络路径、穿越、冒号或其它格式。省略字段表示仅文字，不填写null。可为爆炸、音符、判定、光柱、转盘提供代表图；框体/全连等不适合小图的选项可省略。界面显示选中图，点“浏览样式”展开可搜索、每页12项的图卡，点图选择；没有预览的旧包保留文字下拉。
+
+单图最多512×512、256KiB，最多4096个不同文件、合计32MiB编码字节。预览有独立预算，不计入游玩资源/像素预算，仍受整包归档和捕获总量限制；不能以预览代替场景声明的资源。准备时捕获图片头与不可变编码字节，可见区域才解码，离屏回收；不会播放作者脚本或实时读取来源。`SkinAuthoring check`完整解码全部声明图，应先检查再打包。像素损坏时设置显示“无法预览”，非法路径或尺寸在包准备时拒绝。
+
 ## 按选项组合内容
 
 大量备选美术可放在同一包，根清单声明 `"contentCatalog":"gameplay/content.json"`。目录合同为 `oms-gameplay-skin-content.v1`，必填 `modules` 数组；每个模块使用 `id/label/default/choices`，可选 `rulesets/keymodes`，会成为玩家可搜索的下拉配置项。它与根options共用最多32项的上限。
@@ -231,6 +237,8 @@ layout/gap-px/width-px/height-px不能被动画、绑定、状态机或脚本写
 ```
 
 每个choice可省略全部贡献，表示此项不添加内容；manifest与scene必须成对，ini可独立提供。子清单沿普通资源、字形、layouts和animations语法，不允许嵌套contentCatalog、options、脚本或auxiliaryDisplay。根scene与子scene的root都必须是没有属性、效果及槽位的global中性container。选择完成后合并实际资源、场景、INI；相同ID的资源/字体等声明必须完全相同才可复用，不按“最后一个覆盖”掩盖冲突。INI按模块顺序合并，选定材料与布局在同一个root准备中冻结。
+
+目录choice同样可声明`preview`，例如`"preview":"previews/frame-modern.png"`，使用上节相同路径、预算与静态代表图语义。它独立于贡献与variants，不改变游玩选中分支。
 
 子清单的`scene`字段仍填写合同固定值`gameplay-skin.scene.json`；实际子场景路径取上方choice或variant的`scene`字段。这与根清单读取固定根场景的规则不同，不能把子场景的物理路径写进manifest合同头。
 

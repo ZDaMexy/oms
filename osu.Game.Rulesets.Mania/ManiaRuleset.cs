@@ -629,6 +629,12 @@ namespace osu.Game.Rulesets.Mania
 
         public int GetKeyCount(IBeatmapInfo beatmapInfo, IReadOnlyList<Mod>? mods = null)
             => ManiaBeatmapConverter.GetColumnCount(LegacyBeatmapConversionDifficultyInfo.FromBeatmapInfo(beatmapInfo), mods);
+
+        public override int? GetGameplaySkinKeyCount(IBeatmap playableBeatmap)
+            => playableBeatmap is ManiaBeatmap mania ? mania.TotalColumns : null;
+
+        public override int? GetGameplaySkinKeyCount(IBeatmapInfo beatmapInfo, IReadOnlyList<Mod> mods)
+            => GetKeyCount(beatmapInfo, mods);
     }
 
     public enum PlayfieldType

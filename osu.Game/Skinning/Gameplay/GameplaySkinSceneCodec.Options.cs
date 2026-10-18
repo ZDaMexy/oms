@@ -83,13 +83,14 @@ namespace osu.Game.Skinning.Gameplay
                                     context.Add(GameplaySkinSceneDiagnosticCode.InvalidValueType);
                                     continue;
                                 }
-                                validateFields(choice, context, new[] { "value", "label" });
+                                validateFields(choice, context, new[] { "value", "label" }, new[] { "preview" });
                                 string? value = getStableId(choice, "value", context);
                                 string? choiceLabel = optionLabel(choice, "label", context);
+                                string? preview = optionPreviewPath(choice, context);
                                 if (value != null && !values.Add(value))
                                     context.Add(GameplaySkinSceneDiagnosticCode.DuplicateField);
                                 if (value != null && choiceLabel != null)
-                                    choices.Add(new GameplaySkinOptionChoice(value, choiceLabel));
+                                    choices.Add(new GameplaySkinOptionChoice(value, choiceLabel, preview));
                             }
                         }
                         break;
@@ -164,6 +165,17 @@ namespace osu.Game.Skinning.Gameplay
         private static bool scopesOverlap(IReadOnlyList<string> first, IReadOnlyList<string> second)
             => first.Count == 0 || second.Count == 0 || first.Intersect(second, StringComparer.Ordinal).Any();
 
+        private static string? optionPreviewPath(JObject choice, DecodeContext context)
+        {
+            string? path = contentPath(choice, "preview", context);
+            if (path != null && !path.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Add(GameplaySkinSceneDiagnosticCode.InvalidPropertyValue);
+                return null;
+            }
+            return path;
+        }
+
         private static string? optionLabel(JObject obj, string field, DecodeContext context)
         {
             string? label = getString(obj, field, context);
@@ -217,7 +229,13 @@ namespace osu.Game.Skinning.Gameplay
                 },
             };
             if (option.Kind == GameplaySkinOptionKind.Choice)
-                value["choices"] = new JArray(option.Choices.Select(choice => new JObject { ["value"] = choice.Value, ["label"] = choice.Label }));
+                value["choices"] = new JArray(option.Choices.Select(choice =>
+                {
+                    var declaration = new JObject { ["value"] = choice.Value, ["label"] = choice.Label };
+                    if (choice.PreviewPath != null)
+                        declaration["preview"] = choice.PreviewPath;
+                    return declaration;
+                }));
             else if (option.Kind == GameplaySkinOptionKind.Number)
             {
                 value["min"] = option.Minimum;

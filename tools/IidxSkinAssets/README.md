@@ -23,6 +23,8 @@ dotnet run --project tools/SkinAuthoring -- check 'Y:\OmniAuthor'
 
 根options使用33框体、源00部件、normal尺寸；Graph和辅助屏默认关闭。Graph只有真实当前/理论满分与标明作者适配的比较柱；没有对手/历史数据。辅助屏承载Premium背景/图标、专注背景/亮度与触摸恢复，不改变主BGA；LIFT仅跟随BMS原生抬升。源静止20帧图标不等于完整账号/触控菜单。FC保留三布局终止空帧和原时长，19为3500ms、24为3000ms，其它2500ms；滤镜顺序和真实host设置仍待原版画面校准。
 
+统一生成器为音符、CN、判定文字、爆炸、光柱和转盘输出132张静态代表缩略图，目录choice通过可选`preview`引用；Game Frame与FC保留文字。图片来自同款原材质/动画代表帧，`choice_previews.py`负责有界缩略，不改游玩图片、场景或默认选值。冻结模块重打包也沿同一路径，预览纳入ZIP引用闭包；先运行当前`SkinAuthoring check`，再独立导入验证。玩家可按模式默认和键数分别设置；此工具不把Omni写入玩家目录、canonical或公开制作套件。
+
 辅助屏当前显示为可收起的游玩浮层，展开时可能遮住主屏内容；它与BGA使用独立画布和状态，不是第二显示器输出。Graph读数采用作者排布避开OMS右上按钮，可先收起浮层查看。早期取材收据中的“never overlays”是位置描述错误，不据旧记账语句改变成品或运行代码。
 
 整合输出只将引用闭包写入OSK，研究/来源收据留在作者目录，不能把generation或独立PNG可解码当作导入/游玩验收。内容目录能力、边界与可复跑CLI检查取[作者参考](../../skin-authoring/docs/REFERENCE.md#按选项组合内容)，本轮实际验证取[P1-A状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)。全部原版素材和作品仍仅留本地忽略目录或仓库外，不进入canonical/制作套件/公开发行。

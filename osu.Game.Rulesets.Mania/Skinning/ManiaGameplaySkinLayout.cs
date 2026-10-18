@@ -99,7 +99,7 @@ namespace osu.Game.Rulesets.Mania.Skinning
                         string keymode = string.Join("-", topologyPublication.StageColumnCounts.Select(count => $"{count}k"));
                         GameplaySkinOptionValues options = GameplaySkinOptionValues.Resolve(
                             selected?.GameplayOptions ?? Array.Empty<GameplaySkinOptionDefinition>(),
-                            optionPreferences?.GetOverrides(owner.PackageRevision.RecordId, "mania"), "mania", keymode);
+                            optionPreferences?.GetOverrides(owner.PackageRevision.RecordId, "mania", topologyPublication.StageColumnCounts.Sum()), "mania", keymode);
                         string presentation = options.Presentation ?? (topologyPublication.StageColumnCounts.Count == 1 ? "mania-single" : "mania-dual");
                         GameplaySkinContentSelection? content = selected?.PrepareGameplaySkinContent(options, cancellationToken);
                         GameplaySkinAuthorLayout? authorLayout = GameplaySkinAuthorLayout.Select(

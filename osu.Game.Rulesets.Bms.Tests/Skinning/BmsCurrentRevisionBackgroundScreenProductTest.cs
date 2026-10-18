@@ -318,6 +318,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(retiredB, Is.Zero);
                 });
 
+                // Match game disposal: release the settings card's immutable read owner before manager shutdown.
+                // The disposed background remains the object whose skipped callback and work detach are tested.
+                Assert.That(Remove(caller, disposeImmediately: true), Is.True);
                 shutdown = Task.Run(() => manager.ShutdownManagedFolderMutations());
             });
             AddUntilStep("wait for dispose-time B reclaim and retirement", () =>

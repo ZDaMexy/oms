@@ -54,7 +54,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Author.ps1 -Action imp
 
 成功会显示检查通过、成品位置以及一个 `work/import-…/my-skin.osk` 导入副本。**把提示的副本拖入 OMS**；正式成品和源文件留在制作目录。可选参数 `-GameExecutable 'D:\OMS\osu!.exe'` 可将副本交给该游戏的普通导入入口。
 
-在设置 → 皮肤分别选择 BMS 与 osu!mania 的皮肤。两个模式各自保存选择；只选择了 BMS，不会替换 mania 的当前作品。先用短键谱确认图片变化，再用长条谱查看头身尾。
+在设置 → 皮肤先选 BMS 或 osu!mania，再选“模式默认”或某个键数；只显示当前范围的一张皮肤卡片。未单独设置的键数跟随模式默认，管理和编辑按钮都针对卡片上的作品。作者配置也可逐键数覆盖、单独恢复继承，带预览的样式可看图选择；只浏览设置不会切换玩法或谱面。先用短键谱确认图片变化，再用长条谱查看头身尾。
 
 `pack` 只生成普通 `.osk`；`import` 和 `update` 都先打包再准备导入副本。`update` 不覆盖游戏里原皮肤记录，导入后要选择新版本。已有成品替换时会留 `.previous`；遇到已有 `.pending`，先保留并检查未完成文件，不要直接清理原作品。
 

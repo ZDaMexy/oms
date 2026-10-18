@@ -162,7 +162,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
                     string keymodeId = BmsGameplayLayoutSolver.KeymodeId(keymode);
                     GameplaySkinOptionValues options = GameplaySkinOptionValues.Resolve(
                         selected?.GameplayOptions ?? Array.Empty<GameplaySkinOptionDefinition>(),
-                        optionPreferences?.GetOverrides(owner.PackageRevision.RecordId, "bms"), "bms", keymodeId);
+                        optionPreferences?.GetOverrides(owner.PackageRevision.RecordId, "bms", BmsRuleset.GetKeyCount(keymode)), "bms", keymodeId);
                     BmsPlayfieldStyle selectedStyle = ResolvePresentation(options);
                     GameplaySkinContentSelection? content = selected?.PrepareGameplaySkinContent(options, cancellationToken);
                     GameplaySkinAuthorLayout? authorLayout = GameplaySkinAuthorLayout.Select(

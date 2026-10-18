@@ -164,7 +164,18 @@ namespace SkinAuthoring
                                                                              && !item.Key.Equals("skin.ini", StringComparison.OrdinalIgnoreCase)))
                     validateIni(path, bytes, captured, errors);
             }
-            validateImages(captured, hasContentCatalog, errors);
+            var previewPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (declaration != null)
+            {
+                IEnumerable<GameplaySkinOptionDefinition> options = declaration.Options;
+                if (declaration.ContentCatalogFile != null && captured.TryGetValue(declaration.ContentCatalogFile, out byte[]? catalogBytes))
+                    options = options.Concat(requireValid(GameplaySkinSceneCodec.DecodeContentCatalog(catalogBytes), declaration.ContentCatalogFile)
+                        .Modules.Select(module => module.Option));
+                foreach (GameplaySkinOptionChoice choice in options.SelectMany(option => option.Choices))
+                    if (choice.PreviewPath != null)
+                        previewPaths.Add(choice.PreviewPath);
+            }
+            validateImages(captured, hasContentCatalog, previewPaths, errors);
             if (errors.Count > 0)
                 throw new InvalidDataException(string.Join(Environment.NewLine, errors.Distinct(StringComparer.Ordinal)));
 
@@ -184,6 +195,8 @@ namespace SkinAuthoring
                 try
                 {
                     package = GameplaySkinPreparedPackage.Prepare(read, revision, Guid.Empty, null, CancellationToken.None);
+                    lastRead = "皮肤配置缩略图";
+                    package.OptionPreviews.ValidateAll(CancellationToken.None);
                 }
                 catch (GameplaySkinScenePreparationException error)
                 {
@@ -247,11 +260,16 @@ namespace SkinAuthoring
             }
         }
 
-        private static void validateImages(IReadOnlyDictionary<string, byte[]> captured, bool hasContentCatalog, List<string> errors)
+        private static void validateImages(IReadOnlyDictionary<string, byte[]> captured, bool hasContentCatalog,
+                                           IReadOnlySet<string> previewPaths, List<string> errors)
         {
             long pixels = 0;
             foreach ((string path, byte[] bytes) in captured.Where(item => item.Key.EndsWith(".png", StringComparison.OrdinalIgnoreCase)))
             {
+                // Declared settings thumbnails have their own small byte/dimension budget and complete decoder
+                // validation below. They do not consume the gameplay resource budget merely by being in a package.
+                if (previewPaths.Contains(path))
+                    continue;
                 if (bytes.Length > GameplaySkinPreparedSceneBudgets.MAX_RESOURCE_BYTES)
                 {
                     errors.Add($"{path}: 单张图片超过 16 MiB。");

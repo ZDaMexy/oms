@@ -1264,9 +1264,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 manager.CurrentSkinInfo.Value = ordinary;
                 Add(callerHost = new FullSkinSettingsCallerHost(manager));
             });
+            addExpandSkinManagement(() => callerHost, () => ordinary.ID);
             AddUntilStep("wait for ordinary current delete button", () =>
                 manager.CurrentSkinInfo.Value.ID == ordinary.ID
                 && manager.CurrentSkin.Value.SkinInfo.ID == ordinary.ID
+                && callerHost.CurrentDeleteButton.IsLoaded
                 && callerHost.CurrentDeleteButton.Enabled.Value);
             AddStep("open ordinary current delete dialog", () => callerHost.CurrentDeleteButton.TriggerClick());
             AddUntilStep("wait for ordinary current delete dialog", () =>
@@ -1609,7 +1611,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Directory.CreateDirectory(exportRoot);
                 Add(callerHost = new FullSkinSettingsCallerHost(manager));
             });
-            AddUntilStep("wait for canonical export control", () => callerHost.ExportButton.IsLoaded);
+            addExpandSkinManagement(() => callerHost, () => SkinInfo.OMS_SKIN);
+            AddUntilStep("wait for canonical export control", () =>
+                callerHost.ExportButton.IsLoaded && callerHost.ExportButton.Enabled.Value);
             AddStep("export canonical through the settings button", () =>
             {
                 Assert.That(CanonicalSkinPackage.IsCanonicalSkin(manager.CurrentSkin.Value), Is.True);
@@ -1937,10 +1941,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 manager.CurrentSkinInfo.Value = realmPackage;
                 Add(callerHost = new FullSkinSettingsCallerHost(manager));
             });
+            addExpandSkinManagement(() => callerHost, () => realmPackage.ID);
             AddUntilStep("wait for ordinary package settings controls", () =>
-                callerHost.RenameButton.IsLoaded
-                && callerHost.ExportButton.IsLoaded
-                && callerHost.LayoutEditorButton.IsLoaded);
+                callerHost.ExportButton.IsLoaded
+                && callerHost.CurrentDeleteButton.IsLoaded
+                && callerHost.ExportButton.Enabled.Value
+                && callerHost.CurrentDeleteButton.Enabled.Value);
             AddStep("assert current ordinary package mutation UI is fail-closed", () =>
             {
                 Assert.Multiple(() =>
@@ -1948,8 +1954,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(manager.CurrentSkinInfo.Value.ID, Is.EqualTo(realmPackage.ID));
                     Assert.That(manager.CanModify(realmPackage), Is.False);
                     Assert.That(manager.CanExport(realmPackage), Is.True);
-                    Assert.That(callerHost.RenameButton.Enabled.Value, Is.False);
-                    Assert.That(callerHost.LayoutEditorButton.Enabled.Value, Is.False);
+                    Assert.That(callerHost.RenameButton.CanBeShown.Value, Is.False);
+                    Assert.That(callerHost.LayoutEditorButton.CanBeShown.Value, Is.False);
                     Assert.That(callerHost.ExportButton.Enabled.Value, Is.True);
                     Assert.That(manager.CanDelete(realmPackage), Is.True);
                 });
@@ -7165,6 +7171,26 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             }
         }
 
+        private void addExpandSkinManagement(Func<FullSkinSettingsCallerHost> getCaller, Func<Guid> getExpectedSkinId)
+        {
+            AddUntilStep("wait for the inspected skin and its management control", () =>
+            {
+                FullSkinSettingsCallerHost caller = getCaller();
+                return caller.Section.IsTargetReady
+                       && caller.Section.DisplayedSkinId == getExpectedSkinId()
+                       && caller.SkinManagementButton.IsLoaded
+                       && caller.SkinManagementButton.Enabled.Value;
+            });
+            AddStep("expand the real skin management and editing controls", () =>
+            {
+                FullSkinSettingsCallerHost caller = getCaller();
+                Assert.That(caller.SkinManagementButton.Text.ToString(), Is.EqualTo("皮肤管理与编辑"));
+                caller.SkinManagementButton.TriggerClick();
+            });
+            AddAssert("skin management is expanded for the inspected skin", () =>
+                getCaller().SkinManagementButton.Text.ToString() == "收起皮肤管理与编辑");
+        }
+
         private partial class FullSkinSettingsCallerHost : CompositeDrawable
         {
             [Cached]
@@ -7190,6 +7216,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             public SkinSection.RenameSkinButton RenameButton => Section.ChildrenOfType<SkinSection.RenameSkinButton>().Single();
 
             public SkinSection.ExportSkinButton ExportButton => Section.ChildrenOfType<SkinSection.ExportSkinButton>().Single();
+
+            public SettingsButtonV2 SkinManagementButton => Section.ChildrenOfType<SettingsButtonV2>()
+                .Single(button => button.Text.ToString() is "皮肤管理与编辑" or "收起皮肤管理与编辑");
 
             public SettingsButtonV2 LayoutEditorButton => Section.ChildrenOfType<SettingsButtonV2>()
                 .Single(button => button.Text.ToString() == SkinSettingsStrings.SkinLayoutEditor.ToString());

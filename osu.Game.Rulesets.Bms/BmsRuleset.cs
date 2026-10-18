@@ -479,6 +479,12 @@ namespace osu.Game.Rulesets.Bms
                 _ => throw new ArgumentOutOfRangeException(nameof(keymode), keymode, "Unsupported BMS keymode authority."),
             };
 
+        public override int? GetGameplaySkinKeyCount(IBeatmap playableBeatmap)
+            => playableBeatmap is BmsBeatmap bms ? GetKeyCount(bms.BmsInfo.Keymode) : null;
+
+        public override int? GetGameplaySkinKeyCount(IBeatmapInfo beatmapInfo, IReadOnlyList<Mod> mods)
+            => TryGetKeyCount(beatmapInfo, out int keys) ? keys : null;
+
         /// <summary>
         /// Canonical playfield lane count for a keymode, i.e. playable keys PLUS scratch lane(s). This is the authority
         /// for lane-index bounds; <see cref="GetKeyCount"/> (keys only) must NOT be used as a lane-index bound, otherwise

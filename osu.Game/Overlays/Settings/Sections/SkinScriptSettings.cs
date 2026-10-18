@@ -24,7 +24,7 @@ namespace osu.Game.Overlays.Settings.Sections
         [Resolved]
         private SkinManager skins { get; set; } = null!;
 
-        private Bindable<Skin> current = null!;
+        private IBindable<Skin> current = null!;
         private GameplaySkinScriptAuthorization? authorization;
         private readonly List<(string Id, OsuTextFlowContainer Text)> rows = new List<(string, OsuTextFlowContainer)>();
         private readonly List<SettingsButtonV2> buttons = new List<SettingsButtonV2>();
@@ -32,9 +32,11 @@ namespace osu.Game.Overlays.Settings.Sections
         private Task? pending;
         private long displayedVersion = -1;
         private double nextProfileUpdate;
+        private readonly IBindable<Skin>? targetSkin;
 
-        public SkinScriptSettings()
+        public SkinScriptSettings(IBindable<Skin>? targetSkin = null)
         {
+            this.targetSkin = targetSkin;
             RelativeSizeAxes = Axes.X;
             AutoSizeAxes = Axes.Y;
             Direction = FillDirection.Vertical;
@@ -52,7 +54,7 @@ namespace osu.Game.Overlays.Settings.Sections
         protected override void LoadComplete()
         {
             base.LoadComplete();
-            current = skins.CurrentSkin.GetBoundCopy();
+            current = targetSkin?.GetBoundCopy() ?? skins.CurrentSkin.GetBoundCopy();
             current.BindValueChanged(_ => rebuild(), true);
         }
 
@@ -61,7 +63,7 @@ namespace osu.Game.Overlays.Settings.Sections
             Clear();
             rows.Clear();
             buttons.Clear();
-            authorization = current.Value.PreparedGameplaySkinPackage?.ScriptAuthorization;
+            authorization = current.Value?.PreparedGameplaySkinPackage?.ScriptAuthorization;
             CanBeShown.Value = authorization != null;
             Add(text("可选皮肤脚本"));
             Add(text("脚本仅用于额外表现。拒绝或撤销授权后，普通音符、按键与判定仍正常显示。"));

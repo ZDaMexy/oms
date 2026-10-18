@@ -14,6 +14,7 @@ using osu.Game.Database;
 using osu.Game.Overlays.SkinEditor;
 using osu.Game.Screens.Play;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osu.Game.Tests.Resources;
 
 namespace osu.Game.Tests.Visual.Navigation
@@ -25,13 +26,17 @@ namespace osu.Game.Tests.Visual.Navigation
         private SkinEditorOverlay overlay => Game.Dependencies.Get<SkinEditorOverlay>();
         private SkinEditor editor => overlay.ChildrenOfType<SkinEditor>().Single();
 
-        [Test]
-        public void TestSavedGameplayLayoutAppliesAfterClosingPreviewToOnlyEditedMode()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestSavedGameplayLayoutAppliesAfterClosingPreviewToOnlyEditedMode(bool perKey)
         {
             Task<Live<BeatmapSetInfo>?> import = null!;
             Guid sourceId = default;
             Guid draftId = default;
             string otherModePreference = string.Empty;
+            string modePreference = string.Empty;
+            SkinSelectionScope scope = default;
+            Task<SkinEditorOpenResult>? opening = null;
 
             AddStep("import existing mania chart fixture", () => import = Game.BeatmapManager.Import(new ImportTask(TestResources.GetQuickTestBeatmapForImport())));
             AddUntilStep("chart import finishes", () => import.IsCompleted);
@@ -48,8 +53,16 @@ namespace osu.Game.Tests.Visual.Navigation
             {
                 sourceId = skins.CurrentSkinInfo.Value.ID;
                 otherModePreference = Game.LocalConfig.Get<string>(OsuSetting.SkinBms);
-                overlay.Show();
+                modePreference = Game.LocalConfig.Get<string>(OsuSetting.SkinMania);
+                scope = new SkinSelectionScope("mania", perKey
+                    ? Game.Ruleset.Value.CreateInstance().GetGameplaySkinKeyCount(Game.Beatmap.Value.BeatmapInfo, Game.SelectedMods.Value) : null);
+                if (perKey)
+                    opening = overlay.OpenForScopeAsync(scope);
+                else
+                    overlay.Show();
             });
+            AddUntilStep("explicit scope request finishes", () => !perKey || opening?.IsCompletedSuccessfully == true);
+            AddAssert("explicit scope opens the original editor", () => !perKey || opening!.GetAwaiter().GetResult() == SkinEditorOpenResult.Opened);
             AddUntilStep("gameplay preview and editable targets ready", () =>
             {
                 DismissAnyNotifications();
@@ -81,7 +94,8 @@ namespace osu.Game.Tests.Visual.Navigation
             AddUntilStep("preview closes and saved skin applies", () => overlay.State.Value == Visibility.Hidden
                 && Game.ScreenStack.CurrentScreen is not Player
                 && skins.CurrentSkinInfo.Value.ID == draftId);
-            AddUntilStep("edited mode preference persists", () => Game.LocalConfig.Get<string>(OsuSetting.SkinMania) == draftId.ToString());
+            AddUntilStep("edited scope preference persists", () => skins.SelectionPreferences!.GetConfiguredSkinId(scope) == draftId);
+            AddAssert("key edit leaves mode default intact", () => !perKey || Game.LocalConfig.Get<string>(OsuSetting.SkinMania) == modePreference);
             AddAssert("other mode preference stays unchanged", () => Game.LocalConfig.Get<string>(OsuSetting.SkinBms) == otherModePreference);
             AddAssert("applied skin contains saved layout", () => skins.CurrentSkin.Value.LayoutInfos.Count > 0);
         }

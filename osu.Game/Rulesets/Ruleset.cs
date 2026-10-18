@@ -374,6 +374,12 @@ namespace osu.Game.Rulesets
         /// <summary>The website scope proven by persisted chart metadata, or null when the player must select a scope on the website.</summary>
         public virtual string? GetOmsWebsiteKeymode(IBeatmapInfo beatmapInfo) => null;
 
+        /// <summary>The final playable key count, after conversion and mods, used for per-key skin selection.</summary>
+        public virtual int? GetGameplaySkinKeyCount(IBeatmap playableBeatmap) => null;
+
+        /// <summary>Predicts the playable key count for editor compatibility checks, using the ruleset's converter rules.</summary>
+        public virtual int? GetGameplaySkinKeyCount(IBeatmapInfo beatmapInfo, IReadOnlyList<Mod> mods) => null;
+
         /// <summary>
         /// Creates the main accuracy / rank display shown in the expanded results panel.
         /// </summary>

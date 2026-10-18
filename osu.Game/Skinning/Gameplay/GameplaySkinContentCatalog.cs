@@ -48,16 +48,18 @@ namespace osu.Game.Skinning.Gameplay
     {
         public string Value { get; }
         public string Label { get; }
+        public string? PreviewPath { get; }
         public string? ManifestFile { get; }
         public string? SceneFile { get; }
         public string? IniFile { get; }
         public IReadOnlyList<GameplaySkinContentVariant> Variants { get; }
 
         internal GameplaySkinContentChoice(string value, string label, string? manifest, string? scene, string? ini,
-                                           IEnumerable<GameplaySkinContentVariant>? variants = null)
+                                           IEnumerable<GameplaySkinContentVariant>? variants = null, string? previewPath = null)
         {
             Value = value;
             Label = label;
+            PreviewPath = previewPath;
             ManifestFile = manifest;
             SceneFile = scene;
             IniFile = ini;

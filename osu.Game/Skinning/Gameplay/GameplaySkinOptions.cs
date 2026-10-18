@@ -35,11 +35,13 @@ namespace osu.Game.Skinning.Gameplay
     {
         public string Value { get; }
         public string Label { get; }
+        public string? PreviewPath { get; }
 
-        internal GameplaySkinOptionChoice(string value, string label)
+        internal GameplaySkinOptionChoice(string value, string label, string? previewPath = null)
         {
             Value = value;
             Label = label;
+            PreviewPath = previewPath;
         }
     }
 

@@ -63,9 +63,10 @@ namespace osu.Game.Skinning.Gameplay
                                 context.Add(GameplaySkinSceneDiagnosticCode.InvalidValueType);
                                 continue;
                             }
-                            validateFields(choice, context, new[] { "value", "label" }, new[] { "manifest", "scene", "ini", "variants" });
+                            validateFields(choice, context, new[] { "value", "label" }, new[] { "manifest", "scene", "ini", "variants", "preview" });
                             string? value = getStableId(choice, "value", context);
                             string? choiceLabel = optionLabel(choice, "label", context);
+                            string? preview = optionPreviewPath(choice, context);
                             string? manifest = contentPath(choice, "manifest", context);
                             string? scene = contentPath(choice, "scene", context);
                             string? ini = contentPath(choice, "ini", context);
@@ -75,13 +76,13 @@ namespace osu.Game.Skinning.Gameplay
                                 context.Add(GameplaySkinSceneDiagnosticCode.DuplicateField);
                             IReadOnlyList<GameplaySkinContentVariant> variants = contentVariants(choice["variants"], context);
                             if (value != null && choiceLabel != null)
-                                choices.Add(new GameplaySkinContentChoice(value, choiceLabel, manifest, scene, ini, variants));
+                                choices.Add(new GameplaySkinContentChoice(value, choiceLabel, manifest, scene, ini, variants, preview));
                         }
                     }
                     if (id == null || label == null || defaultValue == null)
                         continue;
                     var option = new GameplaySkinOptionDefinition(id, label, GameplaySkinOptionKind.Choice, defaultValue,
-                        choices.Select(choice => new GameplaySkinOptionChoice(choice.Value, choice.Label)), 0, 0, 0,
+                        choices.Select(choice => new GameplaySkinOptionChoice(choice.Value, choice.Label, choice.PreviewPath)), 0, 0, 0,
                         rulesets, keymodes, GameplaySkinOptionEffect.None, isContentCatalog: true);
                     if (!option.TryValidateValue(defaultValue, out _))
                         context.Add(GameplaySkinSceneDiagnosticCode.InvalidPropertyValue);

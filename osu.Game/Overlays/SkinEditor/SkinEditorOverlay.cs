@@ -5,6 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
@@ -36,11 +38,23 @@ using osu.Game.Screens.Play;
 using osu.Game.Screens.Ranking;
 using osu.Game.Screens.Select;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osu.Game.Users;
 using osu.Game.Utils;
 
 namespace osu.Game.Overlays.SkinEditor
 {
+    public enum SkinEditorOpenResult
+    {
+        Opened,
+        AlreadyOpen,
+        DifferentGameplayMode,
+        CompatibleChartRequired,
+        DifferentKeyCount,
+        GameplayActive,
+        PreparationFailed,
+    }
+
     /// <summary>
     /// A container which handles loading a skin editor on user request for a specified target.
     /// This also handles the scaling / positioning adjustment of the target.
@@ -64,6 +78,9 @@ namespace osu.Game.Overlays.SkinEditor
         private string? editorRuleset;
         private long pendingSourceRevision;
         private string? pendingRuleset;
+        private SkinSelectionScope? requestedScope;
+        private SkinSelectionScope? editorScope;
+        private SkinSelectionScope? pendingScope;
 
         [Resolved]
         private IPerformFromScreenRunner? performer { get; set; }
@@ -134,6 +151,53 @@ namespace osu.Game.Overlays.SkinEditor
             externalEditOverlayRegistration = overlayManager?.RegisterBlockingOverlay(externalEditOverlay);
         }
 
+        /// <summary>
+        /// Opens the exact settings object. Choosing a settings tab never changes the game's mode or chart; scoped
+        /// editing requires an already compatible selection and reports that requirement before entering the editor.
+        /// </summary>
+        public async Task<SkinEditorOpenResult> OpenForScopeAsync(SkinSelectionScope scope, CancellationToken cancellationToken = default)
+        {
+            if (State.Value == Visibility.Visible || finishingEditing)
+                return SkinEditorOpenResult.AlreadyOpen;
+            if (ruleset.Value.ShortName != scope.RulesetId)
+                return SkinEditorOpenResult.DifferentGameplayMode;
+            if (scope.KeyCount != null)
+            {
+                if (beatmap.Value is DummyWorkingBeatmap || beatmap.Value.BeatmapInfo.Ruleset.ShortName != scope.RulesetId)
+                    return SkinEditorOpenResult.CompatibleChartRequired;
+                if (ruleset.Value.CreateInstance().GetGameplaySkinKeyCount(beatmap.Value.BeatmapInfo, mods.Value) != scope.KeyCount)
+                    return SkinEditorOpenResult.DifferentKeyCount;
+            }
+            if (skinManager.CaptureRevisionParticipantSnapshot(out _) == null)
+                return SkinEditorOpenResult.GameplayActive;
+
+            if (!await skinManager.ApplySkinScopeAsync(scope, cancellationToken).ConfigureAwait(false))
+                return SkinEditorOpenResult.PreparationFailed;
+
+            var completion = new TaskCompletionSource<SkinEditorOpenResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using CancellationTokenRegistration registration = cancellationToken.Register(() => completion.TrySetCanceled(cancellationToken));
+            Schedule(() =>
+            {
+                if (completion.Task.IsCompleted)
+                    return;
+                if (IsDisposed || skinManager.CurrentSkinScope != scope || ruleset.Value.ShortName != scope.RulesetId)
+                {
+                    completion.TrySetResult(SkinEditorOpenResult.PreparationFailed);
+                    return;
+                }
+                if (scope.KeyCount != null && (beatmap.Value is DummyWorkingBeatmap
+                    || ruleset.Value.CreateInstance().GetGameplaySkinKeyCount(beatmap.Value.BeatmapInfo, mods.Value) != scope.KeyCount))
+                {
+                    completion.TrySetResult(SkinEditorOpenResult.DifferentKeyCount);
+                    return;
+                }
+                requestedScope = scope;
+                Show();
+                completion.TrySetResult(SkinEditorOpenResult.Opened);
+            });
+            return await completion.Task.ConfigureAwait(false);
+        }
+
         public bool OnPressed(KeyBindingPressEvent<GlobalAction> e)
         {
             switch (e.Action)
@@ -180,6 +244,8 @@ namespace osu.Game.Overlays.SkinEditor
 
             editorSourceRevision = skinManager.CurrentRevision.Generation;
             editorRuleset = ruleset.Value.ShortName;
+            editorScope = requestedScope ?? skinManager.CurrentSkinScope ?? new SkinSelectionScope(editorRuleset);
+            requestedScope = null;
             var editor = new SkinEditor();
 
             editor.State.BindValueChanged(_ => updateComponentVisibility());
@@ -234,6 +300,7 @@ namespace osu.Game.Overlays.SkinEditor
                 pendingDraft = skinEditor.HasSavedChanges ? skinEditor.DraftSkin?.SkinInfo : null;
                 pendingSourceRevision = editorSourceRevision;
                 pendingRuleset = editorRuleset;
+                pendingScope = editorScope;
                 skinEditor.EndPreview();
             }
 
@@ -272,7 +339,17 @@ namespace osu.Game.Overlays.SkinEditor
 
             var saved = pendingDraft;
             pendingDraft = null;
-            skinManager.CurrentSkinInfo.Value = saved;
+            if (pendingScope is SkinSelectionScope scope)
+                _ = applyScopedDraftAsync(scope, saved);
+            else
+                skinManager.CurrentSkinInfo.Value = saved;
+        }
+
+        private async Task applyScopedDraftAsync(SkinSelectionScope scope, Live<SkinInfo> saved)
+        {
+            bool applied = await skinManager.SelectSkinForScopeAsync(scope, saved).ConfigureAwait(false);
+            if (!applied)
+                Schedule(() => onScreenDisplay?.Display(new GameplayPreviewUnavailableToast("编辑副本已保存；当前无法切换皮肤，请在皮肤设置重新选择。")));
         }
 
         public void PresentGameplay() => presentGameplay(false);
@@ -579,6 +656,8 @@ namespace osu.Game.Overlays.SkinEditor
             public override bool DisallowExternalBeatmapRulesetChanges => true;
 
             public override bool? AllowGlobalTrackControl => false;
+
+            protected override bool ResolveGameplaySkinScope => false;
 
             public EndlessPlayer(Func<IBeatmap, IReadOnlyList<Mod>, Score> createScore)
                 : base(createScore, new PlayerConfiguration

@@ -522,7 +522,8 @@ namespace osu.Game
                 // A skin selected while a ruleset is active becomes that ruleset's preference. During startup and
                 // ruleset changes the manager is applying a stored value, so it must not overwrite the preference
                 // being restored with the transient global projection.
-                if (applyingConfiguredSkin || !skinConfigurationReady || Ruleset.Value == null)
+                if (applyingConfiguredSkin || SkinManager.IsApplyingSkinScope || SkinManager.IsProjectingProtectedSkinTransition
+                    || !skinConfigurationReady || Ruleset.Value == null)
                     return;
 
                 string activeRuleset = Ruleset.Value.ShortName;
@@ -552,7 +553,10 @@ namespace osu.Game
                     }
                 }
 
-                getSkinConfiguration(activeRuleset).Value = skin.NewValue.ID.ToString();
+                if (SkinManager.CurrentSkinScope is { KeyCount: not null } activeScope && activeScope.RulesetId == activeRuleset)
+                    SkinManager.SelectionPreferences?.SetSkin(activeScope, skin.NewValue.ID);
+                else
+                    getSkinConfiguration(activeRuleset).Value = skin.NewValue.ID.ToString();
             };
 
             UserPlayingState.BindValueChanged(p =>
@@ -594,6 +598,7 @@ namespace osu.Game
 
         private void applyConfiguredSkin(string rulesetShortName)
         {
+            SkinManager.SetCurrentSkinMode(rulesetShortName);
             string configured = getSkinConfigurationValue(rulesetShortName);
             if (Guid.TryParse(configured, out Guid configuredSkin))
             {

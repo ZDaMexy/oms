@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using JetBrains.Annotations;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
+using osu.Framework.Development;
 using osu.Framework.Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -101,7 +102,16 @@ namespace osu.Game.Screens.Play
         /// </summary>
         protected virtual bool PauseOnFocusLost => true;
 
+        /// <summary>Editor-owned preview players retain the explicitly opened skin scope.</summary>
+        protected virtual bool ResolveGameplaySkinScope => true;
+
         public Action<bool> PrepareLoaderForRestart;
+
+        /// <summary>
+        /// The loader installs its initial live barrier only after final key-count skin preparation. Returning false
+        /// means another selection won before registration; only skin preparation is repeated, never conversion.
+        /// </summary>
+        internal Func<Guid, CancellationToken, bool> PrepareInitialGameplaySkinProtection;
 
         private bool isRestarting;
         private bool skipExitTransition;
@@ -246,7 +256,7 @@ namespace osu.Game.Screens.Play
         }
 
         [BackgroundDependencyLoader(true)]
-        private void load(OsuConfigManager config, OsuGameBase game, CancellationToken cancellationToken)
+        private void load(OsuConfigManager config, OsuGameBase game, SkinManager skinManager, CancellationToken cancellationToken)
         {
             var gameplayMods = Mods.Value.Select(m => m.DeepClone()).ToArray();
 
@@ -269,6 +279,37 @@ namespace osu.Game.Screens.Play
                 Logger.Log($@"Gameplay was started with a mod belonging to a ruleset different than '{ruleset.Description}'.", level: LogLevel.Important);
                 return;
             }
+
+            SkinSelectionScope? gameplayScope = ResolveGameplaySkinScope && skinManager.SelectionPreferences != null
+                && ruleset.GetGameplaySkinKeyCount(playableBeatmap) is int gameplayKeys
+                    ? new SkinSelectionScope(ruleset.ShortName, gameplayKeys) : null;
+
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Guid expectedSkinId = gameplayScope is SkinSelectionScope scope
+                    ? skinManager.GetConfiguredSkin(scope).ID : skinManager.CurrentSkinInfo.Value.ID;
+
+                if (gameplayScope is SkinSelectionScope selectedScope)
+                {
+                    Task<bool> selection = skinManager.ApplySkinScopeAsync(selectedScope, cancellationToken);
+                    // Production PlayerLoader loads on a worker. A synchronous test/editor caller must not block the
+                    // update scheduler while an author package is still preparing its publication callback.
+                    if (ThreadSafety.IsUpdateThread && !selection.IsCompleted)
+                        throw new InvalidOperationException("A player which changes its skin scope must be loaded asynchronously.");
+                    if (!selection.GetAwaiter().GetResult())
+                    {
+                        Logger.Log("The gameplay skin scope could not be prepared; gameplay was not started.", level: LogLevel.Important);
+                        return;
+                    }
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+                if (PrepareInitialGameplaySkinProtection?.Invoke(expectedSkinId, cancellationToken) != false)
+                    break;
+            }
+            PrepareInitialGameplaySkinProtection = null;
+            cancellationToken.ThrowIfCancellationRequested();
 
             if (game != null)
                 gameActive.BindTo(game.IsActive);
