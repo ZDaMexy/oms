@@ -771,6 +771,52 @@ def frame_ini_paths(catalog):
     return sorted(paths)
 
 
+def correct_frame_lane_surface(content: bytes):
+    """The beam module owns the lane background; remove only the Frame's empty placeholder."""
+    lines = content.splitlines(keepends=True)
+    result, removed = [], 0
+    for line in lines:
+        if line.startswith(b"playfield.lane-surface:"):
+            if not re.fullmatch(rb'playfield\.lane-surface: resource Provide "gameplay/frames/[^/]+/common/empty"\r?\n?', line):
+                raise ValueError("The Frame has a non-empty lane surface; refusing to replace its ownership")
+            removed += 1
+        else:
+            result.append(line)
+    return b"".join(result), removed
+
+
+def correct_beam_material(content: bytes):
+    fixed, changed = re.subn(rb'(?m)^decoration(?=: resource Provide "custom/markers/b/(?:white|black|scratch)"\r?$)',
+                            b"playfield.lane-surface", content)
+    if b"decoration:" in fixed or b'playfield.lane-surface: resource Provide "custom/markers/b/' not in fixed:
+        raise ValueError("A beam material no longer has its exact lane marker declarations")
+    return fixed, changed
+
+
+def beam_ini_paths(catalog):
+    module = next((item for item in catalog["modules"] if item["id"] == "key-beam"), None)
+    if module is None:
+        return []
+    return sorted({part["ini"] for choice in module["choices"] for part in (choice, *choice.get("variants", []))})
+
+
+def correct_beam_material_files(output: Path):
+    catalog = read_json(output / "gameplay/content.json")
+    beam_paths = beam_ini_paths(catalog)
+    if not beam_paths:
+        return {"beamModulePresent": False, "files": []}
+    rows = []
+    for relative, correct in [(path, correct_frame_lane_surface) for path in frame_ini_paths(catalog)] + [
+            (path, correct_beam_material) for path in beam_paths]:
+        path = exact_file(output, relative)
+        original = path.read_bytes()
+        corrected, changed = correct(original)
+        if original != corrected:
+            path.write_bytes(corrected)
+        rows.append({"path": relative, "declarationsChanged": changed})
+    return {"slot": "playfield.lane-surface", "engineLayer": "Underlay", "engineUnchanged": True, "files": rows}
+
+
 def correct_frame_ini_scopes(output: Path):
     rows = []
     for relative in frame_ini_paths(read_json(output / "gameplay/content.json")):
@@ -865,7 +911,7 @@ def correct_graph_readout_scene(document):
 
 def correct_scene_author_contracts(document):
     """Repair proven author declarations; preserve recorded source clips and unrelated scene geometry."""
-    changed = {"recordedBlendNodes": [], "fullComboSlotRoots": [], "graphReadoutRoots": []}
+    changed = {"recordedBlendNodes": [], "fullComboSlotRoots": [], "graphReadoutRoots": [], "beamLaneSurfaceRoots": []}
     roots = [document["root"], *(template["root"] for template in document.get("templates", []))]
     for root in roots:
         for item in walk(root):
@@ -892,6 +938,20 @@ def correct_scene_author_contracts(document):
                 changed["fullComboSlotRoots"].append(identifier)
             elif root["slot"] != "decoration":
                 raise ValueError("The full-combo template declared a conflicting native slot")
+    if re.fullmatch(r"b\.b\d{2}\.(?:hd|sd)\.(?:normal|long|short|veryshort)\.root", document["root"]["id"]):
+        templates = {item["id"]: item["root"] for item in document["templates"]}
+        if len(templates) != 3 or len(document["instances"]) != 3:
+            raise ValueError("The beam branch must retain exactly its three lane colour templates")
+        for instance in document["instances"]:
+            root, material = templates[instance["template"]], instance["material"]
+            colour = root["id"].rsplit(".", 1)[-1]
+            if colour not in ("white", "black", "scratch") or material["resource"] != "custom/markers/b/" + colour:
+                raise ValueError("The beam no longer has its exact lane colour selector")
+            if root.get("slot") != material["slot"] or root.get("slot") not in ("decoration", "playfield.lane-surface"):
+                raise ValueError("The beam template and material slot ownership disagree")
+            if root["slot"] == "decoration":
+                root["slot"] = material["slot"] = "playfield.lane-surface"
+                changed["beamLaneSurfaceRoots"].append(root["id"])
     changed["graphReadoutRoots"] = correct_graph_readout_scene(document)
     return changed
 
@@ -908,10 +968,12 @@ def correct_scene_files(output: Path):
             rows.append({"path": relative, **changes})
     return {"rules": ["outer C5 recorded-animation blend normal -> alpha; internal clip blend stays normal",
                       "only verified omni.fc.* roots on the three fixed decoration markers receive slot decoration",
-                      "verified Frame Graph readouts move below OMS buttons into independent selected-marker templates with a shared-texture dark plate"],
+                      "verified Frame Graph readouts move below OMS buttons into independent selected-marker templates with a shared-texture dark plate",
+                      "verified key-beam templates use the existing lane-surface Underlay, below pooled Note/LN visuals"],
             "changedScenes": len(rows), "recordedBlendNodes": sum(len(row["recordedBlendNodes"]) for row in rows),
             "fullComboSlotRoots": sum(len(row["fullComboSlotRoots"]) for row in rows),
-            "graphReadoutRoots": sum(len(row["graphReadoutRoots"]) for row in rows), "changes": rows}
+            "graphReadoutRoots": sum(len(row["graphReadoutRoots"]) for row in rows),
+            "beamLaneSurfaceRoots": sum(len(row["beamLaneSurfaceRoots"]) for row in rows), "changes": rows}
 
 
 def verify_repackage(source: Path, output: Path, files):
@@ -941,8 +1003,9 @@ def verify_repackage(source: Path, output: Path, files):
     if sorted({mappings.get(path, path) for path in original_files} | preview_files(expected_catalog)) != files:
         raise ValueError("Repackaging changed the original reference closure beyond its exact option illustrations")
     unchanged, byte_equal_scenes = 0, 0
-    corrected_scenes, corrected_frame_inis = [], []
+    corrected_scenes, corrected_frame_inis, corrected_beam_inis = [], [], []
     frame_inis = set(frame_ini_paths(original_catalog))
+    beam_inis = set(beam_ini_paths(original_catalog))
     original_root_ini = exact_file(source, "skin.ini").read_bytes()
     expected_root_ini = correct_root_ini_target(original_root_ini)
     if exact_file(output, "skin.ini").read_bytes() != expected_root_ini:
@@ -954,11 +1017,23 @@ def verify_repackage(source: Path, output: Path, files):
         if relative in frame_inis:
             original_ini = exact_file(source, relative).read_bytes()
             expected_ini, scopes = correct_frame_decoration_scope(original_ini)
+            if beam_inis:
+                expected_ini, removed_surfaces = correct_frame_lane_surface(expected_ini)
+            else:
+                removed_surfaces = 0
             if exact_file(output, destination).read_bytes() != expected_ini:
-                raise ValueError(f"Repackaging changed a Frame INI beyond its Stage decoration suppression: {relative}")
+                raise ValueError(f"Repackaging changed a Frame INI beyond Stage decoration suppression and empty lane-surface removal: {relative}")
             if original_ini != expected_ini:
                 corrected_frame_inis.append({"path": relative, "beforeSha256": hashlib.sha256(original_ini).hexdigest(),
-                    "afterSha256": hashlib.sha256(expected_ini).hexdigest(), **scopes})
+                    "afterSha256": hashlib.sha256(expected_ini).hexdigest(), "emptyLaneSurfacesRemoved": removed_surfaces, **scopes})
+                continue
+        if relative in beam_inis:
+            original_ini = exact_file(source, relative).read_bytes()
+            expected_ini, changed = correct_beam_material(original_ini)
+            if exact_file(output, destination).read_bytes() != expected_ini:
+                raise ValueError(f"Repackaging changed a beam INI beyond its lane-surface slot: {relative}")
+            if changed:
+                corrected_beam_inis.append({"path": relative, "declarationsChanged": changed})
                 continue
         if relative in scenes:
             expected_scene = read_json(exact_file(source, relative))
@@ -981,6 +1056,7 @@ def verify_repackage(source: Path, output: Path, files):
             "newPreviewFiles": len(preview_files(expected_catalog) - set(original_files)),
             "allPngClipAndOtherIniBytesPreserved": True,
             "frameIniScopeCorrections": corrected_frame_inis,
+            "beamIniLayerCorrections": corrected_beam_inis,
             "sceneContractCorrections": corrected_scenes, "otherSceneFieldsPreserved": True,
             "rootIniCorrection": {"changed": original_root_ini != expected_root_ini, "onlyPermittedChange": ROOT_GLOBAL_TARGET,
                 "beforeSha256": hashlib.sha256(original_root_ini).hexdigest(), "afterSha256": hashlib.sha256(expected_root_ini).hexdigest()}}
@@ -1010,6 +1086,7 @@ def prepare_package(output: Path, receipt, repackage_source: Path | None = None)
         receipt["sourceCodecValidation"] = receipt.pop("codecValidation")
         receipt["codecValidation"] = {"status": "pending", "reason": "Author scene declarations changed; the source package codec receipt is historical evidence only"}
     receipt["frameDecorationScopeCorrections"] = correct_frame_ini_scopes(output)
+    receipt["beamLayerCorrections"] = correct_beam_material_files(output)
     receipt["graphStatistics"]["readoutLayout"] = graph_readout_receipt()
     receipt["choicePreviews"] = build_choice_previews(output)
     files = package_closure(output)

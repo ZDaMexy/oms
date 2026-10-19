@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-19（游玩动画共享准备与编辑器退出互锁修复；26来源及人工/发行门保持）
+> 最后核对：2026-10-19（Omni光柱改为音符下方轨道背景；26来源及人工/发行门保持）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -33,11 +33,11 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-10-19动画、加载/退出、编辑器与相关作者能力的软件/独立宿主验证见[游玩审查](../../other/GAMEPLAY_REVIEW_20261019.md#验证证据)。Omni字节不变，设备/视觉门保持。
+2026-10-19光柱修正需重导入；BMS7/14K、mania7/16K实绘与Player通过，宽组合未全验，见[记录](CHANGELOG.md#2026-10-19omni光柱层级修正)。
+
+较早动画/编辑器及原包证据取[游玩审查](../../other/GAMEPLAY_REVIEW_20261019.md#验证证据)，不刷新其Xecus/全量或设备/发行门。
 
 同日较早图库主体/箭头与原Xecus首帧修复证据见[记录](CHANGELOG.md#2026-10-19配置图库入口与xecus崩溃修复)，BGA根因归[P1-L](../P1-L/CHANGELOG.md#2026-10-19真实xecus首帧崩溃修复)。工作区窗口待用户复核。
-
-此前键数设置、组合包与取材见[历史记录](CHANGELOG.md)。原版逐帧、正常曲库/听感、设备/发行待验。
 
 2026-10-13品牌的控件、两玩法选择、Desktop双配置及隔离绘制证据取[品牌记录](CHANGELOG.md#2026-10-13客户端品牌标识专项)，正常窗口、设备及发行门保持。
 

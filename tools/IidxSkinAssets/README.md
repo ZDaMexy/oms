@@ -111,3 +111,5 @@ python -B -m http.server 8768 --bind 127.0.0.1 --directory 'Y:\IIDX-Art-Library'
 ```
 
 当前授权、作品范围与下一步以 [P1-A 计划](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md)和[约束](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)为准；解包成功不代表动画、布局或游玩效果已验收。
+
+Omni光柱使用公开`playfield.lane-surface`，在原生Note/LN下方；Frame透明占位同步退出该槽。新导出及`--repackage-directory`均保留这种分工；旧包重建只修正已确认的光柱模板/材料声明与Frame空占位，原图、录制动画、长度及其它模块保持。验证见[P1-A记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-19omni光柱层级修正)，通用引擎图层不变。

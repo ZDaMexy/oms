@@ -691,7 +691,7 @@ class ModuleBuilder:
                         if movie in movies:
                             exported = self.clip(package, movie, f"b.clip.n{style:02}.{size}.{colour}", loop=style == 4, trigger="input.key.down")
                             root = b.include_clip(exported)
-                            root["id"], root["slot"] = identifier, "decoration"
+                            root["id"], root["slot"] = identifier, "playfield.lane-surface"
                             source_stage = exported["source"]["stage"]
                             root["properties"] = {"height": (source_stage[3] - source_stage[1]) / height}
                             if style == 4:
@@ -703,10 +703,12 @@ class ModuleBuilder:
                                     "unknown": "Original unlabeled beam04 host release/retrigger semantics"})
                         else:
                             root = node(identifier, "sprite", {"height": row["height"] / height}, resource,
-                                        "decoration", "additive")
+                                        "playfield.lane-surface", "additive")
                             b.bind(identifier, "visible", "input.pressed")
-                        b.template(colour, root, "decoration", marker)
-                        materials[colour] = {"decoration": marker}
+                        # This is the animated lane background. Foreground decoration would wash out
+                        # native pooled notes; the existing surface host already sits beneath them.
+                        b.template(colour, root, "playfield.lane-surface", marker)
+                        materials[colour] = {"playfield.lane-surface": marker}
                     b.lane_ini(materials)
                     contributions[(sd, size)] = b.finish()
             choices.append({"value": f"b{style:02}", "label": f"光柱 {style:02}", **contributions[(False, "normal")],

@@ -63,6 +63,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
         public override bool AutomaticallyRunFirstStep => false;
 
+        protected override double TimePerAction => 50;
+
         [BackgroundDependencyLoader(permitNulls: true)]
         private void requireIsolation(ExactVisualTestIsolation? isolation)
         {
@@ -110,6 +112,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 frameworkConfig.SetValue(FrameworkSetting.WindowMode, WindowMode.Windowed);
                 frameworkConfig.SetValue(FrameworkSetting.WindowedSize, new System.Drawing.Size(1920, 1080));
                 import = Game.Dependencies.Get<SkinManager>().Import(new PreservingImportTask(File.OpenRead(package!), Path.GetFileName(package!)));
+                // The full local art library can exceed UntilStepButton's fixed ten-second deadline.
+                // This opt-in isolated host has its own watchdog; do not abandon its Realm writer mid-import.
+                import.GetAwaiter().GetResult();
             });
             AddUntilStep("wait for the normal package importer", () => import?.IsCompleted == true);
             AddStep("select the imported package and a repeatable BMS chart", () =>
@@ -171,6 +176,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(CanonicalSkinPackage.IsCanonicalSkin(skins.CurrentSkin.Value), Is.False);
                 Assert.That(renderer.GameplaySkinSceneRuntime, Is.Not.Null);
                 Assert.That(renderer.GameplaySkinSceneRuntime!.RuntimeFaults, Is.Empty);
+                if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_BEAM_LAYER") is string beamCheck)
+                    recordBeamLayer(beamCheck == "verify");
                 File.WriteAllText(Path.Combine(outputDirectory, "materials.json"), System.Text.Json.JsonSerializer.Serialize(
                     renderer.GameplaySkinSceneRuntime.MaterialSet.Entries.Select(entry => new
                     {
@@ -251,19 +258,27 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 });
             }
 
-            foreach (double time in new[] { 2600d, 3600d, 4200d, 6800d, 10100d })
+            // At 3700ms the first hold is active and the following ordinary notes are already in their
+            // real drawable lifetime. Earlier sampling can accidentally assert against an unbound pooled note.
+            foreach (double time in new[] { 2600d, 3700d, 4200d, 6800d, 10100d })
             {
                 double captureTime = time;
-                AddUntilStep($"play naturally to {captureTime:0}ms", () => renderer.GameplaySkinEventRuntime!.AuthoritativeGameplayTime >= captureTime);
-                if (captureNoteGeometry && captureTime == 3600)
-                    AddStep("freeze inside the actual first held long note", () => gameplayClock.Stop());
+                AddUntilStep($"play naturally to {captureTime:0}ms", () =>
+                {
+                    if (renderer.GameplaySkinEventRuntime!.AuthoritativeGameplayTime < captureTime)
+                        return false;
+                    // Freeze in the observing step. Waiting another visual step can advance past the real tail.
+                    if (captureNoteGeometry && captureTime == 3700)
+                        gameplayClock.Stop();
+                    return true;
+                });
                 AddStep("verify no author scene faults", () => Assert.That(renderer.GameplaySkinSceneRuntime!.RuntimeFaults, Is.Empty));
-                if (captureNoteGeometry && captureTime == 3600)
+                if (captureNoteGeometry && captureTime == 3700)
                     AddStep("record the actual holding note resources", () => recordAndAssertNoteGeometry("holding"));
                 AddStep("capture the actual desktop framebuffer", () => capture = saveCapture($"{(doublePlay ? "14k" : style.ToString().ToLowerInvariant())}-{captureTime:00000}.png"));
                 AddUntilStep("wait for PNG write", () => capture?.IsCompleted == true);
                 AddStep("propagate capture failures", () => capture!.GetAwaiter().GetResult());
-                if (captureNoteGeometry && captureTime == 3600)
+                if (captureNoteGeometry && captureTime == 3700)
                     AddStep("resume after the held-note capture", () => gameplayClock.Start());
             }
 
@@ -367,6 +382,29 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             if (pixels == null || pixels.Width < 640 || pixels.Height < 360)
                 throw new InvalidOperationException("Desktop capture did not return a usable framebuffer.");
             await pixels.SaveAsPngAsync(Path.Combine(outputDirectory, filename)).ConfigureAwait(false);
+        }
+
+        private void recordBeamLayer(bool verify)
+        {
+            GameplaySkinSceneRuntimeHost runtime = renderer.GameplaySkinSceneRuntime!;
+            GameplaySkinSceneHostedSlot[] beams = [.. runtime.HostedSlots.Where(slot => slot.RoutedNodes.Any(node =>
+                node.Source.Id.StartsWith("b.b", StringComparison.Ordinal)))];
+            File.WriteAllText(Path.Combine(outputDirectory, "beam-layer.json"), System.Text.Json.JsonSerializer.Serialize(beams.Select(beam => new
+            {
+                lane = beam.Key.Target.LaneId?.Value,
+                slot = beam.Key.Slot.Id,
+                layer = beam.Layer.ToString(),
+            })));
+            if (!verify)
+                return;
+            Assert.That(beams.Length, Is.EqualTo(runtime.Publication.Snapshot.LanesInLogicalOrder.Count));
+            foreach (GameplaySkinSceneHostedSlot beam in beams)
+            {
+                Assert.That(beam.Key.Slot, Is.SameAs(GameplaySkinSlotCatalog.LaneSurface));
+                Assert.That(beam.Layer, Is.EqualTo(GameplaySkinSceneLayer.Underlay));
+                Assert.That(runtime.TryGetHostedDrawable(beam.Key, out Drawable? drawable), Is.True);
+                Assert.That(drawable!.Parent, Is.SameAs(runtime.Layers.Underlay));
+            }
         }
 
         private void recordAndAssertNoteGeometry(string phase)

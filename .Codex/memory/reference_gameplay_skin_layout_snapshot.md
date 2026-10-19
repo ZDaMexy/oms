@@ -34,6 +34,7 @@ metadata:
 
 ## 从真实截图排查分区遮挡
 
+- scene的`z`只排序同一固定layer，不能把Overlay里的`decoration`放到原生Note/LN后。Omni光柱误用decoration会盖住正在Holding的CN；逐轨背景应声明LaneSurface，并移除Frame对同一target的透明占位以避免DuplicateDeclaration。不要直接换KeyFlash：该槽投影的是hit-target区域，和整条lane不是同一几何。既有Underlay可满足作者行为，不要为单个包更改公共层级；修正和原生取景见[P1-A日志](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-19omni光柱层级修正)。
 - AFP跨版本矩阵对照须保留同名binding的全部实例与深度路径；DP两侧可同时叫lane_1p，仅用名称作字典键会覆盖一侧并制造假差异。按movie/name/occurrence逐项比较，再与红线、键灯和实机交叉核定，不能由背景矩阵单独推出原生演奏几何变更。诊断例见[31制作记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-18iidx31-epolis-游玩候选)。
 - 同名或同字节PNG不证明相同源几何。SD小BPM的28×18共用图在原GEO中是19×16、UV仍为完整0～1；须按网格非等比显示，不能据PNG比例裁图或统一乘画布倍数。框体的SD投影不适用于另有HD局部stage的共用音符/击打。源单个score占位符也不证明动态位数或advance，应另测面板内区域并把多位排布标为候选；作品边界取[P1-A素材约束](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)。
 - CUSTOM的long/short档须比较有效alpha、原图内容与GEO，不能只读PNG外尺寸后套scale：同尺寸音符图可能靠顶部留白改变厚度，CN档可能只改头尾而不改body，beam档可同几何而换整束图。源IFS、菜单缩略图、可选/解锁与真实consumer分别取证；frame预览编号也不能当版本号。FC解析的unknown placement可携带滤镜，原总帧数不等于最后可见帧，不能静默丢字段或截尾声称原样；诊断证据见[完整性记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-18iidx-custom完整性核对)。

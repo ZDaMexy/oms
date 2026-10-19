@@ -52,6 +52,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
 
         public override bool AutomaticallyRunFirstStep => false;
 
+        protected override double TimePerAction => 50;
+
         [BackgroundDependencyLoader(permitNulls: true)]
         private void requireIsolation(ExactVisualTestIsolation? isolation)
         {
@@ -81,6 +83,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 framework.SetValue(FrameworkSetting.WindowMode, WindowMode.Windowed);
                 framework.SetValue(FrameworkSetting.WindowedSize, new System.Drawing.Size(1920, 1080));
                 import = Game.Dependencies.Get<SkinManager>().Import(new PreservingImportTask(File.OpenRead(package!), Path.GetFileName(package!)));
+                // The full local library is bounded by the isolated host watchdog, not the ten-second visual step.
+                import.GetAwaiter().GetResult();
             });
             AddUntilStep("wait for normal import", () => import?.IsCompleted == true);
             AddStep("select native mania and a chart with exact stage definitions", () =>
@@ -205,6 +209,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddStep("verify exact materials and expose the game framebuffer", () =>
             {
                 renderer = player.ChildrenOfType<DrawableManiaRuleset>().Single();
+                if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_BEAM_LAYER") is string beamCheck)
+                    recordBeamLayer(beamCheck == "verify");
                 score = renderer.Dependencies.Get<ScoreProcessor>();
                 var owner = renderer.Dependencies.Get<GameplaySkinLayoutRevisionOwner>();
                 Assert.That(owner.CurrentPublication!.Snapshot.Context.Topology.LanesInLogicalOrder.Count,
@@ -301,6 +307,29 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 File.WriteAllText(Path.Combine(output, "effect-geometry.json"), System.Text.Json.JsonSerializer.Serialize(
                     effectGeometry.Select(pair => new { source = pair.Key, pair.Value.Width, pair.Value.Height, scale })));
             });
+        }
+
+        private void recordBeamLayer(bool verify)
+        {
+            GameplaySkinSceneRuntimeHost runtime = renderer.GameplaySkinSceneRuntime!;
+            GameplaySkinSceneHostedSlot[] beams = [.. runtime.HostedSlots.Where(slot => slot.RoutedNodes.Any(node =>
+                node.Source.Id.StartsWith("b.b", StringComparison.Ordinal)))];
+            File.WriteAllText(Path.Combine(output, "beam-layer.json"), System.Text.Json.JsonSerializer.Serialize(beams.Select(beam => new
+            {
+                lane = beam.Key.Target.LaneId?.Value,
+                slot = beam.Key.Slot.Id,
+                layer = beam.Layer.ToString(),
+            })));
+            if (!verify)
+                return;
+            Assert.That(beams.Length, Is.EqualTo(runtime.Publication.Snapshot.LanesInLogicalOrder.Count));
+            foreach (GameplaySkinSceneHostedSlot beam in beams)
+            {
+                Assert.That(beam.Key.Slot, Is.SameAs(GameplaySkinSlotCatalog.LaneSurface));
+                Assert.That(beam.Layer, Is.EqualTo(GameplaySkinSceneLayer.Underlay));
+                Assert.That(runtime.TryGetHostedDrawable(beam.Key, out Drawable? drawable), Is.True);
+                Assert.That(drawable!.Parent, Is.SameAs(runtime.Layers.Underlay));
+            }
         }
 
         private async Task save(int time)
