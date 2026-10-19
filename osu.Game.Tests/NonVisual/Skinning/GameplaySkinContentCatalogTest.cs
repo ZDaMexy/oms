@@ -12,6 +12,7 @@ using NUnit.Framework;
 using osu.Framework.Audio.Sample;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics.Textures;
+using osu.Framework.IO.Stores;
 using osu.Game.Audio;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
@@ -23,6 +24,141 @@ namespace osu.Game.Tests.NonVisual.Skinning
     [TestFixture]
     public sealed class GameplaySkinContentCatalogTest
     {
+        [Test]
+        public void TestCapsuleCatalogRetainsAllChoicesAfterMutableSourcesAndPublicCopiesChange()
+        {
+            var fixture = twoChoicePackage();
+            using SkinPackageRevisionCapsule capsule = fixture.CreateCapsule();
+            GameplaySkinPreparedPackage package = captureCapsule(capsule);
+            foreach (byte[] bytes in fixture.Files.Values)
+                Array.Clear(bytes);
+            fixture.Files.Clear();
+            using IResourceStore<byte[]> publicView = capsule.CreateResourceView();
+            Array.Clear(publicView.Get("first.png"));
+
+            foreach ((string choice, Rgba32 expected) in new[] { ("first", new Rgba32(255, 0, 0)), ("second", new Rgba32(0, 0, 255)) })
+            {
+                GameplaySkinPreparedPackage selected = package.Select(GameplaySkinOptionValues.Resolve(package.Manifest!.Options,
+                    new Dictionary<string, string> { ["frame"] = choice }, "bms", "7k"), CancellationToken.None);
+                using Image<Rgba32> image = selected.Resources.Single().CreateImage();
+                Assert.That(image[0, 0], Is.EqualTo(expected));
+            }
+        }
+
+        [Test]
+        public void TestRetiringAnIdenticalCapsuleDoesNotRetireTheActiveCatalogOrItsDecodedPixels()
+        {
+            var fixture = twoChoicePackage();
+            using SkinPackageRevisionCapsule first = fixture.CreateCapsule();
+            using SkinPackageRevisionCapsule second = fixture.CreateCapsule();
+            Assert.That(second.ContentRevision, Is.EqualTo(first.ContentRevision));
+            GameplaySkinPreparedPackage active = captureCapsule(first);
+            GameplaySkinPreparedPackage retired = captureCapsule(second);
+            GameplaySkinPreparedPackage alreadyDecoded = retired.Select(resolve(retired, "bms"), CancellationToken.None);
+            second.Dispose();
+
+            Assert.That(() => retired.Select(resolve(retired, "bms"), CancellationToken.None), Throws.TypeOf<ObjectDisposedException>());
+            using Image<Rgba32> activePixels = active.Select(resolve(active, "bms"), CancellationToken.None).Resources.Single().CreateImage();
+            using Image<Rgba32> retainedPixels = alreadyDecoded.Resources.Single().CreateImage();
+            Assert.That(activePixels[0, 0], Is.EqualTo(new Rgba32(255, 0, 0)));
+            Assert.That(retainedPixels[0, 0], Is.EqualTo(new Rgba32(255, 0, 0)), "Decoded upload pixels retain their independent ownership.");
+        }
+
+        [Test]
+        public void TestMissingUnselectedCapsuleResourceCannotFallBackToAnotherReader()
+        {
+            var fixture = twoChoicePackage();
+            byte[] alternate = fixture.Files["second.png"];
+            fixture.Files.Remove("second.png");
+            using SkinPackageRevisionCapsule capsule = fixture.CreateCapsule();
+            fixture.Files["second.png"] = alternate;
+            GameplaySkinScenePreparationException? failure = Assert.Throws<GameplaySkinScenePreparationException>(() =>
+                GameplaySkinPreparedPackage.Prepare((path, _) => fixture.Files.GetValueOrDefault(path), capsule.ContentRevision,
+                    Guid.NewGuid(), null, CancellationToken.None, capsule.CaptureResourceReference));
+            Assert.That(failure!.Code, Is.EqualTo(GameplaySkinSceneDiagnosticCode.InvalidReference));
+        }
+
+        [Test]
+        public void TestSkinPreparationUsesItsExactOwnedCapsuleForContentChoices()
+        {
+            var fixture = twoChoicePackage();
+            SkinPackageRevisionCapsule capsule = fixture.CreateCapsule();
+            using var store = new SkinPackageRevisionResourceStore(capsule);
+            using var skin = new TestSkin(Guid.NewGuid(), store);
+            GameplaySkinPreparedPackage package = skin.PrepareGameplaySkinPackage(CancellationToken.None);
+            fixture.Files.Clear();
+            GameplaySkinPreparedPackage selected = package.Select(resolve(package, "bms"), CancellationToken.None);
+            using Image<Rgba32> image = selected.Resources.Single().CreateImage();
+            Assert.That(image[0, 0], Is.EqualTo(new Rgba32(255, 0, 0)));
+            skin.Dispose();
+            Assert.That(() => package.Select(resolve(package, "bms"), CancellationToken.None), Throws.TypeOf<ObjectDisposedException>());
+        }
+
+        [Test]
+        public void TestSharedImageAcrossManyAlternativesIsReadOnceDuringCapture()
+        {
+            var fixture = new Package();
+            for (int i = 0; i < 12; i++)
+            {
+                string branch = "branch" + i;
+                fixture.AddBranch(branch, new Rgba32(255, 0, 0), null);
+                fixture.EditJson(branch + "/manifest.json", json => json["resources"]![0]!["path"] = "shared.png");
+            }
+            fixture.SetModule("frame", Enumerable.Range(0, 12).Select(i => fixture.Choice("n" + i, "branch" + i)), "n0");
+            byte[] largeImage;
+            using (var image = new Image<Rgba32>(512, 512))
+            {
+                using (var controlOutput = new MemoryStream())
+                {
+                    image.SaveAsPng(controlOutput);
+                    fixture.Files["shared.png"] = controlOutput.ToArray();
+                }
+                var random = new Random(9231);
+                for (int y = 0; y < image.Height; y++)
+                    for (int x = 0; x < image.Width; x++)
+                        image[x, y] = new Rgba32((byte)random.Next(256), (byte)random.Next(256), (byte)random.Next(256), (byte)random.Next(256));
+                using var output = new MemoryStream();
+                image.SaveAsPng(output);
+                largeImage = output.ToArray();
+            }
+            // Keep scene/JSON work identical so this measures the extra encoded bytes, not fixed preparation costs.
+            using SkinPackageRevisionCapsule control = fixture.CreateCapsule();
+            _ = captureCapsule(control);
+            long controlBefore = GC.GetAllocatedBytesForCurrentThread();
+            _ = captureCapsule(control);
+            long controlAllocated = GC.GetAllocatedBytesForCurrentThread() - controlBefore;
+            long encodedGrowth = largeImage.LongLength - fixture.Files["shared.png"].LongLength;
+            fixture.Files["shared.png"] = largeImage;
+            using SkinPackageRevisionCapsule capsule = fixture.CreateCapsule();
+            _ = GameplaySkinPreparedPackage.Identify(fixture.Files["shared.png"]);
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            GameplaySkinPreparedPackage captured = captureCapsule(capsule);
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            Assert.That(captured.Manifest!.Options.Single().Choices, Has.Count.EqualTo(12));
+            Assert.That(allocated - controlAllocated, Is.LessThan(encodedGrowth * 2),
+                "References to the same encoded image in inactive alternatives must not copy it per alternative.");
+        }
+
+        private static Package twoChoicePackage()
+        {
+            var fixture = new Package();
+            fixture.AddBranch("first", new Rgba32(255, 0, 0), null);
+            fixture.AddBranch("second", new Rgba32(0, 0, 255), null);
+            fixture.SetModule("frame", new[] { fixture.Choice("first", "first"), fixture.Choice("second", "second") }, "first");
+            return fixture;
+        }
+
+        private static GameplaySkinPreparedPackage captureCapsule(SkinPackageRevisionCapsule capsule)
+        {
+            using IResourceStore<byte[]> view = capsule.CreateResourceView();
+            return GameplaySkinPreparedPackage.Prepare((path, _) =>
+            {
+                Assert.That(path, Is.EqualTo(GameplaySkinSceneContracts.MANIFEST_FILE_NAME),
+                    "A catalog with a retained immutable source must not recapture alternatives through another reader.");
+                return view.Get(path);
+            }, capsule.ContentRevision, Guid.NewGuid(), null, CancellationToken.None, capsule.CaptureResourceReference);
+        }
+
         [Test]
         public void TestSelectedPngWithAValidHeaderAndCorruptZlibDataFailsAsATypedResourceError()
         {
@@ -255,7 +391,10 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 case "options-budget":
                     fixture.RootManifest["options"] = new JArray(Enumerable.Range(0, GameplaySkinOptionBudgets.MAX_OPTIONS).Select(index => new JObject
                     {
-                        ["id"] = "n" + index, ["type"] = "toggle", ["label"] = "Option " + index, ["default"] = true,
+                        ["id"] = "n" + index,
+                        ["type"] = "toggle",
+                        ["label"] = "Option " + index,
+                        ["default"] = true,
                     }));
                     break;
                 case "script": fixture.RootManifest["script"] = GameplaySkinSceneContracts.SCRIPT_FILE_NAME; break;
@@ -398,7 +537,8 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 """);
             JObject choice = new JObject
             {
-                ["value"] = "standard", ["label"] = "Standard",
+                ["value"] = "standard",
+                ["label"] = "Standard",
                 ["variants"] = new JArray(new JObject { ["when"] = new JObject { ["size"] = "long" } }),
             };
             var variants = (JArray)choice["variants"]!;
@@ -487,7 +627,10 @@ namespace osu.Game.Tests.NonVisual.Skinning
 
         private static JObject variant(string branch, JObject when) => new JObject
         {
-            ["when"] = when, ["manifest"] = branch + "/manifest.json", ["scene"] = branch + "/scene.json", ["ini"] = branch + "/materials.ini",
+            ["when"] = when,
+            ["manifest"] = branch + "/manifest.json",
+            ["scene"] = branch + "/scene.json",
+            ["ini"] = branch + "/materials.ini",
         };
 
         private static GameplaySkinOptionValues resolve(GameplaySkinPreparedPackage package, string ruleset)
@@ -496,6 +639,8 @@ namespace osu.Game.Tests.NonVisual.Skinning
         private sealed class TestSkin : Skin
         {
             public TestSkin(Guid id) : base(new SkinInfo("Content owner fixture") { ID = id }, null) { }
+            public TestSkin(Guid id, IResourceStore<byte[]> store)
+                : base(new SkinInfo("Content owner fixture") { ID = id }, null, store, "skin.ini", useExactPackageStore: true) { }
             public override ISample? GetSample(ISampleInfo sampleInfo) => null;
             public override Texture? GetTexture(string componentName, WrapMode wrapModeS, WrapMode wrapModeT) => null;
             public override IBindable<TValue>? GetConfig<TLookup, TValue>(TLookup lookup) => null;
@@ -527,10 +672,23 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 }, "exact.package-revision", Guid.NewGuid(), null, CancellationToken.None);
             }
 
+            public SkinPackageRevisionCapsule CreateCapsule()
+            {
+                put(GameplaySkinSceneContracts.MANIFEST_FILE_NAME, RootManifest);
+                put("content/catalog.json", Catalog);
+                SkinPackageRevisionCapsuleCreationResult result = SkinPackageRevisionCapsuleFactory.Create(
+                    Files.Select(pair => SkinPackageCapturedEntry.CreateFile(pair.Key, pair.Value)).ToArray());
+                Assert.That(result.IsSuccess, Is.True, result.RejectionReason.ToString());
+                return result.Capsule!;
+            }
+
             public JObject Choice(string value, string branch) => new JObject
             {
-                ["value"] = value, ["label"] = "Choice " + value,
-                ["manifest"] = branch + "/manifest.json", ["scene"] = branch + "/scene.json", ["ini"] = branch + "/materials.ini",
+                ["value"] = value,
+                ["label"] = "Choice " + value,
+                ["manifest"] = branch + "/manifest.json",
+                ["scene"] = branch + "/scene.json",
+                ["ini"] = branch + "/materials.ini",
             };
 
             public void SetModule(string id, IEnumerable<JObject> choices, string defaultValue, string? ruleset = null)
@@ -547,14 +705,18 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 definition["resources"] = new JArray(new JObject { ["id"] = id + ".texture", ["type"] = "texture", ["path"] = id + ".png", ["filter"] = "nearest" });
                 definition["bitmapFonts"] = new JArray(new JObject
                 {
-                    ["id"] = id + ".font", ["lineHeight"] = 8,
+                    ["id"] = id + ".font",
+                    ["lineHeight"] = 8,
                     ["glyphs"] = new JArray(new JObject { ["character"] = "0", ["resource"] = id + ".texture", ["advance"] = 8 }),
                 });
                 if (layoutX.HasValue)
                 {
                     definition["layouts"] = new JArray(new JObject
                     {
-                        ["id"] = id + ".layout", ["ruleset"] = "bms", ["keymode"] = "7k", ["presentation"] = "p1",
+                        ["id"] = id + ".layout",
+                        ["ruleset"] = "bms",
+                        ["keymode"] = "7k",
+                        ["presentation"] = "p1",
                         ["stages"] = new JArray { new JObject { ["rect"] = new JArray(layoutX.Value, 0, 0.2, 0.6), ["lanes"] = new JArray { new JArray(0, 1) } } },
                     });
                 }
@@ -562,8 +724,14 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 JObject document = scene(id);
                 ((JArray)document["root"]!["children"]!).Add(new JObject
                 {
-                    ["id"] = id + ".sprite", ["type"] = "sprite", ["target"] = new JObject { ["kind"] = "global" },
-                    ["resource"] = id + ".texture", ["blend"] = "alpha", ["properties"] = new JObject(), ["effects"] = new JArray(), ["children"] = new JArray(),
+                    ["id"] = id + ".sprite",
+                    ["type"] = "sprite",
+                    ["target"] = new JObject { ["kind"] = "global" },
+                    ["resource"] = id + ".texture",
+                    ["blend"] = "alpha",
+                    ["properties"] = new JObject(),
+                    ["effects"] = new JArray(),
+                    ["children"] = new JArray(),
                 });
                 ((JArray)document["bindings"]!).Add(new JObject { ["id"] = id + ".binding", ["target"] = id + ".sprite", ["property"] = "opacity", ["source"] = "timing.progress" });
                 put(id + "/scene.json", document);

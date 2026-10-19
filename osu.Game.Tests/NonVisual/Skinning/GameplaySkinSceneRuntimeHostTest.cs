@@ -1544,6 +1544,15 @@ namespace osu.Game.Tests.NonVisual.Skinning
 
             first.OnFree();
             first.OnApply(303);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(firstRoot.TransformDrawable.Alpha, Is.EqualTo(0.1f).Within(0.001f),
+                    "Reapply must immediately project the new exact object, before the next shared scene update.");
+                Assert.That(secondRoot.TransformDrawable.Alpha, Is.EqualTo(0.9f).Within(0.001f),
+                    "Reapplying one pooled scope must not reset another clone's state machine.");
+            });
+
             host.ProcessFrame();
 
             Assert.Multiple(() =>
@@ -1552,6 +1561,67 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 Assert.That(firstRoot.TransformDrawable.Rotation, Is.Zero.Within(0.001f),
                     "A reused pooled clone must not retain the previous object's judgement binding.");
                 Assert.That(secondRoot.TransformDrawable.Alpha, Is.EqualTo(0.9f).Within(0.001f));
+            });
+        }
+
+        [Test]
+        public void TestPooledSpecialisedVisualWithoutStateMachinesPreservesBindingAndReuse()
+        {
+            using var texture = new DummyRenderer().CreateTexture(8, 8);
+            RuntimeFixture fixture = createObjectScopedSpecialisedFixture(texture, includeStateMachine: false);
+            using GameplaySkinEventStream stream = createStream(fixture.Publication);
+            using GameplaySkinEventProducer producer = stream.CreateProducer();
+            using var host = new GameplaySkinSceneRuntimeHost(fixture.Publication, stream);
+            GameplaySkinResolvedMaterialKey key = fixture.Publication.MaterialSet.Entries.Single().Key;
+
+            host.ProcessFrame();
+            using GameplaySkinSpecialisedSceneVisual first = host.PrepareSpecialisedVisual(key, new Container())!;
+            using GameplaySkinSpecialisedSceneVisual second = host.PrepareSpecialisedVisual(key, new Container())!;
+            first.OnApply(101);
+            second.OnApply(202);
+            GameplaySkinSceneRuntimeNode firstRoot = first.RuntimeNodes.Single();
+            GameplaySkinSceneRuntimeNode secondRoot = second.RuntimeNodes.Single();
+
+            publishObject(stream, producer, 10, GameplaySkinEventKind.ObjectSpawned, objectState(fixture, 101, GameplaySkinObjectState.Visible));
+            publishObject(stream, producer, 20, GameplaySkinEventKind.ObjectSpawned, objectState(fixture, 202, GameplaySkinObjectState.Visible));
+            publishJudgement(stream, producer, 30, new GameplaySkinJudgementStateSnapshot(
+                101, fixture.Group.Identity.Id, fixture.Lane.Identity.Id, GameplaySkinJudgementGrade.Great, -3, 0.01));
+            host.ProcessFrame();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(host.StateMachineStates, Is.Empty);
+                Assert.That(firstRoot.TransformDrawable.Rotation, Is.EqualTo(-3).Within(0.001f));
+                Assert.That(secondRoot.TransformDrawable.Rotation, Is.Zero.Within(0.001f));
+            });
+
+            first.OnFree();
+            first.OnApply(303);
+            long allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+
+            for (int iteration = 0; iteration < 1024; iteration++)
+            {
+                first.OnFree();
+                first.OnApply(303);
+            }
+
+            long lifecycleAllocatedBytes = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
+            publishObject(stream, producer, 40, GameplaySkinEventKind.ObjectSpawned, objectState(fixture, 303, GameplaySkinObjectState.Visible));
+            publishJudgement(stream, producer, 50, new GameplaySkinJudgementStateSnapshot(
+                303, fixture.Group.Identity.Id, fixture.Lane.Identity.Id, GameplaySkinJudgementGrade.Perfect, 7, 0.01));
+            host.ProcessFrame();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(lifecycleAllocatedBytes, Is.Zero);
+                Assert.That(first.BoundObjectId, Is.EqualTo(303));
+                Assert.That(firstRoot.BoundObjectId, Is.EqualTo(303));
+                Assert.That(firstRoot.IsAnimationActive, Is.True);
+                Assert.That(firstRoot.TransformDrawable.Rotation, Is.EqualTo(7).Within(0.001f),
+                    "Skipping absent state machines must keep ordinary bindings attached to the new pooled object.");
+                Assert.That(second.BoundObjectId, Is.EqualTo(202));
+                Assert.That(secondRoot.TransformDrawable.Rotation, Is.Zero.Within(0.001f));
+                Assert.That(host.RuntimeFaults, Is.Empty);
             });
         }
 
@@ -2433,7 +2503,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 layout.LaneRect);
         }
 
-        private static RuntimeFixture createObjectScopedSpecialisedFixture(Texture texture)
+        private static RuntimeFixture createObjectScopedSpecialisedFixture(Texture texture, bool includeStateMachine = true)
         {
             LayoutFixture layout = createLayout();
             GameplaySkinResolvedMaterialTarget laneTarget = GameplaySkinResolvedMaterialTarget.ForLane(layout.Group, layout.Lane);
@@ -2469,7 +2539,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
             var document = new GameplaySkinSceneDocument(
                 root,
                 Array.Empty<GameplaySkinSceneTrack>(),
-                new[] { machine },
+                includeStateMachine ? new[] { machine } : Array.Empty<GameplaySkinSceneStateMachine>(),
                 new[]
                 {
                     new GameplaySkinSceneBinding(

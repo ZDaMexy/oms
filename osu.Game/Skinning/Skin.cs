@@ -138,7 +138,8 @@ namespace osu.Game.Skinning
                 return PreparedGameplaySkinPackage ??= GameplaySkinPreparedPackage.Prepare(
                     (name, limit) => TryCaptureGameplaySkinResource(name, limit, out byte[] bytes) ? bytes : null,
                     GetCurrentRevisionContentIdentity(), SkinInfo.ID,
-                    (resources as SkinManager)?.ScriptAuthorizations, cancellationToken);
+                    (resources as SkinManager)?.ScriptAuthorizations, cancellationToken,
+                    FallbackStore is SkinPackageRevisionResourceStore exactStore ? exactStore.CaptureResourceReference : null);
             }
         }
 

@@ -5587,7 +5587,7 @@ namespace osu.Game.Skinning
                     if (file.Length > maximumBytes)
                         throw new GameplaySkinScenePreparationException(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
                     return view.Get(name);
-                }, capture.Capsule.ContentRevision, request.Snapshot.ID, ScriptAuthorizations, cancellationToken);
+                }, capture.Capsule.ContentRevision, request.Snapshot.ID, ScriptAuthorizations, cancellationToken, capture.Capsule.CaptureResourceReference);
                 return new PreparedManagedSelectionCapture(capture, package);
             }
             catch

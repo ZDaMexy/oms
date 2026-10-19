@@ -63,7 +63,8 @@ namespace osu.Game.Skinning.Gameplay
             string packageRevision,
             Guid recordId,
             GameplaySkinScriptAuthorizationStore? authorizations,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            Func<string, SkinPackageRevisionCapsule.ResourceReference?>? retainResource = null)
         {
             cancellationToken.ThrowIfCancellationRequested();
             byte[]? manifestBytes = read(GameplaySkinSceneContracts.MANIFEST_FILE_NAME, GameplaySkinSceneBudgets.MAX_MANIFEST_BYTES);
@@ -72,7 +73,7 @@ namespace osu.Game.Skinning.Gameplay
 
             GameplaySkinSceneManifest manifest = RequireValid(GameplaySkinSceneCodec.DecodeManifest(manifestBytes));
             if (manifest.ContentCatalogFile != null)
-                return GameplaySkinCapturedContentCatalog.Capture(read, packageRevision, recordId, authorizations, manifest, manifestBytes, cancellationToken);
+                return GameplaySkinCapturedContentCatalog.Capture(read, packageRevision, recordId, authorizations, manifest, manifestBytes, cancellationToken, retainResource);
             byte[] sceneBytes = read(manifest.SceneFile, GameplaySkinSceneBudgets.MAX_SCENE_BYTES)
                                 ?? throw fail(GameplaySkinSceneDiagnosticCode.InvalidReference);
             cancellationToken.ThrowIfCancellationRequested();

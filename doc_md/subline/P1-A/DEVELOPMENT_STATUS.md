@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-19（Omni光柱改为音符下方轨道背景；26来源及人工/发行门保持）
+> 最后核对：2026-10-19（不可变目录共享编码素材及池化组件复用；26来源及人工/发行门保持）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -33,21 +33,17 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
+2026-10-19目录/池化修复：实测消除399.05MiB重复驻留；Core、双玩法全量与旧失败对照取[证据](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#内存压力下的驻留与音符复用修复)。20秒后台、物理负载88%的样本不代签前台/空闲对照；本次包未变，无需重导入。
+
 2026-10-19光柱修正需重导入；BMS7/14K、mania7/16K实绘与Player通过，宽组合未全验，见[记录](CHANGELOG.md#2026-10-19omni光柱层级修正)。
 
 较早动画/编辑器及原包证据取[游玩审查](../../other/GAMEPLAY_REVIEW_20261019.md#验证证据)，不刷新其Xecus/全量或设备/发行门。
 
 同日较早图库主体/箭头与原Xecus首帧修复证据见[记录](CHANGELOG.md#2026-10-19配置图库入口与xecus崩溃修复)，BGA根因归[P1-L](../P1-L/CHANGELOG.md#2026-10-19真实xecus首帧崩溃修复)。工作区窗口待用户复核。
 
-2026-10-13品牌的控件、两玩法选择、Desktop双配置及隔离绘制证据取[品牌记录](CHANGELOG.md#2026-10-13客户端品牌标识专项)，正常窗口、设备及发行门保持。
-
 谱库旧断言维护及保全范围见[扫描审查](../../other/LIBRARY_SCAN_REVIEW_20261010.md)。
 
-2026-10-03修复首次下载完成后仍读旧谱库：BMS/mania一次请求后可打开原难度，删除/目录不可用保留失效提示。软件、红绿及命令取[下载修复记录](CHANGELOG.md#2026-10-03首次下载完成后的可玩状态修复)，不补签实站、大包、听感或发行门。
-
-2026-10-02六项下载审查修复及当时八项既有失败对照见[修复记录](../../other/BEATMAP_DOWNLOAD_FIXES_20261002.md)。坏包收尾/重试/退出、预算与资源完整性、目录手动恢复及单一反馈仍保持；该轮未维护的 mania 注册断言现已沿上述 P1-H 回归完成，导航旧检查仍保留。
-
-2026-10-01 Sayobot窗口及实站结果取[记录](../../other/MANIA_SAYOBOT_DOWNLOAD_20261001.md)，BMS小包取上方下载记录；旧结果不刷新为本轮签收。
+下载较早验证按原日期取[10月3日首次完成状态修复](CHANGELOG.md#2026-10-03首次下载完成后的可玩状态修复)、[10月2日安全/失败审查](../../other/BEATMAP_DOWNLOAD_FIXES_20261002.md)及[10月1日Sayobot窗口/实站](../../other/MANIA_SAYOBOT_DOWNLOAD_20261001.md)，BMS小包取上方记录；不刷新实站、大包、听感或发行签收。mania注册旧断言已沿P1-H维护，导航旧检查仍保留。
 
 ## 此前单内置与布局验证
 

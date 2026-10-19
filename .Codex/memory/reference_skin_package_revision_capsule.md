@@ -16,6 +16,8 @@ metadata:
 - 名字统一slash/NFC，再按Windows case-insensitive检查duplicate、绝对/穿越/ADS/尾点尾空格/device、file-directory conflict。合成parent/空目录计entry/depth预算；空目录不进内容revision。
 - exact读取declared length；版本domain + deterministic规范UTF-8名/长度/per-file hash形成content revision。它表示实际持有bytes的内容身份，不是physical identity、semantic validity或权限。
 - 独占defensive byte backing，metadata只读，resource view非owning，Get/GetStream返回副本。view Dispose不释放capsule；owner退役幂等清零。失败/取消清本次及此前provisional backing，不返回半包。
+- catalog引用须保活capsule对象，不能只保活其`byte[]`或`ReadOnlyMemory`：capsule终结器仍会清零数组，单独保活数组会得到被改写的“不可变”素材。引用不拥有显式Dispose权，退休仍按原lease链；具体约束见上述P1-A的3m4c。
+- 捕获同名图片前先按精确包内路径去重；否则即便最终目录只保存一个引用，验证循环也会为每个替代项临时复制同一大图。测分配时须排除相同场景/JSON解析的固定成本，不能将它误认成图像重复复制。
 
 ## 它没有证明什么
 

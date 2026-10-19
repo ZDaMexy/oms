@@ -17,6 +17,43 @@ namespace osu.Game.Tests.Skins
     public class SkinPackageRevisionCapsuleTest
     {
         [Test]
+        public void TestRetainedResourceHasBoundedMetadataAndReturnsIndependentCopies()
+        {
+            using SkinPackageRevisionCapsule capsule = createSuccess(SkinPackageCapturedEntry.CreateFile("image.bin", new byte[1024 * 1024]));
+            _ = capsule.CaptureResourceReference("image.bin");
+            long before = GC.GetAllocatedBytesForCurrentThread();
+            SkinPackageRevisionCapsule.ResourceReference? reference = null;
+            for (int i = 0; i < 16; i++)
+                reference = capsule.CaptureResourceReference("image.bin");
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+            Assert.That(allocated, Is.LessThan(64 * 1024), "Retaining an encoded file must not allocate another file-sized array.");
+            Assert.That(reference!.Length, Is.EqualTo(1024 * 1024));
+            byte[] copy = reference.ReadOwnedBytes();
+            copy[0] = 123;
+            Assert.That(reference.ReadOwnedBytes()[0], Is.Zero);
+            Assert.That(capsule.CaptureResourceReference("missing.bin"), Is.Null);
+            Assert.That(() => capsule.CaptureResourceReference("../image.bin"), Throws.ArgumentException);
+            capsule.Dispose();
+            Assert.That(() => reference.ReadOwnedBytes(), Throws.TypeOf<ObjectDisposedException>());
+        }
+
+        [Test]
+        public void TestRetainedResourceKeepsItsExactCapsuleAliveThroughFinalization()
+        {
+            SkinPackageRevisionCapsule.ResourceReference reference = createReference();
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            Assert.That(reference.ReadOwnedBytes(), Is.EqualTo(new byte[] { 17, 29 }));
+
+            static SkinPackageRevisionCapsule.ResourceReference createReference()
+            {
+                SkinPackageRevisionCapsule capsule = createSuccess(SkinPackageCapturedEntry.CreateFile("image.bin", new byte[] { 17, 29 }));
+                return capsule.CaptureResourceReference("image.bin")!;
+            }
+        }
+
+        [Test]
         public void TestCreatesExactReadOnlyResourceView()
         {
             using SkinPackageRevisionCapsule capsule = createSuccess(

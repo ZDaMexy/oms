@@ -24,13 +24,13 @@ namespace osu.Game.Skinning.Gameplay
         private readonly GameplaySkinSceneManifest baseManifest;
         private readonly GameplaySkinSceneDocument baseScene;
         private readonly string baseIni;
-        private readonly IReadOnlyDictionary<string, byte[]> files;
+        private readonly IReadOnlyDictionary<string, CapturedFile> files;
         private readonly IReadOnlyDictionary<GameplaySkinContentChoice, Branch> branches;
         private readonly GameplaySkinOptionPreviews optionPreviews;
 
         private GameplaySkinCapturedContentCatalog(string packageRevision, Guid recordId, GameplaySkinScriptAuthorizationStore? authorizations,
                                                   GameplaySkinContentCatalog catalog, GameplaySkinSceneManifest manifest,
-                                                  GameplaySkinSceneDocument scene, string baseIni, Dictionary<string, byte[]> files,
+                                                  GameplaySkinSceneDocument scene, string baseIni, Dictionary<string, CapturedFile> files,
                                                   Dictionary<GameplaySkinContentChoice, Branch> branches, GameplaySkinOptionPreviews optionPreviews)
         {
             this.packageRevision = packageRevision;
@@ -47,11 +47,12 @@ namespace osu.Game.Skinning.Gameplay
 
         internal static GameplaySkinPreparedPackage Capture(Func<string, int, byte[]?> read, string packageRevision, Guid recordId,
                                                              GameplaySkinScriptAuthorizationStore? authorizations,
-                                                             GameplaySkinSceneManifest manifest, byte[] manifestBytes, CancellationToken token)
+                                                             GameplaySkinSceneManifest manifest, byte[] manifestBytes, CancellationToken token,
+                                                             Func<string, SkinPackageRevisionCapsule.ResourceReference?>? retainResource)
         {
             if (manifest.ScriptFile != null)
                 throw fail(GameplaySkinSceneDiagnosticCode.InvalidReference);
-            var capture = new CaptureFiles(read);
+            var capture = new CaptureFiles(read, retainResource);
             capture.Add(GameplaySkinSceneContracts.MANIFEST_FILE_NAME, manifestBytes, structured: true);
             GameplaySkinContentCatalog catalog = GameplaySkinPreparedPackage.RequireValid(GameplaySkinSceneCodec.DecodeContentCatalog(
                 capture.Read(manifest.ContentCatalogFile!, GameplaySkinContentBudgets.MAX_CATALOG_BYTES, structured: true)));
@@ -155,11 +156,11 @@ namespace osu.Game.Skinning.Gameplay
 
         private byte[]? readCaptured(string path, int limit)
         {
-            if (!files.TryGetValue(path, out byte[]? bytes))
+            if (!files.TryGetValue(path, out CapturedFile? file))
                 return null;
-            if (bytes.Length > limit)
+            if (file.Length > limit)
                 throw fail(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
-            return bytes;
+            return file.ReadOwnedBytes();
         }
 
         private IEnumerable<Branch> selectedBranches(GameplaySkinOptionValues options)
@@ -243,9 +244,9 @@ namespace osu.Game.Skinning.Gameplay
             foreach (GameplaySkinSceneResource resource in manifest.Resources)
             {
                 token.ThrowIfCancellationRequested();
-                byte[] bytes = capture.Read(resource.Path, GameplaySkinPreparedSceneBudgets.MAX_RESOURCE_BYTES);
                 if (!capture.IdentifiedImages.Add(resource.Path))
                     continue;
+                byte[] bytes = capture.Read(resource.Path, GameplaySkinPreparedSceneBudgets.MAX_RESOURCE_BYTES);
                 var info = GameplaySkinPreparedPackage.Identify(bytes);
                 long pixels = (long)info.Width * info.Height;
                 if (pixels <= 0 || pixels > GameplaySkinPreparedSceneBudgets.MAX_TEXTURE_PIXELS)
@@ -269,40 +270,96 @@ namespace osu.Game.Skinning.Gameplay
             }
         }
 
+        private sealed class CapturedFile
+        {
+            private readonly byte[]? ownedBytes;
+            private readonly SkinPackageRevisionCapsule.ResourceReference? reference;
+
+            public int Length { get; }
+
+            public CapturedFile(byte[] bytes)
+            {
+                ownedBytes = [.. bytes];
+                Length = bytes.Length;
+            }
+
+            public CapturedFile(SkinPackageRevisionCapsule.ResourceReference reference)
+            {
+                this.reference = reference;
+                Length = reference.Length;
+            }
+
+            public byte[] ReadOwnedBytes() => reference?.ReadOwnedBytes() ?? ownedBytes!;
+        }
+
         private sealed class CaptureFiles
         {
             private readonly Func<string, int, byte[]?> read;
+            private readonly Func<string, SkinPackageRevisionCapsule.ResourceReference?>? retainResource;
             private long totalBytes;
             private long structuredBytes;
-            public Dictionary<string, byte[]> Files { get; } = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+            public Dictionary<string, CapturedFile> Files { get; } = new Dictionary<string, CapturedFile>(StringComparer.OrdinalIgnoreCase);
             public HashSet<string> IdentifiedImages { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            public CaptureFiles(Func<string, int, byte[]?> read) => this.read = read;
+            public CaptureFiles(Func<string, int, byte[]?> read, Func<string, SkinPackageRevisionCapsule.ResourceReference?>? retainResource)
+            {
+                this.read = read;
+                this.retainResource = retainResource;
+            }
 
             public byte[] Read(string path, int limit, bool structured = false)
             {
-                if (Files.TryGetValue(path, out byte[]? existing))
+                if (Files.TryGetValue(path, out CapturedFile? existing))
                 {
                     if (existing.Length > limit)
                         throw fail(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
-                    return existing;
+                    return existing.ReadOwnedBytes();
                 }
+
+                if (retainResource != null)
+                {
+                    SkinPackageRevisionCapsule.ResourceReference reference = retainResource(path)
+                                                                           ?? throw fail(GameplaySkinSceneDiagnosticCode.InvalidReference);
+                    if (reference.Length > limit)
+                        throw fail(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
+                    var file = new CapturedFile(reference);
+                    add(path, file, structured);
+                    return file.ReadOwnedBytes();
+                }
+
                 byte[] bytes = read(path, limit) ?? throw fail(GameplaySkinSceneDiagnosticCode.InvalidReference);
                 if (bytes.Length > limit)
                     throw fail(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
                 Add(path, bytes, structured);
-                return Files[path];
+                return Files[path].ReadOwnedBytes();
             }
 
             public void Add(string path, byte[] bytes, bool structured)
             {
-                totalBytes += bytes.LongLength;
+                if (retainResource != null)
+                {
+                    add(path, new CapturedFile(retainResource(path) ?? throw fail(GameplaySkinSceneDiagnosticCode.InvalidReference)), structured);
+                    return;
+                }
+
+                reserve(bytes.Length, structured);
+                Files.Add(path, new CapturedFile(bytes));
+            }
+
+            private void add(string path, CapturedFile file, bool structured)
+            {
+                reserve(file.Length, structured);
+                Files.Add(path, file);
+            }
+
+            private void reserve(int length, bool structured)
+            {
+                totalBytes += length;
                 if (structured)
-                    structuredBytes += bytes.LongLength;
+                    structuredBytes += length;
                 if (Files.Count >= GameplaySkinContentBudgets.MAX_CAPTURED_FILES || totalBytes > GameplaySkinContentBudgets.MAX_CAPTURED_BYTES
                     || structuredBytes > GameplaySkinContentBudgets.MAX_STRUCTURED_BYTES)
                     throw fail(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
-                Files.Add(path, [.. bytes]);
             }
         }
 

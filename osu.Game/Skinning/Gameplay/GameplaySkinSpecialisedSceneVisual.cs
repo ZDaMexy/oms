@@ -508,15 +508,16 @@ namespace osu.Game.Skinning.Gameplay
                 epoch = capturedEpoch;
             }
 
-            foreach (GameplaySkinSceneRuntimeNode node in visual.RuntimeNodes)
+            for (int index = 0; index < visual.RuntimeNodes.Count; index++)
             {
+                GameplaySkinSceneRuntimeNode node = visual.RuntimeNodes[index];
                 node.BoundObjectId = objectId;
                 node.IsAnimationActive = true;
                 node.JudgementAnimationStart = judgement?.AppliedTime;
                 node.JudgementAnimationEpoch = epoch;
             }
 
-            resetSpecialisedStateMachineScope(visual.RuntimeScopeId);
+            resetSpecialisedStateMachineScope(visual.RuntimeScopeId, objectId);
             bindingStateFamiliesDirty |= GameplaySkinSceneStateFamily.Object | GameplaySkinSceneStateFamily.Judgement;
             visual.RefreshVisibility(IsSceneReady);
         }
@@ -526,15 +527,16 @@ namespace osu.Game.Skinning.Gameplay
             if (!specialisedVisuals.Contains(visual))
                 return;
 
-            foreach (GameplaySkinSceneRuntimeNode node in visual.RuntimeNodes)
+            for (int index = 0; index < visual.RuntimeNodes.Count; index++)
             {
+                GameplaySkinSceneRuntimeNode node = visual.RuntimeNodes[index];
                 node.BoundObjectId = null;
                 node.IsAnimationActive = false;
                 node.JudgementAnimationStart = null;
                 node.JudgementAnimationEpoch = null;
             }
 
-            resetSpecialisedStateMachineScope(visual.RuntimeScopeId);
+            resetSpecialisedStateMachineScope(visual.RuntimeScopeId, null);
             bindingStateFamiliesDirty |= GameplaySkinSceneStateFamily.Object | GameplaySkinSceneStateFamily.Judgement;
             visual.RefreshVisibility(false);
         }

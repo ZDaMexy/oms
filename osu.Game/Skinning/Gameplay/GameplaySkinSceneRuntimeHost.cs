@@ -1843,18 +1843,10 @@ namespace osu.Game.Skinning.Gameplay
             }
         }
 
-        private void resetSpecialisedStateMachineScope(string runtimeScopeId)
+        private void resetSpecialisedStateMachineScope(string runtimeScopeId, long? objectId)
         {
-            long? objectId = null;
-
-            foreach (GameplaySkinSceneRuntimeNode node in runtimeNodes.Values)
-            {
-                if (!string.Equals(node.RuntimeScopeId, runtimeScopeId, StringComparison.Ordinal))
-                    continue;
-
-                objectId = node.BoundObjectId;
-                break;
-            }
+            if (stateMachineInstances.Count == 0)
+                return;
 
             foreach (StateMachineInstance instance in stateMachineInstances)
             {

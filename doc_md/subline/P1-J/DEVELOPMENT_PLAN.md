@@ -25,7 +25,9 @@ P1-J 只拥有 BMS gameplay runtime 的 keysound timing、shared audio pool、la
 
 ### 前台帧时间与GC验收
 
-按[已确认定因与方案](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#正常客户端反馈后的定因取证)先降低重复驻留及每play音频绑定分配：P1-A收敛不可变包/captured catalog的重复编码资源，P1-J守住底层声部复用的从头触发、暂停与revision合同；scope全场景扫描按真实较小贡献处理。单改SustainedLowLatency的候选已因长帧增加否决，不得按GC次数下降采纳。
+P1-A的目录素材共享和scope复用修复作为[已实施输入](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#内存压力下的驻留与音符复用修复)，不按高低内存另立运行分支。后续补正常空闲内存对照，与受压运行分别记录保留字节、进程驻留与暂停，不能将元数据节省直接当帧率收益。单改SustainedLowLatency的候选已因长帧增加否决，不得按GC次数下降采纳。
+
+每play音频绑定分配仍按[已确认方案](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#具体方案与验收顺序)处理：需要Framework窄范围的从头重播能力，守住per-WAV cut、多声部、暂停/完成、设备变化与revision退休。当前Stop/Play只会保位续播，不得直接缓存或预造整谱通道来冒充完成。
 
 随后在正常OMS前台和真实设备上，确认生产高性能会话、实际Update/Draw节奏及长帧；固定谱面、配置和区间，隔离截图/落盘及后台限帧，同时记录系统物理可用内存和进程驻留。验收须有可比较的长尾改善和判定/结果无回归，整曲自动完成与组件零分配不能代签；系统低内存暂停不能用屏蔽诊断或吞掉输入掩盖。
 

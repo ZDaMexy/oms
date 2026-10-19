@@ -248,6 +248,52 @@ namespace osu.Game.Skinning
             }
         }
 
+        /// <summary>
+        /// Retains a resource identity for trusted package preparation without retaining another encoded copy.
+        /// The existing skin/revision owner still controls disposal; a reference grants no ownership authority.
+        /// </summary>
+        internal ResourceReference? CaptureResourceReference(string name)
+        {
+            if (!SkinPackageResourceNameValidator.TryNormalise(name, out string normalisedName, out _)
+                || !string.Equals(name, normalisedName, StringComparison.Ordinal))
+            {
+                throw new ArgumentException("A captured resource requires a canonical package-relative name.", nameof(name));
+            }
+
+            lock (sync)
+            {
+                ObjectDisposedException.ThrowIf(disposed, this);
+                return resources.TryGetValue(normalisedName, out byte[]? content)
+                    ? new ResourceReference(this, normalisedName, content.Length)
+                    : null;
+            }
+        }
+
+        internal sealed class ResourceReference
+        {
+            // Retain the capsule itself, not only its bytes: its finalizer clears the backing arrays.
+            private readonly SkinPackageRevisionCapsule capsule;
+            private readonly string name;
+
+            public int Length { get; }
+
+            internal ResourceReference(SkinPackageRevisionCapsule capsule, string name, int length)
+            {
+                this.capsule = capsule;
+                this.name = name;
+                Length = length;
+            }
+
+            public byte[] ReadOwnedBytes()
+            {
+                lock (capsule.sync)
+                {
+                    ObjectDisposedException.ThrowIf(capsule.disposed, capsule);
+                    return (byte[])capsule.resources[name].Clone();
+                }
+            }
+        }
+
         public void Dispose()
         {
             lock (sync)
@@ -399,6 +445,12 @@ namespace osu.Game.Skinning
         {
             lock (sync)
                 return getView().Get(name);
+        }
+
+        internal SkinPackageRevisionCapsule.ResourceReference? CaptureResourceReference(string name)
+        {
+            lock (sync)
+                return getCapsule().CaptureResourceReference(name);
         }
 
         public Task<byte[]> GetAsync(string name, CancellationToken cancellationToken = default)
