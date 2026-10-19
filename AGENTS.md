@@ -67,6 +67,7 @@ OMS 是基于 osu!lazer 的 Windows-only 音游客户端：只保留 osu!mania�
 - 该入口将 TEMP/TMP、NuGet 与 .NET CLI/解包缓存放到当前 checkout 的 `.dev-cache/`，拒绝系统盘 checkout；bin/obj 仍在工程目录。首次切换后重新 restore 对应项目，不用旧 assets 配合 `--no-restore` 假定已迁移。
 - 收尾检查本轮新建的临时目录与工作副本；仅清理已确认闲置、可再生成且不混有用户数据的内容。验收证据、存档、谱面、作者包与恢复备份不得整目录当垃圾处理；`.dev-cache` 中依赖缓存复用，不每轮清空重下。需要长期保存的证据不能只留在临时目录。
 - Codex 全局聊天/数据库/插件与应用缓存不受此入口控制；不可在其它任务运行时搬迁，也不可清理聊天或工作副本以冒充构建缓存回收。旧路径、旧产物不会自动迁移或删除；受安全策略拦截的清理须如实标为未完成。
+- 给用户取用的版本化成品统一放在[总工作区入口](../AGENTS.md)约定的`deliverables/`，本地索引为`../deliverables/README.md`，不与`artifacts/`验收证据或开发缓存混放；皮肤交付文件使用`名称.vyymmdd.osk`，保留配套校验和原验证边界。该目录不是Git仓库，不作为源码文档的内容依赖；Omni的独立私下分享边界保持。
 
 ```powershell
 . .\UseDevelopmentStorage.ps1

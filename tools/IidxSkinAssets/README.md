@@ -4,9 +4,11 @@
 
 ## 统一 Lightning 时期作品
 
-当前整合入口为 `build_omni_skin.py`，输出名称固定 **Lighting Model Skin Omni Until 33**，默认33；27～33和八支BPL进入同一Game Frame选项。各代及BPL的candidate09目录是整合器当前读取的Frame来源，重建时须保留；它们不再作为多套成品交付，已被替代的旧包和暂存可清理。Until34不在本轮范围。
+当前整合入口为 `build_omni_skin.py`，作者作品基础名称固定 **Lighting Model Skin Omni Until 33**，默认33；27～33和八支BPL进入同一Game Frame选项。各代及BPL的candidate09目录是整合器当前读取的Frame来源，重建时须保留；它们不再作为多套成品交付，已被替代的旧包和暂存可清理。Until34不在本轮范围。
 
 Omni 是供作者使用及熟人间私下分享的独立 `.osk`，不内置到 OMS，也不随客户端公开发行或公开制作套件分发。客户端的通用皮肤能力和素材作品分开交付；默认与保底仍为静线。
+
+最终交付文件追加`.vyymmdd`日期版本，统一收存在[总工作区入口](../../../AGENTS.md)约定的`deliverables/skins/`中，每版附说明、SHA256与原验证记录；日期按Asia/Shanghai。仅为已验证包改文件名时，逐字节核对并保留原验收日期，不重打包或冒充新产品验收；作者源及研究输出仍留原位置。版本化私有产物不作为源码文档的内容依赖。
 
 新增来源工具 `build_customization_catalog.py` 建完整原始UV/AFP/GEO库；`build_fullcombo_catalog.py` 与 `export_customization_animations.py` 输出中立记录数据；`customization_modules.py` 生成共用选项和贡献闭包。整合工具仅打开经过核对的独立库，不打开游戏安装。已有冻结模块可用 `--modules-directory` 重用，逐文件SHA一致后复制，避免重复提取。
 
