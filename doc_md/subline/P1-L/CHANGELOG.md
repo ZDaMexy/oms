@@ -5,6 +5,16 @@
 
 ---
 
+## 2026-10-19真实Xecus首帧崩溃修复
+
+用户在VS Code非调试启动、导入Omni并查看配置后，播放Xecus 7key SHD自动演奏时崩溃。实际Debug存档runtime记录绘制线程在`BufferedDrawNodeSharedData.MainBuffer`空引用；来源只读保全到`artifacts/skin-crash-xecus-20261019/user-runtime.original.log`，不提交玩家日志。使用独立F盘宿主、真实曲目只读复制和相同`.v261019`包，修前再次得到同一异常，证据为`native-before-with-loader/`。原IIDX HDD、原谱和玩家存档未作为写入或运行目录。
+
+根因为生产会话先Update看到零view并隐藏source，后续兄弟panel首次LoadComplete才注册可见view，首次绘制早于下帧source恢复。`CreateView`注册后、`PresentationEnabled`改变时及调度的view释放后立即同步source可见性，保留原尺寸更新、单player/clock、隐藏/零窗不重绘与退出释放；不吞异常、不禁用BGA、不修改框架。新增回归在晚加载兄弟首次注册/启用的同帧检查可见性及mask，修前两例失败、修后与已有会话生命周期等共七项通过。
+
+同一真实Xecus的native Direct3D11整曲AP已完成，约131.55秒、2714最高连、2878个原BGA事件，单player与单view、零scene runtime fault；包前后SHA一致。实际PNG和JSON在`native-fixed-full/`，可绘制的原谱BGA、音符和演出均有连续取景，不以headless断言代替GPU结果。同一BGA会话fixture另在native宿主完整通过，`native-bga-lifecycle/`保留POOR/共享镜像及Fit/Fill/Stretch真实像素、视频/暂停、换窗、隐藏/零窗与恢复的验证日志。此项只证明这些样本和该环境，不签收所有谱、设备/DPI及原版保真门。完整软件回归、Release与图库结果由同轮[P1-A记录](../P1-A/CHANGELOG.md#2026-10-19配置图库入口与xecus崩溃修复)统一登记。
+
+首轮新探针因`TestOsuGame`没有桌面的`BmsBeatmapLoader`而被通用decoder读成空谱，未进入renderer；仅在fixture注册同一loader并增加可玩谱断言，保留`native-before/`失败证据，不把它记成产品故障或修前NRE。完整原生探针保留在`TestSceneOmniXecusAutoplayCapture`，来源和输出需明确ENV，普通包保留导入；设置交互另走真实Scope取景，不冒称同一用例覆盖。
+
 ## 2026-10-01
 
 ### 文档健康度同步

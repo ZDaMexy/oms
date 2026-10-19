@@ -5,11 +5,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using osu.Framework.Allocation;
+using osu.Framework.Bindables;
+using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
@@ -31,6 +34,7 @@ using osu.Game.Screens.Menu;
 using osu.Game.Screens.Play;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
+using osuTK.Input;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
@@ -139,16 +143,25 @@ namespace osu.Game.Tests.Visual.Settings
         {
             arrangeSkins();
             AddStep("change BMS mode option", () => options.SetOverride(first.ID, "bms", "notes", "alternate"));
-            AddUntilStep("seven inherits the mode option", () => notes().Current.Value == "alternate");
-            AddStep("choose author default only for seven", () => notes().Current.Value = "normal");
+            AddUntilStep("seven inherits the mode option", () => notes().Value == "alternate");
+            AddStep("choose author default only for seven", () => notes().Value = "normal");
             AddUntilStep("author default saved as a real key override", () => options.GetLocalOverrides(first.ID, "bms", 7).GetValueOrDefault("notes") == "normal");
             AddAssert("other keys and mode preference remain alternate", () => options.GetOverrides(first.ID, "bms", 5)["notes"] == "alternate"
                 && options.GetOverrides(first.ID, "bms")["notes"] == "alternate");
+            AddStep("reset only the artwork selection field", () =>
+            {
+                SkinOptionChoiceSettings notesControl = section.ChildrenOfType<SkinOptionChoiceSettings>().Single(control => control.OptionId == "notes");
+                notesControl.ChildrenOfType<SettingsItemV2>().Single(item => ReferenceEquals(item.Control, notesControl.SelectionButton)).ApplyDefault();
+            });
+            AddUntilStep("artwork field reset follows the inherited choice", () => !options.GetLocalOverrides(first.ID, "bms", 7).ContainsKey("notes")
+                && notes().Value == "alternate");
+            AddStep("customise the same field again", () => notes().Value = "normal");
+            AddUntilStep("customisation is stored again", () => options.GetLocalOverrides(first.ID, "bms", 7).GetValueOrDefault("notes") == "normal");
             AddStep("reset only seven options", () => section.ChildrenOfType<SettingsButtonV2>()
                 .Single(button => button.Text.ToString().StartsWith("清除 7K 单独配置", StringComparison.Ordinal)).Action());
-            AddUntilStep("seven follows mode again", () => options.GetLocalOverrides(first.ID, "bms", 7).Count == 0 && notes().Current.Value == "alternate");
+            AddUntilStep("seven follows mode again", () => options.GetLocalOverrides(first.ID, "bms", 7).Count == 0 && notes().Value == "alternate");
 
-            FormDropdown<string> notes() => section.ChildrenOfType<FormDropdown<string>>().Single(control => control.Caption.ToString() == "音符");
+            Bindable<string> notes() => section.ChildrenOfType<SkinOptionChoiceSettings>().Single(control => control.OptionId == "notes").Current;
         }
 
         [Test]
@@ -161,21 +174,72 @@ namespace osu.Game.Tests.Visual.Settings
             AddUntilStep("whole notes thumbnail row is hidden", () => section.ChildrenOfType<SkinOptionChoiceSettings>().All(control => !control.IsPresent));
             AddStep("search for a collapsed management action", () => Game.Settings.SectionsContainer.ChildrenOfType<SettingsSearchTextBox>().First().Current.Value = "删除皮肤文件");
             AddUntilStep("collapsed action does not create an invisible search hit", () => !section.MatchingFilter);
+            AddStep("search for a collapsed gallery pager", () => Game.Settings.SectionsContainer.ChildrenOfType<SettingsSearchTextBox>().First().Current.Value = "下一页");
+            AddUntilStep("hidden gallery controls do not create invisible search hits", () => !section.MatchingFilter);
             AddStep("clear search", () => Game.Settings.SectionsContainer.ChildrenOfType<SettingsSearchTextBox>().First().Current.Value = string.Empty);
             AddUntilStep("option including its thumbnail returns", () => section.ChildrenOfType<SkinOptionChoiceSettings>().Any(control => control.IsPresent));
         }
 
-        [Test]
-        public void TestArtworkGallerySelectionUsesTheKeyScope()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestArtworkGallerySelectionUsesTheKeyScope(bool clickArrow)
         {
             arrangeSkins();
-            AddStep("open the artwork browser", () => section.ChildrenOfType<SkinOptionChoiceSettings>().Single().BrowseButton.Action());
-            AddUntilStep("two actual choice cards are visible", () => section.ChildrenOfType<SkinOptionChoiceSettings>().Single()
-                .ChildrenOfType<ClickableContainer>().Count(control => control.IsPresent && control.ChildrenOfType<SkinOptionPreviewImage>().Any()) >= 2);
-            AddStep("select the second artwork", () => section.ChildrenOfType<SkinOptionChoiceSettings>().Single().ChildrenOfType<ClickableContainer>()
-                .Last(control => control.IsPresent && control.ChildrenOfType<SkinOptionPreviewImage>().Any()).Action());
+            AddStep("scroll the normal notes setting into view", () => Game.Settings.SectionsContainer.ScrollTo(notes()));
+            AddUntilStep("normal notes setting accepts input", () => Game.Settings.SectionsContainer.SelectedSection.Value == section
+                && !isMaskedAway(notes().SelectionButton));
+            AddAssert("there is no competing text-only dropdown", () => !notes().ChildrenOfType<FormDropdown<string>>().Any());
+            AddStep(clickArrow ? "click the ordinary notes arrow" : "click the ordinary notes setting", () =>
+            {
+                if (clickArrow)
+                    InputManager.MoveMouseTo(notes().SelectionArrow);
+                else
+                    InputManager.MoveMouseTo(notes().SelectionButton);
+                InputManager.Click(MouseButton.Left);
+            });
+            AddUntilStep("both named artwork cards are visible and loaded", () => notes().IsExpanded
+                && notes().ChildrenOfType<SkinOptionChoiceSettings.ChoiceCard>().Count(control => control.IsPresent
+                    && control.ChildrenOfType<SkinOptionPreviewImage>().Any(image => image.IsLoaded)) == 2);
+            AddStep("click the alternate artwork card", () =>
+            {
+                InputManager.MoveMouseTo(notes().ChildrenOfType<SkinOptionChoiceSettings.ChoiceCard>().Single(control => control.Value == "alternate"));
+                InputManager.Click(MouseButton.Left);
+            });
             AddUntilStep("only seven-key preference changes", () => options.GetLocalOverrides(first.ID, "bms", 7).GetValueOrDefault("notes") == "alternate"
                 && !options.GetOverrides(first.ID, "bms").ContainsKey("notes"));
+            AddUntilStep("normal setting shows the saved choice and closes the gallery", () => notes().Current.Value == "alternate" && !notes().IsExpanded);
+            AddAssert("other key counts still inherit the original notes", () => !options.GetOverrides(first.ID, "bms", 5).ContainsKey("notes"));
+
+            SkinOptionChoiceSettings notes() => section.ChildrenOfType<SkinOptionChoiceSettings>().Single(control => control.OptionId == "notes");
+        }
+
+        [Test]
+        public void TestArtworkGallerySearchDoesNotSaveUntilAnArtworkIsClicked()
+        {
+            arrangeSkins();
+            AddStep("scroll the normal notes setting into view", () => Game.Settings.SectionsContainer.ScrollTo(notes()));
+            AddUntilStep("normal notes setting accepts input", () => Game.Settings.SectionsContainer.SelectedSection.Value == section
+                && !isMaskedAway(notes().SelectionButton));
+            AddStep("open styles from the normal setting", () =>
+            {
+                InputManager.MoveMouseTo(notes().SelectionButton);
+                InputManager.Click(MouseButton.Left);
+            });
+            AddUntilStep("artwork gallery opens", () => notes().IsExpanded && notes().ChildrenOfType<SkinOptionChoiceSettings.ChoiceCard>().Count() == 2);
+            AddStep("filter the artwork cards", () => notes().ChildrenOfType<FormTextBox>().Single().Current.Value = "另一套");
+            AddUntilStep("only the matching artwork remains", () => notes().ChildrenOfType<SkinOptionChoiceSettings.ChoiceCard>().SingleOrDefault()?.Value == "alternate");
+            AddAssert("browsing has not changed this key's appearance", () => notes().Current.Value == "normal" && options.GetLocalOverrides(first.ID, "bms", 7).Count == 0);
+            AddStep("clear the gallery filter", () => notes().ChildrenOfType<FormTextBox>().Single().Current.Value = string.Empty);
+            AddUntilStep("all artwork choices return", () => notes().ChildrenOfType<SkinOptionChoiceSettings.ChoiceCard>().Count() == 2);
+            AddStep("close with the same normal selection control", () =>
+            {
+                InputManager.MoveMouseTo(notes().SelectionButton);
+                InputManager.Click(MouseButton.Left);
+            });
+            AddUntilStep("gallery closes without saving a choice", () => !notes().IsExpanded
+                && options.GetLocalOverrides(first.ID, "bms", 7).Count == 0);
+
+            SkinOptionChoiceSettings notes() => section.ChildrenOfType<SkinOptionChoiceSettings>().Single(control => control.OptionId == "notes");
         }
 
         [TestCase(false, false)]
@@ -249,6 +313,9 @@ namespace osu.Game.Tests.Visual.Settings
             }
         }
 
+        private static bool isMaskedAway(Drawable drawable)
+            => (bool)typeof(Drawable).GetProperty("IsMaskedAway", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(drawable)!;
+
         private static MemoryStream archive(string name)
         {
             var output = new MemoryStream();
@@ -267,10 +334,13 @@ namespace osu.Game.Tests.Visual.Settings
                 write("gameplay-skin.scene.json", Encoding.UTF8.GetBytes("""
                     {"contract":"oms-gameplay-skin-scene.v1","root":{"id":"root","type":"container","target":{"kind":"global"},"blend":"inherit","properties":{},"effects":[],"children":[]},"tracks":[],"stateMachines":[],"bindings":[],"variants":[],"templates":[],"instances":[]}
                     """));
-                using var image = new Image<Rgba32>(8, 8, new Rgba32(220, 100, 80));
-                using var pixels = new MemoryStream();
-                image.SaveAsPng(pixels);
-                write("previews/sample.png", pixels.ToArray());
+                foreach ((string value, Rgba32 colour) in new[] { ("normal", new Rgba32(220, 100, 80)), ("alternate", new Rgba32(80, 120, 220)) })
+                {
+                    using var image = new Image<Rgba32>(8, 8, colour);
+                    using var pixels = new MemoryStream();
+                    image.SaveAsPng(pixels);
+                    write("previews/" + value + ".png", pixels.ToArray());
+                }
                 void write(string path, byte[] bytes) { using Stream stream = zip.CreateEntry(path).Open(); stream.Write(bytes); }
                 static JArray choices(bool previews = true)
                 {
@@ -278,7 +348,7 @@ namespace osu.Game.Tests.Visual.Settings
                         new JObject { ["value"] = "alternate", ["label"] = "另一套" });
                     if (previews)
                         foreach (JObject choice in result)
-                            choice["preview"] = "previews/sample.png";
+                            choice["preview"] = "previews/" + choice["value"]!.Value<string>() + ".png";
                     return result;
                 }
             }

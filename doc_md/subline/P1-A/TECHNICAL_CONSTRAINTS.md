@@ -1,6 +1,6 @@
 # P1-A 技术约束：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-18（皮肤拥有配置项、显式舞台及IIDX作品边界；此前验收保留原日期）
+> 最后核对：2026-10-19（配置图卡统一入口；皮肤配置、显式舞台及IIDX边界保持）
 > 本文件是 P1-A 产品面及 Skin V1 的硬约束源。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，皮肤设计证据见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。若代码与本文冲突，先确认新事实并同步修正文档/代码，不能用历史 CHANGELOG 覆盖当前 authority。
 
 ## 按任务定位
@@ -105,7 +105,7 @@
 2. `option.<id>`沿现有scene binding/variant与完整资源预算消费；普通inline分支沿原准备路径；显式contentCatalog先捕获全部闭包、校验所有结构/图片头，再只解码冻结组合，作者CLI另外逐张完整解码备用PNG。选中值不授予动态文件访问权。`layout.ruleset`只读同一context。类型、适用性、默认值、预算和作者语法的唯一实现是shared codec，参考见[作者手册](../../../skin-authoring/docs/REFERENCE.md#皮肤配置项)。
 3. 可选manifest.layouts仅为原solver的显式作者输入，真实stage/逻辑lane序与immutable topology保持。矩形、空白和键图外扩不得制造输入、移动action/role、改变判定/计分/时间；同一solver输出所有native/scene消费者的几何。未匹配旧包不走新几何分支；规则集不得硬编码IIDX键数、留空、样式或贴图。
 4. IIDX包自身声明BMS5/7/14K与mania5/6/7/8/14/16K。5K忽略远皿两普通槽；mania5/7/14保留空皿，6/8/16将其作为普通可打列；mania原SpecialKey身份和实际双stage向量保持。其余皮肤的原生布局、声音、长条和fallback必须回归，不把作者作品规则推广成玩法合同。
-5. choice可选`preview`指向同包静态PNG，inline与contentCatalog使用相同语法；无声明仍用文字控件，不根据皮肤名称猜素材或执行动画。单图最多512×512/256KiB，合计4096文件/32MiB编码字节，独立于游玩纹理预算但不免除归档总量限制。准备时冻结图片头与编码字节，设置可见的代表图/当前分页才后台解码，离屏释放；作者CLI完整解码全部声明图。非法引用/头拒绝准备，运行期像素损坏只显示无法预览，不借磁盘实时补图。具体语法只取[作者参考](../../../skin-authoring/docs/REFERENCE.md#皮肤配置项)。
+5. choice可选`preview`指向同包静态PNG，inline与contentCatalog使用相同语法；有预览的配置使用一个整行选择入口，主体与箭头均展开可搜索、分页的全部款式图卡，点击图卡才保存，不另设竞争的纯文字下拉。无声明仍用文字控件，不根据皮肤名称猜素材或执行动画。单图最多512×512/256KiB，合计4096文件/32MiB编码字节，独立于游玩纹理预算但不免除归档总量限制。准备时冻结图片头与编码字节，设置可见的代表图/当前分页才后台解码，离屏释放；作者CLI完整解码全部声明图。非法引用/头拒绝准备，运行期像素损坏只显示无法预览，不借磁盘实时补图。具体语法只取[作者参考](../../../skin-authoring/docs/REFERENCE.md#皮肤配置项)。
 
 ## IIDX 素材作品约束
 

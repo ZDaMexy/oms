@@ -1,6 +1,6 @@
 # P1-L 技术约束：BMS 演出/Gimmick 谱视觉复刻
 
-> 最后核对：2026-10-01（文档治理：游戏会话与逐窗适配边界；产品实现日期仍为 2026-09-30）
+> 最后核对：2026-10-19（首view同帧source绘制合同；其它既有边界保持）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，完整背景见 [../../other/BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)。若实现与本文冲突，先修正其一再继续开发。
 
 ## 红线（最高优先级，贯穿全线）
@@ -42,7 +42,7 @@
 4. **资源直读 `chartbms/`**：BGA 图片经 beatmap 作用域 `TextureStore`、视频经 `WorkingBeatmap.GetStream` 加载（同 storyboard），**不经** hash-backed `files/` store、不转 `.osz`（守 mainline 红线）。
 5. **视频时钟同步**：视频 drawable 必须跟随游玩时钟（`PlaybackPosition = clock - eventTime`），pause/seek/retry 同步，复用 `DrawableStoryboardVideo` 范式；不得让视频脱离 frame-stable 时钟自由播放。
 6. **解码/缺失健壮性**：BGA 资源缺失或视频编解码失败必须**优雅降级**，不得抛异常或刷错误日志、不得拖垮正常游玩链路。具体合同：(a) 视频**优先按绝对文件路径**打开 `new Video(path,…)`——BMS 恒文件系统直读，FFmpeg 对真实文件的探测/seek 远好于基于 .NET-Stream 的 AVIO（后者对老式 **MPEG-1 program-stream `.mpg`** 会在 `avformat_open_input` 阶段直接 `AVERROR_INVALIDDATA` 打不开 → 全黑）；无路径时回退 stream。(b) 仍解不出时通过 `Video.IsFaulted` 检测，base 层**回退显示 STAGEFILE 静态图**（不是黑屏），overlay/poor 层隐藏。路径解析：external 库用绝对 `FilesystemStoragePath`，internal 用 `Storage.GetFullPath(相对路径)`。
-7. **皮肤与内容合同**：C3 的 `BmsGameplayLayoutSnapshot.BgaViewports`、C5 同一 publication 的 material/scene、只读状态事件与 timing epoch 继续作为唯一接口；作者窗口及缩放合同归 [P1-A](../P1-A/TECHNICAL_CONSTRAINTS.md#playfield-与-bga-布局约束)。真实 gameplay 由 `DrawableBmsRuleset` 的独立 `BmsBgaPlaybackSession` 持有合成 framebuffer，有时间线时持有唯一player，无时间线时提供静态背景；皮肤display只取得只读view/state。显示重建先脱旧frames，再退役装饰及views，不释放或重置player；退出gameplay才释放会话。无游玩根的隔离兼容预览仍可用原 `SetBgaSource`，不回流正式游玩ownership。单窗也使用只读view以保持会话独立，buffer按最大投影视图取尺寸；关闭BGA或零窗时停止合成重绘，保留时钟与状态推进。缺失素材回退、seek/POOR/C5事件一致性保持。
+7. **皮肤与内容合同**：C3 的 `BmsGameplayLayoutSnapshot.BgaViewports`、C5 同一 publication 的 material/scene、只读状态事件与 timing epoch 继续作为唯一接口；作者窗口及缩放合同归 [P1-A](../P1-A/TECHNICAL_CONSTRAINTS.md#playfield-与-bga-布局约束)。真实 gameplay 由 `DrawableBmsRuleset` 的独立 `BmsBgaPlaybackSession` 持有合成 framebuffer，有时间线时持有唯一player，无时间线时提供静态背景；皮肤display只取得只读view/state。显示重建先脱旧frames，再退役装饰及views，不释放或重置player；退出gameplay才释放会话。无游玩根的隔离兼容预览仍可用原 `SetBgaSource`，不回流正式游玩ownership。单窗也使用只读view以保持会话独立，buffer按最大投影视图取尺寸；创建/释放view和切换显示时同步source可见性，首次可见view同帧之前必须绘制source，不得依赖下帧Update补齐。关闭BGA或零窗时停止合成重绘，保留时钟与状态推进。缺失素材回退、seek/POOR/C5事件一致性保持。
 8. **投影与性能（与 P1-J 协同）**：纹理懒加载并缓存；各窗口不得复制player、素材加载或视频解码authority。时间线先在固定4:3画布内按原Fit合成，各view再按同一snapshot声明的fit/fill/stretch对完整画布留边、居中裁剪或拉伸；静态背景使用自身自然比例，不得采用view默认1:1比例再次压缩画面。fill裁切画布，不自动移除素材自带或内部Fit产生的黑边。共享buffer和逐窗装饰是不同成本，装饰池与效果/绑定展开预算按P1-A的实际窗口合同计量；大视频/海量`#BMP`仍需实测GC及update/draw，资源数量下降不代表GPU/帧时门已通过，不得引入开局阻塞或密谱卡顿。
 9. **范围边界**：v1 仅 native BMS ruleset 路径；converted-mania（Mania ruleset 下游玩，无 `BmsPlayfield`/`Overlays`）不在本期，单独评估。overlay/layer 通道"黑=透明"与 `#ARGB` v1 近似，保真细化后续。
 

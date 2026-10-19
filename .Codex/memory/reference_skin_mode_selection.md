@@ -23,6 +23,7 @@ metadata:
 
 ## 验证与踩坑
 
+- 有preview的配置只保留整行/箭头打开图卡这一个入口；左图另开图库、右侧文字dropdown会让正常操作看不到全部预览。真实输入测试须点主体和箭头、再点图卡核scope；不能只直接调用Action。图库收起后GridContainer会延后重建隐藏cells，按IsExpanded/保存值验证收起，别要求ChildrenOfType立刻为空。截图与Xecus事故取[P1-A日志](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-19配置图库入口与xecus崩溃修复)。
 - 皮肤选项与选择皮肤不同：`SkinOptionPreferences`按record+ruleset+可选键数覆盖，root准备才冻结到Context；不要为了更换图案触发reload、重选current或改包。键数恢复只清当前层，不清模式默认；作者默认仍可覆盖已改过的模式配置。首次显示控件不写覆盖，失效旧值读作者默认；声明删除后的旧ID仅在玩家主动保存时清理，避免占满32项。
 - 数值网格以作者min为原点，不能直接把step给BindableDouble.Precision（framework按0取整）。提交时按min+n×step吸附，再保存canonical值。控件重建要验证值和store一致；未加载就Dispose必须容许Resolved尚为空。
 - SettingsSection的旧独立caller可能没有应用级preferences/ruleset服务；可选边界保持空块，不能让无关删除/脚本/刷新入口因新块加载失败。正常GameHost缓存唯一服务，真实UI验证走该scope。

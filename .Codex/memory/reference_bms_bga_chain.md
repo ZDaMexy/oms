@@ -35,6 +35,8 @@ metadata:
 12. 作者窗口合法不等于当前屏幕能容纳：碰撞时整组0窗，不改数量/位置，不回默认，runtime.log搜索`bms.layout.bga-viewports-unavailable`；CLI只检查格式/范围/预算，设置没有专属错误面板。零窗的BGA装饰省略仍须完整验证资源/所有者，不允许坏声明借缺几何绕过验证，也不让mania接受BGA。
 13. 离屏共享画布不能沿用默认裁剪与缓存子树行为：view只绘制已有buffer，source须在view之前绘制；`SynchronisedDrawQuad=false`让各窗独立定位，离屏source须保留绘制但隐藏时整树不画，cached framebuffer子节点仍更新时间。headless通过不证明离屏画布产生了像素。
 14. BGA专用实例预算必须按当前每个窗口投影计数：Global源重复到各窗，显式index只属于一窗；不能按第一小窗的effect面积乘总数，也不能把全部显式窗口节点再乘总窗数。binding/状态赋值的source fanout同样按真实clone算。作者允许不同尺寸与最多16窗，不再固定四份池。
+15. 首帧`BufferedDrawNodeSharedData.MainBuffer`空引用还可能来自可见性晚一帧：生产session是Depth1兄弟，先Update看到零view并隐藏capture，panel随后LoadComplete才注册首view。必须在CreateView和PresentationEnabled setter立即同步capture可见性；仅修离屏mask/Depth不够。确定性回归记录消费者首帧，不能等下一帧状态自己纠正；standalone父display先建view再更新子session的测试顺序也不能代替真实Player。真实Xecus复现与修复记录见[P1-L日志](../../doc_md/subline/P1-L/CHANGELOG.md#2026-10-19真实xecus首帧崩溃修复)。
+16. `OsuGameTestScene.TestOsuGame`默认未注册桌面`BmsBeatmapLoader`。用真实文件做完整Player验收须在fixture自身注册同一loader，并先断言得到BmsDecodedBeatmap及非空可玩谱；元数据正确而Player报零音符，可能只是探针走了通用osu decoder。不要因此改生产转换器或改写原谱。
 
 ## 进度与并发
 

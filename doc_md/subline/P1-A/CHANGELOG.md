@@ -1,5 +1,21 @@
 # P1-A 变动日志
 
+## 2026-10-19配置图库入口与Xecus崩溃修复
+
+用户指出正常Notes下拉只能看到文字，预览图库藏在左侧独立“浏览样式”入口。现在有preview的配置改成单一整行控件，点主体、缩略或箭头均直接展开全部款式图卡；保留搜索、每页12项、点图保存、键数作用域和单项恢复默认。没有preview的Game Frame/FC等仍沿原文字控件。收起图库退出全局搜索，避免不可见分页按钮产生命中；图片预算、冻结编码字节和延迟解码/离屏回收不变，未改变游玩表现或包格式。
+
+真实输入回归覆盖主体/箭头打开、两款图卡、点击保存仅改7K、搜索/收起不保存和隐藏控件过滤，scope十一项通过。相同55个相关fixture的最终core回归为1159通过、零失败/跳过，比此前增加两例；取`artifacts/skin-crash-xecus-20261019/core-related-final.trx`，不以更宽筛选混换基线。初次测试误读internal属性而编译失败，已用测试反射；搜索收起断言原先错误要求Grid隐藏子树立即销毁，现按可见状态和不保存验证，未为此增加生产调度。
+
+完整`.v261019`普通导入后的独立native设置图已留存`native-settings/`：正常Notes主体展开12款、Explosion箭头展开27款/三页，另保留BMS7、mania16及选中款式图。它们是实际TestBrowser实绘，未用模拟设计图。真实Xecus修前复现相同绘制空引用、修后完整AP与BGA证据归[P1-L](../P1-L/CHANGELOG.md#2026-10-19真实xecus首帧崩溃修复)。此项修复在客户端，不需要改变或重新导入皮肤；独立私下分享、不内置边界与最终包SHA保持。
+
+另一次扩大到`FullyQualifiedName~Skin`的core探针在1878通过、10失败、1跳过后出现后继editor收尾停滞；保存托管线程栈、验证进程身份后主动停止该testhost，TRX为Aborted，不能记作完整通过。十失败均不在原55fixture：四个legacy资源导入及默认背景超时有同名/同消息历史，两个schema测试在本轮前源码已期待57而实际58；三个Windows managed删除失败缺少动态基线对照，保留未归因。最后活跃editor的绑定集合释放与加载并发等待尚未修复，不归因于此前背景超时。原始日志、`core-broad-hang-stack.txt`及`core-broad-review.json`保留，不因本次UI修复扩大处理无关storage或editor authority。
+
+最终完整BMS为2696通过、28失败、18跳过，共2742项，运行完成约12分钟。28个失败与此前full/followup共同集完全相同，原始消息逐字一致、堆栈仅`:line`数字变化，均仍为旧Workspace getter的Single失败；没有新增失败或失败阶段改变。此前完整34失败中另外六项，这次完整运行均通过，与旧九项followup中的六项逐一对应；新增身份为两项首帧回归、Xecus fixture构造通过及opt-in capture跳过，后者的native整曲结果另行登记。完整mania仍937通过、4失败、2跳过，943个身份及结果不变，四项AutoGeneration原始消息和完整堆栈逐字一致。完整TRX、源摘要和逐身份比较取同目录`bms-full-review.json`、`mania-full-review.json`，不宣称完整两玩法全绿；与未完成的core宽探针分别记录。
+
+六份改动C#的最终formatter verify通过、未改动文件；Desktop Release成功且零错误，保留两项NU1902及旧BMS测试CS8600/CA2007共四条警告，Desktop Debug也成功、两条NU1902。只编译客户端，没有生成Windows发行包或安装副本。最新日志为`format-final-verify`、`desktop-release-final`与`desktop-debug-final`；原包及原Xecus谱摘要再次一致。
+
+取景宿主约768MiB的递归清理被自动审批审查以`blocked by policy`拒绝，命令未执行，目录仍保留；没有换工具重试删除。沿用户此前手动清理偏好，在总工作区成品维护目录提供`Clear-Skin-Crash-Probe.v261019.ps1`，只针对该已停止宿主并检查绝对路径、reparse及源码留档；只做PowerShell AST语法解析，未代执行。真实谱副本与长期验收证据保留，原HDD、最终皮肤和玩家数据不是清理目标。范围和状态取`probe-cleanup-pending.json`，不覆盖此前九项目录已由用户清理的历史。
+
 ## 2026-10-19用户完成临时产物清理
 
 用户回传PowerShell7.6.7实际运行结果，九个指定目标均已删除。随后只读复核确认九路径全部不存在；按删除前盘点对应21697份文件、约2.31GiB。日期版成品与v7/v9保留源包摘要一致，最终作者目录、冻结模块和长期验收材料仍在；原HDD不在清理清单，未执行游戏或新的删除操作。先前自动审批拒绝作为历史保留，当前成品说明与receipt更新为用户手动完成，不改写旧证据或产品验收日期。回传及复核存于`artifacts/delivery-20261019/manual-cleanup-completed.json`；仅核对、更新记录与文档检查，不重跑未变的构建/产品回归。本地提交，不推送。

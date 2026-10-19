@@ -1,6 +1,6 @@
 # P1-L 当前状态：BMS Gimmick 与 BGA 视觉
 
-> 最后核对：2026-10-01（文档治理；最近产品验证仍为 2026-09-30，逐谱人工门保持）
+> 最后核对：2026-10-19（真实Xecus首帧崩溃修复与整曲取景；其它逐谱人工门保持）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，机理分析见 [BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)。
 
 ## 当前阶段
@@ -33,6 +33,8 @@
 - Floating/Classic 绝对刻度、负向/反向滚动未实现。
 
 ## 最近一次验证
+
+2026-10-19真实Xecus首次view绘制崩溃已复现并修复；首帧与会话七项回归通过，同包默认Omni在独立Direct3D11宿主完整AP约131.55秒、2714最高连，原BGA保持播放且零scene runtime fault。原因、原始失败、探针纠正与完整回归入口见[本轮日志](CHANGELOG.md#2026-10-19真实xecus首帧崩溃修复)。未使用玩家存档或写入原HDD；不代签其它谱、设备与DPI。
 
 2026-09-30后续会话/作者窗口：已验证显示更换、换窗、POOR、视频/暂停位置、隐藏/零窗与退出释放；桌面像素验证Fit/Fill/Stretch，5/16作者外框及投影预算通过。当前软件结果和完整BMS/mania回归的既有失败逐项对照见[作者能力记录](../../other/BGA_SKIN_AUTHORING_20260930.md)，不称全套全绿，未代签逐谱/设备门。
 

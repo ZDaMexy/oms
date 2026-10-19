@@ -31,7 +31,7 @@
 - [canonical 构建、安装与用户数据保护](reference_skin_canonical_installation.md) — 静线唯一保底、source→原件/摘要与解压字节核对、星轨退役迁移、缺行修复；便携误入、缓存隔离、冷启动线程、取消资源移交。
 - [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 随包手册与示例闭合、作者边界、用户决定与诊断入口。
 - [Skin V1 价值与工作预算](project_oms_skin_product_progress.md) — 区分效果能力、成品与创作便利度；星轨实际体验否定、有限反馈与本轮停止边界，当前状态读 P1-A。
-- [模式/键数皮肤选择](reference_skin_mode_selection.md) — 独立设置目标、逐层继承、素材图卡与过滤、按钮相对尺寸、配置冻结和删除重入对照。
+- [模式/键数皮肤选择](reference_skin_mode_selection.md) — 独立设置目标、逐层继承、图卡唯一入口/收起断言与过滤、配置冻结和删除重入对照。
 
 ## 构建、存储与产品面参考
 
@@ -47,7 +47,7 @@
 
 ## BMS 解析、音频与游玩参考
 
-- [BGA 链](reference_bms_bga_chain.md) — 游戏会话、作者窗口、共享画布与零窗、转码缓存及实际像素诊断。
+- [BGA 链](reference_bms_bga_chain.md) — 游戏会话、首view晚注册的首帧崩溃、真实文件探针loader、作者窗口、共享画布与转码缓存。
 - [bgm1 按键触发故障](reference_bms_bgm1_pause_keytrigger_bug.md)
 - [游玩音轨静音合同](reference_bms_gameplay_track_mute.md)
 - [键音链](reference_bms_keysound_chain.md) — BMS/转谱发声责任、暂停保位、池化与样本准备、长条/空击性能。

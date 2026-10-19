@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-19（按键数设置与素材预览；原验收门保持）
+> 最后核对：2026-10-19（配置图库入口与真实Xecus回归；原验收门保持）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标

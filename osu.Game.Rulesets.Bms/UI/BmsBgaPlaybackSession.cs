@@ -45,6 +45,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly BmsBgaCaptureSurface capture;
         private readonly List<BufferedContainerView<Drawable>> views = new List<BufferedContainerView<Drawable>>();
         private bool hasBackground;
+        private bool presentationEnabled = true;
         private float contentAspectRatio = bga_canvas_aspect_ratio;
 
         [Resolved(CanBeNull = true)]
@@ -52,7 +53,15 @@ namespace osu.Game.Rulesets.Bms.UI
 
         internal BmsBgaPlayer? Player { get; }
 
-        internal bool PresentationEnabled { get; set; } = true;
+        internal bool PresentationEnabled
+        {
+            get => presentationEnabled;
+            set
+            {
+                presentationEnabled = value;
+                updateCaptureVisibility();
+            }
+        }
 
         internal long SurfaceRedrawCount { get; private set; }
 
@@ -108,11 +117,20 @@ namespace osu.Game.Rulesets.Bms.UI
                 _ => throw new ArgumentOutOfRangeException(nameof(scaleMode)),
             };
             views.Add(view);
+            // A later sibling can create its first view after this session has already updated. Its source
+            // must become drawable in this frame, before that view reads the not-yet-initialised framebuffer.
+            updateCaptureVisibility();
             return view;
         }
 
         // Display disposal may run off the update thread. Keep registry mutation on its owner thread.
-        public void ReleaseView(Drawable view) => Schedule(() => views.Remove((BufferedContainerView<Drawable>)view));
+        public void ReleaseView(Drawable view) => Schedule(() =>
+        {
+            views.Remove((BufferedContainerView<Drawable>)view);
+            updateCaptureVisibility();
+        });
+
+        private void updateCaptureVisibility() => capture.Alpha = PresentationEnabled && HasContent && views.Count > 0 ? 1 : 0;
 
         public void GetContentStateAt(double gameplayTime, out GameplaySkinBgaContentState state, out long revision)
         {
@@ -133,7 +151,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
             // A hidden panel still advances its one gameplay clock and content state. It needs neither a GPU
             // redraw nor a separate decoder. A skin with no BGA windows has the same presentation behaviour.
-            capture.Alpha = PresentationEnabled && HasContent && views.Count > 0 ? 1 : 0;
+            updateCaptureVisibility();
             if (capture.Alpha == 0)
                 return;
 

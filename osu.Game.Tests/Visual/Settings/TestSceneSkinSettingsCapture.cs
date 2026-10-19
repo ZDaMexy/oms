@@ -15,6 +15,7 @@ using osu.Game.Overlays.Settings;
 using osu.Game.Overlays.Settings.Sections;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
+using osuTK.Input;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
@@ -84,13 +85,32 @@ namespace osu.Game.Tests.Visual.Settings
             AddWaitStep("selected style images upload", 10);
             AddStep("capture selected artwork", () => screenshot = capture("settings-selected-artwork.png"));
             AddUntilStep("selected artwork saved", () => screenshot.IsCompletedSuccessfully);
-            AddStep("browse explosion artwork", () =>
+            AddStep("show the normal notes selection control", () => Game.Settings.SectionsContainer.ScrollTo(artwork("notes")));
+            AddWaitStep("notes setting is reachable", 10);
+            AddStep("open notes from its normal selection control", () =>
             {
-                SkinOptionChoiceSettings choices = section.ChildrenOfType<SkinOptionChoiceSettings>()
-                    .Single(control => control.FilterTerms.Any(term => term.ToString().StartsWith("Explosion", StringComparison.Ordinal)));
-                choices.BrowseButton.Action();
-                Game.Settings.SectionsContainer.ScrollTo(choices);
+                InputManager.MoveMouseTo(artwork("notes").SelectionButton);
+                InputManager.Click(MouseButton.Left);
             });
+            AddUntilStep("normal notes control exposes its artwork cards", () => artwork("notes").IsExpanded
+                && artwork("notes").ChildrenOfType<SkinOptionChoiceSettings.ChoiceCard>().Any());
+            AddWaitStep("visible notes artwork loads", 15);
+            AddStep("capture the notes selection gallery", () => screenshot = capture("settings-notes-artwork-browser.png"));
+            AddUntilStep("notes artwork browser saved", () => screenshot.IsCompletedSuccessfully);
+            AddStep("close notes with the same selection control", () =>
+            {
+                InputManager.MoveMouseTo(artwork("notes").SelectionButton);
+                InputManager.Click(MouseButton.Left);
+            });
+            AddStep("show the normal explosion selection control", () => Game.Settings.SectionsContainer.ScrollTo(artwork("explosion")));
+            AddWaitStep("explosion setting is reachable", 10);
+            AddStep("open explosion using its ordinary arrow", () =>
+            {
+                InputManager.MoveMouseTo(artwork("explosion").SelectionArrow);
+                InputManager.Click(MouseButton.Left);
+            });
+            AddUntilStep("normal explosion arrow exposes its artwork cards", () => artwork("explosion").IsExpanded
+                && artwork("explosion").ChildrenOfType<SkinOptionChoiceSettings.ChoiceCard>().Any());
             AddWaitStep("visible gallery artwork loads", 15);
             AddStep("capture artwork browser", () => screenshot = capture("settings-artwork-browser.png"));
             AddUntilStep("artwork browser saved", () => screenshot.IsCompletedSuccessfully);
@@ -105,6 +125,9 @@ namespace osu.Game.Tests.Visual.Settings
             AddWaitStep("mania view settles", 10);
             AddStep("capture mania key selector", () => screenshot = capture("settings-mania-16k.png"));
             AddUntilStep("mania view saved", () => screenshot.IsCompletedSuccessfully);
+
+            SkinOptionChoiceSettings artwork(string optionId) => section.ChildrenOfType<SkinOptionChoiceSettings>()
+                .Single(control => control.OptionId == optionId);
 
             async Task capture(string name)
             {

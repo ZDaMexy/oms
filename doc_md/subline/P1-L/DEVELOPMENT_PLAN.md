@@ -1,6 +1,6 @@
 # P1-L 当前计划：BMS Gimmick 与 BGA 视觉
 
-> 最后核对：2026-10-01（文档治理；已完成软件路径作为输入，后续仍为设备与真实谱验收）
+> 最后核对：2026-10-19（首帧回归作为输入；后续仍为设备与更多真实谱验收）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定滚动/BGA 合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，机理背景见 [BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)，已完成阶段按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -15,7 +15,7 @@ P1-L 拥有 BMS Gimmick 的视觉位置旁路、地雷呈现与 BGA decode/timel
 
 ### 1. 作者窗口与代表设备验收
 
-游戏持有播放会话与作者窗口的实现及软件证据见[作者能力验证](../../other/BGA_SKIN_AUTHORING_20260930.md)。后续代表设备覆盖宽高比、DPI、三种适配、单窗/多窗与BGA不遮lane；关闭显示/零窗后恢复内容应跟随当前游戏时刻，独立信息区保持。
+游戏持有播放会话与作者窗口的实现及软件证据从[STATUS](DEVELOPMENT_STATUS.md#最近一次验证)读取。后续代表设备覆盖宽高比、DPI、三种适配、单窗/多窗与BGA不遮lane；新增view或首次开启显示须检查同帧source先绘制，关闭显示/零窗后恢复内容应跟随当前游戏时刻，独立信息区保持。
 
 验收记录屏幕比例、样式、窗口声明与实际图像；不能用资源计数替代实绘，较早的[性能证据](../../other/GAMEPLAY_PERFORMANCE_20260930.md)保持其代码身份。
 
