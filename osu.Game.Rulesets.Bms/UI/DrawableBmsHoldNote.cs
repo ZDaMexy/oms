@@ -14,6 +14,7 @@ using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.Scoring;
+using osu.Game.Screens.Play;
 using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Bms.UI
@@ -35,6 +36,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private int nextBodyTickIndex;
         private BmsLongNoteMode? longNoteModeOverrideForTesting;
         private BmsLongNoteBodyState lastPublishedBodyState;
+        private bool holdingStateNeedsRestore;
 
         private readonly Bindable<BmsLongNoteBodyState> bodyState = new Bindable<BmsLongNoteBodyState>();
 
@@ -47,6 +49,9 @@ namespace osu.Game.Rulesets.Bms.UI
 
         [Resolved(CanBeNull = true)]
         private DrawableBmsRuleset? drawableRuleset { get; set; }
+
+        [Resolved(CanBeNull = true)]
+        private BmsInputManager? inputManager { get; set; }
 
         private BmsHoldNote holdNote => (BmsHoldNote)HitObject;
 
@@ -78,6 +83,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
             // Reset transient hold state so a pooled reuse never inherits the previous note's broken/holding look.
             IsHoldingForTesting = false;
+            holdingStateNeedsRestore = true;
             bodyState.Value = BmsLongNoteBodyState.Idle;
             lastPublishedBodyState = BmsLongNoteBodyState.Idle;
         }
@@ -85,6 +91,16 @@ namespace osu.Game.Rulesets.Bms.UI
         protected override void Update()
         {
             base.Update();
+
+            bool rewinding = Clock is IGameplayClock { IsRewinding: true };
+            if (rewinding || holdingStateNeedsRestore)
+            {
+                restoreHoldingStateFromInput();
+                // Replay input and entry results are restored by their existing owners. Reconcile once more on
+                // the first forward frame, after its input state has been collected, without inventing a re-grab.
+                holdingStateNeedsRestore = rewinding;
+            }
+
             BmsLongNoteBodyState next = computeBodyState();
             bodyState.Value = next;
 
@@ -98,6 +114,16 @@ namespace osu.Game.Rulesets.Bms.UI
                     _ => GameplaySkinObjectState.Visible,
                 });
             }
+        }
+
+        private void restoreHoldingStateFromInput()
+        {
+            if (inputManager == null || headDrawable == null || tailDrawable == null)
+                return;
+
+            IsHoldingForTesting = !tailDrawable.Judged
+                                  && (headDrawable.IsHit || headDrawable.Judged && longNoteMode.AllowsRegrabAfterRelease() && Time.Current >= holdNote.StartTime)
+                                  && (holdNote.AutoPlay || inputManager.KeyBindingContainer.PressedActions.Contains(Action.Value));
         }
 
         private BmsLongNoteBodyState computeBodyState()
@@ -171,6 +197,9 @@ namespace osu.Game.Rulesets.Bms.UI
             if (!AcceptsPlayerInput || AllJudged || e.Action != Action.Value || headDrawable == null || tailDrawable == null)
                 return false;
 
+            if (Clock is IGameplayClock { IsRewinding: true })
+                return false;
+
             if (headDrawable.Judged)
                 return TryApplyLateBodyPress();
 
@@ -193,6 +222,9 @@ namespace osu.Game.Rulesets.Bms.UI
         public override void OnReleased(KeyBindingReleaseEvent<BmsAction> e)
         {
             if (e.Action != Action.Value || headDrawable == null || tailDrawable == null || !IsHoldingForTesting || tailDrawable.Judged)
+                return;
+
+            if (Clock is IGameplayClock { IsRewinding: true })
                 return;
 
             if (!headDrawable.IsHit && !longNoteMode.RequiresTailJudgement())
@@ -429,7 +461,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private void resolveBodyTicksUpToCurrentTime()
         {
-            bool hitBodyTick = !longNoteMode.RequiresBodyGaugeTicks() || headDrawable?.IsHit == true && IsHoldingForTesting;
+            bool hitBodyTick = !longNoteMode.RequiresBodyGaugeTicks() || IsHoldingForTesting;
             double currentTime = Time.Current;
 
             while (nextBodyTickIndex < bodyTickDrawables.Count)
@@ -446,7 +478,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private void resolveAllBodyTicks()
         {
-            bool hitBodyTick = !longNoteMode.RequiresBodyGaugeTicks() || headDrawable?.IsHit == true && IsHoldingForTesting;
+            bool hitBodyTick = !longNoteMode.RequiresBodyGaugeTicks() || IsHoldingForTesting;
 
             while (nextBodyTickIndex < bodyTickDrawables.Count)
             {
@@ -461,6 +493,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private void onResultReverted(DrawableHitObject drawable, JudgementResult result)
         {
+            holdingStateNeedsRestore = true;
+
             // A seek can revert nested results while the parent remains alive and pooled in place.
             // The next judgement pass skips the still-judged prefix once and resumes at the reverted tick.
             if (drawable is DrawableBmsHoldNoteBodyTick)

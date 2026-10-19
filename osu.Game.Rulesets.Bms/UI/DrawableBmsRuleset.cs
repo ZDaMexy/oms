@@ -467,6 +467,7 @@ namespace osu.Game.Rulesets.Bms.UI
             RefreshLaneCoverFocus();
             refreshSpeedMetrics();
             initialisePreStartSpeedPreview();
+            GameplayInputManager?.ActivateRawKeyboard();
         }
 
         private IEnumerable<BmsKeysoundSampleInfo> getBeatmapKeysoundSamples()
@@ -492,6 +493,15 @@ namespace osu.Game.Rulesets.Bms.UI
                         yield return bgmEvent.KeysoundSample;
                         break;
                 }
+            }
+
+            // Invisible objects only arm a lane and must remain outside HitObjects/automatic playback.
+            // Their first empty strike needs the same prepared sample pool as a visible note.
+            if (Beatmap is BmsBeatmap bmsBeatmap)
+            {
+                foreach (IReadOnlyList<BmsLaneKeysoundEntry> timeline in bmsBeatmap.LaneKeysoundTimelines.Values)
+                    foreach (BmsLaneKeysoundEntry entry in timeline)
+                        yield return entry.Sample;
             }
         }
 

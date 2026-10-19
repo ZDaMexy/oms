@@ -41,15 +41,18 @@ namespace oms.Input.Devices
             triggerSignaturesByKey = keyboardTriggers
                                      .SelectMany(trigger => trigger.KeyCombination.Keys
                                                                    .Where(key => key != InputKey.None)
+                                                                   .SelectMany(indexKeys)
                                                                    .Select(key => (key, trigger.Signature)))
                                      .GroupBy(tuple => tuple.key)
                                      .ToDictionary(group => group.Key, group => group.Select(tuple => tuple.Signature).Distinct().ToArray());
         }
 
         public IReadOnlyList<OmsAction> GetActionsForKey(InputKey key)
-            => triggerSignaturesByKey.TryGetValue(key, out var signatures)
+            => triggerSignaturesByKey.TryGetValue(key, out string[]? signatures)
                 ? signatures.Select(signature => keyboardTriggersBySignature[signature].Action).Distinct().ToArray()
                 : empty_actions;
+
+        public bool HasBindingForKey(InputKey key) => triggerSignaturesByKey.ContainsKey(key);
 
         public bool TriggerPressed(InputKey key)
         {
@@ -82,16 +85,24 @@ namespace oms.Input.Devices
 
         private bool updateKeyState(InputKey key, bool pressed)
         {
-            if (!triggerSignaturesByKey.TryGetValue(key, out var signatures))
+            if (!triggerSignaturesByKey.TryGetValue(key, out string[]? signatures))
                 return false;
 
             bool changed = false;
 
-            foreach (var signature in signatures)
+            foreach (string signature in signatures)
             {
                 var trigger = keyboardTriggersBySignature[signature];
                 bool isActive = activeTriggerSignatures.Contains(signature);
-                bool shouldBeActive = trigger.KeyCombination.Keys.All(pressedKeys.Contains);
+                bool shouldBeActive = true;
+                foreach (var combinationKey in trigger.KeyCombination.Keys)
+                {
+                    if (isPressed(combinationKey))
+                        continue;
+
+                    shouldBeActive = false;
+                    break;
+                }
 
                 if (isActive == shouldBeActive)
                     continue;
@@ -131,6 +142,43 @@ namespace oms.Input.Devices
             }
 
             return changed;
+        }
+
+        private bool isPressed(InputKey key)
+            => pressedKeys.Contains(key) || key switch
+            {
+                InputKey.Control => pressedKeys.Contains(InputKey.LControl) || pressedKeys.Contains(InputKey.RControl),
+                InputKey.Shift => pressedKeys.Contains(InputKey.LShift) || pressedKeys.Contains(InputKey.RShift),
+                InputKey.Alt => pressedKeys.Contains(InputKey.LAlt) || pressedKeys.Contains(InputKey.RAlt),
+                InputKey.Super => pressedKeys.Contains(InputKey.LSuper) || pressedKeys.Contains(InputKey.RSuper),
+                _ => false,
+            };
+
+        private static IEnumerable<InputKey> indexKeys(InputKey key)
+        {
+            yield return key;
+            switch (key)
+            {
+                case InputKey.Control:
+                    yield return InputKey.LControl;
+                    yield return InputKey.RControl;
+                    break;
+
+                case InputKey.Shift:
+                    yield return InputKey.LShift;
+                    yield return InputKey.RShift;
+                    break;
+
+                case InputKey.Alt:
+                    yield return InputKey.LAlt;
+                    yield return InputKey.RAlt;
+                    break;
+
+                case InputKey.Super:
+                    yield return InputKey.LSuper;
+                    yield return InputKey.RSuper;
+                    break;
+            }
         }
 
         private readonly struct KeyboardTrigger

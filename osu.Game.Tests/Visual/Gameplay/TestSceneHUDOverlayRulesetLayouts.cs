@@ -21,13 +21,15 @@ using osu.Game.IO;
 using osu.Game.Online.API.Requests.Responses;
 using osu.Game.Online.Spectator;
 using osu.Game.Rulesets;
+using osu.Game.Rulesets.Bms.Beatmaps;
+using osu.Game.Rulesets.Mania.Beatmaps;
+using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.UI.Scrolling;
 using osu.Game.Scoring;
 using osu.Game.Screens.Play;
 using osu.Game.Screens.Play.Leaderboards;
 using osu.Game.Skinning;
-using osu.Game.Tests.Gameplay;
 using osu.Game.Tests.Visual.Spectator;
 
 namespace osu.Game.Tests.Visual.Gameplay
@@ -64,19 +66,35 @@ namespace osu.Game.Tests.Visual.Gameplay
         public void TestLayout(
             [Values("argon", "triangles", "legacy")]
             string skinName,
-            [Values("osu", "taiko", "fruits", "mania")]
+            [Values("bms", "mania")]
             string rulesetName)
         {
             AddStep("create content", () =>
             {
                 var rulesetInfo = rulesets.GetRuleset(rulesetName);
                 var ruleset = rulesetInfo!.CreateInstance();
-                var beatmap = ruleset.CreateBeatmapConverter(new Beatmap()).Convert();
+                IBeatmap beatmap;
+                if (rulesetName == "bms")
+                {
+                    var decoded = new BmsBeatmapDecoder().DecodeText("#TITLE HUD layout\n#BPM 120\n#01611:01\n", "hud.bme");
+                    beatmap = new BmsBeatmapConverter(new BmsDecodedBeatmap(decoded), ruleset).Convert();
+                }
+                else
+                {
+                    beatmap = new ManiaBeatmap(new StageDefinition(7))
+                    {
+                        HitObjects = { new Note { StartTime = 30_000 } },
+                    };
+                }
+
+                beatmap.BeatmapInfo.Ruleset = rulesetInfo;
+                foreach (var hitObject in beatmap.HitObjects)
+                    hitObject.ApplyDefaults(beatmap.ControlPointInfo, beatmap.Difficulty);
                 var drawableRuleset = ruleset.CreateDrawableRulesetWith(beatmap);
 
-                ISkin provider = ruleset.CreateSkinTransformer(skins[skinName], beatmap)!;
-
-                var gameplayState = TestGameplayState.Create(ruleset);
+                var gameplayState = new GameplayState(beatmap, ruleset);
+                gameplayState.ScoreProcessor.ApplyBeatmap(beatmap);
+                gameplayState.HealthProcessor.ApplyBeatmap(beatmap);
                 ((Bindable<LocalUserPlayingState>)gameplayState.PlayingState).Value = LocalUserPlayingState.Playing;
                 var spectatorClient = new TestSpectatorClient();
 
@@ -113,7 +131,7 @@ namespace osu.Game.Tests.Visual.Gameplay
                     Children = new Drawable[]
                     {
                         spectatorClient,
-                        new SkinProvidingContainer(provider)
+                        new RulesetSkinProvidingContainer(ruleset, beatmap, skins[skinName], prepareGameplaySkinLayout: true)
                         {
                             RelativeSizeAxes = Axes.Both,
                             Children = new Drawable[]

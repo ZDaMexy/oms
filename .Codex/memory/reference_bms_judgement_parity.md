@@ -26,6 +26,7 @@ metadata:
 - `RequiresBodyGaugeTicks`：HCN body gauge。
 - `AllowsRegrabAfterRelease`：**仅 HCN**。CN 早释放永久 miss，不能用 `RequiresTailJudgement` 门控 regrab。
 - LN body state 纯派生自 holding/judgement，因此只有 HCN 能 Broken→Holding。
+- 长条完成后倒带时，head 可能仍命中、tail 已撤销，而 transient holding 已清；这不是一次允许 LN/CN 重抓的新按键。须按真实 replay pressed、既有 entry 结果和对象级自动辅助还原，并拦截反向输入的新判定。只撤销 body tick 的旧测试不覆盖跨 tail 的丢状态，见[游玩审查](../../doc_md/other/GAMEPLAY_REVIEW_20261019.md)。
 
 ## 产品面
 

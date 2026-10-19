@@ -2,6 +2,8 @@
 
 using System;
 using System.IO;
+using osu.Framework.Extensions;
+using osu.Game.Utils;
 
 namespace osu.Game.Rulesets.Bms.Beatmaps
 {
@@ -10,30 +12,48 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
     /// starts displaying <see cref="AssetFile"/> (an image, or a video when <see cref="IsVideo"/>). Built at conversion
     /// time from <see cref="BmsBgaEvent"/> + the chart's bitmap table, and carried on <see cref="BmsBeatmap.BgaTimeline"/>
     /// like <see cref="BmsBeatmap.Mines"/> / <see cref="BmsBeatmap.ScrollProfile"/> — rendering-only, never in
-    /// <see cref="osu.Game.Beatmaps.Beatmap{T}.HitObjects"/> and never fed to judgement/scoring (P1-L Phase 5).
+    /// <see cref="Game.Beatmaps.Beatmap{T}.HitObjects"/> and never fed to judgement/scoring (P1-L Phase 5).
     /// </summary>
     public readonly record struct BmsBgaTimelineEntry
     {
         /// <summary>Absolute gameplay time (ms) at which this BGA switch takes effect.</summary>
-        public double StartTime { get; }
+        public double StartTime { get; private init; }
 
-        public BmsBgaLayer Layer { get; }
+        public BmsBgaLayer Layer { get; private init; }
 
         /// <summary>The resolved asset storage path (image or video file) this switch displays.</summary>
-        public string AssetFile { get; }
+        public string AssetFile { get; private init; }
 
         /// <summary>Whether <see cref="AssetFile"/> is a video file (decoded via FFmpeg) rather than a still image.</summary>
-        public bool IsVideo { get; }
+        public bool IsVideo { get; private init; }
 
         public BmsBgaTimelineEntry(double startTime, BmsBgaLayer layer, string assetFile, bool isVideo)
         {
-            if (string.IsNullOrWhiteSpace(assetFile))
-                throw new ArgumentException(@"BGA asset file must not be empty.", nameof(assetFile));
+            if (!TryCreate(startTime, layer, assetFile, isVideo, out BmsBgaTimelineEntry entry))
+                throw new ArgumentException("BGA asset files must be relative paths inside the beatmap directory.", nameof(assetFile));
 
-            StartTime = startTime;
-            Layer = layer;
-            AssetFile = assetFile;
-            IsVideo = isVideo;
+            this = entry;
+        }
+
+        /// <summary>Admits an optional chart reference without rejecting the playable chart when its path is unsafe.</summary>
+        public static bool TryCreate(double startTime, BmsBgaLayer layer, string? assetFile, bool isVideo, out BmsBgaTimelineEntry entry)
+        {
+            entry = default;
+            if (string.IsNullOrWhiteSpace(assetFile) || FilesystemSanityCheckHelpers.IncursPathTraversalRisk(assetFile))
+                return false;
+
+            string normalisedFile = assetFile.ToStandardisedPath().Trim('/');
+            if (string.IsNullOrWhiteSpace(normalisedFile))
+                return false;
+
+            entry = new BmsBgaTimelineEntry
+            {
+                StartTime = startTime,
+                Layer = layer,
+                AssetFile = normalisedFile,
+                IsVideo = isVideo,
+            };
+            return true;
         }
 
         /// <summary>
@@ -58,7 +78,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         private static readonly string[] video_extensions =
         {
-            ".mpg", ".mpeg", ".avi", ".wmv", ".mp4", ".m4v", ".webm", ".mov", ".flv", ".mkv",
+            ".mpg", ".mpeg", ".m1v", ".m2v", ".avi", ".wmv", ".mp4", ".m4v", ".webm", ".mov", ".flv", ".mkv",
         };
     }
 }

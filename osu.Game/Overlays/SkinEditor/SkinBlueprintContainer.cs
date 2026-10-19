@@ -6,7 +6,6 @@ using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Linq;
 using osu.Framework.Allocation;
-using osu.Framework.Bindables;
 using osu.Framework.Input.Events;
 using osu.Game.Rulesets.Edit;
 using osu.Game.Screens.Edit.Compose.Components;
@@ -20,7 +19,7 @@ namespace osu.Game.Overlays.SkinEditor
     {
         private readonly ISerialisableDrawableContainer targetContainer;
 
-        private readonly List<BindableList<ISerialisableDrawable>> targetComponents = new List<BindableList<ISerialisableDrawable>>();
+        private volatile bool disposed;
 
         [Resolved]
         private SkinEditor editor { get; set; } = null!;
@@ -36,43 +35,51 @@ namespace osu.Game.Overlays.SkinEditor
 
             SelectedItems.BindTo(editor.SelectedComponents);
 
-            var bindableList = new BindableList<ISerialisableDrawable> { BindTarget = targetContainer.Components };
-            bindableList.BindCollectionChanged(componentsChanged, true);
-
-            targetComponents.Add(bindableList);
+            // This container only observes components. A bound copy would introduce reverse binding locks
+            // between component publication on the update thread and blueprint disposal in the background.
+            targetContainer.Components.BindCollectionChanged(componentsChanged, true);
         }
 
-        private void componentsChanged(object? sender, NotifyCollectionChangedEventArgs e) => Schedule(() =>
+        private void componentsChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
-            switch (e.Action)
+            if (disposed)
+                return;
+
+            Schedule(() =>
             {
-                case NotifyCollectionChangedAction.Add:
-                    Debug.Assert(e.NewItems != null);
+                if (disposed)
+                    return;
 
-                    foreach (var item in e.NewItems.Cast<ISerialisableDrawable>())
-                        AddBlueprintFor(item);
-                    break;
+                switch (e.Action)
+                {
+                    case NotifyCollectionChangedAction.Add:
+                        Debug.Assert(e.NewItems != null);
 
-                case NotifyCollectionChangedAction.Remove:
-                case NotifyCollectionChangedAction.Reset:
-                    Debug.Assert(e.OldItems != null);
+                        foreach (var item in e.NewItems.Cast<ISerialisableDrawable>())
+                            AddBlueprintFor(item);
+                        break;
 
-                    foreach (var item in e.OldItems.Cast<ISerialisableDrawable>())
-                        RemoveBlueprintFor(item);
-                    break;
+                    case NotifyCollectionChangedAction.Remove:
+                    case NotifyCollectionChangedAction.Reset:
+                        Debug.Assert(e.OldItems != null);
 
-                case NotifyCollectionChangedAction.Replace:
-                    Debug.Assert(e.NewItems != null);
-                    Debug.Assert(e.OldItems != null);
+                        foreach (var item in e.OldItems.Cast<ISerialisableDrawable>())
+                            RemoveBlueprintFor(item);
+                        break;
 
-                    foreach (var item in e.OldItems.Cast<ISerialisableDrawable>())
-                        RemoveBlueprintFor(item);
+                    case NotifyCollectionChangedAction.Replace:
+                        Debug.Assert(e.NewItems != null);
+                        Debug.Assert(e.OldItems != null);
 
-                    foreach (var item in e.NewItems.Cast<ISerialisableDrawable>())
-                        AddBlueprintFor(item);
-                    break;
-            }
-        });
+                        foreach (var item in e.OldItems.Cast<ISerialisableDrawable>())
+                            RemoveBlueprintFor(item);
+
+                        foreach (var item in e.NewItems.Cast<ISerialisableDrawable>())
+                            AddBlueprintFor(item);
+                        break;
+                }
+            });
+        }
 
         protected override void AddBlueprintFor(ISerialisableDrawable item)
         {
@@ -108,7 +115,7 @@ namespace osu.Game.Overlays.SkinEditor
 
         protected override void SelectAll()
         {
-            SelectedItems.AddRange(targetComponents.SelectMany(list => list).Except(SelectedItems).ToArray());
+            SelectedItems.AddRange(targetContainer.Components.Except(SelectedItems).ToArray());
         }
 
         protected override bool TryMoveBlueprints(DragEvent e, IList<(SelectionBlueprint<ISerialisableDrawable> blueprint, Vector2[] originalSnapPositions)> blueprints)
@@ -145,10 +152,10 @@ namespace osu.Game.Overlays.SkinEditor
 
         protected override void Dispose(bool isDisposing)
         {
-            base.Dispose(isDisposing);
+            disposed = true;
+            targetContainer.Components.CollectionChanged -= componentsChanged;
 
-            foreach (var list in targetComponents)
-                list.UnbindAll();
+            base.Dispose(isDisposing);
         }
     }
 }

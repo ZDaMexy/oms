@@ -32,7 +32,8 @@ namespace osu.Game.Skinning.Gameplay
                 encoded += bytes.Length;
                 if (encoded > GameplaySkinRecordedAnimationBudgets.MAX_DECODED_BYTES)
                     throw fail(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
-                GameplaySkinRecordedAnimationProgram program = Decode(bytes, definition, cancellationToken);
+                GameplaySkinRecordedAnimationProgram program = Decode(bytes, definition,
+                    GameplaySkinRecordedAnimationBudgets.MAX_FRAME_TRIANGLE_APPLICATIONS - triangleApplications, cancellationToken);
                 states += program.States.Count;
                 nodes += program.Nodes.Count;
                 vertices += program.Geometries.Sum(geometry => (long)geometry.Vertices.Count);
@@ -49,6 +50,10 @@ namespace osu.Game.Skinning.Gameplay
 
         public static GameplaySkinRecordedAnimationProgram Decode(
             ReadOnlyMemory<byte> encoded, GameplaySkinRecordedAnimationDefinition definition, CancellationToken cancellationToken = default)
+            => Decode(encoded, definition, GameplaySkinRecordedAnimationBudgets.MAX_FRAME_TRIANGLE_APPLICATIONS, cancellationToken);
+
+        internal static GameplaySkinRecordedAnimationProgram Decode(
+            ReadOnlyMemory<byte> encoded, GameplaySkinRecordedAnimationDefinition definition, long remainingTriangleApplications, CancellationToken cancellationToken)
         {
             if (encoded.Length > GameplaySkinRecordedAnimationBudgets.MAX_ENCODED_BYTES)
                 throw fail(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
@@ -211,7 +216,8 @@ namespace osu.Game.Skinning.Gameplay
                     releaseFrame = integer(root.GetProperty("releaseFrame"), end, frames.Count - 2);
                     heldLoop = (start, end);
                 }
-                return new GameplaySkinRecordedAnimationProgram(width, height, fps, loop, trigger, [.. geometries], [.. nodes], [.. states], [.. frames], heldLoop, releaseFrame, cancellationToken);
+                return new GameplaySkinRecordedAnimationProgram(width, height, fps, loop, trigger, [.. geometries], [.. nodes], [.. states], [.. frames],
+                    heldLoop, releaseFrame, remainingTriangleApplications, cancellationToken);
             }
             catch (JsonException) { throw fail(); }
         }

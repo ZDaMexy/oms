@@ -210,8 +210,10 @@ namespace osu.Game.Screens.Play
 
             score.ScoreInfo.Date = DateTimeOffset.Now;
 
-            await submitScore(score).ConfigureAwait(false);
+            // Local gameplay has ended independently of a background network request. In particular, retry
+            // may begin another play before that request completes.
             spectatorClient.EndPlaying(GameplayState);
+            await submitScore(score).ConfigureAwait(false);
             userStatisticsWatcher?.RegisterForStatisticsUpdateAfter(score.ScoreInfo);
         }
 
@@ -262,17 +264,21 @@ namespace osu.Game.Screens.Play
 
         private void submitFromFailOrQuit(Score score)
         {
-            if (LoadedBeatmapSuccessfully)
-            {
-                // compare: https://github.com/ppy/osu/blob/ccf1acce56798497edfaf92d3ece933469edcf0a/osu.Game/Screens/Play/Player.cs#L848-L851
-                var scoreCopy = score.DeepClone();
+            if (!LoadedBeatmapSuccessfully)
+                return;
 
-                Task.Run(async () =>
-                {
-                    await submitScore(scoreCopy).ConfigureAwait(false);
-                    spectatorClient.EndPlaying(GameplayState);
-                }).FireAndForget();
+            spectatorClient.EndPlaying(GameplayState);
+
+            // Offline play (including the frozen legacy service) has no submission to prepare. Do not copy
+            // a potentially large recorded replay or queue a worker merely to discover the missing token.
+            if (token == null)
+            {
+                Logger.Log("No token, skipping score submission");
+                return;
             }
+
+            var scoreCopy = score.DeepClone();
+            Task.Run(() => submitScore(scoreCopy)).FireAndForget();
         }
 
         /// <summary>

@@ -4,6 +4,7 @@
 using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Testing;
+using osu.Game.Replays;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mania.Replays;
@@ -31,9 +32,9 @@ namespace osu.Game.Rulesets.Mania.Tests
             var beatmap = new ManiaBeatmap(new StageDefinition(1));
             beatmap.HitObjects.Add(new Note { StartTime = 1000 });
 
-            var generated = new ManiaAutoGenerator(beatmap).Generate();
+            var generated = generateReplay(beatmap);
 
-            Assert.AreEqual(generated.Frames.Count, frame_offset + 2, "Incorrect number of frames");
+            Assert.AreEqual(frame_offset + 2, generated.Frames.Count, "Incorrect number of frames");
             Assert.AreEqual(1000, generated.Frames[frame_offset].Time, "Incorrect hit time");
             Assert.AreEqual(1000 + ManiaAutoGenerator.RELEASE_DELAY, generated.Frames[frame_offset + 1].Time, "Incorrect release time");
             Assert.IsTrue(checkContains(generated.Frames[frame_offset], ManiaAction.Key1), "Key1 has not been pressed");
@@ -52,9 +53,9 @@ namespace osu.Game.Rulesets.Mania.Tests
             var beatmap = new ManiaBeatmap(new StageDefinition(1));
             beatmap.HitObjects.Add(new HoldNote { StartTime = 1000, Duration = 2000 });
 
-            var generated = new ManiaAutoGenerator(beatmap).Generate();
+            var generated = generateReplay(beatmap);
 
-            Assert.AreEqual(generated.Frames.Count, frame_offset + 2, "Incorrect number of frames");
+            Assert.AreEqual(frame_offset + 2, generated.Frames.Count, "Incorrect number of frames");
             Assert.AreEqual(1000, generated.Frames[frame_offset].Time, "Incorrect hit time");
             Assert.AreEqual(3000, generated.Frames[frame_offset + 1].Time, "Incorrect release time");
             Assert.IsTrue(checkContains(generated.Frames[frame_offset], ManiaAction.Key1), "Key1 has not been pressed");
@@ -72,9 +73,9 @@ namespace osu.Game.Rulesets.Mania.Tests
             beatmap.HitObjects.Add(new Note { StartTime = 1000 });
             beatmap.HitObjects.Add(new Note { StartTime = 1000, Column = 1 });
 
-            var generated = new ManiaAutoGenerator(beatmap).Generate();
+            var generated = generateReplay(beatmap);
 
-            Assert.AreEqual(generated.Frames.Count, frame_offset + 2, "Incorrect number of frames");
+            Assert.AreEqual(frame_offset + 2, generated.Frames.Count, "Incorrect number of frames");
             Assert.AreEqual(1000, generated.Frames[frame_offset].Time, "Incorrect hit time");
             Assert.AreEqual(1000 + ManiaAutoGenerator.RELEASE_DELAY, generated.Frames[frame_offset + 1].Time, "Incorrect release time");
             Assert.IsTrue(checkContains(generated.Frames[frame_offset], ManiaAction.Key1, ManiaAction.Key2), "Key1 & Key2 have not been pressed");
@@ -94,9 +95,9 @@ namespace osu.Game.Rulesets.Mania.Tests
             beatmap.HitObjects.Add(new HoldNote { StartTime = 1000, Duration = 2000 });
             beatmap.HitObjects.Add(new HoldNote { StartTime = 1000, Duration = 2000, Column = 1 });
 
-            var generated = new ManiaAutoGenerator(beatmap).Generate();
+            var generated = generateReplay(beatmap);
 
-            Assert.AreEqual(generated.Frames.Count, frame_offset + 2, "Incorrect number of frames");
+            Assert.AreEqual(frame_offset + 2, generated.Frames.Count, "Incorrect number of frames");
 
             Assert.AreEqual(1000, generated.Frames[frame_offset].Time, "Incorrect hit time");
             Assert.AreEqual(3000, generated.Frames[frame_offset + 1].Time, "Incorrect release time");
@@ -117,9 +118,9 @@ namespace osu.Game.Rulesets.Mania.Tests
             beatmap.HitObjects.Add(new Note { StartTime = 1000 });
             beatmap.HitObjects.Add(new Note { StartTime = 2000, Column = 1 });
 
-            var generated = new ManiaAutoGenerator(beatmap).Generate();
+            var generated = generateReplay(beatmap);
 
-            Assert.AreEqual(generated.Frames.Count, frame_offset + 4, "Incorrect number of frames");
+            Assert.AreEqual(frame_offset + 4, generated.Frames.Count, "Incorrect number of frames");
             Assert.AreEqual(1000, generated.Frames[frame_offset].Time, "Incorrect first note hit time");
             Assert.AreEqual(1000 + ManiaAutoGenerator.RELEASE_DELAY, generated.Frames[frame_offset + 1].Time, "Incorrect first note release time");
             Assert.AreEqual(2000, generated.Frames[frame_offset + 2].Time, "Incorrect second note hit time");
@@ -144,9 +145,9 @@ namespace osu.Game.Rulesets.Mania.Tests
             beatmap.HitObjects.Add(new HoldNote { StartTime = 1000, Duration = 2000 });
             beatmap.HitObjects.Add(new HoldNote { StartTime = 2000, Duration = 2000, Column = 1 });
 
-            var generated = new ManiaAutoGenerator(beatmap).Generate();
+            var generated = generateReplay(beatmap);
 
-            Assert.AreEqual(generated.Frames.Count, frame_offset + 4, "Incorrect number of frames");
+            Assert.AreEqual(frame_offset + 4, generated.Frames.Count, "Incorrect number of frames");
             Assert.AreEqual(1000, generated.Frames[frame_offset].Time, "Incorrect first note hit time");
             Assert.AreEqual(3000, generated.Frames[frame_offset + 2].Time, "Incorrect first note release time");
             Assert.AreEqual(2000, generated.Frames[frame_offset + 1].Time, "Incorrect second note hit time");
@@ -171,9 +172,9 @@ namespace osu.Game.Rulesets.Mania.Tests
             beatmap.HitObjects.Add(new HoldNote { StartTime = 1000, Duration = 2000 });
             beatmap.HitObjects.Add(new Note { StartTime = 3000, Column = 1 });
 
-            var generated = new ManiaAutoGenerator(beatmap).Generate();
+            var generated = generateReplay(beatmap);
 
-            Assert.AreEqual(generated.Frames.Count, frame_offset + 3, "Incorrect number of frames");
+            Assert.AreEqual(frame_offset + 3, generated.Frames.Count, "Incorrect number of frames");
             Assert.AreEqual(1000, generated.Frames[frame_offset].Time, "Incorrect first note hit time");
             Assert.AreEqual(3000, generated.Frames[frame_offset + 1].Time, "Incorrect second note press time + first note release time");
             Assert.AreEqual(3000 + ManiaAutoGenerator.RELEASE_DELAY, generated.Frames[frame_offset + 2].Time, "Incorrect second note release time");
@@ -181,6 +182,16 @@ namespace osu.Game.Rulesets.Mania.Tests
             Assert.IsFalse(checkContains(generated.Frames[frame_offset + 1], ManiaAction.Key1), "Key1 has not been released");
             Assert.IsTrue(checkContains(generated.Frames[frame_offset + 1], ManiaAction.Key2), "Key2 has not been pressed");
             Assert.IsFalse(checkContains(generated.Frames[frame_offset + 2], ManiaAction.Key2), "Key2 has not been released");
+        }
+
+        private static Replay generateReplay(ManiaBeatmap beatmap)
+        {
+            // Production autoplay receives an already processed beatmap. In particular, a hold's combo-affecting
+            // head and tail must exist before the generator can distinguish it from an ignore-only sample object.
+            foreach (var hitObject in beatmap.HitObjects)
+                hitObject.ApplyDefaults(beatmap.ControlPointInfo, beatmap.Difficulty);
+
+            return new ManiaAutoGenerator(beatmap).Generate();
         }
 
         private bool checkContains(ReplayFrame frame, params ManiaAction[] actions) => actions.All(action => ((ManiaReplayFrame)frame).Actions.Contains(action));

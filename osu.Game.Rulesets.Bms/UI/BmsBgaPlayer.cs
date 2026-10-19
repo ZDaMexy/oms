@@ -20,6 +20,7 @@ using osu.Framework.Platform;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Configuration;
+using osu.Game.Screens.Play;
 using osu.Game.Skinning.Gameplay;
 using osuTK.Graphics;
 
@@ -70,6 +71,9 @@ namespace osu.Game.Rulesets.Bms.UI
 
         [Resolved(CanBeNull = true)]
         private Storage? storage { get; set; }
+
+        [Resolved(CanBeNull = true)]
+        private GameplayClockContainer? gameplayClockContainer { get; set; }
 
         public BmsBgaPlayer(IReadOnlyList<BmsBgaTimelineEntry> timeline, BmsPoorBgaMode poorMode)
         {
@@ -126,6 +130,26 @@ namespace osu.Game.Rulesets.Bms.UI
             overlayLayer.SetResolvers(getTexture, createVideo, null);
             overlay2Layer.SetResolvers(getTexture, createVideo, null);
             poorLayer.SetResolvers(getTexture, createVideo, null);
+        }
+
+        protected override void LoadComplete()
+        {
+            base.LoadComplete();
+
+            if (gameplayClockContainer != null)
+                gameplayClockContainer.OnSeek += onSeek;
+        }
+
+        private void onSeek()
+        {
+            // A seek starts a new playback epoch. An old miss must never flash again when its timestamp is crossed,
+            // and a pending transcode must not wait for a retry timestamp left ahead of the new clock position.
+            poorTriggeredAt = null;
+
+            foreach (var layer in normalLayers)
+                layer.ResetVideoRetryTime();
+
+            poorLayer.ResetVideoRetryTime();
         }
 
         // Builds the external-ffmpeg transcode cache (P1-L Phase 5.1) used to resolve legacy BGA videos at play time.
@@ -294,6 +318,9 @@ namespace osu.Game.Rulesets.Bms.UI
 
         protected override void Dispose(bool isDisposing)
         {
+            if (gameplayClockContainer != null)
+                gameplayClockContainer.OnSeek -= onSeek;
+
             textureStore?.Dispose();
             fileStore?.Dispose();
             base.Dispose(isDisposing);
@@ -379,6 +406,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 createVideo = videoFactory;
                 faultFallbackTexture = faultFallback;
             }
+
+            public void ResetVideoRetryTime() => lastVideoRetryTime = double.NegativeInfinity;
 
             protected override void Update()
             {

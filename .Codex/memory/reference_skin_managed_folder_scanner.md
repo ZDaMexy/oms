@@ -32,6 +32,7 @@ metadata:
 
 - root inventory 与每包 capture 共用同一 held chartskin authority。前者证明 direct-child membership 稳定，后者证明包内 tree/capsule，两者不能互替。
 - 新建包后 NTFS LastWriteTime/ChangeTime 可能延迟落稳；只对已定义 retryable identity/inventory race 做有界、可取消完整 session 重试，不无限重试或提交失败轮的部分数据。
+- 造测试包的写入已返回，不代表父目录枚举影子时间已刷新。真实完整HEAD对照捕获过只有两项时间增约0.6941ms的sibling拒绝；候选夹具在写完后用现有no-follow目录句柄逐级打开并释放，不靠sleep、改时间或削弱生产guard。失败的旧捕获线程还曾把30秒断言污染到后续HCN标签，先按实际栈归属，证据和兜底见[游玩审查](../../doc_md/other/GAMEPLAY_REVIEW_20261019.md#验证证据)。
 - scanGate 只防同实例重入；跨 scanner/selection/mutation/recovery 用共享 coordinator，从 discovery 持到 Realm commit。snapshot→commit 之间不能让 mutation 插入。
 - startup 在同一 typed sequence 先幂等 recovery、后一次 scanner。有效未决 journal 冻结相关 path；invalid/unknown/IO 冻结 namespace。add/update/revive 与 negative cleanup 都查冻结，不能将半成品当新包或缺失。
 - Realm notification 已能刷新 dropdown，不加第二 UI refresh，也不自动选择。scanner 不消费 publication plan，不执行 physical move/delete。

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using oms.Input;
 using oms.Input.Devices;
 using osu.Framework.Allocation;
@@ -21,15 +22,17 @@ namespace osu.Game.Rulesets.Bms.Input
     {
         public const int MAX_GAMEPLAY_KEYS = 16;
 
-        public BindableBool LaneCoverFocusPressed => laneCoverFocusPressed;
+        public BindableBool LaneCoverFocusPressed { get; } = new BindableBool();
 
-        public BindableBool PreStartHoldPressed => preStartHoldPressed;
+        public BindableBool PreStartHoldPressed { get; } = new BindableBool();
 
         public OmsInputRouter Router { get; } = new OmsInputRouter();
 
-        private readonly BindableBool laneCoverFocusPressed = new BindableBool();
-        private readonly BindableBool preStartHoldPressed = new BindableBool();
         private readonly HashSet<BmsAction> forwardedPressedActions = new HashSet<BmsAction>();
+        private readonly object rawKeyboardGate = new object();
+        private readonly Queue<RawKeyboardTransition> rawKeyboardTransitions = new Queue<RawKeyboardTransition>(32);
+        private bool rawKeyboardClosed;
+        private bool rawKeyboardBindingsSupported = true;
         private readonly int variant;
         private OmsKeyboardInputHandler keyboardInputHandler = null!;
         private OmsHidButtonInputHandler hidButtonInputHandler = null!;
@@ -56,8 +59,9 @@ namespace osu.Game.Rulesets.Bms.Input
         private void load(RealmAccess? realmAccess)
         {
             applyBindings(OmsBmsBindingResolver.GetBindingsOrDefault(realmAccess, variant));
-            keyboardEventSource?.RegisterSink(this);
         }
+
+        internal void ActivateRawKeyboard() => keyboardEventSource?.RegisterSink(this);
 
         public bool TriggerKeyPressed(InputKey key) => keyboardInputHandler.TriggerPressed(key);
 
@@ -106,6 +110,23 @@ namespace osu.Game.Rulesets.Bms.Input
 
         protected override void Update()
         {
+            // Native window callbacks run on the input thread. Drain before the usual input processing so
+            // the current gameplay frame owns both the judgement time and every drawable mutation.
+            while (true)
+            {
+                RawKeyboardTransition transition;
+                lock (rawKeyboardGate)
+                {
+                    if (!rawKeyboardTransitions.TryDequeue(out transition))
+                        break;
+                }
+
+                if (transition.Pressed is bool pressed)
+                    tryHandleKeyboardEvent(transition.Key, pressed);
+                else
+                    keyboardInputHandler.ReleaseAllPressed();
+            }
+
             mouseAxisInputHandler.FinishFrame();
             mouseAxisInputHandler.BeginFrame();
             hidDeviceHandler?.PollOnce();
@@ -124,12 +145,32 @@ namespace osu.Game.Rulesets.Bms.Input
         }
 
         protected override bool OnKeyDown(KeyDownEvent e)
-            => tryHandleKeyboardEvent(KeyCombination.FromKey(e.Key), pressed: true) || base.OnKeyDown(e);
+        {
+            KeyCombination combination = KeyCombination.FromKey(e.Key);
+            return isOwnedRawKeyboardEvent(combination)
+                   || tryHandleKeyboardEvent(combination, pressed: true)
+                   || base.OnKeyDown(e);
+        }
 
         protected override void OnKeyUp(KeyUpEvent e)
         {
-            if (!tryHandleKeyboardEvent(KeyCombination.FromKey(e.Key), pressed: false))
+            KeyCombination combination = KeyCombination.FromKey(e.Key);
+            if (!isOwnedRawKeyboardEvent(combination) && !tryHandleKeyboardEvent(combination, pressed: false))
                 base.OnKeyUp(e);
+        }
+
+        private bool isOwnedRawKeyboardEvent(KeyCombination combination)
+        {
+            if (!rawKeyboardBindingsSupported || keyboardEventSource?.IsActiveFor(this) != true)
+                return false;
+
+            foreach (InputKey key in combination.Keys)
+            {
+                if (keyboardEventSource.SupportsKey(key) && keyboardInputHandler.HasBindingForKey(key))
+                    return true;
+            }
+
+            return false;
         }
 
         protected override bool OnJoystickPress(JoystickPressEvent e)
@@ -145,6 +186,12 @@ namespace osu.Game.Rulesets.Bms.Input
         {
             if (isDisposing)
             {
+                lock (rawKeyboardGate)
+                {
+                    rawKeyboardClosed = true;
+                    rawKeyboardTransitions.Clear();
+                }
+
                 keyboardEventSource?.UnregisterSink(this);
                 hidDeviceHandler?.Dispose();
             }
@@ -152,14 +199,48 @@ namespace osu.Game.Rulesets.Bms.Input
             base.Dispose(isDisposing);
         }
 
-        bool IOmsKeyboardEventSink.HandleRawKeyPressed(InputKey key) => tryHandleKeyboardEvent(key, pressed: true);
+        bool IOmsKeyboardEventSink.HandleRawKeyPressed(InputKey key) => enqueueRawKeyboardTransition(key, pressed: true);
 
-        bool IOmsKeyboardEventSink.HandleRawKeyReleased(InputKey key) => tryHandleKeyboardEvent(key, pressed: false);
+        bool IOmsKeyboardEventSink.HandleRawKeyReleased(InputKey key) => enqueueRawKeyboardTransition(key, pressed: false);
 
-        void IOmsKeyboardEventSink.ResetRawKeyboardState() => keyboardInputHandler.ReleaseAllPressed();
+        void IOmsKeyboardEventSink.ResetRawKeyboardState()
+        {
+            lock (rawKeyboardGate)
+            {
+                if (rawKeyboardClosed)
+                    return;
+
+                // Focus loss/pause ends this input epoch. Pending presses must not hit a note when gameplay
+                // resumes; release only the keyboard state which has already reached the update thread.
+                rawKeyboardTransitions.Clear();
+                rawKeyboardTransitions.Enqueue(new RawKeyboardTransition(InputKey.None, null));
+            }
+        }
+
+        private bool enqueueRawKeyboardTransition(InputKey key, bool pressed)
+        {
+            if (!rawKeyboardBindingsSupported || !keyboardInputHandler.HasBindingForKey(key))
+                return false;
+
+            lock (rawKeyboardGate)
+            {
+                if (rawKeyboardClosed)
+                    return false;
+
+                rawKeyboardTransitions.Enqueue(new RawKeyboardTransition(key, pressed));
+            }
+
+            return true;
+        }
+
+        private readonly record struct RawKeyboardTransition(InputKey Key, bool? Pressed);
 
         private void applyBindings(IReadOnlyList<OmsBinding> bindings)
         {
+            // Keep an entire binding group on one source. Splitting a chord between queued native modifiers
+            // and unsupported SDL keys can lose a complete tap before the two batches meet in this update.
+            rawKeyboardBindingsSupported = keyboardEventSource == null || bindings.SelectMany(binding => binding.KeyboardCombinations)
+                .SelectMany(combination => combination.Keys).Where(key => key != InputKey.None).All(keyboardEventSource.SupportsKey);
             keyboardInputHandler = new OmsKeyboardInputHandler(bindings, action => TriggerOmsActionPressed(action), action => TriggerOmsActionReleased(action));
             hidButtonInputHandler = new OmsHidButtonInputHandler(bindings, action => TriggerOmsActionPressed(action), action => TriggerOmsActionReleased(action));
             xInputButtonInputHandler = new OmsXInputButtonInputHandler(bindings, action => TriggerOmsActionPressed(action), action => TriggerOmsActionReleased(action));
@@ -181,7 +262,7 @@ namespace osu.Game.Rulesets.Bms.Input
 
         private bool tryHandleKeyboardEvent(InputKey key, bool pressed)
         {
-            if (key == InputKey.None || keyboardInputHandler.GetActionsForKey(key).Count == 0)
+            if (!keyboardInputHandler.HasBindingForKey(key))
                 return false;
 
             if (pressed)
@@ -210,23 +291,23 @@ namespace osu.Game.Rulesets.Bms.Input
         private void onOmsActionPressed(OmsAction action)
         {
             if (action == OmsAction.UI_LaneCoverFocus)
-                laneCoverFocusPressed.Value = true;
+                LaneCoverFocusPressed.Value = true;
 
             if (action == OmsAction.UI_PreStartHold)
-                preStartHoldPressed.Value = true;
+                PreStartHoldPressed.Value = true;
         }
 
         private void onOmsActionReleased(OmsAction action)
         {
             if (action == OmsAction.UI_LaneCoverFocus)
-                laneCoverFocusPressed.Value = false;
+                LaneCoverFocusPressed.Value = false;
 
             if (action == OmsAction.UI_PreStartHold)
-                preStartHoldPressed.Value = false;
+                PreStartHoldPressed.Value = false;
         }
 
         private bool shouldForwardToGameplay(BmsAction action)
-            => action.IsLaneAction() && !preStartHoldPressed.Value;
+            => action.IsLaneAction() && !PreStartHoldPressed.Value;
 
         private partial class BmsActionRouterMirror : Component, IKeyBindingHandler<BmsAction>
         {

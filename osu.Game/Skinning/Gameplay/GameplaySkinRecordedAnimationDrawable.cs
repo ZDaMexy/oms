@@ -51,19 +51,20 @@ namespace osu.Game.Skinning.Gameplay
             if (frame == appliedFrame)
                 return;
             appliedFrame = frame;
-            IReadOnlyList<GameplaySkinRecordedPiece> pieces = GameplaySkinRecordedAnimationEvaluator.Evaluate(Program, frame);
-            for (int i = 0; i < pieces.Count; i++)
+            GameplaySkinRecordedPreparedFrame preparedFrame = Program.GetPreparedFrame(frame);
+            for (int i = 0; i < preparedFrame.PieceCount; i++)
             {
-                GameplaySkinRecordedPiece piece = pieces[i];
-                sprites[i].Apply(piece, piece.Resource == null ? null : textures[piece.Resource]);
+                GameplaySkinRecordedRenderPiece piece = preparedFrame.GetPiece(i);
+                sprites[i].Apply(preparedFrame, piece, piece.Resource == null ? null : textures[piece.Resource]);
             }
-            for (int i = pieces.Count; i < sprites.Count; i++)
+            for (int i = preparedFrame.PieceCount; i < sprites.Count; i++)
                 sprites[i].Alpha = 0;
         }
 
         private partial class RecordedPieceSprite : Sprite
         {
-            private GameplaySkinRecordedPiece? piece;
+            private GameplaySkinRecordedPreparedFrame? frame;
+            private GameplaySkinRecordedRenderPiece piece;
             private Texture whitePixel = null!;
 
             [BackgroundDependencyLoader]
@@ -71,12 +72,13 @@ namespace osu.Game.Skinning.Gameplay
             {
                 TextureShader = shaders.Load("GameplaySkinProjective", "GameplaySkinRecordedAnimation");
                 whitePixel = renderer.WhitePixel;
-                if (piece?.Resource == null)
+                if (frame == null || piece.Resource == null)
                     Texture = whitePixel;
             }
 
-            public void Apply(GameplaySkinRecordedPiece value, Texture? texture)
+            public void Apply(GameplaySkinRecordedPreparedFrame preparedFrame, GameplaySkinRecordedRenderPiece value, Texture? texture)
             {
+                frame = preparedFrame;
                 piece = value;
                 Texture = texture ?? whitePixel;
                 Blending = value.Additive ? BlendingParameters.Additive : BlendingParameters.Mixture;
@@ -91,8 +93,9 @@ namespace osu.Game.Skinning.Gameplay
             private sealed class RecordedPieceDrawNode : SpriteDrawNode
             {
                 private RecordedPieceSprite source => (RecordedPieceSprite)Source;
-                private GameplaySkinRecordedPiece? piece;
-                private Vector2[] positions = [];
+                private GameplaySkinRecordedPreparedFrame? frame;
+                private GameplaySkinRecordedRenderPiece piece;
+                private Vector2 drawSize;
                 private IVertexBatch<TexturedVertex2D>? batch;
                 private IUniformBuffer<RecordedColourData>? buffer;
                 private RecordedColourData colours;
@@ -109,21 +112,21 @@ namespace osu.Game.Skinning.Gameplay
                 public override void ApplyState()
                 {
                     base.ApplyState();
-                    piece = source.piece;
-                    if (piece == null)
+                    frame = source.frame;
+                    if (frame == null)
                         return;
-                    positions = [.. piece.Triangles.Select(vertex => source.ToScreenSpace(new Vector2((float)vertex.X * source.DrawWidth, (float)vertex.Y * source.DrawHeight)))];
-                    double[] m = piece.ColourMatrix;
+                    piece = source.piece;
+                    drawSize = source.DrawSize;
                     colours = new RecordedColourData
                     {
-                        Multiply = vector(piece.Multiply),
-                        Add = vector(piece.Add),
-                        Hsl = new Vector4((float)piece.Hsl[0], (float)piece.Hsl[1], (float)piece.Hsl[2], 0),
-                        Row0 = new Vector4((float)m[0], (float)m[1], (float)m[2], (float)m[3]),
-                        Row1 = new Vector4((float)m[5], (float)m[6], (float)m[7], (float)m[8]),
-                        Row2 = new Vector4((float)m[10], (float)m[11], (float)m[12], (float)m[13]),
-                        Row3 = new Vector4((float)m[15], (float)m[16], (float)m[17], (float)m[18]),
-                        Offset = new Vector4((float)m[4], (float)m[9], (float)m[14], (float)m[19]),
+                        Multiply = piece.Multiply,
+                        Add = piece.Add,
+                        Hsl = piece.Hsl,
+                        Row0 = piece.Row0,
+                        Row1 = piece.Row1,
+                        Row2 = piece.Row2,
+                        Row3 = piece.Row3,
+                        Offset = piece.Offset,
                     };
                 }
 
@@ -137,31 +140,40 @@ namespace osu.Game.Skinning.Gameplay
 
                 protected override void Blit(IRenderer renderer)
                 {
-                    if (piece == null)
+                    if (frame == null)
                         return;
-                    batch ??= renderer.CreateQuadBatch<TexturedVertex2D>(Math.Clamp(positions.Length / 3, 1, IRenderer.MAX_QUADS), 2);
-                    for (triangle = 0; triangle < positions.Length; triangle += 3)
+                    batch ??= renderer.CreateQuadBatch<TexturedVertex2D>(Math.Clamp(piece.VertexCount / 3, 1, IRenderer.MAX_QUADS), 2);
+                    for (triangle = 0; triangle < piece.VertexCount; triangle += 3)
                     {
                         nextCorner = 0;
                         // A degenerate second triangle lets the standard renderer keep texture/atlas ownership,
                         // blend state, masking and backbuffer depth while drawing the original mesh triangle.
-                        var quad = new Quad(positions[triangle], positions[triangle + 1], positions[triangle + 2], positions[triangle + 2]);
+                        Vector2 third = screenPosition(triangle + 2);
+                        var quad = new Quad(screenPosition(triangle), screenPosition(triangle + 1), third, third);
                         renderer.DrawQuad(Texture, quad, DrawColourInfo.Colour, vertexAction: appendAction);
                     }
+                }
+
+                // Read only the immutable frame and this draw node's frozen DrawInfo/size. Computing each actual
+                // submitted vertex once avoids per-piece history buffers whose maxima could accumulate across
+                // different frames beyond the publication's simultaneous-triangle reservation.
+                private Vector2 screenPosition(int index)
+                {
+                    GameplaySkinRecordedRenderVertex vertex = frame!.GetVertex(piece.VertexOffset + index);
+                    return Vector2Extensions.Transform(new Vector2(vertex.X * drawSize.X, vertex.Y * drawSize.Y), DrawInfo.Matrix);
                 }
 
                 private void append(TexturedVertex2D vertex)
                 {
                     // DrawQuad emits BL, BR, TR, TL. Both bottom vertices are the third source triangle vertex.
                     int corner = nextCorner++ switch { 0 or 1 => 2, 2 => 1, _ => 0 };
-                    GameplaySkinRecordedProjectedVertex v = piece!.Triangles[triangle + corner];
-                    vertex.TexturePosition = new Vector2(vertex.TextureRect.X + (float)v.U * (vertex.TextureRect.Z - vertex.TextureRect.X),
-                        vertex.TextureRect.Y + (float)v.V * (vertex.TextureRect.W - vertex.TextureRect.Y));
-                    vertex.BlendRange = new Vector2((float)v.Q, 0);
+                    GameplaySkinRecordedRenderVertex v = frame!.GetVertex(piece.VertexOffset + triangle + corner);
+                    vertex.TexturePosition = new Vector2(vertex.TextureRect.X + v.U * (vertex.TextureRect.Z - vertex.TextureRect.X),
+                        vertex.TextureRect.Y + v.V * (vertex.TextureRect.W - vertex.TextureRect.Y));
+                    vertex.BlendRange = new Vector2(v.Q, 0);
                     batch!.Add(vertex);
                 }
 
-                private static Vector4 vector(double[] value) => new((float)value[0], (float)value[1], (float)value[2], (float)value[3]);
                 protected override bool CanDrawOpaqueInterior => false;
 
                 protected override void Dispose(bool isDisposing)

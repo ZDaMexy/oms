@@ -1,5 +1,11 @@
 # P1-E 变动日志
 
+## 2026-10-19完成后倒带与HCN接回
+
+真实手动replay完成长条后倒带时，原head仍命中但holding被tail完成清空；现拦截反向输入的新判定，并按既有entry、实际pressed state及对象级自动辅助恢复，首个正向帧再次对齐。LN/CN终结后不可重抓的合同保持，不新记hold历史。
+
+HCN漏头接回的外观已恢复却仍因head-hit门控误扣body gauge，现按实际holding恢复后续tick；头Miss、松开扣血、计分尾及TOTAL不变。LN/CN/HCN持有/释放/未按、真实HCN tick/gauge及AutoNote/AutoScratch无动作恢复覆盖见[审查记录](../../other/GAMEPLAY_REVIEW_20261019.md#验证证据)，仍不代签真实谱与设备手感。
+
 ## 2026-10-08
 
 计划不再以旧训练反馈补强为目标，状态中的泛化HUD待办回链P1-A/P1-C当前展示和反馈边界。真实长条验校仍未完成，结果由本线记录/P1-G汇总，影响全局优先级、release gate或硬约束时摘要回主线。没有长条行为、产品测试或实机签收变化；治理检查取[主线日志](../../mainline/CHANGELOG.md#项目进度与文档记忆健康复核)。

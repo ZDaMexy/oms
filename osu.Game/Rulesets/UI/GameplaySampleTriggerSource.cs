@@ -80,10 +80,16 @@ namespace osu.Game.Rulesets.UI
             if (nextObject == null || nextObject.Samples.Count == 0)
                 return;
 
-            var samples = nextObject.Samples
-                                    .Cast<ISampleInfo>()
-                                    .ToArray();
+            PlaySamples(nextObject, mostValidObject!.HitObject);
+        }
 
+        /// <summary>
+        /// Plays the selected object's samples while retaining its top-level owner, which may carry the original
+        /// keysound identity for a nested head. Selection and silent-object handling remain owned by <see cref="Play"/>.
+        /// </summary>
+        protected virtual void PlaySamples(HitObject sampleObject, HitObject sampleOwner)
+        {
+            var samples = sampleObject.Samples.Cast<ISampleInfo>().ToArray();
             PlaySamples(samples);
         }
 

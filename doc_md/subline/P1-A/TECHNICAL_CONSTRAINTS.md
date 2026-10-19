@@ -96,6 +96,7 @@
 4. BMS→mania 公开入口、映射语义和 Skin V1 是不同专题。P1-A 只拥有入口/文案/presentation gate，source keymode→mania mapping 仍归 P1-K。
 5. 首次启动向导、settings trim 等既有产品面继续遵守 desktop-only 装配、OMS localisation 和模块缺失优雅退化约束；它们不因 Skin V1 重写。
 6. 新增shared slot/topology/config/event/capability/candidate合同必须在同一切片或紧随切片指定真实production host、renderer或authoring consumer；无consumer的DTO/fixture不得作为产品进度，也不得继续横向扩张来替代端到端能力。
+7. 组件布局编辑器只读观察目标 Components；不得建立仅用于观察的双向 BindableList 副本，避免 Update 发布与异步 Dispose 的反向解绑互锁。teardown 开始即退订，已捕获/排队通知不能重建蓝图；不得存 foreign IBindableList 字段让 Drawable 自动解绑真正的 publisher。真正的双向选择保持原 owner。
 
 ## 皮肤配置项与显式舞台
 
@@ -121,6 +122,7 @@
 8. Lightning时期统一作品名称为Lighting Model Skin Omni Until 33；27～33与八支BPL作为Game Frame，默认33，不扩展未来Until34。source00等共享默认属于当前作者组合，未核原host菜单绑定的细节不得冒称原版完整默认。独立作品的私下分享边界按第3项。
 9. 内容目录只扩展有界备选和选中内容能力，不改变无声明普通包的解码/材料路径。原图证明三类独立动态艺术与Frame/FC无法容纳于64MiP后，仅显式目录的冻结组合允许96MiP/384MiB；普通包仍64MiP/256MiB，单图16MiP、单资源16MiB、总编码64MiB、资源256和其它运行上限不变。详细输入边界只取[作者参考](../../../skin-authoring/docs/REFERENCE.md#按选项组合内容)。
 10. 按键记录动画起点只能来自原生输入的真实游玩时间边沿；完整快照、队列重建和晚挂载保留，seek/retry不得伪造旧起点。持续按住但旧边沿未知时仅投影稳定held帧，真实release仍可独立播放尾段。原生EXP按选中记录的完整时长保留，不能因历史200ms效果寿命截断；裁切后真实三角形、片数与原生池重复均计入准备预算。
+10a. 记录动画的层级、camera/mask 裁切结果在原准备期校验后冻结为私有不可变几何/颜色值，同一 program 的原生 clone 共用；整包剩余三角预算须在冻结下一帧前检查，不降低原合法准入范围。draw node 只读自身冻结的 frame、piece、DrawSize 与 DrawInfo，不在绘制线程读取活动 Source，也不按各 piece 历史最大值积存额外数组；保留内存与稳态分配的取舍须单独记录，不以组件分配量宣称整局帧率。
 
 ## 既有产品面硬约束（未被 Skin V1 取代）
 

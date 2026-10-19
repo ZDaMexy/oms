@@ -5,6 +5,12 @@
 
 ---
 
+## 2026-10-19预热、提前空击与通道复用
+
+原生预热追加post-mod LaneKeysoundTimelines中的invisible-only资源，沿原pool/store去重，不增加HitObject或自动声音。转谱提前/空击保留原候选选择，但以选中对象及parent owner进入同一WAV slot/shared store；仅普通tap或nested head使用头音，tail与sample-only静音，普通mania无store时原样。StopAllPlayback立即回收idle，使同一Update的新Play复用已有通道。
+
+实际Player/样本/通道有有效修前失败和修后证明；当前全量、独立native全曲及听感边界集中见[游玩审查](../../other/GAMEPLAY_REVIEW_20261019.md)。其它跨线动画、输入、BGA和退出各归原owner，不扩张本线authority，也不将请求计数代签设备试听。
+
 ## 2026-10-01
 
 文档专项复核：将 BGA 从较早的“四窗共享解码”摘要对齐到 P1-L 每局会话与显示分离，并链接后续作者窗口验证；保留单窗共享画布成本及不承诺单窗帧率提升的边界。约束里的日期化验证摘要改回 STATUS 唯一入口，现有音频/长条合同未变。仅核对源码与留存 TRX，未运行新测试或新增真实谱/设备签收。

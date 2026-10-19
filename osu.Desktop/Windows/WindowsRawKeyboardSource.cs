@@ -1,8 +1,10 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
-using System.Runtime.InteropServices;
+using System.Collections.Generic;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Threading;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
@@ -28,6 +30,7 @@ namespace osu.Desktop.Windows
 
         private const ushort vk_back = 0x08;
         private const ushort vk_tab = 0x09;
+        private const ushort vk_clear = 0x0C;
         private const ushort vk_return = 0x0D;
         private const ushort vk_shift = 0x10;
         private const ushort vk_control = 0x11;
@@ -44,6 +47,7 @@ namespace osu.Desktop.Windows
         private const ushort vk_up = 0x26;
         private const ushort vk_right = 0x27;
         private const ushort vk_down = 0x28;
+        private const ushort vk_snapshot = 0x2C;
         private const ushort vk_insert = 0x2D;
         private const ushort vk_delete = 0x2E;
         private const ushort vk_0 = 0x30;
@@ -86,6 +90,8 @@ namespace osu.Desktop.Windows
 
         private const uint mapvk_vsc_to_vk_ex = 3;
 
+        private static readonly HashSet<InputKey> supported_keys = getSupportedKeys();
+
         [Resolved]
         private GameHost host { get; set; } = null!;
 
@@ -93,7 +99,8 @@ namespace osu.Desktop.Windows
         private IBindable<bool> isActive = null!;
         private IOmsKeyboardEventSink? sink;
 
-        private bool rawInputEnabled;
+        private volatile bool rawInputEnabled;
+        private bool rawInputInitialisationAttempted;
         private IntPtr windowHandle;
         private IntPtr originalWindowProc;
         private WndProcDelegate? windowProcDelegate;
@@ -104,26 +111,40 @@ namespace osu.Desktop.Windows
         private void load(ILocalUserPlayInfo localUserInfo)
         {
             localUserPlaying = localUserInfo.PlayingState.GetBoundCopy();
-            localUserPlaying.BindValueChanged(_ => scheduleUpdateHookState());
+            localUserPlaying.BindValueChanged(state =>
+            {
+                if (state.NewValue != LocalUserPlayingState.Playing)
+                    scheduleKeyboardReset();
+            });
 
             isActive = host.IsActive.GetBoundCopy();
-            isActive.BindValueChanged(_ => scheduleUpdateHookState(), true);
+            isActive.BindValueChanged(state =>
+            {
+                if (!state.NewValue)
+                    scheduleKeyboardReset();
+            });
+            scheduleUpdateHookState();
         }
 
         public void RegisterSink(IOmsKeyboardEventSink sink)
         {
-            this.sink = sink;
+            Volatile.Write(ref this.sink, sink);
             scheduleUpdateHookState();
         }
 
         public void UnregisterSink(IOmsKeyboardEventSink sink)
         {
-            if (!ReferenceEquals(this.sink, sink))
+            if (!ReferenceEquals(Interlocked.CompareExchange(ref this.sink, null, sink), sink))
                 return;
 
-            this.sink = null;
             scheduleUpdateHookState();
         }
+
+        public bool IsActiveFor(IOmsKeyboardEventSink sink)
+            => rawInputEnabled && ReferenceEquals(Volatile.Read(ref this.sink), sink)
+                               && isActive.Value && localUserPlaying.Value == LocalUserPlayingState.Playing;
+
+        public bool SupportsKey(InputKey key) => supported_keys.Contains(key);
 
         protected override void Dispose(bool isDisposing)
         {
@@ -140,14 +161,27 @@ namespace osu.Desktop.Windows
 
         private void scheduleUpdateHookState() => host.InputThread.Scheduler.Add(updateHookState);
 
+        private void scheduleKeyboardReset()
+        {
+            // Keep the inactive edge and its owner even when focus/play resumes before the input scheduler runs.
+            IOmsKeyboardEventSink? target = Volatile.Read(ref sink);
+            if (target != null)
+                host.InputThread.Scheduler.Add(target.ResetRawKeyboardState);
+        }
+
         private void updateHookState()
         {
-            bool shouldEnable = sink != null && isActive.Value && localUserPlaying.Value == LocalUserPlayingState.Playing;
-
-            if (shouldEnable)
+            // Install once during desktop initialisation. Reinstalling at each play boundary races already
+            // queued SDL events against the native stream and can duplicate or lose a complete key tap.
+            // A failed installation leaves the normal framework keyboard path available for this session.
+            if (!rawInputInitialisationAttempted)
+            {
+                rawInputInitialisationAttempted = true;
                 enableRawInput();
-            else
-                disableRawInput();
+            }
+
+            if (!isActive.Value || localUserPlaying.Value != LocalUserPlayingState.Playing)
+                Volatile.Read(ref sink)?.ResetRawKeyboardState();
         }
 
         private void enableRawInput()
@@ -189,7 +223,7 @@ namespace osu.Desktop.Windows
             if (!rawInputEnabled)
                 return;
 
-            sink?.ResetRawKeyboardState();
+            Volatile.Read(ref sink)?.ResetRawKeyboardState();
             unregisterKeyboardRawInput();
             restoreWindowProc();
 
@@ -216,7 +250,8 @@ namespace osu.Desktop.Windows
 
         private void processRawInput(IntPtr rawInputHandle)
         {
-            if (sink == null)
+            IOmsKeyboardEventSink? target = Volatile.Read(ref sink);
+            if (target == null || !isActive.Value || localUserPlaying.Value != LocalUserPlayingState.Playing)
                 return;
 
             uint size = 0;
@@ -247,13 +282,42 @@ namespace osu.Desktop.Windows
             bool released = (rawInput.Data.Keyboard.Flags & RawKeyboardFlags.Break) != 0;
 
             if (released)
-                sink.HandleRawKeyReleased(key);
+                target.HandleRawKeyReleased(key);
             else
-                sink.HandleRawKeyPressed(key);
+                target.HandleRawKeyPressed(key);
         }
 
         private static bool tryMapInputKey(RAWKEYBOARD keyboard, out InputKey key)
         {
+            if ((keyboard.Flags & (RawKeyboardFlags.E0 | RawKeyboardFlags.E1)) == 0)
+            {
+                // Match SDL's physical identity for layout-dependent keys (for example physical Z reports
+                // VKey Y on QWERTZ). Keypad digits retain the VKey path below, including NumLock-off navigation.
+                key = keyboard.MakeCode switch
+                {
+                    >= 0x02 and <= 0x0A => InputKey.Number1 + keyboard.MakeCode - 0x02,
+                    0x0B => InputKey.Number0,
+                    0x0C => InputKey.Minus,
+                    0x0D => InputKey.Plus,
+                    >= 0x10 and <= 0x19 => InputKey.A + "QWERTYUIOP"[keyboard.MakeCode - 0x10] - 'A',
+                    0x1A => InputKey.BracketLeft,
+                    0x1B => InputKey.BracketRight,
+                    >= 0x1E and <= 0x26 => InputKey.A + "ASDFGHJKL"[keyboard.MakeCode - 0x1E] - 'A',
+                    0x27 => InputKey.Semicolon,
+                    0x28 => InputKey.Quote,
+                    0x29 => InputKey.Tilde,
+                    0x2B => InputKey.BackSlash,
+                    >= 0x2C and <= 0x32 => InputKey.A + "ZXCVBNM"[keyboard.MakeCode - 0x2C] - 'A',
+                    0x33 => InputKey.Comma,
+                    0x34 => InputKey.Period,
+                    0x35 => InputKey.Slash,
+                    0x56 => InputKey.NonUSBackSlash,
+                    _ => InputKey.None,
+                };
+                if (key != InputKey.None)
+                    return true;
+            }
+
             ushort virtualKey = normalizeVirtualKey(keyboard);
 
             switch (virtualKey)
@@ -264,6 +328,10 @@ namespace osu.Desktop.Windows
 
                 case vk_tab:
                     key = InputKey.Tab;
+                    return true;
+
+                case vk_clear:
+                    key = InputKey.Clear;
                     return true;
 
                 case vk_return:
@@ -336,6 +404,10 @@ namespace osu.Desktop.Windows
 
                 case vk_delete:
                     key = InputKey.Delete;
+                    return true;
+
+                case vk_snapshot:
+                    key = InputKey.PrintScreen;
                     return true;
 
                 case >= vk_0 and <= vk_9:
@@ -474,6 +546,29 @@ namespace osu.Desktop.Windows
                     key = InputKey.None;
                     return false;
             }
+        }
+
+        private static HashSet<InputKey> getSupportedKeys()
+        {
+            var keys = new HashSet<InputKey>();
+            for (ushort virtualKey = 0; virtualKey <= byte.MaxValue; virtualKey++)
+            {
+                // Generic modifiers require a real scan code. Their explicit left/right virtual keys below
+                // cover the same physical keys without calling layout-dependent Win32 conversion here.
+                if (virtualKey is vk_shift or vk_control or vk_menu)
+                    continue;
+
+                for (int extended = 0; extended < 2; extended++)
+                {
+                    RawKeyboardFlags flags = extended == 0 ? 0 : RawKeyboardFlags.E0;
+                    if (tryMapInputKey(new RAWKEYBOARD { VKey = virtualKey, Flags = flags }, out InputKey key))
+                        keys.Add(key);
+                }
+            }
+
+            // The binding layer treats these virtual families as either physical side, all of which are decoded.
+            keys.UnionWith(new[] { InputKey.Control, InputKey.Shift, InputKey.Alt, InputKey.Super });
+            return keys;
         }
 
         private static ushort normalizeVirtualKey(RAWKEYBOARD keyboard)

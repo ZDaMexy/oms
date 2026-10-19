@@ -5,12 +5,17 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
+using osu.Framework.Graphics;
+using osu.Framework.Graphics.Rendering.Dummy;
 using osu.Game.Skinning.Gameplay;
+using osuTK;
 
 namespace osu.Game.Tests.NonVisual.Skinning
 {
@@ -28,6 +33,41 @@ namespace osu.Game.Tests.NonVisual.Skinning
             Assert.That(rendered, Is.GreaterThan(1), "One original triangle is split into the canvas polygon.");
             Assert.That(program.MaximumFrameTriangles, Is.EqualTo(rendered));
             Assert.That(program.FrameTriangleApplications, Is.EqualTo(rendered));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestRemainingPackageTriangleBudgetCountsEveryRenderedFrameAndAcceptsItsExactBoundary(bool clipped)
+        {
+            JObject json = clip();
+            if (clipped)
+                json["geometries"]![0]!["vertices"] = vertices(
+                    new[] { -100d, -100, 0, 0, 0 }, new[] { 300d, -100, 0, 1, 0 }, new[] { -100d, 300, 0, 0, 1 });
+            json["frames"] = new JArray(frame(assignments((0, 0))), frame(assignments((0, 0))), frame(new JArray()));
+            byte[] encoded = Encoding.UTF8.GetBytes(json.ToString(Formatting.None));
+            GameplaySkinRecordedAnimationProgram standalone = GameplaySkinRecordedAnimationCodec.Decode(encoded, definition());
+            long required = standalone.FrameTriangleApplications;
+            Assert.That(required, clipped ? Is.GreaterThan(2) : Is.EqualTo(2));
+
+            GameplaySkinRecordedAnimationProgram exact = GameplaySkinRecordedAnimationCodec.Decode(encoded, definition(), required, CancellationToken.None);
+            Assert.That(exact.FrameTriangleApplications, Is.EqualTo(required));
+            Assert.That(exact.PreparedFramePayloadBytes, Is.EqualTo(standalone.PreparedFramePayloadBytes));
+            Assert.That(exact.FrameTriangleApplications, Is.EqualTo(required));
+            Assert.That(exact.PreparedFramePayloadBytes, Is.EqualTo(standalone.PreparedFramePayloadBytes));
+            var failure = Assert.Throws<GameplaySkinScenePreparationException>(() =>
+                GameplaySkinRecordedAnimationCodec.Decode(encoded, definition(), required - 1, CancellationToken.None));
+            Assert.That(failure!.Code, Is.EqualTo(GameplaySkinSceneDiagnosticCode.BudgetExceeded));
+        }
+
+        [Test]
+        public void TestAnEmptyProgramCanUseACompletelyConsumedPackageTriangleBudget()
+        {
+            JObject json = clip();
+            json["frames"] = new JArray(frame(new JArray()), frame(new JArray()));
+            GameplaySkinRecordedAnimationProgram program = GameplaySkinRecordedAnimationCodec.Decode(
+                Encoding.UTF8.GetBytes(json.ToString(Formatting.None)), definition(), 0, CancellationToken.None);
+            Assert.That(program.FrameTriangleApplications, Is.Zero);
+            Assert.That(program.PreparedFramePayloadBytes, Is.Zero);
         }
 
         [Test]
@@ -313,6 +353,196 @@ namespace osu.Game.Tests.NonVisual.Skinning
             Assert.Throws<NotSupportedException>(() => ((IDictionary<string, GameplaySkinRecordedAnimationProgram>)prepared).Clear());
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestPreparedFramesRetainExactlyThePreviouslyRenderedFloatGeometryAndColour(bool perspective)
+        {
+            JObject json = clip();
+            if (perspective)
+            {
+                json["geometries"]![0]!["vertices"] = vertices(
+                    new[] { 50d, 50, -10, 0, 0 }, new[] { 60d, 50, 10, 1, 0 }, new[] { 50d, 60, 10, 0, 1 });
+                json["states"]![0]!["projection"] = "perspective";
+                json["frames"]![0]!["camera"] = new JArray(50, 50, 0, 50);
+            }
+            else
+            {
+                json["geometries"]![0]!["vertices"] = vertices(
+                    new[] { -100d, -100, 0, 0, 0 }, new[] { 300d, -100, 0, 1, 0 }, new[] { -100d, 300, 0, 0, 1 });
+            }
+            json["nodes"]![0]!["blend"] = "additive";
+            json["states"]![0]!["multiply"] = new JArray(0.123456789, 0.2, 0.3, 0.4);
+            json["states"]![0]!["add"] = new JArray(0.01, 0.02, 0.03, 0.04);
+            json["states"]![0]!["hsl"] = new JArray(0.05, 0.06, 0.07);
+            json["states"]![0]!["colourMatrix"] = new JArray(Enumerable.Range(0, 20).Select(index => index / 17d));
+            GameplaySkinRecordedAnimationProgram program = decode(json);
+            IReadOnlyList<GameplaySkinRecordedPiece> evaluated = GameplaySkinRecordedAnimationEvaluator.Evaluate(program, 0);
+            GameplaySkinRecordedPreparedFrame prepared = program.GetPreparedFrame(0);
+            Assert.That(prepared.PieceCount, Is.EqualTo(evaluated.Count));
+            int offset = 0;
+            for (int index = 0; index < evaluated.Count; index++)
+            {
+                GameplaySkinRecordedPiece source = evaluated[index];
+                GameplaySkinRecordedRenderPiece actual = prepared.GetPiece(index);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(actual.Resource, Is.EqualTo(source.Resource));
+                    Assert.That(actual.Additive, Is.EqualTo(source.Additive));
+                    Assert.That(actual.VertexOffset, Is.EqualTo(offset));
+                    Assert.That(actual.VertexCount, Is.EqualTo(source.Triangles.Count));
+                    Assert.That(actual.Multiply, Is.EqualTo(vector(source.Multiply, 0)));
+                    Assert.That(actual.Add, Is.EqualTo(vector(source.Add, 0)));
+                    Assert.That(actual.Hsl, Is.EqualTo(new Vector4((float)source.Hsl[0], (float)source.Hsl[1], (float)source.Hsl[2], 0)));
+                    Assert.That(actual.Row0, Is.EqualTo(vector(source.ColourMatrix, 0)));
+                    Assert.That(actual.Row1, Is.EqualTo(vector(source.ColourMatrix, 5)));
+                    Assert.That(actual.Row2, Is.EqualTo(vector(source.ColourMatrix, 10)));
+                    Assert.That(actual.Row3, Is.EqualTo(vector(source.ColourMatrix, 15)));
+                    Assert.That(actual.Offset, Is.EqualTo(new Vector4((float)source.ColourMatrix[4], (float)source.ColourMatrix[9],
+                        (float)source.ColourMatrix[14], (float)source.ColourMatrix[19])));
+                });
+                foreach (GameplaySkinRecordedProjectedVertex vertex in source.Triangles)
+                    Assert.That(prepared.GetVertex(offset++), Is.EqualTo(new GameplaySkinRecordedRenderVertex(
+                        (float)vertex.X, (float)vertex.Y, (float)vertex.U, (float)vertex.V, (float)vertex.Q)));
+            }
+            Assert.That(offset, Is.EqualTo(prepared.VertexCount));
+            Assert.That(program.GetPreparedFrame(-1), Is.SameAs(program.GetPreparedFrame(program.FrameCount - 1)));
+            Assert.That(program.PreparedFramePayloadBytes, Is.EqualTo((long)prepared.VertexCount * Unsafe.SizeOf<GameplaySkinRecordedRenderVertex>()
+                                                                    + (long)prepared.PieceCount * Unsafe.SizeOf<GameplaySkinRecordedRenderPiece>()));
+        }
+
+        [Test]
+        public void TestNativeClonesRetainTheSamePreparedFrameAndNoMutableEvaluatorBuffers()
+        {
+            GameplaySkinRecordedAnimationProgram program = decode(clip());
+            GameplaySkinRecordedPreparedFrame prepared = program.GetPreparedFrame(0);
+            GameplaySkinRecordedRenderPiece piece = prepared.GetPiece(0);
+            GameplaySkinRecordedRenderVertex vertex = prepared.GetVertex(0);
+            IReadOnlyList<GameplaySkinRecordedPiece> independent = GameplaySkinRecordedAnimationEvaluator.Evaluate(program, 0);
+            independent[0].Multiply[0] = 999;
+            independent[0].ColourMatrix[0] = 999;
+            ((IList<GameplaySkinRecordedProjectedVertex>)independent[0].Triangles).Clear();
+            Assert.That(prepared.GetPiece(0), Is.EqualTo(piece));
+            Assert.That(prepared.GetVertex(0), Is.EqualTo(vertex));
+            Assert.That(program.GetPreparedFrame(0), Is.SameAs(prepared));
+
+            using var texture = new DummyRenderer().CreateTexture(2, 2);
+            var resource = new GameplaySkinPreparedSceneResource(
+                new GameplaySkinSceneResource("texture", GameplaySkinSceneResourceType.Texture, "texture.png"), "shared-frame", 2, 2, texture);
+            using var first = new GameplaySkinRecordedAnimationPerformanceTest.ProbeDrawable(program, new[] { resource });
+            using var second = new GameplaySkinRecordedAnimationPerformanceTest.ProbeDrawable(program, new[] { resource });
+            foreach (GameplaySkinRecordedAnimationPerformanceTest.ProbeDrawable clone in new[] { first, second })
+            {
+                clone.ApplyTime(0);
+                foreach (GameplaySkinRecordedAnimationPerformanceTest.PieceDrawNode node in clone.CreatePieceDrawNodes())
+                {
+                    Assert.That(node.Source.GetType().GetField("frame", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(node.Source), Is.SameAs(prepared));
+                    node.DrawNode.Dispose();
+                }
+            }
+        }
+
+        [Test]
+        public void TestPreparedFrameConversionHonoursCancellationAndHasAnExplicitFinitePayloadBound()
+        {
+            GameplaySkinRecordedAnimationProgram program = decode(clip());
+            using var cancellation = new CancellationTokenSource();
+            cancellation.Cancel();
+            Assert.Throws<OperationCanceledException>(() => GameplaySkinRecordedPreparedFrame.Create(
+                GameplaySkinRecordedAnimationEvaluator.Evaluate(program, 0), cancellation.Token));
+            Assert.Multiple(() =>
+            {
+                Assert.That(Unsafe.SizeOf<GameplaySkinRecordedRenderVertex>(), Is.EqualTo(20));
+                Assert.That(Unsafe.SizeOf<GameplaySkinRecordedRenderPiece>(), Is.LessThanOrEqualTo(160));
+            });
+        }
+
+        [Test]
+        public void TestActualDrawStateRetainsOnlyItsImmutableFrameWithoutRecurringAllocation()
+        {
+            GameplaySkinRecordedAnimationProgram program = CreateChangingPreparedFrameProgram();
+            Assert.That(program.GetPreparedFrame(0).VertexCount, Is.LessThan(program.GetPreparedFrame(1).VertexCount));
+            using var texture = new DummyRenderer().CreateTexture(2, 2);
+            var resource = new GameplaySkinPreparedSceneResource(
+                new GameplaySkinSceneResource("texture", GameplaySkinSceneResourceType.Texture, "texture.png"), "draw-state", 2, 2, texture);
+            using var drawable = new GameplaySkinRecordedAnimationPerformanceTest.ProbeDrawable(program, new[] { resource })
+            {
+                RelativeSizeAxes = Axes.None,
+                Size = new Vector2(100),
+            };
+            GameplaySkinRecordedAnimationPerformanceTest.PieceDrawNode[] nodes = drawable.CreatePieceDrawNodes();
+            foreach (GameplaySkinRecordedAnimationPerformanceTest.PieceDrawNode node in nodes)
+            {
+                node.Source.RelativeSizeAxes = Axes.None;
+                node.Source.Size = new Vector2(100);
+                node.Source.Position = new Vector2(7, 12);
+                node.Source.Scale = new Vector2(1.5f);
+                node.Source.Rotation = 13;
+            }
+            Func<int, Vector2>[] positions = nodes.Select(node => node.DrawNode.GetType().GetMethod(
+                    "screenPosition", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .CreateDelegate<Func<int, Vector2>>(node.DrawNode)).ToArray();
+            try
+            {
+                sample(1);
+                GameplaySkinRecordedPreparedFrame large = program.GetPreparedFrame(1);
+                GameplaySkinRecordedRenderPiece piece = large.GetPiece(0);
+                Vector2[] expected = Enumerable.Range(0, piece.VertexCount).Select(index =>
+                {
+                    GameplaySkinRecordedRenderVertex vertex = large.GetVertex(piece.VertexOffset + index);
+                    return nodes[0].Source.ToScreenSpace(new Vector2(vertex.X * nodes[0].Source.DrawWidth, vertex.Y * nodes[0].Source.DrawHeight));
+                }).ToArray();
+                for (int index = 0; index < expected.Length; index++)
+                    Assert.That(positions[0](index), Is.EqualTo(expected[index]));
+
+                sample(0);
+                FieldInfo frame = nodes[0].DrawNode.GetType().GetField("frame", BindingFlags.Instance | BindingFlags.NonPublic)!;
+                FieldInfo currentPiece = nodes[0].DrawNode.GetType().GetField("piece", BindingFlags.Instance | BindingFlags.NonPublic)!;
+                Assert.That(frame.GetValue(nodes[0].DrawNode), Is.SameAs(program.GetPreparedFrame(0)));
+                Assert.That(((GameplaySkinRecordedRenderPiece)currentPiece.GetValue(nodes[0].DrawNode)!).VertexCount,
+                    Is.EqualTo(program.GetPreparedFrame(0).VertexCount));
+                Assert.That(nodes[0].DrawNode.GetType().GetFields(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)
+                    .Any(field => field.FieldType.IsArray), Is.False, "Native clones must not retain per-piece frame-history arrays.");
+
+                for (int index = 0; index < 64; index++)
+                    sample(index % 2);
+
+                long before = GC.GetAllocatedBytesForCurrentThread();
+                for (int index = 0; index < 2048; index++)
+                    sample(index % 2);
+                long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                Assert.That(allocated, Is.Zero, "Shared prepared frames, actual draw-state application and submitted vertex transforms allocate no recurring buffers.");
+            }
+            finally
+            {
+                foreach (GameplaySkinRecordedAnimationPerformanceTest.PieceDrawNode node in nodes)
+                    node.DrawNode.Dispose();
+            }
+
+            void sample(int frameIndex)
+            {
+                drawable.ApplyTime((frameIndex + 0.25) * 1000 / program.FramesPerSecond);
+                GameplaySkinRecordedPreparedFrame prepared = program.GetPreparedFrame(frameIndex);
+                for (int index = 0; index < nodes.Length; index++)
+                {
+                    nodes[index].DrawNode.ApplyState();
+                    for (int vertex = 0; vertex < prepared.GetPiece(index).VertexCount; vertex++)
+                        _ = positions[index](vertex);
+                }
+            }
+        }
+
+        internal static GameplaySkinRecordedAnimationProgram CreateChangingPreparedFrameProgram()
+        {
+            JObject json = clip();
+            json["loop"] = true;
+            json["states"] = new JArray(state(), state(matrix: new[] { 20d, 0, 0, 0, 20, 0, 0, 0, 1, 0, 0, 0 }));
+            json["frames"] = new JArray(frame(assignments((0, 0))), frame(assignments((0, 1))), frame(new JArray()));
+            return decode(json);
+        }
+
+        private static Vector4 vector(double[] value, int start)
+            => new((float)value[start], (float)value[start + 1], (float)value[start + 2], (float)value[start + 3]);
+
         private static void assertVertex(GameplaySkinRecordedPiece piece, double u, double v, double x, double y)
         {
             GameplaySkinRecordedProjectedVertex vertex = piece.Triangles.Single(point => point.U == u && point.V == v);
@@ -336,14 +566,19 @@ namespace osu.Game.Tests.NonVisual.Skinning
         private static JObject clip(double width = 100, double height = 100) => new JObject
         {
             ["contract"] = GameplaySkinRecordedAnimationCodec.CONTRACT,
-            ["width"] = width, ["height"] = height, ["fps"] = 60, ["loop"] = false, ["trigger"] = "gameplay.attach",
+            ["width"] = width,
+            ["height"] = height,
+            ["fps"] = 60,
+            ["loop"] = false,
+            ["trigger"] = "gameplay.attach",
             ["geometries"] = new JArray { new JObject
             {
                 ["resource"] = "texture",
                 ["vertices"] = vertices(new[] { 0d, 0, 0, 0, 0 }, new[] { 10d, 0, 0, 1, 0 }, new[] { 0d, 10, 0, 0, 1 }),
                 ["triangles"] = new JArray(0, 1, 2),
             } },
-            ["nodes"] = new JArray { node(-1, 0) }, ["states"] = new JArray { state() },
+            ["nodes"] = new JArray { node(-1, 0) },
+            ["states"] = new JArray { state() },
             ["frames"] = new JArray { frame(assignments((0, 0))), frame(new JArray()) },
         };
 
@@ -359,9 +594,13 @@ namespace osu.Game.Tests.NonVisual.Skinning
         private static JObject state(double[]? matrix = null, double[]? origin = null) => new JObject
         {
             ["matrix"] = new JArray(matrix ?? new[] { 1d, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0 }),
-            ["origin"] = new JArray(origin ?? new[] { 0d, 0, 0 }), ["projection"] = "affine",
-            ["multiply"] = new JArray(1, 1, 1, 1), ["add"] = new JArray(0, 0, 0, 0), ["hsl"] = new JArray(0, 0, 0),
-            ["mask"] = null, ["colourMatrix"] = null,
+            ["origin"] = new JArray(origin ?? new[] { 0d, 0, 0 }),
+            ["projection"] = "affine",
+            ["multiply"] = new JArray(1, 1, 1, 1),
+            ["add"] = new JArray(0, 0, 0, 0),
+            ["hsl"] = new JArray(0, 0, 0),
+            ["mask"] = null,
+            ["colourMatrix"] = null,
         };
     }
 }

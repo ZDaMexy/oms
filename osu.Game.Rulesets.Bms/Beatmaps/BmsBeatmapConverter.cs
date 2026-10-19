@@ -216,7 +216,8 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 if (!eventTimes.TryGetValue(new BmsEventTimeKey(bgaEvent.MeasureIndex, bgaEvent.FractionWithinMeasure), out double time))
                     continue;
 
-                entries.Add(new BmsBgaTimelineEntry(time, bgaEvent.Layer, assetFile, BmsBgaTimelineEntry.IsVideoAsset(assetFile)));
+                if (BmsBgaTimelineEntry.TryCreate(time, bgaEvent.Layer, assetFile, BmsBgaTimelineEntry.IsVideoAsset(assetFile), out BmsBgaTimelineEntry entry))
+                    entries.Add(entry);
             }
 
             if (entries.Count > 0)

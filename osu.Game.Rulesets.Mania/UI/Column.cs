@@ -21,6 +21,7 @@ using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mania.Objects.Drawables;
 using osu.Game.Rulesets.Mania.Skinning;
 using osu.Game.Rulesets.Mania.UI.Components;
+using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.UI;
 using osu.Game.Rulesets.UI.Scrolling;
@@ -59,9 +60,9 @@ namespace osu.Game.Rulesets.Mania.UI
         private SkinnableDrawable keyArea = null!;
         private ManiaGameplaySkinFailClosedSkinnableDrawable columnBackground = null!;
         private Container specialisedKeyVisualOwner = null!;
-        private GameplaySkinSpecialisedSceneVisual? specialisedKeyVisual;
+
         internal bool UsesSeparateKeyArea { get; private set; }
-        internal GameplaySkinSpecialisedSceneVisual? PreparedKeyVisual => specialisedKeyVisual;
+        internal GameplaySkinSpecialisedSceneVisual? PreparedKeyVisual { get; private set; }
         private IDisposable? keyVisualProgrammaticRegistration;
         private readonly List<IDisposable> programmaticVisualPartRegistrations = new List<IDisposable>();
         private readonly HashSet<Drawable> registeredProgrammaticVisualPartOwners = new HashSet<Drawable>();
@@ -154,7 +155,9 @@ namespace osu.Game.Rulesets.Mania.UI
             InternalChildren = new Drawable[]
             {
                 hitExplosionPool,
-                sampleTriggerSource = new GameplaySampleTriggerSource(HitObjectContainer),
+                sampleTriggerSource = keysoundStore == null
+                    ? new GameplaySampleTriggerSource(HitObjectContainer)
+                    : new SharedKeysoundTriggerSource(HitObjectContainer, keysoundStore),
                 HitObjectArea,
                 keyArea = new SkinnableDrawable(
                     materialContext.UsesResolvedMaterial
@@ -227,16 +230,16 @@ namespace osu.Game.Rulesets.Mania.UI
                     throw new InvalidOperationException("The exact mania key-visual scene gate is missing from its committed publication.");
 
                 if (keyVisualGate.Route == GameplaySkinSceneHostRoute.Specialised)
-                    specialisedKeyVisual = sceneRuntime.PrepareSpecialisedVisual(ResolvedMaterialKey, specialisedKeyVisualOwner);
+                    PreparedKeyVisual = sceneRuntime.PrepareSpecialisedVisual(ResolvedMaterialKey, specialisedKeyVisualOwner);
 
-                if (keyVisualGate.Route == GameplaySkinSceneHostRoute.Suppressed || specialisedKeyVisual != null)
+                if (keyVisualGate.Route == GameplaySkinSceneHostRoute.Suppressed || PreparedKeyVisual != null)
                     keyVisualProgrammaticRegistration = sceneRuntime.RegisterProgrammaticVisual(ResolvedMaterialKey, keyArea);
 
-                if (specialisedKeyVisual != null)
+                if (PreparedKeyVisual != null)
                 {
                     AppliedSceneNodeIds = Array.AsReadOnly(
                         keyVisualGate.RoutedNodes.Select(node => node.InstanceId).ToArray());
-                    specialisedKeyVisual.OnApply();
+                    PreparedKeyVisual.OnApply();
                 }
 
             }
@@ -541,6 +544,35 @@ namespace osu.Game.Rulesets.Mania.UI
 
             protected override PoolableHitExplosion CreateNewDrawable()
                 => new PoolableHitExplosion(sceneRuntime, key);
+        }
+
+        private sealed partial class SharedKeysoundTriggerSource : GameplaySampleTriggerSource
+        {
+            private readonly IManiaKeysoundStore keysoundStore;
+
+            public SharedKeysoundTriggerSource(HitObjectContainer hitObjectContainer, IManiaKeysoundStore keysoundStore)
+                : base(hitObjectContainer)
+            {
+                this.keysoundStore = keysoundStore;
+            }
+
+            protected override void PlaySamples(HitObject sampleObject, HitObject sampleOwner)
+            {
+                // Empty/early feedback must use the same source WAV slot as a normal hit. A converted hold owns
+                // that identity on its parent; only its ordinary nested head may consume it, never its tail.
+                var keysound = ReferenceEquals(sampleObject, sampleOwner) || sampleObject is HeadNote
+                    ? sampleOwner as IHasManiaKeysound
+                    : null;
+
+                if (keysound?.KeysoundSample == null)
+                {
+                    base.PlaySamples(sampleObject, sampleOwner);
+                    return;
+                }
+
+                // Ordinary empty feedback is centred; preserve its balance while using the shared pause/seek/cut owner.
+                keysoundStore.Play(keysound.KeysoundSample, 0, keysound.KeysoundCutGroup);
+            }
         }
 
         public bool OnPressed(KeyBindingPressEvent<ManiaAction> e)

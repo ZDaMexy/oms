@@ -79,6 +79,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         {
             AddStep("create isolated skin manager", () =>
             {
+                // The runner reuses this scene. Finish any off-thread teardown before replacing the shared journal.
+                manager?.ShutdownManagedFolderMutations();
                 string journalPath = LocalStorage.GetFullPath(
                     SkinManagedFolderMutationJournalStore.JOURNAL_FILENAME);
 
@@ -119,7 +121,60 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         }
 
         [TearDown]
-        public void CleanUpExternalPackageRoots() => deleteExternalPackageRoots();
+        public void CleanUpExternalPackageRoots()
+        {
+            // NUnit runs this before the current visual steps. Reap the preceding case if its steps failed.
+            try
+            {
+                manager?.ShutdownManagedFolderMutations();
+            }
+            finally
+            {
+                deleteExternalPackageRoots();
+            }
+        }
+
+        [OneTimeTearDown]
+        public void ShutdownFinalSkinManager()
+        {
+            SkinManager? finalManager = manager;
+            if (finalManager == null)
+                return;
+
+            // This fixture's teardown precedes the base host shutdown, even if the last visual step failed.
+            var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            host.UpdateThread.Scheduler.Add(() =>
+            {
+                try
+                {
+                    try
+                    {
+                        // Clear(true) disposes asynchronously; release actual holders before joining their manager.
+                        foreach (Drawable child in Children.ToArray())
+                            Remove(child, disposeImmediately: true);
+                    }
+                    finally
+                    {
+                        try
+                        {
+                            finalManager.ShutdownManagedFolderMutations();
+                        }
+                        finally
+                        {
+                            deleteExternalPackageRoots();
+                        }
+                    }
+
+                    completion.SetResult(true);
+                }
+                catch (Exception exception)
+                {
+                    completion.SetException(exception);
+                }
+            });
+
+            completion.Task.WaitAsync(TimeSpan.FromSeconds(30)).GetAwaiter().GetResult();
+        }
 
         [Test]
         public void TestManagedFolderSelectionPublishesImmutableSourceBoundBmsSkin()
@@ -4652,7 +4707,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.Multiple(() =>
                 {
                     Assert.That(scanResult!.IsSuccess, Is.True);
-                    Assert.That(scanResult.Added, Is.Zero);
+                    Assert.That(
+                        Realm.Run(realm => realm.All<SkinInfo>()
+                            .Count(info => info.FilesystemStoragePath == targetManagedPath)),
+                        Is.EqualTo(1),
+                        "A scanner may discover other folders, but must not duplicate this imported path.");
                     Assert.That(
                         Realm.Run(realm => realm.All<SkinInfo>()
                             .Count(info => info.ID == operationId)),
@@ -6643,6 +6702,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             string packageRoot = LocalStorage.GetFullPath(relativePath);
             Directory.CreateDirectory(packageRoot);
             populate(packageRoot);
+            publishCreatedDirectoryMetadata(packageRoot);
 
             var info = new SkinInfo("managed folder", "OMS tests", instantiationInfo)
             {
@@ -6655,6 +6715,32 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             Assert.That(candidate, Is.Not.Null);
             Assert.That(candidate.PerformRead(skin => skin.Files.Count), Is.Zero);
             return (packageRoot, candidate);
+        }
+
+        private static void publishCreatedDirectoryMetadata(string directory)
+        {
+            if (!OperatingSystem.IsWindowsVersionAtLeast(10, 0, 16299))
+                return;
+
+            // NTFS enumeration can still report the creation-time shadow after writing this package. Open and
+            // close its directory before another case captures it as an immutable sibling; keep every native guard.
+            var fileSystem = new NativeWindowsSkinPackageCaptureFileSystem();
+            var handles = new Stack<IWindowsSkinPackageCaptureHandle>();
+            string path = Path.GetFullPath(directory);
+            try
+            {
+                handles.Push(fileSystem.OpenLocalVolumeRoot(path[0]));
+                foreach (string segment in path[3..].Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    handles.Push(fileSystem.OpenChildNoFollow(handles.Peek(), segment,
+                        WindowsSkinPackageOpenMode.AuthorityDirectory, SkinManagedPackageCaptureRejectionReason.PackageUnavailable));
+                }
+            }
+            finally
+            {
+                foreach (IWindowsSkinPackageCaptureHandle handle in handles)
+                    handle.Dispose();
+            }
         }
 
         private Live<SkinInfo> createRealmPackageCandidate()

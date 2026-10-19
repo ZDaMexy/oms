@@ -20,3 +20,5 @@ metadata:
 - 外部编辑 mount/update-import 仍禁用，原 layout JSON 不能当作 Skin V1 scene ABI；新 scene 使用稳定节点标识与 allowlist。
 
 - exact package owner 的 SkinInfo.Files 有意不暴露 Realm 文件引用；验证导入图片持久化时重新 GetSkin 后读取实际资源 bytes，不能以 Files 为空判定丢文件。
+- `BindableList.GetBoundCopy/BindTarget` 是双向边，不只是通知订阅。Update 在 source.AddRange 内持 source binding 锁并递归到 mirror，AsyncDisposal 在 mirror.UnbindAll 内反向取 source，会形成反序互锁。只观察 Components 的 blueprint 应直接订阅并在 teardown 开头退订，拒绝已捕获/queued 通知；真正的 SelectedItems 双向选择保留。具体现场与有界回归见[游玩审查](../../doc_md/other/GAMEPLAY_REVIEW_20261019.md)。
+- 不把 foreign Components 存为 IBindableList/IUnbindable 字段或自动属性：Drawable.Dispose 会反射并 UnbindAll，可能解绑真正的 publisher。保留目标 owner 引用后访问其集合；自己拥有的集合另论。重现绑定锁应 finally 解闸并 join worker，不能让测试永久占住共享 disposal queue。

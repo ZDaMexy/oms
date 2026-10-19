@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-19（配置图库入口与真实Xecus崩溃修复；26来源及人工/发行门保持）
+> 最后核对：2026-10-19（游玩动画共享准备与编辑器退出互锁修复；26来源及人工/发行门保持）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -29,15 +29,15 @@
 
 C2～C6共享同一 package/layout/material/scene publication、lease/detach 与脚本隔离合同；无游玩宿主的菜单也检查整包。授权撤销不扩大 reload 准入，具体合同只在[技术约束](TECHNICAL_CONSTRAINTS.md)维护。
 
+记录动画共享几何，编辑器退出互锁及迟到回调已修复。实测与取舍见[游玩审查](../../other/GAMEPLAY_REVIEW_20261019.md)，组件测量不代签整局或视觉门。
+
 ## 最近一次验证
 
-2026-10-19图库通过主体/箭头输入与桌面取景；真实Xecus修前复现绘制崩溃，修后默认Omni完整AP通过。软件回归、Release和图卡证据见[最新记录](CHANGELOG.md#2026-10-19配置图库入口与xecus崩溃修复)，BGA根因及整曲结果归[P1-L](../P1-L/CHANGELOG.md#2026-10-19真实xecus首帧崩溃修复)。原包与玩家存档保全；工作区窗口待用户复核。
+2026-10-19动画、加载/退出、编辑器与相关作者能力的软件/独立宿主验证见[游玩审查](../../other/GAMEPLAY_REVIEW_20261019.md#验证证据)。Omni字节不变，设备/视觉门保持。
 
-同日较早按键数设置及两玩法旧失败对照保留在[此前记录](CHANGELOG.md#2026-10-19按键数皮肤设置与素材预览)，不据局部通过宣称全仓绿。
+同日较早图库主体/箭头与原Xecus首帧修复证据见[记录](CHANGELOG.md#2026-10-19配置图库入口与xecus崩溃修复)，BGA根因归[P1-L](../P1-L/CHANGELOG.md#2026-10-19真实xecus首帧崩溃修复)。工作区窗口待用户复核。
 
-2026-10-18Omni组合、真实Player与core验证及两玩法未解决项取[历史记录](CHANGELOG.md#2026-10-18统一omni与完整custom接入)，不以新设置取景关闭原风险。
-
-此前候选与取材见[历史记录](CHANGELOG.md)。D只读取材、源核对一致，未启动D/E游戏；原版逐帧、正常曲库/听感、设备/发行待验。
+此前键数设置、组合包与取材见[历史记录](CHANGELOG.md)。原版逐帧、正常曲库/听感、设备/发行待验。
 
 2026-10-13品牌的控件、两玩法选择、Desktop双配置及隔离绘制证据取[品牌记录](CHANGELOG.md#2026-10-13客户端品牌标识专项)，正常窗口、设备及发行门保持。
 
@@ -61,7 +61,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 - 两站没有已确认的独立音乐试听服务；第一版试听沿入库后的本地选歌。远端含 bmson、24K/48K 或不被当前 classic 解码器支持的谱面，不因下载成功伪报可玩；部分包内谱面被原 importer 拒绝时保留成功入库事实。真实大包、网络慢/代理、常用窗口与完整歌曲听感仍需观察，整表/续传/跨重启任务不在当前能力内。
 
-- 全量保留旧入口/设置/删除断言、删除重入，以及未归因的rename；E控制另有参考选择超时。原始消息/栈与源码对照取[本次记录](CHANGELOG.md#2026-10-18统一omni与完整custom接入)，孤立通过不关闭风险；维护取[PLAN](DEVELOPMENT_PLAN.md#静线当前迭代验收与后续)，不恢复已删除入口。
+- 完整BMS剩28项旧Workspace夹具失败；目录串扰修正与HEAD对照见[游玩审查](../../other/GAMEPLAY_REVIEW_20261019.md#验证证据)。此前宽Core三项Windows删除仍未归因，见[图库记录](CHANGELOG.md#2026-10-19配置图库入口与xecus崩溃修复)；维护取[PLAN](DEVELOPMENT_PLAN.md#静线当前迭代验收与后续)，不恢复旧入口。
 - V-001～V-004未逐项签收、V-005未签收；用户对局部改进的认可不补填未观察矩阵。V-005 原三源操作中的外部注册及工作区行级入口已退出当前设置，不能把旧步骤当作新用户可执行流程；现行可达范围与未执行边界见[集中清单 V-005](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md#v-005c6-可选脚本与双规则集-momentum-候选)。
 - OmsSkin只保留历史证据与人工对照，源码物理移除仍待原实机门；安装故障不得重新启用它。
 - G1 held-root/journal不是filesystem transaction，foreign addition/replacement可导致冻结；未知旧记录及无完整恢复证据的intent不猜测迁移。旧保存根事故只有事后保全，不追溯宣称无损。

@@ -22,7 +22,7 @@
 - [skin folder authority/path preflight](reference_skin_filesystem_authority_preflight.md) — 声明/path preflight 不等于安全打开或写入授权。
 - [skin package immutable revision capsule](reference_skin_package_revision_capsule.md) — 内容身份、独占 bytes 与物理捕获的区别。
 - [skin folder Windows handle capture](reference_skin_windows_handle_capture.md) — held no-follow、文件身份竞态与 handle 生命周期。
-- [managed skin folder scanner](reference_skin_managed_folder_scanner.md) — Observed/Valid、启动/手动扫描与 reload 的区别。
+- [managed skin folder scanner](reference_skin_managed_folder_scanner.md) — Observed/Valid、启动/手动扫描与reload，NTFS枚举影子时间与造包夹具诊断。
 - [managed skin folder factory/selection](reference_skin_managed_folder_selection.md) — 选择竞态、typed epoch、shutdown 与隐式提交前同值重选的 fixture 时序。
 - [managed chartskin mutation / rename / staged import / delete](reference_skin_managed_folder_mutation_foundation.md) — startup 恢复子 lease、NTFS move、日志恢复及 uncertain failure。
 - [external Workspace / exact registry / ManagedCopy](reference_skin_external_workspace_managed_copy.md) — 旧注册后端保留、external 只读与 ManagedCopy 复核。
@@ -35,7 +35,7 @@
 
 ## 构建、存储与产品面参考
 
-- [构建与测试](reference_build_and_test.md) — 开发磁盘与进程环境、Pylance缓存扫描、构建目录内真实数据 / 旧作者包与容量误判、测试宿主与未加载Drawable失效、formatter owning 路径、输出锁、隔离渲染 / 内容宽度与真实窗口、品牌贴图命名空间与启动动画通道、未编译 / 退休 fixture 空跑、完整基线归因与依赖审计误判。
+- [构建与测试](reference_build_and_test.md) — 开发磁盘与进程环境、Pylance缓存扫描、构建目录内真实数据 / 旧作者包与容量误判、测试宿主复用/失败收尾与未加载Drawable失效、formatter owning 路径、输出锁、隔离渲染 / 内容宽度与真实窗口、品牌贴图命名空间与启动动画通道、未编译 / 退休 fixture 空跑、完整基线归因与依赖审计误判。
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱库路径身份与历史保全](reference_filesystem_library_identity.md) — 同内容不同目录、失效与物删分离、多文件改名、重复素材枚举与增量查询放大器。
 - [谱面构成过滤](reference_bms_composition_filter.md) — 单轨上限、共享额度、零宽入口及无解条件。
@@ -47,6 +47,7 @@
 
 ## BMS 解析、音频与游玩参考
 
+- [键盘线程与来源](reference_bms_keyboard_threading.md) — 原生窗口线程、两批完整tap、组合键整体回退、左右修饰键及测试Realm归属。
 - [BGA 链](reference_bms_bga_chain.md) — 游戏会话、首view晚注册的首帧崩溃、真实文件探针loader、作者窗口、共享画布与转码缓存。
 - [bgm1 按键触发故障](reference_bms_bgm1_pause_keytrigger_bug.md)
 - [游玩音轨静音合同](reference_bms_gameplay_track_mute.md)
@@ -63,7 +64,7 @@
 ## 皮肤与视觉参考
 
 - [BMS 默认皮肤几何](reference_bms_default_skin_geometry.md)
-- [BMS 皮肤编辑器边界](reference_bms_skin_editor.md) — 原编辑器异步独立草稿、关闭保存/回收、预览资源与 CLR 反射构造地雷。
+- [BMS 皮肤编辑器边界](reference_bms_skin_editor.md) — 原编辑器异步独立草稿、关闭保存/回收、只读集合观察的反向绑定互锁、预览资源与 CLR 反射构造地雷。
 - [gameplay skin slot 三态合同](reference_gameplay_skin_slot_contract.md) — 三态、provider 优先级与候选生命周期。
 - [gameplay skin shared codec/material](reference_gameplay_skin_codec_material.md) — 元素族/样式、typed Note/LN空匹配、scene数字ID段、必需槽透明Provide与字体复用预算。
 - [gameplay skin lane identity/topology](reference_gameplay_skin_lane_identity.md) — stable lane ID 与 topology 投影。

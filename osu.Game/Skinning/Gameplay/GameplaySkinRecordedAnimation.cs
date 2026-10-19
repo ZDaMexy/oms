@@ -3,7 +3,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
+using osuTK;
 
 namespace osu.Game.Skinning.Gameplay
 {
@@ -122,11 +124,18 @@ namespace osu.Game.Skinning.Gameplay
         internal int MaximumFramePieces { get; }
         internal int MaximumFrameTriangles { get; }
         internal long FrameTriangleApplications { get; }
+        internal long PreparedFramePayloadBytes { get; }
+
+        private readonly GameplaySkinRecordedPreparedFrame[] preparedFrames;
+
+        internal GameplaySkinRecordedPreparedFrame GetPreparedFrame(int frameIndex)
+            => frameIndex < 0 ? GameplaySkinRecordedPreparedFrame.Empty : preparedFrames[frameIndex];
 
         internal GameplaySkinRecordedAnimationProgram(double width, double height, double fps, bool loop, string trigger,
                                                        GameplaySkinRecordedGeometry[] geometries, GameplaySkinRecordedNode[] nodes,
                                                        GameplaySkinRecordedState[] states, GameplaySkinRecordedFrame[] frames,
                                                        (int Start, int End)? heldLoop = null, int? releaseFrame = null,
+                                                       long remainingTriangleApplications = GameplaySkinRecordedAnimationBudgets.MAX_FRAME_TRIANGLE_APPLICATIONS,
                                                        CancellationToken cancellationToken = default)
         {
             Width = width;
@@ -140,6 +149,7 @@ namespace osu.Game.Skinning.Gameplay
             Nodes = Array.AsReadOnly(nodes);
             States = Array.AsReadOnly(states);
             Frames = Array.AsReadOnly(frames);
+            preparedFrames = new GameplaySkinRecordedPreparedFrame[frames.Length];
             MaximumFramePieces = frames.Max(frame => frame.Nodes.Count(assignment => nodes[assignment.Node].Geometry >= 0));
             // Camera and polygon masks can split one source triangle into several rendered triangles.
             // Evaluate the bounded immutable frames once during preparation so native pools reserve the real
@@ -147,12 +157,21 @@ namespace osu.Game.Skinning.Gameplay
             for (int index = 0; index < frames.Length; index++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                int triangles = GameplaySkinRecordedAnimationEvaluator.Evaluate(this, index, cancellationToken)
-                    .Sum(piece => piece.Triangles.Count / 3);
+                IReadOnlyList<GameplaySkinRecordedPiece> evaluated = GameplaySkinRecordedAnimationEvaluator.Evaluate(this, index, cancellationToken);
+                int triangles = evaluated.Sum(piece => piece.Triangles.Count / 3);
                 MaximumFrameTriangles = Math.Max(MaximumFrameTriangles, triangles);
                 FrameTriangleApplications += triangles;
-                if (FrameTriangleApplications > GameplaySkinRecordedAnimationBudgets.MAX_FRAME_TRIANGLE_APPLICATIONS)
+                // Enforce the package's remaining budget before retaining this frame, so a later program cannot
+                // temporarily freeze a second full package's worth of geometry before aggregate validation.
+                if (FrameTriangleApplications > remainingTriangleApplications)
                     throw new GameplaySkinScenePreparationException(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
+
+                // Validation already solved the complete immutable hierarchy, camera and masks. Retain that exact
+                // result once for every native clone instead of evaluating the same polygons again during play.
+                // Floats are the exact values the renderer previously cast immediately before using each vertex
+                // and colour; the original double-precision evaluator remains the geometry validation authority.
+                preparedFrames[index] = GameplaySkinRecordedPreparedFrame.Create(evaluated, cancellationToken);
+                PreparedFramePayloadBytes += preparedFrames[index].PayloadBytes;
             }
         }
 
@@ -183,5 +202,80 @@ namespace osu.Game.Skinning.Gameplay
             double release = ReleaseFrame!.Value + Math.Floor(sinceRelease * FramesPerSecond / 1000);
             return release < Frames.Count - 1 ? (int)release : -1;
         }
+    }
+
+    internal readonly record struct GameplaySkinRecordedRenderVertex(float X, float Y, float U, float V, float Q);
+
+    internal readonly record struct GameplaySkinRecordedRenderPiece(
+        string? Resource, bool Additive, int VertexOffset, int VertexCount,
+        Vector4 Multiply, Vector4 Add, Vector4 Hsl,
+        Vector4 Row0, Vector4 Row1, Vector4 Row2, Vector4 Row3, Vector4 Offset);
+
+    /// <summary>
+    /// One immutable, already clipped frame shared by every drawable using its exact program. Private flat arrays
+    /// avoid per-piece collection/colour-array overhead and expose only value copies to renderer consumers.
+    /// </summary>
+    internal sealed class GameplaySkinRecordedPreparedFrame
+    {
+        internal static GameplaySkinRecordedPreparedFrame Empty { get; } = new([], []);
+
+        private readonly GameplaySkinRecordedRenderPiece[] pieces;
+        private readonly GameplaySkinRecordedRenderVertex[] vertices;
+
+        public int PieceCount => pieces.Length;
+        public int VertexCount => vertices.Length;
+        public long PayloadBytes => (long)pieces.Length * Unsafe.SizeOf<GameplaySkinRecordedRenderPiece>()
+                                    + (long)vertices.Length * Unsafe.SizeOf<GameplaySkinRecordedRenderVertex>();
+
+        private GameplaySkinRecordedPreparedFrame(GameplaySkinRecordedRenderPiece[] pieces, GameplaySkinRecordedRenderVertex[] vertices)
+        {
+            this.pieces = pieces;
+            this.vertices = vertices;
+        }
+
+        public GameplaySkinRecordedRenderPiece GetPiece(int index) => pieces[index];
+        public GameplaySkinRecordedRenderVertex GetVertex(int index) => vertices[index];
+
+        internal static GameplaySkinRecordedPreparedFrame Create(IReadOnlyList<GameplaySkinRecordedPiece> source, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (source.Count == 0)
+                return Empty;
+
+            int vertexCount = 0;
+            foreach (GameplaySkinRecordedPiece piece in source)
+                vertexCount = checked(vertexCount + piece.Triangles.Count);
+
+            var pieces = new GameplaySkinRecordedRenderPiece[source.Count];
+            var vertices = new GameplaySkinRecordedRenderVertex[vertexCount];
+            int offset = 0;
+            for (int index = 0; index < pieces.Length; index++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                GameplaySkinRecordedPiece piece = source[index];
+                double[] colour = piece.ColourMatrix;
+                pieces[index] = new GameplaySkinRecordedRenderPiece(piece.Resource, piece.Additive, offset, piece.Triangles.Count,
+                    vector(piece.Multiply), vector(piece.Add), new Vector4((float)piece.Hsl[0], (float)piece.Hsl[1], (float)piece.Hsl[2], 0),
+                    new Vector4((float)colour[0], (float)colour[1], (float)colour[2], (float)colour[3]),
+                    new Vector4((float)colour[5], (float)colour[6], (float)colour[7], (float)colour[8]),
+                    new Vector4((float)colour[10], (float)colour[11], (float)colour[12], (float)colour[13]),
+                    new Vector4((float)colour[15], (float)colour[16], (float)colour[17], (float)colour[18]),
+                    new Vector4((float)colour[4], (float)colour[9], (float)colour[14], (float)colour[19]));
+
+                for (int vertexIndex = 0; vertexIndex < piece.Triangles.Count; vertexIndex++)
+                {
+                    if (vertexIndex % 768 == 0)
+                        cancellationToken.ThrowIfCancellationRequested();
+                    GameplaySkinRecordedProjectedVertex vertex = piece.Triangles[vertexIndex];
+                    vertices[offset++] = new GameplaySkinRecordedRenderVertex((float)vertex.X, (float)vertex.Y,
+                        (float)vertex.U, (float)vertex.V, (float)vertex.Q);
+                }
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            return new GameplaySkinRecordedPreparedFrame(pieces, vertices);
+        }
+
+        private static Vector4 vector(double[] value) => new((float)value[0], (float)value[1], (float)value[2], (float)value[3]);
     }
 }

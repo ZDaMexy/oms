@@ -5,6 +5,12 @@
 
 ---
 
+## 2026-10-19BGA输入边界与seek状态
+
+BGA entry在转换输入处冻结合法相对引用；跳过父目录跳转、绝对路径等坏的可选BGA，不拒绝可玩谱面，程序构造不能绕过。补`.m1v/.m2v`分类，使既有preloader/transcode能实际接到elementary MPEG。播放会话订阅真实seek/reset，清旧POOR及四层pending视频的未来retry timestamp，退出解绑；普通暂停与单player/view生命周期保持。
+
+合法子目录、坏引用、视频分类、真实Seek/Reset旧POOR和pending重试均有回归；初始POOR探针未正确绑定gameplay时钟的超时未当作旧故障证据，修正后有效before失败与after保留。优化后默认Omni再跑Xecus完整AP，BGA事件、单player和scene无fault；细节、完整回归与未验范围见[游玩审查](../../other/GAMEPLAY_REVIEW_20261019.md#验证证据)，不关闭其它逐谱/设备/DPI门。
+
 ## 2026-10-19真实Xecus首帧崩溃修复
 
 用户在VS Code非调试启动、导入Omni并查看配置后，播放Xecus 7key SHD自动演奏时崩溃。实际Debug存档runtime记录绘制线程在`BufferedDrawNodeSharedData.MainBuffer`空引用；来源只读保全到`artifacts/skin-crash-xecus-20261019/user-runtime.original.log`，不提交玩家日志。使用独立F盘宿主、真实曲目只读复制和相同`.v261019`包，修前再次得到同一异常，证据为`native-before-with-loader/`。原IIDX HDD、原谱和玩家存档未作为写入或运行目录。

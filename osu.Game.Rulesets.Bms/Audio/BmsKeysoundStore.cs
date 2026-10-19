@@ -240,6 +240,9 @@ namespace osu.Game.Rulesets.Bms.Audio
                 channel.Stop();
 
             nextChannelIndex = 0;
+            // Stop makes every live channel idle immediately. Make them available to new-epoch plays in this same
+            // update instead of growing the pool until the next per-frame reclaim.
+            reclaimIdleChannels();
         }
 
         private BmsKeysoundChannel getChannelForCutGroup(int cutGroup)

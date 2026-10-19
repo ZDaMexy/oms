@@ -1,6 +1,6 @@
 # P1-J 当前状态：BMS gameplay 性能与音频时序
 
-> 最后核对：2026-10-01（对齐 BGA 后续归属与验证入口；性能实现仍为 2026-09-30）
+> 最后核对：2026-10-19（补齐不可见资源预热、转谱提前/空击及停止后复用；听感门保持）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)。
 
 ## 当前阶段
@@ -8,6 +8,8 @@
 2026-09-30 针对修改前已测出的重复开销完成第二轮优化：原生按键复用有序候选，长条只推进未处理 tick；音频维护不再每帧创建临时集合；转谱伴奏/皿采用现有对象池，头音不重复准备普通样本，空击查询复用索引。BGA 多窗共享及后续每局播放会话与皮肤显示分离归 [P1-L](../P1-L/DEVELOPMENT_STATUS.md)。前后测量、回归及尚未签收的真机边界集中见 [2026-09-30 性能验证](../../other/GAMEPLAY_PERFORMANCE_20260930.md)。
 
 普通密度 BMS 与转谱-mania 的主要键音故障、帧抖动和开局 gen2 冻结已有修复基线。末端 lane timeline 与 shared-store production proof 已随 P1-A C3/P1-K 闭合。默认手动转谱 LN head 已接入 shared store，长 one-shot 暂停保位续播已有实际位置及 Player 自动证据；2026-09-29 完整回归未新增失败，Release 与结果见 [既有基线](../../other/EXPERIENCE_CLOSURE_20260929.md)。50k 极端 dense 谱 profile 仍按当前真机复现触发，真实谱音频清单仍待人工验收。
+
+2026-10-19游玩审查补齐原生post-mod lane中invisible-only资源的开局预热；转谱Note/Hold提前和空击反馈按父对象原WAV slot进入同一store，普通mania保留原路径。StopAllPlayback后同一Update可立即复用通道。BGA资源/seek状态归[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，动画与编辑器寿命归[P1-A](../P1-A/DEVELOPMENT_STATUS.md)；本线不扩成渲染或输入authority。
 
 用户指定的原生 BMS / BMS→mania 自动键音已实现：两个独立默认关闭设置，每局固定，声音按谱面时刻播放，真实操作与成绩仍由原判定链处理。当前执行与退出门见 [PLAN](DEVELOPMENT_PLAN.md#0-用户指定自动键音2026-09-29)，稳定边界见 [自动键音合同](TECHNICAL_CONSTRAINTS.md#自动键音合同2026-09-29)。
 
@@ -44,6 +46,7 @@
 
 ## 最近一次验证
 
+- 2026-10-19：实际Player的invisible预热、converted/plain Note/Hold提前/空击、自动键音及通道复用有修前失败和修后证明；完整BMS/mania、native全曲及探针边界集中见[游玩审查](../../other/GAMEPLAY_REVIEW_20261019.md#验证证据)。不把store请求或分配数等同设备听感与整局帧率。
 - 2026-09-30：原生、转谱和 BGA 的修改前后测量及本轮最终 gate 以 [集中记录](../../other/GAMEPLAY_PERFORMANCE_20260930.md)为准。微基准不代表整局帧率，自动声音/视频证据不代签真实谱听感与演出保真。
 - 同日后续 BGA 作者窗口与显示生命周期修改另有[作者能力验证](../../other/BGA_SKIN_AUTHORING_20260930.md)；最终完整回归保留逐项对照的既有失败，没有新增失败。单窗增加共享画布成本，未宣称单窗帧率提升，不用较早四窗性能场景代替这次架构后的验证。
 

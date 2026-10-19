@@ -31,12 +31,12 @@
 ## shared store 与资源合同
 
 1. 通道选择 idle-first；全部通道忙时按需增长到 `MAX_CONCURRENT_CHANNELS=256`，只有达到硬上限仍饱和才允许近似最旧轮转。不得在有空闲通道时偷断声音。
-1a. `getNextChannel()` 必须保持 O(1)，不得在每次 `Play()` 时扫描全池；空闲集合可以每帧以 O(N)、零分配方式统一重建，并在 resize 时播种。任何替代结构都须用 dense profile 证明不回归后才能改变该复杂度合同。
+1a. `getNextChannel()` 必须保持 O(1)，不得在每次 `Play()` 时扫描全池；空闲集合可以每帧以 O(N)、零分配方式统一重建，并在 resize 时播种。StopAllPlayback 停止后立即回收 idle，同一 Update 的下一次 Play 应可复用。任何替代结构都须用 dense profile 证明不回归后才能改变该复杂度合同。
 2. 原生初始/常驻基线为 `DEFAULT_CONCURRENT_CHANNELS=32`；用户“键音通道数”设置已删除，不得仅为手调上限恢复 UI。转谱 store 的 floor 保持 `Math.Max(32, 128)`。
 3. 任何内部 live resize 都必须 non-destructive：调高增量建通道；调低只回收 idle，busy 延后；禁止 rebuild-all 或直接截断当前发声。裁剪的通道必须 dispose 并标记 retired。
 4. per-WAV cut 必须按 `KeysoundId/#WAVxx` 槽号分组，不能按文件名。相同槽重触发应在同一 busy channel 干净重启；不同槽即使引用同一文件也不得合并。无 cut-group 的多样本入口不参与 cut。
 5. same-sample fast path 可以直接 stop/replay，避免每次重建 sample drawable；切到不同样本或多样本时必须正确失效缓存，不能改变 cut 语义。
-6. keysound prewarm 对玩家与 autoplay、原生 BMS 与转谱-mania 对等执行，只复用现有 `Playfield` sample pool 与 shared store；不得建立第二套 retained sample authority。加载期变长是允许的显式取舍，update thread 中冷解码不是。
+6. keysound prewarm 对玩家与 autoplay、原生 BMS 与转谱-mania 对等执行，只复用现有 `Playfield` sample pool 与 shared store；原生清单同时覆盖 post-mod HitObjects 和 LaneKeysoundTimelines 的 invisible-only 资源，沿同一去重入口准备。不得把 invisible 变为自动发声或计分对象、建立第二套 retained sample authority。加载期变长是允许的显式取舍，update thread 中冷解码不是。
 7. pause 必须通过现有样本通道的零频率调整冻结位置，resume 恢复原频率调整链；不得用 Stop/Play 重建通道来冒充续播。暂停声部仍为 busy，不得被 idle 回收或 resize 裁剪。seek/retry 必须清除旧声部，避免恢复后旧音乐逃逸；任意 seek 不承诺重建已开始长样本。底层实际位置证明与真实设备听感分别记录，前者不能代签后者。
 8. 稳定播放/空闲维护不分配临时完成集合；确有多路结束或旧 revision sample 待释放时才物化所需集合。必须先从活动记录移除全部已结束通道，再释放历史 drawable，最后释放 revision lease；不得用零分配目标破坏旧声尾音、热更或 shutdown 的所有权顺序。
 
@@ -57,6 +57,7 @@
 9. 存量试听策略由 `BmsPreviewAudioBackfill` 一次性后台收敛：完成标记门控、单次 Realm 快照、解码循环零 Realm、批量写回和进度通知必须保留；不得每次进入选歌重复扫描。
 10. BGM/scratch sample-only drawable 使用既有 Column 对象池，加载时注册类型，初始池大小为零并按真实播放窗口增长；不再每对象反射/整谱创建，也不建立新调度器。池化带来的 usage callbacks 不得将纯音频事件发布为可玩 Note 的 skin scene 状态。
 11. 仅当 hosted store 实际拥有发声责任时，转谱 tap/head 才跳过普通 sample drawable 准备。Samples/NodeSamples 数据、加载期 shared prewarm、无 store 回退及普通 mania 样本行为保留。
+12. 手动提前/空击反馈与正常命中使用同一父对象 WAV slot/shared store；选中嵌套 head 时仍由 parent 提供身份，tail、BGM/scratch sample-only 不借用头音。保持原候选选择、空 Samples 门控与居中声像；普通 mania 未提供该 store 时仍走原路径。
 
 ## 热路径与诊断
 
