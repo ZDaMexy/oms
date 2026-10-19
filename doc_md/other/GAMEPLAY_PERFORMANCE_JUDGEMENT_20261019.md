@@ -79,6 +79,47 @@
 
 但是补测3–58秒的3292个Update/Draw样本全部`active=false`，仍受后台约60Hz限制，故没有有效前台帧时间比较。该段记录了704.689ms累计GC暂停、297/109/2次各代收集，并有142ms和83ms间隔与gen2收集相邻；后台、测试开销和GC因果尚未拆开，不能据此宣称正常桌面同样卡顿，也不能据此签收零卡顿。它只补足生产会话下整曲运行与结果证明；**正常前台设备上的帧时间/GC验收仍未完成**，不以更换GC模式或屏蔽长帧日志掩盖此缺口。
 
+## 正常客户端反馈后的定因取证
+
+本节是上述修复之后的新证据，源码基线为干净的`master@c2f08c6`，已成功fetch。用户明确授权读取本次正常VS Code日志；探针使用独立Love & Justice谱面副本、同一私下Omni成品和真实PlayerLoader/ReplayPlayer，没有读取正式Realm或操作原IIDX HDD。新增证据在`artifacts/gameplay-cause-20261019/`，不与前述历史测试混算。
+
+正常客户端日志确认Xecus与三张7K压力谱均进入结算、正常退出；曲中长帧为Xecus的434/487ms和38,973 notes压力谱的811ms，均同帧Gen2。另两张压力谱没有曲中40ms以上帧，但45,715 notes的2秒更新窗口最低77次/秒、最大27ms，不能以STALL阈值宣称无抖动。这些是Update日志，不是Draw/present测量；原日志没有GC Reason，不能追认其三次GC的具体触发者。
+
+后续用45,715 notes实谱做两次60秒、一次20秒的隔离取证，真实桌面高性能管理器由PlayerLoader进入。采样期间没有截图或周期性JSON/CSV写入，保留现有诊断日志；主动把探针后台限帧提高到1000Hz以观察工作负载，但所有样本仍为`active=false`，所以这些结果只用于CPU/GC/内存定因与同宿主候选比较，不能代签正常前台显示流畅度。影片BGA仍回退静态图，不覆盖视频播放压力。
+
+### 已确认的原因与影响
+
+| 原因 | 本轮直接证据 | 能下的结论 |
+| --- | --- | --- |
+| 系统低可用物理内存引发阻塞全代回收 | `dense-before`曲中三次GCStart均为`InducedLowMemory`、`NonConcurrentGC`、同一`.NET Finalizer Thread`，持续193.5/215.2/183.3ms，并对应长帧 | 已确认这次隔离复现的直接暂停来源；不能倒推用户原日志的GC Reason，也不能仅据此把所有内存压力归给OMS |
+| Omni编码素材重复驻留 | `dense-memory/owned-memory.json`在真实Player加载后读取所有者的元数据：capsule约400.8MiB、catalog约399.1MiB，后者6669个数组与capsule共享数为0；进程私有约1.88GiB、托管约1.14GiB，当时系统物理内存负载96%、可用约606MiB | 同一资源在两个长期所有者中各留一份是确定的额外内存成本；只读共享可消除约399MiB重复驻留，实际物理内存与暂停收益须修后复测 |
+| 每次键音播放仍新建底层通道及调整绑定 | 50秒区间的采样分配在AudioThread约146.6MiB，其中`BindAdjustments`约102.1MiB；两者包含关系，不能相加。栈从`PoolableSkinnableSample.Play → DrawableSample.GetChannel → Sample.CreateChannel → SampleChannelBass`进入音频线程绑定 | 之前`PlayPathAllocatedBytes`只计Update线程入口，约10%的比例不能代表键音整体成本；现有same-sample优化省了drawable重建，未省底层channel/adjustments |
+| 池化皮肤组件复用扫描全场景 | `resetSpecialisedStateMachineScope`每次apply/free都查全体runtime nodes，即使没有状态机；CPU trace确有该方法，但远少于滚动/Drawable更新等主要栈 | 是确定的可移除重复工作，不能把它夸大为全部密集谱掉速主因 |
+
+GC映射依据与运行时精确匹配的[.NET 8.0.32枚举](https://github.com/dotnet/runtime/blob/v8.0.32/src/coreclr/gc/gc.h#L59-L77)、[Finalizer低内存事件处理](https://github.com/dotnet/runtime/blob/v8.0.32/src/coreclr/vm/finalizerthread.cpp#L188-L203)和[Windows物理内存通知定义](https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-creatememoryresourcenotification)。这条Reason 9路径与ImageSharp记账的`InducedNotForced`不同。系统全局压力还受其它进程影响，本轮没有结束其它进程来制造优化结果。
+
+### 已否决的单改GC候选
+
+当前`LowLatency`的约256KiB年轻代预算与高频小回收吻合，但改为`SustainedLowLatency`并非已验证方案。两次CPU/GC trace在预先固定的曲内5–55秒比较：
+
+| Update wall interval | 原策略 | 单改GC候选 |
+| --- | ---: | ---: |
+| p50 / p99 | 5.850 / 12.950ms | 5.515 / 11.993ms |
+| 最大间隔 | 222.446ms | 216.953ms |
+| ≥40ms次数 | 2 | 28 |
+| Update线程分配率 | 约8.50MB/s | 约8.50MB/s |
+
+候选虽减少小回收次数并略改善中位数，却增加长帧，故已撤回；没有把GC策略改动留在产品源码。两个区间的EventPipe采样配置相同，所有帧和失败/候选记录均保留；仅一次对照不足以证明一般性能，但已足以拒绝按“GC次数少了”宣布优化成功。
+
+### 具体方案与验收顺序
+
+1. 先由P1-A收敛capsule/catalog的编码资源所有权：目录应消费同一不可变revision的只读资源，保留预算、完整替代项校验、取消/失败释放、旧revision租约与对外可修改副本隔离。不能改成游玩Update临时读原目录，不能删除未选中的custom选项来省内存。先证明驻留/峰值减少，再复测系统可用物理内存和全代暂停。
+2. P1-J处理底层播放通道与adjustments重复创建。精确Framework当前的[SampleChannelBass](https://github.com/ppy/osu-framework/blob/ba04d538f02cecaabe5ab7dc3b102cd47d59d785/osu.Framework/Audio/Sample/SampleChannelBass.cs)中Stop是暂停、Play会续播，已自然结束的通道又拒绝重播，因此不能直接缓存后Stop/Play。需要窄范围、受测的从头Restart/复用能力，守住per-WAV cut、同文件不同槽、多声部、设备变化、pause/seek和revision退休；不得预造整谱通道或在生产反射原生句柄。
+3. 皮肤scope复用仅处理当前visual已知的objectId与本地节点；无状态机时跳过复位扫描。维持free/reapply对象隔离、snapshot重建、故障退休与非IIDX皮肤行为。
+4. 内存与分配治理后再重测GC策略，固定同谱、同包、同区间，分别保留轻量GC取证和无重型采样的前台Update/Draw长尾。音频同帧、判定/结果与实际设备听感分别验收。
+
+本节完成原因调查和候选否决，未声称上述方案已实施。产品源码与私下皮肤没有变化，未为这次诊断重跑已通过且无源码变化的完整判定测试。新增宿主Release构建成功，三次真实Player部分曲目运行无scene fault；均未播放到整曲结束，不代替原用户四首结算证据。自定义EventSource标记没有进入trace，离线分析明确使用首个heartbeat与trace起始时刻关联区间；首次直接转换异常由工具生成ETLX后重读解决，原始失败日志保留。
+
 ## 验证证据
 
 本轮工件根：`artifacts/gameplay-performance-judgement-20261019/`。

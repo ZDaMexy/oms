@@ -51,7 +51,7 @@
 - [BGA 链](reference_bms_bga_chain.md) — 游戏会话、首view晚注册的首帧崩溃、真实文件探针loader、作者窗口、共享画布与转码缓存。
 - [bgm1 按键触发故障](reference_bms_bgm1_pause_keytrigger_bug.md)
 - [游玩音轨静音合同](reference_bms_gameplay_track_mute.md)
-- [键音链](reference_bms_keysound_chain.md) — BMS/转谱发声责任、暂停保位、池化与样本准备、长条/空击性能。
+- [键音链](reference_bms_keysound_chain.md) — BMS/转谱发声责任、暂停保位、池化与样本准备、长条/空击性能，以及音频线程分配漏计与系统低内存GC定因。
 - [lane 键音 timeline 上界](reference_bms_lane_keysound_timeline_bounds.md) — key/lane count 误用、末端声音分层证明与 sparse API/UI 边界。
 - [LNOBJ 解码](reference_bms_lnobj_decoding.md) — 单候选配对地雷及 P1-K 权威回链。
 - [lane 重排](reference_bms_lane_rearrangement.md) — 重复应用的三次置换故障及 P1-K/P1-J 回链。

@@ -31,6 +31,8 @@ metadata:
 - 虚拟轨或 store 请求计数只能证明调度/路由；实际 WAV/native position 可证明后端保位，但实际设备听感仍须人工验收，不能互相代签。
 - 正常命中的 store 请求不证明提前/空击：mania Column 的 GameplaySampleTriggerSource 有独立反馈入口，converted LN 的样本身份在 parent、实际选中的却是 nested head。排查须分别按早、正常命中、尾与 sample-only，并在同一 store 检查原 WAV slot。invisible-only 原生资源只在 LaneKeysoundTimelines，单扫 HitObjects 会漏预热；不能为补预热把它改成自动声音或计分对象。
 - GC 性能看 gen0:gen1、pause duration 和对象存活；少量中寿命分配也可造成晋升风暴。已有普通密度修复基线不代表所有真实谱卡顿消失；软件证据与设备边界读 P1-J，50k 先用 `BmsGameplayStallDiagnostics` 取证。
+- `PlayPathAllocatedBytes`只覆盖调用线程，不能把其百分比当键音总成本；`Sample.GetChannel`后续在AudioThread构造/绑定adjustments的分配须从全进程allocation stacks读取。固定Framework的Stop/Play是保位续播，且完成channel默认退休；缓存它不能冒充从头重触发。具体采样与复用前提见[定因取证](../../doc_md/other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#正常客户端反馈后的定因取证)。
+- .NET8的`InducedLowMemory`需对照触发线程与系统物理可用内存，不能仅因Gen2相邻就归咎图片解码或业务GC.Collect。LowLatency的频繁小回收与SustainedLowLatency的较少大回收是不同取舍，须比较长帧而非只数次数；不可通过切模式宣称卡顿已解。
 
 ## 性能复审地雷（2026-09-30）
 
