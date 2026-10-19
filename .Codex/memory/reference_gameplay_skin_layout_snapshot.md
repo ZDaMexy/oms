@@ -1,6 +1,6 @@
 ---
 name: reference_gameplay_skin_layout_snapshot
-description: 唯一 layout publication、mania stage-local 映射与 exact owner 重入/注入地雷
+description: 唯一 layout publication、mania stage-local 映射、exact owner 与准备失败地雷
 metadata:
   node_type: memory
   type: reference
@@ -54,6 +54,9 @@ metadata:
 - `hud.gauge` 仅支持舞台目标；把 deck-1/deck-2 无条件平铺到共享场景，即使 codec/check 接受，也会在实际单舞台或 mania preparation 返回 019。早期分段罩因此撤回；现有 `instances.material` 按同一选定包已解析的 Global/Stage Provide 素材实例化，固定暗格与裁切亮格已接入，不能继续沿用“连续血条”结论，也不能放宽不存在目标的合同。诊断见 [[reference_skin_cabinet_surfaces]]。
 
 ## Geometry fallback 与构造边界
+
+- `Player.load`在缓存`FrameStableClock`时为空，先查规则集loader是否真正进入：该字段只在loader赋值，Dispose并不清空。布局准备Rejected或有界Retry耗尽可使delayed Content未挂，构造过规则集不等于加载成功。逻辑screen栈空也不等于旧layout owner已退役；测试先通过真实Parent移除并Dispose上一局，再等其owner退休，不直接Dispose participant、不靠sleep/GC或提高次数。实际失败/取消收尾见[P1-A 3m4d](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#c2-current-revision与publication)，不能用半载成功或读取空时钟收尾。
+- 回收尚未加载的renderer会经过已经物化的lazy Playfield；Stage已构造不表示`SkinnableDrawable.Drawable`已创建。退订只针对真实存在的背景Drawable，其余注册和base子树仍须释放；不能用`IsLoaded`跳过整段或把测试改为强制挂载来掩盖构造期泄漏。具体红灯见[P1-A收尾](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-20选曲与皮肤遗留软件问题收尾)。
 
 - 作者输入的数值边界与 solver 的实际安全布局分开验证；无论缺省还是拒绝结果，都一次产出完整 snapshot，不拼部分新/旧 geometry。不要把旧标量的默认布局推广到显式 `BgaViewports`：合法排列在当前画面放不下时整组零窗并诊断，不擅自换回默认；`none` 也不是缺省。窗口与独立信息带边界见 [[reference_bms_bga_chain]]。
 - 测试复现要包括窄/宽 aspect、DPI、safe-area 与 14K 双 field/scratch/gap/BGA/HUD；普通 7K 正常不证明这些关系。

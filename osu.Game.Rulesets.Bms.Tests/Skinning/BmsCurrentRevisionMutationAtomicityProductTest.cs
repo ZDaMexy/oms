@@ -240,7 +240,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         public void TestCurrentExternalWorkspaceUnregisterWaitsForExactOldDetachAndNeverTouchesSource()
         {
             ExternalMutationContext context = addCurrentExternalPackage("current unregister detach");
-            FullSkinSettingsCallerHost callerHost = null!;
+            FolderWorkspaceCallerHost callerHost = null!;
             SkinCurrentRevision revisionA = null!;
             SkinCurrentRevision fallbackRevision = null!;
             SkinCurrentRevisionLease oldHolder = null!;
@@ -279,7 +279,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     if (exactBoundary)
                         Interlocked.Exchange(ref hookSawDetachedExactBoundary, 1);
                 };
-                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+                Add(callerHost = new FolderWorkspaceCallerHost(manager));
             });
             AddUntilStep("wait for current external unregister row", () =>
                 callerHost.Workspace.Rows.SingleOrDefault(row => row.RecordId == context.RecordId)
@@ -346,7 +346,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         public void TestCurrentExternalWorkspaceUnregisterRejectsRealVisualParticipantBeforeFallbackAndRetriesAfterDetach()
         {
             ExternalMutationContext context = addCurrentExternalPackage("current unregister participant rejection");
-            FullSkinSettingsCallerHost callerHost = null!;
+            FolderWorkspaceCallerHost callerHost = null!;
             CurrentRevisionStoryboardHost storyboardHost = null!;
             Live<SkinInfo> selectionA = null!;
             Skin ownerA = null!;
@@ -375,7 +375,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 };
 
                 Add(storyboardHost = new CurrentRevisionStoryboardHost(manager));
-                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+                Add(callerHost = new FolderWorkspaceCallerHost(manager));
             });
             AddUntilStep("wait for real storyboard texture and external unregister row", () =>
                 storyboardHost.Sprite.IsLoaded
@@ -464,7 +464,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             ExternalMutationContext context = addCurrentExternalPackage(
                 "current unregister half-loaded rollback",
                 root => writeStarFountainRevisionPackage(root, "A", new Rgba32(235, 55, 95, 255)));
-            FullSkinSettingsCallerHost callerHost = null!;
+            FolderWorkspaceCallerHost callerHost = null!;
             InvisibleLoadStarFountainHost invisibleHost = null!;
             Live<SkinInfo> selectionA = null!;
             Skin ownerA = null!;
@@ -499,7 +499,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 };
 
                 Add(invisibleHost = new InvisibleLoadStarFountainHost(manager, loaderEntered, allowLoader));
-                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+                Add(callerHost = new FolderWorkspaceCallerHost(manager));
             });
             AddUntilStep("wait for real current external unregister row", () =>
                 invisibleHost.IsLoaded
@@ -585,7 +585,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             const string drifted_creator = "test-only-final-record-drift";
 
             ExternalMutationContext context = addCurrentExternalPackage($"current unregister final {driftKind} drift");
-            FullSkinSettingsCallerHost callerHost = null!;
+            FolderWorkspaceCallerHost callerHost = null!;
             Live<SkinInfo> selectionA = null!;
             Skin ownerA = null!;
             SkinCurrentRevision revisionA = null!;
@@ -663,7 +663,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                         }
                     });
                 };
-                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+                Add(callerHost = new FolderWorkspaceCallerHost(manager));
             });
             AddUntilStep("wait for final-drift external unregister row", () =>
                 callerHost.Workspace.Rows.SingleOrDefault(row => row.RecordId == context.RecordId)
@@ -731,7 +731,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 });
 
                 Assert.That(Remove(callerHost, disposeImmediately: true), Is.True);
-                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+                Add(callerHost = new FolderWorkspaceCallerHost(manager));
             });
             AddUntilStep("wait for restored external unregister row in reopened settings", () =>
                 callerHost.Workspace.Rows.SingleOrDefault(row => row.RecordId == context.RecordId)
@@ -1319,7 +1319,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         {
             string packageRoot = string.Empty;
             Live<SkinInfo> candidate = null!;
-            FullSkinSettingsCallerHost callerHost = null!;
+            FolderWorkspaceCallerHost callerHost = null!;
             CurrentRevisionStarFountainHost consumerHost = null!;
             CurrentRevisionHolderHost holderHost = null!;
             SkinCurrentRevision revisionA = null!;
@@ -1358,7 +1358,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
                 Add(consumerHost = new CurrentRevisionStarFountainHost(manager));
                 Add(holderHost = new CurrentRevisionHolderHost(manager, ownerA));
-                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+                Add(callerHost = new FolderWorkspaceCallerHost(manager));
             });
             AddUntilStep("wait for real managed delete graph", () =>
                 consumerHost.Texture != null
@@ -1436,7 +1436,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         {
             string packageRoot = string.Empty;
             Live<SkinInfo> candidate = null!;
-            FullSkinSettingsCallerHost callerHost = null!;
+            FolderWorkspaceCallerHost callerHost = null!;
             SkinRevisionParticipantRegistration rejectingParticipant = null!;
             Live<SkinInfo> selectionA = null!;
             Skin ownerA = null!;
@@ -1467,7 +1467,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                         Interlocked.Increment(ref prepareCalls);
                         return Task.FromResult(false);
                     });
-                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+                Add(callerHost = new FolderWorkspaceCallerHost(manager));
             });
             AddUntilStep("wait for current managed workspace row", () =>
                 callerHost.Workspace.Rows.SingleOrDefault(row => row.RecordId == candidate.ID)

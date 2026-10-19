@@ -876,6 +876,9 @@ namespace osu.Game.Screens.Play
                         }
                         else
                         {
+                            if (playerToPush.GameplaySkinLayoutPreparationFailed)
+                                notificationOverlay?.Post(new SimpleErrorNotification { Text = PlayerLoaderOmsStrings.GameplaySkinLayoutPreparationFailed });
+
                             reclaimPendingPlayerHandoff(playerToPush);
                             this.Exit();
                         }

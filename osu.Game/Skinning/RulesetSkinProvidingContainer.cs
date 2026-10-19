@@ -96,6 +96,8 @@ namespace osu.Game.Skinning
         private ResourceStoreBackedSkin rulesetResourcesSkin;
         private GameplaySkinLayoutRevisionOwner gameplaySkinLayoutRevisionOwner;
 
+        internal bool HasPreparedGameplaySkinLayout => gameplaySkinLayoutRevisionOwner?.CurrentPublication != null;
+
         protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
         {
             if (Ruleset.CreateResourceStore() is IResourceStore<byte[]> resources)
@@ -326,6 +328,8 @@ namespace osu.Game.Skinning
 
         protected override void Dispose(bool isDisposing)
         {
+            bool disposeDelayedContent = Content.Parent == null;
+
             try
             {
                 base.Dispose(isDisposing);
@@ -334,13 +338,21 @@ namespace osu.Game.Skinning
             {
                 try
                 {
-                    // The publication may own texture-backed package resources. Retire it only after the renderer
-                    // subtree has completed disposal through the base container lifecycle.
-                    gameplaySkinLayoutRevisionOwner?.Dispose();
+                    // Rejected preparation never attached Content to the inner beatmap provider.
+                    if (disposeDelayedContent)
+                        Content.Dispose();
                 }
                 finally
                 {
-                    rulesetResourcesSkin?.Dispose();
+                    try
+                    {
+                        // Retire texture-backed package resources after the renderer subtree.
+                        gameplaySkinLayoutRevisionOwner?.Dispose();
+                    }
+                    finally
+                    {
+                        rulesetResourcesSkin?.Dispose();
+                    }
                 }
             }
         }

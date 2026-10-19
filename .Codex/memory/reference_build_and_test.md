@@ -12,6 +12,8 @@ metadata:
 
 ## 测试宿主与产物
 
+- `ClockBackedTestWorkingBeatmap.TrackVirtualManual`挂在真实AudioManager时，即使Rate=0，音频Update仍会读改写`accumulated`。Update线程直接Seek可被该旧值覆写，使一次跳时后的整个主时钟停在0；`SeekAsync`也是同步包装。测试先捕获source/offset，再经公开`GameHost.AudioThread.Scheduler`串行跳时，保留真实`OnSeek`区别与业务断言；`IAudioChannel.EnqueueAction`是framework内部成员，不可外调。日志未含source快照时，不宣称已唯一重放历史交错。见[P1-A取证](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-20选曲与皮肤遗留软件问题收尾)。
+
 - `osu.Desktop.slnf` 包含 BMS/mania tests，core `osu.Game.Tests` 须单独编译；只有相同项目/配置的当前代码成功编译后才能用 `--no-build`。
 - `osu.Game` 是 library，却因引用 NUnit test scene 被 C# Dev Kit 误认成 test project，导致缺 runtimeconfig、AutoMapper/测试平台程序集。使用真实 core/BMS/mania 测试工程，不为这个红节点复制依赖或改 library 身份。
 - 第三方程序集可通过 deps/runtimeconfig 从 NuGet cache 加载，输出目录没有单独 DLL 不足以证明依赖缺失。

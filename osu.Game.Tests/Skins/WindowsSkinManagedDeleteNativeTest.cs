@@ -4,10 +4,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
 using System.Threading;
 using NUnit.Framework;
+using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Game.Database;
 using osu.Game.IO;
@@ -23,6 +25,175 @@ namespace osu.Game.Tests.Skins
     public class WindowsSkinManagedDeleteNativeTest : RealmTest
     {
         private const string source_relative_path = "chartskin/delete-source";
+
+        [Test]
+        public void TestNativeDeleteCaptureDetachAndCleanupRetainsExactTree()
+        {
+            RunTestWithRealm((realm, storage) =>
+            {
+                DeleteFixture fixture = createFixture(realm, storage);
+                string phase = "open";
+
+                try
+                {
+                    using WindowsSkinManagedAuthoritySession session = WindowsSkinManagedAuthoritySession.Open(
+                        fixture.DataRoot,
+                        new NativeWindowsSkinPackageCaptureFileSystem(),
+                        CancellationToken.None);
+                    phase = "capture-source";
+                    SkinManagedFolderPhysicalIdentity sourceIdentity = session.CaptureExistingMutationSource(source_relative_path);
+                    phase = "capture-manifest";
+                    string manifest = session.GetCapturedMutationDeleteSourceNodeManifest();
+                    phase = "capture-target-slot";
+                    SkinManagedFolderTargetNameSlot target = session.CaptureAbsentMutationTargetNameSlot(
+                        SkinManagedFolderMutationJournal.GetExpectedDeleteTombstoneRelativePath(Guid.NewGuid()));
+                    phase = "detach";
+                    Assert.That(session.RenameCapturedMutationSourceToTarget(target), Is.EqualTo(sourceIdentity));
+                    phase = "cleanup";
+                    session.CleanupExactMutationDeleteTombstone(
+                        source_relative_path,
+                        target.ManagedRelativePath,
+                        sourceIdentity,
+                        manifest);
+
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(Directory.Exists(fixture.SourceRoot), Is.False);
+                        Assert.That(Directory.Exists(getFullPath(fixture.DataRoot, target.ManagedRelativePath)), Is.False);
+                        Assert.That(File.ReadAllText(Path.Combine(fixture.SiblingRoot, "keep.txt")), Is.EqualTo("keep-sibling"));
+                    });
+                }
+                catch (WindowsSkinPackageCaptureFileSystemException exception)
+                {
+                    Logger.Log($"Native delete phase={phase}; rejection={exception.RejectionReason}", LoggingTarget.Runtime, LogLevel.Important);
+                    throw;
+                }
+            });
+        }
+
+        [Test]
+        public void TestDeleteAfterPeerDirectoryIndexRefreshKeepsCanonicalPeerUnchanged()
+        {
+            RunTestWithRealm((realm, storage) =>
+            {
+                DeleteFixture fixture = createFixture(realm, storage);
+                Directory.SetLastWriteTimeUtc(fixture.SiblingRoot, new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+                using var probe = new DirectoryIndexRefreshFileSystem(new NativeWindowsSkinPackageCaptureFileSystem(), fixture.SiblingRoot, "sibling");
+                using WindowsSkinManagedAuthoritySession session = WindowsSkinManagedAuthoritySession.Open(fixture.DataRoot, probe);
+                probe.ReleasePreparedDeleteHandleAndVerifyIndexRefresh();
+
+                try
+                {
+                    SkinManagedFolderPhysicalIdentity sourceIdentity = session.CaptureExistingMutationSource(source_relative_path);
+                    string manifest = session.GetCapturedMutationDeleteSourceNodeManifest();
+                    SkinManagedFolderTargetNameSlot target = session.CaptureAbsentMutationTargetNameSlot(
+                        SkinManagedFolderMutationJournal.GetExpectedDeleteTombstoneRelativePath(Guid.NewGuid()));
+                    session.RenameCapturedMutationSourceToTarget(target);
+                    session.CleanupExactMutationDeleteTombstone(source_relative_path, target.ManagedRelativePath, sourceIdentity, manifest);
+
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(Directory.Exists(fixture.SourceRoot), Is.False);
+                        Assert.That(Directory.Exists(getFullPath(fixture.DataRoot, target.ManagedRelativePath)), Is.False);
+                        Assert.That(File.ReadAllText(Path.Combine(fixture.SiblingRoot, "keep.txt")), Is.EqualTo("keep-sibling"));
+                        Assert.That(File.ReadAllText(Path.Combine(fixture.SiblingRoot, "cache-refresh.txt")), Is.EqualTo("peer-cache-bytes"));
+                    });
+                }
+                finally
+                {
+                    probe.AssertCanonicalUnchanged();
+                }
+            });
+        }
+
+        [Test]
+        public void TestCapturedSourceManifestAcceptsNestedDirectoryIndexRefreshWithUnchangedCanonicalTree()
+        {
+            RunTestWithRealm((realm, storage) =>
+            {
+                DeleteFixture fixture = createFixture(realm, storage);
+                string nested = Path.Combine(fixture.SourceRoot, "nested");
+                Directory.SetLastWriteTimeUtc(nested, new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+                using var probe = new DirectoryIndexRefreshFileSystem(new NativeWindowsSkinPackageCaptureFileSystem(), nested, "delete-source/nested");
+                using WindowsSkinManagedAuthoritySession session = WindowsSkinManagedAuthoritySession.Open(fixture.DataRoot, probe);
+                session.CaptureExistingMutationSource(source_relative_path);
+                probe.ReleasePreparedDeleteHandleAndVerifyIndexRefresh();
+
+                try
+                {
+                    Assert.That(SkinManagedFolderDeleteManifest.IsValid(session.GetCapturedMutationDeleteSourceNodeManifest()), Is.True);
+                    Assert.That(File.ReadAllText(Path.Combine(nested, "cache-refresh.txt")), Is.EqualTo("peer-cache-bytes"));
+                    Assert.That(File.ReadAllText(Path.Combine(nested, "deeper", "note.png")), Is.EqualTo("nested-native-bytes"));
+                    Assert.That(File.ReadAllText(Path.Combine(fixture.SiblingRoot, "keep.txt")), Is.EqualTo("keep-sibling"));
+                }
+                finally
+                {
+                    probe.AssertCanonicalUnchanged();
+                }
+            });
+        }
+
+        [TestCase("directory-creation")]
+        [TestCase("directory-attributes")]
+        [TestCase("file-write-time")]
+        [TestCase("file-change-time")]
+        public void TestDeleteSourceCaptureRejectsPeerMetadataChangesOutsideCachedDirectoryModificationTimes(string change)
+        {
+            RunTestWithRealm((realm, storage) =>
+            {
+                DeleteFixture fixture = createFixture(realm, storage);
+                string peerFile = Path.Combine(fixture.ManagedRoot, "peer.txt");
+                File.WriteAllText(peerFile, "peer-file-bytes");
+                NativeMethods.FILE_BASIC_INFO peerFileBefore = readBasicInfo(peerFile);
+                using WindowsSkinManagedAuthoritySession session = WindowsSkinManagedAuthoritySession.Open(
+                    fixture.DataRoot,
+                    new NativeWindowsSkinPackageCaptureFileSystem());
+
+                switch (change)
+                {
+                    case "directory-creation":
+                        Directory.SetCreationTimeUtc(fixture.SiblingRoot, new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+                        break;
+
+                    case "directory-attributes":
+                        File.SetAttributes(fixture.SiblingRoot, File.GetAttributes(fixture.SiblingRoot) | FileAttributes.Hidden);
+                        break;
+
+                    case "file-write-time":
+                        File.SetLastWriteTimeUtc(peerFile, new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+                        break;
+
+                    case "file-change-time":
+                        File.SetAttributes(peerFile, (FileAttributes)peerFileBefore.FileAttributes ^ FileAttributes.Hidden);
+                        File.SetAttributes(peerFile, (FileAttributes)peerFileBefore.FileAttributes);
+                        NativeMethods.FILE_BASIC_INFO peerFileAfter = readBasicInfo(peerFile);
+                        Assert.Multiple(() =>
+                        {
+                            Assert.That(peerFileAfter.CreationTime == peerFileBefore.CreationTime, Is.True);
+                            Assert.That(peerFileAfter.LastWriteTime == peerFileBefore.LastWriteTime, Is.True);
+                            Assert.That(peerFileAfter.FileAttributes == peerFileBefore.FileAttributes, Is.True);
+                            Assert.That(peerFileAfter.ChangeTime != peerFileBefore.ChangeTime, Is.True);
+                        });
+                        break;
+
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(change));
+                }
+
+                WindowsSkinPackageCaptureFileSystemException? rejected = Assert.Throws<WindowsSkinPackageCaptureFileSystemException>(
+                    () => session.CaptureExistingMutationSource(source_relative_path));
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(rejected!.RejectionReason, Is.EqualTo(SkinManagedPackageCaptureRejectionReason.InventoryChanged));
+                    Assert.That(Directory.Exists(fixture.SourceRoot), Is.True);
+                    Assert.That(File.ReadAllText(Path.Combine(fixture.SourceRoot, "nested", "deeper", "note.png")), Is.EqualTo("nested-native-bytes"));
+                    Assert.That(File.ReadAllText(Path.Combine(fixture.SiblingRoot, "keep.txt")), Is.EqualTo("keep-sibling"));
+                    Assert.That(File.ReadAllText(peerFile), Is.EqualTo("peer-file-bytes"));
+                    Assert.That(Directory.GetFileSystemEntries(fixture.ManagedRoot).Select(Path.GetFileName), Is.EquivalentTo(new[] { "delete-source", "sibling", "peer.txt" }));
+                });
+            });
+        }
 
         [Test]
         public void TestDetachedNestedTreeCleanupPreservesSiblingAndManagedRoot()
@@ -590,6 +761,23 @@ namespace osu.Game.Tests.Skins
         private static bool isSharingViolation(Exception? exception)
             => exception is IOException && (exception.HResult & 0xffff) == 32;
 
+        private static NativeMethods.FILE_BASIC_INFO readBasicInfo(string file)
+        {
+            using var handle = File.OpenHandle(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            IntPtr buffer = Marshal.AllocHGlobal(Marshal.SizeOf<NativeMethods.FILE_BASIC_INFO>());
+
+            try
+            {
+                Assert.That(NativeMethods.GetFileInformationByHandleEx(handle, NativeMethods.FILE_INFO_BY_HANDLE_CLASS.FileBasicInfo,
+                    buffer, (uint)Marshal.SizeOf<NativeMethods.FILE_BASIC_INFO>()), Is.True);
+                return Marshal.PtrToStructure<NativeMethods.FILE_BASIC_INFO>(buffer);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(buffer);
+            }
+        }
+
         private static DeleteFixture createFixture(RealmAccess realm, Storage storage)
         {
             string dataRoot = storage.GetFullPath(string.Empty);
@@ -651,6 +839,151 @@ namespace osu.Game.Tests.Skins
             SkinManagedFolderPhysicalIdentity SourceIdentity,
             string SourceNodeManifest,
             string TombstoneRelativePath);
+
+        private sealed class DirectoryIndexRefreshFileSystem : IWindowsSkinPackageCaptureFileSystem, IDisposable
+        {
+            private readonly IWindowsSkinPackageCaptureFileSystem inner;
+            private readonly string directoryRoot;
+            private readonly string[] directoryParts;
+            private readonly List<IWindowsSkinPackageCaptureHandle> ancestors = new();
+            private IWindowsSkinPackageCaptureHandle? preparedDeleteHandle;
+            private IWindowsSkinPackageCaptureHandle? canonicalReadHandle;
+            private IWindowsSkinPackageCaptureHandle? directoryParent;
+            private WindowsSkinPackagePhysicalIdentity parentIdentity;
+            private WindowsSkinPackageEntryMetadata canonicalMetadata;
+            private WindowsSkinPackageDirectoryEntry? initialIndexEntry;
+
+            public DirectoryIndexRefreshFileSystem(IWindowsSkinPackageCaptureFileSystem inner, string directoryRoot, string directoryRelativePath)
+            {
+                this.inner = inner;
+                this.directoryRoot = directoryRoot;
+                directoryParts = directoryRelativePath.Split('/');
+            }
+
+            public IWindowsSkinPackageCaptureHandle OpenLocalVolumeRoot(char driveLetter)
+                => inner.OpenLocalVolumeRoot(driveLetter);
+
+            public IReadOnlyList<WindowsSkinPackageDirectoryEntry> Enumerate(
+                IWindowsSkinPackageCaptureHandle directory,
+                int maxEntries,
+                CancellationToken cancellationToken)
+            {
+                IReadOnlyList<WindowsSkinPackageDirectoryEntry> current = inner.Enumerate(directory, maxEntries, cancellationToken);
+
+                if (directoryParent != null && initialIndexEntry == null && inner.QueryMetadata(directory).Identity == parentIdentity)
+                    initialIndexEntry = current.Single(entry => string.Equals(entry.Name, directoryParts[^1], StringComparison.Ordinal));
+
+                return current;
+            }
+
+            public IWindowsSkinPackageCaptureHandle OpenChildNoFollow(
+                IWindowsSkinPackageCaptureHandle parent,
+                string name,
+                WindowsSkinPackageOpenMode mode,
+                SkinManagedPackageCaptureRejectionReason unavailableReason)
+            {
+                IWindowsSkinPackageCaptureHandle handle = inner.OpenChildNoFollow(parent, name, mode, unavailableReason);
+
+                try
+                {
+                    if (directoryParent == null
+                        && mode == WindowsSkinPackageOpenMode.AuthorityDirectory
+                        && string.Equals(name, SkinFilesystemStorageResolver.MANAGED_ROOT_DIRECTORY, StringComparison.Ordinal))
+                    {
+                        IWindowsSkinPackageCaptureHandle current = handle;
+                        foreach (string part in directoryParts.SkipLast(1))
+                        {
+                            current = inner.OpenChildNoFollow(current, part, WindowsSkinPackageOpenMode.MutationSourceVerificationDirectory, unavailableReason);
+                            ancestors.Add(current);
+                        }
+
+                        directoryParent = current;
+                        parentIdentity = inner.QueryMetadata(current).Identity;
+                        preparedDeleteHandle = inner.OpenChildNoFollow(current, directoryParts[^1], WindowsSkinPackageOpenMode.ProvisionalDirectory, unavailableReason);
+                        File.WriteAllText(Path.Combine(directoryRoot, "cache-refresh.txt"), "peer-cache-bytes");
+                        canonicalReadHandle = inner.OpenChildNoFollow(current, directoryParts[^1], WindowsSkinPackageOpenMode.MutationSourceVerificationDirectory, unavailableReason);
+                        canonicalMetadata = inner.QueryMetadata(canonicalReadHandle);
+                    }
+
+                    return handle;
+                }
+                catch
+                {
+                    handle.Dispose();
+                    throw;
+                }
+            }
+
+            public WindowsSkinPackageEntryMetadata QueryMetadata(IWindowsSkinPackageCaptureHandle handle)
+                => inner.QueryMetadata(handle);
+
+            public void RenameChildNoReplace(
+                IWindowsSkinPackageCaptureHandle source,
+                IWindowsSkinPackageCaptureHandle targetParent,
+                string targetName)
+                => inner.RenameChildNoReplace(source, targetParent, targetName);
+
+            public void DeleteNoFollow(IWindowsSkinPackageCaptureHandle handle)
+                => inner.DeleteNoFollow(handle);
+
+            public Stream CreateNonOwningReadStream(IWindowsSkinPackageCaptureHandle file)
+                => inner.CreateNonOwningReadStream(file);
+
+            public void ReleasePreparedDeleteHandleAndVerifyIndexRefresh()
+            {
+                Assert.That(initialIndexEntry, Is.Not.Null);
+                Assert.That(preparedDeleteHandle, Is.Not.Null);
+                preparedDeleteHandle!.Dispose();
+                preparedDeleteHandle = null;
+                AssertCanonicalUnchanged();
+
+                WindowsSkinPackageDirectoryEntry current = inner.Enumerate(directoryParent!, 65536, CancellationToken.None)
+                    .Single(entry => string.Equals(entry.Name, directoryParts[^1], StringComparison.Ordinal));
+                List<string> fields = changedFields(initialIndexEntry!.Metadata, current.Metadata);
+                Logger.Log($"Native directory-index refresh fields: {string.Join(",", fields)}", LoggingTarget.Runtime, LogLevel.Important);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(fields, Is.Not.Empty, "Closing the prepared DELETE handle must expose a real directory-index refresh.");
+                    Assert.That(fields, Is.SubsetOf(new[] { nameof(current.Metadata.LastWriteTime), nameof(current.Metadata.ChangeTime) }));
+                    Assert.That(current.Metadata.LastWriteTime == canonicalMetadata.LastWriteTime, Is.True, "Refreshed directory index must match canonical held last-write time.");
+                    Assert.That(current.Metadata.ChangeTime == canonicalMetadata.ChangeTime, Is.True, "Refreshed directory index must match canonical held change time.");
+                });
+            }
+
+            public void AssertCanonicalUnchanged()
+            {
+                WindowsSkinPackageEntryMetadata current = inner.QueryMetadata(canonicalReadHandle!);
+                List<string> fields = changedFields(canonicalMetadata, current);
+                Logger.Log($"Native directory-index canonical changed fields: {string.Join(",", fields)}", LoggingTarget.Runtime, LogLevel.Important);
+                Assert.That(fields, Is.Empty, "The same held directory must retain its complete canonical metadata.");
+            }
+
+            public void Dispose()
+            {
+                preparedDeleteHandle?.Dispose();
+                canonicalReadHandle?.Dispose();
+                for (int i = ancestors.Count - 1; i >= 0; i--)
+                    ancestors[i].Dispose();
+            }
+
+            private static List<string> changedFields(WindowsSkinPackageEntryMetadata previous, WindowsSkinPackageEntryMetadata current)
+            {
+                var fields = new List<string>();
+                if (previous.Identity != current.Identity) fields.Add(nameof(current.Identity));
+                if (previous.Kind != current.Kind) fields.Add(nameof(current.Kind));
+                if (previous.Length != current.Length) fields.Add(nameof(current.Length));
+                if (previous.CreationTime != current.CreationTime) fields.Add(nameof(current.CreationTime));
+                if (previous.LastWriteTime != current.LastWriteTime) fields.Add(nameof(current.LastWriteTime));
+                if (previous.ChangeTime != current.ChangeTime) fields.Add(nameof(current.ChangeTime));
+                if (previous.FileAttributes != current.FileAttributes) fields.Add(nameof(current.FileAttributes));
+                if (previous.ReparseTag != current.ReparseTag) fields.Add(nameof(current.ReparseTag));
+                if (previous.NumberOfLinks != current.NumberOfLinks) fields.Add(nameof(current.NumberOfLinks));
+                if (previous.DeletePending != current.DeletePending) fields.Add(nameof(current.DeletePending));
+
+                return fields;
+            }
+        }
 
         private sealed class DeleteRenameProbeFileSystem : IWindowsSkinPackageCaptureFileSystem
         {

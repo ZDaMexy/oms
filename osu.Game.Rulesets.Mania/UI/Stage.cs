@@ -376,7 +376,8 @@ namespace osu.Game.Rulesets.Mania.UI
             {
                 // must happen before children are disposed in base call to prevent illegal accesses to the judgement pool.
                 NewResult -= OnNewResult;
-                stageBackground.Drawable.OnLoadComplete -= onStageBackgroundLoaded;
+                if (stageBackground.Drawable != null)
+                    stageBackground.Drawable.OnLoadComplete -= onStageBackgroundLoaded;
                 if (stageBackgroundReadinessSource != null)
                     stageBackgroundReadinessSource.GameplaySkinProgrammaticVisualPartsReady -= onProgrammaticVisualPartsReady;
                 stageForegroundProgrammaticRegistration?.Dispose();

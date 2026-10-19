@@ -49,7 +49,7 @@ namespace osu.Game.Skinning.Windows
         private WindowsSkinPackageDirectoryEntry? mutationDeleteRemovedBaselineEntry;
         private string? mutationDeleteSourceName;
         private string? mutationDeleteTombstoneName;
-        private MutationRenameState mutationRenameState;
+        private MutationRenameState? mutationRenameState;
         private bool stagedMutationCaptured;
         private bool managedCopyStagingPrepared;
         private Guid managedCopyOperationId;
@@ -289,12 +289,12 @@ namespace osu.Game.Skinning.Windows
                 cancellationToken,
                 handles);
             HeldMutationTree tree = holdMutationTree(opened.Handle, opened.Metadata, handles, cancellationToken);
+            mutationRenameState = MutationRenameState.Prepared;
             ValidateCompleteAndStable(cancellationToken);
             mutationSource = opened;
             mutationSourceBaselineEntry = candidate;
             mutationSourceTree = tree;
             mutationSourceOriginalName = candidate.Name;
-            mutationRenameState = MutationRenameState.Prepared;
             return toMutationIdentity(opened.Metadata.Identity);
         }
 
@@ -1318,6 +1318,7 @@ namespace osu.Game.Skinning.Windows
                 throw reject(SkinManagedPackageCaptureRejectionReason.InvalidRequest);
 
             ensureMutationManagedRoot(cancellationToken);
+            mutationRenameState ??= MutationRenameState.Inspecting;
             ValidateCompleteAndStable(cancellationToken);
             WindowsSkinPackageDirectoryEntry[] current = getCurrentManagedRootInventory(cancellationToken);
             WindowsSkinPackageDirectoryEntry? source = getOptionalExactNameEntry(current, sourceName);
@@ -1854,7 +1855,11 @@ namespace osu.Game.Skinning.Windows
                 throw reject(SkinManagedPackageCaptureRejectionReason.InventoryChanged);
             }
 
-            if (!baselineEntries.SequenceEqual(current, DirectoryEntryComparer.Instance))
+            IEqualityComparer<WindowsSkinPackageDirectoryEntry> comparer = mutationRenameState == null
+                ? DirectoryEntryComparer.Instance
+                : DirectoryIndexEntryComparer.Instance;
+
+            if (!baselineEntries.SequenceEqual(current, comparer))
                 throw reject(SkinManagedPackageCaptureRejectionReason.InventoryChanged);
 
             validateAuthorityNodes(fileSystem, authorityNodes, cancellationToken);
@@ -2861,7 +2866,7 @@ namespace osu.Game.Skinning.Windows
                     ? mutationInventoryLinksMatch(directory.Baseline, current)
                     : directory.Baseline.SequenceEqual(
                         current,
-                        DirectoryEntryComparer.Instance);
+                        DirectoryIndexEntryComparer.Instance);
 
                 if (!inventoryMatches)
                     throw reject(SkinManagedPackageCaptureRejectionReason.InventoryChanged);
@@ -3128,7 +3133,7 @@ namespace osu.Game.Skinning.Windows
                 WindowsSkinPackageDirectoryEntry? matching =
                     current.SingleOrDefault(entry => string.Equals(entry.Name, baseline.Name, StringComparison.Ordinal));
 
-                if (matching == null || !DirectoryEntryComparer.Instance.Equals(baseline, matching))
+                if (matching == null || !DirectoryIndexEntryComparer.Instance.Equals(baseline, matching))
                     throw reject(SkinManagedPackageCaptureRejectionReason.InventoryChanged);
             }
 
@@ -3197,7 +3202,7 @@ namespace osu.Game.Skinning.Windows
                 WindowsSkinPackageDirectoryEntry? matching =
                     current.SingleOrDefault(entry => string.Equals(entry.Name, baseline.Name, StringComparison.Ordinal));
 
-                if (matching == null || !DirectoryEntryComparer.Instance.Equals(baseline, matching))
+                if (matching == null || !DirectoryIndexEntryComparer.Instance.Equals(baseline, matching))
                     throw reject(SkinManagedPackageCaptureRejectionReason.InventoryChanged);
             }
 
@@ -3547,6 +3552,31 @@ namespace osu.Game.Skinning.Windows
             public int GetHashCode(WindowsSkinPackageDirectoryEntry obj) => HashCode.Combine(obj.Name, obj.Metadata);
         }
 
+        private sealed class DirectoryIndexEntryComparer : IEqualityComparer<WindowsSkinPackageDirectoryEntry>
+        {
+            public static DirectoryIndexEntryComparer Instance { get; } = new DirectoryIndexEntryComparer();
+
+            public bool Equals(WindowsSkinPackageDirectoryEntry? x, WindowsSkinPackageDirectoryEntry? y)
+                => DirectoryEntryComparer.Instance.Equals(x, y)
+                   // NTFS can refresh directory-index write/change timestamps when a prior handle closes, while
+                   // the same directory's canonical held metadata remains unchanged. Only these cached directory
+                   // timestamps are excluded here; canonical tree validation and full file metadata remain intact.
+                   || (x != null
+                       && y != null
+                       && string.Equals(x.Name, y.Name, StringComparison.Ordinal)
+                       && x.Metadata.Kind == WindowsSkinPackageEntryKind.Directory
+                       && y.Metadata.Kind == WindowsSkinPackageEntryKind.Directory
+                       && x.Metadata.Identity == y.Metadata.Identity
+                       && x.Metadata.Length == y.Metadata.Length
+                       && x.Metadata.CreationTime == y.Metadata.CreationTime
+                       && x.Metadata.FileAttributes == y.Metadata.FileAttributes
+                       && x.Metadata.ReparseTag == y.Metadata.ReparseTag
+                       && x.Metadata.NumberOfLinks == y.Metadata.NumberOfLinks
+                       && x.Metadata.DeletePending == y.Metadata.DeletePending);
+
+            public int GetHashCode(WindowsSkinPackageDirectoryEntry obj) => StringComparer.Ordinal.GetHashCode(obj.Name);
+        }
+
         private readonly record struct OpenedDirectory(
             IWindowsSkinPackageCaptureHandle Handle,
             WindowsSkinPackageEntryMetadata Metadata,
@@ -3592,6 +3622,7 @@ namespace osu.Game.Skinning.Windows
 
         private enum MutationRenameState
         {
+            Inspecting,
             Prepared,
             ForwardApplied,
             DeleteApplied,

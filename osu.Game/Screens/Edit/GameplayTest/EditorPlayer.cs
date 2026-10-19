@@ -72,6 +72,9 @@ namespace osu.Game.Screens.Edit.GameplayTest
         {
             base.LoadComplete();
 
+            if (!LoadedBeatmapSuccessfully)
+                return;
+
             // this will notify components such as the skin's combo counter, which needs to happen on the update thread
             // and therefore can't happen alongside `preventMissOnPreviousHitObjects()` in `LoadAsyncComplete()`
             markPreviousObjectsHit();

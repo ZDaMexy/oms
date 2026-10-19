@@ -810,7 +810,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         {
             string packageRoot = string.Empty;
             Live<SkinInfo> candidate = null!;
-            FullSkinSettingsCallerHost callerHost = null!;
+            FolderWorkspaceCallerHost callerHost = null!;
             Skin selected = null!;
             SkinCurrentRevision revisionA = null!;
 
@@ -818,7 +818,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             {
                 (packageRoot, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
                 candidate.PerformWrite(info => info.Hash = "workspace-current-transition");
-                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+                Add(callerHost = new FolderWorkspaceCallerHost(manager));
             });
             AddUntilStep("wait for managed workspace delete row", () =>
                 callerHost.IsLoaded
@@ -879,7 +879,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         {
             string packageRoot = string.Empty;
             Live<SkinInfo> candidate = null!;
-            FullSkinSettingsCallerHost callerHost = null!;
+            FolderWorkspaceCallerHost callerHost = null!;
 
             AddStep("create and select current workspace target", () =>
             {
@@ -890,9 +890,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddUntilStep("wait for current workspace target", () =>
                 manager.CurrentSkinInfo.Value.ID == candidate.ID
                 && manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID);
-            AddStep("mount full skin section", () =>
+            AddStep("mount retained workspace component", () =>
             {
-                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+                Add(callerHost = new FolderWorkspaceCallerHost(manager));
             });
             AddUntilStep("wait for current managed workspace row", () =>
                 callerHost.Workspace.Rows.SingleOrDefault(row => row.RecordId == candidate.ID)
@@ -940,7 +940,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         {
             string packageRoot = string.Empty;
             Live<SkinInfo> candidate = null!;
-            FullSkinSettingsCallerHost callerHost = null!;
+            FolderWorkspaceCallerHost callerHost = null!;
             Live<SkinInfo> selectionA = null!;
             Skin selected = null!;
             SkinCurrentRevision revisionA = null!;
@@ -955,13 +955,13 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddUntilStep("wait for authority-projection target", () =>
                 manager.CurrentSkinInfo.Value.ID == candidate.ID
                 && manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID);
-            AddStep("mount authority-projection full skin section", () =>
+            AddStep("mount retained authority-projection workspace", () =>
             {
                 selectionA = manager.CurrentSkinInfo.Value;
                 selected = manager.CurrentSkin.Value;
                 revisionA = manager.CurrentRevision;
                 sourceA = captureFolderInventory(packageRoot);
-                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+                Add(callerHost = new FolderWorkspaceCallerHost(manager));
             });
             AddUntilStep("wait for authority-projection workspace row", () =>
                 callerHost.Workspace.Rows.SingleOrDefault(row => row.RecordId == candidate.ID)
@@ -1035,14 +1035,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             Guid recordId = Guid.Empty;
             Guid replacementId = Guid.Empty;
             Live<SkinInfo> candidate = null!;
-            FullSkinSettingsCallerHost callerHost = null!;
+            FolderWorkspaceCallerHost callerHost = null!;
 
             AddStep("create detached-record workspace row", () =>
             {
                 (packageRoot, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
                 candidate.PerformWrite(info => info.Hash = "workspace-detached-record");
                 recordId = candidate.ID;
-                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+                Add(callerHost = new FolderWorkspaceCallerHost(manager));
             });
             AddUntilStep("wait for detached-record workspace row", () =>
                 callerHost.Workspace.Rows.SingleOrDefault(row => row.RecordId == recordId)
@@ -1158,7 +1158,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             Guid replacementId = Guid.Empty;
             int externalLaunches = 0;
             Live<SkinInfo> candidate = null!;
-            FullSkinSettingsCallerHost callerHost = null!;
+            FolderWorkspaceCallerHost callerHost = null!;
             FolderSkinWorkspace.FolderSkinWorkspaceRow detachedRow = null!;
 
             AddStep("create managed open-folder row", () =>
@@ -1168,7 +1168,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 managedPath = candidate.PerformRead(info => info.FilesystemStoragePath!);
                 recordId = candidate.ID;
                 manager.OpenFolderExternally = _ => Interlocked.Increment(ref externalLaunches);
-                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+                Add(callerHost = new FolderWorkspaceCallerHost(manager));
             });
             AddUntilStep("wait for managed open-folder row", () =>
             {
@@ -1263,13 +1263,13 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         {
             string packageRoot = string.Empty;
             Live<SkinInfo> candidate = null!;
-            FullSkinSettingsCallerHost callerHost = null!;
+            FolderWorkspaceCallerHost callerHost = null!;
 
             AddStep("create cancellable managed workspace row", () =>
             {
                 (packageRoot, candidate) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
                 candidate.PerformWrite(info => info.Hash = "workspace-cancel");
-                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+                Add(callerHost = new FolderWorkspaceCallerHost(manager));
             });
             AddUntilStep("wait for cancellable workspace row", () =>
                 callerHost.Workspace.Rows.SingleOrDefault(row => row.RecordId == candidate.ID)
@@ -1363,7 +1363,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             string secondRoot = string.Empty;
             Live<SkinInfo> first = null!;
             Live<SkinInfo> second = null!;
-            FullSkinSettingsCallerHost callerHost = null!;
+            FolderWorkspaceCallerHost callerHost = null!;
             SkinManagedFolderOperationCoordinator.Lease? heldLease = null;
             SkinSection.SkinDeleteDialog dialog = null!;
 
@@ -1373,7 +1373,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 (secondRoot, second) = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo());
                 first.PerformWrite(info => info.Hash = "workspace-double-confirm-first");
                 second.PerformWrite(info => info.Hash = "workspace-double-confirm-second");
-                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+                Add(callerHost = new FolderWorkspaceCallerHost(manager));
             });
             AddUntilStep("wait for two managed workspace rows", () =>
                 callerHost.Workspace.Rows.SingleOrDefault(row => row.RecordId == first.ID)
@@ -1439,14 +1439,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         public void TestFolderWorkspaceOperationFailureLogsOnlyStableGenericText()
         {
             const string sensitive_exception_text = "C:\\private-author-workspace\\native-exception-body";
-            FullSkinSettingsCallerHost callerHost = null!;
+            FolderWorkspaceCallerHost callerHost = null!;
             Task? operationTask = null;
             var entries = new ConcurrentQueue<LogEntry>();
 
             void capture(LogEntry entry) => entries.Enqueue(entry);
 
             AddStep("mount workspace for redacted log boundary", () =>
-                Add(callerHost = new FullSkinSettingsCallerHost(manager)));
+                Add(callerHost = new FolderWorkspaceCallerHost(manager)));
             AddUntilStep("wait for workspace redacted log boundary", () => callerHost.Workspace.IsLoaded);
             AddStep("invoke failing UI operation", () =>
             {
@@ -1482,6 +1482,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             string journalPath = string.Empty;
             Live<SkinInfo> candidate = null!;
             FullSkinSettingsCallerHost callerHost = null!;
+            FolderWorkspaceCallerHost workspaceHost = null!;
             SettingsNote supportNote = null!;
             Action? queuedFallback = null;
 
@@ -1495,11 +1496,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             AddUntilStep("wait for dynamic-support current target", () =>
                 manager.CurrentSkinInfo.Value.ID == candidate.ID
                 && manager.CurrentSkin.Value.SkinInfo.ID == candidate.ID);
-            AddStep("mount dynamic-support full skin section", () =>
-                Add(callerHost = new FullSkinSettingsCallerHost(manager)));
+            AddStep("mount settings caller and retained workspace support", () =>
+            {
+                Add(callerHost = new FullSkinSettingsCallerHost(manager));
+                Add(workspaceHost = new FolderWorkspaceCallerHost(manager));
+            });
             AddUntilStep("wait for initial redacted support", () =>
             {
-                supportNote = callerHost.Workspace.ChildrenOfType<SettingsNote>().Single();
+                supportNote = workspaceHost.Workspace.ChildrenOfType<SettingsNote>().Single();
                 return supportNote.Current.Value?.Text.ToString().Contains("No pending recovery", StringComparison.Ordinal) == true;
             });
             AddUntilStep("wait for current delete button", () => callerHost.CurrentDeleteButton.Enabled.Value);
@@ -5876,6 +5880,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(implicitRequestId, Is.Not.EqualTo(recordId));
                 });
             });
+            AddUntilStep("wait for random selection commit", () =>
+                manager.CurrentSkinInfo.Value.ID == implicitRequestId && manager.CurrentSkin.Value.SkinInfo.ID == implicitRequestId);
             AddStep("explicitly reselect before next", () => manager.CurrentSkinInfo.Value = dropdownRecord);
             AddUntilStep("wait for external before next", () => manager.CurrentSkinInfo.Value.ID == recordId && manager.CurrentSkin.Value.SkinInfo.ID == recordId);
             AddStep("next excludes external", () =>
@@ -5888,6 +5894,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(implicitRequestId, Is.Not.EqualTo(recordId));
                 });
             });
+            AddUntilStep("wait for next selection commit", () =>
+                manager.CurrentSkinInfo.Value.ID == implicitRequestId && manager.CurrentSkin.Value.SkinInfo.ID == implicitRequestId);
             AddStep("explicitly reselect before previous", () => manager.CurrentSkinInfo.Value = dropdownRecord);
             AddUntilStep("wait for external before previous", () => manager.CurrentSkinInfo.Value.ID == recordId && manager.CurrentSkin.Value.SkinInfo.ID == recordId);
             AddStep("previous excludes external", () =>
@@ -5901,6 +5909,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 });
                 manager.SelectionRequestBeforeCommitLock = _ => { };
             });
+            AddUntilStep("wait for previous selection commit", () =>
+                manager.CurrentSkinInfo.Value.ID == implicitRequestId && manager.CurrentSkin.Value.SkinInfo.ID == implicitRequestId);
         }
 
         [Test]
@@ -7286,8 +7296,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             public SkinSection Section { get; } = new SkinSection();
 
-            public FolderSkinWorkspace Workspace => Section.ChildrenOfType<FolderSkinWorkspace>().Single();
-
             public SkinSection.DeleteSkinButton CurrentDeleteButton => Section.ChildrenOfType<SkinSection.DeleteSkinButton>().Single();
 
             public SkinSection.RenameSkinButton RenameButton => Section.ChildrenOfType<SkinSection.RenameSkinButton>().Single();
@@ -7304,6 +7312,40 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 InternalChildren = new Drawable[]
                 {
                     Section,
+                    DialogOverlay,
+                };
+            }
+        }
+
+        /// <summary>
+        /// Exercises the retained workspace component and its backend safety contracts in isolation.
+        /// The current skin settings page deliberately does not mount this component.
+        /// </summary>
+        private partial class FolderWorkspaceCallerHost : CompositeDrawable
+        {
+            [Cached]
+            private readonly SkinManager skinManager;
+
+            [Cached]
+            private readonly OverlayColourProvider colourProvider = new OverlayColourProvider(OverlayColourScheme.Purple);
+
+            [Cached(typeof(IDialogOverlay))]
+            public DialogOverlay DialogOverlay { get; } = new DialogOverlay();
+
+            [Cached(typeof(INotificationOverlay))]
+            private readonly RecordingNotificationOverlay notificationOverlay = new RecordingNotificationOverlay();
+
+            public IReadOnlyList<Notification> PostedNotifications => notificationOverlay.Notifications;
+
+            public FolderSkinWorkspace Workspace { get; } = new FolderSkinWorkspace();
+
+            public FolderWorkspaceCallerHost(SkinManager skinManager)
+            {
+                this.skinManager = skinManager;
+                RelativeSizeAxes = Axes.Both;
+                InternalChildren = new Drawable[]
+                {
+                    Workspace,
                     DialogOverlay,
                 };
             }

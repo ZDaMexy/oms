@@ -401,6 +401,19 @@ namespace osu.Game.Rulesets.UI
         {
             base.Dispose(isDisposing);
 
+            if (frameStabilityContainer == null)
+            {
+                // The constructor owns these components before load() assembles the frame-stable subtree.
+                FrameStableComponents.Dispose();
+                Overlays.Dispose();
+                audioContainer.Dispose();
+                KeyBindingInputManager.Dispose();
+                playfieldAdjustmentContainer.Dispose();
+
+                if (playfield.IsValueCreated)
+                    playfield.Value.Dispose();
+            }
+
             configTracker?.Dispose();
 
             // Dispose the components created by this dependency container.

@@ -727,7 +727,8 @@ namespace osu.Game.Screens.Select
                     switch (i.Model)
                     {
                         case GroupDefinition childGroup:
-                            i.IsVisible = expanded;
+                            // Flat groups contain their own header; hierarchical groups contain only child headers.
+                            i.IsVisible = childGroup.Equals(group) || expanded;
                             i.IsExpanded = expanded && isGroupExpanded(childGroup);
                             break;
 

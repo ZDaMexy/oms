@@ -30,7 +30,7 @@ namespace osu.Game.Tests.Skins
             MemoryStream outStream = null!;
 
             // Ensure importer encoding is correct
-            AddStep("import beatmap", () => beatmap = importBeatmapFromArchives(@"japanese-filename.osz"));
+            AddStep("import beatmap", () => beatmap = importBeatmapFromArchives(@"japanese-filename-mania.osz"));
             AddAssert("sample is non-null", () => beatmap.Skin.GetSample(new SampleInfo(@"見本")) != null);
 
             // Ensure exporter encoding is correct (round trip)
@@ -53,7 +53,7 @@ namespace osu.Game.Tests.Skins
             MemoryStream outStream = null!;
 
             // Ensure importer encoding is correct
-            AddStep("import beatmap", () => beatmap = importBeatmapFromArchives(@"japanese-filename.osz"));
+            AddStep("import beatmap", () => beatmap = importBeatmapFromArchives(@"japanese-filename-mania.osz"));
             AddAssert("sample is non-null", () => beatmap.Skin.GetSample(new SampleInfo(@"見本")) != null);
 
             // Ensure exporter encoding is correct (round trip)
@@ -74,7 +74,7 @@ namespace osu.Game.Tests.Skins
         {
             IWorkingBeatmap beatmap = null!;
 
-            AddStep("import beatmap", () => beatmap = importBeatmapFromArchives(@"ogg-beatmap.osz"));
+            AddStep("import beatmap", () => beatmap = importBeatmapFromArchives(@"ogg-beatmap-mania.osz"));
             AddAssert("sample is non-null", () => beatmap.Skin.GetSample(new SampleInfo(@"sample")) != null);
             AddAssert("track is non-null", () =>
             {
@@ -88,7 +88,7 @@ namespace osu.Game.Tests.Skins
         {
             IWorkingBeatmap beatmap = null!;
 
-            AddStep("import beatmap", () => beatmap = importBeatmapFromArchives(@"conflicting-filenames-beatmap.osz"));
+            AddStep("import beatmap", () => beatmap = importBeatmapFromArchives(@"conflicting-filenames-beatmap-mania.osz"));
             AddAssert("texture is non-null", () => beatmap.Skin.GetTexture(@"spinner-osu") != null);
             AddAssert("sample is non-null", () => beatmap.Skin.GetSample(new SampleInfo(@"spinner-osu")) != null);
         }

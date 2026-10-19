@@ -30,6 +30,7 @@ native capture 资格/预算与完整 proof 合同见 [P1-A CONSTRAINTS](../../d
 - fixed staging 只来自既存held staging root下operation固定direct child；source需要DELETE|SYNCHRONIZE与share delete，两侧root/source同卷，首move前durable receipt。
 - NTFS要求preflight后释放descendant handles，保留source/parent/root，再move并以CancellationToken.None完整target recapture；不能靠放宽share或path reopen绕过。
 - DELETE access可合法推进provisional父目录项时间；父inventory比name/identity/kind，source pinned metadata仍exact。只放行明确rename-related root时间，不放宽descendant/content。
+- NTFS目录index的LastWriteTime/ChangeTime还可在旧DELETE handle关闭时刷新，而同一canonical目录全metadata稳定；这不只发生在managed根的peer，也会发生在已held源树的nested目录。不能把index副本两时间当canonical变化，也不能修改全局metadata Equals来刷绿；具体比较边界见[P1-A](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#managed-delete物理边界与恢复)。保留真实peer/nested缓存红绿、peer创建时间/属性与文件时间拒绝用例，不靠sleep/retry或刷新baseline。
 - move尝试后的取消、tree差异和恢复歧义统一去 [[reference_skin_managed_folder_mutation_foundation]]。
 
 SUBST的历史证据只覆盖volume-target classifier/fake alias，不能宣称已跑真实SUBST命令integration。capture成功也不验证InstantiationInfo、选择资格或publication；后续走 [[reference_skin_package_revision_capsule]]、[[reference_skin_managed_folder_selection]]。

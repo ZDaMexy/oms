@@ -185,7 +185,9 @@ namespace osu.Game.Screens.Play
 
         protected HUDOverlay HUDOverlay { get; private set; }
 
-        public bool LoadedBeatmapSuccessfully => DrawableRuleset?.Objects.Any() == true;
+        public bool LoadedBeatmapSuccessfully { get; private set; }
+
+        internal bool GameplaySkinLayoutPreparationFailed { get; private set; }
 
         protected GameplayClockContainer GameplayClockContainer { get; private set; }
 
@@ -377,10 +379,45 @@ namespace osu.Game.Screens.Play
 
             // load the skinning hierarchy first.
             // this is intentionally done in two stages to ensure things are in a loaded state before exposing the ruleset to skin sources.
-            GameplayClockContainer.Add(rulesetSkinProvider);
+            bool layoutPrepared = false;
 
-            if (cancellationToken.IsCancellationRequested)
+            try
+            {
+                GameplayClockContainer.Add(rulesetSkinProvider);
+
+                if (cancellationToken.IsCancellationRequested)
+                    return;
+
+                layoutPrepared = rulesetSkinProvider.HasPreparedGameplaySkinLayout;
+            }
+            finally
+            {
+                if (!layoutPrepared)
+                {
+                    // These components have not yet been handed to the renderer subtree.
+                    breakTracker.Dispose();
+                    breakTracker = null;
+                    HealthProcessor.Dispose();
+                    HealthProcessor = null;
+                    ScoreProcessor.Dispose();
+                    ScoreProcessor = null;
+                    DrawableRuleset.Dispose();
+                    DrawableRuleset = null;
+
+                    if (rulesetSkinProvider.Parent == null)
+                        rulesetSkinProvider.Dispose();
+                }
+            }
+
+            if (!layoutPrepared)
+            {
+                if (cancellationToken.IsCancellationRequested)
+                    return;
+
+                GameplaySkinLayoutPreparationFailed = true;
+                Logger.Log("The gameplay skin layout could not be prepared; gameplay was not started.", level: LogLevel.Important);
                 return;
+            }
 
             rulesetSkinProvider.AddRange(new Drawable[]
             {
@@ -504,6 +541,7 @@ namespace osu.Game.Screens.Play
 
             IsBreakTime.BindTo(breakTracker.IsBreakTime);
             IsBreakTime.BindValueChanged(onBreakTimeChanged, true);
+            LoadedBeatmapSuccessfully = true;
         }
 
         protected virtual GameplayClockContainer CreateGameplayClockContainer(WorkingBeatmap beatmap, double gameplayStart) => new MasterGameplayClockContainer(beatmap, gameplayStart);

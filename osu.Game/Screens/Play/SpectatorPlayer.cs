@@ -46,6 +46,9 @@ namespace osu.Game.Screens.Play
         {
             base.LoadComplete();
 
+            if (!LoadedBeatmapSuccessfully)
+                return;
+
             DrawableRuleset.FrameStableClock.WaitingOnFrames.BindValueChanged(waiting =>
             {
                 if (GameplayClockContainer is MasterGameplayClockContainer master)

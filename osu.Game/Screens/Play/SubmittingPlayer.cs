@@ -59,7 +59,7 @@ namespace osu.Game.Screens.Play
         [BackgroundDependencyLoader]
         private void load()
         {
-            if (DrawableRuleset == null)
+            if (!LoadedBeatmapSuccessfully)
             {
                 // base load must have failed (e.g. due to an unknown mod); bail.
                 return;
@@ -85,6 +85,10 @@ namespace osu.Game.Screens.Play
         protected override void LoadAsyncComplete()
         {
             base.LoadAsyncComplete();
+
+            if (!LoadedBeatmapSuccessfully)
+                return;
+
             handleTokenRetrieval();
         }
 

@@ -21,7 +21,7 @@
 - [2026-07-13 schema 56 皮肤清点](reference_skin_schema56_inventory_20260713.md) — 只读取证、失效类型与 Realm mtime 误判。
 - [skin folder authority/path preflight](reference_skin_filesystem_authority_preflight.md) — 声明/path preflight 不等于安全打开或写入授权。
 - [skin package immutable revision capsule](reference_skin_package_revision_capsule.md) — 内容身份、物理捕获、catalog引用保活与终结器清零陷阱。
-- [skin folder Windows handle capture](reference_skin_windows_handle_capture.md) — held no-follow、文件身份竞态与 handle 生命周期。
+- [skin folder Windows handle capture](reference_skin_windows_handle_capture.md) — held no-follow、文件身份竞态、目录index缓存时间与handle生命周期。
 - [managed skin folder scanner](reference_skin_managed_folder_scanner.md) — Observed/Valid、启动/手动扫描与reload，NTFS枚举影子时间与造包夹具诊断。
 - [managed skin folder factory/selection](reference_skin_managed_folder_selection.md) — 选择竞态、typed epoch、shutdown 与隐式提交前同值重选的 fixture 时序。
 - [managed chartskin mutation / rename / staged import / delete](reference_skin_managed_folder_mutation_foundation.md) — startup 恢复子 lease、NTFS move、日志恢复及 uncertain failure。
@@ -35,7 +35,7 @@
 
 ## 构建、存储与产品面参考
 
-- [构建与测试](reference_build_and_test.md) — 开发磁盘与进程环境、Pylance缓存扫描、构建目录内真实数据 / 旧作者包与容量误判、测试宿主复用/失败收尾与未加载Drawable失效、formatter owning 路径、输出锁、隔离渲染 / 内容宽度与真实窗口、桌面高性能会话缺席及后台限帧误判、品牌贴图命名空间与启动动画通道、未编译 / 退休 fixture 空跑、完整基线归因与依赖审计误判。
+- [构建与测试](reference_build_and_test.md) — 开发磁盘与进程环境、Pylance缓存扫描、真实数据 / 旧作者包误清理、宿主复用/失败收尾与未加载Drawable、虚拟轨道音频线程跳时、formatter路径、输出锁、隔离取景与正常窗口、桌面GC会话与后台限帧、品牌贴图/动画、退休fixture空跑、完整基线归因与依赖审计误判。
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱库路径身份与历史保全](reference_filesystem_library_identity.md) — 同内容不同目录、失效与物删分离、多文件改名、重复素材枚举与增量查询放大器。
 - [谱面构成过滤](reference_bms_composition_filter.md) — 单轨上限、共享额度、零宽入口及无解条件。
@@ -69,7 +69,7 @@
 - [gameplay skin shared codec/material](reference_gameplay_skin_codec_material.md) — 元素族/样式、typed Note/LN空匹配、scene数字ID段、必需槽透明Provide与字体复用预算。
 - [gameplay skin lane identity/topology](reference_gameplay_skin_lane_identity.md) — stable lane ID 与 topology 投影。
 - [gameplay skin topology publication/revision](reference_gameplay_skin_topology_revision.md) — owner-local revision 与 publication 区别。
-- [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — 唯一layout、显式空位/authorTop、mania键图mask、双stage判定、光柱/Note层级、图卡取景目标、AFP/SD、BGA遮挡与CUSTOM原档核对。
+- [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — 唯一layout、准备失败与旧screen退役、显式空位/authorTop、mania键图mask、双stage判定、光柱层级、图卡目标、AFP/SD与CUSTOM原档核对。
 - [gameplay skin config presence](reference_gameplay_skin_config_presence.md) — accepted presence、synthetic default 与 per-index mask。
 - [gameplay skin lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md) — lane provenance、9K/14K 候选映射与资源退役。
 - [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — 事件顺序、seek 时钟收敛与完整 Reset、callback 拷贝及真实显示取证。

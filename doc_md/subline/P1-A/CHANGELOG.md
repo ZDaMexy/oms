@@ -1,5 +1,35 @@
 # P1-A 变动日志
 
+## 2026-10-20选曲与皮肤遗留软件问题收尾
+
+按用户要求复核本线待处理记录，先保留ad6901b的干净工作树与fetch基线。Core具名基线33项中15失败：七项分组导航、四项旧osu谱包夹具及四项本次发生的native拒绝；BMS精确28项均因读取已退出真实设置页的Workspace而失败。不能把七项分组失败继续统称旧夹具：普通平面分组的成员包含自身header，收起逻辑却把所有GroupDefinition隐藏，真实鼠标/键盘选择会丢失组头。现仅保留自身header可见，真正子组仍按expanded隐藏；原失败用例不降预期，BMS层级收起补实际可见性断言。
+
+Windows目录删除拒绝已由两组真实NTFS红灯定位：只关闭操作前打开的DELETE句柄即可刷新managed-root peer或已held源树nested目录的index副本时间，同一目录canonical metadata全字段前后不变，原检查却在基线/移走前源树复验报InventoryChanged。没有sleep、retry、伪造metadata、捕获后写源或重取baseline。修正限于目录index的LastWriteTime/ChangeTime比较；完整成员/名称、identity、kind、creation、length、attrs/reparse、links/delete及文件全部metadata保持。源树canonical节点、manifest、排他重捕、外来文件及替换保护保留；没有修改全局metadata Equals或其它staged/copy根库存比较。
+
+现有mutation状态改为nullable表达尚未进入操作，真实source tree已held后才进入Prepared；fresh恢复Inspecting不授予rename/manifest/write能力，失败仍沿原调用方dispose。四个受控比较点为existing根基线、rename后peer、delete后peer及非provisional held-tree inventory。原生全类含peer/nested缓存回归、目录creation/attrs和文件写时间/仅ChangeTime负例，共18项在最终无临时诊断源码下连续两轮通过；临时方法栈及全局观察器已移除。
+
+28项BMS旧检查改为明确的独立retained FolderSkinWorkspace测试宿主，当前设置卡片仍走真实SkinSection；动态journal支持例并列两个宿主，不将退下的Workspace放回设置树，不删除原安全断言。四项资源检索/导出测试使用三份小型mania衍生谱包，只追加真实4K谱面；原日文Shift-JIS条目、flags、压缩与解码payload、local/central记录逐字节保留，旧共享包与legacy/nonlegacy导出断言未改。生成与一致性脚本、基线、全部红绿TRX和native取证留在`artifacts/pending-fixes-20261020/`。
+
+宽Core的`FullyQualifiedName~Skin|FullyQualifiedName~TestSceneBeatmapCarouselDifficultyGrouping`原始TRX为2009通过/3失败/5跳过，共2017项；三项旧预期分别将Realm当前版本写死为57（现58），以及把canonical普通默认包当作上游程序化皮肤。只将owner测试改为支持该字段的最低schema57，保留从56迁移且不认领旧记录的断言；背景按普通包规则区分supporter的SkinBackground不轮换与非supporter的默认背景轮换，并同修类型切换检查。两个完整fixture共17项重新编译后通过，三条原失败身份逐项映射到通过；该阶段生产源未变，不能冒写一份新的全绿2017项TRX。原生18项两轮与BMS旧28项/层级选曲39项均有独立专项TRX，跳过的真实备份根/私有素材或测量门不补签。
+
+随后BMS完整2853项为2829通过/6失败/18跳过，旧28项Workspace均通过。一个外部选择夹具未等随机切换提交就同值重选，真实复现原记录超时；现依次等随机/下一套/上一套的目标ID与当前owner提交，不改same-ID no-op。另五项来自同一PreStart host首次`Player.load`缓存空`FrameStableClock`及其后续级联；独立外部选择+PreStart全类28项通过不能抹去该首次错误。规则集时钟仅在其loader赋值；准备拒绝或8次Retry耗尽时delayed Content不挂，原Player却继续把构造过的规则集当成功。新实际PlayerLoader两例分别固定Rejected和Retry8，在旧生产各自独立精确复现同一CacheAs(null)，不是级联或超时红灯。
+
+现Player从已提交publication读取准备状态，基础加载完整完成才发成功；拒绝/耗尽经真实失败通知、回收并返回原页。未挂Content和规则集构造组件由各自owner释放，Player清理尚未交renderer的processor/规则集/break tracker；BMS、提交/回放、编辑及观战派生尊重失败状态，取消不伪装为布局失败，不改原在线范围。全局generation与8次上限保持；PreStart夹具在逻辑退出后通过真实Parent移除并Dispose上一局，再等其layout owner退休，不直接销毁participant、不强制GC或固定延时。首轮相关37项通过，包含实际通知、零成绩/结果、未加载子图回收和正常开局；其后仅收窄移走一个取消早退空窗，最终验证另列。
+
+该阶段25份源码/资源冻结后，四个owner的format verify通过；首轮新测试文件的行尾格式错误已定点规范并重验，不作为产品失败。Core相关128项全部通过，逐类覆盖保留在`core-completion-coverage.json`：provider拒绝/重试、loader取消/handoff、pending ownership、publication、现行scope设置/编辑器及回放式预览，另含native全类18、分组17、资源5、schema2与背景15。旧上游`TestScenePlayerLoader`/`TestSceneReplayPlayer`及直接Editing场景已从工程排除，未将无匹配过滤器算成通过，也不据这些间接入口签收真实观战或完整编辑体验。首个宽Core发生在此次加载修复前，其原始结果及后续软件门分别保留。
+
+随后完整BMS为2836通过/2失败/18跳过，共2856项，原CacheAs(null)与外部顺序选择错误消失，两项新增真实失败入口通过。两条新等待失败分别是PreStart仅等owner但旧ScreenStack退出图未释放，以及自动键音fixture单次Seek后主时钟始终0。前者补上述真实Player释放；后者发现测试Update线程直接Seek与已挂AudioManager的TrackVirtualManual音频Update对accumulated读改写竞态，即使Rate=0也能丢跳时。现仅将fixture源跳时排入同一音频队列，不改产品时钟、OnSeek及全部声音/判定断言；历史日志缺少raw-source快照，未声称已受控重放其唯一交错。
+
+完整mania首次959通过/1失败/2跳过，共962项，唯一错误在双stage挡板用例切mod时合法Dispose尚未挂载的renderer。正确回收暴露Stage.Dispose对未创建背景Drawable直接退订的构造期空引用；只对已存在Drawable退订，保留其余注册及base子树释放。不能强制先加载fixture或按IsLoaded跳过清理来伪造通过。
+
+上述收尾后的BMS三个完整范围共40项通过：自动键音类10项（含继承例）、真实失败入口3项、PreStart24项及其延迟启动派生3项；两条原full失败身份逐项转绿，映射见`completion-followup-resolution.json`。音频队列首次实现错误调用framework内部成员而编译失败，已改用公开的同一GameHost.AudioThread.Scheduler，随后format verify、Desktop Debug编译与上述40项通过；不把该编译失败算作产品回归。mania完整962个身份与修前一致，最终960通过/零失败/2跳过，原双stage释放错误通过，逐项比较见`mania-completion-comparison.json`。BMS原2856项TRX及宽Core原2017项TRX保留，不将专项绿灯拼成未执行的全绿full。
+
+最后仅将新增失败消息按现有OMS本地化模式移入PlayerLoaderOmsStrings，保持resource key、中英文与失败流程不变；直接在旧生成类写literal key曾触发两项本地化analyser的AD0001，现已消除。最终formatter两owner复验、Desktop Debug/Release均成功，实际失败入口全类3项再次通过（`layout-notification-final.trx`）；27份最终源码/资源摘要保持一致，`source-manifest-completion-v5.json`与较早full/40项所用v4分别保留。两项已知NuGet advisory及旧BMS测试CS8600/CA2007仍为四条警告，没有屏蔽或声称零警告；本轮仅编译，没有publish或额外安装副本。
+
+文档健康、总工作区导航/来源检查与diff检查通过；当前状态、计划及两份较早审查只回链本节，不改写旧TRX或性能采样日期。独立只读审查未发现加载失败收尾的额外问题；自动门不代签正常窗口、真实设备或发行。
+
+本次未读取原HDD或正式玩家数据，不改Omni包、canonical美术、游玩判定/计分/输入/音频；Omni独立私下分享边界保持。真实前台帧时间、控制器/听感、原版外观校准、26及更早来源与原V-001～V-005/发行门仍按原计划，不以软件检查代签。
+
 ## 2026-10-20Omni移除Lightning副屏
 
 用户确认Lightning Model副屏不适合OMS。统一作者生成器停止导出辅助屏背景/图标模块及三个开关/数值；新建、冻结模块整合及旧作者目录重打包统一剔除`auxiliaryDisplay`、两项辅助材质、Premium背景/图标与Concentration背景。主屏Graph、LIFT、15框体、25FC、音符/长条/判定/爆炸/光柱/转盘/挡板及尺寸/长度保持；不删除公共辅助屏能力，不改游戏运行代码或其它皮肤。

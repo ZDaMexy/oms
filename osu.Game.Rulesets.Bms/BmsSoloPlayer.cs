@@ -40,6 +40,9 @@ namespace osu.Game.Rulesets.Bms
         {
             base.LoadComplete();
 
+            if (!LoadedBeatmapSuccessfully)
+                return;
+
             gameplayClockPaused.BindTarget = GameplayClockContainer.IsPaused;
             gameplayClockPaused.BindValueChanged(_ => handleGameplayClockPausedState(), true);
             pauseOverlayVisibility.BindTarget = PauseOverlay.State;

@@ -97,10 +97,12 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddUntilStep("expanded group is table root", () => Carousel.CurrentExpandedGroup.Value?.Title.ToString(), () => Is.EqualTo("Satellite"));
             AddAssert("table root depth is 0", () => Carousel.CurrentExpandedGroup.Value?.Depth, () => Is.EqualTo(0));
             AddUntilStep("cursor stays on the collapsed level group", GetKeyboardSelectedVisibleGroupTitle, () => Is.EqualTo("★1"));
+            AddAssert("collapsed level hides its charts", () => GetVisibleCarouselModels().All(model => model is GroupDefinition));
 
             AddStep("collapse to root", () => Carousel.CollapseExpandedGroupOneLevel());
             AddUntilStep("no expanded group remains", () => Carousel.CurrentExpandedGroup.Value, () => Is.Null);
             AddUntilStep("cursor stays on the collapsed table group", GetKeyboardSelectedVisibleGroupTitle, () => Is.EqualTo("Satellite"));
+            AddAssert("collapsed table hides its child groups", () => GetVisibleCarouselModels().All(model => model is GroupDefinition { Depth: 0 }));
         }
 
         [Test]

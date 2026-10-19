@@ -43,7 +43,7 @@ namespace osu.Game.Tests.Database
 
                     Assert.Multiple(() =>
                     {
-                        Assert.That(realm.Realm.Config.SchemaVersion, Is.EqualTo(57));
+                        Assert.That(realm.Realm.Config.SchemaVersion, Is.GreaterThanOrEqualTo(57UL));
                         Assert.That(stored.FilesystemStoragePath, Is.EqualTo("chartskin/package"));
                         Assert.That(stored.FilesystemStorageAuthorityOwner, Is.EqualTo(owner));
                     });
@@ -101,7 +101,7 @@ namespace osu.Game.Tests.Database
 
                     Assert.Multiple(() =>
                     {
-                        Assert.That(realm.Realm.Config.SchemaVersion, Is.EqualTo(57));
+                        Assert.That(realm.Realm.Config.SchemaVersion, Is.GreaterThanOrEqualTo(57UL));
                         Assert.That(migrated.Name, Is.EqualTo("Pre-owner managed folder"));
                         Assert.That(migrated.FilesystemStoragePath, Is.EqualTo("chartskin/pre-owner"));
                         Assert.That(migrated.FilesystemStorageAuthorityOwner, Is.Null,

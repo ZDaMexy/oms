@@ -266,6 +266,7 @@ namespace osu.Game.Tests.Visual.Background
         [Test]
         public void TestBackgroundTypeSwitch()
         {
+            setDefaultSkin();
             setSupporter(true);
 
             setSourceMode(BackgroundSource.Beatmap);
@@ -275,7 +276,7 @@ namespace osu.Game.Tests.Visual.Background
             AddUntilStep("is storyboard background", () => getCurrentBackground() is BeatmapBackgroundWithStoryboard);
 
             setSourceMode(BackgroundSource.Skin);
-            AddUntilStep("is default background", () => getCurrentBackground().GetType() == typeof(Graphics.Backgrounds.Background));
+            AddUntilStep("is default skin background", () => getCurrentBackground() is SkinBackground);
 
             setCustomSkin();
             AddUntilStep("is skin background", () => getCurrentBackground() is SkinBackground);
@@ -317,8 +318,9 @@ namespace osu.Game.Tests.Visual.Background
             setSupporter(supporter);
             setDefaultSkin();
 
-            AddUntilStep("wait for beatmap background to be loaded", () => (getCurrentBackground())?.GetType() == typeof(Graphics.Backgrounds.Background));
-            AddAssert("next cycles background", () => screen.Next());
+            Type backgroundType = supporter ? typeof(SkinBackground) : typeof(Graphics.Backgrounds.Background);
+            AddUntilStep("wait for background to be loaded", () => getCurrentBackground()?.GetType() == backgroundType);
+            AddAssert(supporter ? "skin background is retained" : "next cycles background", () => screen.Next() == !supporter);
         }
 
         private void setSourceMode(BackgroundSource source) =>

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using oms.Input;
 using osu.Framework.Allocation;
+using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Screens;
@@ -70,6 +71,11 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             base.SetUpSteps();
 
+            // ScreenStack keeps exited screens until their lifetimes elapse. Reclaim the actual previous tree on
+            // Update rather than leaving a pre-start screen's resources behind across test cases.
+            AddStep("dispose previous exited gameplay screen", () => player?.RemoveAndDisposeImmediately());
+            AddUntilStep("wait for previous gameplay layout owner retirement", () =>
+                player?.DrawableBmsRuleset?.LayoutProvider.RevisionOwner?.IsDisposed != false);
             AddStep("set ruleset", () => Ruleset.Value = bms_ruleset_info);
             AddStep("set beatmap", () => Beatmap.Value = CreateWorkingBeatmap(sourceBeatmap));
             AddStep("set lane cover mods", () => SelectedMods.Value = selectedMods);

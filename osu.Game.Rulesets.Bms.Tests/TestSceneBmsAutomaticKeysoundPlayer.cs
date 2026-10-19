@@ -7,6 +7,7 @@ using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Audio;
 using osu.Framework.Graphics;
+using osu.Framework.Platform;
 using osu.Framework.Testing;
 using osu.Framework.Timing;
 using osu.Game.Beatmaps;
@@ -35,6 +36,9 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         [Resolved]
         private AudioManager audioManager { get; set; } = null!;
+
+        [Resolved]
+        private GameHost gameHost { get; set; } = null!;
 
         protected override bool HasCustomSteps => true;
 
@@ -78,7 +82,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         protected override WorkingBeatmap CreateWorkingBeatmap(IBeatmap beatmap, Storyboard? storyboard = null)
-            => new OsuTestScene.ClockBackedTestWorkingBeatmap(beatmap, storyboard, referenceClock, audioManager);
+            => new ClockBackedTestWorkingBeatmap(beatmap, storyboard, referenceClock, audioManager);
 
         protected override TestPlayer CreatePlayer(Ruleset ruleset) => new TestPlayer(true, false, false);
 
@@ -189,7 +193,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             pressKey(2, true);
             AddAssert("manual hold head reaches store once", () => playCount("hold.wav"), () => Is.EqualTo(1));
             AddAssert("original head WAV slot is preserved", () => store!.PlaybackLogForTesting.Single(r => r.Filename == "hold.wav").CutGroup,
-                () => Is.EqualTo(Player.DrawableRuleset.Objects.OfType<osu.Game.Rulesets.Bms.Objects.BmsConvertedHoldNoteHitObject>().Single().KeysoundId));
+                () => Is.EqualTo(Player.DrawableRuleset.Objects.OfType<Objects.BmsConvertedHoldNoteHitObject>().Single().KeysoundId));
             advanceTo(9000);
             pressKey(2, false);
             advanceTo(10500);
@@ -283,7 +287,12 @@ namespace osu.Game.Rulesets.Bms.Tests
                 // Move only the deterministic test source. GameplayClockContainer.Seek is reserved for the
                 // explicit rewind test: it emits OnSeek and would intentionally skip scheduled sounds.
                 var clock = Player.GameplayClockContainer.ChildrenOfType<FramedBeatmapClock>().Single();
-                ((IAdjustableClock)clock.Source).Seek(target - clock.TotalAppliedOffset);
+                var source = (IAdjustableClock)clock.Source;
+                double sourceTime = target - clock.TotalAppliedOffset;
+
+                // The virtual track's audio-thread update also writes its time, even at rate zero.
+                // Queue the seek there so an in-flight update cannot overwrite the new position.
+                gameHost.AudioThread.Scheduler.Add(() => source.Seek(sourceTime));
             });
             AddUntilStep($"gameplay reaches {target:N0} ms", () => Player.DrawableRuleset.FrameStableClock.CurrentTime, () => Is.EqualTo(target).Within(1));
         }
