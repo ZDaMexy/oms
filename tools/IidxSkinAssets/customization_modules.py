@@ -763,62 +763,6 @@ class ModuleBuilder:
             "defaultEvidence": "turn00 full47x47 RGBA is byte-equal to33 usr_turn00; external original host selection remains unknown.",
             "unknown": "Original per-input rotation/animation; these46 source packages are texture-only."})
 
-    def auxiliary_backgrounds(self):
-        self.options.extend([
-            {"id": "auxiliary-display", "type": "toggle", "label": "辅助屏初始展开", "default": False},
-            {"id": "concentration", "type": "toggle", "label": "游玩时辅助屏专注模式", "default": False},
-            {"id": "concentration-brightness", "type": "number", "label": "专注模式亮度", "default": .5,
-             "min": 0, "max": 1, "step": .05}])
-        for category, identifier, label, slot, marker in (
-                ("p", "premium-background", "Premium Area Background · 辅助屏背景", "hud.auxiliary", "markers/auxiliary"),
-                ("k", "concentration-background", "Concentration Mode · 专注背景", "hud.auxiliary-concentration", "markers/auxiliary-concentration")):
-            choices = []
-            for style in range(103):
-                package = f"sub_customize_bg{style:03}"
-                b = Branch(self, category, f"g{style:03}")
-                resource, _, row = b.asset(package, package, "p")
-                if (row["width"], row["height"]) != (1280, 720):
-                    raise ValueError("Premium source background requires a different auxiliary aspect")
-                root = node(b.prefix + ".background", "sprite", resource=resource, slot=slot)
-                b.template("background", root, slot, marker)
-                choices.append({"value": f"g{style:03}", "label": f"背景 {style:03}", **b.finish()})
-            self.add_module(identifier, label, choices, "g000")
-        self.receipts.append({"category": "auxiliary-backgrounds", "sourceStyleCount": 103,
-            "sourcePixels": [1280, 720], "placement": "Independent16:9 canvas in a collapsible Player overlay panel, default collapsed; opening the panel may cover main Frame or BGA pixels.",
-            "sharedOriginalAssets": "Premium and Concentration reference the same original PNG declarations; dimming is the dedicated viewport's brightness transform.",
-            "defaultEvidence": "Initial source selection g000 is an author fallback for a collapsed optional viewport; not claimed as the original host's default.",
-            "interaction": "The Player owns the auxiliary open/collapse and concentration per-play touch reset."})
-
-    def auxiliary_icons(self):
-        sources = [(f"i{style:02}", f"图标 {style:02}", f"sub_customize_panel{style:03}",
-                    (f"sub_customize_panel{style:03}_j",)) for style in range(3)]
-        for key, label in (("apina", "APINA VRAMeS"), ("gigo", "GiGO"), ("game_p", "GAME PANIC"),
-                           ("silk_hat", "SILK HAT"), ("nova", "SUPERNOVA Tohoku"), ("tradz", "TAITO STATION Tradz"),
-                           ("round1", "ROUND1"), ("leisure_l", "LEISURE LAND")):
-            sources.append(("i-" + key.replace("_", "-"), label, "sub_customize_panel003",
-                            ("sub_customize_panel003_j", "sub_customize_panel003_bpl_" + key)))
-        choices = []
-        for value, label, package, dependencies in sources:
-            b = Branch(self, "i", value)
-            exported = self.clip(package, "mainicon_playcus", "i.clip." + value, loop=True, trigger="gameplay.attach",
-                                 texture_dependencies=dependencies, sample_frame=20)
-            art = b.include_clip(exported)
-            art["id"] = b.prefix + ".art"
-            # This is a genuine250px original menu icon, placed by the author in
-            # the new auxiliary viewport, not an assertion of original host XY.
-            art["properties"] = {"x": .5, "y": .5, "width": 250 / 1280, "height": 250 / 720, "origin": "centre"}
-            root = node(b.prefix + ".icon", slot="hud.auxiliary", children=[art])
-            b.template("icon", root, "hud.auxiliary", "markers/auxiliary")
-            choices.append({"value": value, "label": label, **b.finish()})
-        self.add_module("premium-icon", "Premium Area Icon · 辅助屏图标", choices, "i00")
-        self.receipts.append({"category": "premium-icon", "menuThemes": 11, "sourceIfsCount": 24,
-            "sourceSelection": "Three original000/001/002 plus eight BPL overrides of the003 shell; a/j/k are language packages, not extra themes.",
-            "language": "Explicit original_j text dependencies; labels are source Japanese, not fabricated Chinese sprites.",
-            "sourceTiming": "Original260-frame interactive menu movie evaluated through its idle-label frame20; the selected genuine frame is held statically.",
-            "scope": "Visual icon theme only. Original touch/menu/DJDATA interactions and account functions are not simulated.",
-            "placement": "Authored centre of the dedicated auxiliary viewport; original icon canvas250x250 retained.",
-            "pixelPreservation": "Original PNGs, fullUV and source hierarchy/matrices; resource-ID-only interning."})
-
     def graph_art(self):
         choices = [{"value": "blank", "label": "原空白", **Branch(self, "g", "blank").finish()}]
         for style in range(366):
@@ -842,7 +786,7 @@ class ModuleBuilder:
             "originalArtCanvas": [432, 724], "sourceArtP1": [1495, 161, 1927, 885],
             "sourceClipP1": [1504, 178, 1918, 870], "p2Offset": [-1502, 0],
             "dp": "Author application of the sameP1 right-hand graph aperture; no original DP host capture asserted.",
-            "default": "blank", "visibility": "Independent root option.graph-visible gate; default off preserves the main33 presentation. Premium auxiliary visibility is unrelated.",
+            "default": "blank", "visibility": "Independent root option.graph-visible gate; default off preserves the main33 presentation.",
             "drawOrder": "z=-20 behind the Frame's actual-score/maximum/progress contribution.",
             "statistics": "Caller owns true score bindings; no original target/rival/history placeholder is included here."})
 
@@ -931,8 +875,6 @@ def build_modules(library: Path, output: Path, *, bemani_root: Path, image_tools
     builder.beams()
     builder.static_lanes()
     builder.turntables()
-    builder.auxiliary_backgrounds()
-    builder.auxiliary_icons()
     builder.graph_art()
     builder.lift_art()
     result = {"modules": builder.modules, "options": builder.options, "files": list(builder.files.values()),

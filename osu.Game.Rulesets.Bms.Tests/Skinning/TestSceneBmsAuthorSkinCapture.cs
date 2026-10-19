@@ -176,6 +176,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(CanonicalSkinPackage.IsCanonicalSkin(skins.CurrentSkin.Value), Is.False);
                 Assert.That(renderer.GameplaySkinSceneRuntime, Is.Not.Null);
                 Assert.That(renderer.GameplaySkinSceneRuntime!.RuntimeFaults, Is.Empty);
+                Assert.That(player.ChildrenOfType<GameplaySkinAuxiliaryPanel>().Count(),
+                    Is.EqualTo(skins.CurrentSkin.Value.PreparedGameplaySkinPackage!.Manifest!.AuxiliaryDisplay == null ? 0 : 1));
                 if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_BEAM_LAYER") is string beamCheck)
                     recordBeamLayer(beamCheck == "verify");
                 File.WriteAllText(Path.Combine(outputDirectory, "materials.json"), System.Text.Json.JsonSerializer.Serialize(

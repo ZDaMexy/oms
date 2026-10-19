@@ -21,13 +21,13 @@ dotnet run --project tools/SkinAuthoring -- check 'Y:\OmniAuthor'
 
 重新导出模块时省略 `--modules-directory`，改为提供 `--bemani-root`（与来源收据一致的独立 bemaniutils checkout）、`--image-tools`（下方依赖目录）和 `--frame-maps`。后者是15个Frame ID到各自原始 `skin-reference-map.json` 的JSON映射，路径相对映射文件所在目录并须位于其下；例如 `{"iidx33":"iidx33/skin-reference-map.json",...}`。`customization_modules.py` 接受相同三项参数；单独导出动画也须显式提供前两项，不再依赖某天的研究缓存路径。AFP解析器版本取来源收据，不由脚本自动下载或更新；玩家导入成品只需要对应OMS版本。
 
-实际选项包括15框体、27爆炸、46转盘、21判定、12音符、11套CN/HCN、15光柱、366挡板、25FC、103背景与11图标；Graph Area和LIFT可独立选择空白或366同源艺术。音符/CN尺寸、EXP缩放、光柱长度独立于设计。notes11缺少原尺寸档，复用同11原图做显式作者纵缩，不能换00冒充；HCN额外配色是同款CN原材质的作者选项，不声称已确认官方颜色编号。
+实际选项包括15框体、27爆炸、46转盘、21判定、12音符、11套CN/HCN、15光柱、366挡板和25FC；Graph Area和LIFT可独立选择空白或366同源艺术。音符/CN尺寸、EXP缩放、光柱长度独立于设计。notes11缺少原尺寸档，复用同11原图做显式作者纵缩，不能换00冒充；HCN额外配色是同款CN原材质的作者选项，不声称已确认官方颜色编号。
 
-根options使用33框体、源00部件、normal尺寸；Graph和辅助屏默认关闭。Graph只有真实当前/理论满分与标明作者适配的比较柱；没有对手/历史数据。辅助屏承载Premium背景/图标、专注背景/亮度与触摸恢复，不改变主BGA；LIFT仅跟随BMS原生抬升。源静止20帧图标不等于完整账号/触控菜单。FC保留三布局终止空帧和原时长，19为3500ms、24为3000ms，其它2500ms；滤镜顺序和真实host设置仍待原版画面校准。
+根options使用33框体、源00部件、normal尺寸；Graph默认关闭，只有真实当前/理论满分与标明作者适配的比较柱，没有对手/历史数据。LIFT仅跟随BMS原生抬升。FC保留三布局终止空帧和原时长，19为3500ms、24为3000ms，其它2500ms；滤镜顺序和真实host设置仍待原版画面校准。
 
 统一生成器为音符、CN、判定文字、爆炸、光柱和转盘输出132张静态代表缩略图，目录choice通过可选`preview`引用；Game Frame与FC保留文字。图片来自同款原材质/动画代表帧，`choice_previews.py`负责有界缩略，不改游玩图片、场景或默认选值。冻结模块重打包也沿同一路径，预览纳入ZIP引用闭包；先运行当前`SkinAuthoring check`，再独立导入验证。玩家可按模式默认和键数分别设置；此工具不把Omni写入玩家目录、canonical或公开制作套件。
 
-辅助屏当前显示为可收起的游玩浮层，展开时可能遮住主屏内容；它与BGA使用独立画布和状态，不是第二显示器输出。Graph读数采用作者排布避开OMS右上按钮，可先收起浮层查看。早期取材收据中的“never overlays”是位置描述错误，不据旧记账语句改变成品或运行代码。
+2026-10-20按用户反馈，Omni仅提供主游玩画面：移除Lightning副屏、展开/专注/亮度三项配置、Premium背景/图标及专注背景。新导出与冻结模块/旧作者目录重打包都不再声明副屏，发布闭包排除其专用素材；原研究资料及旧版交付保留。Graph仍在主屏显示，不受此项移除影响，公共引擎及其它作者包的辅助屏能力保持。
 
 整合输出只将引用闭包写入OSK，研究/来源收据留在作者目录，不能把generation或独立PNG可解码当作导入/游玩验收。内容目录能力、边界与可复跑CLI检查取[作者参考](../../skin-authoring/docs/REFERENCE.md#按选项组合内容)，本轮实际验证取[P1-A状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)。全部原版素材和作品仍仅留本地忽略目录或仓库外，不进入canonical/制作套件/公开发行。
 
@@ -112,4 +112,4 @@ python -B -m http.server 8768 --bind 127.0.0.1 --directory 'Y:\IIDX-Art-Library'
 
 当前授权、作品范围与下一步以 [P1-A 计划](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md)和[约束](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)为准；解包成功不代表动画、布局或游玩效果已验收。
 
-Omni光柱使用公开`playfield.lane-surface`，在原生Note/LN下方；Frame透明占位同步退出该槽。新导出及`--repackage-directory`均保留这种分工；旧包重建只修正已确认的光柱模板/材料声明与Frame空占位，原图、录制动画、长度及其它模块保持。验证见[P1-A记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-19omni光柱层级修正)，通用引擎图层不变。
+Omni光柱使用公开`playfield.lane-surface`，在原生Note/LN下方；Frame透明占位同步退出该槽。新导出及`--repackage-directory`均保留这种分工；光柱校正仅涉及已确认的模板/材料声明与Frame空占位，原图、录制动画和长度保持；副屏内容另按上方主屏范围剔除。光柱验证见[P1-A记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-19omni光柱层级修正)，通用引擎图层不变。

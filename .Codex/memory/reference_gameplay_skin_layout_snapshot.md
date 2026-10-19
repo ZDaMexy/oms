@@ -34,6 +34,7 @@ metadata:
 
 ## 从真实截图排查分区遮挡
 
+- 配置取景的目标取`SkinSection.ScopeSelector`，不再跟随`Game.Ruleset`或当前游玩皮肤。旧fixture须在隔离偏好中指定相应模式皮肤，再等待卡片目标就绪；图卡选择器为`SkinOptionChoiceSettings`，不能只数或操作`FormDropdown`。否则正确导入后仍会超时或修改另一模式，见[P1-A记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-20omni移除lightning副屏)。
 - scene的`z`只排序同一固定layer，不能把Overlay里的`decoration`放到原生Note/LN后。Omni光柱误用decoration会盖住正在Holding的CN；逐轨背景应声明LaneSurface，并移除Frame对同一target的透明占位以避免DuplicateDeclaration。不要直接换KeyFlash：该槽投影的是hit-target区域，和整条lane不是同一几何。既有Underlay可满足作者行为，不要为单个包更改公共层级；修正和原生取景见[P1-A日志](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-19omni光柱层级修正)。
 - AFP跨版本矩阵对照须保留同名binding的全部实例与深度路径；DP两侧可同时叫lane_1p，仅用名称作字典键会覆盖一侧并制造假差异。按movie/name/occurrence逐项比较，再与红线、键灯和实机交叉核定，不能由背景矩阵单独推出原生演奏几何变更。诊断例见[31制作记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-18iidx31-epolis-游玩候选)。
 - 同名或同字节PNG不证明相同源几何。SD小BPM的28×18共用图在原GEO中是19×16、UV仍为完整0～1；须按网格非等比显示，不能据PNG比例裁图或统一乘画布倍数。框体的SD投影不适用于另有HD局部stage的共用音符/击打。源单个score占位符也不证明动态位数或advance，应另测面板内区域并把多位排布标为候选；作品边界取[P1-A素材约束](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)。

@@ -38,6 +38,8 @@ FRAME_NAMES = {
 }
 SUPPORTED = ["5k", "6k", "7k", "8k", "14k", "7k-7k", "8k-8k"]
 ROOT_GLOBAL_TARGET = "Target: Global ruleset=any keymode=any stage-mode=any"
+AUXILIARY_OPTIONS = {"auxiliary-display", "concentration", "concentration-brightness"}
+AUXILIARY_MODULES = {"premium-background", "concentration-background", "premium-icon"}
 
 
 def read_json(path: Path):
@@ -438,7 +440,7 @@ def catalog_contributions(catalog):
     return result
 
 
-def package_closure(output: Path):
+def package_closure(output: Path, configuration_overrides=None):
     """Ship referenced data only; offline research/checkpoints are never skin resources."""
     files = {"skin.ini", "gameplay-skin.json", "gameplay-skin.scene.json"}
     pending = ["gameplay-skin.json", "skin.ini"]
@@ -449,12 +451,13 @@ def package_closure(output: Path):
             continue
         visited.add(relative)
         path = exact_file(output, relative)
+        override = (configuration_overrides or {}).get(relative)
         additions = []
         if relative.endswith(".ini"):
-            text = path.read_text(encoding="utf-8")
+            text = override if override is not None else path.read_text(encoding="utf-8")
             additions.extend(match + ".png" for match in re.findall(r'Provide "([^"]+)"', text))
         elif relative.endswith(".json"):
-            data = read_json(path)
+            data = override if override is not None else read_json(path)
             if data.get("contract") == MANIFEST_CONTRACT:
                 additions.extend(resource["path"] for resource in data.get("resources", []))
                 additions.extend(animation["path"] for animation in data.get("animations", []))
@@ -720,6 +723,35 @@ def correct_root_ini_target(content: bytes):
     return fixed
 
 
+def remove_auxiliary_ini(content: bytes):
+    return b"".join(line for line in content.splitlines(keepends=True)
+                    if not re.match(rb"^hud\.auxiliary(?:-concentration)?:", line))
+
+
+def remove_auxiliary_display(output: Path):
+    """Omni targets the main gameplay screen; omit the Lightning cabinet's second-screen content."""
+    manifest_path, catalog_path = output / "gameplay-skin.json", output / "gameplay/content.json"
+    manifest, catalog = read_json(manifest_path), read_json(catalog_path)
+    removed_options = [item["id"] for item in manifest["options"] if item["id"] in AUXILIARY_OPTIONS]
+    removed_modules = [{"id": item["id"], "choices": len(item["choices"])}
+                       for item in catalog["modules"] if item["id"] in AUXILIARY_MODULES]
+    if removed_options or "auxiliaryDisplay" in manifest:
+        manifest["options"] = [item for item in manifest["options"] if item["id"] not in AUXILIARY_OPTIONS]
+        manifest.pop("auxiliaryDisplay", None)
+        write_json(manifest_path, manifest)
+    if removed_modules:
+        catalog["modules"] = [item for item in catalog["modules"] if item["id"] not in AUXILIARY_MODULES]
+        write_json(catalog_path, catalog)
+    ini_path = output / "skin.ini"
+    original = ini_path.read_bytes()
+    corrected = remove_auxiliary_ini(original)
+    if corrected != original:
+        ini_path.write_bytes(corrected)
+    return {"scope": "Main gameplay screen only; no auxiliary viewport or secondary-screen controls",
+            "removedOptions": removed_options, "removedModules": removed_modules,
+            "unreferencedMedia": "Excluded by the publication reference closure; source libraries retained"}
+
+
 def correct_frame_decoration_scope(content: bytes):
     """Stop a Frame's Global information selector at each actual Stage, preserving narrower CUSTOM declarations."""
     lines = content.splitlines(keepends=True)
@@ -980,6 +1012,8 @@ def verify_repackage(source: Path, output: Path, files):
     original_files = package_closure(source)
     original_catalog = read_json(source / "gameplay/content.json")
     expected_catalog = copy.deepcopy(original_catalog)
+    expected_catalog["modules"] = [item for item in expected_catalog["modules"] if item["id"] not in AUXILIARY_MODULES]
+    retained_source_catalog = copy.deepcopy(expected_catalog)
     manifests, scenes = set(), set()
     for part in catalog_contributions(expected_catalog):
         for key, kind, paths in (("manifest", "m", manifests), ("scene", "s", scenes)):
@@ -997,21 +1031,28 @@ def verify_repackage(source: Path, output: Path, files):
         if read_json(exact_file(output, flat_configuration_path(path, "m"))) != expected:
             raise ValueError(f"Repackaging changed a manifest beyond its fixed C1 scene header: {path}")
     if read_json(output / "gameplay/content.json") != expected_catalog:
-        raise ValueError("Repackaging changed a catalog beyond its configuration paths and exact option illustrations")
+        raise ValueError("Repackaging changed a catalog beyond auxiliary removal, configuration paths and exact option illustrations")
+    expected_root = read_json(source / "gameplay-skin.json")
+    expected_root.pop("auxiliaryDisplay", None)
+    expected_root["options"] = [item for item in expected_root["options"] if item["id"] not in AUXILIARY_OPTIONS]
+    if read_json(output / "gameplay-skin.json") != expected_root:
+        raise ValueError("Repackaging changed the root manifest beyond its auxiliary declaration and three controls")
     mappings = {**{path: flat_configuration_path(path, "m") for path in manifests},
                 **{path: flat_configuration_path(path, "s") for path in scenes}}
-    if sorted({mappings.get(path, path) for path in original_files} | preview_files(expected_catalog)) != files:
-        raise ValueError("Repackaging changed the original reference closure beyond its exact option illustrations")
+    original_root_ini = exact_file(source, "skin.ini").read_bytes()
+    expected_root_ini = remove_auxiliary_ini(correct_root_ini_target(original_root_ini))
+    retained_files = package_closure(source, {"skin.ini": expected_root_ini.decode("utf-8"),
+        "gameplay-skin.json": expected_root, "gameplay/content.json": retained_source_catalog})
+    if set(files) != {mappings.get(path, path) for path in retained_files} | preview_files(expected_catalog):
+        raise ValueError("Repackaging changed the retained main-screen reference closure beyond its exact option illustrations")
     unchanged, byte_equal_scenes = 0, 0
     corrected_scenes, corrected_frame_inis, corrected_beam_inis = [], [], []
     frame_inis = set(frame_ini_paths(original_catalog))
     beam_inis = set(beam_ini_paths(original_catalog))
-    original_root_ini = exact_file(source, "skin.ini").read_bytes()
-    expected_root_ini = correct_root_ini_target(original_root_ini)
     if exact_file(output, "skin.ini").read_bytes() != expected_root_ini:
-        raise ValueError("Repackaging changed the root INI beyond its explicit public target repair")
-    for relative in original_files:
-        if relative in manifests or relative in ("gameplay/content.json", "skin.ini"):
+        raise ValueError("Repackaging changed the root INI beyond its public target and auxiliary removal")
+    for relative in retained_files:
+        if relative in manifests or relative in ("gameplay/content.json", "gameplay-skin.json", "skin.ini"):
             continue
         destination = mappings.get(relative, relative)
         if relative in frame_inis:
@@ -1052,13 +1093,15 @@ def verify_repackage(source: Path, output: Path, files):
     return {"source": str(source), "unchangedPathAndBytes": unchanged, "relocatedByteEqualScenes": byte_equal_scenes,
             "manifestsCheckedForFixedSceneHeader": len(manifests), "manifestSceneHeader": SCENE_HEADER_FILE,
             "actualSceneAuthority": "C2 catalog contribution.scene",
-            "catalogChanges": ["contribution configuration paths", "per-choice optional preview paths"],
+            "catalogChanges": ["secondary-screen modules removed", "contribution configuration paths", "per-choice optional preview paths"],
+            "removedSourceFiles": len(set(original_files) - set(retained_files)),
             "newPreviewFiles": len(preview_files(expected_catalog) - set(original_files)),
-            "allPngClipAndOtherIniBytesPreserved": True,
+            "retainedPngClipAndOtherIniBytesPreserved": True,
             "frameIniScopeCorrections": corrected_frame_inis,
             "beamIniLayerCorrections": corrected_beam_inis,
             "sceneContractCorrections": corrected_scenes, "otherSceneFieldsPreserved": True,
-            "rootIniCorrection": {"changed": original_root_ini != expected_root_ini, "onlyPermittedChange": ROOT_GLOBAL_TARGET,
+            "rootIniCorrection": {"changed": original_root_ini != expected_root_ini,
+                "permittedChanges": [ROOT_GLOBAL_TARGET, "remove hud.auxiliary and hud.auxiliary-concentration"],
                 "beforeSha256": hashlib.sha256(original_root_ini).hexdigest(), "afterSha256": hashlib.sha256(expected_root_ini).hexdigest()}}
 
 
@@ -1074,6 +1117,10 @@ def author_directory_budget(files):
 
 
 def prepare_package(output: Path, receipt, repackage_source: Path | None = None):
+    receipt["auxiliaryDisplayRemoval"] = remove_auxiliary_display(output)
+    receipt.pop("auxiliaryMarkers", None)
+    if receipt["auxiliaryDisplayRemoval"]["removedModules"] and "customization" in receipt:
+        receipt["sourceCustomization"] = receipt.pop("customization")
     root_ini_path = output / "skin.ini"
     original_root_ini = root_ini_path.read_bytes()
     root_ini = correct_root_ini_target(original_root_ini)
@@ -1218,32 +1265,14 @@ def main():
     manifest = manifest_document()
     graph_visible = {"id": "graph-visible", "type": "toggle", "label": "Graph Area 显示统计", "default": False}
     manifest.update({"contentCatalog": "gameplay/content.json", "options": [layout, graph_visible, *modules["options"]]})
-    if args.frame_fc_only:
-        manifest["options"].extend([
-            {"id": "auxiliary-display", "type": "toggle", "label": "Auxiliary display", "default": False},
-            {"id": "concentration", "type": "toggle", "label": "Concentration", "default": False},
-            {"id": "concentration-brightness", "type": "number", "label": "Concentration brightness", "default": 0.5,
-             "min": 0, "max": 1, "step": 0.05}])
-    manifest["auxiliaryDisplay"] = {"enabledOption": "auxiliary-display", "concentrationOption": "concentration",
-                                     "brightnessOption": "concentration-brightness"}
     write_json(output / "gameplay-skin.json", manifest)
     write_json(output / "gameplay-skin.scene.json", scene)
     write_json(output / "gameplay/content.json", {"contract": "oms-gameplay-skin-content.v1", "modules": [frame_module, *modules["modules"], fc_module]})
-    for marker in ("auxiliary", "auxiliary-concentration"):
-        if not (output / ("markers/" + marker + ".png")).exists():
-            source_marker = output / "markers/frame-p1-information.png"
-            with Image.open(source_marker) as image:
-                if image.convert("RGBA").getchannel("A").getextrema() != (0, 0):
-                    raise ValueError("The auxiliary selector placeholder must be completely transparent")
-            copy_exact(source_marker, output / ("markers/" + marker + ".png"))
-        exact_file(output, "markers/" + marker + ".png")
     (output / "skin.ini").write_text(f"[General]\nName: {NAME}\nAuthor: Local IIDX study\nVersion: 2.7\n\n"
-        '[GameplaySkin.Common:1]\n' + ROOT_GLOBAL_TARGET + '\nhud.auxiliary: resource Provide "markers/auxiliary"\n'
-        'hud.auxiliary-concentration: resource Provide "markers/auxiliary-concentration"\n', encoding="utf-8")
+        '[GameplaySkin.Common:1]\n' + ROOT_GLOBAL_TARGET + '\n', encoding="utf-8")
     receipt = {"name": NAME, "status": "frame-fc-integration-probe" if args.frame_fc_only else "generated-pending-runtime-validation",
                "defaultFrame": "iidx33", "future34": "out-of-scope", "frameReceipts": frame_receipts, "fullComboReceipts": fc_receipts,
                "customization": modules["receipts"], "graphStatistics": graph["receipt"],
-               "auxiliaryMarkers": "Byte-exact copies of the verified transparent Frame information marker; selector-only placeholders",
                "frozenModulesDirectory": modules.get("frozenDirectory"),
                "originalHdd": "not-opened-by-this-generator", "sourceDefaultMapping": "see dated source evidence"}
     publish_package(output, final_output, receipt)

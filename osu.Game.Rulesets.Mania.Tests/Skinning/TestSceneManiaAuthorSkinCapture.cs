@@ -100,25 +100,36 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_SETTINGS") == "omni")
             {
                 SettingsOverlay settings = null!;
+                SkinSection section = null!;
                 FormSliderBar<double> originalScale = null!;
                 AddStep("open the complete skin configuration", () =>
                 {
+                    Game.Dependencies.Get<SkinManager>().SelectionPreferences!.SetSkin(new SkinSelectionScope("mania"), import!.GetAwaiter().GetResult().ID);
                     settings = Game.ChildrenOfType<SettingsOverlay>().Single();
+                    settings.Show();
+                });
+                AddUntilStep("wait for the skin scope selector", () => settings.ChildrenOfType<SkinSection>().SingleOrDefault()?.IsLoaded == true);
+                AddStep("inspect the imported mania mode default", () =>
+                {
+                    section = settings.ChildrenOfType<SkinSection>().Single();
+                    section.ScopeSelector.Current.Value = new SkinSelectionScope("mania");
                     settings.ShowAtControl<SkinOptionsSettings>();
                 });
                 AddUntilStep("wait for all declared configuration controls", () =>
                 {
                     var controls = settings.ChildrenOfType<SkinOptionsSettings>().SingleOrDefault();
-                    return controls?.ChildrenOfType<FormDropdown<string>>().Count() == 19
-                        && controls.ChildrenOfType<FormSliderBar<double>>().Count() == 2
-                        && controls.ChildrenOfType<FormCheckBox>().Count() == 3;
+                    return section.IsTargetReady && section.EditingScope == new SkinSelectionScope("mania")
+                        && controls?.ChildrenOfType<FormDropdown<string>>().Count() == 10
+                        && controls.ChildrenOfType<SkinOptionChoiceSettings>().Count() == 6
+                        && controls.ChildrenOfType<FormSliderBar<double>>().Count() == 1
+                        && controls.ChildrenOfType<FormCheckBox>().Count() == 1;
                 });
                 AddStep("change a frame, a note style, an effect size and a toggle", () =>
                 {
                     var controls = settings.ChildrenOfType<SkinOptionsSettings>().Single();
                     Assert.That(Game.Dependencies.Get<SkinOptionPreferences>().GetOverrides(import!.GetAwaiter().GetResult().ID, "mania"), Is.Empty);
                     controls.ChildrenOfType<FormDropdown<string>>().Single(dropdown => dropdown.Caption.ToString() == "Game Frame").Current.Value = "bpl-tradz";
-                    controls.ChildrenOfType<FormDropdown<string>>().Single(dropdown => dropdown.Caption.ToString() == "Notes · 音符").Current.Value = "n03";
+                    controls.ChildrenOfType<SkinOptionChoiceSettings>().Single(choice => choice.OptionId == "notes").Current.Value = "n03";
                     originalScale = controls.ChildrenOfType<FormSliderBar<double>>().Single(slider => slider.Caption.ToString() == "爆炸缩放");
                     Assert.That(originalScale.Current.Value, Is.EqualTo(1));
                     originalScale.Current.Value = 1.25;
@@ -217,6 +228,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     Is.EqualTo(columns * (dual ? 2 : 1)));
                 Assert.That(owner.CurrentPublication.MaterialSet.Diagnostics, Is.Empty);
                 Assert.That(renderer.GameplaySkinSceneRuntime, Is.Not.Null);
+                Assert.That(player.ChildrenOfType<GameplaySkinAuxiliaryPanel>().Count(),
+                    Is.EqualTo(Game.Dependencies.Get<SkinManager>().CurrentSkin.Value.PreparedGameplaySkinPackage!.Manifest!.AuxiliaryDisplay == null ? 0 : 1));
                 GameplaySkinOptionValues publishedOptions = owner.CurrentPublication.Snapshot.Context.OptionValues;
                 File.WriteAllText(Path.Combine(output, "options.json"), System.Text.Json.JsonSerializer.Serialize(
                     publishedOptions.Values.ToDictionary(pair => pair.Key, pair => pair.Value.CanonicalValue)));
