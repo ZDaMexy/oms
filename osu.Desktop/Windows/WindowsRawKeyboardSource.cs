@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -243,12 +244,12 @@ namespace osu.Desktop.Windows
         private IntPtr windowProc(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
         {
             if (msg == wm_input)
-                processRawInput(lParam);
+                processRawInput(lParam, Stopwatch.GetTimestamp());
 
             return callWindowProc(originalWindowProc, hwnd, msg, wParam, lParam);
         }
 
-        private void processRawInput(IntPtr rawInputHandle)
+        private void processRawInput(IntPtr rawInputHandle, long timestamp)
         {
             IOmsKeyboardEventSink? target = Volatile.Read(ref sink);
             if (target == null || !isActive.Value || localUserPlaying.Value != LocalUserPlayingState.Playing)
@@ -282,9 +283,9 @@ namespace osu.Desktop.Windows
             bool released = (rawInput.Data.Keyboard.Flags & RawKeyboardFlags.Break) != 0;
 
             if (released)
-                target.HandleRawKeyReleased(key);
+                target.HandleRawKeyReleased(key, timestamp);
             else
-                target.HandleRawKeyPressed(key);
+                target.HandleRawKeyPressed(key, timestamp);
         }
 
         private static bool tryMapInputKey(RAWKEYBOARD keyboard, out InputKey key)

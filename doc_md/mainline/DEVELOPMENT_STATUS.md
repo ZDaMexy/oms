@@ -9,7 +9,7 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 ## 产品与仓库基线
 
-游玩链路修复、实测与未验门见[审查记录](../other/GAMEPLAY_REVIEW_20261019.md)。组件测量不代表整局FPS。
+游玩输入、判定/结果及性能取[深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)。前台帧时间仍待验收。
 
 皮肤按模式/键数选择，作者可声明默认布局、配置及预览；普通包保留原表现。Lighting Model Skin Omni Until 33默认33，27～33与八支BPL为Game Frame，现有CUSTOM/全连/尺寸/长度及六类缩略图已接入。作品独立私下分享，不内置或进入公开发行/制作套件。原HDD只读，26及更早来源待补；验证与还原缺口取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)推进，原发行门保持。
 
@@ -51,7 +51,7 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 ## 最近一次验证
 
-2026-10-19软件回归、独立Windows输入/Xecus及旧失败对照见[验证记录](../other/GAMEPLAY_REVIEW_20261019.md#验证证据)。
+2026-10-19判定红绿、完整回归、帧时间及旧失败对照见[验证记录](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#验证证据)，不代签所有设备、真实谱或零卡顿。
 
 2026-10-11 转谱补算资源与 Debug 读取优化已有受控测量、回归及 Desktop 双配置证据；旧皮肤失败已逐项对照。范围、取舍与未验项只取 [P1-H 最新验证](../subline/P1-H/DEVELOPMENT_STATUS.md#最近一次验证)。扫描 / 便携宿主修复的 `d6f0d60` 来源见 [扫描审查](../other/LIBRARY_SCAN_REVIEW_20261010.md)。未重扫用户库，样本或探针不代签真实大库、Explorer 或发行。
 

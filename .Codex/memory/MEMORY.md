@@ -35,7 +35,7 @@
 
 ## 构建、存储与产品面参考
 
-- [构建与测试](reference_build_and_test.md) — 开发磁盘与进程环境、Pylance缓存扫描、构建目录内真实数据 / 旧作者包与容量误判、测试宿主复用/失败收尾与未加载Drawable失效、formatter owning 路径、输出锁、隔离渲染 / 内容宽度与真实窗口、品牌贴图命名空间与启动动画通道、未编译 / 退休 fixture 空跑、完整基线归因与依赖审计误判。
+- [构建与测试](reference_build_and_test.md) — 开发磁盘与进程环境、Pylance缓存扫描、构建目录内真实数据 / 旧作者包与容量误判、测试宿主复用/失败收尾与未加载Drawable失效、formatter owning 路径、输出锁、隔离渲染 / 内容宽度与真实窗口、桌面高性能会话缺席及后台限帧误判、品牌贴图命名空间与启动动画通道、未编译 / 退休 fixture 空跑、完整基线归因与依赖审计误判。
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱库路径身份与历史保全](reference_filesystem_library_identity.md) — 同内容不同目录、失效与物删分离、多文件改名、重复素材枚举与增量查询放大器。
 - [谱面构成过滤](reference_bms_composition_filter.md) — 单轨上限、共享额度、零宽入口及无解条件。
@@ -47,7 +47,7 @@
 
 ## BMS 解析、音频与游玩参考
 
-- [键盘线程与来源](reference_bms_keyboard_threading.md) — 原生窗口线程、两批完整tap、组合键整体回退、左右修饰键及测试Realm归属。
+- [键盘线程与来源](reference_bms_keyboard_threading.md) — 原生线程、卡顿事件时刻/epoch、两批完整tap、组合键整体回退及HID后台发现/退休诊断。
 - [BGA 链](reference_bms_bga_chain.md) — 游戏会话、首view晚注册的首帧崩溃、真实文件探针loader、作者窗口、共享画布与转码缓存。
 - [bgm1 按键触发故障](reference_bms_bgm1_pause_keytrigger_bug.md)
 - [游玩音轨静音合同](reference_bms_gameplay_track_mute.md)
@@ -56,10 +56,10 @@
 - [LNOBJ 解码](reference_bms_lnobj_decoding.md) — 单候选配对地雷及 P1-K 权威回链。
 - [lane 重排](reference_bms_lane_rearrangement.md) — 重复应用的三次置换故障及 P1-K/P1-J 回链。
 - [stop-motion 滚动旁路](reference_bms_stopmotion_bypass.md)
-- [判定 parity](reference_bms_judgement_parity.md)
+- [判定 parity](reference_bms_judgement_parity.md) — 家族边界、全自动计分资格与跨列health撤销顺序。
 - [自动调整偏移](reference_bms_auto_offset.md) — 继承入口与迁移、Gimmick 独立开关、视觉寿命、提前加载候选与录制结束持久化。
 - [TOTAL 与成绩版本](reference_bms_total_rules.md) — 作者值/缺省值、辅助前后两个物量、历史反序列化默认与新游玩版本、autoplay 身份。
-- [mania autoplay HoldNote 地雷](reference_mania_autoplay_holdnote.md) — nested judgement 过滤与 P1-K 修复历史。
+- [mania HoldNote 地雷](reference_mania_autoplay_holdnote.md) — nested过滤与note lock父寿命、同批松键读显示状态的误判。
 
 ## 皮肤与视觉参考
 

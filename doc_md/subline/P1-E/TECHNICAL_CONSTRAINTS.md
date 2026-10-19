@@ -1,6 +1,6 @@
 # P1-E 技术约束：gameplay 与长条真实谱面验校
 
-> 最后核对：2026-10-19（补齐回放倒带与HCN漏头接回的状态边界）
+> 最后核对：2026-10-19（补齐mania同批松键、note lock及既有倒带/接回边界）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，更正史与验证见 [CHANGELOG.md](CHANGELOG.md)。
 
 1. `P1-E` 只负责真实谱面验校与 gameplay 边界收口，不得借题提前带入 BSS / MSS 或其他 Phase 2 键模式扩张。
@@ -14,3 +14,4 @@
 6. 长条 body 三态视觉归 P1-A，当前由 `isHolding` 派生；任何 regrab/release 语义改动都必须同步验证 `Broken → Holding` 只可能出现在 HCN。
 7. 倒带输入不创建新判定；恢复 holding 只读取现有 entry head/tail、实际 replay pressed state 和对象级自动辅助，不另记第二份历史。首个正向帧须再次对齐；已终结的 LN/CN 不因仍按键而复活，自动辅助无实体动作时仍保留自动 holding。
 8. HCN 漏头后合法接回时，后续 body gauge 依实际 holding 恢复；head 保留 Miss，松开仍扣血，再接回才恢复。不得重新加上 head-hit 门控，让 Holding 外观与持续 gauge 相矛盾。
+9. 普通mania（含转谱使用的mania HoldNote）的松键判定读取既有Result真实持有状态，不读取下一次Update才刷新的显示bindable；同一物理批次down/up也须记录一次body断条、即时断连，并保留重抓后的原尾判上限。mania note lock须识别Ignore父对象中的计分head/tail，但force-miss不得提前判死父对象，阻止其完成body。

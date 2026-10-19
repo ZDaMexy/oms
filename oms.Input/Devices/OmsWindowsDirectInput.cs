@@ -135,7 +135,7 @@ namespace oms.Input.Devices
         internal static IReadOnlyList<OmsHidDeviceInfo> GetConnectedDevices(IDirectInput8 directInput)
         {
             return EnumerateCandidateDevices(directInput)
-                .Select(deviceInstance => TryCreateDeviceInfo(directInput, deviceInstance, out var deviceInfo) ? deviceInfo : default)
+                .Select(deviceInstance => tryCreateDeviceInfo(directInput, deviceInstance, out var deviceInfo) ? deviceInfo : default)
                 .Where(deviceInfo => !string.IsNullOrWhiteSpace(deviceInfo.Identifier))
                 .GroupBy(deviceInfo => deviceInfo.Identifier, StringComparer.Ordinal)
                 .Select(group => group.First())
@@ -204,7 +204,7 @@ namespace oms.Input.Devices
             }
         }
 
-        private static bool TryCreateDeviceInfo(IDirectInput8 directInput, DeviceInstance deviceInstance, out OmsHidDeviceInfo deviceInfo)
+        private static bool tryCreateDeviceInfo(IDirectInput8 directInput, DeviceInstance deviceInstance, out OmsHidDeviceInfo deviceInfo)
         {
             deviceInfo = default;
 
@@ -251,29 +251,20 @@ namespace oms.Input.Devices
     internal sealed class OmsWindowsDirectInputButtonDevice : IOmsHidButtonDevice
     {
         private readonly IDirectInputDevice8 inputDevice;
-        private readonly Queue<IReadOnlyList<OmsHidDeviceChange>> queuedChanges = new Queue<IReadOnlyList<OmsHidDeviceChange>>();
+        private readonly List<OmsHidDeviceChange> currentChanges = new List<OmsHidDeviceChange>(128 + 8);
         private readonly bool[] previousButtons = new bool[128];
         private readonly Dictionary<int, int> axisValuesByIndex = new Dictionary<int, int>();
 
+        private JoystickState currentState = new JoystickState();
         private bool hasInitialState;
+        private int isDisposed;
 
         public string Identifier { get; }
 
         public bool IsConnected { get; private set; } = true;
 
-        public bool HasPendingChanges
-        {
-            get
-            {
-                if (!IsConnected)
-                    return false;
-
-                if (queuedChanges.Count == 0)
-                    pollCurrentStateIntoQueue();
-
-                return queuedChanges.Count > 0;
-            }
-        }
+        // DirectInput supplies the current state, rather than a queue of input reports.
+        public bool HasPendingChanges => false;
 
         private OmsWindowsDirectInputButtonDevice(string identifier, IDirectInputDevice8 inputDevice)
         {
@@ -327,32 +318,11 @@ namespace oms.Input.Devices
 
         public bool TryReadChanges(out IReadOnlyList<OmsHidDeviceChange> changes)
         {
-            if (queuedChanges.Count == 0)
-                pollCurrentStateIntoQueue();
-
-            if (queuedChanges.Count == 0)
-            {
-                changes = Array.Empty<OmsHidDeviceChange>();
-                return false;
-            }
-
-            changes = queuedChanges.Dequeue();
-            return changes.Count > 0;
-        }
-
-        public void Dispose()
-        {
+            changes = Array.Empty<OmsHidDeviceChange>();
             if (!IsConnected)
-                return;
+                return false;
 
-            IsConnected = false;
-            inputDevice.Dispose();
-        }
-
-        private void pollCurrentStateIntoQueue()
-        {
-            if (!IsConnected || queuedChanges.Count > 0)
-                return;
+            currentChanges.Clear();
 
             try
             {
@@ -365,25 +335,33 @@ namespace oms.Input.Devices
                     if (result.Failure)
                     {
                         IsConnected = false;
-                        return;
+                        return false;
                     }
                 }
 
-                var state = inputDevice.GetCurrentJoystickState();
-                var changes = new List<OmsHidDeviceChange>();
-
-                queueButtonChanges(state, changes);
-                queueAxisChanges(state, changes);
+                inputDevice.GetCurrentJoystickState(ref currentState);
+                queueButtonChanges(currentState, currentChanges);
+                queueAxisChanges(currentState, currentChanges);
 
                 hasInitialState = true;
 
-                if (changes.Count > 0)
-                    queuedChanges.Enqueue(changes);
+                changes = currentChanges;
+                return changes.Count > 0;
             }
             catch (Exception e) when (OmsWindowsDirectInputRuntime.IsRecoverableFailure(e))
             {
                 IsConnected = false;
+                return false;
             }
+        }
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref isDisposed, 1) != 0)
+                return;
+
+            IsConnected = false;
+            inputDevice.Dispose();
         }
 
         private void queueButtonChanges(JoystickState state, List<OmsHidDeviceChange> changes)

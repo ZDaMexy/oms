@@ -1,6 +1,6 @@
 # P1-J 技术约束：BMS gameplay 性能与音频时序
 
-> 最后核对：2026-10-01（验证入口去重；9 月 30 日运行时合同保持）
+> 最后核对：2026-10-19（稳定replay/血条分配与帧时间验证边界；声音合同保持）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，事故取证与旧测试数字按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线与 authority
@@ -68,6 +68,7 @@
 5. 不新增默认 audio latency/offset surface，不推进新 gameplay mod、Phase 2 speed 体系或大范围 HUD/UX。
 6. 有序容器快照在成员或 StartTime 改变时失效，完整 entry 索引须追踪未激活对象的时间编辑，并在移除/释放时解绑。空击保持 alive-first 与原 fallback、相同时间顺序和 sample-only 静音语义；加载完成预建索引，回退和成员变化重置游标，不能把整谱首次排序推给玩家首击。
 7. LN/CN/HCN 只跳过已经处理的 tick，保留每个嵌套判定对象及血量结果；结果撤销和 pooled Apply 必须重置推进位置。LongNoteMode 每局固定解析，不能在逐帧热路径重复遍历 Mods。
+8. 稳定replay输入可按当前frame复用状态；换frame、rewind和handler reset仍须产生正确边沿，不删录制心跳/统计帧或放宽framed one-boundary合同。稳定血条可复用格式字符串，但值和文化变化保持原P0格式，fill仍按每帧真实值更新。组件零分配、短时CPU耗时、Update/Draw wall interval和实际设备手感分别验收，不互相替代。
 
 ## 测试与发布
 

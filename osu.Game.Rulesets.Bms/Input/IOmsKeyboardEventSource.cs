@@ -19,11 +19,14 @@ namespace osu.Game.Rulesets.Bms.Input
 
     public interface IOmsKeyboardEventSink
     {
-        /// <summary>Queues a bound key transition for the next gameplay input update; no gameplay runs on the caller's thread.</summary>
-        bool HandleRawKeyPressed(InputKey key);
+        /// <summary>
+        /// Queues a bound key transition with its <see cref="System.Diagnostics.Stopwatch.GetTimestamp"/> receipt timestamp.
+        /// No gameplay runs on the caller's thread.
+        /// </summary>
+        bool HandleRawKeyPressed(InputKey key, long timestamp);
 
         /// <inheritdoc cref="HandleRawKeyPressed"/>
-        bool HandleRawKeyReleased(InputKey key);
+        bool HandleRawKeyReleased(InputKey key, long timestamp);
 
         /// <summary>Discards pending transitions and queues release of this sink's applied keyboard state.</summary>
         void ResetRawKeyboardState();

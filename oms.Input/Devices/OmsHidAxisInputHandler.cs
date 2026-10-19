@@ -16,9 +16,10 @@ namespace oms.Input.Devices
         private readonly Action<OmsAction> pressAction;
         private readonly Action<OmsAction> releaseAction;
         private readonly Dictionary<string, HidAxisTrigger> hidTriggersBySignature;
-        private readonly Dictionary<string, string[]> triggerSignaturesByAxis;
+        private readonly Dictionary<(string DeviceIdentifier, int AxisIndex), string[]> triggerSignaturesByAxis;
         private readonly HashSet<string> activeTriggerSignatures = new HashSet<string>();
         private readonly Dictionary<OmsAction, int> actionPressCounts = new Dictionary<OmsAction, int>();
+        private readonly string[] activeTriggerSnapshot;
 
         public OmsHidAxisInputHandler(IEnumerable<OmsBinding> bindings, Action<OmsAction> pressAction, Action<OmsAction> releaseAction)
         {
@@ -32,8 +33,9 @@ namespace oms.Input.Devices
                               .ToArray();
 
             hidTriggersBySignature = hidTriggers.ToDictionary(trigger => trigger.Signature);
+            activeTriggerSnapshot = new string[hidTriggers.Length];
             triggerSignaturesByAxis = hidTriggers
-                                      .GroupBy(trigger => trigger.DeviceAxisSignature)
+                                      .GroupBy(trigger => (trigger.DeviceIdentifier, trigger.AxisIndex))
                                       .ToDictionary(group => group.Key, group => group.Select(trigger => trigger.Signature).ToArray());
         }
 
@@ -43,35 +45,25 @@ namespace oms.Input.Devices
 
         public bool ApplyAxisDelta(string deviceIdentifier, int axisIndex, int delta)
         {
-            if (!triggerSignaturesByAxis.TryGetValue(buildDeviceAxisSignature(deviceIdentifier, axisIndex), out var signatures))
+            if (!triggerSignaturesByAxis.TryGetValue((OmsHidDeviceIdentifier.Normalize(deviceIdentifier), axisIndex), out string[]? signatures))
                 return false;
-
-            var signaturesToActivate = new List<string>();
-            var signaturesToDeactivate = new List<string>();
-
-            foreach (var signature in signatures)
-            {
-                var trigger = hidTriggersBySignature[signature];
-                bool isActive = activeTriggerSignatures.Contains(signature);
-                bool shouldBeActive = shouldTrigger(delta, trigger.AxisDirection, trigger.AxisInverted);
-
-                if (isActive == shouldBeActive)
-                    continue;
-
-                if (shouldBeActive)
-                    signaturesToActivate.Add(signature);
-                else
-                    signaturesToDeactivate.Add(signature);
-            }
 
             bool changed = false;
 
-            foreach (var signature in signaturesToDeactivate)
-                changed |= deactivate(signature);
+            foreach (string signature in signatures)
+            {
+                var trigger = hidTriggersBySignature[signature];
+                if (!shouldTrigger(delta, trigger.AxisDirection, trigger.AxisInverted))
+                    changed |= deactivate(signature);
+            }
 
             // Direction reversals within the same poll should emit a fresh pulse.
-            foreach (var signature in signaturesToActivate)
-                changed |= activate(signature);
+            foreach (string signature in signatures)
+            {
+                var trigger = hidTriggersBySignature[signature];
+                if (shouldTrigger(delta, trigger.AxisDirection, trigger.AxisInverted))
+                    changed |= activate(signature);
+            }
 
             return changed;
         }
@@ -80,8 +72,10 @@ namespace oms.Input.Devices
         {
             bool changed = false;
 
-            foreach (var signature in activeTriggerSignatures.ToArray())
-                changed |= deactivate(signature);
+            int count = activeTriggerSignatures.Count;
+            activeTriggerSignatures.CopyTo(activeTriggerSnapshot);
+            for (int index = 0; index < count; index++)
+                changed |= deactivate(activeTriggerSnapshot[index]);
 
             return changed;
         }
@@ -91,8 +85,11 @@ namespace oms.Input.Devices
             string normalizedIdentifier = OmsHidDeviceIdentifier.Normalize(deviceIdentifier);
             bool changed = false;
 
-            foreach (var signature in activeTriggerSignatures.ToArray())
+            int count = activeTriggerSignatures.Count;
+            activeTriggerSignatures.CopyTo(activeTriggerSnapshot);
+            for (int index = 0; index < count; index++)
             {
+                string signature = activeTriggerSnapshot[index];
                 if (hidTriggersBySignature[signature].DeviceIdentifier != normalizedIdentifier)
                     continue;
 

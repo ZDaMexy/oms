@@ -63,6 +63,7 @@ namespace osu.Game.Rulesets.Bms.UI
         internal long ContentRevision { get; private set; }
 
         private TextureStore textureStore = null!;
+        private readonly Dictionary<string, Texture?> preparedImages = new Dictionary<string, Texture?>(StringComparer.Ordinal);
         private WorkingBeatmapFileStore? fileStore;
         private BmsBgaVideoCache? videoCache;
 
@@ -87,10 +88,11 @@ namespace osu.Game.Rulesets.Bms.UI
             baseLayer = new BmsBgaLayerDisplay(entriesFor(BmsBgaLayer.Base));
             overlayLayer = new BmsBgaLayerDisplay(entriesFor(BmsBgaLayer.Layer)) { Blending = BlendingParameters.Additive };
             overlay2Layer = new BmsBgaLayerDisplay(entriesFor(BmsBgaLayer.Layer2)) { Blending = BlendingParameters.Additive };
-            poorLayer = new BmsBgaLayerDisplay(entriesFor(BmsBgaLayer.Poor)) { Alpha = 0 };
+            BmsBgaTimelineEntry[] poorEntries = poorMode == BmsPoorBgaMode.Undisplayed ? Array.Empty<BmsBgaTimelineEntry>() : entriesFor(BmsBgaLayer.Poor);
+            poorLayer = new BmsBgaLayerDisplay(poorEntries) { Alpha = 0 };
 
             normalLayers = new[] { baseLayer, overlayLayer, overlay2Layer };
-            hasPoorLayer = poorMode != BmsPoorBgaMode.Undisplayed && entriesFor(BmsBgaLayer.Poor).Length > 0;
+            hasPoorLayer = poorEntries.Length > 0;
             ContentState = timeline.Count == 0 ? GameplaySkinBgaContentState.Empty : GameplaySkinBgaContentState.Ready;
 
             InternalChildren = new Drawable[]
@@ -104,7 +106,7 @@ namespace osu.Game.Rulesets.Bms.UI
         }
 
         [BackgroundDependencyLoader]
-        private void load(GameHost host, BmsRulesetConfigManager config)
+        private void load(GameHost host, BmsRulesetConfigManager config, CancellationToken? cancellationToken)
         {
             var working = workingBeatmap?.Value;
 
@@ -120,6 +122,13 @@ namespace osu.Game.Rulesets.Bms.UI
             }
 
             setUpVideoCache(config);
+
+            // TextureStore.Get synchronously reads and decodes on its first lookup. Prepare each reachable
+            // bitmap during the existing background load so timeline changes only select retained textures.
+            CancellationToken token = cancellationToken ?? default;
+            foreach (BmsBgaLayerDisplay layer in normalLayers)
+                layer.PrepareImages(prepareImage, token);
+            poorLayer.PrepareImages(prepareImage, token);
 
             // Base layer falls back to the chart's static background if its video can't decode (e.g. a legacy MPEG-1
             // .mpg that FFmpeg can't open and that has no transcode available), so the BGA region shows the stage art
@@ -226,18 +235,14 @@ namespace osu.Game.Rulesets.Bms.UI
                         : GameplaySkinBgaContentState.Paused;
         }
 
-        private Texture? getTexture(string assetFile)
+        private void prepareImage(string assetFile)
         {
-            try
-            {
-                return textureStore.Get(assetFile);
-            }
-            catch (Exception e)
-            {
-                Logger.Log($"BGA image '{assetFile}' failed to load: {e.Message}", level: LogLevel.Debug);
-                return null;
-            }
+            if (!preparedImages.ContainsKey(assetFile))
+                preparedImages.Add(assetFile, textureStore.Get(assetFile));
         }
+
+        // Missing/undecodable images are retained as null too; an event never retries disk I/O on Update.
+        private Texture? getTexture(string assetFile) => preparedImages[assetFile];
 
         // Creates the FFmpeg video for an asset, returning (video, pending). Prefers opening by absolute FILE PATH:
         // FFmpeg probes/seeks a real file far better than the .NET-stream AVIO. For legacy containers the framework
@@ -405,6 +410,18 @@ namespace osu.Game.Rulesets.Bms.UI
                 getTexture = textureResolver;
                 createVideo = videoFactory;
                 faultFallbackTexture = faultFallback;
+            }
+
+            public void PrepareImages(Action<string> prepare, CancellationToken cancellationToken)
+            {
+                for (int i = 0; i < entries.Length; i++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    BmsBgaTimelineEntry entry = entries[i];
+                    // At equal times only the final source entry can ever be displayed, including after seek.
+                    if (!entry.IsVideo && (i + 1 == entries.Length || entries[i + 1].StartTime != entry.StartTime))
+                        prepare(entry.AssetFile);
+                }
             }
 
             public void ResetVideoRetryTime() => lastVideoRetryTime = double.NegativeInfinity;

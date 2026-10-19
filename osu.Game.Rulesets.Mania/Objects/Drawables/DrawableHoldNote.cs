@@ -433,7 +433,8 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
             // the user has released too early (before the tail).
             //
             // In such a case, we want to record this against the DrawableHoldNoteBody.
-            if (isHolding.Value)
+            // Input can contain both press and release before Update refreshes the visual bindable.
+            if (Result.IsHolding(Time.Current))
             {
                 Tail.UpdateResult();
                 Body.TriggerResult(Tail.IsHit);

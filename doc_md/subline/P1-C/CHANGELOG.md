@@ -2,6 +2,12 @@
 
 > 本文件只记录 `P1-C` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-10-19跨轨撤销与结算一致性
+
+根Playfield沿实际应用顺序统一逆序撤销既有entry，修复BMS/mania跨列回退的health快照覆盖；未创建第二份判定/血量历史。全自动BMS按CountsForScore保留实际回血分母，AutoPlay只表示输入来源，ASCR/ANOT仍排除；LN/CN/HCN实际AT实况、重建和最终灯一致，TOTAL v7未变。
+
+`.osr`增加可选passed，明确失败可往返；旧payload只有F时恢复失败，无rank证据保持旧默认，已存F再导出不受Realm ignored bool默认值影响。没有把NF/statistics当通过证据，未改Realm或正常新局OMSIR合同。本轮真实Player/ReplayPlayer修前修后、旧包控制、全量及具名旧失败取[集中记录](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#验证证据)。mania同批松键/锁定归P1-E，窗口数表和闭源heuristic边界保持。
+
 ## 2026-09-29
 
 ### 自动调整偏移交付后文档与记忆同步

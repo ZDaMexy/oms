@@ -16,13 +16,15 @@ namespace osu.Game.Rulesets.Bms.Replays
 
         private readonly Replay replay;
 
-        private List<ReplayFrame> Frames => replay.Frames;
+        private List<ReplayFrame> frames => replay.Frames;
 
         private int currentFrameIndex = -1;
+        private BmsReplayFrame? stateFrame;
+        private ReplayState<BmsAction>? state;
 
-        private BmsReplayFrame? CurrentFrame => currentFrameIndex < 0 || currentFrameIndex >= Frames.Count ? null : (BmsReplayFrame)Frames[currentFrameIndex];
+        private BmsReplayFrame? currentFrame => currentFrameIndex < 0 || currentFrameIndex >= frames.Count ? null : (BmsReplayFrame)frames[currentFrameIndex];
 
-        public override bool IsActive => Frames.Count != 0;
+        public override bool IsActive => frames.Count != 0;
 
         public BmsAutoplayReplayInputHandler(Replay replay)
         {
@@ -32,7 +34,7 @@ namespace osu.Game.Rulesets.Bms.Replays
 
         public override double? SetFrameFromTime(double time)
         {
-            if (Frames.Count == 0)
+            if (frames.Count == 0)
             {
                 if (replay.HasReceivedAllFrames)
                     return time;
@@ -48,28 +50,32 @@ namespace osu.Game.Rulesets.Bms.Replays
         {
             base.CollectPendingInputs(inputs);
 
-            inputs.Add(new ReplayState<BmsAction>
+            BmsReplayFrame? frame = currentFrame;
+            if (state == null || !ReferenceEquals(stateFrame, frame))
             {
-                PressedActions = (List<BmsAction>?)CurrentFrame?.LaneActions ?? empty_actions
-            });
+                stateFrame = frame;
+                state = new ReplayState<BmsAction> { PressedActions = (List<BmsAction>?)frame?.LaneActions ?? empty_actions };
+            }
 
-            if (CurrentFrame?.Header != null)
-                inputs.Add(new ReplayStatisticsFrameInput { Frame = CurrentFrame });
+            inputs.Add(state);
+
+            if (frame?.Header != null)
+                inputs.Add(new ReplayStatisticsFrameInput { Frame = frame });
         }
 
         private int findCurrentFrameIndex(double time)
         {
-            if (time < Frames[0].Time)
+            if (time < frames[0].Time)
                 return -1;
 
             int low = 0;
-            int high = Frames.Count - 1;
+            int high = frames.Count - 1;
 
             while (low <= high)
             {
                 int mid = low + (high - low) / 2;
 
-                if (Frames[mid].Time <= time)
+                if (frames[mid].Time <= time)
                     low = mid + 1;
                 else
                     high = mid - 1;

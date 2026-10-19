@@ -23,7 +23,7 @@ namespace osu.Game.Beatmaps
     ///  - Exposes track length.
     ///  - Allows changing the source to a new track (for cases like editor track updating).
     /// </summary>
-    public partial class FramedBeatmapClock : Component, IFrameBasedClock, IAdjustableClock, ISourceChangeableClock
+    public partial class FramedBeatmapClock : Component, IFrameBasedClock, IAdjustableClock, ISourceChangeableClock, IGameplayInputTimeSource
     {
         private readonly bool applyOffsets;
 
@@ -50,6 +50,12 @@ namespace osu.Game.Beatmaps
         private IBindable<WorkingBeatmap> beatmap { get; set; } = null!;
 
         public bool IsRewinding { get; private set; }
+
+        public GameplayInputTime? InputTime { get; private set; }
+
+        private long inputEpoch;
+        private long inputEpochStartTimestamp = Stopwatch.GetTimestamp();
+        private double inputOffset;
 
         public FramedBeatmapClock(bool applyOffsets, bool requireDecoupling, IClock? source = null)
         {
@@ -110,6 +116,7 @@ namespace osu.Game.Beatmaps
             base.Update();
 
             finalClockSource.ProcessFrame();
+            captureInputTime();
 
             if (Clock.ElapsedFrameTime != 0)
                 IsRewinding = Clock.ElapsedFrameTime < 0;
@@ -132,32 +139,44 @@ namespace osu.Game.Beatmaps
 
         #region Delegation of IAdjustableClock / ISourceChangeableClock to decoupled clock.
 
-        public void ChangeSource(IClock? source) => decoupledTrack.ChangeSource(source);
+        public void ChangeSource(IClock? source)
+        {
+            invalidateInputTime();
+            decoupledTrack.ChangeSource(source);
+        }
 
         public IClock Source => decoupledTrack.Source;
 
         public void Reset()
         {
+            invalidateInputTime();
             decoupledTrack.Reset();
             finalClockSource.ProcessFrame();
+            captureInputTime();
         }
 
         public void Start()
         {
+            invalidateInputTime();
             decoupledTrack.Start();
             finalClockSource.ProcessFrame();
+            captureInputTime();
         }
 
         public void Stop()
         {
+            invalidateInputTime();
             decoupledTrack.Stop();
             finalClockSource.ProcessFrame();
+            captureInputTime();
         }
 
         public bool Seek(double position)
         {
+            invalidateInputTime();
             bool success = decoupledTrack.Seek(position - TotalAppliedOffset);
             finalClockSource.ProcessFrame();
+            captureInputTime();
 
             return success;
         }
@@ -168,6 +187,31 @@ namespace osu.Game.Beatmaps
         {
             get => decoupledTrack.Rate;
             set => decoupledTrack.Rate = value;
+        }
+
+        private void invalidateInputTime()
+        {
+            inputEpoch++;
+            inputEpochStartTimestamp = Stopwatch.GetTimestamp();
+            InputTime = null;
+        }
+
+        private void captureInputTime()
+        {
+            // Pair the timestamp here, immediately after the authority clock is processed. Taking it later
+            // in an input manager would include hierarchy/update overhead in every event's judgement time.
+            long timestamp = Stopwatch.GetTimestamp();
+            double offset = TotalAppliedOffset;
+
+            if (InputTime is GameplayInputTime previous
+                && (offset != inputOffset || IsRunning != previous.IsRunning || CurrentTime < previous.Time))
+            {
+                inputEpoch++;
+                inputEpochStartTimestamp = timestamp;
+            }
+
+            inputOffset = offset;
+            InputTime = new GameplayInputTime(CurrentTime, timestamp, Rate, IsRunning, inputEpoch, inputEpochStartTimestamp);
         }
 
         #endregion
@@ -206,7 +250,7 @@ namespace osu.Game.Beatmaps
                 $"decoupledTrack: {output(decoupledTrack)}\n" +
                 $"finalClockSource: {output(finalClockSource)}\n";
 
-            string output(IClock? clock)
+            static string output(IClock? clock)
             {
                 if (clock == null)
                     return "null";

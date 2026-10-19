@@ -58,6 +58,40 @@ namespace osu.Game.Rulesets.Mania.Tests
         }
 
         [Test]
+        public void TestNoteWindowStopsAtFollowingHoldHead()
+        {
+            var note = new Note { StartTime = 1000 };
+            var hold = new HoldNote { StartTime = 1050, EndTime = 1150 };
+            performTest(new List<ManiaHitObject> { note, hold }, new List<ReplayFrame>
+            {
+                new ManiaReplayFrame(1060, ManiaAction.Key1),
+                new ManiaReplayFrame(1150),
+            });
+
+            addJudgementAssert(note, HitResult.Miss);
+            addJudgementAssert("following hold head", () => hold.Head, HitResult.Perfect);
+            AddAssert("the head keeps the real ten millisecond input offset", () =>
+                Math.Abs(judgementResults.Single(result => result.HitObject == hold.Head).TimeOffset - 10) < 0.001);
+        }
+
+        [Test]
+        public void TestHoldWindowStopsAtFollowingNote()
+        {
+            var hold = new HoldNote { StartTime = 1000, EndTime = 1010 };
+            var note = new Note { StartTime = 1050 };
+            performTest(new List<ManiaHitObject> { hold, note }, new List<ReplayFrame>
+            {
+                new ManiaReplayFrame(1060, ManiaAction.Key1),
+                new ManiaReplayFrame(1061),
+            });
+
+            addJudgementAssert("expired hold head", () => hold.Head, HitResult.Miss);
+            addJudgementAssert(note, HitResult.Perfect);
+            AddAssert("the following note keeps the real ten millisecond input offset", () =>
+                Math.Abs(judgementResults.Single(result => result.HitObject == note).TimeOffset - 10) < 0.001);
+        }
+
+        [Test]
         public void TestHoldNoteMissAfterNextObjectStartTime()
         {
             var objects = new List<ManiaHitObject>

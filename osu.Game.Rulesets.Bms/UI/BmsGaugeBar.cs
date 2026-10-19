@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Extensions.Color4Extensions;
@@ -36,6 +37,9 @@ namespace osu.Game.Rulesets.Bms.UI
         private IBindable<BmsGaugeType>? currentGaugeType;
         private IBindable<BmsGaugeRulesFamily>? currentGaugeRulesFamily;
         private double currentDisplayMaxGauge = 1;
+        private double formattedGauge = double.NaN;
+        private CultureInfo? formattedCulture;
+        private string formattedValue = string.Empty;
 
         private Color4 barColour = BmsDefaultHudPalette.SurfaceText;
         private Color4 accentColour = BmsDefaultHudPalette.SurfaceText;
@@ -170,8 +174,16 @@ namespace osu.Game.Rulesets.Bms.UI
 
             float fillWidth = (float)(currentDisplayMaxGauge <= 0 ? 0 : Current.Value / currentDisplayMaxGauge);
 
+            CultureInfo culture = CultureInfo.CurrentCulture;
+            if (formattedGauge != Current.Value || !ReferenceEquals(formattedCulture, culture))
+            {
+                formattedGauge = Current.Value;
+                formattedCulture = culture;
+                formattedValue = formattedGauge.ToString("P0", culture);
+            }
+
             foreach (GaugeStageVisual stage in stageVisuals)
-                stage.UpdateValue(fillWidth, $"{Current.Value:P0}");
+                stage.UpdateValue(fillWidth, formattedValue);
         }
 
         protected override void Flash()

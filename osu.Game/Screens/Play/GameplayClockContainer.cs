@@ -18,11 +18,13 @@ namespace osu.Game.Screens.Play
     /// </summary>
     [Cached(typeof(IGameplayClock))]
     [Cached(typeof(GameplayClockContainer))]
-    public partial class GameplayClockContainer : Container, IAdjustableClock, IGameplayClock
+    public partial class GameplayClockContainer : Container, IAdjustableClock, IGameplayClock, IGameplayInputTimeSource
     {
         public IBindable<bool> IsPaused => isPaused;
 
         public bool IsRewinding => GameplayClock.IsRewinding;
+
+        public GameplayInputTime? InputTime => GameplayClock.InputTime;
 
         /// <summary>
         /// Invoked when a seek has been performed via <see cref="Seek"/>
@@ -139,7 +141,7 @@ namespace osu.Game.Screens.Play
 
         /// <summary>
         /// Marks the container as unpaused without starting the underlying gameplay clock.
-        /// This allows components such as <see cref="osu.Game.Rulesets.UI.FrameStabilityContainer"/> to process
+        /// This allows components such as <see cref="Rulesets.UI.FrameStabilityContainer"/> to process
         /// their children (rendering the playfield) while the actual clock position remains
         /// unchanged.
         /// </summary>

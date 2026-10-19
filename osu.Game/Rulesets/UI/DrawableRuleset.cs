@@ -177,6 +177,7 @@ namespace osu.Game.Rulesets.UI
             InternalChild = frameStabilityContainer = new FrameStabilityContainer(GameplayStartTime)
             {
                 FrameStablePlayback = FrameStablePlayback,
+                LiveInputHandler = KeyBindingInputManager as IFrameStableInputHandler,
                 Children = new Drawable[]
                 {
                     FrameStableComponents,
@@ -312,6 +313,9 @@ namespace osu.Game.Rulesets.UI
                 throw new InvalidOperationException($"A {nameof(KeyBindingInputManager)} which supports replay loading is not available");
 
             var handler = (ReplayScore = replayScore) != null ? CreateReplayInputHandler(replayScore.Replay) : null;
+
+            if (replayInputManager.ReplayInputHandler != handler)
+                (KeyBindingInputManager as IFrameStableInputHandler)?.ResetInput();
 
             replayInputManager.ReplayInputHandler = handler;
             frameStabilityContainer.ReplayInputHandler = handler;

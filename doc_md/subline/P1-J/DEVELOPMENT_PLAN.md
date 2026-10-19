@@ -1,6 +1,6 @@
 # P1-J 当前计划：BMS gameplay 性能与音频时序
 
-> 最后更新：2026-09-30（按实测优化原生与转谱；保留人工门与极端谱触发条件）
+> 最后更新：2026-10-19（补前台帧时间/GC验收；保留听感门与极端谱触发条件）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定音频合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，已完成修复与取证按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -13,6 +13,8 @@ P1-J 只拥有 BMS gameplay runtime 的 keysound timing、shared audio pool、la
 
 ## 当前基线
 
+继续治理先复用[性能与判定基线](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)，按相同谱/设备的具体frame、GC与阻塞证据决定改动；不把短样本普遍化，不重复已完成实现。输入、判定/结果、长按和BGA分别交P1-B/C/E/L。
+
 2026-09-30 用户授权的全量性能复审已覆盖原生判定/长条、转谱对象和空击、shared sample 维护及 P1-L 多窗 BGA。已测出的开销与改动一一对应，结果见 [性能验证记录](../../other/GAMEPLAY_PERFORMANCE_20260930.md)。后续先完成下列真实谱验收，不把微基准改善扩大成所有谱面帧率承诺，也不继续无证据清扫。
 
 普通密度修复、完整 lane timeline、手动与自动转谱 LN、暂停保位均已有软件基线，详见 [STATUS](DEVELOPMENT_STATUS.md)。资源与发声边界由 [CONSTRAINTS](TECHNICAL_CONSTRAINTS.md) 管理；已完成实施与误判/回退过程只查 [CHANGELOG](CHANGELOG.md)。
@@ -20,6 +22,10 @@ P1-J 只拥有 BMS gameplay runtime 的 keysound timing、shared audio pool、la
 ## 当前执行顺序
 
 暂停保位与手动 LN 的实现规划已归档 [CHANGELOG](CHANGELOG.md#暂停保位与手动转谱长条声音闭环)，自动证据、完整失败对照与 Release 结果集中见 [验证记录](../../other/EXPERIENCE_CLOSURE_20260929.md)。本线剩余体验门如下。
+
+### 前台帧时间与GC验收
+
+在正常OMS前台和真实设备上，确认生产高性能会话、实际Update/Draw节奏及长帧；固定谱面、配置和区间，隔离截图/落盘及后台限帧。若仍可重复出现GC相邻长帧，先区分实际分配者、收集原因与阻塞线程，再按证据修复；不得仅改GC模式或请求帧率来宣布通过。验收须有可比较的长尾改善和判定/结果无回归，整曲自动完成与组件零分配不能代签。
 
 ### 0. 用户指定：自动键音（2026-09-29）
 

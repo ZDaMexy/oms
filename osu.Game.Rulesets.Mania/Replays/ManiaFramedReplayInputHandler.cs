@@ -11,6 +11,10 @@ namespace osu.Game.Rulesets.Mania.Replays
 {
     internal class ManiaFramedReplayInputHandler : FramedReplayInputHandler<ManiaReplayFrame>
     {
+        private static readonly List<ManiaAction> empty_actions = new List<ManiaAction>();
+        private ManiaReplayFrame? stateFrame;
+        private ReplayState<ManiaAction>? state;
+
         public ManiaFramedReplayInputHandler(Replay replay)
             : base(replay)
         {
@@ -20,7 +24,14 @@ namespace osu.Game.Rulesets.Mania.Replays
 
         protected override void CollectReplayInputs(List<IInput> inputs)
         {
-            inputs.Add(new ReplayState<ManiaAction> { PressedActions = CurrentFrame?.Actions ?? new List<ManiaAction>() });
+            ManiaReplayFrame? frame = CurrentFrame;
+            if (state == null || !ReferenceEquals(stateFrame, frame))
+            {
+                stateFrame = frame;
+                state = new ReplayState<ManiaAction> { PressedActions = frame?.Actions ?? empty_actions };
+            }
+
+            inputs.Add(state);
         }
     }
 }

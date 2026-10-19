@@ -4,8 +4,11 @@ extern alias OmsHidSharp;
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using DataItem = OmsHidSharp::HidSharp.Reports.DataItem;
 using DeviceList = OmsHidSharp::HidSharp.DeviceList;
 using DeviceListChangedEventArgs = OmsHidSharp::HidSharp.DeviceListChangedEventArgs;
@@ -102,7 +105,7 @@ namespace oms.Input.Devices
 
         public static string ForVendorProduct(int vendorId, int productId, string? serialNumber = null)
         {
-            var identifier = $"hid:vid_{vendorId:x4}&pid_{productId:x4}";
+            string identifier = $"hid:vid_{vendorId:x4}&pid_{productId:x4}";
 
             if (!string.IsNullOrWhiteSpace(serialNumber))
                 identifier = $"{identifier}&serial_{serialNumber.Trim()}";
@@ -175,14 +178,22 @@ namespace oms.Input.Devices
     /// </summary>
     public sealed class OmsHidDeviceHandler : IDisposable
     {
+        private static readonly long device_refresh_interval = Stopwatch.Frequency / 2;
+
         private readonly OmsHidButtonInputHandler hidButtonInputHandler;
         private readonly OmsHidAxisInputHandler hidAxisInputHandler;
+        private readonly object deviceGate = new object();
         private readonly HashSet<string> boundDeviceIdentifiers;
         private readonly Dictionary<string, IOmsHidButtonDevice> devicesByIdentifier = new Dictionary<string, IOmsHidButtonDevice>(StringComparer.Ordinal);
         private readonly Dictionary<string, HashSet<int>> activeButtonsByDevice = new Dictionary<string, HashSet<int>>(StringComparer.Ordinal);
         private readonly IOmsHidButtonDeviceProvider? deviceProvider;
+        private readonly Func<long> getTimestamp;
+        private readonly List<KeyValuePair<string, IOmsHidButtonDevice>> pollingDevices;
+        private readonly List<IOmsHidButtonDevice> retiredDevices;
 
-        private bool devicesDirty = true;
+        private volatile bool devicesDirty = true;
+        private Task<DeviceDiscoverySnapshot?>? discoveryTask;
+        private long nextDeviceRefresh;
         private bool isDisposed;
 
         public int ConnectedDeviceCount => devicesByIdentifier.Count;
@@ -228,7 +239,13 @@ namespace oms.Input.Devices
         }
 
         public OmsHidDeviceHandler(IEnumerable<OmsBinding> bindings, Action<OmsAction> pressAction, Action<OmsAction> releaseAction, IOmsHidButtonDeviceProvider? deviceProvider = null)
+            : this(bindings, pressAction, releaseAction, deviceProvider, Stopwatch.GetTimestamp)
         {
+        }
+
+        internal OmsHidDeviceHandler(IEnumerable<OmsBinding> bindings, Action<OmsAction> pressAction, Action<OmsAction> releaseAction, IOmsHidButtonDeviceProvider? deviceProvider, Func<long> getTimestamp)
+        {
+            this.getTimestamp = getTimestamp;
             var bindingArray = bindings.ToArray();
 
             hidButtonInputHandler = new OmsHidButtonInputHandler(bindingArray, pressAction, releaseAction);
@@ -237,113 +254,220 @@ namespace oms.Input.Devices
                                                 .Select(trigger => OmsHidDeviceIdentifier.Normalize(trigger.DeviceIdentifier!))
                                                 .Where(identifier => !string.IsNullOrWhiteSpace(identifier))
                                                 .ToHashSet(StringComparer.Ordinal);
+            pollingDevices = new List<KeyValuePair<string, IOmsHidButtonDevice>>(boundDeviceIdentifiers.Count);
+            retiredDevices = new List<IOmsHidButtonDevice>(boundDeviceIdentifiers.Count);
 
             if (boundDeviceIdentifiers.Count == 0)
                 return;
 
             this.deviceProvider = deviceProvider ?? CreateDefaultDeviceProvider();
             this.deviceProvider.DevicesChanged += onDevicesChanged;
+
+            // Saved gameplay bindings are constructed in BmsInputManager's background dependency loader.
+            // Complete the initial discovery there, before the gameplay update loop starts.
+            devicesDirty = false;
+            try
+            {
+                using var initialDevices = discoverDevices(new HashSet<string>(StringComparer.Ordinal));
+                commitDiscovery(initialDevices);
+                nextDeviceRefresh = getTimestamp() + device_refresh_interval;
+            }
+            catch
+            {
+                this.deviceProvider.DevicesChanged -= onDevicesChanged;
+                this.deviceProvider.Dispose();
+                throw;
+            }
         }
 
         public void PollOnce()
         {
-            if (isDisposed || boundDeviceIdentifiers.Count == 0 || deviceProvider == null)
+            if (boundDeviceIdentifiers.Count == 0 || deviceProvider == null)
                 return;
 
-            hidAxisInputHandler.BeginPolling();
-
-            try
+            lock (deviceGate)
             {
-                if (devicesDirty || shouldRefreshDevices())
-                    refreshDevices();
+                if (isDisposed)
+                    return;
 
-                foreach (var entry in devicesByIdentifier.ToArray())
+                hidAxisInputHandler.BeginPolling();
+
+                try
                 {
-                    pollDevice(entry.Key, entry.Value);
+                    if (discoveryTask?.IsCompleted == true)
+                    {
+                        var completed = discoveryTask;
+                        discoveryTask = null;
+                        using var discovered = completed.GetAwaiter().GetResult();
+                        if (discovered != null)
+                        {
+                            commitDiscovery(discovered);
+                            nextDeviceRefresh = getTimestamp() + device_refresh_interval;
+                        }
+                    }
 
-                    if (!entry.Value.IsConnected)
-                        disconnectDevice(entry.Key, markDirty: true);
+                    foreach (var entry in devicesByIdentifier)
+                        pollingDevices.Add(entry);
+
+                    foreach (var entry in pollingDevices)
+                    {
+                        pollDevice(entry.Key, entry.Value);
+
+                        if (!entry.Value.IsConnected)
+                            disconnectDevice(entry.Key);
+                    }
+
+                    queueDeviceMaintenance();
                 }
-            }
-            finally
-            {
-                hidAxisInputHandler.FinishPolling();
+                finally
+                {
+                    pollingDevices.Clear();
+                    hidAxisInputHandler.FinishPolling();
+                }
             }
         }
 
         private bool shouldRefreshDevices()
-            => devicesByIdentifier.Count < boundDeviceIdentifiers.Count;
+            => devicesByIdentifier.Count < boundDeviceIdentifiers.Count && getTimestamp() >= nextDeviceRefresh;
 
         public void Dispose()
         {
-            if (isDisposed)
-                return;
-
-            isDisposed = true;
-
-            if (deviceProvider != null)
-                deviceProvider.DevicesChanged -= onDevicesChanged;
-
-            foreach (var identifier in devicesByIdentifier.Keys.ToArray())
-                disconnectDevice(identifier, markDirty: false);
-
-            deviceProvider?.Dispose();
-        }
-
-        private void pollDevice(string identifier, IOmsHidButtonDevice device)
-        {
-            while (device.HasPendingChanges)
+            Task<DeviceDiscoverySnapshot?>? pendingDiscovery;
+            IOmsHidButtonDevice[] retired;
+            lock (deviceGate)
             {
-                if (!device.TryReadChanges(out var changes))
-                    break;
+                if (isDisposed)
+                    return;
 
-                foreach (var change in changes)
-                    applyChange(change);
+                isDisposed = true;
 
-                if (!device.IsConnected)
+                if (deviceProvider != null)
+                    deviceProvider.DevicesChanged -= onDevicesChanged;
+
+                foreach (string? identifier in devicesByIdentifier.Keys.ToArray())
+                    disconnectDevice(identifier);
+
+                pendingDiscovery = discoveryTask;
+                discoveryTask = null;
+                retired = retiredDevices.ToArray();
+                retiredDevices.Clear();
+            }
+
+            try
+            {
+                using var uncommitted = pendingDiscovery?.GetAwaiter().GetResult();
+            }
+            finally
+            {
+                try
                 {
-                    disconnectDevice(identifier, markDirty: true);
-                    break;
+                    foreach (var device in retired)
+                        device.Dispose();
+                }
+                finally
+                {
+                    deviceProvider?.Dispose();
                 }
             }
         }
 
-        private void refreshDevices()
+        private void pollDevice(string identifier, IOmsHidButtonDevice device)
         {
-            if (deviceProvider == null)
+            // Polled backends acquire one snapshot here. Only buffered reports are drained afterwards.
+            do
+            {
+                if (!device.TryReadChanges(out var changes))
+                    break;
+
+                for (int index = 0; index < changes.Count; index++)
+                    applyChange(changes[index]);
+
+                if (!device.IsConnected)
+                {
+                    disconnectDevice(identifier);
+                    break;
+                }
+            } while (device.HasPendingChanges);
+        }
+
+        private void queueDeviceMaintenance()
+        {
+            if (discoveryTask != null)
                 return;
 
-            devicesDirty = false;
+            bool discover = devicesDirty || shouldRefreshDevices();
+            if (!discover && retiredDevices.Count == 0)
+                return;
 
-            var discoveredDevices = new Dictionary<string, IOmsHidButtonDevice>(StringComparer.Ordinal);
+            startDeviceMaintenance(discover);
+        }
 
-            foreach (var device in deviceProvider.GetDevices(boundDeviceIdentifiers))
+        private void startDeviceMaintenance(bool discover)
+        {
+            var connectedIdentifiers = discover ? devicesByIdentifier.Keys.ToHashSet(StringComparer.Ordinal) : null;
+            var retired = retiredDevices.ToArray();
+            retiredDevices.Clear();
+
+            // Only the owner consumes this bit. A notification during discovery remains set for the next task.
+            if (discover)
+                devicesDirty = false;
+
+            discoveryTask = Task.Run(() =>
             {
-                if (!discoveredDevices.TryAdd(device.Identifier, device))
+                foreach (var device in retired)
                     device.Dispose();
-            }
 
-            foreach (var identifier in devicesByIdentifier.Keys.Except(discoveredDevices.Keys).ToArray())
-                disconnectDevice(identifier, markDirty: false);
+                return discover ? discoverDevices(connectedIdentifiers!) : null;
+            });
+        }
 
-            foreach (var entry in discoveredDevices)
+        private DeviceDiscoverySnapshot discoverDevices(HashSet<string> connectedIdentifiers)
+        {
+            var discovered = new DeviceDiscoverySnapshot();
+            try
             {
-                if (!devicesByIdentifier.TryAdd(entry.Key, entry.Value))
-                    entry.Value.Dispose();
+                foreach (var device in deviceProvider!.GetDevices(boundDeviceIdentifiers))
+                {
+                    if (!discovered.Identifiers.Add(device.Identifier) || connectedIdentifiers.Contains(device.Identifier))
+                        device.Dispose();
+                    else
+                        discovered.NewDevices.Add(device.Identifier, device);
+                }
+
+                return discovered;
+            }
+            catch
+            {
+                discovered.Dispose();
+                throw;
             }
         }
 
-        private void disconnectDevice(string identifier, bool markDirty)
+        private void commitDiscovery(DeviceDiscoverySnapshot discovered)
+        {
+            foreach (var entry in devicesByIdentifier)
+                pollingDevices.Add(entry);
+
+            foreach (var entry in pollingDevices)
+            {
+                if (!discovered.Identifiers.Contains(entry.Key))
+                    disconnectDevice(entry.Key);
+            }
+
+            pollingDevices.Clear();
+            foreach (var entry in discovered.NewDevices)
+                devicesByIdentifier.Add(entry.Key, entry.Value);
+            discovered.NewDevices.Clear();
+        }
+
+        private void disconnectDevice(string identifier)
         {
             if (!devicesByIdentifier.Remove(identifier, out var device))
                 return;
 
             releaseActiveButtons(identifier);
             hidAxisInputHandler.ReleaseDevice(identifier);
-            device.Dispose();
-
-            if (markDirty)
-                devicesDirty = true;
+            retiredDevices.Add(device);
         }
 
         private void releaseActiveButtons(string identifier)
@@ -351,7 +475,7 @@ namespace oms.Input.Devices
             if (!activeButtonsByDevice.Remove(identifier, out var activeButtons))
                 return;
 
-            foreach (var buttonIndex in activeButtons.OrderBy(index => index).ToArray())
+            foreach (int buttonIndex in activeButtons.OrderBy(index => index).ToArray())
                 hidButtonInputHandler.TriggerReleased(identifier, buttonIndex);
         }
 
@@ -407,6 +531,19 @@ namespace oms.Input.Devices
         }
 
         private void onDevicesChanged(object? sender, EventArgs e) => devicesDirty = true;
+
+        private sealed class DeviceDiscoverySnapshot : IDisposable
+        {
+            public readonly HashSet<string> Identifiers = new HashSet<string>(StringComparer.Ordinal);
+            public readonly Dictionary<string, IOmsHidButtonDevice> NewDevices = new Dictionary<string, IOmsHidButtonDevice>(StringComparer.Ordinal);
+
+            public void Dispose()
+            {
+                foreach (var entry in NewDevices)
+                    entry.Value.Dispose();
+                NewDevices.Clear();
+            }
+        }
 
         private sealed class UnavailableHidButtonDeviceProvider : IOmsHidButtonDeviceProvider
         {
@@ -489,6 +626,7 @@ namespace oms.Input.Devices
             private readonly Dictionary<Report, ReportAxisMap> axisMapsByReport;
             private readonly HashSet<int> pressedButtons = new HashSet<int>();
             private readonly Dictionary<int, int> axisValuesByIndex = new Dictionary<int, int>();
+            private int isDisposed;
 
             public string Identifier { get; }
 
@@ -561,7 +699,7 @@ namespace oms.Input.Devices
             {
                 changes = Array.Empty<OmsHidDeviceChange>();
 
-                if (!IsConnected)
+                if (!HasPendingChanges)
                     return false;
 
                 var queuedChanges = new List<OmsHidDeviceChange>();
@@ -631,7 +769,7 @@ namespace oms.Input.Devices
 
             public void Dispose()
             {
-                if (!IsConnected)
+                if (Interlocked.Exchange(ref isDisposed, 1) != 0)
                     return;
 
                 IsConnected = false;

@@ -76,9 +76,9 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(inputManager.LaneCoverFocusPressed.Value, Is.False);
-                Assert.That(sink.HandleRawKeyPressed(InputKey.W), Is.True);
+                Assert.That(sink.HandleRawKeyPressed(InputKey.W, Stopwatch.GetTimestamp()), Is.True);
                 Assert.That(inputManager.LaneCoverFocusPressed.Value, Is.False);
-                Assert.That(sink.HandleRawKeyReleased(InputKey.W), Is.True);
+                Assert.That(sink.HandleRawKeyReleased(InputKey.W, Stopwatch.GetTimestamp()), Is.True);
                 Assert.That(inputManager.LaneCoverFocusPressed.Value, Is.False);
             });
         }
@@ -93,8 +93,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(inputManager.Router.IsPressed(OmsAction.Key1P_Scratch), Is.False);
-                Assert.That(sink.HandleRawKeyPressed(InputKey.LShift), Is.False);
-                Assert.That(sink.HandleRawKeyReleased(InputKey.LShift), Is.False);
+                Assert.That(sink.HandleRawKeyPressed(InputKey.LShift, Stopwatch.GetTimestamp()), Is.False);
+                Assert.That(sink.HandleRawKeyReleased(InputKey.LShift, Stopwatch.GetTimestamp()), Is.False);
                 sink.ResetRawKeyboardState();
                 Assert.That(inputManager.Router.IsPressed(OmsAction.Key1P_Scratch), Is.False);
             });

@@ -9,7 +9,6 @@ using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
-using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Video;
 using osu.Framework.Platform;
@@ -23,9 +22,9 @@ using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Tests.Beatmaps;
 using osu.Game.Tests.Visual;
+using osuTK;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
-using osuTK;
 
 namespace osu.Game.Rulesets.Bms.Tests
 {
@@ -79,7 +78,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(panel.ChildrenOfType<BufferedContainerView<Drawable>>().All(view =>
                     view.DrawSize == panel.ChildrenOfType<BmsBgaPlayer>().Single().DrawSize), Is.True,
                     "Mirrors must retain the source viewport aspect ratio.");
-                Assert.That(working.ImageReads, Is.EqualTo(1));
+                Assert.That(working.ImageReads, Is.EqualTo(2), "Both base and optional POOR images are prepared before playback.");
                 Assert.That(panel.LayoutSnapshot!.BgaViewports.Count, Is.EqualTo(4));
                 assertViewportRevision(panel, 2);
             });
@@ -89,7 +88,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddStep("propagate mirror drawing errors", () => capture!.GetAwaiter().GetResult());
             AddStep("trigger poor on the shared clock", panelNotifyMiss);
             AddWaitStep("allow poor image and mirror draw frames", 3);
-            AddAssert("poor image loaded once", () => working.ImageReads, () => Is.EqualTo(2));
+            AddAssert("poor reuses its prepared image", () => working.ImageReads, () => Is.EqualTo(2));
             AddStep("verify poor appears on every mirror", () => capture = verifyMirrorPixels(panel, true));
             AddUntilStep("wait for poor mirror verification", () => capture?.IsCompleted == true);
             AddStep("propagate poor drawing errors", () => capture!.GetAwaiter().GetResult());

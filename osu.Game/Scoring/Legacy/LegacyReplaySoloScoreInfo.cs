@@ -43,6 +43,9 @@ namespace osu.Game.Scoring.Legacy
         [JsonConverter(typeof(StringEnumConverter))]
         public ScoreRank? Rank;
 
+        [JsonProperty("passed", NullValueHandling = NullValueHandling.Ignore)]
+        public bool? Passed { get; set; }
+
         [JsonProperty("user_id")]
         public int UserID = -1;
 
@@ -63,6 +66,8 @@ namespace osu.Game.Scoring.Legacy
             MaximumStatistics = score.MaximumStatistics.Where(kvp => kvp.Value != 0).ToDictionary(),
             ClientVersion = score.ClientVersion,
             Rank = score.Rank,
+            // Passed is not persisted in Realm. A stored F rank remains a failure after the model is retrieved again.
+            Passed = score.Passed && score.Rank != ScoreRank.F,
             UserID = score.User.OnlineID,
             TotalScoreWithoutMods = score.TotalScoreWithoutMods > 0 ? score.TotalScoreWithoutMods : null,
             Pauses = score.Pauses.ToArray(),

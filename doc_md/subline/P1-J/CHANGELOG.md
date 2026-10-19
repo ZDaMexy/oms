@@ -5,6 +5,12 @@
 
 ---
 
+## 2026-10-19稳态分配与帧时间深审
+
+先复现并测量DirectInput state/数组、轮询快照、轴边沿、replay稳定Apply和血条百分比字符串分配，再复用实际生产状态。replay换帧/reset/seek仍按既有边界，未删录制心跳、重要边沿或统计；血条保留原P0文化与fill。运行中HID发现移出Update归P1-B，图片准备归P1-L，实际判定/结果修复归P1-C/E。
+
+组件原始数值、CPU短样本限制、同谱同包原生wall interval、修前有效性、最终回归/构建及旧失败身份集中见[深审记录](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)。原生前台比较区间和截图/JSON排除规则预先固定；后台60Hz、探针I/O、limiter等待不得冒充优化收益，零分配不等于设备/系统零卡顿。旧音频和真实听感门保留。
+
 ## 2026-10-19预热、提前空击与通道复用
 
 原生预热追加post-mod LaneKeysoundTimelines中的invisible-only资源，沿原pool/store去重，不增加HitObject或自动声音。转谱提前/空击保留原候选选择，但以选中对象及parent owner进入同一WAV slot/shared store；仅普通tap或nested head使用头音，tail与sample-only静音，普通mania无store时原样。StopAllPlayback立即回收idle，使同一Update的新Play复用已有通道。

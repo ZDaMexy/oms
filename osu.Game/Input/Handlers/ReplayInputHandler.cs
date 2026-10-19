@@ -45,6 +45,11 @@ namespace osu.Game.Input.Handlers
                 if (!(state is RulesetInputManagerInputState<T> inputState))
                     throw new InvalidOperationException($"{nameof(ReplayState<T>)} should only be applied to a {nameof(RulesetInputManagerInputState<T>)}");
 
+                // Framed handlers retain an immutable state while staying on the same replay frame.
+                // A handler reset clears LastReplayState, so that frame still reapplies after ownership changes.
+                if (ReferenceEquals(inputState.LastReplayState, this))
+                    return;
+
                 T[] released = Array.Empty<T>();
                 T[] pressed = Array.Empty<T>();
 

@@ -527,6 +527,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                     StartTime = noteCount + 2,
                     LaneIndex = 0,
                     AutoPlay = true,
+                    CountsForScore = false,
                     Keymode = keymode,
                 });
             }

@@ -1,6 +1,6 @@
 # P1-L 当前状态：BMS Gimmick 与 BGA 视觉
 
-> 最后核对：2026-10-19（BGA资源边界、视频分类及seek状态修复；其它逐谱人工门保持）
+> 最后核对：2026-10-19（BGA图片后台准备与Update读取边界；其它逐谱人工门保持）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，机理分析见 [BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)。
 
 ## 当前阶段
@@ -9,6 +9,7 @@
 - BMS 专用滚动位置积分旁路 A–C 已落地，Auto 检测存在；正常链路保持隔离。
 - 已接入 P1-C 的 BMS 显示偏移：普通/STOP 映射、小节线/地雷淡出随显示时间，长条嵌套不重复偏移；原判定/音频时间保持，额外预加载不扩大空 POOR/辅助列消音。验证与人工未签收边界统一见 [P1-C](../P1-C/DEVELOPMENT_STATUS.md)。
 - BGA 图序列/视频/POOR/转码缓存/预加载主链已落地。
+- 可达图片已随真实后台加载准备，同层同刻替代项和关闭的POOR不加载，缺失结果也保留为空；Update切图只选已准备纹理。使用原TextureStore寿命，不把CPU解码移出Update扩大成GPU上传、视频初始化或任意大图谱的内存成本已消失。
 - BGA相对引用在转换边界校验，坏的可选引用不拒绝可玩谱面；`.m1v/.m2v`进入现有视频链。真实seek/reset清旧POOR与各层未来重试时刻，不再重播旧Miss或阻塞pending视频；普通暂停、共享会话与静态回退保持。
 - C3 的 immutable layout/viewports 与 C5 的 BGA material/scene、只读状态事件已接入真实宿主。
 - `DrawableBmsRuleset`持有独立`BmsBgaPlaybackSession`，有时间线时由唯一player负责加载、播放与合成；无时间线时会话提供静态背景。所有窗口，包括单窗，都使用只读view。皮肤显示/布局重建不更换player或视频，不重置POOR；退出游玩根才释放会话。关闭显示或零窗停止合成重绘，时钟与内容状态继续推进。
@@ -34,6 +35,8 @@
 - Floating/Classic 绝对刻度、负向/反向滚动未实现。
 
 ## 最近一次验证
+
+2026-10-19后续深审：晚出现图片与可选POOR在play前准备、重复/不可达资源及Update零读取有真实异步加载证明；四窗/替换/POOR/视频/seek/退出回归和同包实机取[集中记录](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#验证证据)。加载与驻留提前的代价保留，不宣称所有视频或GPU帧时已优化。
 
 2026-10-19游玩审查已覆盖坏路径/合法子目录、elementary MPEG、真实Seek/Reset旧POOR以及pending视频回退重试；修前失败、完整回归与优化后同包Xecus实绘取[集中记录](../../other/GAMEPLAY_REVIEW_20261019.md#验证证据)。不代签其它谱、设备、解码器或DPI。
 

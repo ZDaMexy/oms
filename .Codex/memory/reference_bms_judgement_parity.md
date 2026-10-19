@@ -19,6 +19,8 @@ metadata:
 - 边界统一 `<= window + BoundaryEpsilon`。
 - Empty Poor 使用 `HitResult.Ok` 独立计数，不计 EX-SCORE/accuracy、不断 combo；BAD/Miss 才断连。Empty Poor 仍影响 gauge 与 FC/PERFECT 资格，不能从旧表或 `BmsPoorJudgement` 名字推断它等同 Miss。
 - gauge rules family 与 judge family/gauge type 分离；Legacy 数表不代表全部 family。GAS 只按实际 active gauge 顺序推进，最终 lamp 看最终 active gauge，不在 results 重跑全部 mods 或并行取所有 gauge 的最高灯。
+- 全自动BMS drawable会写AutoPlay=true，但CountsForScore仍为true；按AutoPlay排除会使实况与results重建分母不一致。辅助的真实排除依据是CountsForScore，测试fixture若把AutoPlay当辅助必须显式标成不计分。
+- 跨列结果的Health快照依赖全局应用顺序；每列栈自己逆序不等于全局逆序，同刻和弦也能错。须真实Player手动回放同时核health、统计/连击，不能只看EX还原；根Playfield沿既有entry统一撤销，见[深审记录](../../doc_md/other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)。
 
 ## LN 模式地雷
 

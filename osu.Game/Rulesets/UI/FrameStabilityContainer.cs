@@ -26,6 +26,8 @@ namespace osu.Game.Rulesets.UI
     {
         public ReplayInputHandler? ReplayInputHandler { get; set; }
 
+        internal IFrameStableInputHandler? LiveInputHandler { get; set; }
+
         private int invalidBassTimeLogCount;
 
         /// <summary>
@@ -81,6 +83,7 @@ namespace osu.Game.Rulesets.UI
         private bool hasReplayAttached => ReplayInputHandler != null;
 
         private bool firstConsumption = true;
+        private bool hasProcessedClock;
 
         public FrameStabilityContainer(double gameplayStartTime = double.MinValue)
         {
@@ -107,6 +110,9 @@ namespace osu.Game.Rulesets.UI
         public override bool UpdateSubTree()
         {
             stopwatch.Restart();
+
+            LiveInputHandler?.PrepareFrame(referenceClock as IGameplayInputTimeSource,
+                hasProcessedClock ? manualClock.CurrentTime : referenceClock.CurrentTime, !hasReplayAttached && !IsPaused.Value);
 
             do
             {
@@ -156,6 +162,12 @@ namespace osu.Game.Rulesets.UI
                 if (!valid)
                     state = PlaybackState.NotValid;
             }
+            else if (proposedTime >= manualClock.CurrentTime && LiveInputHandler?.NextInputTime is double inputTime && inputTime <= proposedTime)
+            {
+                // A live event is a clock stop just like a replay frame. The input manager runs at this
+                // time before its hit-object children, so hit windows, RawTime and recording all agree.
+                proposedTime = Math.Max(manualClock.CurrentTime, inputTime);
+            }
 
             // TODO: replace IsDebugBuild with a framework flag which asserts we are in a test scene, interactively or otherwise.
             bool allowReferenceClockSeeks = hasReplayAttached || DebugUtils.IsNUnitRunning || DebugUtils.IsDebugBuild || !FrameStablePlayback;
@@ -203,6 +215,7 @@ namespace osu.Game.Rulesets.UI
             // The manual clock time has changed in the above code. The framed clock now needs to be updated
             // to ensure that the its time is valid for our children before input is processed
             framedClock.ProcessFrame();
+            hasProcessedClock = true;
 
             if (framedClock.ElapsedFrameTime != 0)
                 IsRewinding = framedClock.ElapsedFrameTime < 0;

@@ -1,6 +1,6 @@
 # P1-C 技术约束：判定语义与反馈边界
 
-> 最后核对：2026-09-29（自动调整偏移的迁移、采样与回放合同核对；判定/TOTAL 合同不变）
+> 最后核对：2026-10-19（跨轨撤销、全自动计分资格及失败回放元数据；窗口/TOTAL身份保持）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线与产品边界
@@ -46,6 +46,9 @@
 TOTAL 合同（2026-09-22）：合法作者值优先；缺省 Beatoraja 使用 `max(260,760.5*N/(N+650))`，LR2 按 LR2oraja 兼容依据使用 `160+(N+clamp(N-400,0,200))*0.16`，Legacy 维持200，IIDX不消费TOTAL。缺省物量N包含辅助音符且遵循运行时LN模式；回血/Hard修正物量排除辅助，HCN body不进分母。v7新游玩明确初始化身份；v7之前（含v6）及无版本历史使用旧缺省200与旧低物量修正舍入，已存终值/灯不得覆盖。自动播放须由新生成回放身份区分，不能仅凭无成绩数据认定新局。来源与边界见[取证报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。
 
 1. results 重建必须消费 Ruleset contract 传入的 already-modded playable beatmap，不得重复应用 beatmap mods；gauge history 与 clear lamp 必须由 owning processor 计算，panel/UI 不得重建 timeline 或灯级。
+1a. BMS实际回血分母依据CountsForScore，排除ASCR/ANOT等辅助；全自动在drawable加载时设置AutoPlay不取消计分，实况与results重建须一致。TOTAL缺省预算与版本身份保持原合同。
 2. `PERFECT`/`FULL COMBO` 持久化必须先过 clear condition；HCN body tick 可独立影响 gauge，禁止只看聚合 judgement counts 推导灯级。
 3. 判定 family、poor/release、反馈术语或当前 HUD surface 改动，同步本线实际受影响的状态、计划、约束和验证记录；影响全局优先级、release gate 或硬约束时再向 mainline 回写摘要与链接，规则以 [AGENTS](../../../AGENTS.md#权威与文档) 为准。
 4. `BmsGaugeRulesFamily` 与 gauge type、judge family 各有自己的选择和消费链；默认 Legacy 的 TOTAL 倍数/阈值不代表 Beatoraja/LR2/IIDX。GAS 只运行当前 active gauge，降级初始化为新 gauge 的起始值，历史按实际激活段绘制；最终 lamp 由最终 active gauge 与 clear 条件决定，不能在 results 再并行模拟各 gauge 取最高灯。
+5. 多轨结果按根Playfield的真实应用顺序逆序撤销，嵌套playfield不得独立覆盖全局health/fail快照；复用既有entry/history，不另建结果authority。
+6. `.osr`可选`passed`保留明确失败；旧payload缺字段时仅以已存F恢复false，连rank也没有时保留旧默认。不得用NF或命中统计猜测通过；Realm ignored的Passed默认true不能覆盖持久化F等级。新局OMSIR提交及Realm schema不因该回放兼容字段改变。

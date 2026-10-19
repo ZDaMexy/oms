@@ -2,7 +2,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using NUnit.Framework;
 using oms.Input;
 using oms.Input.Devices;
@@ -54,6 +56,11 @@ namespace osu.Game.Rulesets.Bms.Tests
             handler.PollOnce();
             provider.SetDevices();
             handler.PollOnce();
+            Assert.That(SpinWait.SpinUntil(() =>
+            {
+                handler.PollOnce();
+                return handler.ConnectedDeviceCount == 0;
+            }, TimeSpan.FromSeconds(5)), Is.True);
 
             Assert.That(events, Is.EqualTo(new[] { "+Key1P_Scratch", "-Key1P_Scratch" }));
         }
@@ -220,13 +227,14 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestHandlerRefreshesMissingBoundDeviceWithoutProviderEvent()
         {
+            long timestamp = 0;
             var events = new List<string>();
             var provider = new FakeHidButtonDeviceProvider();
 
             using var handler = new OmsHidDeviceHandler(new[]
             {
                 new OmsBinding(OmsAction.Key1P_1, OmsBindingTrigger.HidButton("iidx-pad", 0))
-            }, action => events.Add($"+{action}"), action => events.Add($"-{action}"), provider);
+            }, action => events.Add($"+{action}"), action => events.Add($"-{action}"), provider, () => timestamp);
 
             Assert.That(handler.ConnectedDeviceCount, Is.EqualTo(0));
 
@@ -234,7 +242,13 @@ namespace osu.Game.Rulesets.Bms.Tests
             device.EnqueueBatch(OmsHidDeviceChange.Button(new OmsHidButtonChange("iidx-pad", 0, true)));
             provider.SetDevicesSilently(device);
 
+            timestamp = Stopwatch.Frequency / 2;
             handler.PollOnce();
+            Assert.That(SpinWait.SpinUntil(() =>
+            {
+                handler.PollOnce();
+                return events.Count > 0;
+            }, TimeSpan.FromSeconds(5)), Is.True);
 
             Assert.That(events, Is.EqualTo(new[] { "+Key1P_1" }));
         }

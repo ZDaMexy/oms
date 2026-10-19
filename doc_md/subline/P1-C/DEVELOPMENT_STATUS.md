@@ -1,9 +1,11 @@
 # P1-C 当前状态：判定语义与反馈闭环
 
-> 最后核对：2026-09-29（自动调整偏移互斥 style；真实设备体验待验收）
+> 最后核对：2026-10-19（跨轨撤销、全自动结算及失败回放元数据；真实设备体验待验收）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，HUD/skin 宿主边界归 [P1-A](../P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 当前阶段
+
+跨轨结果已按全局实际应用顺序逆序撤销，修复BMS/mania血量快照恢复错误；BMS全自动结算按CountsForScore保留回血分母，辅助仍排除。失败回放增加可选passed，旧F恢复失败且已存F重导不受Realm ignored bool默认值影响；普通mania同批松键和note lock归[P1-E](../P1-E/DEVELOPMENT_STATUS.md)。未更换窗口数表、TOTAL身份或新局OMSIR合同，范围见[本轮深审](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)。
 
 「自动调整偏移」已统一为 `关闭 / osu!lazer style / beatoraja style` 单选，旧开启设置迁移为 lazer。玩家可在同一音频设置区查看/修改 BMS 显示偏移；beatoraja 在真实 BMS 演奏中按有效时机调整，关闭后保留固定值，mania 不执行该算法。LN 合并采样、CN/HCN 真实松键、辅助过滤、回放只读轨迹已接入；回放不覆盖个人设置。具体合同见[自动调整偏移](TECHNICAL_CONSTRAINTS.md#自动调整偏移合同2026-09-29)。
 
@@ -33,9 +35,9 @@ IIDX/LR2/beatoraja/OD 判定家族与主要边界 parity 已落地并由契约�
 
 ## 最近一次验证
 
-2026-09-29 自动调整偏移：BMS focused 58通过，core offset focused 35通过、mania replay 331通过；Release 成功（0错误、2个既有测试警告），文档及 diff 检查通过；BMS full 2354通过、29失败、16跳过。29项失败与9月22日留存 full 的名称、错误消息和路径根标准化后的堆栈逐项相同，没有新增失败，旧皮肤工作区/编辑器预期维护仍归 P1-A。命令、工件与其他验证记录见 [CHANGELOG](CHANGELOG.md)。真实设备收敛、听感和外部播放器逐帧对照未签收。
+2026-10-19：真实手动回放跨轨回退、LN/CN/HCN全自动实况/结算与持久化数据、失败回放新旧元数据控制均有修前失败和修后证明；另补固定混合谱验证BMS四家族与mania六类判定到完成成绩的统计、准确率、连击与分数。完整回归、旧失败身份及当前构建取[集中记录](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#验证证据)，不将本地Rank展示误写成Passed持久化；真实设备收敛、听感和外部播放器逐帧对照仍未签收。
 
-TOTAL 与判定窗口历史验证见 [CHANGELOG](CHANGELOG.md) 和 [TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。
+自动调整偏移、TOTAL与判定窗口的9月原验证见 [CHANGELOG](CHANGELOG.md) 和 [TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。
 
 ## 当前风险
 

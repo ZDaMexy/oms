@@ -85,7 +85,9 @@ namespace osu.Game.Rulesets.Mania.UI
                 if (obj.HitObject.GetEndTime() >= targetTime)
                     yield break;
 
-                if (canParticipateInLocking(obj))
+                // Only force scoring results here. An Ignore hold parent must finish through its own
+                // tail/body lifecycle; judging it early prevents it from ever completing the body.
+                if (obj.HitObject.Judgement.MaxResult.AffectsCombo())
                     yield return obj;
 
                 foreach (var nestedObj in obj.NestedHitObjects)
@@ -93,12 +95,26 @@ namespace osu.Game.Rulesets.Mania.UI
                     if (nestedObj.HitObject.GetEndTime() >= targetTime)
                         break;
 
-                    if (canParticipateInLocking(nestedObj))
+                    if (nestedObj.HitObject.Judgement.MaxResult.AffectsCombo())
                         yield return nestedObj;
                 }
             }
         }
 
-        private static bool canParticipateInLocking(DrawableHitObject hitObject) => hitObject.HitObject.Judgement.MaxResult.AffectsCombo();
+        private static bool canParticipateInLocking(DrawableHitObject hitObject)
+        {
+            if (hitObject.HitObject.Judgement.MaxResult.AffectsCombo())
+                return true;
+
+            // A real hold's parent is Ignore; its scoring head and tail still participate in note lock.
+            // Sample-only BMS objects have no scoring descendants and must remain outside that boundary.
+            foreach (DrawableHitObject nested in hitObject.NestedHitObjects)
+            {
+                if (canParticipateInLocking(nested))
+                    return true;
+            }
+
+            return false;
+        }
     }
 }

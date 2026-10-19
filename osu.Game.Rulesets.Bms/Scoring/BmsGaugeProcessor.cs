@@ -158,7 +158,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
         }
 
         public static BmsGaugeType GetGaugeType(IEnumerable<Mod>? mods)
-            => GetGaugeAutoShift(mods)?.GetStartingGaugeType() ?? mods?.OfType<BmsModGauge>().LastOrDefault()?.GaugeType ?? BmsGaugeType.Normal;
+            => getGaugeAutoShift(mods)?.GetStartingGaugeType() ?? mods?.OfType<BmsModGauge>().LastOrDefault()?.GaugeType ?? BmsGaugeType.Normal;
 
         public static BmsGaugeRulesFamily GetGaugeRulesFamily(IEnumerable<Mod>? mods)
             => mods?.OfType<BmsModGaugeRules>().LastOrDefault()?.GaugeRulesFamily ?? BmsGaugeRulesFamily.Legacy;
@@ -170,7 +170,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
             => score.GetRulesetData<BmsScoreInfoData>()?.GaugeRulesFamily ?? GetGaugeRulesFamily(score.Mods);
 
         public static BmsGaugeType GetStartingGaugeType(IEnumerable<Mod>? mods)
-            => GetGaugeAutoShift(mods)?.GetStartingGaugeType() ?? GetGaugeType(mods);
+            => getGaugeAutoShift(mods)?.GetStartingGaugeType() ?? GetGaugeType(mods);
 
         public static BmsGaugeType GetStartingGaugeType(ScoreInfo score)
         {
@@ -183,7 +183,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
         }
 
         public static BmsGaugeType GetFloorGaugeType(IEnumerable<Mod>? mods)
-            => GetGaugeAutoShift(mods)?.GetFloorGaugeType() ?? GetGaugeType(mods);
+            => getGaugeAutoShift(mods)?.GetFloorGaugeType() ?? GetGaugeType(mods);
 
         public static BmsGaugeType GetFloorGaugeType(ScoreInfo score)
         {
@@ -196,7 +196,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
         }
 
         public static bool UsesGaugeAutoShift(IEnumerable<Mod>? mods)
-            => GetGaugeAutoShift(mods) != null;
+            => getGaugeAutoShift(mods) != null;
 
         public static bool UsesGaugeAutoShift(ScoreInfo score)
             => score.GetRulesetData<BmsScoreInfoData>()?.UsesGaugeAutoShift ?? UsesGaugeAutoShift(score.Mods);
@@ -213,7 +213,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
         {
             var gaugeRulesFamily = GetGaugeRulesFamily(mods);
 
-            return GetGaugeAutoShift(mods) is BmsModGaugeAutoShift gasMod
+            return getGaugeAutoShift(mods) is BmsModGaugeAutoShift gasMod
                 ? new BmsGasGaugeProcessor(drainStartTime, gasMod.GetStartingGaugeType(), gasMod.GetFloorGaugeType(), gaugeRulesFamily)
                 : new BmsGaugeProcessor(drainStartTime, GetGaugeType(mods), gaugeRulesFamily);
         }
@@ -340,7 +340,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
             Health.Value = StartingGaugeValue;
         }
 
-        private static BmsModGaugeAutoShift? GetGaugeAutoShift(IEnumerable<Mod>? mods)
+        private static BmsModGaugeAutoShift? getGaugeAutoShift(IEnumerable<Mod>? mods)
             => mods?.OfType<BmsModGaugeAutoShift>().LastOrDefault();
 
         private double applyGaugeDelta(double rawPercent)
@@ -654,7 +654,9 @@ namespace osu.Game.Rulesets.Bms.Scoring
                           BmsBgmEvent => false,
                           BmsHoldNote => false,
                           BmsHoldNoteTailEvent { Judgement: BmsHoldNoteTailJudgement { CountsForScore: false } } => false,
-                          BmsHitObject bmsHitObject => !bmsHitObject.AutoPlay,
+                          // Full autoplay retains scoring but switches AutoPlay on when the drawables load.
+                          // Assist mods remove scoring instead; the same judgement budget must survive results reconstruction.
+                          BmsHitObject bmsHitObject => bmsHitObject.CountsForScore,
                           _ => false,
                       });
 

@@ -2,7 +2,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using oms.Input;
 using oms.Input.Devices;
 using osu.Framework.Allocation;
@@ -14,11 +16,12 @@ using osu.Framework.Localisation;
 using osu.Game.Database;
 using osu.Game.Localisation;
 using osu.Game.Rulesets.UI;
+using osu.Game.Screens.Play;
 
 namespace osu.Game.Rulesets.Bms.Input
 {
     [Cached]
-    public partial class BmsInputManager : RulesetInputManager<BmsAction>, IOmsKeyboardEventSink
+    public partial class BmsInputManager : RulesetInputManager<BmsAction>, IOmsKeyboardEventSink, IFrameStableInputHandler
     {
         public const int MAX_GAMEPLAY_KEYS = 16;
 
@@ -31,6 +34,14 @@ namespace osu.Game.Rulesets.Bms.Input
         private readonly HashSet<BmsAction> forwardedPressedActions = new HashSet<BmsAction>();
         private readonly object rawKeyboardGate = new object();
         private readonly Queue<RawKeyboardTransition> rawKeyboardTransitions = new Queue<RawKeyboardTransition>(32);
+        private readonly Queue<TimedKeyboardTransition> timedKeyboardTransitions = new Queue<TimedKeyboardTransition>(32);
+        private GameplayInputTime? previousInputTime;
+        private long? preparedClockEpoch;
+        private bool usesTimestampedInput;
+        private bool releaseKeyboardOnUpdate;
+        private int rawKeyboardEpoch;
+        private int preparedRawKeyboardEpoch;
+        private double lastPreparedInputTime;
         private bool rawKeyboardClosed;
         private bool rawKeyboardBindingsSupported = true;
         private readonly int variant;
@@ -110,27 +121,160 @@ namespace osu.Game.Rulesets.Bms.Input
 
         protected override void Update()
         {
-            // Native window callbacks run on the input thread. Drain before the usual input processing so
-            // the current gameplay frame owns both the judgement time and every drawable mutation.
-            while (true)
+            // A native reset can invalidate an already prepared batch between catch-up substeps.
+            // Only this thread owns the mapped queue and the applied keyboard state.
+            if (usesTimestampedInput && preparedRawKeyboardEpoch != Volatile.Read(ref rawKeyboardEpoch))
             {
-                RawKeyboardTransition transition;
-                lock (rawKeyboardGate)
-                {
-                    if (!rawKeyboardTransitions.TryDequeue(out transition))
-                        break;
-                }
+                timedKeyboardTransitions.Clear();
+                releaseKeyboardOnUpdate = true;
+            }
 
-                if (transition.Pressed is bool pressed)
-                    tryHandleKeyboardEvent(transition.Key, pressed);
-                else
-                    keyboardInputHandler.ReleaseAllPressed();
+            if (releaseKeyboardOnUpdate)
+            {
+                releaseKeyboardOnUpdate = false;
+                keyboardInputHandler.ReleaseAllPressed();
+            }
+
+            if (usesTimestampedInput)
+            {
+                while (timedKeyboardTransitions.TryPeek(out TimedKeyboardTransition transition) && transition.Time <= Time.Current)
+                {
+                    if (preparedRawKeyboardEpoch != Volatile.Read(ref rawKeyboardEpoch))
+                        break;
+
+                    timedKeyboardTransitions.Dequeue();
+                    tryHandleKeyboardEvent(transition.Key, transition.Pressed);
+                }
+            }
+            else
+            {
+                // Non-gameplay previews without a timestamp authority retain the ordinary update-thread
+                // path. Freeze its size so a producer cannot extend the batch while it is being delivered.
+                int count;
+                lock (rawKeyboardGate)
+                    count = rawKeyboardTransitions.Count;
+
+                while (count-- > 0)
+                {
+                    RawKeyboardTransition transition;
+                    lock (rawKeyboardGate)
+                    {
+                        if (!rawKeyboardTransitions.TryDequeue(out transition))
+                            break;
+                    }
+
+                    if (transition.Pressed is bool pressed)
+                        tryHandleKeyboardEvent(transition.Key, pressed);
+                    else
+                        keyboardInputHandler.ReleaseAllPressed();
+                }
             }
 
             mouseAxisInputHandler.FinishFrame();
             mouseAxisInputHandler.BeginFrame();
             hidDeviceHandler?.PollOnce();
             base.Update();
+        }
+
+        double? IFrameStableInputHandler.NextInputTime => usesTimestampedInput
+                                                        && preparedRawKeyboardEpoch == Volatile.Read(ref rawKeyboardEpoch)
+                                                        && timedKeyboardTransitions.TryPeek(out TimedKeyboardTransition transition)
+            ? transition.Time
+            : null;
+
+        void IFrameStableInputHandler.ResetInput() => resetRawKeyboardState();
+
+        void IFrameStableInputHandler.PrepareFrame(IGameplayInputTimeSource? timeSource, double currentTime, bool isLiveInput)
+        {
+            usesTimestampedInput = timeSource != null;
+
+            if (!isLiveInput || !UseParentInput)
+            {
+                lock (rawKeyboardGate)
+                {
+                    rawKeyboardTransitions.Clear();
+                    preparedRawKeyboardEpoch = rawKeyboardEpoch;
+                }
+
+                timedKeyboardTransitions.Clear();
+                previousInputTime = null;
+                releaseKeyboardOnUpdate = true;
+                return;
+            }
+
+            if (timeSource?.InputTime is not GameplayInputTime sample)
+                return;
+
+            lock (rawKeyboardGate)
+            {
+                bool clockChanged = preparedClockEpoch is long epoch && epoch != sample.Epoch;
+                if (preparedRawKeyboardEpoch != rawKeyboardEpoch || clockChanged)
+                {
+                    timedKeyboardTransitions.Clear();
+                    previousInputTime = null;
+                    releaseKeyboardOnUpdate = true;
+                }
+
+                preparedClockEpoch = sample.Epoch;
+                preparedRawKeyboardEpoch = rawKeyboardEpoch;
+
+                if (sample.Time < currentTime)
+                {
+                    // Let the existing subtree finish restoring a backwards seek before applying new live
+                    // edges. They remain raw until the next outer frame, then late edges clamp to that
+                    // restored timeline rather than acting on the old hit-object results during rewind.
+                    previousInputTime = sample;
+                    return;
+                }
+
+                lastPreparedInputTime = timedKeyboardTransitions.Count == 0 ? currentTime : Math.Max(currentTime, lastPreparedInputTime);
+
+                int count = rawKeyboardTransitions.Count;
+
+                while (count-- > 0 && rawKeyboardTransitions.TryPeek(out RawKeyboardTransition transition))
+                {
+                    if (transition.Pressed == null)
+                    {
+                        rawKeyboardTransitions.Dequeue();
+                        releaseKeyboardOnUpdate = true;
+                        continue;
+                    }
+
+                    // A callback received after this clock sample belongs to the next outer frame. Leave it
+                    // queued rather than extrapolating gameplay into a time the clock has not published yet.
+                    if (transition.Timestamp > sample.Timestamp)
+                        break;
+
+                    rawKeyboardTransitions.Dequeue();
+
+                    if (transition.Timestamp < sample.EpochStartTimestamp)
+                        continue;
+
+                    double inputTime = mapInputTime(transition.Timestamp, sample);
+                    // Late callbacks cannot rewind a judgement already exposed to gameplay. Keeping receipt
+                    // order also preserves modifier/chord transitions when several events share a timestamp.
+                    lastPreparedInputTime = Math.Max(lastPreparedInputTime, inputTime);
+                    timedKeyboardTransitions.Enqueue(new TimedKeyboardTransition(transition.Key, transition.Pressed.Value, lastPreparedInputTime));
+                }
+
+                previousInputTime = sample;
+            }
+        }
+
+        private double mapInputTime(long timestamp, GameplayInputTime sample)
+        {
+            if (previousInputTime is GameplayInputTime previous && previous.Epoch == sample.Epoch
+                && previous.Timestamp < sample.Timestamp && timestamp >= previous.Timestamp
+                && previous.IsRunning && sample.IsRunning && sample.Time >= previous.Time)
+            {
+                // Both endpoints come from the same offset/rate-adjusted clock. The interval follows its
+                // actual advance, including continuous rate changes and interpolation recovery, rather than
+                // applying today's rate retroactively to all events received during a stalled frame.
+                double fraction = (double)(timestamp - previous.Timestamp) / (sample.Timestamp - previous.Timestamp);
+                return previous.Time + (sample.Time - previous.Time) * fraction;
+            }
+
+            return sample.IsRunning ? sample.Time + (timestamp - sample.Timestamp) * (1000.0 / Stopwatch.Frequency) * sample.Rate : sample.Time;
         }
 
         protected override bool OnMouseMove(MouseMoveEvent e)
@@ -199,11 +343,13 @@ namespace osu.Game.Rulesets.Bms.Input
             base.Dispose(isDisposing);
         }
 
-        bool IOmsKeyboardEventSink.HandleRawKeyPressed(InputKey key) => enqueueRawKeyboardTransition(key, pressed: true);
+        bool IOmsKeyboardEventSink.HandleRawKeyPressed(InputKey key, long timestamp) => enqueueRawKeyboardTransition(key, timestamp, pressed: true);
 
-        bool IOmsKeyboardEventSink.HandleRawKeyReleased(InputKey key) => enqueueRawKeyboardTransition(key, pressed: false);
+        bool IOmsKeyboardEventSink.HandleRawKeyReleased(InputKey key, long timestamp) => enqueueRawKeyboardTransition(key, timestamp, pressed: false);
 
-        void IOmsKeyboardEventSink.ResetRawKeyboardState()
+        void IOmsKeyboardEventSink.ResetRawKeyboardState() => resetRawKeyboardState();
+
+        private void resetRawKeyboardState()
         {
             lock (rawKeyboardGate)
             {
@@ -212,12 +358,13 @@ namespace osu.Game.Rulesets.Bms.Input
 
                 // Focus loss/pause ends this input epoch. Pending presses must not hit a note when gameplay
                 // resumes; release only the keyboard state which has already reached the update thread.
+                rawKeyboardEpoch++;
                 rawKeyboardTransitions.Clear();
-                rawKeyboardTransitions.Enqueue(new RawKeyboardTransition(InputKey.None, null));
+                rawKeyboardTransitions.Enqueue(new RawKeyboardTransition(InputKey.None, null, 0));
             }
         }
 
-        private bool enqueueRawKeyboardTransition(InputKey key, bool pressed)
+        private bool enqueueRawKeyboardTransition(InputKey key, long timestamp, bool pressed)
         {
             if (!rawKeyboardBindingsSupported || !keyboardInputHandler.HasBindingForKey(key))
                 return false;
@@ -227,13 +374,15 @@ namespace osu.Game.Rulesets.Bms.Input
                 if (rawKeyboardClosed)
                     return false;
 
-                rawKeyboardTransitions.Enqueue(new RawKeyboardTransition(key, pressed));
+                rawKeyboardTransitions.Enqueue(new RawKeyboardTransition(key, pressed, timestamp));
             }
 
             return true;
         }
 
-        private readonly record struct RawKeyboardTransition(InputKey Key, bool? Pressed);
+        private readonly record struct RawKeyboardTransition(InputKey Key, bool? Pressed, long Timestamp);
+
+        private readonly record struct TimedKeyboardTransition(InputKey Key, bool Pressed, double Time);
 
         private void applyBindings(IReadOnlyList<OmsBinding> bindings)
         {

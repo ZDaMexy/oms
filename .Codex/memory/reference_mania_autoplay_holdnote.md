@@ -1,6 +1,6 @@
 ---
 name: reference-mania-autoplay-holdnote
-description: Mania autoplay/难度过滤 HoldNote 时必须检查 nested judgement
+description: Mania HoldNote nested过滤、note lock父对象寿命与同批松键诊断
 metadata:
   node_type: memory
   type: reference
@@ -14,6 +14,8 @@ top-level `HoldNote.CreateJudgement()` 是 `IgnoreJudgement`，combo 位于 nest
 
 正确判据：对象自身 affects combo，或任一 nested judgement affects combo。sample-only BGM/scratch 自身 ignore 且无 nested，仍会被排除。
 
-`OrderedHitPolicy` 因遍历 nested 所以同类 predicate 正确；`ManiaAutoGenerator` 只看 top-level 时必须显式 nested-aware。不要在二者间复制 predicate 而忽略遍历差异。
+`OrderedHitPolicy`寻找下一个参与锁定的顶层对象也须考虑nested；但force-miss枚举仍只yield自身会计分的对象。把nested-aware predicate原样用于父对象force-miss，会提前判死Ignore parent，使其无法完成body，真实Player永远不completion。`ManiaAutoGenerator`的过滤与判定生命周期是不同用途，不能复制同一predicate便假定等价。
 
 回归同时锁定：短/长 HoldNote autoplay、旁边存在 sample-only 对象、sample-only 不被 autoplay。Native BMS autoplay 是独立路径。
+
+框架InputManager会连续Apply同批pending inputs，中间不运行DHO.Update。beginHoldAt已写Result，但IsHolding显示bindable可能尚未刷新；OnReleased读该bindable会吞同批up，断后重抓还能错给Perfect尾。真实Player冻结clock，以ManualInputManager.Key送同批物理tap，与跨Update控制比较body断条、即时combo及重抓尾上限；不要direct invoke DHO或写holding。证据归[性能与判定深审](../../doc_md/other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)。

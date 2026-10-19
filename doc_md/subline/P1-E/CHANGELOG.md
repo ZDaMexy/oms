@@ -1,5 +1,11 @@
 # P1-E 变动日志
 
+## 2026-10-19mania同批松键与相邻锁定
+
+框架InputManager同批Apply down/up不经过DHO.Update，原OnReleased读取显示bindable会漏记松键。现直接读Result.IsHolding，真实body立即断条、断连，重抓后仍保留原尾判上限。真实Player的四组同批/跨帧、重抓/不重抓有两项有效红例和完整修后证明；不直接调DHO或写holding。
+
+OrderedHitPolicy识别Ignore hold父对象的计分后代，普通note与hold相邻时旧窗口不吞后一个对象的输入；force-miss只判自身计分对象，避免父对象先死导致body不完成。严格时差和真实ReplayPlayer结果、完整回归见[深审记录](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#验证证据)。BMS LN/CN/HCN窗口、接回规则与人工门保持。
+
 ## 2026-10-19完成后倒带与HCN接回
 
 真实手动replay完成长条后倒带时，原head仍命中但holding被tail完成清空；现拦截反向输入的新判定，并按既有entry、实际pressed state及对象级自动辅助恢复，首个正向帧再次对齐。LN/CN终结后不可重抓的合同保持，不新记hold历史。

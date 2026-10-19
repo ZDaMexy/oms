@@ -5,6 +5,12 @@
 
 ---
 
+## 2026-10-19图片准备移出游玩更新
+
+晚出现BGA图片首次切换曾同步TextureStore.Get读盘/解码。现按各层实际可达entry在既有后台加载准备，跨层同文件复用、同层同刻替代项/关闭POOR跳过，缺失结果保留为空；Update只选择现有纹理，TextureStore继续持有资源。准备支持取消，代价是把后续驻留和CPU解码提前，不将其夸大为GPU upload或视频初始化免费。
+
+Default/Undisplayed两组实际异步load已证明晚图在开局前读取一次、Update零读取；四窗、显示更换/POOR/视频位置/隐藏及退出继续验收。旧会话测试的开局读取数改为base+POOR均已准备，原像素/decoder/寿命断言保留。前后、完整回归与同包实机见[集中记录](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#验证证据)，其它谱/设备和极端内存门未签收。
+
 ## 2026-10-19BGA输入边界与seek状态
 
 BGA entry在转换输入处冻结合法相对引用；跳过父目录跳转、绝对路径等坏的可选BGA，不拒绝可玩谱面，程序构造不能绕过。补`.m1v/.m2v`分类，使既有preloader/transcode能实际接到elementary MPEG。播放会话订阅真实seek/reset，清旧POOR及四层pending视频的未来retry timestamp，退出解绑；普通暂停与单player/view生命周期保持。

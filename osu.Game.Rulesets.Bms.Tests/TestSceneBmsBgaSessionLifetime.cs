@@ -8,7 +8,6 @@ using NUnit.Framework;
 using osu.Framework.Audio.Sample;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
-using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.Graphics.Video;
@@ -26,9 +25,9 @@ using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
 using osu.Game.Tests.Beatmaps;
 using osu.Game.Tests.Visual;
+using osuTK;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
-using osuTK;
 
 namespace osu.Game.Rulesets.Bms.Tests
 {
@@ -77,7 +76,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 framedClock.ProcessFrame();
             });
             AddUntilStep("four views and one source loaded", () => panel.Drawable is DefaultBmsBgaPanelDisplay { IsLoaded: true }
-                                                                               && working.ImageReads == 1
+                                                                               && working.ImageReads == 2
                                                                                && panel.ChildrenOfType<BufferedContainerView<Drawable>>().Count() == 4);
             AddAssert("display cannot own the player", () => !panel.ChildrenOfType<BmsBgaPlayer>().Any());
             AddStep("trigger POOR and invalidate only the skin display", () =>

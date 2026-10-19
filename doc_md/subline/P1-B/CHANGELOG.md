@@ -1,5 +1,11 @@
 # P1-B 变动日志
 
+## 2026-10-19原生事件时间与控制器稳态
+
+原生队列保留单调接收时间，在既有offset/rate后时钟发布的样本间映射；每外层帧冻结批次，由原FrameStability走到事件时刻后再按键，真实判定、RawTime与录制一致。暂停/seek/reset/offset/source/replay所有权按epoch失效，含同帧attach/detach；未来等待、迟到不回写过去，同刻顺序保持。普通框架输入、组合键和其它设备引用合同保留。
+
+DirectInput复用原生state和change buffer，取消HasPendingChanges隐式二次快照；设备Handler/axis稳态不物化临时集合。运行中发现与候选/退休资源释放改到唯一后台任务，Update只提交完成结果，退出封门后锁外join；断开仍当帧松键，独立幂等Dispose修复断线资源泄漏。实际卡顿输入、闭锁provider、通知/退出竞态、原生COM wrapper和完整回归证据集中见[深审记录](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#验证证据)，不代签硬件延迟或所有机器零卡顿。
+
 ## 2026-10-19原生键盘线程与单一来源
 
 原WndProc同步进入判定/Drawable的路径改为只入有序transition/reset队列，首个可消费的gameplay Update执行；reset丢旧待发事件并只释放键盘引用，关闭后拒绝晚到事件，exact sink原子替换。监听在桌面初始化安装一次，当前交付范围与SDL ownership一致；原生不可用或不能覆盖整组绑定时统一回退普通键盘，避免两批完整tap重复与混合组合被拆分。
