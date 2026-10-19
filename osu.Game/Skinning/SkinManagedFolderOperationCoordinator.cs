@@ -34,6 +34,13 @@ namespace osu.Game.Skinning
         public Lease Enter(CancellationToken cancellationToken = default)
             => enter(LeaseKind.ShortScope, cancellationToken);
 
+        /// <summary>
+        /// Enters a new read worker which owns no existing scope. An asynchronous reservation can outlive the pool
+        /// thread which acquired it, so a later unrelated read on that thread must wait for the real lease to end.
+        /// </summary>
+        internal Lease EnterIndependentRead(CancellationToken cancellationToken = default)
+            => enter(LeaseKind.ShortScope, cancellationToken, independentRead: true);
+
         internal Lease EnterMutation(CancellationToken cancellationToken = default)
             => enter(LeaseKind.MutationReservation, cancellationToken);
 
@@ -195,7 +202,7 @@ namespace osu.Game.Skinning
             }
         }
 
-        private Lease enter(LeaseKind requestedKind, CancellationToken cancellationToken)
+        private Lease enter(LeaseKind requestedKind, CancellationToken cancellationToken, bool independentRead = false)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -210,7 +217,7 @@ namespace osu.Game.Skinning
             {
                 lock (ownershipGate)
                 {
-                    if (leaseDepth > 0 && ownerManagedThreadId == currentThreadId)
+                    if (!independentRead && leaseDepth > 0 && ownerManagedThreadId == currentThreadId)
                     {
                         if (!canNestShortScope(ownerKind) || requestedKind != LeaseKind.ShortScope)
                         {

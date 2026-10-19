@@ -115,6 +115,39 @@ namespace osu.Game.Tests.Skins
             });
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestSettingsPreparationRechecksTargetAfterWaitingForDeletion(bool removeRecord)
+        {
+            Task<SkinSettingsPreview> preparing = null!;
+            SkinCurrentRevision originalRevision = null!;
+            AddStep("queue a settings read behind the deleting owner", () =>
+            {
+                originalRevision = manager.CurrentRevision;
+                using SkinManagedFolderOperationCoordinator.Lease reservation = manager.ManagedFolderOperationCoordinator.EnterMutation();
+                preparing = manager.PrepareSettingsSkinAsync(bmsSeven);
+                Realm.Run(realm => realm.Write(() =>
+                {
+                    SkinInfo record = realm.Find<SkinInfo>(bmsSeven.ID)!;
+                    if (removeRecord)
+                        realm.Remove(record);
+                    else
+                        record.DeletePending = true;
+                }));
+            });
+            AddUntilStep("stale read completes", () => preparing.IsCompleted);
+            AddStep("reject the removed target without publishing or saving", () =>
+            {
+                Assert.Throws<SkinSettingsTargetUnavailableException>(() => preparing.GetAwaiter().GetResult());
+                Assert.Multiple(() =>
+                {
+                    Assert.That(manager.CurrentRevision, Is.SameAs(originalRevision));
+                    Assert.That(preferences.GetConfiguredSkinId(sevenScope), Is.EqualTo(bmsSeven.ID));
+                    Assert.That(manager.GetConfiguredSkin(sevenScope).ID, Is.EqualTo(bmsDefault.ID));
+                });
+            });
+        }
+
         [Test]
         public void TestActualKeyScopePublishesWithoutReplacingEitherModeDefault()
         {

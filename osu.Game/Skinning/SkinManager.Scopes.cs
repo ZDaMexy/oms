@@ -79,9 +79,13 @@ namespace osu.Game.Skinning
                 return new SkinSettingsPreview(lease.Revision.Owner, lease);
             lease.Dispose();
 
-            using (ManagedFolderOperationCoordinator.Enter(cancellationToken))
+            using (ManagedFolderOperationCoordinator.EnterIndependentRead(cancellationToken))
             {
-                SelectionRequest request = target.PerformRead(createSelectionRequest);
+                // The worker may have waited for a delete reservation after the UI captured this Live reference.
+                // Revalidate at the authoritative read boundary before any storage or package lookup.
+                SelectionRequest request = target.PerformRead(info => info == null || info.DeletePending
+                    ? throw new SkinSettingsTargetUnavailableException()
+                    : createSelectionRequest(info));
                 if (request.Resolution.Authority == SkinFilesystemStorageAuthority.ExternalFolder)
                 {
                     using ExternalFolderSelectionPreparationResult captured = prepareExternalFolderSelection(request, cancellationToken);
@@ -254,6 +258,14 @@ namespace osu.Game.Skinning
 
         internal void SetCurrentSkinMode(string? rulesetId)
             => CurrentSkinScope = rulesetId is "bms" or "mania" ? new SkinSelectionScope(rulesetId) : null;
+    }
+
+    internal sealed class SkinSettingsTargetUnavailableException : InvalidOperationException
+    {
+        public SkinSettingsTargetUnavailableException()
+            : base("The settings skin is no longer available.")
+        {
+        }
     }
 
     /// <summary>An owned immutable settings read. Disposing never removes a skin package or changes player choices.</summary>

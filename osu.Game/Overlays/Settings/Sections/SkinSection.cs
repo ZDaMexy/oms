@@ -159,7 +159,7 @@ namespace osu.Game.Overlays.Settings.Sections
                                                 {
                                                     renameButton = new RenameSkinButton { TargetSkinInfo = targetInfo, RelativeSizeAxes = Axes.X, Width = 1 / 3f, Padding = new MarginPadding { Right = 3 } },
                                                     exportButton = new ExportSkinButton { TargetSkinInfo = targetInfo, RelativeSizeAxes = Axes.X, Width = 1 / 3f, Padding = new MarginPadding { Horizontal = 3 } },
-                                                    deleteButton = new DeleteSkinButton { TargetSkinInfo = targetInfo, RelativeSizeAxes = Axes.X, Width = 1 / 3f, Padding = new MarginPadding { Left = 3 } },
+                                                    deleteButton = new DeleteSkinButton { TargetSkinInfo = targetInfo, DeleteCompleted = refreshAfterDeletion, RelativeSizeAxes = Axes.X, Width = 1 / 3f, Padding = new MarginPadding { Left = 3 } },
                                                 },
                                             },
                                             layoutEditorButton = new SettingsButtonV2
@@ -202,7 +202,7 @@ namespace osu.Game.Overlays.Settings.Sections
             committedSkin = skins.CurrentSkin.GetBoundCopy();
             committedSkin.BindValueChanged(_ => Schedule(() =>
             {
-                if (requestedTarget == null)
+                if (requestedTarget == null && (skins.SelectionPreferences == null || preview?.Skin.SkinInfo.ID == committedSkin.Value.SkinInfo.ID))
                     refreshTarget(force: true);
             }));
             committedSkin.BindDisabledChanged(_ => updateAuthoringState());
@@ -258,6 +258,21 @@ namespace osu.Game.Overlays.Settings.Sections
             }
         }
 
+        private void refreshAfterDeletion(Guid recordId)
+        {
+            // A completed older deletion must not cancel a newer choice which is still being prepared.
+            if (requestedTarget == null || requestedTarget.ID == recordId)
+                refreshAfterTargetRemoval();
+        }
+
+        private void refreshAfterTargetRemoval()
+        {
+            // Deletion commits on another thread. Resolve inheritance from that commit rather than this frame's
+            // older Realm view, which can still return the just-removed override.
+            realm.Realm.Refresh();
+            refreshTarget(force: true);
+        }
+
         private async Task prepareTargetAsync(Live<SkinInfo> target, bool save)
         {
             int sequence = ++preparationSequence;
@@ -308,6 +323,8 @@ namespace osu.Game.Overlays.Settings.Sections
                     SkinSettingsPreview oldPreview = preview;
                     preview = prepared;
                     requestedTarget = null;
+                    // Action consumers defer re-enabling until Value is replaced: the previous managed row may
+                    // have been removed while this target was preparing.
                     targetInfo.Disabled = false;
                     targetInfo.Value = target;
                     inspectedSkin.Value = prepared.Skin;
@@ -321,6 +338,14 @@ namespace osu.Game.Overlays.Settings.Sections
                 });
             }
             catch (OperationCanceledException) { }
+            catch (SkinSettingsTargetUnavailableException)
+            {
+                Schedule(() =>
+                {
+                    if (!IsDisposed && sequence == preparationSequence)
+                        refreshAfterTargetRemoval();
+                });
+            }
             catch (Exception exception) when (exception is IOException or InvalidOperationException or UnauthorizedAccessException or GameplaySkinScenePreparationException)
             {
                 Logger.Error(exception, "Failed to prepare the settings skin target.");
@@ -397,8 +422,16 @@ namespace osu.Game.Overlays.Settings.Sections
                 dropdownItems.Clear();
                 dropdownItems.AddRange(items);
                 synchronisingDropdown = true;
+                bool disabled = dropdownSelection.Disabled;
+                // Removing the selected item makes Dropdown reconcile its local selection. That internal update
+                // must remain possible while user input is disabled; it is never a request to save an assignment.
+                dropdownSelection.Disabled = false;
                 try { dropdown.Items = dropdownItems; }
-                finally { synchronisingDropdown = false; }
+                finally
+                {
+                    dropdownSelection.Disabled = disabled;
+                    synchronisingDropdown = false;
+                }
                 dropdownItemsLoading = false;
                 dropdownSelection.Disabled = !IsTargetReady;
                 if (requestedTarget == null || !dropdownItems.Any(item => item.ID == requestedTarget.ID))
@@ -637,7 +670,13 @@ namespace osu.Game.Overlays.Settings.Sections
                 currentSkin.BindDisabledChanged(_ => updateState(), true);
                 target = TargetSkinInfo?.GetBoundCopy();
                 target?.BindValueChanged(_ => updateState(), true);
-                target?.BindDisabledChanged(_ => updateState());
+                target?.BindDisabledChanged(disabled =>
+                {
+                    if (disabled)
+                        Enabled.Value = false;
+                    else
+                        Schedule(updateState);
+                });
             }
 
             private void updateState() => Enabled.Value = !currentSkin.Disabled && target?.Disabled != true && skins.CanModify(targetInfo);
@@ -685,7 +724,13 @@ namespace osu.Game.Overlays.Settings.Sections
                 currentSkin.BindDisabledChanged(_ => updateState(), true);
                 target = TargetSkinInfo?.GetBoundCopy();
                 target?.BindValueChanged(_ => updateState(), true);
-                target?.BindDisabledChanged(_ => updateState());
+                target?.BindDisabledChanged(disabled =>
+                {
+                    if (disabled)
+                        Enabled.Value = false;
+                    else
+                        Schedule(updateState);
+                });
             }
 
             private void updateState() => Enabled.Value = activeExport == null && !currentSkin.Disabled && target?.Disabled != true && skins.CanExport(targetInfo);
@@ -732,6 +777,8 @@ namespace osu.Game.Overlays.Settings.Sections
 
         public partial class DeleteSkinButton : DangerousSettingsButtonV2
         {
+            public Action<Guid> DeleteCompleted { get; init; }
+
             public IBindable<Live<SkinInfo>> TargetSkinInfo { get; init; }
             private IBindable<Live<SkinInfo>> target;
             private Live<SkinInfo> targetInfo => target?.Value ?? currentSkin.Value.SkinInfo;
@@ -763,7 +810,13 @@ namespace osu.Game.Overlays.Settings.Sections
                 currentSkin.BindDisabledChanged(_ => updateState(), true);
                 target = TargetSkinInfo?.GetBoundCopy();
                 target?.BindValueChanged(_ => updateState(), true);
-                target?.BindDisabledChanged(_ => updateState());
+                target?.BindDisabledChanged(disabled =>
+                {
+                    if (disabled)
+                        Enabled.Value = false;
+                    else
+                        Schedule(updateState);
+                });
             }
 
             private void updateState() => Enabled.Value = activeDeletion == null
@@ -800,7 +853,9 @@ namespace osu.Game.Overlays.Settings.Sections
                 {
                     bool success = await skins.DeleteSkinAsync(recordId).ConfigureAwait(false);
 
-                    if (!success)
+                    if (success)
+                        Schedule(() => DeleteCompleted?.Invoke(recordId));
+                    else
                     {
                         Schedule(() => notificationOverlay?.Post(new SimpleErrorNotification
                         {

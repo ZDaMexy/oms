@@ -1319,7 +1319,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 manager.CurrentSkinInfo.Value = ordinary;
                 Add(callerHost = new FullSkinSettingsCallerHost(manager));
             });
-            addExpandSkinManagement(() => callerHost, () => ordinary.ID);
+            addWaitForInspectedSkin(() => callerHost, () => ordinary.ID);
             AddUntilStep("wait for ordinary current delete button", () =>
                 manager.CurrentSkinInfo.Value.ID == ordinary.ID
                 && manager.CurrentSkin.Value.SkinInfo.ID == ordinary.ID
@@ -1660,13 +1660,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         public void TestCanonicalSettingsExportButtonPublishesTheCompleteOrdinaryPackage()
         {
             FullSkinSettingsCallerHost callerHost = null!;
-            string exportRoot = LocalStorage.GetFullPath("exports");
+            string exportRoot = string.Empty;
             AddStep("open real canonical skin settings", () =>
             {
+                exportRoot = LocalStorage.GetFullPath("exports");
                 Directory.CreateDirectory(exportRoot);
                 Add(callerHost = new FullSkinSettingsCallerHost(manager));
             });
-            addExpandSkinManagement(() => callerHost, () => SkinInfo.OMS_SKIN);
+            addWaitForInspectedSkin(() => callerHost, () => SkinInfo.OMS_SKIN);
             AddUntilStep("wait for canonical export control", () =>
                 callerHost.ExportButton.IsLoaded && callerHost.ExportButton.Enabled.Value);
             AddStep("export canonical through the settings button", () =>
@@ -1996,7 +1997,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 manager.CurrentSkinInfo.Value = realmPackage;
                 Add(callerHost = new FullSkinSettingsCallerHost(manager));
             });
-            addExpandSkinManagement(() => callerHost, () => realmPackage.ID);
+            addWaitForInspectedSkin(() => callerHost, () => realmPackage.ID);
             AddUntilStep("wait for ordinary package settings controls", () =>
                 callerHost.ExportButton.IsLoaded
                 && callerHost.CurrentDeleteButton.IsLoaded
@@ -7257,24 +7258,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             }
         }
 
-        private void addExpandSkinManagement(Func<FullSkinSettingsCallerHost> getCaller, Func<Guid> getExpectedSkinId)
+        private void addWaitForInspectedSkin(Func<FullSkinSettingsCallerHost> getCaller, Func<Guid> getExpectedSkinId)
         {
-            AddUntilStep("wait for the inspected skin and its management control", () =>
+            AddUntilStep("wait for the inspected skin's management target", () =>
             {
                 FullSkinSettingsCallerHost caller = getCaller();
                 return caller.Section.IsTargetReady
-                       && caller.Section.DisplayedSkinId == getExpectedSkinId()
-                       && caller.SkinManagementButton.IsLoaded
-                       && caller.SkinManagementButton.Enabled.Value;
+                       && caller.Section.DisplayedSkinId == getExpectedSkinId();
             });
-            AddStep("expand the real skin management and editing controls", () =>
-            {
-                FullSkinSettingsCallerHost caller = getCaller();
-                Assert.That(caller.SkinManagementButton.Text.ToString(), Is.EqualTo("皮肤管理与编辑"));
-                caller.SkinManagementButton.TriggerClick();
-            });
-            AddAssert("skin management is expanded for the inspected skin", () =>
-                getCaller().SkinManagementButton.Text.ToString() == "收起皮肤管理与编辑");
         }
 
         private partial class FullSkinSettingsCallerHost : CompositeDrawable
@@ -7302,9 +7293,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             public SkinSection.RenameSkinButton RenameButton => Section.ChildrenOfType<SkinSection.RenameSkinButton>().Single();
 
             public SkinSection.ExportSkinButton ExportButton => Section.ChildrenOfType<SkinSection.ExportSkinButton>().Single();
-
-            public SettingsButtonV2 SkinManagementButton => Section.ChildrenOfType<SettingsButtonV2>()
-                .Single(button => button.Text.ToString() is "皮肤管理与编辑" or "收起皮肤管理与编辑");
 
             public SettingsButtonV2 LayoutEditorButton => Section.ChildrenOfType<SettingsButtonV2>()
                 .Single(button => button.Text.ToString() == SkinSettingsStrings.SkinLayoutEditor.ToString());

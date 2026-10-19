@@ -1,5 +1,27 @@
 # P1-A 变动日志
 
+## 2026-10-19选曲设置确认删除修复
+
+用户在正常窗口的选曲页打开皮肤设置，四次长按确认都返回操作拒绝，未见异常栈。此前入口回归只打开确认框并取消，真正删除的manager回归则停留主菜单，漏掉了选曲页参与者。新增真实SongSelect卡片鼠标点击、长按至普通包软删除/managed目录移除和配置卡片回落的路径后复现。
+
+默认选曲页即使没有作者布局，也登记了不支持staged切换的SkinnableContainer；现只为已加载的原生空→空选曲布局提供完整证明及commit复验，任何非空布局/provider/live host继续拒绝。随后暴露的隐藏主菜单sample pending swap改由准备时预先安排的按需host维护完成实际拆图和尾巴收口，普通Play不新增常驻任务。失败rollback通过既有tracked update callback开始prepare，同帧退出时可准确推进旧swap及恢复，不重入整个宿主或代放lease。
+
+设置卡片仅在同ID current更新时重读原preview，删除成功后明确刷新当前scope；保护fallback不抢读尚未移除的managed源。真实hard-remove又暴露出目标发布先发Disabled=false、按钮立即读取旧Realm行的异常；三个管理按钮仍立即禁用，重新启用延后到新Value发布之后，未吞错或放宽能力判定。回归使用测试临时包与目录，不触碰正式玩家记录、成品或原HDD。任意非空旧选曲布局仍需先退出选曲页再管理，不登记为本轮已支持；游玩/live保护保持。
+
+重复真实确认补获两条读侧竞态：异步mutation占有期内原pool线程已复用，独立preview被线程ID误认成重入；以及update Realm快照尚未看到删除commit，旧override读等待结束后已无记录。新tracked read只等待owner真实释放，原重入保护保留；取得scope后在输入边界核对目标存在/未删除，专门不可用结果由卡片fresh刷新Realm并解析继承，成功完成同样先刷新视图。软/硬删除等待读、复用线程等待/取消均有确定性回归；不对其它准备错误自动重试或伪造成功。
+
+删除完成携带原record ID；若玩家已开始准备另一个目标，旧完成回调不取消新选择，该交互新增回归先红后绿。音效graph维护同时统一为gate内真实拆图、gate外释放lease：旧尾巴最后释放会同步退休并再次进入publication锁，不能与后台持publication锁的候选拒绝清理构成反向锁序。中断的首轮BMS全量不作为通过证据，最终源冻结后重跑相关检查。
+
+真实确认再增加全过程日志异常断言后，捕获到ordinary删除的列表刷新异常：framework在Items移除旧选择时需要写本地selection，但此前读取中的Disabled会拒绝该内部写入；卡片随后恢复ready也不能算无错误通过。现只在同步Items的同一update回调内暂时允许本地mirror协调，整段抑制保存请求并在finally恢复状态，用户输入仍按ready禁用；没有触碰committed bindable或修改配置继承。
+
+最终专项Core100通过、真实sample8通过；普通/managed实际确认及无异常、新选择不被旧完成覆盖、目标软/硬删除、线程复用等待/取消共7项连续3轮通过。音效回归在真实A尾巴和shutdown退休瞬间核对未持sample graph gate；未以不可回收的真死锁作为fixture。具体红绿、早期失败和源码摘要留在`artifacts/skin-delete-confirmation-20261019/`，旧入口仅打开确认框的证据不再充当真实删除通过。
+
+同一生产源的BMS完整为2802通过/33失败/18跳过：28项fully-qualified身份和错误消息与同日目录/池化基线逐项一致；另5项仍读取前一提交已移除的“皮肤管理与编辑”开关，不能误算成这次运行时回归。仅将这5个caller的准备步骤改为等待明确的卡片目标，移除已失效的展开控件getter，原实际删除、holder detach、失败恢复、完整导出断言保留；导出夹具取LocalStorage移入AddStep后可独立运行。修后5项全部通过；后续只改测试夹具，11份已全量验证源码摘要保持一致，未重复整套BMS，也不将专项结果冒写为一份2807/28的全量TRX。
+
+mania完整960通过/2跳过。宽Core为1887通过/7失败/4跳过：4项`TestSceneBeatmapSkinResources`仍因旧osu谱包无有效规则集文件失败；当前native拒绝为`TestRestartCleanupRejectsAddedOrdinaryFileWithoutDeletingForeignOrCapturedNodes`、`TestRestartCleanupFailsClosedForTombstoneMismatchOrCollision("identity-mismatch")`、`TestRestartResumesCleanupOfExactPartiallyDeletedTombstone`。三项均在原生authority阶段拒绝，失败身份与本轮前次宽跑的两项不同，底层源码/保护未改且原因未稳定归因；不据真实确认通过关闭Windows native/recovery门，也不将本轮宽跑称为全绿。逐项错误、栈和基线对照取证据根的`bms-full-failure-comparison.json`与`core-complete-wide-failures.json`。
+
+最终Desktop Debug/Release和三个owner项目的format verify通过；14份最终源码摘要与验证/提交前状态一致，文档和总工作区检查通过。VS Code现有Debug/Release入口使用此次构建，皮肤包无需重导入。未生成额外宿主或发行包；工作区正常窗口的用户复验、DPI、作品视觉与原设备/发行门保持。
+
 ## 2026-10-19皮肤管理入口直接展示
 
 删除入口曾随“皮肤管理与编辑”默认折叠，造成正常卡片看不到删除按钮。现移除该中间开关，可用的重命名、导出、删除与布局编辑直接显示在卡片内；全局搜索可命中可见删除按钮。目标仍取卡片当前只读皮肤，确认记录ID/用途、内置保护及manager专用删除链保持；验证使用隔离临时皮肤。

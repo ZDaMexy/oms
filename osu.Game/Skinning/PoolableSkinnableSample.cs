@@ -16,6 +16,7 @@ using osu.Framework.Development;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Audio;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Threading;
 using osu.Game.Audio;
 
 namespace osu.Game.Skinning
@@ -34,10 +35,34 @@ namespace osu.Game.Skinning
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // A committed swap is normally drained by the next update before another reload can prepare. Reject a
-            // pathological same-frame re-entry rather than overwriting the exact old-owner cleanup lease.
-            if (Volatile.Read(ref pendingSampleSwap) != null)
-                return Task.FromResult<SkinRevisionParticipantCommit>(null);
+            DrawableSample previousSample;
+            RevisionLeaseReleases releases = default;
+
+            try
+            {
+                lock (revisionMaintenanceGate)
+                {
+                    if (revisionWorkShutdownRequested != 0)
+                        return Task.FromResult<SkinRevisionParticipantCommit>(null);
+
+                    // A rollback may begin in the same update callback which committed B, before the host's next
+                    // maintenance tick. Finish that already-published swap before preparing another exact revision.
+                    if (ThreadSafety.IsUpdateThread)
+                    {
+                        applyPendingSampleSwap(ref releases);
+                        releaseCompletedRevisionChannels(ref releases);
+                    }
+
+                    if (pendingSampleSwap != null)
+                        return Task.FromResult<SkinRevisionParticipantCommit>(null);
+
+                    previousSample = Sample;
+                }
+            }
+            finally
+            {
+                releases.Dispose();
+            }
 
             DrawableSample preparedSample = null;
 
@@ -50,15 +75,65 @@ namespace osu.Game.Skinning
                     preparedSample = new RevisionDrawableSample(sample);
             }
 
-            DrawableSample previousSample = Sample;
-            SkinCurrentRevisionLease previousRevisionLease = AcquireRevisionWorkLease();
-            var swap = new PendingSampleSwap(previousSample, preparedSample, previousRevisionLease);
+            SkinCurrentRevisionLease previousRevisionLease = null;
+            PendingSampleSwap swap = null;
 
-            return Task.FromResult(
-                new SkinRevisionParticipantCommit(
-                    () => commitPreparedSample(swap),
-                    () => rollbackPreparedSample(swap),
-                    swap.Abort));
+            try
+            {
+                // Acquiring a publication lease must stay outside the graph gate. A commit owns the publication
+                // lock before entering that gate, while disposal leaves the gate before detaching its participant.
+                previousRevisionLease = AcquireRevisionWorkLease();
+                swap = new PendingSampleSwap(previousSample, preparedSample, previousRevisionLease);
+                previousRevisionLease = null;
+
+                bool ownerChanged;
+
+                lock (revisionMaintenanceGate)
+                {
+                    ownerChanged = revisionWorkShutdownRequested != 0
+                                   || pendingSampleSwap != null
+                                   || !ReferenceEquals(Sample, previousSample);
+
+                    if (!ownerChanged)
+                    {
+                        swap.PreparationPending = true;
+                        preparedSampleSwaps++;
+
+                        // Scheduling is fallible preparation work, never part of the reversible publication barrier.
+                        // One owner task serves all candidates and historical channels; an aborted newer candidate must
+                        // not cancel maintenance which an older, still-playing revision continues to need.
+                        if (revisionMaintenance == null)
+                        {
+                            revisionMaintenance = RevisionPublicationScheduler.AddDelayed(maintainRevisionSamples, 1, repeat: true);
+                            revisionMaintenance.PerformRepeatCatchUpExecutions = false;
+                        }
+                    }
+                }
+
+                if (ownerChanged)
+                {
+                    abortPreparedSample(swap);
+                    return Task.FromResult<SkinRevisionParticipantCommit>(null);
+                }
+
+                return Task.FromResult(
+                    new SkinRevisionParticipantCommit(
+                        () => commitPreparedSample(swap),
+                        () => rollbackPreparedSample(swap),
+                        () => abortPreparedSample(swap)));
+            }
+            catch
+            {
+                if (swap != null)
+                    abortPreparedSample(swap);
+                else
+                {
+                    preparedSample?.Dispose();
+                    previousRevisionLease?.Dispose();
+                }
+
+                throw;
+            }
         }
 
         /// <summary>
@@ -72,6 +147,9 @@ namespace osu.Game.Skinning
         private SampleChannel activeChannel;
         private readonly List<ActiveRevisionChannel> revisionChannels = new List<ActiveRevisionChannel>();
         private PendingSampleSwap pendingSampleSwap;
+        private readonly object revisionMaintenanceGate = new object();
+        private ScheduledDelegate revisionMaintenance;
+        private int preparedSampleSwaps;
         private int revisionWorkShutdownRequested;
         private int revisionWorkGraphReaped;
 
@@ -79,8 +157,18 @@ namespace osu.Game.Skinning
 
         private void requestRevisionOwnerShutdown()
         {
-            if (Interlocked.Exchange(ref revisionWorkShutdownRequested, 1) != 0)
-                return;
+            ScheduledDelegate maintenance;
+
+            lock (revisionMaintenanceGate)
+            {
+                if (Interlocked.Exchange(ref revisionWorkShutdownRequested, 1) != 0)
+                    return;
+
+                maintenance = takeRevisionMaintenance();
+            }
+
+            // Cancel may wait for an executing callback which needs the graph gate. Never join it under that gate.
+            maintenance?.Cancel();
 
             if (ThreadSafety.IsUpdateThread)
             {
@@ -93,7 +181,7 @@ namespace osu.Game.Skinning
                 // Drawable/audio hierarchy mutation remains update-thread-owned. The manager waits WorkDetached while
                 // the normal host keeps updating; production game disposal enters this callback on the update thread
                 // and therefore never schedules into the very thread it is synchronously joining.
-                Scheduler.AddOnce(reapRevisionWorkGraphForShutdown);
+                RevisionPublicationScheduler.AddOnce(reapRevisionWorkGraphForShutdown);
             }
             catch
             {
@@ -103,6 +191,21 @@ namespace osu.Game.Skinning
         }
 
         private void reapRevisionWorkGraphForShutdown()
+        {
+            RevisionLeaseReleases releases = default;
+
+            try
+            {
+                lock (revisionMaintenanceGate)
+                    reapRevisionWorkGraphForShutdownHeld(ref releases);
+            }
+            finally
+            {
+                releases.Dispose();
+            }
+        }
+
+        private void reapRevisionWorkGraphForShutdownHeld(ref RevisionLeaseReleases releases)
         {
             if (Interlocked.Exchange(ref revisionWorkGraphReaped, 1) != 0)
                 return;
@@ -163,15 +266,10 @@ namespace osu.Game.Skinning
             wasPlaying = false;
             revisionChannels.Clear();
 
-            try
-            {
-                pendingSwap?.Complete();
-            }
-            finally
-            {
-                foreach (ActiveRevisionChannel channel in channels)
-                    channel.Lease.Dispose();
-            }
+            releases.Add(pendingSwap?.TakePreviousRevisionLease());
+
+            foreach (ActiveRevisionChannel channel in channels)
+                releases.Add(channel.Lease);
         }
 
         /// <summary>
@@ -267,16 +365,110 @@ namespace osu.Game.Skinning
 
         private void commitPreparedSample(PendingSampleSwap swap)
         {
-            // Both assignments are in-memory publication state. Drawable hierarchy mutation and the release of A's
-            // cleanup lease happen at the next normal update, outside the indivisible manager/participant barrier.
-            if (Interlocked.CompareExchange(ref pendingSampleSwap, swap, null) == null)
+            lock (revisionMaintenanceGate)
+            {
+                if (revisionWorkShutdownRequested != 0
+                    || pendingSampleSwap != null
+                    || !ReferenceEquals(Sample, swap.PreviousSample))
+                {
+                    throw new InvalidOperationException("The prepared sample owner changed before publication.");
+                }
+
+                // The host callback was prepared before entering this barrier. These are only reversible fields;
+                // real graph mutation and A's cleanup lease release happen outside publication, even when hidden.
+                pendingSampleSwap = swap;
                 Sample = swap.PreparedSample;
+                finishSamplePreparation(swap);
+            }
         }
 
         private void rollbackPreparedSample(PendingSampleSwap swap)
         {
-            if (Interlocked.CompareExchange(ref pendingSampleSwap, null, swap) == swap)
-                Sample = swap.PreviousSample;
+            lock (revisionMaintenanceGate)
+            {
+                if (ReferenceEquals(pendingSampleSwap, swap))
+                {
+                    pendingSampleSwap = null;
+                    Sample = swap.PreviousSample;
+                }
+            }
+        }
+
+        private void abortPreparedSample(PendingSampleSwap swap)
+        {
+            SkinCurrentRevisionLease release = null;
+
+            try
+            {
+                lock (revisionMaintenanceGate)
+                {
+                    finishSamplePreparation(swap);
+
+                    try
+                    {
+                        swap.DisposePreparedSample();
+                    }
+                    finally
+                    {
+                        release = swap.TakePreviousRevisionLease();
+                    }
+                }
+            }
+            finally
+            {
+                release?.Dispose();
+            }
+        }
+
+        private void finishSamplePreparation(PendingSampleSwap swap)
+        {
+            if (!swap.PreparationPending)
+                return;
+
+            swap.PreparationPending = false;
+            preparedSampleSwaps--;
+        }
+
+        private void maintainRevisionSamples()
+        {
+            RevisionLeaseReleases releases = default;
+
+            try
+            {
+                lock (revisionMaintenanceGate)
+                {
+                    if (revisionWorkShutdownRequested != 0 || IsDisposed)
+                    {
+                        takeRevisionMaintenance()?.Cancel();
+                        return;
+                    }
+
+                    applyPendingSampleSwap(ref releases);
+                    releaseCompletedRevisionChannels(ref releases);
+
+                    if (preparedSampleSwaps != 0 || pendingSampleSwap != null)
+                        return;
+
+                    foreach (ActiveRevisionChannel channel in revisionChannels)
+                    {
+                        if (!ReferenceEquals(channel.Sample, Sample))
+                            return;
+                    }
+
+                    takeRevisionMaintenance()?.Cancel();
+                }
+            }
+            finally
+            {
+                releases.Dispose();
+            }
+        }
+
+        private ScheduledDelegate takeRevisionMaintenance()
+        {
+            ScheduledDelegate maintenance = revisionMaintenance;
+            revisionMaintenance = null;
+            return maintenance;
         }
 
         /// <summary>
@@ -334,6 +526,20 @@ namespace osu.Game.Skinning
 
         private void applyPendingSampleSwap()
         {
+            RevisionLeaseReleases releases = default;
+
+            try
+            {
+                applyPendingSampleSwap(ref releases);
+            }
+            finally
+            {
+                releases.Dispose();
+            }
+        }
+
+        private void applyPendingSampleSwap(ref RevisionLeaseReleases releases)
+        {
             PendingSampleSwap swap = Interlocked.Exchange(ref pendingSampleSwap, null);
 
             if (swap == null)
@@ -350,7 +556,7 @@ namespace osu.Game.Skinning
 
                 removeHistoricalSampleIfUnused(swap.PreviousSample);
 
-                swap.Complete();
+                releases.Add(swap.TakePreviousRevisionLease());
             }
             catch
             {
@@ -363,8 +569,21 @@ namespace osu.Game.Skinning
 
         private void releaseCompletedRevisionChannels()
         {
-            SkinCurrentRevisionLease firstCompletedLease = null;
-            List<SkinCurrentRevisionLease> additionalCompletedLeases = null;
+            RevisionLeaseReleases releases = default;
+
+            try
+            {
+                releaseCompletedRevisionChannels(ref releases);
+            }
+            finally
+            {
+                releases.Dispose();
+            }
+        }
+
+        private void releaseCompletedRevisionChannels(ref RevisionLeaseReleases releases)
+        {
+            RevisionLeaseReleases completed = default;
             HashSet<DrawableSample> completedHistoricalSamples = null;
 
             for (int i = revisionChannels.Count - 1; i >= 0; i--)
@@ -376,19 +595,13 @@ namespace osu.Game.Skinning
 
                 // Ordinary Stop/Play completes one voice on the current decoded sample. Keep that
                 // path, idle updates and still-playing updates free of temporary collections.
-                if (firstCompletedLease == null)
-                    firstCompletedLease = channel.Lease;
-                else
-                    (additionalCompletedLeases ??= new List<SkinCurrentRevisionLease>()).Add(channel.Lease);
+                completed.Add(channel.Lease);
 
                 if (!ReferenceEquals(channel.Sample, Sample))
                     (completedHistoricalSamples ??= new HashSet<DrawableSample>()).Add(channel.Sample);
 
                 revisionChannels.RemoveAt(i);
             }
-
-            if (firstCompletedLease == null)
-                return;
 
             if (completedHistoricalSamples != null)
             {
@@ -398,13 +611,7 @@ namespace osu.Game.Skinning
 
             // Removing the final historical drawable must precede the final old-revision detach. A lease release can
             // synchronously retire its owner; the drawable hierarchy may no longer touch that owner afterwards.
-            firstCompletedLease.Dispose();
-
-            if (additionalCompletedLeases != null)
-            {
-                foreach (SkinCurrentRevisionLease completedLease in additionalCompletedLeases)
-                    completedLease.Dispose();
-            }
+            completed.MoveTo(ref releases);
         }
 
         private void removeHistoricalSampleIfUnused(DrawableSample sample)
@@ -424,20 +631,34 @@ namespace osu.Game.Skinning
 
         protected override void Dispose(bool isDisposing)
         {
-            PendingSampleSwap pendingSwap = Interlocked.Exchange(ref pendingSampleSwap, null);
-            ActiveRevisionChannel[] channels = revisionChannels.ToArray();
+            PendingSampleSwap pendingSwap;
+            ActiveRevisionChannel[] channels;
+            ScheduledDelegate maintenance;
 
-            foreach (ActiveRevisionChannel channel in channels)
+            lock (revisionMaintenanceGate)
             {
-                try
+                // A host callback can run while this hidden drawable is being disposed on another thread. Claim
+                // terminal state and wait for any graph maintenance before allowing base to tear down that graph.
+                Volatile.Write(ref revisionWorkShutdownRequested, 1);
+                Volatile.Write(ref revisionWorkGraphReaped, 1);
+                maintenance = takeRevisionMaintenance();
+                pendingSwap = Interlocked.Exchange(ref pendingSampleSwap, null);
+                channels = revisionChannels.ToArray();
+
+                foreach (ActiveRevisionChannel channel in channels)
                 {
-                    channel.Channel.Stop();
-                }
-                catch
-                {
-                    // Base disposal remains the exact graph cleanup boundary even if one backend channel faults.
+                    try
+                    {
+                        channel.Channel.Stop();
+                    }
+                    catch
+                    {
+                        // Base disposal remains the exact graph cleanup boundary even if one backend channel faults.
+                    }
                 }
             }
+
+            maintenance?.Cancel();
 
             try
             {
@@ -451,6 +672,8 @@ namespace osu.Game.Skinning
                 try
                 {
                     // The parented A/B drawable and channel hierarchy is removed before the formal participant detach.
+                    // Participant detach enters the publication lock. Do not hold revisionMaintenanceGate here:
+                    // a concurrent publication enters that gate from inside the same publication lock.
                     base.Dispose(isDisposing);
                 }
                 finally
@@ -462,8 +685,11 @@ namespace osu.Game.Skinning
                     foreach (ActiveRevisionChannel channel in channels)
                         channel.Lease.Dispose();
 
-                    revisionChannels.Clear();
-                    activeChannel = null;
+                    lock (revisionMaintenanceGate)
+                    {
+                        revisionChannels.Clear();
+                        activeChannel = null;
+                    }
                 }
             }
         }
@@ -518,6 +744,78 @@ namespace osu.Game.Skinning
 
         #endregion
 
+        /// <summary>
+        /// Transfers leases only after their drawable cleanup succeeded. Releasing may synchronously retire an owner
+        /// and enter the publication lock, so callers drain this value after leaving revisionMaintenanceGate.
+        /// The idle and single-release paths allocate nothing, including ordinary sample Stop/Update.
+        /// </summary>
+        private struct RevisionLeaseReleases : IDisposable
+        {
+            private SkinCurrentRevisionLease first;
+            private List<SkinCurrentRevisionLease> additional;
+
+            public void Add(SkinCurrentRevisionLease lease)
+            {
+                if (lease == null)
+                    return;
+
+                if (first == null)
+                    first = lease;
+                else
+                    (additional ??= new List<SkinCurrentRevisionLease>()).Add(lease);
+            }
+
+            public void MoveTo(ref RevisionLeaseReleases target)
+            {
+                if (first == null)
+                    return;
+
+                if (target.first == null)
+                {
+                    target = this;
+                    this = default;
+                    return;
+                }
+
+                // Reuse the completed-channel list when combining it with a single pending-swap release.
+                if (target.additional == null && additional != null)
+                {
+                    target.additional = additional;
+                    additional = null;
+                }
+
+                target.Add(first);
+
+                if (additional != null)
+                {
+                    foreach (SkinCurrentRevisionLease lease in additional)
+                        target.Add(lease);
+                }
+
+                this = default;
+            }
+
+            public void Dispose()
+            {
+                SkinCurrentRevisionLease ownedFirst = first;
+                List<SkinCurrentRevisionLease> ownedAdditional = additional;
+                this = default;
+
+                try
+                {
+                    ownedFirst?.Dispose();
+                }
+                finally
+                {
+                    if (ownedAdditional != null)
+                    {
+                        foreach (SkinCurrentRevisionLease lease in ownedAdditional)
+                            lease.Dispose();
+                    }
+                }
+            }
+        }
+
         private readonly struct ActiveRevisionChannel
         {
             public DrawableSample Sample { get; }
@@ -553,6 +851,7 @@ namespace osu.Game.Skinning
 
             public DrawableSample PreviousSample { get; }
             public DrawableSample PreparedSample { get; }
+            public bool PreparationPending { get; set; }
 
             public PendingSampleSwap(
                 DrawableSample previousSample,
@@ -565,7 +864,10 @@ namespace osu.Game.Skinning
             }
 
             public void Complete()
-                => Interlocked.Exchange(ref previousRevisionLease, null)?.Dispose();
+                => TakePreviousRevisionLease()?.Dispose();
+
+            public SkinCurrentRevisionLease TakePreviousRevisionLease()
+                => Interlocked.Exchange(ref previousRevisionLease, null);
 
             public void DisposePreparedSample()
             {
@@ -583,18 +885,6 @@ namespace osu.Game.Skinning
             {
                 lock (preparedSampleDisposalGate)
                     preparedSampleDisposed = true;
-            }
-
-            public void Abort()
-            {
-                try
-                {
-                    DisposePreparedSample();
-                }
-                finally
-                {
-                    Complete();
-                }
             }
         }
     }

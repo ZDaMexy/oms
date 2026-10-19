@@ -106,6 +106,77 @@ namespace osu.Game.Tests.Skins
             Assert.That(subsequent, Is.Not.Null);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestIndependentReadOnReusedOwnerThreadWaitsForReservation(bool cancelRead)
+        {
+            var coordinator = new SkinManagedFolderOperationCoordinator();
+            using var reservationAcquired = new ManualResetEventSlim();
+            using var readEntered = new ManualResetEventSlim();
+            using var completed = new ManualResetEventSlim();
+            using var cancellation = new CancellationTokenSource();
+            SkinManagedFolderOperationCoordinator.Lease? held = null;
+            Exception? readException = null;
+
+            var worker = new Thread(() =>
+            {
+                try
+                {
+                    // An async mutation retains this lease while the pool reuses its original thread for a read.
+                    held = coordinator.EnterMutation();
+                    reservationAcquired.Set();
+                    using SkinManagedFolderOperationCoordinator.Lease read = coordinator.EnterIndependentRead(cancellation.Token);
+                    readEntered.Set();
+                }
+                catch (Exception exception)
+                {
+                    readException = exception;
+                }
+                finally
+                {
+                    completed.Set();
+                }
+            })
+            { IsBackground = true };
+            worker.Start();
+
+            try
+            {
+                Assert.That(reservationAcquired.Wait(coordination_timeout), Is.True);
+                Assert.That(SpinWait.SpinUntil(
+                    () => completed.IsSet || (worker.ThreadState & ThreadState.WaitSleepJoin) != 0,
+                    coordination_timeout), Is.True);
+                Assert.That(completed.IsSet, Is.False, readException?.ToString());
+                Assert.That(readEntered.IsSet, Is.False);
+
+                if (cancelRead)
+                {
+                    cancellation.Cancel();
+                    Assert.That(completed.Wait(coordination_timeout), Is.True);
+                    Assert.That(readException, Is.TypeOf<OperationCanceledException>());
+                    Assert.That(readEntered.IsSet, Is.False);
+                    Assert.That(coordinator.TryEnter(out SkinManagedFolderOperationCoordinator.Lease? attempted), Is.False);
+                    Assert.That(attempted, Is.Null);
+                }
+                else
+                {
+                    held!.Dispose();
+                    Assert.That(completed.Wait(coordination_timeout), Is.True);
+                    Assert.That(readException, Is.Null);
+                    Assert.That(readEntered.IsSet, Is.True);
+                }
+            }
+            finally
+            {
+                cancellation.Cancel();
+                held?.Dispose();
+                Assert.That(worker.Join(coordination_timeout), Is.True);
+            }
+
+            using SkinManagedFolderOperationCoordinator.Lease subsequent = coordinator.Enter();
+            Assert.That(subsequent, Is.Not.Null);
+        }
+
         [Test]
         public void TestStartupSequenceReportsCompletionWithoutBlockingSelection()
         {

@@ -395,7 +395,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Add(holderHost = new CurrentRevisionHolderHost(manager, revisionA.Owner));
                 Add(caller = new FullSkinSettingsCallerHost(manager));
             });
-            addExpandSkinManagement(() => caller, () => context.Candidate.ID);
+            addWaitForInspectedSkin(() => caller, () => context.Candidate.ID);
             AddUntilStep("wait for current delete affordance", () =>
                 holderHost.Holder.IsLoaded
                 && caller.CurrentDeleteButton.IsLoaded

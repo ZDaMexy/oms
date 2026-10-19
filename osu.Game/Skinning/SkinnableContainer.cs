@@ -98,6 +98,62 @@ namespace osu.Game.Skinning
             Lookup = lookup;
         }
 
+        private protected override Task<SkinRevisionParticipantCommit?> PrepareCurrentRevisionAsync(
+            SkinCurrentRevision nextRevision,
+            CancellationToken cancellationToken)
+            => Task.FromResult(prepareEmptyRevision(nextRevision, cancellationToken));
+
+        private SkinRevisionParticipantCommit? prepareEmptyRevision(SkinCurrentRevision nextRevision, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            // Song select always has a layout container, even when neither skin supplies a layout. That empty
+            // consumer can adopt B without rebuilding anything. Provider/transformer trees and populated layouts
+            // still require their own staged replacement; they must not be acknowledged by this receipt.
+            if (GetType() != typeof(SkinnableContainer) || Lookup.Lookup != GlobalSkinnableContainers.SongSelect
+                || CurrentSkin is not SkinManager manager)
+                return null;
+
+            Container? previous;
+            int generation;
+
+            lock (revisionWorkAdmissionGate)
+            {
+                previous = content;
+                generation = contentGeneration;
+                if (!isEmptyPublishedContent(previous))
+                    return null;
+            }
+
+            var userLookup = new UserSkinComponentLookup(Lookup);
+            using (Drawable? replacement = nextRevision.Owner.GetDrawableComponent(userLookup)
+                                           ?? manager.DefaultOmsSkin.GetDrawableComponent(userLookup)
+                                           ?? nextRevision.Owner.GetDrawableComponent(Lookup)
+                                           ?? manager.DefaultOmsSkin.GetDrawableComponent(Lookup))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (replacement != null && (replacement.GetType() != typeof(Container) || ((Container)replacement).Count != 0))
+                    return null;
+            }
+
+            return new SkinRevisionParticipantCommit(
+                () =>
+                {
+                    // A user edit, ordinary reload, disposal or newly admitted load invalidates the proof. The
+                    // barrier must retain A if that happened after preparation, rather than release its owner.
+                    lock (revisionWorkAdmissionGate)
+                    {
+                        if (generation != contentGeneration || !ReferenceEquals(content, previous) || !isEmptyPublishedContent(previous))
+                            throw new InvalidOperationException("The empty skin layout changed during revision preparation.");
+                    }
+                },
+                () => { });
+        }
+
+        private bool isEmptyPublishedContent(Container? candidate)
+            => ComponentsLoaded && pendingContentLoad == null && cancellationSource == null
+               && candidate?.GetType() == typeof(Container) && candidate.Count == 0 && components.Count == 0
+               && InternalChildren.Count == 1 && ReferenceEquals(InternalChildren[0], candidate);
+
         public void Reload()
         {
             if (Volatile.Read(ref revisionWorkShutdownRequested) != 0)

@@ -151,6 +151,25 @@ namespace osu.Game.Tests.Visual.Settings
         }
 
         [Test]
+        public void TestOlderDeletionCompletionPreservesANewerSkinChoice()
+        {
+            Live<SkinInfo> replacement = null!;
+            arrangeSkins();
+            AddStep("choose another skin while an earlier deletion completes", () =>
+            {
+                Action<Guid> completed = section.ChildrenOfType<SkinSection.DeleteSkinButton>().Single().DeleteCompleted;
+                replacement = skins.CurrentSkinInfo.Value.ID == second.ID ? skins.DefaultOmsSkin.SkinInfo : second;
+                using SkinManagedFolderOperationCoordinator.Lease reservation = skins.ManagedFolderOperationCoordinator.EnterMutation();
+                section.ChildrenOfType<FormDropdown<Live<SkinInfo>>>().Single().Current.Value = replacement;
+                completed(first.ID);
+            });
+            AddUntilStep("the current request is ready", () => section.IsTargetReady);
+            AddAssert("the newer choice is displayed and saved", () => section.DisplayedSkinId == replacement.ID
+                && skins.SelectionPreferences!.GetConfiguredSkinId(new SkinSelectionScope("bms", 7)) == replacement.ID);
+            AddAssert("the mode default is unchanged", () => skins.SelectionPreferences!.GetConfiguredSkinId(new SkinSelectionScope("bms")) == first.ID);
+        }
+
+        [Test]
         public void TestBuiltInSkinKeepsDeletionUnavailable()
         {
             arrangeSkins();

@@ -1772,6 +1772,7 @@ namespace osu.Game.Skinning
 
                     if (!staged.IsSuccess)
                     {
+                        Logger.Log($"Protected skin transition rejected: {staged.RejectionReason} ({staged.BlockingParticipant?.DiagnosticName ?? "no consumer"}).");
                         DiscardProvisionalCurrentRevision(fallback);
 
                         if (staged.RejectionReason == SkinRevisionBarrierRejectionReason.ParticipantSetChanged)
@@ -1945,12 +1946,25 @@ namespace osu.Game.Skinning
                     return false;
                 }
 
-                SkinRevisionParticipantPrepareResult staged = await currentRevisionPublication
-                                                                    .PrepareParticipantsForRevisionAsync(
-                                                                        participants,
-                                                                        transaction.PreviousRevision,
-                                                                        CancellationToken.None)
-                                                                    .ConfigureAwait(false);
+                // A preceding, already committed fallback may still have hidden consumer cleanup to finish.
+                // Start rollback preparation through the same tracked update callback as its commit: synchronous
+                // shutdown pumps these callbacks while joining the mutation, without re-entering the whole host.
+                var preparation = new TaskCompletionSource<Task<SkinRevisionParticipantPrepareResult>>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                CurrentRevisionCallbackScheduleResult preparationSchedule = scheduleCriticalCurrentRevisionCallback(
+                    () => preparation.TrySetResult(currentRevisionPublication.PrepareParticipantsForRevisionAsync(
+                        participants, transaction.PreviousRevision, CancellationToken.None)),
+                    () => preparation.TrySetResult(Task.FromResult(
+                        SkinRevisionParticipantPrepareResult.Reject(SkinRevisionBarrierRejectionReason.Shutdown))));
+
+                if (preparationSchedule == CurrentRevisionCallbackScheduleResult.Faulted)
+                {
+                    transaction.Complete();
+                    return false;
+                }
+
+                Task<SkinRevisionParticipantPrepareResult> preparing = await preparation.Task.ConfigureAwait(false);
+                SkinRevisionParticipantPrepareResult staged = await preparing.ConfigureAwait(false);
 
                 if (!staged.IsSuccess)
                 {

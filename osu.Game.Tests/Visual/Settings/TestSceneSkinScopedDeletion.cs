@@ -1,18 +1,30 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Allocation;
+using osu.Framework.Graphics;
+using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Shapes;
+using osu.Framework.Logging;
 using osu.Framework.Testing;
 using osu.Game.Configuration;
 using osu.Game.Database;
+using osu.Game.Overlays.Dialog;
+using osu.Game.Overlays.Settings.Sections;
 using osu.Game.Rulesets.Bms;
+using osu.Game.Screens.Select;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
+using osuTK.Input;
 
 namespace osu.Game.Tests.Visual.Settings
 {
@@ -30,6 +42,227 @@ namespace osu.Game.Tests.Visual.Settings
         private Guid keySkinId;
         private string savedAssignments = string.Empty;
         private string managedDirectory = string.Empty;
+        private SkinSection section => Game.Settings.SectionsContainer.ChildrenOfType<SkinSection>().Single();
+        private readonly ConcurrentQueue<string> deletionLog = new();
+        private readonly ConcurrentQueue<Exception> deletionErrors = new();
+
+        [TearDown]
+        public void TearDownDeletionLog() => Logger.NewEntry -= captureDeletionLog;
+
+        private void captureDeletionLog(LogEntry entry)
+        {
+            deletionLog.Enqueue(entry.Message + (entry.Exception == null ? string.Empty : "\n" + entry.Exception));
+            if (entry.Exception != null)
+                deletionErrors.Enqueue(entry.Exception);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestConfirmingCurrentSkinDeletionFromSongSelectSettings(bool managed)
+        {
+            var timer = new Stopwatch();
+            arrange(managed);
+            confirmCurrentDeletionFromSongSelectSettings();
+            AddStep("start bounded deletion observation", timer.Start);
+            AddUntilStep("skin is deleted", () =>
+            {
+                bool deleted = managed ? skins.Query(info => info.ID == keySkinId) == null : keySkin.PerformRead(info => info.DeletePending);
+                if (!deleted && timer.Elapsed.TotalSeconds > 8)
+                    Assert.Fail(deletionState());
+                return deleted;
+            });
+            AddStep("restart bounded card observation", timer.Restart);
+            AddUntilStep("card follows its mode default", () =>
+            {
+                bool ready = section.IsTargetReady && section.DisplayedSkinId == modeDefault.ID;
+                if (!ready && timer.Elapsed.TotalSeconds > 8)
+                    Assert.Fail(deletionState());
+                return ready;
+            });
+            AddAssert("saved assignments survive deletion", () => Game.LocalConfig.Get<string>(OsuSetting.SkinKeyOverrides) == savedAssignments
+                && preferences.GetConfiguredSkinId(mode) == modeDefault.ID);
+            AddAssert("protected runtime fallback is coherent", () => skins.CurrentSkinInfo.Value.ID == SkinInfo.OMS_SKIN
+                && ReferenceEquals(skins.CurrentSkin.Value, skins.DefaultOmsSkin));
+            if (managed)
+                AddAssert("managed test directory was removed", () => !Directory.Exists(managedDirectory));
+            AddStep("deletion and card refresh raised no errors", () => Assert.That(deletionErrors, Is.Empty, deletionState()));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestPopulatedSongSelectLayoutKeepsDeletionSafelyRejected(bool managed)
+        {
+            Task<bool> deletion = null!;
+            SkinnableContainer layout = null!;
+            SkinCurrentRevision originalRevision = null!;
+            arrange(managed);
+            PushAndConfirm(() => new SoloSongSelect());
+            AddUntilStep("song select layout is ready", () => Game.ChildrenOfType<SkinnableContainer>().SingleOrDefault()?.ComponentsLoaded == true);
+            AddStep("populate the actual layout", () =>
+            {
+                originalRevision = skins.CurrentRevision;
+                layout = Game.ChildrenOfType<SkinnableContainer>().Single();
+                layout.Reload(new Container { Child = new Box() });
+            });
+            AddUntilStep("the populated layout is loaded", () => layout.ComponentsLoaded);
+            AddStep("request deletion with an unsupported populated layout", () => deletion = skins.DeleteSkinAsync(keySkinId));
+            AddUntilStep("deletion is safely rejected", () => deletion.IsCompleted);
+            AddStep("the original package and layout remain intact", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(deletion.GetAwaiter().GetResult(), Is.False);
+                    Assert.That(skins.CurrentRevision, Is.SameAs(originalRevision));
+                    Assert.That(skins.CurrentSkinInfo.Value.ID, Is.EqualTo(keySkinId));
+                    Assert.That(skins.Query(info => info.ID == keySkinId && !info.DeletePending), Is.Not.Null);
+                    Assert.That(layout.ChildrenOfType<Box>().Count(), Is.EqualTo(1));
+                    Assert.That(Game.LocalConfig.Get<string>(OsuSetting.SkinKeyOverrides), Is.EqualTo(savedAssignments));
+                    if (managed)
+                        Assert.That(Directory.Exists(managedDirectory), Is.True);
+                });
+            });
+        }
+
+        [Test]
+        public void TestLayoutChangeAfterPreparationCannotReleaseTheOriginalSkin()
+        {
+            Task<bool> deletion = null!;
+            SkinCurrentRevision originalRevision = null!;
+            SkinnableContainer layout = null!;
+            Action<Action> originalSchedule = null!;
+            var callbacks = new ConcurrentQueue<Action>();
+            arrange(managed: false);
+            PushAndConfirm(() => new SoloSongSelect());
+            AddUntilStep("empty layout is ready", () => Game.ChildrenOfType<SkinnableContainer>().SingleOrDefault()?.ComponentsLoaded == true);
+            AddStep("hold the actual prepared publication", () =>
+            {
+                originalRevision = skins.CurrentRevision;
+                layout = Game.ChildrenOfType<SkinnableContainer>().Single();
+                originalSchedule = skins.CurrentRevisionCompletionSchedule;
+                skins.CurrentRevisionCompletionSchedule = callbacks.Enqueue;
+                deletion = skins.DeleteSkinAsync(keySkinId);
+            });
+            AddUntilStep("the prepared commit is queued", () => !callbacks.IsEmpty);
+            AddStep("change the layout before commit", () => layout.Reload(new Container { Child = new Box() }));
+            AddUntilStep("new content is loaded", () => layout.ComponentsLoaded);
+            AddStep("allow the held commit", () =>
+            {
+                skins.CurrentRevisionCompletionSchedule = originalSchedule;
+                while (callbacks.TryDequeue(out Action? callback))
+                    callback();
+            });
+            AddUntilStep("deletion rejects the stale empty proof", () => deletion.IsCompleted);
+            AddStep("the current skin and files remain available", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(deletion.GetAwaiter().GetResult(), Is.False);
+                    Assert.That(skins.CurrentRevision, Is.SameAs(originalRevision));
+                    Assert.That(keySkin.PerformRead(info => info.DeletePending), Is.False);
+                    Assert.That(layout.ChildrenOfType<Box>().Count(), Is.EqualTo(1));
+                });
+            });
+        }
+
+        private void confirmCurrentDeletionFromSongSelectSettings()
+        {
+            SkinSection.DeleteSkinButton deleteButton = null!;
+            SkinSection.SkinDeleteDialog dialog = null!;
+            PushAndConfirm(() => new SoloSongSelect());
+            AddStep("open settings from song select", () => Game.Settings.Show());
+            AddUntilStep("skin settings loaded", () => Game.Settings.SectionsContainer.ChildrenOfType<SkinSection>().SingleOrDefault()?.IsLoaded == true);
+            AddStep("inspect the current seven-key skin", () =>
+            {
+                section.ScopeSelector.Current.Value = scope;
+                Game.Settings.SectionsContainer.ScrollTo(section);
+            });
+            AddUntilStep("current skin and delete action ready", () => section.IsTargetReady && section.DisplayedSkinId == keySkinId
+                && section.ChildrenOfType<SkinSection.DeleteSkinButton>().Single().IsLoaded);
+            AddStep("scroll to delete", () =>
+            {
+                deleteButton = section.ChildrenOfType<SkinSection.DeleteSkinButton>().Single();
+                Game.Settings.SectionsContainer.ScrollTo(deleteButton);
+            });
+            AddUntilStep("delete action is visible", () => deleteButton.Enabled.Value
+                && !(bool)typeof(Drawable).GetProperty("IsMaskedAway", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(deleteButton)!);
+            AddStep("click delete on the actual card", () =>
+            {
+                InputManager.MoveMouseTo(deleteButton);
+                InputManager.Click(MouseButton.Left);
+            });
+            AddUntilStep("confirmation is ready", () =>
+            {
+                dialog = Game.ChildrenOfType<SkinSection.SkinDeleteDialog>().SingleOrDefault()!;
+                return dialog?.RecordId == keySkinId && dialog.State.Value == Visibility.Visible
+                    && dialog.ChildrenOfType<PopupDialogDangerousButton>().Single().IsLoaded;
+            });
+            AddStep("hold the real confirmation button", () =>
+            {
+                deletionLog.Clear();
+                deletionErrors.Clear();
+                Logger.NewEntry += captureDeletionLog;
+                dialog.FinishTransforms(true);
+                InputManager.MoveMouseTo(dialog.ChildrenOfType<PopupDialogDangerousButton>().Single());
+                InputManager.PressButton(MouseButton.Left);
+            });
+            AddUntilStep("confirmation completes", () => dialog.State.Value == Visibility.Hidden);
+            AddStep("release confirmation", () => InputManager.ReleaseButton(MouseButton.Left));
+        }
+
+        private string deletionState()
+            => $"currentIsOriginal={skins.CurrentSkinInfo.Value.ID == keySkinId}; cardReady={section.IsTargetReady}; cardIsOriginal={section.DisplayedSkinId == keySkinId}; "
+               + $"configuredIsModeDefault={skins.GetConfiguredSkin(scope).ID == modeDefault.ID}; managedResult={skins.LastManagedFolderDeleteResult?.Status}; "
+               + $"notifications={string.Join(" | ", Game.Notifications.AllNotifications.Select(notification => notification.Text.ToString()))}\n"
+               + string.Join("\n", deletionLog.TakeLast(25));
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestShutdownImmediatelyAfterDeleteFallbackJoinsAndPreservesThePackage(bool managed)
+        {
+            Task<bool> deletion = null!;
+            SkinCurrentRevision originalRevision = null!;
+            Action? commit = null;
+            Action<Action> originalSchedule = null!;
+            arrange(managed);
+            PushAndConfirm(() => new SoloSongSelect());
+            AddUntilStep("song select layout is ready", () => Game.ChildrenOfType<SkinnableContainer>().SingleOrDefault()?.ComponentsLoaded == true);
+            AddStep("hold the deletion fallback before commit", () =>
+            {
+                originalRevision = skins.CurrentRevision;
+                originalSchedule = skins.CurrentRevisionCompletionSchedule;
+                skins.CurrentRevisionCompletionSchedule = callback => System.Threading.Volatile.Write(ref commit, callback);
+                deletion = skins.DeleteSkinAsync(keySkinId);
+            });
+            AddUntilStep("the fallback is prepared", () => System.Threading.Volatile.Read(ref commit) != null);
+            AddStep("allow fallback admission", () =>
+            {
+                if (managed)
+                    System.Threading.Interlocked.Exchange(ref commit, null)!();
+            });
+            if (managed)
+                AddUntilStep("the actual fallback commit is prepared", () => System.Threading.Volatile.Read(ref commit) != null);
+            AddStep("commit and close in the same update callback", () =>
+            {
+                skins.CurrentRevisionCompletionSchedule = originalSchedule;
+                System.Threading.Interlocked.Exchange(ref commit, null)!();
+                Assert.That(skins.CurrentSkin.Value, Is.SameAs(skins.DefaultOmsSkin));
+                Assert.That(deletion.IsCompleted, Is.False);
+                skins.ShutdownManagedFolderMutations();
+            });
+            AddStep("shutdown joined the real mutation and restored the undeleted choice", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(deletion.IsCompleted, Is.True);
+                    Assert.That(deletion.GetAwaiter().GetResult(), Is.False);
+                    Assert.That(skins.CurrentRevision, Is.SameAs(originalRevision));
+                    Assert.That(skins.Query(info => info.ID == keySkinId && !info.DeletePending), Is.Not.Null);
+                    Assert.That(Game.LocalConfig.Get<string>(OsuSetting.SkinKeyOverrides), Is.EqualTo(savedAssignments));
+                    if (managed)
+                        Assert.That(Directory.Exists(managedDirectory), Is.True);
+                });
+            });
+        }
 
         [TestCase(false)]
         [TestCase(true)]
@@ -65,8 +298,9 @@ namespace osu.Game.Tests.Visual.Settings
             });
         }
 
-        [Test]
-        public void TestFailedRealmDeleteKeepsAssignmentsDuringFallbackAndRestoresExactOriginal()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestFailedRealmDeleteKeepsAssignmentsDuringFallbackAndRestoresExactOriginal(bool fromSongSelect)
         {
             Task<bool> deletion = null!;
             Skin original = null!;
@@ -75,6 +309,8 @@ namespace osu.Game.Tests.Visual.Settings
             Guid? modeAtFallback = null;
             bool protectedPairObserved = false;
             arrange(managed: false);
+            if (fromSongSelect)
+                PushAndConfirm(() => new SoloSongSelect());
             AddStep("fail the existing Realm commit after the real protected fallback", () =>
             {
                 original = skins.CurrentSkin.Value;

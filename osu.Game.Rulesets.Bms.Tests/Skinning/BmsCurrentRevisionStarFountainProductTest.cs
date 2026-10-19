@@ -3,6 +3,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -654,8 +655,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
         }
 
-        [Test]
-        public void TestRealPoolableSamplePublishesBAndRetainsPlayingATailUntilStop()
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void TestRealPoolableSamplePublishesBAndRetainsPlayingATailUntilStop(bool hidden, bool finishNaturally)
         {
             string packageRoot = string.Empty;
             Live<SkinInfo> candidate = null!;
@@ -665,6 +668,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             DrawableSample sampleA = null!;
             int retiredA = 0;
             bool sampleDisposedAtRetire = false;
+            bool sampleGateHeldAtRetire = false;
+            object sampleGate = null!;
 
             AddStep("create and select sample revision A", () =>
             {
@@ -684,6 +689,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     if (ReferenceEquals(revision, revisionA))
                     {
                         sampleDisposedAtRetire = sampleHost.SampleDrawable.IsOwnedSampleDisposed(sampleA);
+                        sampleGateHeldAtRetire = Monitor.IsEntered(sampleGate);
                         retiredA++;
                     }
                 };
@@ -696,11 +702,16 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 && caller.ReloadCurrentButton.Enabled.Value);
             AddStep("start looping A channel and write B", () =>
             {
+                sampleGate = typeof(PoolableSkinnableSample).GetField("revisionMaintenanceGate", BindingFlags.Instance | BindingFlags.NonPublic)!
+                                                          .GetValue(sampleHost.SampleDrawable)!;
                 sampleA = sampleHost.SampleDrawable.Sample!;
                 Assert.That(sampleA.Length, Is.GreaterThan(500));
                 sampleHost.SampleDrawable.Looping = true;
                 sampleHost.SampleDrawable.Play();
                 Assert.That(sampleHost.SampleDrawable.Playing, Is.True);
+
+                if (hidden)
+                    sampleHost.LifetimeStart = double.MaxValue;
 
                 writeSampleRevisionPackage(packageRoot, "B", sampleFrames: 4410);
                 caller.ReloadCurrentButton.TriggerClick();
@@ -719,9 +730,17 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(sampleHost.SampleDrawable.Playing, Is.True);
                     Assert.That(revisionA.Retired.IsCompleted, Is.False);
                     Assert.That(retiredA, Is.Zero);
+                    if (hidden)
+                    {
+                        Assert.That(sampleHost.Parent, Is.Not.Null);
+                        Assert.That(sampleHost.IsAlive, Is.False);
+                    }
                 });
 
-                sampleHost.SampleDrawable.Stop();
+                if (finishNaturally)
+                    sampleHost.SampleDrawable.Looping = false;
+                else
+                    sampleHost.SampleDrawable.Stop();
             });
             AddUntilStep("wait for A sample tail detach and exactly-once retire", () =>
                 revisionA.Retired.IsCompleted && retiredA == 1);
@@ -731,6 +750,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.Multiple(() =>
                 {
                     Assert.That(sampleDisposedAtRetire, Is.True);
+                    Assert.That(sampleGateHeldAtRetire, Is.False,
+                        "Final audio-tail release may enter publication retirement and must run outside the sample graph gate.");
                     Assert.That(retiredA, Is.EqualTo(1));
                 });
             });
@@ -996,8 +1017,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
         }
 
-        [Test]
-        public void TestPendingSampleSwapDisposesPreparedBAndPreviousABeforeShutdownRetirement()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestPendingSampleSwapDisposesPreparedBAndPreviousABeforeShutdownRetirement(bool hidden)
         {
             string packageRoot = string.Empty;
             Live<SkinInfo> candidate = null!;
@@ -1013,6 +1035,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             int retiredB = 0;
             bool sampleADisposedAtRetire = false;
             bool sampleBDisposedAtRetire = false;
+            bool sampleGateHeldAtARetire = false;
+            object sampleGate = null!;
 
             AddStep("create and select pending-sample revision A", () =>
             {
@@ -1032,6 +1056,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     if (ReferenceEquals(revision, revisionA))
                     {
                         sampleADisposedAtRetire = sampleHost.SampleDrawable.IsOwnedSampleDisposed(sampleA);
+                        sampleGateHeldAtARetire = Monitor.IsEntered(sampleGate);
                         Interlocked.Increment(ref retiredA);
                     }
 
@@ -1051,7 +1076,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 && sampleHost.SampleDrawable.Sample != null);
             AddStep("write B and prepare held sample commit", () =>
             {
+                sampleGate = typeof(PoolableSkinnableSample).GetField("revisionMaintenanceGate", BindingFlags.Instance | BindingFlags.NonPublic)!
+                                                          .GetValue(sampleHost.SampleDrawable)!;
                 sampleA = sampleHost.SampleDrawable.Sample!;
+                if (hidden)
+                    sampleHost.LifetimeStart = double.MaxValue;
                 writeSampleRevisionPackage(packageRoot, "B", sampleFrames: 4410);
                 reload = manager.ReloadCurrentRevisionAsync();
             });
@@ -1124,6 +1153,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(sampleHost.SampleDrawable.IsOwnedSampleDisposed(sampleA), Is.True);
                     Assert.That(sampleHost.SampleDrawable.IsOwnedSampleDisposed(sampleB), Is.True);
                     Assert.That(sampleADisposedAtRetire, Is.True);
+                    Assert.That(sampleGateHeldAtARetire, Is.False,
+                        "Shutdown must finish the sample graph before retiring A, without retaining the graph gate.");
                     Assert.That(retiredA, Is.EqualTo(1));
                     Assert.That(revisionB.WorkDetached.IsCompletedSuccessfully, Is.True);
                     Assert.That(revisionB.ConsumersDetached.IsCompleted, Is.False);

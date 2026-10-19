@@ -918,7 +918,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 };
                 Add(callerHost = new FullSkinSettingsCallerHost(manager));
             });
-            addExpandSkinManagement(() => callerHost, () => selectionA.ID);
+            addWaitForInspectedSkin(() => callerHost, () => selectionA.ID);
             AddUntilStep("wait for real ordinary delete caller", () =>
                 callerHost.CurrentDeleteButton.IsLoaded && callerHost.CurrentDeleteButton.Enabled.Value);
             AddStep("open ordinary delete confirmation", () => callerHost.CurrentDeleteButton.TriggerClick());

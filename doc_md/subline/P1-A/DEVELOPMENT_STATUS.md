@@ -1,11 +1,11 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-19（皮肤卡片直接展示管理操作；26来源及人工/发行门保持）
+> 最后核对：2026-10-19（选曲设置确认删除修复；原人工/发行门保持）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
 
-静线是唯一内置、首次默认与正式保底；complex 已退役，历史作者文件与普通用户包保留。静线打磨按用户决定暂停。BMS/mania各有模式默认和键数覆盖，旧全局配置首次迁移；游玩按最终键数应用。原V-001～V-005、设备和长期体验未签收，Skin V1/release未完成。C1～C7证据不重计，OmsSkin物理删除仍待原实机门。
+静线为唯一内置、首次默认与保底；complex已退役，历史作者文件和用户包保留。静线打磨按用户决定暂停。BMS/mania各有模式默认和键数覆盖，旧全局配置首次迁移；游玩按最终键数应用。原V-001～V-005、设备和长期体验未签收，Skin V1/release未完成。C1～C7证据不重计，OmsSkin物理删除仍待原实机门。
 
 ## 当前产品能力与剩余门
 
@@ -33,7 +33,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-10-19管理入口：删除直接显示、搜索及确认目标已验证，内置保护保持；红绿、回归与构建见[记录](CHANGELOG.md#2026-10-19皮肤管理入口直接展示)。
+2026-10-19确认删除：选曲拒绝、隐藏音效收尾及managed卡片失效读取已修复；完整确认、失败恢复及同帧退出通过，见[记录](CHANGELOG.md#2026-10-19选曲设置确认删除修复)。
 
 2026-10-19目录/池化修复：实测消除399.05MiB重复驻留；Core、双玩法全量与旧失败对照取[证据](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#内存压力下的驻留与音符复用修复)。后台短测不代签前台/空闲对照；本次无需重导入。
 
@@ -59,7 +59,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 - 两站没有已确认的独立音乐试听服务；第一版试听沿入库后的本地选歌。远端含 bmson、24K/48K 或不被当前 classic 解码器支持的谱面，不因下载成功伪报可玩；部分包内谱面被原 importer 拒绝时保留成功入库事实。真实大包、网络慢/代理、常用窗口与完整歌曲听感仍需观察，整表/续传/跨重启任务不在当前能力内。
 
-- 完整BMS剩28项旧Workspace夹具失败；目录串扰修正与HEAD对照见[游玩审查](../../other/GAMEPLAY_REVIEW_20261019.md#验证证据)。此前宽Core三项Windows删除仍未归因，见[图库记录](CHANGELOG.md#2026-10-19配置图库入口与xecus崩溃修复)；维护取[PLAN](DEVELOPMENT_PLAN.md#静线当前迭代验收与后续)，不恢复旧入口。
+- 完整BMS旧Workspace夹具失败仍需维护，原对照见[游玩审查](../../other/GAMEPLAY_REVIEW_20261019.md#验证证据)。本轮宽Core另有4项旧osu夹具及3项Windows原生删除拒绝未闭合，具体身份取[确认删除记录](CHANGELOG.md#2026-10-19选曲设置确认删除修复)；真实确认通过不代表所有native门已绿，不恢复旧入口。
 - V-001～V-004未逐项签收、V-005未签收；用户对局部改进的认可不补填未观察矩阵。V-005 原三源操作中的外部注册及工作区行级入口已退出当前设置，不能把旧步骤当作新用户可执行流程；现行可达范围与未执行边界见[集中清单 V-005](../../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md#v-005c6-可选脚本与双规则集-momentum-候选)。
 - OmsSkin只保留历史证据与人工对照，源码物理移除仍待原实机门；安装故障不得重新启用它。
 - G1 held-root/journal不是filesystem transaction，foreign addition/replacement可导致冻结；未知旧记录及无完整恢复证据的intent不猜测迁移。旧保存根事故只有事后保全，不追溯宣称无损。
