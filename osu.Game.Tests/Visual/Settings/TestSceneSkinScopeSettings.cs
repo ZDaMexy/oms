@@ -13,11 +13,9 @@ using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
-using osu.Framework.Graphics.Containers;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
 using osu.Game.Database;
-using osu.Game.Graphics.UserInterface;
 using osu.Game.Graphics.UserInterfaceV2;
 using osu.Game.Overlays;
 using osu.Game.Overlays.Settings;
@@ -104,8 +102,6 @@ namespace osu.Game.Tests.Visual.Settings
             AddAssert("both mode defaults and other key inheritance remain", () => skins.SelectionPreferences!.GetEffectiveSkinId(new SkinSelectionScope("bms")) == first.ID
                 && skins.SelectionPreferences.GetEffectiveSkinId(new SkinSelectionScope("mania")) == second.ID
                 && skins.SelectionPreferences.GetConfiguredSkinId(new SkinSelectionScope("mania", 7)) == null);
-            AddStep("expand management for the inspected skin", () => section.ChildrenOfType<SettingsButtonV2>()
-                .Single(button => button.Text.ToString().StartsWith("皮肤管理与编辑", StringComparison.Ordinal)).Action());
             AddStep("request deletion of that explicit target", () => section.ChildrenOfType<SkinSection.DeleteSkinButton>().Single().Action());
             AddUntilStep("confirmation names the inspected skin", () => Game.ChildrenOfType<SkinSection.SkinDeleteDialog>().SingleOrDefault()?.RecordId == first.ID);
             AddStep("dismiss without deleting files", () => Game.ChildrenOfType<SkinSection.SkinDeleteDialog>().Single().Hide());
@@ -116,6 +112,56 @@ namespace osu.Game.Tests.Visual.Settings
             AddStep("pin the already displayed inherited skin", () => section.ChildrenOfType<SettingsButtonV2>()
                 .Single(button => button.Text.ToString() == "将当前皮肤设为 14K 专用").Action());
             AddUntilStep("same-value assignment is independently stored", () => skins.SelectionPreferences!.GetConfiguredSkinId(new SkinSelectionScope("mania", 14)) == second.ID);
+        }
+
+        [TestCase("bms", 7)]
+        [TestCase("mania", 14)]
+        public void TestDeleteActionIsDirectlyVisibleForTheInspectedSkin(string mode, int keys)
+        {
+            Guid expectedTarget = default;
+            arrangeSkins();
+            AddStep("inspect the requested skin scope", () =>
+            {
+                expectedTarget = mode == "mania" ? second.ID : first.ID;
+                section.ScopeSelector.Current.Value = new SkinSelectionScope(mode, keys);
+            });
+            AddUntilStep("the requested skin and its action are ready", () => section.IsTargetReady && section.DisplayedSkinId == expectedTarget
+                && deleteButton().IsLoaded);
+            AddAssert("delete is directly available in the card", () =>
+            {
+                for (Drawable? ancestor = deleteButton(); ancestor != null; ancestor = ancestor.Parent)
+                {
+                    if (!ancestor.IsPresent)
+                        return false;
+                }
+
+                return deleteButton().Enabled.Value;
+            });
+            AddStep("scroll the visible delete action into view", () => Game.Settings.SectionsContainer.ScrollTo(deleteButton()));
+            AddUntilStep("delete is reachable by the mouse", () => !isMaskedAway(deleteButton()));
+            AddStep("click the normal card delete action", () =>
+            {
+                InputManager.MoveMouseTo(deleteButton());
+                InputManager.Click(MouseButton.Left);
+            });
+            AddUntilStep("confirmation belongs to the inspected skin", () => Game.ChildrenOfType<SkinSection.SkinDeleteDialog>().SingleOrDefault()?.RecordId == expectedTarget);
+            AddStep("dismiss the confirmation without deleting", () => Game.ChildrenOfType<SkinSection.SkinDeleteDialog>().Single().Hide());
+
+            SkinSection.DeleteSkinButton deleteButton() => section.ChildrenOfType<SkinSection.DeleteSkinButton>().Single();
+        }
+
+        [Test]
+        public void TestBuiltInSkinKeepsDeletionUnavailable()
+        {
+            arrangeSkins();
+            AddStep("inspect the built-in skin in this key scope", () => skins.SelectionPreferences!.SetSkin(
+                new SkinSelectionScope("bms", 7), SkinInfo.OMS_SKIN));
+            AddUntilStep("the built-in skin is prepared", () => section.IsTargetReady && section.DisplayedSkinId == SkinInfo.OMS_SKIN);
+            AddAssert("the protected skin never gains a delete action", () =>
+            {
+                SkinSection.DeleteSkinButton button = section.ChildrenOfType<SkinSection.DeleteSkinButton>().Single();
+                return !button.CanBeShown.Value && !button.Enabled.Value && !skins.CanDelete(SkinInfo.OMS_SKIN);
+            });
         }
 
         [Test]
@@ -165,15 +211,16 @@ namespace osu.Game.Tests.Visual.Settings
         }
 
         [Test]
-        public void TestGlobalSearchHidesTheCompleteThumbnailControlAndCollapsedActions()
+        public void TestGlobalSearchHidesCompleteThumbnailControlsAndFindsVisibleActions()
         {
             arrangeSkins();
             AddStep("inspect a dual-stage mania scope", () => section.ScopeSelector.Current.Value = new SkinSelectionScope("mania", 14));
             AddUntilStep("target options prepared", () => section.IsTargetReady && section.ChildrenOfType<SkinOptionChoiceSettings>().Any());
             AddStep("search for another option", () => Game.Settings.SectionsContainer.ChildrenOfType<SettingsSearchTextBox>().First().Current.Value = "双侧专用");
             AddUntilStep("whole notes thumbnail row is hidden", () => section.ChildrenOfType<SkinOptionChoiceSettings>().All(control => !control.IsPresent));
-            AddStep("search for a collapsed management action", () => Game.Settings.SectionsContainer.ChildrenOfType<SettingsSearchTextBox>().First().Current.Value = "删除皮肤文件");
-            AddUntilStep("collapsed action does not create an invisible search hit", () => !section.MatchingFilter);
+            AddStep("search for the visible delete action", () => Game.Settings.SectionsContainer.ChildrenOfType<SettingsSearchTextBox>().First().Current.Value = "删除皮肤文件");
+            AddUntilStep("delete is a visible search result", () => section.MatchingFilter
+                && section.ChildrenOfType<SkinSection.DeleteSkinButton>().Single().IsPresent);
             AddStep("search for a collapsed gallery pager", () => Game.Settings.SectionsContainer.ChildrenOfType<SettingsSearchTextBox>().First().Current.Value = "下一页");
             AddUntilStep("hidden gallery controls do not create invisible search hits", () => !section.MatchingFilter);
             AddStep("clear search", () => Game.Settings.SectionsContainer.ChildrenOfType<SettingsSearchTextBox>().First().Current.Value = string.Empty);
@@ -264,7 +311,8 @@ namespace osu.Game.Tests.Visual.Settings
                 IBeatmap beatmap = mania && !converted
                     ? new ManiaBeatmap(new StageDefinition(4))
                     {
-                        BeatmapInfo = { Ruleset = ruleset.RulesetInfo }, Difficulty = { CircleSize = 4 },
+                        BeatmapInfo = { Ruleset = ruleset.RulesetInfo },
+                        Difficulty = { CircleSize = 4 },
                         HitObjects = { new Note { Column = 0, StartTime = 60_000 } },
                     }
                     : new BmsDecodedBeatmap(new BmsBeatmapDecoder().DecodeText(
@@ -324,8 +372,11 @@ namespace osu.Game.Tests.Visual.Settings
                 write("skin.ini", Encoding.UTF8.GetBytes($"[General]\nName: {name}\nAuthor: OMS test fixture\nVersion: 2.7\n"));
                 var manifest = new JObject
                 {
-                    ["contract"] = "oms-gameplay-skin-manifest.v1", ["scene"] = "gameplay-skin.scene.json",
-                    ["sceneContract"] = "oms-gameplay-skin-scene.v1", ["eventContract"] = "oms-gameplay-skin-event.v1", ["resources"] = new JArray(),
+                    ["contract"] = "oms-gameplay-skin-manifest.v1",
+                    ["scene"] = "gameplay-skin.scene.json",
+                    ["sceneContract"] = "oms-gameplay-skin-scene.v1",
+                    ["eventContract"] = "oms-gameplay-skin-event.v1",
+                    ["resources"] = new JArray(),
                     ["options"] = new JArray(
                         new JObject { ["id"] = "notes", ["label"] = "音符", ["type"] = "choice", ["default"] = "normal", ["choices"] = choices() },
                         new JObject { ["id"] = "dual", ["label"] = "双侧专用", ["type"] = "choice", ["default"] = "normal", ["rulesets"] = new JArray("mania"), ["keymodes"] = new JArray("7k-7k"), ["choices"] = choices(false) }),

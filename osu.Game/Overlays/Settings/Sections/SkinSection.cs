@@ -60,7 +60,6 @@ namespace osu.Game.Overlays.Settings.Sections
         private OsuTextFlowContainer overridesSummary;
         private OsuTextFlowContainer preparationStatus;
         private SettingsButtonV2 followDefaultButton;
-        private SettingsButtonV2 moreButton;
         private SettingsButtonV2 layoutEditorButton;
         private SkinAuthorActionsContainer authorActions;
         private RenameSkinButton renameButton;
@@ -78,7 +77,6 @@ namespace osu.Game.Overlays.Settings.Sections
         private bool dropdownItemsLoading = true;
         private bool synchronisingDropdown;
         private bool savingAssignment;
-        private bool moreExpanded;
         private Live<SkinInfo> requestedTarget;
 
         [Resolved] private SkinManager skins { get; set; }
@@ -146,12 +144,6 @@ namespace osu.Game.Overlays.Settings.Sections
                                         Items = new[] { targetInfo.Value },
                                     },
                                     preparationStatus = text(string.Empty, false),
-                                    moreButton = new SettingsButtonV2
-                                    {
-                                        Text = "皮肤管理与编辑",
-                                        Padding = new MarginPadding(),
-                                        Action = () => { moreExpanded = !moreExpanded; updateAuthoringState(); },
-                                    },
                                     authorActions = new SkinAuthorActionsContainer
                                     {
                                         Padding = new MarginPadding(),
@@ -366,9 +358,7 @@ namespace osu.Game.Overlays.Settings.Sections
             bool export = ready && skins.CanExport(target);
             bool delete = ready && skins.CanDelete(target.ID);
             bool editor = ready && skinEditor != null && SkinAuthoringAvailability.LegacyEditorAvailable;
-            moreButton.Enabled.Value = modify || export || delete || editor;
-            moreButton.Text = moreExpanded ? "收起皮肤管理与编辑" : "皮肤管理与编辑";
-            authorActions.CanBeShown.Value = moreExpanded && (modify || export || delete || editor);
+            authorActions.CanBeShown.Value = modify || export || delete || editor;
             renameButton.CanBeShown.Value = modify;
             exportButton.CanBeShown.Value = export;
             deleteButton.CanBeShown.Value = delete;

@@ -31,7 +31,7 @@
 - [canonical 构建、安装与用户数据保护](reference_skin_canonical_installation.md) — 静线唯一保底、source→原件/摘要与解压字节核对、星轨退役迁移、缺行修复；便携误入、缓存隔离、冷启动线程、取消资源移交。
 - [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 随包手册与示例闭合、作者边界、用户决定与诊断入口。
 - [Skin V1 价值与工作预算](project_oms_skin_product_progress.md) — 区分效果能力、成品与创作便利度；星轨实际体验否定、有限反馈与本轮停止边界，当前状态读 P1-A。
-- [模式/键数皮肤选择](reference_skin_mode_selection.md) — 独立设置目标、逐层继承、图卡唯一入口/收起断言与过滤、配置冻结和删除重入对照。
+- [模式/键数皮肤选择](reference_skin_mode_selection.md) — 独立设置目标、直接管理入口/过滤与父链可见性、逐层继承、配置冻结和删除重入对照。
 
 ## 构建、存储与产品面参考
 

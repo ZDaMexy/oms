@@ -7,11 +7,9 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Configuration;
-using osu.Framework.Graphics.Containers;
 using osu.Framework.Platform;
 using osu.Framework.Testing;
 using osu.Game.Database;
-using osu.Game.Overlays.Settings;
 using osu.Game.Overlays.Settings.Sections;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
@@ -76,8 +74,6 @@ namespace osu.Game.Tests.Visual.Settings
                 Game.Settings.SectionsContainer.ScrollTo(section);
             });
             AddUntilStep("BMS scope and thumbnail controls prepared", () => section.IsTargetReady && section.ChildrenOfType<SkinOptionChoiceSettings>().Any());
-            AddStep("show management for the explicitly inspected skin", () => section.ChildrenOfType<SettingsButtonV2>()
-                .Single(button => button.Text.ToString() == "皮肤管理与编辑").Action());
             AddWaitStep("let visible thumbnails upload", 15);
             AddStep("capture scope overview", () => screenshot = capture("settings-bms-7k.png"));
             AddUntilStep("scope overview saved", () => screenshot.IsCompletedSuccessfully);
@@ -131,9 +127,7 @@ namespace osu.Game.Tests.Visual.Settings
 
             async Task capture(string name)
             {
-                using Image<Rgba32>? image = await host.TakeScreenshotAsync().ConfigureAwait(false);
-                if (image == null)
-                    throw new InvalidOperationException("Settings capture did not return a framebuffer.");
+                using Image<Rgba32>? image = await host.TakeScreenshotAsync().ConfigureAwait(false) ?? throw new InvalidOperationException("Settings capture did not return a framebuffer.");
                 await image.SaveAsPngAsync(Path.Combine(output!, name)).ConfigureAwait(false);
             }
         }
