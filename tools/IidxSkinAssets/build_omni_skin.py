@@ -23,6 +23,9 @@ from PIL import Image
 
 from choice_previews import (MODULES as PREVIEW_MODULES, audit_previews, build_choice_previews,
                              preview_files, preview_path)
+from music_progress import (RESOURCE_PATH as MUSIC_PROGRESS_RESOURCE_PATH,
+                            apply_to_author as add_music_progress, inject as inject_music_progress,
+                            load_reference as load_music_progress_reference)
 
 NAME = "Lighting Model Skin Omni Until 33"
 MANIFEST_CONTRACT = "oms-gameplay-skin-manifest.v1"
@@ -1008,12 +1011,35 @@ def correct_scene_files(output: Path):
             "beamLaneSurfaceRoots": sum(len(row["beamLaneSurfaceRoots"]) for row in rows), "changes": rows}
 
 
-def verify_repackage(source: Path, output: Path, files):
+def expected_progress_contributions(source: Path, catalog, reference):
+    """Rebuild the permitted progress-only delta against each original Frame contribution."""
+    manifests, scenes = {}, {}
+    frame_modules = [module for module in catalog["modules"] if module["id"] == "frame"]
+    if len(frame_modules) != 1:
+        raise ValueError("Music progress requires the exact Omni Frame module")
+    for choice in frame_modules[0]["choices"]:
+        frame = reference.frames[choice["value"]]
+        for part in (choice, *choice.get("variants", [])):
+            manifest = read_json(exact_file(source, part["manifest"]))
+            manifest["scene"] = SCENE_HEADER_FILE
+            scene = read_json(exact_file(source, part["scene"]))
+            correct_scene_author_contracts(scene)
+            inject_music_progress(scene, manifest, frame)
+            for path, document, expected in ((part["manifest"], manifest, manifests), (part["scene"], scene, scenes)):
+                if path in expected and expected[path] != document:
+                    raise ValueError("A shared Frame contribution has conflicting progress geometry")
+                expected[path] = document
+    return manifests, scenes
+
+
+def verify_repackage(source: Path, output: Path, files, progress_reference=None):
     original_files = package_closure(source)
     original_catalog = read_json(source / "gameplay/content.json")
     expected_catalog = copy.deepcopy(original_catalog)
     expected_catalog["modules"] = [item for item in expected_catalog["modules"] if item["id"] not in AUXILIARY_MODULES]
     retained_source_catalog = copy.deepcopy(expected_catalog)
+    progress_manifests, progress_scenes = expected_progress_contributions(source, retained_source_catalog, progress_reference) \
+        if progress_reference is not None else ({}, {})
     manifests, scenes = set(), set()
     for part in catalog_contributions(expected_catalog):
         for key, kind, paths in (("manifest", "m", manifests), ("scene", "s", scenes)):
@@ -1026,10 +1052,10 @@ def verify_repackage(source: Path, output: Path, files):
             for choice in module["choices"]:
                 choice["preview"] = preview_path(module["id"], choice["value"])
     for path in manifests:
-        expected = read_json(exact_file(source, path))
+        expected = copy.deepcopy(progress_manifests[path]) if path in progress_manifests else read_json(exact_file(source, path))
         expected["scene"] = SCENE_HEADER_FILE
         if read_json(exact_file(output, flat_configuration_path(path, "m"))) != expected:
-            raise ValueError(f"Repackaging changed a manifest beyond its fixed C1 scene header: {path}")
+            raise ValueError(f"Repackaging changed a manifest beyond its fixed C1 header and verified progress resource: {path}")
     if read_json(output / "gameplay/content.json") != expected_catalog:
         raise ValueError("Repackaging changed a catalog beyond auxiliary removal, configuration paths and exact option illustrations")
     expected_root = read_json(source / "gameplay-skin.json")
@@ -1043,10 +1069,12 @@ def verify_repackage(source: Path, output: Path, files):
     expected_root_ini = remove_auxiliary_ini(correct_root_ini_target(original_root_ini))
     retained_files = package_closure(source, {"skin.ini": expected_root_ini.decode("utf-8"),
         "gameplay-skin.json": expected_root, "gameplay/content.json": retained_source_catalog})
-    if set(files) != {mappings.get(path, path) for path in retained_files} | preview_files(expected_catalog):
-        raise ValueError("Repackaging changed the retained main-screen reference closure beyond its exact option illustrations")
+    added_resources = {MUSIC_PROGRESS_RESOURCE_PATH} if progress_reference is not None else set()
+    if set(files) != {mappings.get(path, path) for path in retained_files} | preview_files(expected_catalog) | added_resources:
+        raise ValueError("Repackaging changed the retained main-screen closure beyond its exact previews and progress cursor")
     unchanged, byte_equal_scenes = 0, 0
     corrected_scenes, corrected_frame_inis, corrected_beam_inis = [], [], []
+    progress_scene_paths = []
     frame_inis = set(frame_ini_paths(original_catalog))
     beam_inis = set(beam_ini_paths(original_catalog))
     if exact_file(output, "skin.ini").read_bytes() != expected_root_ini:
@@ -1079,8 +1107,15 @@ def verify_repackage(source: Path, output: Path, files):
         if relative in scenes:
             expected_scene = read_json(exact_file(source, relative))
             changes = correct_scene_author_contracts(expected_scene)
+            if relative in progress_scenes:
+                expected_scene = progress_scenes[relative]
             if read_json(exact_file(output, destination)) != expected_scene:
-                raise ValueError(f"Repackaging changed a scene beyond the proven author declaration repairs: {relative}")
+                raise ValueError(f"Repackaging changed a scene beyond verified declaration repairs and music progress: {relative}")
+            if relative in progress_scenes:
+                progress_scene_paths.append(destination)
+                if any(changes.values()):
+                    corrected_scenes.append({"path": relative, **changes})
+                continue
             if any(changes.values()):
                 corrected_scenes.append({"path": relative, **changes})
                 continue
@@ -1100,6 +1135,7 @@ def verify_repackage(source: Path, output: Path, files):
             "frameIniScopeCorrections": corrected_frame_inis,
             "beamIniLayerCorrections": corrected_beam_inis,
             "sceneContractCorrections": corrected_scenes, "otherSceneFieldsPreserved": True,
+            "musicProgress": {"scenePaths": progress_scene_paths, "addedResourcePaths": sorted(added_resources)},
             "rootIniCorrection": {"changed": original_root_ini != expected_root_ini,
                 "permittedChanges": [ROOT_GLOBAL_TARGET, "remove hud.auxiliary and hud.auxiliary-concentration"],
                 "beforeSha256": hashlib.sha256(original_root_ini).hexdigest(), "afterSha256": hashlib.sha256(expected_root_ini).hexdigest()}}
@@ -1116,7 +1152,7 @@ def author_directory_budget(files):
     return result
 
 
-def prepare_package(output: Path, receipt, repackage_source: Path | None = None):
+def prepare_package(output: Path, receipt, repackage_source: Path | None = None, progress_reference=None):
     receipt["auxiliaryDisplayRemoval"] = remove_auxiliary_display(output)
     receipt.pop("auxiliaryMarkers", None)
     if receipt["auxiliaryDisplayRemoval"]["removedModules"] and "customization" in receipt:
@@ -1129,16 +1165,18 @@ def prepare_package(output: Path, receipt, repackage_source: Path | None = None)
     receipt["rootPublicTarget"] = ROOT_GLOBAL_TARGET
     receipt["configurationFlattening"] = flatten_contribution_configs(output)
     receipt["sceneContractCorrections"] = correct_scene_files(output)
-    if receipt["sceneContractCorrections"]["changedScenes"] and "codecValidation" in receipt:
-        receipt["sourceCodecValidation"] = receipt.pop("codecValidation")
-        receipt["codecValidation"] = {"status": "pending", "reason": "Author scene declarations changed; the source package codec receipt is historical evidence only"}
     receipt["frameDecorationScopeCorrections"] = correct_frame_ini_scopes(output)
     receipt["beamLayerCorrections"] = correct_beam_material_files(output)
     receipt["graphStatistics"]["readoutLayout"] = graph_readout_receipt()
     receipt["choicePreviews"] = build_choice_previews(output)
+    if progress_reference is not None:
+        receipt["songProgress"] = add_music_progress(output, progress_reference)
+    if (receipt["sceneContractCorrections"]["changedScenes"] or receipt.get("songProgress", {}).get("changedJson")) and "codecValidation" in receipt:
+        receipt["sourceCodecValidation"] = receipt.pop("codecValidation")
+        receipt["codecValidation"] = {"status": "pending", "reason": "Author scene declarations changed; the source package codec receipt is historical evidence only"}
     files = package_closure(output)
     if repackage_source:
-        receipt["sourcePreservation"] = verify_repackage(repackage_source, output, files)
+        receipt["sourcePreservation"] = verify_repackage(repackage_source, output, files, progress_reference)
     audit = audit_package(output, files)
     audit["authorDirectory"] = author_directory_budget(files)
     write_json(output / "package-audit.json", audit)
@@ -1189,8 +1227,8 @@ def publish_prepared_package(output: Path, final_output: Path, receipt, files, a
                       "selectedUpperBound": audit["selectedUpperBound"]}, ensure_ascii=True))
 
 
-def publish_package(output: Path, final_output: Path, receipt, repackage_source: Path | None = None):
-    files, audit = prepare_package(output, receipt, repackage_source)
+def publish_package(output: Path, final_output: Path, receipt, repackage_source: Path | None = None, progress_reference=None):
+    files, audit = prepare_package(output, receipt, repackage_source, progress_reference)
     publish_prepared_package(output, final_output, receipt, files, audit)
 
 
@@ -1204,24 +1242,29 @@ def main():
     parser.add_argument("--image-tools", type=Path, help="Local Python image dependencies, required when exporting modules")
     parser.add_argument("--frame-maps", type=Path, help="JSON mapping Frame IDs to package-relative original geometry maps")
     parser.add_argument("--repackage-directory", type=Path, help="Derive a fresh flattened package from an existing author closure without re-exporting media")
+    parser.add_argument("--music-progress-reference", type=Path, help="Verified local 15-Frame cursor geometry and original texture reference")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--frame-fc-only", action="store_true", help="Incomplete integration probe; never a full CUSTOM delivery")
     args = parser.parse_args()
     repackage_source = args.repackage_directory.resolve(strict=True) if args.repackage_directory else None
+    progress_reference = load_music_progress_reference(args.music_progress_reference, expected_frames=FRAME_NAMES) \
+        if args.music_progress_reference else None
     module_directory = None
     if repackage_source:
         if any((args.frames_root, args.custom_library, args.fc_catalog, args.modules_directory, args.frame_fc_only, args.bemani_root, args.image_tools, args.frame_maps)):
-            parser.error("Repackaging takes only --repackage-directory and --output")
+            parser.error("Repackaging takes --repackage-directory, --output and optional --music-progress-reference")
         source_roots = [repackage_source]
     else:
-        if not all((args.frames_root, args.custom_library, args.fc_catalog)):
-            parser.error("A source build requires --frames-root, --custom-library and --fc-catalog")
+        if not all((args.frames_root, args.custom_library, args.fc_catalog, args.music_progress_reference)):
+            parser.error("A source build requires --frames-root, --custom-library, --fc-catalog and --music-progress-reference")
         source_roots = [args.frames_root.resolve(strict=True), args.custom_library.resolve(strict=True), args.fc_catalog.resolve(strict=True).parent]
         module_directory = args.modules_directory.resolve(strict=True) if args.modules_directory else None
         if not module_directory and not args.frame_fc_only and not all((args.bemani_root, args.image_tools, args.frame_maps)):
             parser.error("Exporting modules requires --bemani-root, --image-tools and --frame-maps; use --modules-directory for frozen exports")
         if module_directory:
             source_roots.append(module_directory)
+    if args.music_progress_reference:
+        source_roots.append(args.music_progress_reference.resolve(strict=True).parent)
     output = args.output.resolve()
     if output.exists() or output.with_suffix(".osk").exists() or not output.parent.is_dir():
         parser.error("Use a fresh author directory with an existing parent")
@@ -1241,7 +1284,7 @@ def main():
         receipt["status"] = "repackaged-pending-runtime-validation"
         receipt.pop("archive", None)
         receipt["repackagedFrom"] = str(repackage_source)
-        publish_package(output, final_output, receipt, repackage_source)
+        publish_package(output, final_output, receipt, repackage_source, progress_reference)
         return
     graph = prepare_graph(source_roots[1], output)
     frames, frame_receipts = [], []
@@ -1275,7 +1318,7 @@ def main():
                "customization": modules["receipts"], "graphStatistics": graph["receipt"],
                "frozenModulesDirectory": modules.get("frozenDirectory"),
                "originalHdd": "not-opened-by-this-generator", "sourceDefaultMapping": "see dated source evidence"}
-    publish_package(output, final_output, receipt)
+    publish_package(output, final_output, receipt, progress_reference=progress_reference)
 
 
 if __name__ == "__main__":

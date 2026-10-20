@@ -15,7 +15,7 @@ Omni 是供作者使用及熟人间私下分享的独立 `.osk`，不内置到 O
 ```powershell
 . .\UseDevelopmentStorage.ps1
 $env:PYTHONPATH = (Resolve-Path '.dev-cache/tools/iidx-assets').Path
-python -X utf8 tools/IidxSkinAssets/build_omni_skin.py --frames-root 'Y:\FrameCandidates' --custom-library 'Y:\OriginalCustomLibrary' --fc-catalog 'Y:\FullComboLibrary\runtime-v2-catalog.json' --modules-directory 'Y:\FrozenModules' --output 'Y:\OmniAuthor'
+python -X utf8 tools/IidxSkinAssets/build_omni_skin.py --frames-root 'Y:\FrameCandidates' --custom-library 'Y:\OriginalCustomLibrary' --fc-catalog 'Y:\FullComboLibrary\runtime-v2-catalog.json' --modules-directory 'Y:\FrozenModules' --music-progress-reference 'Y:\MusicProgressReference\source-geometry.json' --output 'Y:\OmniAuthor'
 dotnet run --project tools/SkinAuthoring -- check 'Y:\OmniAuthor'
 ```
 
@@ -28,6 +28,10 @@ dotnet run --project tools/SkinAuthoring -- check 'Y:\OmniAuthor'
 统一生成器为音符、CN、判定文字、爆炸、光柱和转盘输出132张静态代表缩略图，目录choice通过可选`preview`引用；Game Frame与FC保留文字。图片来自同款原材质/动画代表帧，`choice_previews.py`负责有界缩略，不改游玩图片、场景或默认选值。冻结模块重打包也沿同一路径，预览纳入ZIP引用闭包；先运行当前`SkinAuthoring check`，再独立导入验证。玩家可按模式默认和键数分别设置；此工具不把Omni写入玩家目录、canonical或公开制作套件。
 
 2026-10-20按用户反馈，Omni仅提供主游玩画面：移除Lightning副屏、展开/专注/亮度三项配置、Premium背景/图标及专注背景。新导出与冻结模块/旧作者目录重打包都不再声明副屏，发布闭包排除其专用素材；原研究资料及旧版交付保留。Graph仍在主屏显示，不受此项移除影响，公共引擎及其它作者包的辅助屏能力保持。
+
+歌曲进度使用原`playm_music_point.png`和15框体各自的1P/2P/DP几何，DP保留两枚游标，沿用原加色混合。`music_progress.py`只向选中Frame的信息模板添加游标与已有只读`timing.progress`绑定，未修改公共时钟、判定或其它皮肤。进度从首个可玩对象至最后对象结束（包含长条尾）计算，首前/末后夹至0/1，暂停和重试跟随Player时钟。原图22×30，SD框体按原画布投影，DP保留原横缩；左右对称的原像素共用一个PNG，不生成负缩放镜像。
+
+`--music-progress-reference`消费独立来源核对的`oms-iidx-music-progress-reference.v1`文件及同目录原PNG，完整导出必须提供；旧作者目录可用`--repackage-directory 'Y:\PreviousOmniAuthor' --music-progress-reference 'Y:\MusicProgressReference\source-geometry.json' --output 'Y:\NextOmniAuthor'`接入。引用需完整覆盖15框体和三布局，保留每个源实例、端点依据和PNG摘要。已有原纵向端点的布局保留其几何；28～32及SUPERNOVA的DP缺少末端动画位置，以下方E标记顶边减游标高度对齐，属于作者适配。原几何不证明原游戏时间起止、插值或完整歌曲算法；这些仍待实机校准。重打包逐项限制场景/资源改动，其它素材、选项及INI保全；旧codec收据不得冒充改包后的检查。
 
 整合输出只将引用闭包写入OSK，研究/来源收据留在作者目录，不能把generation或独立PNG可解码当作导入/游玩验收。内容目录能力、边界与可复跑CLI检查取[作者参考](../../skin-authoring/docs/REFERENCE.md#按选项组合内容)，本轮实际验证取[P1-A状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)。全部原版素材和作品仍仅留本地忽略目录或仓库外，不进入canonical/制作套件/公开发行。
 

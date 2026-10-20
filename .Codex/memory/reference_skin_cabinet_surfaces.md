@@ -2,6 +2,10 @@
 
 当前进度与验收只读 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)，图像及对应迭代见[原图索引](../../doc_md/other/references/simple-1p-20260912/README.md)。以下保留截图暴露的诊断因果，不把历次检查合并成当前验收。
 
+IIDX游标核源：原PNG画布不等同于GEO显示尺寸，SD投影和DP横缩分别沿实际源几何；DP命名游标在dp_frame_1p、S/E标记在center_frame_dp_1p，不能只查center movie或按同名实例去重。容器表示行程、子图相对y绑定timing.progress时，子图高度须除以行程高度，保持实际游标尺寸；不能用负scale-x实现镜像（公开codec只接受非负缩放），左右原RGBA确实对称时可共用原图。稳定ID的每个dot segment须以小写字母开始，数组序号使用o0而不是裸0；Python结构检查不能代替真实SkinAuthoring codec检查。完整当前验证仍取P1-A STATUS。
+
+材料Diagnostics为空不证明C3无布局警告：BGA窗口诊断另合入PersistenceSafeDiagnostics/Batch，成功commit后才异步发布全局通知，提示可能跨下一玩法延续。定位须对照原始日志时间、已提交snapshot与同输入旧包，不能凭截图归给当前玩法或窄窗口。显式作者stage命中会覆盖按窗口比例算的轨道宽度，但其BGA窗仍须避开固定HUD保留带；任一窗口失败按合同整组省略，不以放宽通用solver掩盖作者几何错误。
+
 公开instances.material可按同一选定包已解析Global/Stage Provide slot/resource挂载模板，解决BMS/mania及单双舞台的有限复用；不是任意条件或跨包scene继承。血槽用独立外框、暗格与clip.reveal-x亮格，GaugeHeight选定包默认0.036，静线0.07。parseInstances的target/material须二选一，不能同时列入validateFields required。真实DrawNode会拒绝未Masking的outline/shadow容器，单纯headless属性检查不能证明绘制成功；outline是矩形边框，不能当字形描边使用。
 
 material模板无slot子节点须在owner表面定位，不能仅覆盖Stage target后仍用整个playfield矩形，否则血槽会盖满音轨。显式target旧模板不改坐标语义。clip外包transform后必须将子节点挂到content mask，否则裁切只改变空容器；实际内置BMS/mania产品检查与图11共同取证。编辑含非ASCII字面量的测试文件须保持UTF-8，曾误改é为茅导致规范化路径冲突fixture失真，恢复原值后通过，不应放宽生产校验。

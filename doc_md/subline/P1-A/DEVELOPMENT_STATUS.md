@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-20（选曲与皮肤遗留软件问题收尾；原人工/发行门保持）
+> 最后核对：2026-10-20（Omni歌曲游标接入；原人工/发行门保持）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -24,7 +24,7 @@
 | 实时演奏信息 | 实时判定与断连统计、EX SCORE/HiSpeed、MIN/当前/MAX BPM；曲名、作者标级与独立的表名/表内等级 | 读取规则真实状态；表归类不替代作者难度，皮肤不改变判定/计分、时间或难度表导入 |
 | 皮肤布局与公共能力 | 共用作者声明可给真实stage/lane指定位置、留空槽及独立键区，不创建输入。BMS保留键区、血槽、信息区与最多16个 `BgaViewports`，逐窗 fit/fill/stretch 或 none | 显式field不被旧BGA自适应挪动/压缩，放不下整组零窗并诊断；9K/PMS不应用黑白轨比。BGA内容/时钟归[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，选歌/结算面未扩展 |
 | 作者制作与可选演出 | [完整套件](../../../skin-authoring/README.md)含从零制作、按可见元素查文件/尺寸/动画、INI/scene/script字段与预算、刷新打包步骤；First Scene、Reference Study和BGA Layout明确完整包与练习片段 | 主手册与图片随套件发行，无需源码仓库；历史实机图与素材示意已区分。新增例子的工具检查/打包和真实挂载已验证，详见作者能力记录。原编辑器可编辑已有组件并保存独立副本，完整scene/script没有可视化编辑器；不据手册代签视觉或旧三包演练 |
-| IIDX 与 BPL 第三方作品 | Lighting Model Skin Omni Until 33默认33；27～33及八支BPL为15种框体。主屏CUSTOM、25FC及尺寸/长度已接入，来源取[工具](../../../tools/IidxSkinAssets/README.md)。BMS5/7/14K、mania5/6/7/8/14/16K；作者布局支持1P/2P及真实双stage | 源00默认组合、动态框体/滤镜待校准。Graph为作者适配，LIFT跟随BMS原生几何；副屏及专属配置已移除。七队S5、SUPERNOVA S3高清；26来源待补。HDD只读；独立私下分享，不内置OMS或进入公开发行/制作套件；Until34不在范围 |
+| IIDX 与 BPL 第三方作品 | Lighting Model Skin Omni Until 33默认33；27～33及八支BPL为15种框体。主屏CUSTOM、25FC、尺寸/长度和各框体歌曲游标已接入，来源取[工具](../../../tools/IidxSkinAssets/README.md)。BMS5/7/14K、mania5/6/7/8/14/16K；作者布局支持1P/2P及真实双stage | 源00组合、动态框体/滤镜及原游戏进度算法待校准，部分DP末端按自身E标记适配。Graph为作者适配，LIFT跟随BMS原生几何；副屏已移除。七队S5、SUPERNOVA S3高清；26来源待补。HDD只读；独立私下分享，不内置OMS或进入公开发行/制作套件；Until34不在范围 |
 | 安装与发行 | 旧选择迁移证据保留；2026-10-03 候选已有便携/自定义根、恢复及同包覆盖启动证据，见 [P1-F](../P1-F/DEVELOPMENT_STATUS.md) | 生成物已按用户要求删除；实网下载、新作者独立演练、跨版本、独立账户非便携及设备/长期/公开发行门未新签收 |
 
 C2～C6共享同一 package/layout/material/scene publication、lease/detach 与脚本隔离合同；无游玩宿主的菜单也检查整包。授权撤销不扩大 reload 准入，具体合同只在[技术约束](TECHNICAL_CONSTRAINTS.md)维护。
@@ -33,9 +33,9 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-10-20收尾：组选曲收起保留组头，managed删除/恢复不再误拒绝目录index缓存时间刷新；开局布局拒绝/耗尽正常退出，未加载的mania画面完整释放，旧夹具维护。红绿与验证范围见[记录](CHANGELOG.md#2026-10-20选曲与皮肤遗留软件问题收尾)，原替换/外来文件保护保留。Omni包未改，本次无需重导入。
+2026-10-20歌曲游标：15框体×15玩法/键数/侧别组合实际Player通过，含暂停续播/重试；27/33/SUPERNOVA另有原生取景。保全、还原边界及27DP既有BGA问题取[记录](CHANGELOG.md#2026-10-20omni歌曲游标全框体适配)，需重导入。
 
-2026-10-20副屏移除见[验收](CHANGELOG.md#2026-10-20omni移除lightning副屏)，需重导入。
+同日较早的软件收尾与副屏移除分别取[软件记录](CHANGELOG.md#2026-10-20选曲与皮肤遗留软件问题收尾)、[作品记录](CHANGELOG.md#2026-10-20omni移除lightning副屏)，不刷新其验证。
 
 2026-10-19确认删除：选曲拒绝、隐藏音效收尾及managed卡片失效读取已修复；完整确认、失败恢复及同帧退出通过，见[记录](CHANGELOG.md#2026-10-19选曲设置确认删除修复)。
 
@@ -57,6 +57,10 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 当前风险与未完成项
 
+- 作者CLI单次动画数组异常原因未定；素材维度、LIFT/FC及完整顺序复查通过，见上方记录，未记为修复。
+
+- 27DP既有BGA窗口与底部保留区冲突，整组被省略；v11实际Player同码，16:9亦可能触发。该独立作者布局问题待修，其它SD框体尚待核；证据见上方游标记录。
+
 - Sayobot最近留存实站验收（2026-10-01）各公开线路转同一节点并在TLS握手失败；不据此断言节点持续故障。真实包、原bid/实际持久化MD5、混合包及稳定打开仍待补验，沿正常安全连接与手动重试路径验收。
 
 - 两站没有已确认的独立音乐试听服务；第一版试听沿入库后的本地选歌。远端含 bmson、24K/48K 或不被当前 classic 解码器支持的谱面，不因下载成功伪报可玩；部分包内谱面被原 importer 拒绝时保留成功入库事实。真实大包、网络慢/代理、常用窗口与完整歌曲听感仍需观察，整表/续传/跨重启任务不在当前能力内。
@@ -66,7 +70,6 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 - G1 held-root/journal不是filesystem transaction，foreign addition/replacement可导致冻结；未知旧记录及无完整恢复证据的intent不猜测迁移。旧保存根事故只有事后保全，不追溯宣称无损。
 - BmsBeatmapDecoderOptions.KeymodeOverride只是host/importer seam，普通loader无用户纠正UI；证据不足的sparse .bms/.bml仍拒绝，该缺口归P1-K。
 - BGA内容/seek/decoder归P1-L；本轮会话与作者窗口改动不关闭逐谱视觉门。输入与设备归P1-B/D，真实LN/音频和发行验收仍见对应子线。
-- 按模式/键数选择与配置不改变判定、输入、BGA内容或布局authority；视觉验收仍按原V-001～V-005门执行。
 
 ## 文档治理验证
 
