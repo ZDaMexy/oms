@@ -332,6 +332,7 @@ C7 必要信息补齐：公开 `score.accuracy` 和 `timing.progress` 数值均�
 1. `GameplaySkinPreparedPackage` 在三源初次选择/Reload 的后台阶段完成 layout-independent manifest/scene/script/全部资源验证及有界解码，exact Skin 缓存同一 immutable 结果；没有 gameplay participant 的 Settings 路径也不得跳过验证。`GameplaySkinPreparedScene` 在同一 C2 work lease 内结合 C3 layout，包含 immutable graph、compiled animation/state/binding/script program、resource metadata/decoded texture、template expansion、初始 event state及 exact authorization token；renderer 只消费此 output，不重复 IO/parse。固定层级为 Background/Underlay/Object/GameplayEffects/Overlay/HudForeground，z-order、anchor/origin、size/scale、clip/mask、blend、DPI/safe-area、stage/group/lane/HUD/BGA target 与 layout-relative 坐标必须显式且只来自 C3 exact layout。
 2. runtime 支持 frame animation、tween/track（Step/Linear/In/Out/InOut）、state machine、只读 property binding 与受预算 template/instance。binding 只读 engine event/state，不能改变判定、分数、对象、input、clock、BGA timeline 或 gameplay binding authority。scene/slot 单节点故障只回退该 scene/slot；不得破坏 gameplay、layout、material 或跨 revision publication。
 3. scene/event host与prepared resource必须接入[C2 publication](#c2-current-revision与publication)的3m～3m5完整participant/lease、attach/detach、取消/故障/shutdown协议，不新增scene专用提交或回收authority。
+4. Mania单点和长条头尾由原生组件提供滚动对象的AutoSize高度；作者接管或Suppress只隐藏原美术，不能让该尺寸来源退出布局。相对尺寸作者节点不能反向撑起父对象，不引入皮肤专属常量高度。不同玩法的原生载体尺寸由作者分别换算，不能把某包的BMS比例推广到mania或其它皮肤。
 
 ### 唯一只读event stream / Snapshot-Reset
 

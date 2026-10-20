@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-20（Omni歌曲游标接入；原人工/发行门保持）
+> 最后核对：2026-10-20（mania作者音符可见性修复；原人工/发行门保持）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -33,17 +33,13 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
+2026-10-20mania作者音符：接管后单点/长条头尾零高已修复，Omni另分玩法换算尺寸。三源红绿、双玩法完整回归、Core专项与Release通过；13组原生Player核逐轨三槽与117帧，详见[记录](CHANGELOG.md#2026-10-20mania作者音符可见性与omni尺寸修复)。需重编/重启并重导入；不代签FPS或原谱。
+
 2026-10-20歌曲游标：15框体×15玩法/键数/侧别组合实际Player通过，含暂停续播/重试；27/33/SUPERNOVA另有原生取景。保全、还原边界及27DP既有BGA问题取[记录](CHANGELOG.md#2026-10-20omni歌曲游标全框体适配)，需重导入。
 
-同日较早的软件收尾与副屏移除分别取[软件记录](CHANGELOG.md#2026-10-20选曲与皮肤遗留软件问题收尾)、[作品记录](CHANGELOG.md#2026-10-20omni移除lightning副屏)，不刷新其验证。
-
-2026-10-19确认删除：选曲拒绝、隐藏音效收尾及managed卡片失效读取已修复；完整确认、失败恢复及同帧退出通过，见[记录](CHANGELOG.md#2026-10-19选曲设置确认删除修复)。
+同日较早的软件收尾、副屏移除及此前确认删除分别取[软件记录](CHANGELOG.md#2026-10-20选曲与皮肤遗留软件问题收尾)、[作品记录](CHANGELOG.md#2026-10-20omni移除lightning副屏)、[删除记录](CHANGELOG.md#2026-10-19选曲设置确认删除修复)，不刷新其验证。
 
 2026-10-19目录/池化修复：实测消除399.05MiB重复驻留；Core、双玩法全量与旧失败对照取[证据](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#内存压力下的驻留与音符复用修复)。后台短测不代签前台/空闲对照；本次无需重导入。
-
-2026-10-19光柱修正需重导入；BMS7/14K、mania7/16K实绘与Player通过，宽组合未全验，见[记录](CHANGELOG.md#2026-10-19omni光柱层级修正)。
-
-较早动画/编辑器及原包证据取[游玩审查](../../other/GAMEPLAY_REVIEW_20261019.md#验证证据)，不刷新其Xecus/全量或设备/发行门。
 
 同日较早图库主体/箭头与原Xecus首帧修复证据见[记录](CHANGELOG.md#2026-10-19配置图库入口与xecus崩溃修复)，BGA根因归[P1-L](../P1-L/CHANGELOG.md#2026-10-19真实xecus首帧崩溃修复)。工作区窗口待用户复核。
 
@@ -59,7 +55,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 - 作者CLI单次动画数组异常原因未定；素材维度、LIFT/FC及完整顺序复查通过，见上方记录，未记为修复。
 
-- 27DP既有BGA窗口与底部保留区冲突，整组被省略；v11实际Player同码，16:9亦可能触发。该独立作者布局问题待修，其它SD框体尚待核；证据见上方游标记录。
+- 27DP既有BMS BGA窗口与底部保留区冲突，整组被省略；v11实际Player同码，16:9亦可能触发。该独立作者布局问题待修，其它SD框体尚待核；证据见上方游标记录。
 
 - Sayobot最近留存实站验收（2026-10-01）各公开线路转同一节点并在TLS握手失败；不据此断言节点持续故障。真实包、原bid/实际持久化MD5、混合包及稳定打开仍待补验，沿正常安全连接与手动重试路径验收。
 

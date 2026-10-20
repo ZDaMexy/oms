@@ -282,6 +282,14 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Assert.That(visual.ChildrenOfType<Sprite>().Any(sprite => sprite.Texture != null), Is.True);
                 Assert.That(wrapper.Alpha, Is.Zero);
             }));
+            AddWaitStep("allow native note wrappers to finish pooled preparation", 2);
+            AddStep("assert author replacements retain real note and hold geometry", () => Assert.Multiple(() =>
+            {
+                assertSpecialisedObjectGeometry(renderer.NoteDrawable!, "headPiece");
+                assertSpecialisedObjectGeometry(renderer.HoldDrawable!.Head, "headPiece");
+                assertSpecialisedObjectGeometry(renderer.HoldDrawable!.Tail, "headPiece");
+                assertSpecialisedObjectGeometry(renderer.HoldDrawable!, "bodyPiece");
+            }));
             AddStep("press the real mania lane", () =>
             {
                 ManiaAction action = renderer.FirstColumn.Action.Value;
@@ -3306,6 +3314,34 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
 
         private static bool containsTexture(Drawable root, Texture texture)
             => root.ChildrenOfType<Sprite>().Any(sprite => ReferenceEquals(sprite.Texture, texture));
+
+        private static void assertSpecialisedObjectGeometry(Drawable nativeObject, string wrapperField)
+        {
+            string label = nativeObject.GetType().Name;
+            var pooled = (PoolableDrawable)nativeObject;
+            var wrapper = getPrivateField<SkinnableDrawable>(nativeObject, wrapperField);
+            var owner = getPrivateField<Container>(nativeObject, "specialisedSceneOwner");
+            var visual = getPrivateField<GameplaySkinSpecialisedSceneVisual>(nativeObject, "specialisedSceneVisual");
+            Sprite[] sprites = [.. visual.RuntimeNodes.Select(node => node.ContentDrawable).OfType<Sprite>().Where(sprite => sprite.Texture != null)];
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(pooled.IsInPool, Is.True, $"{label} must remain owned by its production pool.");
+                Assert.That(pooled.IsInUse, Is.True, $"{label} must have an active production lease.");
+                Assert.That(visual.IsApplied, Is.True, $"{label} must have applied its author replacement.");
+                Assert.That(wrapper.Alpha, Is.Zero, $"{label} must keep the replaced native artwork hidden.");
+                // Hidden legitimately changes opacity. The engine-owned geometry must remain usable independently.
+                Assert.That(nativeObject.DrawHeight, Is.GreaterThan(0), $"{label} must retain its native scrolling height after replacement.");
+                Assert.That(owner.DrawHeight, Is.GreaterThan(0), $"{label} must provide a nonzero local height to its author scene.");
+                Assert.That(sprites, Is.Not.Empty, $"{label} must contain the real prepared author texture.");
+
+                foreach (Sprite sprite in sprites)
+                {
+                    Assert.That(sprite.ScreenSpaceDrawQuad.AABBFloat.Width, Is.GreaterThan(0), $"{label} author texture must have screen width.");
+                    Assert.That(sprite.ScreenSpaceDrawQuad.AABBFloat.Height, Is.GreaterThan(0), $"{label} author texture must have screen height.");
+                }
+            });
+        }
 
         private static T getPrivateField<T>(object instance, string fieldName)
         {

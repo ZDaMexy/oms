@@ -26,6 +26,9 @@ from choice_previews import (MODULES as PREVIEW_MODULES, audit_previews, build_c
 from music_progress import (RESOURCE_PATH as MUSIC_PROGRESS_RESOURCE_PATH,
                             apply_to_author as add_music_progress, inject as inject_music_progress,
                             load_reference as load_music_progress_reference)
+from note_geometry import (ALIASES as NOTE_MARKER_ALIASES, apply_to_author as correct_note_geometry,
+                           correct_ini as correct_note_ini, correct_scene as correct_note_scene,
+                           marker_dimensions as note_marker_dimensions)
 
 NAME = "Lighting Model Skin Omni Until 33"
 MANIFEST_CONTRACT = "oms-gameplay-skin-manifest.v1"
@@ -1035,6 +1038,12 @@ def expected_progress_contributions(source: Path, catalog, reference):
 def verify_repackage(source: Path, output: Path, files, progress_reference=None):
     original_files = package_closure(source)
     original_catalog = read_json(source / "gameplay/content.json")
+    note_categories = {"n" if module["id"] == "notes" else "c" for module in original_catalog["modules"]
+                       if module["id"] in ("notes", "charge-notes")}
+    note_aliases = {marker: alias for marker, alias in NOTE_MARKER_ALIASES.items() if marker.split("/")[2] in note_categories}
+    note_inis = {part["ini"] for module in original_catalog["modules"] if module["id"] in ("notes", "charge-notes")
+                 for choice in module["choices"] for part in (choice, *choice.get("variants", []))}
+    note_dimensions = note_marker_dimensions(source, note_aliases) if note_inis else {}
     expected_catalog = copy.deepcopy(original_catalog)
     expected_catalog["modules"] = [item for item in expected_catalog["modules"] if item["id"] not in AUXILIARY_MODULES]
     retained_source_catalog = copy.deepcopy(expected_catalog)
@@ -1069,11 +1078,13 @@ def verify_repackage(source: Path, output: Path, files, progress_reference=None)
     expected_root_ini = remove_auxiliary_ini(correct_root_ini_target(original_root_ini))
     retained_files = package_closure(source, {"skin.ini": expected_root_ini.decode("utf-8"),
         "gameplay-skin.json": expected_root, "gameplay/content.json": retained_source_catalog})
-    added_resources = {MUSIC_PROGRESS_RESOURCE_PATH} if progress_reference is not None else set()
+    added_progress_resources = {MUSIC_PROGRESS_RESOURCE_PATH} if progress_reference is not None else set()
+    note_alias_files = {alias + ".png" for alias in note_aliases.values()}
+    added_resources = added_progress_resources | note_alias_files
     if set(files) != {mappings.get(path, path) for path in retained_files} | preview_files(expected_catalog) | added_resources:
         raise ValueError("Repackaging changed the retained main-screen closure beyond its exact previews and progress cursor")
     unchanged, byte_equal_scenes = 0, 0
-    corrected_scenes, corrected_frame_inis, corrected_beam_inis = [], [], []
+    corrected_scenes, corrected_frame_inis, corrected_beam_inis, corrected_note_inis = [], [], [], []
     progress_scene_paths = []
     frame_inis = set(frame_ini_paths(original_catalog))
     beam_inis = set(beam_ini_paths(original_catalog))
@@ -1104,13 +1115,22 @@ def verify_repackage(source: Path, output: Path, files, progress_reference=None)
             if changed:
                 corrected_beam_inis.append({"path": relative, "declarationsChanged": changed})
                 continue
+        if relative in note_inis:
+            original_ini = exact_file(source, relative).read_bytes()
+            expected_ini, changes = correct_note_ini(original_ini)
+            if exact_file(output, destination).read_bytes() != expected_ini:
+                raise ValueError(f"Repackaging changed a Note/CN INI beyond Mania carrier resource selection: {relative}")
+            if expected_ini != original_ini:
+                corrected_note_inis.append({"path": relative, **changes})
+                continue
         if relative in scenes:
             expected_scene = read_json(exact_file(source, relative))
             changes = correct_scene_author_contracts(expected_scene)
             if relative in progress_scenes:
                 expected_scene = progress_scenes[relative]
+            note_changes = correct_note_scene(expected_scene, note_dimensions)
             if read_json(exact_file(output, destination)) != expected_scene:
-                raise ValueError(f"Repackaging changed a scene beyond verified declaration repairs and music progress: {relative}")
+                raise ValueError(f"Repackaging changed a scene beyond verified declaration, progress and Mania carrier repairs: {relative}")
             if relative in progress_scenes:
                 progress_scene_paths.append(destination)
                 if any(changes.values()):
@@ -1119,12 +1139,18 @@ def verify_repackage(source: Path, output: Path, files, progress_reference=None)
             if any(changes.values()):
                 corrected_scenes.append({"path": relative, **changes})
                 continue
+            if note_changes.get("changed"):
+                corrected_scenes.append({"path": relative, "maniaNoteGeometry": note_changes})
+                continue
         if exact_file(source, relative).read_bytes() != exact_file(output, destination).read_bytes():
             raise ValueError(f"Repackaging changed original media, animation, INI or scene bytes: {relative}")
         if relative in scenes:
             byte_equal_scenes += 1
         else:
             unchanged += 1
+    for marker, alias in note_aliases.items():
+        if exact_file(source, marker + ".png").read_bytes() != exact_file(output, alias + ".png").read_bytes():
+            raise ValueError(f"A Mania carrier alias changed original default marker pixels: {alias}")
     return {"source": str(source), "unchangedPathAndBytes": unchanged, "relocatedByteEqualScenes": byte_equal_scenes,
             "manifestsCheckedForFixedSceneHeader": len(manifests), "manifestSceneHeader": SCENE_HEADER_FILE,
             "actualSceneAuthority": "C2 catalog contribution.scene",
@@ -1134,8 +1160,9 @@ def verify_repackage(source: Path, output: Path, files, progress_reference=None)
             "retainedPngClipAndOtherIniBytesPreserved": True,
             "frameIniScopeCorrections": corrected_frame_inis,
             "beamIniLayerCorrections": corrected_beam_inis,
+            "maniaNoteGeometry": {"iniCorrections": corrected_note_inis, "byteEqualMarkerAliases": sorted(note_alias_files)},
             "sceneContractCorrections": corrected_scenes, "otherSceneFieldsPreserved": True,
-            "musicProgress": {"scenePaths": progress_scene_paths, "addedResourcePaths": sorted(added_resources)},
+            "musicProgress": {"scenePaths": progress_scene_paths, "addedResourcePaths": sorted(added_progress_resources)},
             "rootIniCorrection": {"changed": original_root_ini != expected_root_ini,
                 "permittedChanges": [ROOT_GLOBAL_TARGET, "remove hud.auxiliary and hud.auxiliary-concentration"],
                 "beforeSha256": hashlib.sha256(original_root_ini).hexdigest(), "afterSha256": hashlib.sha256(expected_root_ini).hexdigest()}}
@@ -1167,11 +1194,13 @@ def prepare_package(output: Path, receipt, repackage_source: Path | None = None,
     receipt["sceneContractCorrections"] = correct_scene_files(output)
     receipt["frameDecorationScopeCorrections"] = correct_frame_ini_scopes(output)
     receipt["beamLayerCorrections"] = correct_beam_material_files(output)
+    receipt["maniaNoteGeometry"] = correct_note_geometry(output)
     receipt["graphStatistics"]["readoutLayout"] = graph_readout_receipt()
     receipt["choicePreviews"] = build_choice_previews(output)
     if progress_reference is not None:
         receipt["songProgress"] = add_music_progress(output, progress_reference)
-    if (receipt["sceneContractCorrections"]["changedScenes"] or receipt.get("songProgress", {}).get("changedJson")) and "codecValidation" in receipt:
+    if (receipt["sceneContractCorrections"]["changedScenes"] or receipt.get("songProgress", {}).get("changedJson")
+            or receipt["maniaNoteGeometry"].get("changedScenes")) and "codecValidation" in receipt:
         receipt["sourceCodecValidation"] = receipt.pop("codecValidation")
         receipt["codecValidation"] = {"status": "pending", "reason": "Author scene declarations changed; the source package codec receipt is historical evidence only"}
     files = package_closure(output)

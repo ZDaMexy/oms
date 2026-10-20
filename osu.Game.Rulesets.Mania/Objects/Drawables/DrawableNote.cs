@@ -119,7 +119,12 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
                     specialisedSceneVisual = sceneRuntime.PrepareSpecialisedVisual(ResolvedMaterialKey, specialisedSceneOwner);
 
                 if (gate.Route == GameplaySkinSceneHostRoute.Suppressed || specialisedSceneVisual != null)
+                {
+                    // The hidden native piece still supplies the scrolling object's auto-sized height.
+                    // Its relative-sized author replacement cannot size that parent itself.
+                    headPiece.AlwaysPresent = true;
                     programmaticVisualRegistration = sceneRuntime.RegisterProgrammaticVisual(ResolvedMaterialKey, headPiece);
+                }
 
                 if (specialisedSceneVisual != null)
                 {

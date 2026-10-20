@@ -11,6 +11,8 @@ using osu.Framework.Allocation;
 using osu.Framework.Configuration;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Pooling;
+using osu.Framework.Graphics.Sprites;
 using osu.Framework.Platform;
 using osu.Framework.Testing;
 using osu.Game.Database;
@@ -20,9 +22,11 @@ using osu.Game.Overlays.Settings;
 using osu.Game.Overlays.Settings.Sections;
 using osu.Game.Rulesets.Mania.Beatmaps;
 using osu.Game.Rulesets.Mania.Objects;
+using osu.Game.Rulesets.Mania.Objects.Drawables;
 using osu.Game.Rulesets.Mania.UI;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Scoring;
+using osu.Game.Rulesets.UI.Scrolling;
 using osu.Game.Screens.Play;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
@@ -49,6 +53,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         private int columns;
         private bool dual;
         private readonly Dictionary<string, (float Width, float Height)> effectGeometry = new Dictionary<string, (float, float)>();
+        private readonly Dictionary<string, object> noteGeometry = new Dictionary<string, object>();
 
         public override bool AutomaticallyRunFirstStep => false;
 
@@ -289,13 +294,18 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 content.Add(Game);
                 Game.Notifications.Hide();
             });
-            foreach (int time in new[] { 2600, 3600, 5200, 6800, 10000 })
+            bool verifyNotes = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_NOTE_GEOMETRY") == "omni";
+            foreach (int time in verifyNotes ? new[] { 1850, 2600, 3250, 3600, 4100, 4300, 5200, 6800, 10000 } : new[] { 2600, 3600, 5200, 6800, 10000 })
             {
                 int sample = time;
                 AddUntilStep("play naturally to " + sample, () => renderer.GameplaySkinEventRuntime!.AuthoritativeGameplayTime >= sample);
+                if (verifyNotes)
+                    AddWaitStep("settle visible pooled note layout", 2);
                 AddStep("verify scene and capture framebuffer", () =>
                 {
                     Assert.That(renderer.GameplaySkinSceneRuntime!.RuntimeFaults, Is.Empty);
+                    if (verifyNotes)
+                        recordNoteGeometry();
                     capture = save(sample);
                 });
                 AddUntilStep("wait for PNG", () => capture?.IsCompleted == true);
@@ -305,6 +315,14 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddAssert("autoplay produced real score and combo", () => score.TotalScore.Value > 0 && score.HighestCombo.Value > 0);
             AddUntilStep("normal results transition", () => !ReferenceEquals(Game.ScreenStack.CurrentScreen, player));
             AddAssert("no scene runtime faults", () => renderer.GameplaySkinSceneRuntime!.RuntimeFaults.Count == 0);
+            if (verifyNotes)
+            {
+                AddStep("verify each lane rendered single notes and both hold caps", () =>
+                {
+                    File.WriteAllText(Path.Combine(output, "note-geometry.json"), System.Text.Json.JsonSerializer.Serialize(noteGeometry));
+                    Assert.That(noteGeometry.Count, Is.EqualTo(columns * (dual ? 2 : 1) * 3));
+                });
+            }
             AddStep("verify original effect geometry in the actual native host", () =>
             {
                 if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_EFFECT_GEOMETRY") != "1")
@@ -320,6 +338,69 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 File.WriteAllText(Path.Combine(output, "effect-geometry.json"), System.Text.Json.JsonSerializer.Serialize(
                     effectGeometry.Select(pair => new { source = pair.Key, pair.Value.Width, pair.Value.Height, scale })));
             });
+        }
+
+        private void recordNoteGeometry()
+        {
+            GameplaySkinSceneRuntimeHost runtime = renderer.GameplaySkinSceneRuntime!;
+            GameplaySkinOptionValues options = runtime.Publication.Snapshot.Context.OptionValues;
+            double noteScale = options.Values["notes"].StringValue == "n11"
+                ? options.Values["note-size"].StringValue switch
+                {
+                    "long" => 1.25,
+                    "short" => 0.75,
+                    "veryshort" => 0.5,
+                    _ => 1,
+                } : 1;
+
+            foreach (DrawableNote note in renderer.ChildrenOfType<DrawableNote>().Where(note => ((PoolableDrawable)note).IsInUse))
+            {
+                GameplaySkinSpecialisedSceneVisual? visual = note.ChildrenOfType<GameplaySkinSpecialisedSceneVisual>().SingleOrDefault();
+                if (visual?.IsApplied != true)
+                    continue;
+
+                var scroller = (ScrollingHitObjectContainer)renderer.Playfield.Stages.SelectMany(stage => stage.Columns)
+                    .ElementAt(note.HitObject.Column).HitObjectContainer;
+                var position = scroller.ScreenSpacePositionAtTime(note.HitObject.StartTime);
+                var viewport = scroller.ScreenSpaceDrawQuad.AABBFloat;
+                // A leased hold may preload its off-screen tail without updating its culled Sprite subtree yet.
+                // Pick objects inside the engine's scrolling viewport independently of the artwork's own size.
+                if (position.Y <= viewport.Top + 30 || position.Y >= viewport.Bottom - 30)
+                    continue;
+
+                Sprite sprite = visual.RuntimeNodes.Select(node => node.ContentDrawable).OfType<Sprite>().Single(sprite => sprite.Texture != null);
+                Container canvas = runtime.Layers.Get(visual.RuntimeNodes.Single().PreparedNode.Layer);
+                var quad = sprite.ScreenSpaceDrawQuad;
+                var topLeft = canvas.ToLocalSpace(quad.TopLeft);
+                var bottomRight = canvas.ToLocalSpace(quad.BottomRight);
+                double width = (bottomRight.X - topLeft.X) / canvas.DrawWidth * 1920;
+                double height = (bottomRight.Y - topLeft.Y) / canvas.DrawHeight * 1080;
+                double expectedHeight = sprite.Texture!.DisplayHeight * (visual.Key.Slot == GameplaySkinSlotCatalog.Note ? noteScale : 1);
+                string key = visual.Key.Target.LaneId!.Value + "/" + visual.Key.Slot.Id;
+                var geometry = new
+                {
+                    width,
+                    height,
+                    expectedHeight,
+                    nativeHeight = note.DrawHeight,
+                    spriteHeight = sprite.DrawHeight,
+                    source = visual.RuntimeNodes.Single().PreparedNode.Source.Id,
+                    startTime = note.HitObject.StartTime,
+                    currentTime = renderer.GameplaySkinEventRuntime!.AuthoritativeGameplayTime,
+                    positionY = position.Y,
+                    viewportTop = viewport.Top,
+                    viewportBottom = viewport.Bottom,
+                };
+                File.WriteAllText(Path.Combine(output, "note-current-sample.json"), System.Text.Json.JsonSerializer.Serialize(new { key, geometry }));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(note.DrawHeight, Is.GreaterThan(0), key + " native layout height");
+                    Assert.That(width, Is.GreaterThan(0), key + " screen width");
+                    Assert.That(height, Is.EqualTo(expectedHeight).Within(0.05), key + " original PNG height at 1080p");
+                    Assert.That(visual.Alpha, Is.GreaterThan(0), key + " author scene visibility");
+                });
+                noteGeometry[key] = geometry;
+            }
         }
 
         private void recordBeamLayer(bool verify)

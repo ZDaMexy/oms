@@ -62,6 +62,7 @@ metadata:
 - 测试复现要包括窄/宽 aspect、DPI、safe-area 与 14K 双 field/scratch/gap/BGA/HUD；普通 7K 正常不证明这些关系。
 - 显式作者矩形允许小于一像素的高度，判定线须限制到实际field高度再Clamp；Union会带来float减法误差，几何断言用合理容差。scene的RootDrawables是ownership wrapper，可见绑定写RuntimeNode.TransformDrawable；检查键灯时按源节点ID选中实际transform，验证原生松开→按下→松开，不能凭wrapper的Alpha证明输入响应。
 - 同一specialised槽名不保证不同规则集的原生owner尺寸一致。BMS爆炸填命中区，mania爆炸填ColumnHitObjectArea有效全列；移植作者模板时须按实际host核世界尺寸，不能为了某作品修改公共host。首帧可能尚未布局，取有效实绘矩形并核宽高/命中锚点；素材与runtime无诊断仍可能出现成屏拉伸。
+- Mania的DrawableNote以原生headPiece AutoSize Y撑高，替换将其Alpha归零后会退出布局；相对Both的作者owner也随之零高。长条头尾继承同一路径，body显式计算长度仍可见。仅检查IsApplied、纹理引用和Alpha会漏掉此错，pool等待准备的首帧也可能暂时遮蔽；须等后续更新核真实DrawHeight及Sprite屏幕矩形，再核源像素尺寸，见[P1-A合同](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#shared-prepared-graph与runtime)。
 - 完整 host 在 child load 前通过 enclosing exact dependency scope 完成 publication。无 publication/material 不临时借 compatibility/default geometry 或 post-commit fallback。
 - prepared carrier 只属于签发 owner；另一 owner carrier、同 root 第二 provider、compatibility→exact 升级、adapter 未引用 exact neutral snapshot 都属于 authority 违约。
 - isolated compatibility 是显式 detached test seam，也应一次构造完整 graph；不能先让真实 provider 可见，再升级。
