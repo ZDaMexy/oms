@@ -81,6 +81,51 @@ namespace osu.Game.Tests.Visual.Gameplay
             checkClicksPerSecondValue(6);
         }
 
+        [Test]
+        public void TestSimultaneousInputsOnTheWindowBoundary()
+        {
+            seek(1000);
+            AddStep("add simultaneous inputs at both boundaries", () => addInputs(new double[] { -1, 0, 0, 500, 1000, 1000 }));
+            checkClicksPerSecondValue(5);
+            seek(1001);
+            checkClicksPerSecondValue(3);
+        }
+
+        [Test]
+        public void TestAnInputImmediatelyAfterRewindDiscardsFutureHistory()
+        {
+            seek(1000);
+            AddStep("record original inputs", () => addInputs(new double[] { 0, 250, 500, 750, 1000 }));
+            checkClicksPerSecondValue(5);
+            AddStep("rewind and press before the counter updates", () =>
+            {
+                seekClockImmediately(500);
+                controller.AddInputTimestamp();
+            });
+            checkClicksPerSecondValue(4);
+            seek(1000);
+            checkClicksPerSecondValue(4);
+        }
+
+        [Test]
+        public void TestLongPlayKeepsTheSameWindowAndRewindCounts()
+        {
+            seek(100000);
+            AddStep("record a long session", () =>
+            {
+                for (int time = 0; time <= 100000; time++)
+                {
+                    seekClockImmediately(time);
+                    controller.AddInputTimestamp();
+                }
+            });
+            checkClicksPerSecondValue(1001);
+            seek(50000);
+            checkClicksPerSecondValue(1001);
+            seek(100000);
+            checkClicksPerSecondValue(0);
+        }
+
         private void checkClicksPerSecondValue(int i) => AddAssert("clicks/s is correct", () => controller.Value, () => Is.EqualTo(i));
 
         private void seekClockImmediately(double time) => manualGameplayClock.CurrentTime = time;

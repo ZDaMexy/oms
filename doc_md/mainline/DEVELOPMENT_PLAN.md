@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后核对：2026-10-19（游玩审查后接续真实体验验收；原产品与发行门保持）
+> 最后核对：2026-10-21（输入专项后接续真实设备验收；原产品与发行门保持）
 > 本页维护全局顺序、跨线依赖和改动验收；当前事实见[STATUS](DEVELOPMENT_STATUS.md)，专项动作从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 当前目标
@@ -58,7 +58,7 @@ TOTAL 的作者声明、家族缺省与新旧成绩版本合同由 [P1-C](../sub
 | 子线 | 下一动作与依赖 |
 | --- | --- |
 | P1-J/P1-K | 保持C3 lane/keymode/shared-store authority，验收手动转谱长条、暂停续播与自动键音听感；极端dense治理须有现场证据 |
-| P1-B/P1-D | analog scratch跨设备edge/hold、真实HID、deadzone/sensitivity、模式说明与live diagnostics；只向皮肤提供只读状态 |
+| P1-B/P1-D | 以[输入专项](../other/INPUT_SIGNAL_REVIEW_20261021.md)为软件输入，验真实窗口/实体设备的轴校准、连皿/长皿、热插拔及同型号设备；只向皮肤提供只读状态 |
 | P1-C/P1-E | 保持判定parity；验收LN/CN/HCN、长BGM、密集键音和各keymode组合，不恢复已删除常驻反馈卡 |
 | P1-I | 单轨上限段已实现；完成真实拖拽手感、窄窗口及大库体验验收 |
 | P1-L/P1-G | 验收游戏持有的BGA会话与作者窗口在真实素材、窗口/DPI和长时下的表现；反向滚动缺口保留，汇总皮肤/输入/长条/选歌/BGA人工release清单 |

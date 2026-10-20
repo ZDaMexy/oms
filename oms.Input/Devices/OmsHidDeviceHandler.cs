@@ -44,11 +44,32 @@ namespace oms.Input.Devices
 
         public int Delta { get; }
 
+        public int? Value { get; }
+
+        public int? Minimum { get; }
+
+        public int? Maximum { get; }
+
+        public bool IsRelative { get; }
+
         public OmsHidAxisChange(string deviceIdentifier, int axisIndex, int delta)
         {
             DeviceIdentifier = OmsHidDeviceIdentifier.Normalize(deviceIdentifier);
             AxisIndex = axisIndex;
             Delta = delta;
+            Value = Minimum = Maximum = null;
+            IsRelative = true;
+        }
+
+        public OmsHidAxisChange(string deviceIdentifier, int axisIndex, int delta, int value, int? minimum, int? maximum, bool isRelative)
+        {
+            DeviceIdentifier = OmsHidDeviceIdentifier.Normalize(deviceIdentifier);
+            AxisIndex = axisIndex;
+            Delta = delta;
+            Value = value;
+            Minimum = minimum;
+            Maximum = maximum;
+            IsRelative = isRelative;
         }
     }
 
@@ -66,23 +87,37 @@ namespace oms.Input.Devices
 
         public OmsHidAxisChange AxisChange { get; }
 
-        private OmsHidDeviceChange(OmsHidDeviceChangeKind kind, OmsHidButtonChange buttonChange = default, OmsHidAxisChange axisChange = default)
+        public uint? NativeTimestamp { get; }
+
+        public uint? NativeSequence { get; }
+
+        public long? ReceivedTimestamp { get; }
+
+        private OmsHidDeviceChange(OmsHidDeviceChangeKind kind, OmsHidButtonChange buttonChange = default, OmsHidAxisChange axisChange = default,
+                                  uint? nativeTimestamp = null, uint? nativeSequence = null, long? receivedTimestamp = null)
         {
             Kind = kind;
             ButtonChange = buttonChange;
             AxisChange = axisChange;
+            NativeTimestamp = nativeTimestamp;
+            NativeSequence = nativeSequence;
+            ReceivedTimestamp = receivedTimestamp;
         }
 
-        public static OmsHidDeviceChange Button(OmsHidButtonChange change)
-            => new OmsHidDeviceChange(OmsHidDeviceChangeKind.Button, buttonChange: change);
+        public static OmsHidDeviceChange Button(OmsHidButtonChange change, uint? nativeTimestamp = null, uint? nativeSequence = null, long? receivedTimestamp = null)
+            => new OmsHidDeviceChange(OmsHidDeviceChangeKind.Button, buttonChange: change,
+                nativeTimestamp: nativeTimestamp, nativeSequence: nativeSequence, receivedTimestamp: receivedTimestamp);
 
-        public static OmsHidDeviceChange Axis(OmsHidAxisChange change)
-            => new OmsHidDeviceChange(OmsHidDeviceChangeKind.Axis, axisChange: change);
+        public static OmsHidDeviceChange Axis(OmsHidAxisChange change, uint? nativeTimestamp = null, uint? nativeSequence = null, long? receivedTimestamp = null)
+            => new OmsHidDeviceChange(OmsHidDeviceChangeKind.Axis, axisChange: change,
+                nativeTimestamp: nativeTimestamp, nativeSequence: nativeSequence, receivedTimestamp: receivedTimestamp);
     }
 
     public interface IOmsHidButtonDevice : IDisposable
     {
         string Identifier { get; }
+
+        IReadOnlyList<string> BindingAliases => Array.Empty<string>();
 
         bool IsConnected { get; }
 
@@ -118,14 +153,22 @@ namespace oms.Input.Devices
 
         internal static string FromDirectInputDevice(int vendorId, int productId, string? interfacePath, Guid instanceGuid)
         {
+            if (instanceGuid != Guid.Empty)
+                return Normalize($"dinput:instance_{instanceGuid:N}");
+
+            if (!string.IsNullOrWhiteSpace(interfacePath))
+                return Normalize($"hid:path_{interfacePath}");
+
+            return string.Empty;
+        }
+
+        internal static string LegacyFromDirectInputDevice(int vendorId, int productId, string? interfacePath)
+        {
             if (vendorId > 0 || productId > 0)
                 return ForVendorProduct(vendorId, productId, TryExtractSerialFromInterfacePath(interfacePath));
 
             if (tryParseVendorProductFromInterfacePath(interfacePath, out int parsedVendorId, out int parsedProductId))
                 return ForVendorProduct(parsedVendorId, parsedProductId, TryExtractSerialFromInterfacePath(interfacePath));
-
-            if (instanceGuid != Guid.Empty)
-                return Normalize($"dinput:instance_{instanceGuid:N}");
 
             return string.Empty;
         }
@@ -186,19 +229,142 @@ namespace oms.Input.Devices
         private readonly HashSet<string> boundDeviceIdentifiers;
         private readonly Dictionary<string, IOmsHidButtonDevice> devicesByIdentifier = new Dictionary<string, IOmsHidButtonDevice>(StringComparer.Ordinal);
         private readonly Dictionary<string, HashSet<int>> activeButtonsByDevice = new Dictionary<string, HashSet<int>>(StringComparer.Ordinal);
+        private readonly Dictionary<string, string[]> bindingIdentifiersByDevice = new Dictionary<string, string[]>(StringComparer.Ordinal);
         private readonly IOmsHidButtonDeviceProvider? deviceProvider;
         private readonly Func<long> getTimestamp;
         private readonly List<KeyValuePair<string, IOmsHidButtonDevice>> pollingDevices;
         private readonly List<IOmsHidButtonDevice> retiredDevices;
+        private readonly Action<OmsAction> pressAction;
+        private readonly Action<OmsAction> releaseAction;
+        private readonly Action<OmsAxisMotion>? acceptedMotion;
+        private readonly Dictionary<OmsAction, int> appliedReferences = new Dictionary<OmsAction, int>();
+        private Action<OmsHidInputEvent>? capture;
+        private bool suppressDelivery;
 
         private volatile bool devicesDirty = true;
         private Task<DeviceDiscoverySnapshot?>? discoveryTask;
         private long nextDeviceRefresh;
+        private bool hasUnresolvedBindings = true;
+        private bool usesLegacyAliases;
+        private bool discardNextPoll;
         private bool isDisposed;
 
         public int ConnectedDeviceCount => devicesByIdentifier.Count;
 
         public bool HasBoundDevices => boundDeviceIdentifiers.Count > 0;
+
+        public event Action<string>? DeviceDisconnected;
+
+        public void UpdateAxes(double gameplayTime)
+        {
+            hidAxisInputHandler.FinishPolling();
+            hidAxisInputHandler.Update(gameplayTime);
+            hidAxisInputHandler.FinishPolling();
+        }
+
+        public void ResetAxes() => hidAxisInputHandler.ReleaseAll();
+
+        /// <summary>
+        /// Ends the applied device-input epoch on the gameplay thread. Buffered transitions which accumulated
+        /// before the next poll update device baselines, but cannot become new gameplay presses after a pause.
+        /// </summary>
+        public void ResetInput(bool releaseApplied = true)
+        {
+            lock (deviceGate)
+            {
+                suppressDelivery = true;
+                try
+                {
+                    foreach (var entry in activeButtonsByDevice)
+                    {
+                        foreach (int button in entry.Value)
+                        {
+                            foreach (string identifier in bindingIdentifiersByDevice[entry.Key])
+                                hidButtonInputHandler.TriggerReleased(identifier, button);
+                        }
+                        entry.Value.Clear();
+                    }
+                    hidAxisInputHandler.ReleaseAll();
+                    discardNextPoll = true;
+                }
+                finally
+                {
+                    suppressDelivery = false;
+                }
+                if (releaseApplied)
+                    ReleaseAppliedInput();
+            }
+        }
+
+        /// <summary>Releases only device action references which actually reached gameplay.</summary>
+        public void ReleaseAppliedInput()
+        {
+            foreach (OmsAction action in appliedReferences.Keys)
+            {
+                int count = appliedReferences[action];
+                appliedReferences[action] = 0;
+                for (int i = 0; i < count; i++)
+                    releaseAction(action);
+            }
+        }
+
+        /// <summary>
+        /// Captures a single outer-frame device batch. No external gameplay callbacks run here.
+        /// Values are copied immediately, so backend-owned reusable report lists are never retained.
+        /// </summary>
+        public void CaptureOnce(double gameplayTime, Action<OmsHidInputEvent> receive)
+        {
+            capture = receive;
+            try
+            {
+                PollOnce();
+                receive(new OmsHidInputEvent(OmsHidInputEventKind.FinishAxes));
+            }
+            finally
+            {
+                capture = null;
+            }
+        }
+
+        public void DispatchCaptured(OmsHidInputEvent input)
+        {
+            switch (input.Kind)
+            {
+                case OmsHidInputEventKind.Press:
+                    appliedReferences[input.Action]++;
+                    pressAction(input.Action);
+                    break;
+                case OmsHidInputEventKind.Release:
+                    if (appliedReferences[input.Action] == 0)
+                        return;
+                    appliedReferences[input.Action]--;
+                    releaseAction(input.Action);
+                    break;
+                case OmsHidInputEventKind.Motion:
+                    acceptedMotion?.Invoke(input.Motion);
+                    break;
+                case OmsHidInputEventKind.Disconnect:
+                    hidAxisInputHandler.ReleaseDevice(input.DeviceIdentifier!);
+                    DeviceDisconnected?.Invoke(input.DeviceIdentifier!);
+                    break;
+                case OmsHidInputEventKind.Axis:
+                    hidAxisInputHandler.ApplyAxisChange(input.AxisChange);
+                    break;
+                case OmsHidInputEventKind.FinishAxes:
+                    hidAxisInputHandler.FinishPolling();
+                    break;
+            }
+        }
+
+        private void route(OmsHidInputEvent input)
+        {
+            if (suppressDelivery)
+                return;
+            if (capture != null)
+                capture(input);
+            else
+                DispatchCaptured(input);
+        }
 
         public static IOmsHidButtonDeviceProvider CreateDefaultDeviceProvider()
             => CreateDefaultDeviceProvider(OperatingSystem.IsWindows(), () => new OmsWindowsDirectInputButtonDeviceProvider(), () => new HidSharpHidButtonDeviceProvider());
@@ -238,18 +404,30 @@ namespace oms.Input.Devices
             }
         }
 
-        public OmsHidDeviceHandler(IEnumerable<OmsBinding> bindings, Action<OmsAction> pressAction, Action<OmsAction> releaseAction, IOmsHidButtonDeviceProvider? deviceProvider = null)
-            : this(bindings, pressAction, releaseAction, deviceProvider, Stopwatch.GetTimestamp)
+        public OmsHidDeviceHandler(IEnumerable<OmsBinding> bindings, Action<OmsAction> pressAction, Action<OmsAction> releaseAction,
+                                   IOmsHidButtonDeviceProvider? deviceProvider = null, Action<OmsAxisMotion>? acceptedMotion = null)
+            : this(bindings, pressAction, releaseAction, deviceProvider, Stopwatch.GetTimestamp, acceptedMotion)
         {
         }
 
-        internal OmsHidDeviceHandler(IEnumerable<OmsBinding> bindings, Action<OmsAction> pressAction, Action<OmsAction> releaseAction, IOmsHidButtonDeviceProvider? deviceProvider, Func<long> getTimestamp)
+        internal OmsHidDeviceHandler(IEnumerable<OmsBinding> bindings, Action<OmsAction> pressAction, Action<OmsAction> releaseAction,
+                                    IOmsHidButtonDeviceProvider? deviceProvider, Func<long> getTimestamp, Action<OmsAxisMotion>? acceptedMotion = null)
         {
             this.getTimestamp = getTimestamp;
+            this.pressAction = pressAction;
+            this.releaseAction = releaseAction;
+            this.acceptedMotion = acceptedMotion;
             var bindingArray = bindings.ToArray();
+            foreach (var binding in bindingArray)
+                appliedReferences.TryAdd(binding.Action, 0);
 
-            hidButtonInputHandler = new OmsHidButtonInputHandler(bindingArray, pressAction, releaseAction);
-            hidAxisInputHandler = new OmsHidAxisInputHandler(bindingArray, pressAction, releaseAction);
+            hidButtonInputHandler = new OmsHidButtonInputHandler(bindingArray,
+                action => route(new OmsHidInputEvent(OmsHidInputEventKind.Press, action)),
+                action => route(new OmsHidInputEvent(OmsHidInputEventKind.Release, action)));
+            hidAxisInputHandler = new OmsHidAxisInputHandler(bindingArray,
+                action => route(new OmsHidInputEvent(OmsHidInputEventKind.Press, action)),
+                action => route(new OmsHidInputEvent(OmsHidInputEventKind.Release, action)),
+                motion => route(new OmsHidInputEvent(OmsHidInputEventKind.Motion, Motion: motion)));
             boundDeviceIdentifiers = bindingArray.SelectMany(binding => binding.HidButtonTriggers.Concat(binding.HidAxisTriggers))
                                                 .Select(trigger => OmsHidDeviceIdentifier.Normalize(trigger.DeviceIdentifier!))
                                                 .Where(identifier => !string.IsNullOrWhiteSpace(identifier))
@@ -291,6 +469,8 @@ namespace oms.Input.Devices
                     return;
 
                 hidAxisInputHandler.BeginPolling();
+                bool discardChanges = discardNextPoll;
+                discardNextPoll = false;
 
                 try
                 {
@@ -311,7 +491,7 @@ namespace oms.Input.Devices
 
                     foreach (var entry in pollingDevices)
                     {
-                        pollDevice(entry.Key, entry.Value);
+                        pollDevice(entry.Key, entry.Value, discardChanges);
 
                         if (!entry.Value.IsConnected)
                             disconnectDevice(entry.Key);
@@ -322,13 +502,14 @@ namespace oms.Input.Devices
                 finally
                 {
                     pollingDevices.Clear();
-                    hidAxisInputHandler.FinishPolling();
+                    if (capture == null)
+                        hidAxisInputHandler.FinishPolling();
                 }
             }
         }
 
         private bool shouldRefreshDevices()
-            => devicesByIdentifier.Count < boundDeviceIdentifiers.Count && getTimestamp() >= nextDeviceRefresh;
+            => (hasUnresolvedBindings || usesLegacyAliases) && getTimestamp() >= nextDeviceRefresh;
 
         public void Dispose()
         {
@@ -346,6 +527,7 @@ namespace oms.Input.Devices
 
                 foreach (string? identifier in devicesByIdentifier.Keys.ToArray())
                     disconnectDevice(identifier);
+                ReleaseAppliedInput();
 
                 pendingDiscovery = discoveryTask;
                 discoveryTask = null;
@@ -371,7 +553,7 @@ namespace oms.Input.Devices
             }
         }
 
-        private void pollDevice(string identifier, IOmsHidButtonDevice device)
+        private void pollDevice(string identifier, IOmsHidButtonDevice device, bool discardChanges)
         {
             // Polled backends acquire one snapshot here. Only buffered reports are drained afterwards.
             do
@@ -379,8 +561,11 @@ namespace oms.Input.Devices
                 if (!device.TryReadChanges(out var changes))
                     break;
 
-                for (int index = 0; index < changes.Count; index++)
-                    applyChange(changes[index]);
+                if (!discardChanges)
+                {
+                    for (int index = 0; index < changes.Count; index++)
+                        applyChange(changes[index]);
+                }
 
                 if (!device.IsConnected)
                 {
@@ -428,7 +613,15 @@ namespace oms.Input.Devices
             {
                 foreach (var device in deviceProvider!.GetDevices(boundDeviceIdentifiers))
                 {
-                    if (!discovered.Identifiers.Add(device.Identifier) || connectedIdentifiers.Contains(device.Identifier))
+                    if (!discovered.Identifiers.Add(device.Identifier))
+                    {
+                        device.Dispose();
+                        continue;
+                    }
+
+                    discovered.BindingIdentifiers.Add(device.Identifier, device.BindingAliases.Prepend(device.Identifier)
+                        .Where(boundDeviceIdentifiers.Contains).Distinct(StringComparer.Ordinal).ToArray());
+                    if (connectedIdentifiers.Contains(device.Identifier))
                         device.Dispose();
                     else
                         discovered.NewDevices.Add(device.Identifier, device);
@@ -452,12 +645,35 @@ namespace oms.Input.Devices
             {
                 if (!discovered.Identifiers.Contains(entry.Key))
                     disconnectDevice(entry.Key);
+                else
+                {
+                    string[] nextIdentifiers = discovered.BindingIdentifiers[entry.Key];
+                    foreach (string oldIdentifier in bindingIdentifiersByDevice[entry.Key])
+                    {
+                        if (nextIdentifiers.Contains(oldIdentifier, StringComparer.Ordinal))
+                            continue;
+
+                        route(new OmsHidInputEvent(OmsHidInputEventKind.Disconnect, DeviceIdentifier: oldIdentifier));
+                        foreach (int button in activeButtonsByDevice[entry.Key])
+                            hidButtonInputHandler.TriggerReleased(oldIdentifier, button);
+                        if (capture == null)
+                            hidAxisInputHandler.ReleaseDevice(oldIdentifier);
+                    }
+                    bindingIdentifiersByDevice[entry.Key] = nextIdentifiers;
+                }
             }
 
             pollingDevices.Clear();
             foreach (var entry in discovered.NewDevices)
+            {
                 devicesByIdentifier.Add(entry.Key, entry.Value);
+                activeButtonsByDevice.Add(entry.Key, new HashSet<int>(128));
+                bindingIdentifiersByDevice.Add(entry.Key, discovered.BindingIdentifiers[entry.Key]);
+            }
             discovered.NewDevices.Clear();
+
+            hasUnresolvedBindings = boundDeviceIdentifiers.Any(identifier => !bindingIdentifiersByDevice.Values.Any(identifiers => identifiers.Contains(identifier)));
+            usesLegacyAliases = bindingIdentifiersByDevice.Any(entry => entry.Value.Any(identifier => identifier != entry.Key));
         }
 
         private void disconnectDevice(string identifier)
@@ -465,8 +681,20 @@ namespace oms.Input.Devices
             if (!devicesByIdentifier.Remove(identifier, out var device))
                 return;
 
+            route(new OmsHidInputEvent(OmsHidInputEventKind.Disconnect, DeviceIdentifier: identifier));
+            foreach (string bindingIdentifier in bindingIdentifiersByDevice[identifier])
+            {
+                if (bindingIdentifier != identifier)
+                    route(new OmsHidInputEvent(OmsHidInputEventKind.Disconnect, DeviceIdentifier: bindingIdentifier));
+            }
             releaseActiveButtons(identifier);
-            hidAxisInputHandler.ReleaseDevice(identifier);
+            if (capture == null)
+            {
+                foreach (string bindingIdentifier in bindingIdentifiersByDevice[identifier])
+                    hidAxisInputHandler.ReleaseDevice(bindingIdentifier);
+            }
+            bindingIdentifiersByDevice.Remove(identifier);
+            hasUnresolvedBindings = true;
             retiredDevices.Add(device);
         }
 
@@ -475,8 +703,11 @@ namespace oms.Input.Devices
             if (!activeButtonsByDevice.Remove(identifier, out var activeButtons))
                 return;
 
-            foreach (int buttonIndex in activeButtons.OrderBy(index => index).ToArray())
-                hidButtonInputHandler.TriggerReleased(identifier, buttonIndex);
+            foreach (int buttonIndex in activeButtons)
+            {
+                foreach (string bindingIdentifier in bindingIdentifiersByDevice[identifier])
+                    hidButtonInputHandler.TriggerReleased(bindingIdentifier, buttonIndex);
+            }
         }
 
         private void applyChange(OmsHidDeviceChange change)
@@ -495,39 +726,47 @@ namespace oms.Input.Devices
 
         private void applyButtonChange(OmsHidButtonChange change)
         {
-            if (!boundDeviceIdentifiers.Contains(change.DeviceIdentifier) || change.ButtonIndex < 0)
+            if (change.ButtonIndex < 0 || !activeButtonsByDevice.TryGetValue(change.DeviceIdentifier, out var activeButtons))
                 return;
-
-            if (!activeButtonsByDevice.TryGetValue(change.DeviceIdentifier, out var activeButtons))
-            {
-                activeButtons = new HashSet<int>();
-                activeButtonsByDevice[change.DeviceIdentifier] = activeButtons;
-            }
 
             if (change.Pressed)
             {
                 if (!activeButtons.Add(change.ButtonIndex))
                     return;
 
-                hidButtonInputHandler.TriggerPressed(change.DeviceIdentifier, change.ButtonIndex);
+                foreach (string bindingIdentifier in bindingIdentifiersByDevice[change.DeviceIdentifier])
+                    hidButtonInputHandler.TriggerPressed(bindingIdentifier, change.ButtonIndex);
                 return;
             }
 
             if (!activeButtons.Remove(change.ButtonIndex))
                 return;
 
-            hidButtonInputHandler.TriggerReleased(change.DeviceIdentifier, change.ButtonIndex);
-
-            if (activeButtons.Count == 0)
-                activeButtonsByDevice.Remove(change.DeviceIdentifier);
+            foreach (string bindingIdentifier in bindingIdentifiersByDevice[change.DeviceIdentifier])
+                hidButtonInputHandler.TriggerReleased(bindingIdentifier, change.ButtonIndex);
         }
 
         private void applyAxisChange(OmsHidAxisChange change)
         {
-            if (!boundDeviceIdentifiers.Contains(change.DeviceIdentifier) || change.AxisIndex < 0)
+            if (change.AxisIndex < 0 || !bindingIdentifiersByDevice.TryGetValue(change.DeviceIdentifier, out string[]? bindingIdentifiers))
                 return;
 
-            hidAxisInputHandler.ApplyAxisDelta(change.DeviceIdentifier, change.AxisIndex, change.Delta);
+            // A newly accepted stroke owns a new attack even when several same-direction
+            // reports arrived in one outer frame. Position buttons are unaffected by poll end.
+            if (capture == null)
+                hidAxisInputHandler.FinishPolling();
+            else
+                capture(new OmsHidInputEvent(OmsHidInputEventKind.FinishAxes));
+            foreach (string identifier in bindingIdentifiers)
+            {
+                var resolved = change.Value.HasValue
+                    ? new OmsHidAxisChange(identifier, change.AxisIndex, change.Delta, change.Value.Value, change.Minimum, change.Maximum, change.IsRelative)
+                    : new OmsHidAxisChange(identifier, change.AxisIndex, change.Delta);
+                if (capture != null)
+                    capture(new OmsHidInputEvent(OmsHidInputEventKind.Axis, AxisChange: resolved));
+                else
+                    hidAxisInputHandler.ApplyAxisChange(resolved);
+            }
         }
 
         private void onDevicesChanged(object? sender, EventArgs e) => devicesDirty = true;
@@ -536,6 +775,7 @@ namespace oms.Input.Devices
         {
             public readonly HashSet<string> Identifiers = new HashSet<string>(StringComparer.Ordinal);
             public readonly Dictionary<string, IOmsHidButtonDevice> NewDevices = new Dictionary<string, IOmsHidButtonDevice>(StringComparer.Ordinal);
+            public readonly Dictionary<string, string[]> BindingIdentifiers = new Dictionary<string, string[]>(StringComparer.Ordinal);
 
             public void Dispose()
             {
@@ -736,6 +976,7 @@ namespace oms.Input.Devices
                                 return;
 
                             int currentValue = dataItem.ReadLogical(reportData, bitOffset, elementIndex);
+                            bool initial = !axisValuesByIndex.ContainsKey(axisIndex);
                             int delta = dataItem.IsRelative
                                 ? currentValue
                                 : currentValue - axisValuesByIndex.GetValueOrDefault(axisIndex, currentValue);
@@ -743,10 +984,11 @@ namespace oms.Input.Devices
                             if (!dataItem.IsRelative)
                                 axisValuesByIndex[axisIndex] = currentValue;
 
-                            if (delta == 0)
+                            if (delta == 0 && (!initial || dataItem.IsRelative))
                                 return;
 
-                            queuedChanges.Add(OmsHidDeviceChange.Axis(new OmsHidAxisChange(Identifier, axisIndex, delta)));
+                            queuedChanges.Add(OmsHidDeviceChange.Axis(new OmsHidAxisChange(Identifier, axisIndex, delta, currentValue,
+                                dataItem.LogicalMinimum, dataItem.LogicalMaximum, dataItem.IsRelative), receivedTimestamp: Stopwatch.GetTimestamp()));
                         });
                     }
                 }

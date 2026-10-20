@@ -579,6 +579,9 @@ namespace osu.Game.Rulesets.Bms.UI
                 || !bmsAction.IsLaneAction())
                 return;
 
+            if (!pressed && GameplayInputManager?.IsScratchMotionHeld(bmsAction) == true)
+                return;
+
             BmsLane? lane = Playfield.Lanes.FirstOrDefault(candidate => candidate.Action.Value == bmsAction);
             BmsGameplayLayoutLane exactLane = lane?.LayoutSnapshotLane
                                               ?? throw new InvalidOperationException("A production BMS input event requires its exact C3 lane target.");
@@ -601,7 +604,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 BmsGameplayLayoutLane exactLane = lane.LayoutSnapshotLane
                                                   ?? throw new InvalidOperationException("A production BMS input event requires its exact C3 lane target.");
                 GameplaySkinLaneTopologyEntry topologyLane = exactLane.NeutralLane.TopologyEntry;
-                bool pressed = inputManager.KeyBindingContainer.PressedActions.Contains(lane.Action.Value);
+                bool pressed = inputManager.IsLaneHeld(lane.Action.Value);
 
                 if (gameplaySkinPressedInputs.TryGetValue(exactLane.LaneId, out bool previous) && previous == pressed)
                     continue;

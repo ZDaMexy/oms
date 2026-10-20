@@ -5789,6 +5789,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         [Test]
         public void TestExternalFolderWorkspaceExplicitSelectionIsFreshAndImplicitSelectorsExcludeIt()
         {
+            var allowedImplicitCandidateIds = new HashSet<Guid> { SkinInfo.OMS_SKIN };
             string packageRoot = string.Empty;
             Guid recordId = Guid.Empty;
             string displayLabel = string.Empty;
@@ -5800,6 +5801,22 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             Task<IReadOnlyList<FolderSkinWorkspaceRecord>>? workspaceTask = null;
             Task<IList<Live<SkinInfo>>>? dropdownTask = null;
 
+            AddStep("prepare this case's implicit selection candidates", () =>
+            {
+                // The reused visual scene retains its Realm between cases, including deliberately invalid records.
+                Realm.Write(realm =>
+                {
+                    foreach (SkinInfo previousCandidate in realm.All<SkinInfo>()
+                                                                 .Where(info => !info.Protected && !info.IsExternalFilesystemStorage)
+                                                                 .ToArray())
+                    {
+                        realm.Remove(previousCandidate);
+                    }
+                });
+
+                Live<SkinInfo> control = createCandidate(createCompletePackage, typeof(BmsLegacySkin).GetInvariantInstantiationInfo()).Candidate;
+                allowedImplicitCandidateIds.Add(control.ID);
+            });
             AddStep("create and register external package", () =>
             {
                 packageRoot = createExternalPackage(createCompletePackage);
@@ -5869,6 +5886,23 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                         Is.EqualTo(dropdownRecord.PerformRead(record => record.Hash)));
                 });
             });
+            AddStep("assert implicit candidates belong to this case", () =>
+            {
+                var candidates = manager.GetAllUsableSkins()
+                                        .Where(candidate => !candidate.PerformRead(info => info.IsExternalFilesystemStorage))
+                                        .Select(candidate => candidate.PerformRead(info => new
+                                        {
+                                            info.ID,
+                                            info.Name,
+                                            info.FilesystemStorageAuthorityOwner,
+                                        }))
+                                        .ToArray();
+
+                Assert.That(candidates.Select(candidate => candidate.ID), Is.EquivalentTo(allowedImplicitCandidateIds),
+                    "Implicit choices must contain only complete candidates prepared by this case. "
+                    + $"Candidates: {string.Join("; ", candidates.Select(candidate => $"{candidate.ID:N}/{candidate.Name}/owner={candidate.FilesystemStorageAuthorityOwner ?? "<none>"}"))}; "
+                    + $"target={implicitRequestId:N}; selection={manager.CurrentSkinInfo.Value.ID:N}; owner={manager.CurrentSkin.Value.SkinInfo.ID:N}; rejection={manager.LastSelectionRejectionReason}.");
+            });
             AddStep("random excludes external", () =>
             {
                 implicitRequestId = Guid.Empty;
@@ -5880,8 +5914,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(implicitRequestId, Is.Not.EqualTo(recordId));
                 });
             });
-            AddUntilStep("wait for random selection commit", () =>
-                manager.CurrentSkinInfo.Value.ID == implicitRequestId && manager.CurrentSkin.Value.SkinInfo.ID == implicitRequestId);
+            AddUntilStep("wait for random selection commit",
+                () => new { Target = implicitRequestId, Selection = manager.CurrentSkinInfo.Value.ID, Owner = manager.CurrentSkin.Value.SkinInfo.ID, Rejection = manager.LastSelectionRejectionReason },
+                () => Is.EqualTo(new { Target = implicitRequestId, Selection = implicitRequestId, Owner = implicitRequestId, Rejection = SkinSelectionRejectionReason.None }));
             AddStep("explicitly reselect before next", () => manager.CurrentSkinInfo.Value = dropdownRecord);
             AddUntilStep("wait for external before next", () => manager.CurrentSkinInfo.Value.ID == recordId && manager.CurrentSkin.Value.SkinInfo.ID == recordId);
             AddStep("next excludes external", () =>
@@ -5894,8 +5929,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(implicitRequestId, Is.Not.EqualTo(recordId));
                 });
             });
-            AddUntilStep("wait for next selection commit", () =>
-                manager.CurrentSkinInfo.Value.ID == implicitRequestId && manager.CurrentSkin.Value.SkinInfo.ID == implicitRequestId);
+            AddUntilStep("wait for next selection commit",
+                () => new { Target = implicitRequestId, Selection = manager.CurrentSkinInfo.Value.ID, Owner = manager.CurrentSkin.Value.SkinInfo.ID, Rejection = manager.LastSelectionRejectionReason },
+                () => Is.EqualTo(new { Target = implicitRequestId, Selection = implicitRequestId, Owner = implicitRequestId, Rejection = SkinSelectionRejectionReason.None }));
             AddStep("explicitly reselect before previous", () => manager.CurrentSkinInfo.Value = dropdownRecord);
             AddUntilStep("wait for external before previous", () => manager.CurrentSkinInfo.Value.ID == recordId && manager.CurrentSkin.Value.SkinInfo.ID == recordId);
             AddStep("previous excludes external", () =>
@@ -5909,8 +5945,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 });
                 manager.SelectionRequestBeforeCommitLock = _ => { };
             });
-            AddUntilStep("wait for previous selection commit", () =>
-                manager.CurrentSkinInfo.Value.ID == implicitRequestId && manager.CurrentSkin.Value.SkinInfo.ID == implicitRequestId);
+            AddUntilStep("wait for previous selection commit",
+                () => new { Target = implicitRequestId, Selection = manager.CurrentSkinInfo.Value.ID, Owner = manager.CurrentSkin.Value.SkinInfo.ID, Rejection = manager.LastSelectionRejectionReason },
+                () => Is.EqualTo(new { Target = implicitRequestId, Selection = implicitRequestId, Owner = implicitRequestId, Rejection = SkinSelectionRejectionReason.None }));
         }
 
         [Test]

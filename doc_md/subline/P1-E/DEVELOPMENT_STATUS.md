@@ -1,6 +1,6 @@
 # P1-E 开发进度：gameplay 与长条真实谱面验校
 
-> 最后核对：2026-10-19（补齐mania同批松键和相邻音符锁定；真实谱人工门保持）
+> 最后核对：2026-10-21（模拟轴长皿持续状态；真实谱人工门保持）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，当前执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 
 ## 当前阶段
@@ -12,6 +12,8 @@
 - 完成后回退到body会按既有entry、真实replay按键与自动辅助恢复holding，倒退输入不创建新判定；LN/CN终结后仍不可重抓。HCN漏头后实际接住的body可恢复gauge，head仍Miss，松开继续扣血；不改变窗口、计分尾或TOTAL。
 - long-note release-window 已切到 judge-mode-aware 模型，真实谱面长条边界与人工验校仍未收口。展示验收归 [P1-A](../P1-A/DEVELOPMENT_STATUS.md#当前风险与未完成项)和 [P1-C](../P1-C/DEVELOPMENT_STATUS.md#当前反馈产品面)，不从旧“HUD 补强”字样推导新的训练反馈开发任务。
 - 普通mania的同批down/up已按Result真实持有状态松键，立即记录body断条并保留重抓后的原尾判上限，不再因显示状态滞后错给Perfect。相邻note/hold的note lock识别计分后代，force-miss仍保留Ignore父对象完成body/tail的生命周期。
+- 模拟轴的普通皿脉冲与长皿持续状态独立，停止期限和最终设备引用决定松开；释放回调排除当前释放位，普通键盘松开仍有效。运动状态与原16轨一同录制／回放，LN／CN／HCN模式、计分、窗口及TOTAL保持。实际软件结果集中见 [输入审查](../../other/INPUT_SIGNAL_REVIEW_20261021.md#验证证据)。
+- 已结束录制不因回退重新追加帧；运动到期停表会被实际消费，时钟投影的舍入不再误清持有或反复耗尽追赶预算。
 
 ## 进度矩阵
 
@@ -23,13 +25,9 @@
 
 ## 最近一次验证
 
-2026-10-19后续深审：真实mania Player的同批/跨帧、断后重抓/不重抓及严格相邻note/hold判定均有有效修前/修后证明；完整结果取[性能与判定记录](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#验证证据)。不直接调用DHO判定、不写内部holding或放宽时差断言。
+2026-10-21：本轮真实长皿、来源交接、停止期限、回退与录制的修前／修后和完整回归结果集中见 [输入审查](../../other/INPUT_SIGNAL_REVIEW_20261021.md#验证证据)。没有直接写内部 holding 或放宽时差断言；软件结果不替代真实谱与实体设备签收。
 
-2026-10-19真实Player/手动replay覆盖LN/CN/HCN完成后回退、持有/释放/未按，HCN漏头接回的实际tick/gauge，以及无实体动作的AutoNote/AutoScratch恢复。有效修前/修后与完整结果集中见[游玩审查](../../other/GAMEPLAY_REVIEW_20261019.md#验证证据)，不能以自动用例替代真实谱手感与设备签收。
-
-2026-09-30 长条稳态与 LN/CN/HCN 的 tick 撤销、重新判定和池化复用专项通过；后续 BGA/作者工作最终 BMS full 仍通过上述三种模式的回退/复用及 HCN body gauge 用例。前后测量见 [性能验证](../../other/GAMEPLAY_PERFORMANCE_20260930.md)，最新完整回归的既有失败边界见 [作者能力验证](../../other/BGA_SKIN_AUTHORING_20260930.md)。这些自动结果不替代真实谱 checklist、长条手感或输入组合签收。
-
-2026-09-22 TOTAL 的 LN/CN/HCN 物量与辅助前后计数证据仍按原日期保留，见 [TOTAL 原验证](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md#验证状态)及本线 [CHANGELOG](CHANGELOG.md)。
+此前 mania 同批松键、相邻锁定、LN／CN／HCN 回退及 TOTAL 预算的验证保留原日期，见 [CHANGELOG](CHANGELOG.md)。
 
 ## 文档治理验证
 

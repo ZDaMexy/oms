@@ -162,6 +162,8 @@ namespace oms.Input
 
         public bool AxisInverted { get; }
 
+        public OmsAxisSettings AxisSettings { get; }
+
         private OmsBindingTrigger(
             OmsBindingTriggerKind kind,
             KeyCombination keyCombination = default,
@@ -170,7 +172,8 @@ namespace oms.Input
             int axisIndex = 0,
             OmsMouseAxis mouseAxis = default,
             OmsAxisDirection axisDirection = OmsAxisDirection.Positive,
-            bool axisInverted = false)
+            bool axisInverted = false,
+            OmsAxisSettings? axisSettings = null)
         {
             Kind = kind;
             KeyCombination = keyCombination;
@@ -180,6 +183,7 @@ namespace oms.Input
             MouseAxisKind = mouseAxis;
             AxisDirection = axisDirection;
             AxisInverted = axisInverted;
+            AxisSettings = axisSettings ?? OmsAxisSettings.Default;
         }
 
         public static OmsBindingTrigger Keyboard(params InputKey[] keys)
@@ -191,11 +195,16 @@ namespace oms.Input
         public static OmsBindingTrigger HidButton(string deviceIdentifier, int buttonIndex)
             => new OmsBindingTrigger(OmsBindingTriggerKind.HidButton, deviceIdentifier: deviceIdentifier, buttonIndex: buttonIndex);
 
-        public static OmsBindingTrigger HidAxis(string deviceIdentifier, int axisIndex, OmsAxisDirection direction, bool axisInverted = false)
-            => new OmsBindingTrigger(OmsBindingTriggerKind.HidAxis, deviceIdentifier: deviceIdentifier, axisIndex: axisIndex, axisDirection: direction, axisInverted: axisInverted);
+        public static OmsBindingTrigger HidAxis(string deviceIdentifier, int axisIndex, OmsAxisDirection direction, bool axisInverted = false, OmsAxisSettings? axisSettings = null)
+            => new OmsBindingTrigger(OmsBindingTriggerKind.HidAxis, deviceIdentifier: deviceIdentifier, axisIndex: axisIndex, axisDirection: direction, axisInverted: axisInverted, axisSettings: axisSettings);
 
-        public static OmsBindingTrigger MouseAxis(OmsMouseAxis axis, OmsAxisDirection direction, bool axisInverted = false)
-            => new OmsBindingTrigger(OmsBindingTriggerKind.MouseAxis, mouseAxis: axis, axisDirection: direction, axisInverted: axisInverted);
+        public static OmsBindingTrigger MouseAxis(OmsMouseAxis axis, OmsAxisDirection direction, bool axisInverted = false, OmsAxisSettings? axisSettings = null)
+        {
+            if (axisSettings != null && axisSettings.Mode != OmsAxisMode.RelativeMotion)
+                throw new ArgumentException("Mouse movement bindings require relative-motion settings.", nameof(axisSettings));
+
+            return new OmsBindingTrigger(OmsBindingTriggerKind.MouseAxis, mouseAxis: axis, axisDirection: direction, axisInverted: axisInverted, axisSettings: axisSettings);
+        }
 
         public static OmsBindingTrigger XInputButton(int buttonIndex)
             => new OmsBindingTrigger(OmsBindingTriggerKind.XInputButton, buttonIndex: buttonIndex);

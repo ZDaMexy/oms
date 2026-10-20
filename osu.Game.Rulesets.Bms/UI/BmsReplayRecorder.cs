@@ -1,7 +1,6 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System.Collections.Generic;
-using System.Linq;
 using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Replays;
 using osu.Game.Rulesets.Bms.Scoring;
@@ -35,9 +34,10 @@ namespace osu.Game.Rulesets.Bms.UI
             var data = score.ScoreInfo.GetRulesetData<BmsScoreInfoData>()!;
             data.VisualOffset = visualOffset;
             score.ScoreInfo.SetRulesetData(data);
+            base.EndRecording();
         }
 
         protected override ReplayFrame HandleFrame(Vector2 mousePosition, List<BmsAction> actions, ReplayFrame previousFrame)
-            => new BmsReplayFrame(Time.Current, actions.Where(action => action.IsLaneAction()).ToArray());
+            => new BmsReplayFrame(Time.Current, actions);
     }
 }

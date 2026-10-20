@@ -6,12 +6,10 @@ using NUnit.Framework;
 using oms.Input;
 using osu.Framework.Input;
 using osu.Framework.Input.Bindings;
-using osu.Framework.Platform;
 using osu.Framework.Testing;
-using osu.Game;
+using osu.Game.Configuration;
 using osu.Game.Database;
 using osu.Game.Input.Bindings;
-using osu.Game.Rulesets.Bms;
 using osu.Game.Rulesets.Bms.Input;
 
 namespace osu.Game.Rulesets.Bms.Tests
@@ -251,6 +249,60 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(bindings, Has.Length.EqualTo(2));
                 Assert.That(bindings.Any(binding => binding.KeyboardCombinations.Any(combination => combination.Keys.SequenceEqual(new[] { InputKey.Z }))), Is.True);
                 Assert.That(bindings.Any(binding => binding.HidButtonTriggers.Any(trigger => trigger.DeviceIdentifier == "hid:controller" && trigger.ButtonIndex == 4)), Is.True);
+            });
+        }
+
+        [TestCase(OmsAxisMode.RelativeMotion)]
+        [TestCase(OmsAxisMode.CircularPosition)]
+        [TestCase(OmsAxisMode.CentredPosition)]
+        [TestCase(OmsAxisMode.StickToMotion)]
+        public void TestAxisCalibrationSurvivesSaveAndReload(OmsAxisMode mode)
+        {
+            using var storage = new TemporaryNativeStorage($"oms-axis-settings-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
+            var settings = new OmsAxisSettings(mode, sensitivity: 2.5, movementThreshold: 0.125, deadzone: 0.2,
+                activationThreshold: 0.7, releaseThreshold: 0.3, revolutionsPerSecond: 1.5, stopTimeoutMilliseconds: 35,
+                minimum: -32768, maximum: 32767, centre: 120);
+            OmsBmsBindingSettingsStorage.SaveSupplementalBindings(realm, 8, new[]
+            {
+                new OmsBinding(OmsAction.Key1P_Scratch,
+                    OmsBindingTrigger.HidAxis("dinput:unit-a", 2, OmsAxisDirection.Negative, true, settings)),
+                new OmsBinding(OmsAction.Key1P_1,
+                    OmsBindingTrigger.MouseAxis(OmsMouseAxis.X, OmsAxisDirection.Positive, axisSettings: new OmsAxisSettings(sensitivity: 3, movementThreshold: 4))),
+            });
+
+            var loaded = OmsBmsBindingSettingsStorage.GetSupplementalBindings(realm, 8);
+            var hid = loaded.Single(binding => binding.Action == OmsAction.Key1P_Scratch).HidAxisTriggers.Single();
+            var mouse = loaded.Single(binding => binding.Action == OmsAction.Key1P_1).MouseAxisTriggers.Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(hid.AxisSettings, Is.EqualTo(settings));
+                Assert.That(hid.AxisInverted, Is.True);
+                Assert.That(hid.AxisDirection, Is.EqualTo(OmsAxisDirection.Negative));
+                Assert.That(mouse.AxisSettings.Sensitivity, Is.EqualTo(3));
+                Assert.That(mouse.AxisSettings.MovementThreshold, Is.EqualTo(4));
+            });
+        }
+
+        [Test]
+        public void TestExistingAxisBindingKeepsItsOriginalInterpretation()
+        {
+            using var storage = new TemporaryNativeStorage($"oms-axis-legacy-{Guid.NewGuid():N}");
+            using var realm = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME);
+            realm.Write(r => r.Add(new RealmRulesetSetting
+            {
+                RulesetName = BmsRuleset.SHORT_NAME,
+                Variant = 8,
+                Key = "OmsInputBindingsJson",
+                Value = """{"Bindings":[{"Action":"Key1P_Scratch","Triggers":[{"Kind":"HidAxis","DeviceIdentifier":"hid:deck","AxisIndex":0,"AxisDirection":"Negative","AxisInverted":true}]}]}""",
+            }));
+
+            var trigger = OmsBmsBindingSettingsStorage.GetSupplementalBindings(realm, 8).Single().HidAxisTriggers.Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(trigger.AxisSettings, Is.EqualTo(OmsAxisSettings.Default));
+                Assert.That(trigger.AxisInverted, Is.True);
+                Assert.That(trigger.AxisDirection, Is.EqualTo(OmsAxisDirection.Negative));
             });
         }
     }

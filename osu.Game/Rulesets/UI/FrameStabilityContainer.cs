@@ -112,7 +112,7 @@ namespace osu.Game.Rulesets.UI
             stopwatch.Restart();
 
             LiveInputHandler?.PrepareFrame(referenceClock as IGameplayInputTimeSource,
-                hasProcessedClock ? manualClock.CurrentTime : referenceClock.CurrentTime, !hasReplayAttached && !IsPaused.Value);
+                hasProcessedClock ? manualClock.CurrentTime : referenceClock.CurrentTime, !hasReplayAttached && !IsPaused.Value, referenceClock.CurrentTime);
 
             do
             {

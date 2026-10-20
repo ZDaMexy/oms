@@ -19,7 +19,7 @@ namespace osu.Game.Rulesets.Bms.Replays
         {
         }
 
-        protected override bool IsImportant(BmsReplayFrame frame) => frame.LaneActionMask != 0;
+        protected override bool IsImportant(BmsReplayFrame frame) => frame.InputActionMask != 0;
 
         protected override void CollectReplayInputs(List<IInput> inputs)
         {
@@ -27,7 +27,7 @@ namespace osu.Game.Rulesets.Bms.Replays
             if (state == null || !ReferenceEquals(stateFrame, frame))
             {
                 stateFrame = frame;
-                state = new ReplayState<BmsAction> { PressedActions = (List<BmsAction>?)frame?.LaneActions ?? empty_actions };
+                state = new ReplayState<BmsAction> { PressedActions = (List<BmsAction>?)frame?.InputActions ?? empty_actions };
             }
 
             inputs.Add(state);

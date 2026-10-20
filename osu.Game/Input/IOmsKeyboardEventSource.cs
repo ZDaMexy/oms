@@ -2,7 +2,7 @@
 
 using osu.Framework.Input.Bindings;
 
-namespace osu.Game.Rulesets.Bms.Input
+namespace osu.Game.Input
 {
     public interface IOmsKeyboardEventSource
     {

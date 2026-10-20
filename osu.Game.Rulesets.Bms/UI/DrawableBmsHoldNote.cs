@@ -123,7 +123,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
             IsHoldingForTesting = !tailDrawable.Judged
                                   && (headDrawable.IsHit || headDrawable.Judged && longNoteMode.AllowsRegrabAfterRelease() && Time.Current >= holdNote.StartTime)
-                                  && (holdNote.AutoPlay || inputManager.KeyBindingContainer.PressedActions.Contains(Action.Value));
+                                  && (holdNote.AutoPlay || inputManager.IsLaneHeld(Action.Value));
         }
 
         private BmsLongNoteBodyState computeBodyState()
@@ -221,7 +221,12 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public override void OnReleased(KeyBindingReleaseEvent<BmsAction> e)
         {
-            if (e.Action != Action.Value || headDrawable == null || tailDrawable == null || !IsHoldingForTesting || tailDrawable.Judged)
+            if ((e.Action != Action.Value && !e.Action.IsMotionFor(Action.Value)) || headDrawable == null || tailDrawable == null || !IsHoldingForTesting || tailDrawable.Judged)
+                return;
+
+            // Attack pulses end independently of continuous axis movement. Releasing
+            // either source must not release another source which still owns the lane.
+            if (inputManager?.IsLaneHeldAfterRelease(Action.Value, e.Action) == true)
                 return;
 
             if (Clock is IGameplayClock { IsRewinding: true })

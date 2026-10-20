@@ -289,7 +289,7 @@ namespace osu.Game.Rulesets.UI
 
             if (score == null)
             {
-                NewResult -= emitImportantFrame;
+                NewResult -= recordImportantFrame;
                 recordingInputManager.Recorder = null;
                 return;
             }
@@ -301,11 +301,12 @@ namespace osu.Game.Rulesets.UI
 
             recorder.ScreenSpaceToGamefield = Playfield.ScreenSpaceToGamefield;
 
-            NewResult += emitImportantFrame;
+            NewResult += recordImportantFrame;
             recordingInputManager.Recorder = recorder;
-
-            void emitImportantFrame(JudgementResult judgementResult) => recordingInputManager.Recorder?.RecordFrame(true);
         }
+
+        private void recordImportantFrame(JudgementResult judgementResult)
+            => (KeyBindingInputManager as IHasRecordingHandler)?.Recorder?.RecordFrame(true);
 
         public override void SetReplayScore(Score replayScore)
         {

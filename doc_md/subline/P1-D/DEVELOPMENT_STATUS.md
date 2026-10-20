@@ -1,24 +1,29 @@
 # P1-D 开发进度：控制器校准与诊断
 
-> 最后核对：2026-09-29（设备枚举留存证据复核；校准/实机仍未签收）
+> 最后核对：2026-10-21（校准与持续信号测试接入；正常窗口与实体设备待签收）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，当前执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 
 ## 当前阶段
 
-- 当前仓库仅有 supplemental bindings 与 live capture 基线：`BmsSettingsSubsection` 已接入 variant-aware supplemental editor，并为 HID button / HID axis / mouse-axis 提供 per-row live capture。
-- 通用输入设置仍只有上游层面的 joystick deadzone 等基础项；BMS 专属 calibration UI、scratch 模式说明、live diagnostics 面板都还没有正式产品面。
+- BMS 补充绑定按变体编辑，设备下拉显示具体实例、名称及离线保存项；旧标识出现多候选时明确阻止猜选。异步发现完成不会重建并抹去当前编辑行。
+- HID 轴可选择相对位移、环形编码器、位置按钮或摇杆模拟运动；鼠标仅相对位移。按用途显示灵敏度／运动阈值、按下／松开回差、死区／满偏速度及运动停止等待；高级范围／中心校准可留空使用设备范围。
+- 鼠标区域提供可操作的“高精度鼠标输入”开关，直接绑定宿主原有持久化值，不自动启用或另存第二份配置；无相对来源／鼠标 handler 的宿主显示原因。
+- 单次捕获保留；每行增加持续“测试设备信号”，同时显示原始报告和同一游玩解释器产生的触发／运动。编辑参数立即作用于测试，测试不进入游玩，应用操作才保存。
+- 捕获／测试每次只有一个所有者，删除行、换变体、取消和关闭会撤销 UI 所有权；驱动发现／销毁在后台完成，错误明确记录。实际回归与边界取 [输入审查](../../other/INPUT_SIGNAL_REVIEW_20261021.md)。
 
 ## 进度矩阵
 
 | 事项 | 状态 | 备注 |
 | --- | --- | --- |
-| diagnostics state 盘点 | 进行中 | supplemental editor / live capture 基线已存在，但缺统一产品面 |
-| calibration UI | 未开始 | 当前尚无 BMS 专属 deadzone / sensitivity / diagnostics UI |
-| 对外说明文案 | 未开始 | scratch 模式说明与设备诊断口径仍缺正式入口 |
+| diagnostics state | 软件入口已接通 | 持续原始信号与解释动作，正常窗口和硬件待验 |
+| calibration UI | 软件入口已接通 | 按用途显示参数／单位，高级范围与中心校准 |
+| 对外说明文案 | 已接入设置 | 明确模式、阈值、停止等待和不可用信号；手感仍需实际设备验证 |
 
 ## 最近一次验证
 
-2026-09-22 BMS full 留存 TRX 中，`TestDeviceDiscoveryRunsOffCallingThread` 通过；它只证明设备枚举离开调用线程，不是 live capture、完整设置 UI 或真实校准体验验收。同日完整回归与其既有失败见 [TOTAL 原验证](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md#验证状态)。
+2026-10-21：实际加载编辑器、后台发现、持续测试与生命周期结果集中见 [本轮验证](../../other/INPUT_SIGNAL_REVIEW_20261021.md#验证证据)。软件夹具不替代实体设备、USB 热插拔或正常窗口体验。
+
+此前仅设备枚举的验证保留原日期与范围，见 [CHANGELOG](CHANGELOG.md)。
 
 ## 文档治理验证
 

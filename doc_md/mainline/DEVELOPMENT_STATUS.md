@@ -1,15 +1,15 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-20（mania作者音符可见性修复；既有产品/生产门保持）
+> 最后核对：2026-10-21（设备输入与校准专项；既有产品/生产门保持）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
 
-OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原包、自动入库并打开指定 BMS 难度；原生 BMS 与转谱游玩已完成热路径优化。皮肤作者可控制 BGA 窗口并使用随包完整教程和例子。静线是 BMS/mania 唯一内置、默认与保底，两种玩法可分别选择皮肤；固定目录刷新和原组件编辑器可保存独立副本。星轨已退役，静线外观打磨仍暂停。整体画面、真实设备与长期体验尚未签收，Skin V1 与 release 未完成。产品能力和剩余门见 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)，性能与听感见 [P1-J](../subline/P1-J/DEVELOPMENT_STATUS.md)。
+OMS处于Phase 1.x后段，原生 BMS 与转谱游玩已完成热路径优化。静线是 BMS/mania 唯一内置、默认与保底，皮肤按模式和键数选择；固定目录刷新和原组件编辑器可保存独立副本。星轨已退役，静线外观打磨仍暂停。整体画面、真实设备与长期体验尚未签收，Skin V1 与 release 未完成。下载、BGA 作者能力和剩余门见 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)，性能与听感见 [P1-J](../subline/P1-J/DEVELOPMENT_STATUS.md)。
 
 ## 产品与仓库基线
 
-游玩输入、判定/结果及性能取[深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)。前台帧时间仍待验收。
+游玩判定/结果及性能取[10月19日深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)；设备入口、输入时间、轴用途、长皿与校准接续取[10月21日输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)。前台帧时间与实体设备仍待验收。
 
 皮肤按模式/键数选择，作者声明布局、配置与预览，普通包保持原表现。Lighting Model Skin Omni Until 33默认33，27～33与八支BPL为Game Frame，主屏CUSTOM、歌曲游标与缩略图可用，副屏已移除；mania音符显示已修复。作品独立私下分享，不内置或进入公开发行/制作套件。原HDD只读，26及更早来源待补；验证和缺口取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)推进，原发行门保持。
 
@@ -37,7 +37,7 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 | --- | --- | --- |
 | 1 | BGA 作者窗口、共享播放会话与完整手册已具软件和桌面证据；继续保留真实素材、窗口/DPI、设备与长时人工门，静线外观打磨仍暂停 | [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)、[P1-L](../subline/P1-L/DEVELOPMENT_STATUS.md) |
 | 2 | canonical普通简洁包接管已实现；旧OmsSkin只保留历史/人工对照，物理删除仍待实机门 | [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md) |
-| 3 | 输入软件基线可用；analog scratch跨设备、校准与真实HID尚未闭合 | [P1-B](../subline/P1-B/DEVELOPMENT_STATUS.md)、[P1-D](../subline/P1-D/DEVELOPMENT_STATUS.md) |
+| 3 | 输入时间、轴模式与校准软件已接通；真实窗口、跨设备手感与实体HID待签收 | [P1-B](../subline/P1-B/DEVELOPMENT_STATUS.md)、[P1-D](../subline/P1-D/DEVELOPMENT_STATUS.md) |
 | 4 | 真实LN/CN/HCN、音频/特殊谱、BGA、选歌大库与发行组合仍需验收；原生/转谱热路径已优化，BGA多窗已共享内容源，证据与剩余门见记录 | [性能验证](../other/GAMEPLAY_PERFORMANCE_20260930.md) |
 | 5 | V-001～V-005及当前完整候选人工签收，承接公共下载与离线启动组合；2026-07-14恢复和旧 ZIP 验收不能代替新增能力的最终包验证 | [集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)、[P1-F](../subline/P1-F/DEVELOPMENT_STATUS.md)、[P1-G](../subline/P1-G/DEVELOPMENT_STATUS.md) |
 
@@ -49,9 +49,7 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 ## 最近一次验证
 
-2026-10-20组选曲、皮肤删除/恢复误拒绝及开局/未加载画面释放已修复，见[P1-A记录](../subline/P1-A/CHANGELOG.md#2026-10-20选曲与皮肤遗留软件问题收尾)。Omni包及原人工/发行门未变。
-
-2026-10-19判定红绿、完整回归、帧时间及旧失败对照见[验证记录](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#验证证据)，不代签所有设备、真实谱或零卡顿。
+2026-10-21设备输入、轴校准、长皿与键盘来源交接的实际修前／修后、完整软件回归和性能范围取[本轮验证](../other/INPUT_SIGNAL_REVIEW_20261021.md#验证证据)。原HDD、Omni包及人工／发行门保持；此前判定和皮肤修复保留原日期，见[CHANGELOG](CHANGELOG.md)。
 
 2026-10-11 转谱补算资源与 Debug 读取优化已有受控测量、回归及 Desktop 双配置证据；旧皮肤失败已逐项对照。范围、取舍与未验项只取 [P1-H 最新验证](../subline/P1-H/DEVELOPMENT_STATUS.md#最近一次验证)。扫描 / 便携宿主修复的 `d6f0d60` 来源见 [扫描审查](../other/LIBRARY_SCAN_REVIEW_20261010.md)。未重扫用户库，样本或探针不代签真实大库、Explorer 或发行。
 
@@ -67,6 +65,6 @@ OMS处于Phase 1.x后段。玩家可在游戏内从 Ginger Rush / 616 下载原�
 
 ## 文档治理验证
 
-2026-10-18统一Omni及完整CUSTOM实现/验证说明同步，文档检查见[P1-A收据](../subline/P1-A/CHANGELOG.md#2026-10-18统一omni与完整custom接入)。跨线事实仍走原权威链，未刷新实网、生产或人工签收。
+2026-10-21输入合同、状态与诊断记忆同步，文档检查取[本轮收据](../other/INPUT_SIGNAL_REVIEW_20261021.md#格式与文档)。跨线事实仍走原权威链，未刷新实网、生产或人工签收。
 
 开发存储继续遵守 [AGENTS](../../AGENTS.md#开发磁盘约束)。旧系统盘产物回收和 Codex 全局迁移未完成，不能因文档检查通过而宣称已释放或零增长；待办保留在 [PLAN](DEVELOPMENT_PLAN.md#改动验收矩阵)。

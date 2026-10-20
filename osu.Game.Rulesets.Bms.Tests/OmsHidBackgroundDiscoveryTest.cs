@@ -8,12 +8,57 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using oms.Input;
 using oms.Input.Devices;
+using osu.Framework.Extensions;
 
 namespace osu.Game.Rulesets.Bms.Tests
 {
     [TestFixture]
     public class OmsHidBackgroundDiscoveryTest
     {
+        [Test]
+        public void TestBlockedCaptureDiscoveryDoesNotBlockPollingAndDrainsOnExit()
+        {
+            using var discoveryEntered = new ManualResetEventSlim();
+            using var discoveryAllowed = new ManualResetEventSlim();
+            var provider = new BlockingProvider(discoveryEntered, discoveryAllowed);
+            using var capture = new OmsHidDeviceCaptureSession("pad-0", provider);
+            Assert.That(SpinWait.SpinUntil(() =>
+            {
+                capture.PollOnce();
+                return capture.HasConnectedDevice;
+            }, TimeSpan.FromSeconds(5)), Is.True);
+            provider.NotifyDevicesChanged();
+            capture.PollOnce();
+            Task<IReadOnlyList<OmsHidDeviceChange>>? poll = null;
+            try
+            {
+                Assert.That(discoveryEntered.Wait(TimeSpan.FromSeconds(5)), Is.True);
+                provider.ConnectedDevice.Enqueue(OmsHidDeviceChange.Button(new OmsHidButtonChange("pad-0", 0, true)));
+                poll = Task.Run(capture.PollOnce);
+                Assert.That(poll.Wait(TimeSpan.FromSeconds(5)), Is.True, "Capture polling must not wait on the blocked driver discovery.");
+                IReadOnlyList<OmsHidDeviceChange> observed = poll.GetResultSafely();
+                Assert.Multiple(() =>
+                {
+                    Assert.That(observed, Has.Count.EqualTo(1));
+                    Assert.That(observed[0].ButtonChange.Pressed, Is.True);
+                    Assert.That(provider.Discoveries, Is.EqualTo(2));
+                    Assert.That(discoveryAllowed.IsSet, Is.False);
+                });
+            }
+            finally
+            {
+                discoveryAllowed.Set();
+                poll?.GetAwaiter().GetResult();
+            }
+
+            capture.Dispose();
+            Assert.That(provider.DisposeCalls, Is.EqualTo(1));
+            foreach (var device in provider.CreatedDevices)
+                Assert.That(device.DisposeCount, Is.EqualTo(1));
+            capture.PollOnce();
+            Assert.That(provider.Discoveries, Is.EqualTo(2));
+        }
+
         [Test]
         public void TestBlockedRediscoveryDoesNotBlockGameplayOrConnectedInput()
         {

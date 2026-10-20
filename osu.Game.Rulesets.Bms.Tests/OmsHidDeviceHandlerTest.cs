@@ -165,7 +165,7 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             using var captureSession = new OmsHidDeviceCaptureSession("iidx-pad", provider);
 
-            var changes = captureSession.PollOnce();
+            var changes = waitForCapture(captureSession, changes => changes.Count == 2);
 
             Assert.That(changes, Has.Count.EqualTo(2));
             Assert.Multiple(() =>
@@ -194,6 +194,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             using var captureSession = new OmsHidDeviceCaptureSession("iidx-pad", provider);
 
             Assert.That(captureSession.PollOnce(), Is.Empty);
+            waitForCapture(captureSession, _ => !captureSession.IsDiscovering);
+            Assert.That(captureSession.HasConnectedDevice, Is.False);
         }
 
         [Test]
@@ -207,21 +209,32 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             using var captureSession = new OmsHidDeviceCaptureSession("turntable", provider);
 
-            Assert.That(captureSession.PollOnce(), Has.Count.EqualTo(1));
+            Assert.That(waitForCapture(captureSession, changes => changes.Count == 1), Has.Count.EqualTo(1));
 
             provider.SetDevices();
-            Assert.That(captureSession.PollOnce(), Is.Empty);
+            waitForCapture(captureSession, _ => !captureSession.HasConnectedDevice && !captureSession.IsDiscovering);
 
             var reconnectedDevice = new FakeHidButtonDevice("turntable");
             reconnectedDevice.EnqueueBatch(OmsHidDeviceChange.Axis(new OmsHidAxisChange("turntable", 2, 5)));
             provider.SetDevices(reconnectedDevice);
 
-            var reconnectedChanges = captureSession.PollOnce();
+            var reconnectedChanges = waitForCapture(captureSession, changes => changes.Count == 1);
 
             Assert.That(reconnectedChanges, Has.Count.EqualTo(1));
             Assert.That(reconnectedChanges[0].Kind, Is.EqualTo(OmsHidDeviceChangeKind.Axis));
             Assert.That(reconnectedChanges[0].AxisChange.AxisIndex, Is.EqualTo(2));
             Assert.That(reconnectedChanges[0].AxisChange.Delta, Is.EqualTo(5));
+        }
+
+        private static IReadOnlyList<OmsHidDeviceChange> waitForCapture(OmsHidDeviceCaptureSession session, Func<IReadOnlyList<OmsHidDeviceChange>, bool> condition)
+        {
+            IReadOnlyList<OmsHidDeviceChange> changes = Array.Empty<OmsHidDeviceChange>();
+            Assert.That(SpinWait.SpinUntil(() =>
+            {
+                changes = session.PollOnce();
+                return condition(changes);
+            }, TimeSpan.FromSeconds(5)), Is.True, "Capture discovery must finish without blocking the calling UI update.");
+            return changes;
         }
 
         [Test]
@@ -294,16 +307,151 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 Assert.That(
                     OmsHidDeviceIdentifier.FromDirectInputDevice(0x1ccf, 0x8048, @"\\?\hid#vid_1ccf&pid_8048#DJDAO123#{4d1e55b2-f16f-11cf-88cb-001111000030}", instanceGuid),
-                    Is.EqualTo("hid:vid_1ccf&pid_8048&serial_djdao123"));
+                    Is.EqualTo($"dinput:instance_{instanceGuid:N}"));
 
                 Assert.That(
                     OmsHidDeviceIdentifier.FromDirectInputDevice(0x1ccf, 0x8048, @"\\?\hid#vid_1ccf&pid_8048#7&35ab3d4f&0&0000#{4d1e55b2-f16f-11cf-88cb-001111000030}", instanceGuid),
-                    Is.EqualTo("hid:vid_1ccf&pid_8048"));
+                    Is.EqualTo($"dinput:instance_{instanceGuid:N}"));
+
+                Assert.That(OmsHidDeviceIdentifier.LegacyFromDirectInputDevice(0x1ccf, 0x8048,
+                    @"\\?\hid#vid_1ccf&pid_8048#DJDAO123#{4d1e55b2-f16f-11cf-88cb-001111000030}"),
+                    Is.EqualTo("hid:vid_1ccf&pid_8048&serial_djdao123"));
 
                 Assert.That(
                     OmsHidDeviceIdentifier.FromDirectInputDevice(0, 0, null, instanceGuid),
                     Is.EqualTo($"dinput:instance_{instanceGuid:N}".ToLowerInvariant()));
             });
+        }
+
+        [Test]
+        public void TestLegacyDeviceBindingRequiresOnePhysicalCandidate()
+        {
+            const string legacy = "hid:vid_1ccf&pid_8048";
+            var first = new OmsHidDeviceInfo("dinput:instance_first", "Left controller", legacy);
+            var second = new OmsHidDeviceInfo("dinput:instance_second", "Right controller", legacy);
+            Assert.Multiple(() =>
+            {
+                Assert.That(OmsHidDeviceDiscovery.TryResolveIdentifier(legacy, new[] { first }, out string resolved, out string? diagnostic), Is.True);
+                Assert.That(resolved, Is.EqualTo(first.Identifier));
+                Assert.That(diagnostic, Is.Null);
+                Assert.That(OmsHidDeviceDiscovery.TryResolveIdentifier(legacy, new[] { first, second }, out _, out diagnostic), Is.False);
+                Assert.That(diagnostic, Does.Contain("多个同型号设备"));
+                Assert.That(OmsHidDeviceDiscovery.TryResolveIdentifier(second.Identifier, new[] { first, second }, out resolved, out diagnostic), Is.True);
+                Assert.That(resolved, Is.EqualTo(second.Identifier));
+                Assert.That(diagnostic, Is.Null);
+            });
+        }
+
+        [Test]
+        public void TestCanonicalAndLegacyBindingsShareOneDeviceAndOneActionEdge()
+        {
+            var events = new List<bool>();
+            var provider = new FakeHidButtonDeviceProvider();
+            var device = new FakeHidButtonDevice("unit-left") { BindingAliases = new[] { "legacy-pad" } };
+            provider.SetDevices(device);
+            using var handler = new OmsHidDeviceHandler(new[]
+            {
+                new OmsBinding(OmsAction.Key1P_1, OmsBindingTrigger.HidButton("legacy-pad", 0), OmsBindingTrigger.HidButton("unit-left", 0)),
+            }, _ => events.Add(true), _ => events.Add(false), provider);
+            device.EnqueueBatch(OmsHidDeviceChange.Button(new OmsHidButtonChange("unit-left", 0, true)));
+            handler.PollOnce();
+            device.EnqueueBatch(OmsHidDeviceChange.Button(new OmsHidButtonChange("unit-left", 0, false)));
+            handler.PollOnce();
+            Assert.Multiple(() =>
+            {
+                Assert.That(handler.ConnectedDeviceCount, Is.EqualTo(1));
+                Assert.That(events, Is.EqualTo(new[] { true, false }));
+            });
+        }
+
+        [Test]
+        public void TestAliasBecomingAmbiguousReleasesOnlyItsReferencesAndPublishesDisconnect()
+        {
+            var actions = new List<string>();
+            var disconnected = new List<string>();
+            var provider = new FakeHidButtonDeviceProvider();
+            var connected = new FakeHidButtonDevice("unit-left") { BindingAliases = new[] { "legacy-pad" } };
+            provider.SetDevices(connected);
+            using var handler = new OmsHidDeviceHandler(new[]
+            {
+                new OmsBinding(OmsAction.Key1P_1, OmsBindingTrigger.HidButton("legacy-pad", 0)),
+                new OmsBinding(OmsAction.Key1P_2, OmsBindingTrigger.HidButton("unit-left", 0)),
+            }, action => actions.Add($"+{action}"), action => actions.Add($"-{action}"), provider, () => 0);
+            handler.DeviceDisconnected += disconnected.Add;
+            connected.EnqueueBatch(OmsHidDeviceChange.Button(new OmsHidButtonChange("unit-left", 0, true)));
+            handler.PollOnce();
+            provider.SetDevices(new FakeHidButtonDevice("unit-left"));
+            Assert.That(SpinWait.SpinUntil(() =>
+            {
+                handler.PollOnce();
+                return disconnected.Count > 0;
+            }, TimeSpan.FromSeconds(5)), Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(disconnected, Is.EqualTo(new[] { "legacy-pad" }));
+                Assert.That(actions, Does.Contain("-Key1P_1"));
+                Assert.That(actions, Does.Not.Contain("-Key1P_2"));
+                Assert.That(handler.ConnectedDeviceCount, Is.EqualTo(1));
+            });
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestCapturedAxisReportsKeepDistinctStrokesButDoNotDuplicateAliases(bool aliases)
+        {
+            var edges = new List<bool>();
+            var captured = new List<OmsHidInputEvent>();
+            var provider = new FakeHidButtonDeviceProvider();
+            var device = new FakeHidButtonDevice("unit-left") { BindingAliases = new[] { "legacy-pad" } };
+            provider.SetDevices(device);
+            var triggers = aliases
+                ? new[] { OmsBindingTrigger.HidAxis("unit-left", 0, OmsAxisDirection.Positive), OmsBindingTrigger.HidAxis("legacy-pad", 0, OmsAxisDirection.Positive) }
+                : new[] { OmsBindingTrigger.HidAxis("unit-left", 0, OmsAxisDirection.Positive) };
+            using var handler = new OmsHidDeviceHandler(new[] { new OmsBinding(OmsAction.Key1P_Scratch, triggers) },
+                _ => edges.Add(true), _ => edges.Add(false), provider);
+            device.EnqueueBatch(
+                OmsHidDeviceChange.Axis(new OmsHidAxisChange("unit-left", 0, 4)),
+                OmsHidDeviceChange.Axis(new OmsHidAxisChange("unit-left", 0, 5)));
+            handler.CaptureOnce(100, captured.Add);
+            Assert.That(edges, Is.Empty, "hardware observation cannot dispatch gameplay during an earlier catch-up stop");
+            foreach (OmsHidInputEvent input in captured)
+                handler.DispatchCaptured(input);
+            Assert.That(edges, Is.EqualTo(new[] { true, false, true, false }), "each physical report owns exactly one attack");
+        }
+
+        [Test]
+        public void TestCapturedFutureStickPositionsCannotChangeHistoricalMotion()
+        {
+            var movement = new List<double>();
+            var captured = new List<OmsHidInputEvent>();
+            var provider = new FakeHidButtonDeviceProvider();
+            var device = new FakeHidButtonDevice("stick");
+            provider.SetDevices(device);
+            using var handler = new OmsHidDeviceHandler(new[]
+            {
+                new OmsBinding(OmsAction.Key1P_Scratch, OmsBindingTrigger.HidAxis("stick", 0, OmsAxisDirection.Positive,
+                    axisSettings: new OmsAxisSettings(OmsAxisMode.StickToMotion))),
+            }, _ => { }, _ => { }, provider, motion => movement.Add(motion.Delta));
+            handler.UpdateAxes(0);
+            device.EnqueueBatch(OmsHidDeviceChange.Axis(new OmsHidAxisChange("stick", 0, 100, 100, -100, 100, false)));
+            handler.CaptureOnce(100, captured.Add);
+            handler.UpdateAxes(50);
+            Assert.That(movement, Is.Empty, "a position observed at 100ms is not valid at 50ms");
+            handler.UpdateAxes(100);
+            foreach (OmsHidInputEvent input in captured)
+                handler.DispatchCaptured(input);
+            handler.UpdateAxes(150);
+            captured.Clear();
+            device.EnqueueBatch(OmsHidDeviceChange.Axis(new OmsHidAxisChange("stick", 0, -100, 0, -100, 100, false)));
+            handler.CaptureOnce(200, captured.Add);
+            handler.UpdateAxes(175);
+            handler.UpdateAxes(200);
+            Assert.That(movement.Sum(), Is.EqualTo(0.1).Within(0.000001), "the previous delivered deflection continues until the observed return");
+            foreach (OmsHidInputEvent input in captured)
+                handler.DispatchCaptured(input);
+            int before = movement.Count;
+            handler.UpdateAxes(250);
+            Assert.That(movement.Count, Is.EqualTo(before), "returning to centre is not reverse motion");
         }
 
         private sealed class FakeHidButtonDeviceProvider : IOmsHidButtonDeviceProvider
@@ -341,6 +489,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             private readonly Queue<IReadOnlyList<OmsHidDeviceChange>> queuedChanges = new Queue<IReadOnlyList<OmsHidDeviceChange>>();
 
             public string Identifier { get; }
+
+            public IReadOnlyList<string> BindingAliases { get; set; } = Array.Empty<string>();
 
             public bool IsConnected { get; private set; } = true;
 

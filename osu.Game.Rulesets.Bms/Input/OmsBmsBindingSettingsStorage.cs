@@ -34,13 +34,15 @@ namespace osu.Game.Rulesets.Bms.Input
             {
                 var persisted = JsonConvert.DeserializeObject<PersistedBindingCollection>(json);
 
-                return persisted?.Bindings.Select(toBinding)
+                if (persisted?.Bindings == null || persisted.Bindings.Any(binding => binding == null || binding.Triggers == null))
+                    throw new JsonSerializationException("The input binding collection is malformed.");
+
+                return persisted.Bindings.Select(toBinding)
                                .Where(binding => binding.HasValue)
                                .Select(binding => binding!.Value)
-                               .ToArray()
-                       ?? Array.Empty<OmsBinding>();
+                               .ToArray();
             }
-            catch (JsonException e)
+            catch (Exception e) when (e is JsonException or ArgumentException)
             {
                 Logger.Error(e, $"Failed to deserialize OMS input bindings for variant {variant}.");
                 return Array.Empty<OmsBinding>();
@@ -107,12 +109,14 @@ namespace osu.Game.Rulesets.Bms.Input
                 AxisIndex = trigger.AxisIndex,
                 AxisDirection = trigger.AxisDirection,
                 AxisInverted = trigger.AxisInverted,
+                AxisSettings = PersistedAxisSettings.From(trigger.AxisSettings),
             })).Concat(binding.MouseAxisTriggers.Select(trigger => new PersistedTrigger
             {
                 Kind = OmsBindingTriggerKind.MouseAxis,
                 MouseAxis = trigger.MouseAxisKind,
                 AxisDirection = trigger.AxisDirection,
                 AxisInverted = trigger.AxisInverted,
+                AxisSettings = PersistedAxisSettings.From(trigger.AxisSettings),
             })).ToArray();
 
             return triggers.Length == 0
@@ -150,10 +154,12 @@ namespace osu.Game.Rulesets.Bms.Input
                     if (string.IsNullOrWhiteSpace(persistedTrigger.DeviceIdentifier) || persistedTrigger.AxisIndex < 0)
                         return null;
 
-                    return OmsBindingTrigger.HidAxis(persistedTrigger.DeviceIdentifier, persistedTrigger.AxisIndex, persistedTrigger.AxisDirection, persistedTrigger.AxisInverted);
+                    return OmsBindingTrigger.HidAxis(persistedTrigger.DeviceIdentifier, persistedTrigger.AxisIndex, persistedTrigger.AxisDirection, persistedTrigger.AxisInverted,
+                        persistedTrigger.AxisSettings?.ToSettings());
 
                 case OmsBindingTriggerKind.MouseAxis:
-                    return OmsBindingTrigger.MouseAxis(persistedTrigger.MouseAxis, persistedTrigger.AxisDirection, persistedTrigger.AxisInverted);
+                    return OmsBindingTrigger.MouseAxis(persistedTrigger.MouseAxis, persistedTrigger.AxisDirection, persistedTrigger.AxisInverted,
+                        persistedTrigger.AxisSettings?.ToSettings());
 
                 default:
                     return null;
@@ -191,6 +197,45 @@ namespace osu.Game.Rulesets.Bms.Input
             public OmsAxisDirection AxisDirection { get; set; } = OmsAxisDirection.Positive;
 
             public bool AxisInverted { get; set; }
+
+            public PersistedAxisSettings? AxisSettings { get; set; }
+        }
+
+        private sealed class PersistedAxisSettings
+        {
+            [JsonConverter(typeof(StringEnumConverter))]
+            public OmsAxisMode Mode { get; set; }
+
+            public double Sensitivity { get; set; } = 1;
+            public double MovementThreshold { get; set; }
+            public double Deadzone { get; set; } = 0.1;
+            public double ActivationThreshold { get; set; } = 0.5;
+            public double ReleaseThreshold { get; set; } = 0.4;
+            public double RevolutionsPerSecond { get; set; } = 1;
+            public double StopTimeoutMilliseconds { get; set; } = 50;
+            public int? Minimum { get; set; }
+            public int? Maximum { get; set; }
+            public double? Centre { get; set; }
+
+            public OmsAxisSettings ToSettings()
+                => new OmsAxisSettings(Mode, Sensitivity, MovementThreshold, Deadzone, ActivationThreshold, ReleaseThreshold,
+                    RevolutionsPerSecond, StopTimeoutMilliseconds, Minimum, Maximum, Centre);
+
+            public static PersistedAxisSettings? From(OmsAxisSettings settings)
+                => settings == OmsAxisSettings.Default ? null : new PersistedAxisSettings
+                {
+                    Mode = settings.Mode,
+                    Sensitivity = settings.Sensitivity,
+                    MovementThreshold = settings.MovementThreshold,
+                    Deadzone = settings.Deadzone,
+                    ActivationThreshold = settings.ActivationThreshold,
+                    ReleaseThreshold = settings.ReleaseThreshold,
+                    RevolutionsPerSecond = settings.RevolutionsPerSecond,
+                    StopTimeoutMilliseconds = settings.StopTimeoutMilliseconds,
+                    Minimum = settings.Minimum,
+                    Maximum = settings.Maximum,
+                    Centre = settings.Centre,
+                };
         }
     }
 }

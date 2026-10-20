@@ -7,34 +7,43 @@ using System.Linq;
 namespace oms.Input.Devices
 {
     /// <summary>
-    /// Resolves mouse axis deltas into <see cref="OmsAction"/> transitions.
-    /// Axis-bound actions emit a press/release pulse for each frame that
-    /// observes matching movement and are released at frame end.
+    /// Resolves relative mouse movement into the existing per-frame action pulses, with an
+    /// independent signed movement observation. Runtime processing reuses constructor-built storage.
     /// </summary>
     public class OmsMouseAxisInputHandler
     {
         private readonly Action<OmsAction> pressAction;
         private readonly Action<OmsAction> releaseAction;
-        private readonly Dictionary<string, MouseAxisTrigger> mouseTriggersBySignature;
-        private readonly Dictionary<OmsMouseAxis, string[]> triggerSignaturesByAxis;
-        private readonly HashSet<string> activeTriggerSignatures = new HashSet<string>();
+        private readonly Action<OmsAxisMotion>? acceptedMotion;
+        private readonly MouseAxisTrigger[] triggers;
+        private readonly Dictionary<OmsMouseAxis, MouseAxisTrigger[]> triggersByAxis;
         private readonly Dictionary<OmsAction, int> actionPressCounts = new Dictionary<OmsAction, int>();
 
-        public OmsMouseAxisInputHandler(IEnumerable<OmsBinding> bindings, Action<OmsAction> pressAction, Action<OmsAction> releaseAction)
+        public OmsMouseAxisInputHandler(IEnumerable<OmsBinding> bindings, Action<OmsAction> pressAction, Action<OmsAction> releaseAction,
+                                       Action<OmsAxisMotion>? acceptedMotion = null)
         {
             this.pressAction = pressAction;
             this.releaseAction = releaseAction;
+            this.acceptedMotion = acceptedMotion;
 
-            var mouseTriggers = bindings
-                                .SelectMany(binding => binding.MouseAxisTriggers.Select(trigger => new MouseAxisTrigger(binding.Action, trigger.MouseAxisKind, trigger.AxisDirection, trigger.AxisInverted)))
-                                .GroupBy(trigger => trigger.Signature)
-                                .Select(group => group.First())
-                                .ToArray();
+            triggers = bindings
+                       .SelectMany(binding => binding.MouseAxisTriggers.Select(trigger => new MouseAxisTrigger(binding.Action, trigger)))
+                       .GroupBy(trigger => (trigger.Action, trigger.Axis, trigger.Direction, trigger.Inverted, trigger.Settings))
+                       .Select(group => group.First())
+                       .ToArray();
+            triggersByAxis = triggers.GroupBy(trigger => trigger.Axis)
+                                     .ToDictionary(group => group.Key, group => group.ToArray());
 
-            mouseTriggersBySignature = mouseTriggers.ToDictionary(trigger => trigger.Signature);
-            triggerSignaturesByAxis = mouseTriggers
-                                      .GroupBy(trigger => trigger.Axis)
-                                      .ToDictionary(group => group.Key, group => group.Select(trigger => trigger.Signature).ToArray());
+            int sourceIndex = 0;
+            foreach (var source in triggers.GroupBy(trigger => (trigger.Action, trigger.Axis, trigger.Inverted, trigger.Settings)))
+            {
+                string sourceId = FormattableString.Invariant($"mouse:{(int)source.Key.Axis}:{(int)source.Key.Action}:{sourceIndex++}");
+                foreach (var trigger in source)
+                    trigger.SourceId = sourceId;
+            }
+
+            foreach (var trigger in triggers)
+                actionPressCounts.TryAdd(trigger.Action, 0);
         }
 
         public void BeginFrame()
@@ -43,35 +52,29 @@ namespace oms.Input.Devices
 
         public bool ApplyAxisDelta(OmsMouseAxis axis, float delta)
         {
-            if (Math.Abs(delta) <= float.Epsilon || !triggerSignaturesByAxis.TryGetValue(axis, out var signatures))
+            if (!float.IsFinite(delta) || Math.Abs(delta) <= float.Epsilon || !triggersByAxis.TryGetValue(axis, out var axisTriggers))
                 return false;
 
-            var signaturesToActivate = new List<string>();
-            var signaturesToDeactivate = new List<string>();
-
-            foreach (var signature in signatures)
-            {
-                var trigger = mouseTriggersBySignature[signature];
-                bool isActive = activeTriggerSignatures.Contains(signature);
-                bool shouldBeActive = shouldTrigger(delta, trigger.AxisDirection, trigger.AxisInverted);
-
-                if (isActive == shouldBeActive)
-                    continue;
-
-                if (shouldBeActive)
-                    signaturesToActivate.Add(signature);
-                else
-                    signaturesToDeactivate.Add(signature);
-            }
+            foreach (var trigger in axisTriggers)
+                trigger.Apply(delta);
 
             bool changed = false;
+            foreach (var trigger in axisTriggers)
+            {
+                if (!trigger.ShouldBeActive)
+                    changed |= deactivate(trigger);
+            }
 
-            foreach (var signature in signaturesToDeactivate)
-                changed |= deactivate(signature);
+            // Reverse direction by releasing the old trigger before pressing the new one.
+            foreach (var trigger in axisTriggers)
+            {
+                if (!trigger.ShouldBeActive)
+                    continue;
 
-            // Direction reversals within the same frame should emit a fresh pulse.
-            foreach (var signature in signaturesToActivate)
-                changed |= activate(signature);
+                acceptedMotion?.Invoke(new OmsAxisMotion(trigger.Action, OmsAxisMode.RelativeMotion, trigger.Movement,
+                    trigger.SourceId, null, trigger.Settings.StopTimeoutMilliseconds));
+                changed |= activate(trigger);
+            }
 
             return changed;
         }
@@ -79,81 +82,95 @@ namespace oms.Input.Devices
         public bool FinishFrame()
         {
             bool changed = false;
-
-            foreach (var signature in activeTriggerSignatures.ToArray())
-                changed |= deactivate(signature);
+            foreach (var trigger in triggers)
+                changed |= deactivate(trigger);
 
             return changed;
         }
 
-        private bool activate(string signature)
+        public bool ReleaseAll()
         {
-            if (!activeTriggerSignatures.Add(signature))
+            bool changed = FinishFrame();
+            foreach (var trigger in triggers)
+                trigger.Reset();
+
+            return changed;
+        }
+
+        public bool Reset() => ReleaseAll();
+
+        private bool activate(MouseAxisTrigger trigger)
+        {
+            if (trigger.Active)
                 return false;
 
-            var action = mouseTriggersBySignature[signature].Action;
-            int count = actionPressCounts.GetValueOrDefault(action);
-            actionPressCounts[action] = count + 1;
-
-            if (count > 0)
+            trigger.Active = true;
+            int count = actionPressCounts[trigger.Action]++;
+            if (count != 0)
                 return false;
 
-            pressAction(action);
+            pressAction(trigger.Action);
             return true;
         }
 
-        private bool deactivate(string signature)
+        private bool deactivate(MouseAxisTrigger trigger)
         {
-            if (!activeTriggerSignatures.Remove(signature))
+            if (!trigger.Active)
                 return false;
 
-            var action = mouseTriggersBySignature[signature].Action;
-            int count = actionPressCounts.GetValueOrDefault(action);
-
-            if (count <= 1)
-            {
-                actionPressCounts.Remove(action);
-
-                if (count == 1)
-                {
-                    releaseAction(action);
-                    return true;
-                }
-
+            trigger.Active = false;
+            int count = --actionPressCounts[trigger.Action];
+            if (count != 0)
                 return false;
-            }
 
-            actionPressCounts[action] = count - 1;
-            return false;
+            releaseAction(trigger.Action);
+            return true;
         }
 
-        private static bool shouldTrigger(float delta, OmsAxisDirection direction, bool axisInverted)
-        {
-            float effectiveDelta = axisInverted ? -delta : delta;
-
-            return direction == OmsAxisDirection.Positive
-                ? effectiveDelta > 0
-                : effectiveDelta < 0;
-        }
-
-        private readonly struct MouseAxisTrigger
+        private sealed class MouseAxisTrigger
         {
             public OmsAction Action { get; }
-
             public OmsMouseAxis Axis { get; }
+            public OmsAxisDirection Direction { get; }
+            public bool Inverted { get; }
+            public OmsAxisSettings Settings { get; }
+            public string SourceId { get; set; } = string.Empty;
+            public bool Active { get; set; }
+            public bool ShouldBeActive { get; private set; }
+            public double Movement { get; private set; }
 
-            public OmsAxisDirection AxisDirection { get; }
+            private double pendingMovement;
 
-            public bool AxisInverted { get; }
-
-            public string Signature => $"{(int)Action}:{(int)Axis}:{(int)AxisDirection}:{AxisInverted}";
-
-            public MouseAxisTrigger(OmsAction action, OmsMouseAxis axis, OmsAxisDirection axisDirection, bool axisInverted)
+            public MouseAxisTrigger(OmsAction action, OmsBindingTrigger trigger)
             {
                 Action = action;
-                Axis = axis;
-                AxisDirection = axisDirection;
-                AxisInverted = axisInverted;
+                Axis = trigger.MouseAxisKind;
+                Direction = trigger.AxisDirection;
+                Inverted = trigger.AxisInverted;
+                Settings = trigger.AxisSettings;
+            }
+
+            public void Apply(double delta)
+            {
+                pendingMovement += delta * Settings.Sensitivity * (Inverted ? -1 : 1);
+                Movement = 0;
+                ShouldBeActive = false;
+                if (Math.Abs(pendingMovement) <= Settings.MovementThreshold)
+                    return;
+
+                double movement = pendingMovement;
+                pendingMovement = 0;
+                if (Direction == OmsAxisDirection.Positive ? movement > 0 : movement < 0)
+                {
+                    Movement = movement;
+                    ShouldBeActive = true;
+                }
+            }
+
+            public void Reset()
+            {
+                pendingMovement = Movement = 0;
+                ShouldBeActive = false;
             }
         }
     }

@@ -19,6 +19,7 @@ using osu.Framework.Timing;
 using osu.Framework.Utils;
 using osu.Game.Beatmaps;
 using osu.Game.Database;
+using osu.Game.Input;
 using osu.Game.Input.Bindings;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Input;
@@ -123,7 +124,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddStep("recorded input keeps both tap instants instead of the first catch-up instant", () =>
             {
                 double[] pressedTimes = score.Replay.Frames.OfType<BmsReplayFrame>()
-                    .Where(frame => frame.LaneActions.Contains(BmsAction.Key1)).Select(frame => frame.Time).Distinct().ToArray();
+                    .Where(frame => frame.InputActions.Contains(BmsAction.Key1)).Select(frame => frame.Time).Distinct().ToArray();
                 Assert.That(pressedTimes, Is.EqualTo(new[] { 1040d, 1080d }).Within(0.0001));
                 renderer.SetRecordTarget(null!);
             });

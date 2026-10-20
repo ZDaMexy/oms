@@ -14,6 +14,10 @@ namespace osu.Game.Rulesets.UI
         /// <summary>Freezes one producer batch per outer frame, rather than consuming newly arriving input during catch-up.</summary>
         void PrepareFrame(IGameplayInputTimeSource? timeSource, double currentTime, bool isLiveInput);
 
+        /// <summary>Also exposes the actual outer reference time to device consumers without a timestamped clock.</summary>
+        void PrepareFrame(IGameplayInputTimeSource? timeSource, double currentTime, bool isLiveInput, double observationTime)
+            => PrepareFrame(timeSource, currentTime, isLiveInput);
+
         /// <summary>Invalidates queued live input when ownership changes, even if it changes twice between outer frames.</summary>
         void ResetInput();
 

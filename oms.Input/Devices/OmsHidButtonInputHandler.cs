@@ -18,7 +18,7 @@ namespace oms.Input.Devices
         private readonly Action<OmsAction> pressAction;
         private readonly Action<OmsAction> releaseAction;
         private readonly Dictionary<string, HidButtonTrigger> hidTriggersBySignature;
-        private readonly Dictionary<string, string[]> triggerSignaturesByButton;
+        private readonly Dictionary<(string DeviceIdentifier, int ButtonIndex), string[]> triggerSignaturesByButton;
         private readonly HashSet<string> activeTriggerSignatures = new HashSet<string>();
         private readonly Dictionary<OmsAction, int> actionPressCounts = new Dictionary<OmsAction, int>();
 
@@ -35,12 +35,12 @@ namespace oms.Input.Devices
 
             hidTriggersBySignature = hidTriggers.ToDictionary(trigger => trigger.Signature);
             triggerSignaturesByButton = hidTriggers
-                                        .GroupBy(trigger => trigger.DeviceButtonSignature)
+                                        .GroupBy(trigger => (trigger.DeviceIdentifier, trigger.ButtonIndex))
                                         .ToDictionary(group => group.Key, group => group.Select(trigger => trigger.Signature).ToArray());
         }
 
         public IReadOnlyList<OmsAction> GetActionsForButton(string deviceIdentifier, int buttonIndex)
-            => triggerSignaturesByButton.TryGetValue(buildDeviceButtonSignature(deviceIdentifier, buttonIndex), out var signatures)
+            => triggerSignaturesByButton.TryGetValue((OmsHidDeviceIdentifier.Normalize(deviceIdentifier), buttonIndex), out string[]? signatures)
                 ? signatures.Select(signature => hidTriggersBySignature[signature].Action).Distinct().ToArray()
                 : empty_actions;
 
@@ -52,12 +52,12 @@ namespace oms.Input.Devices
 
         private bool updateButtonState(string deviceIdentifier, int buttonIndex, bool pressed)
         {
-            if (!triggerSignaturesByButton.TryGetValue(buildDeviceButtonSignature(deviceIdentifier, buttonIndex), out var signatures))
+            if (!triggerSignaturesByButton.TryGetValue((OmsHidDeviceIdentifier.Normalize(deviceIdentifier), buttonIndex), out string[]? signatures))
                 return false;
 
             bool changed = false;
 
-            foreach (var signature in signatures)
+            foreach (string signature in signatures)
             {
                 bool isActive = activeTriggerSignatures.Contains(signature);
 
@@ -106,9 +106,6 @@ namespace oms.Input.Devices
             return changed;
         }
 
-        private static string buildDeviceButtonSignature(string deviceIdentifier, int buttonIndex)
-            => $"{OmsHidDeviceIdentifier.Normalize(deviceIdentifier)}:{buttonIndex}";
-
         private readonly struct HidButtonTrigger
         {
             public OmsAction Action { get; }
@@ -117,9 +114,7 @@ namespace oms.Input.Devices
 
             public int ButtonIndex { get; }
 
-            public string DeviceButtonSignature => buildDeviceButtonSignature(DeviceIdentifier, ButtonIndex);
-
-            public string Signature => $"{(int)Action}:{DeviceButtonSignature}";
+            public string Signature => $"{(int)Action}:{DeviceIdentifier}:{ButtonIndex}";
 
             public HidButtonTrigger(OmsAction action, string deviceIdentifier, int buttonIndex)
             {

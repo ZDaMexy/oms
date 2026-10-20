@@ -7,6 +7,7 @@ using NUnit.Framework;
 using oms.Input;
 using oms.Input.Devices;
 using osu.Framework.Input.Bindings;
+using osu.Game.Input;
 using osu.Game.Rulesets.Bms.Input;
 
 namespace osu.Game.Rulesets.Bms.Tests

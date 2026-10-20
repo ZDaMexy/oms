@@ -9,7 +9,6 @@ using System.Runtime.Versioning;
 using Microsoft.Win32;
 using osu.Desktop.Performance;
 using osu.Desktop.Security;
-using osu.Desktop.Updater;
 using osu.Desktop.Windows;
 using osu.Framework;
 using osu.Framework.Allocation;
@@ -22,11 +21,10 @@ using osu.Framework.Platform;
 using osu.Game;
 using osu.Game.Beatmaps;
 using osu.Game.Configuration;
-using osu.Game.Database;
+using osu.Game.Input;
 using osu.Game.IO;
 using osu.Game.IPC;
 using osu.Game.Online.Bms;
-using osu.Game.Online.Multiplayer;
 using osu.Game.Online.Sayobot;
 using osu.Game.Overlays.Settings;
 using osu.Game.Performance;
@@ -43,10 +41,10 @@ namespace osu.Desktop
         private ArchiveImportIPCChannel? archiveImportIPCChannel;
         private BmsBeatmapImporter? bmsBeatmapImporter;
         private ManiaBeatmapImporter? maniaBeatmapImporter;
-        private ExternalLibraryScanner? externalLibraryScanner;
         private ManagedLibraryScanner? managedLibraryScanner;
-        private ExternalLibraryConfig? externalLibraryConfig;
         private DependencyContainer desktopDependencies = null!;
+        private readonly SdlRelativeMouseSource relativeMouse = new SdlRelativeMouseSource();
+        private WindowsRawKeyboardSource? rawKeyboard;
 
         [Cached(typeof(IHighPerformanceSessionManager))]
         private readonly HighPerformanceSessionManager highPerformanceSessionManager = new HighPerformanceSessionManager();
@@ -158,7 +156,7 @@ namespace osu.Desktop
             if (IsPackageManaged)
                 return new NoActionUpdateManager();
 
-            return new osu.Desktop.Updater.VelopackUpdateManager();
+            return new Updater.VelopackUpdateManager();
         }
 
         public override bool RestartAppWhenExited()
@@ -175,22 +173,30 @@ namespace osu.Desktop
             // Cache external library services during BDL so they are available before
             // the Settings overlay async-loads (loadComponentSingleFile uses Schedule,
             // but dependency resolution must find these already registered).
-            externalLibraryConfig = new ExternalLibraryConfig(Storage);
-            externalLibraryScanner = new ExternalLibraryScanner(externalLibraryConfig, new FilesystemBeatmapIndex(Storage, ClientRealm));
-            managedLibraryScanner = new ManagedLibraryScanner(externalLibraryScanner, new[]
+            ExternalLibraryConfig = new ExternalLibraryConfig(Storage);
+            ExternalLibraryScanner = new ExternalLibraryScanner(ExternalLibraryConfig, new FilesystemBeatmapIndex(Storage, ClientRealm));
+            managedLibraryScanner = new ManagedLibraryScanner(ExternalLibraryScanner, new[]
             {
                 new ExternalLibraryScanner.ScanRootDefinition(Storage.GetFullPath(BmsFolderImporter.SONGS_STORAGE_PATH), ExternalLibraryRootType.BMS, external: false),
                 new ExternalLibraryScanner.ScanRootDefinition(Storage.GetFullPath(ManiaFolderImporter.MANIA_STORAGE_PATH), ExternalLibraryRootType.Mania, external: false),
             });
 
-            desktopDependencies.CacheAs(externalLibraryConfig);
-            desktopDependencies.CacheAs(externalLibraryScanner);
+            desktopDependencies.CacheAs(ExternalLibraryConfig);
+            desktopDependencies.CacheAs(ExternalLibraryScanner);
             desktopDependencies.CacheAs(managedLibraryScanner);
+            desktopDependencies.CacheAs<IOmsMouseAxisSource>(relativeMouse);
+            if (RuntimeInfo.OS == RuntimeInfo.Platform.Windows)
+            {
+                rawKeyboard = new WindowsRawKeyboardSource();
+                desktopDependencies.CacheAs<IOmsKeyboardEventSource>(rawKeyboard);
+            }
         }
 
         protected override void LoadComplete()
         {
             base.LoadComplete();
+
+            Add(relativeMouse);
 
             bmsBeatmapImporter = new BmsBeatmapImporter(Storage, ClientRealm)
             {
@@ -205,10 +211,10 @@ namespace osu.Desktop
             RegisterImportHandler(maniaBeatmapImporter);
 
             // Wire scanner delegates to direct-read registration, preserving source directories as read-only.
-            externalLibraryScanner!.BmsDirectoryImporter = (path, rootPath, ct) => bmsBeatmapImporter.RegisterExternalDirectory(path, rootPath, ct);
-            externalLibraryScanner!.ManiaDirectoryImporter = (path, ct) => maniaBeatmapImporter.RegisterExternalDirectory(path, ct);
-            externalLibraryScanner.BmsDirectoryShouldImport = bmsBeatmapImporter.ShouldImportExternalDirectory;
-            externalLibraryScanner.ManiaDirectoryShouldImport = maniaBeatmapImporter.ShouldImportExternalDirectory;
+            ExternalLibraryScanner!.BmsDirectoryImporter = (path, rootPath, ct) => bmsBeatmapImporter.RegisterExternalDirectory(path, rootPath, ct);
+            ExternalLibraryScanner!.ManiaDirectoryImporter = (path, ct) => maniaBeatmapImporter.RegisterExternalDirectory(path, ct);
+            ExternalLibraryScanner.BmsDirectoryShouldImport = bmsBeatmapImporter.ShouldImportExternalDirectory;
+            ExternalLibraryScanner.ManiaDirectoryShouldImport = maniaBeatmapImporter.ShouldImportExternalDirectory;
             managedLibraryScanner!.BmsDirectoryImporter = (path, _, ct) => bmsBeatmapImporter.RegisterManagedDirectory(path, ct);
             managedLibraryScanner!.ManiaDirectoryImporter = (path, ct) => maniaBeatmapImporter.RegisterManagedDirectory(path, ct);
             managedLibraryScanner.BmsDirectoryShouldImport = (path, _) => bmsBeatmapImporter.ShouldImportManagedDirectory(path);
@@ -220,7 +226,7 @@ namespace osu.Desktop
             if (RuntimeInfo.OS == RuntimeInfo.Platform.Windows)
             {
                 LoadComponentAsync(new GameplayWinKeyBlocker(), Add);
-                Add(new WindowsRawKeyboardSource());
+                Add(rawKeyboard!);
             }
 
             LoadComponentAsync(new ElevatedPrivilegesChecker(), Add);
@@ -246,7 +252,7 @@ namespace osu.Desktop
 
         public override SettingsSubsection CreateSettingsSubsectionFor(InputHandler handler)
         {
-            if (handler is ITabletHandler || handler is TouchHandler || handler is MouseHandler)
+            if (handler is MouseHandler || handler is ITabletHandler || handler is TouchHandler)
                 return null!;
 
             return base.CreateSettingsSubsectionFor(handler);
@@ -297,12 +303,12 @@ namespace osu.Desktop
         /// <summary>
         /// Expose the external library scanner for use by settings UI or console commands.
         /// </summary>
-        public ExternalLibraryScanner? ExternalLibraryScanner => externalLibraryScanner;
+        public ExternalLibraryScanner? ExternalLibraryScanner { get; private set; }
 
         /// <summary>
         /// Expose the external library config for use by settings UI.
         /// </summary>
-        public ExternalLibraryConfig? ExternalLibraryConfig => externalLibraryConfig;
+        public ExternalLibraryConfig? ExternalLibraryConfig { get; private set; }
 
         protected override void Dispose(bool isDisposing)
         {

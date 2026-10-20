@@ -1,35 +1,36 @@
 # P1-B 开发进度：输入语义与硬件验收
 
-> 最后核对：2026-10-19（原生按键时刻、控制器后台发现与稳态分配；实体设备门保持）
+> 最后核对：2026-10-21（真实输入入口、轴用途、长皿与设备身份；实体设备门保持）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，当前执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 
 ## 当前阶段
 
 - 当前代码已具备可运行的输入主链。
 - 当前仓库已有 keyboard / Raw Input / XInput / MouseAxis / DirectInput HID 主链；`OmsInputRouter` 已改成 shared-action 引用计数，`BmsInputManager` 只在全局首个 press / 最终 release 时转发 `BmsAction`。
-- 原生窗口回调只记录事件及单调接收时间，Update沿既有offset/rate后时钟在事件时刻判定/录制，卡顿后的整批输入不再挤在首个catch-up子步。失焦/暂停、seek/reset、offset/source或replay所有者变化清旧批次；绑定组保持单一来源，原生不可用或不能覆盖整组时保留框架路径，左右修饰、布局/NumLock身份保持。
-- `MouseAxis` / `HidAxis` 已按帧/按轮询 pulse 语义处理，反向换向会先 release 再 re-press；Windows 默认 HID backend 现为 DirectInput，`HidSharp` 仅保留为 `OMS_ENABLE_HIDSHARP=1` 诊断后端。
-- HID运行中发现/退休设备释放已移到唯一后台任务，已连设备仍每帧轮询；缺席设备500ms退避，退出drain未提交候选。DirectInput复用原生state/change buffer，每轮只取一次快照；断开当帧松键，资源释放不再被连接标志短路。
+- BMS／mania 共用接收时刻与 clock epoch 队列，各自仍使用本玩法的动作和绑定解析器。Windows 先汇总实体键盘，重复 down 不增加引用，拔出一台只释放其实体键；释放沿保留按下时的布局／NumLock 身份。原生不可用或不能覆盖整个绑定组时保留框架路径。
+- 主游玩区域明确持有原生键盘，恢复层不抢占；中途接管仍配平普通键盘松开，同键最后来源才释放。BMS 暂停时配置按键即时生效，音符判定仍隔离，回放保持独占。
+- HID 轴明确区分相对位移、环形编码器、位置按钮与摇杆模拟运动；鼠标仅相对位移。灵敏度、累积运动阈值、位置阈值／回差、死区、实际时间积分和停止等待由同一解释器消费；旧绑定保留相对脉冲默认值。
+- 运动攻击与长皿持续状态分开；连续运动可继续打普通皿，停止／断开／epoch 重置按来源结束持有。持续位和原 16 轨一同录制／播放，不改变计分、窗口或 TOTAL；具体长条合同归 [P1-E](../P1-E/TECHNICAL_CONSTRAINTS.md)。
+- Windows 默认 HID backend 仍为 DirectInput，HidSharp 仅保留 `OMS_ENABLE_HIDSHARP=1` 诊断入口。DirectInput 显式 Acquire 并读取有序缓冲，快照不再代替完整 tap；溢出明确失败并释放，不伪造丢失历史。设备发现／退休仍唯一后台所有者，已连接设备持续采样，缺席设备500ms退避。
+- 新 HID 绑定指向具体实例并显示名称；旧型号标识只接受唯一匹配，多台歧义不任意认领。实例标识不承诺跨换口／驱动重装不变。配置和持续信号测试归 [P1-D](../P1-D/DEVELOPMENT_STATUS.md)。
 - desktop public settings surface 现已通过 `OsuGameDesktop.CreateSettingsSubsectionFor()` 安全隐藏 upstream 的 `MouseSettings` / `TouchSettings` / `TabletSettings`；这不等于删除 mouse/touch/tablet runtime config 或 handler，只是停止把非 OMS 通用 subsection 暴露给最终桌面产品面。
 - `TestSceneOmsScratchGameplayBridge` 已有 loaded-scene 回归，覆盖 mouse-axis / HID-axis / XInput、mixed-source suppression、hold survival 与 takeover 等边界；这些软件场景不等于真实控制器覆盖。
-- 剩余重点是 cross-device 终态语义与真实硬件验收，而不是再开新输入后端。
+- 本轮实际入口、批次时间、软件回归和性能范围集中见 [2026-10-21 输入审查](../../other/INPUT_SIGNAL_REVIEW_20261021.md)。剩余重点是正常窗口与实体设备验收。
 
 ## 进度矩阵
 
 | 事项 | 状态 | 备注 |
 | --- | --- | --- |
 | desktop 输入设置公开表面 | 已完成 | upstream mouse/touch/tablet subsection 已安全隐藏；runtime chain 保持不变 |
-| mixed-source runtime 语义 | 进行中 | 引用计数、first-press/final-release gating 与 scratch bridge 已接通，终态/硬件清单待签收 |
+| mixed-source runtime 语义 | 软件实现已接通 | 引用计数、真实入口、运动／持有与回放；实体设备清单待签收 |
 | 真实 HID 验收 | 未开始 | 仍缺真实 IIDX/BMS 控制器覆盖 |
 | 对外硬件行为口径 | 进行中 | “Windows 默认 DirectInput + HidSharp 诊断后端”已可写入文档 |
 
 ## 最近一次验证
 
-2026-10-19后续深审：实际卡顿tap的判定/RawTime/录制、clock epoch与所有权、慢provider闭锁期间持续输入及退出释放、原生COM wrapper和稳态分配证据取[性能与判定记录](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#验证证据)。软件时间是回调接收时刻，不等同物理触点；不代签实体HID/设备延迟。
+2026-10-21：实际结果、命令和证据只取 [输入审查的验证记录](../../other/INPUT_SIGNAL_REVIEW_20261021.md#验证证据)；输入接收／轮询观察时刻不等于物理触点时间，软件场景不代签硬件延迟。
 
-2026-10-19真实loaded判定、两路完整tap、失焦reset、左右修饰键和混合组合键已有回归；独立Windows宿主验证实际原生/SDL去重和Break回退。有效运行、探针纠正与完整回归只取[游玩审查](../../other/GAMEPLAY_REVIEW_20261019.md#验证证据)。SendInput与软件轴/控制器用例不代签实体键盘、HID或cross-device人工清单。
-
-2026-09-22 BMS full 留存 TRX 中，`TestSceneOmsScratchGameplayBridge` 43/43 通过。它证明所覆盖的软件输入/玩法桥，不代表真实 HID、控制器或 cross-device 人工清单通过。同日完整回归的旧皮肤失败与 Release 历史执行边界见 [TOTAL 原验证](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md#验证状态)；desktop 设置裁剪的原始构建记录见 [CHANGELOG](CHANGELOG.md#2026-05-09)。
+此前输入专项、独立 Windows 宿主与完整运行保留原日期，见 [CHANGELOG](CHANGELOG.md)。
 
 ## 文档治理验证
 

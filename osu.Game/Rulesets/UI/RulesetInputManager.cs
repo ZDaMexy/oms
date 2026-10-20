@@ -188,20 +188,25 @@ namespace osu.Game.Rulesets.UI
 
         #region Keys per second Counter Attachment
 
-        public void Attach(ClicksPerSecondController controller) => KeyBindingContainer.Add(new ActionListener(controller));
+        public void Attach(ClicksPerSecondController controller) => KeyBindingContainer.Add(new ActionListener(controller, this));
+
+        protected virtual bool CountsAsClick(T action) => true;
 
         private partial class ActionListener : Component, IKeyBindingHandler<T>
         {
             private readonly ClicksPerSecondController controller;
+            private readonly RulesetInputManager<T> inputManager;
 
-            public ActionListener(ClicksPerSecondController controller)
+            public ActionListener(ClicksPerSecondController controller, RulesetInputManager<T> inputManager)
             {
                 this.controller = controller;
+                this.inputManager = inputManager;
             }
 
             public bool OnPressed(KeyBindingPressEvent<T> e)
             {
-                controller.AddInputTimestamp();
+                if (inputManager.CountsAsClick(e.Action))
+                    controller.AddInputTimestamp();
                 return false;
             }
 

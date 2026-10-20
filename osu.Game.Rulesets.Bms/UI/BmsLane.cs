@@ -451,7 +451,7 @@ namespace osu.Game.Rulesets.Bms.UI
             if (inputManager == null)
                 return;
 
-            bool isPressed = inputManager.KeyBindingContainer.PressedActions.Contains(Action.Value);
+            bool isPressed = inputManager.IsLaneHeld(Action.Value);
 
             if (HitTarget.IsPressed.Value != isPressed)
                 HitTarget.IsPressed.Value = isPressed;

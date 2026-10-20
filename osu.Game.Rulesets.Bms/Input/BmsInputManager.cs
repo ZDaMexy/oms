@@ -9,11 +9,13 @@ using oms.Input;
 using oms.Input.Devices;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
-using osu.Framework.Graphics;
+using osu.Framework.Input;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
+using osu.Framework.Platform;
 using osu.Game.Database;
+using osu.Game.Input;
 using osu.Game.Localisation;
 using osu.Game.Rulesets.UI;
 using osu.Game.Screens.Play;
@@ -32,19 +34,30 @@ namespace osu.Game.Rulesets.Bms.Input
         public OmsInputRouter Router { get; } = new OmsInputRouter();
 
         private readonly HashSet<BmsAction> forwardedPressedActions = new HashSet<BmsAction>();
-        private readonly object rawKeyboardGate = new object();
-        private readonly Queue<RawKeyboardTransition> rawKeyboardTransitions = new Queue<RawKeyboardTransition>(32);
-        private readonly Queue<TimedKeyboardTransition> timedKeyboardTransitions = new Queue<TimedKeyboardTransition>(32);
-        private GameplayInputTime? previousInputTime;
-        private long? preparedClockEpoch;
-        private bool usesTimestampedInput;
-        private bool releaseKeyboardOnUpdate;
-        private int rawKeyboardEpoch;
-        private int preparedRawKeyboardEpoch;
-        private double lastPreparedInputTime;
-        private bool rawKeyboardClosed;
+        private readonly GameplayKeyboardInputQueue keyboardInputQueue;
+        private readonly BmsScratchMotionTracker scratchMotion;
+        private readonly GameplayInputQueue<DeviceInput> deviceInputQueue;
+        private readonly Action<OmsHidInputEvent> receiveHidInput;
+        private readonly HashSet<int> boundJoystickButtons = new HashSet<int>();
+        private readonly HashSet<int> heldJoystickButtons = new HashSet<int>(64);
+        private readonly object mouseInputGate = new object();
+        private int mouseInputEpoch;
+        private IBindable<bool>? hostActive;
+        private IDisposable? mouseCapture;
+        private int resetAllInput;
+        private bool mouseBindings;
+        private bool liveInputEnabled = true;
+        private bool hasPreparedInput;
+        private bool wasLiveInput = true;
+        private long? inputClockEpoch;
+        private double previousObservationTime = double.NaN;
+        private double hidObservationTime;
+        private long? hidCaptureClockEpoch;
+        private GameplayInputTime? inputTimeAnchor;
+        private bool sourcesActivated;
         private bool rawKeyboardBindingsSupported = true;
         private readonly int variant;
+        private readonly Func<IOmsHidButtonDeviceProvider?>? createHidProvider;
         private OmsKeyboardInputHandler keyboardInputHandler = null!;
         private OmsHidButtonInputHandler hidButtonInputHandler = null!;
         private OmsXInputButtonInputHandler xInputButtonInputHandler = null!;
@@ -54,16 +67,35 @@ namespace osu.Game.Rulesets.Bms.Input
         [Resolved(canBeNull: true)]
         private IOmsKeyboardEventSource? keyboardEventSource { get; set; }
 
+        [Resolved(canBeNull: true)]
+        private IOmsMouseAxisSource? mouseAxisSource { get; set; }
+
+        [Resolved(canBeNull: true)]
+        private GameHost? host { get; set; }
+
         public BmsInputManager(RulesetInfo ruleset, int variant)
+            : this(ruleset, variant, null)
+        {
+        }
+
+        internal BmsInputManager(RulesetInfo ruleset, int variant, Func<IOmsHidButtonDeviceProvider?>? createHidProvider)
             : base(ruleset, variant, SimultaneousBindingMode.Unique)
         {
+            this.createHidProvider = createHidProvider;
+            keyboardInputQueue = new GameplayKeyboardInputQueue(
+                (key, pressed) => tryHandleKeyboardEvent(key, pressed),
+                () => keyboardInputHandler.ReleaseAllPressed());
+            scratchMotion = new BmsScratchMotionTracker(
+                action => KeyBindingContainer.TriggerPressed(action),
+                action => KeyBindingContainer.TriggerReleased(action));
+            deviceInputQueue = new GameplayInputQueue<DeviceInput>(dispatchDeviceInput, releaseAppliedDeviceInput);
+            receiveHidInput = input => deviceInputQueue.EnqueueObserved(new DeviceInput(DeviceInputKind.Hid, Hid: input), hidObservationTime, hidCaptureClockEpoch);
             this.variant = OmsBmsActionMap.NormalizeVariant(variant);
             applyBindings(OmsBmsBindingResolver.GetBindingsOrDefault(null, this.variant));
 
             Router.ActionPressed += onOmsActionPressed;
             Router.ActionReleased += onOmsActionReleased;
 
-            AddInternal(new BmsActionRouterMirror(Router, this.variant));
         }
 
         [BackgroundDependencyLoader(true)]
@@ -72,7 +104,22 @@ namespace osu.Game.Rulesets.Bms.Input
             applyBindings(OmsBmsBindingResolver.GetBindingsOrDefault(realmAccess, variant));
         }
 
-        internal void ActivateRawKeyboard() => keyboardEventSource?.RegisterSink(this);
+        internal void ActivateRawKeyboard()
+        {
+            if (sourcesActivated)
+                return;
+            sourcesActivated = true;
+            keyboardEventSource?.RegisterSink(this);
+            if (mouseAxisSource != null)
+            {
+                mouseAxisSource.RelativeMouseMoved += onRelativeMouseMoved;
+                mouseAxisSource.InputReset += onMouseInputReset;
+            }
+            hostActive = host?.IsActive.GetBoundCopy();
+            hostActive?.BindValueChanged(_ => requestInputReset());
+        }
+
+        protected override bool CountsAsClick(BmsAction action) => action.IsLaneAction();
 
         public bool TriggerKeyPressed(InputKey key) => keyboardInputHandler.TriggerPressed(key);
 
@@ -87,6 +134,25 @@ namespace osu.Game.Rulesets.Bms.Input
         public bool TriggerXInputButtonReleased(int buttonIndex) => xInputButtonInputHandler.TriggerReleased(buttonIndex);
 
         public bool TriggerMouseAxisDelta(OmsMouseAxis axis, float delta) => mouseAxisInputHandler.ApplyAxisDelta(axis, delta);
+
+        public bool IsLaneHeld(BmsAction action)
+            => KeyBindingContainer.PressedActions.Contains(action)
+               || IsScratchMotionHeld(action);
+
+        internal bool IsScratchMotionHeld(BmsAction action)
+            => action == BmsAction.Scratch1 && KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch1Motion)
+               || action == BmsAction.Scratch2 && KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch2Motion);
+
+        internal bool IsLaneHeldAfterRelease(BmsAction lane, BmsAction releasing)
+            => lane != releasing && KeyBindingContainer.PressedActions.Contains(lane)
+               || lane == BmsAction.Scratch1 && releasing != BmsAction.Scratch1Motion && KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch1Motion)
+               || lane == BmsAction.Scratch2 && releasing != BmsAction.Scratch2Motion && KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch2Motion);
+
+        private void observeAxisMotion(OmsAxisMotion motion)
+        {
+            if (UseParentInput && liveInputEnabled && !PreStartHoldPressed.Value)
+                scratchMotion.Observe(motion, toDeviceTime(Time.Current));
+        }
 
         public bool TriggerOmsActionPressed(OmsAction action)
         {
@@ -108,236 +174,271 @@ namespace osu.Game.Rulesets.Bms.Input
         {
             bool changed = Router.TriggerReleased(action);
 
-            if (!changed || !UseParentInput || !OmsBmsActionMap.TryMapToBmsAction(variant, action, out var bmsAction))
+            if (!changed || !OmsBmsActionMap.TryMapToBmsAction(variant, action, out var bmsAction))
                 return changed;
 
             if (!forwardedPressedActions.Remove(bmsAction))
                 return changed;
 
-            KeyBindingContainer.TriggerReleased(bmsAction);
+            if (UseParentInput)
+                KeyBindingContainer.TriggerReleased(bmsAction);
 
             return changed;
         }
 
         protected override void Update()
         {
-            // A native reset can invalidate an already prepared batch between catch-up substeps.
-            // Only this thread owns the mapped queue and the applied keyboard state.
-            if (usesTimestampedInput && preparedRawKeyboardEpoch != Volatile.Read(ref rawKeyboardEpoch))
-            {
-                timedKeyboardTransitions.Clear();
-                releaseKeyboardOnUpdate = true;
-            }
+            if (Interlocked.Exchange(ref resetAllInput, 0) != 0)
+                hidDeviceHandler?.ResetInput(releaseApplied: false);
 
-            if (releaseKeyboardOnUpdate)
-            {
-                releaseKeyboardOnUpdate = false;
-                keyboardInputHandler.ReleaseAllPressed();
-            }
-
-            if (usesTimestampedInput)
-            {
-                while (timedKeyboardTransitions.TryPeek(out TimedKeyboardTransition transition) && transition.Time <= Time.Current)
-                {
-                    if (preparedRawKeyboardEpoch != Volatile.Read(ref rawKeyboardEpoch))
-                        break;
-
-                    timedKeyboardTransitions.Dequeue();
-                    tryHandleKeyboardEvent(transition.Key, transition.Pressed);
-                }
-            }
-            else
-            {
-                // Non-gameplay previews without a timestamp authority retain the ordinary update-thread
-                // path. Freeze its size so a producer cannot extend the batch while it is being delivered.
-                int count;
-                lock (rawKeyboardGate)
-                    count = rawKeyboardTransitions.Count;
-
-                while (count-- > 0)
-                {
-                    RawKeyboardTransition transition;
-                    lock (rawKeyboardGate)
-                    {
-                        if (!rawKeyboardTransitions.TryDequeue(out transition))
-                            break;
-                    }
-
-                    if (transition.Pressed is bool pressed)
-                        tryHandleKeyboardEvent(transition.Key, pressed);
-                    else
-                        keyboardInputHandler.ReleaseAllPressed();
-                }
-            }
-
+            // Only the already delivered stick position advances on historical catch-up stops.
+            // Hardware itself is read once in PrepareFrame, never in this subtree update.
+            hidDeviceHandler?.UpdateAxes(toDeviceTime(Time.Current));
+            keyboardInputQueue.DispatchDue(Time.Current);
+            deviceInputQueue.DispatchDue(Time.Current);
             mouseAxisInputHandler.FinishFrame();
             mouseAxisInputHandler.BeginFrame();
-            hidDeviceHandler?.PollOnce();
+            // Once gameplay visits our published stop, consume it even if projecting
+            // back to device time rounds just below the original deadline.
+            double? reachedExpiry = scratchMotion.NextExpiry is double expiry && toGameplayTime(expiry) <= Time.Current ? expiry : null;
+            scratchMotion.Update(toDeviceTime(Time.Current), reachedExpiry);
+            if (!hasPreparedInput && UseParentInput)
+                hidDeviceHandler?.PollOnce();
             base.Update();
         }
 
-        double? IFrameStableInputHandler.NextInputTime => usesTimestampedInput
-                                                        && preparedRawKeyboardEpoch == Volatile.Read(ref rawKeyboardEpoch)
-                                                        && timedKeyboardTransitions.TryPeek(out TimedKeyboardTransition transition)
-            ? transition.Time
-            : null;
+        double? IFrameStableInputHandler.NextInputTime
+        {
+            get
+            {
+                double? next = keyboardInputQueue.NextInputTime;
+                if (deviceInputQueue.NextInputTime is double deviceTime)
+                    next = next.HasValue ? Math.Min(next.Value, deviceTime) : deviceTime;
+                if (scratchMotion.NextExpiry is double motionTime)
+                {
+                    double gameplayTime = toGameplayTime(motionTime);
+                    next = next.HasValue ? Math.Min(next.Value, gameplayTime) : gameplayTime;
+                }
+                return next;
+            }
+        }
 
-        void IFrameStableInputHandler.ResetInput() => resetRawKeyboardState();
+        void IFrameStableInputHandler.ResetInput() => requestInputReset();
+
+        private void requestInputReset()
+        {
+            keyboardInputQueue.Reset();
+            deviceInputQueue.Reset();
+            Interlocked.Exchange(ref resetAllInput, 1);
+        }
+
+        private void resetInputEpoch()
+        {
+            keyboardInputQueue.Reset();
+            deviceInputQueue.Reset();
+            hidDeviceHandler?.ResetInput(releaseApplied: false);
+        }
 
         void IFrameStableInputHandler.PrepareFrame(IGameplayInputTimeSource? timeSource, double currentTime, bool isLiveInput)
+            => prepareFrame(timeSource, currentTime, isLiveInput, timeSource?.InputTime?.Time ?? currentTime);
+
+        void IFrameStableInputHandler.PrepareFrame(IGameplayInputTimeSource? timeSource, double currentTime, bool isLiveInput, double observationTime)
+            => prepareFrame(timeSource, currentTime, isLiveInput, observationTime);
+
+        private void prepareFrame(IGameplayInputTimeSource? timeSource, double currentTime, bool isLiveInput, double observationTime)
         {
-            usesTimestampedInput = timeSource != null;
+            hasPreparedInput = true;
+            bool live = isLiveInput && UseParentInput && hostActive?.Value != false;
+            GameplayInputTime? sample = timeSource?.InputTime;
+            inputTimeAnchor = sample;
+            bool epochChanged = sample is GameplayInputTime clock && inputClockEpoch.HasValue && inputClockEpoch.Value != clock.Epoch;
+            bool explicitlyReset = Interlocked.Exchange(ref resetAllInput, 0) != 0;
+            if (!explicitlyReset && (!live && wasLiveInput || !epochChanged && observationTime < previousObservationTime))
+                resetInputEpoch();
+            else if (explicitlyReset || epochChanged || live != wasLiveInput)
+                // Timestamp queues retain fresh reports from the new clock epoch themselves.
+                // Only hardware baselines need an explicit drain; clearing raw queues here
+                // would incorrectly erase freshly received keyboard/mouse input too.
+                hidDeviceHandler?.ResetInput(releaseApplied: false);
+            inputClockEpoch = sample?.Epoch;
+            previousObservationTime = observationTime;
+            wasLiveInput = live;
+            liveInputEnabled = live;
 
-            if (!isLiveInput || !UseParentInput)
+            if (live && mouseBindings && mouseCapture == null)
+                mouseCapture = mouseAxisSource?.AcquireCapture();
+            else if ((!live || !mouseBindings) && mouseCapture != null)
             {
-                lock (rawKeyboardGate)
-                {
-                    rawKeyboardTransitions.Clear();
-                    preparedRawKeyboardEpoch = rawKeyboardEpoch;
-                }
-
-                timedKeyboardTransitions.Clear();
-                previousInputTime = null;
-                releaseKeyboardOnUpdate = true;
-                return;
+                mouseCapture.Dispose();
+                mouseCapture = null;
             }
 
-            if (timeSource?.InputTime is not GameplayInputTime sample)
-                return;
-
-            lock (rawKeyboardGate)
+            if (live && hidDeviceHandler?.HasBoundDevices == true)
             {
-                bool clockChanged = preparedClockEpoch is long epoch && epoch != sample.Epoch;
-                if (preparedRawKeyboardEpoch != rawKeyboardEpoch || clockChanged)
-                {
-                    timedKeyboardTransitions.Clear();
-                    previousInputTime = null;
-                    releaseKeyboardOnUpdate = true;
-                }
-
-                preparedClockEpoch = sample.Epoch;
-                preparedRawKeyboardEpoch = rawKeyboardEpoch;
-
-                if (sample.Time < currentTime)
-                {
-                    // Let the existing subtree finish restoring a backwards seek before applying new live
-                    // edges. They remain raw until the next outer frame, then late edges clamp to that
-                    // restored timeline rather than acting on the old hit-object results during rewind.
-                    previousInputTime = sample;
-                    return;
-                }
-
-                lastPreparedInputTime = timedKeyboardTransitions.Count == 0 ? currentTime : Math.Max(currentTime, lastPreparedInputTime);
-
-                int count = rawKeyboardTransitions.Count;
-
-                while (count-- > 0 && rawKeyboardTransitions.TryPeek(out RawKeyboardTransition transition))
-                {
-                    if (transition.Pressed == null)
-                    {
-                        rawKeyboardTransitions.Dequeue();
-                        releaseKeyboardOnUpdate = true;
-                        continue;
-                    }
-
-                    // A callback received after this clock sample belongs to the next outer frame. Leave it
-                    // queued rather than extrapolating gameplay into a time the clock has not published yet.
-                    if (transition.Timestamp > sample.Timestamp)
-                        break;
-
-                    rawKeyboardTransitions.Dequeue();
-
-                    if (transition.Timestamp < sample.EpochStartTimestamp)
-                        continue;
-
-                    double inputTime = mapInputTime(transition.Timestamp, sample);
-                    // Late callbacks cannot rewind a judgement already exposed to gameplay. Keeping receipt
-                    // order also preserves modifier/chord transitions when several events share a timestamp.
-                    lastPreparedInputTime = Math.Max(lastPreparedInputTime, inputTime);
-                    timedKeyboardTransitions.Enqueue(new TimedKeyboardTransition(transition.Key, transition.Pressed.Value, lastPreparedInputTime));
-                }
-
-                previousInputTime = sample;
+                hidObservationTime = observationTime;
+                hidCaptureClockEpoch = sample?.Epoch;
+                hidDeviceHandler.CaptureOnce(observationTime, receiveHidInput);
             }
+            keyboardInputQueue.PrepareFrame(timeSource, currentTime, live, observationTime);
+            deviceInputQueue.PrepareFrame(timeSource, currentTime, live, observationTime);
         }
 
-        private double mapInputTime(long timestamp, GameplayInputTime sample)
+        private double toDeviceTime(double gameplayTime)
+            => inputTimeAnchor is GameplayInputTime anchor && anchor.Rate > 0
+                ? anchor.Timestamp * (1000.0 / Stopwatch.Frequency) + (gameplayTime - anchor.Time) / anchor.Rate
+                : gameplayTime;
+
+        private double toGameplayTime(double deviceTime)
+            => inputTimeAnchor is GameplayInputTime anchor && anchor.Rate > 0
+                ? anchor.Time + (deviceTime - anchor.Timestamp * (1000.0 / Stopwatch.Frequency)) * anchor.Rate
+                : deviceTime;
+
+        // PassThroughInputManager routes parent events through Handle directly. Drawable's
+        // OnKeyDown/OnJoystickPress overrides are not an entry point on this input path.
+        protected override bool Handle(UIEvent e)
         {
-            if (previousInputTime is GameplayInputTime previous && previous.Epoch == sample.Epoch
-                && previous.Timestamp < sample.Timestamp && timestamp >= previous.Timestamp
-                && previous.IsRunning && sample.IsRunning && sample.Time >= previous.Time)
+            // Pausing disables parent gameplay input, but its pre-start/scroll controls
+            // still need the real parent events. Replays keep exclusive input ownership.
+            if (ReplayInputHandler != null)
+                return base.Handle(e);
+            if (hostActive?.Value == false && e is KeyDownEvent or KeyUpEvent or JoystickPressEvent or JoystickReleaseEvent)
+                return true;
+
+            switch (e)
             {
-                // Both endpoints come from the same offset/rate-adjusted clock. The interval follows its
-                // actual advance, including continuous rate changes and interpolation recovery, rather than
-                // applying today's rate retroactively to all events received during a stalled frame.
-                double fraction = (double)(timestamp - previous.Timestamp) / (sample.Timestamp - previous.Timestamp);
-                return previous.Time + (sample.Time - previous.Time) * fraction;
+                case KeyDownEvent keyDown:
+                    if (routeParentKey(KeyCombination.FromKey(keyDown.Key), !keyDown.Repeat, pressed: true))
+                        return true;
+                    break;
+                case KeyUpEvent keyUp:
+                    if (routeParentKey(KeyCombination.FromKey(keyUp.Key), true, pressed: false))
+                        return true;
+                    break;
+                case JoystickPressEvent joystickPress:
+                    if (routeParentJoystick((int)joystickPress.Button, true))
+                        return true;
+                    break;
+                case JoystickReleaseEvent joystickRelease:
+                    if (routeParentJoystick((int)joystickRelease.Button, false))
+                        return true;
+                    break;
             }
-
-            return sample.IsRunning ? sample.Time + (timestamp - sample.Timestamp) * (1000.0 / Stopwatch.Frequency) * sample.Rate : sample.Time;
+            return base.Handle(e);
         }
 
-        protected override bool OnMouseMove(MouseMoveEvent e)
+        private bool routeParentKey(InputKey key, bool transition, bool pressed)
         {
-            if (e.Delta.X != 0)
-                TriggerMouseAxisDelta(OmsMouseAxis.X, e.Delta.X);
-
-            if (e.Delta.Y != 0)
-                TriggerMouseAxisDelta(OmsMouseAxis.Y, e.Delta.Y);
-
-            return base.OnMouseMove(e);
-        }
-
-        protected override bool OnKeyDown(KeyDownEvent e)
-        {
-            KeyCombination combination = KeyCombination.FromKey(e.Key);
-            return isOwnedRawKeyboardEvent(combination)
-                   || tryHandleKeyboardEvent(combination, pressed: true)
-                   || base.OnKeyDown(e);
-        }
-
-        protected override void OnKeyUp(KeyUpEvent e)
-        {
-            KeyCombination combination = KeyCombination.FromKey(e.Key);
-            if (!isOwnedRawKeyboardEvent(combination) && !tryHandleKeyboardEvent(combination, pressed: false))
-                base.OnKeyUp(e);
-        }
-
-        private bool isOwnedRawKeyboardEvent(KeyCombination combination)
-        {
-            if (!rawKeyboardBindingsSupported || keyboardEventSource?.IsActiveFor(this) != true)
+            if (!keyboardInputHandler.HasBindingForKey(key))
                 return false;
-
-            foreach (InputKey key in combination.Keys)
-            {
-                if (keyboardEventSource.SupportsKey(key) && keyboardInputHandler.HasBindingForKey(key))
-                    return true;
-            }
-
-            return false;
+            if (!transition || UseParentInput && rawKeyboardBindingsSupported && keyboardEventSource?.IsActiveFor(this) == true && keyboardEventSource.SupportsKey(key))
+                return true;
+            if (!UseParentInput || !liveInputEnabled)
+                tryHandleKeyboardEvent(key, pressed);
+            else
+                keyboardInputQueue.Enqueue(key, Stopwatch.GetTimestamp(), pressed);
+            return true;
         }
 
-        protected override bool OnJoystickPress(JoystickPressEvent e)
-            => TriggerXInputButtonPressed((int)e.Button) || base.OnJoystickPress(e);
-
-        protected override void OnJoystickRelease(JoystickReleaseEvent e)
+        private bool routeParentJoystick(int button, bool pressed)
         {
-            if (!TriggerXInputButtonReleased((int)e.Button))
-                base.OnJoystickRelease(e);
+            InputKey key = KeyCombination.FromJoystickButton((JoystickButton)button);
+            if (!boundJoystickButtons.Contains(button) && !keyboardInputHandler.HasBindingForKey(key))
+                return false;
+            var input = new DeviceInput(DeviceInputKind.Joystick, Button: button, Pressed: pressed);
+            if (!UseParentInput || !liveInputEnabled)
+                dispatchDeviceInput(input);
+            else
+                deviceInputQueue.Enqueue(input, Stopwatch.GetTimestamp());
+            return true;
         }
+
+        private void onRelativeMouseMoved(OmsRelativeMouseMovement movement)
+        {
+            lock (mouseInputGate)
+                deviceInputQueue.Enqueue(new DeviceInput(DeviceInputKind.Mouse, X: movement.X, Y: movement.Y, MouseEpoch: mouseInputEpoch), movement.Timestamp);
+        }
+
+        private void onMouseInputReset()
+        {
+            lock (mouseInputGate)
+            {
+                Interlocked.Increment(ref mouseInputEpoch);
+                deviceInputQueue.Enqueue(new DeviceInput(DeviceInputKind.MouseReset), Stopwatch.GetTimestamp());
+            }
+        }
+
+        private void dispatchDeviceInput(DeviceInput input)
+        {
+            switch (input.Kind)
+            {
+                case DeviceInputKind.Mouse:
+                    if (input.MouseEpoch != Volatile.Read(ref mouseInputEpoch))
+                        break;
+                    mouseAxisInputHandler.FinishFrame();
+                    mouseAxisInputHandler.BeginFrame();
+                    if (input.X != 0)
+                        mouseAxisInputHandler.ApplyAxisDelta(OmsMouseAxis.X, input.X);
+                    if (input.Y != 0)
+                        mouseAxisInputHandler.ApplyAxisDelta(OmsMouseAxis.Y, input.Y);
+                    mouseAxisInputHandler.FinishFrame();
+                    break;
+                case DeviceInputKind.MouseReset:
+                    mouseAxisInputHandler.ReleaseAll();
+                    scratchMotion.ReleaseDevice(null);
+                    break;
+                case DeviceInputKind.Joystick:
+                    if (input.Pressed)
+                        heldJoystickButtons.Add(input.Button);
+                    else
+                        heldJoystickButtons.Remove(input.Button);
+                    tryHandleKeyboardEvent(KeyCombination.FromJoystickButton((JoystickButton)input.Button), input.Pressed);
+                    if (input.Pressed)
+                        xInputButtonInputHandler.TriggerPressed(input.Button);
+                    else
+                        xInputButtonInputHandler.TriggerReleased(input.Button);
+                    break;
+                case DeviceInputKind.Hid:
+                    hidDeviceHandler?.DispatchCaptured(input.Hid);
+                    break;
+            }
+        }
+
+        private void releaseAppliedDeviceInput()
+        {
+            mouseAxisInputHandler.ReleaseAll();
+            foreach (int button in heldJoystickButtons)
+            {
+                xInputButtonInputHandler.TriggerReleased(button);
+                tryHandleKeyboardEvent(KeyCombination.FromJoystickButton((JoystickButton)button), false);
+            }
+            heldJoystickButtons.Clear();
+            hidDeviceHandler?.ReleaseAppliedInput();
+            scratchMotion.Clear();
+        }
+
+        private enum DeviceInputKind { Mouse, MouseReset, Joystick, Hid }
+
+        private readonly record struct DeviceInput(DeviceInputKind Kind, float X = 0, float Y = 0, int Button = 0, bool Pressed = false,
+                                                  OmsHidInputEvent Hid = default, int MouseEpoch = 0);
 
         protected override void Dispose(bool isDisposing)
         {
             if (isDisposing)
             {
-                lock (rawKeyboardGate)
+                if (mouseAxisSource != null)
                 {
-                    rawKeyboardClosed = true;
-                    rawKeyboardTransitions.Clear();
+                    mouseAxisSource.RelativeMouseMoved -= onRelativeMouseMoved;
+                    mouseAxisSource.InputReset -= onMouseInputReset;
                 }
-
+                mouseCapture?.Dispose();
+                hostActive?.UnbindAll();
+                deviceInputQueue.Dispose();
+                releaseAppliedDeviceInput();
+                keyboardInputHandler.ReleaseAllPressed();
+                keyboardInputQueue.Dispose();
                 keyboardEventSource?.UnregisterSink(this);
                 hidDeviceHandler?.Dispose();
+                scratchMotion.Clear();
             }
 
             base.Dispose(isDisposing);
@@ -347,66 +448,38 @@ namespace osu.Game.Rulesets.Bms.Input
 
         bool IOmsKeyboardEventSink.HandleRawKeyReleased(InputKey key, long timestamp) => enqueueRawKeyboardTransition(key, timestamp, pressed: false);
 
-        void IOmsKeyboardEventSink.ResetRawKeyboardState() => resetRawKeyboardState();
-
-        private void resetRawKeyboardState()
+        void IOmsKeyboardEventSink.ResetRawKeyboardState()
         {
-            lock (rawKeyboardGate)
-            {
-                if (rawKeyboardClosed)
-                    return;
-
-                // Focus loss/pause ends this input epoch. Pending presses must not hit a note when gameplay
-                // resumes; release only the keyboard state which has already reached the update thread.
-                rawKeyboardEpoch++;
-                rawKeyboardTransitions.Clear();
-                rawKeyboardTransitions.Enqueue(new RawKeyboardTransition(InputKey.None, null, 0));
-            }
+            keyboardInputQueue.Reset();
         }
 
         private bool enqueueRawKeyboardTransition(InputKey key, long timestamp, bool pressed)
-        {
-            if (!rawKeyboardBindingsSupported || !keyboardInputHandler.HasBindingForKey(key))
-                return false;
-
-            lock (rawKeyboardGate)
-            {
-                if (rawKeyboardClosed)
-                    return false;
-
-                rawKeyboardTransitions.Enqueue(new RawKeyboardTransition(key, pressed, timestamp));
-            }
-
-            return true;
-        }
-
-        private readonly record struct RawKeyboardTransition(InputKey Key, bool? Pressed, long Timestamp);
-
-        private readonly record struct TimedKeyboardTransition(InputKey Key, bool Pressed, double Time);
+            => rawKeyboardBindingsSupported && keyboardInputHandler.HasBindingForKey(key)
+                                            && keyboardInputQueue.Enqueue(key, timestamp, pressed);
 
         private void applyBindings(IReadOnlyList<OmsBinding> bindings)
         {
             // Keep an entire binding group on one source. Splitting a chord between queued native modifiers
             // and unsupported SDL keys can lose a complete tap before the two batches meet in this update.
+            keyboardInputHandler?.ReleaseAllPressed();
+            hidDeviceHandler?.Dispose();
+            mouseAxisInputHandler?.ReleaseAll();
+            heldJoystickButtons.Clear();
+            boundJoystickButtons.Clear();
+            foreach (var trigger in bindings.SelectMany(binding => binding.XInputButtonTriggers))
+                boundJoystickButtons.Add(trigger.ButtonIndex);
+            mouseBindings = bindings.Any(binding => binding.MouseAxisTriggers.Length != 0);
             rawKeyboardBindingsSupported = keyboardEventSource == null || bindings.SelectMany(binding => binding.KeyboardCombinations)
                 .SelectMany(combination => combination.Keys).Where(key => key != InputKey.None).All(keyboardEventSource.SupportsKey);
             keyboardInputHandler = new OmsKeyboardInputHandler(bindings, action => TriggerOmsActionPressed(action), action => TriggerOmsActionReleased(action));
             hidButtonInputHandler = new OmsHidButtonInputHandler(bindings, action => TriggerOmsActionPressed(action), action => TriggerOmsActionReleased(action));
             xInputButtonInputHandler = new OmsXInputButtonInputHandler(bindings, action => TriggerOmsActionPressed(action), action => TriggerOmsActionReleased(action));
-            mouseAxisInputHandler = new OmsMouseAxisInputHandler(bindings, action => TriggerOmsActionPressed(action), action => TriggerOmsActionReleased(action));
+            mouseAxisInputHandler = new OmsMouseAxisInputHandler(bindings, action => TriggerOmsActionPressed(action), action => TriggerOmsActionReleased(action), observeAxisMotion);
 
-            hidDeviceHandler?.Dispose();
-            hidDeviceHandler = new OmsHidDeviceHandler(bindings, action => TriggerOmsActionPressed(action), action => TriggerOmsActionReleased(action));
-        }
-
-        private bool tryHandleKeyboardEvent(IEnumerable<InputKey> keys, bool pressed)
-        {
-            bool handled = false;
-
-            foreach (var key in keys)
-                handled |= tryHandleKeyboardEvent(key, pressed);
-
-            return handled;
+            scratchMotion.Clear();
+            hidDeviceHandler = new OmsHidDeviceHandler(bindings, action => TriggerOmsActionPressed(action), action => TriggerOmsActionReleased(action),
+                bindings.Any(binding => binding.HidButtonTriggers.Length != 0 || binding.HidAxisTriggers.Length != 0) ? createHidProvider?.Invoke() : null, observeAxisMotion);
+            hidDeviceHandler.DeviceDisconnected += scratchMotion.ReleaseDevice;
         }
 
         private bool tryHandleKeyboardEvent(InputKey key, bool pressed)
@@ -420,21 +493,6 @@ namespace osu.Game.Rulesets.Bms.Input
                 keyboardInputHandler.TriggerReleased(key);
 
             return true;
-        }
-
-        private bool tryHandleKeyboardEvent(KeyCombination keyCombination, bool pressed)
-            => tryHandleKeyboardEvent(keyCombination.Keys, pressed);
-
-        private bool tryHandleKeyboardEvent(IReadOnlyList<InputKey> keys, bool pressed)
-        {
-            bool handled = false;
-
-            foreach (var key in keys)
-            {
-                handled |= tryHandleKeyboardEvent(key, pressed);
-            }
-
-            return handled;
         }
 
         private void onOmsActionPressed(OmsAction action)
@@ -456,33 +514,8 @@ namespace osu.Game.Rulesets.Bms.Input
         }
 
         private bool shouldForwardToGameplay(BmsAction action)
-            => action.IsLaneAction() && !PreStartHoldPressed.Value;
+            => liveInputEnabled && action.IsLaneAction() && !PreStartHoldPressed.Value;
 
-        private partial class BmsActionRouterMirror : Component, IKeyBindingHandler<BmsAction>
-        {
-            private readonly OmsInputRouter router;
-            private readonly int variant;
-
-            public BmsActionRouterMirror(OmsInputRouter router, int variant)
-            {
-                this.router = router;
-                this.variant = variant;
-            }
-
-            public bool OnPressed(KeyBindingPressEvent<BmsAction> e)
-            {
-                if (OmsBmsActionMap.TryMapToOmsAction(variant, e.Action, out var action))
-                    router.TriggerPressed(action);
-
-                return e.Action == BmsAction.LaneCoverFocus;
-            }
-
-            public void OnReleased(KeyBindingReleaseEvent<BmsAction> e)
-            {
-                if (OmsBmsActionMap.TryMapToOmsAction(variant, e.Action, out var action))
-                    router.TriggerReleased(action);
-            }
-        }
     }
 
     public enum BmsAction
@@ -540,12 +573,24 @@ namespace osu.Game.Rulesets.Bms.Input
 
         [LocalisableDescription(typeof(BmsInputStrings), nameof(BmsInputStrings.PreStartHold))]
         PreStartHold,
+
+        // Movement continuity is separate from scratch attack pulses. These actions
+        // have no bindable note lane and are carried by BMS replays for long scratches.
+        Scratch1Motion,
+        Scratch2Motion,
     }
 
     public static class BmsActionExtensions
     {
         public static bool IsLaneAction(this BmsAction action)
             => action >= BmsAction.Scratch1 && action <= BmsAction.Key14;
+
+        public static bool IsGameplayInputAction(this BmsAction action)
+            => action.IsLaneAction() || action is BmsAction.Scratch1Motion or BmsAction.Scratch2Motion;
+
+        public static bool IsMotionFor(this BmsAction action, BmsAction laneAction)
+            => action == BmsAction.Scratch1Motion && laneAction == BmsAction.Scratch1
+               || action == BmsAction.Scratch2Motion && laneAction == BmsAction.Scratch2;
 
         public static BmsAction GetScratchAction(int scratchIndex)
         {

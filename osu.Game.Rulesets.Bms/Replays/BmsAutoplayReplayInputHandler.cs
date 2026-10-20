@@ -54,7 +54,7 @@ namespace osu.Game.Rulesets.Bms.Replays
             if (state == null || !ReferenceEquals(stateFrame, frame))
             {
                 stateFrame = frame;
-                state = new ReplayState<BmsAction> { PressedActions = (List<BmsAction>?)frame?.LaneActions ?? empty_actions };
+                state = new ReplayState<BmsAction> { PressedActions = (List<BmsAction>?)frame?.InputActions ?? empty_actions };
             }
 
             inputs.Add(state);

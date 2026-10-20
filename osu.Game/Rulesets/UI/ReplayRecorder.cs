@@ -75,6 +75,9 @@ namespace osu.Game.Rulesets.UI
 
         public override void RecordFrame(bool important)
         {
+            if (RecordingEnded)
+                return;
+
             inputManager ??= GetContainingInputManager();
 
             if (inputManager == null)
@@ -108,6 +111,8 @@ namespace osu.Game.Rulesets.UI
 
     public abstract partial class ReplayRecorder : Component
     {
+        protected bool RecordingEnded { get; private set; }
+
         public Func<Vector2, Vector2> ScreenSpaceToGamefield;
 
         public abstract void RecordFrame(bool important);
@@ -117,6 +122,7 @@ namespace osu.Game.Rulesets.UI
         /// </summary>
         public virtual void EndRecording()
         {
+            RecordingEnded = true;
         }
     }
 }

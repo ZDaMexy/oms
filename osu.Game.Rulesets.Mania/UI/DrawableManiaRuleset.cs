@@ -336,6 +336,8 @@ namespace osu.Game.Rulesets.Mania.UI
         {
             base.LoadComplete();
 
+            // The separate resume-overlay input manager must keep using the framework stream.
+            ((ManiaInputManager)KeyBindingInputManager).ActivateRawKeyboard();
             prewarmConvertedKeysounds();
             updateGameplaySkinInputEvents();
         }

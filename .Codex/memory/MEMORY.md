@@ -35,7 +35,7 @@
 
 ## 构建、存储与产品面参考
 
-- [构建与测试](reference_build_and_test.md) — 开发磁盘与进程环境、Pylance缓存扫描、真实数据 / 旧作者包误清理、宿主复用/失败收尾与未加载Drawable、虚拟轨道音频线程跳时、formatter路径、输出锁、隔离取景与正常窗口、桌面GC会话与后台限帧、品牌贴图/动画、退休fixture空跑、完整基线归因与依赖审计误判。
+- [构建与测试](reference_build_and_test.md) — 开发磁盘与进程环境、Pylance缓存扫描、真实数据 / 旧作者包误清理、宿主复用/随机候选污染/失败收尾与未加载Drawable、虚拟轨道音频线程跳时、formatter路径、输出锁、隔离取景与正常窗口、桌面GC会话与后台限帧、品牌贴图/动画、退休fixture空跑、完整基线归因与依赖审计误判。
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱库路径身份与历史保全](reference_filesystem_library_identity.md) — 同内容不同目录、失效与物删分离、多文件改名、重复素材枚举与增量查询放大器。
 - [谱面构成过滤](reference_bms_composition_filter.md) — 单轨上限、共享额度、零宽入口及无解条件。
@@ -47,7 +47,7 @@
 
 ## BMS 解析、音频与游玩参考
 
-- [键盘线程与来源](reference_bms_keyboard_threading.md) — 原生线程、卡顿事件时刻/epoch、两批完整tap、组合键整体回退及HID后台发现/退休诊断。
+- [键盘线程与来源](reference_bms_keyboard_threading.md) — BMS/mania原生所有权与SDL配平、卡顿事件时刻/epoch、时钟舍入停表、真实父入口/鼠标限幅、长皿释放及HID后台发现诊断。
 - [BGA 链](reference_bms_bga_chain.md) — 游戏会话、首view晚注册的首帧崩溃、真实文件探针loader、作者窗口、共享画布与转码缓存。
 - [bgm1 按键触发故障](reference_bms_bgm1_pause_keytrigger_bug.md)
 - [游玩音轨静音合同](reference_bms_gameplay_track_mute.md)

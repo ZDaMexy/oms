@@ -27,7 +27,12 @@ namespace osu.Game.Screens.Play.HUD.ClicksPerSecond
             RelativeSizeAxes = Axes.Both;
         }
 
-        public void AddInputTimestamp() => timestamps.Add(clock.CurrentTime);
+        public void AddInputTimestamp()
+        {
+            double time = clock.CurrentTime;
+            discardFutureInputs(time);
+            timestamps.Add(time);
+        }
 
         protected override void Update()
         {
@@ -36,22 +41,35 @@ namespace osu.Game.Screens.Play.HUD.ClicksPerSecond
             double latestValidTime = clock.CurrentTime;
             double earliestTimeValid = latestValidTime - 1000 * gameplayClock.GetTrueGameplayRate();
 
-            int count = 0;
+            discardFutureInputs(latestValidTime);
+            Value = timestamps.Count - boundary(earliestTimeValid, includeEqual: false);
+        }
 
-            for (int i = timestamps.Count - 1; i >= 0; i--)
+        private void discardFutureInputs(double time)
+        {
+            if (timestamps.Count == 0 || timestamps[^1] <= time)
+                return;
+
+            int firstFuture = boundary(time, includeEqual: true);
+            if (firstFuture < timestamps.Count)
+                timestamps.RemoveRange(firstFuture, timestamps.Count - firstFuture);
+        }
+
+        // Keep prior inputs for rewind, but do not scan the entire song every frame.
+        private int boundary(double time, bool includeEqual)
+        {
+            int first = 0;
+            int last = timestamps.Count;
+            while (first < last)
             {
-                // handle rewinding by removing future timestamps as we go
-                if (timestamps[i] > latestValidTime)
-                {
-                    timestamps.RemoveAt(i);
-                    continue;
-                }
-
-                if (timestamps[i] >= earliestTimeValid)
-                    count++;
+                int middle = first + (last - first) / 2;
+                if (timestamps[middle] < time || includeEqual && timestamps[middle] == time)
+                    first = middle + 1;
+                else
+                    last = middle;
             }
 
-            Value = count;
+            return first;
         }
     }
 }

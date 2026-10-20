@@ -14,9 +14,15 @@ namespace osu.Game.Rulesets.Bms.Replays
     {
         public List<BmsAction> Actions = new List<BmsAction>();
 
-        private readonly List<BmsAction> laneActions = new List<BmsAction>();
-        internal IReadOnlyList<BmsAction> LaneActions => laneActions;
         internal int LaneActionMask { get; private set; }
+        private readonly List<BmsAction> inputActions = new List<BmsAction>();
+        internal IReadOnlyList<BmsAction> InputActions => inputActions;
+        internal int InputActionMask { get; private set; }
+
+        // The legacy position field is a float. These reserved bits stay below 2^24,
+        // so both motion levels and all sixteen attack bits round-trip exactly.
+        private const int scratch_1_motion_bit = 1 << 20;
+        private const int scratch_2_motion_bit = 1 << 21;
 
         public BmsReplayFrame()
         {
@@ -29,11 +35,22 @@ namespace osu.Game.Rulesets.Bms.Replays
                 addAction(action);
         }
 
+        internal BmsReplayFrame(double time, IReadOnlyList<BmsAction> liveActions)
+            : base(time)
+        {
+            for (int i = 0; i < liveActions.Count; i++)
+            {
+                if (liveActions[i].IsGameplayInputAction())
+                    addAction(liveActions[i]);
+            }
+        }
+
         public void FromLegacy(LegacyReplayFrame legacyFrame, IBeatmap beatmap, ReplayFrame? lastFrame = null)
         {
             Actions.Clear();
-            laneActions.Clear();
             LaneActionMask = 0;
+            inputActions.Clear();
+            InputActionMask = 0;
 
             var action = BmsAction.Scratch1;
             int activeActions = (int)(legacyFrame.MouseX ?? 0);
@@ -46,11 +63,17 @@ namespace osu.Game.Rulesets.Bms.Replays
                 action++;
                 activeActions >>= 1;
             }
+
+            int mask = (int)(legacyFrame.MouseX ?? 0);
+            if ((mask & scratch_1_motion_bit) != 0)
+                addAction(BmsAction.Scratch1Motion);
+            if ((mask & scratch_2_motion_bit) != 0)
+                addAction(BmsAction.Scratch2Motion);
         }
 
         public LegacyReplayFrame ToLegacy(IBeatmap beatmap)
         {
-            return new LegacyReplayFrame(Time, LaneActionMask, null, ReplayButtonState.None);
+            return new LegacyReplayFrame(Time, InputActionMask, null, ReplayButtonState.None);
         }
 
         public override bool IsEquivalentTo(ReplayFrame other)
@@ -63,11 +86,19 @@ namespace osu.Game.Rulesets.Bms.Replays
         {
             Actions.Add(action);
 
+            if (action is BmsAction.Scratch1Motion or BmsAction.Scratch2Motion)
+            {
+                inputActions.Add(action);
+                InputActionMask |= action == BmsAction.Scratch1Motion ? scratch_1_motion_bit : scratch_2_motion_bit;
+                return;
+            }
+
             if (!action.IsLaneAction())
                 return;
 
-            laneActions.Add(action);
             LaneActionMask |= 1 << (int)action;
+            inputActions.Add(action);
+            InputActionMask |= 1 << (int)action;
         }
     }
 }

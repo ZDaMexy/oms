@@ -12,7 +12,7 @@ using osu.Framework.Graphics;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Logging;
 using osu.Framework.Platform;
-using osu.Game.Rulesets.Bms.Input;
+using osu.Game.Input;
 using osu.Game.Screens.Play;
 
 namespace osu.Desktop.Windows
@@ -23,6 +23,10 @@ namespace osu.Desktop.Windows
         private const int gwlp_wndproc = -4;
 
         private const uint wm_input = 0x00FF;
+        private const uint wm_input_device_change = 0x00FE;
+        private const uint wm_setfocus = 0x0007;
+        private const uint wm_killfocus = 0x0008;
+        private const int gidc_removal = 2;
         private const uint rid_input = 0x10000003;
         private const uint rim_typekeyboard = 1;
 
@@ -99,14 +103,39 @@ namespace osu.Desktop.Windows
         private IBindable<LocalUserPlayingState> localUserPlaying = null!;
         private IBindable<bool> isActive = null!;
         private IOmsKeyboardEventSink? sink;
+        private readonly object sinkGate = new object();
+        private IOmsKeyboardEventSink? deviceStateOwner;
+        private readonly NativeKeyboardDeviceState keyboardDeviceState;
+        private long requestedStateReset;
+        private long appliedStateReset;
 
         private volatile bool rawInputEnabled;
+        private volatile bool windowHasKeyboardFocus = true;
         private bool rawInputInitialisationAttempted;
         private IntPtr windowHandle;
         private IntPtr originalWindowProc;
         private WndProcDelegate? windowProcDelegate;
         private IntPtr rawInputBuffer;
         private uint rawInputBufferSize;
+
+        public WindowsRawKeyboardSource()
+        {
+            keyboardDeviceState = new NativeKeyboardDeviceState((key, timestamp, pressed) =>
+            {
+                lock (sinkGate)
+                {
+                    IOmsKeyboardEventSink? target = deviceStateOwner;
+                    if (target == null || !ReferenceEquals(Volatile.Read(ref sink), target)
+                                       || !isActive.Value || localUserPlaying.Value != LocalUserPlayingState.Playing)
+                        return;
+
+                    if (pressed)
+                        target.HandleRawKeyPressed(key, timestamp);
+                    else
+                        target.HandleRawKeyReleased(key, timestamp);
+                }
+            });
+        }
 
         [BackgroundDependencyLoader]
         private void load(ILocalUserPlayInfo localUserInfo)
@@ -129,21 +158,32 @@ namespace osu.Desktop.Windows
 
         public void RegisterSink(IOmsKeyboardEventSink sink)
         {
-            Volatile.Write(ref this.sink, sink);
+            lock (sinkGate)
+            {
+                IOmsKeyboardEventSink? previous = Interlocked.Exchange(ref this.sink, sink);
+                if (previous != null && !ReferenceEquals(previous, sink))
+                    previous.ResetRawKeyboardState();
+            }
+
             scheduleUpdateHookState();
         }
 
         public void UnregisterSink(IOmsKeyboardEventSink sink)
         {
-            if (!ReferenceEquals(Interlocked.CompareExchange(ref this.sink, null, sink), sink))
-                return;
+            lock (sinkGate)
+            {
+                if (!ReferenceEquals(Interlocked.CompareExchange(ref this.sink, null, sink), sink))
+                    return;
+
+                sink.ResetRawKeyboardState();
+            }
 
             scheduleUpdateHookState();
         }
 
         public bool IsActiveFor(IOmsKeyboardEventSink sink)
             => rawInputEnabled && ReferenceEquals(Volatile.Read(ref this.sink), sink)
-                               && isActive.Value && localUserPlaying.Value == LocalUserPlayingState.Playing;
+                               && windowHasKeyboardFocus && isActive.Value && localUserPlaying.Value == LocalUserPlayingState.Playing;
 
         public bool SupportsKey(InputKey key) => supported_keys.Contains(key);
 
@@ -164,10 +204,38 @@ namespace osu.Desktop.Windows
 
         private void scheduleKeyboardReset()
         {
-            // Keep the inactive edge and its owner even when focus/play resumes before the input scheduler runs.
+            lock (sinkGate)
+            {
+                // Invalidate pending gameplay immediately. The physical state belongs to Input and is
+                // reset before its next report, even if focus resumes before this scheduled task runs.
+                Volatile.Read(ref sink)?.ResetRawKeyboardState();
+                Interlocked.Increment(ref requestedStateReset);
+            }
+
+            host.InputThread.Scheduler.Add(applyPendingKeyboardReset);
+        }
+
+        private void applyPendingKeyboardReset()
+        {
+            lock (sinkGate)
+                synchroniseKeyboardOwner();
+        }
+
+        private void synchroniseKeyboardOwner()
+        {
+            long requested = Volatile.Read(ref requestedStateReset);
+            if (appliedStateReset != requested)
+            {
+                keyboardDeviceState.Clear();
+                appliedStateReset = requested;
+            }
+
             IOmsKeyboardEventSink? target = Volatile.Read(ref sink);
-            if (target != null)
-                host.InputThread.Scheduler.Add(target.ResetRawKeyboardState);
+            if (ReferenceEquals(deviceStateOwner, target))
+                return;
+
+            keyboardDeviceState.Clear();
+            deviceStateOwner = target;
         }
 
         private void updateHookState()
@@ -181,8 +249,8 @@ namespace osu.Desktop.Windows
                 enableRawInput();
             }
 
-            if (!isActive.Value || localUserPlaying.Value != LocalUserPlayingState.Playing)
-                Volatile.Read(ref sink)?.ResetRawKeyboardState();
+            lock (sinkGate)
+                synchroniseKeyboardOwner();
         }
 
         private void enableRawInput()
@@ -245,16 +313,39 @@ namespace osu.Desktop.Windows
         {
             if (msg == wm_input)
                 processRawInput(lParam, Stopwatch.GetTimestamp());
+            else if (msg == wm_input_device_change && wParam.ToInt64() == gidc_removal)
+            {
+                lock (sinkGate)
+                {
+                    synchroniseKeyboardOwner();
+                    keyboardDeviceState.RemoveDevice(lParam, Stopwatch.GetTimestamp());
+                }
+            }
+            else if (msg == wm_killfocus)
+            {
+                windowHasKeyboardFocus = false;
+                scheduleKeyboardReset();
+            }
+            else if (msg == wm_setfocus)
+            {
+                lock (sinkGate)
+                {
+                    Volatile.Read(ref sink)?.ResetRawKeyboardState();
+                    Interlocked.Increment(ref requestedStateReset);
+                    synchroniseKeyboardOwner();
+                    // RAWINPUT stays foreground-only. Check only known old holds once on focus gain,
+                    // since their break may have happened in another application. Use the native VKey
+                    // captured on down, never the layout-independent gameplay InputKey value.
+                    keyboardDeviceState.ReconcileReleasedKeys(isNativeKeyDown);
+                    windowHasKeyboardFocus = true;
+                }
+            }
 
             return callWindowProc(originalWindowProc, hwnd, msg, wParam, lParam);
         }
 
         private void processRawInput(IntPtr rawInputHandle, long timestamp)
         {
-            IOmsKeyboardEventSink? target = Volatile.Read(ref sink);
-            if (target == null || !isActive.Value || localUserPlaying.Value != LocalUserPlayingState.Playing)
-                return;
-
             uint size = 0;
 
             if (getRawInputData(rawInputHandle, rid_input, IntPtr.Zero, ref size, (uint)Marshal.SizeOf<RAWINPUTHEADER>()) == uint.MaxValue || size == 0)
@@ -277,16 +368,25 @@ namespace osu.Desktop.Windows
             if (rawInput.Header.Type != rim_typekeyboard)
                 return;
 
-            if (!tryMapInputKey(rawInput.Data.Keyboard, out var key))
+            RAWKEYBOARD keyboard = rawInput.Data.Keyboard;
+            bool released = (keyboard.Flags & RawKeyboardFlags.Break) != 0;
+            if (!tryMapInputKey(keyboard, out var key) && !released)
                 return;
 
-            bool released = (rawInput.Data.Keyboard.Flags & RawKeyboardFlags.Break) != 0;
-
-            if (released)
-                target.HandleRawKeyReleased(key, timestamp);
-            else
-                target.HandleRawKeyPressed(key, timestamp);
+            int physicalKey = keyboard.MakeCode != 0
+                ? keyboard.MakeCode | (int)(keyboard.Flags & (RawKeyboardFlags.E0 | RawKeyboardFlags.E1)) << 16
+                : 0x10000000 | keyboard.VKey;
+            lock (sinkGate)
+            {
+                synchroniseKeyboardOwner();
+                bool suppressPress = deviceStateOwner == null || !windowHasKeyboardFocus || !isActive.Value || localUserPlaying.Value != LocalUserPlayingState.Playing;
+                // Continue observing foreground breaks while paused or between sinks. A make in that
+                // interval is suppressed and cannot block a fresh key from another physical keyboard.
+                keyboardDeviceState.Apply(rawInput.Header.Device, physicalKey, key, timestamp, !released, suppressPress, normalizeVirtualKey(keyboard));
+            }
         }
+
+        private static bool isNativeKeyDown(int virtualKey) => getAsyncKeyState(virtualKey) < 0;
 
         private static bool tryMapInputKey(RAWKEYBOARD keyboard, out InputKey key)
         {
@@ -608,7 +708,7 @@ namespace osu.Desktop.Windows
                 {
                     UsagePage = hid_usage_page_generic,
                     Usage = hid_usage_generic_keyboard,
-                    Flags = RawInputDeviceFlags.None,
+                    Flags = RawInputDeviceFlags.DeviceNotify,
                     Target = target,
                 }
             };
@@ -646,6 +746,7 @@ namespace osu.Desktop.Windows
         {
             None = 0,
             Remove = 0x00000001,
+            DeviceNotify = 0x00002000,
         }
 
         [Flags]
@@ -708,6 +809,9 @@ namespace osu.Desktop.Windows
 
         [DllImport("user32.dll", EntryPoint = "MapVirtualKeyW")]
         private static extern uint mapVirtualKey(uint code, uint mapType);
+
+        [DllImport("user32.dll", EntryPoint = "GetAsyncKeyState")]
+        private static extern short getAsyncKeyState(int virtualKey);
 
         [DllImport("user32.dll", EntryPoint = "CallWindowProcW")]
         private static extern IntPtr callWindowProc(IntPtr previousWindowProc, IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
