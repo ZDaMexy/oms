@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-21（设备方向与Omni游玩细节接通；原人工/发行门保持）
+> 最后核对：2026-10-21（重进游玩交接崩溃修复；原人工/发行门保持）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -33,11 +33,13 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-10-21设备与作品接通：全量BMS/mania、Core专项及11组原生Player通过，覆盖全部支持键数与代表两侧/双舞台，修复27DP窗口省略。范围、当前源码与较早全量的区别由[细节记录](../../other/LIGHTING_DETAILS_20261021.md#本轮验证记录)维护。新包须重编/重启并重导入；物理设备手感、前台FPS及原机逐帧校准仍未签收。
+2026-10-21重进游玩崩溃来自后台Ready早于所有权交还，开局已增加交接条件。双玩法ReplayPlayer的Autoplay进入、退出再进及资源回收验证取[交接记录](../../other/PLAYER_LOADER_CRASH_20261021.md)。原Omni包无需重导入；正常窗口仍待用户复核。
+
+同日较早设备/作品、全量BMS/mania与11组原生Player证据取[细节记录](../../other/LIGHTING_DETAILS_20261021.md#本轮验证记录)，不写作本次交接补丁后的全量重跑。物理设备、前台FPS及原机逐帧校准未签收。
 
 2026-10-20mania单点/长条头尾修复及歌曲游标的旧验证分别取[音符记录](CHANGELOG.md#2026-10-20mania作者音符可见性与omni尺寸修复)、[游标记录](CHANGELOG.md#2026-10-20omni歌曲游标全框体适配)。原日期与人工边界保持，不重复计为新验证。
 
-同日较早的软件收尾、副屏移除及此前确认删除分别取[软件记录](CHANGELOG.md#2026-10-20选曲与皮肤遗留软件问题收尾)、[作品记录](CHANGELOG.md#2026-10-20omni移除lightning副屏)、[删除记录](CHANGELOG.md#2026-10-19选曲设置确认删除修复)，不刷新其验证。
+此前软件收尾、副屏移除与删除修复取[本线日志](CHANGELOG.md)的2026-10-19～20记录，不刷新原验证。
 
 2026-10-19目录/池化修复：实测消除399.05MiB重复驻留；Core、双玩法全量与旧失败对照取[证据](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#内存压力下的驻留与音符复用修复)。后台短测不代签前台/空闲对照；本次无需重导入。
 

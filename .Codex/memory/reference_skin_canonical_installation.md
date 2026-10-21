@@ -8,6 +8,8 @@ metadata:
 
 # Canonical 简洁皮肤安装与旧数据排查
 
+- Player的`LoadState.Ready`由worker先发布，不代表`PendingAsyncDrawableOwnership`已交还；`CurrentPlayer`在启动异步加载时就有值。开局还必须等pending claim清空，否则同一Player仍属LoadWrapper时会被推到真实ScreenStack，抛multiple-containers。用真实后台Parent赋值闸门保持超过500ms等待，验证切页被阻止、放行后Autoplay进入及同谱退出再进；不能只测成功交接后的取消。原正常日志、固定framework依据和红绿范围见[开局交接记录](../../doc_md/other/PLAYER_LOADER_CRASH_20261021.md)。
+
 2026-09-12：保存星轨后顶层 GameHost 冷启动在 OsuGame.load 恢复配置触发 update-thread publication guard。默认简洁同值 no-op 和视觉 fixture 在已有 update thread 内重建 Game 都会漏报。恢复必须放到 OsuGame.LoadComplete、初始画面构造之前；不要放宽 SkinManager guard。BuiltInSkinColdStartTest 使用独立 LongRunning 宿主及 SetupForRun 后写入独立配置，覆盖顶层启动并确认 current info/revision/config 一致；host.Storage 在 SetupForRun 前尚不可用，NUnit Timeout 的 TPL 工作线程也不能直接 Run 宿主。
 
 状态与签收只读 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)，完整合同见 [P1-A CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)。这里记录迁移时容易混淆的证据，不替代验收。

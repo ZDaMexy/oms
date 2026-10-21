@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-21（设备输入与Omni游玩细节接通；既有产品/生产门保持）
+> 最后核对：2026-10-21（重进游玩崩溃修复；原产品/生产门保持）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -49,7 +49,7 @@ OMS处于Phase 1.x后段，原生 BMS 与转谱游玩已完成热路径优化。
 
 ## 最近一次验证
 
-2026-10-21设备与独立Omni完成软件及代表Player验证，实际方向、图表/统计和动态细节一并接通，见[P1-A记录](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)。输入研究和原始回归取[输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)；原HDD与正式玩家数据未改，实体设备/前台帧时间和人工/发行门保持。
+2026-10-21正常VS Code重进崩溃已修复，开局等待后台实际交还页面，见[交接记录](../other/PLAYER_LOADER_CRASH_20261021.md)。此前设备/Omni证据取[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)；原HDD/玩家数据未改，实体设备、前台帧时间与人工/发行门保持。
 
 2026-10-11转谱补算、Debug读取及旧失败对照保留原日期，范围与未验项取[P1-H](../subline/P1-H/DEVELOPMENT_STATUS.md#最近一次验证)。
 

@@ -156,6 +156,7 @@ Omni的Key beam是逐轨动态背景，使用现有`playfield.lane-surface`及Un
 2. lane topology/order/action、playfield group/bounds、judgement position、BGA safe viewport 和 gameplay clock。
 3. 外部 package 的资源解析、权限隔离、版本协商、预算、错误熔断、fallback 与原子 reload。
 4. 对皮肤发布不可变、版本化、只读的 layout/state/event DTO。
+5. `PlayerLoader`切入游玩必须等异步ownership回调交还Player，再检查Ready与玩家交互条件；worker发布Ready时Player可能仍属载入容器，不能据此跨容器挂载。取消与交接保持exactly-once回收，不以固定等待代替所有权证明。
 
 ### 外部皮肤可以拥有
 

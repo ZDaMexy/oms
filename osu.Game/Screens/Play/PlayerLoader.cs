@@ -137,6 +137,9 @@ namespace osu.Game.Screens.Play
 
         private bool readyForPush =>
             !playerConsumed
+            // Ready is published by the worker before the wrapper gives ownership back on the update thread.
+            // Until that callback transfers the player, pushing it would attach it to two containers.
+            && pendingPlayerOwnership == null
             // don't push unless the player is completely loaded
             && CurrentPlayer?.LoadState == LoadState.Ready
             // don't push unless the player is ready to start gameplay
