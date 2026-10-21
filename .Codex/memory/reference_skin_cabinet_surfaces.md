@@ -2,6 +2,12 @@
 
 当前进度与验收只读 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)，图像及对应迭代见[原图索引](../../doc_md/other/references/simple-1p-20260912/README.md)。以下保留截图暴露的诊断因果，不把历次检查合并成当前验收。
 
+入场起点应取`GameplayClockContainer.StartTime`，`GameplayStartTime`是可跳过前奏的上界，长前奏时不是实际进入起点。无真实起点的设置预览不能把elapsed=0当作开场首帧；有效→未知Reset须恢复作者原属性，原无quad的projective需清除quad。独立time来源应单列脏状态家族，不能让普通成绩事件多重算旧beat绑定。来源与验收见[2026-10-21接通记录](../../doc_md/other/LIGHTING_DETAILS_20261021.md)。
+
+新增C5输入展示事件不能自动成为C6回调：旧消费入口按payload family与enum数值通发，会让没有新声明的脚本额外收到轴运动。须先完成引擎状态/授权/时钟折叠，再在作者回调边界过滤内部展示事件，并用真实输入→C5累计、旧key down/up→原C6回调对照；仅不增加snapshot字段不足以证明脚本ABI不变。
+
+组合作者包的预算按最终选中贡献核对。隐藏其它框体的转盘仍会执行轨迹，宜在加载期选定当前框体；作者布局也只保留对应单双侧声明。原PNG可用短内容标识而不重绘，关键帧可缩短ID而不丢采样，但每个dot segment仍须字母开头，数字摘要与数组序号都要前缀。BPL catalog的`bpl-team`与原节点`bpl.team`是不同身份，不应改写原素材marker路径。
+
 IIDX游标核源：原PNG画布不等同于GEO显示尺寸，SD投影和DP横缩分别沿实际源几何；DP命名游标在dp_frame_1p、S/E标记在center_frame_dp_1p，不能只查center movie或按同名实例去重。容器表示行程、子图相对y绑定timing.progress时，子图高度须除以行程高度，保持实际游标尺寸；不能用负scale-x实现镜像（公开codec只接受非负缩放），左右原RGBA确实对称时可共用原图。稳定ID的每个dot segment须以小写字母开始，数组序号使用o0而不是裸0；Python结构检查不能代替真实SkinAuthoring codec检查。完整当前验证仍取P1-A STATUS。
 
 材料Diagnostics为空不证明C3无布局警告：BGA窗口诊断另合入PersistenceSafeDiagnostics/Batch，成功commit后才异步发布全局通知，提示可能跨下一玩法延续。定位须对照原始日志时间、已提交snapshot与同输入旧包，不能凭截图归给当前玩法或窄窗口。显式作者stage命中会覆盖按窗口比例算的轨道宽度，但其BGA窗仍须避开固定HUD保留带；任一窗口失败按合同整组省略，不以放宽通用solver掩盖作者几何错误。
@@ -50,3 +56,5 @@ Global装饰标记会沿材质作用域继承；框体信息通过Global decorat
 退出期HUD级联：一个Headless host首次abort会让后续数百fixture转抛同一缓存异常，必须先按TRX时间定位第一个实际执行步骤。SkinnableContainer的terminal工作关闭先于HUDOverlay真正Dispose，content已撤销而旧load完成位仍true时，另一owner迟到的OnComponentsLoaded会驱动HUD adapter错误搬移旧source；Remove的“unsupported by current skin”此时是生命周期失效，不是作者权限问题。ComponentsLoaded须同时读取原terminal flag及Dispose状态；不吞Remove异常、不清旧visual冒充detach、不延迟测试退出。确定性回归持有真实第二owner的callback，先关闭第一owner再投递，并保留正常两owner路由与精确释放对照。
 
 Headless存储作用域：UseFreshStoragePerRun=true不自动证明每个测试method换storage。当前runner复用TestScene，完成时只RemoveInternal(test,false)，OsuTestScene的LocalStorage为Lazy，Recycle只在创建依赖/Dispose执行；未另行重置的fixture会共用storage/Realm。须查真实runner、每次SetUp清理与具体拒绝原因，不能由前后顺序就断言残留journal导致下一项失败；中间通过的测试也应保留。
+
+- 独立大包同时受两道不同门约束：C2捕获结构64MiB，OSK导入全部配置仍16MiB，后者不能按前者放宽。相同几何可由不同选项清单声明自身纹理并共用scene；相同INI按完整字节去重。scene经codec将整数编码成double可能长出`.0`，不能只加原文件长度；缩短声明ID并给归一化留预算，保留全部原图/采样。详见[本轮记录](../../doc_md/other/LIGHTING_DETAILS_20261021.md)。

@@ -179,6 +179,11 @@ namespace osu.Game.Skinning.Gameplay
                 anchorScriptTicks(record.GameplayTime);
             }
 
+            // Directional motion is a C5 presentation observation, not a new callback in the fixed C6 V1 ABI.
+            // Keep engine state, authorization and timing folded above without waking an existing author program.
+            if (record.EventKind == GameplaySkinEventKind.InputMotionChanged)
+                return;
+
             // Callback occurrence is itself an observable event channel, even if the program never reads kind/value.
             // Keep the engine's complete baseline/reset above, but deliver author events only with current consent.
             if (!((IGameplaySkinScriptHost)this).IsGranted("gameplay.events.read"))

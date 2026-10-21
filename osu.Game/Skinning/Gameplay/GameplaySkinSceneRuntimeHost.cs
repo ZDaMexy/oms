@@ -207,6 +207,8 @@ namespace osu.Game.Skinning.Gameplay
 
         internal GameplaySkinSceneScriptBaseline? ScriptBaseline { get; set; }
 
+        internal Dictionary<GameplaySkinSceneProperty, GameplaySkinElapsedTrackProperty>? ElapsedTrackProperties { get; set; }
+
         internal GameplaySkinSceneRuntimeNode(
             GameplaySkinPreparedSceneNode preparedNode,
             Drawable rootDrawable,
@@ -441,6 +443,12 @@ namespace osu.Game.Skinning.Gameplay
                 timingState,
                 out double gameplayTime,
                 out GameplaySkinTimingStateSnapshot currentTiming);
+
+            if (sceneGameplayTime != gameplayTime)
+            {
+                sceneGameplayTime = gameplayTime;
+                markStateFamilyDirty(GameplaySkinSceneStateFamily.Time);
+            }
 
             if (!timingEquals(timingState, currentTiming))
             {
@@ -794,6 +802,7 @@ namespace osu.Game.Skinning.Gameplay
                 attachedParent = parent;
 
                 runtime = new GameplaySkinSceneRuntimeNode(prepared, root, content, transform);
+                initialiseElapsedTrackDefaults(runtime);
                 runtimeNodes.Add(runtime.InstanceId, runtime);
                 RuntimeInstanceCount += runtimeInstanceCost(prepared);
 
@@ -1415,6 +1424,7 @@ namespace osu.Game.Skinning.Gameplay
             completion = state.Completion;
             scoreState = state.Score;
             songInformation = state.SongInformation;
+            chartPresentation = state.ChartPresentation;
             timingState = state.Timing;
             inputs.Clear();
             objects.Clear();
@@ -1975,6 +1985,23 @@ namespace osu.Game.Skinning.Gameplay
                 if (!runtimeNodesBySourceId.TryGetValue(track.TargetNodeId, out List<GameplaySkinSceneRuntimeNode>? targets))
                     continue;
 
+                if (track.ClockSource != GameplaySkinSceneBindingSource.Unspecified)
+                {
+                    for (int targetIndex = targets.Count - 1; targetIndex >= 0; targetIndex--)
+                    {
+                        GameplaySkinSceneRuntimeNode target = targets[targetIndex];
+                        if (!canSampleElapsedTrack(track, target))
+                            continue;
+                        double time = trackClock(track, target);
+                        bool applied = track.Type == GameplaySkinSceneTrackType.Tween
+                            ? tryApplyRuntimeNumberProperty(target, track.Property, sampleTweenTrack(track, time))
+                            : tryApplyRuntimeProperty(target, track.Property, sampleFrameTrack(track, time));
+                        if (!applied)
+                            break;
+                    }
+                    continue;
+                }
+
                 if (track.Trigger is GameplaySkinSceneEvent.JudgementHit or GameplaySkinSceneEvent.GameplayComplete)
                 {
                     for (int targetIndex = targets.Count - 1; targetIndex >= 0; targetIndex--)
@@ -2227,6 +2254,7 @@ namespace osu.Game.Skinning.Gameplay
             return source switch
             {
                 GameplaySkinSceneBindingSource.LayoutRuleset => Publication.Snapshot.Context.RulesetId,
+                GameplaySkinSceneBindingSource.OffsetAutomatic => scoreState.OffsetState.Automatic ? "true" : "false",
                 GameplaySkinSceneBindingSource.ObjectState => objectStateId(obj?.State ?? GameplaySkinObjectState.Scheduled),
                 GameplaySkinSceneBindingSource.ObjectLongNoteMode => longNoteModeId(obj?.LongNoteMode ?? GameplaySkinLongNoteMode.None),
                 GameplaySkinSceneBindingSource.ObjectLongNoteAppearance => longNoteAppearanceId(obj),
@@ -2359,6 +2387,17 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinObjectStateSnapshot? obj = objectFor(target, laneId, groupId);
             GameplaySkinJudgementStateSnapshot? judgement = judgementFor(target, materialTarget);
             GameplaySkinBgaStateSnapshot? bgaState = bgaFor(target.PreparedNode.ResolvedTarget);
+
+            if (tryPresentationNumber(binding.Source, target, out double presentationNumber))
+            {
+                applyRuntimeNumberProperty(target, binding.Property, presentationNumber);
+                return;
+            }
+            if (tryPresentationBoolean(binding.Source, target, out bool presentationBoolean))
+            {
+                applyRuntimeBooleanProperty(target, binding.Property, presentationBoolean);
+                return;
+            }
 
             switch (binding.Source)
             {
@@ -3249,7 +3288,8 @@ namespace osu.Game.Skinning.Gameplay
                && first.IsStopped == second.IsStopped
                && first.ScrollMultiplier.Equals(second.ScrollMultiplier)
                && first.Progress.Equals(second.Progress)
-               && first.LiftState.Equals(second.LiftState);
+               && first.LiftState.Equals(second.LiftState)
+               && first.StartTime == second.StartTime;
 
         internal static GameplaySkinSceneLayer LayerFor(GameplaySkinSlotDescriptor descriptor)
             => GameplaySkinSceneHostPolicy.LayerFor(descriptor);

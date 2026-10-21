@@ -51,6 +51,7 @@ namespace osu.Game.Skinning.Gameplay
 
         private static readonly HashSet<string> binding_source_ids = new(StringComparer.Ordinal)
         {
+            "timing.time", "timing.elapsed", "timing.start-available", "timing.beat-phase", "arrival.available", "arrival.time", "arrival.remaining", "arrival.visible", "input.motion-counts-1", "input.motion-counts-2", "input.motion-revolutions-1", "input.motion-revolutions-2", "input.motion-available-1", "input.motion-available-2", "judgement.count.fast", "judgement.count.slow", "offset.value", "offset.available", "offset.automatic", "score.personal-best", "score.personal-best-progress", "score.personal-best-available", "score.rank-aaa", "score.rank-aa", "score.rank-a", "score.rank-aaa-progress", "score.rank-aa-progress", "score.rank-a-progress", "score.rank-available",
             "layout.ruleset", "layout.stage", "layout.group", "layout.lane", "input.pressed", "gameplay.full-combo", "object.state", "judgement.result", "judgement.offset",
             "score.value", "score.accuracy", "combo.value", "combo.maximum", "gauge.value", "timing.beat", "timing.measure", "timing.bpm", "timing.progress", "bga.content-state",
             "score.maximum", "score.progress", "score.maximum-available", "lift.value", "lift.offset", "lift.reversed", "lift.available",
@@ -61,6 +62,7 @@ namespace osu.Game.Skinning.Gameplay
         private static readonly IReadOnlyDictionary<string, HashSet<string>> variant_source_keys =
             new Dictionary<string, HashSet<string>>(StringComparer.Ordinal)
             {
+                ["offset.automatic"] = new HashSet<string>(new[] { "true", "false" }, StringComparer.Ordinal),
                 ["layout.ruleset"] = new HashSet<string>(new[] { "bms", "mania" }, StringComparer.Ordinal),
                 ["object.state"] = new HashSet<string>(
                     new[] { "scheduled", "visible", "holding", "hit", "missed", "completed", "despawned" },
@@ -653,6 +655,9 @@ namespace osu.Game.Skinning.Gameplay
                             || option.Kind == GameplaySkinOptionKind.Number && option.Minimum == Math.Truncate(option.Minimum) && option.Step == Math.Truncate(option.Step)))
                         && !declaration.Font.CanRender(".")
                     || (binding.Source is GameplaySkinSceneBindingSource.JudgementOffset or GameplaySkinSceneBindingSource.TimingBeat
+                        or GameplaySkinSceneBindingSource.TimingTime or GameplaySkinSceneBindingSource.ArrivalTime or GameplaySkinSceneBindingSource.ArrivalRemaining
+                        or GameplaySkinSceneBindingSource.InputMotionCounts1 or GameplaySkinSceneBindingSource.InputMotionCounts2
+                        or GameplaySkinSceneBindingSource.InputMotionRevolutions1 or GameplaySkinSceneBindingSource.InputMotionRevolutions2 or GameplaySkinSceneBindingSource.OffsetValue
                         || optionSource(binding.SourceId, context.Manifest) is { Kind: GameplaySkinOptionKind.Number, Minimum: < 0 })
                         && !declaration.Font.CanRender("-"))
                 {
@@ -675,7 +680,9 @@ namespace osu.Game.Skinning.Gameplay
                     or GameplaySkinSceneBindingSource.JudgementCountGreat or GameplaySkinSceneBindingSource.JudgementCountGood
                     or GameplaySkinSceneBindingSource.JudgementCountOk or GameplaySkinSceneBindingSource.JudgementCountMeh
                     or GameplaySkinSceneBindingSource.JudgementCountMiss or GameplaySkinSceneBindingSource.ComboBreaks
-                    or GameplaySkinSceneBindingSource.ScoreMaximum;
+                    or GameplaySkinSceneBindingSource.ScoreMaximum or GameplaySkinSceneBindingSource.JudgementCountFast
+                    or GameplaySkinSceneBindingSource.JudgementCountSlow or GameplaySkinSceneBindingSource.ScorePersonalBest
+                    or GameplaySkinSceneBindingSource.ScoreRankAaa or GameplaySkinSceneBindingSource.ScoreRankAa or GameplaySkinSceneBindingSource.ScoreRankA;
 
             static IEnumerable<GameplaySkinSceneNode> enumerate(GameplaySkinSceneNode node)
             {
@@ -954,7 +961,7 @@ namespace osu.Game.Skinning.Gameplay
                     continue;
                 }
 
-                validateFields(trackObject, context, new[] { "id", "type", "target", "property", "easing", "loop", "keyframes" }, new[] { "trigger" });
+                validateFields(trackObject, context, new[] { "id", "type", "target", "property", "easing", "loop", "keyframes" }, new[] { "trigger", "clock" });
                 string? id = getStableId(trackObject, "id", context);
 
                 if (id != null && !context.AllStableIds.Add(id))
@@ -966,6 +973,12 @@ namespace osu.Game.Skinning.Gameplay
                 GameplaySkinSceneEasing? easing = parseEasing(trackObject["easing"], context);
                 bool? loop = getBoolean(trackObject, "loop", context);
                 GameplaySkinSceneEvent trigger = GameplaySkinSceneEvent.Unspecified;
+                string? clockSourceId = trackObject.TryGetValue("clock", out JToken? clockToken) ? getString(clockToken, context) : null;
+                if (clockSourceId != null && (!isKnownBindingSource(clockSourceId, context.Manifest)
+                    || !bindingSourceCanDriveProperty(clockSourceId, "font-size", context.Manifest)))
+                    context.Add(GameplaySkinSceneDiagnosticCode.UnknownBindingSource);
+                if (clockSourceId != null && trackObject.ContainsKey("trigger"))
+                    context.Add(GameplaySkinSceneDiagnosticCode.InvalidAnimation);
 
                 if (trackObject.TryGetValue("trigger", out JToken? triggerToken))
                 {
@@ -1081,7 +1094,7 @@ namespace osu.Game.Skinning.Gameplay
                 }
 
                 if (id != null && type.HasValue && target != null && property != null && easing.HasValue && loop.HasValue)
-                    tracks.Add(new GameplaySkinSceneTrack(id, type.Value, target, property, easing.Value, loop.Value, keyframes, trigger));
+                    tracks.Add(new GameplaySkinSceneTrack(id, type.Value, target, property, easing.Value, loop.Value, keyframes, trigger, clockSourceId));
             }
 
             return tracks;
@@ -1850,11 +1863,13 @@ namespace osu.Game.Skinning.Gameplay
                        || option.Kind == GameplaySkinOptionKind.Toggle && (number_properties.Contains(property) || boolean_properties.Contains(property));
             }
 
-            bool sourceIsNumber = source is "judgement.offset" or "score.value" or "score.accuracy" or "combo.value" or "combo.maximum" or "gauge.value" or "gauge.maximum" or "gauge.clear-threshold"
+            bool sourceIsNumber = source is "timing.time" or "timing.elapsed" or "timing.beat-phase" or "arrival.time" or "arrival.remaining" or "input.motion-counts-1" or "input.motion-counts-2" or "input.motion-revolutions-1" or "input.motion-revolutions-2" or "judgement.count.fast" or "judgement.count.slow" or "offset.value" or "score.personal-best" or "score.personal-best-progress" or "score.rank-aaa" or "score.rank-aa" or "score.rank-a" or "score.rank-aaa-progress" or "score.rank-aa-progress" or "score.rank-a-progress"
+                or "judgement.offset" or "score.value" or "score.accuracy" or "combo.value" or "combo.maximum" or "gauge.value" or "gauge.maximum" or "gauge.clear-threshold"
                 or "score.maximum" or "score.progress" or "lift.value" or "lift.offset"
                 or "timing.beat" or "timing.measure" or "timing.bpm" or "timing.progress"
                 or "timing.bpm-min" or "timing.bpm-max" or "scroll.speed" or "judgement.count.perfect" or "judgement.count.great" or "judgement.count.good" or "judgement.count.ok" or "judgement.count.meh" or "judgement.count.miss" or "combo.breaks";
-            bool sourceIsBoolean = source is "input.pressed" or "gameplay.full-combo" or "score.maximum-available" or "lift.reversed" or "lift.available";
+            bool sourceIsBoolean = source is "timing.start-available" or "arrival.available" or "arrival.visible" or "input.motion-available-1" or "input.motion-available-2" or "offset.available" or "offset.automatic" or "score.personal-best-available" or "score.rank-available"
+                or "input.pressed" or "gameplay.full-combo" or "score.maximum-available" or "lift.reversed" or "lift.available";
             return sourceIsNumber && number_properties.Contains(property)
                    || sourceIsBoolean && boolean_properties.Contains(property);
         }
@@ -2109,6 +2124,9 @@ namespace osu.Game.Skinning.Gameplay
                     ["value"] = encodeValue(keyframe.Value),
                 })),
             };
+
+            if (track.ClockSourceId != null)
+                result["clock"] = track.ClockSourceId;
 
             if (track.Trigger != GameplaySkinSceneEvent.Unspecified)
                 result["trigger"] = track.Trigger switch

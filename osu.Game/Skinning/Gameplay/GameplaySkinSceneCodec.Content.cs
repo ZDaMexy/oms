@@ -63,7 +63,7 @@ namespace osu.Game.Skinning.Gameplay
                                 context.Add(GameplaySkinSceneDiagnosticCode.InvalidValueType);
                                 continue;
                             }
-                            validateFields(choice, context, new[] { "value", "label" }, new[] { "manifest", "scene", "ini", "variants", "preview" });
+                            validateFields(choice, context, new[] { "value", "label" }, new[] { "manifest", "scene", "ini", "variants", "preview", "orderedVariants" });
                             string? value = getStableId(choice, "value", context);
                             string? choiceLabel = optionLabel(choice, "label", context);
                             string? preview = optionPreviewPath(choice, context);
@@ -74,9 +74,12 @@ namespace osu.Game.Skinning.Gameplay
                                 context.Add(GameplaySkinSceneDiagnosticCode.InvalidReference);
                             if (value != null && !values.Add(value))
                                 context.Add(GameplaySkinSceneDiagnosticCode.DuplicateField);
-                            IReadOnlyList<GameplaySkinContentVariant> variants = contentVariants(choice["variants"], context);
+                            bool orderedVariants = choice.ContainsKey("orderedVariants") && getBoolean(choice, "orderedVariants", context) == true;
+                            if (orderedVariants && !choice.ContainsKey("variants"))
+                                context.Add(GameplaySkinSceneDiagnosticCode.InvalidReference);
+                            IReadOnlyList<GameplaySkinContentVariant> variants = contentVariants(choice["variants"], context, orderedVariants);
                             if (value != null && choiceLabel != null)
-                                choices.Add(new GameplaySkinContentChoice(value, choiceLabel, manifest, scene, ini, variants, preview));
+                                choices.Add(new GameplaySkinContentChoice(value, choiceLabel, manifest, scene, ini, variants, preview, orderedVariants));
                         }
                     }
                     if (id == null || label == null || defaultValue == null)
@@ -92,7 +95,7 @@ namespace osu.Game.Skinning.Gameplay
             return context.HasDiagnostics ? context.Invalid<GameplaySkinContentCatalog>() : valid(new GameplaySkinContentCatalog(result));
         }
 
-        private static IReadOnlyList<GameplaySkinContentVariant> contentVariants(JToken? token, DecodeContext context)
+        private static IReadOnlyList<GameplaySkinContentVariant> contentVariants(JToken? token, DecodeContext context, bool ordered)
         {
             var result = new List<GameplaySkinContentVariant>();
             if (token == null)
@@ -139,7 +142,7 @@ namespace osu.Game.Skinning.Gameplay
                 string[] keys = [.. when.Keys.OrderBy(key => key, StringComparer.Ordinal)];
                 if (selectorKeys == null)
                     selectorKeys = keys;
-                else if (!selectorKeys.SequenceEqual(keys, StringComparer.Ordinal))
+                else if (!ordered && !selectorKeys.SequenceEqual(keys, StringComparer.Ordinal))
                     context.Add(GameplaySkinSceneDiagnosticCode.InvalidReference);
                 string tuple = string.Join("\u001f", keys.Select(key => key + "=" + when[key]));
                 if (!tuples.Add(tuple))

@@ -130,7 +130,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
             var font = new GameplaySkinPreparedBitmapFont(manifest.BitmapFonts.Single(), resources(texture));
             Assert.That(font.Get(font.Source.Id, '0')!.Texture, Is.SameAs(texture));
             Assert.That(font.Get(font.Source.Id, '1')!.Texture, Is.SameAs(texture));
-            Assert.That(GameplaySkinBitmapFontBudgets.MAX_FONTS, Is.EqualTo(9));
+            Assert.That(GameplaySkinBitmapFontBudgets.MAX_FONTS, Is.EqualTo(10));
             Assert.That(GameplaySkinSceneBudgets.MAX_RESOURCES, Is.EqualTo(256));
         }
 

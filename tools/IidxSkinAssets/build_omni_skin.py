@@ -518,7 +518,19 @@ def audit_package(output: Path, files):
     if len(ordinary_options) != len(root["options"]) or len(ordinary_options) + len(module_ids) > 32:
         raise ValueError("The unified option budget was exceeded")
     image_sizes, programs, manifests, manifest_resources = {}, {}, {}, {}
-    resource_definitions, resource_pixels, resource_bytes = {}, {}, {}
+    resource_definitions, resource_pixels, resource_bytes, resource_owners = {}, {}, {}, {}
+
+    def numeric_reserve(value):
+        # Public numeric properties become doubles during the codec round trip:
+        # integer 1 can become 1.0. Reserve two bytes for every integer token,
+        # including integer-only fields, to bound that expansion conservatively.
+        if type(value) is int:
+            return 2
+        if isinstance(value, list):
+            return sum(numeric_reserve(item) for item in value)
+        if isinstance(value, dict):
+            return sum(numeric_reserve(item) for item in value.values())
+        return 0
 
     def pixels(relative):
         if relative not in image_sizes:
@@ -529,7 +541,7 @@ def audit_package(output: Path, files):
             raise ValueError(f"Texture exceeds its individual decoded budget: {relative}")
         return value
 
-    def contribution(manifest_path, scene_path):
+    def contribution(manifest_path, scene_path, module_id):
         contribution_key = (manifest_path, scene_path)
         if contribution_key in manifests:
             return manifests[contribution_key]
@@ -543,11 +555,16 @@ def audit_package(output: Path, files):
         manifest_resources[contribution_key] = frozenset(resources)
         for identifier, resource in resources.items():
             signature = json.dumps(resource, sort_keys=True, separators=(",", ":"))
-            if identifier in resource_definitions and resource_definitions[identifier] != signature:
-                raise ValueError(f"A shared resource ID changes texture or sampler: {identifier}")
-            resource_definitions[identifier] = signature
-            resource_pixels[identifier] = pixels(resource["path"])
-            resource_bytes[identifier] = exact_file(output, resource["path"]).stat().st_size
+            definitions = resource_definitions.setdefault(identifier, set())
+            owners = resource_owners.setdefault(identifier, set())
+            if owners - {module_id} and (signature not in definitions or len(definitions) > 1):
+                raise ValueError(f"A resource shared across modules changes texture or sampler: {identifier}")
+            definitions.add(signature)
+            owners.add(module_id)
+            # Alternatives within one module are exclusive, including their
+            # manifests. Bound a shared identity by its largest possible image.
+            resource_pixels[identifier] = max(resource_pixels.get(identifier, 0), pixels(resource["path"]))
+            resource_bytes[identifier] = max(resource_bytes.get(identifier, 0), exact_file(output, resource["path"]).stat().st_size)
             if resource_bytes[identifier] > 16 * 1024 * 1024:
                 raise ValueError(f"One encoded texture exceeds 16MiB: {resource['path']}")
         fonts = {item["id"]: item for item in manifest.get("bitmapFonts", [])}
@@ -608,7 +625,8 @@ def audit_package(output: Path, files):
             "tracks": len(scene.get("tracks", [])), "keyframes": sum(len(track["keyframes"]) for track in scene.get("tracks", [])),
             "bindings": len(scene.get("bindings", [])), "variants": len(scene.get("variants", [])),
             "templates": len(scene.get("templates", [])), "instances": len(scene.get("instances", [])),
-            "animations": len(animations), "sceneBytes": scene_file.stat().st_size,
+            "animations": len(animations), "sceneBytes": scene_file.stat().st_size + numeric_reserve(scene),
+            "rawSceneBytes": scene_file.stat().st_size,
             "manifestBytes": manifest_file.stat().st_size,
             "recordedDecodedBytes": sum(programs[item["path"]]["decodedBytes"] for item in animations.values()),
             "recordedNodes": sum(programs[item["path"]]["nodes"] for item in animations.values()),
@@ -616,7 +634,7 @@ def audit_package(output: Path, files):
             "recordedTriangles": sum(programs[item["path"]]["maximumLiveTriangles"] for item in animations.values())}
         for key, maximum in {"resources": 256, "pixels": 96 * 1024 * 1024, "decodedTextureBytes": 384 * 1024 * 1024,
                              "encodedTextureBytes": 64 * 1024 * 1024,
-                             "fonts": 9, "nodes": 2048,
+                             "fonts": 10, "nodes": 2048,
                              "tracks": 512, "keyframes": 8192, "bindings": 512, "variants": 512,
                              "templates": 128, "instances": 1024, "animations": 32,
                              "sceneBytes": 512 * 1024, "manifestBytes": 64 * 1024}.items():
@@ -639,7 +657,7 @@ def audit_package(output: Path, files):
                     scene_path = part.get("scene")
                     if not scene_path:
                         raise ValueError("A contribution has no actual C2 catalog scene path")
-                    measurements.append(contribution(path, scene_path))
+                    measurements.append(contribution(path, scene_path, module["id"]))
                     selected_resource_sets.add(manifest_resources[(path, scene_path)])
         module_resources[module["id"]] = selected_resource_sets
         module_bounds.append({"module": module["id"], "choices": len(choices),
@@ -689,10 +707,10 @@ def audit_package(output: Path, files):
     # These are deliberately conservative: they sum independent module maxima without relying on a lucky selection.
     for key, maximum in {"resources": 256, "pixels": 96 * 1024 * 1024, "decodedTextureBytes": 384 * 1024 * 1024,
                          "encodedTextureBytes": 64 * 1024 * 1024,
-                         "fonts": 9, "nodes": 2048,
+                         "fonts": 10, "nodes": 2048,
                          "tracks": 512, "keyframes": 8192, "bindings": 512, "variants": 512,
                          "templates": 128, "instances": 1024, "animations": 32,
-                         "sceneBytes": 512 * 1024, "recordedDecodedBytes": 128 * 1024 * 1024,
+                         "sceneBytes": 512 * 1024, "manifestBytes": 64 * 1024, "recordedDecodedBytes": 128 * 1024 * 1024,
                          "recordedNodes": 32768, "recordedStates": 131072}.items():
         if totals[key] > maximum:
             aggregate_violations.append({"budget": key, "upperBound": totals[key], "limit": maximum})

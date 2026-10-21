@@ -226,7 +226,11 @@ namespace osu.Game.Rulesets.Bms.UI
                 BeatmapMetadata? persistedMetadata = parent.TryGet(out Bindable<WorkingBeatmap> working)
                     ? working.Value.Metadata : Beatmap.BeatmapInfo.Metadata as BeatmapMetadata;
                 GameplaySkinEventRuntime = new GameplaySkinEventRuntimeHost(publication, Beatmap, timingProjection, this,
-                    createSongInformation(persistedMetadata), () => SelectedHiSpeed.Value);
+                    createSongInformation(persistedMetadata), () => SelectedHiSpeed.Value,
+                    createGameplaySkinArrivals(publication), usesExScore: true,
+                    appliedOffset: () => new GameplaySkinOffsetStateSnapshot(true, Playfield.VisualOffset.Value, Playfield.AutomaticVisualOffsetEnabled.Value),
+                    scoreBeatmap: working?.Value.BeatmapInfo ?? Beatmap.BeatmapInfo,
+                    validSavedScore: score => score.GetRulesetData<BmsScoreInfoData>() is { Version: BmsScoreInfoData.TOTAL_RULES_VERSION, HasResultStatistics: true });
                 dependencies.Cache(GameplaySkinEventRuntime);
                 dependencies.Cache(GameplaySkinEventRuntime.EventStream);
 
@@ -535,6 +539,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 return;
 
             updateGameplaySkinInputEvents();
+            updateGameplaySkinMotion();
             updateGameplaySkinBgaState();
         }
 

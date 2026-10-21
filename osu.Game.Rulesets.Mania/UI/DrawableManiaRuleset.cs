@@ -204,7 +204,8 @@ namespace osu.Game.Rulesets.Mania.UI
                     Beatmap.ControlPointInfo.TimingPoints.Select(point => point.BPM).DefaultIfEmpty(TimingControlPoint.DEFAULT.BPM).Min(),
                     Beatmap.ControlPointInfo.TimingPoints.Select(point => point.BPM).DefaultIfEmpty(TimingControlPoint.DEFAULT.BPM).Max(),
                     BeatmapLocalMetadataDisplayResolver.GetDisplayDifficultyTableClassificationWithNames(persistedMetadata)),
-                () => configScrollSpeed.Value);
+                () => configScrollSpeed.Value, createGameplaySkinArrivals(layoutPublication),
+                scoreBeatmap: working?.Value.BeatmapInfo ?? Beatmap.BeatmapInfo);
             wrapped.Cache(GameplaySkinEventRuntime);
             wrapped.Cache(GameplaySkinEventRuntime.EventStream);
 

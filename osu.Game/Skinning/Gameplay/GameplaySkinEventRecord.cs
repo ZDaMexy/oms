@@ -40,6 +40,8 @@ namespace osu.Game.Skinning.Gameplay
         private readonly double number4;
         private readonly GameplaySkinJudgementStatistics statistics;
         private readonly GameplaySkinLayoutRect rect;
+        private readonly GameplaySkinOffsetStateSnapshot offsetState;
+        private readonly double? timingStartTime;
 
         internal GameplaySkinEventPayloadFamily Family { get; }
 
@@ -69,7 +71,8 @@ namespace osu.Game.Skinning.Gameplay
             double number3 = 0,
             GameplaySkinLayoutRect rect = default,
             double number4 = 0,
-            GameplaySkinJudgementStatistics statistics = default)
+            GameplaySkinJudgementStatistics statistics = default,
+            GameplaySkinOffsetStateSnapshot offsetState = default, double? timingStartTime = null)
         {
             Family = family;
             DeliveryKind = deliveryKind;
@@ -88,6 +91,8 @@ namespace osu.Game.Skinning.Gameplay
             this.number4 = number4;
             this.statistics = statistics;
             this.rect = rect;
+            this.offsetState = offsetState;
+            this.timingStartTime = timingStartTime;
         }
 
         internal static GameplaySkinEventValue Snapshot(GameplaySkinEventStateSnapshot state)
@@ -124,7 +129,8 @@ namespace osu.Game.Skinning.Gameplay
         {
             requireFamily(GameplaySkinEventPayloadFamily.Input);
             return new GameplaySkinInputStateSnapshot(groupId, laneId, scalar0 != 0, (float)number0,
-                (scalar1 & 1) != 0 ? number1 : null, (scalar1 & 2) != 0 ? number2 : null);
+                (scalar1 & 1) != 0 ? number1 : null, (scalar1 & 2) != 0 ? number2 : null,
+                number3, number4, (scalar1 & 4) != 0);
         }
 
         internal GameplaySkinObjectStateSnapshot GetObject(GameplaySkinLaneGroupId groupId, GameplaySkinLaneId? laneId)
@@ -158,7 +164,7 @@ namespace osu.Game.Skinning.Gameplay
         {
             requireFamily(GameplaySkinEventPayloadFamily.Score);
             return new GameplaySkinScoreStateSnapshot(integral0, scalar0, scalar1, number0, number1, statistics,
-                new GameplaySkinGaugeStateSnapshot((GameplaySkinGaugeType)scalar2, number2, number3, number4 != 0), integral1);
+                new GameplaySkinGaugeStateSnapshot((GameplaySkinGaugeType)scalar2, number2, number3, number4 != 0), integral1, offsetState);
         }
 
         internal GameplaySkinTimingStateSnapshot GetTiming()
@@ -169,7 +175,7 @@ namespace osu.Game.Skinning.Gameplay
             long offsetBits = ((long)scalar2 << 32) | (uint)scalar1;
             var lift = new GameplaySkinLiftState((scalar0 & 2) != 0, BitConverter.Int64BitsToDouble(integral1),
                 BitConverter.Int64BitsToDouble(offsetBits), (scalar0 & 4) != 0);
-            return new GameplaySkinTimingStateSnapshot(number0, integral0, number1, (scalar0 & 1) != 0, number2, number3, number4, lift);
+            return new GameplaySkinTimingStateSnapshot(number0, integral0, number1, (scalar0 & 1) != 0, number2, number3, number4, lift, timingStartTime);
         }
 
         internal GameplaySkinBgaStateSnapshot GetBga()
@@ -308,13 +314,14 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinInputStateSnapshot state,
             GameplaySkinEventPayload? materialized)
         {
-            _ = new GameplaySkinInputStateSnapshot(state.GroupId, state.LaneId, state.IsPressed, state.Strength, state.PressedAt, state.ReleasedAt);
+            _ = new GameplaySkinInputStateSnapshot(state.GroupId, state.LaneId, state.IsPressed, state.Strength, state.PressedAt, state.ReleasedAt, state.MotionCounts, state.MotionRevolutions, state.MotionAvailable);
 
             if (eventKind is not GameplaySkinEventKind.InputPressed
-                and not GameplaySkinEventKind.InputReleased)
+                and not GameplaySkinEventKind.InputReleased
+                and not GameplaySkinEventKind.InputMotionChanged)
                 throw new ArgumentOutOfRangeException(nameof(eventKind));
 
-            if ((eventKind == GameplaySkinEventKind.InputPressed) != state.IsPressed)
+            if (eventKind != GameplaySkinEventKind.InputMotionChanged && (eventKind == GameplaySkinEventKind.InputPressed) != state.IsPressed)
                 throw new ArgumentException("Input event kind must match the complete pressed state.", nameof(eventKind));
 
             return new GameplaySkinEventValue(
@@ -323,10 +330,11 @@ namespace osu.Game.Skinning.Gameplay
                 eventKind,
                 materialized,
                 scalar0: state.IsPressed ? 1 : 0,
-                scalar1: (state.PressedAt.HasValue ? 1 : 0) | (state.ReleasedAt.HasValue ? 2 : 0),
+                scalar1: (state.PressedAt.HasValue ? 1 : 0) | (state.ReleasedAt.HasValue ? 2 : 0) | (state.MotionAvailable ? 4 : 0),
                 number0: state.Strength,
                 number1: state.PressedAt ?? 0,
-                number2: state.ReleasedAt ?? 0);
+                number2: state.ReleasedAt ?? 0,
+                number3: state.MotionCounts, number4: state.MotionRevolutions);
         }
 
         private static GameplaySkinEventValue objectValue(
@@ -394,7 +402,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinScoreStateSnapshot state,
             GameplaySkinEventPayload? materialized)
         {
-            _ = new GameplaySkinScoreStateSnapshot(state.Score, state.Combo, state.MaxCombo, state.Accuracy, state.Gauge, state.Statistics, state.GaugeState, state.MaximumScore);
+            _ = new GameplaySkinScoreStateSnapshot(state.Score, state.Combo, state.MaxCombo, state.Accuracy, state.Gauge, state.Statistics, state.GaugeState, state.MaximumScore, state.OffsetState);
 
             if (eventKind is not GameplaySkinEventKind.ScoreChanged
                 and not GameplaySkinEventKind.ComboChanged
@@ -416,7 +424,7 @@ namespace osu.Game.Skinning.Gameplay
                 number2: state.GaugeState.Maximum,
                 number3: state.GaugeState.ClearThreshold,
                 number4: state.GaugeState.IsClear ? 1 : 0,
-                statistics: state.Statistics);
+                statistics: state.Statistics, offsetState: state.OffsetState);
         }
 
         private static GameplaySkinEventValue timingValue(
@@ -424,7 +432,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinTimingStateSnapshot state,
             GameplaySkinEventPayload? materialized)
         {
-            _ = new GameplaySkinTimingStateSnapshot(state.Beat, state.BarIndex, state.Bpm, state.IsStopped, state.ScrollMultiplier, state.Progress, state.ScrollSpeed, state.LiftState);
+            _ = new GameplaySkinTimingStateSnapshot(state.Beat, state.BarIndex, state.Bpm, state.IsStopped, state.ScrollMultiplier, state.Progress, state.ScrollSpeed, state.LiftState, state.StartTime);
 
             if (eventKind is not GameplaySkinEventKind.TimingBeat
                 and not GameplaySkinEventKind.TimingBar
@@ -453,7 +461,7 @@ namespace osu.Game.Skinning.Gameplay
                 number1: state.Bpm,
                 number2: state.ScrollMultiplier,
                 number3: state.Progress,
-                number4: state.ScrollSpeed);
+                number4: state.ScrollSpeed, timingStartTime: state.StartTime);
         }
 
         private static GameplaySkinEventValue bgaValue(

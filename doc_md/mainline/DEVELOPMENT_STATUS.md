@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-21（设备输入与校准专项；既有产品/生产门保持）
+> 最后核对：2026-10-21（设备输入与Omni游玩细节接通；既有产品/生产门保持）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -11,7 +11,7 @@ OMS处于Phase 1.x后段，原生 BMS 与转谱游玩已完成热路径优化。
 
 游玩判定/结果及性能取[10月19日深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)；设备入口、输入时间、轴用途、长皿与校准接续取[10月21日输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)。前台帧时间与实体设备仍待验收。
 
-皮肤按模式/键数选择，作者声明布局、配置与预览，普通包保持原表现。Lighting Model Skin Omni Until 33默认33，27～33与八支BPL为Game Frame，主屏CUSTOM、歌曲游标与缩略图可用，副屏已移除；mania音符显示已修复。作品独立私下分享，不内置或进入公开发行/制作套件。原HDD只读，26及更早来源待补；验证和缺口取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)推进，原发行门保持。
+皮肤按模式/键数选择，作者声明布局、配置与预览，普通包保持原表现。Lighting Model Skin Omni Until 33默认33，27～33与八支BPL为Game Frame，主屏CUSTOM、歌曲游标与缩略图可用，副屏已移除；mania音符显示已修复，设备方向与主屏图表/统计、动态细节已[接通](../other/LIGHTING_DETAILS_20261021.md)。作品独立私下分享，不内置或进入公开发行/制作套件。原HDD只读，26及更早来源待补；验证和缺口取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)推进，原发行门保持。
 
 玩家直接登录固定OMSIR，保存后新局上传；新闻 / 帮助 / 排行 / 玩家沿原生页面。谱面列表先选模式：BMS 仅 Ginger Rush / 616，osu!mania 仅 Sayobot，恢复上次 BMS 来源；紧凑筛选、原生卡片和各来源阅读状态保持。正常OMS窗口的lazer体验仍待签收，隔离内容宽度检查不代签；源码 / 软件及剩余门取[P3-IR状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。社交后续，旧ppy关闭；Phase1.x原门保持。
 
@@ -49,9 +49,9 @@ OMS处于Phase 1.x后段，原生 BMS 与转谱游玩已完成热路径优化。
 
 ## 最近一次验证
 
-2026-10-21设备输入、轴校准、长皿与键盘来源交接的实际修前／修后、完整软件回归和性能范围取[本轮验证](../other/INPUT_SIGNAL_REVIEW_20261021.md#验证证据)。原HDD、Omni包及人工／发行门保持；此前判定和皮肤修复保留原日期，见[CHANGELOG](CHANGELOG.md)。
+2026-10-21设备与独立Omni完成软件及代表Player验证，实际方向、图表/统计和动态细节一并接通，见[P1-A记录](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)。输入研究和原始回归取[输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)；原HDD与正式玩家数据未改，实体设备/前台帧时间和人工/发行门保持。
 
-2026-10-11 转谱补算资源与 Debug 读取优化已有受控测量、回归及 Desktop 双配置证据；旧皮肤失败已逐项对照。范围、取舍与未验项只取 [P1-H 最新验证](../subline/P1-H/DEVELOPMENT_STATUS.md#最近一次验证)。扫描 / 便携宿主修复的 `d6f0d60` 来源见 [扫描审查](../other/LIBRARY_SCAN_REVIEW_20261010.md)。未重扫用户库，样本或探针不代签真实大库、Explorer 或发行。
+2026-10-11转谱补算、Debug读取及旧失败对照保留原日期，范围与未验项取[P1-H](../subline/P1-H/DEVELOPMENT_STATUS.md#最近一次验证)。
 
 下载完成状态的 2026-10-03 软件、两源 BMS 小包的 10 月 1 日桌面成功及 Sayobot 素材 / 原连接失败分别保留原日期，从 [P1-A 状态与证据索引](../subline/P1-A/DEVELOPMENT_STATUS.md)读取。Sayobot 真实包成功、修复后实站观察与大包 / 听感仍待验，旧连接结果不表示节点持续故障；已采用官网外链获取沿 [P3-IR 合同](../subline/P3-IR/TECHNICAL_CONSTRAINTS.md#身份结算与保存)。
 
@@ -65,6 +65,6 @@ OMS处于Phase 1.x后段，原生 BMS 与转谱游玩已完成热路径优化。
 
 ## 文档治理验证
 
-2026-10-21输入合同、状态与诊断记忆同步，文档检查取[本轮收据](../other/INPUT_SIGNAL_REVIEW_20261021.md#格式与文档)。跨线事实仍走原权威链，未刷新实网、生产或人工签收。
+2026-10-21输入与皮肤文档/诊断记忆同步，检查分别取[输入收据](../other/INPUT_SIGNAL_REVIEW_20261021.md#格式与文档)和[皮肤记录](../other/LIGHTING_DETAILS_20261021.md)。跨线事实仍走原权威链，未刷新实网、生产或人工签收。
 
 开发存储继续遵守 [AGENTS](../../AGENTS.md#开发磁盘约束)。旧系统盘产物回收和 Codex 全局迁移未完成，不能因文档检查通过而宣称已释放或零增长；待办保留在 [PLAN](DEVELOPMENT_PLAN.md#改动验收矩阵)。

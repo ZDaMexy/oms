@@ -72,7 +72,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Author.ps1 -Action imp
 ] }
 ```
 
-`character` 必须是一个字符，只允许 `0`～`9`、`.`、`,`、`%`、`+`、`-`、小写 `x`，不包括空格、换行或其它字母。每份清单最多9字体，每字体最多16字形。`lineHeight` 与 `advance` 都是有限数，范围1..512，单位为原图像素；字形图片每边1..512像素，高度还必须不超过 `lineHeight`。图片顶端对齐，没有独立偏移、基线或自动补字。显示时以 `font-size / lineHeight` 缩放图片和横向步长；`advance` 可与图片宽度不同，用来控制数字间距。
+`character` 必须是一个字符，只允许 `0`～`9`、`.`、`,`、`%`、`+`、`-`、小写 `x`，不包括空格、换行或其它字母。每份清单及内容目录选中组合最多10个字体声明，每字体最多16字形。确需不同原始行高或步长时可分别声明字体；单纯改显示字号可复用同一字体。不同字体可共享同一已准备图片，十套独立字形度量仍计入同一上限。`lineHeight` 与 `advance` 都是有限数，范围1..512，单位为原图像素；字形图片每边1..512像素，高度还必须不超过 `lineHeight`。图片顶端对齐，没有独立偏移、基线或自动补字。显示时以 `font-size / lineHeight` 缩放图片和横向步长；`advance` 可与图片宽度不同，用来控制数字间距。
 
 在 `text` 节点的静态 `properties` 中选择字体，例如以下节点和绑定分别放入已有树与 `bindings` 数组；所属 `hud.text` 仍须由本包 `Provide`：
 
@@ -91,7 +91,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Author.ps1 -Action imp
 
 `bitmap-font` 只能静态引用已声明字体，不能由绑定、轨迹、状态机或脚本更换。位图文字每节点最多64字符，静态文字和状态赋值中的每个字符都必须有字形。绑定接受数值来源及配置开关的0/1投影；曲名、状态词、身份和其它布尔来源不能写入这种数字节点。它不接受 `uppercase` 或 `text-overflow`，也不会在缺字时切换系统字体。
 
-数值绑定必须声明全部十个数字。`fixed-2` 还需要 `.`，`percent` 还需要 `%`；未给 `format` 时使用最多三位小数，非整数来源还需要 `.`。这里的整数来源包括 `score.maximum`、`score.value`、`combo.value`、`combo.maximum`、`timing.measure`、六档 `judgement.count.*` 和 `combo.breaks`；例如希望BPM只使用数字字形，应显式选 `integer`。`judgement.offset` 与 `timing.beat` 还必须声明 `-`。其它可能出现负值的显示也应提供负号，例如前奏中的 `timing.measure` 可为-1。`,`、`+`、`x` 可用于自己写的静态数字文字，不会自动添加千位分隔或倍率前缀。
+数值绑定必须声明全部十个数字。`fixed-2` 还需要 `.`，`percent` 还需要 `%`；未给 `format` 时使用最多三位小数，非整数来源还需要 `.`。这里的整数来源包括 `score.maximum`、`score.value`、`score.personal-best`、`score.rank-aaa/aa/a`、`combo.value`、`combo.maximum`、`timing.measure`、六档及FAST/SLOW的 `judgement.count.*` 和 `combo.breaks`；例如希望BPM只使用数字字形，应显式选 `integer`。`judgement.offset`、`timing.beat`、`timing.time`、`arrival.time/remaining`、两组 `input.motion-counts-* / input.motion-revolutions-*` 和 `offset.value` 还必须声明 `-`。其它可能出现负值的显示也应提供负号，例如前奏中的 `timing.measure` 可为-1。`,`、`+`、`x` 可用于自己写的静态数字文字，不会自动添加千位分隔或倍率前缀。
 
 位图节点的数字统一沿 `format`：缺省最多三位小数，`integer` 舍入为无小数数字，`fixed-2` 固定两位小数，`percent` 乘100后显示整数和百分号。因此位图准确率/进度要显示百分比时也应显式选择 `percent`。所有已声明字体都会准备；超尺寸、缺资源或运行数值超出64字符/缺少字形会报对应场景错误。字形图片和可选区域计入普通资源的文件、像素与解码预算，区域共享同一已准备纹理；动态位图文字每节点预留64字形，仍计入全场景8192字形和真实实例预算。
 
@@ -242,7 +242,9 @@ choice可选`preview`，引用包根相对路径的静态PNG；不允许绝对/�
 
 子清单的`scene`字段仍填写合同固定值`gameplay-skin.scene.json`；实际子场景路径取上方choice或variant的`scene`字段。这与根清单读取固定根场景的规则不同，不能把子场景的物理路径写进manifest合同头。
 
-choice可声明 `variants`，例如 `{"when":{"layout":"p2","note-size":"short"},"manifest":"…","scene":"…","ini":"…"}`。when只读取另一项已冻结的choice/toggle，不引用自身、数值选项或未知项；同choice各variant条件键集合一致、值组合唯一。命中后使用该variant的整份贡献；没有命中使用choice基本贡献。它不重新选择其它选项、不产生循环求值，也不允许游玩中换文件。
+choice可声明 `variants`，例如 `{"when":{"layout":"p2","note-size":"short"},"manifest":"…","scene":"…","ini":"…"}`。when只读取另一项已冻结的choice/toggle，不引用自身、数值选项或未知项；缺省或 `orderedVariants:false` 时，同choice各variant条件键集合须一致、值组合唯一。命中后使用该variant的整份贡献；没有命中使用choice基本贡献。它不重新选择其它选项、不产生循环求值，也不允许游玩中换文件。
+
+需要不同条件宽度时，可在该choice显式声明 `"orderedVariants":true`，并保留非空的 `variants`。此时各variant可使用不同的非空条件键集合，仍拒绝完全相同的条件组合；按数组顺序取第一项全部条件都满足的贡献，不合并后续分支。应将具体单舞台条件放在前面，较宽的双舞台或共用后备放在后面；例如先列 `{"layout":"p1","detail":true}`、`{"layout":"p2","detail":true}`，再列 `{"detail":true}`。最后一项不检查layout，可承接双舞台；这只是作者声明的顺序，不是引擎自动识别SP/DP。没有命中仍取choice基本贡献，旧包省略字段时保持原选择规则。
 
 每模块最多1024个choice、全目录4096个、每choice64个variant；普通inline choice仍最多32个。目录最多4MiB，捕获闭包最多8192文件、512MiB，结构文件合计64MiB；普通作者工具整包4096文件/128MiB限制不因未声明目录而放宽。归档自身仍有16MiB配置总量门。所有分支的结构和图片头在选择前校验，实际选中的组合才解码像素，仍受256资源、64MiB图片字节、96MiP像素/384MiB解码及既有场景预算约束；普通未声明目录的包继续64MiP/256MiB。作者工具另外逐个完整解码全部PNG、检查每个choice/variant的代表组合；这不等于穷举所有独立选项的笛卡尔积，作者应检查自己允许的重型混搭。
 
@@ -358,7 +360,7 @@ Target: Lane ruleset=bms keymode=7k stage-mode=single presentation=p2 group=bms.
 
 ## 动画、状态机、绑定、变体、模板
 
-tracks 每项必填 id/type/target/property/easing/loop/keyframes，可选 `trigger`；target为节点id。帧必填id/time/value，时间为毫秒，非负、严格递增且不超过86400000，至少一帧。
+tracks 每项必填 id/type/target/property/easing/loop/keyframes，可选 `trigger` 或 `clock`，两者不能同时声明；target为节点id。帧必填id/time/value，time为有限非负数，严格递增且不超过86400000，至少一帧。缺省time单位为游玩毫秒；显式clock时使用该数值来源的单位。
 
 ```json
 {
@@ -371,7 +373,19 @@ tracks 每项必填 id/type/target/property/easing/loop/keyframes，可选 `trig
 }
 ```
 
-tween只改变数值属性；tween配step可逐帧保持数值，在关键帧的精确时刻切入新值。frame给sprite的resource换帧时，value必须是清单资源id；projective-sprite还接受下述projective-quad帧。easing为step/linear/in/out/in-out。循环周期来自最后帧，循环动画应给正周期。省略 `trigger` 时仍按全局游玩时间采样，已有包不改变语义；暂停不推进，重试/跳转使用新位置。
+tween只改变数值属性；tween配step可逐帧保持数值，在关键帧的精确时刻切入新值。frame给sprite的resource换帧时，value必须是清单资源id；projective-sprite还接受下述projective-quad帧。easing为step/linear/in/out/in-out。循环周期来自最后帧，循环动画应给正周期；负的来源值也按正模取周期，因此反向运动能连续向回采样。非循环轨迹在首帧前、末帧后分别保持首帧、末帧。省略 `trigger` 和 `clock` 时仍按全局游玩时间采样，已有包不改变语义；暂停不推进，重试/跳转使用新位置。
+
+`clock` 是一个已有数值只读绑定来源字符串，适用于tween和frame，例如 `"clock":"timing.beat"`、`"clock":"timing.elapsed"` 或 `"clock":"arrival.remaining"`。普通数值来源、number配置及toggle的显式0/1数值投影均可；其它布尔、choice和状态文字来源不可以，也不接受表达式、私有时钟或外部输入。它只决定读取关键帧的位置，不改变游戏时钟、输入或判定。以下已有节点的轨迹每拍变亮一次，time单位为拍：
+
+```json
+{"id":"my.beat-pulse","type":"tween","target":"ref.icon","property":"opacity",
+ "clock":"timing.beat","easing":"linear","loop":true,
+ "keyframes":[{"id":"my.beat-pulse.start","time":0,"value":1},
+              {"id":"my.beat-pulse.dim","time":0.5,"value":0.2},
+              {"id":"my.beat-pulse.end","time":1,"value":1}]}
+```
+
+`timing.elapsed` 从真实Gameplay Start起计。尚无Start的设置预览或尚未开始的宿主不会采样该轨迹，保留作者原属性；从已开始状态Reset到无Start时恢复该属性，再等待真实Start。普通 `timing.time` 仍可在前奏为负。自选clock不携带触发器起点，也不扩大记录动画文件的trigger语法；完整结尾等待仍须使用下文的 `gameplay.complete` 轨迹。
 
 ### 已投影纹理的四角动画
 
@@ -429,6 +443,9 @@ bindings每项必填id/target/property/source，例如：
 | --- | --- | --- |
 | layout.stage/layout.group/layout.lane | 目标稳定身份字符串，不是矩形或对象 | text |
 | input.pressed | 当前目标轨道是否按下 | visible或text |
+| input.motion-counts-1 / input.motion-counts-2 | 对应逻辑组累计的带符号相对移动counts，已应用实际绑定的灵敏度与反转 | 数值或text |
+| input.motion-revolutions-1 / input.motion-revolutions-2 | 对应逻辑组累计的带符号圆形轴或摇杆模拟转数，已应用实际绑定配置 | 数值或text |
+| input.motion-available-1 / input.motion-available-2 | 对应逻辑组当前是否具有可用的真实运动投影 | visible或普通text |
 | gameplay.full-combo | 实际完成且达到引擎最大可达连击、未失败；未完成或空谱为false | visible或普通text |
 | object.state | scheduled/visible/holding/hit/missed/completed/despawned | text |
 | object.long-note-mode | none/ln/cn/hcn；实际对象的长条模式 | text |
@@ -437,22 +454,46 @@ bindings每项必填id/target/property/source，例如：
 | judgement.offset | 当前判定偏差，毫秒 | 数值或text |
 | score.value | 当前计分器分数；原生BMS为EX SCORE，mania为自身计分器分数 | 数值或text |
 | score.accuracy | 0..1；text为两位小数百分比 | 数值或text |
+| score.personal-best / score.personal-best-progress | 同条件有效本地最佳分数 / 最佳分数除以当前理论满分后夹至0..1；不可用时0 | 数值或text |
+| score.personal-best-available | 是否查得符合条件的本地成绩 | visible或普通text |
+| score.rank-aaa / score.rank-aa / score.rank-a | BMS EX SCORE的AAA/AA/A阈值；不可用时0 | 数值或text |
+| score.rank-aaa-progress / score.rank-aa-progress / score.rank-a-progress | 对应阈值除以当前理论满分；不可用时0 | 数值或text |
+| score.rank-available | 当前是否具有BMS EX SCORE与正的理论满分 | visible或普通text |
 | combo.value / gauge.value | 连击 / 归一化能量 | 数值或text |
 | combo.maximum | 本局已经达到的最高连击；真实计分器快照的非负整数，断连后保留 | 数值或text |
 | gauge.type | none/assist-easy/easy/normal/hard/ex-hard/hazard | text |
 | gauge.maximum / gauge.clear-threshold | 实际血槽最大值 / 通关阈值，与gauge.value使用相同0..1量纲；无此能力时都为0 | 数值或text |
 | gauge.clear-state | unavailable/uncleared/clear；引擎当前通关条件状态 | text |
 | timing.beat/timing.measure/timing.bpm | 拍、小节索引、BPM | 数值或text |
+| timing.time | 当前权威游玩时间，毫秒，可为负 | 数值或text |
+| timing.elapsed | 从真实Gameplay Start起的非负游玩毫秒；尚无Start时数值绑定为0 | 数值或text |
+| timing.start-available | 是否已经取得真实Gameplay Start起点 | visible或普通text |
+| timing.beat-phase | 当前拍的小数部分，范围0≤值<1；负拍也保持此范围 | 数值或text |
+| arrival.time / arrival.remaining | 当前目标范围首个真实可玩对象的时间 / 距该时间的剩余毫秒；无entry时0 | 数值或text |
+| arrival.available / arrival.visible | 当前范围有首音entry / 有entry且当前时间早于首音时间 | visible或普通text |
 | song.title / song.artist / song.difficulty / song.level | 当前曲名、艺术家、难度类别或名称、原始等级文字；每项最多256个UTF-16单元 | text |
 | song.table-classification | 已启用难度表归类，独立于作者标级；每项为“表名 等级标签”，多表按保存顺序以 ` / ` 连接，无归类为空。最多256个UTF-16单元，可使用 ellipsis。BMS及BMS转谱mania从当前游玩锁定的原谱资料读取 | text |
 | timing.bpm-min / timing.bpm-max | 当前谱面实际音乐BPM范围，不含滚速倍率或STOP兼容点 | 数值或text |
 | scroll.speed | 当前玩法已选滚速设置值，不是滚动倍率或绿数；未提供时0 | 数值或text |
 | judgement.count.perfect / great / good / ok / meh / miss | 计分器对应六档判定累计值 | 数值或text |
+| judgement.count.fast / judgement.count.slow | 满档为Perfect的真实基础成功判定中，偏差小于0 / 大于0的累计数 | 数值或text |
 | combo.breaks | 计分器断连统计 | 数值或text |
+| offset.value | 玩法已经应用的显示时机偏移，毫秒；不可用时0 | 数值或text |
+| offset.available / offset.automatic | 是否提供此偏移投影 / 对应原生自动调整是否开启 | visible或普通text |
 | timing.progress | 可玩起止间0..1；text为整数百分比 | 数值或text |
 | bga.content-state | empty/ready/playing/paused/failed | text |
 
 字符串不能直接驱动数字或资源；换图用variants。数值限制在目标属性范围内，不修改玩法。首物件前进度0、末物件后1、零时长0；暂停保持、重试和跳转反映新位置。局部对象、轨道和组沿自身范围取值，不应由另一轨道的判定驱动。
+
+`arrival.*` 取应用Mod后的实际谱面和真实C3轨道，Lane为该轨首音，Stage/Group为该组最早首音，Global为全谱最早首音；空谱、空组及只作留白的作者槽没有entry，不借用别轨。BMS排除自动背景物件，mania取普通音符或长条的开始。`arrival.visible`只表示尚未到来，不限制提前多久；作者应另用非循环 `arrival.remaining` 轨迹定义预告窗，并将窗口两端透明度设为0，以免远处首音长期显示。剩余值可以为负，重试、seek和完整状态恢复直接使用新位置，不由皮肤累计倒计时。
+
+两组motion来源的 `1/2` 分别指拓扑逻辑组0/1；单人切换左右位置仍使用1，双舞台右组使用2，不根据屏幕左右重新编号。counts和revolutions分别累计，不能把鼠标一个count当成物理一圈；作者可用不同父子容器及不同clock轨迹叠加常态旋转与两种真实增量。当前运动投影来自BMS已接收的真实轴信号，mania及无方向信号保持不可用；数字键、Auto和没有方向记录的旧回放不补造逆转。默认转速、阻尼及视觉比例属于作品，皮肤不能改写设备灵敏度、发送输入或改变判定。重试、seek及输入来源重置沿引擎快照同步，不能把累计值视为永久硬件里程。
+
+FAST/SLOW读取真实HitEvent：只统计最大判定为Perfect且结果为基础成功击打的事件，零偏差两边均不计；Miss、自动长条body tick、长条父级记账及BMS空POOR不计入。计数随真实计分历史撤销和完整状态重建，不用 `judgement.hit` 在皮肤里再次累计。`offset.value`当前由BMS已经应用的VisualOffset提供，`offset.automatic`对应其原生自动显示时机调整开关；它不表示判定窗口或音频设备延迟。mania未提供相同投影，available/automatic为false、value为0；不可用时应隐藏读数，不显示伪造的已校准状态。
+
+`score.personal-best`只在选中场景实际消费最佳分数、比例或available来源时，于游玩后台加载一次。条件严格匹配当前本地玩家ID、谱面ID与hash、玩法及完整Mod设置；只选未删除、未失败、当前计分版本且具有效统计的本地成绩，BMS还校验其当前规则版本和结果统计。没有成绩或查询条件不可用时available为false，0不是已查得的最佳成绩。它不查询线上排行榜，不把其它玩家或不同Mod的成绩作为目标；作者不能在游玩中发起数据库查询。比例使用当前理论满分，满分不可用时为0。
+
+`score.rank-aaa/aa/a`只在BMS EX SCORE及正的理论满分可用时提供，分别为理论满分的8/9、7/9、6/9向上取整；比例来自这些实际整数阈值。mania不按该刻度造等级，available为false。上述来源只用于声明式绑定或数值clock，不增加可选脚本的输入名、权限或玩法写入能力。
 
 `combo.maximum` 直接读取与 `combo.value` 同一不可变计分快照的 `MaxCombo`，由真实计分器的 `HighestCombo` 提供。例如当前连击从19断到0，最高连击仍显示19；跳转采用重建快照中的最高值，重试归零，晚挂载保留当前快照。它不是谱面理论最大可达连击 `MaximumCombo`，也不是全连资格；不用皮肤脚本累计或取最大值。只显示整数的图片字体可以省略 `format`，仅声明十个数字即可。
 
@@ -602,7 +643,7 @@ event-value是单一数值：输入强度、对象进度、判定偏差毫秒、
 | 稳定id / 资源路径 | 128 / 240字符 |
 | 资源数 / 单资源 / 总资源 | 256 / 16MiB / 64MiB |
 | 单图像素 / 总图像素 / 解码字节 | 16×1024² / 普通64×1024²、显式目录选中组合96×1024² / 普通256MiB、选中组合384MiB |
-| 位图字体 / 每字体字形 / 每节点字符 | 9 / 16 / 64 |
+| 位图字体 / 每字体字形 / 每节点字符 | 10 / 16 / 64 |
 | 位图字形图片 / lineHeight / advance | 每边1..512像素，图片高度不超过lineHeight；lineHeight与advance均1..512、有限 |
 | 源节点 / 树深 / 每节点孩子 | 2048 / 16 / 128 |
 | 每对象属性 / 单节点效果 / 总效果 | 32 / 8 / 512 |

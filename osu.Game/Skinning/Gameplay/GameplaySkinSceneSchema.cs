@@ -481,6 +481,35 @@ namespace osu.Game.Skinning.Gameplay
         LiftOffset = 46,
         LiftReversed = 47,
         LiftAvailable = 48,
+        TimingTime = 49,
+        TimingElapsed = 50,
+        TimingStartAvailable = 51,
+        TimingBeatPhase = 52,
+        ArrivalAvailable = 53,
+        ArrivalTime = 54,
+        ArrivalRemaining = 55,
+        ArrivalVisible = 56,
+        InputMotionCounts1 = 57,
+        InputMotionCounts2 = 58,
+        InputMotionRevolutions1 = 59,
+        InputMotionRevolutions2 = 60,
+        InputMotionAvailable1 = 61,
+        InputMotionAvailable2 = 62,
+        JudgementCountFast = 63,
+        JudgementCountSlow = 64,
+        OffsetValue = 65,
+        OffsetAvailable = 66,
+        OffsetAutomatic = 67,
+        ScorePersonalBest = 68,
+        ScorePersonalBestProgress = 69,
+        ScorePersonalBestAvailable = 70,
+        ScoreRankAaa = 71,
+        ScoreRankAa = 72,
+        ScoreRankA = 73,
+        ScoreRankAaaProgress = 74,
+        ScoreRankAaProgress = 75,
+        ScoreRankAProgress = 76,
+        ScoreRankAvailable = 77,
     }
 
     public enum GameplaySkinSceneEvent
@@ -669,6 +698,9 @@ namespace osu.Game.Skinning.Gameplay
 
     public sealed class GameplaySkinSceneTrack
     {
+        /// <summary>Optional read-only numeric phase, with keyframe times expressed in that source's units.</summary>
+        public string? ClockSourceId { get; }
+        public GameplaySkinSceneBindingSource ClockSource { get; }
         public string Id { get; }
 
         public GameplaySkinSceneTrackType Type { get; }
@@ -701,7 +733,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneEasing easing,
             bool loop,
             IEnumerable<GameplaySkinSceneKeyframe> keyframes,
-            GameplaySkinSceneEvent trigger = GameplaySkinSceneEvent.Unspecified)
+            GameplaySkinSceneEvent trigger = GameplaySkinSceneEvent.Unspecified, string? clockSourceId = null)
         {
             Id = id;
             Type = type;
@@ -711,6 +743,8 @@ namespace osu.Game.Skinning.Gameplay
             Easing = easing;
             Loop = loop;
             Trigger = trigger;
+            ClockSourceId = clockSourceId;
+            ClockSource = clockSourceId == null ? GameplaySkinSceneBindingSource.Unspecified : GameplaySkinSceneVocabulary.ParseBindingSource(clockSourceId);
             Keyframes = Array.AsReadOnly(keyframes.ToArray());
         }
 
@@ -1006,6 +1040,35 @@ namespace osu.Game.Skinning.Gameplay
             "layout.group" => GameplaySkinSceneBindingSource.LayoutGroup,
             "layout.lane" => GameplaySkinSceneBindingSource.LayoutLane,
             "input.pressed" => GameplaySkinSceneBindingSource.InputPressed,
+            "timing.time" => GameplaySkinSceneBindingSource.TimingTime,
+            "timing.elapsed" => GameplaySkinSceneBindingSource.TimingElapsed,
+            "timing.start-available" => GameplaySkinSceneBindingSource.TimingStartAvailable,
+            "timing.beat-phase" => GameplaySkinSceneBindingSource.TimingBeatPhase,
+            "arrival.available" => GameplaySkinSceneBindingSource.ArrivalAvailable,
+            "arrival.time" => GameplaySkinSceneBindingSource.ArrivalTime,
+            "arrival.remaining" => GameplaySkinSceneBindingSource.ArrivalRemaining,
+            "arrival.visible" => GameplaySkinSceneBindingSource.ArrivalVisible,
+            "input.motion-counts-1" => GameplaySkinSceneBindingSource.InputMotionCounts1,
+            "input.motion-counts-2" => GameplaySkinSceneBindingSource.InputMotionCounts2,
+            "input.motion-revolutions-1" => GameplaySkinSceneBindingSource.InputMotionRevolutions1,
+            "input.motion-revolutions-2" => GameplaySkinSceneBindingSource.InputMotionRevolutions2,
+            "input.motion-available-1" => GameplaySkinSceneBindingSource.InputMotionAvailable1,
+            "input.motion-available-2" => GameplaySkinSceneBindingSource.InputMotionAvailable2,
+            "judgement.count.fast" => GameplaySkinSceneBindingSource.JudgementCountFast,
+            "judgement.count.slow" => GameplaySkinSceneBindingSource.JudgementCountSlow,
+            "offset.value" => GameplaySkinSceneBindingSource.OffsetValue,
+            "offset.available" => GameplaySkinSceneBindingSource.OffsetAvailable,
+            "offset.automatic" => GameplaySkinSceneBindingSource.OffsetAutomatic,
+            "score.personal-best" => GameplaySkinSceneBindingSource.ScorePersonalBest,
+            "score.personal-best-progress" => GameplaySkinSceneBindingSource.ScorePersonalBestProgress,
+            "score.personal-best-available" => GameplaySkinSceneBindingSource.ScorePersonalBestAvailable,
+            "score.rank-aaa" => GameplaySkinSceneBindingSource.ScoreRankAaa,
+            "score.rank-aa" => GameplaySkinSceneBindingSource.ScoreRankAa,
+            "score.rank-a" => GameplaySkinSceneBindingSource.ScoreRankA,
+            "score.rank-aaa-progress" => GameplaySkinSceneBindingSource.ScoreRankAaaProgress,
+            "score.rank-aa-progress" => GameplaySkinSceneBindingSource.ScoreRankAaProgress,
+            "score.rank-a-progress" => GameplaySkinSceneBindingSource.ScoreRankAProgress,
+            "score.rank-available" => GameplaySkinSceneBindingSource.ScoreRankAvailable,
             "gameplay.full-combo" => GameplaySkinSceneBindingSource.GameplayFullCombo,
             "object.state" => GameplaySkinSceneBindingSource.ObjectState,
             "object.long-note-mode" => GameplaySkinSceneBindingSource.ObjectLongNoteMode,

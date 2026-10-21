@@ -52,10 +52,11 @@ namespace osu.Game.Skinning.Gameplay
         public string? ManifestFile { get; }
         public string? SceneFile { get; }
         public string? IniFile { get; }
+        public bool OrderedVariants { get; }
         public IReadOnlyList<GameplaySkinContentVariant> Variants { get; }
 
         internal GameplaySkinContentChoice(string value, string label, string? manifest, string? scene, string? ini,
-                                           IEnumerable<GameplaySkinContentVariant>? variants = null, string? previewPath = null)
+                                           IEnumerable<GameplaySkinContentVariant>? variants = null, string? previewPath = null, bool orderedVariants = false)
         {
             Value = value;
             Label = label;
@@ -63,6 +64,7 @@ namespace osu.Game.Skinning.Gameplay
             ManifestFile = manifest;
             SceneFile = scene;
             IniFile = ini;
+            OrderedVariants = orderedVariants;
             Variants = Array.AsReadOnly(variants?.ToArray() ?? []);
         }
     }

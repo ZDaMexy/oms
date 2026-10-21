@@ -47,6 +47,31 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         protected override bool UseFreshStoragePerRun => true;
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestAcceptedMotionPresentationUsesActualInputAndClearsWithEpoch(bool hid)
+        {
+            arrange(BmsLongNoteMode.LN, hid, longNote: false);
+            AddAssert("no direction is invented before a real report", () => !renderer.Input.ScratchPresentationMotionAvailable);
+            seekTo(() => notes[0].HitObject.StartTime);
+            move();
+            AddStep("presentation keeps relative counts separate from revolutions", () => Assert.Multiple(() =>
+            {
+                Assert.That(renderer.Input.ScratchPresentationMotionAvailable, Is.True);
+                Assert.That(renderer.Input.GetScratchPresentationMotion(), Is.EqualTo((4d, 0d, 0d, 0d)));
+                Assert.That(notes[0].Result.Type, Is.EqualTo(HitResult.Perfect));
+            }));
+            AddStep("reset the production input epoch", () => ((IFrameStableInputHandler)renderer.Input).ResetInput());
+            AddStep("expired direction is not retained into the next epoch", () => Assert.Multiple(() =>
+            {
+                Assert.That(renderer.Input.ScratchPresentationMotionAvailable, Is.False);
+                Assert.That(renderer.Input.GetScratchPresentationMotion(), Is.EqualTo((0d, 0d, 0d, 0d)));
+            }));
+            move();
+            AddAssert("a new report starts a fresh visual motion history", () => renderer.Input.ScratchPresentationMotionAvailable
+                && renderer.Input.GetScratchPresentationMotion().Counts1 == 4);
+        }
+
         [TestCase(BmsLongNoteMode.LN, false)]
         [TestCase(BmsLongNoteMode.CN, false)]
         [TestCase(BmsLongNoteMode.HCN, false)]

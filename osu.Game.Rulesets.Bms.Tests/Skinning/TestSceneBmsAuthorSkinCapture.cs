@@ -233,6 +233,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 freezeHitPhase = captureBurst;
             });
 
+            if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_LIGHTING_DETAILS") == "1")
+                addLightingDetailsCaptureSteps();
+
             if (captureBurst)
             {
                 int phaseAttempts = 0;
@@ -380,6 +383,19 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
         private async Task saveCapture(string filename)
         {
+            if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_LIGHTING_DETAILS") == "1")
+                File.WriteAllText(Path.Combine(outputDirectory, filename + ".timing.json"), System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    time = renderer.GameplaySkinEventRuntime!.AuthoritativeGameplayTime,
+                    state = lightingState().Score,
+                    hits = score.HitEvents.Where(hit => hit.HitObject.Judgement.MaxResult == HitResult.Perfect).Select(hit => new
+                    {
+                        kind = hit.HitObject.GetType().Name,
+                        hit.HitObject.StartTime,
+                        hit.TimeOffset,
+                        hit.Result,
+                    }).ToArray(),
+                }));
             using Image<Rgba32>? pixels = await host.TakeScreenshotAsync().ConfigureAwait(false);
             if (pixels == null || pixels.Width < 640 || pixels.Height < 360)
                 throw new InvalidOperationException("Desktop capture did not return a usable framebuffer.");

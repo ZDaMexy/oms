@@ -23,7 +23,8 @@ namespace osu.Game.Skinning.Gameplay
         Score = 1 << 4,
         Timing = 1 << 5,
         Bga = 1 << 6,
-        All = Layout | Input | Object | Judgement | Score | Timing | Bga,
+        Time = 1 << 7,
+        All = Layout | Input | Object | Judgement | Score | Timing | Bga | Time,
     }
 
     /// <summary>
@@ -429,6 +430,8 @@ namespace osu.Game.Skinning.Gameplay
 
     public sealed class GameplaySkinPreparedSceneTrack
     {
+        public GameplaySkinSceneBindingSource ClockSource { get; }
+        public string? ClockOptionId { get; }
         public string Id { get; }
 
         public GameplaySkinSceneTrackType Type { get; }
@@ -456,6 +459,8 @@ namespace osu.Game.Skinning.Gameplay
             Easing = source.Easing;
             Loop = source.Loop;
             Trigger = source.Trigger;
+            ClockSource = source.ClockSource;
+            ClockOptionId = source.ClockSource == GameplaySkinSceneBindingSource.Option ? source.ClockSourceId![7..] : null;
             Keyframes = Array.AsReadOnly(source.Keyframes
                                                .Select(keyframe => new GameplaySkinPreparedSceneKeyframe(keyframe, Property, resources))
                                                .ToArray());
@@ -703,7 +708,7 @@ namespace osu.Game.Skinning.Gameplay
                                         .Select(variant => new GameplaySkinPreparedSceneVariant(variant, resources))
                                         .ToArray());
             usedBindingSources = new HashSet<GameplaySkinSceneBindingSource>(
-                Bindings.Select(binding => binding.Source).Concat(Variants.Select(variant => variant.Source)));
+                Bindings.Select(binding => binding.Source).Concat(Variants.Select(variant => variant.Source)).Concat(Tracks.Select(track => track.ClockSource)));
             usedEvents = new HashSet<GameplaySkinSceneEvent>(
                 StateMachines.SelectMany(machine => machine.Transitions).Select(transition => transition.Event));
         }
@@ -720,6 +725,35 @@ namespace osu.Game.Skinning.Gameplay
 
         internal static GameplaySkinSceneStateFamily StateFamilyFor(GameplaySkinSceneBindingSource source) => source switch
         {
+            GameplaySkinSceneBindingSource.TimingTime => GameplaySkinSceneStateFamily.Time,
+            GameplaySkinSceneBindingSource.TimingElapsed => GameplaySkinSceneStateFamily.Time | GameplaySkinSceneStateFamily.Timing,
+            GameplaySkinSceneBindingSource.TimingStartAvailable => GameplaySkinSceneStateFamily.Timing,
+            GameplaySkinSceneBindingSource.TimingBeatPhase => GameplaySkinSceneStateFamily.Timing,
+            GameplaySkinSceneBindingSource.ArrivalAvailable => GameplaySkinSceneStateFamily.Layout,
+            GameplaySkinSceneBindingSource.ArrivalTime => GameplaySkinSceneStateFamily.Layout,
+            GameplaySkinSceneBindingSource.ArrivalRemaining => GameplaySkinSceneStateFamily.Time,
+            GameplaySkinSceneBindingSource.ArrivalVisible => GameplaySkinSceneStateFamily.Time,
+            GameplaySkinSceneBindingSource.InputMotionCounts1 => GameplaySkinSceneStateFamily.Input,
+            GameplaySkinSceneBindingSource.InputMotionCounts2 => GameplaySkinSceneStateFamily.Input,
+            GameplaySkinSceneBindingSource.InputMotionRevolutions1 => GameplaySkinSceneStateFamily.Input,
+            GameplaySkinSceneBindingSource.InputMotionRevolutions2 => GameplaySkinSceneStateFamily.Input,
+            GameplaySkinSceneBindingSource.InputMotionAvailable1 => GameplaySkinSceneStateFamily.Input,
+            GameplaySkinSceneBindingSource.InputMotionAvailable2 => GameplaySkinSceneStateFamily.Input,
+            GameplaySkinSceneBindingSource.JudgementCountFast => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.JudgementCountSlow => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.OffsetValue => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.OffsetAvailable => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.OffsetAutomatic => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.ScorePersonalBest => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.ScorePersonalBestProgress => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.ScorePersonalBestAvailable => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.ScoreRankAaa => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.ScoreRankAa => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.ScoreRankA => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.ScoreRankAaaProgress => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.ScoreRankAaProgress => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.ScoreRankAProgress => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.ScoreRankAvailable => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.LayoutStage => GameplaySkinSceneStateFamily.Layout,
             GameplaySkinSceneBindingSource.LayoutGroup => GameplaySkinSceneStateFamily.Layout,
             GameplaySkinSceneBindingSource.LayoutLane => GameplaySkinSceneStateFamily.Layout,

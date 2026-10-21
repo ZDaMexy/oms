@@ -18,8 +18,6 @@ namespace osu.Game.Skinning.Gameplay
     /// </summary>
     internal partial class GameplaySkinProjectiveSprite : Sprite
     {
-        private GameplaySkinProjectiveQuad? quad;
-
         public GameplaySkinProjectiveSprite()
         {
             Alpha = 0;
@@ -33,19 +31,26 @@ namespace osu.Game.Skinning.Gameplay
 
         public void ApplyQuad(GameplaySkinProjectiveQuad value)
         {
-            if (ReferenceEquals(quad, value))
+            if (ReferenceEquals(AppliedQuad, value))
                 return;
 
-            quad = value;
+            AppliedQuad = value;
             Alpha = (float)value.Opacity;
             Invalidate(Invalidation.DrawInfo);
         }
 
-        internal GameplaySkinProjectiveQuad? AppliedQuad => quad;
+        internal void ClearQuad()
+        {
+            AppliedQuad = null;
+            Alpha = 0;
+            Invalidate(Invalidation.DrawInfo);
+        }
+
+        internal GameplaySkinProjectiveQuad? AppliedQuad { get; private set; }
 
         protected override Quad ComputeScreenSpaceDrawQuad()
-            => quad == null ? base.ComputeScreenSpaceDrawQuad()
-                : new Quad(toScreen(quad.TopLeft), toScreen(quad.TopRight), toScreen(quad.BottomLeft), toScreen(quad.BottomRight));
+            => AppliedQuad == null ? base.ComputeScreenSpaceDrawQuad()
+                : new Quad(toScreen(AppliedQuad.TopLeft), toScreen(AppliedQuad.TopRight), toScreen(AppliedQuad.BottomLeft), toScreen(AppliedQuad.BottomRight));
 
         private Vector2 toScreen(GameplaySkinProjectiveVertex vertex)
             => ToScreenSpace(new Vector2((float)vertex.X * DrawWidth, (float)vertex.Y * DrawHeight));
@@ -54,7 +59,7 @@ namespace osu.Game.Skinning.Gameplay
 
         private sealed class ProjectiveDrawNode : SpriteDrawNode
         {
-            private GameplaySkinProjectiveSprite source => (GameplaySkinProjectiveSprite)base.Source;
+            private GameplaySkinProjectiveSprite source => (GameplaySkinProjectiveSprite)Source;
 
             private GameplaySkinProjectiveQuad? quad;
             private Quad screenQuad;
@@ -71,7 +76,7 @@ namespace osu.Game.Skinning.Gameplay
             public override void ApplyState()
             {
                 base.ApplyState();
-                quad = source.quad;
+                quad = source.AppliedQuad;
 
                 if (quad == null)
                     return;

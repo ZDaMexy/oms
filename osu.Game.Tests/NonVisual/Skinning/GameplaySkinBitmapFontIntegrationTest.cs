@@ -49,6 +49,26 @@ namespace osu.Game.Tests.NonVisual.Skinning
             });
         }
 
+        [Test]
+        public void TestTenDistinctOriginalFontMetricsAreAcceptedAndEleventhIsRejected()
+        {
+            JObject json = manifestJson();
+            var fonts = (JArray)json["bitmapFonts"]!;
+            for (int i = 1; i < 10; i++)
+            {
+                var another = (JObject)fonts[0]!.DeepClone();
+                another["id"] = $"font.original-{i}";
+                another["lineHeight"] = 14 + i;
+                fonts.Add(another);
+            }
+            Assert.That(decodeManifest(json).BitmapFonts, Has.Count.EqualTo(10));
+            var excess = (JObject)fonts[0]!.DeepClone();
+            excess["id"] = "font.eleventh";
+            fonts.Add(excess);
+            Assert.That(GameplaySkinSceneCodec.DecodeManifest(json.ToString(Formatting.None)).Diagnostics.Select(diagnostic => diagnostic.Code),
+                Does.Contain(GameplaySkinSceneDiagnosticCode.BudgetExceeded));
+        }
+
         [TestCase("unknown-field", GameplaySkinSceneDiagnosticCode.UnknownField)]
         [TestCase("empty", GameplaySkinSceneDiagnosticCode.InvalidResource)]
         [TestCase("duplicate-character", GameplaySkinSceneDiagnosticCode.InvalidResource)]

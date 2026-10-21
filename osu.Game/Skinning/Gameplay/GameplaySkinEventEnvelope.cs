@@ -49,6 +49,7 @@ namespace osu.Game.Skinning.Gameplay
 
         InputPressed = 20,
         InputReleased = 21,
+        InputMotionChanged = 22,
 
         ObjectSpawned = 30,
         ObjectDespawned = 31,

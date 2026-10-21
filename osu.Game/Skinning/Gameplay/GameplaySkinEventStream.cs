@@ -489,6 +489,7 @@ namespace osu.Game.Skinning.Gameplay
             private GameplaySkinCurrentJudgementStateSnapshot? globalJudgement;
             private GameplaySkinScoreStateSnapshot score;
             private readonly GameplaySkinSongInformation? songInformation;
+            private readonly GameplaySkinChartPresentation? chartPresentation;
             private readonly Dictionary<int, GameplaySkinBgaStateSnapshot> bga;
             private readonly HashSet<int> bgaResynchronisationAllowed;
 
@@ -504,6 +505,7 @@ namespace osu.Game.Skinning.Gameplay
                 restoreJudgements(snapshot.CurrentJudgements);
                 score = snapshot.Score;
                 songInformation = snapshot.SongInformation;
+                chartPresentation = snapshot.ChartPresentation;
                 Timing = snapshot.Timing;
                 bga = snapshot.BgaViewports.ToDictionary(viewport => viewport.ViewportIndex);
                 bgaResynchronisationAllowed = allowInitialResynchronisation
@@ -674,7 +676,7 @@ namespace osu.Game.Skinning.Gameplay
                     Timing,
                     bga.Values.OrderBy(viewport => viewport.ViewportIndex),
                     songInformation,
-                    Completion);
+                    Completion, chartPresentation);
 
             public GameplaySkinCurrentJudgementStateSnapshot? ObjectJudgement(long objectId)
                 => judgementsByObject.TryGetValue(objectId, out GameplaySkinCurrentJudgementStateSnapshot judgement) ? judgement : null;

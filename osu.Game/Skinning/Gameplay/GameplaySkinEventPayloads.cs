@@ -115,8 +115,13 @@ namespace osu.Game.Skinning.Gameplay
         /// </summary>
         public double? ReleasedAt { get; }
 
+        public double MotionCounts { get; }
+        public double MotionRevolutions { get; }
+        public bool MotionAvailable { get; }
+
         internal GameplaySkinInputStateSnapshot(GameplaySkinLaneGroupId groupId, GameplaySkinLaneId laneId, bool isPressed, float strength,
-                                               double? pressedAt = null, double? releasedAt = null)
+                                               double? pressedAt = null, double? releasedAt = null,
+                                               double motionCounts = 0, double motionRevolutions = 0, bool motionAvailable = false)
         {
             ArgumentNullException.ThrowIfNull(groupId);
             ArgumentNullException.ThrowIfNull(laneId);
@@ -145,6 +150,13 @@ namespace osu.Game.Skinning.Gameplay
             Strength = strength;
             PressedAt = pressedAt;
             ReleasedAt = releasedAt;
+            if (!double.IsFinite(motionCounts) || !double.IsFinite(motionRevolutions))
+                throw new ArgumentOutOfRangeException(nameof(motionCounts));
+            if (!motionAvailable && (motionCounts != 0 || motionRevolutions != 0))
+                throw new ArgumentException("Unavailable directional motion must not contain invented displacement.");
+            MotionCounts = motionCounts;
+            MotionRevolutions = motionRevolutions;
+            MotionAvailable = motionAvailable;
         }
 
         internal void ValidateForGameplayTime(double gameplayTime)
@@ -379,8 +391,10 @@ namespace osu.Game.Skinning.Gameplay
         public int Meh { get; }
         public int Miss { get; }
         public int ComboBreak { get; }
+        public int Fast { get; }
+        public int Slow { get; }
 
-        internal GameplaySkinJudgementStatistics(int perfect, int great, int good, int ok, int meh, int miss, int comboBreak)
+        internal GameplaySkinJudgementStatistics(int perfect, int great, int good, int ok, int meh, int miss, int comboBreak, int fast = 0, int slow = 0)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(perfect);
             ArgumentOutOfRangeException.ThrowIfNegative(great);
@@ -396,6 +410,10 @@ namespace osu.Game.Skinning.Gameplay
             Meh = meh;
             Miss = miss;
             ComboBreak = comboBreak;
+            ArgumentOutOfRangeException.ThrowIfNegative(fast);
+            ArgumentOutOfRangeException.ThrowIfNegative(slow);
+            Fast = fast;
+            Slow = slow;
         }
     }
 
@@ -420,9 +438,11 @@ namespace osu.Game.Skinning.Gameplay
 
         public GameplaySkinGaugeStateSnapshot GaugeState { get; }
 
+        public GameplaySkinOffsetStateSnapshot OffsetState { get; }
+
         internal GameplaySkinScoreStateSnapshot(long score, int combo, int maxCombo, double accuracy, double gauge,
                                                GameplaySkinJudgementStatistics statistics = default, GameplaySkinGaugeStateSnapshot gaugeState = default,
-                                               long maximumScore = 0)
+                                               long maximumScore = 0, GameplaySkinOffsetStateSnapshot offsetState = default)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(score);
             ArgumentOutOfRangeException.ThrowIfNegative(maximumScore);
@@ -442,6 +462,7 @@ namespace osu.Game.Skinning.Gameplay
             Gauge = gauge;
             Statistics = statistics;
             GaugeState = gaugeState;
+            OffsetState = offsetState;
         }
 
         private static void validateUnitValue(double value, string name)
@@ -473,8 +494,11 @@ namespace osu.Game.Skinning.Gameplay
 
         public GameplaySkinLiftState LiftState { get; }
 
+        /// <summary>Actual gameplay clock reset/entry origin, absent for a host without that authority.</summary>
+        public double? StartTime { get; }
+
         internal GameplaySkinTimingStateSnapshot(double beat, long barIndex, double bpm, bool isStopped, double scrollMultiplier, double progress = 0,
-                                                double scrollSpeed = 0, GameplaySkinLiftState liftState = default)
+                                                double scrollSpeed = 0, GameplaySkinLiftState liftState = default, double? startTime = null)
         {
             if (!double.IsFinite(beat))
                 throw new ArgumentOutOfRangeException(nameof(beat), beat, "Beat must be finite.");
@@ -496,6 +520,9 @@ namespace osu.Game.Skinning.Gameplay
 
             ScrollSpeed = scrollSpeed;
             LiftState = liftState;
+            if (startTime.HasValue && (!double.IsFinite(startTime.Value) || startTime.Value == double.MinValue))
+                throw new ArgumentOutOfRangeException(nameof(startTime));
+            StartTime = startTime;
             Beat = beat;
             BarIndex = barIndex;
             Bpm = bpm;
@@ -577,6 +604,8 @@ namespace osu.Game.Skinning.Gameplay
 
         public GameplaySkinSongInformation? SongInformation { get; }
 
+        public GameplaySkinChartPresentation? ChartPresentation { get; }
+
         internal GameplaySkinEventStateSnapshot(
             GameplaySkinLifecycleState lifecycleState,
             IEnumerable<GameplaySkinInputStateSnapshot> inputs,
@@ -586,7 +615,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinTimingStateSnapshot timing,
             IEnumerable<GameplaySkinBgaStateSnapshot> bgaViewports,
             GameplaySkinSongInformation? songInformation = null,
-            GameplaySkinCompletionStateSnapshot? completion = null)
+            GameplaySkinCompletionStateSnapshot? completion = null, GameplaySkinChartPresentation? chartPresentation = null)
         {
             if (lifecycleState == GameplaySkinLifecycleState.Unspecified || !Enum.IsDefined(lifecycleState))
                 throw new ArgumentOutOfRangeException(nameof(lifecycleState), lifecycleState, "Lifecycle state must be specified.");
@@ -610,7 +639,7 @@ namespace osu.Game.Skinning.Gameplay
             validateCollection(copiedBga, GameplaySkinEventBudgets.MAX_BGA_VIEWPORTS, nameof(bgaViewports));
 
             foreach (GameplaySkinInputStateSnapshot input in copiedInputs)
-                _ = new GameplaySkinInputStateSnapshot(input.GroupId, input.LaneId, input.IsPressed, input.Strength, input.PressedAt, input.ReleasedAt);
+                _ = new GameplaySkinInputStateSnapshot(input.GroupId, input.LaneId, input.IsPressed, input.Strength, input.PressedAt, input.ReleasedAt, input.MotionCounts, input.MotionRevolutions, input.MotionAvailable);
 
             foreach (GameplaySkinObjectStateSnapshot obj in copiedObjects)
             {
@@ -640,8 +669,8 @@ namespace osu.Game.Skinning.Gameplay
                 _ = new GameplaySkinCurrentJudgementStateSnapshot(retained.Scope, judgement, retained.AppliedTime, retained.DisplayUntil);
             }
 
-            _ = new GameplaySkinScoreStateSnapshot(score.Score, score.Combo, score.MaxCombo, score.Accuracy, score.Gauge, score.Statistics, score.GaugeState, score.MaximumScore);
-            _ = new GameplaySkinTimingStateSnapshot(timing.Beat, timing.BarIndex, timing.Bpm, timing.IsStopped, timing.ScrollMultiplier, timing.Progress, timing.ScrollSpeed, timing.LiftState);
+            _ = new GameplaySkinScoreStateSnapshot(score.Score, score.Combo, score.MaxCombo, score.Accuracy, score.Gauge, score.Statistics, score.GaugeState, score.MaximumScore, score.OffsetState);
+            _ = new GameplaySkinTimingStateSnapshot(timing.Beat, timing.BarIndex, timing.Bpm, timing.IsStopped, timing.ScrollMultiplier, timing.Progress, timing.ScrollSpeed, timing.LiftState, timing.StartTime);
 
             foreach (GameplaySkinBgaStateSnapshot viewport in copiedBga)
                 _ = new GameplaySkinBgaStateSnapshot(viewport.ViewportIndex, viewport.Viewport, viewport.ContentState, viewport.ContentRevision);
@@ -686,6 +715,7 @@ namespace osu.Game.Skinning.Gameplay
             Score = score;
             Timing = timing;
             SongInformation = songInformation;
+            ChartPresentation = chartPresentation;
             BgaViewports = Array.AsReadOnly(copiedBga);
         }
 
@@ -816,12 +846,13 @@ namespace osu.Game.Skinning.Gameplay
             : base(GameplaySkinEventDeliveryKind.Edge, eventKind)
         {
             if (eventKind is not GameplaySkinEventKind.InputPressed
-                and not GameplaySkinEventKind.InputReleased)
+                and not GameplaySkinEventKind.InputReleased
+                and not GameplaySkinEventKind.InputMotionChanged)
             {
                 throw new ArgumentOutOfRangeException(nameof(eventKind), eventKind, "The event kind is not an input edge.");
             }
 
-            if ((eventKind == GameplaySkinEventKind.InputPressed) != state.IsPressed)
+            if (eventKind != GameplaySkinEventKind.InputMotionChanged && (eventKind == GameplaySkinEventKind.InputPressed) != state.IsPressed)
             {
                 throw new ArgumentException("Input event kind must match the complete pressed state.", nameof(eventKind));
             }

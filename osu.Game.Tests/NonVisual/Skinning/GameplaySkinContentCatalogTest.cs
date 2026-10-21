@@ -148,6 +148,28 @@ namespace osu.Game.Tests.NonVisual.Skinning
             return fixture;
         }
 
+        [Test]
+        public void TestSharedSceneUsesTheSelectedChoicesExactFrozenTextureManifest()
+        {
+            var fixture = twoChoicePackage();
+            fixture.EditJson("second/manifest.json", manifest =>
+            {
+                manifest["resources"]![0]!["id"] = "first.texture";
+                manifest["bitmapFonts"]![0]!["glyphs"]![0]!["resource"] = "first.texture";
+            });
+            fixture.Catalog["modules"]![0]!["choices"]![1]!["scene"] = "first/scene.json";
+            GameplaySkinPreparedPackage captured = fixture.Capture();
+            fixture.ForbidReads = true;
+            foreach ((string choice, Rgba32 expected) in new[] { ("first", new Rgba32(255, 0, 0)), ("second", new Rgba32(0, 0, 255)) })
+            {
+                GameplaySkinPreparedPackage selected = captured.Select(GameplaySkinOptionValues.Resolve(captured.Manifest!.Options,
+                    new Dictionary<string, string> { ["frame"] = choice }, "bms", "7k"), CancellationToken.None);
+                Assert.That(selected.Resources.Single().Source.Id, Is.EqualTo("first.texture"));
+                using Image<Rgba32> image = selected.Resources.Single().CreateImage();
+                Assert.That(image[0, 0], Is.EqualTo(expected), "Shared geometry must retain each choice's own captured pixels.");
+            }
+        }
+
         private static GameplaySkinPreparedPackage captureCapsule(SkinPackageRevisionCapsule capsule)
         {
             using IResourceStore<byte[]> view = capsule.CreateResourceView();
@@ -370,7 +392,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
             Assert.That(package.Select(GameplaySkinOptionValues.Empty, CancellationToken.None), Is.SameAs(package));
             Assert.That(GameplaySkinSceneCodec.EncodeManifest(package.Manifest!), Is.EqualTo(fixture.RootManifest.ToString(Formatting.None)));
             Assert.That(GameplaySkinOptionBudgets.MAX_CHOICES, Is.EqualTo(32));
-            Assert.That(GameplaySkinBitmapFontBudgets.MAX_FONTS, Is.EqualTo(9));
+            Assert.That(GameplaySkinBitmapFontBudgets.MAX_FONTS, Is.EqualTo(10));
             Assert.That(GameplaySkinSceneBudgets.MAX_RESOURCES, Is.EqualTo(256));
             Assert.That(GameplaySkinSceneBudgets.MAX_SCENE_BYTES, Is.EqualTo(512 * 1024));
         }
@@ -515,6 +537,52 @@ namespace osu.Game.Tests.NonVisual.Skinning
             Assert.That(captured.Select(alternate, CancellationToken.None).Resources.Single().Source.Id, Is.EqualTo("alternate.texture"));
             Assert.That(captured.Select(resolve(captured, "bms"), CancellationToken.None).Resources.Single().Source.Id, Is.EqualTo("normal.texture"));
             fixture.EditJson("alternate/scene.json", json => json["root"]!["children"]![0]!["resource"] = "not.declared");
+            Assert.Throws<GameplaySkinScenePreparationException>(() => fixture.Capture());
+        }
+
+        [Test]
+        public void TestOrderedVariantsSelectSpecificLayoutBeforeGraphFallbackWhenLayoutIsOutOfScope()
+        {
+            var fixture = new Package();
+            fixture.RootManifest["options"] = JArray.Parse("""
+                [{"id":"layout","type":"choice","label":"Layout","default":"p1","keymodes":["7k"],
+                  "choices":[{"value":"p1","label":"1P"},{"value":"p2","label":"2P"}]},
+                 {"id":"graph-visible","type":"toggle","label":"Graph","default":false}]
+                """);
+            foreach (string branch in new[] { "dp", "dp.graph", "p1", "p1.graph", "p2", "p2.graph" })
+                fixture.AddBranch(branch, new Rgba32(255, 0, 0), null);
+            JObject choice = fixture.Choice("standard", "dp");
+            choice["orderedVariants"] = true;
+            choice["variants"] = new JArray(
+                variant("p1.graph", new JObject { ["layout"] = "p1", ["graph-visible"] = true }),
+                variant("p1", new JObject { ["layout"] = "p1", ["graph-visible"] = false }),
+                variant("p2.graph", new JObject { ["layout"] = "p2", ["graph-visible"] = true }),
+                variant("p2", new JObject { ["layout"] = "p2", ["graph-visible"] = false }),
+                variant("dp.graph", new JObject { ["graph-visible"] = true }));
+            fixture.SetModule("frame", new[] { choice }, "standard");
+            GameplaySkinPreparedPackage captured = fixture.Capture();
+            fixture.ForbidReads = true;
+            foreach ((string mode, string layout, bool graph, string expected) in new[]
+            {
+                ("7k", "p1", true, "p1.graph"), ("7k", "p1", false, "p1"),
+                ("7k", "p2", true, "p2.graph"), ("7k", "p2", false, "p2"),
+                ("14k", "p1", true, "dp.graph"), ("14k", "p2", false, "dp"),
+            })
+            {
+                GameplaySkinOptionValues selected = GameplaySkinOptionValues.Resolve(captured.Manifest!.Options,
+                    new Dictionary<string, string> { ["layout"] = layout, ["graph-visible"] = graph ? "true" : "false" }, "bms", mode);
+                Assert.That(captured.Select(selected, CancellationToken.None).Resources.Single().Source.Id,
+                    Is.EqualTo(expected + ".texture"), $"{mode}, {layout}, graph={graph}");
+            }
+        }
+
+        [TestCase("true")]
+        [TestCase(1)]
+        public void TestOrderedVariantFlagRequiresBoolean(object invalid)
+        {
+            var fixture = new Package();
+            JObject choice = new JObject { ["value"] = "standard", ["label"] = "Standard", ["orderedVariants"] = JToken.FromObject(invalid) };
+            fixture.SetModule("frame", new[] { choice }, "standard");
             Assert.Throws<GameplaySkinScenePreparationException>(() => fixture.Capture());
         }
 

@@ -220,7 +220,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
             }).Publication;
         }
 
-        internal static GameplaySkinLayoutPublication CreateEssentialInformationPublication(Texture texture, bool authorScene, string? presentation = null, string? bindingSource = null, bool ellipsis = false)
+        internal static GameplaySkinLayoutPublication CreateEssentialInformationPublication(Texture texture, bool authorScene, string? presentation = null, string? bindingSource = null, bool ellipsis = false, string? trackClock = null)
         {
             LayoutFixture layout = createLayout();
             GameplaySkinResolvedMaterialTarget global = GameplaySkinResolvedMaterialTarget.Global;
@@ -263,6 +263,9 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 sourceJson = sourceJson.Replace("\"target\":\"progress-bar\",\"property\":\"scale-x\",\"source\":\"timing.progress\"",
                     "\"target\":\"progress-bar\",\"property\":\"reveal-x\",\"source\":\"gauge.value\"");
             }
+            if (trackClock != null)
+                sourceJson = sourceJson.Replace("\"tracks\":[]", "\"tracks\":[{\"id\":\"test.clock\",\"type\":\"tween\",\"target\":\"accuracy-bar\",\"property\":\"scale-x\",\"easing\":\"linear\",\"loop\":true,\"clock\":\"" + trackClock
+                    + "\",\"keyframes\":[{\"id\":\"test.clock.zero\",\"time\":0,\"value\":0},{\"id\":\"test.clock.end\",\"time\":1000000,\"value\":1}]}]");
             if (bindingSource != null)
                 sourceJson = sourceJson.Replace("\"property\":\"text\",\"source\":\"score.accuracy\"",
                     "\"property\":\"text\",\"source\":\"" + bindingSource + "\"");
@@ -695,6 +698,11 @@ namespace osu.Game.Tests.NonVisual.Skinning
                     "Only the timing.beat binding may be sampled; combo.value must not allocate or rewrite text on timing-only frames.");
                 Assert.That(((SpriteText)text!.ContentDrawable).Text.ToString(), Is.EqualTo("0"));
             });
+
+            producer.SynchroniseTiming(timing_frames + 0.5, new GameplaySkinTimingStateSnapshot(timing_frames / 4d, timing_frames / 16, 120, false, 1));
+            host.ProcessFrame();
+            Assert.That(host.BindingApplicationCount - applicationsBeforeTiming, Is.EqualTo(timing_frames),
+                "Advancing gameplay time alone must not resample unchanged beat or score bindings.");
 
             publishScore(stream, producer, timing_frames + 1, GameplaySkinEventKind.ComboChanged, score(combo: 12));
             host.ProcessFrame();

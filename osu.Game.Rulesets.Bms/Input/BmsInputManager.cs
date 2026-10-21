@@ -36,6 +36,8 @@ namespace osu.Game.Rulesets.Bms.Input
         private readonly HashSet<BmsAction> forwardedPressedActions = new HashSet<BmsAction>();
         private readonly GameplayKeyboardInputQueue keyboardInputQueue;
         private readonly BmsScratchMotionTracker scratchMotion;
+        private (double Counts1, double Revolutions1, double Counts2, double Revolutions2) scratchPresentationMotion;
+        private bool hasScratchPresentationMotion;
         private readonly GameplayInputQueue<DeviceInput> deviceInputQueue;
         private readonly Action<OmsHidInputEvent> receiveHidInput;
         private readonly HashSet<int> boundJoystickButtons = new HashSet<int>();
@@ -148,10 +150,38 @@ namespace osu.Game.Rulesets.Bms.Input
                || lane == BmsAction.Scratch1 && releasing != BmsAction.Scratch1Motion && KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch1Motion)
                || lane == BmsAction.Scratch2 && releasing != BmsAction.Scratch2Motion && KeyBindingContainer.PressedActions.Contains(BmsAction.Scratch2Motion);
 
+        internal bool ScratchPresentationMotionAvailable => UseParentInput && liveInputEnabled && hasScratchPresentationMotion;
+
+        internal (double Counts1, double Revolutions1, double Counts2, double Revolutions2) GetScratchPresentationMotion()
+            => scratchPresentationMotion;
+
         private void observeAxisMotion(OmsAxisMotion motion)
         {
-            if (UseParentInput && liveInputEnabled && !PreStartHoldPressed.Value)
-                scratchMotion.Observe(motion, toDeviceTime(Time.Current));
+            if (!UseParentInput || !liveInputEnabled || PreStartHoldPressed.Value)
+                return;
+
+            scratchMotion.Observe(motion, toDeviceTime(Time.Current));
+
+            // Presentation only: retain the accepted direction without changing lane attacks, judgement or replay.
+            // Relative counts and calibrated revolutions deliberately remain separate physical units.
+            switch (motion.Action)
+            {
+                case OmsAction.Key1P_Scratch:
+                    if (motion.Mode == OmsAxisMode.RelativeMotion)
+                        scratchPresentationMotion.Counts1 += motion.Delta;
+                    else
+                        scratchPresentationMotion.Revolutions1 += motion.Delta;
+                    hasScratchPresentationMotion = true;
+                    break;
+
+                case OmsAction.Key2P_Scratch:
+                    if (motion.Mode == OmsAxisMode.RelativeMotion)
+                        scratchPresentationMotion.Counts2 += motion.Delta;
+                    else
+                        scratchPresentationMotion.Revolutions2 += motion.Delta;
+                    hasScratchPresentationMotion = true;
+                    break;
+            }
         }
 
         public bool TriggerOmsActionPressed(OmsAction action)
@@ -414,6 +444,8 @@ namespace osu.Game.Rulesets.Bms.Input
             heldJoystickButtons.Clear();
             hidDeviceHandler?.ReleaseAppliedInput();
             scratchMotion.Clear();
+            scratchPresentationMotion = default;
+            hasScratchPresentationMotion = false;
         }
 
         private enum DeviceInputKind { Mouse, MouseReset, Joystick, Hid }
@@ -477,6 +509,8 @@ namespace osu.Game.Rulesets.Bms.Input
             mouseAxisInputHandler = new OmsMouseAxisInputHandler(bindings, action => TriggerOmsActionPressed(action), action => TriggerOmsActionReleased(action), observeAxisMotion);
 
             scratchMotion.Clear();
+            scratchPresentationMotion = default;
+            hasScratchPresentationMotion = false;
             hidDeviceHandler = new OmsHidDeviceHandler(bindings, action => TriggerOmsActionPressed(action), action => TriggerOmsActionReleased(action),
                 bindings.Any(binding => binding.HidButtonTriggers.Length != 0 || binding.HidAxisTriggers.Length != 0) ? createHidProvider?.Invoke() : null, observeAxisMotion);
             hidDeviceHandler.DeviceDisconnected += scratchMotion.ReleaseDevice;

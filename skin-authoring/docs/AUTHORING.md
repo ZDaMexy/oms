@@ -35,11 +35,13 @@ BMS `[Bms]` 的 `Keymode` 支持 `5K`、`7K`、`9K`、`9K_PMS`、`14K`。9 键�
 
 公开 BMS 布局字段：`PlayfieldWidth` 与 `PlayfieldHeight` 是屏幕比例，普通键/转盘宽度和间距是相对权重，`LongNoteBodyWidth` 是相对车道宽度。`KeyAreaHeight` 可给判定线下方预留独立键盘区，`ScratchKeyWidth`可单独扩大该区转盘视觉而不加宽音轨；`BgaWidth`、`BgaHeight`、`BgaVerticalPosition` 控制 BGA 的最大显示框与竖直位置，范围和适配规则见 [参考](REFERENCE.md)。判定线相对滚动的时序关系不交给作者修改。mania 使用 `ColumnWidth`、`ColumnSpacing`、`HitPosition` 等现有兼容设置。布局必须留出双舞台、必要文字、背景视频区域和不同屏幕比例的空间；不重做视频播放器。
 
+配置项可通过内容目录选择不同组件。某个choice需要先匹配具体单舞台表现，再使用较宽的双舞台或通用后备时，可显式写 `orderedVariants:true`，把具体条件放在variants数组前面，后备放在后面，取第一项满足条件的完整贡献。只有显式开启才允许不同条件键集合；省略时仍要求同一choice的各分支使用相同条件键。字段和完整边界见[按选项组合内容](REFERENCE.md#按选项组合内容)。
+
 ## 声明式演出
 
 `gameplay-skin.json` 固定使用 `oms-gameplay-skin-manifest.v1`，声明固定场景文件、`oms-gameplay-skin-scene.v1`、`oms-gameplay-skin-event.v1` 以及图片资源。资源路径只在本包内有效。
 
-场景根包含 `root`、`tracks`、`stateMachines`、`bindings`、`variants`、`templates`、`instances`。节点必填 `id/type/target/blend/properties/effects/children`；可声明 `slot/resource`。节点类型为 `sprite/container/text/mask/clip`。根若只分派不同资源槽，使用无资源、无动画、无属性、`blend: inherit` 的容器。一个可见分组必须属于自己显式 `Provide` 的公开资源槽。
+场景根包含 `root`、`tracks`、`stateMachines`、`bindings`、`variants`、`templates`、`instances`。节点必填 `id/type/target/blend/properties/effects/children`；可声明 `slot/resource`。节点类型为 `sprite/projective-sprite/recorded-animation/container/text/mask/clip`，透视四角和记录动画的额外字段见[参考](REFERENCE.md)。根若只分派不同资源槽，使用无资源、无动画、无属性、`blend: inherit` 的容器。一个可见分组必须属于自己显式 `Provide` 的公开资源槽。
 
 | 面 | 公开内容 |
 | --- | --- |
@@ -48,14 +50,22 @@ BMS `[Bms]` 的 `Keymode` 支持 `5K`、`7K`、`9K`、`9K_PMS`、`14K`。9 键�
 | 文字与裁剪 | `font-size/text/alignment/mask-mode/clip-mode/corner-radius` |
 | 目标 | `global`；带 id/index 的 `stage/group/lane`；`hud`；`bga` |
 | 混合 | `inherit/alpha/additive/multiply/screen` |
-| 轨迹 | `frame/tween`，`step/linear/in/out/in-out`，毫秒 keyframe，显式 loop |
+| 轨迹 | `frame/tween`，`step/linear/in/out/in-out`，缺省毫秒keyframe；可选数值只读 `clock`，显式loop |
 | 状态变化 | `gameplay.attach/loaded/start/pause/complete/fail`、`input.key.down/up`、`object.spawn/state`、`judgement.hit`、`timing.stop`、`bga.state` |
-| 只读绑定 | `layout.stage/group/lane`、`input.pressed`、`object.state`、`judgement.result/offset`、`score.value/accuracy`、`combo.value`、`gauge.value`、`timing.beat/measure/bpm/progress`、`bga.content-state` |
+| 只读绑定 | 布局、输入、对象、判定、分数/本地最佳、能量、时间/拍点、首音到来、真实运动与已应用偏移；完整source表见[参考](REFERENCE.md#动画状态机绑定变体模板) |
 | 图片变体 | 根据 `object.state`、`judgement.result` 或 `bga.content-state` 从清单内选择资源 |
 
 当前场景精确轨道目标不支持“目标不存在则忽略”。同一包跨玩法时用两种玩法都适用的共通目标演出，玩法专属外观使用公开设置中的选择条件与素材。星轨现有作者文件可用作接线与写法参考，但其总体观感已被用户否定，只保留作历史写法参考，不再开发或签收，准确结论见[套件首页](../README.md)。文件中的实现是：普通核心部件由各自公开素材提供，`hud.text` 全局槽拥有包含分数/准确率/连击/速度/判定/能量与谱面进度的完整信息控制台；控台使用只读绑定与生命周期状态机，不需要额外授权。成组装饰使用另一个共同全局槽，脚本只改变这组获准节点。不要把 mania 不适用的地雷或 BGA 场景节点强塞进共同场景。
 
 `score.accuracy` 与 `timing.progress` 的数值都是 0～1；绑定文字时分别显示两位小数准确率百分数和整数进度百分数。进度来自真实谱面可玩起止与游玩时钟，首个物件前为零，末物件后为一，零时长谱为零；暂停不推进，重试或回跳使用新位置。星轨控制台下方的金色细条表示谱面进度，青色细条表示能量。它们只读取游戏状态，不需要组合脚本授权。
+
+入场演出可把frame或tween的 `clock` 设为 `timing.elapsed`，从真实Gameplay Start开始；无Start时保留作者原属性，Reset回无Start时恢复它。常驻动画可继续用默认游玩毫秒或显式 `timing.time`；节拍闪动用 `timing.beat` 或 `timing.beat-phase`，关键帧单位随来源改为拍或拍内比例。clock与trigger互斥，原先省略clock的作品保持原行为。底光和光柱应放在 `playfield.baseplate` 或 `playfield.lane-surface` 的下层表面，让音符保持在上方。
+
+首次音符预告使用 `arrival.available` 和 `arrival.visible` 控制两层可见性，再用非循环 `arrival.remaining` 轨迹定义提前多久出现与何时消失。首尾关键帧都设为透明，空轨没有entry，便不会把无音符的留白槽误当成到来预告。Lane、Stage/Group、Global分别取该轨、该组或全谱经Mod后的真实首音，暂停、跳转和重试跟随游戏状态；图片位置和提前时间由作者决定，不由素材名推断。
+
+运动反馈分开读取 `input.motion-counts-1/2` 和 `input.motion-revolutions-1/2`，并用 `input.motion-available-1/2` 判断是否可用。编号是逻辑组，单人切到右侧仍用1，双舞台第二组用2。counts是相对移动量，revolutions是圆形轴或摇杆模拟转数；可在不同父子容器用各自clock叠加视觉旋转。当前投影只来自BMS实际接收的方向轴，不能为数字按键、Auto、mania或缺少方向信息的旧回放伪造逆转。常转速度与视觉比例由作品决定，输入灵敏度和判定仍归游戏。
+
+实时信息可直接读取FAST/SLOW、已应用的显示时机偏移、同条件本地最佳及BMS EX SCORE等级阈值。FAST/SLOW只统计真实基础成功判定，零偏差、Miss和长条自动tick不计；不要用判定弹字自行累加。偏移当前来自BMS原生VisualOffset和自动调整状态，mania显示不可用；它不是判定窗口或音频延迟。最佳成绩仅在有消费者时后台加载一次，严格匹配玩家、谱面、玩法、完整Mod和有效计分版本，未查得时用available隐藏；AAA/AA/A阈值仅供BMS EX SCORE。来源和精确条件见[绑定表与说明](REFERENCE.md#动画状态机绑定变体模板)，这些能力不增加脚本输入名或操作游戏的权限。
 
 模板中的进度条使用定宽容器包住子图片，把数值绑定到子图片的 `width`。这样零进度时图片宽度真正为零；不要用 `scale-x = 0` 表达空进度，因为底层绘图会保留极小缩放，在宽屏上仍可能出现细线。顶栏也应给标签和实际数字分别留下足够高度，不能只在设计预览中看起来放得下。
 
@@ -82,6 +92,7 @@ BMS `[Bms]` 的 `Keymode` 支持 `5K`、`7K`、`9K`、`9K_PMS`、`14K`。9 键�
 | 目录皮肤设置 / 名称、作者 | `skin.ini` 1 MiB；名称与作者各 256 字符，不含控制字符 |
 | 清单 / 场景 JSON | 64 KiB / 512 KiB；JSON 深度 32 |
 | 资源 | 256 个；单个 16 MiB，合计 64 MiB；单张 16×1024² 像素，普通包合计64×1024²；显式内容目录选中组合96×1024²，完整边界见[参考](REFERENCE.md#预算和错误定位) |
+| 位图字体 | 每份清单及选中组合最多10个字体声明，可保留独立字形度量；每字体16字形、每数字节点64字符，图片仍计入资源预算 |
 | 节点 | 2048 个、深度 16、每节点 128 子项；模板展开 8192 个 |
 | 动画 | 512 条轨迹，每条 512 帧，合计 8192 帧 |
 | 状态机 | 128 个，1024 个状态，4096 赋值，2048 条转移 |
