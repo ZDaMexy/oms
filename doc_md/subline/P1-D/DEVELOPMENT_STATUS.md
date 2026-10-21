@@ -27,4 +27,4 @@
 
 ## 文档治理验证
 
-2026-09-29：对照 [BmsSettingsSubsection](../../../osu.Game.Rulesets.Bms/BmsSettingsSubsection.cs)、[supplemental editor](../../../osu.Game.Rulesets.Bms/BmsSupplementalBindingSettingsSection.cs) 与[设备枚举测试](../../../osu.Game.Rulesets.Bms.Tests/TestSceneBmsSupplementalBindingSettingsSection.cs)，区分源码可见的按键/轴捕获、反转/保存与留存测试实际覆盖范围。未运行新的产品测试；独立校准及持续 diagnostics 产品面仍未交付。此前审查见 [CHANGELOG](CHANGELOG.md)。
+2026-10-22纠正子线路由及旧治理结论：校准与持续测试的软件能力沿10月21日来源，产品未交付的9月29日结论只保留在[历史](CHANGELOG.md)。本次未运行产品测试，设备与正常窗口日期不刷新；治理检查统一见[主线记录](../../mainline/CHANGELOG.md#2026-10-22专项进度文档与记忆同步)。

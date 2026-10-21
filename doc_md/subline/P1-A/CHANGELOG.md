@@ -1,5 +1,15 @@
 # P1-A 变动日志
 
+## 2026-10-22Autoplay现场反馈与进度核准
+
+正常非调试运行的连续快进触发`InvalidOperationException: Gameplay skin timing cannot move backwards within an epoch`，栈经`GameplaySkinEventStream.SynchroniseTiming`至`GameplaySkinEventRuntimeHost.Update`；原runtime/performance只读副本与源摘要一致。源码中seek目的地钉住与score回调使用当前时间的混用为具体候选，尚无移动时钟的红绿回归，不称根因已定或已修。不能用10月21日PlayerLoader重进修复覆盖此故障，也不能放宽epoch单调性或吞异常。
+
+详细窗Perfect Great全入SLOW的用户截图与源码链吻合：自动判定在首个到期Update执行，RawTime可带整帧正差，旧小于1ns余量过滤不足以覆盖。尚未改判定或展示；后续须保持人工PG的真实早晚、成绩和回退。作者前沿仅按gauge.type选固定dot，未继承fill分段色；normal蓝dot和33 EX HARD本体/dot色差均已只读确认，修正归作者层。
+
+FC默认实际为fc00，生成器的菜单身份原已标未确认却直接默认该项。独立源fcombo24的角色原图带33字样及汽水果纹，相邻22/23分别有31/32主题；当前包已含24的三布局动画，无需补下载。可据主题改默认，但原机菜单默认ID未独立实测；本次未改包、未重打包，全部25款保留。
+
+证据仅在忽略的`artifacts/omni-feedback-20261022/`，不含原HDD访问或正式Realm读写。上述四项进入STATUS/PLAN优先处理，既有开场、原机校准、物理设备及发行验证保持原日期与范围。文档/记忆健康同步及持续推送规则统一取[主线记录](../../mainline/CHANGELOG.md#2026-10-22专项进度文档与记忆同步)，没有新增产品测试、安装副本或发行物。
+
 ## 2026-10-21Omni全框体开场与首排预告
 
 按用户“全代”要求覆盖现有27～33及八支BPL的15框体、45布局。新增60条各来源原轨道开场和完整GET READY父动画；第一排提示只针对全谱最早同排，按原生可视滚动几何在音符出现前淡出，回跳不重新播放，真正重试才重置。BMS完整JUDGE原图接入真实AUTO灯态和有符号毫秒值，准备时从下方滑入；mania保留自己的六档判定，不伪造BMS自动调节状态。默认33、旧CUSTOM/25FC/132预览/尺寸/游标/INI及非Frame模块保持。

@@ -5,7 +5,7 @@
 
 ## 当前阶段
 
-用户正常四首自动演奏未再崩溃，但曲中仍有严重长帧。[后续定因](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#正常客户端反馈后的定因取证)已确认隔离实谱的低物理内存阻塞Gen2及素材重复驻留等成本；原用户三次GC没有Reason，不能倒推。现已在同一exact capsule内共享目录素材，并减少组件复用查找/分配，具体证据与边界见[压力下修复](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#内存压力下的驻留与音符复用修复)。音频每play通道/调整绑定仍待实现，前台流畅度未签收；长帧更多的单改GC候选已撤回。
+10月19日用户四首Autoplay直通演奏未再崩溃，但仍有严重长帧；这不覆盖10月22日新反馈的连续seek，当前故障归[P1-A](../P1-A/DEVELOPMENT_STATUS.md#当前风险与未完成项)。[后续定因](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#正常客户端反馈后的定因取证)确认隔离实谱的低物理内存阻塞Gen2与素材重复驻留，原用户三次GC没有Reason，不能倒推。同一exact capsule共享和组件复用修复取[压力下证据](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#内存压力下的驻留与音符复用修复)。音频每play通道/调整绑定仍待做，前台流畅度未签收；长帧更多的单改GC候选已撤回。
 
 后续深审已去除实测的DirectInput、通用轮询、轴切换、稳定replay状态及未变化血条的逐帧分配；HID运行中发现与资源退休不再同步执行于Update，BGA图片在既有加载树准备。真实判定/结果修复、组件前后值和同包Xecus帧时间取[集中记录](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)。零分配只覆盖已测组件稳态，wall interval不等同CPU/GPU工作时间，不作所有机器零卡顿保证。
 

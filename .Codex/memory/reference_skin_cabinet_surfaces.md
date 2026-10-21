@@ -2,7 +2,7 @@
 
 当前进度与验收只读 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)，图像及对应迭代见[原图索引](../../doc_md/other/references/simple-1p-20260912/README.md)。以下保留截图暴露的诊断因果，不把历次检查合并成当前验收。
 
-入场起点应取`GameplayClockContainer.StartTime`，`GameplayStartTime`是可跳过前奏的上界，长前奏时不是实际进入起点。无真实起点的设置预览不能把elapsed=0当作开场首帧；有效→未知Reset须恢复作者原属性，原无quad的projective需清除quad。独立time来源应单列脏状态家族，不能让普通成绩事件多重算旧beat绑定。来源与验收见[2026-10-21接通记录](../../doc_md/other/LIGHTING_DETAILS_20261021.md)。
+使用歌曲相对`timing.elapsed`的演出，起点应取`GameplayClockContainer.StartTime`；`GameplayStartTime`是可跳过前奏上界，长前奏时不是实际进入起点。显式准备演出读取Player父准备快照，不能接回停住的歌曲时钟，见[准备与首排](reference_gameplay_skin_event_envelope.md#准备时钟与首排提示)。无真实起点的预览不把elapsed=0当作开场首帧；有效→未知Reset恢复作者原属性并清除旧quad。独立time来源须单列脏状态，不让普通成绩事件多重算beat绑定。原路径证据取[接通记录](../../doc_md/other/LIGHTING_DETAILS_20261021.md)。
 
 新增C5输入展示事件不能自动成为C6回调：旧消费入口按payload family与enum数值通发，会让没有新声明的脚本额外收到轴运动。须先完成引擎状态/授权/时钟折叠，再在作者回调边界过滤内部展示事件，并用真实输入→C5累计、旧key down/up→原C6回调对照；仅不增加snapshot字段不足以证明脚本ABI不变。
 
@@ -55,6 +55,6 @@ Global装饰标记会沿材质作用域继承；框体信息通过Global decorat
 
 退出期HUD级联：一个Headless host首次abort会让后续数百fixture转抛同一缓存异常，必须先按TRX时间定位第一个实际执行步骤。SkinnableContainer的terminal工作关闭先于HUDOverlay真正Dispose，content已撤销而旧load完成位仍true时，另一owner迟到的OnComponentsLoaded会驱动HUD adapter错误搬移旧source；Remove的“unsupported by current skin”此时是生命周期失效，不是作者权限问题。ComponentsLoaded须同时读取原terminal flag及Dispose状态；不吞Remove异常、不清旧visual冒充detach、不延迟测试退出。确定性回归持有真实第二owner的callback，先关闭第一owner再投递，并保留正常两owner路由与精确释放对照。
 
-Headless存储作用域：UseFreshStoragePerRun=true不自动证明每个测试method换storage。当前runner复用TestScene，完成时只RemoveInternal(test,false)，OsuTestScene的LocalStorage为Lazy，Recycle只在创建依赖/Dispose执行；未另行重置的fixture会共用storage/Realm。须查真实runner、每次SetUp清理与具体拒绝原因，不能由前后顺序就断言残留journal导致下一项失败；中间通过的测试也应保留。
+Headless的每例存储与失败收尾统一见[测试宿主地雷](reference_build_and_test.md#测试宿主与产物)；不能仅由测试顺序推断残留journal导致下一项失败，须保留具体拒绝原因和中间通过用例。
 
 - 独立大包同时受两道不同门约束：C2捕获结构64MiB，OSK导入全部配置仍16MiB，后者不能按前者放宽。相同几何可由不同选项清单声明自身纹理并共用scene；相同INI按完整字节去重。scene经codec将整数编码成double可能长出`.0`，不能只加原文件长度；缩短声明ID并给归一化留预算，保留全部原图/采样。详见[本轮记录](../../doc_md/other/LIGHTING_DETAILS_20261021.md)。

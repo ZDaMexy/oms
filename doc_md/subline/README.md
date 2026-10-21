@@ -4,10 +4,10 @@
 
 | 子线 | 负责范围 | 当前判定 | 下一道门 |
 | --- | --- | --- | --- |
-| [P1-A](P1-A/DEVELOPMENT_STATUS.md) | 产品面、Skin V1、release gate | OMS品牌、启动与窗口标识已落；Ginger Rush/616下载与精确选歌可用，坏包/目录与首次完成状态已回归；Sayobot有素材证据；静线唯一内置，选择/刷新/编辑器与作者手册保留，外观暂停 | 品牌正常窗口及Sayobot真实包、修复后实站观察待验；网络日期见STATUS，大包/听感、BGA作者、V-001～V-005与设备/长时门保留，Skin V1/release未完成 |
+| [P1-A](P1-A/DEVELOPMENT_STATUS.md) | 产品面、Skin V1、release gate | 静线唯一内置且外观暂停；模式/键数皮肤、配置图卡、作者能力及独立Omni已有交付；批准下载沿原证据 | 优先修新Autoplay跳转、FAST/SLOW及Omni前沿/默认FC；品牌、真实下载、BGA、V-001～V-005与设备/长时门保持，Skin V1/release未完成 |
 | [P1-B](P1-B/DEVELOPMENT_STATUS.md) | 输入语义与硬件 | 软件链可用，真实 HID 覆盖未闭合 | analog scratch 跨设备与实机验收 |
 | [P1-C](P1-C/DEVELOPMENT_STATUS.md) | 判定语义与反馈 | 判定 parity、TOTAL 兼容与自动调整偏移互斥 style 已落；常驻反馈卡已删除 | 保持演奏/回放/结算一致性，补实谱判定与偏移收敛、真实设备验收 |
-| [P1-D](P1-D/DEVELOPMENT_STATUS.md) | 控制器校准与诊断 | 未完成 | deadzone、sensitivity、live diagnostics |
+| [P1-D](P1-D/DEVELOPMENT_STATUS.md) | 控制器校准与诊断 | 轴用途、参数校准与持续原始信号/动作测试的软件入口已接通 | 正常窗口、USB热插拔、同型号与实体控制器体验待验 |
 | [P1-E](P1-E/DEVELOPMENT_STATUS.md) | gameplay 与 LN/CN/HCN | 自动链已具备，真实谱面验校未闭合 | 真实谱面长条与输入验收 |
 | [P1-F](P1-F/DEVELOPMENT_STATUS.md) | 离线发行物与覆盖更新 | 2026-10-03 候选同包隔离启动/恢复/覆盖已有证据，生成物随后删除；旧跨版本和事故事后保全分别保留 | 后续候选须承接品牌更新；Windows Shell、跨版本、新作者演练、独立账户非便携与整体人工门未新签收，不追溯宣称旧事故无损 |
 | [P1-G](P1-G/DEVELOPMENT_STATUS.md) | 人工验收汇总 | 静态皮肤与 portable 已有分项证据；总清单未闭合 | 汇总品牌正常窗口、皮肤、输入、长条/音频、Song Select、公共下载、BGA 与发行矩阵 |

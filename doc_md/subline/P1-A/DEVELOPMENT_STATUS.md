@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-21（Omni全框体开场；原人工/发行门保持）
+> 最后核对：2026-10-22（新Autoplay与Omni反馈已取证，尚未修复）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -33,29 +33,26 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-10-21全框体准备、首排预告和完整JUDGE已实现，普通皮肤保留原启动与资源门。最新软件、25组原生Player、来源与还原边界取[开场记录](../../other/OMNI_OPENINGS_20261021.md#本轮验证)；需重编/重启并导入新开场版。
+2026-10-22只读核查确认新seek异常及统计、配色/默认来源缺口，见下方风险和[本次记录](CHANGELOG.md#2026-10-22autoplay现场反馈与进度核准)；尚未修复，无新产品验证。
 
-2026-10-21重进游玩崩溃来自后台Ready早于所有权交还，开局已增加交接条件。双玩法ReplayPlayer的Autoplay进入、退出再进及资源回收验证取[交接记录](../../other/PLAYER_LOADER_CRASH_20261021.md)。原Omni包无需重导入；正常窗口仍待用户复核。
+2026-10-21全框体准备、首排预告和完整JUDGE的原软件、25组原生Player、来源与还原边界取[开场记录](../../other/OMNI_OPENINGS_20261021.md#本轮验证)；不覆盖本次连续seek和默认FC问题。
 
-较早设备/作品与原机校准边界取[细节记录](../../other/LIGHTING_DETAILS_20261021.md#本轮验证记录)。物理设备、前台FPS及原机逐帧校准未签收。
+10月21日重进修复及双玩法进入/退出再进证据取[交接记录](../../other/PLAYER_LOADER_CRASH_20261021.md)。该补丁不要求重导入；正常窗口仍待复核，新seek另列下方风险。
 
-10月20日音符/游标修复与更早软件验证均从[日志](CHANGELOG.md)按日期读取，原人工边界保持。
+较早设备/作品校准取[细节记录](../../other/LIGHTING_DETAILS_20261021.md#本轮验证记录)；10月19～20日音符、游标、副屏、删除及图库修复从[日志](CHANGELOG.md)按日期检索。目录/池化与原Xecus首帧分别取[驻留证据](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#内存压力下的驻留与音符复用修复)和[P1-L根因](../P1-L/CHANGELOG.md#2026-10-19真实xecus首帧崩溃修复)。物理设备、前台帧时间及原机逐帧校准未签收。
 
-此前软件收尾、副屏移除与删除修复取[本线日志](CHANGELOG.md)的2026-10-19～20记录，不刷新原验证。
-
-2026-10-19目录/池化修复：实测消除399.05MiB重复驻留；Core、双玩法全量与旧失败对照取[证据](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#内存压力下的驻留与音符复用修复)。后台短测不代签前台/空闲对照；本次无需重导入。
-
-同日较早图库主体/箭头与原Xecus首帧修复证据见[记录](CHANGELOG.md#2026-10-19配置图库入口与xecus崩溃修复)，BGA根因归[P1-L](../P1-L/CHANGELOG.md#2026-10-19真实xecus首帧崩溃修复)。工作区窗口待用户复核。
-
-谱库旧断言维护及保全范围见[扫描审查](../../other/LIBRARY_SCAN_REVIEW_20261010.md)。
-
-下载较早验证按原日期取[10月3日首次完成状态修复](CHANGELOG.md#2026-10-03首次下载完成后的可玩状态修复)、[10月2日安全/失败审查](../../other/BEATMAP_DOWNLOAD_FIXES_20261002.md)及[10月1日Sayobot窗口/实站](../../other/MANIA_SAYOBOT_DOWNLOAD_20261001.md)，BMS小包取上方记录；不刷新实站、大包、听感或发行签收。mania注册旧断言已沿P1-H维护。
+公共下载的软件/实站来源按10月1～3日从[本线日志](CHANGELOG.md)检索，不刷新真实包、大包、听感或发行签收。谱库旧断言与保全取[扫描审查](../../other/LIBRARY_SCAN_REVIEW_20261010.md)。
 
 ## 此前单内置与布局验证
 
-设置/模式选择、单内置退役、9月布局与C7安装的原证据按日期从[本线日志](CHANGELOG.md)检索；[构建/冷启动](../../other/SKIN_BUILTIN_BUILD_20260912.md)保留完整历史。旧作品、截图与报告保留原样，不代签当前代码。
+设置、单内置退役、9月布局/C7安装按日期取[日志](CHANGELOG.md)和[原构建记录](../../other/SKIN_BUILTIN_BUILD_20260912.md)，不代签当前代码。
 
 ## 当前风险与未完成项
+
+- **Autoplay跳转崩溃**：连续快进触发`Gameplay skin timing cannot move backwards within an epoch`；已确认EventStream/RuntimeHost堆栈，seek目标与当前时间混用是待回归的具体候选，不能关闭单调保护掩盖。尚未修复。
+- **详细窗FAST/SLOW**：用户Perfect Great全进SLOW；旧小于1ns余量过滤只验浮点残差，BMS自动判定可带整帧正偏移。需核真实结果时间与展示消费，不把人工PG的真实早晚清零。
+- **血条前沿**：作者按gauge.type固定取dot，normal过线及其它模式的实际fill颜色没有投影到前沿。需按原填充纹理/真实状态校正并保持闪烁；公共引擎不识别IIDX配色。
+- **33默认FC**：当前默认fc00，生成器本已标菜单绑定未确认；fc24原图直接含33主题角色，来源已找到，尚未改默认或重打包。原机菜单默认ID未独立实测，其余24款须保留。
 
 - 作者CLI单次动画数组异常原因未定；素材维度、LIFT/FC及完整顺序复查通过，见上方记录，未记为修复。
 
@@ -71,4 +68,4 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 文档治理验证
 
-2026-10-19：成品目录/日期版本见[归档记录](CHANGELOG.md#2026-10-19成品归档与手动清理入口)，九项临时产物已由用户清理并只读复核，见[完成记录](CHANGELOG.md#2026-10-19用户完成临时产物清理)；产品验证仍取上节，不因归档刷新。
+2026-10-22进度、合同/计划与记忆同步，范围及检查取[主线记录](../../mainline/CHANGELOG.md#2026-10-22专项进度文档与记忆同步)。10月19日成品归档和九项清理的原日期见[历史](CHANGELOG.md#2026-10-19用户完成临时产物清理)，不据此宣称后续临时目录已清除。
