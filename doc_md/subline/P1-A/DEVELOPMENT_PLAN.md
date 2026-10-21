@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-22（先修Autoplay跳转与作品反馈，再继续原机校准）
+> 最后核对：2026-10-22（修复后正常窗口复核，再继续原机校准）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -11,7 +11,7 @@
 
 2026-10-18 用户授权从 1st style 到 33 Sparkle Shower 的历代作品制作，先利用现有 33 HDD 的实际资源；需要时允许补齐 OMS 代码能力。该授权是新增第三方作品线，不恢复静线打磨或 complex，不重计既有 C1～C7 campaign；本线使用现有公开作者链，实际不足由第一个作品组件驱动补齐。来源保全与后续界面边界只取[素材作品约束](TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)。
 
-先闭合[10月22日现场四项](DEVELOPMENT_STATUS.md#当前风险与未完成项)：用持续推进的真实ReplayPlayer时钟复现连续±5秒跳转和长追帧，保持完整Reset与epoch单调合同；核自动结果时间并保留人工PG早晚；作者前沿跟随当前fill颜色且继续闪烁；以33主题原FC修正默认并保留全部备选。客户端改动按共享scene/event门回归，作品另验各Frame/侧别/血条模式及新版本包，不用旧开场矩阵代签。
+先复核[10月22日修复](CHANGELOG.md#2026-10-22autoplay跳转与omni反馈修复)在用户正常窗口的连续±5秒跳转、自动/真人早晚统计及新包血条/默认FC；既有显式FC选择不被新默认覆盖。软件和隔离Player结果只取STATUS，不用旧开场矩阵代签前台性能或原机时序。以后改相关链路仍保持完整Reset、epoch单调及真人PG早晚。
 
 1. 使用[本地素材工具](../../../tools/IidxSkinAssets/README.md)保留来源、原始纹理、有效裁切、动画关联和可搜索预览；逐代核对所需组件，区分共用素材变体、明确代际框体与未确认归属。
 2. 26来源待用户下载并提供路径，届时先核游玩SP/DP框体、几何、动画及默认绑定，再按26→1逐代向前。版本标识不能代替整代来源，不要求预先下载全套；27～33及BPL已有结果从STATUS读取，不重复登记为待开发。

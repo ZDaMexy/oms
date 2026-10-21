@@ -7,6 +7,7 @@ using Newtonsoft.Json.Linq;
 using osu.Game.Beatmaps;
 using osu.Game.Database;
 using osu.Game.Online.API;
+using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
 using osu.Game.Scoring.Legacy;
@@ -22,6 +23,7 @@ namespace osu.Game.Skinning.Gameplay
         private int countedHitEvents;
         private int fastCount;
         private int slowCount;
+        private bool automatedTiming;
         private readonly IGameplaySkinArrivalVisibilityProjection? arrivalVisibility;
         private double? arrivalCueFadeStartTime;
 
@@ -89,6 +91,9 @@ namespace osu.Game.Skinning.Gameplay
             chartPresentation = new GameplaySkinChartPresentation(chartPresentation.Arrivals, chartPresentation.UsesExScore, best, chartPresentation.ArrivalCueAvailable);
         }
 
+        private void prepareTimingCounts()
+            => automatedTiming = scoreProcessor?.Mods.Value.Any(mod => mod is ModAutoplay) == true;
+
         private void synchroniseTimingCounts()
         {
             if (scoreProcessor == null)
@@ -103,7 +108,7 @@ namespace osu.Game.Skinning.Gameplay
                 HitEvent hit = hits[countedHitEvents++];
                 // Basic successful timing judgements only. This excludes misses, automatic body ticks, parent
                 // hold bookkeeping and BMS empty-POOR objects, whose maximum grade is Ok rather than Perfect.
-                int direction = TimingDirection(hit);
+                int direction = TimingDirection(hit, automatedTiming);
                 if (direction < 0)
                     fastCount++;
                 else if (direction > 0)
@@ -111,8 +116,10 @@ namespace osu.Game.Skinning.Gameplay
             }
         }
 
-        internal static int TimingDirection(HitEvent hit)
-            => hit.HitObject.Judgement.MaxResult == HitResult.Perfect && hit.Result.IsBasic() && hit.Result.IsHit()
+        internal static int TimingDirection(HitEvent hit, bool automated = false)
+            // Autoplay may apply a judgement on the next update with a frame-sized offset. It is not a
+            // measured player input, even though the original judgement offset remains available.
+            => !automated && hit.HitObject.Judgement.MaxResult == HitResult.Perfect && hit.Result.IsBasic() && hit.Result.IsHit()
                 // Clock-domain arithmetic can leave ~1e-12 ms on exact replay hits. Below one
                 // nanosecond this is numerical residue, not an observed early/late input.
                 && Math.Abs(hit.TimeOffset) >= 0.000001

@@ -33,6 +33,16 @@ namespace osu.Game.Tests.NonVisual.Skinning
             Assert.That(GameplaySkinEventRuntimeHost.TimingDirection(new HitEvent(10, 1, HitResult.Perfect, new NonTimingObject(HitResult.IgnoreHit), null, null)), Is.Zero);
         }
 
+        [TestCase(-10)]
+        [TestCase(10)]
+        public void TestAutomaticTimingIsNeutralWhileHumanPerfectGreatRetainsItsDirection(double offset)
+        {
+            var hit = new HitEvent(offset, 1, HitResult.Perfect, new HitObject(), null, null);
+            Assert.That(GameplaySkinEventRuntimeHost.TimingDirection(hit, automated: true), Is.Zero);
+            Assert.That(GameplaySkinEventRuntimeHost.TimingDirection(hit), Is.EqualTo(Math.Sign(offset)));
+            Assert.That(hit.TimeOffset, Is.EqualTo(offset));
+        }
+
         [Test]
         public void TestCompactTransportRetainsOffsetTimingOriginAndIndependentMotionWithoutAnInputAttack()
         {

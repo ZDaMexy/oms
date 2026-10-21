@@ -15,7 +15,7 @@ from pathlib import Path
 import re
 import uuid
 
-from build_omni_skin import (NAME, audit_package, author_directory_budget, copy_exact,
+from build_omni_skin import (NAME, audit_package, author_directory_budget, calibrate_full_combo, copy_exact,
                              exact_file, package_closure, publish_prepared_package,
                              read_json, write_json, resource_references, walk)
 import lighting_motion
@@ -457,6 +457,7 @@ def build(source, library, lane_reference, ready_reference, output):
     for relative in source_files:
         copy_exact(exact_file(source, relative), staging / relative)
     catalog = read_json(staging / "gameplay/content.json")
+    full_combo_default = calibrate_full_combo(catalog)
     root = read_json(staging / "gameplay-skin.json")
     new_options = [lighting_lane_intro.OPTION,
                    {"id": "get-ready", "type": "toggle", "label": "Gameplay · GET READY", "default": True}]
@@ -512,7 +513,8 @@ def build(source, library, lane_reference, ready_reference, output):
                     "compactedTextures": textures, "prunedObsoleteDeclarations": pruned,
                     "frameResourceIdentities": resource_names, "sceneIdentities": names})
             contribution.update(transformed[identity])
-    # Other modules retain their exact choice, preview, default, media and scene bytes.
+    # Other modules retain their exact choices, previews, media and scene bytes;
+    # only the proven 33 Full Combo default and its two identifying labels change.
     write_json(staging / "gameplay/content.json", catalog)
     write_json(staging / "gameplay-skin.json", root)
     files = package_closure(staging)
@@ -526,7 +528,8 @@ def build(source, library, lane_reference, ready_reference, output):
     write_json(staging / "package-audit.json", audit)
     receipt = {"name": NAME, "status": "prepared-awaiting-current-runtime-validation", "defaultFrame": "iidx33",
         "originalHdd": "not accessed; independent libraries only", "repackagedFrom": str(source),
-        "preparationDetails": receipts, "sourceArtwork": {"panels": panels["receipt"], "ready": ready["receipt"],
+        "preparationDetails": receipts, "fullComboDefault": full_combo_default,
+        "sourceArtwork": {"panels": panels["receipt"], "ready": ready["receipt"],
             "laneReference": str(lane_reference), "laneFrames": len(lane["frames"])},
         "sourcePreservation": {"changedExistingMedia": changed_media, "existingReferencedMediaByteExact": True,
             "unreferencedRetiredMedia": [relative for relative in source_files if relative not in files

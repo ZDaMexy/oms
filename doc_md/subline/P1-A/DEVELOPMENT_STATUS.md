@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-22（新Autoplay与Omni反馈已取证，尚未修复）
+> 最后核对：2026-10-22（Autoplay跳转、统计与独立Omni反馈修复；正常窗口待复核）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -33,11 +33,11 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-10-22只读核查确认新seek异常及统计、配色/默认来源缺口，见下方风险和[本次记录](CHANGELOG.md#2026-10-22autoplay现场反馈与进度核准)；尚未修复，无新产品验证。
+2026-10-22已修移动时钟追帧后连续seek崩溃，完整Autoplay的FAST/SLOW中性化且保留真人PG早晚；独立Omni全45布局前沿复用原fill配色并闪烁，默认FC改为33主题fc24，全部备选保留。BMS完整Release 2998通过/19跳过、mania 993/2，均无失败；Core Skinning 1215/3及五组原生Player通过。范围及失败身份取[修复记录](CHANGELOG.md#2026-10-22autoplay跳转与omni反馈修复)，正常窗口、前台帧时间和原机菜单默认ID未代签。
 
 2026-10-21全框体准备、首排预告和完整JUDGE的原软件、25组原生Player、来源与还原边界取[开场记录](../../other/OMNI_OPENINGS_20261021.md#本轮验证)；不覆盖本次连续seek和默认FC问题。
 
-10月21日重进修复及双玩法进入/退出再进证据取[交接记录](../../other/PLAYER_LOADER_CRASH_20261021.md)。该补丁不要求重导入；正常窗口仍待复核，新seek另列下方风险。
+10月21日重进修复及双玩法进入/退出再进证据取[交接记录](../../other/PLAYER_LOADER_CRASH_20261021.md)。旧补丁无需重导入，本轮seek修复另取上述记录；正常窗口仍待复核。
 
 较早设备/作品校准取[细节记录](../../other/LIGHTING_DETAILS_20261021.md#本轮验证记录)；10月19～20日音符、游标、副屏、删除及图库修复从[日志](CHANGELOG.md)按日期检索。目录/池化与原Xecus首帧分别取[驻留证据](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#内存压力下的驻留与音符复用修复)和[P1-L根因](../P1-L/CHANGELOG.md#2026-10-19真实xecus首帧崩溃修复)。物理设备、前台帧时间及原机逐帧校准未签收。
 
@@ -49,10 +49,8 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 当前风险与未完成项
 
-- **Autoplay跳转崩溃**：连续快进触发`Gameplay skin timing cannot move backwards within an epoch`；已确认EventStream/RuntimeHost堆栈，seek目标与当前时间混用是待回归的具体候选，不能关闭单调保护掩盖。尚未修复。
-- **详细窗FAST/SLOW**：用户Perfect Great全进SLOW；旧小于1ns余量过滤只验浮点残差，BMS自动判定可带整帧正偏移。需核真实结果时间与展示消费，不把人工PG的真实早晚清零。
-- **血条前沿**：作者按gauge.type固定取dot，normal过线及其它模式的实际fill颜色没有投影到前沿。需按原填充纹理/真实状态校正并保持闪烁；公共引擎不识别IIDX配色。
-- **33默认FC**：当前默认fc00，生成器本已标菜单绑定未确认；fc24原图直接含33主题角色，来源已找到，尚未改默认或重打包。原机菜单默认ID未独立实测，其余24款须保留。
+- 10月22日四项修复仍待用户正常VS Code窗口复核；作品变化须重导入新包，既有显式FC选择保留，不自动覆盖。fc24据原图确认33主题，原机菜单默认ID未独立实测。血条闪烁包络为作者适配，原机精确时序未签收。
+- Core扩大检查被旧QuickOsz夹具的12/3张谱断言及载入空转阻塞，见[失败身份](CHANGELOG.md#2026-10-22autoplay跳转与omni反馈修复)；不宣称全仓测试通过。
 
 - 作者CLI单次动画数组异常原因未定；素材维度、LIFT/FC及完整顺序复查通过，见上方记录，未记为修复。
 

@@ -156,8 +156,7 @@ def art_requirements(frame_id, source_map):
     glows = [draw for draw in source_map["layouts"]["1p_frame"]["draws"] if "bpm_gra_1p" in draw.get("game_bindings", [])]
     _require(len(glows) == 1 and glows[0]["texture"] == "playm_bpm_gra_bar", "No exact original beat-glow hook")
     asset = glows[0]["asset"]
-    roles = {"beat": "playm_bpm_gra_bar", "normal": "playm_gauge_normal_dot",
-             "hard": "playm_gauge_hard_dot", "ex-hard": "playm_gauge_exhard_dot"}
+    roles = {"beat": "playm_bpm_gra_bar"}
     return {role: {"source": {"root": asset.get("root", "primary"), "package": asset["package"], "name": name},
                    "resource": {"id": f"omni.motion.{frame_id}.{role}", "type": "texture",
                                 "path": f"art/motion/{frame_id}/{role}.png", "filter": "linear"}}
@@ -194,51 +193,160 @@ def _glow_geometry(frame_id, layout, source_map):
     return geometries[0], "additive" if draws[0]["blend"] == 8 else "alpha", evidence
 
 
-def inject_frame(document, manifest, *, frame_id, source_map, gauge_dot_width_px=6):
-    """Add a real-gauge front marker and an original BPM glow under the pooled notes.
+def _contains_value(value, expected):
+    if isinstance(value, dict):
+        return any(_contains_value(item, expected) for item in value.values())
+    if isinstance(value, list):
+        return any(_contains_value(item, expected) for item in value)
+    return value == expected
 
-    Frame layout scenes already provide the transparent baseplate marker. Its
-    material-selected template is resolved onto each actual stage by the public
-    renderer, for both rulesets; no ruleset-specific IDs or extra input lanes are
-    declared. The marker goes inside the existing reveal clip, retaining all
-    gauge modes, exact fill geometry and P2's right-to-left mask.
-    """
-    _require(document.get("contract") == SCENE_CONTRACT and manifest.get("contract") == MANIFEST_CONTRACT
-             and document.get("root", {}).get("id") == f"omni.frame.{frame_id}.root", "Expected one exact Omni Frame contribution")
-    namespace = frame_namespace(frame_id)
-    owners = [(template["root"], re.fullmatch(re.escape(namespace) + r"\.template\.(p1|p2|dp)\.gauge", template["id"]))
-              for template in document["templates"]]
-    owners = [(owner, match[1]) for owner, match in owners if match]
+
+def _replace_gauge_front(document, manifest, *, frame_id, layout, gauge_dot_width_px):
+    """Mutate a private transaction copy; both long and compact v15 IDs are accepted."""
+    _require(frame_id in FRAMES and layout in LAYOUTS, "Expected one known Frame and layout")
+    _positive(gauge_dot_width_px, "Projected gauge-front width")
+    owners = [template["root"] for template in document["templates"] if template["root"].get("slot") == "hud.gauge"]
     _require(len(owners) == 1, "Expected one selected Frame gauge layout")
-    owner, layout = owners[0]
-    prefix = f"{namespace}.{layout}"
-    reveal = next((node for node in owner["children"] if node["id"] == prefix + ".gauge.reveal"), None)
-    _require(reveal is not None and reveal.get("type") == "clip" and reveal["properties"].get("clip-mode") == "bounds",
-             "The Frame gauge must retain its original reveal clip")
-    fill = next((node for node in reveal["children"] if node["id"] == reveal["id"] + ".fill"), None)
-    _require(fill is not None and fill.get("type") == "sprite", "The original full-width gauge fill is missing")
-    _require(any(binding.get("target") == reveal["id"] and binding.get("property") == "reveal-x"
-                 and binding.get("source") == "gauge.value" for binding in document["bindings"]), "Gauge front must share the real reveal value")
-    _positive(gauge_dot_width_px, "Projected original gauge-dot width")
-    glow_geometry, blend, source_evidence = _glow_geometry(frame_id, layout, source_map)
-    originals = art_requirements(frame_id, source_map)
-    resources = {role: item["resource"]["id"] for role, item in originals.items()}
-    # Existing gauge geometry is in a 110-pixel stage HUD surface.
-    dark = next(node for node in owner["children"] if node["id"] == prefix + ".gauge.dark")
-    sd = frame_id in ("iidx27", "iidx28", "iidx29")
-    full_bar_width = dark["properties"]["width"] * (438 if sd else 440)
+    owner = owners[0]
+    reveals = [node for node in owner["children"] if node.get("type") == "clip"
+               and any(binding.get("target") == node["id"] and binding.get("property") == "reveal-x"
+                       and binding.get("source") == "gauge.value" for binding in document["bindings"])]
+    _require(len(reveals) == 1, "The Frame gauge must retain its real-value reveal clip")
+    reveal = reveals[0]
+    _require(reveal["properties"].get("clip-mode") == "bounds" and len(reveal["children"]) in (1, 2),
+             "The gauge reveal has an unexpected mask or overlay")
+    fill = reveal["children"][0]
     right_to_left = layout == "p2"
-    front_id = reveal["id"] + ".motion-front"
-    front = _node(front_id, "sprite", {"x": 0, "y": 0.5, "width": gauge_dot_width_px / full_bar_width,
-                  "height": 1, "origin": "centre-left" if right_to_left else "centre-right",
-                  "rotation": 180 if right_to_left else 0}, resource=resources["normal"])
+    expected_fill_geometry = {"x": 1, "y": 1, "rotation": 180} if right_to_left else {}
+    _require(fill.get("type") == "sprite" and fill.get("resource") is not None
+             and fill["properties"] == expected_fill_geometry and not fill["children"]
+             and reveal["properties"].get("rotation", 0) == (180 if right_to_left else 0),
+             "The original full-width gauge or P2 compensation differs")
+    dark = owner["children"][0]
+    _require(dark.get("type") == "sprite" and dark.get("resource") == fill["resource"]
+             and dark["properties"].get("width") == reveal["properties"].get("width"),
+             "The original full gauge geometry is missing")
+    full_bar_width = dark["properties"]["width"] * (438 if frame_id in ("iidx27", "iidx28", "iidx29") else 440)
+    _require(math.isfinite(full_bar_width) and 0 < gauge_dot_width_px <= full_bar_width,
+             "The gauge front must fit the original full bar")
+    fraction = gauge_dot_width_px / full_bar_width
+    previous = reveal["children"][1] if len(reveal["children"]) == 2 else None
+    front_id = previous["id"] if previous else reveal["id"] + ".motion-front"
+    sample_id = front_id + ".sample"
+    sample_fill_id = sample_id + ".fill"
+
+    # reveal-x preserves the full-width child canvas. Both nested masks therefore
+    # retain the source UV mapping while exposing just the actual frontier strip.
+    sample_fill = copy.deepcopy(fill)
+    sample_fill["id"] = sample_fill_id
+    sample_fill["properties"] = {**expected_fill_geometry, "x": (1 if right_to_left else 0) + fraction,
+                                  "colour": "#404040ff"}
+    sample = _node(sample_id, "clip", {"x": -fraction, "clip-mode": "bounds", "reveal-x": fraction}, children=[sample_fill])
+    front = _node(front_id, children=[sample])
+    # Identical opaque art alpha-blended over itself does not blink. A neutral
+    # luminance pulse visibly modulates every palette, including saturated yellow.
+    # The original fill, source pixels, mode variants and gameplay values stay intact.
+    position = _track(sample_fill_id + ".position", sample_fill_id, "x", "gauge.value",
+                      [(0, sample_fill["properties"]["x"]), (1, sample_fill["properties"]["x"] - 1)])
+    position["loop"] = False
     binding = {"id": front_id + ".position", "target": front_id, "property": "x", "source": "gauge.value"}
     blink = _track(front_id + ".blink", front_id, "opacity", "timing.time",
                    [(0, 0.2), (GAUGE_BLINK_PERIOD_MS / 2, 1), (GAUGE_BLINK_PERIOD_MS, 0.2)])
-    variant = {"id": front_id + ".mode", "target": front_id, "property": "resource", "source": "gauge.type",
-               "default": resources["normal"], "cases": [
-                   {"id": front_id + ".mode.hard", "key": "hard", "resource": resources["hard"]},
-                   {"id": front_id + ".mode.ex-hard", "key": "ex-hard", "resource": resources["ex-hard"]}]}
+    old_resources = set()
+    old_variants = []
+    if previous is not None:
+        bindings = [item for item in document["bindings"] if item.get("target") == front_id]
+        _require(len(bindings) == 1 and {key: value for key, value in bindings[0].items() if key != "id"}
+                 == {key: value for key, value in binding.items() if key != "id"}, "The old frontier position binding differs")
+        binding = bindings[0]
+        blinks = [item for item in document["tracks"] if item.get("target") == front_id]
+        _require(len(blinks) == 1 and {key: value for key, value in blinks[0].items() if key not in ("id", "keyframes")}
+                 == {key: value for key, value in blink.items() if key not in ("id", "keyframes")}
+                 and [(item["time"], item["value"]) for item in blinks[0]["keyframes"]]
+                 == [(item["time"], item["value"]) for item in blink["keyframes"]], "The old frontier blink differs")
+        blink = blinks[0]
+        if previous.get("type") == "sprite":
+            old_width = previous["properties"].get("width")
+            _require(isinstance(old_width, (int, float)) and not isinstance(old_width, bool)
+                     and any(math.isclose(old_width * full_bar_width, width, rel_tol=0, abs_tol=1e-6) for width in (6, 8))
+                     and previous["properties"] == {"x": 0, "y": 0.5, "width": old_width, "height": 1,
+                      "origin": "centre-left" if right_to_left else "centre-right", "rotation": 180 if right_to_left else 0},
+                     "The legacy frontier geometry differs")
+            old_variants = [item for item in document["variants"] if item.get("target") == front_id]
+            _require(len(old_variants) == 1 and old_variants[0].get("property") == "resource"
+                     and old_variants[0].get("source") == "gauge.type"
+                     and old_variants[0].get("default") == previous.get("resource")
+                     and [case["key"] for case in old_variants[0]["cases"]] == ["hard", "ex-hard"],
+                     "The legacy frontier resources differ")
+            old_resources = {previous["resource"], *(case["resource"] for case in old_variants[0]["cases"])}
+        else:
+            _require(previous == front, "An existing sampled frontier differs")
+
+    fill_variants = [variant for variant in document["variants"] if variant.get("target") == fill["id"]]
+    _require(len(fill_variants) <= 1 and all(item.get("property") == "resource" and item.get("source") == "gauge.type"
+             for item in fill_variants), "The source fill has an unexpected dynamic property")
+    variants = []
+    for variant in fill_variants:
+        value = copy.deepcopy(variant)
+        value.update({"id": sample_fill_id + ".mode", "target": sample_fill_id})
+        for index, case in enumerate(value["cases"]):
+            case["id"] = value["id"] + f".c{index}"
+        variants.append(value)
+    reveal["children"] = [fill, front]
+    document["variants"] = [item for item in document["variants"] if item not in old_variants]
+    additions = [(document["bindings"], binding, "gauge position"), (document["tracks"], blink, "gauge blink"),
+                 (document["tracks"], position, "source sample position")]
+    additions.extend((document["variants"], value, "source fill mode") for value in variants)
+    for items, value, kind in additions:
+        _append_exact(items, value, kind)
+    resources = manifest["resources"]
+    candidates = [resource for resource in resources if resource["id"] in old_resources]
+    _require(len(candidates) == len(old_resources), "A legacy frontier texture declaration is missing")
+    other_declarations = {**manifest, "resources": [resource for resource in resources if resource["id"] not in old_resources]}
+    removed = [resource["id"] for resource in candidates
+               if not _contains_value(document, resource["id"]) and not _contains_value(other_declarations, resource["id"])]
+    manifest["resources"] = [resource for resource in resources if resource["id"] not in removed]
+    return {"projectedWidthPx": gauge_dot_width_px, "fullBarWidthPx": full_bar_width, "rightToLeft": right_to_left,
+            "source": "gauge.value", "zeroHiddenByOriginalClip": True, "palette": "exact current full-fill resource and mode variants",
+            "blinkPeriodMs": GAUGE_BLINK_PERIOD_MS, "periodEvidence": "author adaptation", "luminance": "neutral grey modulation",
+            "migratedLegacyDot": bool(old_resources), "removedResources": removed}
+
+
+def replace_gauge_front(document, manifest, *, frame_id, layout, gauge_dot_width_px=6):
+    """Upgrade one selected Frame contribution, including a compact v15 export.
+
+    Original fill/dark/percentage, unrelated nodes and source images are retained.
+    Only the previous fixed-dot frontier and now-unused texture declarations are
+    retired. The caller rebuilds its normal reference closure to omit unused PNGs.
+    This function is idempotent and commits neither dictionary on a conflict.
+    """
+    _require(document.get("contract") == SCENE_CONTRACT and manifest.get("contract") == MANIFEST_CONTRACT,
+             "Expected an author scene and manifest")
+    scene_copy, manifest_copy = copy.deepcopy((document, manifest))
+    receipt = _replace_gauge_front(scene_copy, manifest_copy, frame_id=frame_id, layout=layout, gauge_dot_width_px=gauge_dot_width_px)
+    document.clear()
+    document.update(scene_copy)
+    manifest.clear()
+    manifest.update(manifest_copy)
+    return receipt
+
+
+def inject_frame(document, manifest, *, frame_id, source_map, gauge_dot_width_px=6):
+    """Add a palette-matched blinking frontier and original BPM glow beneath notes."""
+    _require(document.get("contract") == SCENE_CONTRACT and manifest.get("contract") == MANIFEST_CONTRACT
+             and document.get("root", {}).get("id") == f"omni.frame.{frame_id}.root", "Expected one exact Omni Frame contribution")
+    original_document, original_manifest = document, manifest
+    document, manifest = copy.deepcopy((document, manifest))
+    namespace = frame_namespace(frame_id)
+    owners = [match[1] for template in document["templates"]
+              if (match := re.fullmatch(re.escape(namespace) + r"\.template\.(p1|p2|dp)\.gauge", template["id"]))]
+    _require(len(owners) == 1, "Expected one selected Frame gauge layout")
+    layout = owners[0]
+    gauge = _replace_gauge_front(document, manifest, frame_id=frame_id, layout=layout, gauge_dot_width_px=gauge_dot_width_px)
+    prefix = f"{namespace}.{layout}"
+    glow_geometry, blend, source_evidence = _glow_geometry(frame_id, layout, source_map)
+    originals = art_requirements(frame_id, source_map)
+    resources = {role: item["resource"]["id"] for role, item in originals.items()}
     glow_id = prefix + ".motion-beat"
     glow = _node(glow_id, "sprite", {**glow_geometry, "opacity": 0.35}, resource=resources["beat"],
                  slot="playfield.baseplate", blend=blend)
@@ -246,21 +354,17 @@ def inject_frame(document, manifest, *, frame_id, source_map, gauge_dot_width_px
     instance = {"id": glow_id + ".instance", "template": template["id"],
                 "material": {"slot": "playfield.baseplate", "resource": f"gameplay/frames/{frame_id}/common/empty"}}
     pulse = _track(glow_id + ".pulse", glow_id, "opacity", "timing.beat", [(0, 0.35), (0.12, 0.28), (0.7, 0.02), (1, 0.35)])
-    additions = [(reveal["children"], front, "gauge front"), (document["bindings"], binding, "gauge binding"),
-                 (document["tracks"], blink, "gauge blink"), (document["variants"], variant, "gauge mode"),
-                 (document["templates"], template, "underlay template"), (document["instances"], instance, "underlay instance"),
+    additions = [(document["templates"], template, "underlay template"), (document["instances"], instance, "underlay instance"),
                  (document["tracks"], pulse, "beat track")]
     additions.extend((manifest["resources"], item["resource"], "original texture") for item in originals.values())
-    # Check all identity conflicts before appending any declaration.
-    for items, value, kind in additions:
-        previous = [item for item in items if item.get("id") == value["id"]]
-        _require(not previous or previous == [value], f"Existing {kind} differs from the Omni motion declaration")
     for items, value, kind in additions:
         _append_exact(items, value, kind)
+    original_document.clear()
+    original_document.update(document)
+    original_manifest.clear()
+    original_manifest.update(manifest)
     return {"frame": frame_id, "layout": layout, "beatSource": source_evidence,
             "beatGeometry": glow_geometry, "beatLayer": "playfield.baseplate / Underlay; native notes remain above",
             "pulse": "Author beat envelope from real timing.beat; original static AFP hook does not prove the native envelope",
-            "gaugeFront": {"projectedWidthPx": gauge_dot_width_px, "fullBarWidthPx": full_bar_width,
-                           "rightToLeft": right_to_left, "source": "gauge.value", "zeroHiddenByOriginalClip": True,
-                           "blinkPeriodMs": GAUGE_BLINK_PERIOD_MS, "periodEvidence": "author adaptation"},
+            "gaugeFront": gauge,
             "artwork": originals}

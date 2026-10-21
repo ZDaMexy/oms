@@ -15,7 +15,7 @@
 
 ## 皮肤恢复与存储
 
-- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage继承、轨宽/每侧键序、共享字体/血槽；组合预算、ID命名、真实进入起点与无时钟预览、展示事件/C6回调边界、C4身份、裁切与退出HUD readiness。
+- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage继承、轨宽/每侧键序、共享字体/血槽与同色闪烁、FC主题来源；组合预算、ID命名、真实进入起点与无时钟预览、展示事件/C6回调边界、C4身份、裁切与退出HUD readiness。
 
 - [2026-07-10 皮肤恢复](reference_skin_recovery_20260710.md) — 恢复锚点、归档与重新准入；**皮肤任务先读**。
 - [2026-07-13 schema 56 皮肤清点](reference_skin_schema56_inventory_20260713.md) — 只读取证、失效类型与 Realm mtime 误判。
@@ -35,7 +35,7 @@
 
 ## 构建、存储与产品面参考
 
-- [构建与测试](reference_build_and_test.md) — 开发磁盘与进程环境、Pylance缓存扫描、真实数据 / 旧作者包误清理、宿主复用/随机候选污染/失败收尾与未加载Drawable、虚拟轨道音频线程跳时、formatter路径、输出锁、隔离取景与正常窗口、桌面GC会话与后台限帧、品牌贴图/动画、退休fixture空跑、完整基线归因与依赖审计误判。
+- [构建与测试](reference_build_and_test.md) — 开发磁盘与进程环境、Pylance缓存扫描、真实数据 / 旧作者包误清理、宿主复用/随机候选污染/失败收尾与未加载Drawable、虚拟轨道音频线程跳时、formatter路径、输出锁、隔离取景与正常窗口、桌面GC会话与后台限帧、品牌贴图/动画、退休fixture空跑与QuickOsz载入空转、完整基线归因与依赖审计误判。
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱库路径身份与历史保全](reference_filesystem_library_identity.md) — 同内容不同目录、失效与物删分离、多文件改名、重复素材枚举与增量查询放大器。
 - [谱面构成过滤](reference_bms_composition_filter.md) — 单轨上限、共享额度、零宽入口及无解条件。
@@ -72,6 +72,6 @@
 - [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — 唯一layout、准备失败与旧screen退役、显式空位/authorTop、mania键图mask、双stage判定、替换后AutoSize零高与跨玩法尺寸、光柱层级、图卡目标、AFP/SD、CUSTOM与开场短帧窗口。
 - [gameplay skin config presence](reference_gameplay_skin_config_presence.md) — accepted presence、synthetic default 与 per-index mask。
 - [gameplay skin lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md) — lane provenance、9K/14K 候选映射与资源退役。
-- [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — 事件顺序、seek 时钟收敛与完整 Reset、callback 拷贝、真实显示、父级准备时钟与首排提示退场。
+- [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — 事件顺序、移动源seek收敛与完整Reset、Autoplay假SLOW、callback拷贝、真实显示、父级准备时钟与首排提示退场。
 - [gameplay skin capability negotiation](reference_gameplay_skin_capability_negotiation.md) — closed allowlist、只读 token 与危险 handle。
 - [gameplay skin 脚本诊断](reference_gameplay_skin_scripts.md) — 授权撤销、暂停冻结、数值钳制、固定 tick 与纹理上传 ownership。

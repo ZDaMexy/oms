@@ -4,7 +4,7 @@
 
 | 子线 | 负责范围 | 当前判定 | 下一道门 |
 | --- | --- | --- | --- |
-| [P1-A](P1-A/DEVELOPMENT_STATUS.md) | 产品面、Skin V1、release gate | 静线唯一内置且外观暂停；模式/键数皮肤、配置图卡、作者能力及独立Omni已有交付；批准下载沿原证据 | 优先修新Autoplay跳转、FAST/SLOW及Omni前沿/默认FC；品牌、真实下载、BGA、V-001～V-005与设备/长时门保持，Skin V1/release未完成 |
+| [P1-A](P1-A/DEVELOPMENT_STATUS.md) | 产品面、Skin V1、release gate | 静线唯一内置且外观暂停；模式/键数皮肤、配置图卡、作者能力及独立Omni已有交付；批准下载沿原证据 | Autoplay跳转/统计及Omni反馈已修，正常窗口待复核；品牌、真实下载、BGA、V-001～V-005与设备/长时门保持，Skin V1/release未完成 |
 | [P1-B](P1-B/DEVELOPMENT_STATUS.md) | 输入语义与硬件 | 软件链可用，真实 HID 覆盖未闭合 | analog scratch 跨设备与实机验收 |
 | [P1-C](P1-C/DEVELOPMENT_STATUS.md) | 判定语义与反馈 | 判定 parity、TOTAL 兼容与自动调整偏移互斥 style 已落；常驻反馈卡已删除 | 保持演奏/回放/结算一致性，补实谱判定与偏移收敛、真实设备验收 |
 | [P1-D](P1-D/DEVELOPMENT_STATUS.md) | 控制器校准与诊断 | 轴用途、参数校准与持续原始信号/动作测试的软件入口已接通 | 正常窗口、USB热插拔、同型号与实体控制器体验待验 |

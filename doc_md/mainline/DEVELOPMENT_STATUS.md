@@ -1,13 +1,13 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-22（接入新的Autoplay现场反馈；原产品/生产门保持）
+> 最后核对：2026-10-22（Autoplay跳转及作品反馈修复；原产品/生产门保持）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
 
 OMS处于Phase 1.x后段，原生 BMS 与转谱游玩已完成热路径优化。静线是 BMS/mania 唯一内置、默认与保底，皮肤按模式和键数选择；固定目录刷新和原组件编辑器可保存独立副本。星轨已退役，静线外观打磨仍暂停。整体画面、真实设备与长期体验尚未签收，Skin V1 与 release 未完成。下载、BGA 作者能力和剩余门见 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)，性能与听感见 [P1-J](../subline/P1-J/DEVELOPMENT_STATUS.md)。
 
-当前优先处理Autoplay快进/快退崩溃、详细窗FAST/SLOW、血条前沿配色与33默认FC；最新证据和未完成项统一取[P1-A风险](../subline/P1-A/DEVELOPMENT_STATUS.md#当前风险与未完成项)，先前重进修复或开场测试不覆盖这些路径。
+Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，实际验证与正常窗口剩余门统一取[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)；先前重进修复或开场测试不代签这些路径。
 
 ## 产品与仓库基线
 
@@ -51,7 +51,7 @@ OMS处于Phase 1.x后段，原生 BMS 与转谱游玩已完成热路径优化。
 
 ## 最近一次验证
 
-2026-10-22正常VS Code日志确认新的Autoplay seek异常，尚未修复；来源与当前待办取[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)。10月21日后台所有权交接修复仅适用[原重进故障](../other/PLAYER_LOADER_CRASH_20261021.md)，不覆盖新seek路径。实体设备、前台帧时间与人工/发行门保持。
+2026-10-22移动时钟的双玩法Autoplay连续跳转已回归，独立Omni全布局前沿与33主题FC已更新；范围、完整回归和原生取景取[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)。新seek故障与[原重进故障](../other/PLAYER_LOADER_CRASH_20261021.md)分别修复；正常窗口、实体设备、前台帧时间与人工/发行门保持。
 
 2026-10-11转谱补算、Debug读取及旧失败对照保留原日期，范围与未验项取[P1-H](../subline/P1-H/DEVELOPMENT_STATUS.md#最近一次验证)。
 

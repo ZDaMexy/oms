@@ -80,6 +80,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             bool captureBurst = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_HIT_PHASE") == "1";
             bool captureFullCombo = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_FULLCOMBO") == "1";
             bool captureNoteGeometry = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_NOTE_GEOMETRY") == "1";
+            bool captureFeedback = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_FEEDBACK") == "1";
             double completionOrigin = 0;
             double completionSeekTime = 0;
             double completionDuration = 0;
@@ -136,6 +137,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     selectedMods = [.. selectedMods, new BmsModSudden()];
                 if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_LIFT") == "1")
                     selectedMods = [.. selectedMods, new BmsModLift()];
+                if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_GAUGE") is string gauge)
+                    selectedMods = [.. selectedMods, gauge switch
+                    {
+                        "hard" => new BmsModGaugeHard(),
+                        "ex-hard" => new BmsModGaugeExHard(),
+                        "hazard" => new BmsModGaugeHazard(),
+                        _ => throw new InvalidOperationException("The author capture gauge must be hard, ex-hard or hazard."),
+                    }];
                 Game.SelectedMods.Value = selectedMods;
                 DismissAnyNotifications();
             });
@@ -264,7 +273,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 freezeHitPhase = captureBurst;
             });
 
-            if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_OPENING") == "1")
+            if (captureFeedback)
+                addFeedbackCaptureSteps();
+            else if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_OPENING") == "1")
                 addOpeningCaptureSteps();
             else if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_LIGHTING_DETAILS") == "1")
                 addLightingDetailsCaptureSteps();
@@ -298,7 +309,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             // At 3700ms the first hold is active and the following ordinary notes are already in their
             // real drawable lifetime. Earlier sampling can accidentally assert against an unbound pooled note.
-            foreach (double time in new[] { 2600d, 3700d, 4200d, 6800d, 10100d })
+            foreach (double time in captureFeedback ? Array.Empty<double>() : new[] { 2600d, 3700d, 4200d, 6800d, 10100d })
             {
                 double captureTime = time;
                 AddUntilStep($"play naturally to {captureTime:0}ms", () =>

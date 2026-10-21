@@ -71,11 +71,34 @@ def frame_scene(layout, frame="iidx33"):
     reveal = node(prefix + ".reveal", "clip", reveal_geometry,
                   children=[node(prefix + ".reveal.fill", "sprite", fill_geometry, resource="original.gauge")])
     owner = node(prefix, children=[node(prefix + ".dark", "sprite", geometry, resource="original.gauge"), reveal], slot="hud.gauge")
-    scene = {"contract": motion.SCENE_CONTRACT, "root": node(f"omni.frame.{frame}.root"), "tracks": [], "variants": [],
+    modes = {"hard": "original.hard", "ex-hard": "original.ex-hard", "hazard": "original.hazard"}
+    scene = {"contract": motion.SCENE_CONTRACT, "root": node(f"omni.frame.{frame}.root"), "tracks": [], "variants": [
+                 {"id": prefix + ".modes", "target": reveal["children"][0]["id"], "property": "resource", "source": "gauge.type",
+                  "default": "original.gauge", "cases": [{"id": prefix + f".mode.c{i}", "key": key, "resource": resource}
+                                                         for i, (key, resource) in enumerate(modes.items())]}],
              "bindings": [{"id": prefix + ".value", "target": reveal["id"], "property": "reveal-x", "source": "gauge.value"}],
              "templates": [{"id": f"{namespace}.template.{layout}.gauge", "root": owner}], "instances": []}
-    manifest = {"contract": motion.MANIFEST_CONTRACT, "resources": []}
+    manifest = {"contract": motion.MANIFEST_CONTRACT, "resources": [
+        {"id": identifier, "type": "texture", "path": f"art/{identifier}.png", "filter": "nearest"}
+        for identifier in ["original.gauge", *modes.values()]]}
     return scene, manifest
+
+
+def legacy_front(scene, manifest, layout, frame="iidx33", width_px=6):
+    reveal = scene["templates"][0]["root"]["children"][1]
+    front_id = reveal["id"] + ".motion-front"
+    width = reveal["properties"]["width"] * (438 if frame in ("iidx27", "iidx28", "iidx29") else 440)
+    reveal["children"].append(node(front_id, "sprite", {"x": 0, "y": 0.5, "width": width_px / width, "height": 1,
+                                  "origin": "centre-left" if layout == "p2" else "centre-right",
+                                  "rotation": 180 if layout == "p2" else 0}, resource="old.dot.normal"))
+    scene["bindings"].append({"id": front_id + ".position", "target": front_id, "property": "x", "source": "gauge.value"})
+    scene["tracks"].append(motion._track(front_id + ".blink", front_id, "opacity", "timing.time", [(0, 0.2), (200, 1), (400, 0.2)]))
+    scene["variants"].append({"id": front_id + ".mode", "target": front_id, "property": "resource", "source": "gauge.type",
+                             "default": "old.dot.normal", "cases": [
+                                 {"id": front_id + ".mode.hard", "key": "hard", "resource": "old.dot.hard"},
+                                 {"id": front_id + ".mode.ex-hard", "key": "ex-hard", "resource": "old.dot.ex-hard"}]})
+    manifest["resources"].extend({"id": f"old.dot.{name}", "type": "texture", "path": f"art/motion/{frame}/{name}.png", "filter": "linear"}
+                                 for name in ("normal", "hard", "ex-hard"))
 
 
 class LightingMotionTest(unittest.TestCase):
@@ -142,38 +165,47 @@ class LightingMotionTest(unittest.TestCase):
                 self.assertEqual(before["templates"][0]["root"]["children"][1]["children"][0], reveal["children"][0])
                 front = reveal["children"][1]
                 self.assertEqual("gauge.value", next(item["source"] for item in scene["bindings"] if item["target"] == front["id"]))
-                self.assertEqual(180 if layout == "p2" else 0, front["properties"]["rotation"])
-                self.assertAlmostEqual(6, receipt["gaugeFront"]["fullBarWidthPx"] * front["properties"]["width"])
+                sample = front["children"][0]
+                self.assertAlmostEqual(6, receipt["gaugeFront"]["fullBarWidthPx"] * sample["properties"]["reveal-x"])
+                self.assertEqual("original.gauge", sample["children"][0]["resource"])
+                self.assertEqual(180 if layout == "p2" else 0, sample["children"][0]["properties"].get("rotation", 0))
                 glow = scene["templates"][1]["root"]
                 self.assertEqual("playfield.baseplate", glow["slot"])
                 self.assertEqual("alpha", glow["blend"])
                 self.assertEqual("gameplay/frames/iidx33/common/empty", scene["instances"][0]["material"]["resource"])
                 self.assertEqual("timing.beat", scene["tracks"][-1]["clock"])
-                self.assertEqual(4, len(manifest["resources"]))
+                self.assertEqual(len(before["variants"]) + 1, len(scene["variants"]))
+                self.assertEqual({"beat"}, receipt["artwork"].keys())
+                self.assertEqual(5, len(manifest["resources"]))
 
     def test_gauge_front_stays_inside_the_actual_fill_for_zero_partial_and_full(self):
-        for layout in ("p1", "p2"):
+        for layout in motion.LAYOUTS:
             scene, manifest = frame_scene(layout)
             receipt = motion.inject_frame(scene, manifest, frame_id="iidx33", source_map=source_map())
             width = receipt["gaugeFront"]["fullBarWidthPx"]
             owner = scene["templates"][0]["root"]
             dark, reveal = owner["children"]
             clip = reveal["properties"]
-            marker = reveal["children"][1]["properties"]
+            marker = reveal["children"][1]
+            sample = marker["children"][0]["properties"]
+            sample_fill = marker["children"][0]["children"][0]
+            position = next(track for track in scene["tracks"] if track["target"] == sample_fill["id"])
             dark_left = dark["properties"]["x"] * 440
             clip_sign = -1 if clip.get("rotation", 0) == 180 else 1
-            marker_sign = -1 if marker["rotation"] == 180 else 1
-            marker_origin = 0 if marker["origin"] == "centre-left" else marker["width"] * width
-            for gauge in (0, 0.28, 1):
-                corners = [clip["x"] * 440 + clip_sign * (gauge * width + marker_sign * (x - marker_origin))
-                           for x in (0, marker["width"] * width)]
+            for gauge in (0, 0.005, 0.28, 0.78, 0.8, 0.82, 1):
+                corners = [clip["x"] * 440 + clip_sign * (gauge + sample["x"] + x) * width
+                           for x in (0, sample["reveal-x"])]
                 mask_corners = [clip["x"] * 440, clip["x"] * 440 + clip_sign * width * gauge]
                 visible_left = max(min(corners), min(mask_corners))
                 visible_right = min(max(corners), max(mask_corners))
-                self.assertAlmostEqual(0 if gauge == 0 else 6, max(0, visible_right - visible_left))
-                if gauge:
+                self.assertAlmostEqual(min(gauge * width, 6), max(0, visible_right - visible_left))
+                if gauge * width >= 6:
                     expected_left = dark_left + width * (1 - gauge) if layout == "p2" else dark_left + width * gauge - 6
                     self.assertAlmostEqual(expected_left, visible_left)
+                sample_x = position["keyframes"][0]["value"] * (1 - gauge) + position["keyframes"][1]["value"] * gauge
+                # The duplicate source sprite has exactly the original world transform.
+                self.assertAlmostEqual(1 if layout == "p2" else 0, gauge + sample["x"] + sample_x)
+                self.assertFalse(position["loop"])
 
     def test_sd_source_is_projected_once_and_uses_its_own_originals(self):
         scene, manifest = frame_scene("p1", "iidx27")
@@ -181,7 +213,7 @@ class LightingMotionTest(unittest.TestCase):
         self.assertAlmostEqual(4 / 438, receipt["beatGeometry"]["x"])
         self.assertAlmostEqual(39 / 726, receipt["beatGeometry"]["height"])
         self.assertEqual("legacy", receipt["artwork"]["beat"]["source"]["root"])
-        self.assertEqual("0/gameparts", receipt["artwork"]["normal"]["source"]["package"])
+        self.assertEqual("0/gameparts", receipt["artwork"]["beat"]["source"]["package"])
 
     def test_all_bpl_node_namespaces_keep_catalog_roots_and_asset_paths(self):
         for frame in (identifier for identifier in motion.FRAMES if identifier.startswith("bpl-")):
@@ -194,7 +226,7 @@ class LightingMotionTest(unittest.TestCase):
                     self.assertEqual(f"{namespace}.{layout}.motion-beat", scene["templates"][-1]["root"]["id"])
                     self.assertEqual(f"gameplay/frames/{frame}/common/empty", scene["instances"][-1]["material"]["resource"])
                     self.assertEqual(frame, receipt["frame"])
-                    self.assertTrue(all(resource["path"].startswith(f"art/motion/{frame}/") for resource in manifest["resources"]))
+                    self.assertTrue(manifest["resources"][-1]["path"].startswith(f"art/motion/{frame}/"))
                     before = copy.deepcopy((scene, manifest))
                     motion.inject_frame(scene, manifest, frame_id=frame, source_map=source_map(frame))
                     self.assertEqual(before, (scene, manifest))
@@ -205,11 +237,109 @@ class LightingMotionTest(unittest.TestCase):
         before = copy.deepcopy((scene, manifest))
         motion.inject_frame(scene, manifest, frame_id="iidx33", source_map=source_map())
         self.assertEqual(before, (scene, manifest))
-        manifest["resources"][0]["path"] = "different.png"
+        manifest["resources"][-1]["path"] = "different.png"
         before = copy.deepcopy((scene, manifest))
         with self.assertRaises(ValueError):
             motion.inject_frame(scene, manifest, frame_id="iidx33", source_map=source_map())
         self.assertEqual(before, (scene, manifest))
+
+    def test_frontier_matches_every_gauge_mode_and_unknown_type_default(self):
+        for frame in motion.FRAMES:
+            for layout in motion.LAYOUTS:
+                with self.subTest(frame=frame, layout=layout):
+                    scene, manifest = frame_scene(layout, frame)
+                    fill = copy.deepcopy(scene["templates"][0]["root"]["children"][1]["children"][0])
+                    source_modes = copy.deepcopy(scene["variants"][0])
+                    motion.inject_frame(scene, manifest, frame_id=frame, source_map=source_map(frame))
+                    sample = scene["templates"][0]["root"]["children"][1]["children"][1]["children"][0]["children"][0]
+                    sample_modes = next(item for item in scene["variants"] if item["target"] == sample["id"])
+                    for mode in ("none", "assist-easy", "easy", "normal", "hard", "ex-hard", "hazard"):
+                        selected = lambda variant: next((case["resource"] for case in variant["cases"] if case["key"] == mode), variant["default"])
+                        self.assertEqual(selected(source_modes), selected(sample_modes))
+                    self.assertEqual(fill, scene["templates"][0]["root"]["children"][1]["children"][0])
+                    self.assertEqual(source_modes, scene["variants"][0])
+                    self.assertEqual("#404040ff", sample["properties"]["colour"])
+
+    def test_legacy_dot_upgrade_removes_unused_resources_and_preserves_compact_ids(self):
+        for frame in motion.FRAMES:
+            for layout in motion.LAYOUTS:
+                with self.subTest(frame=frame, layout=layout):
+                    scene, manifest = frame_scene(layout, frame)
+                    original = copy.deepcopy((scene, manifest))
+                    legacy_front(scene, manifest, layout, frame, width_px=8)
+                    # v15 compaction changes all node/track/variant IDs, not semantics.
+                    identifiers = []
+                    def gather(value):
+                        if isinstance(value, dict):
+                            if "id" in value:
+                                identifiers.append(value["id"])
+                            for child in value.values():
+                                gather(child)
+                        elif isinstance(value, list):
+                            for child in value:
+                                gather(child)
+                    gather(scene)
+                    replacements = {value: f"c{index}" for index, value in enumerate(identifiers)}
+                    def compact(value):
+                        if isinstance(value, dict):
+                            return {key: compact(child) for key, child in value.items()}
+                        if isinstance(value, list):
+                            return [compact(child) for child in value]
+                        return replacements.get(value, value) if isinstance(value, str) else value
+                    scene = compact(scene)
+                    before_fill = copy.deepcopy(scene["templates"][0]["root"]["children"][1]["children"][0])
+                    receipt = motion.replace_gauge_front(scene, manifest, frame_id=frame, layout=layout)
+                    self.assertTrue(receipt["migratedLegacyDot"])
+                    self.assertEqual({"old.dot.normal", "old.dot.hard", "old.dot.ex-hard"}, set(receipt["removedResources"]))
+                    self.assertEqual(original[1], manifest)
+                    self.assertEqual(before_fill, scene["templates"][0]["root"]["children"][1]["children"][0])
+                    before = copy.deepcopy((scene, manifest))
+                    receipt = motion.replace_gauge_front(scene, manifest, frame_id=frame, layout=layout)
+                    self.assertFalse(receipt["migratedLegacyDot"])
+                    self.assertEqual(before, (scene, manifest))
+
+    def test_legacy_upgrade_retains_a_dot_resource_still_used_elsewhere(self):
+        scene, manifest = frame_scene("p1")
+        legacy_front(scene, manifest, "p1")
+        scene["root"]["children"].append(node("independent", "sprite", resource="old.dot.normal"))
+        receipt = motion.replace_gauge_front(scene, manifest, frame_id="iidx33", layout="p1")
+        self.assertEqual({"old.dot.hard", "old.dot.ex-hard"}, set(receipt["removedResources"]))
+        self.assertIn("old.dot.normal", [resource["id"] for resource in manifest["resources"]])
+
+    def test_legacy_eight_pixel_marker_can_keep_its_existing_width(self):
+        scene, manifest = frame_scene("p2")
+        legacy_front(scene, manifest, "p2", width_px=8)
+        receipt = motion.replace_gauge_front(scene, manifest, frame_id="iidx33", layout="p2", gauge_dot_width_px=8)
+        self.assertEqual(8, receipt["projectedWidthPx"])
+        sample = scene["templates"][0]["root"]["children"][1]["children"][1]["children"][0]
+        self.assertAlmostEqual(8, sample["properties"]["reveal-x"] * receipt["fullBarWidthPx"])
+
+    def test_legacy_upgrade_rejects_changed_front_or_missing_art_without_partial_mutation(self):
+        for defect in ("geometry", "blink", "resource", "mode"):
+            with self.subTest(defect=defect):
+                scene, manifest = frame_scene("p1")
+                legacy_front(scene, manifest, "p1")
+                if defect == "geometry":
+                    scene["templates"][0]["root"]["children"][1]["children"][1]["properties"]["rotation"] = 1
+                elif defect == "blink":
+                    scene["tracks"][0]["keyframes"][0]["value"] = 0.3
+                elif defect == "resource":
+                    manifest["resources"].pop()
+                else:
+                    scene["variants"][-1]["cases"].pop()
+                before = copy.deepcopy((scene, manifest))
+                with self.assertRaises(ValueError):
+                    motion.replace_gauge_front(scene, manifest, frame_id="iidx33", layout="p1")
+                self.assertEqual(before, (scene, manifest))
+
+    def test_neutral_luminance_pulse_blinks_saturated_palettes_without_changing_hue(self):
+        for colour in ((0, 255, 255), (255, 0, 0), (255, 255, 0), (0, 199, 255)):
+            def composite(alpha):
+                return tuple(value * ((1 - alpha) + alpha * 64 / 255) for value in colour)
+            self.assertNotEqual(composite(0.2), composite(1))
+            for pixel in (composite(0.2), composite(1)):
+                self.assertEqual([index for index, value in enumerate(colour) if value == 0],
+                                 [index for index, value in enumerate(pixel) if value == 0])
 
     def test_unproven_or_asymmetric_source_glow_is_not_silently_replaced(self):
         for defect in ("missing", "tinted", "different-second-stage"):

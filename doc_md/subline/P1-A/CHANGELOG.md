@@ -1,5 +1,25 @@
 # P1-A 变动日志
 
+## 2026-10-22Autoplay跳转与Omni反馈修复
+
+连续±5秒跳转的故障已由真实移动ReplayPlayer时钟定因：一次350ms追帧会使source越过旧250ms接近窗口，seek目的地pin不再交还；score回调先发布当前时间，后续SynchroniseTiming却退回旧pin。现在frame-stable与source实际收敛时即交还，包含pending Reset阶段；默认事件、判定展示起点及对象progress统一取权威时间。保留完整Reset、原playfield重建屏障和epoch单调保护，没有吞异常、放宽容差或补额外Reset。修改前对照记录到真实source已经前进而pin落后约639ms；双玩法持续Stopwatch源、350ms追帧、多次向前/向后跳转及正常结算的回归通过。
+
+完整ModAutoplay的FAST/SLOW不再把自动应用判定的帧偏移当作玩家输入；加载时冻结标记，运行中不为每次判定扫描mods。原HitEvent.TimeOffset、判定等级、成绩与血量保持，真人PG仍按真实偏移分早晚。非整数BPM的实际BMS自动演奏自然产生非零正偏移，统计保持FAST=0/SLOW=0；人工正负PG对照保留。不是把所有Perfect Great方向清零。
+
+作品作者层将45份Game Frame布局的固定dot替换为原完整fill的同UV、同gauge.type资源分支，裁出原有8px前沿并作中性明暗脉冲；P2沿原180度补偿，不改引擎配色或原血条/数字。相同不透明原图只改alpha叠在自身上不会闪，此次实际像素已核变化。33源纹理的78%/80%/82%/100%及其它模式有CPU取色证据；正常Player的Normal、P2 Hard、DP EX Hard及27 Hazard两相取景仅前沿区域变化，原fill其它像素不变。400ms包络仍是作者适配，未提升为原机时序。
+
+Full Combo默认为fc24，角色原图明示33及果汁主题；fc00标为Common。生成、旧包重建和开场构建都用同一校准，所有25个持久选值、三个布局动画及其它选项/132预览保留，不读取或覆盖玩家已选配置。33默认真实Player取到第32/60/90帧并正常结算；原机菜单默认ID仍未独立实测。重建不沿用旧runtime/codec收据冒充当前包通过。
+
+本轮证据集中在忽略的`artifacts/omni-feedback-20261022/`。Python动画/构建器54+13项通过；Core `FullyQualifiedName~Skinning`范围1215通过/3跳过；真实双玩法seek及首排投影专项10项通过。作者CLI明确限定`OMS_AUTHORING_FILTER=frame,full-combo`，15框体与25款FC及其条件分支共280代表组合通过，初始整包文件/图片/设置/语法亦通过；其它CUSTOM组合未因此重新穷举。五组原生取景均普通导入新OSK→自然准备→实际Player自动演奏→正常结算，检查真实score、FAST/SLOW、所用fill纹理、前沿位置/明暗和无runtime fault，另保留mania16K逐轨三槽及光柱层级检查。
+
+完整BMS Release 2998通过/19跳过、mania Release 993通过/2跳过，均无失败。较宽的Core `FullyQualifiedName~Skin`误纳入旧BackgroundDataStoreProcessorTests：QuickOsz原含已移除玩法，实际导入3张mania却要求12张，在EnsureLoaded断言后宿主不退出；保留日志并仅停止已核对身份的该测试进程，不算通过，也未改无关夹具。此前开场阶段的Core三条预算夹具修正已包含在本次1215项Skinning范围，不能据此宣称完整Core或全仓测试全绿。
+
+最终`dotnet format osu.Desktop.slnf --verify-no-changes`按本轮C#文件及Core测试工程单独定点检查通过，Debug/Release Desktop.slnf均编译通过；保留原NU1902依赖及旧测试警告，没有publish或额外安装副本。客户端文档、总工作区导航/事实登记及差异检查按当前工作树核对，未改检查器或其它项目；新诊断入原有memory叶子及索引，不另建进度账本。具体命令、TRX、构建与成品收据保存在本轮证据目录。
+
+本地新版为独立`Lighting Model Skin Omni Until 33.v261022.osk`，只改目录默认及Frame前沿声明，移除三张不再引用的旧dot；其余保留源文件逐字节一致，旧作者源重核未变。闭包6529项、配置约15.56MiB，选中保守资源上界293，原归档/纹理/scene预算保持。最终成品与新作者、旧版本、来源和证据保留；原D盘HDD未访问，正式玩家数据未改，不内置OMS、不进入公开发行或作者套件。用户正常窗口复核、原机逐帧校准、前台帧时间、实体设备及原人工/发行门保持。
+
+收尾另交付一个精确staging目录的PowerShell清理工具，已通过`-WhatIf`并核最终作者/成品/五组原生证据；约310MiB，未代删除。复用的取景/作者检查宿主未清理，既有定点工具与其原执行状态保留；不清共享依赖、来源或证据。
+
 ## 2026-10-22Autoplay现场反馈与进度核准
 
 正常非调试运行的连续快进触发`InvalidOperationException: Gameplay skin timing cannot move backwards within an epoch`，栈经`GameplaySkinEventStream.SynchroniseTiming`至`GameplaySkinEventRuntimeHost.Update`；原runtime/performance只读副本与源摘要一致。源码中seek目的地钉住与score回调使用当前时间的混用为具体候选，尚无移动时钟的红绿回归，不称根因已定或已修。不能用10月21日PlayerLoader重进修复覆盖此故障，也不能放宽epoch单调性或吞异常。

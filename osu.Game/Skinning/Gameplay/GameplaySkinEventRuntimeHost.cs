@@ -156,6 +156,7 @@ namespace osu.Game.Skinning.Gameplay
             this.gameplayClockContainer = gameplayClockContainer;
             this.drawableRuleset = drawableRuleset;
             this.preparationController = preparationController;
+            prepareTimingCounts();
             preparePersonalBest(realm, api);
         }
 
@@ -280,9 +281,10 @@ namespace osu.Game.Skinning.Gameplay
         internal double GetObjectProgress(double startTime, double endTime)
         {
             double duration = endTime - startTime;
+            double time = AuthoritativeGameplayTime;
             return duration <= 0
-                ? currentTime < startTime ? 0 : 1
-                : Math.Clamp((currentTime - startTime) / duration, 0, 1);
+                ? time < startTime ? 0 : 1
+                : Math.Clamp((time - startTime) / duration, 0, 1);
         }
 
         internal void PublishObject(
@@ -396,7 +398,7 @@ namespace osu.Game.Skinning.Gameplay
                 }
             }
 
-            double appliedTime = currentTime;
+            double appliedTime = AuthoritativeGameplayTime;
             double displayUntil = appliedTime + GameplaySkinEventBudgets.JUDGEMENT_DISPLAY_DURATION;
             globalJudgement = new GameplaySkinCurrentJudgementStateSnapshot(GameplaySkinJudgementScope.Global, state, appliedTime, displayUntil);
 
@@ -509,12 +511,10 @@ namespace osu.Game.Skinning.Gameplay
 
             refreshFailureLifecycle();
 
-            // Keep the exact seek destination authoritative through the complete reset frame. The framed gameplay
-            // clock may still expose the old position to siblings later in that traversal; release the override only
-            // after it has actually converged on the destination.
-            if (pendingReset == GameplaySkinEventResetReason.Unspecified
-                && pendingDiscontinuityGameplayTime is double discontinuityTime
-                && Math.Abs(currentTime - discontinuityTime) <= 250)
+            // Keep the seek destination authoritative until the frame-stable clock has caught up to its source.
+            // A running source may already be far beyond the original destination after a long catch-up update;
+            // the complete Reset must describe that rebuilt playfield time, not remain pinned to the old request.
+            if (pendingDiscontinuityGameplayTime.HasValue && Time.Current == currentTime)
             {
                 pendingDiscontinuityGameplayTime = null;
             }
@@ -977,7 +977,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinEventValue payload,
             GameplaySkinLaneGroupId? groupId = null,
             GameplaySkinLaneId? laneId = null)
-            => publish(currentTime, payload, groupId, laneId);
+            => publish(AuthoritativeGameplayTime, payload, groupId, laneId);
 
         private void publish(
             double gameplayTime,

@@ -7,11 +7,36 @@ import unittest
 
 from build_lighting_details import (bga_ini, compact_added_textures, compact_intro_keyframe_ids,
     compact_frame_resource_ids, compact_scene_identifiers, select_frame_layouts, select_turntable_frame, share_turntable_geometry, deduplicate_inis)
+from build_omni_skin import calibrate_full_combo
 import lighting_motion
 from test_lighting_motion import turntables
 
 
 class LightingDetailsBuilderTest(unittest.TestCase):
+    def test_full_combo_uses_33_theme_while_preserving_all_saved_values_and_original_contributions(self):
+        module = {"id": "full-combo", "label": "Full Combo Effect", "default": "fc00", "choices": [
+            {"value": f"fc{number:02}", "label": f"Full Combo {number:02}",
+             "manifest": f"config/m{number}.json", "scene": f"config/s{number}.json"}
+            for number in range(25)]}
+        catalog = {"modules": [{"id": "frame", "default": "iidx33", "choices": []}, module]}
+        original = copy.deepcopy(catalog)
+        receipt = calibrate_full_combo(catalog)
+        expected = copy.deepcopy(original)
+        expected["modules"][1]["default"] = "fc24"
+        expected["modules"][1]["choices"][0]["label"] = "Full Combo 00 · Common"
+        expected["modules"][1]["choices"][24]["label"] = "Full Combo 24 · 33 Sparkle Shower"
+        self.assertEqual(expected, catalog)
+        self.assertEqual('fc00', receipt['previousDefault'])
+        self.assertEqual('not-captured', receipt['originalGameMenuDefaultMapping'])
+        self.assertTrue(receipt['choiceValuesAndContributionsPreserved'])
+        calibrate_full_combo(catalog)
+        self.assertEqual(expected, catalog)
+
+    def test_full_combo_rebuild_refuses_missing_33_art_instead_of_selecting_a_different_effect(self):
+        for modules in ([], [{"id": "full-combo", "default": "fc00", "choices": [{"value": "fc00"}]}]):
+            with self.subTest(modules=modules), self.assertRaises(ValueError):
+                calibrate_full_combo({"modules": modules})
+
     def test_identical_ini_variants_share_bytes_without_merging_different_layouts(self):
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary)

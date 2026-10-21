@@ -8,6 +8,8 @@
 
 组合作者包的预算按最终选中贡献核对。隐藏其它框体的转盘仍会执行轨迹，宜在加载期选定当前框体；作者布局也只保留对应单双侧声明。原PNG可用短内容标识而不重绘，关键帧可缩短ID而不丢采样，但每个dot segment仍须字母开头，数字摘要与数组序号都要前缀。BPL catalog的`bpl-team`与原节点`bpl.team`是不同身份，不应改写原素材marker路径。
 
+血条闪烁前沿不能仅按gauge.type换三张固定dot：NORMAL过80变红、不同Frame的EX HARD/Hazard配色由原fill定义。复制当前完整fill及同一mode资源分支，保持完整UV并只裁末端窄条；P2沿原180度补偿。同图alpha叠在自身上不会闪烁，窄条须作中性明暗调制，不能凭opacity轨迹存在认定画面有变化。v15成品前沿实际8px（调用方覆盖helper默认6px），迁移须核原包，勿把默认参数当旧实物。FC的fcombo24角色原图明示33及果汁主题，可确定主题身份，但不能据此宣称已实测原机菜单默认ID；保留fc00通用款及全部旧选值。
+
 IIDX游标核源：原PNG画布不等同于GEO显示尺寸，SD投影和DP横缩分别沿实际源几何；DP命名游标在dp_frame_1p、S/E标记在center_frame_dp_1p，不能只查center movie或按同名实例去重。容器表示行程、子图相对y绑定timing.progress时，子图高度须除以行程高度，保持实际游标尺寸；不能用负scale-x实现镜像（公开codec只接受非负缩放），左右原RGBA确实对称时可共用原图。稳定ID的每个dot segment须以小写字母开始，数组序号使用o0而不是裸0；Python结构检查不能代替真实SkinAuthoring codec检查。完整当前验证仍取P1-A STATUS。
 
 材料Diagnostics为空不证明C3无布局警告：BGA窗口诊断另合入PersistenceSafeDiagnostics/Batch，成功commit后才异步发布全局通知，提示可能跨下一玩法延续。定位须对照原始日志时间、已提交snapshot与同输入旧包，不能凭截图归给当前玩法或窄窗口。显式作者stage命中会覆盖按窗口比例算的轨道宽度，但其BGA窗仍须避开固定HUD保留带；任一窗口失败按合同整组省略，不以放宽通用solver掩盖作者几何错误。

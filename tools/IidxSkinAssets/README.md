@@ -25,11 +25,13 @@ dotnet run --project tools/SkinAuthoring -- check 'Y:\OmniAuthor'
 
 `note_geometry.py`在完整导出和旧包重建时分别归一BMS与mania的单点、长条头尾。BMS原22.5载体、模板及身体保持；mania按原00标记图尺寸和实际48参考宽度换算高度/偏移，以不同C4资源名选择专用模板，只复制九张原图为逐字节相同的标记别名。不改图片或公共host，不同时实例化两套音符；CN/HCN资源变体保留。真实游玩须另核原生AutoSize高度、替代Sprite矩形及1080p原图尺寸，codec或自动演奏计分通过不证明音符可见。
 
-根options使用33框体、源00部件、normal尺寸；Graph默认关闭。最新细节构建器接入真实当前/理论满分、符合当前用户/谱面/玩法/完整mods的有效本地个人最好，以及BMS EX的AAA/AA/A目标；无记录或非EX玩法不制造目标值，没有联网对手成绩。LIFT仅跟随BMS原生抬升。FC保留三布局终止空帧和原时长，19为3500ms、24为3000ms，其它2500ms；滤镜顺序和真实host设置仍待原版画面校准。
+根options使用33框体、源00部件、normal尺寸；FC默认为已确认33主题的fc24，fc00标为通用款，全部25个旧选值保留。fcombo24原角色图明示33及果汁主题，原机菜单默认ID尚未实测；生成或重包不会读取、改写玩家已保存选值。Graph默认关闭。最新细节构建器接入真实当前/理论满分、符合当前用户/谱面/玩法/完整mods的有效本地个人最好，以及BMS EX的AAA/AA/A目标；无记录或非EX玩法不制造目标值，没有联网对手成绩。LIFT仅跟随BMS原生抬升。FC保留三布局终止空帧和原时长，19为3500ms、24为3000ms，其它2500ms；滤镜顺序和真实host设置仍待原版画面校准。
 
-`build_lighting_details.py`在已验证的完整v14作者目录上增量制作开场版本，写入全新作者目录及相邻`.osk`。旧CUSTOM、FC、默认和INI沿用原值；`lighting_lane_intro.py`消费15框体各自SP/DP的原始轨道开场记录，`lighting_ready.py`消费完整`1p_ready`父movie（含出现和退场），`lighting_panels.py`换用完整JUDGE原图并声明实际AUTO/有符号偏移与滑入。旧外框组件入场曲线保留，仅切到公开准备时钟；不向规则集加入IIDX布局或演出名字。
+`build_lighting_details.py`在已验证的完整v14作者目录上增量制作开场版本，写入全新作者目录及相邻`.osk`。旧CUSTOM、FC资源和INI保留，只校准上述FC默认与两款标签；`lighting_lane_intro.py`消费15框体各自SP/DP的原始轨道开场记录，`lighting_ready.py`消费完整`1p_ready`父movie（含出现和退场），`lighting_panels.py`换用完整JUDGE原图并声明实际AUTO/有符号偏移与滑入。旧外框组件入场曲线保留，仅切到公开准备时钟；不向规则集加入IIDX布局或演出名字。
 
 Graph开启时收窄SP的原生BGA窗口；DP使用左侧视频，右列留给图表。DP的JUDGE位于右下角，单独开启时限制右侧视频底端；旧27DP窗口跨入底部HUD保留区的问题在作者INI修正，不放宽公共避让检查。默认Graph/JUDGE关闭，首排预告、外框入场、轨道开场和GET READY开启，可分别切换。预告保留原`start_notes_s/w/b`三图，仅筛选全谱最早同排，并在原生音符进入可视区域前退出，不等待命中；空槽或之后各轨的首音不再另播。位置、蓝光波形、血条闪烁周期、转盘常转速度及2P方向仍为作者适配，不能当作原机精确校准。
+
+`lighting_motion.replace_gauge_front`可在冻结的v15贡献上迁移前沿，不重新解包或改写原图。每个唯一Frame布局调用一次，v15实物宽8px须显式传`gauge_dot_width_px=8`；当前完整fill及其mode分支沿完整UV裁出末端窄条，P2保留原补偿。中性明暗调制使前沿真正闪烁，NORMAL过线及Hard/EX HARD/Hazard跟随本体颜色，通用引擎不写IIDX颜色规则；旧dot声明仅在无引用时退休，物理文件由新闭包排除。迁移冲突不提交半改，重复执行不变；作者发布后仍须检查公开codec和原生绘制。
 
 各款转盘只在加载期选择当前框体贡献，游玩不计算其它14框体的马达。设备相对counts与校准revolutions分开叠加；数字键/Auto/旧回放没有可证明的带符号运动时仅显示常转。新增纹理使用短内容标识、原PNG字节和原采样；入场声明仅缩短ID，保留全部时间与几何采样。46种转盘按所选清单共用15份相同几何，原图/滤波各自保留；相同INI按原字节去重。scene大小为数字归一化预留空间；整包配置仍守导入16MiB，C2捕获的64MiB结构预算不替代它。实际选中资源/像素/scene/manifest预算均需检查，普通包不声明这些能力时保持原流程。
 

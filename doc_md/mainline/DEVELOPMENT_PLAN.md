@@ -1,11 +1,11 @@
 # OMS 当前开发规划
 
-> 最后核对：2026-10-22（先闭合Autoplay现场问题；原产品与发行门保持）
+> 最后核对：2026-10-22（现场修复后正常窗口复核；原产品与发行门保持）
 > 本页维护全局顺序、跨线依赖和改动验收；当前事实见[STATUS](DEVELOPMENT_STATUS.md)，专项动作从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 当前目标
 
-先按[P1-A现场修复](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)处理Autoplay跳转崩溃、真实时机统计及作品配色/默认FC，补移动时钟下的连续跳转回归；完成后沿下方P1-B/P1-E/P1-J/P1-L与P1-G验证真实设备、长条/键音/BGA和长期体验。[既有游玩审查](../other/GAMEPLAY_REVIEW_20261019.md)作为输入，不扩成无现场依据的重构。正常窗口、隔离宿主与发行证据分开。
+按[P1-A修复后复核](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)在正常窗口检查Autoplay跳转、统计及新包血条/默认FC；沿下方P1-B/P1-E/P1-J/P1-L与P1-G验证真实设备、长条/键音/BGA和长期体验。[既有游玩审查](../other/GAMEPLAY_REVIEW_20261019.md)作为输入，不扩成无现场依据的重构。正常窗口、隔离宿主与发行证据分开。
 
 2026-10-18 用户授权 IIDX 历代第三方皮肤，按指定代数制作并校准本地游玩候选；实际缺少的表现能力连同首个组件补齐。历代来源由用户按已确认缺口补充，后续增量界面保留原界面选项；范围和顺序只取 [P1-A 计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)，不恢复静线打磨或改变原 release 门。
 

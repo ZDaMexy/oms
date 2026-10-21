@@ -21,7 +21,7 @@ envelope/scene ABI、版本与producer合同见 [P1-A CONSTRAINTS](../../doc_md/
 - canonical cursor检查过滤前完整流。初次attach先完整Snapshot，可从mid-session非负epoch/sequence high-water进入；同epoch sequence严格+1/time不递减，换epoch严格+1。
 - Reset是下一epoch、sequence0的完整原子baseline，可前后重锚时间，不是先清空稍后再Snapshot。layout revision在attachment内不回退；Edge匹配当前revision。
 - 真 Player seek 会让 frame-stable clock 遍历中间位置，固定“一次 Update”可能只重建中间 playfield。2026-09-30 转谱实测 Reset 为空、相同目标时刻的后续 attach 已有音符；应先等 frame-stable clock 与 gameplay clock 收敛，再走既有一帧 playfield barrier，不新增时钟或调度器。Reset 自身仍须包含目标位置的完整状态，不能改成接受稍后 spawn 补齐。强断言与证据见[性能记录](../../doc_md/other/GAMEPLAY_PERFORMANCE_20260930.md)。
-- 静止在seek目的地的人工时钟不能覆盖持续Autoplay追帧。遇到`timing cannot move backwards within an epoch`，同时核frame-stable时间、原gameplay时钟、待提交目的地及score回调时间，不以放宽单调保护、额外Reset或吞异常冒充修复；具体未闭合问题只在[P1-A风险](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md#当前风险与未完成项)维护。
+- 静止在seek目的地的人工时钟不能覆盖持续Autoplay追帧。350ms长更新会使source越过旧250ms接近窗口，目标pin若不交还，score回调先推进流、下一帧SynchroniseTiming再退回旧pin，触发同epoch回退。交还条件必须是frame-stable与真实source收敛，含pending Reset阶段；默认事件、判定展示起点及对象progress统一取该权威时间，不放宽单调保护、增加Reset或吞异常。双玩法真实ReplayPlayer回归使用持续Stopwatch源、长更新和连续±5秒，不冻结在目的地。
 - 拒绝不改变last accepted，不排序/补洞/自动修复；long.MaxValue不能wrap。bounded queue溢出通过明确Reset/Snapshot重建，不静默丢事件。
 - filtered view若保留原sequence可有gap，不能把过滤前连续性cursor直接接到它后面。
 - engine可发GameplayResumed；scene state-machine不接受gameplay.resume，因为Snapshot重建Running。这不是漏producer，也不授权另一套状态。
@@ -46,6 +46,8 @@ envelope/scene ABI、版本与producer合同见 [P1-A CONSTRAINTS](../../doc_md/
 publication与late attach见 [[reference_skin_atomic_reload_detach]]；capability/family filtering见 [[reference_gameplay_skin_capability_negotiation]]。
 
 ## 完整 HUD 的公开信息与真实显示
+
+- FAST/SLOW观察的是玩家输入时机，不是判定等级。BMS Autoplay在下一次Update应用MaxResult时可留下整帧正偏移；仅过滤1ns浮点残差不能消除假SLOW。加载时冻结完整ModAutoplay标记，自动局的方向计数为0，保留原HitEvent.TimeOffset/成绩；真人PG的正负方向照常统计。真实测试用非整数BPM与多个自然命中，整数节拍恰好对齐回放帧会掩盖该问题。结果页退出须走实际Player合同，不能在ShowResults=false组合下仍要求PerformExit跳到菜单。
 
 - `hud.text`接管会替换原准确率与歌曲进度owner；不能仅验证gate ready或旧owner隐藏。`score.accuracy`数值0～1，text是固定两位百分数；`timing.progress`数值0～1，text是整数百分数。两者走普通scene绑定，不需要脚本权限，也不是canonical专属字段。
 - 进度只由`GameplaySkinEventRuntimeHost`使用既有`CalculatePlayableBounds`及同一个gameplay时间生成，包含最后长条结束；首物件前0、末物件后1，空谱/零时长0。原ruleset timing投影继续提供beat/BPM/stop/scroll；不要用更新时钟、累计帧数或另一timeline算进度。完整Snapshot/Reset、compact timing payload和晚订阅均须保留Progress。
