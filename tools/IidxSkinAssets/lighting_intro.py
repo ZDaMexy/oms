@@ -16,7 +16,7 @@ import struct
 import xml.etree.ElementTree as ET
 
 CANVAS = (1920, 1080)
-CLOCK = "timing.elapsed"
+CLOCK = "preparation.elapsed"
 LAYOUTS = ("p1", "p2", "dp")
 PACKAGE = "contents/data/graphic/gmframe33.ifs"
 DURATION_MS = 1000
@@ -367,8 +367,8 @@ def _budget(document, manifest):
 def inject(document, manifest, *, frame, layout, reference=None, assets=None, duration_ms=DURATION_MS):
     """Replace one baked background owner with a bounded temporary assembly.
 
-    Ordinary source values remain untouched.  timing.elapsed is a read-only
-    track clock; when the actual start is unavailable its programs must not be
+    Ordinary source values remain untouched. preparation.elapsed is a read-only
+    track clock; when the preparation is unavailable its programs must not be
     applied, leaving the static baked default intact (including after reset).
     """
     if layout not in LAYOUTS or not isinstance(frame, str) or not frame:
@@ -425,6 +425,42 @@ def inject(document, manifest, *, frame, layout, reference=None, assets=None, du
             "timingAdaptation": "Original 33 source 0..180 (3000ms) compressed uniformly into the authored duration" if frame == "iidx33" else
                 "Independent authored regional motion; no original timing claim",
             "handover": "At duration, restore the exact existing baked background; no change to native notes, beam, hit line or judgement",
-            "inactiveClock": "Skip timing.elapsed programs and restore static properties when no real start is available",
+            "inactiveClock": "Skip preparation.elapsed programs and retain complete static preview when preparation is unavailable",
             "sourceTextureIds": sorted(texture_ids), "addedDecodedTextureBytes": sum(item["width"] * item["height"] * 4 for item in source_textures),
             "frameRasters": 0, "budgets": budgets}
+
+
+def upgrade_existing(document, *, layout):
+    """Move v14's exact assembly samples onto preparation, with a static preview."""
+    templates = [item for item in document["templates"] if item["id"].endswith(f".template.{layout}.background")]
+    if len(templates) != 1 or templates[0]["root"]["type"] != "container":
+        raise ValueError("The source must contain one assembled Frame background")
+    root = templates[0]["root"]
+    nodes = {node["id"]: node for node in _walk(root)}
+    enabled_ids = [binding["target"] for binding in document["bindings"]
+                   if binding.get("source") == "option.entrance-animation" and binding["target"] in nodes]
+    if len(enabled_ids) != 1:
+        raise ValueError("The original Frame assembly option owner changed")
+    enabled = nodes[enabled_ids[0]]
+    if len(enabled["children"]) != 2 or enabled["children"][1]["type"] != "sprite":
+        raise ValueError("The original baked handover is incomplete")
+    prefix = root["id"] + ".preparation"
+    animated = _node(prefix + ".active", properties={"visible": False}, children=enabled["children"])
+    static = copy.deepcopy(enabled["children"][1])
+    static["id"] = prefix + ".preview"
+    static["properties"].update({"visible": True, "opacity": 1})
+    enabled["children"] = [animated, static]
+    document["bindings"].append({"id": prefix + ".available", "target": animated["id"],
+                                 "property": "visible", "source": "preparation.available"})
+    document["variants"].append({"id": prefix + ".preview-visible", "target": static["id"],
+        "property": "visible", "source": "preparation.available", "default": False,
+        "cases": [{"id": prefix + ".preview-unavailable", "key": "false", "value": True}]})
+    migrated = 0
+    for track in document["tracks"]:
+        if track.get("clock") == "timing.elapsed" and track["target"] in nodes:
+            track["clock"] = CLOCK
+            migrated += 1
+    if not migrated:
+        raise ValueError("The original Frame has no assembly clock to migrate")
+    return {"clock": CLOCK, "migratedTracks": migrated, "originalKeyframesPreserved": True,
+            "staticPreviewWhenUnavailable": True, "animationDurationMs": DURATION_MS}

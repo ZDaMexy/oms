@@ -309,7 +309,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
         }
 
         [Test]
-        public void TestSharedIdenticalResourceIsPreparedOnceAndActiveResourceLimitIsUnchanged()
+        public void TestSharedIdenticalResourceIsPreparedOnceAndFrozenCombinationResourceCountIsBounded()
         {
             var fixture = new Package();
             fixture.AddBranch("first", new Rgba32(255, 0, 0), 0.1);
@@ -337,6 +337,21 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 {
                     var resources = (JArray)json["resources"]!;
                     for (int index = 1; index < 129; index++)
+                    {
+                        string path = branch + ".n" + index + ".png";
+                        resources.Add(new JObject { ["id"] = branch + ".n" + index, ["type"] = "texture", ["path"] = path });
+                        fixture.Files[path] = fixture.Files[branch + ".png"];
+                    }
+                });
+            }
+            captured = fixture.Capture();
+            Assert.That(captured.Select(resolve(captured, "bms"), CancellationToken.None).Resources, Has.Count.EqualTo(258));
+            foreach (string branch in new[] { "first", "second" })
+            {
+                fixture.EditJson(branch + "/manifest.json", json =>
+                {
+                    var resources = (JArray)json["resources"]!;
+                    for (int index = 129; index < (branch == "first" ? 193 : 192); index++)
                     {
                         string path = branch + ".n" + index + ".png";
                         resources.Add(new JObject { ["id"] = branch + ".n" + index, ["type"] = "texture", ["path"] = path });

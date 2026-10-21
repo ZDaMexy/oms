@@ -33,6 +33,8 @@ JUDGE_BOUNDS = {"p1": (596, 923, 280, 142), "p2": (1044, 923, 280, 142),
 
 JUDGE_SOURCES = {"fast": "judgement.count.fast", "slow": "judgement.count.slow",
                  "offset": "offset.value", "offset-available": "offset.available", "automatic": "offset.automatic"}
+PREPARATION_CLOCK = "preparation.elapsed"
+JUDGE_ENTRANCE_MS = 500
 GRAPH_TARGETS = {
     "maximum": {"label": "MAXIMUM", "value": "score.maximum", "progress": None, "available": "score.maximum-available"},
     "personal-best": {"label": "MY BEST", "value": "score.personal-best", "progress": "score.personal-best-progress",
@@ -170,7 +172,9 @@ def prepare_assets(library: Path, output: Path):
                        ("gr_line_a", (410, 18)), ("gr_line_under", (404, 4))):
         asset(GRAPH_PACKAGE, name, size, "omni.lighting." + name.replace("_", "-"),
               "art/lighting-panels/" + name + ".png")
-    for name, size in (("judge_waku", (180, 142)), ("judge_auto_on", (58, 22))):
+    for name, size in (("judge_waku", (180, 142)), ("judge_auto", (280, 142)),
+                       ("judge_auto_flip", (280, 142)), ("judge_auto_on", (58, 22)),
+                       ("judge_bar", (76, 16)), ("judge_bar_auto", (76, 16))):
         asset(JUDGE_PACKAGE, name, size, "omni.lighting." + name.replace("_", "-"),
               "art/lighting-panels/" + name + ".png")
     return {"resources": resources,
@@ -260,6 +264,32 @@ def build_graph(identifier, layout, *, targets=None):
                         "dp": "author application of right-hand graph; not an original DP capture" if layout == "dp" else None}}
 
 
+def _panel_sample(identifier, bounds, resource, source_rectangle):
+    """Sample original plate pixels through a bounded viewport, without a new PNG.
+
+    The intermediate scale follows the existing source-frame clip helper. It
+    keeps tiny shortcut-key patches inside the public relative-size budget.
+    """
+    x, y, width, height = bounds
+    sx, sy, sw, sh = source_rectangle
+    if width <= 0 or height <= 0 or sw <= 0 or sh <= 0 or sx < 0 or sy < 0 or sx + sw > 280 or sy + sh > 142:
+        raise ValueError("Judge source sampling must stay inside the original plate")
+    image = _node(identifier + ".image", "sprite", {
+        "x": -sx / (sw * 32), "y": -sy / (sh * 32),
+        "width": 280 / (sw * 32), "height": 142 / (sh * 32)}, resource=resource)
+    space = _node(identifier + ".space", properties={"width": 4, "height": 4, "scale-x": 8, "scale-y": 8},
+                  children=[image])
+    return _node(identifier, "clip", {"x": x / 1920, "y": y / 1080, "width": width / 1920,
+                 "height": height / 1080, "clip-mode": "bounds"}, children=[space])
+
+
+def _track(identifier, target, prop, clock, values, *, easing="linear"):
+    return {"id": identifier, "type": "tween", "target": target, "property": prop,
+            "easing": easing, "loop": False, "clock": clock,
+            "keyframes": [{"id": identifier + ".k" + str(index), "time": time, "value": value}
+                          for index, (time, value) in enumerate(values)]}
+
+
 def build_judge(identifier, layout, *, sources, bounds=None, counter_font=JUDGE_FONT):
     """Build BMS original-statistics art and a correctly labelled mania view.
 
@@ -277,6 +307,12 @@ def build_judge(identifier, layout, *, sources, bounds=None, counter_font=JUDGE_
     root = _node(identifier, properties={"z": -30, "visible": False}, slot="decoration")
     bindings = [_bind(identifier, "visible", "option.judge-panel-visible")]
     variants = []
+    # The source plate is static. Its host slides it into the lower margin;
+    # this bounded author timing follows that direction without claiming the
+    # unavailable original host duration. A preview without preparation keeps
+    # the authored static y=0 rather than hiding the panel below the screen.
+    tracks = [_track(identifier + ".entrance", identifier, "y", PREPARATION_CLOCK,
+                     [(0, (1080 - y) / 1080), (JUDGE_ENTRANCE_MS, 0)], easing="out")]
 
     def counter(suffix, rectangle, source):
         px, py, pw, ph = rectangle
@@ -300,16 +336,26 @@ def build_judge(identifier, layout, *, sources, bounds=None, counter_font=JUDGE_
     bms = _node(identifier + ".bms", properties={"visible": False})
     mania = _node(identifier + ".mania", properties={"visible": False})
     variants.extend([_show(bms["id"], "layout.ruleset", "bms"), _show(mania["id"], "layout.ruleset", "mania")])
-    bms["children"].append(_box(identifier + ".original-frame", (x, y, 180, 142),
-                                 resource="omni.lighting.judge-waku"))
-    # The no-shortcut judge movie has row centres 42/58/.../122 and original
-    # 14px glyphs whose origin is 7/7.  Values retain all actual digits.
+    flipped = layout == "p2"
+    plate = "omni.lighting.judge-auto-flip" if flipped else "omni.lighting.judge-auto"
+    bms["children"].append(_box(identifier + ".original-frame", (x, y, 280, 142), resource=plate))
+    # Sample the plate's own empty black field over the HDD-only 0/9/3 keys.
+    # Nothing in this read-only panel advertises a keyboard operation that OMS
+    # does not implement. The complete source PNG remains byte-for-byte intact.
+    shortcuts = ((91, 10), (7, 10), (7, 113)) if flipped else ((103, 10), (190, 10), (190, 113))
+    for index, (px, py) in enumerate(shortcuts):
+        bms["children"].append(_panel_sample(identifier + ".shortcut" + str(index),
+            (x + px, y + py, 20, 20), plate, (70, 31, 20, 20)))
+    # Complete judge_auto has row centres 44/60/.../124. Original 14px
+    # glyphs have a 7/7 origin; the display reserves more than four digits.
+    count_x = 207 if flipped else 38
     for row, (suffix, source) in enumerate((("pg", "judgement.count.perfect"), ("gr", "judgement.count.great"),
         ("gd", "judgement.count.good"), ("bd", "judgement.count.meh"), ("pr", "judgement.count.miss"),
         ("cb", "combo.breaks"))):
-        bms["children"].append(counter("bms-" + suffix, (45, 35 + row * 16, 63, 14), source))
-    for suffix, source, py in (("fast", sources["fast"], 67), ("slow", sources["slow"], 115)):
-        bms["children"].append(counter("bms-" + suffix, (114, py, 63, 14), source))
+        bms["children"].append(counter("bms-" + suffix, (count_x, 37 + row * 16, 63, 14), source))
+    fast_x = 107 if flipped else 110
+    for suffix, source, py in (("fast", sources["fast"], 69), ("slow", sources["slow"], 117)):
+        bms["children"].append(counter("bms-" + suffix, (fast_x, py, 63, 14), source))
     mania["children"].append(text("mania-title", "JUDGE", (8, 7, 168, 20), 16))
     for row, (caption, suffix) in enumerate((("MAX", "perfect"), ("300", "great"), ("200", "good"),
                                           ("100", "ok"), ("50", "meh"), ("MISS", "miss"))):
@@ -323,21 +369,42 @@ def build_judge(identifier, layout, *, sources, bounds=None, counter_font=JUDGE_
         mania["children"].extend([label, value])
     offset = _node(identifier + ".offset", properties={"visible": False})
     bindings.append(_bind(offset["id"], "visible", sources["offset-available"]))
-    offset["children"].append(text("offset-label", "OFFSET ms", (186, 38, 94, 18), 12))
-    value = text("offset-value", "", (186, 61, 94, 24), 18, format="fixed-2", alignment="right")
+    center = 53 if flipped else 236
+    pointer = _node(identifier + ".offset-pointer", children=[_box(identifier + ".offset-bar",
+        (x + center - 38, y + 63, 76, 16), resource="omni.lighting.judge-bar")])
+    # The original horizontal bar marks the zero reference. The actual signed
+    # value is displayed in OMS milliseconds below, rather than relabelling it
+    # as the HDD's adjustment units or implying original shortcut controls.
+    variants.append({"id": identifier + ".offset-bar.mode", "target": identifier + ".offset-bar",
+                     "property": "resource", "source": sources["automatic"], "default": "omni.lighting.judge-bar",
+                     "cases": [{"id": identifier + ".offset-bar.auto", "key": "true",
+                                "resource": "omni.lighting.judge-bar-auto"}]})
+    offset["children"].append(pointer)
+    # Keep the source horizontal pointer visible at either edge of the actual
+    # readout. The numeric black field is sampled from the original plate.
+    offset["children"].append(_panel_sample(identifier + ".offset-field",
+        (x + center - 33, y + 63, 66, 16), plate, (60, 31, 66, 16)))
+    value = text("offset-value", "", (center - 35, 64, 70, 16), 13,
+                 format="signed-fixed-2", alignment="centre")
     bindings.append(_bind(value["id"], "text", sources["offset"]))
-    automatic = _box(identifier + ".automatic", (x + 197, y + 94, 58, 22),
+    offset["children"].append(text("offset-label", "ms", (center - 10, 82, 20, 12), 9,
+                                 alignment="centre", colour="#ddddddff"))
+    automatic = _box(identifier + ".automatic", (x + (112 if flipped else 124), y + 9, 58, 22),
                      resource="omni.lighting.judge-auto-on", visible=False)
     bindings.append(_bind(automatic["id"], "visible", sources["automatic"]))
     offset["children"].extend([value, automatic])
-    root["children"] = [bms, mania, offset]
-    return {"roots": [root], "bindings": bindings, "variants": variants,
+    bms["children"].append(offset)
+    root["children"] = [bms, mania]
+    return {"roots": [root], "bindings": bindings, "variants": variants, "tracks": tracks,
             "receipt": {"canvas": list(CANVAS), "bounds": list(bounds),
-                        "source": "1/gameparts judge movie + judge_waku/judge_num*/judge_auto_on original PNGs",
+                        "source": "1/gameparts judge_auto/flip full original plate, judge_num*, judge_bar/auto and judge_auto_on PNGs",
                         "bmsRows": "PG perfect, GR great, GD good, BD meh, PR miss, CB actual combo breaks; empty POOR ok is not PR",
                         "maniaRows": "MAX/300/200/100/50/MISS are mania's own six judgement results",
-                        "authorAdaptation": "Main-screen anchor and right-side millisecond offset readout; not IIDX adjustment units",
-                        "controls": "Read-only; original 0/9/3 shortcut artwork omitted because it is not an OMS input contract",
+                        "authorAdaptation": "Main-screen anchor; actual signed OMS millisecond readout, not IIDX adjustment units; mania retains its own six-tier labels",
+                        "controls": "Read-only; plate's own black pixels cover only the original 0/9/3 shortcuts, which are not OMS controls",
+                        "automatic": "Original unlit AUTO ADJUST text for OFF; original orange lamp and pointer for actual ON",
+                        "entry": {"clock": PREPARATION_CLOCK, "durationMs": JUDGE_ENTRANCE_MS,
+                                  "source": "Author timing for the observed host-controlled slide from below; original plate itself is static"},
                         "counterFont": "original judge_num 14px" if counter_font == JUDGE_FONT else
                             "author adaptation: original graph digits at 14px height and 0.6 horizontal scale; existing eight-font budget retained",
                         "unavailableOffset": "Hidden; no default or simulated automatic state"}}
@@ -373,11 +440,17 @@ def inject(document, manifest, assets, *, layout, judge_sources, targets=None, j
                                            "material": {"slot": "decoration", "resource": marker}})
         document["bindings"].extend(feature["bindings"])
         document["variants"].extend(feature["variants"])
+        document.setdefault("tracks", []).extend(feature.get("tracks", []))
     used_fonts = {GRAPH_FONT, counter_font}
     fonts = [item for item in assets["fonts"] if item["id"] in used_fonts]
     used_resources = {item["resource"] for font in fonts for item in font["glyphs"]}
     used_resources.update(item["resource"] for feature in (graph, judge) for root in feature["roots"]
                           for item in walk(root) if item.get("resource"))
+    for feature in (graph, judge):
+        for variant in feature["variants"]:
+            if variant["property"] == "resource":
+                used_resources.add(variant["default"])
+                used_resources.update(case["resource"] for case in variant["cases"])
     resources = [item for item in assets["resources"] if item["id"] in used_resources]
     for field, additions in (("resources", resources), ("bitmapFonts", fonts)):
         existing = {item["id"]: item for item in manifest.get(field, [])}

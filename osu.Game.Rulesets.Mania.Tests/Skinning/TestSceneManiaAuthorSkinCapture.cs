@@ -1,6 +1,8 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Diagnostics;
+using System.Text.Json;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -45,6 +47,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         private GameHost host { get; set; } = null!;
 
         private Task<Live<SkinInfo>>? import;
+        private Task<(bool Applied, double Milliseconds)>? selection;
         private Task? capture;
         private string output = null!;
         private Player player = null!;
@@ -100,8 +103,41 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Game.SelectedMods.Value = new[] { ruleset.GetAutoplayMod()! };
                 DismissAnyNotifications();
             });
-            AddStep("select the normally imported skin", () => Game.Dependencies.Get<SkinManager>().CurrentSkinInfo.Value = import!.GetAwaiter().GetResult());
-            AddUntilStep("wait for coherent selection", () => Game.Dependencies.Get<SkinManager>().CurrentSkin.Value.SkinInfo.ID == import!.GetAwaiter().GetResult().ID);
+            AddStep("select the normally imported skin as the actual mania preference", () =>
+            {
+                var skins = Game.Dependencies.Get<SkinManager>();
+                Live<SkinInfo> selected = import!.GetAwaiter().GetResult();
+                var watch = Stopwatch.StartNew();
+                selection = select();
+                async Task<(bool, double)> select() =>
+                    (await skins.SelectSkinForScopeAsync(new SkinSelectionScope("mania"), selected).ConfigureAwait(false), watch.Elapsed.TotalMilliseconds);
+            });
+            // The real package preparation has its own budget outside the framework's ten-second UntilStep.
+            AddWaitStep("allow the large author selection its separate preparation budget", 200);
+            AddUntilStep("wait for coherent selection", () =>
+            {
+                if (selection?.IsCompleted != true)
+                    return false;
+
+                var skins = Game.Dependencies.Get<SkinManager>();
+                Assert.Multiple(() =>
+                {
+                    Assert.That(selection.GetAwaiter().GetResult().Applied, Is.True);
+                    Assert.That(skins.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(import!.GetAwaiter().GetResult().ID));
+                    Assert.That(skins.CurrentSkinInfo.Value.ID, Is.EqualTo(import!.GetAwaiter().GetResult().ID));
+                    Assert.That(skins.CurrentSkinScope, Is.EqualTo(new SkinSelectionScope("mania")));
+                    Assert.That(skins.SelectionPreferences!.GetConfiguredSkinId(new SkinSelectionScope("mania")),
+                        Is.EqualTo(import!.GetAwaiter().GetResult().ID));
+                });
+                File.WriteAllText(Path.Combine(output, "skin-selection.json"), JsonSerializer.Serialize(new
+                {
+                    selection.GetAwaiter().GetResult().Applied,
+                    selection.GetAwaiter().GetResult().Milliseconds,
+                    selectedId = skins.CurrentSkinInfo.Value.ID,
+                    scope = skins.CurrentSkinScope.ToString(),
+                }));
+                return true;
+            });
             if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_SETTINGS") == "omni")
             {
                 SettingsOverlay settings = null!;
@@ -294,6 +330,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 content.Add(Game);
                 Game.Notifications.Hide();
             });
+            if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_OPENING") == "1")
+                addOpeningCaptureSteps();
             bool verifyNotes = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_NOTE_GEOMETRY") == "omni";
             foreach (int time in verifyNotes ? new[] { 1850, 2600, 3250, 3600, 4100, 4300, 5200, 6800, 10000 } : new[] { 2600, 3600, 5200, 6800, 10000 })
             {

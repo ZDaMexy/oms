@@ -497,8 +497,14 @@ namespace osu.Game.Skinning.Gameplay
         /// <summary>Actual gameplay clock reset/entry origin, absent for a host without that authority.</summary>
         public double? StartTime { get; }
 
+        public GameplaySkinPreparationStateSnapshot Preparation { get; }
+
+        /// <summary>Latched gameplay time at which the shared first-row cue starts its 200ms fade.</summary>
+        public double? ArrivalCueFadeStartTime { get; }
+
         internal GameplaySkinTimingStateSnapshot(double beat, long barIndex, double bpm, bool isStopped, double scrollMultiplier, double progress = 0,
-                                                double scrollSpeed = 0, GameplaySkinLiftState liftState = default, double? startTime = null)
+                                                double scrollSpeed = 0, GameplaySkinLiftState liftState = default, double? startTime = null,
+                                                GameplaySkinPreparationStateSnapshot preparation = default, double? arrivalCueFadeStartTime = null)
         {
             if (!double.IsFinite(beat))
                 throw new ArgumentOutOfRangeException(nameof(beat), beat, "Beat must be finite.");
@@ -523,6 +529,10 @@ namespace osu.Game.Skinning.Gameplay
             if (startTime.HasValue && (!double.IsFinite(startTime.Value) || startTime.Value == double.MinValue))
                 throw new ArgumentOutOfRangeException(nameof(startTime));
             StartTime = startTime;
+            if (arrivalCueFadeStartTime.HasValue && (!double.IsFinite(arrivalCueFadeStartTime.Value) || arrivalCueFadeStartTime.Value == double.MinValue))
+                throw new ArgumentOutOfRangeException(nameof(arrivalCueFadeStartTime));
+            Preparation = preparation;
+            ArrivalCueFadeStartTime = arrivalCueFadeStartTime;
             Beat = beat;
             BarIndex = barIndex;
             Bpm = bpm;
@@ -670,7 +680,8 @@ namespace osu.Game.Skinning.Gameplay
             }
 
             _ = new GameplaySkinScoreStateSnapshot(score.Score, score.Combo, score.MaxCombo, score.Accuracy, score.Gauge, score.Statistics, score.GaugeState, score.MaximumScore, score.OffsetState);
-            _ = new GameplaySkinTimingStateSnapshot(timing.Beat, timing.BarIndex, timing.Bpm, timing.IsStopped, timing.ScrollMultiplier, timing.Progress, timing.ScrollSpeed, timing.LiftState, timing.StartTime);
+            _ = new GameplaySkinTimingStateSnapshot(timing.Beat, timing.BarIndex, timing.Bpm, timing.IsStopped, timing.ScrollMultiplier, timing.Progress, timing.ScrollSpeed,
+                timing.LiftState, timing.StartTime, timing.Preparation, timing.ArrivalCueFadeStartTime);
 
             foreach (GameplaySkinBgaStateSnapshot viewport in copiedBga)
                 _ = new GameplaySkinBgaStateSnapshot(viewport.ViewportIndex, viewport.Viewport, viewport.ContentState, viewport.ContentRevision);

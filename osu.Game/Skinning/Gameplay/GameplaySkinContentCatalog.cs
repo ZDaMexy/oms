@@ -9,6 +9,7 @@ namespace osu.Game.Skinning.Gameplay
 {
     public static class GameplaySkinContentBudgets
     {
+        public const int MAX_SELECTED_RESOURCES = 384;
         public const string CONTRACT_ID = "oms-gameplay-skin-content.v1";
         public const int MAX_CATALOG_BYTES = 4 * 1024 * 1024;
         public const int MAX_CHOICES_PER_MODULE = 1024;

@@ -510,6 +510,14 @@ namespace osu.Game.Skinning.Gameplay
         ScoreRankAaProgress = 75,
         ScoreRankAProgress = 76,
         ScoreRankAvailable = 77,
+        PreparationAvailable = 78,
+        PreparationActive = 79,
+        PreparationElapsed = 80,
+        PreparationRemaining = 81,
+        PreparationReady = 82,
+        PreparationReadyElapsed = 83,
+        ArrivalFirstRow = 84,
+        ArrivalCueOpacity = 85,
     }
 
     public enum GameplaySkinSceneEvent
@@ -626,6 +634,12 @@ namespace osu.Game.Skinning.Gameplay
 
         public string? AnimationId { get; }
 
+        public string? ClockSourceId { get; }
+
+        public GameplaySkinSceneBindingSource ClockSource { get; }
+
+        internal string? ClockOptionId { get; }
+
         public GameplaySkinSceneBlendMode Blend { get; }
 
         public IReadOnlyDictionary<string, GameplaySkinScenePropertyValue> Properties { get; }
@@ -644,7 +658,7 @@ namespace osu.Game.Skinning.Gameplay
             IReadOnlyDictionary<string, GameplaySkinScenePropertyValue> properties,
             IEnumerable<GameplaySkinSceneEffect> effects,
             IEnumerable<GameplaySkinSceneNode> children,
-            string? animationId = null)
+            string? animationId = null, string? clockSourceId = null)
         {
             Id = id;
             Type = type;
@@ -652,6 +666,9 @@ namespace osu.Game.Skinning.Gameplay
             SlotId = slotId;
             ResourceId = resourceId;
             AnimationId = animationId;
+            ClockSourceId = clockSourceId;
+            ClockSource = clockSourceId == null ? GameplaySkinSceneBindingSource.Unspecified : GameplaySkinSceneVocabulary.ParseBindingSource(clockSourceId);
+            ClockOptionId = clockSourceId?.StartsWith("option.", StringComparison.Ordinal) == true ? clockSourceId[7..] : null;
             Blend = blend;
             Properties = new ReadOnlyDictionary<string, GameplaySkinScenePropertyValue>(properties
                                                                                          .OrderBy(pair => pair.Key, StringComparer.Ordinal)
@@ -1042,6 +1059,14 @@ namespace osu.Game.Skinning.Gameplay
             "input.pressed" => GameplaySkinSceneBindingSource.InputPressed,
             "timing.time" => GameplaySkinSceneBindingSource.TimingTime,
             "timing.elapsed" => GameplaySkinSceneBindingSource.TimingElapsed,
+            "preparation.available" => GameplaySkinSceneBindingSource.PreparationAvailable,
+            "preparation.active" => GameplaySkinSceneBindingSource.PreparationActive,
+            "preparation.elapsed" => GameplaySkinSceneBindingSource.PreparationElapsed,
+            "preparation.remaining" => GameplaySkinSceneBindingSource.PreparationRemaining,
+            "preparation.ready" => GameplaySkinSceneBindingSource.PreparationReady,
+            "preparation.ready-elapsed" => GameplaySkinSceneBindingSource.PreparationReadyElapsed,
+            "arrival.first-row" => GameplaySkinSceneBindingSource.ArrivalFirstRow,
+            "arrival.cue-opacity" => GameplaySkinSceneBindingSource.ArrivalCueOpacity,
             "timing.start-available" => GameplaySkinSceneBindingSource.TimingStartAvailable,
             "timing.beat-phase" => GameplaySkinSceneBindingSource.TimingBeatPhase,
             "arrival.available" => GameplaySkinSceneBindingSource.ArrivalAvailable,
@@ -1201,6 +1226,9 @@ namespace osu.Game.Skinning.Gameplay
         /// </summary>
         public double CompletionOutro { get; }
 
+        /// <summary>Optional bounded presentation preparation before the gameplay clock begins.</summary>
+        public double PreparationDuration { get; }
+
         internal GameplaySkinSceneDocument(
             GameplaySkinSceneNode root,
             IEnumerable<GameplaySkinSceneTrack> tracks,
@@ -1220,7 +1248,7 @@ namespace osu.Game.Skinning.Gameplay
             IEnumerable<GameplaySkinSceneVariant> variants,
             IEnumerable<GameplaySkinSceneTemplate> templates,
             IEnumerable<GameplaySkinSceneInstance> instances,
-            double completionOutro = 0)
+            double completionOutro = 0, double preparationDuration = 0)
         {
             Root = root;
             Contract = GameplaySkinSceneContracts.SCENE_CONTRACT_ID;
@@ -1231,6 +1259,7 @@ namespace osu.Game.Skinning.Gameplay
             Templates = Array.AsReadOnly(templates.ToArray());
             Instances = Array.AsReadOnly(instances.ToArray());
             CompletionOutro = completionOutro;
+            PreparationDuration = preparationDuration;
         }
 
         public override string ToString()

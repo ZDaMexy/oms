@@ -91,9 +91,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Author.ps1 -Action imp
 
 `bitmap-font` 只能静态引用已声明字体，不能由绑定、轨迹、状态机或脚本更换。位图文字每节点最多64字符，静态文字和状态赋值中的每个字符都必须有字形。绑定接受数值来源及配置开关的0/1投影；曲名、状态词、身份和其它布尔来源不能写入这种数字节点。它不接受 `uppercase` 或 `text-overflow`，也不会在缺字时切换系统字体。
 
-数值绑定必须声明全部十个数字。`fixed-2` 还需要 `.`，`percent` 还需要 `%`；未给 `format` 时使用最多三位小数，非整数来源还需要 `.`。这里的整数来源包括 `score.maximum`、`score.value`、`score.personal-best`、`score.rank-aaa/aa/a`、`combo.value`、`combo.maximum`、`timing.measure`、六档及FAST/SLOW的 `judgement.count.*` 和 `combo.breaks`；例如希望BPM只使用数字字形，应显式选 `integer`。`judgement.offset`、`timing.beat`、`timing.time`、`arrival.time/remaining`、两组 `input.motion-counts-* / input.motion-revolutions-*` 和 `offset.value` 还必须声明 `-`。其它可能出现负值的显示也应提供负号，例如前奏中的 `timing.measure` 可为-1。`,`、`+`、`x` 可用于自己写的静态数字文字，不会自动添加千位分隔或倍率前缀。
+数值绑定必须声明全部十个数字。`fixed-2` 还需要 `.`，`signed-fixed-2` 必须同时提供 `.`、`+`、`-`，`percent` 还需要 `%`；未给 `format` 时使用最多三位小数，非整数来源还需要 `.`。这里的整数来源包括 `score.maximum`、`score.value`、`score.personal-best`、`score.rank-aaa/aa/a`、`combo.value`、`combo.maximum`、`timing.measure`、六档及FAST/SLOW的 `judgement.count.*` 和 `combo.breaks`；例如希望BPM只使用数字字形，应显式选 `integer`。`judgement.offset`、`timing.beat`、`timing.time`、`arrival.time/remaining`、两组 `input.motion-counts-* / input.motion-revolutions-*` 和 `offset.value` 还必须声明 `-`。其它可能出现负值的显示也应提供负号，例如前奏中的 `timing.measure` 可为-1。`,`、`+`、`x` 可用于自己写的静态数字文字，不会自动添加千位分隔或倍率前缀。
 
-位图节点的数字统一沿 `format`：缺省最多三位小数，`integer` 舍入为无小数数字，`fixed-2` 固定两位小数，`percent` 乘100后显示整数和百分号。因此位图准确率/进度要显示百分比时也应显式选择 `percent`。所有已声明字体都会准备；超尺寸、缺资源或运行数值超出64字符/缺少字形会报对应场景错误。字形图片和可选区域计入普通资源的文件、像素与解码预算，区域共享同一已准备纹理；动态位图文字每节点预留64字形，仍计入全场景8192字形和真实实例预算。
+位图节点的数字统一沿 `format`：缺省最多三位小数，`integer` 舍入为无小数数字，`fixed-2` 固定两位小数，`signed-fixed-2` 固定两位小数并始终显示正负号（零为`+0.00`），`percent` 乘100后显示整数和百分号。因此位图准确率/进度要显示百分比时也应显式选择 `percent`。所有已声明字体都会准备；超尺寸、缺资源或运行数值超出64字符/缺少字形会报对应场景错误。字形图片和可选区域计入普通资源的文件、像素与解码预算，区域共享同一已准备纹理；动态位图文字每节点预留64字形，仍计入全场景8192字形和真实实例预算。
 
 | 场景顶层字段 | 内容 | 必填 |
 | --- | --- | --- |
@@ -104,6 +104,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Author.ps1 -Action imp
 | `bindings` | 只读绑定数组 | 是，可 `[]` |
 | `variants` | 图片变体数组 | 否，建议明确 `[]` |
 | `completionOutro` | 全连演出总时长，有限数值0..3500毫秒；缺省0保持Player原等待 | 否 |
+| `preparationDuration` | 开局准备总时长，有限数值0..10000毫秒；缺省0保持原启动流程 | 否 |
 | `templates`、`instances` | 模板、实例数组 | 是，可 `[]` |
 
 id 使用稳定 ASCII 名字，如 `my.hud.score`。场景中的节点、轨迹、帧、状态、赋值、转移、绑定、变体、分支、模板和实例共用唯一名字空间。JSON 不允许重复或未知字段。下面短例子是对应数组的一项；整份文件见上面的完整练习。
@@ -159,7 +160,7 @@ id 与非负整数 index 必须同时匹配布局。BMS 舞台/组为 `bms.group
 | `mask-mode` | ellipse | mask |
 | `clip-mode/corner-radius` | bounds或rounded / 0..256 | clip |
 | `reveal-x` | 0..1；从左揭露固定宽度内容，0仍保留作者的独立底槽 | clip |
-| `format` | percent / uppercase / fixed-2 / integer；静态声明，不接受绑定、动画或状态赋值；位图文字不接受uppercase | text |
+| `format` | percent / uppercase / fixed-2 / signed-fixed-2 / integer；静态声明，不接受绑定、动画或状态赋值；位图文字不接受uppercase | text |
 | `text-overflow` | ellipsis；静态声明，不能用于位图文字 | text |
 | `layout-surface` | information.song / information.judgements / information.tempo / information.player；静态布局区域 | hud.text 所有者及其子树 |
 
@@ -246,7 +247,7 @@ choice可声明 `variants`，例如 `{"when":{"layout":"p2","note-size":"short"}
 
 需要不同条件宽度时，可在该choice显式声明 `"orderedVariants":true`，并保留非空的 `variants`。此时各variant可使用不同的非空条件键集合，仍拒绝完全相同的条件组合；按数组顺序取第一项全部条件都满足的贡献，不合并后续分支。应将具体单舞台条件放在前面，较宽的双舞台或共用后备放在后面；例如先列 `{"layout":"p1","detail":true}`、`{"layout":"p2","detail":true}`，再列 `{"detail":true}`。最后一项不检查layout，可承接双舞台；这只是作者声明的顺序，不是引擎自动识别SP/DP。没有命中仍取choice基本贡献，旧包省略字段时保持原选择规则。
 
-每模块最多1024个choice、全目录4096个、每choice64个variant；普通inline choice仍最多32个。目录最多4MiB，捕获闭包最多8192文件、512MiB，结构文件合计64MiB；普通作者工具整包4096文件/128MiB限制不因未声明目录而放宽。归档自身仍有16MiB配置总量门。所有分支的结构和图片头在选择前校验，实际选中的组合才解码像素，仍受256资源、64MiB图片字节、96MiP像素/384MiB解码及既有场景预算约束；普通未声明目录的包继续64MiP/256MiB。作者工具另外逐个完整解码全部PNG、检查每个choice/variant的代表组合；这不等于穷举所有独立选项的笛卡尔积，作者应检查自己允许的重型混搭。
+每模块最多1024个choice、全目录4096个、每choice64个variant；普通inline choice仍最多32个。目录最多4MiB，捕获闭包最多8192文件、512MiB，结构文件合计64MiB；普通作者工具整包4096文件/128MiB限制不因未声明目录而放宽。归档自身仍有16MiB配置总量门。所有分支的结构和图片头在选择前校验，实际选中的组合才解码像素，仍受384资源、64MiB图片字节、96MiP像素/384MiB解码及既有场景预算约束；普通未声明目录的包继续64MiP/256MiB。作者工具另外逐个完整解码全部PNG、检查每个choice/variant的代表组合；这不等于穷举所有独立选项的笛卡尔积，作者应检查自己允许的重型混搭。
 
 ## 辅助显示区
 
@@ -261,6 +262,8 @@ BMS可额外显式Provide Stage `playfield.lift.fill` 与 `playfield.lift.decora
 ## 记录动画
 
 复杂逐帧图形可使用数据记录文件，不需要把源游戏的脚本或运行时加入OMS。清单声明 `animations:[{"id":"clip.example","path":"clips/example.json.br","resources":["texture.example"]}]`；节点使用 `type:"recorded-animation"` 和 `animation:"clip.example"`，不再指定resource。文件可为JSON或Brotli压缩JSON，路径必须在包内闭包中。
+
+记录节点还可显式写数值 `clock`，例如 `"clock":"preparation.elapsed"` 或 `"clock":"preparation.ready-elapsed"`，按该来源的毫秒采样原记录；不写时保持原trigger语义。此字段只允许在recorded-animation节点，布尔或文字来源不接受。准备/READY不可用时隐藏所有录制片段；终止空帧保持为空，不循环或拉长。它不产生按键、判定或脚本事件。
 
 合同为 `oms-gameplay-recorded-animation.v1`。必填width/height/fps/loop/trigger以及geometries/nodes/states/frames：geometry保留XYZUV顶点、三角形索引和纹理ID；纯色图形使用resource:null及colour RGBA。nodes使用指向前序父节点的parent、geometry索引或-1、normal/additive混合；state保留12个矩阵数、三维origin、affine/perspective投影、multiply/add/HSL颜色以及可空mask/20系数colourMatrix。frame按父先子后顺序给nodes的[node,state]对及可空camera[cx,cy,cz,focal]。最后必须有一个没有节点的终止帧；时长按其前面的实际源帧计算，循环不重复终止帧。
 
@@ -387,6 +390,12 @@ tween只改变数值属性；tween配step可逐帧保持数值，在关键帧的
 
 `timing.elapsed` 从真实Gameplay Start起计。尚无Start的设置预览或尚未开始的宿主不会采样该轨迹，保留作者原属性；从已开始状态Reset到无Start时恢复该属性，再等待真实Start。普通 `timing.time` 仍可在前奏为负。自选clock不携带触发器起点，也不扩大记录动画文件的trigger语法；完整结尾等待仍须使用下文的 `gameplay.complete` 轨迹。
 
+### 开局准备阶段
+
+场景顶层声明正的`preparationDuration`后，Player在原歌曲计时开始前播放一次准备阶段，使用父Player的真实更新时间；歌曲、输入判定和回放时钟保持原位置。BMS以此替代原开局等待，不叠加两次等待；其它玩法只有皮肤显式声明才增加准备。暂停冻结准备；BMS按住原调速键会延长剩余等待，已完成美术不重播，松手沿原等待合同处理。最后1500毫秒提供READY；较短准备从相应片段中途采样。自动跳过前奏的快速重试保持原快捷路径，BMS保留原有强制等待/按住调速合同。
+
+`preparation.elapsed/remaining/ready-elapsed`为只读毫秒，`available/active/ready`为只读布尔。自然完成保留available与已完成elapsed，active/ready关闭；跳过前奏或退出撤销准备。预览和无提供者宿主不可用。以三个准备数值为clock的轨迹在来源不可用时保留或恢复作者原属性；记录节点则隐藏，因此取消不会让半程开场冻结覆盖音符。作者不应以它们改变判定、难度或音频位置，配置也不能在游玩中修改准备长度。
+
 ### 已投影纹理的四角动画
 
 需要保留已有透视动画时，可使用 `type:"projective-sprite"`，通过普通清单resource提供纹理；此类型按完整纹理的固定UV绘制双面四边形。`frame`轨道的property为 `projective-quad`，easing必须为step。value必填 `vertices/opacity`，四角顺序为左上、右上、右下、左下（保持纹理角的身份，背面也不重新排序）；每个角为 `[x,y,q]`。xy相对于该节点矩形，有限且各在−4..4；q为正的倒数W，范围1/256..256；opacity在0..1。q用于正确插值纹理，不能把透视四角当成普通拉伸图片。
@@ -468,9 +477,13 @@ bindings每项必填id/target/property/source，例如：
 | timing.time | 当前权威游玩时间，毫秒，可为负 | 数值或text |
 | timing.elapsed | 从真实Gameplay Start起的非负游玩毫秒；尚无Start时数值绑定为0 | 数值或text |
 | timing.start-available | 是否已经取得真实Gameplay Start起点 | visible或普通text |
+| preparation.available / preparation.active / preparation.ready | 有准备进度 / 正在准备 / 正在最后1500ms且未按住调速 | visible或普通text |
+| preparation.elapsed / preparation.remaining / preparation.ready-elapsed | 准备已过 / 剩余 / READY已过毫秒；不可用时0 | 数值或text |
 | timing.beat-phase | 当前拍的小数部分，范围0≤值<1；负拍也保持此范围 | 数值或text |
 | arrival.time / arrival.remaining | 当前目标范围首个真实可玩对象的时间 / 距该时间的剩余毫秒；无entry时0 | 数值或text |
 | arrival.available / arrival.visible | 当前范围有首音entry / 有entry且当前时间早于首音时间 | visible或普通text |
+| arrival.first-row | 当前目标首音是否属于全谱最早同一排；空目标为false | visible或普通text |
+| arrival.cue-opacity | 全谱第一排预告0..1；实际音符进入可视区域前淡出，无原生可视投影时0 | 数值或text |
 | song.title / song.artist / song.difficulty / song.level | 当前曲名、艺术家、难度类别或名称、原始等级文字；每项最多256个UTF-16单元 | text |
 | song.table-classification | 已启用难度表归类，独立于作者标级；每项为“表名 等级标签”，多表按保存顺序以 ` / ` 连接，无归类为空。最多256个UTF-16单元，可使用 ellipsis。BMS及BMS转谱mania从当前游玩锁定的原谱资料读取 | text |
 | timing.bpm-min / timing.bpm-max | 当前谱面实际音乐BPM范围，不含滚速倍率或STOP兼容点 | 数值或text |
@@ -486,6 +499,8 @@ bindings每项必填id/target/property/source，例如：
 字符串不能直接驱动数字或资源；换图用variants。数值限制在目标属性范围内，不修改玩法。首物件前进度0、末物件后1、零时长0；暂停保持、重试和跳转反映新位置。局部对象、轨道和组沿自身范围取值，不应由另一轨道的判定驱动。
 
 `arrival.*` 取应用Mod后的实际谱面和真实C3轨道，Lane为该轨首音，Stage/Group为该组最早首音，Global为全谱最早首音；空谱、空组及只作留白的作者槽没有entry，不借用别轨。BMS排除自动背景物件，mania取普通音符或长条的开始。`arrival.visible`只表示尚未到来，不限制提前多久；作者应另用非循环 `arrival.remaining` 轨迹定义预告窗，并将窗口两端透明度设为0，以免远处首音长期显示。剩余值可以为负，重试、seek和完整状态恢复直接使用新位置，不由皮肤累计倒计时。
+
+首排预告应同时绑定`arrival.first-row`和`arrival.cue-opacity`。后者读取首排实际列的原生滚动位置，按当前滚速、方向、偏移、LIFT、STOP/SV预测200毫秒后进入；淡出后锁定，已经进入可视区域时立即清空，和玩家是否击打无关。普通跳转/倒带保持退场；真正重试才恢复。原逐轨`arrival.time/remaining/visible`语义保持，后续某轨首音不能变成第二次开局预告。双舞台共用全谱第一排，不各自等到首个命中。
 
 两组motion来源的 `1/2` 分别指拓扑逻辑组0/1；单人切换左右位置仍使用1，双舞台右组使用2，不根据屏幕左右重新编号。counts和revolutions分别累计，不能把鼠标一个count当成物理一圈；作者可用不同父子容器及不同clock轨迹叠加常态旋转与两种真实增量。当前运动投影来自BMS已接收的真实轴信号，mania及无方向信号保持不可用；数字键、Auto和没有方向记录的旧回放不补造逆转。默认转速、阻尼及视觉比例属于作品，皮肤不能改写设备灵敏度、发送输入或改变判定。重试、seek及输入来源重置沿引擎快照同步，不能把累计值视为永久硬件里程。
 
@@ -529,6 +544,8 @@ BMS统计映射是perfect→PG、great→GR、good→GD、meh→BD、miss→PR�
 
 variants必填id/target/property/source/default/cases，至少一条case，同一variant的key不能重复。property只接受两种：resource仅用于sprite，default为资源id，每case必填id/key/resource；visible用于container、text、sprite，default为JSON布尔，每case必填id/key/value且value也必须为布尔。两种语法不能混用。
 
+准备三个布尔来源与`arrival.first-row`可按true/false选择变体。`layout.group`按当前真实材质目标的稳定组ID选择，case key必须是合法稳定ID；无对应目标取default。组ID属于拓扑事实，不能把画面左右、作者空槽或另一组ID当成本组。此选择不创建新舞台或输入。
+
 ```json
 {
   "id": "my.grade-image", "target": "ref.icon", "property": "resource",
@@ -547,7 +564,7 @@ variants必填id/target/property/source/default/cases，至少一条case，同�
 }
 ```
 
-source只允许 `object.state`、`object.long-note-mode`、`object.long-note-appearance`、`judgement.result`、`gauge.type`、`gauge.clear-state`、`bga.content-state`，key必须是上表对应字符串；当前值没有列入cases时使用default。长条模式和holding/released换图宜用单个 `object.long-note-appearance` 变体，避免两个变体同时改同一sprite资源。空态先按上一节投影，例如没有判定时也会命中作者的miss分支，不会越过该分支自动使用default。没有任意表达式、范围条件或外部资源路径。
+除前述配置、准备布尔、`arrival.first-row`与`layout.group`外，source还允许`layout.ruleset`（bms/mania）、`offset.automatic`（true/false）及 `object.state`、`object.long-note-mode`、`object.long-note-appearance`、`judgement.result`、`gauge.type`、`gauge.clear-state`、`bga.content-state`，key必须是上表对应字符串；当前值没有列入cases时使用default。长条模式和holding/released换图宜用单个 `object.long-note-appearance` 变体，避免两个变体同时改同一sprite资源。空态先按上一节投影，例如没有判定时也会命中作者的miss分支，不会越过该分支自动使用default。没有任意表达式、范围条件或外部资源路径。
 
 templates每项必填id/root，root是完整节点；instances每项必填id/template，并在target与material之间二选一，没有实例properties、参数或循环生成字段：
 
@@ -571,7 +588,7 @@ templates每项必填id/root，root是完整节点；instances每项必填id/tem
 
 `my.hit-style` 根slot应为 `effect.hit-explosion`。同样可匹配 `playfield.key` 或音符槽等实际Lane素材；原生音符和击打效果仍由实际对象的池化所有者应用模板，不会由实例声明自行制造击打或延长音符。没有匹配时不挂载，仍检查模板语法与资源；不能匹配默认包、旧兼容NoteImage字段或另一内容版本的素材来借用scene，也不支持任意条件表达式。实际展开数量、池化对象和击打效果继续受既有预算限制。
 
-`format: "percent"`将数值乘100后转为整数百分比，适合`gauge.value`；普通字体的准确率和进度保留原有专用文字格式，位图节点则按前文显式format显示。`fixed-2`固定两位小数（如速度2.50），`integer`将数值舍入为无小数数字；`uppercase`将普通文本转换为大写。格式化后仍执行文字长度限制。`reveal-x`可绑定数值，不会压缩格距；固定外框和暗槽放在clip之外。`GaugeHeight`与独立键区参数一样只读取选定包，缺项使用默认值。
+`format: "percent"`将数值乘100后转为整数百分比，适合`gauge.value`；普通字体的准确率和进度保留原有专用文字格式，位图节点则按前文显式format显示。`fixed-2`固定两位小数（如速度2.50），`signed-fixed-2`始终带正负号（如偏移+0.00、-3.25），`integer`将数值舍入为无小数数字；`uppercase`将普通文本转换为大写。格式化后仍执行文字长度限制。`reveal-x`可绑定数值，不会压缩格距；固定外框和暗槽放在clip之外。`GaugeHeight`与独立键区参数一样只读取选定包，缺项使用默认值。
 
 `layout-surface`只选择上述四个已发布的信息矩形，不能填写任意surface ID；只允许hud.text节点或其无slot子树。未声明区域的孩子继承父区域，显式声明可重新选择另一信息区；区域未发布时准备失败，不能自行退回全屏。绑定、动画、状态机和脚本均不能修改它。BMS `BgaInformationHeight`大于0时，由同一布局器为曲名保留BGA上方区域，为判定统计与MIN/BPM/MAX保留下方区域，为Score/HiSpeed保留控制区下方区域；这些是全局区域，14K不应按Stage重复生成整套信息。默认0保留旧布局。
 
@@ -641,7 +658,7 @@ event-value是单一数值：输入强度、对象进度、判定偏差毫秒、
 | skin.ini / 名称与作者 | 1MiB；各256字符，无控制字符 |
 | 清单 / 场景 / JSON深度 | 64KiB / 512KiB / 32 |
 | 稳定id / 资源路径 | 128 / 240字符 |
-| 资源数 / 单资源 / 总资源 | 256 / 16MiB / 64MiB |
+| 资源数 / 单资源 / 总资源 | 普通256、显式目录冻结选中组合384 / 16MiB / 64MiB |
 | 单图像素 / 总图像素 / 解码字节 | 16×1024² / 普通64×1024²、显式目录选中组合96×1024² / 普通256MiB、选中组合384MiB |
 | 位图字体 / 每字体字形 / 每节点字符 | 10 / 16 / 64 |
 | 位图字形图片 / lineHeight / advance | 每边1..512像素，图片高度不超过lineHeight；lineHeight与advance均1..512、有限 |

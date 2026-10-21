@@ -1,9 +1,10 @@
-"""Original Omni first-note cue art on read-only, real-lane arrival metadata.
+"""Original Omni first-row cue art on read-only, real-lane visibility metadata.
 
 The source images contain the arrow, note head and vertical caption together.
 They are never cropped, recoloured, mirrored, resampled or redrawn here. Source
-geometry and timing have not been captured from the original running host;
-the three-second lead and top-of-lane placement are explicit author choices.
+geometry and native cue visibility come from the accepted stage layout. Only
+the globally earliest row is announced, with the native cue-opacity fading
+before actual note entry rather than waiting for a judgement or note time.
 """
 
 from __future__ import annotations
@@ -23,9 +24,6 @@ REFERENCE_CONTRACT = "oms-iidx-lighting-localized-reference.v1"
 SCENE_CONTRACT = "oms-gameplay-skin-scene.v1"
 MANIFEST_CONTRACT = "oms-gameplay-skin-manifest.v1"
 OPTION = {"id": "arrival-cue", "type": "toggle", "label": "显示首次音符到来预告", "default": True}
-LEAD_MS = 3000
-FADE_OUT_MS = 80
-FADE_IN_MS = 500
 _ROLES = {"scratch": ("start_notes_s", 90), "white": ("start_notes_w", 52), "black": ("start_notes_b", 40)}
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 
@@ -177,7 +175,8 @@ def inject_frame(document, manifest, *, frame_id, reference, layout=None):
     The existing lane-surface template remains present. Both it and the cue are
     selected by the same marker, so all beam choices retain their animation.
     C3 only expands templates for real lanes, and each expanded cue reads that
-    exact lane's first-note metadata after the active mods have been applied.
+    exact lane's globally-first-row status and native scroll-entry fade after
+    the active mods have been applied.
     """
     _require(frame_id in FRAMES and document.get("contract") == SCENE_CONTRACT
              and document.get("root", {}).get("id") == f"omni.frame.{frame_id}.root"
@@ -203,15 +202,10 @@ def inject_frame(document, manifest, *, frame_id, reference, layout=None):
                     "material": {"slot": "playfield.lane-surface", "resource": f"custom/markers/b/{texture.role}"}}
         bindings = [{"id": prefix + ".option", "target": prefix, "property": "visible", "source": "option.arrival-cue"},
                     {"id": prefix + ".has-first-note", "target": available["id"], "property": "visible", "source": "arrival.available"},
-                    {"id": prefix + ".not-yet-arrived", "target": visible["id"], "property": "visible", "source": "arrival.visible"}]
-        track_id = prefix + ".lead"
-        track = {"id": track_id, "type": "tween", "target": sprite["id"], "property": "opacity", "clock": "arrival.remaining",
-                 "easing": "linear", "loop": False, "keyframes": [
-                     {"id": track_id + f".k{index}", "time": time, "value": value}
-                     for index, (time, value) in enumerate(((0, 0), (FADE_OUT_MS, 1), (LEAD_MS - FADE_IN_MS, 1), (LEAD_MS, 0)))]}
+                    {"id": prefix + ".not-yet-arrived", "target": visible["id"], "property": "visible", "source": "arrival.first-row"},
+                    {"id": prefix + ".cue-opacity", "target": sprite["id"], "property": "opacity", "source": "arrival.cue-opacity"}]
         additions.extend(((manifest["resources"], texture.declaration(), "arrival resource"),
-                          (document["templates"], template, "arrival template"), (document["instances"], instance, "arrival instance"),
-                          (document["tracks"], track, "arrival track")))
+                          (document["templates"], template, "arrival template"), (document["instances"], instance, "arrival instance")))
         additions.extend((document["bindings"], binding, "arrival binding") for binding in bindings)
     # Validate all identity conflicts before mutating either manifest or scene.
     for items, value, description in additions:
@@ -219,12 +213,28 @@ def inject_frame(document, manifest, *, frame_id, reference, layout=None):
         _require(not previous or previous == [value], f"Existing {description} differs from the arrival cue")
     for items, value, description in additions:
         _append_exact(items, value, description)
-    return {"frame": frame_id, "layout": layout, "leadMs": LEAD_MS, "fadeInMs": FADE_IN_MS, "fadeOutMs": FADE_OUT_MS,
+    return {"frame": frame_id, "layout": layout,
             "sourceReferenceSha256": reference.sha256, "sourceImages": [texture.source_id for texture in reference.textures],
             "materialMarkers": [f"custom/markers/b/{texture.role}" for texture in reference.textures],
             "placement": {"x": 0, "y": 0, "width": "one actual lane", "projectedHeightPx": 270,
                           "stageHeightPx": stage_height, "sourceHeadAndCaptionKeptTogether": True},
             "layer": "playfield.lane-surface / Underlay; all existing beam templates retained; notes stay above",
-            "truth": "The real lane's arrival.available and arrival.visible, with non-looping arrival.remaining opacity",
-            "authorAdaptations": ["Three-second lead and fade envelope", "Top-of-lane placement and per-lane preview"],
-            "unknown": "Original host lead time, dynamic travel and exact preview placement"}
+            "truth": "Only arrival.first-row lanes; native arrival.cue-opacity fades before actual scroll entry independently of judgement",
+            "authorAdaptations": ["Top-of-lane placement of the complete original PNG"],
+            "unknown": "Original host's exact cue invocation and timing"}
+
+
+def upgrade_existing(document):
+    """Replace the v14 judgement-time fade while preserving its exact PNG owners."""
+    previous = [track for track in document["tracks"] if track.get("clock") == "arrival.remaining"]
+    _require(len(previous) == 3, "The source must contain three original arrival colour owners")
+    targets = {track["target"] for track in previous}
+    for binding in document["bindings"]:
+        if binding.get("source") == "arrival.visible":
+            binding["source"] = "arrival.first-row"
+    document["tracks"] = [track for track in document["tracks"] if track not in previous]
+    for index, target in enumerate(sorted(targets)):
+        _append_exact(document["bindings"], {"id": f"arrival.entry-opacity-{index}", "target": target,
+                      "property": "opacity", "source": "arrival.cue-opacity"}, "native cue opacity")
+    return {"originalColourOwners": 3, "firstRowSource": "arrival.first-row", "opacitySource": "arrival.cue-opacity",
+            "originalPngsAndPlacementPreserved": True, "judgementTimeTracksRemoved": len(previous)}

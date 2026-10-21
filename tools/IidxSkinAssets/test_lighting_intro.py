@@ -151,6 +151,23 @@ class LightingIntroTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "already has an intro"):
             intro.inject(document, declaration, frame="iidx32", layout="p1")
 
+    def test_v14_assembly_moves_to_preparation_and_unavailable_preview_stays_complete(self):
+        document, declaration = scene(), manifest()
+        intro.inject(document, declaration, frame="iidx33", layout="p1", reference=reference(), assets=assets())
+        for track in document["tracks"]:
+            track["clock"] = "timing.elapsed"
+        before = [copy.deepcopy(track["keyframes"]) for track in document["tracks"]]
+        receipt = intro.upgrade_existing(document, layout="p1")
+        self.assertTrue(receipt["staticPreviewWhenUnavailable"])
+        self.assertEqual(before, [track["keyframes"] for track in document["tracks"]])
+        self.assertEqual({"preparation.elapsed"}, {track["clock"] for track in document["tracks"]})
+        self.assertIn("preparation.available", {binding["source"] for binding in document["bindings"]})
+        nodes = list(intro._walk(document["templates"][0]["root"]))
+        preview = next(node for node in nodes if node["id"].endswith(".preparation.preview"))
+        self.assertEqual("test.baked", preview["resource"])
+        self.assertTrue(preview["properties"]["visible"])
+        self.assertEqual(1, preview["properties"]["opacity"])
+
 
 if __name__ == "__main__":
     unittest.main()

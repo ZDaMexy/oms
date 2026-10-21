@@ -689,12 +689,15 @@ namespace osu.Game.Skinning.Gameplay
 
         public double CompletionOutro { get; }
 
+        public double PreparationDuration { get; }
+
         internal GameplaySkinPreparedSceneProgram(
             GameplaySkinSceneDocument? document,
             IReadOnlyDictionary<string, GameplaySkinPreparedSceneResource> resources)
         {
             HasAuthorScene = document != null;
             CompletionOutro = document?.CompletionOutro ?? 0;
+            PreparationDuration = document?.PreparationDuration ?? 0;
             Tracks = Array.AsReadOnly((document?.Tracks ?? Array.Empty<GameplaySkinSceneTrack>())
                                       .Select(track => new GameplaySkinPreparedSceneTrack(track, resources))
                                       .ToArray());
@@ -709,8 +712,22 @@ namespace osu.Game.Skinning.Gameplay
                                         .ToArray());
             usedBindingSources = new HashSet<GameplaySkinSceneBindingSource>(
                 Bindings.Select(binding => binding.Source).Concat(Variants.Select(variant => variant.Source)).Concat(Tracks.Select(track => track.ClockSource)));
+            if (document != null)
+            {
+                registerNodeClocks(document.Root);
+                foreach (GameplaySkinSceneTemplate template in document.Templates)
+                    registerNodeClocks(template.Root);
+            }
             usedEvents = new HashSet<GameplaySkinSceneEvent>(
                 StateMachines.SelectMany(machine => machine.Transitions).Select(transition => transition.Event));
+        }
+
+        private void registerNodeClocks(GameplaySkinSceneNode node)
+        {
+            if (node.ClockSource != GameplaySkinSceneBindingSource.Unspecified)
+                usedBindingSources.Add(node.ClockSource);
+            foreach (GameplaySkinSceneNode child in node.Children)
+                registerNodeClocks(child);
         }
 
         /// <summary>
@@ -728,6 +745,11 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBindingSource.TimingTime => GameplaySkinSceneStateFamily.Time,
             GameplaySkinSceneBindingSource.TimingElapsed => GameplaySkinSceneStateFamily.Time | GameplaySkinSceneStateFamily.Timing,
             GameplaySkinSceneBindingSource.TimingStartAvailable => GameplaySkinSceneStateFamily.Timing,
+            GameplaySkinSceneBindingSource.PreparationAvailable or GameplaySkinSceneBindingSource.PreparationActive
+                or GameplaySkinSceneBindingSource.PreparationElapsed or GameplaySkinSceneBindingSource.PreparationRemaining
+                or GameplaySkinSceneBindingSource.PreparationReady or GameplaySkinSceneBindingSource.PreparationReadyElapsed => GameplaySkinSceneStateFamily.Timing,
+            GameplaySkinSceneBindingSource.ArrivalFirstRow => GameplaySkinSceneStateFamily.Layout,
+            GameplaySkinSceneBindingSource.ArrivalCueOpacity => GameplaySkinSceneStateFamily.Time | GameplaySkinSceneStateFamily.Timing,
             GameplaySkinSceneBindingSource.TimingBeatPhase => GameplaySkinSceneStateFamily.Timing,
             GameplaySkinSceneBindingSource.ArrivalAvailable => GameplaySkinSceneStateFamily.Layout,
             GameplaySkinSceneBindingSource.ArrivalTime => GameplaySkinSceneStateFamily.Layout,

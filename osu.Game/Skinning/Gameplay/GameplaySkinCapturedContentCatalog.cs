@@ -209,7 +209,7 @@ namespace osu.Game.Skinning.Gameplay
                     }
                 }
             }
-            GameplaySkinSceneManifest decoded = GameplaySkinPreparedPackage.RequireValid(GameplaySkinSceneCodec.DecodeManifest(result.ToString(Formatting.None)));
+            GameplaySkinSceneManifest decoded = GameplaySkinPreparedPackage.RequireValid(GameplaySkinSceneCodec.DecodeContentManifest(result.ToString(Formatting.None)));
             return withOptions(decoded, basis.Options, null);
         }
 
@@ -226,6 +226,8 @@ namespace osu.Game.Skinning.Gameplay
                         ((JArray)result[field]!).Add(addition.DeepClone());
                 if (fragment.CompletionOutro > ((double?)result["completionOutro"] ?? 0))
                     result["completionOutro"] = fragment.CompletionOutro;
+                if (fragment.PreparationDuration > ((double?)result["preparationDuration"] ?? 0))
+                    result["preparationDuration"] = fragment.PreparationDuration;
             }
             return GameplaySkinPreparedPackage.RequireValid(GameplaySkinSceneCodec.DecodeScene(result.ToString(Formatting.None), manifest));
         }

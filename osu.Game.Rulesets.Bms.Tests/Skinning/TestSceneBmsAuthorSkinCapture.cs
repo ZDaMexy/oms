@@ -1,6 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -44,6 +45,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         private GameHost host { get; set; } = null!;
 
         private Task<Live<SkinInfo>>? import;
+        private Task<(bool Applied, double Milliseconds)>? selection;
         private Task? capture;
         private string outputDirectory = null!;
         private Player player = null!;
@@ -137,13 +139,42 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Game.SelectedMods.Value = selectedMods;
                 DismissAnyNotifications();
             });
-            AddStep("select the author package after BMS restores its mode preference", () =>
-                Game.Dependencies.Get<SkinManager>().CurrentSkinInfo.Value = import!.GetAwaiter().GetResult());
-            AddUntilStep("wait for the exact imported skin selection", () =>
+            AddStep("select the author package as the actual BMS mode preference", () =>
             {
                 var skins = Game.Dependencies.Get<SkinManager>();
-                Assert.That(skins.LastSelectionRejectionReason, Is.EqualTo(SkinSelectionRejectionReason.None));
-                return skins.CurrentSkin.Value.SkinInfo.ID == import!.GetAwaiter().GetResult().ID;
+                Live<SkinInfo> selected = import!.GetAwaiter().GetResult();
+                var watch = Stopwatch.StartNew();
+                selection = select();
+                async Task<(bool, double)> select() =>
+                    (await skins.SelectSkinForScopeAsync(new SkinSelectionScope("bms"), selected).ConfigureAwait(false), watch.Elapsed.TotalMilliseconds);
+            });
+            // Large author packages approach the framework UntilStep's fixed ten-second limit.
+            // Keep the update thread processing the real asynchronous publication before the final bounded wait.
+            AddWaitStep("allow the large author selection its separate preparation budget", 200);
+            AddUntilStep("wait for the exact imported skin selection", () =>
+            {
+                if (selection?.IsCompleted != true)
+                    return false;
+
+                var skins = Game.Dependencies.Get<SkinManager>();
+                Assert.Multiple(() =>
+                {
+                    Assert.That(selection.GetAwaiter().GetResult().Applied, Is.True);
+                    Assert.That(skins.LastSelectionRejectionReason, Is.EqualTo(SkinSelectionRejectionReason.None));
+                    Assert.That(skins.CurrentSkin.Value.SkinInfo.ID, Is.EqualTo(import!.GetAwaiter().GetResult().ID));
+                    Assert.That(skins.CurrentSkinInfo.Value.ID, Is.EqualTo(import!.GetAwaiter().GetResult().ID));
+                    Assert.That(skins.CurrentSkinScope, Is.EqualTo(new SkinSelectionScope("bms")));
+                    Assert.That(skins.SelectionPreferences!.GetConfiguredSkinId(new SkinSelectionScope("bms")),
+                        Is.EqualTo(import!.GetAwaiter().GetResult().ID));
+                });
+                File.WriteAllText(Path.Combine(outputDirectory, "skin-selection.json"), System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    selection.GetAwaiter().GetResult().Applied,
+                    selection.GetAwaiter().GetResult().Milliseconds,
+                    selectedId = skins.CurrentSkinInfo.Value.ID,
+                    scope = skins.CurrentSkinScope.ToString(),
+                }));
+                return true;
             });
             AddStep("enter the real replay player", () =>
             {
@@ -233,7 +264,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 freezeHitPhase = captureBurst;
             });
 
-            if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_LIGHTING_DETAILS") == "1")
+            if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_OPENING") == "1")
+                addOpeningCaptureSteps();
+            else if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_LIGHTING_DETAILS") == "1")
                 addLightingDetailsCaptureSteps();
 
             if (captureBurst)

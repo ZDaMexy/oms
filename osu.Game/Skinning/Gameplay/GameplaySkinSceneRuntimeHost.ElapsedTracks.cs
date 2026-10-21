@@ -24,7 +24,7 @@ namespace osu.Game.Skinning.Gameplay
             for (int i = 0; i < tracks.Count; i++)
             {
                 GameplaySkinPreparedSceneTrack track = tracks[i];
-                if (track.ClockSource != GameplaySkinSceneBindingSource.TimingElapsed || track.TargetNodeId != node.PreparedNode.Source.Id)
+                if (!requiresElapsedClockAvailability(track.ClockSource) || track.TargetNodeId != node.PreparedNode.Source.Id)
                     continue;
                 node.ElapsedTrackProperties ??= new Dictionary<GameplaySkinSceneProperty, GameplaySkinElapsedTrackProperty>();
                 if (node.ElapsedTrackProperties.ContainsKey(track.Property))
@@ -56,10 +56,16 @@ namespace osu.Game.Skinning.Gameplay
 
         private bool canSampleElapsedTrack(GameplaySkinPreparedSceneTrack track, GameplaySkinSceneRuntimeNode node)
         {
-            if (track.ClockSource != GameplaySkinSceneBindingSource.TimingElapsed)
+            if (!requiresElapsedClockAvailability(track.ClockSource))
                 return true;
             GameplaySkinElapsedTrackProperty original = node.ElapsedTrackProperties![track.Property];
-            if (timingState.StartTime.HasValue)
+            bool available = track.ClockSource switch
+            {
+                GameplaySkinSceneBindingSource.TimingElapsed => timingState.StartTime.HasValue,
+                GameplaySkinSceneBindingSource.PreparationReadyElapsed => timingState.Preparation.Ready,
+                _ => timingState.Preparation.Available,
+            };
+            if (available)
             {
                 original.WasApplied = true;
                 return true;
@@ -81,5 +87,9 @@ namespace osu.Game.Skinning.Gameplay
                 applyRuntimeNumberProperty(node, track.Property, original.Number);
             return false;
         }
+
+        private static bool requiresElapsedClockAvailability(GameplaySkinSceneBindingSource source) =>
+            source is GameplaySkinSceneBindingSource.TimingElapsed or GameplaySkinSceneBindingSource.PreparationElapsed
+                or GameplaySkinSceneBindingSource.PreparationRemaining or GameplaySkinSceneBindingSource.PreparationReadyElapsed;
     }
 }

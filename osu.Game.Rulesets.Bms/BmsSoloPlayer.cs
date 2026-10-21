@@ -75,6 +75,15 @@ namespace osu.Game.Rulesets.Bms
                 return;
             }
 
+            if (HasGameplaySkinPreparation)
+            {
+                gameplayStartPending = true;
+                TryBeginGameplaySkinPreparation(preserveDelayOnAutomaticSkip: true);
+                SetGameplaySkinPreparationHold(hiSpeedHoldPressed.Value);
+                updatePreStartAdjustmentState();
+                return;
+            }
+
             // Stop the underlying gameplay clock and seek to StartTime so that:
             //  1) The DecouplingFramedClock no longer follows the source Track
             //     (which may still be playing from song select).
@@ -134,7 +143,10 @@ namespace osu.Game.Rulesets.Bms
 
             bool adjustmentActive = gameplayStartPending && hiSpeedHoldPressed.Value;
 
-            if (resetDelayOnPress && adjustmentActive)
+            if (GameplaySkinPreparationActive)
+                SetGameplaySkinPreparationHold(hiSpeedHoldPressed.Value);
+
+            if (!HasGameplaySkinPreparation && resetDelayOnPress && adjustmentActive)
                 restartPreStartDelay();
 
             drawableBmsRuleset.SetAllowAdjustmentWhilePaused(adjustmentActive);
@@ -150,7 +162,7 @@ namespace osu.Game.Rulesets.Bms
 
             if (!adjustmentActive)
             {
-                if (resetDelayOnReleaseAfterElapsed && gameplayStartPending && startDelayElapsed)
+                if (!HasGameplaySkinPreparation && resetDelayOnReleaseAfterElapsed && gameplayStartPending && startDelayElapsed)
                 {
                     restartPreStartDelay();
                     return;
@@ -223,6 +235,9 @@ namespace osu.Game.Rulesets.Bms
 
         private void handleGameplayClockPausedState()
         {
+            if (HasGameplaySkinPreparation)
+                return;
+
             if (suppressClockPausedHandler)
                 return;
 
@@ -252,6 +267,9 @@ namespace osu.Game.Rulesets.Bms
 
         private void attemptStartGameplay()
         {
+            if (HasGameplaySkinPreparation)
+                return;
+
             if (!gameplayStartPending || !startDelayElapsed || hiSpeedHoldPressed.Value || PauseOverlay.State.Value == Visibility.Visible)
                 return;
 
@@ -274,6 +292,12 @@ namespace osu.Game.Rulesets.Bms
             drawableBmsRuleset?.SetAllowAdjustmentWhilePaused(false);
             updatePreStartSpeedPreviewState();
             hiSpeedOverlay?.Hide();
+        }
+
+        protected override void OnGameplaySkinPreparationCompleted()
+        {
+            completePendingGameplayStart();
+            base.OnGameplaySkinPreparationCompleted();
         }
     }
 }

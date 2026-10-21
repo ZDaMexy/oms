@@ -27,19 +27,19 @@ dotnet run --project tools/SkinAuthoring -- check 'Y:\OmniAuthor'
 
 根options使用33框体、源00部件、normal尺寸；Graph默认关闭。最新细节构建器接入真实当前/理论满分、符合当前用户/谱面/玩法/完整mods的有效本地个人最好，以及BMS EX的AAA/AA/A目标；无记录或非EX玩法不制造目标值，没有联网对手成绩。LIFT仅跟随BMS原生抬升。FC保留三布局终止空帧和原时长，19为3500ms、24为3000ms，其它2500ms；滤镜顺序和真实host设置仍待原版画面校准。
 
-`build_lighting_details.py`消费上一完整作者目录、独立共用库、本地化预告来源、15框体映射和33原始组件轨迹研究，写入全新作者目录及相邻`.osk`。主屏Graph/JUDGE、实际方向转盘、血条前沿、节拍蓝光、首音预告和组件入场由`lighting_panels/motion/arrival/intro.py`分别声明，未向规则集加入IIDX布局或演出行为。33入场复用原组件PNG及AFP四角/透明度，原3秒压至1秒；其它框体为明确的分区作者适配。入场只处理背景，不延迟音符、输入或判定。原PNG、已有音符/CN/HCN、FC和进度资源保持逐字节相同。
+`build_lighting_details.py`在已验证的完整v14作者目录上增量制作开场版本，写入全新作者目录及相邻`.osk`。旧CUSTOM、FC、默认和INI沿用原值；`lighting_lane_intro.py`消费15框体各自SP/DP的原始轨道开场记录，`lighting_ready.py`消费完整`1p_ready`父movie（含出现和退场），`lighting_panels.py`换用完整JUDGE原图并声明实际AUTO/有符号偏移与滑入。旧外框组件入场曲线保留，仅切到公开准备时钟；不向规则集加入IIDX布局或演出名字。
 
-Graph开启时收窄SP的原生BGA窗口；DP使用左侧视频，右列留给图表。DP的JUDGE位于右下角，单独开启时限制右侧视频底端；旧27DP窗口跨入底部HUD保留区的问题在作者INI修正，不放宽公共避让检查。默认Graph/JUDGE关闭，首音预告及组件入场开启；可分别切换。预告使用本地化原`start_notes_s/w/b`，对每条真实轨道读取首音符，空槽不显示。提前时间、位置、蓝光波形、血条闪烁周期、转盘常转速度及2P方向仍是作者适配，不能当作原机精确校准。
+Graph开启时收窄SP的原生BGA窗口；DP使用左侧视频，右列留给图表。DP的JUDGE位于右下角，单独开启时限制右侧视频底端；旧27DP窗口跨入底部HUD保留区的问题在作者INI修正，不放宽公共避让检查。默认Graph/JUDGE关闭，首排预告、外框入场、轨道开场和GET READY开启，可分别切换。预告保留原`start_notes_s/w/b`三图，仅筛选全谱最早同排，并在原生音符进入可视区域前退出，不等待命中；空槽或之后各轨的首音不再另播。位置、蓝光波形、血条闪烁周期、转盘常转速度及2P方向仍为作者适配，不能当作原机精确校准。
 
 各款转盘只在加载期选择当前框体贡献，游玩不计算其它14框体的马达。设备相对counts与校准revolutions分开叠加；数字键/Auto/旧回放没有可证明的带符号运动时仅显示常转。新增纹理使用短内容标识、原PNG字节和原采样；入场声明仅缩短ID，保留全部时间与几何采样。46种转盘按所选清单共用15份相同几何，原图/滤波各自保留；相同INI按原字节去重。scene大小为数字归一化预留空间；整包配置仍守导入16MiB，C2捕获的64MiB结构预算不替代它。实际选中资源/像素/scene/manifest预算均需检查，普通包不声明这些能力时保持原流程。
 
 ```powershell
 . .\UseDevelopmentStorage.ps1
 $env:PYTHONPATH = (Resolve-Path '.dev-cache/tools/iidx-assets').Path
-python -B -X utf8 tools/IidxSkinAssets/build_lighting_details.py --source 'Y:\PreviousOmniAuthor' --library 'Y:\OriginalCustomLibrary' --localized 'Y:\LocalizedCueLibrary' --maps 'Y:\FrameReferenceInputs' --intro-reference 'Y:\IntroGeometryResearch' --output 'Y:\NextOmniAuthor'
+python -B -X utf8 tools/IidxSkinAssets/build_lighting_details.py --source 'Y:\ValidatedV14OmniAuthor' --library 'Y:\OriginalCustomLibrary' --lane-reference 'Y:\LaneOpeningResearch\reference.json' --ready-reference 'Y:\ReadyResearch\export.json' --output 'Y:\NextOmniAuthor'
 ```
 
-`--localized`含`oms-iidx-lighting-localized-reference.v1`的`source-reference.json`与三张原PNG；`--intro-reference`含独立采样的四个`*-intro-geometry.json`及对应原AFP摘要。工具不启动、解包或写入安装目录。构建成功只证明引用闭包与离线预算；最新codec、真实Player证据及保留缺口见[P1-A状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)。
+`--lane-reference`必须完整覆盖15框体各自1P/2P/DP两侧的60条原记录；`lighting_lane_intro.py export`从独立来源库提取开局循环前、实际与轨道相交的原层次/UV/遮罩/混合，排除框外装饰，保留终止空帧。不得用33替代其它代；七支S5是否共用33及SUPERNOVA使用0目录高清来源须逐包证明。`--ready-reference`取完整父movie，裸字母movie缺少退场，不能替代。已有本地化三PNG和外框曲线直接继承v14，不重新读取安装目录。来源记录与生成命令可通过各工具`--help`查看；构建成功只证明引用闭包与离线预算，实际验证及边界取[P1-A状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 统一生成器为音符、CN、判定文字、爆炸、光柱和转盘输出132张静态代表缩略图，目录choice通过可选`preview`引用；Game Frame与FC保留文字。图片来自同款原材质/动画代表帧，`choice_previews.py`负责有界缩略，不改游玩图片、场景或默认选值。冻结模块重打包也沿同一路径，预览纳入ZIP引用闭包；先运行当前`SkinAuthoring check`，再独立导入验证。玩家可按模式默认和键数分别设置；此工具不把Omni写入玩家目录、canonical或公开制作套件。
 

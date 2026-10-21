@@ -2055,6 +2055,19 @@ namespace osu.Game.Skinning.Gameplay
                     animation.ApplyTime(-1);
                     continue;
                 }
+                if (node.PreparedNode.Source.ClockSource != GameplaySkinSceneBindingSource.Unspecified)
+                {
+                    GameplaySkinSceneNode source = node.PreparedNode.Source;
+                    bool available = source.ClockSource switch
+                    {
+                        GameplaySkinSceneBindingSource.TimingElapsed => timingState.StartTime.HasValue,
+                        GameplaySkinSceneBindingSource.PreparationElapsed or GameplaySkinSceneBindingSource.PreparationRemaining => timingState.Preparation.Available,
+                        GameplaySkinSceneBindingSource.PreparationReadyElapsed => timingState.Preparation.Ready,
+                        _ => true,
+                    };
+                    animation.ApplyTime(available ? presentationClock(source.ClockSource, source.ClockOptionId, node) : -1);
+                    continue;
+                }
                 if (animation.Program.HeldLoop.HasValue)
                 {
                     GameplaySkinResolvedMaterialTarget? target = node.PreparedNode.MaterialTarget;
@@ -2243,6 +2256,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBindingSource source = variant.Source;
             if (source == GameplaySkinSceneBindingSource.Option)
                 return Publication.Snapshot.Context.OptionValues.TryGetValue(variant.OptionId!, out GameplaySkinOptionValue option) ? option.CanonicalValue : string.Empty;
+            if (tryPresentationBoolean(source, target, out bool boolean))
+                return boolean ? "true" : "false";
 
             GameplaySkinResolvedMaterialTarget? materialTarget = target.PreparedNode.MaterialTarget;
             GameplaySkinLaneId? laneId = materialTarget?.LaneId;
@@ -2254,6 +2269,7 @@ namespace osu.Game.Skinning.Gameplay
             return source switch
             {
                 GameplaySkinSceneBindingSource.LayoutRuleset => Publication.Snapshot.Context.RulesetId,
+                GameplaySkinSceneBindingSource.LayoutGroup => groupId?.Value ?? string.Empty,
                 GameplaySkinSceneBindingSource.OffsetAutomatic => scoreState.OffsetState.Automatic ? "true" : "false",
                 GameplaySkinSceneBindingSource.ObjectState => objectStateId(obj?.State ?? GameplaySkinObjectState.Scheduled),
                 GameplaySkinSceneBindingSource.ObjectLongNoteMode => longNoteModeId(obj?.LongNoteMode ?? GameplaySkinLongNoteMode.None),
@@ -2968,6 +2984,7 @@ namespace osu.Game.Skinning.Gameplay
                     {
                         "percent" => (value * 100).ToString("0", CultureInfo.InvariantCulture) + "%",
                         "fixed-2" => value.ToString("0.00", CultureInfo.InvariantCulture),
+                        "signed-fixed-2" => value.ToString("+0.00;-0.00;+0.00", CultureInfo.InvariantCulture),
                         "integer" => value.ToString("0", CultureInfo.InvariantCulture),
                         _ => value.ToString("0.###", CultureInfo.InvariantCulture),
                     };
@@ -3289,7 +3306,9 @@ namespace osu.Game.Skinning.Gameplay
                && first.ScrollMultiplier.Equals(second.ScrollMultiplier)
                && first.Progress.Equals(second.Progress)
                && first.LiftState.Equals(second.LiftState)
-               && first.StartTime == second.StartTime;
+               && first.StartTime == second.StartTime
+               && first.Preparation == second.Preparation
+               && first.ArrivalCueFadeStartTime == second.ArrivalCueFadeStartTime;
 
         internal static GameplaySkinSceneLayer LayerFor(GameplaySkinSlotDescriptor descriptor)
             => GameplaySkinSceneHostPolicy.LayerFor(descriptor);

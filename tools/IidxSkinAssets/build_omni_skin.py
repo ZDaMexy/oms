@@ -632,7 +632,7 @@ def audit_package(output: Path, files):
             "recordedNodes": sum(programs[item["path"]]["nodes"] for item in animations.values()),
             "recordedStates": sum(programs[item["path"]]["states"] for item in animations.values()),
             "recordedTriangles": sum(programs[item["path"]]["maximumLiveTriangles"] for item in animations.values())}
-        for key, maximum in {"resources": 256, "pixels": 96 * 1024 * 1024, "decodedTextureBytes": 384 * 1024 * 1024,
+        for key, maximum in {"resources": 384, "pixels": 96 * 1024 * 1024, "decodedTextureBytes": 384 * 1024 * 1024,
                              "encodedTextureBytes": 64 * 1024 * 1024,
                              "fonts": 10, "nodes": 2048,
                              "tracks": 512, "keyframes": 8192, "bindings": 512, "variants": 512,
@@ -705,7 +705,7 @@ def audit_package(output: Path, files):
     totals["encodedTextureBytes"] = sum(item["encodedTextureBytes"] for item in texture_components)
     aggregate_violations = []
     # These are deliberately conservative: they sum independent module maxima without relying on a lucky selection.
-    for key, maximum in {"resources": 256, "pixels": 96 * 1024 * 1024, "decodedTextureBytes": 384 * 1024 * 1024,
+    for key, maximum in {"resources": 384, "pixels": 96 * 1024 * 1024, "decodedTextureBytes": 384 * 1024 * 1024,
                          "encodedTextureBytes": 64 * 1024 * 1024,
                          "fonts": 10, "nodes": 2048,
                          "tracks": 512, "keyframes": 8192, "bindings": 512, "variants": 512,

@@ -230,7 +230,8 @@ namespace osu.Game.Rulesets.Bms.UI
                     createGameplaySkinArrivals(publication), usesExScore: true,
                     appliedOffset: () => new GameplaySkinOffsetStateSnapshot(true, Playfield.VisualOffset.Value, Playfield.AutomaticVisualOffsetEnabled.Value),
                     scoreBeatmap: working?.Value.BeatmapInfo ?? Beatmap.BeatmapInfo,
-                    validSavedScore: score => score.GetRulesetData<BmsScoreInfoData>() is { Version: BmsScoreInfoData.TOTAL_RULES_VERSION, HasResultStatistics: true });
+                    validSavedScore: score => score.GetRulesetData<BmsScoreInfoData>() is { Version: BmsScoreInfoData.TOTAL_RULES_VERSION, HasResultStatistics: true },
+                    arrivalVisibility: this);
                 dependencies.Cache(GameplaySkinEventRuntime);
                 dependencies.Cache(GameplaySkinEventRuntime.EventStream);
 

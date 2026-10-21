@@ -1,14 +1,32 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Game.Rulesets.Bms.Objects;
+using osu.Game.Rulesets.UI.Scrolling;
 using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Bms.UI
 {
-    public partial class DrawableBmsRuleset
+    public partial class DrawableBmsRuleset : IGameplaySkinArrivalVisibilityProjection
     {
+        bool IGameplaySkinArrivalVisibilityProjection.IsArrivalVisible(GameplaySkinLaneId laneId, double hitTime, double gameplayTime)
+        {
+            if (!LayoutSnapshot.Neutral.Context.Topology.TryGetLane(laneId, out GameplaySkinLaneTopologyEntry? target))
+                throw new InvalidOperationException("An arrival must belong to the exact BMS gameplay topology.");
+
+            BmsLane lane = Playfield.Lanes[target!.GlobalLogicalIndex];
+            ScrollingHitObjectContainer scrolling = lane.HitObjectContainer;
+            if (!scrolling.IsLoaded || scrolling.DrawHeight <= 0)
+                return false;
+
+            float position = scrolling.PositionAtTime(hitTime, gameplayTime);
+            return lane.ScrollingInfo.Direction.Value == ScrollingDirection.Up
+                ? position <= scrolling.DrawHeight
+                : position >= -scrolling.DrawHeight;
+        }
+
         private IEnumerable<GameplaySkinLaneArrival> createGameplaySkinArrivals(GameplaySkinLayoutPublication publication)
         {
             var topology = publication.Snapshot.Context.Topology;

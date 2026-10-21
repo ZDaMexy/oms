@@ -51,6 +51,7 @@ namespace osu.Game.Skinning.Gameplay
 
         private static readonly HashSet<string> binding_source_ids = new(StringComparer.Ordinal)
         {
+            "preparation.available", "preparation.active", "preparation.elapsed", "preparation.remaining", "preparation.ready", "preparation.ready-elapsed", "arrival.first-row", "arrival.cue-opacity",
             "timing.time", "timing.elapsed", "timing.start-available", "timing.beat-phase", "arrival.available", "arrival.time", "arrival.remaining", "arrival.visible", "input.motion-counts-1", "input.motion-counts-2", "input.motion-revolutions-1", "input.motion-revolutions-2", "input.motion-available-1", "input.motion-available-2", "judgement.count.fast", "judgement.count.slow", "offset.value", "offset.available", "offset.automatic", "score.personal-best", "score.personal-best-progress", "score.personal-best-available", "score.rank-aaa", "score.rank-aa", "score.rank-a", "score.rank-aaa-progress", "score.rank-aa-progress", "score.rank-a-progress", "score.rank-available",
             "layout.ruleset", "layout.stage", "layout.group", "layout.lane", "input.pressed", "gameplay.full-combo", "object.state", "judgement.result", "judgement.offset",
             "score.value", "score.accuracy", "combo.value", "combo.maximum", "gauge.value", "timing.beat", "timing.measure", "timing.bpm", "timing.progress", "bga.content-state",
@@ -62,6 +63,10 @@ namespace osu.Game.Skinning.Gameplay
         private static readonly IReadOnlyDictionary<string, HashSet<string>> variant_source_keys =
             new Dictionary<string, HashSet<string>>(StringComparer.Ordinal)
             {
+                ["preparation.available"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
+                ["preparation.active"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
+                ["preparation.ready"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
+                ["arrival.first-row"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
                 ["offset.automatic"] = new HashSet<string>(new[] { "true", "false" }, StringComparer.Ordinal),
                 ["layout.ruleset"] = new HashSet<string>(new[] { "bms", "mania" }, StringComparer.Ordinal),
                 ["object.state"] = new HashSet<string>(
@@ -222,13 +227,19 @@ namespace osu.Game.Skinning.Gameplay
 
             if (scene.CompletionOutro > 0)
                 root["completionOutro"] = scene.CompletionOutro;
+            if (scene.PreparationDuration > 0)
+                root["preparationDuration"] = scene.PreparationDuration;
 
             return root.ToString(Formatting.None);
         }
 
         public static byte[] EncodeSceneUtf8(GameplaySkinSceneDocument scene) => strict_utf8.GetBytes(EncodeScene(scene));
 
-        private static GameplaySkinSceneDecodeResult<GameplaySkinSceneManifest> decodeManifest(ReadOnlyMemory<byte> content)
+        internal static GameplaySkinSceneDecodeResult<GameplaySkinSceneManifest> DecodeContentManifest(string content)
+            => decodeManifest(strict_utf8.GetBytes(content), GameplaySkinContentBudgets.MAX_SELECTED_RESOURCES);
+
+        private static GameplaySkinSceneDecodeResult<GameplaySkinSceneManifest> decodeManifest(ReadOnlyMemory<byte> content,
+                                                                                               int maxResources = GameplaySkinSceneBudgets.MAX_RESOURCES)
         {
             if (content.Length > GameplaySkinSceneBudgets.MAX_MANIFEST_BYTES)
                 return invalid<GameplaySkinSceneManifest>(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
@@ -270,10 +281,10 @@ namespace osu.Game.Skinning.Gameplay
 
             if (getArray(root, "resources", context) is JArray resourceArray)
             {
-                if (resourceArray.Count > GameplaySkinSceneBudgets.MAX_RESOURCES)
+                if (resourceArray.Count > maxResources)
                     context.Add(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
 
-                foreach (JToken token in resourceArray.Take(GameplaySkinSceneBudgets.MAX_RESOURCES))
+                foreach (JToken token in resourceArray.Take(maxResources))
                 {
                     if (token is not JObject resourceObject)
                     {
@@ -501,7 +512,7 @@ namespace osu.Game.Skinning.Gameplay
                 rootObject,
                 context,
                 new[] { "contract", "root", "tracks", "stateMachines", "bindings", "templates", "instances" },
-                new[] { "variants", "completionOutro" });
+                new[] { "variants", "completionOutro", "preparationDuration" });
             validateExactContract(rootObject, "contract", GameplaySkinSceneContracts.SCENE_CONTRACT_ID, context);
 
             GameplaySkinSceneNode? root = rootObject["root"] is JObject nodeObject
@@ -518,6 +529,9 @@ namespace osu.Game.Skinning.Gameplay
             List<GameplaySkinSceneBinding> bindings = parseBindings(getArray(rootObject, "bindings", context), context);
             List<GameplaySkinSceneVariant> variants = parseVariants(rootObject["variants"], context);
             double completionOutro = 0;
+            double preparationDuration = rootObject.ContainsKey("preparationDuration") ? getNumber(rootObject, "preparationDuration", context) ?? 0 : 0;
+            if (preparationDuration < 0 || preparationDuration > 10000)
+                context.Add(GameplaySkinSceneDiagnosticCode.InvalidAnimation);
 
             if (rootObject.ContainsKey("completionOutro"))
             {
@@ -586,7 +600,7 @@ namespace osu.Game.Skinning.Gameplay
             if (context.HasDiagnostics || root == null)
                 return context.Invalid<GameplaySkinSceneDocument>();
 
-            return valid(new GameplaySkinSceneDocument(root, tracks, stateMachines, bindings, variants, templates, instances, completionOutro));
+            return valid(new GameplaySkinSceneDocument(root, tracks, stateMachines, bindings, variants, templates, instances, completionOutro, preparationDuration));
         }
 
         private static void addNodeFanout(GameplaySkinSceneNode node, IDictionary<string, int> fanout)
@@ -648,7 +662,8 @@ namespace osu.Game.Skinning.Gameplay
                 }
 
                 if (!declaration.Font.CanRender("0123456789")
-                    || declaration.Format == "fixed-2" && !declaration.Font.CanRender(".")
+                    || declaration.Format is "fixed-2" or "signed-fixed-2" && !declaration.Font.CanRender(".")
+                    || declaration.Format == "signed-fixed-2" && !declaration.Font.CanRender("+-")
                     || declaration.Format == "percent" && !declaration.Font.CanRender("%")
                     || declaration.Format.Length == 0 && !integerSource(binding.Source)
                         && !(optionSource(binding.SourceId, context.Manifest) is { } option && (option.Kind == GameplaySkinOptionKind.Toggle
@@ -760,7 +775,7 @@ namespace osu.Game.Skinning.Gameplay
             if (context.TotalNodeCount > GameplaySkinSceneBudgets.MAX_NODES || depth > GameplaySkinSceneBudgets.MAX_NODE_DEPTH)
                 context.Add(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
 
-            validateFields(node, context, new[] { "id", "type", "target", "blend", "properties", "effects", "children" }, new[] { "slot", "resource", "animation" });
+            validateFields(node, context, new[] { "id", "type", "target", "blend", "properties", "effects", "children" }, new[] { "slot", "resource", "animation", "clock" });
             string? id = getStableId(node, "id", context);
 
             if (id != null && !context.AllStableIds.Add(id))
@@ -775,6 +790,15 @@ namespace osu.Game.Skinning.Gameplay
             string? slotId = null;
             string? resourceId = null;
             string? animationId = null;
+            string? clockSourceId = node.TryGetValue("clock", out JToken? nodeClock) ? getString(nodeClock, context) : null;
+            if (clockSourceId != null)
+            {
+                if (type != GameplaySkinSceneNodeType.RecordedAnimation)
+                    context.Add(GameplaySkinSceneDiagnosticCode.InvalidAnimation);
+                if (!isKnownBindingSource(clockSourceId, context.Manifest)
+                    || !bindingSourceCanDriveProperty(clockSourceId, "font-size", context.Manifest))
+                    context.Add(GameplaySkinSceneDiagnosticCode.UnknownBindingSource);
+            }
 
             if (node.TryGetValue("animation", out JToken? animationToken))
             {
@@ -842,7 +866,7 @@ namespace osu.Game.Skinning.Gameplay
 
             if (type == GameplaySkinSceneNodeType.RecordedAnimation && children.Count > 0)
                 context.Add(GameplaySkinSceneDiagnosticCode.InvalidReference);
-            return new GameplaySkinSceneNode(id, type, target, slotId, resourceId, blend.Value, properties, effects, children, animationId);
+            return new GameplaySkinSceneNode(id, type, target, slotId, resourceId, blend.Value, properties, effects, children, animationId, clockSourceId);
         }
 
         private static IReadOnlyDictionary<string, GameplaySkinScenePropertyValue> parseNodeProperties(
@@ -1354,6 +1378,7 @@ namespace osu.Game.Skinning.Gameplay
                 string? source = getString(variantObject, "source", context);
                 bool isResource = property == "resource";
                 bool isVisibility = property == "visible";
+                bool groupIdentitySource = source == "layout.group";
                 GameplaySkinScenePropertyValue? defaultValue = parseVariantValue(variantObject, "default", isResource, context);
 
                 if (target != null
@@ -1369,7 +1394,7 @@ namespace osu.Game.Skinning.Gameplay
 
                 HashSet<string>? allowedKeys = null;
 
-                if (source == null || !tryGetVariantKeys(source, context.Manifest, out allowedKeys))
+                if (!groupIdentitySource && (source == null || !tryGetVariantKeys(source, context.Manifest, out allowedKeys)))
                     context.Add(GameplaySkinSceneDiagnosticCode.UnknownBindingSource);
 
                 var cases = new List<GameplaySkinSceneVariantCase>();
@@ -1403,10 +1428,10 @@ namespace osu.Game.Skinning.Gameplay
                         if (caseId != null && !context.AllStableIds.Add(caseId))
                             context.Add(GameplaySkinSceneDiagnosticCode.DuplicateStableId);
 
-                        string? key = getString(caseObject, "key", context);
+                        string? key = groupIdentitySource ? getStableId(caseObject, "key", context) : getString(caseObject, "key", context);
                         GameplaySkinScenePropertyValue? value = parseVariantValue(caseObject, valueField, isResource, context);
 
-                        if (key != null && (allowedKeys == null || !allowedKeys.Contains(key)))
+                        if (key != null && !groupIdentitySource && (allowedKeys == null || !allowedKeys.Contains(key)))
                             context.Add(GameplaySkinSceneDiagnosticCode.InvalidPropertyValue);
 
                         if (key != null && !keys.Add(key))
@@ -1418,7 +1443,7 @@ namespace osu.Game.Skinning.Gameplay
                 }
 
                 if (id != null && target != null && (isResource || isVisibility) && source != null
-                    && allowedKeys != null && defaultValue != null)
+                    && (groupIdentitySource || allowedKeys != null) && defaultValue != null)
                 {
                     variants.Add(new GameplaySkinSceneVariant(id, target, GameplaySkinSceneVocabulary.ParseProperty(property!), source, defaultValue, cases));
                 }
@@ -1662,7 +1687,7 @@ namespace osu.Game.Skinning.Gameplay
                 || property == "alignment" && value.StringValue is not ("left" or "centre" or "right")
                 || property == "mask-mode" && value.StringValue != "ellipse"
                 || property == "clip-mode" && value.StringValue is not ("bounds" or "rounded")
-                || property == "format" && value.StringValue is not ("percent" or "uppercase" or "fixed-2" or "integer")
+                || property == "format" && value.StringValue is not ("percent" or "uppercase" or "fixed-2" or "signed-fixed-2" or "integer")
                 || property == "text-overflow" && value.StringValue != "ellipsis"
                 || property == "layout" && value.StringValue != "horizontal"
                 || property == "layout-surface" && value.StringValue is not ("information.song" or "information.judgements" or "information.tempo" or "information.player"))
@@ -1864,11 +1889,13 @@ namespace osu.Game.Skinning.Gameplay
             }
 
             bool sourceIsNumber = source is "timing.time" or "timing.elapsed" or "timing.beat-phase" or "arrival.time" or "arrival.remaining" or "input.motion-counts-1" or "input.motion-counts-2" or "input.motion-revolutions-1" or "input.motion-revolutions-2" or "judgement.count.fast" or "judgement.count.slow" or "offset.value" or "score.personal-best" or "score.personal-best-progress" or "score.rank-aaa" or "score.rank-aa" or "score.rank-a" or "score.rank-aaa-progress" or "score.rank-aa-progress" or "score.rank-a-progress"
+                or "preparation.elapsed" or "preparation.remaining" or "preparation.ready-elapsed" or "arrival.cue-opacity"
                 or "judgement.offset" or "score.value" or "score.accuracy" or "combo.value" or "combo.maximum" or "gauge.value" or "gauge.maximum" or "gauge.clear-threshold"
                 or "score.maximum" or "score.progress" or "lift.value" or "lift.offset"
                 or "timing.beat" or "timing.measure" or "timing.bpm" or "timing.progress"
                 or "timing.bpm-min" or "timing.bpm-max" or "scroll.speed" or "judgement.count.perfect" or "judgement.count.great" or "judgement.count.good" or "judgement.count.ok" or "judgement.count.meh" or "judgement.count.miss" or "combo.breaks";
             bool sourceIsBoolean = source is "timing.start-available" or "arrival.available" or "arrival.visible" or "input.motion-available-1" or "input.motion-available-2" or "offset.available" or "offset.automatic" or "score.personal-best-available" or "score.rank-available"
+                or "preparation.available" or "preparation.active" or "preparation.ready" or "arrival.first-row"
                 or "input.pressed" or "gameplay.full-combo" or "score.maximum-available" or "lift.reversed" or "lift.available";
             return sourceIsNumber && number_properties.Contains(property)
                    || sourceIsBoolean && boolean_properties.Contains(property);
@@ -2034,6 +2061,8 @@ namespace osu.Game.Skinning.Gameplay
                 result["resource"] = node.ResourceId;
             if (node.AnimationId != null)
                 result["animation"] = node.AnimationId;
+            if (node.ClockSourceId != null)
+                result["clock"] = node.ClockSourceId;
 
             result["blend"] = encodeBlend(node.Blend);
             result["properties"] = encodeProperties(node.Properties);

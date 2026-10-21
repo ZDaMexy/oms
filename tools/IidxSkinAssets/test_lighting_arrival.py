@@ -131,7 +131,7 @@ class LightingArrivalTest(unittest.TestCase):
                         self.assertEqual("playfield.lane-surface", root["slot"])
                         self.assertEqual("playfield.lane-surface", instance["material"]["slot"])
                         self.assertTrue(instance["material"]["resource"].startswith("custom/markers/b/"))
-                        for gate, source in zip(nodes[:3], ("option.arrival-cue", "arrival.available", "arrival.visible")):
+                        for gate, source in zip(nodes[:3], ("option.arrival-cue", "arrival.available", "arrival.first-row")):
                             self.assertIs(False, gate["properties"]["visible"])
                             self.assertEqual(source, next(binding["source"] for binding in scene["bindings"] if binding["target"] == gate["id"]))
                         art = nodes[-1]
@@ -143,16 +143,33 @@ class LightingArrivalTest(unittest.TestCase):
                     self.assertTrue(all(template["root"]["id"].startswith(namespace + ".") for template in scene["templates"][2:]))
                     self.assertEqual(f"omni.frame.{frame}.root", scene["root"]["id"])
 
-    def test_pre_and_post_window_clamp_to_invisible_without_a_loop(self):
+    def test_cue_uses_native_first_row_visibility_instead_of_a_judgement_time_track(self):
         scene, manifest = fixture()
         arrival.inject_frame(scene, manifest, frame_id="iidx33", reference=reference())
-        for track in scene["tracks"]:
-            self.assertIs(False, track["loop"])
-            self.assertEqual("arrival.remaining", track["clock"])
-            self.assertEqual((0, 0), (track["keyframes"][0]["time"], track["keyframes"][0]["value"]))
-            self.assertEqual((3000, 0), (track["keyframes"][-1]["time"], track["keyframes"][-1]["value"]))
-            self.assertTrue(all(frame["value"] == 1 for frame in track["keyframes"][1:-1]))
-            self.assertNotIn("trigger", track)
+        self.assertFalse(scene["tracks"])
+        bindings = [binding for binding in scene["bindings"] if binding["source"] == "arrival.cue-opacity"]
+        self.assertEqual(3, len(bindings))
+        self.assertTrue(all(binding["property"] == "opacity" for binding in bindings))
+        self.assertNotIn("arrival.visible", {binding["source"] for binding in scene["bindings"]})
+
+    def test_v14_upgrade_preserves_png_geometry_and_removes_every_old_hit_time_fade(self):
+        scene, manifest = fixture()
+        arrival.inject_frame(scene, manifest, frame_id="iidx33", reference=reference())
+        targets = [binding["target"] for binding in scene["bindings"] if binding["source"] == "arrival.cue-opacity"]
+        scene["bindings"] = [binding for binding in scene["bindings"] if binding["source"] != "arrival.cue-opacity"]
+        for binding in scene["bindings"]:
+            if binding["source"] == "arrival.first-row":
+                binding["source"] = "arrival.visible"
+        scene["tracks"] = [{"id": f"old-{index}", "target": target, "clock": "arrival.remaining"}
+                           for index, target in enumerate(targets)]
+        before_templates = copy.deepcopy(scene["templates"])
+        before_manifest = copy.deepcopy(manifest)
+        receipt = arrival.upgrade_existing(scene)
+        self.assertEqual(3, receipt["judgementTimeTracksRemoved"])
+        self.assertFalse(scene["tracks"])
+        self.assertEqual(before_templates, scene["templates"])
+        self.assertEqual(before_manifest, manifest)
+        self.assertEqual(3, sum(binding["source"] == "arrival.first-row" for binding in scene["bindings"]))
 
     def test_injection_and_root_option_are_idempotent(self):
         scene, manifest = fixture()

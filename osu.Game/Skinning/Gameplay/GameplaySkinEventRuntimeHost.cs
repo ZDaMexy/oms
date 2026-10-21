@@ -68,6 +68,7 @@ namespace osu.Game.Skinning.Gameplay
         private ScoreProcessor? scoreProcessor;
         private HealthProcessor? healthProcessor;
         private GameplayClockContainer? gameplayClockContainer;
+        private GameplaySkinPreparationController? preparationController;
         private DrawableRuleset? drawableRuleset;
         private GameplaySkinLifecycleState lifecycle;
         private GameplaySkinCompletionStateSnapshot? completion;
@@ -113,7 +114,7 @@ namespace osu.Game.Skinning.Gameplay
             Func<double>? scrollSpeed = null,
             IEnumerable<GameplaySkinLaneArrival>? arrivals = null,
             bool usesExScore = false, Func<GameplaySkinOffsetStateSnapshot>? appliedOffset = null, BeatmapInfo? scoreBeatmap = null,
-            Func<ScoreInfo, bool>? validSavedScore = null)
+            Func<ScoreInfo, bool>? validSavedScore = null, IGameplaySkinArrivalVisibilityProjection? arrivalVisibility = null)
         {
             Publication = publication ?? throw new ArgumentNullException(nameof(publication));
             ArgumentNullException.ThrowIfNull(beatmap);
@@ -125,7 +126,9 @@ namespace osu.Game.Skinning.Gameplay
             this.appliedOffset = appliedOffset;
             this.scoreBeatmap = scoreBeatmap ?? beatmap.BeatmapInfo;
             this.validSavedScore = validSavedScore;
-            chartPresentation = new GameplaySkinChartPresentation(arrivals ?? Array.Empty<GameplaySkinLaneArrival>(), usesExScore);
+            this.arrivalVisibility = arrivalVisibility;
+            chartPresentation = new GameplaySkinChartPresentation(arrivals ?? Array.Empty<GameplaySkinLaneArrival>(), usesExScore,
+                arrivalCueAvailable: arrivalVisibility != null);
 
             GameplaySkinEventStateSnapshot initial = publication.PreparedScene.InitialEventState;
             inputs = initial.Inputs.ToDictionary(input => input.LaneId);
@@ -146,12 +149,13 @@ namespace osu.Game.Skinning.Gameplay
 
         [BackgroundDependencyLoader(true)]
         private void load(ScoreProcessor? scoreProcessor, HealthProcessor? healthProcessor, GameplayClockContainer? gameplayClockContainer,
-                          DrawableRuleset? drawableRuleset, RealmAccess? realm, IAPIProvider? api)
+                          DrawableRuleset? drawableRuleset, RealmAccess? realm, IAPIProvider? api, GameplaySkinPreparationController? preparationController)
         {
             this.scoreProcessor = scoreProcessor;
             this.healthProcessor = healthProcessor;
             this.gameplayClockContainer = gameplayClockContainer;
             this.drawableRuleset = drawableRuleset;
+            this.preparationController = preparationController;
             preparePersonalBest(realm, api);
         }
 
@@ -478,6 +482,10 @@ namespace osu.Game.Skinning.Gameplay
                 throw new ArgumentOutOfRangeException(nameof(reason));
 
             pendingReset = reason;
+            if (reason == GameplaySkinEventResetReason.Retry)
+                arrivalCueFadeStartTime = null;
+            else if (reason is GameplaySkinEventResetReason.Seek or GameplaySkinEventResetReason.Rewind)
+                retireArrivalCue(AuthoritativeGameplayTime);
 
             if (objectSnapshotSource != null
                 && reason is GameplaySkinEventResetReason.Seek or GameplaySkinEventResetReason.Rewind or GameplaySkinEventResetReason.Retry)
@@ -552,6 +560,10 @@ namespace osu.Game.Skinning.Gameplay
 
                 resetTimingCounts();
                 synchroniseScoreState();
+                // A frame-stable rewind may traverse intermediate positions after its first callback.
+                // Retire against the final epoch time so the cue cannot reappear at the destination.
+                if (reason is GameplaySkinEventResetReason.Seek or GameplaySkinEventResetReason.Rewind)
+                    retireArrivalCue(time);
                 timing = createTimingState(time);
                 synchroniseActiveObjectsFromEngine(time);
                 synchroniseCompletionAtReset(time);
@@ -642,7 +654,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinLiftState lift = (drawableRuleset?.Playfield as IGameplaySkinLiftStateSource)?.GameplaySkinLiftState ?? default;
             return new GameplaySkinTimingStateSnapshot(sample.Beat, sample.BarIndex, sample.Bpm, sample.IsStopped, sample.ScrollMultiplier, progress,
                 scrollSpeed?.Invoke() ?? 0, lift,
-                gameplayClockContainer is { } clock && double.IsFinite(clock.StartTime) && clock.StartTime != double.MinValue ? clock.StartTime : null);
+                gameplayClockContainer is { } clock && double.IsFinite(clock.StartTime) && clock.StartTime != double.MinValue ? clock.StartTime : null,
+                preparationController?.State ?? default, updateArrivalCue(time));
         }
 
         private void synchroniseActiveObjectsFromEngine(double gameplayTime)
@@ -1013,7 +1026,10 @@ namespace osu.Game.Skinning.Gameplay
             resetTimingCounts();
             bool seeking = pendingReset is GameplaySkinEventResetReason.Seek or GameplaySkinEventResetReason.Rewind;
             if (!seeking)
+            {
                 pendingReset = GameplaySkinEventResetReason.Retry;
+                arrivalCueFadeStartTime = null;
+            }
             deferDiscontinuityResetForDrawableState = objectSnapshotSource != null;
             pendingDiscontinuityGameplayTime = gameplayClockContainer?.LastSeekTarget;
             clearInputOrigins();
@@ -1033,12 +1049,14 @@ namespace osu.Game.Skinning.Gameplay
                 : GameplaySkinEventResetReason.Seek;
             deferDiscontinuityResetForDrawableState = objectSnapshotSource != null;
             pendingDiscontinuityGameplayTime = seekDestination;
+            retireArrivalCue(seekDestination);
             clearInputOrigins();
             restoreLifecycleAfterDiscontinuity(retainCompletion: true);
         }
 
         private void onRetry()
         {
+            arrivalCueFadeStartTime = null;
             pendingReset = GameplaySkinEventResetReason.Retry;
             deferDiscontinuityResetForDrawableState = objectSnapshotSource != null;
             pendingDiscontinuityGameplayTime = gameplayClockContainer?.LastSeekTarget;

@@ -42,6 +42,8 @@ namespace osu.Game.Skinning.Gameplay
         private readonly GameplaySkinLayoutRect rect;
         private readonly GameplaySkinOffsetStateSnapshot offsetState;
         private readonly double? timingStartTime;
+        private readonly GameplaySkinPreparationStateSnapshot preparation;
+        private readonly double? arrivalCueFadeStartTime;
 
         internal GameplaySkinEventPayloadFamily Family { get; }
 
@@ -72,7 +74,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinLayoutRect rect = default,
             double number4 = 0,
             GameplaySkinJudgementStatistics statistics = default,
-            GameplaySkinOffsetStateSnapshot offsetState = default, double? timingStartTime = null)
+            GameplaySkinOffsetStateSnapshot offsetState = default, double? timingStartTime = null,
+            GameplaySkinPreparationStateSnapshot preparation = default, double? arrivalCueFadeStartTime = null)
         {
             Family = family;
             DeliveryKind = deliveryKind;
@@ -93,6 +96,8 @@ namespace osu.Game.Skinning.Gameplay
             this.rect = rect;
             this.offsetState = offsetState;
             this.timingStartTime = timingStartTime;
+            this.preparation = preparation;
+            this.arrivalCueFadeStartTime = arrivalCueFadeStartTime;
         }
 
         internal static GameplaySkinEventValue Snapshot(GameplaySkinEventStateSnapshot state)
@@ -175,7 +180,8 @@ namespace osu.Game.Skinning.Gameplay
             long offsetBits = ((long)scalar2 << 32) | (uint)scalar1;
             var lift = new GameplaySkinLiftState((scalar0 & 2) != 0, BitConverter.Int64BitsToDouble(integral1),
                 BitConverter.Int64BitsToDouble(offsetBits), (scalar0 & 4) != 0);
-            return new GameplaySkinTimingStateSnapshot(number0, integral0, number1, (scalar0 & 1) != 0, number2, number3, number4, lift, timingStartTime);
+            return new GameplaySkinTimingStateSnapshot(number0, integral0, number1, (scalar0 & 1) != 0, number2, number3, number4, lift, timingStartTime,
+                preparation, arrivalCueFadeStartTime);
         }
 
         internal GameplaySkinBgaStateSnapshot GetBga()
@@ -432,7 +438,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinTimingStateSnapshot state,
             GameplaySkinEventPayload? materialized)
         {
-            _ = new GameplaySkinTimingStateSnapshot(state.Beat, state.BarIndex, state.Bpm, state.IsStopped, state.ScrollMultiplier, state.Progress, state.ScrollSpeed, state.LiftState, state.StartTime);
+            _ = new GameplaySkinTimingStateSnapshot(state.Beat, state.BarIndex, state.Bpm, state.IsStopped, state.ScrollMultiplier, state.Progress, state.ScrollSpeed,
+                state.LiftState, state.StartTime, state.Preparation, state.ArrivalCueFadeStartTime);
 
             if (eventKind is not GameplaySkinEventKind.TimingBeat
                 and not GameplaySkinEventKind.TimingBar
@@ -461,7 +468,7 @@ namespace osu.Game.Skinning.Gameplay
                 number1: state.Bpm,
                 number2: state.ScrollMultiplier,
                 number3: state.Progress,
-                number4: state.ScrollSpeed, timingStartTime: state.StartTime);
+                number4: state.ScrollSpeed, timingStartTime: state.StartTime, preparation: state.Preparation, arrivalCueFadeStartTime: state.ArrivalCueFadeStartTime);
         }
 
         private static GameplaySkinEventValue bgaValue(
@@ -579,7 +586,10 @@ namespace osu.Game.Skinning.Gameplay
                 authoritativeTiming.ScrollMultiplier,
                 authoritativeTiming.Progress,
                 authoritativeTiming.ScrollSpeed,
-                authoritativeTiming.LiftState);
+                authoritativeTiming.LiftState,
+                authoritativeTiming.StartTime,
+                authoritativeTiming.Preparation,
+                authoritativeTiming.ArrivalCueFadeStartTime);
 
             if (laneId != null && groupId == null)
                 throw new ArgumentException("A lane-targeted gameplay skin event must also carry its stable group ID.", nameof(groupId));

@@ -122,7 +122,7 @@ Omni的Key beam是逐轨动态背景，使用现有`playfield.lane-surface`及Un
 6. 游玩候选按用户指定代数与已确认资源推进；可导入、真实 Player 可玩和经原版完整歌曲校准须分别记录，未完成还原不伪称完成，也不阻止用户指定下一代的资源尝试。完整选曲 / 结算界面属于后续增量页面，保留原界面可选和共用数据；当前 gameplay V1 不因本授权被描述为已经支持这些页面。静线暂停及原设备 / 发行门保持。
 7. CUSTOM的设计选择、视觉尺寸/厚度及光束长度分别核原素材与实际消费者；CN头尾外观不能缩放长条时间主体或改判定/HCN机制。原图/动画存在、菜单预览存在、实际可选与OMS已接入不是同一状态，不能用单一默认设计、开关或近似缩放代签全部设计。Graph Area须有真实数据消费者；Omni按用户2026-10-20反馈仅提供主屏，移除Lightning副屏、展开/专注/亮度及专属Premium背景/图标、Concentration背景，发布闭包不含专用资源。此取舍属于作者包，公共辅助屏接口及其它皮肤不变。
 8. Lightning时期统一作品名称为Lighting Model Skin Omni Until 33；27～33与八支BPL作为Game Frame，默认33，不扩展未来Until34。source00等共享默认属于当前作者组合，未核原host菜单绑定的细节不得冒称原版完整默认。独立作品的私下分享边界按第3项。
-9. 内容目录只扩展有界备选和选中内容能力，不改变无声明普通包的解码/材料路径。原图证明三类独立动态艺术与Frame/FC无法容纳于64MiP后，仅显式目录的冻结组合允许96MiP/384MiB；普通包仍64MiP/256MiB，单图16MiP、单资源16MiB、总编码64MiB、资源256和其它运行上限不变。详细输入边界只取[作者参考](../../../skin-authoring/docs/REFERENCE.md#按选项组合内容)。
+9. 内容目录只扩展有界备选和选中内容能力，不改变无声明普通包的解码/材料路径。原图证明三类独立动态艺术与Frame/FC无法容纳于64MiP后，仅显式目录的冻结组合允许96MiP/384MiB；普通包仍64MiP/256MiB，单图16MiP、单资源16MiB、总编码64MiB、普通资源256和其它运行上限不变；轨道开场与完整READY的原图需求证明选中组合需296资源后，仅目录冻结组合允许384项。详细输入边界只取[作者参考](../../../skin-authoring/docs/REFERENCE.md#按选项组合内容)。
 9a. Omni歌曲游标属于Frame作者场景，通过既有只读`timing.progress`跟随首对象至最后结束（含长条尾）的实际Player时钟；不另建时间、输入或成绩权威。15框体分别采用原GEO显示尺寸和三布局，DP保留两个实例；22×30原PNG不等同于显示尺寸。缺少原纵向末端的布局采用自身E标记对齐并明确标记作者适配，不能从美术端点推定原游戏进度公式。来源、原PNG及精确映射仅保留本地，公开工具不携带原版美术。
 9b. 皮肤可只读引用真实entry起点/拍相、post-mod逐轨首音、FAST/SLOW、实际偏移、一次加载冻结的有效本地最好和带符号设备运动。未提供的能力保持不可用，不填造数据；数字输入、Auto和旧回放不补造运动方向。设备采集、判定/计分和时间仍由原生链路承担，C5运动状态不增加旧C6脚本回调。作者显式`clock`与`orderedVariants`才启用新合同，未声明的旧包保持原表现；字段、10套字体和预算取[作者参考](../../../skin-authoring/docs/REFERENCE.md)。
 10. 按键记录动画起点只能来自原生输入的真实游玩时间边沿；完整快照、队列重建和晚挂载保留，seek/retry不得伪造旧起点。持续按住但旧边沿未知时仅投影稳定held帧，真实release仍可独立播放尾段。原生EXP按选中记录的完整时长保留，不能因历史200ms效果寿命截断；裁切后真实三角形、片数与原生池重复均计入准备预算。
@@ -291,7 +291,7 @@ L12. lane-resource candidate/snapshot与configuration candidate已经接入BMS e
 
 ## scene、事件与脚本约束
 
-`instances`的`target`与`material`二选一；后者只按选定包同一ContentRevision的Global/Stage/Lane Provide声明及精确slot/resource匹配，模板根slot相同，准备仍复核exact owner，不借用canonical scene/resources。实际展开参与既有节点、帧、事件与文字预算，Stage/Lane实例使用真实目标事实，Global实例只生成一次。`reveal-x`只用于clip，范围0..1，保留完整子坐标；`format`只允许静态percent/uppercase/fixed-2/integer，格式化后继续限制长度，accuracy/progress保留既有专用格式。BMS `GaugeHeight`仅选定包读取，默认0.036、范围0.02..0.12，由唯一solver与键区/BGA/底部信息共同避让。原模板与血槽证据见[历史记录](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md)，新增能力验证取本线STATUS。
+`instances`的`target`与`material`二选一；后者只按选定包同一ContentRevision的Global/Stage/Lane Provide声明及精确slot/resource匹配，模板根slot相同，准备仍复核exact owner，不借用canonical scene/resources。实际展开参与既有节点、帧、事件与文字预算，Stage/Lane实例使用真实目标事实，Global实例只生成一次。`reveal-x`只用于clip，范围0..1，保留完整子坐标；`format`只允许静态percent/uppercase/fixed-2/signed-fixed-2/integer，格式化后继续限制长度，accuracy/progress保留既有专用格式。BMS `GaugeHeight`仅选定包读取，默认0.036、范围0.02..0.12，由唯一solver与键区/BGA/底部信息共同避让。原模板与血槽证据见[历史记录](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md)，新增能力验证取本线STATUS。
 
 清单可选 `bitmapFonts` 只引用同包已准备的纹理，Text通过静态 `bitmap-font` 选用。字体、字形、字符、像素与运行文字均有硬预算；缺字或超限明确失败，不回落系统字形，不在update线程读文件或建新图集。尺寸、格式和完整字段见[公开参考](../../../skin-authoring/docs/REFERENCE.md#用自己的图片字形显示数字)。普通Text未声明该字段时保留原表现。
 
@@ -304,6 +304,10 @@ Container可静态声明 `layout: horizontal`，只排列普通Sprite与图片�
 `projective-sprite` 只消费已校验的四角坐标、正倒数W与透明度帧，使用同一准备、资源、帧和时钟预算；不提供作者shader、相机或任意几何。坐标有限且在±4内，倒数W为1/256～256，采用固定完整UV和双面绘制。纹理清单可选 `filter: nearest/linear`，默认linear，按具体已准备资源隔离采样设置；nearest只上传原始层，不由图形后端自动生成缩小平均层。公开语法及不适用的属性见[四角动画参考](../../../skin-authoring/docs/REFERENCE.md#已投影纹理的四角动画)。
 
 对象长条模式随原生对象、compact事件和完整快照传递，epoch内不可改变；appearance只由同一模式与现有对象状态派生。血槽类型、最大值、阈值和通关状态只读实际处理器，语义变化沿既有GaugeChanged发布；无提供者明确unavailable，不按mania血量猜通关。字段闭集见[只读绑定](../../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)，不另建输入、判定、计分或时间权威。
+
+开局准备仅由所选scene的`preparationDuration`正值启用，范围0..10000ms；Player父级更新时间驱动，歌曲/回放/判定保持原点，暂停冻结。BMS替代原等待，按住调速只延长倒计时、不重播美术；最后1500ms提供READY。自然完成保留已完成相位，跳过或退出撤销，未声明普通皮肤保持旧路径。准备值通过同一Timing快照只读传递，来源不用于新增脚本回调；记录节点或轨迹的显式clock只采样已验证数值。不可用时轨迹恢复静态默认、记录节点隐藏。`layout.group`变体按真实材质组稳定ID筛选，不按画面位置或作品名称猜组。公开字段与示例见[准备阶段](../../../skin-authoring/docs/REFERENCE.md#开局准备阶段)。
+
+首排预告只使用全谱最早同排的post-mod实际音符及原生滚动位置，200ms前瞻淡出，进入可视区立即清空，不等击打；局内滚速、方向、偏移、LIFT、STOP/SV均沿原生列投影。完成后不再逐帧扫描，普通seek/rewind在最终epoch位置保持退场，Retry恢复。旧逐轨arrival元数据/绑定语义不变；无真实投影时cue透明，不伪造到来时间。皮肤只控制可视提示，不改变输入、判定与成绩。
 
 公开只读绑定`song.title/artist/difficulty/level`、`timing.bpm-min/bpm-max`、`scroll.speed`、`judgement.count.perfect/great/good/ok/meh/miss`及`combo.breaks/maximum`。静态SongInformation只随完整快照携带，聚合器重附着/epoch替换必须保留。每项元数据最多256个UTF-16单元，截断不能分裂代理对；判定计数字形预留10，其余既有动态数字预留384，总字形预算8192，纹理字节/像素及每帧创建限制不变。计数内联值类型随Score payload传递，每帧和reset屏障从真实ScoreProcessor.Statistics读取，不能以皮肤事件自行累计；BMS中Perfect/Great/Good/Meh/Miss/Ok分别是PG/GR/GD/BD/PR/空POOR，ComboBreak仅真正断连，mania保留自身档位语义。`combo.maximum`只读同一ScoreSnapshot.MaxCombo（真实计分器HighestCombo），表示本局已达到的最高连击；断连、完整重建、晚挂载及seek/retry沿原快照语义，不读取谱面理论MaximumCombo、不由皮肤累计、不增event或SDK写侧。它是Score family整数来源，图片数字可不声明小数点。BMS MIN/MAX来自转换器音乐时间线，STOP不改变真实BPM，未使用定义和SCROLL不参与；HiSpeed来自SelectedHiSpeed，mania来自实际ScrollSpeed设置，不以滚动倍率、TimeRange或绿数冒充。
 

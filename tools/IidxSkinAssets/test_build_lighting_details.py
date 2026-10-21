@@ -5,7 +5,8 @@ import tempfile
 from pathlib import Path
 import unittest
 
-from build_lighting_details import bga_ini, compact_added_textures, compact_intro_keyframe_ids, select_frame_layouts, select_turntable_frame, share_turntable_geometry, deduplicate_inis
+from build_lighting_details import (bga_ini, compact_added_textures, compact_intro_keyframe_ids,
+    compact_frame_resource_ids, compact_scene_identifiers, select_frame_layouts, select_turntable_frame, share_turntable_geometry, deduplicate_inis)
 import lighting_motion
 from test_lighting_motion import turntables
 
@@ -71,6 +72,58 @@ class LightingDetailsBuilderTest(unittest.TestCase):
             select_frame_layouts(manifest, side)
             self.assertEqual(3 if side == 'dp' else 4, len(manifest['layouts']))
             self.assertTrue(all(declaration in original['layouts'] for declaration in manifest['layouts']))
+
+    def test_scene_compaction_rewrites_all_local_links_without_changing_source_samples(self):
+        document = {'root': {'id': 'very.long.root', 'children': []}, 'templates': [
+            {'id': 'very.long.template', 'root': {'id': 'very.long.child', 'children': [], 'resource': 'unchanged.texture'}}],
+            'instances': [{'id': 'very.long.instance', 'template': 'very.long.template'}],
+            'tracks': [{'id': 'very.long.track', 'target': 'very.long.child', 'clock': 'preparation.elapsed',
+                        'keyframes': [{'id': 'very.long.sample', 'time': 500, 'value': [0.123456789, 0.5, 1]}]}]}
+        samples = copy.deepcopy(document['tracks'][0]['keyframes'][0]['value'])
+        compact_scene_identifiers(document)
+        self.assertEqual(document['templates'][0]['id'], document['instances'][0]['template'])
+        self.assertEqual(document['templates'][0]['root']['id'], document['tracks'][0]['target'])
+        self.assertEqual('unchanged.texture', document['templates'][0]['root']['resource'])
+        self.assertEqual('preparation.elapsed', document['tracks'][0]['clock'])
+        self.assertEqual(samples, document['tracks'][0]['keyframes'][0]['value'])
+
+    def test_new_recorded_clips_follow_compacted_texture_ids_without_losing_frames(self):
+        import brotli
+        import json
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            (output / 'source.png').write_bytes(b'original pixels')
+            clip = {'geometries': [{'resource': 'omni.intro.source', 'vertices': [[1, 2, 0, 0.5, 0.6]]}],
+                    'frames': [{'nodes': [[0, 0]]}, {'nodes': []}], 'states': [{'multiply': [1, 1, 1, 0.4]}]}
+            (output / 'clip.json.br').write_bytes(brotli.compress(json.dumps(clip).encode()))
+            manifest = {'resources': [{'id': 'omni.intro.source', 'type': 'texture', 'path': 'source.png', 'filter': 'nearest'}],
+                        'animations': [{'id': 'animation', 'path': 'clip.json.br', 'resources': ['omni.intro.source']}]}
+            scene = {'root': {}, 'templates': [], 'tracks': [], 'variants': []}
+            compact_added_textures(output, manifest, scene)
+            animation = manifest['animations'][0]
+            actual = json.loads(brotli.decompress((output / animation['path']).read_bytes()))
+            self.assertEqual(manifest['resources'][0]['id'], actual['geometries'][0]['resource'])
+            self.assertEqual(animation['resources'], [actual['geometries'][0]['resource']])
+            self.assertEqual(clip['frames'], actual['frames'])
+            self.assertEqual(clip['states'], actual['states'])
+            self.assertEqual(clip['geometries'][0]['vertices'], actual['geometries'][0]['vertices'])
+
+    def test_frame_resource_names_remain_shared_and_keep_external_module_ids(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            identities = {}
+            for ignored in range(2):
+                manifest = {'resources': [{'id': 'frame.original-long-name', 'path': 'unchanged.png'},
+                                          {'id': 'shared.original', 'path': 'shared.png'}],
+                            'bitmapFonts': [{'id': 'font', 'glyphs': [{'resource': 'frame.original-long-name'}]}]}
+                scene = {'root': {'resource': 'frame.original-long-name'}, 'source': 'preparation.elapsed'}
+                compact_frame_resource_ids(output, scene, manifest, identities, {'shared.original'})
+                self.assertEqual('fr0', scene['root']['resource'])
+                self.assertEqual('fr0', manifest['bitmapFonts'][0]['glyphs'][0]['resource'])
+                self.assertEqual('unchanged.png', manifest['resources'][0]['path'])
+                self.assertEqual('shared.original', manifest['resources'][1]['id'])
+                self.assertEqual('preparation.elapsed', scene['source'])
+            self.assertEqual({'frame.original-long-name': 'fr0'}, identities)
 
     def test_compact_intro_identity_keeps_every_original_time_and_quad_sample(self):
         scene = {'tracks': [{'id': 'li.iidx33.dp.q20', 'clock': 'timing.elapsed', 'keyframes': [

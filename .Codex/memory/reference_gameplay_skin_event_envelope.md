@@ -28,6 +28,9 @@ envelope/scene ABI、版本与producer合同见 [P1-A CONSTRAINTS](../../doc_md/
 
 ## Callback 内必须拷贝
 
+- 准备阶段的装饰时钟不能取停住的歌曲/回放时钟，也不能让皮肤推进它们。显式作者声明由Player父更新产生只读准备快照；主动seek要撤销半程演出，正常完成才保留最终相位。真实Replay不支持普通暂停，暂停合同另用真实手动Player验证，不能伪造其Pause成功。来源及边界见[全框体开场](../../doc_md/other/OMNI_OPENINGS_20261021.md)。
+- 首排提示退场不能读命中结果或逐轨first-hit。全谱第一排由对象起始时刻确定，可见性由原生列的实际滚动投影确定；seek/rewind的FrameStable中间时间可能早于最终目的地，退场锁定必须在最终Reset提交时再收敛，不能只在中间帧设置。
+
 - 2026-09-11 ExactRoot 真实 Seek 取证：测试中晚加的直接 DrawableNote/DrawableHoldNote 会出现在活动对象扫描中，但非池入口不触发 HitObjectUsageBegan，不能取得唯一已登记 object ID。真实重建因此按合同抛错，不能靠放宽 ID 检查、跳过 Seek 或延长等待修复。应经 Playfield.Add(HitObject) 后从对应列按同一 HitObject 捕获真实池对象，保留材料、几何、Reset active ID 与真实击打显示断言；验证结论仍读 P1-A。
 - Logger.NewEntry 的 Message 与 Exception 是两个字段；只保存通用 Message 会丢失根因和堆栈。Release 宿主可能允许一次错误继续运行，表现为后续等待超时；诊断应在当前测试开始前记录两字段、结束取消订阅，不修改游戏异常容许规则，也不把 pendingReset 已清空当作 Reset 成功。
 

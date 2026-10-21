@@ -57,6 +57,7 @@ namespace osu.Game.Skinning.Gameplay
             {
                 "percent" or "integer" => "0",
                 "fixed-2" => "0.00",
+                "signed-fixed-2" => "+0.00;-0.00;+0.00",
                 "" => "0.###",
                 _ => throw new InvalidOperationException("This format cannot be used with an author bitmap font."),
             };

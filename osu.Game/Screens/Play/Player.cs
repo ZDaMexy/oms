@@ -232,6 +232,7 @@ namespace osu.Game.Screens.Play
                 return;
 
             PrepareReplay();
+            configureGameplaySkinPreparation();
 
             if (DrawableRuleset is IGameplaySkinSceneRuntimeSource { GameplaySkinSceneRuntime: { } sceneRuntime })
             {
@@ -489,7 +490,12 @@ namespace osu.Game.Screens.Play
             {
                 if (waiting.NewValue)
                     GameplayClockContainer.Stop();
-                else
+                else if (GameplaySkinPreparationActive)
+                {
+                    if (PauseOverlay.State.Value != Visibility.Visible)
+                        softUnpauseGameplaySkinPreparation();
+                }
+                else if (!HasGameplaySkinPreparation || PauseOverlay.State.Value != Visibility.Visible)
                     GameplayClockContainer.Start();
             });
 
@@ -821,6 +827,9 @@ namespace osu.Game.Screens.Play
 
         protected virtual void RequestIntroSkip()
         {
+            if (GameplaySkinPreparationActive && gameplaySkinPreparation.IsHeld)
+                return;
+
             PerformIntroSkip();
         }
 
@@ -1256,6 +1265,13 @@ namespace osu.Game.Screens.Play
         {
             if (!canResume) return;
 
+            if (GameplaySkinPreparationActive)
+            {
+                PauseOverlay.Hide();
+                softUnpauseGameplaySkinPreparation();
+                return;
+            }
+
             IsResuming = true;
             PauseOverlay.Hide();
 
@@ -1335,6 +1351,14 @@ namespace osu.Game.Screens.Play
         /// </summary>
         protected virtual void StartGameplay()
         {
+            if (TryBeginGameplaySkinPreparation())
+                return;
+
+            startGameplayImmediately();
+        }
+
+        private void startGameplayImmediately()
+        {
             if (GameplayClockContainer.IsRunning)
                 Logger.Error(new InvalidOperationException($"{nameof(StartGameplay)} should not be called when the gameplay clock is already running"), "Clock failure");
 
@@ -1346,6 +1370,7 @@ namespace osu.Game.Screens.Play
 
         public override void OnSuspending(ScreenTransitionEvent e)
         {
+            cancelGameplaySkinPreparation();
             Debug.Assert(!ValidForResume);
 
             screenSuspension?.RemoveAndDisposeImmediately();
@@ -1360,6 +1385,7 @@ namespace osu.Game.Screens.Play
 
         public override bool OnExiting(ScreenExitEvent e)
         {
+            cancelGameplaySkinPreparation();
             screenSuspension?.RemoveAndDisposeImmediately();
 
             // Eagerly clean these up as disposal of child components is asynchronous and may leave sounds playing beyond user expectations.

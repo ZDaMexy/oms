@@ -69,9 +69,9 @@
 - [gameplay skin shared codec/material](reference_gameplay_skin_codec_material.md) — 元素族/样式、typed Note/LN空匹配、scene数字ID段、必需槽透明Provide与字体复用预算。
 - [gameplay skin lane identity/topology](reference_gameplay_skin_lane_identity.md) — stable lane ID 与 topology 投影。
 - [gameplay skin topology publication/revision](reference_gameplay_skin_topology_revision.md) — owner-local revision 与 publication 区别。
-- [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — 唯一layout、准备失败与旧screen退役、显式空位/authorTop、mania键图mask、双stage判定、替换后AutoSize零高与跨玩法尺寸、光柱层级、图卡目标、AFP/SD与CUSTOM原档核对。
+- [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — 唯一layout、准备失败与旧screen退役、显式空位/authorTop、mania键图mask、双stage判定、替换后AutoSize零高与跨玩法尺寸、光柱层级、图卡目标、AFP/SD、CUSTOM与开场短帧窗口。
 - [gameplay skin config presence](reference_gameplay_skin_config_presence.md) — accepted presence、synthetic default 与 per-index mask。
 - [gameplay skin lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md) — lane provenance、9K/14K 候选映射与资源退役。
-- [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — 事件顺序、seek 时钟收敛与完整 Reset、callback 拷贝及真实显示取证。
+- [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — 事件顺序、seek 时钟收敛与完整 Reset、callback 拷贝、真实显示、父级准备时钟与首排提示退场。
 - [gameplay skin capability negotiation](reference_gameplay_skin_capability_negotiation.md) — closed allowlist、只读 token 与危险 handle。
 - [gameplay skin 脚本诊断](reference_gameplay_skin_scripts.md) — 授权撤销、暂停冻结、数值钳制、固定 tick 与纹理上传 ownership。

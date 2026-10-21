@@ -34,6 +34,12 @@ namespace osu.Game.Skinning.Gameplay
             switch (source)
             {
                 case GameplaySkinSceneBindingSource.TimingStartAvailable: value = timingState.StartTime.HasValue; return true;
+                case GameplaySkinSceneBindingSource.PreparationAvailable: value = timingState.Preparation.Available; return true;
+                case GameplaySkinSceneBindingSource.PreparationActive: value = timingState.Preparation.Active; return true;
+                case GameplaySkinSceneBindingSource.PreparationReady: value = timingState.Preparation.Ready; return true;
+                case GameplaySkinSceneBindingSource.ArrivalFirstRow:
+                    value = chartPresentation?.IsFirstRow(node.PreparedNode.MaterialTarget?.LaneId, node.PreparedNode.MaterialTarget?.GroupId) == true;
+                    return true;
                 case GameplaySkinSceneBindingSource.ArrivalAvailable: value = arrivalFor(node).HasValue; return true;
                 case GameplaySkinSceneBindingSource.ArrivalVisible: value = arrivalFor(node) is double arrival && sceneGameplayTime < arrival; return true;
                 case GameplaySkinSceneBindingSource.InputMotionAvailable1: value = motionForGroup(0).HasValue; return true;
@@ -51,6 +57,13 @@ namespace osu.Game.Skinning.Gameplay
             switch (source)
             {
                 case GameplaySkinSceneBindingSource.TimingTime: value = sceneGameplayTime; return true;
+                case GameplaySkinSceneBindingSource.PreparationElapsed: value = timingState.Preparation.Elapsed; return true;
+                case GameplaySkinSceneBindingSource.PreparationRemaining: value = timingState.Preparation.Remaining; return true;
+                case GameplaySkinSceneBindingSource.PreparationReadyElapsed: value = timingState.Preparation.ReadyElapsed; return true;
+                case GameplaySkinSceneBindingSource.ArrivalCueOpacity:
+                    value = chartPresentation?.ArrivalCueAvailable != true ? 0
+                        : timingState.ArrivalCueFadeStartTime is double fadeStart ? 1 - Math.Clamp((sceneGameplayTime - fadeStart) / 200, 0, 1) : 1;
+                    return true;
                 case GameplaySkinSceneBindingSource.TimingElapsed: value = timingState.StartTime is double start ? Math.Max(0, sceneGameplayTime - start) : 0; return true;
                 case GameplaySkinSceneBindingSource.TimingBeatPhase: value = timingState.Beat - Math.Floor(timingState.Beat); return true;
                 case GameplaySkinSceneBindingSource.ArrivalTime: value = arrivalFor(node) ?? 0; return true;
@@ -77,13 +90,15 @@ namespace osu.Game.Skinning.Gameplay
         }
 
         private double trackClock(GameplaySkinPreparedSceneTrack track, GameplaySkinSceneRuntimeNode node)
+            => presentationClock(track.ClockSource, track.ClockOptionId, node);
+
+        private double presentationClock(GameplaySkinSceneBindingSource source, string? optionId, GameplaySkinSceneRuntimeNode node)
         {
-            GameplaySkinSceneBindingSource source = track.ClockSource;
             if (tryPresentationNumber(source, node, out double presentation))
                 return presentation;
             return source switch
             {
-                GameplaySkinSceneBindingSource.Option => Publication.Snapshot.Context.OptionValues.TryGetValue(track.ClockOptionId!, out GameplaySkinOptionValue option) ? option.NumberValue : 0,
+                GameplaySkinSceneBindingSource.Option => Publication.Snapshot.Context.OptionValues.TryGetValue(optionId!, out GameplaySkinOptionValue option) ? option.NumberValue : 0,
                 GameplaySkinSceneBindingSource.TimingBeat => timingState.Beat,
                 GameplaySkinSceneBindingSource.TimingMeasure => timingState.BarIndex,
                 GameplaySkinSceneBindingSource.TimingBpm => timingState.Bpm,

@@ -6,6 +6,39 @@ using System.Linq;
 
 namespace osu.Game.Skinning.Gameplay
 {
+    /// <summary>Read-only progress of the player's preparation stage, independent of music and judgement time.</summary>
+    public readonly record struct GameplaySkinPreparationStateSnapshot
+    {
+        public bool Available { get; }
+        public bool Active { get; }
+        public double Elapsed { get; }
+        public double Remaining { get; }
+        public bool Ready { get; }
+        public double ReadyElapsed { get; }
+
+        internal GameplaySkinPreparationStateSnapshot(bool available, bool active, double elapsed, double remaining, bool ready, double readyElapsed)
+        {
+            if (!double.IsFinite(elapsed) || elapsed < 0)
+                throw new ArgumentOutOfRangeException(nameof(elapsed));
+            if (!double.IsFinite(remaining) || remaining < 0)
+                throw new ArgumentOutOfRangeException(nameof(remaining));
+            if (!double.IsFinite(readyElapsed) || readyElapsed < 0 || readyElapsed > 1500)
+                throw new ArgumentOutOfRangeException(nameof(readyElapsed));
+            if (!available && (active || elapsed != 0 || remaining != 0 || ready || readyElapsed != 0))
+                throw new ArgumentException("Unavailable preparation cannot retain progress or claim an active stage.");
+            if (!active && (remaining != 0 || ready || readyElapsed != 0))
+                throw new ArgumentException("Completed preparation cannot retain a countdown or GET READY animation.");
+            if (!ready && readyElapsed != 0)
+                throw new ArgumentException("An inactive GET READY animation has no elapsed time.");
+            Available = available;
+            Active = active;
+            Elapsed = elapsed;
+            Remaining = remaining;
+            Ready = ready;
+            ReadyElapsed = readyElapsed;
+        }
+    }
+
     /// <summary>Read-only display of an offset which the ruleset has actually applied.</summary>
     public readonly record struct GameplaySkinOffsetStateSnapshot
     {
@@ -54,8 +87,10 @@ namespace osu.Game.Skinning.Gameplay
         public IReadOnlyList<GameplaySkinLaneArrival> Arrivals { get; }
         public long? PersonalBestScore { get; }
         public bool UsesExScore { get; }
+        public bool ArrivalCueAvailable { get; }
 
-        internal GameplaySkinChartPresentation(IEnumerable<GameplaySkinLaneArrival> arrivals, bool usesExScore = false, long? personalBestScore = null)
+        internal GameplaySkinChartPresentation(IEnumerable<GameplaySkinLaneArrival> arrivals, bool usesExScore = false, long? personalBestScore = null,
+                                               bool arrivalCueAvailable = false)
         {
             GameplaySkinLaneArrival[] copy = arrivals.ToArray();
             if (copy.Length > GameplaySkinEventBudgets.MAX_INPUT_STATES || copy.Select(arrival => arrival.LaneId).Distinct().Count() != copy.Length)
@@ -68,11 +103,15 @@ namespace osu.Game.Skinning.Gameplay
             firstTime = copy.Length == 0 ? null : copy.Min(arrival => arrival.Time);
             UsesExScore = usesExScore;
             PersonalBestScore = personalBestScore;
+            ArrivalCueAvailable = arrivalCueAvailable && copy.Length != 0;
         }
 
         internal double? ArrivalFor(GameplaySkinLaneId? laneId, GameplaySkinLaneGroupId? groupId)
             => laneId != null ? lanes.TryGetValue(laneId, out double lane) ? lane : null
                 : groupId != null ? groups.TryGetValue(groupId, out double group) ? group : null : firstTime;
+
+        internal bool IsFirstRow(GameplaySkinLaneId? laneId, GameplaySkinLaneGroupId? groupId)
+            => firstTime is double first && ArrivalFor(laneId, groupId) is double arrival && Math.Abs(arrival - first) <= 0.000001;
 
         internal static long RankThreshold(long maximum, int ninths)
             => maximum / 9 * ninths + (maximum % 9 * ninths + 8) / 9;

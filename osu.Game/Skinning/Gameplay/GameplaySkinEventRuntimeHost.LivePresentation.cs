@@ -22,6 +22,40 @@ namespace osu.Game.Skinning.Gameplay
         private int countedHitEvents;
         private int fastCount;
         private int slowCount;
+        private readonly IGameplaySkinArrivalVisibilityProjection? arrivalVisibility;
+        private double? arrivalCueFadeStartTime;
+
+        private double? updateArrivalCue(double gameplayTime)
+            => arrivalCueFadeStartTime = SampleArrivalCueFadeStart(chartPresentation, arrivalVisibility, gameplayTime, arrivalCueFadeStartTime);
+
+        private void retireArrivalCue(double gameplayTime)
+        {
+            if (chartPresentation?.ArrivalCueAvailable == true)
+                arrivalCueFadeStartTime = gameplayTime - 200;
+        }
+
+        internal static double? SampleArrivalCueFadeStart(GameplaySkinChartPresentation? chart, IGameplaySkinArrivalVisibilityProjection? visibility,
+                                                          double gameplayTime, double? previousFadeStart)
+        {
+            if (chart?.ArrivalCueAvailable != true || visibility == null)
+                return null;
+            if (previousFadeStart is double completed && gameplayTime - completed >= 200)
+                return previousFadeStart;
+
+            bool predicted = false;
+            for (int i = 0; i < chart.Arrivals.Count; i++)
+            {
+                GameplaySkinLaneArrival arrival = chart.Arrivals[i];
+                if (!chart.IsFirstRow(arrival.LaneId, arrival.GroupId))
+                    continue;
+                if (visibility.IsArrivalVisible(arrival.LaneId, arrival.Time, gameplayTime))
+                    return gameplayTime - 200;
+                if (!previousFadeStart.HasValue && !predicted && visibility.IsArrivalVisible(arrival.LaneId, arrival.Time, gameplayTime + 200))
+                    predicted = true;
+            }
+
+            return previousFadeStart ?? (predicted ? gameplayTime : null);
+        }
 
         private void preparePersonalBest(RealmAccess? realm, IAPIProvider? api)
         {
@@ -52,7 +86,7 @@ namespace osu.Game.Skinning.Gameplay
                                                           && (validSavedScore?.Invoke(score) ?? true)
                                                           && JToken.DeepEquals(mods, new JArray(score.APIMods.OrderBy(mod => mod.Acronym).Select(mod => JObject.FromObject(mod)))))
                                           .Select(score => (long?)score.TotalScore).Max());
-            chartPresentation = new GameplaySkinChartPresentation(chartPresentation.Arrivals, chartPresentation.UsesExScore, best);
+            chartPresentation = new GameplaySkinChartPresentation(chartPresentation.Arrivals, chartPresentation.UsesExScore, best, chartPresentation.ArrivalCueAvailable);
         }
 
         private void synchroniseTimingCounts()
