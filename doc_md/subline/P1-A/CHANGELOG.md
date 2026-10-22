@@ -1,5 +1,19 @@
 # P1-A 变动日志
 
+## 2026-10-22全工作区安全筛查与本地导入边界
+
+本地BMS压缩包原先无界复制流到内存、逐项无限展开且不传取消。现与`BmsDownloadImporter`复用同一真实提取实现，声明与实际字节 / 数量 / 谱文本 / Windows路径 / 重复冲突 / 链接及ZIP CRC守门一致；non-seekable流有界落F盘，seekable不再预复制。准备在后台执行并传递取消，单目录取消不吞错，也不按成功删除源包；失败清本次临时目录、保留源件与异常身份，没有复制另一套提取器。
+
+`ExternalLinkOpener`不再以空`WebsiteUrl`或字符串前缀判可信，改为有效HTTP(S)同scheme / host / port，userinfo、伪后缀站点、降级或异端口仍提示；原OMSIR同源语义保持。MessagePack3.1.8→3.1.9、三个SignalR9.0.17→9.0.21引用同步；冻结在线入口不启用。
+
+实际尝试ImageSharp3.2.0并核对维护者五项公告及回移PR，v3修复已存在但NuGet索引仍粗报旧范围。Release真实被厂商新增许可检查拒绝；用户没有许可，候选引用已撤回并正常restore，没有跳过检查或在公开配置填假key。当前仍为framework的3.1.11，图片风险未关闭；可申请`osu.Game`免费程序集限定项目密钥。最新版framework仅支持net10、仍依赖旧图片 / NativeLibs，不能当安全捷径。FFmpeg4.3.3进程内BGA链需独立核codec补丁与ABI；AutoMapper深度、未调用的SharpCompress目录API、关闭的旧SQLite在线缓存按实际入口复核，不强行跨付费 / 主版本。完整工作区与服务器结果取[跨项目筛查](../../../../websites/oms-web/doc_md/architecture-security-review-20261022.md)。
+
+最终重新编译后，Release外链 / 皮肤读图 / 预览 / canonical专项71通过；新本地归档与原下载 / 导入专项138通过，包含合法双流、路径 / ADS / 设备名 / 大小写冲突 / 链接、声明及实际预算、取消、源保全与句柄释放。Desktop Release编译通过，未加告警屏蔽，测试工程既有CS8600 / CA2007等警告保留；没有Windows发行包、HDD写入或真人验收。
+
+扩大的BMS整进程及后续分批检查均因本机空闲内存下降而主动中断；单个`BmsManagedFolderSelectionProductTest`的数百绘制组合仍能使宿主增长，不能据“已分批”保证低峰值。只停止已核对命令行身份的本次testhost，退出1及部分TRX保留，不算完整BMS通过。另有10个已结束分组2077通过 / 4跳过，仅代表各自范围，不并入专项数字或冒充full。此次未改parser/gameplay，导入边界按主线存储验收矩阵的importer focused + Release完成。
+
+最终按相对文件验证Desktop五处及独立Core新测试的formatter均通过，客户端文档、跨仓链接 / 事实登记与差异检查通过；首次导入顺序 / 显式类型与Core新测试行尾错误已定点修正，并在上述当前源码回归前重新编译。命令、TRX、失败许可、内存中断和只读矩阵在`artifacts/security-architecture-20261022/`。诊断回链既有构建memory，不另建进度账本。
+
 ## 2026-10-22Autoplay跳转与Omni反馈修复
 
 连续±5秒跳转的故障已由真实移动ReplayPlayer时钟定因：一次350ms追帧会使source越过旧250ms接近窗口，seek目的地pin不再交还；score回调先发布当前时间，后续SynchroniseTiming却退回旧pin。现在frame-stable与source实际收敛时即交还，包含pending Reset阶段；默认事件、判定展示起点及对象progress统一取权威时间。保留完整Reset、原playfield重建屏障和epoch单调保护，没有吞异常、放宽容差或补额外Reset。修改前对照记录到真实source已经前进而pin落后约639ms；双玩法持续Stopwatch源、350ms追帧、多次向前/向后跳转及正常结算的回归通过。

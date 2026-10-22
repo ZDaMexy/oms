@@ -6,8 +6,8 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using osu.Framework.Logging;
 using osu.Framework.Graphics.Sprites;
+using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Game.Beatmaps;
 using osu.Game.Database;
@@ -25,10 +25,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         public Action<Notification>? PostNotification
         {
-            set
-            {
-                postNotification = value;
-            }
+            set => postNotification = value;
         }
 
         public BmsBeatmapImporter(Storage storage, RealmAccess realm)
@@ -71,7 +68,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
                 try
                 {
-                    using var preparedImport = archiveReader.Prepare(task);
+                    using var preparedImport = await Task.Run(() => archiveReader.Prepare(task, notification.CancellationToken), notification.CancellationToken).ConfigureAwait(false);
 
                     var imported = new List<Live<BeatmapSetInfo>>();
                     var skippedBeatmapFiles = new List<string>();
@@ -95,6 +92,10 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                             skippedBeatmapFiles.AddRange(result.SkippedBeatmapFiles);
                             importWarnings.AddRange(result.ImportWarnings);
                         }
+                        catch (OperationCanceledException)
+                        {
+                            throw;
+                        }
                         catch (Exception ex)
                         {
                             Logger.Error(ex, $"Failed to import BMS folder {preparedImport.FolderTasks[i]}", LoggingTarget.Database);
@@ -103,6 +104,8 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
                         notification.Progress = (float)(i + 1) / preparedImport.FolderTasks.Count;
                     }
+
+                    notification.CancellationToken.ThrowIfCancellationRequested();
 
                     if (imported.Any() && preparedImport.DeleteSourceOnSuccess)
                         task.DeleteFile();

@@ -1,9 +1,11 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-22（Autoplay跳转、统计与独立Omni反馈修复；正常窗口待复核）
+> 最后核对：2026-10-22（归档与外链安全修复；图片及原生媒体缺口保留）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
+
+2026-10-22已修本地BMS无界解包及空官网地址绕过外链提醒，依赖按原系列更新，旧在线仍关闭；图片 / 原生媒体风险见下方，验证取[安全记录](CHANGELOG.md#2026-10-22全工作区安全筛查与本地导入边界)。
 
 静线为唯一内置、首次默认与保底；complex已退役，历史作者文件和用户包保留。静线打磨按用户决定暂停。BMS/mania各有模式默认和键数覆盖，旧全局配置首次迁移；游玩按最终键数应用。原V-001～V-005、设备和长期体验未签收，Skin V1/release未完成。C1～C7证据不重计，OmsSkin物理删除仍待原实机门。
 
@@ -29,25 +31,24 @@
 
 C2～C6共享同一 package/layout/material/scene publication、lease/detach 与脚本隔离合同；无游玩宿主的菜单也检查整包。授权撤销不扩大 reload 准入，具体合同只在[技术约束](TECHNICAL_CONSTRAINTS.md)维护。
 
-记录动画共享几何，编辑器退出互锁及迟到回调已修复。实测与取舍见[游玩审查](../../other/GAMEPLAY_REVIEW_20261019.md)，组件测量不代签整局或视觉门。
+记录动画共享几何、编辑器退出互锁及迟到回调修复取[游玩审查](../../other/GAMEPLAY_REVIEW_20261019.md)，整局 / 视觉门保留。
 
 ## 最近一次验证
 
+Release外链 / 皮肤专项71通过，归档 / 下载 / 导入专项138通过；完整回归及Desktop结果取[安全记录](CHANGELOG.md#2026-10-22全工作区安全筛查与本地导入边界)，不刷新正常窗口或设备验收。
+
 2026-10-22已修移动时钟追帧后连续seek崩溃，完整Autoplay的FAST/SLOW中性化且保留真人PG早晚；独立Omni全45布局前沿复用原fill配色并闪烁，默认FC改为33主题fc24，全部备选保留。BMS完整Release 2998通过/19跳过、mania 993/2，均无失败；Core Skinning 1215/3及五组原生Player通过。范围及失败身份取[修复记录](CHANGELOG.md#2026-10-22autoplay跳转与omni反馈修复)，正常窗口、前台帧时间和原机菜单默认ID未代签。
 
-2026-10-21全框体准备、首排预告和完整JUDGE的原软件、25组原生Player、来源与还原边界取[开场记录](../../other/OMNI_OPENINGS_20261021.md#本轮验证)；不覆盖本次连续seek和默认FC问题。
-
-10月21日重进修复及双玩法进入/退出再进证据取[交接记录](../../other/PLAYER_LOADER_CRASH_20261021.md)。旧补丁无需重导入，本轮seek修复另取上述记录；正常窗口仍待复核。
+2026-10-21全框体开场 / 首排预告 / JUDGE及25组Player取[开场记录](../../other/OMNI_OPENINGS_20261021.md#本轮验证)，双玩法重进取[交接记录](../../other/PLAYER_LOADER_CRASH_20261021.md)；不代签本次seek / 默认FC或正常窗口。旧客户端补丁无需重导入，作品变化另取上方说明。
 
 较早设备/作品校准取[细节记录](../../other/LIGHTING_DETAILS_20261021.md#本轮验证记录)；10月19～20日音符、游标、副屏、删除及图库修复从[日志](CHANGELOG.md)按日期检索。目录/池化与原Xecus首帧分别取[驻留证据](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#内存压力下的驻留与音符复用修复)和[P1-L根因](../P1-L/CHANGELOG.md#2026-10-19真实xecus首帧崩溃修复)。物理设备、前台帧时间及原机逐帧校准未签收。
 
-公共下载的软件/实站来源按10月1～3日从[本线日志](CHANGELOG.md)检索，不刷新真实包、大包、听感或发行签收。谱库旧断言与保全取[扫描审查](../../other/LIBRARY_SCAN_REVIEW_20261010.md)。
-
-## 此前单内置与布局验证
-
-设置、单内置退役、9月布局/C7安装按日期取[日志](CHANGELOG.md)和[原构建记录](../../other/SKIN_BUILTIN_BUILD_20260912.md)，不代签当前代码。
+10月1～3日下载证据取[日志](CHANGELOG.md)，不代签真实包、大包、听感或发行；谱库保全取[扫描审查](../../other/LIBRARY_SCAN_REVIEW_20261010.md)。
 
 ## 当前风险与未完成项
+
+- ImageSharp仍为framework带入的3.1.11，不可信图片解码可达。3.2.0真实Release因缺社区许可失败，候选已撤回；未绕过检查。后续申请`osu.Game`免费项目密钥或验证替代解码，风险未关闭。
+- 原生BGA的FFmpeg4.3.3需核实际codec补丁、整套DLL与ABI；外部ffmpeg.exe更新不能代签，归[P1-L](../P1-L/DEVELOPMENT_PLAN.md)。
 
 - 10月22日四项修复仍待用户正常VS Code窗口复核；作品变化须重导入新包，既有显式FC选择保留，不自动覆盖。fc24据原图确认33主题，原机菜单默认ID未独立实测。血条闪烁包络为作者适配，原机精确时序未签收。
 - Core扩大检查被旧QuickOsz夹具的12/3张谱断言及载入空转阻塞，见[失败身份](CHANGELOG.md#2026-10-22autoplay跳转与omni反馈修复)；不宣称全仓测试通过。
@@ -63,7 +64,3 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 - G1 held-root/journal不是filesystem transaction，foreign addition/replacement可导致冻结；未知旧记录及无完整恢复证据的intent不猜测迁移。旧保存根事故只有事后保全，不追溯宣称无损。
 - BmsBeatmapDecoderOptions.KeymodeOverride只是host/importer seam，普通loader无用户纠正UI；证据不足的sparse .bms/.bml仍拒绝，该缺口归P1-K。
 - BGA内容/seek/decoder归P1-L；本轮会话与作者窗口改动不关闭逐谱视觉门。输入与设备归P1-B/D，真实LN/音频和发行验收仍见对应子线。
-
-## 文档治理验证
-
-2026-10-22进度、合同/计划与记忆同步，范围及检查取[主线记录](../../mainline/CHANGELOG.md#2026-10-22专项进度文档与记忆同步)。10月19日成品归档和九项清理的原日期见[历史](CHANGELOG.md#2026-10-19用户完成临时产物清理)，不据此宣称后续临时目录已清除。

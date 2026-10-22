@@ -13,6 +13,8 @@ P1-L 拥有 BMS Gimmick 的视觉位置旁路、地雷呈现与 BGA decode/timel
 
 ## 当前执行顺序
 
+先按[P1-A安全风险](../P1-A/DEVELOPMENT_STATUS.md#当前风险与未完成项)核对实际原生解码库的后续安全补丁与启用codec，验证同ABI完整DLL组合或正式迁移方案；不盲替换单个不同主ABI文件，不把外部转码器或net10-only framework更新当已完成修复。该依赖安全门与下列设备 / 视觉门分别签收。
+
 ### 1. 作者窗口与代表设备验收
 
 游戏持有播放会话与作者窗口的实现及软件证据从[STATUS](DEVELOPMENT_STATUS.md#最近一次验证)读取。后续代表设备覆盖宽高比、DPI、三种适配、单窗/多窗与BGA不遮lane；新增view或首次开启显示须检查同帧source先绘制，关闭显示/零窗后恢复内容应跟随当前游戏时刻，独立信息区保持。

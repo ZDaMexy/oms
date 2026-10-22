@@ -49,19 +49,8 @@ namespace osu.Game.Online.Chat
 
         public void OpenUrlExternally(string url, LinkWarnMode warnMode = LinkWarnMode.Default)
         {
-            bool isTrustedDomain;
-
             if (url.StartsWith('/'))
-            {
                 url = $"{api.Endpoints.WebsiteUrl}{url}";
-                isTrustedDomain = true;
-            }
-            else
-            {
-                isTrustedDomain = url.StartsWith(api.Endpoints.WebsiteUrl, StringComparison.Ordinal);
-                if (omsIr?.State.ServiceAddress is string origin && origin.Length != 0 && Uri.TryCreate(url, UriKind.Absolute, out Uri? target))
-                    isTrustedDomain |= target.GetLeftPart(UriPartial.Authority).Equals(new Uri(origin).GetLeftPart(UriPartial.Authority), StringComparison.OrdinalIgnoreCase);
-            }
 
             if (!url.CheckIsValidUrl())
             {
@@ -73,6 +62,8 @@ namespace osu.Game.Online.Chat
                 return;
             }
 
+            bool isTrustedDomain = IsTrustedOrigin(url, api.Endpoints.WebsiteUrl)
+                                   || IsTrustedOrigin(url, omsIr?.State.ServiceAddress);
             bool shouldWarn;
 
             switch (warnMode)
@@ -97,6 +88,19 @@ namespace osu.Game.Online.Chat
                 dialogOverlay.Push(new ExternalLinkDialog(url, () => host.OpenUrlExternally(url), () => game?.CopyToClipboard(url)));
             else
                 host.OpenUrlExternally(url);
+        }
+
+        internal static bool IsTrustedOrigin(string url, string? origin)
+        {
+            if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? target)
+                || !Uri.TryCreate(origin, UriKind.Absolute, out Uri? trusted)
+                || (trusted.Scheme != Uri.UriSchemeHttp && trusted.Scheme != Uri.UriSchemeHttps)
+                || target.UserInfo.Length != 0 || trusted.UserInfo.Length != 0)
+                return false;
+
+            return target.Scheme.Equals(trusted.Scheme, StringComparison.OrdinalIgnoreCase)
+                   && target.IdnHost.Equals(trusted.IdnHost, StringComparison.OrdinalIgnoreCase)
+                   && target.Port == trusted.Port;
         }
 
         public partial class ExternalLinkDialog : PopupDialog

@@ -29,10 +29,10 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
     /// </summary>
     public sealed class BmsDownloadImporter : IBmsDownloadImporter
     {
-        private const long max_compressed_bytes = 2L * 1024 * 1024 * 1024;
+        internal const long MAX_COMPRESSED_BYTES = 2L * 1024 * 1024 * 1024;
         private const long max_expanded_bytes = 8L * 1024 * 1024 * 1024;
         private const long max_file_bytes = 2L * 1024 * 1024 * 1024;
-        private const long max_chart_bytes = 32L * 1024 * 1024;
+        internal const long MAX_CHART_BYTES = 32L * 1024 * 1024;
         private const long max_total_chart_bytes = 128L * 1024 * 1024;
         private const int max_entries = 50_000;
 
@@ -165,8 +165,16 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         private static Dictionary<string, string> extractArchive(string archivePath, string extractionRoot, CancellationToken cancellationToken)
         {
             using var source = new FileStream(archivePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            return ExtractArchive(source, extractionRoot, cancellationToken);
+        }
 
-            if (source.Length > max_compressed_bytes)
+        // Both downloaded and locally supplied archives cross the same untrusted extraction boundary.
+        // Source ownership and subsequent library publication remain with the caller.
+        internal static Dictionary<string, string> ExtractArchive(Stream source, string extractionRoot, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (source.Length > MAX_COMPRESSED_BYTES)
                 throw new InvalidDataException("The BMS download exceeds the 2 GiB compressed size limit.");
 
             if (!ArchiveFactory.IsArchive(source, out var type) || type is not (ArchiveType.Zip or ArchiveType.Rar or ArchiveType.SevenZip))
@@ -180,7 +188,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
             var names = new Dictionary<string, (string Name, bool Directory, bool Explicit)>(StringComparer.OrdinalIgnoreCase);
             var chartFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var buffer = new byte[128 * 1024];
+            byte[] buffer = new byte[128 * 1024];
             long expandedBytes = 0;
             long chartBytes = 0;
             long declaredChartBytes = 0;
@@ -211,7 +219,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 if (zip.Entries.Count != entries.Count)
                     throw new InvalidDataException("The ZIP package has inconsistent entry metadata.");
 
-                var paths = new string[entries.Count];
+                string[] paths = new string[entries.Count];
 
                 // Reject the complete chart text budget before extracting any ZIP entry or parsing a chart.
                 for (int i = 0; i < entries.Count; i++)
@@ -301,7 +309,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             if (entry.IsDirectory || !BmsImportExtensions.IsBeatmapFile(relativePath))
                 return;
 
-            if (entry.Size > max_chart_bytes || entry.Size > max_total_chart_bytes - declaredChartBytes)
+            if (entry.Size > MAX_CHART_BYTES || entry.Size > max_total_chart_bytes - declaredChartBytes)
                 throw new InvalidDataException("The BMS download exceeds its 32 MiB chart or 128 MiB total chart text limit.");
 
             declaredChartBytes += entry.Size;
@@ -329,7 +337,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 if (read > max_file_bytes - fileBytes || read > max_expanded_bytes - expandedBytes - fileBytes)
                     throw new InvalidDataException("The BMS download exceeds its file or expanded size limit.");
 
-                if (md5 != null && (read > max_chart_bytes - fileBytes || read > max_total_chart_bytes - chartBytes - fileBytes))
+                if (md5 != null && (read > MAX_CHART_BYTES - fileBytes || read > max_total_chart_bytes - chartBytes - fileBytes))
                     throw new InvalidDataException("The BMS download exceeds its 32 MiB chart or 128 MiB total chart text limit.");
 
                 output.Write(buffer, 0, read);

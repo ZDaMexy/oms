@@ -11,6 +11,8 @@ Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，实
 
 ## 产品与仓库基线
 
+归档与外链修复已验证；图片许可和原生BGA缺口沿上方P1-A接续。
+
 游玩判定/结果及性能取[10月19日深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)；设备入口、输入时间、轴用途、长皿与校准接续取[10月21日输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)。前台帧时间与实体设备仍待验收。
 
 皮肤按模式/键数选择，作者声明布局、配置与预览，普通包保持原表现。Lighting Model Skin Omni Until 33默认33，27～33与八支BPL为Game Frame，主屏CUSTOM、歌曲游标与缩略图可用，副屏已移除；mania音符显示已修复，设备方向/主屏图表保持，逐框体轨道开场/GET READY、首排预告与完整JUDGE已[接通](../other/OMNI_OPENINGS_20261021.md)。作品独立私下分享，不内置或进入公开发行/制作套件。原HDD只读，26及更早来源待补；验证和缺口取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)推进，原发行门保持。

@@ -4,60 +4,83 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using osu.Framework.Extensions;
+using System.Threading;
 using osu.Game.Database;
-using osu.Game.IO.Archives;
-using osu.Game.Utils;
-using SharpCompress.Archives;
-using SharpCompress.Readers;
 
 namespace osu.Game.Rulesets.Bms.Beatmaps
 {
     public class BmsArchiveReader
     {
-        public PreparedImport Prepare(ImportTask task)
+        public PreparedImport Prepare(ImportTask task, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             if (task.Stream != null)
-                return prepareStreamTask(task);
+                return prepareStreamTask(task, cancellationToken);
 
             if (Directory.Exists(task.Path))
-                return createPreparedImport(task.Path);
+                return createPreparedImport(task.Path, cancellationToken);
 
             if (File.Exists(task.Path) && BmsImportExtensions.IsBeatmapFile(task.Path))
-                return createPreparedImport(Path.GetDirectoryName(Path.GetFullPath(task.Path)) ?? throw new InvalidOperationException("Beatmap file has no containing directory."));
+                return createPreparedImport(Path.GetDirectoryName(Path.GetFullPath(task.Path)) ?? throw new InvalidOperationException("Beatmap file has no containing directory."), cancellationToken);
 
             if (File.Exists(task.Path) && BmsImportExtensions.IsArchiveFile(task.Path))
-                return prepareArchiveStream(File.Open(task.Path, FileMode.Open, FileAccess.Read, FileShare.Read), deleteSourceOnSuccess: true, sourcePath: task.Path);
+            {
+                using var source = File.Open(task.Path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                return prepareArchiveStream(source, true, cancellationToken);
+            }
 
             throw new InvalidDataException($"Unsupported BMS import source: {task.Path}");
         }
 
-        private PreparedImport prepareStreamTask(ImportTask task)
+        private PreparedImport prepareStreamTask(ImportTask task, CancellationToken cancellationToken)
         {
-            using var memoryStream = copyToMemoryStream(task.Stream!);
-            task.Stream!.Dispose();
+            using Stream source = task.Stream!;
+
+            if (source.CanSeek)
+                source.Position = 0;
 
             if (BmsImportExtensions.IsBeatmapFile(task.Path))
             {
                 string tempRoot = createTempRoot();
-                string filename = Path.GetFileName(task.Path);
-                string destinationPath = Path.Combine(tempRoot, filename);
-
                 Directory.CreateDirectory(tempRoot);
 
-                using (var outputStream = File.Create(destinationPath))
+                try
                 {
-                    memoryStream.Position = 0;
-                    memoryStream.CopyTo(outputStream);
-                }
+                    using (var output = new FileStream(Path.Combine(tempRoot, Path.GetFileName(task.Path)), FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                        copyBounded(source, output, BmsDownloadImporter.MAX_CHART_BYTES, cancellationToken);
 
-                return createPreparedImport(tempRoot, cleanupPath: tempRoot);
+                    return createPreparedImport(tempRoot, cancellationToken, cleanupPath: tempRoot);
+                }
+                catch
+                {
+                    Directory.Delete(tempRoot, true);
+                    throw;
+                }
             }
 
-            return prepareArchiveStream(memoryStream, deleteSourceOnSuccess: false, sourcePath: task.Path);
+            if (source.CanSeek)
+                return prepareArchiveStream(source, false, cancellationToken);
+
+            // Archive readers require seeking. Spool non-seekable input to an owned, bounded file rather
+            // than allocating up to the archive limit on the managed heap.
+            string stagingRoot = createTempRoot();
+            Directory.CreateDirectory(stagingRoot);
+
+            try
+            {
+                using var buffered = new FileStream(Path.Combine(stagingRoot, "source.archive"), FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None);
+                copyBounded(source, buffered, BmsDownloadImporter.MAX_COMPRESSED_BYTES, cancellationToken);
+                buffered.Position = 0;
+                return prepareArchiveStream(buffered, false, cancellationToken);
+            }
+            finally
+            {
+                Directory.Delete(stagingRoot, true);
+            }
         }
 
-        private PreparedImport prepareArchiveStream(Stream stream, bool deleteSourceOnSuccess, string sourcePath)
+        private PreparedImport prepareArchiveStream(Stream stream, bool deleteSourceOnSuccess, CancellationToken cancellationToken)
         {
             string tempRoot = createTempRoot();
 
@@ -65,69 +88,55 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
             try
             {
-                extractArchive(stream, tempRoot);
-                return createPreparedImport(tempRoot, cleanupPath: tempRoot, deleteSourceOnSuccess: deleteSourceOnSuccess);
+                BmsDownloadImporter.ExtractArchive(stream, tempRoot, cancellationToken);
+                return createPreparedImport(tempRoot, cancellationToken, cleanupPath: tempRoot, deleteSourceOnSuccess: deleteSourceOnSuccess);
             }
             catch
             {
                 Directory.Delete(tempRoot, true);
-                throw new InvalidDataException($"Failed to extract BMS archive {sourcePath}.");
+                throw;
             }
         }
 
-        private static void extractArchive(Stream stream, string destinationRoot)
+        private static void copyBounded(Stream source, Stream destination, long limit, CancellationToken cancellationToken)
         {
-            if (stream.CanSeek)
-                stream.Seek(0, SeekOrigin.Begin);
+            if (source.CanSeek && source.Length - source.Position > limit)
+                throw new InvalidDataException("The BMS import source exceeds its byte limit.");
 
-            using var archive = ArchiveFactory.Open(stream, new ReaderOptions
+            byte[] buffer = new byte[128 * 1024];
+            long copied = 0;
+
+            while (true)
             {
-                ArchiveEncoding = ZipArchiveReader.DEFAULT_ENCODING
-            });
+                cancellationToken.ThrowIfCancellationRequested();
+                int read = source.Read(buffer, 0, buffer.Length);
 
-            foreach (var entry in archive.Entries.Where(e => !e.IsDirectory && !string.IsNullOrEmpty(e.Key)))
-            {
-                string relativePath = entry.Key!.ToStandardisedPath();
+                if (read == 0)
+                    return;
 
-                if (FilesystemSanityCheckHelpers.IncursPathTraversalRisk(relativePath))
-                    throw new InvalidDataException($"Archive entry '{relativePath}' is not allowed.");
+                if (read > limit - copied)
+                    throw new InvalidDataException("The BMS import source exceeds its byte limit.");
 
-                string destinationPath = Path.Combine(destinationRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
-                string destinationDirectory = Path.GetDirectoryName(destinationPath) ?? destinationRoot;
-
-                if (!FilesystemSanityCheckHelpers.IsSubDirectory(destinationRoot, destinationDirectory))
-                    throw new InvalidDataException($"Archive entry '{relativePath}' escapes the extraction root.");
-
-                Directory.CreateDirectory(destinationDirectory);
-
-                using var inputStream = entry.OpenEntryStream();
-                using var outputStream = File.Create(destinationPath);
-                inputStream.CopyTo(outputStream);
+                destination.Write(buffer, 0, read);
+                copied += read;
             }
         }
 
-        private static PreparedImport createPreparedImport(string rootPath, string? cleanupPath = null, bool deleteSourceOnSuccess = false)
+        private static PreparedImport createPreparedImport(string rootPath, CancellationToken cancellationToken, string? cleanupPath = null, bool deleteSourceOnSuccess = false)
         {
-            var folderTasks = Directory.GetFiles(rootPath, "*", SearchOption.AllDirectories)
-                                     .Where(BmsImportExtensions.IsBeatmapFile)
-                                     .Select(path => Path.GetDirectoryName(path) ?? rootPath)
-                                     .Distinct(StringComparer.OrdinalIgnoreCase)
-                                     .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
-                                     .Select(path => new ImportTask(path))
-                                     .ToArray();
+            var folders = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+            foreach (string path in Directory.EnumerateFiles(rootPath, "*", SearchOption.AllDirectories))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (BmsImportExtensions.IsBeatmapFile(path))
+                    folders.Add(Path.GetDirectoryName(path) ?? rootPath);
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            var folderTasks = folders.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).Select(path => new ImportTask(path)).ToArray();
             return new PreparedImport(folderTasks, cleanupPath, deleteSourceOnSuccess);
-        }
-
-        private static MemoryStream copyToMemoryStream(Stream stream)
-        {
-            if (stream.CanSeek)
-                stream.Seek(0, SeekOrigin.Begin);
-
-            var output = new MemoryStream();
-            stream.CopyTo(output);
-            output.Position = 0;
-            return output;
         }
 
         private static string createTempRoot()
