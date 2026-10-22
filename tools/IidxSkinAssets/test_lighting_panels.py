@@ -7,6 +7,11 @@ import lighting_panels as panels
 
 
 class LightingPanelsTest(unittest.TestCase):
+    def test_judge_is_enabled_for_each_mode_without_saved_overrides(self):
+        judge = next(option for option in panels.options() if option["id"] == "judge-panel-visible")
+        self.assertIs(True, judge["default"])
+        self.assertNotIn("rulesets", judge)
+
     def test_graph_separates_art_layers_and_gates_unknown_personal_best(self):
         result = panels.build_graph("test.graph", "p1", targets=panels.GRAPH_TARGETS)
         background, foreground = result["roots"]

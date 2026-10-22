@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-22（安全依赖局部回归收口；完整BMS与人工门保留）
+> 最后核对：2026-10-23（Omni默认开关、预告退场与可见后开场计时；原人工门保留）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -26,7 +26,7 @@
 | 实时演奏信息 | 实时判定与断连统计、EX SCORE/HiSpeed、MIN/当前/MAX BPM；曲名、作者标级与独立的表名/表内等级 | 读取规则真实状态；表归类不替代作者难度，皮肤不改变判定/计分、时间或难度表导入 |
 | 皮肤布局与公共能力 | 共用作者声明可给真实stage/lane指定位置、留空槽及独立键区，不创建输入。BMS保留键区、血槽、信息区与最多16个 `BgaViewports`，逐窗 fit/fill/stretch 或 none | 显式field不被旧BGA自适应挪动/压缩，放不下整组零窗并诊断；9K/PMS不应用黑白轨比。BGA内容/时钟归[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，选歌/结算面未扩展 |
 | 作者制作与可选演出 | [完整套件](../../../skin-authoring/README.md)含从零制作、按可见元素查文件/尺寸/动画、INI/scene/script字段与预算、刷新打包步骤；First Scene、Reference Study和BGA Layout明确完整包与练习片段 | 主手册与图片随套件发行，无需源码仓库；历史实机图与素材示意已区分。新增例子的工具检查/打包和真实挂载已验证，详见作者能力记录。原编辑器可编辑已有组件并保存独立副本，完整scene/script没有可视化编辑器；不据手册代签视觉或旧三包演练 |
-| IIDX 与 BPL 第三方作品 | Lighting Model Skin Omni Until 33默认33；27～33及八支BPL为15种框体。主屏CUSTOM、25FC、尺寸/长度和歌曲游标保持；真实图表/方向/拍点保持；完整JUDGE、逐框体轨道开场/GET READY及首排预告见[开场记录](../../other/OMNI_OPENINGS_20261021.md)。BMS5/7/14K、mania5/6/7/8/14/16K；作者布局支持1P/2P及真实双stage | 源00组合、动态框体/滤镜及原游戏进度算法待校准，部分DP末端按自身E标记适配。动画时序与Graph布局部分为作者适配，真实字段只读；LIFT跟随原生几何，副屏已移除。七队S5、SUPERNOVA S3高清；26来源待补。HDD只读；独立私下分享，不内置OMS或进入公开发行/制作套件；Until34不在范围 |
+| IIDX 与 BPL 第三方作品 | Lighting Model Skin Omni Until 33默认33；27～33及八支BPL为15种框体。所有可见开关默认开启，Graph/JUDGE在两玩法均取本模式覆盖或包默认；首排预告最迟随GET READY退出，开场从画面完整显现且场景就绪后计时。主屏CUSTOM、25FC、尺寸/长度及歌曲游标保持；逐框体演出来源取[开场记录](../../other/OMNI_OPENINGS_20261021.md)。BMS5/7/14K、mania5/6/7/8/14/16K；作者布局支持1P/2P及真实双stage | 源00组合、动态框体/滤镜及原游戏进度算法待校准，部分DP末端按自身E标记适配。动画时序与Graph布局部分为作者适配；LIFT跟随原生几何，副屏已移除。七队S5、SUPERNOVA S3高清；26来源待补。HDD只读；独立私下分享，不内置OMS或进入公开发行/制作套件；Until34不在范围 |
 | 安装与发行 | 旧选择迁移证据保留；2026-10-03 候选已有便携/自定义根、恢复及同包覆盖启动证据，见 [P1-F](../P1-F/DEVELOPMENT_STATUS.md) | 生成物已按用户要求删除；实网下载、新作者独立演练、跨版本、独立账户非便携及设备/长期/公开发行门未新签收 |
 
 C2～C6共享同一 package/layout/material/scene publication、lease/detach 与脚本隔离合同；无游玩宿主的菜单也检查整包。授权撤销不扩大 reload 准入，具体合同只在[技术约束](TECHNICAL_CONSTRAINTS.md)维护。
@@ -35,23 +35,25 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-ImageSharp3.2.0使用私有程序集许可，AutoMapper移除为显式Realm复制，SQLite为bundle3.0.5/native3.54.1，归档/回放迁至SharpCompress0.50.7。最终Release及正规许可检查通过，0错误/5条已解释的旧索引警告；Core导入/Realm/SQLite/ZIP **113/113**、BMS归档/BGA/native **90/90**、mania回放 **18/18**。完整BMS主动停止，部分TRX **2244通过/15跳过/0失败且run aborted**，不算full通过。证据、范围和CI许可见[依赖记录](CHANGELOG.md#2026-10-22客户端依赖安全修复接入)，不刷新实机或发行门。
+2026-10-23：Core皮肤/准备**1226通过/3跳过**，BMS皮肤/开局**1437通过/19跳过**（含真实Player准备11项），mania Release完整**993通过/2跳过**；均无失败。真实runtime核父准备门与子原生淡出乘积；Python作者**57+15项**通过。初次隐藏夹具失败与更正取[本次记录](CHANGELOG.md#2026-10-23omni默认显示与开场交接修复)。
 
-2026-10-22已修移动时钟追帧后连续seek崩溃，完整Autoplay的FAST/SLOW中性化且保留真人PG早晚；独立Omni全45布局前沿复用原fill配色并闪烁，默认FC改为33主题fc24，全部备选保留。安全迁移前的完整回归、五组原生Player及失败身份取[修复记录](CHANGELOG.md#2026-10-22autoplay跳转与omni反馈修复)，正常窗口、前台帧时间和原机菜单默认ID未代签。
+同日最终包六组原生Player导入→自然准备→实际自动演奏→正常结算通过：mania7/16K、BMS7K右侧/14K默认开启，mania8K右侧/BMS5K显式关闭；核面板可见性、预告/READY退场及无runtime fault。Debug/Release与四个C#项目格式检查通过。完整作者CLI完成全部独立文件/图片/片段及前六模块后，在后续组合颜色向量转换越界，未计全套通过；不认定素材损坏或与旧异常同源。正常窗口、原机/设备门与完整BMS缺口保持。
 
-2026-10-21全框体开场 / 首排预告 / JUDGE及25组Player取[开场记录](../../other/OMNI_OPENINGS_20261021.md#本轮验证)，双玩法重进取[交接记录](../../other/PLAYER_LOADER_CRASH_20261021.md)；不代签本次seek / 默认FC或正常窗口。旧客户端补丁无需重导入，作品变化另取上方说明。
+2026-10-22依赖迁移的导入、归档、Realm/SQLite、回放与正规图片许可专项通过；版本及五条已解释索引告警取[依赖记录](CHANGELOG.md#2026-10-22客户端依赖安全修复接入)。当次完整BMS因内存压力主动停止，部分通过不算full通过；本轮相关回归不补签该缺口。
 
-较早设备/作品校准取[细节记录](../../other/LIGHTING_DETAILS_20261021.md#本轮验证记录)；10月19～20日音符、游标、副屏、删除及图库修复从[日志](CHANGELOG.md)按日期检索。目录/池化与原Xecus首帧分别取[驻留证据](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#内存压力下的驻留与音符复用修复)和[P1-L根因](../P1-L/CHANGELOG.md#2026-10-19真实xecus首帧崩溃修复)。物理设备、前台帧时间及原机逐帧校准未签收。
+2026-10-22的Autoplay跳转/早晚统计与Omni血条/33主题fc24证据取[修复记录](CHANGELOG.md#2026-10-22autoplay跳转与omni反馈修复)；原机菜单默认ID与精确闪烁时序仍未签收。
+
+2026-10-21开场与进入取[开场记录](../../other/OMNI_OPENINGS_20261021.md#本轮验证)、[交接记录](../../other/PLAYER_LOADER_CRASH_20261021.md)，较早设备/作品取[细节记录](../../other/LIGHTING_DETAILS_20261021.md#本轮验证记录)；10月19～20日作品、池化/Xecus与保全按[日志](CHANGELOG.md)及[P1-L](../P1-L/DEVELOPMENT_STATUS.md)检索。旧证据不代签当前正常窗口、前台帧时间、原机或实体设备。
 
 10月1～3日下载证据取[日志](CHANGELOG.md)，不代签真实包、大包、听感或发行；谱库保全取[扫描审查](../../other/LIBRARY_SCAN_REVIEW_20261010.md)。
 
 ## 当前风险与未完成项
 
+- 10月23日Omni新版与可见后准备计时仍须用户正常VS Code窗口复核，连同此前跳转/统计/血条/默认FC继续验收；需重新启动当前客户端并导入新包。模式/键数既有显式关闭或FC选择保持，可逐层恢复默认。隔离软件证据不证明所有素材组合、原机时序或前台流畅度。
+
 - 本轮完整BMS回归待内存条件允许后补跑；五条ImageSharp旧范围审计警告保留且不抑制。原生媒体的完整从零重编及剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)。
 
-- 10月22日四项修复仍待用户正常VS Code窗口复核；作品变化须重导入新包，既有显式FC选择保留，不自动覆盖。fc24据原图确认33主题，原机菜单默认ID未独立实测。血条闪烁包络为作者适配，原机精确时序未签收。
-
-- 作者CLI单次动画数组异常原因未定；素材维度、LIFT/FC及完整顺序复查通过，见上方记录，未记为修复。
+- 作者CLI长跑数组异常原因未定；本轮失败堆栈及后续取证见上方记录，不推断为坏素材或运行时问题。旧维度、LIFT/FC定点和顺序复查仅保留原日期，未记为修复。
 
 - Sayobot最近留存实站验收（2026-10-01）各公开线路转同一节点并在TLS握手失败；不据此断言节点持续故障。真实包、原bid/实际持久化MD5、混合包及稳定打开仍待补验，沿正常安全连接与手动重试路径验收。
 

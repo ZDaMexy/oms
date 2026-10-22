@@ -82,6 +82,22 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(animation.ChildrenOfType<Sprite>().Count(piece => piece.Alpha > 0), Is.Zero,
                         $"The completed recorded opening {node.PreparedNode.Source.Id} must retain no active render pieces.");
                 }
+                GameplaySkinSceneRuntimeHost runtime = renderer.GameplaySkinSceneRuntime!;
+                var cueTargets = runtime.PreparedScene.Program.Bindings
+                    .Where(binding => binding.Source == GameplaySkinSceneBindingSource.ArrivalCueOpacity)
+                    .Select(binding => binding.TargetNodeId).ToHashSet(StringComparer.Ordinal);
+                GameplaySkinSceneRuntimeNode[] cues = lightingNodes().Where(node => cueTargets.Contains(node.PreparedNode.Source.Id)).ToArray();
+                Assert.That(cues, Is.Not.Empty);
+                foreach (GameplaySkinSceneRuntimeNode cue in cues)
+                    Assert.That(lightingAlpha(cue.ContentDrawable), Is.Zero, "A late first note must not keep its cue after GET READY ends.");
+                foreach (GameplaySkinPreparedSceneBinding binding in runtime.PreparedScene.Program.Bindings.Where(binding =>
+                             binding.Source == GameplaySkinSceneBindingSource.Option
+                             && binding.OptionId is "graph-visible" or "judge-panel-visible"))
+                {
+                    bool enabled = runtime.Publication.Snapshot.Context.OptionValues.Values[binding.OptionId!].BooleanValue;
+                    GameplaySkinSceneRuntimeNode panel = lightingNodes().Single(node => node.PreparedNode.Source.Id == binding.TargetNodeId);
+                    Assert.That(lightingAlpha(panel.ContentDrawable) > 0, Is.EqualTo(enabled), binding.OptionId);
+                }
                 recordOpeningSample("opening-complete", null, state);
             });
         }

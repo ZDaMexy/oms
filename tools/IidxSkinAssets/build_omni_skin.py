@@ -29,6 +29,7 @@ from music_progress import (RESOURCE_PATH as MUSIC_PROGRESS_RESOURCE_PATH,
 from note_geometry import (ALIASES as NOTE_MARKER_ALIASES, apply_to_author as correct_note_geometry,
                            correct_ini as correct_note_ini, correct_scene as correct_note_scene,
                            marker_dimensions as note_marker_dimensions)
+from lighting_arrival import synchronise_preparation as synchronise_arrival_preparation
 
 NAME = "Lighting Model Skin Omni Until 33"
 MANIFEST_CONTRACT = "oms-gameplay-skin-manifest.v1"
@@ -135,7 +136,7 @@ def prepare_graph(library: Path, output: Path):
             "receipt": {"sourceDigits": sources, "lineHeight": 24, "advance": 40,
                         "currentSourceHook": {"p1": [1747, 50, 1903, 74], "p2": [245, 50, 401, 74]},
                         "maximumRowAndComparison": "author adaptation; no original rival, target, or score-to-bar rule asserted",
-                        "visibility": "graph-visible (default false); maximum and progress additionally require score.maximum-available"}}
+                        "visibility": "graph-visible (default true); maximum and progress additionally require score.maximum-available"}}
 
 
 def graph_readout(identifier, layout, *, readable=True):
@@ -205,7 +206,7 @@ def graph_readout_receipt():
             "comparisonBarY": 266, "backplateBoundsP1Dp": [1504, 150, 1918, 284], "p2HorizontalShift": -1502,
             "backplateColour": "#000000c0", "reusedResource": "omni.graph.author-comparison",
             "ordering": "independent selected-information-marker template Depth=-30, in front of Graph Art Depth=-20; local plate Depth=1 behind labels Depth=0",
-            "visibility": "same graph-visible whole-group binding; default false unchanged"}
+            "visibility": "same graph-visible whole-group binding; default true"}
 
 
 def atlas_fonts(manifest, source: Path, output: Path, prefix: str, resource_prefix: str):
@@ -844,13 +845,9 @@ def frame_ini_paths(catalog):
     module = next(item for item in catalog["modules"] if item["id"] == "frame")
     if {choice["value"] for choice in module["choices"]} != set(FRAME_NAMES):
         raise ValueError("The Omni Frame module does not contain the exact fifteen verified choices")
-    paths = []
-    for choice in module["choices"]:
-        expected = f"gameplay/frames/{choice['value']}/materials.ini"
-        if any(part.get("ini") != expected for part in (choice, *choice.get("variants", []))):
-            raise ValueError("A Frame choice no longer shares its own material document")
-        paths.append(expected)
-    return sorted(paths)
+    # Current Frame variants also select the graph's BGA opening and may share
+    # flattened, byte-deduplicated documents. Follow the actual catalog owners.
+    return sorted({part["ini"] for choice in module["choices"] for part in (choice, *choice.get("variants", []))})
 
 
 def correct_frame_lane_surface(content: bytes):
@@ -993,7 +990,8 @@ def correct_graph_readout_scene(document):
 
 def correct_scene_author_contracts(document):
     """Repair proven author declarations; preserve recorded source clips and unrelated scene geometry."""
-    changed = {"recordedBlendNodes": [], "fullComboSlotRoots": [], "graphReadoutRoots": [], "beamLaneSurfaceRoots": []}
+    changed = {"recordedBlendNodes": [], "fullComboSlotRoots": [], "graphReadoutRoots": [], "beamLaneSurfaceRoots": [],
+               "arrivalPreparationGates": synchronise_arrival_preparation(document)}
     roots = [document["root"], *(template["root"] for template in document.get("templates", []))]
     for root in roots:
         for item in walk(root):
@@ -1051,11 +1049,13 @@ def correct_scene_files(output: Path):
     return {"rules": ["outer C5 recorded-animation blend normal -> alpha; internal clip blend stays normal",
                       "only verified omni.fc.* roots on the three fixed decoration markers receive slot decoration",
                       "verified Frame Graph readouts move below OMS buttons into independent selected-marker templates with a shared-texture dark plate",
-                      "verified key-beam templates use the existing lane-surface Underlay, below pooled Note/LN visuals"],
+                      "verified key-beam templates use the existing lane-surface Underlay, below pooled Note/LN visuals",
+                      "first-row cue art retires with the GET READY preparation phase"],
             "changedScenes": len(rows), "recordedBlendNodes": sum(len(row["recordedBlendNodes"]) for row in rows),
             "fullComboSlotRoots": sum(len(row["fullComboSlotRoots"]) for row in rows),
             "graphReadoutRoots": sum(len(row["graphReadoutRoots"]) for row in rows),
-            "beamLaneSurfaceRoots": sum(len(row["beamLaneSurfaceRoots"]) for row in rows), "changes": rows}
+            "beamLaneSurfaceRoots": sum(len(row["beamLaneSurfaceRoots"]) for row in rows),
+            "arrivalPreparationGates": sum(len(row["arrivalPreparationGates"]) for row in rows), "changes": rows}
 
 
 def expected_progress_contributions(source: Path, catalog, reference):
@@ -1115,8 +1115,9 @@ def verify_repackage(source: Path, output: Path, files, progress_reference=None)
     expected_root = read_json(source / "gameplay-skin.json")
     expected_root.pop("auxiliaryDisplay", None)
     expected_root["options"] = [item for item in expected_root["options"] if item["id"] not in AUXILIARY_OPTIONS]
+    enable_toggle_defaults(expected_root)
     if read_json(output / "gameplay-skin.json") != expected_root:
-        raise ValueError("Repackaging changed the root manifest beyond its auxiliary declaration and three controls")
+        raise ValueError("Repackaging changed the root manifest beyond auxiliary removal and enabled toggle defaults")
     mappings = {**{path: flat_configuration_path(path, "m") for path in manifests},
                 **{path: flat_configuration_path(path, "s") for path in scenes}}
     original_root_ini = exact_file(source, "skin.ini").read_bytes()
@@ -1225,8 +1226,22 @@ def author_directory_budget(files):
     return result
 
 
+def enable_toggle_defaults(manifest):
+    """Omni enables visual toggles; choices and numbers retain their defaults."""
+    changed = []
+    for option in manifest["options"]:
+        if option["type"] == "toggle" and option["default"] is not True:
+            changed.append(option["id"])
+            option["default"] = True
+    return changed
+
+
 def prepare_package(output: Path, receipt, repackage_source: Path | None = None, progress_reference=None):
     receipt["auxiliaryDisplayRemoval"] = remove_auxiliary_display(output)
+    root_path = output / "gameplay-skin.json"
+    root_manifest = read_json(root_path)
+    receipt["enabledToggleDefaults"] = enable_toggle_defaults(root_manifest)
+    write_json(root_path, root_manifest)
     catalog_path = output / "gameplay/content.json"
     catalog = read_json(catalog_path)
     receipt["fullComboDefault"] = calibrate_full_combo(catalog)
@@ -1250,7 +1265,7 @@ def prepare_package(output: Path, receipt, repackage_source: Path | None = None,
     receipt["choicePreviews"] = build_choice_previews(output)
     if progress_reference is not None:
         receipt["songProgress"] = add_music_progress(output, progress_reference)
-    default_changed = receipt["fullComboDefault"]["previousDefault"] != receipt["fullComboDefault"]["default"]
+    default_changed = bool(receipt["enabledToggleDefaults"]) or receipt["fullComboDefault"]["previousDefault"] != receipt["fullComboDefault"]["default"]
     if (receipt["sceneContractCorrections"]["changedScenes"] or receipt.get("songProgress", {}).get("changedJson")
             or receipt["maniaNoteGeometry"].get("changedScenes") or default_changed) and "codecValidation" in receipt:
         receipt["sourceCodecValidation"] = receipt.pop("codecValidation")
@@ -1390,7 +1405,7 @@ def main():
               "keymodes": ["5k", "6k", "7k", "8k"], "choices": [{"value": "p1", "label": "1P（左皿）"}, {"value": "p2", "label": "2P（右皿）"}]}
     scene = scene_document("omni.root")
     manifest = manifest_document()
-    graph_visible = {"id": "graph-visible", "type": "toggle", "label": "Graph Area 显示统计", "default": False}
+    graph_visible = {"id": "graph-visible", "type": "toggle", "label": "Graph Area 显示统计", "default": True}
     manifest.update({"contentCatalog": "gameplay/content.json", "options": [layout, graph_visible, *modules["options"]]})
     write_json(output / "gameplay-skin.json", manifest)
     write_json(output / "gameplay-skin.scene.json", scene)

@@ -152,6 +152,49 @@ class LightingArrivalTest(unittest.TestCase):
         self.assertTrue(all(binding["property"] == "opacity" for binding in bindings))
         self.assertNotIn("arrival.visible", {binding["source"] for binding in scene["bindings"]})
 
+    def test_late_first_notes_cannot_keep_a_cue_after_get_ready_has_finished(self):
+        scene, manifest = fixture()
+        arrival.inject_frame(scene, manifest, frame_id="iidx33", reference=reference())
+        sprites = {node["id"]: node for template in scene["templates"] for node in walk(template["root"])
+                   if node["type"] == "sprite"}
+        opacity = [binding for binding in scene["bindings"] if binding["source"] == "arrival.cue-opacity"]
+        self.assertEqual(3, len(opacity))
+        for binding in opacity:
+            art = sprites[binding["target"]]
+            self.assertNotIn("visible", art["properties"])
+            parent = next(node for template in scene["templates"] for node in walk(template["root"])
+                          if node["id"] == art["id"] + ".preparation")
+            self.assertEqual([art], parent["children"])
+            self.assertIs(False, parent["properties"]["visible"])
+            gate = next(item for item in scene["bindings"] if item["target"] == parent["id"] and item["property"] == "visible")
+            self.assertEqual("preparation.active", gate["source"])
+        previous = copy.deepcopy(scene)
+        self.assertEqual([], arrival.synchronise_preparation(scene))
+        self.assertEqual(previous, scene)
+
+    def test_preparation_upgrade_matches_compacted_ids_and_keeps_media_and_geometry(self):
+        scene, manifest = fixture()
+        arrival.inject_frame(scene, manifest, frame_id="iidx33", reference=reference())
+        scene["bindings"] = [binding for binding in scene["bindings"] if binding["source"] != "preparation.active"]
+        def unwrap():
+            for template in scene["templates"]:
+                for parent in list(walk(template["root"])):
+                    parent["children"] = [grandchild for child in parent["children"]
+                                          for grandchild in (child["children"] if child["id"].endswith(".preparation") else [child])]
+        unwrap()
+        for index, binding in enumerate(item for item in scene["bindings"] if item["source"] == "arrival.cue-opacity"):
+            original = binding["target"]
+            compact = f"o{index:x}"
+            art = next(node for template in scene["templates"] for node in walk(template["root"]) if node["id"] == original)
+            art["id"] = binding["target"] = compact
+        previous = copy.deepcopy(scene)
+        original_manifest = copy.deepcopy(manifest)
+        self.assertEqual(["o0", "o1", "o2"], arrival.synchronise_preparation(scene))
+        self.assertEqual(original_manifest, manifest)
+        unwrap()
+        scene["bindings"] = [binding for binding in scene["bindings"] if binding["source"] != "preparation.active"]
+        self.assertEqual(previous, scene)
+
     def test_v14_upgrade_preserves_png_geometry_and_removes_every_old_hit_time_fade(self):
         scene, manifest = fixture()
         arrival.inject_frame(scene, manifest, frame_id="iidx33", reference=reference())

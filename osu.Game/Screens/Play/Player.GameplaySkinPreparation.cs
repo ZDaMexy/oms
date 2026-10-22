@@ -15,6 +15,7 @@ namespace osu.Game.Screens.Play
 
         private readonly Bindable<bool> gameplaySkinPreparationClockPaused = new(true);
         private bool suppressGameplaySkinPreparationClockGuard;
+        private double? gameplaySkinPreparationLastUpdateTime;
 
         /// <summary>Only the selected, prepared author's explicit declaration enables this path.</summary>
         protected bool HasGameplaySkinPreparation => gameplaySkinPreparation.IsConfigured;
@@ -52,6 +53,7 @@ namespace osu.Game.Screens.Play
             GameplayClockContainer.Stop();
             GameplayClockContainer.Reset(startClock: false);
             gameplaySkinPreparation.Begin();
+            gameplaySkinPreparationLastUpdateTime = null;
             softUnpauseGameplaySkinPreparation();
             return true;
         }
@@ -70,7 +72,20 @@ namespace osu.Game.Screens.Play
             if (!GameplaySkinPreparationActive || !this.IsCurrentScreen())
                 return;
 
-            if (!gameplaySkinPreparation.Advance(Time.Elapsed, PauseOverlay.State.Value == Visibility.Visible))
+            // OnEntering establishes the stopped-clock barrier before the player fades in. A large initial
+            // Time.Elapsed can still include loading or the screen transition. Start the artwork only once
+            // both the player and its gameplay scene are fully visible, sampling that first frame at zero.
+            if (Alpha < 1 || GameplayClockContainer.Alpha < 1
+                || (DrawableRuleset as IGameplaySkinSceneRuntimeSource)?.GameplaySkinSceneRuntime?.IsSceneReady != true)
+            {
+                gameplaySkinPreparationLastUpdateTime = null;
+                return;
+            }
+
+            double elapsed = gameplaySkinPreparationLastUpdateTime is double previous ? Time.Current - previous : 0;
+            gameplaySkinPreparationLastUpdateTime = Time.Current;
+
+            if (!gameplaySkinPreparation.Advance(elapsed, PauseOverlay.State.Value == Visibility.Visible))
                 return;
 
             gameplaySkinPreparation.Complete();

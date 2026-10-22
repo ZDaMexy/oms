@@ -5,6 +5,8 @@ They are never cropped, recoloured, mirrored, resampled or redrawn here. Source
 geometry and native cue visibility come from the accepted stage layout. Only
 the globally earliest row is announced, with the native cue-opacity fading
 before actual note entry rather than waiting for a judgement or note time.
+The preparation gate also retires the cue with GET READY, even on a chart
+whose first note does not enter until much later.
 """
 
 from __future__ import annotations
@@ -194,7 +196,8 @@ def inject_frame(document, manifest, *, frame_id, reference, layout=None):
         prefix = f"{namespace}.{layout}.arrival.{texture.role}"
         sprite = _node(prefix + ".art", sprite=True, resource=texture.declaration()["id"],
                        properties={"x": 0, "y": 0, "width": 1, "height": texture.height / stage_height, "opacity": 0})
-        visible = _node(prefix + ".before-note", properties={"visible": False}, children=[sprite])
+        prepared = _node(sprite["id"] + ".preparation", properties={"visible": False}, children=[sprite])
+        visible = _node(prefix + ".before-note", properties={"visible": False}, children=[prepared])
         available = _node(prefix + ".available", properties={"visible": False}, children=[visible])
         root = _node(prefix, properties={"visible": False}, children=[available], slot="playfield.lane-surface")
         template = {"id": prefix + ".template", "root": root}
@@ -203,6 +206,7 @@ def inject_frame(document, manifest, *, frame_id, reference, layout=None):
         bindings = [{"id": prefix + ".option", "target": prefix, "property": "visible", "source": "option.arrival-cue"},
                     {"id": prefix + ".has-first-note", "target": available["id"], "property": "visible", "source": "arrival.available"},
                     {"id": prefix + ".not-yet-arrived", "target": visible["id"], "property": "visible", "source": "arrival.first-row"},
+                    {"id": prepared["id"] + ".visible", "target": prepared["id"], "property": "visible", "source": "preparation.active"},
                     {"id": prefix + ".cue-opacity", "target": sprite["id"], "property": "opacity", "source": "arrival.cue-opacity"}]
         additions.extend(((manifest["resources"], texture.declaration(), "arrival resource"),
                           (document["templates"], template, "arrival template"), (document["instances"], instance, "arrival instance")))
@@ -213,13 +217,14 @@ def inject_frame(document, manifest, *, frame_id, reference, layout=None):
         _require(not previous or previous == [value], f"Existing {description} differs from the arrival cue")
     for items, value, description in additions:
         _append_exact(items, value, description)
+    synchronise_preparation(document)
     return {"frame": frame_id, "layout": layout,
             "sourceReferenceSha256": reference.sha256, "sourceImages": [texture.source_id for texture in reference.textures],
             "materialMarkers": [f"custom/markers/b/{texture.role}" for texture in reference.textures],
             "placement": {"x": 0, "y": 0, "width": "one actual lane", "projectedHeightPx": 270,
                           "stageHeightPx": stage_height, "sourceHeadAndCaptionKeptTogether": True},
             "layer": "playfield.lane-surface / Underlay; all existing beam templates retained; notes stay above",
-            "truth": "Only arrival.first-row lanes; native arrival.cue-opacity fades before actual scroll entry independently of judgement",
+            "truth": "Only arrival.first-row lanes during preparation; retires with GET READY, or earlier on native scroll entry independently of judgement",
             "authorAdaptations": ["Top-of-lane placement of the complete original PNG"],
             "unknown": "Original host's exact cue invocation and timing"}
 
@@ -236,5 +241,36 @@ def upgrade_existing(document):
     for index, target in enumerate(sorted(targets)):
         _append_exact(document["bindings"], {"id": f"arrival.entry-opacity-{index}", "target": target,
                       "property": "opacity", "source": "arrival.cue-opacity"}, "native cue opacity")
+    synchronise_preparation(document)
     return {"originalColourOwners": 3, "firstRowSource": "arrival.first-row", "opacitySource": "arrival.cue-opacity",
             "originalPngsAndPlacementPreserved": True, "judgementTimeTracksRemoved": len(previous)}
+
+
+def synchronise_preparation(document):
+    """Gate a cue's parent so visibility cannot overwrite the art's native opacity."""
+    targets = {binding["target"] for binding in document.get("bindings", [])
+               if binding.get("source") == "arrival.cue-opacity"}
+    roots = [document["root"], *(template["root"] for template in document.get("templates", []))]
+
+    def walk(node, parent=None, index=None):
+        yield node, parent, index
+        for child_index, child in enumerate(node.get("children", [])):
+            yield from walk(child, node, child_index)
+
+    nodes = [entry for root in roots for entry in walk(root)]
+    owners = [(node, parent, index) for node, parent, index in nodes if node["id"] in targets]
+    _require(len(targets) == len(owners), "Every arrival opacity consumer must have one exact author node")
+    changed = []
+    for node, parent, index in owners:
+        identifier = node["id"] + ".preparation"
+        _require(parent is not None, "Arrival art must remain inside its existing first-row gates")
+        if parent["id"] != identifier:
+            _require(not any(item["id"] == identifier for item, _, _ in nodes), "The preparation wrapper ID is already owned")
+            parent["children"][index] = _node(identifier, properties={"visible": False}, children=[node])
+            changed.append(node["id"])
+        else:
+            _require(parent["type"] == "container" and parent["properties"] == {"visible": False}
+                     and parent["children"] == [node], "The preparation wrapper changed its proven cue ownership")
+        _append_exact(document["bindings"], {"id": identifier + ".visible", "target": identifier,
+                      "property": "visible", "source": "preparation.active"}, "preparation cue gate")
+    return changed

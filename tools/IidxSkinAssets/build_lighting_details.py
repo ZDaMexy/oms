@@ -15,7 +15,7 @@ from pathlib import Path
 import re
 import uuid
 
-from build_omni_skin import (NAME, audit_package, author_directory_budget, calibrate_full_combo, copy_exact,
+from build_omni_skin import (NAME, audit_package, author_directory_budget, calibrate_full_combo, copy_exact, enable_toggle_defaults,
                              exact_file, package_closure, publish_prepared_package,
                              read_json, write_json, resource_references, walk)
 import lighting_motion
@@ -465,6 +465,7 @@ def build(source, library, lane_reference, ready_reference, output):
     if existing.intersection(item["id"] for item in new_options):
         raise ValueError("The source already contains the new preparation options")
     root["options"].extend(copy.deepcopy(new_options))
+    enable_toggle_defaults(root)
     panels = lighting_panels.prepare_assets(library, staging)
     ready = lighting_ready.prepare_assets(library, staging, ready_reference)
     lane = lighting_lane_intro.load_reference(lane_reference)

@@ -44,6 +44,8 @@ metadata:
 
 ## 检查脚本与环境
 
+- 作者CLI会先独立准备全部声明片段，再按目录模块遍历代表组合；后续`GameplaySkinRecordedPreparedFrame.vector`越界不能只按最后模块标题归为该模块坏素材，组合也带其它默认贡献。定点复核须引用同SHA客户端DLL，记录实际choice/布局/clip/帧及Multiply/Add长度；单独或定点通过不覆盖完整长跑失败，也不凭相似数组异常认定旧ArrayBuilder与本次同源。具名范围见[P1-A记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-23omni默认显示与开场交接修复)。
+
 - `osu.Game` 内新增 `Resources/Textures/` 资源时，`DllResourceStore` 只剥程序集名称，仍保留 `Resources/`。直接加 store 后按 `Textures/` 请求会返回 null；应通过 `NamespacedResourceStore` 接入该目录。控件 `IsLoaded` 和旧启动测试可在缺图时通过，须核实际绘制尺寸或截图。`LogoAnimation` 的 R/G 分别是时间/覆盖率，不能换成普通 RGBA 图；其高亮先于填充绘制，外侧描边才能保留。资源合同见 [品牌资源](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#客户端品牌资源)，失败与修正来源见 [品牌日志](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-13客户端品牌标识专项)。
 
 - Pylance提示大量源文件时，先按目录枚举`.py/.pyi`，缓存 / 验证产物可能含成千依赖文件。工作区`python.analysis.exclude`排除目录扫描，打开或被实际源码导入的文件仍可分析；`ignore`只静音诊断，不能替代排除。区分目录数量、配置验证与重新加载后的实际编辑器结果；本机实例和采用范围取[2026-10-10日志](../../doc_md/mainline/CHANGELOG.md#2026-10-10)。

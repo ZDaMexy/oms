@@ -31,11 +31,11 @@
 - [canonical 构建、安装与用户数据保护](reference_skin_canonical_installation.md) — 静线唯一保底、原件/工作副本、退役迁移与缺行修复；便携/缓存隔离、冷启动线程、Ready早于载入所有权交还。
 - [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 随包手册与示例闭合、作者边界、用户决定与诊断入口。
 - [Skin V1 价值与工作预算](project_oms_skin_product_progress.md) — 区分效果能力、成品与创作便利度；星轨实际体验否定、有限反馈与本轮停止边界，当前状态读 P1-A。
-- [模式/键数皮肤选择](reference_skin_mode_selection.md) — 独立设置目标、直接管理入口/过滤、逐层继承、配置冻结及选曲确认删除/隐藏音效收尾。
+- [模式/键数皮肤选择](reference_skin_mode_selection.md) — 独立设置目标、模式遗漏覆盖与作者默认、逐层继承、配置冻结及选曲确认删除/隐藏音效收尾。
 
 ## 构建、存储与产品面参考
 
-- [构建与测试](reference_build_and_test.md) — 开发磁盘、缓存与数据误清理、测试宿主/音轨跳时/桌面GC、formatter与输出锁、品牌贴图、退休fixture与混合谱包/Realm快照、内存峰值、图片许可/审计误判、公钥首次导入及MSBuild旁带文件元数据。
+- [构建与测试](reference_build_and_test.md) — 开发磁盘、缓存与数据误清理、测试宿主/音轨跳时/桌面GC、formatter与输出锁、作者组合异常取证、品牌贴图、退休fixture与混合谱包/Realm快照、内存峰值、图片许可/审计误判、公钥首次导入及MSBuild旁带文件元数据。
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱库路径身份与历史保全](reference_filesystem_library_identity.md) — 同内容不同目录、失效与物删分离、多文件改名、重复素材枚举与增量查询放大器。
 - [谱面构成过滤](reference_bms_composition_filter.md) — 单轨上限、共享额度、零宽入口及无解条件。
@@ -72,6 +72,6 @@
 - [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — 唯一layout、准备失败与旧screen退役、显式空位/authorTop、mania键图mask、双stage判定、替换后AutoSize零高与跨玩法尺寸、光柱层级、图卡目标、AFP/SD、CUSTOM与开场短帧窗口。
 - [gameplay skin config presence](reference_gameplay_skin_config_presence.md) — accepted presence、synthetic default 与 per-index mask。
 - [gameplay skin lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md) — lane provenance、9K/14K 候选映射与资源退役。
-- [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — 事件顺序、移动源seek收敛与完整Reset、Autoplay假SLOW、callback拷贝、真实显示、父级准备时钟与首排提示退场。
+- [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — 事件顺序、移动源seek收敛与完整Reset、Autoplay假SLOW、callback拷贝、真实显示、可见后准备计时与首排提示退场。
 - [gameplay skin capability negotiation](reference_gameplay_skin_capability_negotiation.md) — closed allowlist、只读 token 与危险 handle。
 - [gameplay skin 脚本诊断](reference_gameplay_skin_scripts.md) — 授权撤销、暂停冻结、数值钳制、固定 tick 与纹理上传 ownership。

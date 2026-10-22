@@ -50,7 +50,7 @@ def options():
              "choices": [{"value": value, "label": label} for value, label in (
                  ("maximum", "理论满分"), ("personal-best", "本地个人最好"), ("aaa", "AAA（BMS）"),
                  ("aa", "AA（BMS）"), ("a", "A（BMS）"))]},
-            {"id": "judge-panel-visible", "type": "toggle", "label": "JUDGE · 实时判定数", "default": False}]
+            {"id": "judge-panel-visible", "type": "toggle", "label": "JUDGE · 实时判定数", "default": True}]
 
 
 def _independent(path: Path):

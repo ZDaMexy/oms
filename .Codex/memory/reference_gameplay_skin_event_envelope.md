@@ -29,6 +29,9 @@ envelope/scene ABI、版本与producer合同见 [P1-A CONSTRAINTS](../../doc_md/
 
 ## 准备时钟与首排提示
 
+- `OnEntering`须先停歌曲并发布准备屏障，但首个`Time.Elapsed`可能包含载入/切屏停顿。等Player及GameplayClockContainer完全显现、真实scene ready后建立父时间样本，此前不扣准备。永久Alpha0的测试屏幕不更新子scene，不能先等scene ready再解除隐藏；先观察真实owner，解除可见屏障后再严格等ready。当前合同见[作者准备阶段](../../skin-authoring/docs/REFERENCE.md#开局准备阶段)。
+- scene的`visible`与`opacity`都写同一TransformDrawable.Alpha；图片已有原生fade时再给同节点绑定准备开关，会由后执行者把淡出覆盖回1。独立父容器作准备门，子图继续读原生opacity，并在真实runtime检查父/子alpha乘积；只核两条binding存在或最终隐藏不足以证明中途淡出保留。
+
 - 准备阶段的装饰时钟不能取停住的歌曲/回放时钟，也不能让皮肤推进它们。显式作者声明由Player父更新产生只读准备快照；主动seek要撤销半程演出，正常完成才保留最终相位。真实Replay不支持普通暂停，暂停合同另用真实手动Player验证，不能伪造其Pause成功。来源及边界见[全框体开场](../../doc_md/other/OMNI_OPENINGS_20261021.md)。
 - 首排提示退场不能读命中结果或逐轨first-hit。全谱第一排由对象起始时刻确定，可见性由原生列的实际滚动投影确定；seek/rewind的FrameStable中间时间可能早于最终目的地，退场锁定必须在最终Reset提交时再收敛，不能只在中间帧设置。
 

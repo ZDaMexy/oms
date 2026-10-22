@@ -5,11 +5,14 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using oms.Input;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
+using osu.Framework.Graphics;
+using osu.Framework.Screens;
 using osu.Framework.Testing;
 using osu.Framework.Threading;
 using osu.Game.Beatmaps;
@@ -49,6 +52,91 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         private GameplaySkinPreparationController preparation = null!;
 
         protected override double TimePerAction => 25;
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestBmsAndManiaLoadingAndEntryFadeDoNotConsumePreparation(bool mania)
+        {
+            loadPlayer(mania, autoplay: false, declaredPreparation: true, blockEntryPresentation: true);
+            AddStep("simulate a slow load before the player can be presented", () => Thread.Sleep(1200));
+            AddWaitStep("allow the long first parent frame to reach the hidden player", 2);
+            AddStep("loading has consumed none of the opening or its ready countdown", () =>
+            {
+                Assert.Multiple(() =>
+                {
+                    Assert.That(player.Alpha, Is.Zero);
+                    Assert.That(preparation.State.Active, Is.True);
+                    Assert.That(preparation.State.Elapsed, Is.Zero);
+                    Assert.That(preparation.State.Remaining, Is.EqualTo(5000));
+                    Assert.That(clock.IsRunning, Is.False);
+                });
+                player.ScaleTo(1);
+                player.FadeIn(500);
+            });
+            AddUntilStep("an entry fade still samples the beginning of the artwork", () =>
+            {
+                if (player.Alpha <= 0)
+                    return false;
+
+                Assert.That(player.Alpha, Is.LessThan(1));
+                Assert.That(preparation.State.Elapsed, Is.Zero);
+                // The next parent frame completes the fade after a slow first presentation. Its whole
+                // elapsed interval must not become preparation time just because alpha has reached one.
+                Thread.Sleep(1200);
+                return true;
+            });
+            AddUntilStep("the player and its actual author scene become fully visible", () => player.Alpha == 1 && runtime.IsSceneReady);
+            AddStep("the first visible sample excludes the earlier loading interval", () =>
+            {
+                Assert.That(preparation.State.Elapsed, Is.LessThan(250));
+                Assert.That(preparation.State.Remaining, Is.GreaterThan(4750));
+                Assert.That(clock.IsRunning, Is.False);
+            });
+            AddUntilStep("ordinary visible updates now advance the full opening", () => preparation.State.Elapsed >= 500);
+            AddAssert("ready has not started early", () => !preparation.State.Ready && !clock.IsRunning);
+            exitPlayer();
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestBmsAndManiaNormalRetryStartsAFreshPreparation(bool mania)
+        {
+            loadPlayer(mania, autoplay: false, declaredPreparation: true);
+            Player firstPlayer = null!;
+            GameplaySkinPreparationController firstPreparation = null!;
+            AddUntilStep("the first player's opening advances normally", () => preparation.State.Elapsed >= 1000);
+            AddStep("retry through the real parent loader", () =>
+            {
+                firstPlayer = player;
+                firstPreparation = preparation;
+                Assert.That(player.Restart(false), Is.True);
+            });
+            AddUntilStep("the replacement player and its scene finish loading", () =>
+            {
+                if (ReferenceEquals(player, firstPlayer) || !ReferenceEquals(Game.ScreenStack.CurrentScreen, player)
+                    || !player.LoadedBeatmapSuccessfully)
+                    return false;
+
+                renderer = player.ChildrenOfType<DrawableRuleset>().Single();
+                if (renderer is not IGameplaySkinSceneRuntimeSource { GameplaySkinSceneRuntime: { IsSceneReady: true } scene })
+                    return false;
+
+                runtime = scene;
+                clock = player.ChildrenOfType<GameplayClockContainer>().Single();
+                preparation = player.Dependencies.Get<GameplaySkinPreparationController>();
+                return true;
+            });
+            AddStep("retry withdraws the old phase and waits for a new visible opening", () =>
+            {
+                Assert.That(firstPreparation.State, Is.EqualTo(default(GameplaySkinPreparationStateSnapshot)));
+                Assert.That(preparation, Is.Not.SameAs(firstPreparation));
+                Assert.That(preparation.State.Active, Is.True);
+                Assert.That(preparation.State.Elapsed, Is.LessThan(1000));
+                Assert.That(clock.IsRunning, Is.False);
+            });
+            AddUntilStep("the replacement opening advances independently", () => preparation.State.Elapsed >= 1000);
+            exitPlayer();
+        }
 
         [TestCase(false)]
         [TestCase(true)]
@@ -228,7 +316,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             exitPlayer();
         }
 
-        private void loadPlayer(bool mania, bool autoplay, bool declaredPreparation)
+        private void loadPlayer(bool mania, bool autoplay, bool declaredPreparation, bool blockEntryPresentation = false)
         {
             Ruleset ruleset = mania ? new ManiaRuleset() : new BmsRuleset();
             AddStep("create a test-owned ordinary package and chart", () =>
@@ -252,7 +340,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Game.Dependencies.Get<SkinManager>().CurrentSkin.Value.SkinInfo.ID == import!.GetAwaiter().GetResult().ID);
             AddStep("enter the normal player loading screen", () => Game.ScreenStack.Push(new PlayerLoader(() =>
                 player = autoplay ? new ReplayPlayer(ruleset.GetAutoplayMod()!.CreateScoreFromReplayData)
-                    : mania ? new SoloPlayer() : new PreparationBmsPlayer())));
+                    : mania ? new PreparationManiaPlayer { BlockEntryPresentation = blockEntryPresentation }
+                        : new PreparationBmsPlayer { BlockEntryPresentation = blockEntryPresentation })));
             AddUntilStep("the real player and its published author scene finish loading", () =>
             {
                 DismissAnyNotifications();
@@ -260,7 +349,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     return false;
 
                 renderer = player.ChildrenOfType<DrawableRuleset>().Single();
-                if (renderer is not IGameplaySkinSceneRuntimeSource { GameplaySkinSceneRuntime: { IsSceneReady: true } scene })
+                // An intentionally fully hidden screen does not update its child scene. Observe its real owner
+                // here, then release the test's entry barrier before requiring all scene nodes to be ready.
+                if (renderer is not IGameplaySkinSceneRuntimeSource { GameplaySkinSceneRuntime: { } scene }
+                    || (!blockEntryPresentation && !scene.IsSceneReady))
                     return false;
 
                 runtime = scene;
@@ -383,16 +475,45 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
         private partial class PreparationBmsPlayer : BmsSoloPlayer
         {
+            public bool BlockEntryPresentation { get; init; }
+
             public int LegacyDelaySchedules { get; private set; }
 
             public BmsInputManager BmsInput => (BmsInputManager)((DrawableBmsRuleset)DrawableRuleset).GameplayInputManager!;
 
             public void SkipIntro() => SkipIntroOverlay.RequestSkip();
 
+            public override void OnEntering(ScreenTransitionEvent e)
+            {
+                base.OnEntering(e);
+                if (!BlockEntryPresentation)
+                    return;
+
+                this.ClearTransforms();
+                Alpha = 0;
+            }
+
             protected override ScheduledDelegate SchedulePreStartDelay(Action onElapsed)
             {
                 LegacyDelaySchedules++;
                 return base.SchedulePreStartDelay(onElapsed);
+            }
+
+            protected override Task ImportScore(osu.Game.Scoring.Score score) => Task.CompletedTask;
+        }
+
+        private partial class PreparationManiaPlayer : SoloPlayer
+        {
+            public bool BlockEntryPresentation { get; init; }
+
+            public override void OnEntering(ScreenTransitionEvent e)
+            {
+                base.OnEntering(e);
+                if (!BlockEntryPresentation)
+                    return;
+
+                this.ClearTransforms();
+                Alpha = 0;
             }
 
             protected override Task ImportScore(osu.Game.Scoring.Score score) => Task.CompletedTask;

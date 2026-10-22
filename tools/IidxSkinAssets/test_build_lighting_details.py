@@ -7,12 +7,33 @@ import unittest
 
 from build_lighting_details import (bga_ini, compact_added_textures, compact_intro_keyframe_ids,
     compact_frame_resource_ids, compact_scene_identifiers, select_frame_layouts, select_turntable_frame, share_turntable_geometry, deduplicate_inis)
-from build_omni_skin import calibrate_full_combo
+from build_omni_skin import FRAME_NAMES, calibrate_full_combo, enable_toggle_defaults, frame_ini_paths
 import lighting_motion
 from test_lighting_motion import turntables
 
 
 class LightingDetailsBuilderTest(unittest.TestCase):
+    def test_rebuild_visits_each_actual_frame_ini_including_flattened_graph_variants(self):
+        catalog = {"modules": [{"id": "frame", "choices": [
+            {"value": frame, "ini": "config/shared.ini", "variants": [
+                {"when": {"graph-visible": True}, "ini": f"config/{frame}-graph.ini"},
+                {"when": {"graph-visible": False}, "ini": "config/shared.ini"}]}
+            for frame in FRAME_NAMES]}]}
+        self.assertEqual(sorted(["config/shared.ini", *(f"config/{frame}-graph.ini" for frame in FRAME_NAMES)]), frame_ini_paths(catalog))
+
+    def test_every_visual_toggle_defaults_on_without_changing_choice_or_number_values(self):
+        manifest = {"options": [
+            {"id": "graph-visible", "type": "toggle", "default": False},
+            {"id": "judge-panel-visible", "type": "toggle", "default": False},
+            {"id": "arrival-cue", "type": "toggle", "default": True},
+            {"id": "layout", "type": "choice", "default": "p1"},
+            {"id": "explosion-scale", "type": "number", "default": 1}]}
+        self.assertEqual(["graph-visible", "judge-panel-visible"], enable_toggle_defaults(manifest))
+        self.assertTrue(all(option["default"] is True for option in manifest["options"] if option["type"] == "toggle"))
+        self.assertEqual("p1", manifest["options"][3]["default"])
+        self.assertEqual(1, manifest["options"][4]["default"])
+        self.assertEqual([], enable_toggle_defaults(manifest))
+
     def test_full_combo_uses_33_theme_while_preserving_all_saved_values_and_original_contributions(self):
         module = {"id": "full-combo", "label": "Full Combo Effect", "default": "fc00", "choices": [
             {"value": f"fc{number:02}", "label": f"Full Combo {number:02}",

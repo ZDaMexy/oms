@@ -9,6 +9,7 @@ using System.Threading;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
+using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Rendering.Dummy;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
@@ -182,6 +183,60 @@ namespace osu.Game.Tests.NonVisual.Skinning
             }
         }
 
+        [Test]
+        public void TestPreparedCueParentGateMultipliesNativeFadeAndHidesLateNotesAfterPreparation()
+        {
+            using Texture first = new DummyRenderer().CreateTexture(2, 2);
+            using Texture second = new DummyRenderer().CreateTexture(2, 2);
+            using GameplaySkinLayoutPublication publication = preparationPublication(first, second, gateFirstCueDuringPreparation: true);
+            using var stream = new GameplaySkinEventStream(publication, 100, preparationSnapshot(publication));
+            using GameplaySkinEventProducer producer = stream.CreateProducer();
+            using var host = new GameplaySkinSceneRuntimeHost(publication, stream);
+            host.ProcessFrame();
+            assertCue(1, 0, 0);
+
+            producer.SynchroniseTiming(100, preparationTiming(new GameplaySkinPreparationStateSnapshot(true, true, 0, 5000, false, 0)));
+            host.ProcessFrame();
+            assertCue(1, 1, 1);
+
+            producer.SynchroniseTiming(100, preparationTiming(new GameplaySkinPreparationStateSnapshot(true, true, 500, 4500, false, 0), fade: 0));
+            host.ProcessFrame();
+            assertCue(0.5f, 1, 0.5f);
+            host.ProcessFrame();
+            assertCue(0.5f, 1, 0.5f);
+
+            producer.SynchroniseTiming(200, preparationTiming(new GameplaySkinPreparationStateSnapshot(true, true, 1000, 4000, false, 0), fade: 0));
+            host.ProcessFrame();
+            assertCue(0, 1, 0);
+
+            // A late first note still has native opacity one when READY finishes. Only its separate
+            // preparation parent closes; the unchanged opacity source and ordinary cue retain one.
+            producer.SynchroniseTiming(200, preparationTiming(new GameplaySkinPreparationStateSnapshot(true, false, 5000, 0, false, 0)));
+            host.ProcessFrame();
+            assertCue(1, 0, 0);
+            producer.SynchroniseTiming(200, preparationTiming(default));
+            host.ProcessFrame();
+            assertCue(1, 0, 0);
+
+            void assertCue(float opacity, float preparationAlpha, float effectiveAlpha)
+            {
+                GameplaySkinSceneRuntimeNode art = runtime(host, "cue.first.pixel");
+                GameplaySkinSceneRuntimeNode gate = runtime(host, "cue.first.pixel.preparation");
+                Assert.Multiple(() =>
+                {
+                    Assert.That(gate.ContentDrawable.ChildrenOfType<Container>(), Does.Contain(art.TransformDrawable),
+                        "The native art must actually be mounted under its separate visibility parent.");
+                    Assert.That(runtime(host, "cue.first").TransformDrawable.Alpha, Is.EqualTo(1), "The same lane remains the globally first row.");
+                    Assert.That(art.TransformDrawable.Alpha, Is.EqualTo(opacity));
+                    Assert.That(gate.TransformDrawable.Alpha, Is.EqualTo(preparationAlpha));
+                    Assert.That(art.TransformDrawable.Alpha * gate.TransformDrawable.Alpha, Is.EqualTo(effectiveAlpha));
+                    Assert.That(runtime(host, "cue.later.pixel").TransformDrawable.Alpha, Is.EqualTo(opacity),
+                        "An ordinary consumer keeps the same native fade source without the preparation parent.");
+                    Assert.That(host.RuntimeFaults, Is.Empty);
+                });
+            }
+        }
+
         [TestCase(0)]
         [TestCase(1000)]
         [TestCase(5000)]
@@ -254,7 +309,8 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 preparationTiming(default), initial.BgaViewports, chartPresentation: new GameplaySkinChartPresentation(arrivals, arrivalCueAvailable: cueAvailable));
         }
 
-        private static GameplaySkinLayoutPublication preparationPublication(Texture first, Texture second, double duration = 5000)
+        private static GameplaySkinLayoutPublication preparationPublication(Texture first, Texture second, double duration = 5000,
+                                                                            bool gateFirstCueDuringPreparation = false)
         {
             DualLayoutFixture layout = createDualStageLayout();
             GameplaySkinSceneManifest manifest = preparationManifest();
@@ -265,6 +321,28 @@ namespace osu.Game.Tests.NonVisual.Skinning
             sourceScene["root"]!["children"]![2]!["target"] = new JObject { ["kind"] = "lane", ["id"] = lanes[1].Identity.Id.Value, ["index"] = 1 };
             sourceScene["root"]!["children"]![1]!["children"]![0]!["target"] = sourceScene["root"]!["children"]![1]!["target"]!.DeepClone();
             sourceScene["root"]!["children"]![2]!["children"]![0]!["target"] = sourceScene["root"]!["children"]![2]!["target"]!.DeepClone();
+            if (gateFirstCueDuringPreparation)
+            {
+                JObject cue = (JObject)sourceScene["root"]!["children"]![1]!;
+                JToken art = cue["children"]![0]!.DeepClone();
+                cue["children"] = new JArray(new JObject
+                {
+                    ["id"] = "cue.first.pixel.preparation",
+                    ["type"] = "container",
+                    ["target"] = cue["target"]!.DeepClone(),
+                    ["blend"] = "alpha",
+                    ["properties"] = new JObject { ["visible"] = false },
+                    ["effects"] = new JArray(),
+                    ["children"] = new JArray(art),
+                });
+                ((JArray)sourceScene["bindings"]!).Add(new JObject
+                {
+                    ["id"] = "cue.first.preparation-binding",
+                    ["target"] = "cue.first.pixel.preparation",
+                    ["property"] = "visible",
+                    ["source"] = "preparation.active",
+                });
+            }
             var files = new Dictionary<string, byte[]>(StringComparer.Ordinal)
             {
                 [GameplaySkinSceneContracts.MANIFEST_FILE_NAME] = GameplaySkinSceneCodec.EncodeManifestUtf8(manifest),

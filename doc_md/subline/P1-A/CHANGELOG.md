@@ -1,5 +1,23 @@
 # P1-A 变动日志
 
+## 2026-10-23Omni默认显示与开场交接修复
+
+从干净`master@4e06a7bc`接续，fetch确认与origin/master一致。用户正常VS Code非调试反馈mania未显示Graph/JUDGE、默认开关应全开、首排预告退场晚于GET READY及BMS载入吞动画，并要求当日版本序号。只读现场配置发现两项开启仅保存在BMS作用域，旧包对应默认均为false；旧包在隔离mania7K显式开启后完整自动演奏并实际显示两块面板。因而保留玩法独立配置合同，新包七个可见toggle统一默认true，选择项/数值和已有显式覆盖不强改；不为设置作用域问题添加mania renderer专例。
+
+开局立即建立原停表屏障，待Player、GameplayClockContainer完全显现且实际scene ready，首个父更新从零建立准备时间样本，后续按相邻父时间推进。载入、首个长更新与渐显不扣开场；暂停、按住等待、skip和Retry保留。新增双玩法真实Player慢载入/渐显/首可见长帧及正常Retry回归；初次两项隐藏测试因Alpha0不更新子场景却先等ready而自锁，改为先取真实owner、解除隐藏后再严格等ready，最终同夹具全过，没有伪造产品就绪或修改停表权威。
+
+作者首排预告增加独立父容器绑定`preparation.active`，最迟与GET READY准备阶段一起退场，保留全谱首排/原生滚动更早退场、原PNG、几何和透明度来源；普通皮肤的arrival字段未改。复查发现同一图片同时绑定visible/opacity会互写Alpha，因此最终采用父门与子淡出的乘积，不把准备时强制不透明当成保留原生淡出。新建和冻结作者重建都采用相同默认值与预告门；当前Frame的Graph/BGA分支使用扁平去重INI，重建工具改为遍历实际目录贡献，保留15框体验证与原资源比较，修复旧工具只接受单个固定材料路径的失效假设。
+
+独立新版按`.v26102300.osk`交付；后续`.vyymmddxx.osk`的`xx`按Asia/Shanghai日期从00递增，旧版保留。新包仍为6529项，原PNG/压缩演出/非本轮声明逐字节保全，配置约15.59MiB、冻结选中组合资源上界293，原预算不变。原HDD未访问，正式玩家数据只读日志及相关配置摘要，未写Realm/配置；Omni不内置或进入公开制作套件。证据集中在ignored的`artifacts/omni-options-20261023/`，本轮验证及剩余门见[STATUS](DEVELOPMENT_STATUS.md#最近一次验证)。
+
+最终Python57+15项、Core皮肤/准备1226通过/3跳过、BMS皮肤/开局1437通过/19跳过、mania Release完整993通过/2跳过，均无失败；真实准备夹具11项包含在BMS范围内，父门/原生淡出乘积包含在最终Core范围内。Debug/Release为0错误，分别12/10条已解释的旧ImageSharp索引及BMS夹具警告；四个受影响C#项目whitespace verify通过。BMS只跑相关范围，没有代签依赖迁移后的完整BMS缺口。
+
+同一最终包六组原生Player自然准备、自动演奏、正常结算通过：mania7K/16K及BMS7K右侧/14K默认开启；mania8K右侧与BMS5K显式关闭适用开关。检查真实冻结选项、实际面板可见性、准备结束时首排cue有效alpha归零、完整记录动画池清空、音符三槽/光柱及无runtime fault；没有靠seek重造开场。首个mania关闭用例误请求BMS专属lift-readout，被适用范围断言正确拒绝；删去该无效测试输入后新名复跑通过，产品合同未放宽。
+
+官方完整作者CLI已逐项验证全部声明结构/图片并单独准备片段，frame15、notes12、charge-notes11、judgement21、explosion27与key-beam15及其条件分支完成后，在后续代表组合的`GameplaySkinRecordedPreparedFrame.vector(Double[])`四分量转换抛`IndexOutOfRangeException`。日志未给出确切clip/帧/Multiply或Add长度；不能因处于lane-cover枚举就认定该素材坏，也未证明与旧ArrayBuilder异常同源。保留完整失败、最终DLL/包身份与原生成功记录，未计全CLI通过或已修复，后续取证取PLAN。用户正常窗口、前台帧时间、原机时序、物理设备及原发行门仍未代签。
+
+最终文档与总工作区检查通过，保留原通用路径/公开checksum提示。清理三个本次生成的打包staging目录被自动审批以`blocked by policy`拒绝，命令未运行，目录保留；未绕过或据此宣称已清理。最终作者、OSK、原素材及失败/成功证据保留，不生成额外客户端发行物。
+
 ## 2026-10-22客户端依赖安全修复接入
 
 用户授权全量修复后，ImageSharp以正规私有程序集许可升级至3.2.0，AutoMapper移除为显式Realm复制，SQLite迁移完整受支持的managed/native包组合。SharpCompress0.50.7与MessagePack3.1.11亦已入树，归档与回放API迁移和相关专项已通过；完整BMS回归因内存压力中止，软件结果不代签实机或发行验收，旧在线入口保持关闭。

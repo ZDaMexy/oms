@@ -39,4 +39,6 @@ metadata:
 
 - managed删除后的卡片失败不能只查UI：异步reservation可跨线程存活，旧owner线程已被pool复用时，独立preview不能沿线程ID进入“同线程嵌套”。独立read须等待真实lease释放，原同步重入guard保持；等待后Live可能已删除，需边界返回明确不可用结果。UI删除完成前后还可能持旧Realm快照，必须fresh刷新再解析模式默认，不能把null传给storage resolver，也不能为一般准备错误循环重试；旧删除完成不取消较新的选择。Dropdown.Items移除选中项会由framework写本地Current，不能在其Disabled=true时直接换集合；仅同步mirror期间暂解禁并抑制保存，之后恢复ready规则。真实确认还须断言全过程无日志异常，不能卡片最终ready就掩盖中途错误。Sample graph gate内只能拆图/取lease，不能Release：同步退休续体可能反向进入publication锁，撞上后台reject下的abort而卡死。确定性等待/取消、软/硬目标消失与重复真实确认见上方本轮记录。
 
+- 同一包在BMS可见而mania隐藏时，先对照当前模式/键数保存覆盖与包默认值，再核真实publication.OptionValues。仅BMS保存了开启而作者默认关闭，会让mania按合同继续隐藏，不能据此改共享renderer或跨模式复制配置；用同包显式开启的真实mania Player区分显示能力与设置作用域。Omni默认合同取[P1-A约束](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)。
+
 `TestSceneStartupRuleset.TestRulesetSpecificSkinPreferences` 用真实 `OsuGame` 在 BMS → mania 切换后断言两条配置和当前皮肤互不污染；`TestSceneStartupSkinMigration` 覆盖旧全局值迁移。设置布局变化后仍需保留现有 `ChildrenOfType` caller（删除、脚本授权、刷新）并运行 P1-A 规定的 focused tests。不要把移除工作区 UI 写成删除旧用户数据，也不要在设置页绕过 `SkinManager.CurrentSkinInfo` 直接写提交 bindable。
