@@ -1,11 +1,11 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-22（归档与外链安全修复；图片及原生媒体缺口保留）
+> 最后核对：2026-10-22（安全公告增量复核；7z底层解码风险未闭合）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
 
-2026-10-22已修本地BMS无界解包及空官网地址绕过外链提醒，依赖按原系列更新，旧在线仍关闭；图片 / 原生媒体风险见下方，验证取[安全记录](CHANGELOG.md#2026-10-22全工作区安全筛查与本地导入边界)。
+本地BMS预算与外链提醒已修；傍晚另确认7z底层解码可达DoS，尚未修复。图片/原生媒体缺口见下方，旧在线仍关闭；[复核记录](CHANGELOG.md#2026-10-22安全公告增量复核)。
 
 静线为唯一内置、首次默认与保底；complex已退役，历史作者文件和用户包保留。静线打磨按用户决定暂停。BMS/mania各有模式默认和键数覆盖，旧全局配置首次迁移；游玩按最终键数应用。原V-001～V-005、设备和长期体验未签收，Skin V1/release未完成。C1～C7证据不重计，OmsSkin物理删除仍待原实机门。
 
@@ -47,8 +47,8 @@ Release外链 / 皮肤专项71通过，归档 / 下载 / 导入专项138通过�
 
 ## 当前风险与未完成项
 
-- ImageSharp仍为framework带入的3.1.11，不可信图片解码可达。3.2.0真实Release因缺社区许可失败，候选已撤回；未绕过检查。后续申请`osu.Game`免费项目密钥或验证替代解码，风险未关闭。
-- 原生BGA的FFmpeg4.3.3需核实际codec补丁、整套DLL与ABI；外部ffmpeg.exe更新不能代签，归[P1-L](../P1-L/DEVELOPMENT_PLAN.md)。
+- SharpCompress0.39.0的7z/LZMA2可卡死同步解压，预算/取消挡不住；0.50.6已修，需适配0.50.7并核framework兼容，尚未实施。
+- ImageSharp3.1.11的外来图片风险未闭合，3.2.0因缺项目许可未生效；FFmpeg4.3.3的codec补丁/整套ABI待核，外部ffmpeg.exe不能代签，归[P1-L](../P1-L/DEVELOPMENT_PLAN.md)。
 
 - 10月22日四项修复仍待用户正常VS Code窗口复核；作品变化须重导入新包，既有显式FC选择保留，不自动覆盖。fc24据原图确认33主题，原机菜单默认ID未独立实测。血条闪烁包络为作者适配，原机精确时序未签收。
 - Core扩大检查被旧QuickOsz夹具的12/3张谱断言及载入空转阻塞，见[失败身份](CHANGELOG.md#2026-10-22autoplay跳转与omni反馈修复)；不宣称全仓测试通过。

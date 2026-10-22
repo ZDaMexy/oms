@@ -30,7 +30,7 @@
 
 ## 下载维护与回归
 
-安全接续优先处理修复版ImageSharp的项目许可或经验证替代方案，并与P1-L核对进程内FFmpeg的同ABI补丁 / 正式迁移；当前差异和未生效升级取[STATUS风险](DEVELOPMENT_STATUS.md#当前风险与未完成项)。不通过跨到net10、改引用形状或禁用许可检查制造假修复。
+安全接续先将SharpCompress迁到已修LZMA2死循环的0.50.7，核Archive/Writer/LzmaStream新API及framework预编译兼容，复验7z坏包终止、导入与ZIP/回放读写；不能以外层取消或大小预算代签。ImageSharp项目许可/替代解码及P1-L的FFmpeg同ABI补丁/正式迁移保持；范围取[STATUS风险](DEVELOPMENT_STATUS.md#当前风险与未完成项)。不跨net10、绕许可或只改版本号制造假修复。
 
 改动归档库或下载路径时，按真实坏包复验失败/重试/退出、路径与谱文本声明/实际预算、ZIP资源完整性、RAR/7z取消后释放、旧库保全及原目标打开；不扩大manager捕获来掩盖程序错误。稳定边界见下载合同，已交付结果只在[STATUS](DEVELOPMENT_STATUS.md)和历史记录维护。
 
