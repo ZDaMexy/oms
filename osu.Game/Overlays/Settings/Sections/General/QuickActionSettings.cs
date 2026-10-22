@@ -16,6 +16,9 @@ using osu.Game.Localisation;
 using osu.Game.Online.Chat;
 using osu.Game.Overlays.Notifications;
 using osu.Game.Utils;
+using SharpCompress.Archives;
+using SharpCompress.Common;
+using SharpCompress.Writers.Zip;
 using SharpCompress.Archives.Zip;
 
 namespace osu.Game.Overlays.Settings.Sections.General
@@ -102,12 +105,12 @@ namespace osu.Game.Overlays.Settings.Sections.General
                 var logStorage = Logger.Storage;
 
                 using (var outStream = exportStorage.CreateFileSafely(archive_filename))
-                using (var zip = ZipArchive.Create())
+                using (var zip = ZipArchive.CreateArchive())
                 {
                     foreach (string? f in logStorage.GetFiles(string.Empty, "*.log"))
                         FileUtils.AttemptOperation(z => z.AddEntry(f, logStorage.GetStream(f), closeStream: true), zip, throwOnFailure: false);
 
-                    zip.SaveTo(outStream);
+                    zip.SaveTo(outStream, new ZipWriterOptions(CompressionType.Deflate));
                 }
             }
             catch

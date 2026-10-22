@@ -5,9 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.Serialization;
-using AutoMapper;
-using AutoMapper.Internal;
 using osu.Framework.Logging;
 using osu.Game.Beatmaps;
 using osu.Game.Collections;
@@ -22,169 +19,6 @@ namespace osu.Game.Database
 {
     public static class RealmObjectExtensions
     {
-        private static readonly IMapper write_mapper = new MapperConfiguration(c =>
-        {
-            c.ShouldMapField = _ => false;
-            c.ShouldMapProperty = pi => pi.SetMethod?.IsPublic == true;
-
-            c.CreateMap<BeatmapMetadata, BeatmapMetadata>()
-             .ForMember(s => s.Author, cc => cc.Ignore())
-             .AfterMap((s, d) =>
-             {
-                 copyChangesToRealm(s.Author, d.Author);
-             });
-            c.CreateMap<BeatmapDifficulty, BeatmapDifficulty>();
-            c.CreateMap<RealmUser, RealmUser>();
-            c.CreateMap<RealmFile, RealmFile>();
-            c.CreateMap<RealmNamedFileUsage, RealmNamedFileUsage>();
-            c.CreateMap<BeatmapInfo, BeatmapInfo>()
-             .MaxDepth(3)
-             .ForMember(s => s.Ruleset, cc => cc.Ignore())
-             .ForMember(s => s.Metadata, cc => cc.Ignore())
-             .ForMember(s => s.UserSettings, cc => cc.Ignore())
-             .ForMember(s => s.Difficulty, cc => cc.Ignore())
-             .ForMember(s => s.BeatmapSet, cc => cc.Ignore())
-             .AfterMap((s, d) =>
-             {
-                 d.Ruleset = d.Realm!.Find<RulesetInfo>(s.Ruleset.ShortName)!;
-                 copyChangesToRealm(s.Difficulty, d.Difficulty);
-                 copyChangesToRealm(s.Metadata, d.Metadata);
-             });
-            c.CreateMap<BeatmapSetInfo, BeatmapSetInfo>()
-             .ConstructUsing(_ => new BeatmapSetInfo(null))
-             .MaxDepth(3)
-             .ForMember(s => s.Beatmaps, cc => cc.Ignore())
-             .AfterMap((s, d) =>
-             {
-                 foreach (var beatmap in s.Beatmaps)
-                 {
-                     // Importantly, search all of realm for the beatmap (not just the set's beatmaps).
-                     // It may have gotten detached, and if that's the case let's use this opportunity to fix
-                     // things up.
-                     var existingBeatmap = d.Realm!.Find<BeatmapInfo>(beatmap.ID);
-
-                     if (existingBeatmap != null)
-                     {
-                         // As above, reattach if it happens to not be in the set's beatmaps.
-                         if (!d.Beatmaps.Contains(existingBeatmap))
-                         {
-                             Debug.Fail("Beatmaps should never become detached under normal circumstances. If this ever triggers, it should be investigated further.");
-                             Logger.Log("WARNING: One of the difficulties in a beatmap was detached from its set. Please save a copy of logs and report this to devs.", LoggingTarget.Database,
-                                 LogLevel.Important);
-                             d.Beatmaps.Add(existingBeatmap);
-                         }
-
-                         copyChangesToRealm(beatmap, existingBeatmap);
-                     }
-                     else
-                     {
-                         var newBeatmap = new BeatmapInfo
-                         {
-                             ID = beatmap.ID,
-                             BeatmapSet = d,
-                             Ruleset = d.Realm.Find<RulesetInfo>(beatmap.Ruleset.ShortName)!
-                         };
-
-                         d.Beatmaps.Add(newBeatmap);
-                         copyChangesToRealm(beatmap, newBeatmap);
-                     }
-                 }
-             });
-
-            c.Internal().ForAllMaps((_, expression) =>
-            {
-                expression.ForAllMembers(m =>
-                {
-                    if (m.DestinationMember.Has<IgnoredAttribute>() || m.DestinationMember.Has<BacklinkAttribute>() || m.DestinationMember.Has<IgnoreDataMemberAttribute>())
-                        m.Ignore();
-                });
-            });
-        }).CreateMapper();
-
-        private static readonly IMapper mapper = new MapperConfiguration(c =>
-        {
-            applyCommonConfiguration(c);
-
-            c.CreateMap<BeatmapSetInfo, BeatmapSetInfo>()
-             .ConstructUsing(_ => new BeatmapSetInfo(null))
-             .MaxDepth(2)
-             .AfterMap((_, d) =>
-             {
-                 foreach (var beatmap in d.Beatmaps)
-                     beatmap.BeatmapSet = d;
-             });
-
-            // This can be further optimised to reduce cyclic retrievals, similar to the optimised set mapper below.
-            // Only hasn't been done yet as we detach at the point of BeatmapInfo less often.
-            c.CreateMap<BeatmapInfo, BeatmapInfo>()
-             .MaxDepth(2)
-             .AfterMap((_, d) =>
-             {
-                 for (int i = 0; i < d.BeatmapSet?.Beatmaps.Count; i++)
-                 {
-                     if (d.BeatmapSet.Beatmaps[i].Equals(d))
-                     {
-                         d.BeatmapSet.Beatmaps[i] = d;
-                         break;
-                     }
-                 }
-             });
-        }).CreateMapper();
-
-        /// <summary>
-        /// A slightly optimised mapper that avoids double-fetches in cyclic reference.
-        /// </summary>
-        private static readonly IMapper beatmap_set_mapper = new MapperConfiguration(c =>
-        {
-            applyCommonConfiguration(c);
-
-            c.CreateMap<BeatmapSetInfo, BeatmapSetInfo>()
-             .ConstructUsing(_ => new BeatmapSetInfo(null))
-             .MaxDepth(2)
-             .ForMember(b => b.Files, cc => cc.Ignore())
-             .AfterMap((_, d) =>
-             {
-                 foreach (var beatmap in d.Beatmaps)
-                     beatmap.BeatmapSet = d;
-             });
-
-            c.CreateMap<BeatmapInfo, BeatmapInfo>()
-             .MaxDepth(1)
-             // This is not required as it will be populated in the `AfterMap` call from the `BeatmapInfo`'s parent.
-             .ForMember(b => b.BeatmapSet, cc => cc.Ignore());
-        }).CreateMapper();
-
-        private static void applyCommonConfiguration(IMapperConfigurationExpression c)
-        {
-            c.ShouldMapField = _ => false;
-
-            // This is specifically to avoid mapping explicit interface implementations.
-            // If we want to limit this further, we can avoid mapping properties with no setter that are not IList<>.
-            // Takes a bit of effort to determine whether this is the case though, see https://stackoverflow.com/questions/951536/how-do-i-tell-whether-a-type-implements-ilist
-            c.ShouldMapProperty = pi => pi.GetMethod?.IsPublic == true;
-
-            c.Internal().ForAllMaps((_, expression) =>
-            {
-                expression.ForAllMembers(m =>
-                {
-                    if (m.DestinationMember.Has<IgnoredAttribute>() || m.DestinationMember.Has<BacklinkAttribute>() || m.DestinationMember.Has<IgnoreDataMemberAttribute>())
-                        m.Ignore();
-                });
-            });
-
-            c.CreateMap<RealmKeyBinding, RealmKeyBinding>();
-            c.CreateMap<BeatmapCollection, BeatmapCollection>();
-            c.CreateMap<BeatmapMetadata, BeatmapMetadata>();
-            c.CreateMap<BeatmapUserSettings, BeatmapUserSettings>();
-            c.CreateMap<BeatmapDifficulty, BeatmapDifficulty>();
-            c.CreateMap<RulesetInfo, RulesetInfo>();
-            c.CreateMap<ScoreInfo, ScoreInfo>();
-            c.CreateMap<RealmUser, RealmUser>();
-            c.CreateMap<RealmFile, RealmFile>();
-            c.CreateMap<RealmNamedFileUsage, RealmNamedFileUsage>();
-            c.CreateMap<SkinInfo, SkinInfo>();
-        }
-
         /// <summary>
         /// Create a detached copy of the each item in the collection.
         /// </summary>
@@ -218,10 +52,35 @@ namespace osu.Game.Database
             if (!item.IsManaged)
                 return item;
 
-            if (item is BeatmapSetInfo)
-                return beatmap_set_mapper.Map<T>(item);
-
-            return mapper.Map<T>(item);
+            // Only the persisted model graph is copied. In particular, do not follow arbitrary
+            // getters, backlinks or ignored UI state, or recurse through BeatmapSet/Beatmap cycles.
+            RealmObjectBase copy = item switch
+            {
+                BeatmapSetInfo set => detachBeatmapSet(set, false),
+                BeatmapInfo beatmap => detachBeatmap(beatmap),
+                BeatmapMetadata metadata => detachMetadata(metadata),
+                BeatmapDifficulty difficulty => new BeatmapDifficulty(difficulty),
+                BeatmapUserSettings settings => new BeatmapUserSettings { Offset = settings.Offset },
+                RulesetInfo ruleset => ruleset.Clone(),
+                RealmUser user => detachUser(user),
+                RealmFile file => new RealmFile { Hash = file.Hash },
+                RealmNamedFileUsage usage => detachFileUsage(usage),
+                BeatmapCollection collection => new BeatmapCollection(collection.Name, new List<string>(collection.BeatmapMD5Hashes))
+                {
+                    ID = collection.ID,
+                    Name = collection.Name,
+                    LastModified = collection.LastModified,
+                },
+                RealmKeyBinding binding => new RealmKeyBinding(binding.ActionInt, string.Empty, binding.RulesetName, binding.Variant)
+                {
+                    ID = binding.ID,
+                    KeyCombinationString = binding.KeyCombinationString,
+                },
+                SkinInfo skin => detachSkin(skin),
+                ScoreInfo score => detachScore(score),
+                _ => throw new NotSupportedException($"Detaching the Realm model {item.GetType().FullName} is not supported."),
+            };
+            return (T)copy;
         }
 
         /// <summary>
@@ -231,10 +90,247 @@ namespace osu.Game.Database
         /// <param name="source">The detached beatmap to copy from.</param>
         /// <param name="destination">The live beatmap to copy to.</param>
         public static void CopyChangesToRealm(this BeatmapSetInfo source, BeatmapSetInfo destination)
-            => copyChangesToRealm(source, destination);
+        {
+            copyBeatmapSetValues(source, destination);
 
-        private static void copyChangesToRealm<T>(T source, T destination) where T : RealmObjectBase
-            => write_mapper.Map(source, destination);
+            foreach (var beatmap in source.Beatmaps)
+            {
+                // Search all of Realm, including rows detached from this set's Beatmaps list.
+                var existingBeatmap = destination.Realm!.Find<BeatmapInfo>(beatmap.ID);
+
+                if (existingBeatmap != null)
+                {
+                    if (!destination.Beatmaps.Contains(existingBeatmap))
+                    {
+                        Debug.Fail("Beatmaps should never become detached under normal circumstances. If this ever triggers, it should be investigated further.");
+                        Logger.Log("WARNING: One of the difficulties in a beatmap was detached from its set. Please save a copy of logs and report this to devs.", LoggingTarget.Database,
+                            LogLevel.Important);
+                        destination.Beatmaps.Add(existingBeatmap);
+                    }
+                }
+                else
+                {
+                    existingBeatmap = new BeatmapInfo
+                    {
+                        ID = beatmap.ID,
+                        BeatmapSet = destination,
+                        Ruleset = destination.Realm.Find<RulesetInfo>(beatmap.Ruleset.ShortName)!
+                    };
+                    destination.Beatmaps.Add(existingBeatmap);
+                }
+
+                copyBeatmapValues(beatmap, existingBeatmap);
+                existingBeatmap.Ruleset = destination.Realm.Find<RulesetInfo>(beatmap.Ruleset.ShortName)!;
+
+                // Keep the managed nested objects and user settings; only their existing writable
+                // values were updated by the old write map. Read-only lists are not write targets.
+                if (beatmap.Difficulty != null && existingBeatmap.Difficulty != null)
+                    beatmap.Difficulty.CopyTo(existingBeatmap.Difficulty);
+                if (beatmap.Metadata != null && existingBeatmap.Metadata != null)
+                {
+                    copyMetadataValues(beatmap.Metadata, existingBeatmap.Metadata);
+                    if (beatmap.Metadata.Author != null && existingBeatmap.Metadata.Author != null)
+                        copyUserValues(beatmap.Metadata.Author, existingBeatmap.Metadata.Author);
+                }
+            }
+        }
+
+        private static BeatmapSetInfo detachBeatmapSet(BeatmapSetInfo source, bool includeFiles, BeatmapInfo? preferredSource = null, BeatmapInfo? preferredCopy = null)
+        {
+            var copy = new BeatmapSetInfo(null);
+            copyBeatmapSetValues(source, copy);
+
+            bool preferredUsed = false;
+            foreach (var beatmap in source.Beatmaps)
+            {
+                BeatmapInfo detached;
+                if (!preferredUsed && preferredSource != null && beatmap.Equals(preferredSource))
+                {
+                    detached = preferredCopy!;
+                    preferredUsed = true;
+                }
+                else
+                    detached = detachBeatmapValues(beatmap);
+
+                detached.BeatmapSet = copy;
+                copy.Beatmaps.Add(detached);
+            }
+
+            if (includeFiles)
+                foreach (var file in source.Files)
+                    copy.Files.Add(detachFileUsage(file));
+
+            return copy;
+        }
+
+        private static BeatmapInfo detachBeatmap(BeatmapInfo source)
+        {
+            var copy = detachBeatmapValues(source);
+            if (source.BeatmapSet != null)
+                copy.BeatmapSet = detachBeatmapSet(source.BeatmapSet, true, source, copy);
+            return copy;
+        }
+
+        private static BeatmapInfo detachBeatmapValues(BeatmapInfo source)
+        {
+            var copy = new BeatmapInfo
+            {
+                Ruleset = source.Ruleset?.Clone()!,
+                Difficulty = source.Difficulty == null ? null! : new BeatmapDifficulty(source.Difficulty),
+                Metadata = source.Metadata == null ? null! : detachMetadata(source.Metadata),
+                UserSettings = source.UserSettings == null ? null! : new BeatmapUserSettings { Offset = source.UserSettings.Offset },
+            };
+            copyBeatmapValues(source, copy);
+            return copy;
+        }
+
+        private static void copyBeatmapSetValues(BeatmapSetInfo source, BeatmapSetInfo destination)
+        {
+            destination.ID = source.ID;
+            destination.OnlineID = source.OnlineID;
+            destination.DateAdded = source.DateAdded;
+            destination.DateSubmitted = source.DateSubmitted;
+            destination.DateRanked = source.DateRanked;
+            destination.FilesystemStoragePath = source.FilesystemStoragePath;
+            destination.IsExternalFilesystemStorage = source.IsExternalFilesystemStorage;
+            destination.FilesystemUnavailable = source.FilesystemUnavailable;
+            destination.ExternalLibraryRootPath = source.ExternalLibraryRootPath;
+            destination.DifficultyTableRevision = source.DifficultyTableRevision;
+            destination.StatusInt = source.StatusInt;
+            destination.DeletePending = source.DeletePending;
+            destination.Hash = source.Hash;
+            destination.Protected = source.Protected;
+        }
+
+        private static void copyBeatmapValues(BeatmapInfo source, BeatmapInfo destination)
+        {
+            destination.ID = source.ID;
+            destination.DifficultyName = source.DifficultyName;
+            destination.LocalFilePath = source.LocalFilePath;
+            destination.StatusInt = source.StatusInt;
+            destination.OnlineID = source.OnlineID;
+            destination.Length = source.Length;
+            destination.BPM = source.BPM;
+            destination.Hash = source.Hash;
+            destination.StarRating = source.StarRating;
+            destination.MD5Hash = source.MD5Hash;
+            destination.OnlineMD5Hash = source.OnlineMD5Hash;
+            destination.LastLocalUpdate = source.LastLocalUpdate;
+            destination.LastOnlineUpdate = source.LastOnlineUpdate;
+            destination.Hidden = source.Hidden;
+            destination.EndTimeObjectCount = source.EndTimeObjectCount;
+            destination.TotalObjectCount = source.TotalObjectCount;
+            destination.LastPlayed = source.LastPlayed;
+            destination.BeatDivisor = source.BeatDivisor;
+            destination.EditorTimestamp = source.EditorTimestamp;
+        }
+
+        private static BeatmapMetadata detachMetadata(BeatmapMetadata source)
+        {
+            var copy = new BeatmapMetadata { Author = source.Author == null ? null! : detachUser(source.Author) };
+            copyMetadataValues(source, copy);
+            foreach (string tag in source.UserTags)
+                copy.UserTags.Add(tag);
+            return copy;
+        }
+
+        private static void copyMetadataValues(BeatmapMetadata source, BeatmapMetadata destination)
+        {
+            destination.Title = source.Title;
+            destination.TitleUnicode = source.TitleUnicode;
+            destination.Artist = source.Artist;
+            destination.ArtistUnicode = source.ArtistUnicode;
+            destination.Source = source.Source;
+            destination.Tags = source.Tags;
+            destination.PreviewTime = source.PreviewTime;
+            destination.AudioFile = source.AudioFile;
+            destination.BackgroundFile = source.BackgroundFile;
+            destination.RulesetDataJson = source.RulesetDataJson;
+        }
+
+        private static RealmUser detachUser(RealmUser source)
+        {
+            var copy = new RealmUser();
+            copyUserValues(source, copy);
+            return copy;
+        }
+
+        private static void copyUserValues(RealmUser source, RealmUser destination)
+        {
+            destination.OnlineID = source.OnlineID;
+            destination.Username = source.Username;
+            destination.CountryString = source.CountryString;
+        }
+
+        private static RealmNamedFileUsage detachFileUsage(RealmNamedFileUsage source)
+        {
+            RealmFile? file = source.File;
+            var copy = new RealmNamedFileUsage(file == null ? new RealmFile() : new RealmFile { Hash = file.Hash }, string.Empty)
+            {
+                Filename = source.Filename,
+            };
+            if (file == null)
+                copy.File = null!;
+            return copy;
+        }
+
+        private static SkinInfo detachSkin(SkinInfo source)
+        {
+            var copy = new SkinInfo(source.Name, source.Creator, source.InstantiationInfo)
+            {
+                ID = source.ID,
+                Name = source.Name,
+                Creator = source.Creator,
+                InstantiationInfo = source.InstantiationInfo,
+                Hash = source.Hash,
+                Protected = source.Protected,
+                FilesystemStoragePath = source.FilesystemStoragePath,
+                IsExternalFilesystemStorage = source.IsExternalFilesystemStorage,
+                FilesystemStorageAuthorityOwner = source.FilesystemStorageAuthorityOwner,
+                DeletePending = source.DeletePending,
+            };
+            foreach (var file in source.Files)
+                copy.Files.Add(detachFileUsage(file));
+            return copy;
+        }
+
+        private static ScoreInfo detachScore(ScoreInfo source)
+        {
+            var copy = new ScoreInfo
+            {
+                ID = source.ID,
+                BeatmapInfo = source.BeatmapInfo == null ? null : detachBeatmap(source.BeatmapInfo),
+                Ruleset = source.Ruleset?.Clone()!,
+                RealmUser = source.RealmUser == null ? null! : detachUser(source.RealmUser),
+                ClientVersion = source.ClientVersion,
+                BeatmapHash = source.BeatmapHash,
+                Hash = source.Hash,
+                DeletePending = source.DeletePending,
+                TotalScore = source.TotalScore,
+                TotalScoreWithoutMods = source.TotalScoreWithoutMods,
+                TotalScoreVersion = source.TotalScoreVersion,
+                LegacyTotalScore = source.LegacyTotalScore,
+                BackgroundReprocessingFailed = source.BackgroundReprocessingFailed,
+                MaxCombo = source.MaxCombo,
+                Accuracy = source.Accuracy,
+                Date = source.Date,
+                PP = source.PP,
+                OnlineID = source.OnlineID,
+                LegacyOnlineID = source.LegacyOnlineID,
+                ModsJson = source.ModsJson,
+                StatisticsJson = source.StatisticsJson,
+                MaximumStatisticsJson = source.MaximumStatisticsJson,
+                RulesetDataJson = source.RulesetDataJson,
+                RankInt = source.RankInt,
+                Combo = source.Combo,
+                IsLegacyScore = source.IsLegacyScore,
+            };
+            foreach (var file in source.Files)
+                copy.Files.Add(detachFileUsage(file));
+            foreach (int pause in source.Pauses)
+                copy.Pauses.Add(pause);
+            return copy;
+        }
 
         public static List<Live<T>> ToLiveUnmanaged<T>(this IEnumerable<T> realmList)
             where T : RealmObject, IHasGuidPrimaryKey

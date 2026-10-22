@@ -3,6 +3,7 @@
 
 using System;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using osu.Desktop.LegacyIpc;
 using osu.Desktop.Windows;
@@ -26,6 +27,9 @@ namespace osu.Desktop
         [STAThread]
         public static void Main(string[] args)
         {
+            if (!OperatingSystem.IsWindows() || RuntimeInformation.ProcessArchitecture != Architecture.X64)
+                throw new PlatformNotSupportedException("OMS requires Windows x64.");
+
             // IMPORTANT DON'T IGNORE: For general sanity, velopack's setup needs to run before anything else.
             // This has bitten us in the rear before (bricked updater), and although the underlying issue from
             // last time has been fixed, let's not tempt fate.

@@ -239,7 +239,7 @@ namespace osu.Game.Rulesets.Mania.Tests
                 using var lengthReader = new BinaryReader(compressedInput, Encoding.UTF8, true);
                 long uncompressedLength = lengthReader.ReadInt64();
                 JObject metadata;
-                using (var decompressed = new LzmaStream(properties, compressedInput, compressedInput.Length - compressedInput.Position, uncompressedLength))
+                using (var decompressed = LzmaStream.Create(properties, compressedInput, compressedInput.Length - compressedInput.Position, uncompressedLength))
                 using (var textReader = new StreamReader(decompressed))
                     metadata = JObject.Parse(textReader.ReadToEnd());
 
@@ -250,7 +250,7 @@ namespace osu.Game.Rulesets.Mania.Tests
 
                 byte[] content = Encoding.UTF8.GetBytes(metadata.ToString(Formatting.None));
                 using var replacement = new MemoryStream();
-                using (var compressor = new LzmaStream(new LzmaEncoderProperties(false, 1 << 21, 255), false, replacement))
+                using (var compressor = LzmaStream.Create(new LzmaEncoderProperties(false, 1 << 21, 255), false, replacement))
                 {
                     replacement.Write(compressor.Properties);
                     using var lengthWriter = new BinaryWriter(replacement, Encoding.UTF8, true);

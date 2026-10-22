@@ -14,13 +14,8 @@
   </ItemGroup>
 
   <ItemGroup Label="Package References">
-    <PackageReference Include="SharpCompress" Version="0.39.0" />
+    <PackageReference Include="SharpCompress" Version="0.50.7" />
     <PackageReference Include="Ude.NetStandard" Version="1.2.0" />
-  </ItemGroup>
-
-  <ItemGroup Label="NuGet Audit">
-    <!-- GHSA-6c8g-7p36-r338 is fixed in SharpCompress 0.48.0. OMS remains on 0.39.0; runtime paths do not use the affected IArchive.WriteToDirectory()/WriteToDirectoryAsync() APIs. -->
-    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-6c8g-7p36-r338" />
   </ItemGroup>
 
 </Project>

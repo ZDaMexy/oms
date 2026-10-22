@@ -1,0 +1,27 @@
+From 608f5db6eefe027cee663adbc4cd400ea177bcec Mon Sep 17 00:00:00 2001
+From: Timo Rothenpieler <timo@rothenpieler.org>
+Date: Fri, 25 Sep 2026 23:24:30 +0200
+Subject: [PATCH] avformat/mov: don't leak on realloc failure
+
+Fixes: #YWH-PGM40646-48
+(cherry picked from commit d97584959417519597a24c8fdd13dc4b9af1a876)
+---
+ libavformat/mov.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/libavformat/mov.c b/libavformat/mov.c
+index 471377d501184..ec68adcf4ac40 100644
+--- a/libavformat/mov.c
++++ b/libavformat/mov.c
+@@ -3719,9 +3719,8 @@ static void mov_fix_index(MOVContext *mov, AVStream *st)
+ 
+                     if (edit_list_start_encountered == 0) {
+                         num_discarded_begin++;
+-                        frame_duration_buffer = av_realloc(frame_duration_buffer,
+-                                                           num_discarded_begin * sizeof(int64_t));
+-                        if (!frame_duration_buffer) {
++                        if (av_reallocp_array(&frame_duration_buffer, num_discarded_begin,
++                                              sizeof(*frame_duration_buffer)) < 0) {
+                             av_log(mov->fc, AV_LOG_ERROR, "Cannot reallocate frame duration buffer\n");
+                             break;
+                         }

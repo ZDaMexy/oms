@@ -1,11 +1,11 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-22（安全公告增量复核；7z底层解码风险未闭合）
+> 最后核对：2026-10-22（安全依赖局部回归收口；完整BMS与人工门保留）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
 
-本地BMS预算与外链提醒已修；傍晚另确认7z底层解码可达DoS，尚未修复。图片/原生媒体缺口见下方，旧在线仍关闭；[复核记录](CHANGELOG.md#2026-10-22安全公告增量复核)。
+本地导入、外链与依赖修复已入树，Desktop Release和相关专项通过；完整BMS因内存压力主动停止，待补跑。旧在线保持关闭，见[依赖记录](CHANGELOG.md#2026-10-22客户端依赖安全修复接入)。
 
 静线为唯一内置、首次默认与保底；complex已退役，历史作者文件和用户包保留。静线打磨按用户决定暂停。BMS/mania各有模式默认和键数覆盖，旧全局配置首次迁移；游玩按最终键数应用。原V-001～V-005、设备和长期体验未签收，Skin V1/release未完成。C1～C7证据不重计，OmsSkin物理删除仍待原实机门。
 
@@ -35,9 +35,9 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-Release外链 / 皮肤专项71通过，归档 / 下载 / 导入专项138通过；完整回归及Desktop结果取[安全记录](CHANGELOG.md#2026-10-22全工作区安全筛查与本地导入边界)，不刷新正常窗口或设备验收。
+ImageSharp3.2.0使用私有程序集许可，AutoMapper移除为显式Realm复制，SQLite为bundle3.0.5/native3.54.1，归档/回放迁至SharpCompress0.50.7。最终Release及正规许可检查通过，0错误/5条已解释的旧索引警告；Core导入/Realm/SQLite/ZIP **113/113**、BMS归档/BGA/native **90/90**、mania回放 **18/18**。完整BMS主动停止，部分TRX **2244通过/15跳过/0失败且run aborted**，不算full通过。证据、范围和CI许可见[依赖记录](CHANGELOG.md#2026-10-22客户端依赖安全修复接入)，不刷新实机或发行门。
 
-2026-10-22已修移动时钟追帧后连续seek崩溃，完整Autoplay的FAST/SLOW中性化且保留真人PG早晚；独立Omni全45布局前沿复用原fill配色并闪烁，默认FC改为33主题fc24，全部备选保留。BMS完整Release 2998通过/19跳过、mania 993/2，均无失败；Core Skinning 1215/3及五组原生Player通过。范围及失败身份取[修复记录](CHANGELOG.md#2026-10-22autoplay跳转与omni反馈修复)，正常窗口、前台帧时间和原机菜单默认ID未代签。
+2026-10-22已修移动时钟追帧后连续seek崩溃，完整Autoplay的FAST/SLOW中性化且保留真人PG早晚；独立Omni全45布局前沿复用原fill配色并闪烁，默认FC改为33主题fc24，全部备选保留。安全迁移前的完整回归、五组原生Player及失败身份取[修复记录](CHANGELOG.md#2026-10-22autoplay跳转与omni反馈修复)，正常窗口、前台帧时间和原机菜单默认ID未代签。
 
 2026-10-21全框体开场 / 首排预告 / JUDGE及25组Player取[开场记录](../../other/OMNI_OPENINGS_20261021.md#本轮验证)，双玩法重进取[交接记录](../../other/PLAYER_LOADER_CRASH_20261021.md)；不代签本次seek / 默认FC或正常窗口。旧客户端补丁无需重导入，作品变化另取上方说明。
 
@@ -47,11 +47,9 @@ Release外链 / 皮肤专项71通过，归档 / 下载 / 导入专项138通过�
 
 ## 当前风险与未完成项
 
-- SharpCompress0.39.0的7z/LZMA2可卡死同步解压，预算/取消挡不住；0.50.6已修，需适配0.50.7并核framework兼容，尚未实施。
-- ImageSharp3.1.11的外来图片风险未闭合，3.2.0因缺项目许可未生效；FFmpeg4.3.3的codec补丁/整套ABI待核，外部ffmpeg.exe不能代签，归[P1-L](../P1-L/DEVELOPMENT_PLAN.md)。
+- 本轮完整BMS回归待内存条件允许后补跑；五条ImageSharp旧范围审计警告保留且不抑制。原生媒体的完整从零重编及剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)。
 
 - 10月22日四项修复仍待用户正常VS Code窗口复核；作品变化须重导入新包，既有显式FC选择保留，不自动覆盖。fc24据原图确认33主题，原机菜单默认ID未独立实测。血条闪烁包络为作者适配，原机精确时序未签收。
-- Core扩大检查被旧QuickOsz夹具的12/3张谱断言及载入空转阻塞，见[失败身份](CHANGELOG.md#2026-10-22autoplay跳转与omni反馈修复)；不宣称全仓测试通过。
 
 - 作者CLI单次动画数组异常原因未定；素材维度、LIFT/FC及完整顺序复查通过，见上方记录，未记为修复。
 

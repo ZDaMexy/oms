@@ -5,6 +5,43 @@
 
 ---
 
+## 2026-10-22进程内FFmpeg原生依赖升级
+
+本轮处理的是`ppy.osu.Framework 2026.303.0`的真实进程内视频链：`BmsBgaPlayer → Video → VideoDecoder → FFmpeg.AutoGen 4.3.0.1`，原生文件来自`ppy.osu.Framework.NativeLibs 2025.806.0-nativelibs`，原身份为FFmpeg 4.3.3。外部`ffmpeg.exe`继续只承担opt-in老式视频转码，其升级不能代替这次修复。没有改BGA内容authority、时钟、seek/reset、POOR、失败回退或判定/计分，也没有fork框架。
+
+采用官方签名4.4.8源码，按固定顺序应用签名发布之后的五个上游维护补丁，锁到`release/4.4`提交`241fe649406143735cb559b53b48044c933801d5`，输出身份`4.4.8-oms.20261022`。下载地址、逐文件SHA及发布key指纹以[`source.lock.json`](../../../native/ffmpeg/source.lock.json)为准；完整对应源码、签名、公开key和补丁保存在[`source/`](../../../native/ffmpeg/source/)。启用范围保留既有AVI/FLV/ASF/MOV/Matroska、H.264/HEVC/VP8/VP9及旧视频解码和Windows GPU路径；输入协议仅`pipe`，没有扩张网络协议、编码器或音频功能。
+
+| 原生文件 | 原版本 | 本轮版本 | 保持的主ABI |
+| --- | --- | --- | --- |
+| `avutil-56.dll` | 56.51.100 | 56.70.100 | 56 |
+| `avcodec-58.dll` | 58.91.100 | 58.134.100 | 58 |
+| `avformat-58.dll` | 58.45.100 | 58.76.100 | 58 |
+| `swscale-5.dll` | 5.7.100 | 5.9.100 | 5 |
+
+没有跨主ABI替换单DLL。除完整四库版本/导出外，使用真实AutoGen程序集的托管布局核对同一构建头文件生成的C探针，共35项；包含`AVCodecParameters`完整size、播放器和纹理/硬件辅助类直接读取的字段。最终四库摘要、导入依赖、实际codec/demuxer与布局结果以[`runtime-manifest.json`](../../../native/ffmpeg/runtimes/win-x64/native/runtime-manifest.json)为准，四库均不再依赖额外的libgcc/libstdc++/libwinpthread DLL。
+
+当前二进制的实际构建历史是：先在F盘隔离Alpine工具链完整编译，再复用同批C/ASM对象补`-static -static-libgcc`重链接，`LD_LIB='-l:lib%.dll.a'`明确选择FFmpeg自身四库的导入档。MinGW GCC的POSIX线程运行库不受FFmpeg的`--enable-w32threads`控制；仅`-static-libgcc`仍引入winpthreads DLL，已被验证器拒绝。重链接没有重跑configure，因此二进制`av*_configuration()`与manifest如实保留原`--extra-ldflags=-static-libgcc`字符串，额外链接参数保存在本地`relink-ldflags.txt`与命令证据；不能伪称本次候选是按最终配方从零重编或可逐位复现。后续[`build.sh`](../../../native/ffmpeg/build.sh)已把正确flags和导入档策略纳入新构建。
+
+[`FFmpeg.Native.targets`](../../../native/ffmpeg/FFmpeg.Native.targets)在SDK建立copy/.deps资产前替换native路径并继承NuGet/RID/目标相对路径，移除其它RID的旧FFmpeg，保留BASS。显式不支持的RID/进程平台与缺件均明确失败。普通build及publish资产路径接入完整对应源码、配方、LGPL与版本匹配的MinGW/winpthreads/GCC运行库许可；single-file工具的许可/源码保留旁带。目标内Content元数据改为显式来源item，修复原无Content的Mania.Tests将Link求成目录的MSB3024；更正后的Release通过。本轮没有生成Windows发行包，也未对实际publish输出新增验收。
+
+验证由主代理串行执行，本记录只回读其实际证据：
+
+- 原生四库版本/必需导出、`pipe`唯一输入协议、无额外编译器运行库DLL及35项ABI通过；证据为`artifacts/security-media-20261022/native-static-verification.log`。
+- `FFmpegNativeDependencySecurityTest` **2/2**：实际`VideoDecoder`安装的native resolver加载本输出，四库路径/摘要与manifest一致；运行中的AutoGen布局与原生探针相符。
+- `TestSceneBmsBgaSharedContent` **10/10**、`TestSceneBmsBgaPanelLayout` **4/4**，保持共享内容、布局、暂停/seek/reset/POOR和释放软件合同。上述结果来自`artifacts/security-remediation-20261022-tests/bms-security-focused.trx`。
+- 首批组合安全focused的历史结果为 **202通过/9失败/0跳过，共211**；9项均为归档解码异常合同或RAR接口迁移失败，当时不能把媒体通过写成整批全绿。后续归档修复已闭合这九项，最终聚焦范围含native身份与共享BGA，见下方收尾。
+- 阶段性`osu.Desktop.slnf` Release **0错误/7警告**，含当时ImageSharp安全告警及两条BMS测试告警；证据为`artifacts/security-remediation-20261022-release-build-r3.log`，不把阶段结果冒称整仓安全问题均已清零。
+
+最终收尾回读`bms-security-focused-r2.trx`：归档/native/共享BGA组合 **90/90**，其中原生身份 **2/2**、共享BGA **10/10**；同日已有布局 **4/4** 结果保持，未将缩小后的最终过滤器写成重跑了首批全部211项。Core与mania回放及最终Release **0错误/5条已解释ImageSharp旧索引警告**取[P1-A本轮记录](../P1-A/CHANGELOG.md#2026-10-22客户端依赖安全修复接入)。完整BMS尝试因内存压力由主代理主动停止，部分TRX无断言失败仍为run aborted，不能记为完整通过；最终Release证据为`artifacts/security-remediation-20261022-release-final.log`，没有新增正常窗口/逐谱、GPU帧时或发行输出签收。
+
+既有Windows x64能力保持，不新增其它系统/RID支持。未使用玩家数据、谱面或HDD作为写入/运行目录；没有新增正常窗口逐谱、GPU帧时、实体设备/DPI、长期及发行验收。
+
+首次公钥导入的独立复现确认：GnuPG 2.4.9已经导入固定公钥，但随后自动启动gpg-agent失败，使整个import返回2；同一key的签名核对本来仍可通过。`prepare.py`现明确使用隔离纯公钥流程：`--no-options --no-autostart --no-auto-key-retrieve`，继续要求固定fingerprint和真实`VALIDSIG`，不把返回2吞成成功。子命令限30秒，失败显示退出码/超时并保留各最多8192字符的stdout/stderr尾部，避免旧异常只留下命令而丢失GPG原因。
+
+两套全新F盘公钥库分别复现原失败和修正后的首次导入/有效签名成功；进一步读取当前`prepare.py`实际runner与GPG参数执行公钥流程，固定key与签名通过，修改签名对应内容时明确`BADSIG`/exit1，失败诊断同时保留stdout与stderr。证据保存在`artifacts/security-media-20261022/gpg-first-import-*`及`gpg-public-source-fixed.json`；检查只运行公钥/签名步骤，没有再次解包/应用补丁、原生编译或客户端build/test，不能把它写成完整fresh rebuild或逐位复现已经通过。
+
+更正targets后的成功Release输出另作只读复核：Mania.Tests的十个根许可/源码工具文件均有实际文件名，四个FFmpeg文件摘要与manifest相符，`.deps.json`仅保留新版本`win-x64`四项及正确相对路径；不再使用此前MSB3024失败时的旧全RID残留作为证据。这项回读不替代未执行的publish、其它配置/RID组合或现场人工门。
+
 ## 2026-10-19图片准备移出游玩更新
 
 晚出现BGA图片首次切换曾同步TextureStore.Get读盘/解码。现按各层实际可达entry在既有后台加载准备，跨层同文件复用、同层同刻替代项/关闭POOR跳过，缺失结果保留为空；Update只选择现有纹理，TextureStore继续持有资源。准备支持取消，代价是把后续驻留和CPU解码提前，不将其夸大为GPU upload或视频初始化免费。

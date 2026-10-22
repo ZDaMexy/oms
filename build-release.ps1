@@ -9,6 +9,7 @@
 #>
 
 param(
+    [ValidateSet('win-x64')]
     [string]$Runtime = 'win-x64',
     [switch]$KeepPdb
 )

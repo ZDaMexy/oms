@@ -1,0 +1,147 @@
+{
+  "version": "4.4.8-oms.20261022",
+  "upstreamCommit": "241fe649406143735cb559b53b48044c933801d5",
+  "sourceLockSha256": "71497da452ae3f896d52648969c5938d9106956cbd2aa640d352d40017dfd3bc",
+  "libraries": {
+    "avutil-56.dll": {
+      "sha256": "ffa6e94407d140f89fd65ac1d4365ed11eaa873db1fb480761babaf19026a554",
+      "version": "56.70.100",
+      "imports": [
+        "bcrypt.dll",
+        "KERNEL32.dll",
+        "api-ms-win-crt-convert-l1-1-0.dll",
+        "api-ms-win-crt-environment-l1-1-0.dll",
+        "api-ms-win-crt-filesystem-l1-1-0.dll",
+        "api-ms-win-crt-heap-l1-1-0.dll",
+        "api-ms-win-crt-locale-l1-1-0.dll",
+        "api-ms-win-crt-math-l1-1-0.dll",
+        "api-ms-win-crt-private-l1-1-0.dll",
+        "api-ms-win-crt-runtime-l1-1-0.dll",
+        "api-ms-win-crt-stdio-l1-1-0.dll",
+        "api-ms-win-crt-string-l1-1-0.dll",
+        "api-ms-win-crt-time-l1-1-0.dll",
+        "api-ms-win-crt-utility-l1-1-0.dll",
+        "USER32.dll"
+      ],
+      "configuration": "--disable-static --enable-shared --disable-all --disable-autodetect --disable-doc --disable-programs --disable-debug --enable-lto --enable-avcodec --enable-avformat --enable-swscale --enable-demuxer='avi,flv,asf' --enable-parser=mpeg4video --enable-decoder='flv,msmpeg4v1,msmpeg4v2,msmpeg4v3,mpeg4,vp6,vp6f,wmv2' --enable-demuxer='mov,matroska' --enable-parser='h264,hevc,vp8,vp9' --enable-decoder='h264,hevc,vp8,vp9' --enable-protocol=pipe --enable-w32threads --enable-dxva2 --enable-d3d11va --enable-hwaccel='h264_dxva2,h264_d3d11va,h264_d3d11va2' --enable-hwaccel='hevc_dxva2,hevc_d3d11va,hevc_d3d11va2' --enable-hwaccel='vp9_dxva2,vp9_d3d11va,vp9_d3d11va2' --enable-cross-compile --target-os=mingw32 --arch=x86_64 --cross-prefix=x86_64-w64-mingw32- --extra-ldflags=-static-libgcc --extra-version=oms.20261022 --prefix=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-4.4.8-oms-20261022-r3/install --shlibdir=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-4.4.8-oms-20261022-r3/install/bin"
+    },
+    "avcodec-58.dll": {
+      "sha256": "e939516f56a309e1d61b2b171c52ac701898b177bbc74ee3a7ae4cc531b993e0",
+      "version": "58.134.100",
+      "imports": [
+        "KERNEL32.dll",
+        "api-ms-win-crt-convert-l1-1-0.dll",
+        "api-ms-win-crt-heap-l1-1-0.dll",
+        "api-ms-win-crt-locale-l1-1-0.dll",
+        "api-ms-win-crt-math-l1-1-0.dll",
+        "api-ms-win-crt-private-l1-1-0.dll",
+        "api-ms-win-crt-runtime-l1-1-0.dll",
+        "api-ms-win-crt-stdio-l1-1-0.dll",
+        "api-ms-win-crt-string-l1-1-0.dll",
+        "api-ms-win-crt-utility-l1-1-0.dll",
+        "ole32.dll",
+        "avutil-56.dll"
+      ],
+      "configuration": "--disable-static --enable-shared --disable-all --disable-autodetect --disable-doc --disable-programs --disable-debug --enable-lto --enable-avcodec --enable-avformat --enable-swscale --enable-demuxer='avi,flv,asf' --enable-parser=mpeg4video --enable-decoder='flv,msmpeg4v1,msmpeg4v2,msmpeg4v3,mpeg4,vp6,vp6f,wmv2' --enable-demuxer='mov,matroska' --enable-parser='h264,hevc,vp8,vp9' --enable-decoder='h264,hevc,vp8,vp9' --enable-protocol=pipe --enable-w32threads --enable-dxva2 --enable-d3d11va --enable-hwaccel='h264_dxva2,h264_d3d11va,h264_d3d11va2' --enable-hwaccel='hevc_dxva2,hevc_d3d11va,hevc_d3d11va2' --enable-hwaccel='vp9_dxva2,vp9_d3d11va,vp9_d3d11va2' --enable-cross-compile --target-os=mingw32 --arch=x86_64 --cross-prefix=x86_64-w64-mingw32- --extra-ldflags=-static-libgcc --extra-version=oms.20261022 --prefix=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-4.4.8-oms-20261022-r3/install --shlibdir=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-4.4.8-oms-20261022-r3/install/bin"
+    },
+    "avformat-58.dll": {
+      "sha256": "f090ab7f6acbd570a787869454e336d3d770398e02f34a5034130196756eb9df",
+      "version": "58.76.100",
+      "imports": [
+        "KERNEL32.dll",
+        "api-ms-win-crt-convert-l1-1-0.dll",
+        "api-ms-win-crt-filesystem-l1-1-0.dll",
+        "api-ms-win-crt-heap-l1-1-0.dll",
+        "api-ms-win-crt-locale-l1-1-0.dll",
+        "api-ms-win-crt-math-l1-1-0.dll",
+        "api-ms-win-crt-private-l1-1-0.dll",
+        "api-ms-win-crt-runtime-l1-1-0.dll",
+        "api-ms-win-crt-stdio-l1-1-0.dll",
+        "api-ms-win-crt-string-l1-1-0.dll",
+        "api-ms-win-crt-time-l1-1-0.dll",
+        "api-ms-win-crt-utility-l1-1-0.dll",
+        "WS2_32.dll",
+        "avcodec-58.dll",
+        "avutil-56.dll"
+      ],
+      "configuration": "--disable-static --enable-shared --disable-all --disable-autodetect --disable-doc --disable-programs --disable-debug --enable-lto --enable-avcodec --enable-avformat --enable-swscale --enable-demuxer='avi,flv,asf' --enable-parser=mpeg4video --enable-decoder='flv,msmpeg4v1,msmpeg4v2,msmpeg4v3,mpeg4,vp6,vp6f,wmv2' --enable-demuxer='mov,matroska' --enable-parser='h264,hevc,vp8,vp9' --enable-decoder='h264,hevc,vp8,vp9' --enable-protocol=pipe --enable-w32threads --enable-dxva2 --enable-d3d11va --enable-hwaccel='h264_dxva2,h264_d3d11va,h264_d3d11va2' --enable-hwaccel='hevc_dxva2,hevc_d3d11va,hevc_d3d11va2' --enable-hwaccel='vp9_dxva2,vp9_d3d11va,vp9_d3d11va2' --enable-cross-compile --target-os=mingw32 --arch=x86_64 --cross-prefix=x86_64-w64-mingw32- --extra-ldflags=-static-libgcc --extra-version=oms.20261022 --prefix=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-4.4.8-oms-20261022-r3/install --shlibdir=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-4.4.8-oms-20261022-r3/install/bin"
+    },
+    "swscale-5.dll": {
+      "sha256": "8253eadd6fb52ebf6cb5fdc67adf1839154e5ce38f4740211a311a1338bc5dc0",
+      "version": "5.9.100",
+      "imports": [
+        "KERNEL32.dll",
+        "api-ms-win-crt-heap-l1-1-0.dll",
+        "api-ms-win-crt-math-l1-1-0.dll",
+        "api-ms-win-crt-private-l1-1-0.dll",
+        "api-ms-win-crt-runtime-l1-1-0.dll",
+        "api-ms-win-crt-stdio-l1-1-0.dll",
+        "api-ms-win-crt-string-l1-1-0.dll",
+        "avutil-56.dll"
+      ],
+      "configuration": "--disable-static --enable-shared --disable-all --disable-autodetect --disable-doc --disable-programs --disable-debug --enable-lto --enable-avcodec --enable-avformat --enable-swscale --enable-demuxer='avi,flv,asf' --enable-parser=mpeg4video --enable-decoder='flv,msmpeg4v1,msmpeg4v2,msmpeg4v3,mpeg4,vp6,vp6f,wmv2' --enable-demuxer='mov,matroska' --enable-parser='h264,hevc,vp8,vp9' --enable-decoder='h264,hevc,vp8,vp9' --enable-protocol=pipe --enable-w32threads --enable-dxva2 --enable-d3d11va --enable-hwaccel='h264_dxva2,h264_d3d11va,h264_d3d11va2' --enable-hwaccel='hevc_dxva2,hevc_d3d11va,hevc_d3d11va2' --enable-hwaccel='vp9_dxva2,vp9_d3d11va,vp9_d3d11va2' --enable-cross-compile --target-os=mingw32 --arch=x86_64 --cross-prefix=x86_64-w64-mingw32- --extra-ldflags=-static-libgcc --extra-version=oms.20261022 --prefix=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-4.4.8-oms-20261022-r3/install --shlibdir=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-4.4.8-oms-20261022-r3/install/bin"
+    }
+  },
+  "inputProtocols": [
+    "pipe"
+  ],
+  "codecs": [
+    "flv",
+    "h263",
+    "h264",
+    "hevc",
+    "mpeg4",
+    "msmpeg4v1",
+    "msmpeg4v2",
+    "msmpeg4",
+    "vp6",
+    "vp6f",
+    "vp8",
+    "vp9",
+    "wmv2"
+  ],
+  "demuxers": [
+    "asf",
+    "avi",
+    "flv",
+    "matroska,webm",
+    "mov,mp4,m4a,3gp,3g2,mj2"
+  ],
+  "managedAbiVerified": {
+    "AVFormatContext.pb": 32,
+    "AVFormatContext.flags": 1120,
+    "AVFormatContext.streams": 48,
+    "AVFormatContext.duration": 1096,
+    "AVFormatContext.iformat": 8,
+    "AVCodecContext.width": 116,
+    "AVCodecContext.height": 120,
+    "AVCodecContext.colorspace": 380,
+    "AVCodecContext.pix_fmt": 136,
+    "AVCodecContext.pkt_timebase": 884,
+    "AVCodecContext.hw_device_ctx": 1032,
+    "AVStream.time_base": 24,
+    "AVStream.duration": 40,
+    "AVStream.start_time": 32,
+    "AVStream.index": 0,
+    "AVStream.codecpar": 208,
+    "AVStream.avg_frame_rate": 80,
+    "AVFrame.best_effort_timestamp": 408,
+    "AVFrame.pts": 136,
+    "AVFrame.format": 116,
+    "AVFrame.data": 0,
+    "AVFrame.linesize": 64,
+    "AVFrame.hw_frames_ctx": 480,
+    "AVFrame.width": 104,
+    "AVFrame.height": 108,
+    "AVPacket.buf": 0,
+    "AVPacket.stream_index": 36,
+    "AVIOContext.buffer": 8,
+    "AVCodec.id": 20,
+    "AVCodec.name": 0,
+    "AVCodecHWConfig.device_type": 8,
+    "AVCodecParameters.codec_id": 4,
+    "AVRational.num": 0,
+    "AVRational.den": 4,
+    "sizeof.AVCodecParameters": 144
+  }
+}

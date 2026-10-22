@@ -18,6 +18,9 @@ using osu.Game.Overlays.Dialog;
 using osu.Game.Overlays.Settings.Sections;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Skinning;
+using SharpCompress.Archives;
+using SharpCompress.Common;
+using SharpCompress.Writers.Zip;
 using SharpCompress.Archives.Zip;
 using SixLabors.ImageSharp.PixelFormats;
 
@@ -1637,14 +1640,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             try
             {
-                using var archive = ZipArchive.Create();
+                using var archive = ZipArchive.CreateArchive();
                 var ini = new MemoryStream(Encoding.UTF8.GetBytes(skinIni));
                 var note = new MemoryStream(createPng(new Rgba32(180, 75, 220, 255)), writable: false);
                 entryStreams.Add(ini);
                 entryStreams.Add(note);
                 archive.AddEntry("skin.ini", ini);
                 archive.AddEntry("notes/note.png", note);
-                archive.SaveTo(output);
+                archive.SaveTo(output, new ZipWriterOptions(CompressionType.Deflate));
             }
             finally
             {

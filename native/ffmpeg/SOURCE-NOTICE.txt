@@ -1,0 +1,77 @@
+OMS in-process FFmpeg video dependency
+
+Version: FFmpeg 4.4.8-oms.20261022, Windows x64 shared libraries.
+Upstream: https://ffmpeg.org/
+Source branch: release/4.4
+Pinned source commit: 241fe649406143735cb559b53b48044c933801d5
+
+FFmpeg is an independent third-party component, dynamically linked by the
+osu!framework video decoder. Its copyright belongs to the FFmpeg contributors.
+This configuration uses LGPL-2.1-or-later code, without --enable-gpl or
+--enable-nonfree. See COPYING.LGPLv2.1 and FFmpeg-LICENSE.md for the licence and
+upstream component-specific copyright/licensing information. You may replace
+the four shared libraries with compatible modified libraries of your choice.
+
+Complete corresponding source is provided alongside this notice, rather than
+depending on an online source offer:
+
+  source/ffmpeg-4.4.8.tar.xz       unmodified official signed release source
+  source/ffmpeg-4.4.8.tar.xz.asc   detached official release signature
+  source/ffmpeg-devel.asc         pinned official public signing key
+  source/*.patch                 five ordered upstream maintenance patches
+  source.lock.json               exact source/patch digests and patch order
+  build.sh and prepare.py        complete build/download/verification recipe
+  abi-probe.c and binding-abi.json compatibility check for the managed decoder
+  verify_native.py               native identity/configuration/ABI inspection
+  runtime-manifest.json          exact distributed binary identities
+  notices/                      compiler-runtime licences and provenance
+
+The five patches advance the official 4.4.8 release to the pinned maintenance
+commit above. They are upstream patches, without local decoder modifications.
+The build configuration adds the OMS version suffix and enables exactly the
+existing narrow BGA video decoder, demuxer, pipe and Windows GPU surface. The
+build script records all configuration flags; no network protocols, GPL codec
+libraries, encoders, filters, audio decoder features or programs are enabled.
+
+The four FFmpeg components are shared DLLs. MinGW compiler-support libraries,
+including its POSIX winpthreads support, are linked statically so no separately
+installed libgcc, libstdc++ or libwinpthread DLL is needed. The explicit .dll.a
+import-archive pattern in build.sh keeps FFmpeg's own dependencies shared while
+using -static -static-libgcc for compiler support. FFmpeg's --enable-w32threads
+selects its decoding thread implementation; it does not change GCC's default
+POSIX-thread runtime. Windows system-library imports remain normal imports.
+
+The compiler-support material in this build comes from Alpine packages
+mingw-w64-crt/headers/winpthreads 14.0.0-r0 and mingw-w64-gcc 15.2.0-r0.
+The matching official MinGW-w64 root licence, public-domain disclaimer,
+winpthreads MIT/BSD notices, GNU GPLv3 and GCC Runtime Library Exception 3.1
+are supplied verbatim in notices/. The source URLs and exact notice SHA-256
+digests are recorded in notices/provenance.json. libgcc runtime support is
+copyright Free Software Foundation, Inc. Its additional permission applies
+to the independently licensed FFmpeg code built using the unmodified GCC
+and GPL-compatible tools in this recipe, including GCC's own LTO tooling;
+the compiler itself and its host dependencies are not distributed here.
+The MinGW aggregate package licence does not replace winpthreads' separate
+copyright and redistribution conditions, which are included in full.
+When rebuilding with a different toolchain, update its runtime notices and
+provenance to match the libraries actually used.
+
+Rebuilding from the supplied source does not need a Git checkout or live source
+download. In a Linux environment with Python >=3.12, GNU patch, gpg, bash, make,
+nasm and the x86_64-w64-mingw32 MinGW-w64 GCC cross compiler installed:
+
+  mkdir /your/new/source-cache
+  cp source/* /your/new/source-cache/
+  bash build.sh /your/new/source-cache /your/new/build /your/new/output
+
+Use new build and output directories; the recipe never deletes existing ones.
+The local cache is verified against source.lock.json and the pinned public key,
+then the patches are applied in order with zero fuzz before compilation. No
+network request is needed when every supplied source item is in the cache.
+Compiler identity and configuration logs remain in the fresh build directory.
+Run verify_native.py on Windows x64 against the new output, using the generated
+abi-probe.exe, before replacing the complete four-library set. An incompatible
+major ABI cannot be substituted into the existing FFmpeg.AutoGen binding.
+
+This source material does not change the OMS application's own licence, and the
+licences of BASS and other third-party native libraries remain independent.

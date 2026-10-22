@@ -1,5 +1,40 @@
 # P1-A 变动日志
 
+## 2026-10-22客户端依赖安全修复接入
+
+用户授权全量修复后，ImageSharp以正规私有程序集许可升级至3.2.0，AutoMapper移除为显式Realm复制，SQLite迁移完整受支持的managed/native包组合。SharpCompress0.50.7与MessagePack3.1.11亦已入树，归档与回放API迁移和相关专项已通过；完整BMS回归因内存压力中止，软件结果不代签实机或发行验收，旧在线入口保持关闭。
+
+ImageSharp许可为适用`osu.Game`的assembly-scoped Community，使用包内原始验证器与厂商公钥核验签名及程序集范围，真实Release许可检查亦通过。原文件不改内容，存于ignored的`.dev-cache/licensing/sixlabors.lic`且限制本机ACL；不登记个人资料、密钥或到期日，不作为Content/Pack/复制输出项。项目只设置正规的`SixLaborsLicenseFile`默认路径，CI/其它工作区须提供合法文件并可用`-p:SixLaborsLicenseFile=<valid-file>`覆盖；不提供时保留厂商正常拒绝，不跳过/削弱检查。配置依据取[官方v3许可文档](https://docs-v3.sixlabors.com/articles/imagesharp/index.html)。
+
+以下五条维护者advisory于10月9日明确回移到v3的3.2.0；v4的受影响范围另为`>=4.0.0,<4.1.2`，修复版4.1.2。GitHub Reviewed记录仍停在10月7日，将每行下限跨主版本连到`<=4.1.1`，NuGet因此仍对3.2.0报告这五条；没有添加Suppress/NoWarn或关闭审计，也不声称零告警或所有图片风险均不存在。
+
+| 维护者官方公告 | v3受影响范围 | v3修复版 |
+| --- | --- | --- |
+| [GHSA-gwg2-r3hj-4w44](https://github.com/SixLabors/ImageSharp/security/advisories/GHSA-gwg2-r3hj-4w44) | `>=1.0.0-beta0001,<3.2.0` | 3.2.0 |
+| [GHSA-j3p4-wp97-rph4](https://github.com/SixLabors/ImageSharp/security/advisories/GHSA-j3p4-wp97-rph4) | `>=2.0.0,<3.2.0` | 3.2.0 |
+| [GHSA-j9gm-c75j-xc9q](https://github.com/SixLabors/ImageSharp/security/advisories/GHSA-j9gm-c75j-xc9q) | `>=2.0.0,<3.2.0` | 3.2.0 |
+| [GHSA-jjfr-hcj7-qf5w](https://github.com/SixLabors/ImageSharp/security/advisories/GHSA-jjfr-hcj7-qf5w) | `>=2.1.0,<3.2.0` | 3.2.0 |
+| [GHSA-wmxv-xphr-5c9g](https://github.com/SixLabors/ImageSharp/security/advisories/GHSA-wmxv-xphr-5c9g) | `>=2.0.0,<3.2.0` | 3.2.0 |
+
+[官方回移PR3208](https://github.com/SixLabors/ImageSharp/pull/3208)逐一列出上述公告，合并提交`baa37cd19077b2a2a0c5667535111cf31d48c019`与[3.2.0发布](https://github.com/SixLabors/ImageSharp/releases/tag/v3.2.0)、本机NuGet nuspec及真实DLL ProductVersion一致。固定源码已核对ICC CLUT分配前的完整payload校验、直方图亮度NaN/范围处理、T4/T6编码上界与共享写入容量检查、BigTIFF IFD计数按剩余字节限界；不是仅凭版本号或许可通过推定修复。原始维护者/Reviewed API、六处guard源码与DLL来源记录保存在ignored的`artifacts/security-images-20261022/`，申请与许可内容不入Git。
+
+AutoMapper13.0.1仅用于Realm detach/write映射，现移除该依赖及旧告警抑制，按13种既有模型显式复制有限图；生产实现不使用通用反射映射。原忽略字段、只读集合、nullable关系、beatmap/set回链及managed嵌套对象更新纳入聚焦回归。采用移除路线是为闭合[GHSA-rvv3-g6hj-g44x](https://github.com/LuckyPennySoftware/AutoMapper/security/advisories/GHSA-rvv3-g6hj-g44x)，没有为升级付费分支而改许可或隐瞒旧依赖。
+
+旧SQLitePCLRaw2.1.10的win-x64原生库实为SQLite3.46.1；现使用`SQLitePCLRaw.bundle_e_sqlite3 3.0.5`及显式`SQLite 3.54.1`，provider/core/config沿bundle完整解析，`Microsoft.Data.Sqlite.Core 9.0.2`保持。真实官方包包含全部runtimes，未单换不匹配DLL或改变数据库schema/联网开关。选择依据为[SQLitePCLRaw v3迁移说明](https://github.com/ericsink/SQLitePCL.raw/blob/main/v3.md)、[实际3.0.5包依赖](https://www.nuget.org/packages/SQLitePCLRaw.bundle_e_sqlite3/3.0.5)与[SQLite3.54.1官方包](https://www.nuget.org/packages/SQLite/3.54.1)；新native source ID与[官方发布](https://sqlite.org/releaselog/3_54_1.html)一致，覆盖原版本的[CVE-2025-6965](https://github.com/advisories/GHSA-2m69-gcr7-jv3q)及[WAL-reset修复](https://sqlite.org/wal.html#walreset)。WAL用例只验快照/checkpoint/重开和完整性，不冒充重现上游罕见竞态。
+
+SharpCompress迁移到修复[LZMA2 EOF死循环公告](https://github.com/adamhathcock/sharpcompress/security/advisories/GHSA-5wf8-cxh5-32fv)的0.50.7，覆盖Archive/Writer入口、Shift-JIS编码、调用方流所有权及LzmaStream创建。BMS保留ZIP/RAR/7z支持；solid RAR/7z沿archive reader，non-solid RAR从源流reader读取，保留声明/实际预算、取消和旧库保全。新版本归档异常只在已确认的解码边界转为损坏包，不扩大程序错误捕获。新增真实坏LZMA2/7z、头CRC、RAR长度及ZIP codec/调用方流回归；不靠Read外的预算或取消代替底层修复。MessagePack3.1.11覆盖[另一条LZ4公告](https://github.com/MessagePack-CSharp/MessagePack-CSharp/security/advisories/GHSA-7rj2-5w9w-r9jx)，实际Standard.WithResolver继续未启用LZ4，未将条件性依赖告警写成已开放在线服务受攻击。
+
+初次回归历史保留：Core focused第二轮为73通过/39失败，其中新增Realm17项、SQLite6项已通过；BMS首批为202通过/9失败。Core的四规则Renatus/QuickOsz夹具改为严格验证真实3张mania与对应身份，改/删谱明确操作有效mania；嵌套谱复制保留合法文件头，普通包文件存储断言保持。元数据测试不再读正常清除的旧Realm行，固定旧DateAdded并覆盖保留未匹配谱与清除空旧集合两种生命周期；第三轮的旧Realm快照读取在完成后显式Refresh，精确日期断言保留。线上ID只在未改包入口验证，本地改包明确验证-1；没有为通过测试恢复已退出的规则集，也未修改生产导入语义。BMS九项归档失败随新API/reader和异常边界闭合，未降低坏包断言。
+
+最终由主代理串行验证并回读日志/TRX：
+
+- `game-security-focused-r4.trx` **113/113**，含BeatmapImporter/Update、ImportSkin、Realm显式复制、SQLite及ZIP流所有权。SQLite覆盖实际加载的native版本/source ID、v2/v3真实缓存按hash/filename的参数化查询、日期/状态/tag和磁盘WAL行为。
+- `bms-security-focused-r2.trx` **90/90**，含真实归档提取、共享BGA及native加载身份；`mania-security-final.trx` **18/18**，含legacy和压缩成绩/回放往返。
+- `security-remediation-20261022-release-final.log`：`osu.Desktop.slnf` Release **0错误/5警告**，仅上方已解释的ImageSharp旧索引范围，正规许可检查通过；没有新增抑制项。
+- 完整BMS测试因host工作集升高、系统可用内存不足由主代理主动停止；runner留下`bms-security-full.trx` **2244通过/15跳过/0失败且run aborted**，不记为完整通过。需要在内存条件允许时补跑，不把局部已过结果扩大为全仓绿。
+
+日志位于`artifacts/security-remediation-20261022-*.log`，TRX位于`artifacts/security-remediation-20261022-tests/`；进程内FFmpeg四库、签名复跑与尚未执行的完整从零重编取[P1-L记录](../P1-L/CHANGELOG.md#2026-10-22进程内ffmpeg原生依赖升级)。上述软件检查未关闭正常窗口、物理设备、完整歌曲或公开发行门。
+
 ## 2026-10-22安全公告增量复核
 
 傍晚按全工作区范围再次核官方公告与实际版本。此前漏检的SharpCompress `GHSA-5wf8-cxh5-32fv`已于10月19日公开，修复版0.50.6、升级目标0.50.7；当前0.39.0的LZMA2旧实现有同一EOF缺口，BMS提取器接受7z并同步读取条目，恶意坏包可令该线程持续空转，外层预算/取消不能中断内部死循环。未在本机执行恶意样例，不能把上午流量预算修复写成已修此漏洞。需迁移ArchiveFactory/ZipArchive/WriterFactory及LzmaStream新API、核framework预编译兼容并验证归档/回放；本轮只调查，没有改引用或取消7z支持。

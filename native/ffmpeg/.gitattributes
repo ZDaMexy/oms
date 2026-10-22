@@ -1,0 +1,10 @@
+*.sh text eol=lf
+*.py text eol=lf
+*.c text eol=lf
+*.json text eol=lf
+*.txt text eol=lf
+*.dll binary
+source/** -text
+source/* -text -whitespace
+notices/*.txt -text -whitespace
+runtimes/** -text -whitespace

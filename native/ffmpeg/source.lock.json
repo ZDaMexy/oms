@@ -1,0 +1,52 @@
+{
+  "version": "4.4.8-oms.20261022",
+  "upstreamBranch": "release/4.4",
+  "upstreamCommit": "241fe649406143735cb559b53b48044c933801d5",
+  "releaseKeyFingerprint": "FCF986EA15E6E293A5644F10B4322F04D67658D8",
+  "sources": [
+    {
+      "name": "ffmpeg-4.4.8.tar.xz",
+      "url": "https://ffmpeg.org/releases/ffmpeg-4.4.8.tar.xz",
+      "sha256": "c73848c4ae283d9eaee7be3b276affbc3543380483555500d0dd2c9b7e1c39c3"
+    },
+    {
+      "name": "ffmpeg-devel.asc",
+      "url": "https://ffmpeg.org/ffmpeg-devel.asc",
+      "sha256": "397b3becedcd5a98769967ff1ff8501ddc89f8368b8f766e4701377d7dbaabe5"
+    }
+  ],
+  "releaseSignatureUrl": "https://ffmpeg.org/releases/ffmpeg-4.4.8.tar.xz.asc",
+  "patches": [
+    {
+      "name": "32782865b282f566b1fccf5d580b3c6617defe2f.patch",
+      "url": "https://github.com/FFmpeg/FFmpeg/commit/32782865b282f566b1fccf5d580b3c6617defe2f.patch",
+      "sha256": "76cd01e4b4af536d83cd34f66c05a2ddab83770aa47dc1bd037e73479bf7eb4a"
+    },
+    {
+      "name": "dd82036f4de4165023ee8d00886dee5c2081211c.patch",
+      "url": "https://github.com/FFmpeg/FFmpeg/commit/dd82036f4de4165023ee8d00886dee5c2081211c.patch",
+      "sha256": "011954a39ac599e0021865b25fd02f95480932b62a89f9a8f55252d99d4dd808"
+    },
+    {
+      "name": "75728c54b88a3a3e4f72c822bcff56a146acd1ee.patch",
+      "url": "https://github.com/FFmpeg/FFmpeg/commit/75728c54b88a3a3e4f72c822bcff56a146acd1ee.patch",
+      "sha256": "010423f65bc4b461de477f8fa286a91a9b36a2d2dd0e02880e0f105082716fd3"
+    },
+    {
+      "name": "608f5db6eefe027cee663adbc4cd400ea177bcec.patch",
+      "url": "https://github.com/FFmpeg/FFmpeg/commit/608f5db6eefe027cee663adbc4cd400ea177bcec.patch",
+      "sha256": "2fbb04df3e0efb2b6202238e72243bc2b802ebdee7e043630a06c44224752c6f"
+    },
+    {
+      "name": "241fe649406143735cb559b53b48044c933801d5.patch",
+      "url": "https://github.com/FFmpeg/FFmpeg/commit/241fe649406143735cb559b53b48044c933801d5.patch",
+      "sha256": "3bcfc562c0e6ef8436041727baad79747529582ea9090afd36d1574cc77ad9d9"
+    }
+  ],
+  "libraryAbi": {
+    "avutil": 56,
+    "avcodec": 58,
+    "avformat": 58,
+    "swscale": 5
+  }
+}

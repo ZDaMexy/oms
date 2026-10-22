@@ -14,6 +14,9 @@ using osu.Framework.Testing;
 using osu.Game.Beatmaps;
 using osu.Game.Database;
 using osu.Game.Rulesets.Bms.Beatmaps;
+using SharpCompress.Archives;
+using SharpCompress.Common;
+using SharpCompress.Writers.Zip;
 using CRC32 = SharpCompress.Compressors.Deflate.CRC32;
 
 namespace osu.Game.Rulesets.Bms.Tests.Beatmaps
@@ -427,9 +430,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Beatmaps
         }
 
         [TestCase((ushort)14, "09040500E1000001000000000000", "SharpCompress.Compressors.LZMA.InvalidParamException")]
-        [TestCase((ushort)93, "696E76616C6964207A737464", "ZstdSharp.ZstdException")]
-        [TestCase((ushort)95, "FD377A585A00000AE1FB0CA1", "System.NotImplementedException")]
-        [TestCase((ushort)14, "09040000", "System.IndexOutOfRangeException")]
+        [TestCase((ushort)93, "696E76616C6964207A737464", "SharpCompress.Compressors.ZStandard.ZstdException")]
+        [TestCase((ushort)95, "FD377A585A00000AE1FB0CA1", "SharpCompress.Common.IncompleteArchiveException")]
+        [TestCase((ushort)14, "09040000", "System.ArgumentException")]
         public void TestInvalidOrUnsupportedZipCodecResourceIsRejected(ushort method, string compressedBytes, string exceptionType)
         {
             byte[] payload = Convert.FromHexString(compressedBytes);
@@ -472,7 +475,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Beatmaps
 
             var exception = Assert.ThrowsAsync<InvalidDataException>(() => importer.ImportAsync(path, new[] { md5(chart) }, CancellationToken.None));
 
-            Assert.That(exception!.InnerException, Is.TypeOf<InvalidOperationException>());
+            Assert.That(exception!.InnerException, Is.TypeOf<ArchiveOperationException>());
             Assert.That(realm.Run(r => r.All<BeatmapSetInfo>().Count()), Is.Zero);
             assertTaskPreservedAndCleaned(path, bytes);
         }
@@ -841,12 +844,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Beatmaps
             Directory.CreateDirectory(taskDirectory);
             string path = Path.Combine(taskDirectory, "package.zip");
             using var output = File.Create(path);
-            using var zip = SharpCompress.Archives.Zip.ZipArchive.Create();
+            using var zip = SharpCompress.Archives.Zip.ZipArchive.CreateArchive();
             using var chartSource = new MemoryStream(Encoding.UTF8.GetBytes(chart));
             using var resourceSource = new MemoryStream(Encoding.UTF8.GetBytes("valid sound payload"));
             zip.AddEntry("Song/chart.bme", chartSource, chartSource.Length, null);
             zip.AddEntry("Song/sound.wav", resourceSource, resourceSource.Length, null);
-            zip.SaveTo(output, new SharpCompress.Writers.WriterOptions(SharpCompress.Common.CompressionType.BZip2));
+            zip.SaveTo(output, new SharpCompress.Writers.Zip.ZipWriterOptions(SharpCompress.Common.CompressionType.BZip2));
             return path;
         }
 

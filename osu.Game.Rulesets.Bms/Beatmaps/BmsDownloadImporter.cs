@@ -16,8 +16,8 @@ using osu.Game.IO.Archives;
 using SharpCompress.Archives;
 using SharpCompress.Common;
 using SharpCompress.Common.Rar;
+using SharpCompress.Compressors.ZStandard;
 using SharpCompress.Readers;
-using ZstdSharp;
 using CRC32 = SharpCompress.Compressors.Deflate.CRC32;
 using ZipArchive = System.IO.Compression.ZipArchive;
 using ZlibException = SharpCompress.Compressors.Deflate.ZlibException;
@@ -78,7 +78,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 {
                     chartFiles = await Task.Run(() => extractArchive(fullArchivePath, extractionRoot, cancellationToken), cancellationToken).ConfigureAwait(false);
                 }
-                catch (Exception exception) when (exception is ArchiveException or ExtractionException or EndOfStreamException or NotSupportedException or ZlibException
+                catch (Exception exception) when (exception is ArchiveException or ArchiveOperationException or ExtractionException or EndOfStreamException or NotSupportedException or ZlibException
                                                   || isArchiveDataFailure(exception))
                 {
                     throw new InvalidDataException("The downloaded BMS archive is damaged or cannot be extracted.", exception);
@@ -156,10 +156,8 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             // Their general exception classes must not hide unrelated caller or program errors.
             return (exception, declaringType.FullName, site.Name) is
                 (InvalidOperationException, "SharpCompress.Compressors.Rar.RarStream", "Read")
-                or (InvalidOperationException, "SharpCompress.Compressors.BZip2.CBZip2InputStream", "Cadvise")
-                or (InvalidOperationException, "SharpCompress.Common.SevenZip.ArchiveReader", "ReadDatabase")
                 or (NotImplementedException, "SharpCompress.Compressors.Xz.XZStream", "AssertBlockCheckTypeIsSupported")
-                or (IndexOutOfRangeException, "SharpCompress.Compressors.LZMA.LzmaStream", ".ctor");
+                or (ArgumentException { ParamName: "context" }, "SharpCompress.Providers.Default.LzmaCompressingProvider", "CreateDecompressStream");
         }
 
         private static Dictionary<string, string> extractArchive(string archivePath, string extractionRoot, CancellationToken cancellationToken)
@@ -180,11 +178,12 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             if (!ArchiveFactory.IsArchive(source, out var type) || type is not (ArchiveType.Zip or ArchiveType.Rar or ArchiveType.SevenZip))
                 throw new InvalidDataException("The download is not a ZIP, RAR or 7z package.");
 
-            using var archive = ArchiveFactory.Open(source, new ReaderOptions
+            var options = new ReaderOptions
             {
                 ArchiveEncoding = ZipArchiveReader.DEFAULT_ENCODING,
                 LeaveStreamOpen = true,
-            });
+            };
+            using var archive = ArchiveFactory.OpenArchive(source, options);
 
             var names = new Dictionary<string, (string Name, bool Directory, bool Explicit)>(StringComparer.OrdinalIgnoreCase);
             var chartFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -212,7 +211,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
                 source.Position = 0;
 
-                // Both readers preserve central-directory order. .NET supplies attributes missing from SharpCompress 0.39;
+                // Both readers preserve central-directory order. .NET supplies the ZIP external attribute representation;
                 // SharpCompress keeps the existing Unicode extra-field, filename-encoding and compression support.
                 using var zip = new ZipArchive(source, ZipArchiveMode.Read, leaveOpen: true, entryNameEncoding: Encoding.GetEncoding(932));
 
@@ -258,7 +257,11 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             else if (archive.Type == ArchiveType.Rar || archive.Type == ArchiveType.SevenZip)
             {
                 int entryCount = 0;
-                using var reader = archive.ExtractAllEntries();
+                bool requiresArchiveReader = archive.Type == ArchiveType.SevenZip || archive.IsSolid;
+                if (!requiresArchiveReader)
+                    source.Position = 0;
+
+                using var reader = requiresArchiveReader ? archive.ExtractAllEntries() : ReaderFactory.OpenReader(source, options);
 
                 while (reader.MoveToNextEntry())
                 {

@@ -21,6 +21,9 @@ using osu.Game.Overlays.Notifications;
 using osu.Game.Skinning;
 using osu.Game.Skinning.IO;
 using osu.Game.Tests.Resources;
+using SharpCompress.Archives;
+using SharpCompress.Common;
+using SharpCompress.Writers.Zip;
 using SharpCompress.Archives.Zip;
 
 namespace osu.Game.Tests.Skins.IO
@@ -276,14 +279,14 @@ namespace osu.Game.Tests.Skins.IO
         {
             var skinManager = osu.Dependencies.Get<SkinManager>();
             using var archive = new MemoryStream();
-            using (var zip = ZipArchive.Create())
+            using (var zip = ZipArchive.CreateArchive())
             {
                 zip.AddEntry("skin.ini", new MemoryStream(generateSkinIniBytes("Legacy OMS author", "author")));
                 zip.AddEntry("author-evidence.txt", new MemoryStream("unchanged user content"u8.ToArray()));
                 if (!existingRecord)
                     zip.AddEntry("skininfo.json", new MemoryStream(Encoding.UTF8.GetBytes(
                         "{\"InstantiationInfo\":\"osu.Game.Skinning.OmsSkin, osu.Game\"}")));
-                zip.SaveTo(archive);
+                zip.SaveTo(archive, new ZipWriterOptions(CompressionType.Deflate));
             }
             var imported = await skinManager.Import(new ImportTask(archive, "legacy-oms.osk"));
             if (existingRecord)
@@ -321,11 +324,11 @@ namespace osu.Game.Tests.Skins.IO
         {
             var skinManager = osu.Dependencies.Get<SkinManager>();
             using var archive = new MemoryStream();
-            using (var zip = ZipArchive.Create())
+            using (var zip = ZipArchive.CreateArchive())
             {
                 zip.AddEntry("skin.ini", new MemoryStream(generateSkinIniBytes("Preserved author", "author")));
                 zip.AddEntry("author-evidence.txt", new MemoryStream("user data must survive"u8.ToArray()));
-                zip.SaveTo(archive);
+                zip.SaveTo(archive, new ZipWriterOptions(CompressionType.Deflate));
             }
             var imported = await skinManager.Import(new ImportTask(archive, "preserved-author.osk"));
             RealmAccess realmAccess = ((IStorageResourceProvider)skinManager).RealmAccess;
@@ -699,9 +702,9 @@ namespace osu.Game.Tests.Skins.IO
                     var osu = LoadOsuIntoHost(host);
 
                     var zipStream = new MemoryStream();
-                    using var zip = ZipArchive.Create();
+                    using var zip = ZipArchive.CreateArchive();
                     zip.AddEntry("folder/test.png", new MemoryStream(new byte[] { 0xDE, 0xAD, 0xBE, 0xEF }));
-                    zip.SaveTo(zipStream);
+                    zip.SaveTo(zipStream, new ZipWriterOptions(CompressionType.Deflate));
 
                     var import = await loadSkinIntoOsu(osu, new ImportTask(zipStream, "test skin.osk"));
 
@@ -1069,9 +1072,9 @@ namespace osu.Game.Tests.Skins.IO
                     var osu = LoadOsuIntoHost(host);
 
                     var zipStream = new MemoryStream();
-                    using var zip = ZipArchive.Create();
+                    using var zip = ZipArchive.CreateArchive();
                     zip.AddEntry("test?.png", new MemoryStream(new byte[] { 0xDE, 0xAD, 0xBE, 0xEF }));
-                    zip.SaveTo(zipStream);
+                    zip.SaveTo(zipStream, new ZipWriterOptions(CompressionType.Deflate));
 
                     try
                     {
@@ -1189,26 +1192,26 @@ namespace osu.Game.Tests.Skins.IO
         private MemoryStream createEmptyOsk()
         {
             var zipStream = new MemoryStream();
-            using var zip = ZipArchive.Create();
-            zip.SaveTo(zipStream);
+            using var zip = ZipArchive.CreateArchive();
+            zip.SaveTo(zipStream, new ZipWriterOptions(CompressionType.Deflate));
             return zipStream;
         }
 
         private MemoryStream createOskWithNonIniFile()
         {
             var zipStream = new MemoryStream();
-            using var zip = ZipArchive.Create();
+            using var zip = ZipArchive.CreateArchive();
             zip.AddEntry("hitcircle.png", new MemoryStream(new byte[] { 0, 1, 2, 3 }));
-            zip.SaveTo(zipStream);
+            zip.SaveTo(zipStream, new ZipWriterOptions(CompressionType.Deflate));
             return zipStream;
         }
 
         private MemoryStream createOskWithIni(string name, string author, bool makeUnique = false, string iniFilename = @"skin.ini", bool includeSectionHeader = true)
         {
             var zipStream = new MemoryStream();
-            using var zip = ZipArchive.Create();
+            using var zip = ZipArchive.CreateArchive();
             zip.AddEntry(iniFilename, generateSkinIni(name, author, makeUnique, includeSectionHeader));
-            zip.SaveTo(zipStream);
+            zip.SaveTo(zipStream, new ZipWriterOptions(CompressionType.Deflate));
             return zipStream;
         }
 

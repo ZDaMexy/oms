@@ -1,0 +1,93 @@
+﻿<Project>
+  <PropertyGroup>
+    <_OmsFFmpegRecipeDirectory>$(MSBuildThisFileDirectory)</_OmsFFmpegRecipeDirectory>
+    <_OmsFFmpegNativeDirectory>$(_OmsFFmpegRecipeDirectory)runtimes/win-x64/native/</_OmsFFmpegNativeDirectory>
+    <_OmsFFmpegAssetPattern>^(lib)?(avcodec|avformat|avutil|swscale)[.-]</_OmsFFmpegAssetPattern>
+  </PropertyGroup>
+
+  <!-- Replace package assets before the SDK forms copy lists and .deps.json. Keeping
+       their original metadata preserves RID selection for portable builds. -->
+  <Target Name="OmsResolvePatchedFFmpeg" AfterTargets="ResolvePackageAssets"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true'">
+    <ItemGroup>
+      <_OmsPackageFFmpegNative Include="@(NativeCopyLocalItems)"
+          Condition="'%(NativeCopyLocalItems.NuGetPackageId)' == 'ppy.osu.Framework.NativeLibs' and $([System.Text.RegularExpressions.Regex]::IsMatch('%(NativeCopyLocalItems.Filename)%(NativeCopyLocalItems.Extension)', '$(_OmsFFmpegAssetPattern)'))">
+        <PatchedPath>$(_OmsFFmpegNativeDirectory)%(NativeCopyLocalItems.Filename)%(NativeCopyLocalItems.Extension)</PatchedPath>
+      </_OmsPackageFFmpegNative>
+      <_OmsPackageFFmpegRuntime Include="@(RuntimeTargetsCopyLocalItems)"
+          Condition="'%(RuntimeTargetsCopyLocalItems.NuGetPackageId)' == 'ppy.osu.Framework.NativeLibs' and $([System.Text.RegularExpressions.Regex]::IsMatch('%(RuntimeTargetsCopyLocalItems.Filename)%(RuntimeTargetsCopyLocalItems.Extension)', '$(_OmsFFmpegAssetPattern)'))">
+        <PatchedPath>$(_OmsFFmpegNativeDirectory)%(RuntimeTargetsCopyLocalItems.Filename)%(RuntimeTargetsCopyLocalItems.Extension)</PatchedPath>
+      </_OmsPackageFFmpegRuntime>
+      <_OmsWinX64FFmpegNative Include="@(_OmsPackageFFmpegNative)"
+          Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(_OmsPackageFFmpegNative.Identity)', '[/\\]runtimes[/\\]win-x64[/\\]native[/\\]'))" />
+      <_OmsWinX64FFmpegRuntime Include="@(_OmsPackageFFmpegRuntime)"
+          Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(_OmsPackageFFmpegRuntime.Identity)', '[/\\]runtimes[/\\]win-x64[/\\]native[/\\]'))" />
+    </ItemGroup>
+    <PropertyGroup Condition="'@(_OmsPackageFFmpegNative);@(_OmsPackageFFmpegRuntime)' != ';'">
+      <_OmsHasFFmpegDependency>true</_OmsHasFFmpegDependency>
+    </PropertyGroup>
+    <Error Code="OMSFFMPEG001" Condition="'$(_OmsHasFFmpegDependency)' == 'true' and '$(RuntimeIdentifier)' != '' and '$(RuntimeIdentifier)' != 'win-x64'"
+           Text="OMS's patched in-process video decoder supports the existing win-x64 product only. RuntimeIdentifier '$(RuntimeIdentifier)' cannot use the vulnerable upstream native media assets." />
+    <Error Code="OMSFFMPEG001" Condition="'$(_OmsHasFFmpegDependency)' == 'true' and ('$(PlatformTarget)' == 'x86' or '$(PlatformTarget)' == 'ARM' or '$(PlatformTarget)' == 'ARM64' or '$(Prefer32Bit)' == 'true')"
+           Text="OMS's patched in-process video decoder requires a Windows x64 process." />
+    <ItemGroup Condition="'$(_OmsHasFFmpegDependency)' == 'true'">
+      <_OmsRequiredFFmpeg Include="$(_OmsFFmpegNativeDirectory)avutil-56.dll;$(_OmsFFmpegNativeDirectory)avcodec-58.dll;$(_OmsFFmpegNativeDirectory)avformat-58.dll;$(_OmsFFmpegNativeDirectory)swscale-5.dll" />
+    </ItemGroup>
+    <Error Code="OMSFFMPEG002" Condition="'$(_OmsHasFFmpegDependency)' == 'true' and !Exists('%(_OmsRequiredFFmpeg.Identity)')"
+           Text="The checked-in patched FFmpeg set is incomplete: %(_OmsRequiredFFmpeg.Identity). Restore the complete OMS native dependency; falling back to the NuGet FFmpeg 4.3.3 set is prohibited." />
+    <ItemGroup>
+      <!-- No other RID is an OMS media support promise; never ship its old decoder. -->
+      <NativeCopyLocalItems Remove="@(_OmsPackageFFmpegNative)" />
+      <RuntimeTargetsCopyLocalItems Remove="@(_OmsPackageFFmpegRuntime)" />
+      <NativeCopyLocalItems Include="@(_OmsWinX64FFmpegNative->'%(PatchedPath)')" />
+      <RuntimeTargetsCopyLocalItems Include="@(_OmsWinX64FFmpegRuntime->'%(PatchedPath)')" />
+    </ItemGroup>
+  </Target>
+
+  <!-- An executable output must carry the corresponding source and build recipe,
+       including when a standalone authoring executable uses single-file publish. -->
+  <Target Name="OmsIncludeFFmpegSourceAndNotices" BeforeTargets="AssignTargetPaths"
+          DependsOnTargets="ResolvePackageAssets" Condition="'$(DesignTimeBuild)' != 'true' and '$(IsCrossTargetingBuild)' != 'true' and ('$(OutputType)' == 'Exe' or '$(OutputType)' == 'WinExe')">
+    <ItemGroup Condition="'$(_OmsHasFFmpegDependency)' == 'true'">
+      <_OmsFFmpegRootNotices Include="$(_OmsFFmpegRecipeDirectory)SOURCE-NOTICE.txt;$(_OmsFFmpegRecipeDirectory)source.lock.json;$(_OmsFFmpegRecipeDirectory)prepare.py;$(_OmsFFmpegRecipeDirectory)build.sh;$(_OmsFFmpegRecipeDirectory)abi-probe.c;$(_OmsFFmpegRecipeDirectory)binding-abi.json;$(_OmsFFmpegRecipeDirectory)verify_native.py;$(_OmsFFmpegNativeDirectory)COPYING.LGPLv2.1;$(_OmsFFmpegNativeDirectory)FFmpeg-LICENSE.md;$(_OmsFFmpegNativeDirectory)runtime-manifest.json" />
+      <_OmsFFmpegSourceNotices Include="$(_OmsFFmpegRecipeDirectory)source/ffmpeg-4.4.8.tar.xz;$(_OmsFFmpegRecipeDirectory)source/ffmpeg-4.4.8.tar.xz.asc;$(_OmsFFmpegRecipeDirectory)source/ffmpeg-devel.asc;$(_OmsFFmpegRecipeDirectory)source/*.patch" />
+      <_OmsFFmpegRuntimeNotices Include="$(_OmsFFmpegRecipeDirectory)notices/*.txt;$(_OmsFFmpegRecipeDirectory)notices/provenance.json" />
+      <!-- Resolve metadata from existing source items. A project with no original
+           Content items cannot supply an unqualified %(Filename) batch context. -->
+      <Content Include="@(_OmsFFmpegRootNotices)">
+        <Link>licenses/ffmpeg/%(_OmsFFmpegRootNotices.Filename)%(_OmsFFmpegRootNotices.Extension)</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      </Content>
+      <Content Include="@(_OmsFFmpegSourceNotices)">
+        <Link>licenses/ffmpeg/source/%(_OmsFFmpegSourceNotices.Filename)%(_OmsFFmpegSourceNotices.Extension)</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      </Content>
+      <Content Include="@(_OmsFFmpegRuntimeNotices)">
+        <Link>licenses/ffmpeg/notices/%(_OmsFFmpegRuntimeNotices.Filename)%(_OmsFFmpegRuntimeNotices.Extension)</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      </Content>
+    </ItemGroup>
+  </Target>
+
+  <!-- PreserveStoreLayout/runtime-store publication can independently read assets
+       from project.assets.json instead of reusing the build list. Cover that path. -->
+  <Target Name="OmsResolvePatchedFFmpegForPublish" AfterTargets="_ResolveCopyLocalAssetsForPublish"
+          DependsOnTargets="OmsResolvePatchedFFmpeg" Condition="'$(_OmsHasFFmpegDependency)' == 'true'">
+    <ItemGroup>
+      <_OmsPackageFFmpegPublish Include="@(_ResolvedCopyLocalPublishAssets)"
+          Condition="'%(_ResolvedCopyLocalPublishAssets.NuGetPackageId)' == 'ppy.osu.Framework.NativeLibs' and $([System.Text.RegularExpressions.Regex]::IsMatch('%(_ResolvedCopyLocalPublishAssets.Filename)%(_ResolvedCopyLocalPublishAssets.Extension)', '$(_OmsFFmpegAssetPattern)'))">
+        <PatchedPath>$(_OmsFFmpegNativeDirectory)%(_ResolvedCopyLocalPublishAssets.Filename)%(_ResolvedCopyLocalPublishAssets.Extension)</PatchedPath>
+      </_OmsPackageFFmpegPublish>
+      <_OmsWinX64FFmpegPublish Include="@(_OmsPackageFFmpegPublish)"
+          Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(_OmsPackageFFmpegPublish.Identity)', '[/\\]runtimes[/\\]win-x64[/\\]native[/\\]'))" />
+      <_ResolvedCopyLocalPublishAssets Remove="@(_OmsPackageFFmpegPublish)" />
+      <_ResolvedCopyLocalPublishAssets Include="@(_OmsWinX64FFmpegPublish->'%(PatchedPath)')" />
+    </ItemGroup>
+  </Target>
+</Project>

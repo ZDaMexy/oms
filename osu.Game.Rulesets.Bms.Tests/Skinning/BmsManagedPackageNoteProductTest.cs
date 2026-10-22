@@ -45,6 +45,9 @@ using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
 using osu.Game.Tests.Visual;
 using osuTK.Graphics;
+using SharpCompress.Archives;
+using SharpCompress.Common;
+using SharpCompress.Writers.Zip;
 using SharpCompress.Archives.Zip;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
@@ -2696,7 +2699,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             try
             {
-                using var archive = ZipArchive.Create();
+                using var archive = ZipArchive.CreateArchive();
                 var iniStream = new MemoryStream(Encoding.UTF8.GetBytes(skinIni));
                 entryStreams.Add(iniStream);
                 archive.AddEntry("skin.ini", iniStream);
@@ -2708,7 +2711,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     archive.AddEntry(name, entryStream);
                 }
 
-                archive.SaveTo(output);
+                archive.SaveTo(output, new ZipWriterOptions(CompressionType.Deflate));
             }
             finally
             {

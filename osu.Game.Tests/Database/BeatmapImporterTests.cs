@@ -31,6 +31,11 @@ namespace osu.Game.Tests.Database
     [TestFixture]
     public class BeatmapImporterTests : RealmTest
     {
+        // The shared Renatus archive contains three valid charts for each of the four upstream
+        // rulesets. OMS imports its three real mania charts while preserving all archive files.
+        internal const int RENATUS_MANIA_BEATMAP_COUNT = 3;
+        internal const string RENATUS_MANIA_DIFFICULTY_NAME = "Another";
+
         [Test]
         public void TestDetachBeatmapSet()
         {
@@ -292,7 +297,7 @@ namespace osu.Game.Tests.Database
 
                 try
                 {
-                    using (var zip = ZipArchive.Open(temp))
+                    using (var zip = ZipArchive.OpenArchive(temp))
                         zip.WriteToDirectory(extractedFolder);
 
                     foreach (var file in new DirectoryInfo(extractedFolder).GetFiles("*.osu"))
@@ -333,10 +338,10 @@ namespace osu.Game.Tests.Database
 
                     string hashBefore = hashFile(temp);
 
-                    using (var zip = ZipArchive.Open(temp))
+                    using (var zip = ZipArchive.OpenArchive(temp))
                         zip.WriteToDirectory(extractedFolder);
 
-                    using (var zip = ZipArchive.Create())
+                    using (var zip = ZipArchive.CreateArchive())
                     {
                         zip.AddAllFromDirectory(extractedFolder);
                         zip.SaveTo(temp, new ZipWriterOptions(CompressionType.Deflate));
@@ -380,17 +385,17 @@ namespace osu.Game.Tests.Database
                 {
                     var imported = await LoadOszIntoStore(importer, realm.Realm);
 
-                    await createScoreForBeatmap(realm.Realm, imported.Beatmaps.First());
+                    await createScoreForBeatmap(realm.Realm, imported.Beatmaps.Single(b => b.DifficultyName == RENATUS_MANIA_DIFFICULTY_NAME));
 
-                    using (var zip = ZipArchive.Open(temp))
+                    using (var zip = ZipArchive.OpenArchive(temp))
                         zip.WriteToDirectory(extractedFolder);
 
                     // arbitrary write to hashed file
                     // this triggers the special BeatmapManager.PreImport deletion/replacement flow.
-                    using (var sw = new FileInfo(Directory.GetFiles(extractedFolder, "*.osu").First()).AppendText())
+                    using (var sw = GetRenatusManiaDifficultyFile(new DirectoryInfo(extractedFolder)).AppendText())
                         await sw.WriteLineAsync("// changed");
 
-                    using (var zip = ZipArchive.Create())
+                    using (var zip = ZipArchive.CreateArchive())
                     {
                         zip.AddAllFromDirectory(extractedFolder);
                         zip.SaveTo(temp, new ZipWriterOptions(CompressionType.Deflate));
@@ -404,8 +409,10 @@ namespace osu.Game.Tests.Database
                     Assert.NotNull(importedSecondTime);
                     Debug.Assert(importedSecondTime != null);
 
+                    Assert.That(importedSecondTime.PerformRead(s => s.Beatmaps.Select(b => b.OnlineID).ToArray()), Is.All.EqualTo(-1));
                     Assert.IsTrue(imported.ID != importedSecondTime.ID);
-                    Assert.IsTrue(imported.Beatmaps.First().ID != importedSecondTime.PerformRead(s => s.Beatmaps.First().ID));
+                    Assert.IsTrue(imported.Beatmaps.Single(b => b.DifficultyName == RENATUS_MANIA_DIFFICULTY_NAME).ID
+                                  != importedSecondTime.PerformRead(s => s.Beatmaps.Single(b => b.DifficultyName == RENATUS_MANIA_DIFFICULTY_NAME).ID));
                 }
                 finally
                 {
@@ -533,14 +540,14 @@ namespace osu.Game.Tests.Database
                 {
                     var imported = await LoadOszIntoStore(importer, realm.Realm);
 
-                    using (var zip = ZipArchive.Open(temp))
+                    using (var zip = ZipArchive.OpenArchive(temp))
                         zip.WriteToDirectory(extractedFolder);
 
                     // arbitrary write to non-hashed file
                     using (var sw = new FileInfo(Directory.GetFiles(extractedFolder, "*.mp3").First()).AppendText())
                         await sw.WriteLineAsync("text");
 
-                    using (var zip = ZipArchive.Create())
+                    using (var zip = ZipArchive.CreateArchive())
                     {
                         zip.AddAllFromDirectory(extractedFolder);
                         zip.SaveTo(temp, new ZipWriterOptions(CompressionType.Deflate));
@@ -581,14 +588,14 @@ namespace osu.Game.Tests.Database
                 {
                     var imported = await LoadOszIntoStore(importer, realm.Realm);
 
-                    using (var zip = ZipArchive.Open(temp))
+                    using (var zip = ZipArchive.OpenArchive(temp))
                         zip.WriteToDirectory(extractedFolder);
 
                     // change filename
-                    var firstFile = new FileInfo(Directory.GetFiles(extractedFolder).First());
+                    var firstFile = GetRenatusManiaDifficultyFile(new DirectoryInfo(extractedFolder));
                     firstFile.MoveTo(Path.Combine(firstFile.DirectoryName.AsNonNull(), $"{firstFile.Name}-changed{firstFile.Extension}"));
 
-                    using (var zip = ZipArchive.Create())
+                    using (var zip = ZipArchive.CreateArchive())
                     {
                         zip.AddAllFromDirectory(extractedFolder);
                         zip.SaveTo(temp, new ZipWriterOptions(CompressionType.Deflate));
@@ -659,7 +666,7 @@ namespace osu.Game.Tests.Database
 
                 var zipStream = new MemoryStream();
 
-                using (var zip = ZipArchive.Create())
+                using (var zip = ZipArchive.CreateArchive())
                     zip.SaveTo(zipStream, new ZipWriterOptions(CompressionType.Deflate));
 
                 var imported = await importer.Import(
@@ -698,7 +705,7 @@ namespace osu.Game.Tests.Database
                 realm.Realm.Write(() => imported.Hash += "-changed");
 
                 checkBeatmapSetCount(realm.Realm, 1);
-                checkBeatmapCount(realm.Realm, 12);
+                checkBeatmapCount(realm.Realm, RENATUS_MANIA_BEATMAP_COUNT);
                 checkSingleReferencedFileCount(realm.Realm, 18);
 
                 string? brokenTempFilename = TestResources.GetTestBeatmapForImport();
@@ -709,7 +716,7 @@ namespace osu.Game.Tests.Database
                 File.Delete(brokenTempFilename);
 
                 using (var outStream = File.Open(brokenTempFilename, FileMode.CreateNew))
-                using (var zip = ZipArchive.Open(brokenOsz))
+                using (var zip = ZipArchive.OpenArchive(brokenOsz))
                 {
                     foreach (var entry in zip.Entries.ToArray())
                     {
@@ -733,7 +740,7 @@ namespace osu.Game.Tests.Database
                 EnsureLoaded(realm.Realm);
 
                 checkBeatmapSetCount(realm.Realm, 1);
-                checkBeatmapCount(realm.Realm, 12);
+                checkBeatmapCount(realm.Realm, RENATUS_MANIA_BEATMAP_COUNT);
 
                 checkSingleReferencedFileCount(realm.Realm, 18);
 
@@ -787,13 +794,13 @@ namespace osu.Game.Tests.Database
 
                 try
                 {
-                    using (var zip = ZipArchive.Open(pathOriginal))
+                    using (var zip = ZipArchive.OpenArchive(pathOriginal))
                         zip.WriteToDirectory(extractedFolder);
 
                     // remove one difficulty before first import
-                    new FileInfo(Directory.GetFiles(extractedFolder, "*.osu").First()).Delete();
+                    GetRenatusManiaDifficultyFile(new DirectoryInfo(extractedFolder)).Delete();
 
-                    using (var zip = ZipArchive.Create())
+                    using (var zip = ZipArchive.CreateArchive())
                     {
                         zip.AddAllFromDirectory(extractedFolder);
                         zip.SaveTo(pathMissingOneBeatmap, new ZipWriterOptions(CompressionType.Deflate));
@@ -805,7 +812,7 @@ namespace osu.Game.Tests.Database
                     realm.Run(r => r.Refresh());
 
                     Assert.That(realm.Realm.All<BeatmapSetInfo>().Where(s => !s.DeletePending), Has.Count.EqualTo(1));
-                    Assert.That(realm.Realm.All<BeatmapSetInfo>().First(s => !s.DeletePending).Beatmaps, Has.Count.EqualTo(11));
+                    Assert.That(realm.Realm.All<BeatmapSetInfo>().First(s => !s.DeletePending).Beatmaps, Has.Count.EqualTo(RENATUS_MANIA_BEATMAP_COUNT - 1));
 
                     // Second import matches first but contains one extra .osu file.
                     var secondImport = await importer.Import(new ImportTask(pathOriginal));
@@ -813,11 +820,11 @@ namespace osu.Game.Tests.Database
 
                     realm.Run(r => r.Refresh());
 
-                    Assert.That(realm.Realm.All<BeatmapInfo>(), Has.Count.EqualTo(23));
+                    Assert.That(realm.Realm.All<BeatmapInfo>(), Has.Count.EqualTo((RENATUS_MANIA_BEATMAP_COUNT * 2) - 1));
                     Assert.That(realm.Realm.All<BeatmapSetInfo>(), Has.Count.EqualTo(2));
 
                     Assert.That(realm.Realm.All<BeatmapSetInfo>().Where(s => !s.DeletePending), Has.Count.EqualTo(1));
-                    Assert.That(realm.Realm.All<BeatmapSetInfo>().First(s => !s.DeletePending).Beatmaps, Has.Count.EqualTo(12));
+                    Assert.That(realm.Realm.All<BeatmapSetInfo>().First(s => !s.DeletePending).Beatmaps, Has.Count.EqualTo(RENATUS_MANIA_BEATMAP_COUNT));
 
                     // check the newly "imported" beatmap is not the original.
                     Assert.That(firstImport?.ID, Is.Not.EqualTo(secondImport?.ID));
@@ -994,13 +1001,13 @@ namespace osu.Game.Tests.Database
 
                 try
                 {
-                    using (var zip = ZipArchive.Open(temp))
+                    using (var zip = ZipArchive.OpenArchive(temp))
                         zip.WriteToDirectory(extractedFolder);
 
-                    using (var zip = ZipArchive.Create())
+                    using (var zip = ZipArchive.CreateArchive())
                     {
                         zip.AddAllFromDirectory(extractedFolder);
-                        zip.AddEntry("duplicate.osu", Directory.GetFiles(extractedFolder, "*.osu").First());
+                        zip.AddEntry("duplicate.osu", GetRenatusManiaDifficultyFile(new DirectoryInfo(extractedFolder)).FullName);
                         zip.SaveTo(temp, new ZipWriterOptions(CompressionType.Deflate));
                     }
 
@@ -1030,18 +1037,17 @@ namespace osu.Game.Tests.Database
 
                 try
                 {
-                    using (var zip = ZipArchive.Open(temp))
+                    using (var zip = ZipArchive.OpenArchive(temp))
                         zip.WriteToDirectory(extractedFolder);
 
                     var subdirectory = Directory.CreateDirectory(Path.Combine(extractedFolder, "subdir"));
                     string modifiedCopyPath = Path.Combine(subdirectory.FullName, "duplicate.osu");
-                    File.Copy(Directory.GetFiles(extractedFolder, "*.osu").First(), modifiedCopyPath);
+                    File.Copy(GetRenatusManiaDifficultyFile(new DirectoryInfo(extractedFolder)).FullName, modifiedCopyPath);
 
-                    using (var stream = File.OpenWrite(modifiedCopyPath))
-                    using (var textWriter = new StreamWriter(stream))
-                        await textWriter.WriteLineAsync("# adding a comment so that the hashes are different");
+                    using (var textWriter = new FileInfo(modifiedCopyPath).AppendText())
+                        await textWriter.WriteLineAsync("// adding a comment so that the hashes are different");
 
-                    using (var zip = ZipArchive.Create())
+                    using (var zip = ZipArchive.CreateArchive())
                     {
                         zip.AddAllFromDirectory(extractedFolder);
                         zip.SaveTo(temp, new ZipWriterOptions(CompressionType.Deflate));
@@ -1075,10 +1081,10 @@ namespace osu.Game.Tests.Database
 
                 try
                 {
-                    using (var zip = ZipArchive.Open(temp))
+                    using (var zip = ZipArchive.OpenArchive(temp))
                         zip.WriteToDirectory(subfolder);
 
-                    using (var zip = ZipArchive.Create())
+                    using (var zip = ZipArchive.CreateArchive())
                     {
                         zip.AddAllFromDirectory(extractedFolder);
                         zip.SaveTo(temp, new ZipWriterOptions(CompressionType.Deflate));
@@ -1125,10 +1131,10 @@ namespace osu.Game.Tests.Database
 
                 try
                 {
-                    using (var zip = ZipArchive.Open(temp))
+                    using (var zip = ZipArchive.OpenArchive(temp))
                         zip.WriteToDirectory(dataFolder);
 
-                    using (var zip = ZipArchive.Create())
+                    using (var zip = ZipArchive.CreateArchive())
                     {
                         zip.AddAllFromDirectory(extractedFolder);
                         zip.SaveTo(temp, new ZipWriterOptions(CompressionType.Deflate));
@@ -1176,6 +1182,9 @@ namespace osu.Game.Tests.Database
             });
         }
 
+        internal static FileInfo GetRenatusManiaDifficultyFile(DirectoryInfo directory) =>
+            directory.GetFiles($"Soleily - Renatus (ExPew) [{RENATUS_MANIA_DIFFICULTY_NAME}].osu").Single();
+
         public static async Task<BeatmapSetInfo?> LoadQuickOszIntoOsu(BeatmapImporter importer, Realm realm)
         {
             string? temp = TestResources.GetQuickTestBeatmapForImport();
@@ -1188,7 +1197,9 @@ namespace osu.Game.Tests.Database
 
             waitForOrAssert(() => !File.Exists(temp), "Temporary file still exists after standard import", 5000);
 
-            return realm.All<BeatmapSetInfo>().FirstOrDefault(beatmapSet => beatmapSet.ID == importedSet!.ID);
+            var set = realm.All<BeatmapSetInfo>().First(beatmapSet => beatmapSet.ID == importedSet!.ID);
+            Assert.That(set.Beatmaps.Select(b => b.OnlineID), Is.EquivalentTo(new[] { 557813, 557819, 557820 }));
+            return set;
         }
 
         public static async Task<BeatmapSetInfo> LoadOszIntoStore(BeatmapImporter importer, Realm realm, string? path = null, bool virtualTrack = false, bool batchImport = false)
@@ -1204,7 +1215,9 @@ namespace osu.Game.Tests.Database
 
             waitForOrAssert(() => !File.Exists(temp), "Temporary file still exists after standard import", 5000);
 
-            return realm.All<BeatmapSetInfo>().First(beatmapSet => beatmapSet.ID == importedSet.ID);
+            var set = realm.All<BeatmapSetInfo>().First(beatmapSet => beatmapSet.ID == importedSet.ID);
+            Assert.That(set.Beatmaps.Select(b => b.OnlineID), Is.EquivalentTo(new[] { 557813, 557819, 557820 }));
+            return set;
         }
 
         private void deleteBeatmapSet(BeatmapSetInfo imported, Realm realm)
@@ -1279,7 +1292,9 @@ namespace osu.Game.Tests.Database
             // ReSharper disable once PossibleUnintendedReferenceComparison
             IEnumerable<BeatmapInfo> queryBeatmaps() => realm.All<BeatmapInfo>().Where(s => s.BeatmapSet != null && s.BeatmapSet == set);
 
-            Assert.AreEqual(12, queryBeatmaps().Count(), @"Beatmap count was not correct");
+            Assert.AreEqual(RENATUS_MANIA_BEATMAP_COUNT, queryBeatmaps().Count(), @"Supported mania beatmap count was not correct");
+            Assert.That(queryBeatmaps().Select(b => b.Ruleset.ShortName), Is.All.EqualTo("mania"));
+            Assert.That(queryBeatmaps().Select(b => b.DifficultyName), Is.EquivalentTo(new[] { "Another", "Hyper", "Normal" }));
             Assert.AreEqual(1, queryBeatmapSets().Count(), @"Beatmapset count was not correct");
 
             int countBeatmapSetBeatmaps;

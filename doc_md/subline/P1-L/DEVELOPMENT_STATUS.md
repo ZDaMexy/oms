@@ -1,11 +1,11 @@
 # P1-L 当前状态：BMS Gimmick 与 BGA 视觉
 
-> 最后核对：2026-10-19（BGA图片后台准备与Update读取边界；其它逐谱人工门保持）
+> 最后核对：2026-10-22（进程内原生媒体依赖升级；其它逐谱人工门保持）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，机理分析见 [BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)。
 
 ## 当前阶段
 
-- 2026-10-22安全筛查确认进程内原生媒体依赖需后续补丁 / ABI核对，尚未修复；准确身份与范围只取[P1-A风险](../P1-A/DEVELOPMENT_STATUS.md#当前风险与未完成项)。本项与外部转码器、既有后台图片准备和游玩性能修复分开验收。
+- 进程内视频已从框架附带的FFmpeg 4.3.3四库替换为4.4.8加固定上游维护补丁，保留原主ABI、启用格式与Windows x64范围；不会依靠更新外部`ffmpeg.exe`或修改NuGet缓存完成修复。源码、签名、许可及构建配方随依赖保全，构建输出只带新win-x64四件套；身份、重链历史和复跑边界见[本轮记录](CHANGELOG.md#2026-10-22进程内ffmpeg原生依赖升级)与[依赖入口](../../../native/ffmpeg/README.md)。整仓其它风险仍归[P1-A](../P1-A/DEVELOPMENT_STATUS.md#当前风险与未完成项)。
 
 - 地雷视觉已落地。
 - BMS 专用滚动位置积分旁路 A–C 已落地，Auto 检测存在；正常链路保持隔离。
@@ -37,6 +37,8 @@
 - Floating/Classic 绝对刻度、负向/反向滚动未实现。
 
 ## 最近一次验证
+
+2026-10-22原生验证通过四库版本、框架所需导出、仅`pipe`输入协议及35项托管/原生布局核对；实际框架加载路径/摘要与ABI **2/2**、共享BGA **10/10**及同日布局 **4/4** 通过。最终Desktop Release通过，旧归档九项失败已闭合，完整BMS因内存压力主动停止，最新组合结果及中止边界取[P1-A](../P1-A/DEVELOPMENT_STATUS.md#最近一次验证)。全新公钥首次导入/有效签名通过，篡改明确拒绝；证据和适用范围见[同日记录](CHANGELOG.md#2026-10-22进程内ffmpeg原生依赖升级)。完整从零原生重编仍未复跑，重链接不证明干净重编或逐位复现；逐谱、GPU帧时、设备/DPI和Windows发行包未新增签收。
 
 2026-10-19后续深审：晚出现图片与可选POOR在play前准备、重复/不可达资源及Update零读取有真实异步加载证明；四窗/替换/POOR/视频/seek/退出回归和同包实机取[集中记录](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#验证证据)。加载与驻留提前的代价保留，不宣称所有视频或GPU帧时已优化。
 

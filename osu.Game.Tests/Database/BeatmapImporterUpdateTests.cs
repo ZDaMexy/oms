@@ -30,7 +30,7 @@ namespace osu.Game.Tests.Database
     [TestFixture]
     public class BeatmapImporterUpdateTests : RealmTest
     {
-        private const int count_beatmaps = 12;
+        private const int count_beatmaps = BeatmapImporterTests.RENATUS_MANIA_BEATMAP_COUNT;
 
         [Test]
         public void TestNewDifficultyAdded()
@@ -44,7 +44,7 @@ namespace osu.Game.Tests.Database
                 using var _ = getBeatmapArchiveWithModifications(out string pathMissingOneBeatmap, directory =>
                 {
                     // remove one difficulty before first import
-                    directory.GetFiles("*.osu").First().Delete();
+                    BeatmapImporterTests.GetRenatusManiaDifficultyFile(directory).Delete();
                 });
 
                 var importBeforeUpdate = await importer.Import(new ImportTask(pathMissingOneBeatmap));
@@ -92,7 +92,7 @@ namespace osu.Game.Tests.Database
                 using var _ = getBeatmapArchiveWithModifications(out string pathMissingOneBeatmap, directory =>
                 {
                     // remove one difficulty before first import
-                    directory.GetFiles("*.osu").First().Delete();
+                    BeatmapImporterTests.GetRenatusManiaDifficultyFile(directory).Delete();
                 });
 
                 var importBeforeUpdate = await importer.Import(new ImportTask(pathMissingOneBeatmap));
@@ -145,7 +145,7 @@ namespace osu.Game.Tests.Database
                 using var _ = getBeatmapArchiveWithModifications(out string pathModified, directory =>
                 {
                     // Modify one .osu file with different content.
-                    var firstOsuFile = directory.GetFiles("*.osu").First();
+                    var firstOsuFile = BeatmapImporterTests.GetRenatusManiaDifficultyFile(directory);
 
                     string existingContent = File.ReadAllText(firstOsuFile.FullName);
 
@@ -194,7 +194,7 @@ namespace osu.Game.Tests.Database
                 using var _ = getBeatmapArchiveWithModifications(out string pathMissingOneBeatmap, directory =>
                 {
                     // remove one difficulty before first import
-                    directory.GetFiles("*.osu").First().Delete();
+                    BeatmapImporterTests.GetRenatusManiaDifficultyFile(directory).Delete();
                 });
 
                 var importBeforeUpdate = await importer.Import(new ImportTask(pathOriginal));
@@ -346,7 +346,7 @@ namespace osu.Game.Tests.Database
                 using var _ = getBeatmapArchiveWithModifications(out string pathMissingOneBeatmap, directory =>
                 {
                     // arbitrary beatmap removal
-                    var fileToRemove = directory.GetFiles("*.osu").First();
+                    var fileToRemove = BeatmapImporterTests.GetRenatusManiaDifficultyFile(directory);
 
                     removedFilename = fileToRemove.Name;
                     fileToRemove.Delete();
@@ -512,8 +512,9 @@ namespace osu.Game.Tests.Database
             });
         }
 
-        [Test]
-        public void TestMetadataTransferred()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestMetadataTransferred(bool originalHasUnmatchedDifficulty)
         {
             RunTestWithRealmAsync(async (realm, storage) =>
             {
@@ -524,22 +525,50 @@ namespace osu.Game.Tests.Database
 
                 using var _ = getBeatmapArchiveWithModifications(out string pathMissingOneBeatmap, directory =>
                 {
-                    // arbitrary beatmap removal
-                    directory.GetFiles("*.osu").First().Delete();
+                    BeatmapImporterTests.GetRenatusManiaDifficultyFile(directory).Delete();
                 });
 
-                var importBeforeUpdate = await importer.Import(new ImportTask(pathOriginal));
+                var importBeforeUpdate = await importer.Import(new ImportTask(originalHasUnmatchedDifficulty ? pathOriginal : pathMissingOneBeatmap));
 
                 Assert.That(importBeforeUpdate, Is.Not.Null);
                 Debug.Assert(importBeforeUpdate != null);
 
-                var importAfterUpdate = await importer.ImportAsUpdate(new ProgressNotification(), new ImportTask(pathMissingOneBeatmap), importBeforeUpdate.Value);
+                // A deliberately old date proves transfer, rather than two imports happening
+                // within the same second. Capture it before an update may purge the original row.
+                var dateBeforeUpdate = new DateTimeOffset(2001, 1, 1, 0, 0, 0, TimeSpan.Zero);
+                importBeforeUpdate.PerformWrite(s => s.DateAdded = dateBeforeUpdate);
+                Assert.That(importBeforeUpdate.PerformRead(s => s.DateAdded), Is.EqualTo(dateBeforeUpdate));
+                Guid originalId = importBeforeUpdate.ID;
+
+                var importAfterUpdate = await importer.ImportAsUpdate(new ProgressNotification(),
+                    new ImportTask(originalHasUnmatchedDifficulty ? pathMissingOneBeatmap : pathOriginal), importBeforeUpdate.Value);
 
                 Assert.That(importAfterUpdate, Is.Not.Null);
                 Debug.Assert(importAfterUpdate != null);
 
-                Assert.That(importBeforeUpdate.ID, Is.Not.EqualTo(importAfterUpdate.ID));
-                Assert.That(importBeforeUpdate.Value.DateAdded, Is.EqualTo(importAfterUpdate.Value.DateAdded).Within(TimeSpan.FromSeconds(1)));
+                // The import and metadata transfer use separate off-thread transactions.
+                // Observe the completed transfer instead of a previous update-thread snapshot.
+                realm.Run(r => r.Refresh());
+
+                Assert.That(originalId, Is.Not.EqualTo(importAfterUpdate.ID));
+                importAfterUpdate.PerformRead(updated =>
+                {
+                    Assert.That(updated.DateAdded, Is.EqualTo(dateBeforeUpdate));
+
+                    var original = updated.Realm!.Find<BeatmapSetInfo>(originalId);
+                    if (originalHasUnmatchedDifficulty)
+                    {
+                        Assert.That(original, Is.Not.Null);
+                        Assert.That(original!.DeletePending, Is.True);
+                        Assert.That(original.Beatmaps, Has.Count.EqualTo(1));
+                        Assert.That(original.Beatmaps[0].DifficultyName, Is.EqualTo(BeatmapImporterTests.RENATUS_MANIA_DIFFICULTY_NAME));
+                    }
+                    else
+                    {
+                        // All original charts moved to the updated set; no old row remains.
+                        Assert.That(original, Is.Null);
+                    }
+                });
             });
         }
 
@@ -559,7 +588,7 @@ namespace osu.Game.Tests.Database
                 using var _ = getBeatmapArchiveWithModifications(out string pathMissingOneBeatmap, directory =>
                 {
                     // remove one difficulty before first import
-                    directory.GetFiles("*.osu").First().Delete();
+                    BeatmapImporterTests.GetRenatusManiaDifficultyFile(directory).Delete();
                 });
 
                 var importBeforeUpdate = await importer.Import(new ImportTask(pathMissingOneBeatmap));
@@ -620,7 +649,7 @@ namespace osu.Game.Tests.Database
                 using var _ = getBeatmapArchiveWithModifications(out string pathModified, directory =>
                 {
                     // Modify one .osu file with different content.
-                    var firstOsuFile = directory.GetFiles("*[Hard]*.osu").First();
+                    var firstOsuFile = BeatmapImporterTests.GetRenatusManiaDifficultyFile(directory);
 
                     string existingContent = File.ReadAllText(firstOsuFile.FullName);
 
@@ -637,7 +666,7 @@ namespace osu.Game.Tests.Database
                 importBeforeUpdate.PerformWrite(s =>
                 {
                     var beatmapCollection = s.Realm!.Add(new BeatmapCollection("test collection"));
-                    originalHash = s.Beatmaps.Single(b => b.DifficultyName == "Hard").MD5Hash;
+                    originalHash = s.Beatmaps.Single(b => b.DifficultyName == BeatmapImporterTests.RENATUS_MANIA_DIFFICULTY_NAME).MD5Hash;
 
                     beatmapCollection.BeatmapMD5Hashes.Add(originalHash);
                 });
@@ -653,7 +682,7 @@ namespace osu.Game.Tests.Database
                     updated.Realm!.Refresh();
 
                     string[] hashes = updated.Realm.All<BeatmapCollection>().Single().BeatmapMD5Hashes.ToArray();
-                    string updatedHash = updated.Beatmaps.Single(b => b.DifficultyName == "Hard").MD5Hash;
+                    string updatedHash = updated.Beatmaps.Single(b => b.DifficultyName == BeatmapImporterTests.RENATUS_MANIA_DIFFICULTY_NAME).MD5Hash;
 
                     Assert.That(hashes, Has.Length.EqualTo(1));
                     Assert.That(hashes.First(), Is.EqualTo(updatedHash));
@@ -680,14 +709,14 @@ namespace osu.Game.Tests.Database
             string extractedFolder = $"{path}_extracted";
             Directory.CreateDirectory(extractedFolder);
 
-            using (var zip = ZipArchive.Open(path))
+            using (var zip = ZipArchive.OpenArchive(path))
                 zip.WriteToDirectory(extractedFolder);
 
             applyModifications(new DirectoryInfo(extractedFolder));
 
             File.Delete(path);
 
-            using (var zip = ZipArchive.Create())
+            using (var zip = ZipArchive.CreateArchive())
             {
                 zip.AddAllFromDirectory(extractedFolder);
                 zip.SaveTo(path, new ZipWriterOptions(CompressionType.Deflate));
