@@ -23,6 +23,8 @@
 
 在非系统盘 checkout 的仓库根目录打开 PowerShell；每个新进程先按[开发磁盘约束](../../AGENTS.md#开发磁盘约束)加载存储入口，首次切换后重新 restore 对应工程。
 
+构建环境须提供适用`osu.Game`的合法图片许可并经过厂商正常检查，配置见[P1-A依赖记录](../subline/P1-A/CHANGELOG.md#2026-10-22客户端依赖安全修复接入)；私有许可原文件不加入发行载荷。当前补丁依赖的开发Release结果不等于新发行候选已验证，后续载荷门取[P1-F](../subline/P1-F/DEVELOPMENT_PLAN.md#当前剩余验收)。
+
 ```powershell
 . .\UseDevelopmentStorage.ps1
 # 推荐：生成正式发行物
@@ -47,6 +49,7 @@
 | `oms_YYYYMMDD(.zip)` | 外层发行压缩包命名；同日多次构建自动追加 `_2`、`_3` |
 | `osu!.exe` | 主入口（DesktopGL，完整自包含多文件发行） |
 | 同级 DLL、运行文件及运行资源目录 | 游戏和 BMS/mania 必需内容；必须随完整 ZIP 一起解压与覆盖 |
+| `licenses/ffmpeg/` | 与进程内视频四库对应的源码、签名、构建配方和完整运行库许可；包含该依赖的single-file作者工具也保留旁带 |
 | `portable.ini` | 便携模式标记（空文件） |
 | `lazer.ico` / `beatmap.ico` | Windows 文件关联图标 |
 | `how to update.txt` | 中英双语手动覆盖更新说明 |

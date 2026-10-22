@@ -1,6 +1,6 @@
 # P1-F 当前计划：离线发行物与覆盖更新
 
-> 最后核对：2026-10-13（后续候选承接客户端品牌；原剩余验收门保持）
+> 最后核对：2026-10-22（承接补丁依赖与源码许可；原剩余验收门保持）
 > 主线顺序见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定发行红线见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -14,6 +14,8 @@ P1-F 负责离线完整发行物、便携与自定义保存位置、覆盖更新
 用户形成后续实际候选时，须覆盖现有客户端品牌、玩法、谱库、选歌、性能/BGA 作者窗口、公共 BMS/mania 下载及独立 IR，并在备份或隔离数据根验证旧库升级至 schema 58、重扫失效与恢复、历史成绩和收藏保全。以 [P1-H 验收](../P1-H/DEVELOPMENT_PLAN.md)为索引行为依据；已有同包启动与临时库 fixture 不能代替真实旧库升级或跨版本覆盖。独立 IR 真人门只沿 [P3-IR](../P3-IR/DEVELOPMENT_PLAN.md)，不代签 Phase 1.x。保留原 schema 57 事故现场，不用其事后副本推断升级无损。
 
 品牌的正常工作区验收沿 [P1-A 品牌计划](../P1-A/DEVELOPMENT_PLAN.md#客户端品牌正常窗口验收)；后续实际候选另核共用徽章、启动字标、窗口标题 / 图标及 Windows 图标缓存表现。10 月 3 日旧候选未包含该次品牌改动，开发软件 / 编译元数据和隔离绘制不代签新包，通用交互结果交 P1-G 汇总。
+
+安全依赖变化后，先承接[P1-A](../P1-A/DEVELOPMENT_PLAN.md#下载维护与回归)的完整回归和[P1-L](../P1-L/DEVELOPMENT_PLAN.md#当前执行顺序)的干净原生重编结果。用户形成新候选时，使用合法图片程序集许可正常编译，核实际publish/ZIP中及包含视频依赖的single-file作者工具的四库身份、RID/`.deps.json`、完整`licenses/ffmpeg/`源码/签名/许可旁带和文件清单；不复用旧bin或将私有许可原文件加入输出。开发build检查不代签这一步，具体来源取[原生依赖入口](../../../native/ffmpeg/README.md#集成与验收)。
 
 后续候选发生相关变化时，复验发行只含静线原件及静线/Aurora 作者源；跨构建器按 ZIP 内逐文件摘要核一致性，complex 历史文件不作为构建依赖。新版完整手册与三个练习须在实际发行套件中保持本地链接可用，并在无 Git/SDK 环境按各自说明制作、检查和打包；Reference Study 必须先复制静线模板再覆盖三个文件。9 月 30 日开发环境中的[作者验证](../../other/BGA_SKIN_AUTHORING_20260930.md)不代签该发行步骤。
 

@@ -1,9 +1,11 @@
 # OMS 当前开发规划
 
-> 最后核对：2026-10-22（现场修复后正常窗口复核；原产品与发行门保持）
+> 最后核对：2026-10-22（安全依赖后续验证与正常窗口复核；原产品与发行门保持）
 > 本页维护全局顺序、跨线依赖和改动验收；当前事实见[STATUS](DEVELOPMENT_STATUS.md)，专项动作从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 当前目标
+
+依赖安全迁移已作为后续输入；先按[P1-A下载维护](../subline/P1-A/DEVELOPMENT_PLAN.md#下载维护与回归)在资源允许时补BMS完整回归，按[P1-L](../subline/P1-L/DEVELOPMENT_PLAN.md#当前执行顺序)补最终配方从零重编与原生身份检查。图片使用正规程序集许可，不能靠屏蔽审计或沿用旧发行包替代当前依赖验证；新候选的载荷/许可旁带归[P1-F](../subline/P1-F/DEVELOPMENT_PLAN.md#当前剩余验收)。
 
 按[P1-A修复后复核](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)在正常窗口检查Autoplay跳转、统计及新包血条/默认FC；沿下方P1-B/P1-E/P1-J/P1-L与P1-G验证真实设备、长条/键音/BGA和长期体验。[既有游玩审查](../other/GAMEPLAY_REVIEW_20261019.md)作为输入，不扩成无现场依据的重构。正常窗口、隔离宿主与发行证据分开。
 

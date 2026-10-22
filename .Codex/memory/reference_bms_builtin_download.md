@@ -43,9 +43,10 @@ metadata:
 
 ## 归档输入与释放诊断
 
-- SharpCompress0.39的ZIP OpenEntryStream不支持method时抛NotSupportedException，不是ArchiveException。必须在归档输入边界转换；扩大manager捕获会掩盖程序错误。真实manager复现曾出现Completion fault但仍停Importing、同包无法重试、Dispose再抛；归档输入与任务收尾需联合验证。原复现见[全量审查](../../doc_md/other/BEATMAP_DOWNLOAD_REVIEW_20261002.md)，修复和新回归见[修复记录](../../doc_md/other/BEATMAP_DOWNLOAD_FIXES_20261002.md)，当前事实只查STATUS。
+- SharpCompress0.39时期，ZIP OpenEntryStream不支持method时抛NotSupportedException而非ArchiveException。真实manager曾Completion fault却仍停Importing、无法同包重试、Dispose再抛；输入和任务收尾须联合验证。异常只在归档边界转换，不扩大manager捕获；原身份见[10月2日修复](../../doc_md/other/BEATMAP_DOWNLOAD_FIXES_20261002.md)，升级后的类型和回归取[依赖迁移](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-22客户端依赖安全修复接入)，不能照搬旧版本的异常分类。
 - SharpCompress ZIP流及.NET ZipArchiveEntry.Open都不能代替本链CRC核对；目标谱MD5无法证明音频/图片完整。SharpCompress打开条目会以local头替换central头，合法data descriptor的local size/CRC可为0，须在Open之前保存central声明再比实际读取。用非seekable writer生成合法descriptor正例，并翻转stored资源单字节作坏包反例。
-- SharpCompress0.39还会以非ArchiveException报告坏输入：Deflate的ZlibException、ZstdException、内部LZMA DataError/InvalidParam，以及RAR.Read、BZip2.Cadvise、XZ.AssertBlockCheckTypeIsSupported、LzmaStream构造器、7z.ReadDatabase的通用异常。先用小型真实坏包保存红身份；内部类型核对库程序集，通用异常另核对TargetSite声明类/方法。不要全接InvalidOperation/IndexOutOfRange/NotImplemented，也不要扩manager捕获；固定版本升级时按真实夹具复验这些来源。
+- 0.39的坏输入还曾以Zlib/Zstd、内部LZMA异常及RAR/BZip2/XZ/LzmaStream/7z特定throw site报告。保留具名红身份；库升级后重新核对异常类型所属程序集及TargetSite声明类/方法，不把旧site清单当永久allowlist。新版LZMA provider的`ArgumentException`还须核`ParamName=context`，不能全接ArgumentException、InvalidOperation或NotImplemented来遮住程序错误。
+- 新版non-solid RAR不能沿所有archive统一`ExtractAllEntries()`：须把探测后的原流回到0再走`ReaderFactory.OpenReader`，solid RAR/7z仍用archive reader。文件可识别不证明当前入口能读全部条目，迁移须保留真实RAR内容/长度及取消释放回归，见上述依赖迁移记录。
 - RAR/7z的EntryStream.Dispose在未到EOF且reader未取消时会SkipEntry，导致预算拒绝或取消后的收尾继续展开。提取catch必须在using入流作用域内先reader.Cancel再rethrow，正常EOF不取消。独立计数探针证明先读1字节后普通Dispose又消费72字节，Cancel后为0；它是库释放语义实验，不是生产解压量测量。底层MemoryStream.Position可在首读时已因缓冲到末尾，不能拿它证明没有继续消费。见[修复记录](../../doc_md/other/BEATMAP_DOWNLOAD_FIXES_20261002.md)。
 - 条目预算不限制单路径展开出的隐式前缀；路径长度/深度须在Split及累计字符串前限制。谱文本后续全文复制/解码也不能沿用资源GiB预算：原8MiB填充谱累计分配约76MB，该数字不是峰值。下载预算需验证声明与实际读取、全部classic扩展及合计谱文本；用有界流式素材证明拒绝，不执行GiB内存耗尽，也不为下载改变普通目录解码合同。
 

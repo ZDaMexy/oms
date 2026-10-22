@@ -15,11 +15,11 @@ metadata:
 - `ClockBackedTestWorkingBeatmap.TrackVirtualManual`挂在真实AudioManager时，即使Rate=0，音频Update仍会读改写`accumulated`。Update线程直接Seek可被该旧值覆写，使一次跳时后的整个主时钟停在0；`SeekAsync`也是同步包装。测试先捕获source/offset，再经公开`GameHost.AudioThread.Scheduler`串行跳时，保留真实`OnSeek`区别与业务断言；`IAudioChannel.EnqueueAction`是framework内部成员，不可外调。日志未含source快照时，不宣称已唯一重放历史交错。见[P1-A取证](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-20选曲与皮肤遗留软件问题收尾)。
 
 - `osu.Desktop.slnf` 包含 BMS/mania tests，core `osu.Game.Tests` 须单独编译；只有相同项目/配置的当前代码成功编译后才能用 `--no-build`。
-- `osu.Game` 是 library，却因引用 NUnit test scene 被 C# Dev Kit 误认成 test project，导致缺 runtimeconfig、AutoMapper/测试平台程序集。使用真实 core/BMS/mania 测试工程，不为这个红节点复制依赖或改 library 身份。
+- `osu.Game` 是library，历史曾因NUnit test scene被C# Dev Kit误认作test project，缺runtimeconfig、当时的AutoMapper及测试平台程序集。诊断须使用真实core/BMS/mania测试工程，不为这个红节点复制依赖或改library身份；旧错误里的包名不代表当前仍依赖该库。
 - 第三方程序集可通过 deps/runtimeconfig 从 NuGet cache 加载，输出目录没有单独 DLL 不足以证明依赖缺失。
 - 缺Test SDK依赖时，`dotnet test --no-restore`可能未发现/执行测试却退出0；须确认实际执行摘要及TRX，修复对应工程依赖后重新编译。具名案例见[TOTAL报告](../../doc_md/other/BMS_TOTAL_RULES_AUDIT_20260922.md#验证状态)。
 - 源文件存在也不代表 fixture 已编译。旧 `TestSceneGameplaySampleTriggerSource` 依赖已移除的 OsuRuleset，被工程排除；对它的过滤无匹配不算空击验证。2026-09-30 改用真实转谱 Player 和当前容器用例，具体覆盖与过滤器见[性能记录](../../doc_md/other/GAMEPLAY_PERFORMANCE_20260930.md)。
-- `FullyQualifiedName~Skin`是子串匹配，会包含BackgroundDataStoreProcessorTests的旧skin处理方法。其全局LoadQuickOsz仅导入3张mania却仍断言12张，载入异常被headless容许后宿主可能持续空转；日志停止增长但CPU继续消耗不能当作仍在推进测试。先保存具体fixture/日志、核对进程身份后停止本次宿主，按真实改动合同选择明确范围；扩大检查记为中止，不恢复已移除玩法或将focused通过冒充全Core通过。见[P1-A本轮失败身份](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-22autoplay跳转与omni反馈修复)。
+- `FullyQualifiedName~Skin`是子串匹配，会包含BackgroundDataStoreProcessorTests的skin处理方法。安全迁移前，混合QuickOsz实际只导入3张mania却仍断言12张；载入异常被headless容许后宿主持续空转，日志不增长但CPU消耗不能算测试推进。该旧断言随后已按实际支持内容修正，不能据历史认定现行fixture仍坏。遇新阻塞先保存具名栈并核本次进程，扩大检查的中止不算通过，focused也不代签full。原失败见[Autoplay记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-22autoplay跳转与omni反馈修复)，修正见[依赖迁移](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-22客户端依赖安全修复接入)。
 - 混合谱包的修改/删除测试须选实际支持的mania文件；本地改包会清掉online ID，不能让公共helper一律断言原线上ID。`RealmLive`的update-thread快路径也不会自动推进快照；后台更新完成后的测试须刷新当前Realm再核历史元数据，日期使用明显不同的固定旧值，避免“相差不到一秒”掩盖读取旧值。具名故障和正确生命周期取[依赖迁移记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-22客户端依赖安全修复接入)。
 - 低空闲内存时，按fixture哈希分批也不能保证峰值下降：单个`BmsManagedFolderSelectionProductTest`就包含数百组绘制，宿主可继续增长至约2.6GiB。需核具体worker、系统余量和实际测试名，停止的进程保留为中断；不要反复扩大/重跑无关产品矩阵。导入改动按矩阵走importer focused + Release，若确需全量，再在可用资源内细分该fixture。具名中断与本轮范围见[安全筛查记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-22全工作区安全筛查与本地导入边界)。
 - 真实桌面 exact-test 的 game 隔离根不代表 framework host storage/cache 也跟随 TEMP；默认 host 仍用 AppData，改 APPDATA 环境变量不会改变已解析的 Windows special folder。受非系统盘开发约束时，可在已校验的 `.dev-cache/temp/` 独立输出中复用 ExactVisualTestGame，并用框架 PortableInstallation 使 host 根位于 AppContext.BaseDirectory；不能指向正式客户端输出或用户数据。保存证据后只清理已确认的探针目录。示例见 [性能验证记录](../../doc_md/other/GAMEPLAY_PERFORMANCE_20260930.md)。
@@ -53,7 +53,7 @@ metadata:
 - `rg --files` 默认不包含 hidden memory；枚举要包括 `.Codex` 并排除 `.git`。根目录 Markdown 的 parent 也须正确解析。链接以文件所在目录为准，不从仓库根再猜一次。
 - `dotnet --info` 曾在 workload `InstallerBase` 初始化失败，但同环境实际 Release build/test 可运行。诊断命令失败不等于产品构建失败，不据此修改 SDK、安装 workload 或加 runtime fallback。
 - 不恢复全局 `NoWarn` 隐藏依赖告警；失败按具体测试身份、消息和原因归类，不只对比数量。
-- ImageSharp 3.2.0的v3补丁需对照维护者公告；过宽NuGet范围不意味着必须跨v4。restore成功后还须真实Release：新增程序集许可检查可在编译阶段失败。不能跳过许可、改引用形状规避或记成已升级；免费开源密钥按实际`AssemblyName`申请，授权与提交范围取官方政策。本轮来源与后续见上述安全筛查记录。
+- ImageSharp的v3补丁需对照维护者公告与实际DLL来源；过宽NuGet范围不要求盲跨v4，亦不能靠屏蔽审计制造零风险。restore成功后还须真实Release与适用程序集许可检查，初次许可失败不能写成升级完成。正规文件只通过`SixLaborsLicenseFile`提供，不改引用形状绕检查；实际已完成结果和CI文件前提取[依赖迁移记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-22客户端依赖安全修复接入)，记忆不另存密钥或当前告警清单。
 - GPG首次导入公钥显示“imported”后仍可因自动启动secret-key agent失败返回2。纯公钥验签使用`--no-options --no-autostart --no-auto-key-retrieve`，仍严格检查退出码、固定指纹及`VALIDSIG`；给子命令超时并保留有界stderr，不能接受exit2后继续或跳过签名。无原始Content项的MSBuild工程必须从有身份的source item解析`Filename`，否则旁带源码/许可会被复制到空文件名目标。两类故障及正反验证取[原生媒体记录](../../doc_md/subline/P1-L/CHANGELOG.md#2026-10-22进程内ffmpeg原生依赖升级)。
 - VS Code 的“无调试运行”不是构建配置名；以实际 launch/task 与用户构建输出区分 Debug/Release，不能由保存目录推断程序位置。NU1902 在 restore/build 重复显示不是多份独立漏洞；保留 advisory 身份，修补真实依赖，不屏蔽类别。
 - restore 成功或不再发告警不等于完整依赖审计清洁。还需按范围核 `dotnet list ... package --vulnerable --include-transitive`，保留具名例外和传递依赖实情；实际修复版本、边界与兼容检查见 [C7 启动反馈](../../doc_md/other/SKIN_SYSTEM_C7_VALIDATION_20260909.md#交付后默认皮肤提示与构建警告修复)。
