@@ -15,7 +15,6 @@ using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.Screens;
-using osu.Game.Audio;
 using osu.Game.Graphics;
 using osu.Game.Online.API;
 using osu.Game.Skinning;
@@ -30,13 +29,9 @@ namespace osu.Game.Screens.Menu
         protected override string BeatmapFile => "welcome.osz";
         private const double delay_step_two = 2142;
 
-        private SkinnableSound skinnableWelcome;
-        private ISample welcome;
-
         private ISample pianoReverb;
         private PendingAsyncDrawableOwnership<WelcomeIntroSequence> pendingIntroOwnership;
         private CancellationTokenSource introLoadCancellation;
-        protected override string SeeyaSampleName => "Intro/Welcome/seeya";
 
         [Resolved]
         private SkinManager skinManager { get; set; }
@@ -47,16 +42,8 @@ namespace osu.Game.Screens.Menu
         }
 
         [BackgroundDependencyLoader]
-        private void load(AudioManager audio, IAPIProvider api)
+        private void load(AudioManager audio)
         {
-            if (MenuVoice.Value)
-            {
-                if (api.LocalUser.Value.IsSupporter)
-                    AddInternal(skinnableWelcome = new SkinnableSound(new SampleInfo(@"Intro/Welcome/welcome")));
-                else
-                    welcome = audio.Samples.Get(@"Intro/Welcome/welcome");
-            }
-
             pianoReverb = audio.Samples.Get(@"Intro/Welcome/welcome_piano");
         }
 
@@ -109,11 +96,6 @@ namespace osu.Game.Screens.Menu
                             PrepareMenuLoad();
 
                             AddInternal(intro);
-
-                            if (skinnableWelcome != null)
-                                skinnableWelcome.Play();
-                            else
-                                welcome?.Play();
 
                             var reverbChannel = pianoReverb?.Play();
                             if (reverbChannel != null)

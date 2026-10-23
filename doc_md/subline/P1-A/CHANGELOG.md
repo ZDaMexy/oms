@@ -1,5 +1,11 @@
 # P1-A 变动日志
 
+## 2026-10-23移除启动与退出语音
+
+按用户要求移除`IntroCircles`、`IntroTriangles`、`IntroWelcome`的独立欢迎语音，以及`IntroScreen`共用的告别语音加载/播放和皮肤替换分支；节日开场同步去除无用的告别样本覆盖。`MenuVoice`配置、默认值和设置开关一并退役，不受旧开启值影响。退出直接使用500ms画面/音乐淡出，开场动画、钢琴余响和音乐原入口保持；未改玩家数据、皮肤包或游玩音频链。
+
+`osu.Game.Tests` Release既有16项通过，过滤范围为`TestSceneIntroCircles/Triangles/Welcome/Christmas`、`TestSceneIntroMusicActionHandling`及`TestSceneHoldToExitGameOverlay`；覆盖开场进入、音频设备失败恢复、Welcome载入/退休、菜单音乐暂停恢复和按住退出提示。Desktop Debug/Release与7个源码文件格式验证通过；源码无旧语音播放入口/配置消费者。初次误删`VolumeTo`所需命名空间造成编译失败，补回后重新编译/测试通过，日志保留在`artifacts/remove-menu-voices-20261023/`。沿用五条已解释ImageSharp索引警告，未关闭审计。正常工作区听感待用户重新启动/正常退出复核，不将软件结果代签实机、完整BMS或发行门。
+
 ## 2026-10-23Omni美术预览补齐与分页释放
 
 - 按用户确认补缺少的小图，不新增实时演出预览。Frame取15框体自身完整静态底图；366挡板取原美术，20款动画挡板和25款FC使用按来源收据核过的原CUSTOM选项图。Graph/LIFT与挡板的相同设计共用PNG，原空白与原黑色各自明确。全部11类1272款引用540张256×160 PNG、12,584,753编码字节；原六类132张与全部6528份旧媒体/配置逐字节保持，目录仅新增preview引用。

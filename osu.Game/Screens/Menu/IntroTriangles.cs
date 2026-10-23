@@ -6,8 +6,6 @@
 using System;
 using JetBrains.Annotations;
 using osu.Framework.Allocation;
-using osu.Framework.Audio;
-using osu.Framework.Audio.Sample;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
@@ -30,23 +28,11 @@ namespace osu.Game.Screens.Menu
 
         protected override string BeatmapFile => "triangles.osz";
 
-        [Resolved]
-        private AudioManager audio { get; set; }
-
-        private Sample welcome;
-
         private TrianglesIntroSequence intro;
 
         public IntroTriangles([CanBeNull] Func<MainMenu> createNextScreen = null)
             : base(createNextScreen)
         {
-        }
-
-        [BackgroundDependencyLoader]
-        private void load()
-        {
-            if (MenuVoice.Value)
-                welcome = audio.Samples.Get(@"Intro/welcome");
         }
 
         protected override void LogoArriving(OsuLogo logo, bool resuming)
@@ -70,16 +56,13 @@ namespace osu.Game.Screens.Menu
 
                     // There is a chance that the intro timed out before being displayed, and this scheduled callback could
                     // happen during the outro rather than intro.
-                    // In such a scenario, we don't want to play the intro sample, nor attempt to start the intro track
-                    // (that may have already been since disposed by MusicController).
+                    // In such a scenario, don't start a track that MusicController may have already disposed.
                     if (DidLoadMenu)
                         return;
 
                     if (!UsingThemedIntro)
                     {
-                        // If the user has requested no theme, fallback to the same intro voice and delay as IntroCircles.
-                        // The triangles intro voice and theme are combined which makes it impossible to use.
-                        welcome?.Play();
+                        // Keep the same delayed music start as IntroCircles.
                         Scheduler.AddDelayed(StartTrack, IntroCircles.TRACK_START_DELAY);
                     }
                     else

@@ -35,14 +35,6 @@ namespace osu.Game.Overlays.Settings.Sections.UserInterface
                 }),
                 new SettingsItemV2(new FormCheckBox
                 {
-                    Caption = UserInterfaceStrings.InterfaceVoices,
-                    Current = config.GetBindable<bool>(OsuSetting.MenuVoice)
-                })
-                {
-                    Keywords = new[] { "intro", "welcome" },
-                },
-                new SettingsItemV2(new FormCheckBox
-                {
                     Caption = UserInterfaceStrings.OsuMusicTheme,
                     Current = config.GetBindable<bool>(OsuSetting.MenuMusic)
                 })

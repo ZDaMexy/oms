@@ -33,8 +33,6 @@ namespace osu.Game.Seasonal
         private const double beat_length = 60000 / 172.0;
         private const double offset = 5924;
 
-        protected override string SeeyaSampleName => "Intro/Welcome/seeya";
-
         private TrianglesIntroSequence intro = null!;
 
         public IntroChristmas(Func<MainMenu>? createNextScreen = null)
@@ -63,13 +61,10 @@ namespace osu.Game.Seasonal
 
                     // There is a chance that the intro timed out before being displayed, and this scheduled callback could
                     // happen during the outro rather than intro.
-                    // In such a scenario, we don't want to play the intro sample, nor attempt to start the intro track
-                    // (that may have already been since disposed by MusicController).
+                    // In such a scenario, don't start a track that MusicController may have already disposed.
                     if (DidLoadMenu)
                         return;
 
-                    // If the user has requested no theme, fallback to the same intro voice and delay as IntroCircles.
-                    // The triangles intro voice and theme are combined which makes it impossible to use.
                     StartTrack();
 
                     // no-op for the case of themed intro, no harm in calling for both scenarios as a safety measure.
