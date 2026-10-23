@@ -23,6 +23,8 @@ COUNTS_PER_TURN = 360
 REVOLUTIONS_PER_TURN = 1
 GAUGE_BLINK_PERIOD_MS = 400
 _TURN = re.compile(r"t\.t(?P<style>\d{2})\.base\.(?P<layout>p1|p2|dp)\.(?P<frame>[a-z0-9-]+)\.n(?P<group>[01])\Z")
+_FROZEN_TURN_IDLE = re.compile(
+    r"(?P<knob>tt\.base\.(?P<layout>p1|p2|dp)\.(?P<frame>[a-z0-9-]+)\.n(?P<group>[01]))\.motion\.idle\Z")
 
 
 def _require(condition, message):
@@ -148,6 +150,67 @@ def inject_turntables(document, *, idle_period_ms=IDLE_PERIOD_MS, counts_per_tur
             "countsPerVisualTurn": counts_per_turn, "revolutionsPerVisualTurn": revolutions_per_turn,
             "directionEvidence": "1P clockwise from user observation; 2P clockwise is an explicit author choice, not a native-host claim",
             "unknown": "Original idle speed, host motor/inertia model, physical contact latency and signed replay motion"}
+
+
+def retime_turntable_idle(document, *, idle_period_ms=1000):
+    """Adjust the four motors of one frozen frame's turntable contribution.
+
+    One second per turn is an author approximation chosen from the independent
+    reference recordings, not an exact native period or a BPM calibration.
+    Historical generation keeps inject_turntables' original four-second default.
+    """
+    _require(document.get("contract") == SCENE_CONTRACT, "Expected an author scene")
+    _require(not isinstance(idle_period_ms, bool) and idle_period_ms == 1000,
+             "This author revision chooses the 1000ms idle approximation")
+    tracks = document["tracks"]
+    candidates = [(track, _FROZEN_TURN_IDLE.fullmatch(track.get("id", ""))) for track in tracks
+                  if track.get("id", "").endswith(".motion.idle")]
+    _require(len(candidates) == 4 and all(match for _, match in candidates),
+             "Expected four frozen turntable idle tracks")
+    frame_ids = {match["frame"] for _, match in candidates}
+    _require(len(frame_ids) == 1 and frame_ids <= set(FRAMES)
+             and {(match["layout"], int(match["group"])) for _, match in candidates}
+             == {("p1", 0), ("p2", 0), ("dp", 0), ("dp", 1)},
+             "Expected the complete 1P, 2P and DP motors of one frame")
+    source_nodes = list(_nodes(document))
+    nodes = {item["id"]: item for item in source_nodes}
+    _require(len(nodes) == len(source_nodes), "Frozen turntable node IDs must be unique")
+    idle_targets = {match["knob"] + ".motor" for _, match in candidates}
+    _require(len([track for track in tracks if track.get("property") == "rotation"
+                  and track.get("clock") == "timing.time"]) == 4,
+             "The frozen contribution has an unexpected timed rotation")
+    terminals = []
+    for track, match in candidates:
+        knob_id = match["knob"]
+        motor, counts, knob = (nodes.get(knob_id + suffix) for suffix in (".motor", ".counts", ""))
+        _require(motor is not None and counts is not None and knob is not None
+                 and motor.get("type") == counts.get("type") == "container"
+                 and motor.get("children") == [counts] and counts.get("children") == [knob]
+                 and knob.get("type") in ("sprite", "projective-sprite") and knob.get("resource") is not None,
+                 "A frozen turntable motor must retain its original input wrappers and sprite")
+        keys = track.get("keyframes", [])
+        _require(isinstance(keys, list) and len(keys) == 2 and all(isinstance(key, dict)
+                 and all(type(key.get(field)) in (int, float) for field in ("time", "value")) for key in keys),
+                 "A frozen idle track must contain two numeric keyframes")
+        period = keys[-1]["time"]
+        _require(period in (4000, 1000) and track.get("loop") is True
+                 and track == _track(knob_id + ".motion.idle", knob_id + ".motor", "rotation", "timing.time",
+                                    [(0, 0), (period, 360)]),
+                 "A frozen idle track differs from the supported clockwise linear loop")
+        _require(len([owner for owner in tracks if owner.get("target") == knob_id + ".motor"
+                      and owner.get("property") == "rotation"]) == 1,
+                 "Another track owns this turntable motor rotation")
+        terminals.append(keys[-1])
+    # Validate every motor first: a conflict in the last layout must not leave
+    # the earlier layouts running at the new speed.
+    previous = [key["time"] for key in terminals]
+    for key in terminals:
+        key["time"] = idle_period_ms
+    return {"frame": next(iter(frame_ids)), "knobs": len(idle_targets),
+            "retimedTracks": sum(value != idle_period_ms for value in previous),
+            "previousPeriodsMs": sorted(set(previous)), "idlePeriodMs": idle_period_ms,
+            "clock": "timing.time", "calibration": "author approximation; exact native idle period is unverified",
+            "directionAndInputTracksPreserved": True}
 
 
 def art_requirements(frame_id, source_map):

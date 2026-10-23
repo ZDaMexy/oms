@@ -139,7 +139,12 @@ namespace osu.Game.Skinning.Gameplay
         }
 
         private static double[] combine(double[] local, double[] parent, Func<double, double, double> operation)
-            => [.. local.Select((value, i) => operation(value, parent[i]))];
+        {
+            double[] result = new double[local.Length];
+            for (int index = 0; index < result.Length; index++)
+                result[index] = operation(local[index], parent[index]);
+            return result;
+        }
 
         private static List<GameplaySkinRecordedProjectedVertex> project(List<GameplaySkinRecordedVertex> polygon, bool perspective,
                                                                           GameplaySkinRecordedCamera? camera, double width, double height)

@@ -65,6 +65,9 @@ namespace osu.Game.Skinning.Gameplay
                         : timingState.ArrivalCueFadeStartTime is double fadeStart ? 1 - Math.Clamp((sceneGameplayTime - fadeStart) / 200, 0, 1) : 1;
                     return true;
                 case GameplaySkinSceneBindingSource.TimingElapsed: value = timingState.StartTime is double start ? Math.Max(0, sceneGameplayTime - start) : 0; return true;
+                case GameplaySkinSceneBindingSource.PresentationElapsed:
+                    value = timingState.Preparation.Elapsed + (timingState.StartTime is double gameplayStart ? Math.Max(0, sceneGameplayTime - gameplayStart) : 0);
+                    return true;
                 case GameplaySkinSceneBindingSource.TimingBeatPhase: value = timingState.Beat - Math.Floor(timingState.Beat); return true;
                 case GameplaySkinSceneBindingSource.ArrivalTime: value = arrivalFor(node) ?? 0; return true;
                 case GameplaySkinSceneBindingSource.ArrivalRemaining: value = arrivalFor(node) is double arrival ? arrival - sceneGameplayTime : 0; return true;

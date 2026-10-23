@@ -7,7 +7,6 @@ using System.Linq;
 using System.Reflection;
 using System.Text.Json;
 using NUnit.Framework;
-using osu.Framework.Graphics;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Testing;
 using osu.Game.Skinning.Gameplay;
@@ -90,9 +89,13 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(cues, Is.Not.Empty);
                 foreach (GameplaySkinSceneRuntimeNode cue in cues)
                     Assert.That(lightingAlpha(cue.ContentDrawable), Is.Zero, "A late first note must not keep its cue after GET READY ends.");
-                foreach (GameplaySkinPreparedSceneBinding binding in runtime.PreparedScene.Program.Bindings.Where(binding =>
-                             binding.Source == GameplaySkinSceneBindingSource.Option
-                             && binding.OptionId is "graph-visible" or "judge-panel-visible"))
+                var rootNodeIds = runtime.PreparedScene.Roots.SelectMany(lightingTree).Select(node => node.Source.Id).ToHashSet(StringComparer.Ordinal);
+                GameplaySkinPreparedSceneBinding[] panelBindings = [.. runtime.PreparedScene.Program.Bindings.Where(binding =>
+                    rootNodeIds.Contains(binding.TargetNodeId) && binding.Source == GameplaySkinSceneBindingSource.Option
+                    && binding.OptionId is "graph-visible" or "judge-panel-visible")];
+                Assert.That(panelBindings.Select(binding => binding.OptionId).Distinct(),
+                    Is.EquivalentTo(new[] { "graph-visible", "judge-panel-visible" }));
+                foreach (GameplaySkinPreparedSceneBinding binding in panelBindings)
                 {
                     bool enabled = runtime.Publication.Snapshot.Context.OptionValues.Values[binding.OptionId!].BooleanValue;
                     GameplaySkinSceneRuntimeNode panel = lightingNodes().Single(node => node.PreparedNode.Source.Id == binding.TargetNodeId);

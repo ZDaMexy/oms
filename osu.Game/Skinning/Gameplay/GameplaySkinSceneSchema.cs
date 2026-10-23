@@ -518,6 +518,7 @@ namespace osu.Game.Skinning.Gameplay
         PreparationReadyElapsed = 83,
         ArrivalFirstRow = 84,
         ArrivalCueOpacity = 85,
+        PresentationElapsed = 86,
     }
 
     public enum GameplaySkinSceneEvent
@@ -1059,6 +1060,7 @@ namespace osu.Game.Skinning.Gameplay
             "input.pressed" => GameplaySkinSceneBindingSource.InputPressed,
             "timing.time" => GameplaySkinSceneBindingSource.TimingTime,
             "timing.elapsed" => GameplaySkinSceneBindingSource.TimingElapsed,
+            "presentation.elapsed" => GameplaySkinSceneBindingSource.PresentationElapsed,
             "preparation.available" => GameplaySkinSceneBindingSource.PreparationAvailable,
             "preparation.active" => GameplaySkinSceneBindingSource.PreparationActive,
             "preparation.elapsed" => GameplaySkinSceneBindingSource.PreparationElapsed,

@@ -31,9 +31,15 @@ dotnet run --project tools/SkinAuthoring -- check 'Y:\OmniAuthor'
 
 `build_lighting_details.py`在已验证的完整v14作者目录上增量制作开场版本，写入全新作者目录及相邻`.osk`。旧CUSTOM、FC资源和INI保留，只校准上述FC默认与两款标签；`lighting_lane_intro.py`消费15框体各自SP/DP的原始轨道开场记录，`lighting_ready.py`消费完整`1p_ready`父movie（含出现和退场），`lighting_panels.py`换用完整JUDGE原图并声明实际AUTO/有符号偏移与滑入。旧外框组件入场曲线保留，仅切到公开准备时钟；不向规则集加入IIDX布局或演出名字。
 
-Graph开启时收窄SP的原生BGA窗口；DP使用左侧视频，右列留给图表。DP的JUDGE位于右下角，单独开启时限制右侧视频底端；旧27DP窗口跨入底部HUD保留区的问题在作者INI修正，不放宽公共避让检查。默认Graph/JUDGE关闭，首排预告、外框入场、轨道开场和GET READY开启，可分别切换。预告保留原`start_notes_s/w/b`三图，仅筛选全谱最早同排，并在原生音符进入可视区域前退出，不等待命中；空槽或之后各轨的首音不再另播。位置、蓝光波形、血条闪烁周期、转盘常转速度及2P方向仍为作者适配，不能当作原机精确校准。
+Graph开启时收窄SP的原生BGA窗口；DP使用左侧视频，右列留给图表。DP的JUDGE位于右下角，单独开启时限制右侧视频底端；旧27DP窗口跨入底部HUD保留区的问题在作者INI修正，不放宽公共避让检查。Graph/JUDGE、首排预告、外框入场、轨道开场和GET READY均默认开启，可分别切换。预告保留原`start_notes_s/w/b`三图，仅筛选全谱最早同排，并在原生音符进入可视区域前退出，最迟与准备阶段一起退出；空槽或之后各轨的首音不再另播。转盘00两侧顺时针已有实际参照；位置、蓝光波形、血条闪烁周期和转盘常转速度仍为作者适配，不能当作原机精确校准。
 
 `lighting_motion.replace_gauge_front`可在冻结的v15贡献上迁移前沿，不重新解包或改写原图。每个唯一Frame布局调用一次，v15实物宽8px须显式传`gauge_dot_width_px=8`；当前完整fill及其mode分支沿完整UV裁出末端窄条，P2保留原补偿。中性明暗调制使前沿真正闪烁，NORMAL过线及Hard/EX HARD/Hazard跟随本体颜色，通用引擎不写IIDX颜色规则；旧dot声明仅在无引用时退休，物理文件由新闭包排除。迁移冲突不提交半改，重复执行不变；作者发布后仍须检查公开codec和原生绘制。
+
+`lighting_persistent.py`先按原层次重绘并逐RGBA核对旧背景，再排除明确组件重绘；输出独立reference，输入作者和素材只读。已核范围为28的lane-base入场、33及七支S5队伍各自的持续星形，共9框体/27布局。BPL必须保留原safe-BGA开口与DP固定符号层，不套33的组合；原星PNG、UV、mask与源循环分别保全，不擦图或烘焙整屏序列。`upgrade_lighting_components.py --source <原作者> --reference <完整reference.json> --output <全新作者目录>`消费该证据，生成新闭包和相邻OSK；`lighting_local_ids.py`仅缩短CN/Judge的内部声明及类型明确的引用，资源/字形/动画/拓扑/路径/选项键保持，减少配置重复。生成后的预算、codec与实际Player仍须独立验收，详见[持续组件记录](../../doc_md/other/OMNI_OPENINGS_20261021.md#2026-10-24持续组件与原版参照复核)。
+
+该升级入口同时调用`lighting_motion.retime_turntable_idle`，只将冻结转盘贡献的四条常转轨迹从4000ms改为1000ms一圈，其余几何、方向和设备counts/revolutions轨迹保持。此值是依据参照画面速度量级选择的作者近似，未证明原机固定周期，也不接BPM时钟；历史完整生成器的4000ms默认不追溯改写。冲突先完整校验再拒绝，已升级的输入可幂等复核。
+
+原版新采样已直接证明默认j00的蓝/绿/粉三套标签和数字同步变化，但当前采图速度会影响观测驻留，尚未唯一校准源周期和命中原点。未标定的PG迁移原型只留本地诊断，不参与本入口或发布，不给所有21套套用猜定周期。
 
 各款转盘只在加载期选择当前框体贡献，游玩不计算其它14框体的马达。设备相对counts与校准revolutions分开叠加；数字键/Auto/旧回放没有可证明的带符号运动时仅显示常转。新增纹理使用短内容标识、原PNG字节和原采样；入场声明仅缩短ID，保留全部时间与几何采样。46种转盘按所选清单共用15份相同几何，原图/滤波各自保留；相同INI按原字节去重。scene大小为数字归一化预留空间；整包配置仍守导入16MiB，C2捕获的64MiB结构预算不替代它。实际选中资源/像素/scene/manifest预算均需检查，普通包不声明这些能力时保持原流程。
 
@@ -116,14 +122,20 @@ BPL使用同一生成器，通过`--frame-package`指定实际归档标识、`--
 
 原始可玩安装保持只读。运行参照使用另一处完整物理副本；启动前核对路径，独立保存配置、补丁选择、截图和日志，结束后复核源安装清单及关键文件摘要。副本清空卡号与自动插卡设置，不使用真实卡或账号；配置和 API 密码只存本地忽略目录，不进入 Git 或命令输出。
 
-`reference_api.py` 只连接会话指定的 `127.0.0.1` Spice API，要求非空独立密码；提供截图、按钮、模拟轴、触控及投币，不提供卡、内存或电源操作，也不负责复制或启动游戏。Spice API 服务自身的监听范围须在启动配置中另行核对，本客户端的 localhost 限制不能证明服务只监听回环。
+`reference_api.py` 只连接会话指定的 `127.0.0.1` Spice API，要求非空独立密码；提供截图、按钮、数字键盘导航、模拟轴、触控及投币，不提供卡、内存、进程或电源操作，也不负责复制或启动游戏。Spice API 服务自身的监听范围须在启动配置中另行核对，本客户端的 localhost 限制不能证明服务只监听回环。
 
 会话 JSON 包含 `host/port/password/captureRoot`。截图仅允许在 `captureRoot` 内新建，不覆盖已有图片；持续导航可用 `with ReferenceApi(session_path) as api` 复用连接，避免每次输入都弹出连接通知。
+
+截图的 `--quality` 范围为1～100，默认100；`--divide` 为本工具限制的1～8整数倍缩小，默认1。例如2使宽高各减半，减少编码、传输与本机保存成本，不改变游戏分辨率或刷新率。[官方capture实现](https://github.com/spice2x/spice2x.github.io/blob/c83496776e4dfa06f286e483d21fd269c331505c/src/spice2x/api/modules/capture.cpp)的第三参数是缩小倍数，不是帧率或等待时间。连续采样须排除旧图/旧时间戳；新时间戳也不是游戏时钟、Present序号或命中帧：该版本在RGB转换完成、入队时记录整数毫秒。D3D9读回占用Present线程，divide在完整读回后才缩小，减小输出图像不能证明捕获不影响原机节奏。来源和适用边界见[参照记录](../../doc_md/other/OMNI_OPENINGS_20261021.md#2026-10-24持续组件与原版参照复核)，没有宣称本地二进制与该源码提交完全匹配。
+
+`keypad-write --keypad 0|1 --keys '2'`向P1/P2依次输入导航字符，仅接受非空的ASCII字符串`0-9/A/D`（A为00，D为小数键）；工具不开放数字键盘持续覆盖，不回显输入内容，不用于真实卡或PIN。[官方keypads实现](https://github.com/spice2x/spice2x.github.io/blob/main/src/spice2x/api/modules/keypads.cpp)每个字符先按下再松开，两段各约70ms；短导航按需发送，不用于逐帧高速输入。Python入口分别为`api.capture(path, screen=0, quality=100, divide=1)`及`api.keypad_write(0, "2")`。
 
 ```powershell
 . .\UseDevelopmentStorage.ps1
 python -B tools/IidxSkinAssets/reference_api.py --session 'Y:\IIDX-Reference\api-session.json' screens
 python -B tools/IidxSkinAssets/reference_api.py --session 'Y:\IIDX-Reference\api-session.json' capture --screen 0 --output 'Y:\IIDX-Reference\captures\reference-001.jpg'
+python -B tools/IidxSkinAssets/reference_api.py --session 'Y:\IIDX-Reference\api-session.json' capture --screen 0 --quality 70 --divide 2 --output 'Y:\IIDX-Reference\captures\reference-fast-001.jpg'
+python -B tools/IidxSkinAssets/reference_api.py --session 'Y:\IIDX-Reference\api-session.json' keypad-write --keypad 0 --keys '2'
 ```
 
 截图用于对位，连续帧辅助观察动画；普通运行日志不保证列出每次纹理绘制。素材关联仍需对照原 XML、AFP / GEO 和实际画面。副本为适配参考环境启用的启动检查调整必须单独记录，不作为原安装、设备或原版刷新率的验收结果。

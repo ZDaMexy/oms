@@ -46,12 +46,19 @@ class ReferenceApi:
         allowed = {("capture", "get_screens"), ("capture", "get_jpg"),
                    ("buttons", "read"), ("buttons", "write"), ("buttons", "write_reset"),
                    ("analogs", "read"), ("analogs", "write"), ("analogs", "write_reset"),
-                   ("coin", "insert"), ("touch", "write"), ("touch", "write_reset")}
+                   ("coin", "insert"), ("touch", "write"), ("touch", "write_reset"),
+                   ("keypads", "write")}
         if (module, function) not in allowed:
             raise ValueError("Operation is outside reference capture and navigation")
+        params = list(params)
+        if (module, function) == ("keypads", "write"):
+            if len(params) != 2 or type(params[0]) is not int or params[0] not in (0, 1):
+                raise ValueError("Keypad must be 0 (P1) or 1 (P2)")
+            if not isinstance(params[1], str) or not params[1] or any(character not in "0123456789AD" for character in params[1]):
+                raise ValueError("Keypad navigation accepts only a non-empty string of 0-9, A and D")
         self.request_id += 1
         request = json.dumps({"id": self.request_id, "module": module, "function": function,
-                              "params": list(params)}, separators=(",", ":")).encode() + b"\0"
+                              "params": params}, separators=(",", ":")).encode() + b"\0"
         temporary_connection = self.connection is None
         if temporary_connection:
             self.__enter__()
@@ -74,22 +81,32 @@ class ReferenceApi:
             raise RuntimeError(f"Reference API {module}.{function}: {response.get('errors')}")
         return response["data"]
 
-    def capture(self, path, screen=0):
-        result = self.call("capture", "get_jpg", [screen, 100, 1])
+    def capture(self, path, screen=0, quality=100, divide=1):
+        if type(quality) is not int or not 1 <= quality <= 100:
+            raise ValueError("JPEG quality must be an integer from 1 to 100")
+        if type(divide) is not int or not 1 <= divide <= 8:
+            raise ValueError("Capture divide must be an integer from 1 to 8")
+        path = Path(path).resolve()
+        root = Path(self.session["captureRoot"]).resolve()
+        if path == root or not path.is_relative_to(root):
+            raise ValueError("Screenshots must stay in the reference evidence directory")
+        if not path.parent.is_dir():
+            raise ValueError("Screenshot parent directory must already exist")
+        if path.exists():
+            raise FileExistsError("Screenshot already exists")
+        result = self.call("capture", "get_jpg", [screen, quality, divide])
         if len(result) != 4:
             raise RuntimeError("Reference screen is not ready for capture")
         timestamp, width, height, encoded = result
         data = base64.b64decode(encoded, validate=True)
-        path = Path(path).resolve()
-        root = Path(self.session["captureRoot"]).resolve()
-        if not path.is_relative_to(root):
-            raise ValueError("Screenshots must stay in the reference evidence directory")
-        if not path.parent.is_dir():
-            raise ValueError("Screenshot parent directory must already exist")
         with path.open("xb") as stream:
             stream.write(data)
         return {"path": str(path), "screen": screen, "timestamp": timestamp,
-                "width": width, "height": height, "bytes": len(data)}
+                "width": width, "height": height, "bytes": len(data), "quality": quality, "divide": divide}
+
+    def keypad_write(self, keypad, keys):
+        """Write navigation characters sequentially; this does not insert or inspect a card."""
+        return self.call("keypads", "write", [keypad, keys])
 
     def press(self, names, milliseconds=120):
         if not names or not 1 <= milliseconds <= 2000:
@@ -104,7 +121,7 @@ class ReferenceApi:
             self.call("buttons", "write", [[name, 0.0] for name in names])
 
 
-if __name__ == "__main__":
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--session", type=Path, required=True)
     sub = parser.add_subparsers(dest="action", required=True)
@@ -114,14 +131,22 @@ if __name__ == "__main__":
     sub.add_parser("coin")
     capture = sub.add_parser("capture")
     capture.add_argument("--screen", type=int, default=0)
+    capture.add_argument("--quality", type=int, default=100)
+    capture.add_argument("--divide", type=int, default=1)
     capture.add_argument("--output", type=Path, required=True)
     press = sub.add_parser("press")
     press.add_argument("--button", action="append", required=True)
     press.add_argument("--milliseconds", type=int, default=120)
-    args = parser.parse_args()
+    keypad = sub.add_parser("keypad-write")
+    keypad.add_argument("--keypad", type=int, choices=(0, 1), default=0)
+    keypad.add_argument("--keys", required=True)
+    args = parser.parse_args(argv)
     api = ReferenceApi(args.session)
     if args.action == "capture":
-        result = api.capture(args.output, args.screen)
+        result = api.capture(args.output, args.screen, quality=args.quality, divide=args.divide)
+    elif args.action == "keypad-write":
+        api.keypad_write(args.keypad, args.keys)
+        result = {"keypad": args.keypad, "characters": len(args.keys)}
     elif args.action == "press":
         api.press(args.button, args.milliseconds)
         result = {"released": args.button}
@@ -134,3 +159,7 @@ if __name__ == "__main__":
     else:
         result = api.call("coin", "insert", [1])
     print(json.dumps(result, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main()

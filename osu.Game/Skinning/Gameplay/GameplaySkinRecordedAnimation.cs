@@ -113,6 +113,7 @@ namespace osu.Game.Skinning.Gameplay
         public double FramesPerSecond { get; }
         public double Duration => (Frames.Count - 1) * 1000 / FramesPerSecond;
         public bool Loop { get; }
+        public int LoopStartFrame { get; }
         public string Trigger { get; }
         public (int Start, int End)? HeldLoop { get; }
         public int? ReleaseFrame { get; }
@@ -136,12 +137,13 @@ namespace osu.Game.Skinning.Gameplay
                                                        GameplaySkinRecordedState[] states, GameplaySkinRecordedFrame[] frames,
                                                        (int Start, int End)? heldLoop = null, int? releaseFrame = null,
                                                        long remainingTriangleApplications = GameplaySkinRecordedAnimationBudgets.MAX_FRAME_TRIANGLE_APPLICATIONS,
-                                                       CancellationToken cancellationToken = default)
+                                                       CancellationToken cancellationToken = default, int loopStartFrame = 0)
         {
             Width = width;
             Height = height;
             FramesPerSecond = fps;
             Loop = loop;
+            LoopStartFrame = loopStartFrame;
             Trigger = trigger;
             HeldLoop = heldLoop;
             ReleaseFrame = releaseFrame;
@@ -179,9 +181,34 @@ namespace osu.Game.Skinning.Gameplay
         {
             if (!double.IsFinite(elapsed) || elapsed < 0)
                 return -1;
-            if (!Loop && elapsed >= Duration)
+            int end = Frames.Count - 1;
+            double duration = Duration;
+            if (elapsed < duration)
+                return sampleFrame(elapsed, 0, end);
+            if (!Loop)
                 return -1;
-            return (int)(Math.Floor(elapsed * FramesPerSecond / 1000) % (Frames.Count - 1));
+
+            int tailFrames = end - LoopStartFrame;
+            double period = tailFrames * 1000 / FramesPerSecond;
+            double cycle = Math.Floor((elapsed - duration) / period);
+            double cycleStart = duration + cycle * period;
+            // Compare absolute boundaries: multiplying a fractional Duration back by fps can
+            // round down, as can subtracting it before taking the tail's remainder.
+            if (elapsed < cycleStart)
+                cycleStart = duration + --cycle * period;
+            else if (elapsed >= duration + (cycle + 1) * period)
+                cycleStart = duration + ++cycle * period;
+            return LoopStartFrame + sampleFrame(elapsed, cycleStart, tailFrames);
+        }
+
+        private int sampleFrame(double elapsed, double origin, int count)
+        {
+            int frame = (int)Math.Clamp(Math.Floor((elapsed - origin) * FramesPerSecond / 1000), 0, count - 1);
+            if (frame > 0 && elapsed < origin + frame * 1000 / FramesPerSecond)
+                frame--;
+            else if (frame + 1 < count && elapsed >= origin + (frame + 1) * 1000 / FramesPerSecond)
+                frame++;
+            return frame;
         }
 
         internal int InputFrameAt(double sincePress, double sinceRelease, bool pressed)

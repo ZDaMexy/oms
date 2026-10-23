@@ -20,6 +20,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
         [TestCase("offset.automatic", "true")]
         [TestCase("timing.time", "250")]
         [TestCase("timing.elapsed", "750")]
+        [TestCase("presentation.elapsed", "750")]
         [TestCase("timing.start-available", "true")]
         [TestCase("timing.beat-phase", "0.75")]
         [TestCase("arrival.available", "true")]
@@ -162,7 +163,48 @@ namespace osu.Game.Tests.NonVisual.Skinning
             producer.Dispose();
         }
 
-        private static GameplaySkinLayoutPublication liveClockPublication(Texture texture, string clock, double initialRotation = 0)
+        [Test]
+        public void TestPresentationClockContinuesFromPreparationIntoGameplayAndResetsWithItsAuthority()
+        {
+            using Texture texture = new DummyRenderer().CreateTexture(8, 8);
+            using GameplaySkinLayoutPublication publication = liveClockPublication(texture, "presentation.elapsed", 37, 10000);
+            using GameplaySkinEventStream stream = createStream(publication);
+            GameplaySkinEventProducer producer = stream.CreateProducer();
+            using var host = new GameplaySkinSceneRuntimeHost(publication, stream);
+            host.ProcessFrame();
+            Assert.That(runtime(host, "phase").TransformDrawable.Rotation, Is.EqualTo(37));
+
+            producer.SynchroniseTiming(0, new GameplaySkinTimingStateSnapshot(0, 0, 120, false, 1,
+                preparation: new GameplaySkinPreparationStateSnapshot(true, true, 2500, 2500, false, 0)));
+            host.ProcessFrame();
+            Assert.That(runtime(host, "phase").TransformDrawable.Rotation, Is.EqualTo(90).Within(0.0001));
+
+            var completed = new GameplaySkinTimingStateSnapshot(0, 0, 120, false, 1,
+                preparation: new GameplaySkinPreparationStateSnapshot(true, false, 5000, 0, false, 0));
+            producer.SynchroniseTiming(0, completed);
+            host.ProcessFrame();
+            Assert.That(runtime(host, "phase").TransformDrawable.Rotation, Is.EqualTo(180).Within(0.0001));
+            var started = new GameplaySkinTimingStateSnapshot(0, 0, 120, false, 1, startTime: 0, preparation: completed.Preparation);
+            producer.SynchroniseTiming(0, started);
+            host.ProcessFrame();
+            Assert.That(runtime(host, "phase").TransformDrawable.Rotation, Is.EqualTo(180).Within(0.0001));
+            producer.SynchroniseTiming(1000, started);
+            host.ProcessFrame();
+            Assert.That(runtime(host, "phase").TransformDrawable.Rotation, Is.EqualTo(216).Within(0.0001));
+            host.ProcessFrame();
+            Assert.That(runtime(host, "phase").TransformDrawable.Rotation, Is.EqualTo(216).Within(0.0001), "Pause freezes both authorities.");
+
+            producer = producer.Reset(0, publication.PreparedScene.InitialEventState, GameplaySkinEventResetReason.Retry);
+            host.ProcessFrame();
+            Assert.That(runtime(host, "phase").TransformDrawable.Rotation, Is.EqualTo(37), "An unavailable epoch restores the authored preview.");
+            producer.SynchroniseTiming(1000, new GameplaySkinTimingStateSnapshot(0, 0, 120, false, 1, startTime: 0));
+            host.ProcessFrame();
+            Assert.That(runtime(host, "phase").TransformDrawable.Rotation, Is.EqualTo(36).Within(0.0001), "Skipping optional preparation uses the real gameplay clock.");
+            Assert.That(host.RuntimeFaults, Is.Empty);
+            producer.Dispose();
+        }
+
+        private static GameplaySkinLayoutPublication liveClockPublication(Texture texture, string clock, double initialRotation = 0, double period = 1)
         {
             LayoutFixture layout = createLayout();
             GameplaySkinResolvedMaterialTarget global = GameplaySkinResolvedMaterialTarget.Global;
@@ -179,6 +221,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
                  "stateMachines":[],"templates":[],"instances":[],"bindings":[]}
                 """);
             json["tracks"]![0]!["clock"] = clock;
+            json["tracks"]![0]!["keyframes"]![1]!["time"] = period;
             json["root"]!["children"]![0]!["properties"]!["rotation"] = initialRotation;
             var manifest = new GameplaySkinSceneManifest(Array.Empty<GameplaySkinSceneResource>());
             GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> decoded = GameplaySkinSceneCodec.DecodeScene(json.ToString(), manifest);

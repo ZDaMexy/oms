@@ -86,10 +86,10 @@ namespace osu.Game.Skinning.Gameplay
                 using JsonDocument json = JsonDocument.Parse(bytes, new JsonDocumentOptions { MaxDepth = 24 });
                 JsonElement root = json.RootElement;
                 bool held = root.TryGetProperty("heldLoop", out JsonElement heldValue);
-                if (held)
-                    fields(root, "contract", "width", "height", "fps", "loop", "trigger", "geometries", "nodes", "states", "frames", "heldLoop", "releaseFrame");
-                else
-                    fields(root, "contract", "width", "height", "fps", "loop", "trigger", "geometries", "nodes", "states", "frames");
+                bool hasLoopStart = root.TryGetProperty("loopStartFrame", out JsonElement loopStartValue);
+                fields(root, ["contract", "width", "height", "fps", "loop", "trigger", "geometries", "nodes", "states", "frames",
+                    .. held ? new[] { "heldLoop", "releaseFrame" } : Array.Empty<string>(),
+                    .. hasLoopStart ? new[] { "loopStartFrame" } : Array.Empty<string>()]);
                 if (text(root, "contract") != CONTRACT)
                     throw fail();
                 double width = number(root.GetProperty("width"), 1, 16384);
@@ -205,6 +205,13 @@ namespace osu.Game.Skinning.Gameplay
                 }
                 if (frames.Count < 2 || nodes.Count == 0 || frames[^1].Nodes.Count != 0)
                     throw fail();
+                int loopStartFrame = 0;
+                if (hasLoopStart)
+                {
+                    if (!loop || held)
+                        throw fail();
+                    loopStartFrame = integer(loopStartValue, 0, frames.Count - 2);
+                }
                 (int Start, int End)? heldLoop = null;
                 int? releaseFrame = null;
                 if (held)
@@ -217,7 +224,7 @@ namespace osu.Game.Skinning.Gameplay
                     heldLoop = (start, end);
                 }
                 return new GameplaySkinRecordedAnimationProgram(width, height, fps, loop, trigger, [.. geometries], [.. nodes], [.. states], [.. frames],
-                    heldLoop, releaseFrame, remainingTriangleApplications, cancellationToken);
+                    heldLoop, releaseFrame, remainingTriangleApplications, cancellationToken, loopStartFrame);
             }
             catch (JsonException) { throw fail(); }
         }

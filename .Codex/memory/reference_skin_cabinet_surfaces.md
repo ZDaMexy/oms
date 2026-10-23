@@ -4,6 +4,14 @@
 
 使用歌曲相对`timing.elapsed`的演出，起点应取`GameplayClockContainer.StartTime`；`GameplayStartTime`是可跳过前奏上界，长前奏时不是实际进入起点。显式准备演出读取Player父准备快照，不能接回停住的歌曲时钟，见[准备与首排](reference_gameplay_skin_event_envelope.md#准备时钟与首排提示)。无真实起点的预览不把elapsed=0当作开场首帧；有效→未知Reset恢复作者原属性并清除旧quad。独立time来源须单列脏状态，不让普通成绩事件多重算beat绑定。原路径证据取[接通记录](../../doc_md/other/LIGHTING_DETAILS_20261021.md)。
 
+拆持续组件时先把完整源图重绘到与旧baked背景RGBA完全相等，再从原层次排除组件重绘；不要擦除PNG或把33的组合规则直接套BPL。BPL高清框体的旧作者背景仍走safe-BGA开口组合，DP还含固定符号层；相似画布不代表相同合成闭包。源300帧在299回跳180表示重复180～299，不是让整个300帧重播，也不能把45度采样尾段当成整圈。持续组件须脱离1000ms入场overlay、沿准备到游玩的派生时间继续；新节点`properties.z`直接加到osu Depth，较低值在前，`+1`会被同级不透明背景盖住。源/codec通过而实机缺图时先核实际draw depth与遮挡，不能因开场JSON只筛准备clock就断言新clock没激活。当前公共合同取[作者参考](../../skin-authoring/docs/REFERENCE.md#记录动画)，实际验证取P1-A状态。
+
+原版参照须核最终日志而非只看CLI：XML已有非空选项会覆盖CLI，布尔值文本`0`仍可因非空被启用；已有服务器URL会使内置离线EA选项失效。游客Start选项需持续按住；副屏机台“設定”不等于CUSTOM。Spice截图新时间戳和不同JPEG只证明捕获样本不同，不能当作每个Present、游戏tick或判定原点；缩小倍数在D3D完整读回后应用，采图仍会扰动帧预算。PG相位或转盘速度对毫秒/BPM拟合冲突时，保留竞争解释，不据三组颜色或文件名发布统一周期。具体源证据与未匹配二进制边界取[参照复核](../../doc_md/other/OMNI_OPENINGS_20261021.md#2026-10-24持续组件与原版参照复核)。
+
+原生取景ENV的`OMS_AUTHOR_SKIN_OPTIONS`由夹具读为`Dictionary<string,string>`，布尔/数值也须用规范字符串；JSON字面量false或1.5会在进入Player前失败，不是产品选项拒绝。BMS旧取景的15/24px断言只覆盖默认00画布，不能拿它验证n11或其它CN尺寸；该分支的CUSTOM取景保留实际画面、冻结选项、计分/结算与错误检查，量化尺寸另沿选中源验证，不把跳过不适用断言写作尺寸通过。
+
+`Program.Bindings`还包含未实例化模板，原生面板断言不能遍历它再在只枚举`PreparedScene.Roots`的节点中盲目Single。先按已准备根树的声明ID限定绑定，再要求Graph/JUDGE两类均存在，最后保留运行时唯一性和实际alpha断言；不要按查找成功与否过滤目标，否则会掩盖真正缺失的root。非空Graph/LIFT美术混选可触发这个取景边界。
+
 新增C5输入展示事件不能自动成为C6回调：旧消费入口按payload family与enum数值通发，会让没有新声明的脚本额外收到轴运动。须先完成引擎状态/授权/时钟折叠，再在作者回调边界过滤内部展示事件，并用真实输入→C5累计、旧key down/up→原C6回调对照；仅不增加snapshot字段不足以证明脚本ABI不变。
 
 组合作者包的预算按最终选中贡献核对。隐藏其它框体的转盘仍会执行轨迹，宜在加载期选定当前框体；作者布局也只保留对应单双侧声明。原PNG可用短内容标识而不重绘，关键帧可缩短ID而不丢采样，但每个dot segment仍须字母开头，数字摘要与数组序号都要前缀。BPL catalog的`bpl-team`与原节点`bpl.team`是不同身份，不应改写原素材marker路径。

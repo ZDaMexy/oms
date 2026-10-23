@@ -62,6 +62,7 @@ namespace osu.Game.Skinning.Gameplay
             bool available = track.ClockSource switch
             {
                 GameplaySkinSceneBindingSource.TimingElapsed => timingState.StartTime.HasValue,
+                GameplaySkinSceneBindingSource.PresentationElapsed => timingState.Preparation.Available || timingState.StartTime.HasValue,
                 GameplaySkinSceneBindingSource.PreparationReadyElapsed => timingState.Preparation.Ready,
                 _ => timingState.Preparation.Available,
             };
@@ -89,7 +90,7 @@ namespace osu.Game.Skinning.Gameplay
         }
 
         private static bool requiresElapsedClockAvailability(GameplaySkinSceneBindingSource source) =>
-            source is GameplaySkinSceneBindingSource.TimingElapsed or GameplaySkinSceneBindingSource.PreparationElapsed
+            source is GameplaySkinSceneBindingSource.TimingElapsed or GameplaySkinSceneBindingSource.PresentationElapsed or GameplaySkinSceneBindingSource.PreparationElapsed
                 or GameplaySkinSceneBindingSource.PreparationRemaining or GameplaySkinSceneBindingSource.PreparationReadyElapsed;
     }
 }

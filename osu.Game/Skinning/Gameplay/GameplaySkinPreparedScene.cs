@@ -743,7 +743,7 @@ namespace osu.Game.Skinning.Gameplay
         internal static GameplaySkinSceneStateFamily StateFamilyFor(GameplaySkinSceneBindingSource source) => source switch
         {
             GameplaySkinSceneBindingSource.TimingTime => GameplaySkinSceneStateFamily.Time,
-            GameplaySkinSceneBindingSource.TimingElapsed => GameplaySkinSceneStateFamily.Time | GameplaySkinSceneStateFamily.Timing,
+            GameplaySkinSceneBindingSource.TimingElapsed or GameplaySkinSceneBindingSource.PresentationElapsed => GameplaySkinSceneStateFamily.Time | GameplaySkinSceneStateFamily.Timing,
             GameplaySkinSceneBindingSource.TimingStartAvailable => GameplaySkinSceneStateFamily.Timing,
             GameplaySkinSceneBindingSource.PreparationAvailable or GameplaySkinSceneBindingSource.PreparationActive
                 or GameplaySkinSceneBindingSource.PreparationElapsed or GameplaySkinSceneBindingSource.PreparationRemaining

@@ -36,6 +36,49 @@ namespace osu.Game.Tests.NonVisual.Skinning
         }
 
         [Test]
+        public void TestPersistentRecordedClockUsesPreparationWithoutStartThenGameplayAndHidesAfterRetry()
+        {
+            using Texture first = new DummyRenderer().CreateTexture(2, 2);
+            using Texture second = new DummyRenderer().CreateTexture(2, 2);
+            using GameplaySkinLayoutPublication publication = preparationPublication(first, second, persistentIntro: true);
+            using GameplaySkinEventStream stream = createStream(publication);
+            GameplaySkinEventProducer producer = stream.CreateProducer();
+            using var host = new GameplaySkinSceneRuntimeHost(publication, stream);
+            host.ProcessFrame();
+            Assert.That(preparationPiece(host, "prep.intro").Alpha, Is.Zero);
+
+            producer.SynchroniseTiming(0, new GameplaySkinTimingStateSnapshot(0, 0, 120, false, 1,
+                preparation: new GameplaySkinPreparationStateSnapshot(true, true, 250, 4750, false, 0)));
+            host.ProcessFrame();
+            Assert.That(preparationPiece(host, "prep.intro").Alpha, Is.EqualTo(1));
+            Assert.That(preparationPiece(host, "prep.intro").Texture, Is.SameAs(first));
+
+            var completed = new GameplaySkinPreparationStateSnapshot(true, false, 5750, 0, false, 0);
+            producer.SynchroniseTiming(0, new GameplaySkinTimingStateSnapshot(0, 0, 120, false, 1, preparation: completed));
+            host.ProcessFrame();
+            Assert.That(preparationPiece(host, "prep.intro").Texture, Is.SameAs(second));
+            var started = new GameplaySkinTimingStateSnapshot(0, 0, 120, false, 1, startTime: 0, preparation: completed);
+            producer.SynchroniseTiming(0, started);
+            host.ProcessFrame();
+            Assert.That(preparationPiece(host, "prep.intro").Texture, Is.SameAs(second));
+            producer.SynchroniseTiming(250, started);
+            host.ProcessFrame();
+            Assert.That(preparationPiece(host, "prep.intro").Texture, Is.SameAs(first));
+            host.ProcessFrame();
+            Assert.That(preparationPiece(host, "prep.intro").Texture, Is.SameAs(first));
+
+            producer = producer.Reset(0, publication.PreparedScene.InitialEventState, GameplaySkinEventResetReason.Retry);
+            host.ProcessFrame();
+            Assert.That(preparationPiece(host, "prep.intro").Alpha, Is.Zero);
+            producer.SynchroniseTiming(750, new GameplaySkinTimingStateSnapshot(0, 0, 120, false, 1, startTime: 0));
+            host.ProcessFrame();
+            Assert.That(preparationPiece(host, "prep.intro").Alpha, Is.EqualTo(1));
+            Assert.That(preparationPiece(host, "prep.intro").Texture, Is.SameAs(second));
+            Assert.That(host.RuntimeFaults, Is.Empty);
+            producer.Dispose();
+        }
+
+        [Test]
         public void TestPreparedPackageAnimationAdvancesDuringFrozenGameplayAndCancellationRestoresAuthorDefaults()
         {
             using Texture first = new DummyRenderer().CreateTexture(2, 2);
@@ -310,12 +353,14 @@ namespace osu.Game.Tests.NonVisual.Skinning
         }
 
         private static GameplaySkinLayoutPublication preparationPublication(Texture first, Texture second, double duration = 5000,
-                                                                            bool gateFirstCueDuringPreparation = false)
+                                                                            bool gateFirstCueDuringPreparation = false, bool persistentIntro = false)
         {
             DualLayoutFixture layout = createDualStageLayout();
             GameplaySkinSceneManifest manifest = preparationManifest();
             JObject sourceScene = preparationSceneSource();
             sourceScene["preparationDuration"] = duration;
+            if (persistentIntro)
+                sourceScene["root"]!["children"]![0]!["children"]![1]!["clock"] = "presentation.elapsed";
             IReadOnlyList<GameplaySkinLaneTopologyEntry> lanes = layout.Snapshot.Context.Topology.LanesInLogicalOrder;
             sourceScene["root"]!["children"]![1]!["target"] = new JObject { ["kind"] = "lane", ["id"] = lanes[0].Identity.Id.Value, ["index"] = 0 };
             sourceScene["root"]!["children"]![2]!["target"] = new JObject { ["kind"] = "lane", ["id"] = lanes[1].Identity.Id.Value, ["index"] = 1 };
@@ -343,13 +388,15 @@ namespace osu.Game.Tests.NonVisual.Skinning
                     ["source"] = "preparation.active",
                 });
             }
+            JObject intro = preparationClip(false);
+            intro["loop"] = persistentIntro;
             var files = new Dictionary<string, byte[]>(StringComparer.Ordinal)
             {
                 [GameplaySkinSceneContracts.MANIFEST_FILE_NAME] = GameplaySkinSceneCodec.EncodeManifestUtf8(manifest),
                 [GameplaySkinSceneContracts.SCENE_FILE_NAME] = Encoding.UTF8.GetBytes(sourceScene.ToString(Formatting.None)),
                 ["one.png"] = preparationPng(),
                 ["two.png"] = preparationPng(),
-                ["intro.json"] = Encoding.UTF8.GetBytes(preparationClip(false).ToString(Formatting.None)),
+                ["intro.json"] = Encoding.UTF8.GetBytes(intro.ToString(Formatting.None)),
                 ["ready.json"] = Encoding.UTF8.GetBytes(preparationClip(true).ToString(Formatting.None)),
             };
             GameplaySkinPreparedPackage package = GameplaySkinPreparedPackage.Prepare((path, _) => files.GetValueOrDefault(path),
@@ -359,7 +406,8 @@ namespace osu.Game.Tests.NonVisual.Skinning
             Assert.That(roundTrip.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid), string.Join(",", roundTrip.Diagnostics.Select(diagnostic => diagnostic.Code)));
             GameplaySkinSceneDocument recovered = roundTrip.Value!;
             Assert.That(recovered.PreparationDuration, Is.EqualTo(duration));
-            Assert.That(recovered.Root.Children[0].Children[1].ClockSource, Is.EqualTo(GameplaySkinSceneBindingSource.PreparationElapsed));
+            Assert.That(recovered.Root.Children[0].Children[1].ClockSource, Is.EqualTo(persistentIntro
+                ? GameplaySkinSceneBindingSource.PresentationElapsed : GameplaySkinSceneBindingSource.PreparationElapsed));
             Assert.That(recovered.Root.Children[0].Children[3].ClockSource, Is.EqualTo(GameplaySkinSceneBindingSource.PreparationReadyElapsed));
             files.Clear();
 

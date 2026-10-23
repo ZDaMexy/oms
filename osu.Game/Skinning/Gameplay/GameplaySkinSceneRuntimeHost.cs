@@ -2061,6 +2061,7 @@ namespace osu.Game.Skinning.Gameplay
                     bool available = source.ClockSource switch
                     {
                         GameplaySkinSceneBindingSource.TimingElapsed => timingState.StartTime.HasValue,
+                        GameplaySkinSceneBindingSource.PresentationElapsed => timingState.Preparation.Available || timingState.StartTime.HasValue,
                         GameplaySkinSceneBindingSource.PreparationElapsed or GameplaySkinSceneBindingSource.PreparationRemaining => timingState.Preparation.Available,
                         GameplaySkinSceneBindingSource.PreparationReadyElapsed => timingState.Preparation.Ready,
                         _ => true,

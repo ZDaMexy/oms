@@ -38,6 +38,27 @@ def turntables():
     return scene
 
 
+def frozen_turntables(frame="iidx33"):
+    scene = turntables()
+    motion.inject_turntables(scene)
+    for template in scene["templates"]:
+        template["root"]["children"] = [child for child in template["root"]["children"]
+                                         if child["id"].endswith("." + frame)]
+    retained = {item["id"] for item in motion._nodes(scene)}
+    scene["tracks"] = [track for track in scene["tracks"] if track["target"] in retained]
+
+    def freeze_names(value):
+        if isinstance(value, dict):
+            return {key: freeze_names(item) for key, item in value.items()}
+        if isinstance(value, list):
+            return [freeze_names(item) for item in value]
+        if isinstance(value, str):
+            return value.replace("t.t00.base", "tt.base")
+        return value
+
+    return freeze_names(scene)
+
+
 def source_map(frame="iidx33"):
     sd = frame in ("iidx27", "iidx28", "iidx29")
     scale = 1.5 if sd else 1
@@ -152,6 +173,104 @@ class LightingMotionTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             motion.inject_turntables(scene)
         self.assertEqual(before, scene)
+
+    def test_frozen_turntable_retime_changes_only_idle_duration_for_every_frame(self):
+        for frame in motion.FRAMES:
+            with self.subTest(frame=frame):
+                scene = frozen_turntables(frame)
+                before = copy.deepcopy(scene)
+                receipt = motion.retime_turntable_idle(scene)
+                self.assertEqual(frame, receipt["frame"])
+                self.assertEqual(4, receipt["knobs"])
+                self.assertEqual(4, receipt["retimedTracks"])
+                self.assertEqual([4000], receipt["previousPeriodsMs"])
+                self.assertEqual(1000, receipt["idlePeriodMs"])
+                self.assertEqual("timing.time", receipt["clock"])
+                self.assertIn("author approximation", receipt["calibration"])
+                expected = copy.deepcopy(before)
+                for track in expected["tracks"]:
+                    if track["id"].endswith(".motion.idle"):
+                        track["keyframes"][-1]["time"] = 1000
+                # This includes the original coordinates, resources, mirrored
+                # quads and separate1P/2P input-count/revolution channels.
+                self.assertEqual(expected, scene)
+        self.assertEqual(4000, motion.IDLE_PERIOD_MS)
+        historical = turntables()
+        motion.inject_turntables(historical)
+        self.assertEqual({4000}, {track["keyframes"][-1]["time"] for track in historical["tracks"]
+                                 if track["id"].endswith(".motion.idle")})
+
+    def test_frozen_turntable_retime_is_idempotent_and_accepts_already_retimed_motors(self):
+        scene = frozen_turntables()
+        next(track for track in scene["tracks"] if track["id"].endswith(".motion.idle"))["keyframes"][-1]["time"] = 1000
+        receipt = motion.retime_turntable_idle(scene, idle_period_ms=1000)
+        self.assertEqual(3, receipt["retimedTracks"])
+        self.assertEqual([1000, 4000], receipt["previousPeriodsMs"])
+        before = copy.deepcopy(scene)
+        receipt = motion.retime_turntable_idle(scene)
+        self.assertEqual(0, receipt["retimedTracks"])
+        self.assertEqual([1000], receipt["previousPeriodsMs"])
+        self.assertEqual(before, scene)
+
+    def test_frozen_turntable_retime_conflicts_reject_the_whole_contribution(self):
+        for conflict in ("period", "clock", "direction", "start", "start-value", "numeric-boolean", "loop", "easing",
+                         "target", "third-keyframe", "duplicate", "missing", "frame", "rotation-owner", "motor"):
+            with self.subTest(conflict=conflict):
+                scene = frozen_turntables()
+                idle = [track for track in scene["tracks"] if track["id"].endswith(".motion.idle")]
+                last = idle[-1]
+                if conflict == "period":
+                    last["keyframes"][-1]["time"] = 2000
+                elif conflict == "clock":
+                    last["clock"] = "timing.beat"
+                elif conflict == "direction":
+                    last["keyframes"][-1]["value"] = -360
+                elif conflict == "start":
+                    last["keyframes"][0]["time"] = 1
+                elif conflict == "start-value":
+                    last["keyframes"][0]["value"] = 1
+                elif conflict == "numeric-boolean":
+                    last["keyframes"][0]["value"] = False
+                elif conflict == "loop":
+                    last["loop"] = False
+                elif conflict == "easing":
+                    last["easing"] = "ease-in"
+                elif conflict == "target":
+                    last["target"] = last["target"].removesuffix(".motor") + ".counts"
+                elif conflict == "third-keyframe":
+                    last["keyframes"].append({"id": "extra", "time": 5000, "value": 360})
+                elif conflict == "duplicate":
+                    scene["tracks"].append(copy.deepcopy(last))
+                elif conflict == "missing":
+                    scene["tracks"].remove(last)
+                elif conflict == "frame":
+                    last["id"] = last["id"].replace("iidx33", "iidx32")
+                elif conflict == "rotation-owner":
+                    scene["tracks"].append(motion._track("another-rotation", last["target"], "rotation",
+                                                        "input.motion-counts-2", [(0, 0), (360, 360)]))
+                elif conflict == "motor":
+                    parent = next(item for item in motion._nodes(scene)
+                                  if any(child["id"] == last["target"] for child in item["children"]))
+                    parent["children"] = [child for child in parent["children"] if child["id"] != last["target"]]
+                before = copy.deepcopy(scene)
+                with self.assertRaises(ValueError):
+                    motion.retime_turntable_idle(scene)
+                self.assertEqual(before, scene)
+
+    def test_frozen_turntable_retime_rejects_other_scopes_and_unselected_periods(self):
+        complete = turntables()
+        motion.inject_turntables(complete)
+        before = copy.deepcopy(complete)
+        with self.assertRaises(ValueError):
+            motion.retime_turntable_idle(complete)
+        self.assertEqual(before, complete)
+        for period in (4000, 2000, 0, True, float("nan")):
+            with self.subTest(period=period):
+                scene = frozen_turntables()
+                before = copy.deepcopy(scene)
+                with self.assertRaises(ValueError):
+                    motion.retime_turntable_idle(scene, idle_period_ms=period)
+                self.assertEqual(before, scene)
 
     def test_gauge_front_follows_original_clip_and_beat_is_beneath_notes_for_every_layout(self):
         for layout in motion.LAYOUTS:

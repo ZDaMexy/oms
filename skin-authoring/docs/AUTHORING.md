@@ -61,6 +61,8 @@ BMS `[Bms]` 的 `Keymode` 支持 `5K`、`7K`、`9K`、`9K_PMS`、`14K`。9 键�
 
 入场演出可把frame或tween的 `clock` 设为 `timing.elapsed`，从真实Gameplay Start开始；无Start时保留作者原属性，Reset回无Start时恢复它。常驻动画可继续用默认游玩毫秒或显式 `timing.time`；节拍闪动用 `timing.beat` 或 `timing.beat-phase`，关键帧单位随来源改为拍或拍内比例。clock与trigger互斥，原先省略clock的作品保持原行为。底光和光柱应放在 `playfield.baseplate` 或 `playfield.lane-surface` 的下层表面，让音符保持在上方。
 
+需要从准备连续播放到游玩的装饰可用 `presentation.elapsed`；原记录有一次性开头和重复尾段时可用 `loopStartFrame`。两者沿已有准备/游玩状态，完整可用性、暂停/重置及终止空帧规则见[字段参考](REFERENCE.md#记录动画)，不必为装饰自建时钟或脚本事件。
+
 首次音符预告使用 `arrival.available` 和 `arrival.visible` 控制两层可见性，再用非循环 `arrival.remaining` 轨迹定义提前多久出现与何时消失。首尾关键帧都设为透明，空轨没有entry，便不会把无音符的留白槽误当成到来预告。Lane、Stage/Group、Global分别取该轨、该组或全谱经Mod后的真实首音，暂停、跳转和重试跟随游戏状态；图片位置和提前时间由作者决定，不由素材名推断。
 
 运动反馈分开读取 `input.motion-counts-1/2` 和 `input.motion-revolutions-1/2`，并用 `input.motion-available-1/2` 判断是否可用。编号是逻辑组，单人切到右侧仍用1，双舞台第二组用2。counts是相对移动量，revolutions是圆形轴或摇杆模拟转数；可在不同父子容器用各自clock叠加视觉旋转。当前投影只来自BMS实际接收的方向轴，不能为数字按键、Auto、mania或缺少方向信息的旧回放伪造逆转。常转速度与视觉比例由作品决定，输入灵敏度和判定仍归游戏。

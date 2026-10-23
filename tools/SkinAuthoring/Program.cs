@@ -474,6 +474,13 @@ namespace SkinAuthoring
                 {
                     throw new InvalidDataException($"{catalogPath}: {label} ({ruleset}/{keymode}): {error.Message}", error);
                 }
+                catch (IndexOutOfRangeException error)
+                {
+                    Console.Error.WriteLine($"Recorded animation preparation failed for {label} ({ruleset}/{keymode}).");
+                    foreach (object key in error.Data.Keys)
+                        Console.Error.WriteLine($"{key}: {error.Data[key]}");
+                    throw;
+                }
             }
         }
 

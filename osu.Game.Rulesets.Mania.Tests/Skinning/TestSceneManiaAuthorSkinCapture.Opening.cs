@@ -96,9 +96,13 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Assert.That(cues, Is.Not.Empty);
                 foreach (GameplaySkinSceneRuntimeNode cue in cues)
                     Assert.That(openingAlpha(cue.ContentDrawable), Is.Zero, "A late first note must not keep its cue after GET READY ends.");
-                foreach (GameplaySkinPreparedSceneBinding binding in runtime.PreparedScene.Program.Bindings.Where(binding =>
-                             binding.Source == GameplaySkinSceneBindingSource.Option
-                             && binding.OptionId is "graph-visible" or "judge-panel-visible"))
+                var rootNodeIds = runtime.PreparedScene.Roots.SelectMany(openingTree).Select(node => node.Source.Id).ToHashSet(StringComparer.Ordinal);
+                GameplaySkinPreparedSceneBinding[] panelBindings = [.. runtime.PreparedScene.Program.Bindings.Where(binding =>
+                    rootNodeIds.Contains(binding.TargetNodeId) && binding.Source == GameplaySkinSceneBindingSource.Option
+                    && binding.OptionId is "graph-visible" or "judge-panel-visible")];
+                Assert.That(panelBindings.Select(binding => binding.OptionId).Distinct(),
+                    Is.EquivalentTo(new[] { "graph-visible", "judge-panel-visible" }));
+                foreach (GameplaySkinPreparedSceneBinding binding in panelBindings)
                 {
                     bool enabled = runtime.Publication.Snapshot.Context.OptionValues.Values[binding.OptionId!].BooleanValue;
                     GameplaySkinSceneRuntimeNode panel = openingNodes().Single(node => node.PreparedNode.Source.Id == binding.TargetNodeId);

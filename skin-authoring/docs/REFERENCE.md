@@ -263,9 +263,11 @@ BMS可额外显式Provide Stage `playfield.lift.fill` 与 `playfield.lift.decora
 
 复杂逐帧图形可使用数据记录文件，不需要把源游戏的脚本或运行时加入OMS。清单声明 `animations:[{"id":"clip.example","path":"clips/example.json.br","resources":["texture.example"]}]`；节点使用 `type:"recorded-animation"` 和 `animation:"clip.example"`，不再指定resource。文件可为JSON或Brotli压缩JSON，路径必须在包内闭包中。
 
-记录节点还可显式写数值 `clock`，例如 `"clock":"preparation.elapsed"` 或 `"clock":"preparation.ready-elapsed"`，按该来源的毫秒采样原记录；不写时保持原trigger语义。此字段只允许在recorded-animation节点，布尔或文字来源不接受。准备/READY不可用时隐藏所有录制片段；终止空帧保持为空，不循环或拉长。它不产生按键、判定或脚本事件。
+记录节点还可显式写数值 `clock`，例如 `"clock":"preparation.elapsed"` 或 `"clock":"preparation.ready-elapsed"`，按该来源的毫秒采样原记录；不写时保持原trigger语义。此字段只允许在recorded-animation节点，布尔或文字来源不接受。所选clock不可用时隐藏片段；准备/READY来源分别沿对应准备状态，`presentation.elapsed`则在准备或真实Start任一可用时采样。终止空帧不参与循环，非循环片段到达该边界后隐藏，不延长末帧。它不产生按键、判定或脚本事件。
 
 合同为 `oms-gameplay-recorded-animation.v1`。必填width/height/fps/loop/trigger以及geometries/nodes/states/frames：geometry保留XYZUV顶点、三角形索引和纹理ID；纯色图形使用resource:null及colour RGBA。nodes使用指向前序父节点的parent、geometry索引或-1、normal/additive混合；state保留12个矩阵数、三维origin、affine/perspective投影、multiply/add/HSL颜色以及可空mask/20系数colourMatrix。frame按父先子后顺序给nodes的[node,state]对及可空camera[cx,cy,cz,focal]。最后必须有一个没有节点的终止帧；时长按其前面的实际源帧计算，循环不重复终止帧。
+
+循环片段可在记录文件中指定 `loopStartFrame`，表示开头播放一次后，重复从该帧到终止空帧之前的区间。例如301帧（第300帧为空）与 `loopStartFrame:180` 会先播放0～299，再重复180～299。此值只接受 `loop:true` 且无 `heldLoop` 的片段，范围为0～倒数第二帧；省略时为0，保留整段循环。它不截断或延长源帧，也不增加逐帧资源或运行时脚本。
 
 trigger限gameplay.attach/gameplay.complete/judgement.hit/input.key.down。按键光柱可另外声明heldLoop:[start,end]与releaseFrame，分别保留按下的开头、按住的循环和放开的尾段；它们只用于input.key.down且loop=false。镜像、剪切、透视裁切、真实祖先多边形mask和源三角形由同一游玩时钟采样。滤镜处理顺序属于此数据合同的渲染定义，不能仅凭成功导出声称与某外部游戏逐像素一致。
 
@@ -390,6 +392,8 @@ tween只改变数值属性；tween配step可逐帧保持数值，在关键帧的
 
 `timing.elapsed` 从真实Gameplay Start起计。尚无Start的设置预览或尚未开始的宿主不会采样该轨迹，保留作者原属性；从已开始状态Reset到无Start时恢复该属性，再等待真实Start。普通 `timing.time` 仍可在前奏为负。自选clock不携带触发器起点，也不扩大记录动画文件的trigger语法；完整结尾等待仍须使用下文的 `gameplay.complete` 轨迹。
 
+`presentation.elapsed` 用于需要从准备动画连续播放到游玩的装饰，数值为本次准备已过毫秒加上 `timing.elapsed`。准备自然完成后保留其已过时间，游玩开始后继续累加；暂停沿现有游玩时钟停止，跳过准备则只剩实际游玩时间。没有准备提供者且尚无真实Start时不可采样；Reset撤回这两种来源后恢复普通轨迹原属性并隐藏记录节点。它只派生已有的准备与游玩时间，不创建新的计时器、事件或玩法状态。
+
 ### 开局准备阶段
 
 场景顶层声明正的`preparationDuration`后，Player在原歌曲计时开始前播放一次准备阶段，使用父Player的真实更新时间；歌曲、输入判定和回放时钟保持原位置。BMS以此替代原开局等待，不叠加两次等待；其它玩法只有皮肤显式声明才增加准备。暂停冻结准备；BMS按住原调速键会延长剩余等待，已完成美术不重播，松手沿原等待合同处理。最后1500毫秒提供READY；较短准备从相应片段中途采样。自动跳过前奏的快速重试保持原快捷路径，BMS保留原有强制等待/按住调速合同。
@@ -478,6 +482,7 @@ bindings每项必填id/target/property/source，例如：
 | timing.beat/timing.measure/timing.bpm | 拍、小节索引、BPM | 数值或text |
 | timing.time | 当前权威游玩时间，毫秒，可为负 | 数值或text |
 | timing.elapsed | 从真实Gameplay Start起的非负游玩毫秒；尚无Start时数值绑定为0 | 数值或text |
+| presentation.elapsed | 本次准备已过毫秒加上timing.elapsed；准备和Start均不可用时0 | 数值或text |
 | timing.start-available | 是否已经取得真实Gameplay Start起点 | visible或普通text |
 | preparation.available / preparation.active / preparation.ready | 有准备进度 / 正在准备 / 正在最后1500ms且未按住调速 | visible或普通text |
 | preparation.elapsed / preparation.remaining / preparation.ready-elapsed | 准备已过 / 剩余 / READY已过毫秒；不可用时0 | 数值或text |

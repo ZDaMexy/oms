@@ -23,6 +23,134 @@ namespace osu.Game.Tests.NonVisual.Skinning
     public sealed class GameplaySkinRecordedAnimationTest
     {
         [Test]
+        public void TestLoopStartPlaysThePrefixOnceThenRepeatsOnlyTheDeclaredTail()
+        {
+            JObject json = clip();
+            json["fps"] = 100;
+            json["loop"] = true;
+            json["loopStartFrame"] = 3;
+            json["frames"] = new JArray(Enumerable.Range(0, 8).Select(_ => frame(assignments((0, 0)))).Append(frame(new JArray())));
+            GameplaySkinRecordedAnimationProgram program = decode(json);
+            Assert.Multiple(() =>
+            {
+                Assert.That(program.LoopStartFrame, Is.EqualTo(3));
+                Assert.That(program.Duration, Is.EqualTo(80));
+                Assert.That(program.FrameAt(0), Is.Zero);
+                Assert.That(program.FrameAt(29.999), Is.EqualTo(2));
+                Assert.That(program.FrameAt(30), Is.EqualTo(3));
+                Assert.That(program.FrameAt(79.999), Is.EqualTo(7));
+                Assert.That(program.FrameAt(80), Is.EqualTo(3));
+                Assert.That(program.FrameAt(120), Is.EqualTo(7));
+                Assert.That(program.FrameAt(130), Is.EqualTo(3));
+                Assert.That(program.FrameAt(10000), Is.EqualTo(5));
+                Assert.That(program.FrameAt(-1), Is.EqualTo(-1));
+            });
+        }
+
+        [TestCase(-1)]
+        [TestCase(1)]
+        [TestCase(0.5)]
+        public void TestLoopStartCannotReferenceTheTerminalFrameOrAnInvalidIndex(double start)
+        {
+            JObject json = clip();
+            json["loop"] = true;
+            json["loopStartFrame"] = start;
+            Assert.Throws<GameplaySkinScenePreparationException>(() => decode(json));
+        }
+
+        [TestCase(60)]
+        [TestCase(120)]
+        public void TestFractionalMillisecondTerminalBoundaryDoesNotReplayTheLastFrame(double fps)
+        {
+            JObject json = clip();
+            json["fps"] = fps;
+            json["frames"] = new JArray(Enumerable.Range(0, 31).Select(_ => frame(assignments((0, 0)))).Append(frame(new JArray())));
+            GameplaySkinRecordedAnimationProgram program = decode(json);
+            Assert.Multiple(() =>
+            {
+                Assert.That(program.FrameAt(Math.BitDecrement(program.Duration)), Is.EqualTo(30));
+                Assert.That(program.FrameAt(program.Duration), Is.EqualTo(-1));
+                Assert.That(program.FrameAt(Math.BitIncrement(program.Duration)), Is.EqualTo(-1));
+            });
+        }
+
+        [TestCase(0)]
+        [TestCase(3)]
+        [TestCase(30)]
+        public void TestFractionalMillisecondLoopBoundariesRetainOnlyTheDeclaredTail(int start)
+        {
+            JObject json = clip();
+            json["fps"] = 60;
+            json["loop"] = true;
+            json["loopStartFrame"] = start;
+            json["frames"] = new JArray(Enumerable.Range(0, 31).Select(_ => frame(assignments((0, 0)))).Append(frame(new JArray())));
+            GameplaySkinRecordedAnimationProgram program = decode(json);
+            double period = (31 - start) * 1000d / 60;
+            foreach (int cycle in new[] { 0, 1, 2, 3, 7, 1000 })
+            {
+                double boundary = program.Duration + cycle * period;
+                Assert.Multiple(() =>
+                {
+                    Assert.That(program.FrameAt(Math.BitDecrement(boundary)), Is.EqualTo(30), $"Before cycle {cycle}");
+                    Assert.That(program.FrameAt(boundary), Is.EqualTo(start), $"At cycle {cycle}");
+                    Assert.That(program.FrameAt(Math.BitIncrement(boundary)), Is.EqualTo(start), $"After cycle {cycle}");
+                });
+            }
+            Assert.That(program.FrameAt(double.MaxValue), Is.InRange(start, 30));
+        }
+
+        [TestCase(0, 5200, 2)]
+        [TestCase(3, 2400, 4)]
+        public void TestInternalLoopFrameBoundariesUseAbsoluteTime(int start, double boundary, int expected)
+        {
+            JObject json = clip();
+            json["fps"] = 60;
+            json["loop"] = true;
+            json["loopStartFrame"] = start;
+            json["frames"] = new JArray(Enumerable.Range(0, 31).Select(_ => frame(assignments((0, 0)))).Append(frame(new JArray())));
+            GameplaySkinRecordedAnimationProgram program = decode(json);
+            Assert.Multiple(() =>
+            {
+                Assert.That(program.FrameAt(Math.BitDecrement(boundary)), Is.EqualTo(expected - 1));
+                Assert.That(program.FrameAt(boundary), Is.EqualTo(expected));
+                Assert.That(program.FrameAt(Math.BitIncrement(boundary)), Is.EqualTo(expected));
+            });
+        }
+
+        [Test]
+        public void TestLoopStartRequiresAContinuousLoopAndDoesNotReplaceInputHeldLoops()
+        {
+            JObject json = clip();
+            json["loopStartFrame"] = 0;
+            Assert.Throws<GameplaySkinScenePreparationException>(() => decode(json));
+            json["trigger"] = "input.key.down";
+            json["loop"] = true;
+            json["heldLoop"] = new JArray(0, 1);
+            json["releaseFrame"] = 0;
+            Assert.Throws<GameplaySkinScenePreparationException>(() => decode(json));
+        }
+
+        [Test]
+        public void TestRepeatedColourCompositionKeepsSharedSourceStatesAndEachPreparedInstanceComplete()
+        {
+            JObject json = clip();
+            json["nodes"] = new JArray(node(-1, -1), node(0, 0), node(0, 0));
+            JObject colour = state();
+            colour["multiply"] = new JArray(0.2, 0.4, 0.6, 19d / 255);
+            json["states"] = new JArray(state(), colour);
+            json["frames"]![0]!["nodes"] = assignments((0, 0), (1, 1), (2, 1));
+            byte[] encoded = Encoding.UTF8.GetBytes(json.ToString(Formatting.None));
+            for (int repeat = 0; repeat < 1000; repeat++)
+            {
+                GameplaySkinRecordedAnimationProgram program = GameplaySkinRecordedAnimationCodec.Decode(encoded, definition());
+                GameplaySkinRecordedPreparedFrame prepared = program.GetPreparedFrame(0);
+                Assert.That(prepared.PieceCount, Is.EqualTo(2));
+                for (int index = 0; index < prepared.PieceCount; index++)
+                    Assert.That(prepared.GetPiece(index).Multiply, Is.EqualTo(new Vector4(0.2f, 0.4f, 0.6f, 19f / 255)));
+            }
+        }
+
+        [Test]
         public void TestPreparedNativePoolBudgetIncludesTrianglesCreatedByCanvasClipping()
         {
             JObject json = clip();
