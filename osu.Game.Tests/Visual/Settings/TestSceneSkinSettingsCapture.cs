@@ -1,9 +1,11 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using NUnit.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Configuration;
@@ -110,6 +112,32 @@ namespace osu.Game.Tests.Visual.Settings
             AddWaitStep("visible gallery artwork loads", 15);
             AddStep("capture artwork browser", () => screenshot = capture("settings-artwork-browser.png"));
             AddUntilStep("artwork browser saved", () => screenshot.IsCompletedSuccessfully);
+            AddStep("close explosion gallery", () => artwork("explosion").SelectionButton.Action());
+            var previewMetrics = new List<object>();
+            foreach (string module in new[] { "frame", "lane-cover", "graph-area", "lift-art", "full-combo" })
+            {
+                AddStep("show " + module + " thumbnail", () => Game.Settings.SectionsContainer.ScrollTo(artwork(module)));
+                AddWaitStep(module + " thumbnail settles", 10);
+                AddStep("open " + module + " gallery", () => artwork(module).SelectionButton.Action());
+                AddUntilStep(module + " creates one bounded page", () => artwork(module).IsExpanded
+                    && artwork(module).ChildrenOfType<SkinOptionChoiceSettings.ChoiceCard>().Count() == 12);
+                AddWaitStep(module + " visible images upload", 10);
+                AddStep("capture " + module, () =>
+                {
+                    previewMetrics.Add(new
+                    {
+                        option = module,
+                        pageCards = artwork(module).ChildrenOfType<SkinOptionChoiceSettings.ChoiceCard>().Count(),
+                        loadedThumbnailDrawables = section.ChildrenOfType<SkinOptionPreviewImage>().Count(image => image.IsLoaded),
+                    });
+                    screenshot = capture("settings-" + module + "-artwork-browser.png");
+                });
+                AddUntilStep(module + " gallery saved", () => screenshot.IsCompletedSuccessfully);
+                AddStep("close " + module + " gallery", () => artwork(module).SelectionButton.Action());
+                AddUntilStep(module + " cards detached", () => !artwork(module).ChildrenOfType<SkinOptionChoiceSettings.ChoiceCard>().Any());
+            }
+            AddStep("save bounded thumbnail evidence", () => File.WriteAllText(Path.Combine(output!, "thumbnail-pages.json"),
+                JsonConvert.SerializeObject(previewMetrics, Formatting.Indented)));
             AddStep("show mania sixteen-key scope", () =>
             {
                 section.ScopeSelector.Current.Value = new SkinSelectionScope("mania", 16);

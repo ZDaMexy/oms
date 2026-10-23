@@ -317,7 +317,11 @@ namespace osu.Game.Screens.Select
             searchTextBox.Current.BindValueChanged(_ => updateCriteria());
             difficultyRangeSlider.LowerBound.BindValueChanged(_ => updateCriteria());
             difficultyRangeSlider.UpperBound.BindValueChanged(_ => updateCriteria());
-            convertedBeatmapsDisplay.BindValueChanged(_ => updateCriteria());
+            convertedBeatmapsDisplay.BindValueChanged(_ =>
+            {
+                if (!updateAvailableGroupingModes())
+                    updateCriteria();
+            });
 
             foreach (var row in bmsCompositionFilter.Rows)
             {
@@ -724,7 +728,11 @@ namespace osu.Game.Screens.Select
 
         private bool updateAvailableGroupingModes()
         {
-            var availableModes = ruleset.Value.CreateInstance().GetAvailableSongSelectGroupModes().ToArray();
+            // Mania difficulty tables contain BMS converts only, so hide the grouping while converts are hidden.
+            bool hideConvertedDifficultyTables = ruleset.Value.ShortName == mania_ruleset_short_name
+                                                 && convertedBeatmapsDisplay.Value == ConvertedBeatmapsDisplay.Hidden;
+            var availableModes = ruleset.Value.CreateInstance().GetAvailableSongSelectGroupModes()
+                .Where(mode => mode != GroupMode.DifficultyTable || !hideConvertedDifficultyTables).ToArray();
             groupDropdown.Items = availableModes;
 
             if (availableModes.Contains(groupDropdown.Current.Value))

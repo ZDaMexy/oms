@@ -31,7 +31,7 @@
 - [canonical 构建、安装与用户数据保护](reference_skin_canonical_installation.md) — 静线唯一保底、原件/工作副本、退役迁移与缺行修复；便携/缓存隔离、冷启动线程、Ready早于载入所有权交还。
 - [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 随包手册与示例闭合、作者边界、用户决定与诊断入口。
 - [Skin V1 价值与工作预算](project_oms_skin_product_progress.md) — 区分效果能力、成品与创作便利度；星轨实际体验否定、有限反馈与本轮停止边界，当前状态读 P1-A。
-- [模式/键数皮肤选择](reference_skin_mode_selection.md) — 独立设置目标、模式遗漏覆盖与作者默认、逐层继承、配置冻结及选曲确认删除/隐藏音效收尾。
+- [模式/键数皮肤选择](reference_skin_mode_selection.md) — 独立设置目标、模式遗漏覆盖与作者默认、逐层继承、配置冻结、图库旧页释放及选曲确认删除/隐藏音效收尾。
 
 ## 构建、存储与产品面参考
 
@@ -39,7 +39,7 @@
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱库路径身份与历史保全](reference_filesystem_library_identity.md) — 同内容不同目录、失效与物删分离、多文件改名、重复素材枚举与增量查询放大器。
 - [谱面构成过滤](reference_bms_composition_filter.md) — 单轨上限、共享额度、零宽入口及无解条件。
-- [难度表](reference_bms_difficulty_table.md)
+- [难度表](reference_bms_difficulty_table.md) — 共享字段保全、通知与刷新，以及mania隐藏转谱时的分组清除。
 - [选歌元数据显示](reference_bms_songselect_metadata_display.md) — 署名共用 resolver 与标题/难度名局部清理的边界。
 - [在资源管理器中显示](reference_bms_songselect_reveal_in_explorer.md) — 外部路径 containment 与便携 NativeStorage 宿主绑定。
 - [转谱星数持久化](reference_converted_star_persistence.md) — 版本复用、后台资源累积、Debug 逐谱数据库读取与原生作者等级。

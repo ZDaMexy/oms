@@ -29,6 +29,7 @@ metadata:
 - SettingsSection的旧独立caller可能没有应用级preferences/ruleset服务；可选边界保持空块，不能让无关删除/脚本/刷新入口因新块加载失败。正常GameHost缓存唯一服务，真实UI验证走该scope。
 - 独立设置卡片需经manager跟踪的只读准备/lease，不能为了展示其它模式就写current；Realm列表刷新不得取消尚未保存的用户目标。dropdown同值不触发变更，固定继承值需显式按钮。整行缩略图、管理容器和折叠图库控件需参与过滤，否则搜索会留下孤立图块或不可见命中。
 - RoundedButton基类有40px绝对Height；改RelativeSizeAxes=Both时必须同时Size=Vector2.One，否则实际按钮高度变成40倍，headless行为测试也可能通过。视觉回归核实际DrawHeight，并取真实桌面图；图卡搜索的空字符串初值可为null，边界统一为空。
+- `GridContainer.Content`换页时为复用而移除旧子项、不替调用方Dispose。一次性图库须先从实际cell父容器Remove并释放旧卡；尚未挂载的卡直接Dispose，再发布新页。只核新页数量会漏掉遗留图片，应保留旧卡引用断言换页和收起后已Dispose；当前合同取[P1-A约束](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#皮肤配置项与显式舞台)。
 - 真实PlayerLoader原先先登记initial Live屏障，再加载Player；把最终键数换肤塞进Player.load会被自身屏障拒绝。当前在唯一转谱/Mod之后准备scope，再登记同一pending ownership持有的屏障，注册后核revision ID；窄窗被抢先只重准备皮肤，不重复转换。只测manager会漏掉这个生产顺序，需真实进曲/重试/退出。
 - current删除的保护投影不是玩家选择。OsuGame原全局镜像订阅会把它写成当前键数静线覆盖，阻断删除→模式默认；较晚C1的SourceChanged deferral不包真实C2投影。共同fallback/rollback helper用独立provenance供订阅抑制，只保留全局兼容投影；真实OsuGame的Realm/managed删除与失败回滚见[本轮记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-19按键数皮肤设置与素材预览)。
 - 同current的scope快速成功也必须取消旧候选并废弃generation，否则迟到managed回调会改回旧scope。CurrentSkin投影标记在SourceChanged前已清零，需另核pending scope的commit claim，重入只能拒绝内层，不能finish已提交外层。隔离fixture应明确清空稀疏配置，避免前例保存值冒充重入写入。

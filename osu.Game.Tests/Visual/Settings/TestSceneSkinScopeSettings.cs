@@ -47,10 +47,10 @@ namespace osu.Game.Tests.Visual.Settings
         private Live<SkinInfo> first = null!;
         private Live<SkinInfo> second = null!;
 
-        private void arrangeSkins()
+        private void arrangeSkins(int artworkChoiceCount = 2)
         {
             Task<Live<SkinInfo>?> importing = null!;
-            AddStep("import first ordinary authored skin", () => importing = skins.Import(new ImportTask(archive("Scope Alpha"), "alpha.osk")));
+            AddStep("import first ordinary authored skin", () => importing = skins.Import(new ImportTask(archive("Scope Alpha", artworkChoiceCount), "alpha.osk")));
             AddUntilStep("first skin imported", () => importing.IsCompleted);
             AddStep("import second ordinary authored skin", () =>
             {
@@ -308,6 +308,38 @@ namespace osu.Game.Tests.Visual.Settings
             SkinOptionChoiceSettings notes() => section.ChildrenOfType<SkinOptionChoiceSettings>().Single(control => control.OptionId == "notes");
         }
 
+        [Test]
+        public void TestLargeArtworkGalleryOnlyBuildsTheCurrentPageAndReleasesPreviousCards()
+        {
+            arrangeSkins(26);
+            SkinOptionChoiceSettings.ChoiceCard[] firstPage = null!;
+            SkinOptionChoiceSettings.ChoiceCard[] lastPage = null!;
+            AddStep("scroll large artwork selector into view", () => Game.Settings.SectionsContainer.ScrollTo(notes()));
+            AddUntilStep("artwork selector is visible", () => !isMaskedAway(notes().SelectionButton));
+            AddAssert("collapsed gallery has no artwork cards", () => !cards().Any());
+            AddStep("open large gallery", () => notes().SelectionButton.Action());
+            AddUntilStep("only twelve cards are created", () => notes().IsExpanded && cards().Count() == 12);
+            AddStep("advance one page", () =>
+            {
+                firstPage = cards().ToArray();
+                next().Action();
+            });
+            AddUntilStep("old cards released and next twelve created", () => firstPage.All(isDisposed) && cards().Count() == 12);
+            AddStep("advance to last page", () => next().Action());
+            AddUntilStep("only last two cards remain", () => cards().Count() == 2);
+            AddAssert("paging never saves a selection", () => notes().Current.Value == "normal" && options.GetLocalOverrides(first.ID, "bms", 7).Count == 0);
+            AddStep("collapse gallery", () =>
+            {
+                lastPage = cards().ToArray();
+                notes().SelectionButton.Action();
+            });
+            AddUntilStep("all page cards released", () => !notes().IsExpanded && !cards().Any() && lastPage.All(isDisposed));
+
+            SkinOptionChoiceSettings notes() => section.ChildrenOfType<SkinOptionChoiceSettings>().Single(control => control.OptionId == "notes");
+            IEnumerable<SkinOptionChoiceSettings.ChoiceCard> cards() => notes().ChildrenOfType<SkinOptionChoiceSettings.ChoiceCard>();
+            RoundedButton next() => notes().ChildrenOfType<RoundedButton>().Single(button => button.Text.ToString() == "下一页");
+        }
+
         [TestCase(false, false)]
         [TestCase(true, false)]
         [TestCase(true, true)]
@@ -383,7 +415,10 @@ namespace osu.Game.Tests.Visual.Settings
         private static bool isMaskedAway(Drawable drawable)
             => (bool)typeof(Drawable).GetProperty("IsMaskedAway", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(drawable)!;
 
-        private static MemoryStream archive(string name)
+        private static bool isDisposed(Drawable drawable)
+            => (bool)typeof(Drawable).GetProperty("IsDisposed", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(drawable)!;
+
+        private static MemoryStream archive(string name, int artworkChoiceCount = 2)
         {
             var output = new MemoryStream();
             using (var zip = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
@@ -397,7 +432,7 @@ namespace osu.Game.Tests.Visual.Settings
                     ["eventContract"] = "oms-gameplay-skin-event.v1",
                     ["resources"] = new JArray(),
                     ["options"] = new JArray(
-                        new JObject { ["id"] = "notes", ["label"] = "音符", ["type"] = "choice", ["default"] = "normal", ["choices"] = choices() },
+                        new JObject { ["id"] = "notes", ["label"] = "音符", ["type"] = "choice", ["default"] = "normal", ["choices"] = choices(count: artworkChoiceCount) },
                         new JObject { ["id"] = "dual", ["label"] = "双侧专用", ["type"] = "choice", ["default"] = "normal", ["rulesets"] = new JArray("mania"), ["keymodes"] = new JArray("7k-7k"), ["choices"] = choices(false) }),
                 };
                 write(GameplaySkinSceneContracts.MANIFEST_FILE_NAME, Encoding.UTF8.GetBytes(manifest.ToString()));
@@ -412,13 +447,15 @@ namespace osu.Game.Tests.Visual.Settings
                     write("previews/" + value + ".png", pixels.ToArray());
                 }
                 void write(string path, byte[] bytes) { using Stream stream = zip.CreateEntry(path).Open(); stream.Write(bytes); }
-                static JArray choices(bool previews = true)
+                static JArray choices(bool previews = true, int count = 2)
                 {
                     var result = new JArray(new JObject { ["value"] = "normal", ["label"] = "原版" },
                         new JObject { ["value"] = "alternate", ["label"] = "另一套" });
+                    for (int index = 2; index < count; index++)
+                        result.Add(new JObject { ["value"] = $"sample.n{index:D3}", ["label"] = $"样式 {index:D3}" });
                     if (previews)
                         foreach (JObject choice in result)
-                            choice["preview"] = "previews/" + choice["value"]!.Value<string>() + ".png";
+                            choice["preview"] = choice["value"]!.Value<string>() == "alternate" ? "previews/alternate.png" : "previews/normal.png";
                     return result;
                 }
             }

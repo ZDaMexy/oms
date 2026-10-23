@@ -1,7 +1,6 @@
 """Make small, honest option illustrations from each contribution's own art.
 
-These PNGs illustrate a design; they are not screenshots or extra gameplay
-textures. Frame and Full Combo deliberately retain their text-only choices.
+These PNGs illustrate a design; they are not extra gameplay textures.
 No original texture, recorded animation or material declaration is modified.
 """
 
@@ -14,9 +13,10 @@ import json
 from pathlib import Path
 import re
 
-from PIL import Image, ImageChops, ImageStat
+from PIL import Image, ImageChops, ImageDraw, ImageStat
 
-MODULES = frozenset(("notes", "charge-notes", "judgement", "explosion", "key-beam", "turntable"))
+MODULES = frozenset(("frame", "notes", "charge-notes", "judgement", "explosion", "key-beam", "turntable",
+                     "lane-cover", "graph-area", "lift-art", "full-combo"))
 SIZE = (256, 160)
 MAXIMUM_IMAGE_BYTES = 256 * 1024
 MAXIMUM_TOTAL_BYTES = 32 * 1024 * 1024
@@ -25,6 +25,10 @@ MAXIMUM_TOTAL_BYTES = 32 * 1024 * 1024
 def preview_path(module: str, choice: str) -> str:
     if not all(re.fullmatch(r"[a-z0-9][a-z0-9-]*", value) for value in (module, choice)):
         raise ValueError("A preview identity must be a simple author identifier")
+    # These three catalogs select the same original cover art. Sharing the PNG
+    # also shares the captured byte/header object, rather than tripling its cost.
+    if module in ("graph-area", "lift-art") and choice != "blank":
+        module = "lane-cover"
     return f"previews/{module}/{choice}.png"
 
 
@@ -61,8 +65,10 @@ def centred(image: Image.Image, size=SIZE, maximum_scale=3):
 
 
 class Illustration:
-    def __init__(self, root: Path, choice):
+    def __init__(self, root: Path, choice, original_library: Path | None = None):
         self.root = root
+        self.choice = choice
+        self.original_library = original_library
         self.manifest = read_json(exact_file(root, choice["manifest"]))
         self.scene = read_json(exact_file(root, choice["scene"]))
         self.resources = {item["id"]: item for item in self.manifest["resources"]}
@@ -172,6 +178,61 @@ class Illustration:
             raise ValueError("The verified turntable module must use one actual design texture")
         return centred(self.image(identifiers[0]), maximum_scale=2)
 
+    def frame(self):
+        identifiers = [item["id"] for item in self.resources.values() if item["path"].endswith("/backgrounds/dp.png")]
+        if len(identifiers) != 1:
+            raise ValueError("A Frame thumbnail requires its own complete static background")
+        image = self.image(identifiers[0])
+        image.thumbnail(SIZE, Image.Resampling.LANCZOS)
+        return centred(image, maximum_scale=1)
+
+    def lane_cover(self):
+        nodes = [item for template in self.scene.get("templates", []) for item in walk(template["root"])
+                 if item["id"].endswith(".art")]
+        animations = {item["animation"] for item in nodes if item.get("animation")}
+        identifiers = {item["resource"] for item in nodes if item.get("resource")}
+        if len(animations) == 1 and not identifiers:
+            if not re.fullmatch(r"l\d{3}", self.choice["value"]):
+                raise ValueError("An animated cover must match its exact original CUSTOM identity")
+            if self.original_library is None:
+                image, sources = retained_preview(self.root, self.choice, "lane-cover")
+            else:
+                expected = f"contents/data/graphic/customize/lane{self.choice['value'][1:]}_anim.jpg"
+                image, sources = original_custom_preview(self.original_library, expected)
+            self.sources.extend(sources)
+            return image
+        if len(identifiers) != 1:
+            raise ValueError("A cover thumbnail requires one exact original art texture")
+        image = self.image(next(iter(identifiers)))
+        image.thumbnail((240, 144), Image.Resampling.LANCZOS)
+        return centred(image, maximum_scale=1)
+
+    def graph_area(self):
+        if self.resources:
+            return self.lane_cover()
+        # The existing choice caption says '原空白'. A transparent-area symbol
+        # distinguishes this intentional empty design from a missing thumbnail.
+        image = Image.new("RGBA", SIZE)
+        draw = ImageDraw.Draw(image)
+        for y in range(24, 136, 16):
+            for x in range(24, 232, 16):
+                draw.rectangle((x, y, x + 15, y + 15), fill=(88, 91, 106, 140) if (x + y) % 32 else (52, 55, 69, 140))
+        draw.rectangle((24, 24, 231, 135), outline=(160, 164, 182, 255), width=2)
+        self.sources.append({"kind": "intentional-empty-area", "labelProvidedByChoice": True})
+        return image
+
+    def lift_art(self):
+        if any(item["id"].endswith(".art") and (item.get("resource") or item.get("animation"))
+               for template in self.scene.get("templates", []) for item in walk(template["root"])):
+            return self.lane_cover()
+        black = [identifier for identifier, resource in self.resources.items() if resource["path"].endswith("/control/lift-black.png")]
+        if len(black) != 1:
+            raise ValueError("The plain LIFT thumbnail requires its actual black fill")
+        image = self.image(black[0]).resize((208, 112), Image.Resampling.NEAREST)
+        draw = ImageDraw.Draw(image)
+        draw.rectangle((0, 0, 207, 111), outline=(130, 135, 154, 255), width=2)
+        return centred(image, maximum_scale=1)
+
 
 def horizontal(images, gap):
     canvas = Image.new("RGBA", (sum(image.width for image in images) + gap * (len(images) - 1),
@@ -183,7 +244,43 @@ def horizontal(images, gap):
     return canvas
 
 
-def build_choice_previews(root: Path):
+def retained_preview(root: Path, choice, module: str):
+    relative = preview_path(module, choice["value"])
+    if choice.get("preview") != relative:
+        raise ValueError("New animation thumbnails require --choice-preview-library with original-previews.json")
+    path = exact_file(root, relative)
+    with Image.open(path) as source:
+        image = source.convert("RGBA")
+    if image.size != SIZE or path.stat().st_size > MAXIMUM_IMAGE_BYTES:
+        raise ValueError("A retained thumbnail is outside the illustration budget")
+    return image, [{"kind": "retained-declared-preview", "path": relative, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}]
+
+
+def original_custom_preview(original_library: Path, expected: str):
+    rows = [row for row in read_json(exact_file(original_library, "original-previews.json")) if row["source"] == expected]
+    if len(rows) != 1:
+        raise ValueError(f"An exact original CUSTOM preview is missing: {expected}")
+    row = rows[0]
+    path = exact_file(original_library, row["copy"])
+    if hashlib.sha256(path.read_bytes()).hexdigest() != row["sha256"]:
+        raise ValueError("The original CUSTOM preview differs from its source receipt")
+    with Image.open(path) as source:
+        image = source.convert("RGBA")
+    if list(image.size) != row["size"]:
+        raise ValueError("The original CUSTOM preview dimensions changed")
+    image.thumbnail((240, 144), Image.Resampling.LANCZOS)
+    return centred(image, maximum_scale=1), [{"kind": "original-custom-preview", **row}]
+
+
+def full_combo_preview(root: Path, choice, original_library: Path | None):
+    if not re.fullmatch(r"fc\d{2}", choice["value"]):
+        raise ValueError("Full Combo preview identity must match its exact original CUSTOM choice")
+    if original_library is None:
+        return retained_preview(root, choice, "full-combo")
+    return original_custom_preview(original_library, f"contents/data/graphic/customize/fcombo{choice['value'][2:]}.jpg")
+
+
+def build_choice_previews(root: Path, original_library: Path | None = None):
     """Augment a fresh package tree; supports freshly exported and frozen modules."""
     root = root.resolve(strict=True)
     catalog_file = root / "gameplay/content.json"
@@ -193,8 +290,12 @@ def build_choice_previews(root: Path):
         if module["id"] not in MODULES:
             continue
         for choice in module["choices"]:
-            illustration = Illustration(root, choice)
-            image = getattr(illustration, module["id"].replace("-", "_"))()
+            if module["id"] == "full-combo":
+                image, sources = full_combo_preview(root, choice, original_library)
+            else:
+                illustration = Illustration(root, choice, original_library)
+                image = getattr(illustration, module["id"].replace("-", "_"))()
+                sources = illustration.sources
             encoded = BytesIO()
             image.save(encoded, format="PNG", optimize=True)
             content = encoded.getvalue()
@@ -209,16 +310,17 @@ def build_choice_previews(root: Path):
             choice["preview"] = relative
             receipts.append({"module": module["id"], "choice": choice["value"], "path": relative,
                              "bytes": len(content), "sha256": hashlib.sha256(content).hexdigest(),
-                             "size": list(image.size), "sources": illustration.sources})
-    total = sum(item["bytes"] for item in receipts)
+                             "size": list(image.size), "sources": sources})
+    total = sum(item["bytes"] for item in {row["path"]: row for row in receipts}.values())
     if total > MAXIMUM_TOTAL_BYTES:
         raise ValueError("The independent preview library exceeds its encoded budget")
     catalog_file.write_text(json.dumps(catalog, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    return {"method": "Per-choice actual contribution art; static illustrations, not runtime screenshots",
+    return {"method": "Per-choice actual contribution art; static illustrations",
             "perModule": dict(Counter(item["module"] for item in receipts)), "choices": len(receipts),
+            "uniqueFiles": len({item["path"] for item in receipts}),
             "encodedBytes": total, "excludedModules": [module["id"] for module in catalog["modules"] if module["id"] not in MODULES],
             "beamCrop": "Lower200 original source pixels; illustrative detail rather than full beam length",
-            "fullComboAndFrame": "Text-only choices; no misleading static substitute for their complete presentation",
+            "sharedCoverArtwork": "Lane Cover, Graph and LIFT reference the same bounded PNG for each identical original design",
             "gameplayMediaChanged": False, "items": receipts}
 
 

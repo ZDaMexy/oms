@@ -10,7 +10,9 @@ using osu.Game.Configuration;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.DifficultyTable;
 using osu.Game.Screens.Select;
+using osu.Game.Screens.Select.Filter;
 using osu.Game.Graphics.UserInterface;
+using osu.Game.Graphics.UserInterfaceV2;
 using osuTK;
 using osuTK.Input;
 
@@ -21,6 +23,72 @@ namespace osu.Game.Rulesets.Bms.Tests
     public partial class TestSceneBmsFilterControl : BmsSongSelectTestScene
     {
         private FilterControl filter => SongSelectScreen.ChildrenOfType<FilterControl>().Single();
+        private ShearedDropdown<GroupMode> groupDropdown => filter.ChildrenOfType<ShearedDropdown<GroupMode>>().Single();
+
+        [TestCase(GroupMode.None)]
+        [TestCase(GroupMode.DifficultyTable)]
+        public void TestInitialManiaWithHiddenConvertsExcludesDifficultyTables(GroupMode savedGrouping)
+        {
+            AddStep("configure mania without converts", () =>
+            {
+                Ruleset.Value = Rulesets.AvailableRulesets.Single(r => r.ShortName == "mania");
+                Config.SetValue(OsuSetting.ConvertedBeatmapsDisplay, ConvertedBeatmapsDisplay.Hidden);
+                Config.SetValue(OsuSetting.SongSelectGroupMode, savedGrouping);
+            });
+            LoadSongSelect();
+
+            AddAssert("difficulty tables are unavailable", () => !groupDropdown.Items.Contains(GroupMode.DifficultyTable));
+            AddAssert("selection uses no grouping", () => groupDropdown.Current.Value == GroupMode.None);
+            AddAssert("criteria use no grouping", () => filter.CreateCriteria().Group == GroupMode.None);
+            AddAssert("saved grouping corrected", () => Config.Get<GroupMode>(OsuSetting.SongSelectGroupMode) == GroupMode.None);
+        }
+
+        [Test]
+        public void TestBmsDifficultyTableSelectionIsClearedWhenSwitchingToManiaWithoutConverts()
+        {
+            SelectBmsRuleset();
+            AddStep("hide converts", () => Config.SetValue(OsuSetting.ConvertedBeatmapsDisplay, ConvertedBeatmapsDisplay.Hidden));
+            SetDifficultyTableGrouping();
+            LoadSongSelect();
+
+            AddAssert("BMS difficulty tables remain available", () => groupDropdown.Items.Contains(GroupMode.DifficultyTable));
+            AddAssert("BMS keeps its grouping", () => filter.CreateCriteria().Group == GroupMode.DifficultyTable);
+            AddStep("switch to mania", () => Ruleset.Value = Rulesets.AvailableRulesets.Single(r => r.ShortName == "mania"));
+            AddAssert("mania does not offer difficulty tables", () => !groupDropdown.Items.Contains(GroupMode.DifficultyTable));
+            AddAssert("mania leaves difficulty table grouping", () => filter.CreateCriteria().Group == GroupMode.None);
+            AddAssert("saved grouping corrected", () => Config.Get<GroupMode>(OsuSetting.SongSelectGroupMode) == GroupMode.None);
+
+            SelectBmsRuleset();
+            AddAssert("BMS offers difficulty tables again", () => groupDropdown.Items.Contains(GroupMode.DifficultyTable));
+            AddStep("select difficulty tables in BMS", () => groupDropdown.Current.Value = GroupMode.DifficultyTable);
+            AddAssert("BMS grouping still works", () => filter.CreateCriteria().Group == GroupMode.DifficultyTable);
+        }
+
+        [TestCase(ConvertedBeatmapsDisplay.Shown)]
+        [TestCase(ConvertedBeatmapsDisplay.ConvertedOnly)]
+        public void TestManiaConvertsVisibilityRefreshesDifficultyTableGrouping(ConvertedBeatmapsDisplay converts)
+        {
+            AddStep("configure mania difficulty tables", () =>
+            {
+                Ruleset.Value = Rulesets.AvailableRulesets.Single(r => r.ShortName == "mania");
+                Config.SetValue(OsuSetting.ConvertedBeatmapsDisplay, converts);
+                Config.SetValue(OsuSetting.SongSelectGroupMode, GroupMode.DifficultyTable);
+            });
+            LoadSongSelect();
+
+            AddAssert("difficulty tables available", () => groupDropdown.Items.Contains(GroupMode.DifficultyTable));
+            AddAssert("difficulty table selection retained", () => filter.CreateCriteria().Group == GroupMode.DifficultyTable);
+            AddStep("hide converts while grouped", () => Config.SetValue(OsuSetting.ConvertedBeatmapsDisplay, ConvertedBeatmapsDisplay.Hidden));
+            AddAssert("difficulty tables removed", () => !groupDropdown.Items.Contains(GroupMode.DifficultyTable));
+            AddAssert("selection and criteria reset", () => groupDropdown.Current.Value == GroupMode.None && filter.CreateCriteria().Group == GroupMode.None);
+            AddAssert("converts stay hidden", () => filter.CreateCriteria().ConvertedBeatmaps == ConvertedBeatmapsDisplay.Hidden);
+            AddStep("show converts again", () => Config.SetValue(OsuSetting.ConvertedBeatmapsDisplay, converts));
+            AddAssert("difficulty tables available again", () => groupDropdown.Items.Contains(GroupMode.DifficultyTable));
+            AddAssert("does not reselect difficulty tables", () => groupDropdown.Current.Value == GroupMode.None);
+            AddStep("select title grouping", () => groupDropdown.Current.Value = GroupMode.Title);
+            AddStep("hide converts with another grouping", () => Config.SetValue(OsuSetting.ConvertedBeatmapsDisplay, ConvertedBeatmapsDisplay.Hidden));
+            AddAssert("valid grouping preserved", () => filter.CreateCriteria().Group == GroupMode.Title);
+        }
 
         [Test]
         public void TestBmsRulesetSwapsOutSharedStarSlider()

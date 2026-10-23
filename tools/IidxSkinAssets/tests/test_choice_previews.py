@@ -42,9 +42,20 @@ class ChoicePreviewTests(unittest.TestCase):
         return {"value": value, "label": value, "manifest": f"config/{value}-manifest.json", "scene": f"config/{value}-scene.json"}
 
     def prepare(self):
+        frame = self.root / "art/frame/backgrounds/dp.png"
+        frame.parent.mkdir(parents=True)
+        Image.new("RGBA", (1920, 1080), "green").save(frame)
+        self.json("config/frame-manifest.json", {"resources": [{"id": "frame", "path": "art/frame/backgrounds/dp.png"}]})
+        self.json("config/frame-scene.json", {})
+        self.original_library = self.root / "originals"
+        original = self.original_library / "fcombo00.jpg"
+        original.parent.mkdir()
+        Image.new("RGB", (140, 220), "yellow").save(original)
+        self.json("originals/original-previews.json", [{"source": "contents/data/graphic/customize/fcombo00.jpg", "copy": "fcombo00.jpg",
+                                                      "sha256": hashlib.sha256(original.read_bytes()).hexdigest(), "size": [140, 220]}])
         self.json("gameplay/content.json", {"contract": "oms-gameplay-skin-content.v1", "modules": [
             {"id": "notes", "choices": [self.notes("n00", "red"), self.notes("n01", "blue")]},
-            {"id": "frame", "choices": [{"value": "iidx33", "label": "33"}]},
+            {"id": "frame", "choices": [{"value": "iidx33", "label": "33", "manifest": "config/frame-manifest.json", "scene": "config/frame-scene.json"}]},
             {"id": "full-combo", "choices": [{"value": "fc00", "label": "FC"}]}]})
         self.json("gameplay-skin.json", {"contract": "oms-gameplay-skin-manifest.v1", "contentCatalog": "gameplay/content.json"})
         self.json("gameplay-skin.scene.json", {})
@@ -54,25 +65,87 @@ class ChoicePreviewTests(unittest.TestCase):
         self.prepare()
         before = {str(path.relative_to(self.root)): hashlib.sha256(path.read_bytes()).digest()
                   for path in self.root.rglob("*") if path.is_file() and path.name != "content.json"}
-        report = build_choice_previews(self.root)
+        report = build_choice_previews(self.root, self.original_library)
         catalog = json.loads((self.root / "gameplay/content.json").read_text(encoding="utf-8"))
         choices = catalog["modules"][0]["choices"]
         first, second = (self.root / choice["preview"] for choice in choices)
         self.assertNotEqual(first.read_bytes(), second.read_bytes())
-        self.assertEqual({"notes": 2}, report["perModule"])
-        self.assertTrue(all("preview" not in item for module in catalog["modules"][1:] for item in module["choices"]))
-        self.assertEqual(2, audit_previews(self.root, catalog)["files"])
+        self.assertEqual({"notes": 2, "frame": 1, "full-combo": 1}, report["perModule"])
+        self.assertTrue(all("preview" in item for module in catalog["modules"] for item in module["choices"]))
+        self.assertEqual(4, audit_previews(self.root, catalog)["files"])
         for relative, digest in before.items():
             self.assertEqual(digest, hashlib.sha256((self.root / relative).read_bytes()).digest(), relative)
-        self.assertEqual(report, build_choice_previews(self.root))
+        self.assertEqual(report, build_choice_previews(self.root, self.original_library))
+
+    def test_existing_fc_thumbnail_repackages_without_reopening_original_custom_library(self):
+        self.prepare()
+        build_choice_previews(self.root, self.original_library)
+        path = self.root / "previews/full-combo/fc00.png"
+        before = path.read_bytes()
+        shutil.rmtree(self.original_library)
+        build_choice_previews(self.root)
+        self.assertEqual(before, path.read_bytes())
+
+    def test_fc_original_preview_requires_its_exact_source_receipt(self):
+        self.prepare()
+        with self.assertRaisesRegex(ValueError, "choice-preview-library"):
+            build_choice_previews(self.root)
+        (self.original_library / "fcombo00.jpg").write_bytes(b"changed original")
+        with self.assertRaisesRegex(ValueError, "source receipt"):
+            build_choice_previews(self.root, self.original_library)
+
+    def test_cover_graph_and_lift_share_art_bytes_while_empty_choices_remain_distinct(self):
+        image = self.root / "cover.png"
+        Image.new("RGBA", (80, 120), "purple").save(image)
+        self.json("art.json", {"resources": [{"id": "cover", "path": "cover.png"}]})
+        self.json("scene.json", {"templates": [{"root": {"id": "cover.art", "resource": "cover"}}]})
+        self.json("empty.json", {"resources": []})
+        self.json("empty-scene.json", {})
+        (self.root / "custom/control").mkdir(parents=True)
+        Image.new("RGBA", (1, 1), "black").save(self.root / "custom/control/lift-black.png")
+        self.json("black.json", {"resources": [{"id": "black", "path": "custom/control/lift-black.png"}]})
+        modules = [{"id": module, "choices": [{"value": "l000", "manifest": "art.json", "scene": "scene.json"}]}
+                   for module in ("lane-cover", "graph-area", "lift-art")]
+        modules[1]["choices"].append({"value": "blank", "manifest": "empty.json", "scene": "empty-scene.json"})
+        modules[2]["choices"].append({"value": "blank", "manifest": "black.json", "scene": "empty-scene.json"})
+        self.json("gameplay/content.json", {"modules": modules})
+        report = build_choice_previews(self.root)
+        catalog = json.loads((self.root / "gameplay/content.json").read_text(encoding="utf-8"))
+        paths = [module["choices"][0]["preview"] for module in catalog["modules"]]
+        self.assertEqual(1, len(set(paths)))
+        self.assertEqual(5, report["choices"])
+        self.assertEqual(3, report["uniqueFiles"])
+        self.assertEqual(3, audit_previews(self.root, catalog)["files"])
+        empty, black = [self.root / module["choices"][1]["preview"] for module in catalog["modules"][1:]]
+        self.assertNotEqual(empty.read_bytes(), black.read_bytes())
+
+    def test_animated_cover_uses_exact_original_custom_card_and_reuses_it_after_repackaging(self):
+        self.prepare()
+        original = self.original_library / "lane306_anim.jpg"
+        Image.new("RGB", (140, 220), "cyan").save(original)
+        self.json("originals/original-previews.json", [{"source": "contents/data/graphic/customize/lane306_anim.jpg",
+                                                      "copy": original.name, "sha256": hashlib.sha256(original.read_bytes()).hexdigest(), "size": [140, 220]}])
+        self.json("animated.json", {"resources": [{"id": "unused", "path": "not-needed.png"}], "animations": [{"id": "clip"}]})
+        self.json("animated-scene.json", {"templates": [{"root": {"id": "cover.art", "animation": "clip"}}]})
+        self.json("gameplay/content.json", {"modules": [{"id": module, "choices": [
+            {"value": "l306", "manifest": "animated.json", "scene": "animated-scene.json"}]}
+            for module in ("lane-cover", "graph-area", "lift-art")]})
+        report = build_choice_previews(self.root, self.original_library)
+        self.assertEqual(1, report["uniqueFiles"])
+        preview = self.root / "previews/lane-cover/l306.png"
+        before = preview.read_bytes()
+        shutil.rmtree(self.original_library)
+        self.assertEqual(1, build_choice_previews(self.root)["uniqueFiles"])
+        self.assertEqual(before, preview.read_bytes())
 
     def test_repackaging_reference_closure_keeps_the_preview(self):
         self.prepare()
-        build_choice_previews(self.root)
+        build_choice_previews(self.root, self.original_library)
         closure = package_closure(self.root)
         self.assertIn("previews/notes/n00.png", closure)
         self.assertIn("previews/notes/n01.png", closure)
-        self.assertNotIn("previews/frame/iidx33.png", closure)
+        self.assertIn("previews/frame/iidx33.png", closure)
+        self.assertIn("previews/full-combo/fc00.png", closure)
 
     def test_opaque_black_canvas_does_not_beat_an_actual_visible_frame(self):
         self.json("manifest.json", {"resources": [{"id": "black", "path": "black.png"},
@@ -93,7 +166,9 @@ class ChoicePreviewTests(unittest.TestCase):
         output.mkdir()
         rows = []
         for directory in ("art", "config"):
-            for source in (self.root / directory).iterdir():
+            for source in (self.root / directory).rglob("*"):
+                if not source.is_file():
+                    continue
                 relative = source.relative_to(self.root).as_posix()
                 target = frozen / relative
                 target.parent.mkdir(parents=True, exist_ok=True)

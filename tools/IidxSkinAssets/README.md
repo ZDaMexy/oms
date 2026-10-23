@@ -27,7 +27,7 @@ dotnet run --project tools/SkinAuthoring -- check 'Y:\OmniAuthor'
 
 `note_geometry.py`在完整导出和旧包重建时分别归一BMS与mania的单点、长条头尾。BMS原22.5载体、模板及身体保持；mania按原00标记图尺寸和实际48参考宽度换算高度/偏移，以不同C4资源名选择专用模板，只复制九张原图为逐字节相同的标记别名。不改图片或公共host，不同时实例化两套音符；CN/HCN资源变体保留。真实游玩须另核原生AutoSize高度、替代Sprite矩形及1080p原图尺寸，codec或自动演奏计分通过不证明音符可见。
 
-根options使用33框体、源00部件、normal尺寸；FC默认为已确认33主题的fc24，fc00标为通用款，全部25个旧选值保留。fcombo24原角色图明示33及果汁主题，原机菜单默认ID尚未实测；生成或重包不会读取、改写玩家已保存选值。Graph默认关闭。最新细节构建器接入真实当前/理论满分、符合当前用户/谱面/玩法/完整mods的有效本地个人最好，以及BMS EX的AAA/AA/A目标；无记录或非EX玩法不制造目标值，没有联网对手成绩。LIFT仅跟随BMS原生抬升。FC保留三布局终止空帧和原时长，19为3500ms、24为3000ms，其它2500ms；滤镜顺序和真实host设置仍待原版画面校准。
+根options使用33框体、源00部件、normal尺寸；FC默认为已确认33主题的fc24，fc00标为通用款，全部25个旧选值保留。fcombo24原角色图明示33及果汁主题，原机菜单默认ID尚未实测；生成或重包不会读取、改写玩家已保存选值。Graph等适用开关默认开启。最新细节构建器接入真实当前/理论满分、符合当前用户/谱面/玩法/完整mods的有效本地个人最好，以及BMS EX的AAA/AA/A目标；无记录或非EX玩法不制造目标值，没有联网对手成绩。LIFT仅跟随BMS原生抬升。FC保留三布局终止空帧和原时长，19为3500ms、24为3000ms，其它2500ms；滤镜顺序和真实host设置仍待原版画面校准。
 
 `build_lighting_details.py`在已验证的完整v14作者目录上增量制作开场版本，写入全新作者目录及相邻`.osk`。旧CUSTOM、FC资源和INI保留，只校准上述FC默认与两款标签；`lighting_lane_intro.py`消费15框体各自SP/DP的原始轨道开场记录，`lighting_ready.py`消费完整`1p_ready`父movie（含出现和退场），`lighting_panels.py`换用完整JUDGE原图并声明实际AUTO/有符号偏移与滑入。旧外框组件入场曲线保留，仅切到公开准备时钟；不向规则集加入IIDX布局或演出名字。
 
@@ -45,7 +45,7 @@ python -B -X utf8 tools/IidxSkinAssets/build_lighting_details.py --source 'Y:\Va
 
 `--lane-reference`必须完整覆盖15框体各自1P/2P/DP两侧的60条原记录；`lighting_lane_intro.py export`从独立来源库提取开局循环前、实际与轨道相交的原层次/UV/遮罩/混合，排除框外装饰，保留终止空帧。不得用33替代其它代；七支S5是否共用33及SUPERNOVA使用0目录高清来源须逐包证明。`--ready-reference`取完整父movie，裸字母movie缺少退场，不能替代。已有本地化三PNG和外框曲线直接继承v14，不重新读取安装目录。来源记录与生成命令可通过各工具`--help`查看；构建成功只证明引用闭包与离线预算，实际验证及边界取[P1-A状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)。
 
-统一生成器为音符、CN、判定文字、爆炸、光柱和转盘输出132张静态代表缩略图，目录choice通过可选`preview`引用；Game Frame与FC保留文字。图片来自同款原材质/动画代表帧，`choice_previews.py`负责有界缩略，不改游玩图片、场景或默认选值。冻结模块重打包也沿同一路径，预览纳入ZIP引用闭包；先运行当前`SkinAuthoring check`，再独立导入验证。玩家可按模式默认和键数分别设置；此工具不把Omni写入玩家目录、canonical或公开制作套件。
+统一生成器为全部11类、1272款美术选项声明静态缩略图，共540张256×160 PNG、约12MiB编码字节。原六类132张保持；Frame取自身完整静态底图，普通挡板取原美术，动画挡板与25款FC取来源收据核对过的原CUSTOM选项图；Graph/LIFT与挡板的同源设计共用PNG，原空白与原黑色各有明确图示。`choice_previews.py`只生成独立预览，不改游玩图片、动画或默认选值。首次生成动画挡板/FC缩略图时，冻结目录重打包须提供`--choice-preview-library 'Y:\OriginalCustomLibrary'`（含`original-previews.json`）；完整源构建默认用`--custom-library`。已捕获的规范PNG可直接随冻结包重建，无需再次读取源库。预览纳入ZIP引用闭包与独立32MiB预算；设置只解码可见内容、每页最多12款，翻页/收起释放旧图卡。作者检查与实际导入的证据、未完成范围取[P1-A状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)。此工具不把Omni写入玩家目录、canonical或公开制作套件。
 
 2026-10-20按用户反馈，Omni仅提供主游玩画面：移除Lightning副屏、展开/专注/亮度三项配置、Premium背景/图标及专注背景。新导出与冻结模块/旧作者目录重打包都不再声明副屏，发布闭包排除其专用素材；原研究资料及旧版交付保留。Graph仍在主屏显示，不受此项移除影响，公共引擎及其它作者包的辅助屏能力保持。
 

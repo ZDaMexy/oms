@@ -1,5 +1,11 @@
 # P1-I 变动日志
 
+## 2026-10-23mania隐藏转谱时收起难度表分组
+
+`FilterControl`在初载、规则集及转谱可见性变化时统一刷新可选分组：mania且隐藏转谱时排除DifficultyTable，残留选择（含旧保存配置、从BMS切换）回到None并沿既有绑定保存。恢复Shown/ConvertedOnly只恢复入口；其它合法分组和BMS难度表保持，不改matching或难度表数据。
+
+Release BMS筛选控件15项、Core转谱分组4项、mania分组3项通过；新增5例覆盖初载、模式切换、两种可见状态转Hidden再恢复，以及其它有效分组与BMS的保留。Desktop Debug/Release及相关格式检查通过，证据取`artifacts/omni-thumbnails-20261023/`。未重跑全仓或代签正常窗口/大库体验；9月29日完整回归保持原日期和逐项对照边界。
+
 ## 2026-10-08
 
 归线引言与现有PLAN及read-model合同对齐：筛选统计、缓存与backfill行为仍由P1-I定义，P1-H守通用存储/共享字段/Realm写回，不建第二套authority。试听指示从失效“P1-J #12”改为真实音频合同章节，构成过滤记忆的软件/人工验证回链本线STATUS。未改匹配、补算、声音或软件结果，大库与交互门保持；文档检查取[主线日志](../../mainline/CHANGELOG.md#项目进度与文档记忆健康复核)。

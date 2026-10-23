@@ -100,6 +100,19 @@ namespace osu.Game.Overlays.Settings.Sections
             choiceControl.Expanded = IsExpanded;
             gallery.CanBeShown.Value = IsExpanded;
             gallery.Alpha = IsExpanded ? 1 : 0;
+
+            // GridContainer retains replaced content for reuse; gallery pages own their cards instead.
+            if (tiles.Content != null)
+            {
+                foreach (Drawable drawable in tiles.Content.SelectMany(row => row))
+                {
+                    if (drawable.Parent is Container parent)
+                        parent.Remove(drawable, true);
+                    else
+                        drawable.Dispose();
+                }
+            }
+
             if (!IsExpanded)
             {
                 tiles.Content = Array.Empty<Drawable[]>();

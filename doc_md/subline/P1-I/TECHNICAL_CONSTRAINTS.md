@@ -129,11 +129,12 @@
 
 ### mania 难度表分组（2026-06-22）
 
-21. **mania 选曲新增「难度表」分组，只显示 BMS 转谱，用 grouping 丢弃法实现、零改 matching**：
+21. **mania 选曲在允许显示转谱时提供「难度表」分组，只显示 BMS 转谱，用 grouping 丢弃法实现、零改 matching**：
     - **跨 ruleset 取数**：mania ruleset 不引用 BMS ruleset，难度表分组定义改由 osu.Game 共享 `BmsConvertedDifficultyTableGrouping.GetGroupDefinitions` 提供（读 `BmsPersistedMetadataResolver.GetDifficultyTableEntries`＝只读 ExtensionData，见 #19），构 表名→等级 两级树、无条目 Unrated、按 RulesetDataJson 内容键有界缓存。**不得**让 mania 反射进 BMS ruleset 取 `BmsTableGroupMode`。
-    - **「只显示转谱」＝grouping 丢弃，禁止改 matching**：`BeatmapCarouselFilterGrouping.addHierarchicalGroups` 对返回**空 group 定义**的谱面直接丢弃，且 `MatchedBeatmapsCount=Filters.Last().BeatmapItemsCount`（grouping 阶段）。故 helper 对**非 BMS** 谱面（`Ruleset.ShortName!="bms"`）返回空 → 原生 mania 被丢弃、计数与列表一致。**不得**为「只显示转谱」去 force `ConvertedOnly` 或改 matching 判据——那会让「N matches」与列表不一致，且与转谱可见性设置纠缠。转谱可见性仍由 #20 的 `ConvertedBeatmaps` 设置在 matching 阶段单独把关（Hidden→无转谱→grouping 丢光→空）。
+    - **「只显示转谱」＝grouping 丢弃，禁止改 matching**：`BeatmapCarouselFilterGrouping.addHierarchicalGroups` 对返回**空 group 定义**的谱面直接丢弃，且 `MatchedBeatmapsCount=Filters.Last().BeatmapItemsCount`（grouping 阶段）。故 helper 对**非 BMS** 谱面（`Ruleset.ShortName!="bms"`）返回空 → 原生 mania 被丢弃、计数与列表一致。**不得**为「只显示转谱」去 force `ConvertedOnly` 或改 matching 判据——那会让「N matches」与列表不一致，且与转谱可见性设置纠缠。转谱可见性仍由 #20 的 `ConvertedBeatmaps` 设置在 matching 阶段单独把关；Hidden时按下方入口规则排除难度表分组，不靠该分组清空列表。
     - **mania 接线**：`ManiaRuleset` override `GetAvailableSongSelectGroupModes`（「未分组」后插 `GroupMode.DifficultyTable`）/`IsSongSelectGroupingHierarchical`（→true）/`ShouldResetSongSelectGroupToRoot`（→true）/`GetSongSelectGroupDefinitions`（→helper）。复用既有 `GroupMode.DifficultyTable` enum 与「难度表」文案，**不得**为 mania 新造平行 enum。层级树 + 强制扁平 + 落根行为与 BMS 一致，#16/#17（root-focus 收口）ruleset-agnostic 自动适用。
-    - **空结果指导**：`NoResultsPlaceholder` 在 mania+DifficultyTable+空时给专项说明——`ConvertedBeatmaps==Hidden` → 可点「启用「显示转谱」」(设 Shown)；否则 → 「导入 BMS 谱面…」提示。同上下文**抑制**通用「enabling automatic conversion」hint。回归 `BmsConvertedDifficultyTableGroupingTest`(4)+`ManiaDifficultyTableGroupingTest`(3，端到端丢原生 mania)。
+    - **可选分组与当前选择同步**：`FilterControl`在初载、规则集切换及转谱可见性变化时统一重算可选分组。mania且`ConvertedBeatmaps==Hidden`时移除`DifficultyTable`；若当前为该项（含旧保存值、从BMS带入），回到`None`并沿原绑定保存。其它有效分组、BMS的难度表入口和转谱匹配保持；恢复Shown/ConvertedOnly只恢复可选项，不自动改回旧选择。
+    - **空结果指导**：`NoResultsPlaceholder` 在 mania+DifficultyTable+空时给专项说明——`ConvertedBeatmaps==Hidden` → 可点「启用「显示转谱」」(设 Shown)；否则 → 「导入 BMS 谱面…」提示。同上下文**抑制**通用「enabling automatic conversion」hint。Hidden时常规入口已先隐藏并清除该分组，不再以空表提示作为正常路径。回归覆盖`TestSceneBmsFilterControl`的初载/模式/三态变化，以及`BmsConvertedDifficultyTableGroupingTest`(4)+`ManiaDifficultyTableGroupingTest`(3，端到端丢原生 mania)。
 
 ### BMS 模式难度等级胶囊（替换星级，2026-06-22 其五）
 

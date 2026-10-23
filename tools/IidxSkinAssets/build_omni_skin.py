@@ -1236,7 +1236,7 @@ def enable_toggle_defaults(manifest):
     return changed
 
 
-def prepare_package(output: Path, receipt, repackage_source: Path | None = None, progress_reference=None):
+def prepare_package(output: Path, receipt, repackage_source: Path | None = None, progress_reference=None, choice_preview_library=None):
     receipt["auxiliaryDisplayRemoval"] = remove_auxiliary_display(output)
     root_path = output / "gameplay-skin.json"
     root_manifest = read_json(root_path)
@@ -1262,7 +1262,7 @@ def prepare_package(output: Path, receipt, repackage_source: Path | None = None,
     receipt["maniaNoteGeometry"] = correct_note_geometry(output)
     if "graphStatistics" in receipt:
         receipt["graphStatistics"]["readoutLayout"] = graph_readout_receipt()
-    receipt["choicePreviews"] = build_choice_previews(output)
+    receipt["choicePreviews"] = build_choice_previews(output, choice_preview_library)
     if progress_reference is not None:
         receipt["songProgress"] = add_music_progress(output, progress_reference)
     default_changed = bool(receipt["enabledToggleDefaults"]) or receipt["fullComboDefault"]["previousDefault"] != receipt["fullComboDefault"]["default"]
@@ -1326,8 +1326,8 @@ def publish_prepared_package(output: Path, final_output: Path, receipt, files, a
                       "selectedUpperBound": audit["selectedUpperBound"]}, ensure_ascii=True))
 
 
-def publish_package(output: Path, final_output: Path, receipt, repackage_source: Path | None = None, progress_reference=None):
-    files, audit = prepare_package(output, receipt, repackage_source, progress_reference)
+def publish_package(output: Path, final_output: Path, receipt, repackage_source: Path | None = None, progress_reference=None, choice_preview_library=None):
+    files, audit = prepare_package(output, receipt, repackage_source, progress_reference, choice_preview_library)
     publish_prepared_package(output, final_output, receipt, files, audit)
 
 
@@ -1342,6 +1342,7 @@ def main():
     parser.add_argument("--frame-maps", type=Path, help="JSON mapping Frame IDs to package-relative original geometry maps")
     parser.add_argument("--repackage-directory", type=Path, help="Derive a fresh flattened package from an existing author closure without re-exporting media")
     parser.add_argument("--music-progress-reference", type=Path, help="Verified local 15-Frame cursor geometry and original texture reference")
+    parser.add_argument("--choice-preview-library", type=Path, help="Verified CUSTOM library with original-previews.json; required when animation/FC thumbnails have not yet been captured")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--frame-fc-only", action="store_true", help="Incomplete integration probe; never a full CUSTOM delivery")
     args = parser.parse_args()
@@ -1364,6 +1365,10 @@ def main():
             source_roots.append(module_directory)
     if args.music_progress_reference:
         source_roots.append(args.music_progress_reference.resolve(strict=True).parent)
+    choice_preview_library = (args.choice_preview_library or (args.custom_library if not repackage_source else None))
+    if choice_preview_library:
+        choice_preview_library = choice_preview_library.resolve(strict=True)
+        source_roots.append(choice_preview_library)
     output = args.output.resolve()
     if output.exists() or output.with_suffix(".osk").exists() or not output.parent.is_dir():
         parser.error("Use a fresh author directory with an existing parent")
@@ -1383,7 +1388,7 @@ def main():
         receipt["status"] = "repackaged-pending-runtime-validation"
         receipt.pop("archive", None)
         receipt["repackagedFrom"] = str(repackage_source)
-        publish_package(output, final_output, receipt, repackage_source, progress_reference)
+        publish_package(output, final_output, receipt, repackage_source, progress_reference, choice_preview_library)
         return
     graph = prepare_graph(source_roots[1], output)
     frames, frame_receipts = [], []
@@ -1417,7 +1422,7 @@ def main():
                "customization": modules["receipts"], "graphStatistics": graph["receipt"],
                "frozenModulesDirectory": modules.get("frozenDirectory"),
                "originalHdd": "not-opened-by-this-generator", "sourceDefaultMapping": "see dated source evidence"}
-    publish_package(output, final_output, receipt, progress_reference=progress_reference)
+    publish_package(output, final_output, receipt, progress_reference=progress_reference, choice_preview_library=choice_preview_library)
 
 
 if __name__ == "__main__":

@@ -24,6 +24,7 @@ converted star 与难度表使用不同 DTO，却写同一个 `BeatmapMetadata.R
 
 ## 诊断与刷新边界
 
+- 从BMS切mania后列表意外为空时，先核转谱可见性与当前分组。mania的难度表只收BMS转谱，Hidden时应由FilterControl同步移除入口并把残留选择保存为None，不能只改匹配或保留一个必空分组；恢复可见不自动改回旧选择。入口合同见[P1-I第21条](../../doc_md/subline/P1-I/TECHNICAL_CONSTRAINTS.md)。
 - 重启后仍 Unrated：查 persisted entries、原始文件字节 MD5 和共享列 clobber，不能把所有 Unrated 都归因为历史覆盖问题。退出重进才恢复时，检查整批通知是否送达、快照 JSON 是否更新及可见谱卡是否重绑；这不是当前合同要求用户重启的理由。
 - 不要恢复 per-set revision bump：5万级库会触发成千 re-detach/scheduler task，用户已验证可冻结 UI 数分钟。
 - table 整批持久化后通过全局 RealmAccess 发布谱面 ID；列表合并通知，读取最新持久化 JSON，更新快照后一次重筛并重绑可见卡片（只改 metadata 不会自动刷新 PrepareForUse 中生成的等级文字）。保持选中 ID；不引入实时 table lookup。
