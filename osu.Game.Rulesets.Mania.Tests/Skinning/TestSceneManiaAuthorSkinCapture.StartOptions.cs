@@ -20,6 +20,7 @@ using osu.Game.Overlays.Settings.Sections;
 using osu.Game.Rulesets.Mania.Objects.Drawables;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
+using osu.Game.Tests.Visual.Skinning;
 using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Mania.Tests.Skinning
@@ -176,6 +177,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 purpose = "actual-Player-RGB-carriers-and-original-content",
                 authoritativeGameplayTime = renderer.GameplaySkinEventRuntime!.AuthoritativeGameplayTime,
                 evidence,
+                optionPresentation = GameplaySkinOptionPresentationCapture.Capture(runtime, nodes),
             }));
         }
 

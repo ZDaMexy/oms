@@ -1055,7 +1055,12 @@ namespace osu.Game.Skinning.Gameplay
                     if (context.TotalKeyframeCount > GameplaySkinSceneBudgets.MAX_KEYFRAMES)
                         context.Add(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
 
-                    double previousTime = -1;
+                    // Only an explicit, non-looping signed author option has a signed keyframe domain.
+                    double minimumTime = loop == false && clockSourceId != null
+                                         && optionSource(clockSourceId, context.Manifest) is { Kind: GameplaySkinOptionKind.Number, Minimum: < 0 }
+                        ? -GameplaySkinSceneBudgets.MAX_TRACK_TIME
+                        : 0;
+                    double previousTime = double.NegativeInfinity;
 
                     foreach (JToken keyframeToken in keyframeArray.Take(GameplaySkinSceneBudgets.MAX_KEYFRAMES_PER_TRACK))
                     {
@@ -1084,7 +1089,7 @@ namespace osu.Game.Skinning.Gameplay
                         else
                             missingPrimitive(context);
 
-                        if (time.HasValue && (time.Value < 0
+                        if (time.HasValue && (time.Value < minimumTime
                                              || time.Value > GameplaySkinSceneBudgets.MAX_TRACK_TIME
                                              || time.Value <= previousTime))
                             context.Add(GameplaySkinSceneDiagnosticCode.InvalidAnimation);

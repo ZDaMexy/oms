@@ -1,5 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <Import Project="..\osu.TestProject.props" />
+
+  <ItemGroup>
+    <Compile Include="..\osu.Game.Tests\Visual\Skinning\GameplaySkinOptionPresentationCapture.cs" Link="Skinning\GameplaySkinOptionPresentationCapture.cs" />
+  </ItemGroup>
   <ItemGroup Label="Package References">
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
     <PackageReference Include="NUnit" Version="3.14.0" />

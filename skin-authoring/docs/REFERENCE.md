@@ -370,7 +370,7 @@ Target: Lane ruleset=bms keymode=7k stage-mode=single presentation=p2 group=bms.
 
 ## 动画、状态机、绑定、变体、模板
 
-tracks 每项必填 id/type/target/property/easing/loop/keyframes，可选 `trigger` 或 `clock`，两者不能同时声明；target为节点id。帧必填id/time/value，time为有限非负数，严格递增且不超过86400000，至少一帧。缺省time单位为游玩毫秒；显式clock时使用该数值来源的单位。
+tracks 每项必填 id/type/target/property/easing/loop/keyframes，可选 `trigger` 或 `clock`，两者不能同时声明；target为节点id。帧必填id/time/value，time须有限、严格递增、绝对值不超过86400000，至少一帧。仅`loop:false`且显式`clock:"option.<id>"`引用min小于0的number配置时允许负time；其它轨迹仍只接受非负time。负关键帧没有扩大循环或事件轨迹的时间域。缺省time单位为游玩毫秒；显式clock时使用该数值来源的单位，number配置的原值直接采样，不转成毫秒或绑定到配置最小/最大值。
 
 ```json
 {

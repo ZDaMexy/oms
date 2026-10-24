@@ -127,6 +127,129 @@ namespace osu.Game.Tests.NonVisual.Skinning
             }
         }
 
+        [TestCase(-2, 10)]
+        [TestCase(-GameplaySkinSceneBudgets.MAX_TRACK_TIME, GameplaySkinSceneBudgets.MAX_TRACK_TIME)]
+        public void TestSignedNumericOptionClockRoundTripsWithinTheOriginalAbsoluteTimeBudget(double firstTime, double lastTime)
+        {
+            GameplaySkinSceneManifest manifest = GameplaySkinOptionsTest.DecodeManifest(signedNumericOptionManifest());
+            JObject scene = signedNumericOptionTrackScene();
+            scene["tracks"]![0]!["keyframes"]![0]!["time"] = firstTime;
+            scene["tracks"]![0]!["keyframes"]![2]!["time"] = lastTime;
+            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> result = decodeScene(scene.ToString(), manifest);
+            Assert.That(result.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid), string.Join(",", result.Diagnostics.Select(d => d.Code)));
+
+            string encoded = GameplaySkinSceneCodec.EncodeScene(result.Value!);
+            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> roundTrip = decodeScene(encoded, manifest);
+            Assert.That(roundTrip.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+            GameplaySkinSceneTrack track = roundTrip.Value!.Tracks.Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(track.ClockSourceId, Is.EqualTo("option.cover"));
+                Assert.That(track.Loop, Is.False);
+                Assert.That(track.Keyframes.Select(frame => frame.Time), Is.EqualTo(new[] { firstTime, 0, lastTime }));
+                Assert.That(track.Keyframes.Select(frame => frame.Value.NumberValue), Is.EqualTo(new[] { 0.8, 0, -1.0 }));
+                Assert.That(GameplaySkinSceneCodec.EncodeScene(roundTrip.Value), Is.EqualTo(encoded));
+            });
+
+            scene["tracks"]![0]!["trigger"] = "judgement.hit";
+            assertInvalidWith(decodeScene(scene.ToString(), manifest), GameplaySkinSceneDiagnosticCode.InvalidAnimation);
+        }
+
+        [Test]
+        public void TestSignedNumericOptionClockAlsoPreservesFrameTrackSelection()
+        {
+            GameplaySkinSceneManifest manifest = GameplaySkinOptionsTest.DecodeManifest(signedNumericOptionManifest());
+            JObject scene = signedNumericOptionTrackScene();
+            scene["root"]!["type"] = "sprite";
+            scene["root"]!["resource"] = "texture.normal";
+            JToken track = scene["tracks"]![0]!;
+            track["type"] = "frame";
+            track["property"] = "resource";
+            track["easing"] = "step";
+            track["keyframes"]![0]!["value"] = "texture.normal";
+            track["keyframes"]![1]!["value"] = "texture.alternate";
+            track["keyframes"]![2]!["value"] = "texture.normal";
+            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> result = decodeScene(scene.ToString(), manifest);
+            Assert.That(result.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> roundTrip = decodeScene(GameplaySkinSceneCodec.EncodeScene(result.Value!), manifest);
+            Assert.That(roundTrip.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+            Assert.That(roundTrip.Value!.Tracks.Single().Keyframes.Select(frame => frame.Time), Is.EqualTo(new[] { -2.0, 0, 10 }));
+            Assert.That(roundTrip.Value.Tracks.Single().Keyframes.Select(frame => frame.Value.StringValue), Is.EqualTo(new[] { "texture.normal", "texture.alternate", "texture.normal" }));
+        }
+
+        [TestCase("global")]
+        [TestCase("elapsed")]
+        [TestCase("presentation-elapsed")]
+        [TestCase("preparation-elapsed")]
+        [TestCase("timing")]
+        [TestCase("judgement-trigger")]
+        [TestCase("completion-trigger")]
+        [TestCase("nonnegative-number")]
+        [TestCase("toggle")]
+        [TestCase("loop")]
+        public void TestNegativeKeyframeTimesRemainRestrictedToNonLoopSignedNumericOptionClocks(string change)
+        {
+            JObject manifestJson = signedNumericOptionManifest();
+            JObject scene = signedNumericOptionTrackScene();
+            var track = (JObject)scene["tracks"]![0]!;
+            switch (change)
+            {
+                case "global": track.Remove("clock"); break;
+                case "elapsed": track["clock"] = "timing.elapsed"; break;
+                case "presentation-elapsed": track["clock"] = "presentation.elapsed"; break;
+                case "preparation-elapsed": track["clock"] = "preparation.elapsed"; break;
+                case "timing": track["clock"] = "timing.time"; break;
+                case "judgement-trigger": track.Remove("clock"); track["trigger"] = "judgement.hit"; break;
+                case "completion-trigger": track.Remove("clock"); track["trigger"] = "gameplay.complete"; break;
+                case "nonnegative-number": manifestJson["options"]![3]!["min"] = 0; break;
+                case "toggle": track["clock"] = "option.bomb"; break;
+                case "loop": track["loop"] = true; break;
+                default: throw new ArgumentOutOfRangeException(nameof(change));
+            }
+
+            GameplaySkinSceneManifest manifest = GameplaySkinOptionsTest.DecodeManifest(manifestJson);
+            assertInvalidWith(decodeScene(scene.ToString(), manifest), GameplaySkinSceneDiagnosticCode.InvalidAnimation);
+
+            // Those same sources retain their existing nonnegative-keyframe behavior.
+            for (int index = 0; index < 3; index++)
+                track["keyframes"]![index]!["time"] = index;
+            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> existing = decodeScene(scene.ToString(), manifest);
+            Assert.That(existing.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid), string.Join(",", existing.Diagnostics.Select(d => d.Code)));
+        }
+
+        [TestCase("duplicate")]
+        [TestCase("decreasing")]
+        [TestCase("negative-over-budget")]
+        [TestCase("positive-over-budget")]
+        public void TestSignedNumericOptionClockRejectsUnorderedAndOverBudgetKeyframes(string change)
+        {
+            GameplaySkinSceneManifest manifest = GameplaySkinOptionsTest.DecodeManifest(signedNumericOptionManifest());
+            JObject scene = signedNumericOptionTrackScene();
+            JToken frames = scene["tracks"]![0]!["keyframes"]!;
+            switch (change)
+            {
+                case "duplicate": frames[1]!["time"] = -2; break;
+                case "decreasing": frames[1]!["time"] = -3; break;
+                case "negative-over-budget": frames[0]!["time"] = -GameplaySkinSceneBudgets.MAX_TRACK_TIME - 1; break;
+                case "positive-over-budget": frames[2]!["time"] = GameplaySkinSceneBudgets.MAX_TRACK_TIME + 1; break;
+                default: throw new ArgumentOutOfRangeException(nameof(change));
+            }
+            assertInvalidWith(decodeScene(scene.ToString(), manifest), GameplaySkinSceneDiagnosticCode.InvalidAnimation);
+        }
+
+        [TestCase("NaN", GameplaySkinSceneDiagnosticCode.InvalidJson)]
+        [TestCase("Infinity", GameplaySkinSceneDiagnosticCode.InvalidJson)]
+        [TestCase("-Infinity", GameplaySkinSceneDiagnosticCode.InvalidJson)]
+        [TestCase("1e309", GameplaySkinSceneDiagnosticCode.InvalidValueType)]
+        [TestCase("-1e309", GameplaySkinSceneDiagnosticCode.InvalidValueType)]
+        public void TestSignedNumericOptionClockRejectsNonFiniteKeyframeTimes(string rawTime, GameplaySkinSceneDiagnosticCode diagnostic)
+        {
+            GameplaySkinSceneManifest manifest = GameplaySkinOptionsTest.DecodeManifest(signedNumericOptionManifest());
+            JObject scene = signedNumericOptionTrackScene();
+            scene["tracks"]![0]!["keyframes"]![0]!["time"] = new JRaw(rawTime);
+            assertInvalidWith(decodeScene(scene.ToString(), manifest), diagnostic);
+        }
+
         [Test]
         public void TestMaterialTemplateAndExplicitPresentationPropertiesRoundTrip()
         {
@@ -733,6 +856,32 @@ namespace osu.Game.Tests.NonVisual.Skinning
             {
                 CultureInfo.CurrentCulture = originalCulture;
             }
+        }
+
+        private static JObject signedNumericOptionManifest()
+        {
+            JObject manifest = GameplaySkinOptionsTest.ManifestJson();
+            JToken option = manifest["options"]![3]!;
+            option["min"] = -2;
+            option["max"] = 10;
+            option["step"] = 1;
+            option["default"] = 0;
+            return manifest;
+        }
+
+        private static JObject signedNumericOptionTrackScene()
+        {
+            JObject scene = JObject.Parse(createSceneWithKeyframes(3));
+            JToken track = scene["tracks"]![0]!;
+            track["clock"] = "option.cover";
+            track["property"] = "y";
+            track["keyframes"]![0]!["time"] = -2;
+            track["keyframes"]![0]!["value"] = 0.8;
+            track["keyframes"]![1]!["value"] = 0;
+            track["keyframes"]![1]!["time"] = 0;
+            track["keyframes"]![2]!["time"] = 10;
+            track["keyframes"]![2]!["value"] = -1;
+            return scene;
         }
 
         private static GameplaySkinSceneDecodeResult<GameplaySkinSceneManifest> decodeManifest(string? json)

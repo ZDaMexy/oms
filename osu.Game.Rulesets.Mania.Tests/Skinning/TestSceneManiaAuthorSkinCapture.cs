@@ -146,7 +146,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 SkinSection section = null!;
                 FormSliderBar<double> originalScale = null!;
                 GameplaySkinOptionDefinition[] definitions = null!;
-                var changedBrightness = new Dictionary<string, string>();
+                var changedNumbers = new Dictionary<string, string>();
                 string graphValue = null!;
                 AddStep("open the complete skin configuration", () =>
                 {
@@ -180,25 +180,26 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     GameplaySkinOptionDefinition graph = definitions.Single(definition => definition.Id == "graph-visible");
                     graphValue = graph.DefaultValue == "true" ? "false" : "true";
                     controls.ChildrenOfType<FormCheckBox>().Single(toggle => toggle.Caption.ToString() == graph.Label).Current.Value = graphValue == "true";
-                    GameplaySkinOptionDefinition[] brightnessDefinitions = definitions.Where(definition => brightness_options.Contains(definition.Id)).ToArray();
-                    Assert.That(brightnessDefinitions.Select(definition => definition.Id), Is.EquivalentTo(brightness_options));
-                    foreach (GameplaySkinOptionDefinition definition in brightnessDefinitions)
+                    GameplaySkinOptionDefinition[] numericDefinitions = definitions.Where(definition => brightness_options.Contains(definition.Id)
+                        || definition.Id is "judgement-position" or "pacemaker-percent").ToArray();
+                    Assert.That(numericDefinitions.Select(definition => definition.Id), Is.SupersetOf(brightness_options));
+                    foreach (GameplaySkinOptionDefinition definition in numericDefinitions)
                     {
                         FormSliderBar<double> control = controls.ChildrenOfType<FormSliderBar<double>>().Single(slider => slider.Caption.ToString() == definition.Label);
                         Assert.That(definition.TryValidateValue(definition.DefaultValue, out GameplaySkinOptionValue authorDefault), Is.True);
                         Assert.That(control.Current.Value, Is.EqualTo(authorDefault.NumberValue).Within(0.000001), definition.Id);
                         double changed = authorDefault.NumberValue > definition.Minimum ? authorDefault.NumberValue - definition.Step : authorDefault.NumberValue + definition.Step;
                         Assert.That(definition.TryValidateValue(changed.ToString("G17", System.Globalization.CultureInfo.InvariantCulture), out GameplaySkinOptionValue requested), Is.True);
-                        changedBrightness.Add(definition.Id, requested.CanonicalValue);
+                        changedNumbers.Add(definition.Id, requested.CanonicalValue);
                         control.Current.Value = requested.NumberValue;
                     }
                 });
                 AddUntilStep("save the independent typed values for this package and mode", () =>
                 {
                     var saved = Game.Dependencies.Get<SkinOptionPreferences>().GetOverrides(import!.GetAwaiter().GetResult().ID, "mania");
-                    return saved.Count == 4 + changedBrightness.Count && saved["frame"] == "bpl-tradz" && saved["notes"] == "n03"
+                    return saved.Count == 4 + changedNumbers.Count && saved["frame"] == "bpl-tradz" && saved["notes"] == "n03"
                         && saved["explosion-scale"] == "1.25" && saved["graph-visible"] == graphValue
-                        && changedBrightness.All(pair => saved.TryGetValue(pair.Key, out string? actual) && actual == pair.Value);
+                        && changedNumbers.All(pair => saved.TryGetValue(pair.Key, out string? actual) && actual == pair.Value);
                 });
                 AddUntilStep("rebuild controls with the saved size", () =>
                 {
@@ -206,7 +207,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                         .Single(slider => slider.Caption.ToString() == "爆炸缩放");
                     SkinOptionsSettings controls = settings.ChildrenOfType<SkinOptionsSettings>().Single();
                     return !ReferenceEquals(originalScale, rebuilt) && rebuilt.Current.Value == 1.25
-                        && changedBrightness.All(pair => Math.Abs(controls.ChildrenOfType<FormSliderBar<double>>()
+                        && changedNumbers.All(pair => Math.Abs(controls.ChildrenOfType<FormSliderBar<double>>()
                             .Single(slider => slider.Caption.ToString() == definitions.Single(definition => definition.Id == pair.Key).Label).Current.Value
                             - double.Parse(pair.Value, System.Globalization.CultureInfo.InvariantCulture)) < 0.000001);
                 });
@@ -217,16 +218,16 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     .ChildrenOfType<SettingsButtonV2>().Single().Action());
                 AddUntilStep("reset clears only these overrides", () =>
                     Game.Dependencies.Get<SkinOptionPreferences>().GetOverrides(import!.GetAwaiter().GetResult().ID, "mania").Count == 0);
-                AddUntilStep("all generated brightness controls restore the author values", () =>
+                AddUntilStep("all generated numeric controls restore the author values", () =>
                 {
                     SkinOptionsSettings controls = settings.ChildrenOfType<SkinOptionsSettings>().Single();
                     return hasDeclaredSettingsControls(controls, definitions)
-                        && definitions.Where(definition => changedBrightness.ContainsKey(definition.Id)).All(definition =>
+                        && definitions.Where(definition => changedNumbers.ContainsKey(definition.Id)).All(definition =>
                             Math.Abs(controls.ChildrenOfType<FormSliderBar<double>>().Single(slider => slider.Caption.ToString() == definition.Label).Current.Value
                                 - double.Parse(definition.DefaultValue, System.Globalization.CultureInfo.InvariantCulture)) < 0.000001);
                 });
                 AddStep("record the generated number controls and successful reset", () => File.WriteAllText(Path.Combine(output, "settings-control-values.json"),
-                    JsonSerializer.Serialize(definitions.Where(definition => changedBrightness.ContainsKey(definition.Id)).Select(definition => new
+                    JsonSerializer.Serialize(definitions.Where(definition => changedNumbers.ContainsKey(definition.Id)).Select(definition => new
                     {
                         definition.Id,
                         definition.Label,
@@ -234,7 +235,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                         definition.Maximum,
                         definition.Step,
                         definition.DefaultValue,
-                        changed = changedBrightness[definition.Id],
+                        changed = changedNumbers[definition.Id],
                         restored = settings.ChildrenOfType<SkinOptionsSettings>().Single().ChildrenOfType<FormSliderBar<double>>()
                             .Single(slider => slider.Caption.ToString() == definition.Label).Current.Value,
                     }))));

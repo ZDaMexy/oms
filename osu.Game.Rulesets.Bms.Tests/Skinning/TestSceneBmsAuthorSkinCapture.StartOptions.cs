@@ -23,6 +23,7 @@ using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Screens.Play;
 using osu.Game.Skinning.Gameplay;
+using osu.Game.Tests.Visual.Skinning;
 using osuTK.Graphics;
 
 namespace osu.Game.Rulesets.Bms.Tests.Skinning
@@ -316,6 +317,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 authoritativeGameplayTime = renderer.GameplaySkinEventRuntime!.AuthoritativeGameplayTime,
                 evidence,
                 hud = startOptionHudEvidence(runtime, nodes),
+                optionPresentation = GameplaySkinOptionPresentationCapture.Capture(runtime, nodes),
             }));
         }
 

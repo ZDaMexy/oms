@@ -15,6 +15,7 @@ metadata:
 - `ClockBackedTestWorkingBeatmap.TrackVirtualManual`挂在真实AudioManager时，即使Rate=0，音频Update仍会读改写`accumulated`。Update线程直接Seek可被该旧值覆写，使一次跳时后的整个主时钟停在0；`SeekAsync`也是同步包装。测试先捕获source/offset，再经公开`GameHost.AudioThread.Scheduler`串行跳时，保留真实`OnSeek`区别与业务断言；`IAudioChannel.EnqueueAction`是framework内部成员，不可外调。日志未含source快照时，不宣称已唯一重放历史交错。见[P1-A取证](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-20选曲与皮肤遗留软件问题收尾)。
 
 - `osu.Desktop.slnf` 包含 BMS/mania tests，core `osu.Game.Tests` 须单独编译；只有相同项目/配置的当前代码成功编译后才能用 `--no-build`。
+- ruleset测试中的`osu.Game.Tests.Visual`基础类型来自Game内共享测试支撑，不表示它们引用Core测试程序集。跨两玩法共用取景代码应显式link同一internal测试源码，不为此新增生产依赖；Core单独编译成功不能证明BMS/mania能引用该helper。
 - `osu.Game` 是library，历史曾因NUnit test scene被C# Dev Kit误认作test project，缺runtimeconfig、当时的AutoMapper及测试平台程序集。诊断须使用真实core/BMS/mania测试工程，不为这个红节点复制依赖或改library身份；旧错误里的包名不代表当前仍依赖该库。
 - 第三方程序集可通过 deps/runtimeconfig 从 NuGet cache 加载，输出目录没有单独 DLL 不足以证明依赖缺失。
 - 缺Test SDK依赖时，`dotnet test --no-restore`可能未发现/执行测试却退出0；须确认实际执行摘要及TRX，修复对应工程依赖后重新编译。具名案例见[TOTAL报告](../../doc_md/other/BMS_TOTAL_RULES_AUDIT_20260922.md#验证状态)。
@@ -30,6 +31,7 @@ metadata:
 - `UseFreshStoragePerRun` 不表示每个测试方法都重建 Realm/目录：固定 framework 复用同一个 scene，依赖创建时才分配根。保存的组合键或未收尾的目录变更会污染后例；失败的视觉步骤又会跳过后置 `TearDownSteps`。随机选择还可能抽到前例故意损坏 owner／缺 ini 的记录，产品正确拒绝而测试无条件等提交；先核候选身份，再局部准备本例完整允许集合，不能因偶发通过就排除该分支。输入审查留有[确定两例红绿](../../doc_md/other/INPUT_SIGNAL_REVIEW_20261021.md#失败定位与有效修后证明)。需明确每例重置与真正兜底责任，不抹 journal 或放宽生产目录校验；其它探针边界见上述游玩审查。
 - 固定framework的`UseTestSceneRunner.AfterTest`在NUnit单例`TearDown`之后才执行视觉步骤；单例收尾只能清前例，`RunAfterTest`也可能被失败跳过。末例应在派生fixture的`OneTimeTearDown`中、基类关闭host之前调度Update收尾，并有界等待/传播异常。`Clear(true)`异步Dispose，若join前必须释放holder/lease，使用现有`Remove(child, disposeImmediately:true)`逐个同步释放；不要为夹具改通用runner。具名来源与验证见上述游玩审查。
 - framework未加载的Drawable会忽略普通失效传播；直接new Sprite后改四角再读缓存包围盒，不能证明实际裁切失效。几何/绘制边界回归需把组件真实加载到headless场景，先读取初帧再变更并更新，核对屏幕四角和裁切范围；原始失败及修正见[IIDX33记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-18iidx33-游玩皮肤与公共表现能力)。
+- 初始关闭的C5内门会使子树暂不执行LoadComplete；等待其Sprite.IsLoaded后才发首次开门输入会形成夹具死锁。先核controller/创建队列/层与fault，再真实开门、等子树加载，随后核`.4→0→.4`的继承颜色。手工PreparedSceneNode还须传真实`ResolvedTexture`；资源variant后写可掩盖漏传，移除variant后才暴露null。具名过程见[Start复核](../../doc_md/other/OMNI_START_OPTIONS_20261024.md)。
 - 先前 relevant 范围未覆盖的方法，不能只凭修改日期认定旧失败。`TestRegisterExternalDirectoryWithOnlyNonManiaBeatmapsReturnsNull` 的旧 null 预期与 InvalidDataException 合同冲突，2026-09-30 full 发现后，以恢复原生产 HEAD 并重新编译的具名单项确认基线，再逐字节恢复优化；过程见上述性能记录。该旧名称已退休，现行回归为 `ManiaImportIntegrationTest.TestRegisterExternalDirectoryWithOnlyNonManiaBeatmapsReportsFailure`，验证明确失败、零记录及源文件保全，来源见 [P1-H 扫描记录](../../doc_md/subline/P1-H/CHANGELOG.md#扫描性能与便携日志定位)。复制旧过滤器无匹配不能算通过。
 
 - 隔离DesktopGameHost / ExactVisualTestGame的PNG属于测试资料渲染；设置overlay.RelativeSizeAxes / Width只改变覆盖层内容区，不改变宿主窗口 / DPI。先核尺寸作用对象，不能由“narrow”文件名或实际像素截图推定玩家缩窗和设计已验。正常OMS窗口的lazer体验仍须实际使用反馈，具名误称与范围见[来源勘误](../../../oms-server/oms_client_bridge_md/doc_md/other/oms-beatmap-browser-mode-snapshot-20261012.md#证据范围勘误)。

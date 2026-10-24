@@ -17,6 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\osu.Game.Tests\Visual\Skinning\GameplaySkinOptionPresentationCapture.cs" Link="Skinning\GameplaySkinOptionPresentationCapture.cs" />
     <Content Include="..\skin-authoring\docs\examples\first-scene\**\*" Exclude="..\skin-authoring\docs\examples\first-scene\README.md">
       <Link>SkinManualExamples\first-scene\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

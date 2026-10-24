@@ -2,19 +2,136 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
+using osu.Framework.Allocation;
+using osu.Framework.Graphics;
+using osu.Framework.Graphics.Colour;
+using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Rendering;
 using osu.Framework.Graphics.Rendering.Dummy;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
+using osu.Framework.Testing;
 using osu.Game.Skinning.Gameplay;
+using osu.Game.Tests.Visual;
+using osuTK;
 
 namespace osu.Game.Tests.NonVisual.Skinning
 {
     public sealed partial class GameplaySkinSceneRuntimeHostTest
     {
+        [TestCase(-2, 0.8)]
+        [TestCase(-1, 0.4)]
+        [TestCase(0, 0)]
+        [TestCase(1, -0.1)]
+        [TestCase(10, -1)]
+        public void TestSignedNumericOptionClockKeepsPositionAcrossPauseResetAndPublication(double selected, double expected)
+        {
+            using Texture normal = new DummyRenderer().CreateTexture(2, 2);
+            using Texture alternate = new DummyRenderer().CreateTexture(3, 3);
+            JObject manifest = GameplaySkinOptionsTest.ManifestJson();
+            JToken definition = manifest["options"]![3]!;
+            definition["min"] = -2;
+            definition["max"] = 10;
+            definition["step"] = 1;
+            definition["default"] = 0;
+            JObject scene = optionScene();
+            scene["tracks"] = new JArray(JObject.Parse("""
+                {"id":"option.position","type":"tween","target":"option.hud","property":"y","easing":"linear","loop":false,"clock":"option.cover",
+                 "keyframes":[{"id":"option.position-low","time":-2,"value":0.8},
+                              {"id":"option.position-zero","time":0,"value":0},
+                              {"id":"option.position-high","time":10,"value":-1}]}
+                """));
+            var saved = new Dictionary<string, string> { ["cover"] = selected.ToString(CultureInfo.InvariantCulture) };
+            using GameplaySkinLayoutPublication publication = optionPublication(normal, alternate, saved, manifest, scene);
+            using GameplaySkinEventStream stream = createStream(publication);
+            GameplaySkinEventProducer producer = stream.CreateProducer();
+            using var host = new GameplaySkinSceneRuntimeHost(publication, stream);
+            try
+            {
+                host.ProcessFrame();
+                assertPosition(host, expected);
+                Assert.That(publication.PreparedScene.Program.Tracks.Single().Keyframes.Select(frame => frame.Time), Is.EqualTo(new[] { -2.0, 0, 10 }));
+
+                saved["cover"] = "0";
+                producer.SynchroniseTiming(500, new GameplaySkinTimingStateSnapshot(1, 0, 120, true, 1, startTime: 0));
+                host.ProcessFrame();
+                host.ProcessFrame();
+                assertPosition(host, expected);
+                producer = producer.Reset(1500, publication.PreparedScene.InitialEventState, GameplaySkinEventResetReason.Seek);
+                host.ProcessFrame();
+                assertPosition(host, expected);
+                producer = producer.Reset(0, publication.PreparedScene.InitialEventState, GameplaySkinEventResetReason.Retry);
+                host.ProcessFrame();
+                assertPosition(host, expected);
+                using (var reattached = new GameplaySkinSceneRuntimeHost(publication, stream))
+                {
+                    reattached.ProcessFrame();
+                    assertPosition(reattached, expected);
+                }
+
+                saved.Remove("cover");
+                using GameplaySkinLayoutPublication restored = optionPublication(normal, alternate, saved, manifest, scene);
+                using GameplaySkinEventStream restoredStream = createStream(restored);
+                using var restoredHost = new GameplaySkinSceneRuntimeHost(restored, restoredStream);
+                restoredHost.ProcessFrame();
+                assertPosition(restoredHost, 0);
+                assertPosition(host, expected);
+            }
+            finally
+            {
+                producer.Dispose();
+            }
+
+            void assertPosition(GameplaySkinSceneRuntimeHost current, double position)
+            {
+                GameplaySkinSceneRuntimeNode root = runtime(current, "option.hud");
+                Assert.That(root.TransformDrawable.Y, Is.EqualTo(position).Within(0.00001));
+                Assert.That(root.TransformDrawable.RelativePositionAxes.HasFlag(Axes.Y), Is.True);
+                Assert.That(((Sprite)runtime(current, "option.note").ContentDrawable).Texture, Is.SameAs(normal));
+                Assert.That(current.RuntimeFaults, Is.Empty);
+            }
+        }
+
+        internal static GameplaySkinLayoutPublication CreateIndependentOptionGatePublication(Texture texture)
+        {
+            JObject manifest = GameplaySkinOptionsTest.ManifestJson();
+            JToken definition = manifest["options"]![3]!;
+            definition["min"] = -2;
+            definition["max"] = 10;
+            definition["step"] = 1;
+            definition["default"] = 0;
+            JObject scene = optionScene();
+            scene["tracks"] = new JArray(JObject.Parse("""
+                {"id":"option.position","type":"tween","target":"option.hud","property":"y","easing":"linear","loop":false,"clock":"option.cover",
+                 "keyframes":[{"id":"option.position-low","time":-2,"value":0.8},
+                              {"id":"option.position-zero","time":0,"value":0},
+                              {"id":"option.position-high","time":10,"value":-1}]}
+                """));
+            JToken root = scene["root"]!;
+            JToken sprite = root["children"]![0]!;
+            sprite["properties"] = new JObject { ["colour"] = "#80402080" };
+            JToken text = root["children"]![3]!;
+            root["properties"] = new JObject { ["opacity"] = 0.4, ["brightness"] = 0.5 };
+            JObject gate = JObject.Parse("""
+                {"id":"option.gate","type":"container","target":{"kind":"global"},"blend":"inherit","properties":{},"effects":[],"children":[
+                 {"id":"option.viewport","type":"clip","target":{"kind":"global"},"blend":"inherit","properties":{"width":0.75,"height":0.5,"clip-mode":"bounds"},"effects":[],"children":[
+                  {"id":"option.row","type":"container","target":{"kind":"global"},"blend":"inherit","properties":{"x":0.25,"y":0.3},"effects":[],"children":[]}]}]}
+                """);
+            gate["children"]![0]!["children"]![0]!["children"] = new JArray(sprite, text);
+            root["children"] = new JArray(gate);
+            scene["bindings"] = new JArray(JObject.Parse("""
+                {"id":"option.gate-input","target":"option.gate","property":"visible","source":"input.pressed"}
+                """));
+            scene["variants"] = new JArray();
+            return optionPublication(texture, texture,
+                new Dictionary<string, string> { ["cover"] = "-1" }, manifest, scene);
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public void TestFrozenAuthorChoicesDrivePreparedTextureVisibilityAndCoverHeight(bool overridden)
@@ -374,9 +491,141 @@ namespace osu.Game.Tests.NonVisual.Skinning
             return GameplaySkinLayoutPublication.Create(new Adapter(layout.Snapshot), materialSet, scene);
 
             GameplaySkinPreparedSceneNode prepareNode(GameplaySkinSceneNode node, bool isRoot)
-                => new GameplaySkinPreparedSceneNode(node.Id, node, node.Target, rect, global, isRoot ? GameplaySkinSlotCatalog.TextHud : null,
-                    node.ResourceId == null ? null : resources.Single(resource => resource.Id == node.ResourceId), null,
+            {
+                GameplaySkinPreparedSceneResource? resource = node.ResourceId == null ? null : resources.Single(candidate => candidate.Id == node.ResourceId);
+                return new GameplaySkinPreparedSceneNode(node.Id, node, node.Target, rect, global, isRoot ? GameplaySkinSlotCatalog.TextHud : null,
+                    resource, resource?.Texture,
                     node.Children.Select(child => prepareNode(child, false)), GameplaySkinSceneLayer.HudForeground, owner, false);
+            }
+        }
+    }
+
+    [HeadlessTest]
+    public partial class TestSceneGameplaySkinIndependentOptionGate : OsuTestScene
+    {
+        [Test]
+        public void TestIndependentInnerVisibilityGatePreservesLifecycleAlphaBrightnessAndArtwork()
+        {
+            GateHost loaded = null!;
+            GameplaySkinSceneRuntimeNode lifecycle = null!;
+            GameplaySkinSceneRuntimeNode visibility = null!;
+            GameplaySkinSceneRuntimeNode viewport = null!;
+            GameplaySkinSceneRuntimeNode row = null!;
+            GameplaySkinSceneRuntimeNode artwork = null!;
+            ColourInfo originalColour = default;
+            Vector2 originalRowPosition = default;
+            Vector2 originalClipSize = default;
+            int instances = 0;
+
+            AddStep("mount the option gate and its real scene layer", () => Child = loaded = new GateHost());
+            AddUntilStep("the scene controller loads", () => loaded.Scene?.IsLoaded == true);
+            AddUntilStep("the prepared scene queue completes", () => loaded.Scene.IsSceneReady);
+            AddStep("the ready scene contains the exact gate and artwork without faults", () =>
+            {
+                Assert.That(loaded.Scene.RuntimeFaults, Is.Empty);
+                lifecycle = runtime("option.hud");
+                visibility = runtime("option.gate");
+                viewport = runtime("option.viewport");
+                row = runtime("option.row");
+                artwork = runtime("option.note");
+            });
+            AddUntilStep("the mounted HUD layer loads with real geometry", () => loaded.Scene.Layers.HudForeground.IsLoaded
+                                                                                 && loaded.Scene.Layers.HudForeground.DrawWidth > 0);
+            // The initial input is released, so the gate starts closed. A hidden composite does not
+            // run its descendants' LoadComplete; open it through the real binding before awaiting them.
+            AddStep("publish the first actual input visibility true", () => loaded.SetVisible(true));
+            AddUntilStep("the first input opens the independent gate", () => visibility.TransformDrawable.Alpha == 1);
+            AddUntilStep("artwork and clip finish loading inside the open gate", () => artwork.ContentDrawable.IsLoaded && viewport.ContentDrawable.IsLoaded);
+            AddStep("retain the original artwork and clip geometry", () =>
+            {
+                originalColour = artwork.ContentDrawable.Colour;
+                originalRowPosition = row.TransformDrawable.Position;
+                originalClipSize = viewport.TransformDrawable.Size;
+                instances = loaded.Scene.RuntimeInstanceCount;
+            });
+
+            // Real input transitions exercise the existing C5 visibility channel on loaded drawables;
+            // this is independent alpha ownership, not a native OFF-menu semantic claim.
+            int phase = 0;
+            foreach (bool selected in new[] { true, false, true })
+            {
+                bool visible = selected;
+                if (phase++ > 0)
+                    AddStep($"publish input visibility {visible}", () => loaded.SetVisible(visible));
+                AddUntilStep("the scene consumes the actual input transition", () => visibility.TransformDrawable.Alpha == (visible ? 1 : 0));
+                AddStep("the independent gate multiplies lifecycle alpha without changing artwork", () =>
+                {
+                    var brightness = lifecycle.RootDrawable.Colour.TopLeft.SRGB;
+                    Assert.Multiple(() =>
+                    {
+                        Assert.That(lifecycle.TransformDrawable.Alpha, Is.EqualTo(0.4f).Within(0.00001));
+                        Assert.That(lifecycle.TransformDrawable.Y, Is.EqualTo(0.4f).Within(0.00001));
+                        Assert.That(visibility.TransformDrawable.Alpha, Is.EqualTo(visible ? 1 : 0));
+                        Assert.That(viewport.ContentDrawable.DrawColourInfo.Colour.TopLeft.SRGB.A, Is.EqualTo(visible ? 0.4 : 0).Within(0.00001));
+                        Assert.That(artwork.ContentDrawable.Colour, Is.EqualTo(originalColour));
+                        Assert.That(((Sprite)artwork.ContentDrawable).Texture, Is.SameAs(loaded.Texture));
+                        Assert.That(row.TransformDrawable.Position, Is.EqualTo(originalRowPosition));
+                        Assert.That(viewport.TransformDrawable.Size, Is.EqualTo(originalClipSize));
+                        Assert.That(((Container)viewport.ContentDrawable).Masking, Is.True);
+                        Assert.That(loaded.Scene.RuntimeInstanceCount, Is.EqualTo(instances));
+                        Assert.That(loaded.Scene.RuntimeFaults, Is.Empty);
+                        Assert.That(brightness.R, Is.EqualTo(0.5).Within(0.00001));
+                        Assert.That(brightness.G, Is.EqualTo(0.5).Within(0.00001));
+                        Assert.That(brightness.B, Is.EqualTo(0.5).Within(0.00001));
+                        Assert.That(brightness.A, Is.EqualTo(1));
+                        Assert.That(lifecycle.RootDrawable.Alpha, Is.EqualTo(1));
+                    });
+                });
+            }
+
+            GameplaySkinSceneRuntimeNode runtime(string id)
+            {
+                Assert.That(loaded.Scene.TryGetRuntimeNode(id, out GameplaySkinSceneRuntimeNode? node), Is.True);
+                return node!;
+            }
+        }
+
+        private partial class GateHost : Container
+        {
+            internal GameplaySkinSceneRuntimeHost Scene { get; private set; } = null!;
+            internal Texture Texture { get; private set; } = null!;
+            private GameplaySkinLayoutPublication publication = null!;
+            private GameplaySkinEventStream stream = null!;
+            private GameplaySkinEventProducer producer = null!;
+            private double time;
+
+            internal GateHost() => RelativeSizeAxes = Axes.Both;
+
+            [BackgroundDependencyLoader]
+            private void load(IRenderer renderer)
+            {
+                Texture = renderer.WhitePixel;
+                publication = GameplaySkinSceneRuntimeHostTest.CreateIndependentOptionGatePublication(Texture);
+                stream = new GameplaySkinEventStream(publication, 0, publication.PreparedScene.InitialEventState);
+                producer = stream.CreateProducer();
+                Scene = new GameplaySkinSceneRuntimeHost(publication, stream);
+                Children = new Drawable[] { Scene, Scene.Layers.HudForeground };
+                Scene.MarkLayersMounted();
+            }
+
+            internal void SetVisible(bool visible)
+            {
+                GameplaySkinInputStateSnapshot lane = publication.PreparedScene.InitialEventState.Inputs.Single();
+                var state = new GameplaySkinInputStateSnapshot(lane.GroupId, lane.LaneId, visible, visible ? 1 : 0);
+                stream.Publish(producer, ++time,
+                    GameplaySkinEventValue.Input(visible ? GameplaySkinEventKind.InputPressed : GameplaySkinEventKind.InputReleased, state), state.GroupId, state.LaneId);
+            }
+
+            protected override void Dispose(bool isDisposing)
+            {
+                base.Dispose(isDisposing);
+                if (isDisposing)
+                {
+                    producer?.Dispose();
+                    stream?.Dispose();
+                    publication?.Dispose();
+                }
+            }
         }
     }
 }

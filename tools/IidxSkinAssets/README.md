@@ -43,6 +43,10 @@ Start设置迁移分两步：`build_lighting_start_options.py`消费实际菜单
 
 `build_lighting_native_hud.py`在下一份全新作者中，仅为45份Frame manifest的225个既有profile增加公开`modsRect`，将同一个OMS原生ModDisplay放到柜体空位，避免遮住Graph分数。其余布局、scene字节、素材、选项、预览保持；这是OMS摆位适配，不生成IIDX Mod美术或改变输入/计分。
 
+`build_lighting_judgement_position.py`消费独立review JSON中真实游玩−2/0/+1/+10位移和OFF证据，以及225个profile/42组SD-HD贡献的几何审查，新增整体高度配置与独立内层关闭门。位移由既有根与同高关闭门各分半，守单节点绝对位置4预算，不增加额外节点或放宽限制。三种布局沿既有宿主高度换算，原行排版、字体、RGB和生命周期保持；锚点间线性插值、P2/DP沿用位移均明确属于OMS作者适配，未以设置页缩图或其它侧别代签逐像素校准。未取得完整review时拒绝生成。
+
+`build_lighting_percentage_target.py`在再下一份全新作者中追加百分比目标及0..100、步长1、默认50的数值配置。范围取官方说明，原版50档实际选中的截图另行固定；旧五档目标保全。原柱使用已有非循环配置采样轴，原数字旁用普通文字显示百分号，不猜算原版EX整数取整、rotate或Ghost。两个新工具均保全父作者/OSK、原1272款及540张预览，发布前仍须当前CLI与真实Player验收。
+
 ```powershell
 . .\UseDevelopmentStorage.ps1
 python -B tools/IidxSkinAssets/build_lighting_columns.py --mode upgrade --source 'Y:\SharedBrightnessOmniAuthor' --column-reference 'Y:\ColumnSource\reference.json' --reviewed-column 'Y:\ColumnReview\reviewed-column.json' --output 'Y:\ColumnOmniAuthor'

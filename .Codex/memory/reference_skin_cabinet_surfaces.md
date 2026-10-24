@@ -8,6 +8,10 @@ RGB亮度不能写到容器的ContentDrawable.Colour后再期望作者色还在�
 
 `visible`和`opacity`都写Transform.Alpha，同一节点不能同时承担OFF开关与原判定/准备淡出。需要两者相乘时用独立父子门，保留原grade选择和生命周期；改RGB倍率也不能把这个相互覆盖问题当作已经解决。
 
+判定根的`y`按其宿主高度取相对值，不能按1080直接除；同一原字形在SD/HD既有分支中可使用不同换算，不必复制字体或增加Frame分支。RootDrawable是未移动的外层RGB载体，实际位移在TransformDrawable及原子行，取景须同时记两者和子孙屏幕几何。原版菜单缩图的位移不能代签真实游玩；四个锚点与剩余插值边界取[Start复核](../../doc_md/other/OMNI_START_OPTIONS_20261024.md)。
+
+已发布作者包的资源路径可能是内容摘要，不能按解包前的PNG文件名后缀定位同一图。从已有只读数据绑定、分支所有权、唯一原几何和对应texture声明识别实际消费者，再保留原resource身份及父本字节；合成测试须覆盖这种路径，不仅使用易读的源文件名。具体失败取[Start复核](../../doc_md/other/OMNI_START_OPTIONS_20261024.md)。
+
 Group素材匹配需同时检查codec作用域准入、ResolveMaterialTemplateEntries的独立Kind.Group及准备目标映射；少一处会解码拒绝、零实例或错误目标，不能改成Stage逃过问题。选中来源revision必须取C4文档Identity.ContentRevision；C2 whole-package identity可能是`record:...`，既不是合法opaque token，也不等于选中C4声明。以真实Skin/INI/encoded scene重过准备链，stage/lane作对照，根因与实际范围取[Start复核](../../doc_md/other/OMNI_START_OPTIONS_20261024.md)。
 
 挡板透明度若只检查保存值或旧display.Alpha，会漏掉与display并列的C5场景宿主。产品回归须沿真实作者/canonical两侧最终Sprite.DrawColourInfo检查乘积，并往返0/部分/满值；在现有共同宿主乘原生opacity，不能覆盖specialised visual的lease Alpha或作者内部Alpha。合同取[P1-A](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#声明式作者面)。
