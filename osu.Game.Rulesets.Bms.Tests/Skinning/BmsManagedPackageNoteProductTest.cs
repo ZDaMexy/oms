@@ -46,9 +46,9 @@ using osu.Game.Skinning.Gameplay;
 using osu.Game.Tests.Visual;
 using osuTK.Graphics;
 using SharpCompress.Archives;
+using SharpCompress.Archives.Zip;
 using SharpCompress.Common;
 using SharpCompress.Writers.Zip;
-using SharpCompress.Archives.Zip;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
@@ -1463,7 +1463,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Child = host = new BmsAsyncNoteDrawable(createLookup(element)),
                 };
             });
-            AddUntilStep("initial supported note component loaded", () => host.IsLoaded && host.Drawable?.IsLoaded == true);
+            AddUntilStep("initial supported note component fully published", () => host.IsLoaded && host.Drawable?.IsLoaded == true
+                && host.PendingLoadTask == null);
             AddStep("capture initial visual and queue next source from old loader", () =>
             {
                 oldVisual = host.Drawable!;
@@ -2321,11 +2322,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
 
             AddUntilStep($"wait for {label} selection", () =>
-                imported.Info != null
-                && skinManager.CurrentSkinInfo.Value.ID == imported.Info.ID
-                && skinManager.CurrentSkin.Value.SkinInfo.ID == imported.Info.ID
-                && skinManager.CurrentSkin.Value is BmsLegacySkin
-                && ReferenceEquals(skinManager.CurrentRevision.Owner, skinManager.CurrentSkin.Value));
+            {
+                Assert.That(skinManager.LastSelectionRejectionReason, Is.EqualTo(SkinSelectionRejectionReason.None), label);
+                return imported.Info != null
+                       && skinManager.CurrentSkinInfo.Value.ID == imported.Info.ID
+                       && skinManager.CurrentSkin.Value.SkinInfo.ID == imported.Info.ID
+                       && skinManager.CurrentSkin.Value is BmsLegacySkin
+                       && ReferenceEquals(skinManager.CurrentRevision.Owner, skinManager.CurrentSkin.Value);
+            });
             AddStep($"capture the published {label} owner", () =>
             {
                 imported.Skin = skinManager.CurrentSkin.Value;

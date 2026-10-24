@@ -393,6 +393,7 @@ namespace osu.Game.Skinning.Gameplay
 
                 string runtimeId = $"specialised.{visualId}/{prepared.InstanceId}";
                 var runtime = new GameplaySkinSceneRuntimeNode(prepared, root, content, transform, runtimeId, $"specialised.{visualId}");
+                initialiseElapsedTrackDefaults(runtime);
                 runtimeNodes.Add(runtimeId, runtime);
                 RuntimeInstanceCount += runtimeInstanceCost(prepared);
 

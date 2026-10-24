@@ -114,6 +114,8 @@
 
 图库每次只创建当前页最多12张图卡；换页、搜索或收起时由图库释放旧卡及其延迟图片，不能只替换`GridContainer.Content`而遗留原对象。相同美术可共用同一包内PNG引用，编码字节按唯一文件计费；不为缩略图增加游玩场景或动画实例。
 
+场景亮度使用独立的`brightness` RGB倍率，默认1；不覆盖作者颜色、透明度、显隐与原生池生命周期，不用降低Alpha模拟变暗。沿现有载体和数值属性预算执行，不新增纹理、离屏表面或绘图实例；精确范围和作者语法取[作者参考](../../../skin-authoring/docs/REFERENCE.md#节点目标和属性)。
+
 ## IIDX 素材作品约束
 
 Omni的Key beam是逐轨动态背景，使用现有`playfield.lane-surface`及Underlay，普通Note/LN仍由原生池绘制在其上；不能以`decoration`前景或全局更改渲染顺序实现。Frame不再重复声明该槽的透明占位，由光柱模块独立拥有；保留原图片、动画、尺寸/长度及input只读绑定。爆炸、判定文字与其它皮肤的现有图层不随作品修正而改变。
@@ -299,7 +301,7 @@ L12. lane-resource candidate/snapshot与configuration candidate已经接入BMS e
 
 ## scene、事件与脚本约束
 
-`instances`的`target`与`material`二选一；后者只按选定包同一ContentRevision的Global/Stage/Lane Provide声明及精确slot/resource匹配，模板根slot相同，准备仍复核exact owner，不借用canonical scene/resources。实际展开参与既有节点、帧、事件与文字预算，Stage/Lane实例使用真实目标事实，Global实例只生成一次。`reveal-x`只用于clip，范围0..1，保留完整子坐标；`format`只允许静态percent/uppercase/fixed-2/signed-fixed-2/integer，格式化后继续限制长度，accuracy/progress保留既有专用格式。BMS `GaugeHeight`仅选定包读取，默认0.036、范围0.02..0.12，由唯一solver与键区/BGA/底部信息共同避让。原模板与血槽证据见[历史记录](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md)，新增能力验证取本线STATUS。
+`instances`的`target`与`material`二选一；后者只按选定包同一ContentRevision的Global/Stage/Group/Lane Provide声明及精确slot/resource匹配，模板根slot相同，准备仍复核exact owner，不借用canonical scene/resources。实际展开参与既有节点、帧、事件与文字预算，Stage/Group/Lane实例保留原作用域、稳定目标身份和真实索引，不把Group改作Stage或扩大slot允许的作用域；Global实例只生成一次。`reveal-x`只用于clip，范围0..1，保留完整子坐标；`format`只允许静态percent/uppercase/fixed-2/signed-fixed-2/integer，格式化后继续限制长度，accuracy/progress保留既有专用格式。BMS `GaugeHeight`仅选定包读取，默认0.036、范围0.02..0.12，由唯一solver与键区/BGA/底部信息共同避让。原模板与血槽证据见[历史记录](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md)，新增能力验证取本线STATUS。
 
 清单可选 `bitmapFonts` 只引用同包已准备的纹理，Text通过静态 `bitmap-font` 选用。字体、字形、字符、像素与运行文字均有硬预算；缺字或超限明确失败，不回落系统字形，不在update线程读文件或建新图集。尺寸、格式和完整字段见[公开参考](../../../skin-authoring/docs/REFERENCE.md#用自己的图片字形显示数字)。普通Text未声明该字段时保留原表现。
 
@@ -326,6 +328,8 @@ Container可静态声明 `layout: horizontal`，只排列普通Sprite与图片�
 C5声明式scene/animation、只读event及全部适用slot host与C6可选脚本共用production publication；C7 canonical静线与完整Authoring Kit继续使用同一公开合同。以下各节描述现行行为合同，实际自动验证和campaign完成状态只见[STATUS](DEVELOPMENT_STATUS.md)。
 
 C7 必要信息补齐：公开 `score.accuracy` 和 `timing.progress` 数值均为0～1，绑定text分别显示两位准确率百分数（如`99.50%`）和四舍五入的整数进度百分数（如`25%`），使用固定格式，不改变数值绑定的单位。准确率沿已有ScoreSnapshot；进度由唯一EventRuntimeHost按 `CalculatePlayableBounds` 的首物件开始时间、末物件结束时间及同一gameplay时间投影，首物件前0、末物件后1、空谱或零时长0，包含长条尾部，不另建时钟或规则。TimingSnapshot、inline payload、完整重建与晚订阅保留同值，暂停保持既有时间采样，seek/retry沿原完整Reset屏障更新。普通semantic TextHud用单行显示分数、准确率、连击和进度，prepare与runtime都预留64字形，并按真实宿主宽高等比缩小，不能通过截断隐去必要信息；纯timing变化未改变实际显示的整数进度时不重复格式化这行文字，数值绑定继续保留连续精度。作者可通过同一公开scene布局。实际验证结论只见[STATUS](DEVELOPMENT_STATUS.md)，历史未验范围见[暂停检查点](../../other/SKIN_SYSTEM_C7_RESUME_20260909.md)，不能把已实现合同写成已通过。
+
+BMS原生挡板的覆盖范围、上下位置和透明度继续由原生owner控制；透明度统一乘到兼容显示与C5作者/canonical美术的现有宿主，保留作者内部Alpha、纹理、动画及lease显隐，不借设置变更重建场景。mania的原生遮挡/减Alpha权威保持原合同。
 
 ### 声明式作者面
 

@@ -1,12 +1,12 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System;
-using System.Diagnostics;
-using System.Text.Json;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.Json;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Allocation;
@@ -17,6 +17,7 @@ using osu.Framework.Graphics.Pooling;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Platform;
 using osu.Framework.Testing;
+using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Database;
 using osu.Game.Graphics.UserInterfaceV2;
 using osu.Game.Overlays;
@@ -72,6 +73,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         [Test]
         public void CaptureImportedManiaPackageThroughCompletePlayer()
         {
+            bool captureStartOptions = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_START_OPTIONS") == "1";
             AddStep("import an author package into disposable desktop storage", () =>
             {
                 if (host is HeadlessGameHost)
@@ -143,6 +145,9 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 SettingsOverlay settings = null!;
                 SkinSection section = null!;
                 FormSliderBar<double> originalScale = null!;
+                GameplaySkinOptionDefinition[] definitions = null!;
+                var changedBrightness = new Dictionary<string, string>();
+                string graphValue = null!;
                 AddStep("open the complete skin configuration", () =>
                 {
                     Game.Dependencies.Get<SkinManager>().SelectionPreferences!.SetSkin(new SkinSelectionScope("mania"), import!.GetAwaiter().GetResult().ID);
@@ -155,38 +160,55 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     section = settings.ChildrenOfType<SkinSection>().Single();
                     section.ScopeSelector.Current.Value = new SkinSelectionScope("mania");
                     settings.ShowAtControl<SkinOptionsSettings>();
+                    definitions = maniaSettingsDefinitions();
                 });
                 AddUntilStep("wait for all declared configuration controls", () =>
                 {
                     var controls = settings.ChildrenOfType<SkinOptionsSettings>().SingleOrDefault();
                     return section.IsTargetReady && section.EditingScope == new SkinSelectionScope("mania")
-                        && controls?.ChildrenOfType<FormDropdown<string>>().Count() == 10
-                        && controls.ChildrenOfType<SkinOptionChoiceSettings>().Count() == 6
-                        && controls.ChildrenOfType<FormSliderBar<double>>().Count() == 1
-                        && controls.ChildrenOfType<FormCheckBox>().Count() == 1;
+                        && controls != null && hasDeclaredSettingsControls(controls, definitions);
                 });
                 AddStep("change a frame, a note style, an effect size and a toggle", () =>
                 {
                     var controls = settings.ChildrenOfType<SkinOptionsSettings>().Single();
                     Assert.That(Game.Dependencies.Get<SkinOptionPreferences>().GetOverrides(import!.GetAwaiter().GetResult().ID, "mania"), Is.Empty);
-                    controls.ChildrenOfType<FormDropdown<string>>().Single(dropdown => dropdown.Caption.ToString() == "Game Frame").Current.Value = "bpl-tradz";
+                    controls.ChildrenOfType<SkinOptionChoiceSettings>().Single(choice => choice.OptionId == "frame").Current.Value = "bpl-tradz";
                     controls.ChildrenOfType<SkinOptionChoiceSettings>().Single(choice => choice.OptionId == "notes").Current.Value = "n03";
                     originalScale = controls.ChildrenOfType<FormSliderBar<double>>().Single(slider => slider.Caption.ToString() == "爆炸缩放");
                     Assert.That(originalScale.Current.Value, Is.EqualTo(1));
                     originalScale.Current.Value = 1.25;
-                    controls.ChildrenOfType<FormCheckBox>().Single(toggle => toggle.Caption.ToString() == "Graph Area 显示统计").Current.Value = true;
+                    GameplaySkinOptionDefinition graph = definitions.Single(definition => definition.Id == "graph-visible");
+                    graphValue = graph.DefaultValue == "true" ? "false" : "true";
+                    controls.ChildrenOfType<FormCheckBox>().Single(toggle => toggle.Caption.ToString() == graph.Label).Current.Value = graphValue == "true";
+                    GameplaySkinOptionDefinition[] brightnessDefinitions = definitions.Where(definition => brightness_options.Contains(definition.Id)).ToArray();
+                    Assert.That(brightnessDefinitions.Select(definition => definition.Id), Is.EquivalentTo(brightness_options));
+                    foreach (GameplaySkinOptionDefinition definition in brightnessDefinitions)
+                    {
+                        FormSliderBar<double> control = controls.ChildrenOfType<FormSliderBar<double>>().Single(slider => slider.Caption.ToString() == definition.Label);
+                        Assert.That(definition.TryValidateValue(definition.DefaultValue, out GameplaySkinOptionValue authorDefault), Is.True);
+                        Assert.That(control.Current.Value, Is.EqualTo(authorDefault.NumberValue).Within(0.000001), definition.Id);
+                        double changed = authorDefault.NumberValue > definition.Minimum ? authorDefault.NumberValue - definition.Step : authorDefault.NumberValue + definition.Step;
+                        Assert.That(definition.TryValidateValue(changed.ToString("G17", System.Globalization.CultureInfo.InvariantCulture), out GameplaySkinOptionValue requested), Is.True);
+                        changedBrightness.Add(definition.Id, requested.CanonicalValue);
+                        control.Current.Value = requested.NumberValue;
+                    }
                 });
                 AddUntilStep("save the independent typed values for this package and mode", () =>
                 {
                     var saved = Game.Dependencies.Get<SkinOptionPreferences>().GetOverrides(import!.GetAwaiter().GetResult().ID, "mania");
-                    return saved.Count == 4 && saved["frame"] == "bpl-tradz" && saved["notes"] == "n03"
-                        && saved["explosion-scale"] == "1.25" && saved["graph-visible"] == "true";
+                    return saved.Count == 4 + changedBrightness.Count && saved["frame"] == "bpl-tradz" && saved["notes"] == "n03"
+                        && saved["explosion-scale"] == "1.25" && saved["graph-visible"] == graphValue
+                        && changedBrightness.All(pair => saved.TryGetValue(pair.Key, out string? actual) && actual == pair.Value);
                 });
                 AddUntilStep("rebuild controls with the saved size", () =>
                 {
                     var rebuilt = settings.ChildrenOfType<SkinOptionsSettings>().Single().ChildrenOfType<FormSliderBar<double>>()
                         .Single(slider => slider.Caption.ToString() == "爆炸缩放");
-                    return !ReferenceEquals(originalScale, rebuilt) && rebuilt.Current.Value == 1.25;
+                    SkinOptionsSettings controls = settings.ChildrenOfType<SkinOptionsSettings>().Single();
+                    return !ReferenceEquals(originalScale, rebuilt) && rebuilt.Current.Value == 1.25
+                        && changedBrightness.All(pair => Math.Abs(controls.ChildrenOfType<FormSliderBar<double>>()
+                            .Single(slider => slider.Caption.ToString() == definitions.Single(definition => definition.Id == pair.Key).Label).Current.Value
+                            - double.Parse(pair.Value, System.Globalization.CultureInfo.InvariantCulture)) < 0.000001);
                 });
                 AddWaitStep("allow the configuration layout to settle", 3);
                 AddStep("capture the complete configuration", () => capture = save(0));
@@ -195,6 +217,27 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     .ChildrenOfType<SettingsButtonV2>().Single().Action());
                 AddUntilStep("reset clears only these overrides", () =>
                     Game.Dependencies.Get<SkinOptionPreferences>().GetOverrides(import!.GetAwaiter().GetResult().ID, "mania").Count == 0);
+                AddUntilStep("all generated brightness controls restore the author values", () =>
+                {
+                    SkinOptionsSettings controls = settings.ChildrenOfType<SkinOptionsSettings>().Single();
+                    return hasDeclaredSettingsControls(controls, definitions)
+                        && definitions.Where(definition => changedBrightness.ContainsKey(definition.Id)).All(definition =>
+                            Math.Abs(controls.ChildrenOfType<FormSliderBar<double>>().Single(slider => slider.Caption.ToString() == definition.Label).Current.Value
+                                - double.Parse(definition.DefaultValue, System.Globalization.CultureInfo.InvariantCulture)) < 0.000001);
+                });
+                AddStep("record the generated number controls and successful reset", () => File.WriteAllText(Path.Combine(output, "settings-control-values.json"),
+                    JsonSerializer.Serialize(definitions.Where(definition => changedBrightness.ContainsKey(definition.Id)).Select(definition => new
+                    {
+                        definition.Id,
+                        definition.Label,
+                        definition.Minimum,
+                        definition.Maximum,
+                        definition.Step,
+                        definition.DefaultValue,
+                        changed = changedBrightness[definition.Id],
+                        restored = settings.ChildrenOfType<SkinOptionsSettings>().Single().ChildrenOfType<FormSliderBar<double>>()
+                            .Single(slider => slider.Caption.ToString() == definition.Label).Current.Value,
+                    }))));
                 AddStep("close the configuration and propagate capture failures", () => { capture!.GetAwaiter().GetResult(); settings.Hide(); });
             }
             if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_SETTINGS") == "1")
@@ -251,7 +294,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 preferences.SetOverride(import!.GetAwaiter().GetResult().ID, "mania", "layout",
                     Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_PRESENTATION") == "p2" ? "p2" : "p1");
                 if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_OPTIONS") is string overrides)
-                    foreach (var choice in System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(overrides)!)
+                    foreach (var choice in JsonSerializer.Deserialize<Dictionary<string, string>>(overrides)!)
                         preferences.SetOverride(import.GetAwaiter().GetResult().ID, "mania", choice.Key, choice.Value);
                 var ruleset = new ManiaRuleset();
                 Game.ScreenStack.Push(new PlayerLoader(() => player = new ReplayPlayer(ruleset.GetAutoplayMod()!.CreateScoreFromReplayData)));
@@ -261,6 +304,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             AddStep("verify exact materials and expose the game framebuffer", () =>
             {
                 renderer = player.ChildrenOfType<DrawableManiaRuleset>().Single();
+                if (captureStartOptions)
+                    Assert.That(renderer.BarLines, Is.Not.Empty, "The native chart must generate bar lines for actual material evidence.");
                 if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_BEAM_LAYER") is string beamCheck)
                     recordBeamLayer(beamCheck == "verify");
                 score = renderer.Dependencies.Get<ScoreProcessor>();
@@ -272,10 +317,10 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Assert.That(player.ChildrenOfType<GameplaySkinAuxiliaryPanel>().Count(),
                     Is.EqualTo(Game.Dependencies.Get<SkinManager>().CurrentSkin.Value.PreparedGameplaySkinPackage!.Manifest!.AuxiliaryDisplay == null ? 0 : 1));
                 GameplaySkinOptionValues publishedOptions = owner.CurrentPublication.Snapshot.Context.OptionValues;
-                File.WriteAllText(Path.Combine(output, "options.json"), System.Text.Json.JsonSerializer.Serialize(
+                File.WriteAllText(Path.Combine(output, "options.json"), JsonSerializer.Serialize(
                     publishedOptions.Values.ToDictionary(pair => pair.Key, pair => pair.Value.CanonicalValue)));
                 if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_OPTIONS") is string requestedOptions)
-                    foreach (var requested in System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(requestedOptions)!)
+                    foreach (var requested in JsonSerializer.Deserialize<Dictionary<string, string>>(requestedOptions)!)
                     {
                         GameplaySkinOptionDefinition definition = Game.Dependencies.Get<SkinManager>().CurrentSkin.Value
                             .PreparedGameplaySkinPackage!.Manifest!.Options.Single(option => option.Id == requested.Key);
@@ -313,7 +358,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                             }
                     }, 10, true);
                 }
-                File.WriteAllText(Path.Combine(output, "layout.json"), System.Text.Json.JsonSerializer.Serialize(new
+                File.WriteAllText(Path.Combine(output, "layout.json"), JsonSerializer.Serialize(new
                 {
                     context = owner.CurrentPublication.Snapshot.Context.KeymodeId,
                     presentation = owner.CurrentPublication.Snapshot.Context.PresentationStyleId,
@@ -328,6 +373,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Remove(Game, false);
                 foreach (Drawable chrome in content.Children) { chrome.Alpha = 0; chrome.AlwaysPresent = true; }
                 content.Add(Game);
+                if (captureStartOptions)
+                    content.Add(new LiveHitExplosionProbe(recordLiveHitExplosionRgb) { AlwaysPresent = true });
                 Game.Notifications.Hide();
             });
             if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_OPENING") == "1")
@@ -357,7 +404,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             {
                 AddStep("verify each lane rendered single notes and both hold caps", () =>
                 {
-                    File.WriteAllText(Path.Combine(output, "note-geometry.json"), System.Text.Json.JsonSerializer.Serialize(noteGeometry));
+                    File.WriteAllText(Path.Combine(output, "note-geometry.json"), JsonSerializer.Serialize(noteGeometry));
                     Assert.That(noteGeometry.Count, Is.EqualTo(columns * (dual ? 2 : 1) * 3));
                 });
             }
@@ -373,9 +420,11 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     Assert.That(geometry.Width, Is.EqualTo(253.173828125 * scale).Within(1));
                     Assert.That(geometry.Height, Is.EqualTo(229.345703125 * scale).Within(1));
                 }
-                File.WriteAllText(Path.Combine(output, "effect-geometry.json"), System.Text.Json.JsonSerializer.Serialize(
+                File.WriteAllText(Path.Combine(output, "effect-geometry.json"), JsonSerializer.Serialize(
                     effectGeometry.Select(pair => new { source = pair.Key, pair.Value.Width, pair.Value.Height, scale })));
             });
+            if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_START_OPTIONS") == "1")
+                AddStep("verify requested brightness reached every live material", assertRgbEvidenceCoverage);
         }
 
         private void recordNoteGeometry()
@@ -429,7 +478,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     viewportTop = viewport.Top,
                     viewportBottom = viewport.Bottom,
                 };
-                File.WriteAllText(Path.Combine(output, "note-current-sample.json"), System.Text.Json.JsonSerializer.Serialize(new { key, geometry }));
+                File.WriteAllText(Path.Combine(output, "note-current-sample.json"), JsonSerializer.Serialize(new { key, geometry }));
                 Assert.Multiple(() =>
                 {
                     Assert.That(note.DrawHeight, Is.GreaterThan(0), key + " native layout height");
@@ -446,7 +495,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             GameplaySkinSceneRuntimeHost runtime = renderer.GameplaySkinSceneRuntime!;
             GameplaySkinSceneHostedSlot[] beams = [.. runtime.HostedSlots.Where(slot => slot.RoutedNodes.Any(node =>
                 node.Source.Id.StartsWith("b.b", StringComparison.Ordinal)))];
-            File.WriteAllText(Path.Combine(output, "beam-layer.json"), System.Text.Json.JsonSerializer.Serialize(beams.Select(beam => new
+            File.WriteAllText(Path.Combine(output, "beam-layer.json"), JsonSerializer.Serialize(beams.Select(beam => new
             {
                 lane = beam.Key.Target.LaneId?.Value,
                 slot = beam.Key.Slot.Id,
@@ -466,6 +515,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
 
         private async Task save(int time)
         {
+            if (renderer != null)
+                recordRgbEvidence($"mania-{time:00000}.png");
             using Image<Rgba32> image = await host.TakeScreenshotAsync().ConfigureAwait(false);
             await image.SaveAsPngAsync(Path.Combine(output, $"mania-{time:00000}.png")).ConfigureAwait(false);
         }
@@ -473,6 +524,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
         private ManiaBeatmap createChart(ManiaRuleset ruleset)
         {
             var beatmap = new ManiaBeatmap(new StageDefinition(columns)) { BeatmapInfo = { Ruleset = ruleset.RulesetInfo } };
+            beatmap.ControlPointInfo.Add(0, new TimingControlPoint { BeatLength = 500 });
             if (dual)
                 beatmap.Stages.Add(new StageDefinition(columns));
             beatmap.Difficulty.CircleSize = columns * (dual ? 2 : 1);

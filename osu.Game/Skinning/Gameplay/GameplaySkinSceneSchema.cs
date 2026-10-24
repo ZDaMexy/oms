@@ -84,7 +84,7 @@ namespace osu.Game.Skinning.Gameplay
 
             return property switch
             {
-                GameplaySkinSceneProperty.Opacity or GameplaySkinSceneProperty.RevealX => value is >= 0 and <= 1,
+                GameplaySkinSceneProperty.Opacity or GameplaySkinSceneProperty.RevealX or GameplaySkinSceneProperty.Brightness => value is >= 0 and <= 1,
                 GameplaySkinSceneProperty.X or GameplaySkinSceneProperty.Y => Math.Abs(value) <= GameplaySkinSceneBudgets.MAX_ABSOLUTE_POSITION,
                 GameplaySkinSceneProperty.Width or GameplaySkinSceneProperty.Height => value is >= 0 and <= GameplaySkinSceneBudgets.MAX_RELATIVE_SIZE,
                 GameplaySkinSceneProperty.ScaleX or GameplaySkinSceneProperty.ScaleY => value is >= 0 and <= GameplaySkinSceneBudgets.MAX_SCALE,
@@ -107,7 +107,7 @@ namespace osu.Game.Skinning.Gameplay
 
             return property switch
             {
-                GameplaySkinSceneProperty.Opacity or GameplaySkinSceneProperty.RevealX => Math.Clamp(value, 0, 1),
+                GameplaySkinSceneProperty.Opacity or GameplaySkinSceneProperty.RevealX or GameplaySkinSceneProperty.Brightness => Math.Clamp(value, 0, 1),
                 GameplaySkinSceneProperty.X or GameplaySkinSceneProperty.Y => Math.Clamp(
                     value,
                     -GameplaySkinSceneBudgets.MAX_ABSOLUTE_POSITION,
@@ -428,6 +428,7 @@ namespace osu.Game.Skinning.Gameplay
         GapPixels = 29,
         WidthPixels = 30,
         HeightPixels = 31,
+        Brightness = 32,
     }
 
     public enum GameplaySkinSceneBindingSource
@@ -1011,6 +1012,7 @@ namespace osu.Game.Skinning.Gameplay
             "gap-px" => GameplaySkinSceneProperty.GapPixels,
             "width-px" => GameplaySkinSceneProperty.WidthPixels,
             "height-px" => GameplaySkinSceneProperty.HeightPixels,
+            "brightness" => GameplaySkinSceneProperty.Brightness,
             _ => GameplaySkinSceneProperty.Unspecified,
         };
 
@@ -1047,6 +1049,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneProperty.GapPixels => "gap-px",
             GameplaySkinSceneProperty.WidthPixels => "width-px",
             GameplaySkinSceneProperty.HeightPixels => "height-px",
+            GameplaySkinSceneProperty.Brightness => "brightness",
             _ => throw new ArgumentOutOfRangeException(nameof(property), property, "Unknown scene property."),
         };
 

@@ -1909,6 +1909,8 @@ namespace osu.Game.Skinning.Gameplay
                                 GameplaySkinResolvedMaterialTargetKind.Global => new GameplaySkinSceneTarget(GameplaySkinSceneTargetKind.Global, null, null),
                                 GameplaySkinResolvedMaterialTargetKind.Stage => new GameplaySkinSceneTarget(
                                     GameplaySkinSceneTargetKind.Stage, entry.Target.GroupId!.Value, entry.Target.GroupLogicalIndex),
+                                GameplaySkinResolvedMaterialTargetKind.Group => new GameplaySkinSceneTarget(
+                                    GameplaySkinSceneTargetKind.Group, entry.Target.GroupId!.Value, entry.Target.GroupLogicalIndex),
                                 GameplaySkinResolvedMaterialTargetKind.Lane => new GameplaySkinSceneTarget(
                                     GameplaySkinSceneTargetKind.Lane, entry.Target.LaneId!.Value, entry.Target.GlobalLogicalIndex),
                                 _ => throw new InvalidOperationException(),
@@ -1976,7 +1978,7 @@ namespace osu.Game.Skinning.Gameplay
 
             return materialSet.Entries.Where(entry =>
                 entry.Slot.Id == instance.MaterialSlot
-                && entry.Target.Kind is GameplaySkinResolvedMaterialTargetKind.Stage or GameplaySkinResolvedMaterialTargetKind.Global or GameplaySkinResolvedMaterialTargetKind.Lane
+                && entry.Target.Kind is GameplaySkinResolvedMaterialTargetKind.Stage or GameplaySkinResolvedMaterialTargetKind.Global or GameplaySkinResolvedMaterialTargetKind.Group or GameplaySkinResolvedMaterialTargetKind.Lane
                 && entry.State == GameplaySkinResolvedMaterialState.Provide
                 && entry.Source.IsSelectedDocumentDeclaration
                 && entry.Source.ContentRevision == selectedDocument.Identity.ContentRevision

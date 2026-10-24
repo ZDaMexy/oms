@@ -151,6 +151,7 @@ id 与非负整数 index 必须同时匹配布局。BMS 舞台/组为 `bms.group
 | `z` | 层内深度，-32768..32768；不能越过槽位层 | 全部 |
 | `opacity` / `visible` | 0..1 / JSON true或false | 全部 |
 | `colour` | #RRGGBB 或 #RRGGBBAA | 全部 |
+| `brightness` | 有限数0..1，省略为1；独立RGB倍率 | 全部 |
 | `anchor/origin` | top-left/top-centre/top-right/centre-left/centre/centre-right/bottom-left/bottom-centre/bottom-right | 全部 |
 | `fill-mode` | stretch/fit/fill | sprite |
 | `text/font-size/alignment` | 字符串 / 1..128 / left或centre或right | text |
@@ -165,6 +166,8 @@ id 与非负整数 index 必须同时匹配布局。BMS 舞台/组为 `bms.group
 | `layout-surface` | information.song / information.judgements / information.tempo / information.player；静态布局区域 | hud.text 所有者及其子树 |
 
 普通container沿用比例属性。blend 必填，允许 inherit/alpha/additive/multiply/screen。零进度使用定宽容器里的子图片 width=0；零缩放在绘图矩阵中会夹到极小值，可能留下细线。实际字高需在最小窗口核对。
+
+`brightness`使节点及子树变暗，保留原`colour`、纹理、透明度和显隐状态；0表示黑色，1保留原色。它接受静态数值、数值绑定、数值轨迹及状态赋值，绑定结果夹到0..1；非有限数拒绝。父子分别声明时倍率叠乘，通常只在已有美术根声明一次。它复用现有节点载体，不增加图片、离屏效果或音符池实例；不能将`opacity`降低当作亮度降低。选项绑定仍在下次游玩/预览准备时冻结，不改活跃场景。
 
 effects 每项必填 id/type/properties。blur 允许 radius；glow 允许 radius/strength/colour；outline 允许 width/colour；shadow 允许 x/y/blur/colour。radius、blur 为0..64，strength为0..4，描边width为0..32，阴影偏移为-128..128，颜色沿用上表。效果会增加中间图片成本。
 
@@ -585,7 +588,7 @@ templates每项必填id/root，root是完整节点；instances每项必填id/tem
 { "id": "my.gauge-stages", "template": "my.gauge-style", "material": { "slot": "hud.gauge", "resource": "bms/gauge" } }
 ```
 
-仅匹配当前选定包同一内容版本、公共声明中Provide状态的Global、Stage或Lane素材及精确资源基名；Group不在素材匹配实例的目标集合内。模板根slot必须与 `material.slot` 相同，模板根的完整占位target可写global，准备时整棵子树替换为匹配到的实际目标。Global只生成一个全局实例，Stage按实际舞台生成，Lane按实际匹配车道各生成，使用真实稳定lane id和逻辑索引，不需为1P/2P或键数硬写一组索引。子元素默认在根slot区域内排版，局部输入、对象和判定绑定沿该车道/舞台事实，全局统计仍来自同一计分器。显式target模板仍保留原有目标矩形规则。
+仅匹配当前选定包同一内容版本、公共声明中Provide状态的Global、Stage、Group或Lane素材及精确资源基名。模板根slot必须与 `material.slot` 相同，模板根的完整占位target可写global，准备时整棵子树替换为匹配到的实际目标。Global只生成一个全局实例；Stage、Group按实际匹配的舞台或轨道组生成，保留各自作用域及真实稳定group id和逻辑索引；Lane按实际匹配车道各生成，使用真实稳定lane id和逻辑索引，不需为1P/2P或键数硬写一组索引。Group素材实例可用于 `playfield.bar-line` 等已允许Group的slot，不扩大slot本身允许的作用域。子元素默认在根slot区域内排版，局部输入、对象和判定绑定沿该车道/轨道组/舞台事实，全局统计仍来自同一计分器。显式target模板仍保留原有目标矩形规则。
 
 例如为已由本包公共INI声明 `Provide "notes/my-hit"` 的所有击打车道复用一棵模板：
 

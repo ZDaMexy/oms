@@ -2,6 +2,16 @@
 
 当前进度与验收只读 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)，图像及对应迭代见[原图索引](../../doc_md/other/references/simple-1p-20260912/README.md)。以下保留截图暴露的诊断因果，不把历次检查合并成当前验收。
 
+原版Start设置须看实际普通/详细标题和当前选中栏，不能把初学者开曲确认窗、帮助页或按键后仍在SongSelect的截图算菜单。官网列五类可调亮度物体，不等于五个独立设置；实机carousel是一个共享Lane Objects Brightness选项。枚举要转到首项再次出现，数值记录初始值、边界与步长；切语言的按键须在招募页稳定出现后投递。冻结菜单倒计时的测试配置独立留证，不能代签自然开场时间。
+
+RGB亮度不能写到容器的ContentDrawable.Colour后再期望作者色还在：container/mask的Content与Transform可能同一对象。独立倍率复用既有RootDrawable，作者颜色与显隐保持在内层。普通与specialised构造均须初始化elapsed轨迹默认值，否则无Start的专用池节点会缺恢复表；回归保留旧rotation轨迹以区分新属性问题，语法取[作者参考](../../skin-authoring/docs/REFERENCE.md#节点目标和属性)。
+
+`visible`和`opacity`都写Transform.Alpha，同一节点不能同时承担OFF开关与原判定/准备淡出。需要两者相乘时用独立父子门，保留原grade选择和生命周期；改RGB倍率也不能把这个相互覆盖问题当作已经解决。
+
+Group素材匹配需同时检查codec作用域准入、ResolveMaterialTemplateEntries的独立Kind.Group及准备目标映射；少一处会解码拒绝、零实例或错误目标，不能改成Stage逃过问题。选中来源revision必须取C4文档Identity.ContentRevision；C2 whole-package identity可能是`record:...`，既不是合法opaque token，也不等于选中C4声明。以真实Skin/INI/encoded scene重过准备链，stage/lane作对照，根因与实际范围取[Start复核](../../doc_md/other/OMNI_START_OPTIONS_20261024.md)。
+
+挡板透明度若只检查保存值或旧display.Alpha，会漏掉与display并列的C5场景宿主。产品回归须沿真实作者/canonical两侧最终Sprite.DrawColourInfo检查乘积，并往返0/部分/满值；在现有共同宿主乘原生opacity，不能覆盖specialised visual的lease Alpha或作者内部Alpha。合同取[P1-A](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#声明式作者面)。
+
 使用歌曲相对`timing.elapsed`的演出，起点应取`GameplayClockContainer.StartTime`；`GameplayStartTime`是可跳过前奏上界，长前奏时不是实际进入起点。显式准备演出读取Player父准备快照，不能接回停住的歌曲时钟，见[准备与首排](reference_gameplay_skin_event_envelope.md#准备时钟与首排提示)。无真实起点的预览不把elapsed=0当作开场首帧；有效→未知Reset恢复作者原属性并清除旧quad。独立time来源须单列脏状态，不让普通成绩事件多重算beat绑定。原路径证据取[接通记录](../../doc_md/other/LIGHTING_DETAILS_20261021.md)。
 
 拆持续组件时先把完整源图重绘到与旧baked背景RGBA完全相等，再从原层次排除组件重绘；不要擦除PNG或把33的组合规则直接套BPL。BPL高清框体的旧作者背景仍走safe-BGA开口组合，DP还含固定符号层；相似画布不代表相同合成闭包。源300帧在299回跳180表示重复180～299，不是让整个300帧重播，也不能把45度采样尾段当成整圈。持续组件须脱离1000ms入场overlay、沿准备到游玩的派生时间继续；新节点`properties.z`直接加到osu Depth，较低值在前，`+1`会被同级不透明背景盖住。源/codec通过而实机缺图时先核实际draw depth与遮挡，不能因开场JSON只筛准备clock就断言新clock没激活。当前公共合同取[作者参考](../../skin-authoring/docs/REFERENCE.md#记录动画)，实际验证取P1-A状态。
@@ -9,6 +19,12 @@
 原版参照须核最终日志而非只看CLI：XML已有非空选项会覆盖CLI，布尔值文本`0`仍可因非空被启用；已有服务器URL会使内置离线EA选项失效。游客Start选项需持续按住；副屏机台“設定”不等于CUSTOM。Spice截图新时间戳和不同JPEG只证明捕获样本不同，不能当作每个Present、游戏tick或判定原点；缩小倍数在D3D完整读回后应用，采图仍会扰动帧预算。PG相位或转盘速度对毫秒/BPM拟合冲突时，保留竞争解释，不据三组颜色或文件名发布统一周期。具体源证据与未匹配二进制边界取[参照复核](../../doc_md/other/OMNI_OPENINGS_20261021.md#2026-10-24持续组件与原版参照复核)。
 
 原生取景ENV的`OMS_AUTHOR_SKIN_OPTIONS`由夹具读为`Dictionary<string,string>`，布尔/数值也须用规范字符串；JSON字面量false或1.5会在进入Player前失败，不是产品选项拒绝。BMS旧取景的15/24px断言只覆盖默认00画布，不能拿它验证n11或其它CN尺寸；该分支的CUSTOM取景保留实际画面、冻结选项、计分/结算与错误检查，量化尺寸另沿选中源验证，不把跳过不适用断言写作尺寸通过。
+
+隔离取景宿主直接引用测试DLL时，重新build会覆盖手工合并的deps清单，原生SDL等依赖可能随之不可达；刷新测试DLL不必重建宿主，确需重建时按当前BMS→mania→Game测试图合并并校验依赖后再封存。PowerShell 7.6的`Environment.SetEnvironmentVariable(name,null,Process)`可能留下空字符串；严格ENV开关的缺省应从Env提供器移除，不把空串放宽为false。
+
+实际材质覆盖取证需要真实native实例：mania合成谱没有TimingControlPoint时BarLineGenerator直接不产小节线，不能删去小节线断言；爆炸存活短，固定PNG取景会漏掉，按同一活跃lease经过完整更新后取一次证据。所有预览接入后Frame是带OptionId的图片选项，旧FormDropdown查找失效；Settings保存/重建/复位断言仍须走真实控件。
+
+异步音符替换的竞态夹具不能只等host/Drawable.IsLoaded：构造期的保护fallback也满足它，初次正式来源还可能在后续发布。拍oldVisual前须等PendingLoadTask清空，以已发布画面为基线，再保留旧结果不得发布的断言；选包等待应显式核拒绝原因，不能把LiveGameplay保护或准备拒绝笼统记成超时。
 
 `Program.Bindings`还包含未实例化模板，原生面板断言不能遍历它再在只枚举`PreparedScene.Roots`的节点中盲目Single。先按已准备根树的声明ID限定绑定，再要求Graph/JUDGE两类均存在，最后保留运行时唯一性和实际alpha断言；不要按查找成功与否过滤目标，否则会掩盖真正缺失的root。非空Graph/LIFT美术混选可触发这个取景边界。
 
@@ -22,7 +38,7 @@ IIDX游标核源：原PNG画布不等同于GEO显示尺寸，SD投影和DP横缩
 
 材料Diagnostics为空不证明C3无布局警告：BGA窗口诊断另合入PersistenceSafeDiagnostics/Batch，成功commit后才异步发布全局通知，提示可能跨下一玩法延续。定位须对照原始日志时间、已提交snapshot与同输入旧包，不能凭截图归给当前玩法或窄窗口。显式作者stage命中会覆盖按窗口比例算的轨道宽度，但其BGA窗仍须避开固定HUD保留带；任一窗口失败按合同整组省略，不以放宽通用solver掩盖作者几何错误。
 
-公开instances.material可按同一选定包已解析Global/Stage Provide slot/resource挂载模板，解决BMS/mania及单双舞台的有限复用；不是任意条件或跨包scene继承。血槽用独立外框、暗格与clip.reveal-x亮格，GaugeHeight选定包默认0.036，静线0.07。parseInstances的target/material须二选一，不能同时列入validateFields required。真实DrawNode会拒绝未Masking的outline/shadow容器，单纯headless属性检查不能证明绘制成功；outline是矩形边框，不能当字形描边使用。
+公开instances.material可按同一选定包已解析Global/Stage/Group/Lane Provide slot/resource挂载模板，解决BMS/mania及单双舞台的有限复用；不是任意条件或跨包scene继承。血槽用独立外框、暗格与clip.reveal-x亮格，GaugeHeight选定包默认0.036，静线0.07。parseInstances的target/material须二选一，不能同时列入validateFields required。真实DrawNode会拒绝未Masking的outline/shadow容器，单纯headless属性检查不能证明绘制成功；outline是矩形边框，不能当字形描边使用。
 
 material模板无slot子节点须在owner表面定位，不能仅覆盖Stage target后仍用整个playfield矩形，否则血槽会盖满音轨。显式target旧模板不改坐标语义。clip外包transform后必须将子节点挂到content mask，否则裁切只改变空容器；实际内置BMS/mania产品检查与图11共同取证。编辑含非ASCII字面量的测试文件须保持UTF-8，曾误改é为茅导致规范化路径冲突fixture失真，恢复原值后通过，不应放宽生产校验。
 
@@ -30,7 +46,7 @@ material模板无slot子节点须在owner表面定位，不能仅覆盖Stage tar
 
 用户图07显示控制键和BGA周围仍穿透歌曲背景。根因不是stage.png透明：原stage.background只有Stage，其矩形是轨道group union，键区和外侧不在其中。当前扩展Global/Stage独立声明；Global=SafeBounds，在Background层depth2，Stage仍depth1。BGA实际内容在它们前方。不得用全屏decoration（Overlay）盖住音符，也不扩大所有Stage矩形。
 
-普通scene的Stage/Group/Lane目标需要精确id+index；显式target实例无条件准备，variant只换资源，隐藏节点仍解析目标。同包覆盖BMS/mania和单双舞台时，不得无条件引用不存在的deck-2或BMS目标，有限复用使用上述material实例。分段血条不能只换分段PNG：原纯texture缩放整个宽度，会使格距随血量变化。固定暗槽+mask裁切满宽亮图中，RelativeChildSize补偿mask宽度，0值避免除零并保留底槽。视觉测试必须挂载父容器，检查实际DrawWidth而非只看相对Width。
+普通scene的Stage/Group/Lane目标需要精确id+index；显式target实例无条件准备，用variant隐藏也仍解析目标。同包覆盖BMS/mania和单双舞台时，不得无条件引用不存在的deck-2或BMS目标，有限复用使用上述material实例。分段血条不能只换分段PNG：原纯texture缩放整个宽度，会使格距随血量变化。固定暗槽+mask裁切满宽亮图中，RelativeChildSize补偿mask宽度，0值避免除零并保留底槽。视觉测试必须挂载父容器，检查实际DrawWidth而非只看相对Width。
 
 转盘原FillMode.Fit受scratch音轨宽约束，换高质量原图也不会变大。公开ScratchKeyWidth只扩独立KeyAreaHeight内的视觉矩形，solver向普通键外侧求解并避开safe/BGA，native消费者读取同snapshot。不得为放大转盘改ScratchLaneWidth或输入lane；旧包缺字段保持倍率1。精确拼接的键面和50格血槽由离线PNG配方提供，游戏仍只消费包内文件。
 

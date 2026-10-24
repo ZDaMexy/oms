@@ -46,7 +46,7 @@ BMS `[Bms]` 的 `Keymode` 支持 `5K`、`7K`、`9K`、`9K_PMS`、`14K`。9 键�
 | 面 | 公开内容 |
 | --- | --- |
 | 坐标 | `x/y/width/height/scale-x/scale-y/rotation/z`；相对于引擎给定的区域 |
-| 显示 | `opacity/visible/colour/anchor/origin/fill-mode` |
+| 显示 | `opacity/visible/colour/brightness/anchor/origin/fill-mode` |
 | 文字与裁剪 | `font-size/text/alignment/mask-mode/clip-mode/corner-radius` |
 | 目标 | `global`；带 id/index 的 `stage/group/lane`；`hud`；`bga` |
 | 混合 | `inherit/alpha/additive/multiply/screen` |

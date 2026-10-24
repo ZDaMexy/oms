@@ -35,6 +35,7 @@ namespace osu.Game.Skinning.Gameplay
                     Quad = (node.ContentDrawable as GameplaySkinProjectiveSprite)?.AppliedQuad,
                     Number = track.Property switch
                     {
+                        GameplaySkinSceneProperty.Brightness => getNumber(node.PreparedNode.Source.Properties, "brightness", 1),
                         GameplaySkinSceneProperty.Opacity => node.TransformDrawable.Alpha,
                         GameplaySkinSceneProperty.X => node.TransformDrawable.X,
                         GameplaySkinSceneProperty.Y => node.TransformDrawable.Y,

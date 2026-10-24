@@ -34,7 +34,7 @@ namespace osu.Game.Skinning.Gameplay
         private static readonly HashSet<string> number_properties = new(StringComparer.Ordinal)
         {
             "opacity", "x", "y", "width", "height", "scale-x", "scale-y", "rotation", "z", "font-size", "corner-radius", "reveal-x",
-            "gap-px", "width-px", "height-px",
+            "gap-px", "width-px", "height-px", "brightness",
         };
 
         private static readonly HashSet<string> boolean_properties = new(StringComparer.Ordinal)
@@ -1539,7 +1539,7 @@ namespace osu.Game.Skinning.Gameplay
                     string? slot = getString(material, "slot", context);
                     string? resource = getString(material, "resource", context);
                     if (!GameplaySkinSlotCatalog.TryGet(slot, out GameplaySkinSlotDescriptor? descriptor)
-                        || descriptor == null || (descriptor.AllowedScopes & (GameplaySkinSlotScope.Stage | GameplaySkinSlotScope.Global | GameplaySkinSlotScope.Lane)) == 0)
+                        || descriptor == null || (descriptor.AllowedScopes & (GameplaySkinSlotScope.Stage | GameplaySkinSlotScope.Global | GameplaySkinSlotScope.Group | GameplaySkinSlotScope.Lane)) == 0)
                         context.Add(GameplaySkinSceneDiagnosticCode.UnknownTarget);
                     if (resource != null)
                     {
@@ -1904,7 +1904,7 @@ namespace osu.Game.Skinning.Gameplay
         private static bool isAllowedNodeProperty(GameplaySkinSceneNodeType type, string property)
         {
             if (property is "opacity" or "visible" or "x" or "y" or "width" or "height" or "scale-x" or "scale-y"
-                or "rotation" or "z" or "anchor" or "origin" or "colour" or "layout-surface")
+                or "rotation" or "z" or "anchor" or "origin" or "colour" or "layout-surface" or "brightness")
             {
                 return true;
             }

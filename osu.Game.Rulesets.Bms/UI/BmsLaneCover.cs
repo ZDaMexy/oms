@@ -173,7 +173,12 @@ namespace osu.Game.Rulesets.Bms.UI
         }
 
         private void updateOpacity()
-            => display.Alpha = Math.Clamp(CoverOpacity.Value / 1000f, 0, 1);
+        {
+            float opacity = Math.Clamp(CoverOpacity.Value / 1000f, 0, 1);
+
+            display.Alpha = opacity;
+            sceneHost.Alpha = opacity;
+        }
 
         private void updateFocusState()
         {

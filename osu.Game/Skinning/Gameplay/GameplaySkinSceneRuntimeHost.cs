@@ -224,7 +224,15 @@ namespace osu.Game.Skinning.Gameplay
             ContentDrawable = contentDrawable;
             TransformDrawable = transformDrawable;
             RuntimeScopeId = runtimeScopeId ?? createPreparedScopeId(preparedNode);
+
+            if (preparedNode.Source.Properties.TryGetValue("brightness", out GameplaySkinScenePropertyValue? brightness))
+                SetBrightness(brightness.NumberValue);
         }
+
+        // The existing carrier is independent of content colour, transform alpha and visibility. In particular,
+        // containers and masks share content/transform, so their authored tint must remain on that inner drawable.
+        internal void SetBrightness(double value)
+            => RootDrawable.Colour = new Color4((float)value, (float)value, (float)value, 1);
 
         private static string createPreparedScopeId(GameplaySkinPreparedSceneNode node)
             => $"prepared:{node.MaterialTarget}:{node.ResolvedTarget.Kind}:{node.ResolvedTarget.StableId ?? "none"}:{node.ResolvedTarget.Index?.ToString(CultureInfo.InvariantCulture) ?? "none"}";
@@ -2923,6 +2931,10 @@ namespace osu.Game.Skinning.Gameplay
 
             switch (property)
             {
+                case GameplaySkinSceneProperty.Brightness:
+                    node.SetBrightness(value);
+                    return;
+
                 case GameplaySkinSceneProperty.Opacity:
                     node.TransformDrawable.Alpha = (float)value;
                     return;
@@ -3010,7 +3022,7 @@ namespace osu.Game.Skinning.Gameplay
         {
             foreach ((string property, GameplaySkinScenePropertyValue value) in properties)
             {
-                if (property is "z" or "layout" or "gap-px" or "width-px" or "height-px")
+                if (property is "z" or "layout" or "gap-px" or "width-px" or "height-px" or "brightness")
                     continue;
 
                 Drawable target = property is "opacity" or "visible" or "x" or "y" or "width" or "height"

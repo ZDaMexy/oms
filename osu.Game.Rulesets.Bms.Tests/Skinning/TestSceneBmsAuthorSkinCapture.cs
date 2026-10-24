@@ -81,6 +81,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             bool captureFullCombo = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_FULLCOMBO") == "1";
             bool captureNoteGeometry = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_NOTE_GEOMETRY") == "1";
             bool captureFeedback = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_FEEDBACK") == "1";
+            bool captureStartOptions = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_START_OPTIONS") == "1";
             double completionOrigin = 0;
             double completionSeekTime = 0;
             double completionDuration = 0;
@@ -133,19 +134,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     BmsLongNoteMode.HCN => [autoplay, new BmsModHellChargeNote()],
                     _ => throw new InvalidOperationException("The author capture long-note mode is invalid."),
                 };
-                if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_COVER") == "1")
-                    selectedMods = [.. selectedMods, new BmsModSudden()];
-                if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_LIFT") == "1")
-                    selectedMods = [.. selectedMods, new BmsModLift()];
-                if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_GAUGE") is string gauge)
-                    selectedMods = [.. selectedMods, gauge switch
-                    {
-                        "hard" => new BmsModGaugeHard(),
-                        "ex-hard" => new BmsModGaugeExHard(),
-                        "hazard" => new BmsModGaugeHazard(),
-                        _ => throw new InvalidOperationException("The author capture gauge must be hard, ex-hard or hazard."),
-                    }];
-                Game.SelectedMods.Value = selectedMods;
+                Game.SelectedMods.Value = configureStartOptions(selectedMods);
                 DismissAnyNotifications();
             });
             AddStep("select the author package as the actual BMS mode preference", () =>
@@ -230,6 +219,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     })));
                 Assert.That(renderer.GameplaySkinSceneRuntime.MaterialSet.Diagnostics, Is.Empty,
                     "A component fallback must not be reported as a successful author-package capture.");
+                if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_START_OPTIONS") == "1")
+                    recordStartOptions();
                 GameplaySkinOptionValues publishedOptions = owner.CurrentPublication!.Snapshot.Context.OptionValues;
                 File.WriteAllText(Path.Combine(outputDirectory, "options.json"), System.Text.Json.JsonSerializer.Serialize(
                     publishedOptions.Values.ToDictionary(pair => pair.Key, pair => pair.Value.CanonicalValue)));
@@ -267,7 +258,13 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     chrome.AlwaysPresent = true;
                 }
                 content.Add(Game);
-                content.Add(new HitPhaseProbe(captureHitPhase) { AlwaysPresent = true });
+                content.Add(new HitPhaseProbe(() =>
+                {
+                    if (captureStartOptions)
+                        recordLiveHitExplosionRgb();
+                    captureHitPhase();
+                })
+                { AlwaysPresent = true });
                 Game.Notifications.Hide();
                 InputManager.MoveMouseTo(player.ScreenSpaceDrawQuad.Centre);
                 freezeHitPhase = captureBurst;
@@ -380,6 +377,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             }
             AddAssert("autoplay produced real EX score and judgements", () => score.TotalScore.Value > 0 && score.HighestCombo.Value > 0);
             AddAssert("the author scene survived complete playback", () => renderer.GameplaySkinSceneRuntime!.RuntimeFaults.Count == 0);
+            if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_START_OPTIONS") == "1")
+                AddStep("verify requested brightness reached every live material", assertRgbEvidenceCoverage);
         }
 
         private void captureHitPhase()
@@ -427,6 +426,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
         private async Task saveCapture(string filename)
         {
+            recordRgbEvidence(filename);
             if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_LIGHTING_DETAILS") == "1")
                 File.WriteAllText(Path.Combine(outputDirectory, filename + ".timing.json"), System.Text.Json.JsonSerializer.Serialize(new
                 {
