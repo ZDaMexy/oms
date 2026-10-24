@@ -167,7 +167,7 @@ class PercentageReferenceTest(unittest.TestCase):
         self.path = self.directory / "reviewed.json"
         self.value = {"contract": REFERENCE_CONTRACT, "status": "reviewed",
             "source": {key: "a" * 64 for key in ("manifestSha256", "generationSha256", "archiveSha256")},
-            "official": {"url": OFFICIAL_URL, "min": 0, "max": 100, "step": 1, "default": 50},
+            "official": {"url": OFFICIAL_URL, "min": 0, "max": 100, "default": 50}, "authorStep": 1,
             "observed": {"value": 50, "screenshot": {"path": self.image.name,
                 "sha256": hashlib.sha256(self.image.read_bytes()).hexdigest()}},
             "review": "Synthetic loader test only; no actual native screenshot or author is produced."}
@@ -179,6 +179,8 @@ class PercentageReferenceTest(unittest.TestCase):
         self.write()
         result = load_reference(self.path)
         self.assertEqual(result["official"]["max"], 100)
+        self.assertNotIn("step", result["official"])
+        self.assertEqual(result["authorStep"], 1)
         self.assertEqual(result["observed"]["value"], 50)
         self.assertEqual(result["observed"]["screenshot"]["path"], str(self.image))
         self.assertEqual(result["sha256"], hashlib.sha256(self.path.read_bytes()).hexdigest())
@@ -199,7 +201,7 @@ class PercentageReferenceTest(unittest.TestCase):
             elif field == "url":
                 self.value["official"]["url"] = "https://example.invalid"
             else:
-                self.value["official"]["step"] = True
+                self.value["authorStep"] = True
             self.write()
             with self.subTest(field=field), self.assertRaises(ValueError):
                 load_reference(self.path)

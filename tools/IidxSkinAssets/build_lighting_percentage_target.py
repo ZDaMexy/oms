@@ -48,9 +48,11 @@ def load_reference(path):
             and all(isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value) for value in source.values()),
             "Pin the immutable parent manifest, generation and archive SHA-256")
     official = reference.get("official", {})
-    require(official == {"url": OFFICIAL_URL, "min": 0, "max": 100, "step": 1, "default": 50}
-            and all(type(official[key]) is int for key in ("min", "max", "step", "default")),
-            "The official percentage range is integer 0..100, step1, default50")
+    require(official == {"url": OFFICIAL_URL, "min": 0, "max": 100, "default": 50}
+            and all(type(official[key]) is int for key in ("min", "max", "default")),
+            "The official percentage range is 0..100 with default50")
+    require(type(reference.get("authorStep")) is int and reference["authorStep"] == 1,
+            "The OMS author uses integer step1; native keypad precision is not established")
     observed = reference.get("observed", {})
     require(isinstance(observed, dict) and type(observed.get("value")) is int and observed["value"] == 50,
             "This receipt establishes only the native selected 50 percent")
@@ -66,7 +68,7 @@ def load_reference(path):
         require(pixels.format in ("PNG", "JPEG"), "The native receipt must be a real PNG or JPEG")
         pixels.verify()
     require(isinstance(reference.get("review"), str) and reference["review"].strip(), "Describe the reviewed evidence boundary")
-    return {"path": path, "sha256": sha(path), "source": source, "official": official,
+    return {"path": path, "sha256": sha(path), "source": source, "official": official, "authorStep": 1,
             "observed": {"value": 50, "screenshot": {"path": str(screenshot), "sha256": image["sha256"]}},
             "review": reference["review"]}
 
@@ -140,7 +142,8 @@ def upgrade(source, reference_path, output):
     write_json(staging / "package-audit.json", audit)
     receipt = {"name": NAME, "status": "prepared-awaiting-current-runtime-validation", "repackagedFrom": str(source),
         "sourceIdentity": identity, "percentageReference": {"path": str(reference["path"]), "sha256": reference["sha256"],
-            "official": reference["official"], "observed": reference["observed"], "review": reference["review"]},
+            "official": reference["official"], "authorStep": reference["authorStep"],
+            "observed": reference["observed"], "review": reference["review"]},
         "percentageTarget": receipts, "option": OPTION_ID,
         "adaptation": "Author-side percentage of normalized maximum, original graph digits plus ordinary OMS percent suffix."
                       " No calculated integer EX threshold, original keypad workflow, rotate algorithm, ghost or rival data.",
