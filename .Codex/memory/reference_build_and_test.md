@@ -19,6 +19,7 @@ metadata:
 - `osu.Game` 是library，历史曾因NUnit test scene被C# Dev Kit误认作test project，缺runtimeconfig、当时的AutoMapper及测试平台程序集。诊断须使用真实core/BMS/mania测试工程，不为这个红节点复制依赖或改library身份；旧错误里的包名不代表当前仍依赖该库。
 - 第三方程序集可通过 deps/runtimeconfig 从 NuGet cache 加载，输出目录没有单独 DLL 不足以证明依赖缺失。
 - 缺Test SDK依赖时，`dotnet test --no-restore`可能未发现/执行测试却退出0；须确认实际执行摘要及TRX，修复对应工程依赖后重新编译。具名案例见[TOTAL报告](../../doc_md/other/BMS_TOTAL_RULES_AUDIT_20260922.md#验证状态)。
+- NUnit生成的TRX可能将`Counters.notExecuted`写成0，实际`UnitTestResult outcome="NotExecuted"`却有条目；核对逐例outcome及total/executed差，不能只读一个计数就把跳过写成0。真实来源见[复核记录](../../doc_md/mainline/CHANGELOG.md#2026-10-25专项进度与文档记忆复核)，不为复核旧TRX重新执行产品测试。
 - 源文件存在也不代表 fixture 已编译。旧 `TestSceneGameplaySampleTriggerSource` 依赖已移除的 OsuRuleset，被工程排除；对它的过滤无匹配不算空击验证。2026-09-30 改用真实转谱 Player 和当前容器用例，具体覆盖与过滤器见[性能记录](../../doc_md/other/GAMEPLAY_PERFORMANCE_20260930.md)。
 - `FullyQualifiedName~Skin`是子串匹配，会包含BackgroundDataStoreProcessorTests的skin处理方法。安全迁移前，混合QuickOsz实际只导入3张mania却仍断言12张；载入异常被headless容许后宿主持续空转，日志不增长但CPU消耗不能算测试推进。该旧断言随后已按实际支持内容修正，不能据历史认定现行fixture仍坏。遇新阻塞先保存具名栈并核本次进程，扩大检查的中止不算通过，focused也不代签full。原失败见[Autoplay记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-22autoplay跳转与omni反馈修复)，修正见[依赖迁移](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-22客户端依赖安全修复接入)。
 - 混合谱包的修改/删除测试须选实际支持的mania文件；本地改包会清掉online ID，不能让公共helper一律断言原线上ID。`RealmLive`的update-thread快路径也不会自动推进快照；后台更新完成后的测试须刷新当前Realm再核历史元数据，日期使用明显不同的固定旧值，避免“相差不到一秒”掩盖读取旧值。具名故障和正确生命周期取[依赖迁移记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-22客户端依赖安全修复接入)。
@@ -26,7 +27,8 @@ metadata:
 - 真实桌面 exact-test 的 game 隔离根不代表 framework host storage/cache 也跟随 TEMP；默认 host 仍用 AppData，改 APPDATA 环境变量不会改变已解析的 Windows special folder。受非系统盘开发约束时，可在已校验的 `.dev-cache/temp/` 独立输出中复用 ExactVisualTestGame，并用框架 PortableInstallation 使 host 根位于 AppContext.BaseDirectory；不能指向正式客户端输出或用户数据。保存证据后只清理已确认的探针目录。示例见 [性能验证记录](../../doc_md/other/GAMEPLAY_PERFORMANCE_20260930.md)。
 - ExactVisualTestGame/TestOsuGame 不具备 OsuGameDesktop 缓存的 IHighPerformanceSessionManager。原生宿主会绘图、Player 能完整结束，不代表实际桌面的 GC 会话条件一致；应由真实 PlayerLoader 解析生产服务并记录 IsSessionActive/LatencyMode，不能手工切 GC 模式后冒充产品路径。Window.Raise 也不保证取得 Windows 前台；以逐帧 active 证据区分后台限帧与前台样本，始终后台的整曲只证明运行/结果，不证明前台流畅度。具名误判与保留原样本见[判定与性能深审](../../doc_md/other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#实机采样方法)。
 - UntilStepButton有固定10秒上限，调大TestScene.TimePerAction不会放宽大型作者包导入期限。opt-in取景可在有120秒外层watchdog的准备step完成导入，再展示设置；不能超时后Dispose尚在写入的Realm。普通ImportTask成功会消费来源归档，取景须先复制可删除输入，不能直接交付作者OSK原件。来源摘要及失败/成功证据见[键数设置记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-19按键数皮肤设置与素材预览)。
-- 临时目录日志会被清理；复核时分别标明可回读TRX、历史执行记录和新运行证据。比较既有失败需逐项核对名称、错误与堆栈，不能仅靠失败总数。
+- 临时目录日志和取景宿主输出会被清理；可回读的TRX/截图不代表原宿主仍可运行。复核时分清历史证据与新运行，重跑先从保全源码重建宿主、相应测试工程及依赖图；只保留Desktop输出不足以运行Core/BMS/mania测试或作者CLI。源码保全和清理边界见[清理记录](../../doc_md/mainline/CHANGELOG.md#2026-10-25工作区垃圾清查与手动清理准备)。比较既有失败须逐项核名称、错误和堆栈，不仅比较总数。
+- 隔离取景宿主直接引用测试DLL时，重新build会覆盖手工合并的deps清单，原生SDL等依赖可能不可达；刷新测试DLL不必重建宿主，确需重建时按当前BMS→mania→Game测试图合并并校验依赖后再封存。PowerShell 7.6的`Environment.SetEnvironmentVariable(name,null,Process)`可能留下空字符串；严格ENV开关的缺省应从Env提供器移除，不把空串放宽为false。具名失败取[Start复核](../../doc_md/other/OMNI_START_OPTIONS_20261024.md#验证与剩余验收)。
 - 临时替换旧源码做 before 时，Copy-Item 会保留备份 mtime；若早于已有 DLL，增量 build 可继续复用 after 程序集。替换与恢复都显式更新时间或强制重编译；关键红绿可读取实际输出 DLL 的 PE type/field metadata 验证版本。一次 build exit 0 不证明替换的旧源码已编译，具名误判见[游玩审查](../../doc_md/other/GAMEPLAY_REVIEW_20261019.md)。
 - `UseFreshStoragePerRun` 不表示每个测试方法都重建 Realm/目录：固定 framework 复用同一个 scene，依赖创建时才分配根。保存的组合键或未收尾的目录变更会污染后例；失败的视觉步骤又会跳过后置 `TearDownSteps`。随机选择还可能抽到前例故意损坏 owner／缺 ini 的记录，产品正确拒绝而测试无条件等提交；先核候选身份，再局部准备本例完整允许集合，不能因偶发通过就排除该分支。输入审查留有[确定两例红绿](../../doc_md/other/INPUT_SIGNAL_REVIEW_20261021.md#失败定位与有效修后证明)。需明确每例重置与真正兜底责任，不抹 journal 或放宽生产目录校验；其它探针边界见上述游玩审查。
 - 固定framework的`UseTestSceneRunner.AfterTest`在NUnit单例`TearDown`之后才执行视觉步骤；单例收尾只能清前例，`RunAfterTest`也可能被失败跳过。末例应在派生fixture的`OneTimeTearDown`中、基类关闭host之前调度Update收尾，并有界等待/传播异常。`Clear(true)`异步Dispose，若join前必须释放holder/lease，使用现有`Remove(child, disposeImmediately:true)`逐个同步释放；不要为夹具改通用runner。具名来源与验证见上述游玩审查。
@@ -46,7 +48,7 @@ metadata:
 
 ## 检查脚本与环境
 
-- 作者CLI会先独立准备全部声明片段，再按目录模块遍历代表组合；后续`GameplaySkinRecordedPreparedFrame.vector`越界不能只按最后模块标题归为该模块坏素材，组合也带其它默认贡献。定点复核须引用同SHA客户端DLL，记录实际choice/布局/clip/帧及Multiply/Add长度；单独或定点通过不覆盖完整长跑失败，也不凭相似数组异常认定旧ArrayBuilder与本次同源。具名范围见[P1-A记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-23omni默认显示与开场交接修复)。
+- 作者CLI先独立准备片段，再遍历代表组合；`GameplaySkinRecordedPreparedFrame.vector`越界不能按最后模块标题归为坏素材，组合还带其它默认贡献。该例已收敛至合法共享状态的颜色组合产出零长数组，改用明确分配/逐项计算后通过回归及完整目录；这证明代码修正有效，不证明.NET根因，也不应继续列当前故障。若再现，保留同SHA程序集、choice/布局/clip/帧及Multiply/Add长度，定点通过不代签长跑，不凭相似异常认定旧ArrayBuilder同源。原失败与修正分别取[10月23日](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-23omni默认显示与开场交接修复)与[10月24日](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-24omni持续背景与原版参照边界)。
 
 - `osu.Game` 内新增 `Resources/Textures/` 资源时，`DllResourceStore` 只剥程序集名称，仍保留 `Resources/`。直接加 store 后按 `Textures/` 请求会返回 null；应通过 `NamespacedResourceStore` 接入该目录。控件 `IsLoaded` 和旧启动测试可在缺图时通过，须核实际绘制尺寸或截图。`LogoAnimation` 的 R/G 分别是时间/覆盖率，不能换成普通 RGBA 图；其高亮先于填充绘制，外侧描边才能保留。资源合同见 [品牌资源](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#客户端品牌资源)，失败与修正来源见 [品牌日志](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-13客户端品牌标识专项)。
 

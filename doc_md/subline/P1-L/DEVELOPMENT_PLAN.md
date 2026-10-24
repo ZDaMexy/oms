@@ -1,6 +1,6 @@
 # P1-L 当前计划：BMS Gimmick 与 BGA 视觉
 
-> 最后核对：2026-10-22（原生依赖局部软件门收口；完整重编与人工门保留）
+> 最后核对：2026-10-25（移除已于10月24日闭合的BMS补验待办；其它门保留）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定滚动/BGA 合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，机理背景见 [BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)，已完成阶段按日期查 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -13,7 +13,7 @@ P1-L 拥有 BMS Gimmick 的视觉位置旁路、地雷呈现与 BGA decode/timel
 
 ## 当前执行顺序
 
-同ABI完整四库与局部软件门已通过，实际版本、补丁及证据从[STATUS](DEVELOPMENT_STATUS.md#最近一次验证)读取，不重复迁移。全新公钥导入和签名正/反检查已闭合；下一步按[依赖配方](../../../native/ffmpeg/README.md#源码构建与核对)补完整从零原生重编，核对新输出身份/ABI及源码许可，不把已验证的静态运行库重链接当作干净重编。完整BMS回归在内存足够时另行补跑，现有中止结果取[P1-A](../P1-A/DEVELOPMENT_STATUS.md#最近一次验证)；正常窗口、逐谱、设备和发行输出门分别验收。
+同ABI四库、局部软件门与完整BMS补验作为后续输入，原日期及范围见[STATUS](DEVELOPMENT_STATUS.md#最近一次验证)，不重复迁移或补跑已过门。下一步按[依赖配方](../../../native/ffmpeg/README.md#源码构建与核对)补完整从零原生重编，核对新输出身份/ABI及源码许可，不把已验证的静态运行库重链接当作干净重编。正常窗口、逐谱、设备和发行输出门分别验收；新输出须按下方验证顺序重新检查。
 
 ### 1. 作者窗口与代表设备验收
 

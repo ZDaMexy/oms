@@ -12,6 +12,8 @@ RGB亮度不能写到容器的ContentDrawable.Colour后再期望作者色还在�
 
 已发布作者包的资源路径可能是内容摘要，不能按解包前的PNG文件名后缀定位同一图。从已有只读数据绑定、分支所有权、唯一原几何和对应texture声明识别实际消费者，再保留原resource身份及父本字节；合成测试须覆盖这种路径，不仅使用易读的源文件名。具体失败取[Start复核](../../doc_md/other/OMNI_START_OPTIONS_20261024.md)。
 
+最终冻结作者的CN/Judge本地ID可能已压缩，旧`note_geometry`按长ID重建会拒绝。仅修LIFT目录时沿[专用目录工具](../../tools/IidxSkinAssets/README.md)新建兄弟作者，不重跑旧几何变换或放宽断言；逐文件核对仅目录变化，缺省回退与已保存有效ID分开验证。Graph的合法blank、LIFT每款艺术内的黑色衬底都不能当作LIFT纯黑选项一并删除。
+
 Group素材匹配需同时检查codec作用域准入、ResolveMaterialTemplateEntries的独立Kind.Group及准备目标映射；少一处会解码拒绝、零实例或错误目标，不能改成Stage逃过问题。选中来源revision必须取C4文档Identity.ContentRevision；C2 whole-package identity可能是`record:...`，既不是合法opaque token，也不等于选中C4声明。以真实Skin/INI/encoded scene重过准备链，stage/lane作对照，根因与实际范围取[Start复核](../../doc_md/other/OMNI_START_OPTIONS_20261024.md)。
 
 挡板透明度若只检查保存值或旧display.Alpha，会漏掉与display并列的C5场景宿主。产品回归须沿真实作者/canonical两侧最终Sprite.DrawColourInfo检查乘积，并往返0/部分/满值；在现有共同宿主乘原生opacity，不能覆盖specialised visual的lease Alpha或作者内部Alpha。合同取[P1-A](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#声明式作者面)。
@@ -28,7 +30,7 @@ Group素材匹配需同时检查codec作用域准入、ResolveMaterialTemplateEn
 
 原生取景ENV的`OMS_AUTHOR_SKIN_OPTIONS`由夹具读为`Dictionary<string,string>`，布尔/数值也须用规范字符串；JSON字面量false或1.5会在进入Player前失败，不是产品选项拒绝。BMS旧取景的15/24px断言只覆盖默认00画布，不能拿它验证n11或其它CN尺寸；该分支的CUSTOM取景保留实际画面、冻结选项、计分/结算与错误检查，量化尺寸另沿选中源验证，不把跳过不适用断言写作尺寸通过。
 
-隔离取景宿主直接引用测试DLL时，重新build会覆盖手工合并的deps清单，原生SDL等依赖可能随之不可达；刷新测试DLL不必重建宿主，确需重建时按当前BMS→mania→Game测试图合并并校验依赖后再封存。PowerShell 7.6的`Environment.SetEnvironmentVariable(name,null,Process)`可能留下空字符串；严格ENV开关的缺省应从Env提供器移除，不把空串放宽为false。
+取景宿主重建后的deps覆盖、空ENV及缓存清理后的源码接续统一见[构建与测试](reference_build_and_test.md#测试宿主与产物)，不把宿主失效当作皮肤故障。
 
 实际材质覆盖取证需要真实native实例：mania合成谱没有TimingControlPoint时BarLineGenerator直接不产小节线，不能删去小节线断言；爆炸存活短，固定PNG取景会漏掉，按同一活跃lease经过完整更新后取一次证据。所有预览接入后Frame是带OptionId的图片选项，旧FormDropdown查找失效；Settings保存/重建/复位断言仍须走真实控件。
 

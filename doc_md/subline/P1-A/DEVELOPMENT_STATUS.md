@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-24（Omni持续组件与完整BMS补验；原人工门保留）
+> 最后核对：2026-10-25（仅复核当前交付与历史验证边界；产品证据仍为10月24日）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -47,11 +47,9 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 当前风险与未完成项
 
-- Start游客菜单与本轮可落实表现已归档，原版百分比十键精度、Ghost/rotate、FAST/SLOW及部分Gauge语义仍缺可靠运行证据。新版需在正常VS Code窗口重编/重启并导入，复核亮度/高度/目标及原缩略图、准备、跳转/统计/血条/FC。模式/键数显式覆盖保持，隔离结果不代签前台流畅度、原机或设备。
+- 原版百分比十键精度、Ghost/rotate、FAST/SLOW及部分Gauge语义仍缺可靠运行证据。正常VS Code窗口须复核新包LIFT默认/顺序、亮度/高度/目标及原缩略图、准备、跳转/统计/血条/FC。尚无Start支持的旧客户端先重编/重启；相对`.v26102401`，LIFT修正只需重导入新包。模式/键数显式覆盖保持，隔离结果不代签前台流畅度、原机或设备。
 
-- 完整BMS已于10月24日补验；五条ImageSharp旧范围审计警告保留且不抑制。原生媒体完整从零重编与剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，正常窗口/设备和发行门保持。
-
-- 作者CLI旧异常已定位到合法共享状态的颜色组合，改用明确数组逐项计算并通过1000轮解码回归及最终v22完整目录；不据此断言已确认.NET故障，旧失败证据保留。
+- 原生媒体完整从零重编与剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，正常窗口/设备和发行门保持。清理后的测试/作者工具与临时取景宿主须按[开发约束](../../../AGENTS.md#开发磁盘约束)重建；原日志/TRX保留为历史证据。
 
 - Sayobot最近留存实站验收（2026-10-01）各公开线路转同一节点并在TLS握手失败；不据此断言节点持续故障。真实包、原bid/实际持久化MD5、混合包及稳定打开仍待补验，沿正常安全连接与手动重试路径验收。
 
