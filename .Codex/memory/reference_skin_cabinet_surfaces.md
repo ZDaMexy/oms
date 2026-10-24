@@ -12,6 +12,10 @@ Group素材匹配需同时检查codec作用域准入、ResolveMaterialTemplateEn
 
 挡板透明度若只检查保存值或旧display.Alpha，会漏掉与display并列的C5场景宿主。产品回归须沿真实作者/canonical两侧最终Sprite.DrawColourInfo检查乘积，并往返0/部分/满值；在现有共同宿主乘原生opacity，不能覆盖specialised visual的lease Alpha或作者内部Alpha。合同取[P1-A](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#声明式作者面)。
 
+轨底独立亮度不能对整张baked框体调暗。先按原`lane_1p/lane_2p`网格与祖先重绘、重合成对照，保留`lane_base`白边/封底；同时改C4 Provide和C5资源才能退出旧整屏纹理解码。28原draw stream含base/column交错，按连续run拆分，不能按类别重排；保留UV、nearest采样、mask、Alpha、hold和sentinel。源RGBA相等仍须实际Player在默认值与最低值核边界、非column ROI，不能用离线图代签GPU，方法取[Start复核](../../doc_md/other/OMNI_START_OPTIONS_20261024.md)。
+
+原生ModDisplay的旧自动避让只看可序列化旧HUD组件，不含C5作者根；Graph文字状态正确也可能被右上图标遮挡。用选中作者布局的可选`modsRect`投影同一个ModDisplay，不另画副本；HUD与scene canvas坐标可不同，四角转到HUD局部再等比fit，保持未声明包原位置。C5的IsLoaded不等于逐帧预算内节点已建完，实际材质断言须等同一runtime.IsSceneReady后再核完整替换和fault，不能删掉暂未就绪的槽来凑覆盖。
+
 使用歌曲相对`timing.elapsed`的演出，起点应取`GameplayClockContainer.StartTime`；`GameplayStartTime`是可跳过前奏上界，长前奏时不是实际进入起点。显式准备演出读取Player父准备快照，不能接回停住的歌曲时钟，见[准备与首排](reference_gameplay_skin_event_envelope.md#准备时钟与首排提示)。无真实起点的预览不把elapsed=0当作开场首帧；有效→未知Reset恢复作者原属性并清除旧quad。独立time来源须单列脏状态，不让普通成绩事件多重算beat绑定。原路径证据取[接通记录](../../doc_md/other/LIGHTING_DETAILS_20261021.md)。
 
 拆持续组件时先把完整源图重绘到与旧baked背景RGBA完全相等，再从原层次排除组件重绘；不要擦除PNG或把33的组合规则直接套BPL。BPL高清框体的旧作者背景仍走safe-BGA开口组合，DP还含固定符号层；相似画布不代表相同合成闭包。源300帧在299回跳180表示重复180～299，不是让整个300帧重播，也不能把45度采样尾段当成整圈。持续组件须脱离1000ms入场overlay、沿准备到游玩的派生时间继续；新节点`properties.z`直接加到osu Depth，较低值在前，`+1`会被同级不透明背景盖住。源/codec通过而实机缺图时先核实际draw depth与遮挡，不能因开场JSON只筛准备clock就断言新clock没激活。当前公共合同取[作者参考](../../skin-authoring/docs/REFERENCE.md#记录动画)，实际验证取P1-A状态。

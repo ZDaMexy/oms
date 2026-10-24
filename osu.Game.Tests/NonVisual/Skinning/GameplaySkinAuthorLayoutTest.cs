@@ -1,6 +1,5 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json.Linq;
@@ -46,6 +45,68 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 new[] { new GameplaySkinAuthorLaneSpan(0, 1) });
             Assert.That(() => new GameplaySkinAuthorLayout("edge", "mania", "1k", "any", new[] { stage }, 0.1, 0.1),
                 Throws.ArgumentException);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestOptionalModsRectangleRoundTripPreservesLegacyOmission(bool declared)
+        {
+            var profile = new JObject
+            {
+                ["id"] = "mods",
+                ["ruleset"] = "bms",
+                ["keymode"] = "5k",
+                ["presentation"] = "p1",
+                ["stages"] = JArray.Parse("""[{"rect":[0.1,0,0.2,0.6],"lanes":[[0,1]]}]"""),
+            };
+            if (declared)
+                profile["modsRect"] = new JArray(0.05, 0.1, 0.25, 0.08);
+            var diagnostics = new List<GameplaySkinSceneDiagnostic>();
+            GameplaySkinAuthorLayout decoded = GameplaySkinAuthorLayoutCodec.Decode(new JArray(profile), diagnostics).Single();
+            JArray encoded = GameplaySkinAuthorLayoutCodec.Encode(new[] { decoded });
+            GameplaySkinAuthorLayout roundtrip = GameplaySkinAuthorLayoutCodec.Decode(encoded, diagnostics).Single();
+            Assert.Multiple(() =>
+            {
+                Assert.That(diagnostics, Is.Empty);
+                Assert.That(roundtrip.ModsRect, Is.EqualTo(decoded.ModsRect));
+                Assert.That(encoded[0]!["modsRect"] != null, Is.EqualTo(declared));
+                Assert.That(roundtrip.ModsRect.HasValue, Is.EqualTo(declared));
+            });
+            if (declared)
+                Assert.That(roundtrip.ModsRect, Is.EqualTo(GameplaySkinLayoutRect.Create(0.05f, 0.1f, 0.25f, 0.08f)));
+        }
+
+        [TestCase("[-0.01,0,0.2,0.1]")]
+        [TestCase("[0,-0.01,0.2,0.1]")]
+        [TestCase("[0,0,0,0.1]")]
+        [TestCase("[0,0,0.2,-0.1]")]
+        [TestCase("[0.9,0,0.2,0.1]")]
+        [TestCase("[0,0.9,0.2,0.2]")]
+        [TestCase("[0,0,1e100,0.1]")]
+        [TestCase("[0,0,0.2]")]
+        [TestCase("null")]
+        [TestCase("\"invalid\"")]
+        [TestCase("nan")]
+        [TestCase("infinity")]
+        public void TestInvalidModsRectangleRejectsTheProfileAtTheManifestBoundary(string value)
+        {
+            var profile = new JObject
+            {
+                ["id"] = "mods",
+                ["ruleset"] = "mania",
+                ["keymode"] = "1k",
+                ["presentation"] = "any",
+                ["stages"] = JArray.Parse("""[{"rect":[0.1,0,0.2,0.6],"lanes":[[0,1]]}]"""),
+                ["modsRect"] = value switch
+                {
+                    "nan" => new JArray(double.NaN, 0, 0.2, 0.1),
+                    "infinity" => new JArray(0, 0, double.PositiveInfinity, 0.1),
+                    _ => JToken.Parse(value),
+                },
+            };
+            var diagnostics = new List<GameplaySkinSceneDiagnostic>();
+            Assert.That(GameplaySkinAuthorLayoutCodec.Decode(new JArray(profile), diagnostics), Is.Empty);
+            Assert.That(diagnostics, Is.Not.Empty);
         }
 
         [Test]

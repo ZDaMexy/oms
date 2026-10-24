@@ -575,6 +575,9 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
             ensureNonOverlap(playfieldRect, gaugeRect, bgaRects);
 
+            if (authorLayout?.ModsRect is { } modsRect)
+                surfaces.Add(new GameplaySkinLayoutSurface(GameplaySkinAuthorLayout.MODS_SURFACE, project(modsRect, safe), 700, false, true));
+
             GameplaySkinLayoutSnapshot neutral = GameplaySkinLayoutSnapshot.Create(
                 context,
                 groups,

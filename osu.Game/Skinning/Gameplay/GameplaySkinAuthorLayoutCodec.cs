@@ -32,7 +32,7 @@ namespace osu.Game.Skinning.Gameplay
                     add(GameplaySkinSceneDiagnosticCode.InvalidValueType);
                     continue;
                 }
-                fields(profile, "id", "ruleset", "keymode", "presentation", "stages", "keyAreaHeight", "gaugeHeight", "hitPosition");
+                fields(profile, "id", "ruleset", "keymode", "presentation", "stages", "keyAreaHeight", "gaugeHeight", "hitPosition", "modsRect");
                 string? id = text(profile, "id"), ruleset = text(profile, "ruleset"), keymode = text(profile, "keymode"), presentation = text(profile, "presentation");
                 double keyAreaHeight = number(profile, "keyAreaHeight", 0), gaugeHeight = number(profile, "gaugeHeight", 0), hitPosition = number(profile, "hitPosition", 1);
                 var stages = new List<GameplaySkinAuthorLayoutStage>();
@@ -70,9 +70,13 @@ namespace osu.Game.Skinning.Gameplay
                     continue;
                 if (!ids.Add(id) || !selectors.Add($"{ruleset}\0{keymode}\0{presentation}"))
                     add(GameplaySkinSceneDiagnosticCode.DuplicateStableId);
+                double[]? modsRect = profile["modsRect"] == null ? null : tuple(profile["modsRect"], 4);
+                if (profile["modsRect"] != null && modsRect == null)
+                    continue;
                 try
                 {
-                    result.Add(new GameplaySkinAuthorLayout(id, ruleset, keymode, presentation, stages, keyAreaHeight, gaugeHeight, hitPosition));
+                    result.Add(new GameplaySkinAuthorLayout(id, ruleset, keymode, presentation, stages, keyAreaHeight, gaugeHeight, hitPosition,
+                        modsRect == null ? null : GameplaySkinLayoutRect.Create((float)modsRect[0], (float)modsRect[1], (float)modsRect[2], (float)modsRect[3])));
                 }
                 catch (ArgumentException)
                 {
@@ -162,26 +166,32 @@ namespace osu.Game.Skinning.Gameplay
         }
 
         public static JArray Encode(IReadOnlyList<GameplaySkinAuthorLayout> layouts)
-            => new JArray(layouts.Select(layout => new JObject
+            => new JArray(layouts.Select(layout =>
             {
-                ["id"] = layout.Id,
-                ["ruleset"] = layout.RulesetId,
-                ["keymode"] = layout.KeymodeId,
-                ["presentation"] = layout.Presentation,
-                ["keyAreaHeight"] = layout.KeyAreaHeight,
-                ["gaugeHeight"] = layout.GaugeHeight,
-                ["hitPosition"] = layout.HitPosition,
-                ["stages"] = new JArray(layout.Stages.Select(stage =>
+                var profile = new JObject
                 {
-                    var value = new JObject
+                    ["id"] = layout.Id,
+                    ["ruleset"] = layout.RulesetId,
+                    ["keymode"] = layout.KeymodeId,
+                    ["presentation"] = layout.Presentation,
+                    ["keyAreaHeight"] = layout.KeyAreaHeight,
+                    ["gaugeHeight"] = layout.GaugeHeight,
+                    ["hitPosition"] = layout.HitPosition,
+                    ["stages"] = new JArray(layout.Stages.Select(stage =>
                     {
-                        ["rect"] = new JArray(stage.Rect.X, stage.Rect.Y, stage.Rect.Width, stage.Rect.Height),
-                        ["lanes"] = new JArray(stage.Lanes.Select(span => new JArray(span.X, span.Width))),
-                    };
-                    if (stage.HasExplicitKeys)
-                        value["keys"] = new JArray(stage.Keys.Select(span => new JArray(span.X, span.Width)));
-                    return value;
-                })),
+                        var value = new JObject
+                        {
+                            ["rect"] = new JArray(stage.Rect.X, stage.Rect.Y, stage.Rect.Width, stage.Rect.Height),
+                            ["lanes"] = new JArray(stage.Lanes.Select(span => new JArray(span.X, span.Width))),
+                        };
+                        if (stage.HasExplicitKeys)
+                            value["keys"] = new JArray(stage.Keys.Select(span => new JArray(span.X, span.Width)));
+                        return value;
+                    })),
+                };
+                if (layout.ModsRect is { } mods)
+                    profile["modsRect"] = new JArray(mods.X, mods.Y, mods.Width, mods.Height);
+                return profile;
             }));
     }
 }

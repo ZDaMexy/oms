@@ -43,6 +43,7 @@ namespace osu.Game.Skinning.Gameplay
         public const int MAX_PROFILES = 32;
         public const int MAX_STAGES = 2;
         public const int MAX_LANES_PER_STAGE = 10;
+        public const string MODS_SURFACE = "hud.mods";
 
         private const double epsilon = 0.000001;
 
@@ -55,6 +56,9 @@ namespace osu.Game.Skinning.Gameplay
         public double GaugeHeight { get; }
         public double HitPosition { get; }
 
+        /// <summary>Optional safe-screen region for the existing native mod display, retaining its data and interaction.</summary>
+        public GameplaySkinLayoutRect? ModsRect { get; }
+
         public GameplaySkinAuthorLayout(
             string id,
             string rulesetId,
@@ -63,7 +67,8 @@ namespace osu.Game.Skinning.Gameplay
             IReadOnlyList<GameplaySkinAuthorLayoutStage> stages,
             double keyAreaHeight = 0,
             double gaugeHeight = 0,
-            double hitPosition = 1)
+            double hitPosition = 1,
+            GameplaySkinLayoutRect? modsRect = null)
         {
             ArgumentNullException.ThrowIfNull(stages);
             if (!IsToken(id) || rulesetId is not ("bms" or "mania") || !IsToken(keymodeId) || !IsToken(presentation)
@@ -83,6 +88,15 @@ namespace osu.Game.Skinning.Gameplay
             KeyAreaHeight = keyAreaHeight;
             GaugeHeight = gaugeHeight;
             HitPosition = hitPosition;
+            ModsRect = modsRect;
+
+            if (modsRect is { } mods && (!float.IsFinite(mods.X) || !float.IsFinite(mods.Y)
+                                        || !float.IsFinite(mods.Width) || !float.IsFinite(mods.Height)
+                                        || mods.X < 0 || mods.Y < 0 || mods.Width <= 0 || mods.Height <= 0
+                                        || mods.Right > 1 + epsilon || mods.Bottom > 1 + epsilon))
+            {
+                throw new ArgumentException("An author mod display must fit its bounded safe geometry.");
+            }
 
             for (int stageIndex = 0; stageIndex < Stages.Count; stageIndex++)
             {

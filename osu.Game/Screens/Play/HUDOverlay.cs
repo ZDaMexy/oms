@@ -114,6 +114,8 @@ namespace osu.Game.Screens.Play
         private readonly List<Drawable> hideTargets;
 
         private GameplaySkinHudProgrammaticVisualAdapter gameplaySkinHudAdapter;
+        private Container authoredModsCanvas;
+        private GameplaySkinLayoutRect authoredModsRect;
 
         internal IReadOnlyList<Drawable> GameplaySkinGaugeOwners
             => gameplaySkinHudAdapter?.GaugePartitions.Select(partition => (Drawable)partition.Owner).ToArray() ?? Array.Empty<Drawable>();
@@ -270,6 +272,16 @@ namespace osu.Game.Screens.Play
 
             if (drawableRuleset is IGameplaySkinSceneRuntimeSource { GameplaySkinSceneRuntime: { } sceneRuntime })
             {
+                GameplaySkinLayoutSurface modsSurface = sceneRuntime.Publication.Snapshot.Surfaces
+                    .FirstOrDefault(surface => surface.Id == GameplaySkinAuthorLayout.MODS_SURFACE);
+                if (modsSurface != null)
+                {
+                    authoredModsCanvas = sceneRuntime.Layers.HudForeground;
+                    authoredModsRect = modsSurface.Rect;
+                    TopRightElements.Anchor = Anchor.TopLeft;
+                    TopRightElements.Origin = Anchor.TopRight;
+                    TopRightElements.Margin = default;
+                }
                 gameplaySkinHudAdapter = new GameplaySkinHudProgrammaticVisualAdapter(
                     sceneRuntime,
                     rulesetComponents == null ? new[] { mainComponents } : new[] { mainComponents, rulesetComponents },
@@ -335,7 +347,21 @@ namespace osu.Game.Screens.Play
             if (rulesetComponents != null)
                 processDrawables(rulesetComponents);
 
-            if (lowestTopScreenSpaceRight.HasValue && DrawHeight - TopRightElements.DrawHeight > 0)
+            if (authoredModsCanvas != null)
+            {
+                Vector2 topLeft = new Vector2(authoredModsRect.Left, authoredModsRect.Top) * authoredModsCanvas.DrawSize;
+                Vector2 bottomRight = new Vector2(authoredModsRect.Right, authoredModsRect.Bottom) * authoredModsCanvas.DrawSize;
+                var bounds = ToLocalSpace(new Quad(
+                    authoredModsCanvas.ToScreenSpace(topLeft),
+                    authoredModsCanvas.ToScreenSpace(new Vector2(bottomRight.X, topLeft.Y)),
+                    authoredModsCanvas.ToScreenSpace(new Vector2(topLeft.X, bottomRight.Y)),
+                    authoredModsCanvas.ToScreenSpace(bottomRight))).AABBFloat;
+                float fit = TopRightElements.DrawWidth > 0 && TopRightElements.DrawHeight > 0
+                    ? Math.Min(1, Math.Min(bounds.Width / TopRightElements.DrawWidth, bounds.Height / TopRightElements.DrawHeight)) : 1;
+                TopRightElements.Scale = new Vector2(fit);
+                TopRightElements.Position = bounds.TopRight;
+            }
+            else if (lowestTopScreenSpaceRight.HasValue && DrawHeight - TopRightElements.DrawHeight > 0)
                 TopRightElements.Y = Math.Clamp(ToLocalSpace(new Vector2(0, lowestTopScreenSpaceRight.Value)).Y, 0, DrawHeight - TopRightElements.DrawHeight);
             else
                 TopRightElements.Y = 0;

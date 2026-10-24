@@ -35,7 +35,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-10-24 Start设置增量的Core皮肤1262通过/3跳过，BMS受影响范围1336通过/19跳过，mania完整993通过/2跳过；Desktop Debug/Release及受影响格式通过。中间v23完整目录13438组通过，六档物件亮度、原生挡板/速度/血槽组合和mania设置保存/重建/复位、双打与16K已有实际Player证据。轨底分层与新成品验收未完成，详见[专项记录](../../other/OMNI_START_OPTIONS_20261024.md)。
+2026-10-24 Start设置增量的Core皮肤1262通过/3跳过，BMS受影响范围1336通过/19跳过，mania完整993通过/2跳过；后续可选原生Mod摆位的精确合同/真实HUD25项、Core非视觉皮肤与HUD1250通过/3跳过、BMS布局10项及mania布局40项通过，Desktop Debug/Release与格式通过。中间v23完整目录13438组、六档物件亮度、挡板/速度/血槽及mania设置与双侧/16K有实际Player证据。45种轨底源布局已核，v25实际DP默认/最低亮度像素与Mod避让通过；新包全目录和扩展Player仍在执行，详见[专项记录](../../other/OMNI_START_OPTIONS_20261024.md)。
 
 此前`.v26102400`的15框体、持续组件与实际Player验证取[参照记录](../../other/OMNI_OPENINGS_20261021.md#2026-10-24持续组件与原版参照复核)，同日较早的完整BMS补验及语音/缩略图/准备/跳转/反馈取[日志](CHANGELOG.md)。五条已解释ImageSharp旧索引警告不抑制；依赖版本与正规许可取[原记录](CHANGELOG.md#2026-10-22客户端依赖安全修复接入)。正常工作区、图库前台FPS/长期内存、原机精确时序及原生最终配方从零重编未由这些结果代签。
 

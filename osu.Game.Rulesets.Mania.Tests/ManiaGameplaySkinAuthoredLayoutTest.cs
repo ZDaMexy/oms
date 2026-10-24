@@ -74,7 +74,8 @@ namespace osu.Game.Rulesets.Mania.Tests
             GameplaySkinLayoutSnapshot solveProfile(GameplaySkinAuthorLayout? profile) => ManiaGameplaySkinLayoutSolver.Solve(
                 topology, skin, GameplaySkinLayoutRevisionOwner.CreateCompatibility().PackageRevision, 0,
                 authoredEnvironment(), GameplaySkinScrollDirection.Down, profile);
-            GameplaySkinLayoutSnapshot original = solveProfile(null), unmatched = solveProfile(authorLayout(new[] { count == 5 ? 7 : 5 }, false));
+            GameplaySkinLayoutSnapshot original = solveProfile(null), unmatched = solveProfile(authorLayout(new[] { count == 5 ? 7 : 5 }, false,
+                GameplaySkinLayoutRect.Create(0.1f, 0.2f, 0.3f, 0.08f)));
             Assert.Multiple(() =>
             {
                 Assert.That(unmatched.LanesInLogicalOrder.Select(l => l.Rect), Is.EqualTo(original.LanesInLogicalOrder.Select(l => l.Rect)));
@@ -82,6 +83,7 @@ namespace osu.Game.Rulesets.Mania.Tests
                 Assert.That(original.Context.PresentationStyleId, Is.EqualTo("mania-single"));
                 Assert.That(original.Context.Topology.LanesInLogicalOrder.Count(l => l.Identity.Role == GameplaySkinLaneRole.SpecialKey), Is.EqualTo(count % 2));
                 Assert.That(unmatched.Diagnostics.Any(d => d.Code == "mania.layout.author-topology-mismatch"), Is.True);
+                Assert.That(unmatched.Surfaces.Any(surface => surface.Id == GameplaySkinAuthorLayout.MODS_SURFACE), Is.False);
                 Assert.That(original.Surfaces.Any(s => s.Id.StartsWith(ManiaGameplaySkinLayout.KEY_VISUAL_SURFACE_PREFIX, StringComparison.Ordinal)), Is.False);
             });
         }
@@ -111,10 +113,37 @@ namespace osu.Game.Rulesets.Mania.Tests
             });
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestModsRectangleUsesTheSameNonOriginSafeBoundsAsTheAuthorFrame(bool declared)
+        {
+            GameplaySkinLayoutRect? mods = declared ? GameplaySkinLayoutRect.Create(0.1f, 0.2f, 0.3f, 0.08f) : null;
+            var topology = new ManiaGameplaySkinLaneTopologyRevisionOwner().Publish(createBeatmap(7));
+            var environment = new ManiaGameplaySkinLayoutEnvironment(fullBounds(),
+                GameplaySkinLayoutRect.Create(0.12f, 0.07f, 0.8f, 0.85f), 16f / 9f, 1);
+            GameplaySkinLayoutSnapshot result = ManiaGameplaySkinLayoutSolver.Solve(topology, new TestSkinSource(),
+                GameplaySkinLayoutRevisionOwner.CreateCompatibility().PackageRevision, 0, environment,
+                GameplaySkinScrollDirection.Down, authorLayout(new[] { 7 }, false, mods));
+            Assert.That(result.Surfaces.Any(surface => surface.Id == GameplaySkinAuthorLayout.MODS_SURFACE), Is.EqualTo(declared));
+            if (!declared)
+                return;
+            GameplaySkinLayoutSurface actual = result.GetSurface(GameplaySkinAuthorLayout.MODS_SURFACE);
+            Assert.Multiple(() =>
+            {
+                Assert.That(actual.Rect.X, Is.EqualTo(0.2f).Within(0.000001));
+                Assert.That(actual.Rect.Y, Is.EqualTo(0.24f).Within(0.000001));
+                Assert.That(actual.Rect.Width, Is.EqualTo(0.24f).Within(0.000001));
+                Assert.That(actual.Rect.Height, Is.EqualTo(0.068f).Within(0.000001));
+                Assert.That(result.Context.SafeBounds.Contains(actual.Rect), Is.True);
+                Assert.That(actual.Clips, Is.False);
+                Assert.That(actual.ReceivesPositionalInput, Is.True);
+            });
+        }
+
         private static ManiaGameplaySkinLayoutEnvironment authoredEnvironment()
             => new ManiaGameplaySkinLayoutEnvironment(fullBounds(), fullBounds(), 16f / 9f, 1, renderPixelWidth: 1920, renderPixelHeight: 1080);
 
-        private static GameplaySkinAuthorLayout authorLayout(int[] counts, bool right)
+        private static GameplaySkinAuthorLayout authorLayout(int[] counts, bool right, GameplaySkinLayoutRect? modsRect = null)
         {
             var stages = new GameplaySkinAuthorLayoutStage[counts.Length];
             for (int group = 0; group < counts.Length; group++)
@@ -143,7 +172,8 @@ namespace osu.Game.Rulesets.Mania.Tests
                 }
                 stages[group] = new GameplaySkinAuthorLayoutStage(GameplaySkinLayoutRect.Create((float)(left / 1920), 0, 440f / 1920, 728f / 1080), lanes, keys);
             }
-            return new GameplaySkinAuthorLayout("authored.columns", "mania", string.Join("-", counts.Select(n => $"{n}k")), "any", stages, 120d / 1080, 110d / 1080);
+            return new GameplaySkinAuthorLayout("authored.columns", "mania", string.Join("-", counts.Select(n => $"{n}k")), "any", stages, 120d / 1080, 110d / 1080,
+                modsRect: modsRect);
         }
     }
 }

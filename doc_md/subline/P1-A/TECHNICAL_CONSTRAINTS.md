@@ -107,6 +107,7 @@
 2026-10-18用户授权以皮肤配置项替代旧全局BMS游玩区域样式。作者在同一manifest声明choice/toggle/number、默认值与玩法/键数适用范围；玩家覆盖按皮肤记录、规则集和可选键数保存在用户配置。键数未设置的选项继承同一皮肤的模式配置，再取作者默认；不同皮肤不互借配置，不写包或external源。旧全局PlayfieldStyle只保留历史配置键，production不再将它作为布局authority。静线与制作示例仅声明原有四种视觉布局，默认居中左皿，不改其素材或比例。
 
 1. 选项在每次root准备时验证并冻结于同一LayoutContext；偏好改变只影响下一次游玩/重新打开预览，不监听或修改活跃publication。无声明/失效覆盖使用作者默认或原有布局，不增设reload、watcher、publication authority。
+   有效作者layout可用可选`modsRect`给已有原生Mod提示指定安全区矩形，同一snapshot发布为`hud.mods`；原生HUD按同C5全画布坐标移动并必要时等比缩小现有控件，保留真实Mods、回放/悬停/HUD可见性，不生成视觉、资源、离屏缓冲或输入轨道。缺省和不匹配layout保留旧行为；字段合同只在[作者参考](../../../skin-authoring/docs/REFERENCE.md#显式舞台与留空位置)维护。
 2. `option.<id>`沿现有scene binding/variant与完整资源预算消费；普通inline分支沿原准备路径；显式contentCatalog先捕获全部闭包、校验所有结构/图片头，再只解码冻结组合，作者CLI另外逐张完整解码备用PNG。选中值不授予动态文件访问权。`layout.ruleset`只读同一context。类型、适用性、默认值、预算和作者语法的唯一实现是shared codec，参考见[作者手册](../../../skin-authoring/docs/REFERENCE.md#皮肤配置项)。
 3. 可选manifest.layouts仅为原solver的显式作者输入，真实stage/逻辑lane序与immutable topology保持。矩形、空白和键图外扩不得制造输入、移动action/role、改变判定/计分/时间；同一solver输出所有native/scene消费者的几何。未匹配旧包不走新几何分支；规则集不得硬编码IIDX键数、留空、样式或贴图。
 4. IIDX包自身声明BMS5/7/14K与mania5/6/7/8/14/16K。5K忽略远皿两普通槽；mania5/7/14保留空皿，6/8/16将其作为普通可打列；mania原SpecialKey身份和实际双stage向量保持。其余皮肤的原生布局、声音、长条和fallback必须回归，不把作者作品规则推广成玩法合同。

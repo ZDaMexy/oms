@@ -189,7 +189,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 DismissAnyNotifications();
                 return player != null && ReferenceEquals(Game.ScreenStack.CurrentScreen, player)
                                       && player.LoadedBeatmapSuccessfully
-                                      && player.ChildrenOfType<DrawableBmsRuleset>().SingleOrDefault()?.IsLoaded == true;
+                                      && player.ChildrenOfType<DrawableBmsRuleset>().SingleOrDefault() is
+                                      { IsLoaded: true, GameplaySkinSceneRuntime.IsSceneReady: true };
             });
             AddStep("verify the real package publication and hide test chrome", () =>
             {

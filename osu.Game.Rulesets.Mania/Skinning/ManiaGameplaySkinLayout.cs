@@ -708,6 +708,10 @@ namespace osu.Game.Rulesets.Mania.Skinning
                     GameplaySkinLayoutRect.Create(field.Left + field.Width * 0.19f, judgement.Bottom, field.Width * 0.62f, field.Height * 0.065f), 62, false, false),
             };
             surfaces.AddRange(keys);
+            if (author.ModsRect is { } modsRect)
+                surfaces.Add(new GameplaySkinLayoutSurface(GameplaySkinAuthorLayout.MODS_SURFACE,
+                    GameplaySkinLayoutRect.Create(safe.Left + modsRect.X * safe.Width, safe.Top + modsRect.Y * safe.Height,
+                        modsRect.Width * safe.Width, modsRect.Height * safe.Height), 700, false, true));
             return GameplaySkinLayoutSnapshot.Create(context, groups, lanes, surfaces, diagnostics: diagnostics);
         }
 

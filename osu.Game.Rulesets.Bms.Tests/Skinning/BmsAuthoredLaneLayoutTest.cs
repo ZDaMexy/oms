@@ -66,8 +66,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             GameplaySkinAuthorLayout source = createLayout(BmsPlayfieldStyle.P1, false);
             GameplaySkinAuthorLaneSpan[] seven = Enumerable.Range(0, 7).Select(i => new GameplaySkinAuthorLaneSpan(i / 7d, 1 / 7d)).ToArray();
             var wrong = new GameplaySkinAuthorLayout("wrong", "bms", "5k", "p1",
-                new[] { new GameplaySkinAuthorLayoutStage(source.Stages[0].Rect, seven) });
-            BmsGameplayLayoutSnapshot solve(GameplaySkinAuthorLayout? layout) => new BmsGameplayLayoutProvider(
+                new[] { new GameplaySkinAuthorLayoutStage(source.Stages[0].Rect, seven) },
+                modsRect: GameplaySkinLayoutRect.Create(0.1f, 0.2f, 0.3f, 0.08f));
+            static BmsGameplayLayoutSnapshot solve(GameplaySkinAuthorLayout? layout) => new BmsGameplayLayoutProvider(
                     new BmsBeatmap { BmsInfo = new BmsBeatmapInfo { Keymode = BmsKeymode.Key5K } })
                 .PublishForTesting(BmsPlayfieldStyle.P1, new BmsGameplayLayoutConfiguration { AuthorLayout = layout });
             BmsGameplayLayoutSnapshot baseline = solve(null), rejected = solve(wrong);
@@ -75,6 +76,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             {
                 Assert.That(rejected.LanesInLogicalOrder.Select(l => l.NeutralLane.Rect), Is.EqualTo(baseline.LanesInLogicalOrder.Select(l => l.NeutralLane.Rect)));
                 Assert.That(rejected.PlayfieldRect, Is.EqualTo(baseline.PlayfieldRect));
+                Assert.That(rejected.Neutral.Surfaces.Any(surface => surface.Id == GameplaySkinAuthorLayout.MODS_SURFACE), Is.False);
                 Assert.That(rejected.Neutral.Diagnostics.Any(d => d.Code == "bms.layout.author-topology-mismatch"), Is.True);
                 Assert.That(BmsGameplayLayoutProvider.ResolvePresentation(null), Is.EqualTo(BmsPlayfieldStyle.Center));
             });
@@ -114,6 +116,34 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
             if (!fits)
                 Assert.That(result.LanesInLogicalOrder.Select(l => l.NeutralLane.Rect), Is.EqualTo(original.LanesInLogicalOrder.Select(l => l.NeutralLane.Rect)));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestModsRectangleUsesTheSameNonOriginSafeBoundsAsTheAuthorFrame(bool declared)
+        {
+            GameplaySkinLayoutRect? mods = declared ? GameplaySkinLayoutRect.Create(0.1f, 0.2f, 0.3f, 0.08f) : null;
+            var author = new GameplaySkinAuthorLayout("mods", "bms", "5k", "p1",
+                profile(GameplaySkinLayoutRect.Create(0.1f, 0, 0.3f, 0.6f)).Stages, modsRect: mods);
+            var environment = new BmsGameplayLayoutEnvironment(GameplaySkinLayoutRect.Create(0, 0, 1, 1),
+                GameplaySkinLayoutRect.Create(0.12f, 0.07f, 0.8f, 0.85f), 16f / 9f, 1);
+            BmsGameplayLayoutSnapshot result = new BmsGameplayLayoutProvider(
+                    new BmsBeatmap { BmsInfo = new BmsBeatmapInfo { Keymode = BmsKeymode.Key5K } })
+                .PublishForTesting(BmsPlayfieldStyle.P1, new BmsGameplayLayoutConfiguration { AuthorLayout = author }, environment);
+            Assert.That(result.Neutral.Surfaces.Any(surface => surface.Id == GameplaySkinAuthorLayout.MODS_SURFACE), Is.EqualTo(declared));
+            if (!declared)
+                return;
+            GameplaySkinLayoutSurface actual = result.Neutral.GetSurface(GameplaySkinAuthorLayout.MODS_SURFACE);
+            Assert.Multiple(() =>
+            {
+                Assert.That(actual.Rect.X, Is.EqualTo(0.2f).Within(0.000001));
+                Assert.That(actual.Rect.Y, Is.EqualTo(0.24f).Within(0.000001));
+                Assert.That(actual.Rect.Width, Is.EqualTo(0.24f).Within(0.000001));
+                Assert.That(actual.Rect.Height, Is.EqualTo(0.068f).Within(0.000001));
+                Assert.That(result.Context.SafeBounds.Contains(actual.Rect), Is.True);
+                Assert.That(actual.Clips, Is.False);
+                Assert.That(actual.ReceivesPositionalInput, Is.True);
+            });
         }
 
         private static GameplaySkinAuthorLayout profile(GameplaySkinLayoutRect rect, double keys = 0, double gauge = 0)

@@ -37,7 +37,19 @@ Graph开启时收窄SP的原生BGA窗口；DP使用左侧视频，右列留给�
 
 `lighting_persistent.py`先按原层次重绘并逐RGBA核对旧背景，再排除明确组件重绘；输出独立reference，输入作者和素材只读。已核范围为28的lane-base入场、33及七支S5队伍各自的持续星形，共9框体/27布局。BPL必须保留原safe-BGA开口与DP固定符号层，不套33的组合；原星PNG、UV、mask与源循环分别保全，不擦图或烘焙整屏序列。`upgrade_lighting_components.py --source <原作者> --reference <完整reference.json> --output <全新作者目录>`消费该证据，生成新闭包和相邻OSK；`lighting_local_ids.py`仅缩短CN/Judge的内部声明及类型明确的引用，资源/字形/动画/拓扑/路径/选项键保持，减少配置重复。生成后的预算、codec与实际Player仍须独立验收，详见[持续组件记录](../../doc_md/other/OMNI_OPENINGS_20261021.md#2026-10-24持续组件与原版参照复核)。
 
-该升级入口同时调用`lighting_motion.retime_turntable_idle`，只将冻结转盘贡献的四条常转轨迹从4000ms改为1000ms一圈，其余几何、方向和设备counts/revolutions轨迹保持。此值是依据参照画面速度量级选择的作者近似，未证明原机固定周期，也不接BPM时钟；历史完整生成器的4000ms默认不追溯改写。冲突先完整校验再拒绝，已升级的输入可幂等复核。
+Start设置迁移分两步：`build_lighting_start_options.py`消费实际菜单的显式review JSON及原canonical小节线PNG，增加一个共用物件RGB亮度设置；`build_lighting_columns.py`另消费45布局的原轨底分层reference和独立review JSON，增加Column设置。两者均新建作者兄弟目录和相邻OSK，拒绝改旧作者；原1272款、540预览及旧选值保全。物件与轨底是两个设置，不能按五类物件再造五个独立旋钮，具体范围和证据取[Start记录](../../doc_md/other/OMNI_START_OPTIONS_20261024.md)。
+
+`lighting_columns.py`按原网格、UV、mask、Alpha和采样拆开底色，先证实源图重合成一致；保留28开场的base/column交错次序、hold和sentinel，同时退出C4/C5的旧baked游戏纹理。`--mode probe/merge`只产研究reference，`--mode upgrade`必须有完整15框体×三布局及哈希固定的`--reviewed-column`；JSON精确字段和准入见工具模块说明。没有review输入时不推断范围、步长或原版内部混合。构建后仍须现行CLI、实际Player的默认/最低值像素及非column区域验证，离线图不代签GPU或前台性能。
+
+`build_lighting_native_hud.py`在下一份全新作者中，仅为45份Frame manifest的225个既有profile增加公开`modsRect`，将同一个OMS原生ModDisplay放到柜体空位，避免遮住Graph分数。其余布局、scene字节、素材、选项、预览保持；这是OMS摆位适配，不生成IIDX Mod美术或改变输入/计分。
+
+```powershell
+. .\UseDevelopmentStorage.ps1
+python -B tools/IidxSkinAssets/build_lighting_columns.py --mode upgrade --source 'Y:\SharedBrightnessOmniAuthor' --column-reference 'Y:\ColumnSource\reference.json' --reviewed-column 'Y:\ColumnReview\reviewed-column.json' --output 'Y:\ColumnOmniAuthor'
+python -B tools/IidxSkinAssets/build_lighting_native_hud.py --source 'Y:\ColumnOmniAuthor' --output 'Y:\NextOmniAuthor'
+```
+
+`upgrade_lighting_components.py`同时调用`lighting_motion.retime_turntable_idle`，只将冻结转盘贡献的四条常转轨迹从4000ms改为1000ms一圈，其余几何、方向和设备counts/revolutions轨迹保持。此值是依据参照画面速度量级选择的作者近似，未证明原机固定周期，也不接BPM时钟；历史完整生成器的4000ms默认不追溯改写。冲突先完整校验再拒绝，已升级的输入可幂等复核。
 
 原版新采样已直接证明默认j00的蓝/绿/粉三套标签和数字同步变化，但当前采图速度会影响观测驻留，尚未唯一校准源周期和命中原点。未标定的PG迁移原型只留本地诊断，不参与本入口或发布，不给所有21套套用猜定周期。
 
