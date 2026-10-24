@@ -94,30 +94,26 @@ class ChoicePreviewTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "source receipt"):
             build_choice_previews(self.root, self.original_library)
 
-    def test_cover_graph_and_lift_share_art_bytes_while_empty_choices_remain_distinct(self):
+    def test_cover_graph_and_lift_share_art_bytes_while_graph_blank_stays_distinct(self):
         image = self.root / "cover.png"
         Image.new("RGBA", (80, 120), "purple").save(image)
         self.json("art.json", {"resources": [{"id": "cover", "path": "cover.png"}]})
         self.json("scene.json", {"templates": [{"root": {"id": "cover.art", "resource": "cover"}}]})
         self.json("empty.json", {"resources": []})
         self.json("empty-scene.json", {})
-        (self.root / "custom/control").mkdir(parents=True)
-        Image.new("RGBA", (1, 1), "black").save(self.root / "custom/control/lift-black.png")
-        self.json("black.json", {"resources": [{"id": "black", "path": "custom/control/lift-black.png"}]})
         modules = [{"id": module, "choices": [{"value": "l000", "manifest": "art.json", "scene": "scene.json"}]}
                    for module in ("lane-cover", "graph-area", "lift-art")]
         modules[1]["choices"].append({"value": "blank", "manifest": "empty.json", "scene": "empty-scene.json"})
-        modules[2]["choices"].append({"value": "blank", "manifest": "black.json", "scene": "empty-scene.json"})
         self.json("gameplay/content.json", {"modules": modules})
         report = build_choice_previews(self.root)
         catalog = json.loads((self.root / "gameplay/content.json").read_text(encoding="utf-8"))
         paths = [module["choices"][0]["preview"] for module in catalog["modules"]]
         self.assertEqual(1, len(set(paths)))
-        self.assertEqual(5, report["choices"])
-        self.assertEqual(3, report["uniqueFiles"])
-        self.assertEqual(3, audit_previews(self.root, catalog)["files"])
-        empty, black = [self.root / module["choices"][1]["preview"] for module in catalog["modules"][1:]]
-        self.assertNotEqual(empty.read_bytes(), black.read_bytes())
+        self.assertEqual(4, report["choices"])
+        self.assertEqual(2, report["uniqueFiles"])
+        self.assertEqual(2, audit_previews(self.root, catalog)["files"])
+        empty = self.root / catalog["modules"][1]["choices"][1]["preview"]
+        self.assertNotEqual(empty.read_bytes(), (self.root / paths[0]).read_bytes())
 
     def test_animated_cover_uses_exact_original_custom_card_and_reuses_it_after_repackaging(self):
         self.prepare()

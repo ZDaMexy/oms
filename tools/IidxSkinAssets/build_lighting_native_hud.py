@@ -75,8 +75,8 @@ def upgrade(source, output):
     catalog = copy.deepcopy(original_catalog)
     frame_modules = [module for module in catalog["modules"] if module["id"] == "frame"]
     require(len(frame_modules) == 1 and len(frame_modules[0]["choices"]) == 15
-            and sum(len(module["choices"]) for module in catalog["modules"]) == 1272
-            and len(set(preview_files(catalog))) == 540
+            and (sum(len(module["choices"]) for module in catalog["modules"]),
+                 len(preview_files(catalog))) in {(1272, 540), (1271, 539)}
             and any(option["id"] == "lane-objects-brightness" for option in manifest["options"]),
             "Use a complete shared-brightness Omni author with every original choice and preview")
     staging = output.parent / (output.name + ".staging-" + uuid.uuid4().hex[:12])
@@ -124,7 +124,9 @@ def upgrade(source, output):
         "adaptation": "OMS author layout moves/fits the existing real ModDisplay. Not an IIDX art or gameplay reconstruction;"
                       " current Mods, replay lifecycle, hover and HUD visibility remain native. No new visual, texture or framebuffer.",
         "sourcePreservation": {"originalSourceClosureUnchanged": True, "originalArchiveUnchanged": True,
-                               "changedExistingMedia": [], "catalogChoices": 1272, "previewFiles": 540},
+                               "changedExistingMedia": [],
+                               "catalogChoices": sum(len(module["choices"]) for module in catalog["modules"]),
+                               "previewFiles": len(preview_files(catalog))},
         "codecValidation": {"status": "pending"}, "runtimeValidation": {"status": "pending"},
         "budgets": audit["selectedUpperBound"], "unifiedOptionCount": audit["options"],
         "closure": {"files": len(files), "uncompressedBytes": audit["uncompressedBytes"],

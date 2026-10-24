@@ -162,8 +162,8 @@ def upgrade(source, column_reference_path, reviewed_path, output):
     modules = [module for module in original_catalog["modules"] if module["id"] == "frame"]
     require(len(modules) == 1 and {choice["value"] for choice in modules[0]["choices"]} == SOURCE_PACKAGES.keys(),
             "The frozen parent must retain its exact15 Frame choices")
-    require(sum(len(module["choices"]) for module in original_catalog["modules"]) == 1272
-            and len(set(preview_files(original_catalog))) == 540
+    require((sum(len(module["choices"]) for module in original_catalog["modules"]),
+             len(preview_files(original_catalog))) in {(1272, 540), (1271, 539)}
             and len(original_manifest["options"]) + len(original_catalog["modules"]) == 27
             and any(option["id"] == "lane-objects-brightness" for option in original_manifest["options"])
             and not any(option["id"] == "column-brightness" for option in original_manifest["options"]),
@@ -256,7 +256,8 @@ def upgrade(source, column_reference_path, reviewed_path, output):
         "columnSourceReference": {"path": str(Path(column_reference_path).resolve()), "sha256": file_sha(column_reference_path)},
         "columnUpgrade": receipts, "sourcePreservation": {"originalSourceClosureUnchanged": True, "originalArchiveUnchanged": True,
             "changedExistingMedia": [], "retiredFiles": sorted(retired), "oldBitmapPathsStillUsedOnlyForPreview": sorted(retired_media.intersection(files)),
-            "catalogChoices": 1272, "previewFiles": 540},
+            "catalogChoices": sum(len(module["choices"]) for module in catalog["modules"]),
+            "previewFiles": len(preview_files(catalog))},
         "codecValidation": {"status": "pending"}, "runtimeValidation": {"status": "pending"}, "budgets": audit["selectedUpperBound"],
         "unifiedOptionCount": audit["options"], "closure": {"files": len(files), "uncompressedBytes": audit["uncompressedBytes"],
             "configurationBytes": audit["configurationBytes"]}, "authorDirectory": audit["authorDirectory"],

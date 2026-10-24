@@ -812,19 +812,18 @@ class ModuleBuilder:
         self.options.append({"id": "lift-readout", "type": "toggle", "label": "显示原素材 LIFT 数值", "default": True,
                              "rulesets": ["bms"], "keymodes": ["5k", "7k", "14k"]})
         choices = []
-        for style in [None, *range(366)]:
-            value = "blank" if style is None else f"l{style:03}"
+        for style in range(366):
+            value = f"l{style:03}"
             b = Branch(self, "v", value)
             black, marker = self.control_black(b)
             for sd in (False, True):
                 identifier = b.prefix + (".sd" if sd else ".hd")
                 children = [node(identifier + ".black", "sprite", resource=black)]
-                if style is not None:
-                    art = self.lane_art(b, style)
-                    art["id"] = identifier + ".art"
-                    width, pad = (438, 3) if sd else (440, 4)
-                    art["properties"] = {"x": pad / width, "width": 432 / width}
-                    children.append(art)
+                art = self.lane_art(b, style)
+                art["id"] = identifier + ".art"
+                width, pad = (438, 3) if sd else (440, 4)
+                art["properties"] = {"x": pad / width, "width": 432 / width}
+                children.append(art)
                 root = node(identifier, slot="playfield.lift.fill", properties={"visible": False}, children=children)
                 b.show(identifier, "option.frame", [frame for frame in FRAMES if frame_sd(frame) == sd])
                 b.template("fill.sd" if sd else "fill.hd", root, "playfield.lift.fill", marker)
@@ -852,16 +851,16 @@ class ModuleBuilder:
                     b.ini.extend(("[GameplaySkin.Bms:1]", "Target: Stage " + context["stage"],
                                   f'playfield.lift.fill: resource Provide "{marker}"',
                                   f'playfield.lift.decoration: resource Provide "{readout_marker}"'))
-            choices.append({"value": value, "label": "原黑色" if style is None else f"原挡板艺术 {style:03}", **b.finish()})
-        self.add_module("lift-art", "LIFT · 底部挡板艺术", choices, "blank")
+            choices.append({"value": value, "label": f"原挡板艺术 {style:03}", **b.finish()})
+        self.add_module("lift-art", "LIFT · 底部挡板艺术", choices, "l000")
         self.modules[-1].update(rulesets=["bms"], keymodes=["5k", "7k", "14k"])
-        self.receipts.append({"category": "lift", "choices": 367,
+        self.receipts.append({"category": "lift", "choices": 366, "default": "l000",
             "sourcePackages": ["1/gameparts", "lane000..365 including20 animated sources"],
             "nativeOwnership": "BMS-only explicit playfield.lift.fill/decoration. The actual controller consumes Units/offset/reversed; the package never changes the mod or native hit geometry.",
             "fillGeometry": "Full-stage uncompressed carrier, x4/440 or3/438 with inner432 art; the native owner clips the actual bottom/top offset region.",
             "readout": "True lift.value0..1000, one original16x20 gs digit font and original16x20 separator. The unknown right-hand original field is omitted.",
             "readoutPosition": "Author candidate at actual edge, above and centred, unflipped in reverse; original host edge offset remains uncalibrated.",
-            "blank": "Generated one-pixel black control fill, explicitly not presented as an extracted artwork.",
+            "controlFill": "Generated one-pixel black underlay behind every artwork, not a selectable design.",
             "sourceBinding": "Lane artwork applied as an explicit author composition; no original external host selected-lane binding is inferred."})
 
 
@@ -874,9 +873,9 @@ def build_modules(library: Path, output: Path, *, bemani_root: Path, image_tools
     builder.explosions()
     builder.beams()
     builder.static_lanes()
+    builder.lift_art()
     builder.turntables()
     builder.graph_art()
-    builder.lift_art()
     result = {"modules": builder.modules, "options": builder.options, "files": list(builder.files.values()),
               "receipts": {"sourceLibrary": str(builder.library), "sourceAssets": list(builder.used_assets.values()),
                            "branches": builder.branch_counts, "details": builder.receipts}}

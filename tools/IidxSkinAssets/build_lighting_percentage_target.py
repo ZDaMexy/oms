@@ -90,8 +90,8 @@ def upgrade(source, reference_path, output):
     catalog = copy.deepcopy(original_catalog)
     frames = [module for module in catalog["modules"] if module["id"] == "frame"]
     require(len(frames) == 1 and len(frames[0]["choices"]) == 15
-            and sum(len(module["choices"]) for module in catalog["modules"]) == 1272
-            and len(preview_files(catalog)) == 540, "Use the complete current Omni author closure")
+            and (sum(len(module["choices"]) for module in catalog["modules"]),
+                 len(preview_files(catalog))) in {(1272, 540), (1271, 539)}, "Use the complete current Omni author closure")
     all_ids = [option["id"] for option in manifest["options"]] + [module["id"] for module in catalog["modules"]]
     require(len(all_ids) == len(set(all_ids)) and len(all_ids) <= 32, "The new option must retain the shared32-option budget")
     staging = output.parent / (output.name + ".staging-" + uuid.uuid4().hex[:12])
@@ -130,7 +130,7 @@ def upgrade(source, reference_path, output):
     require(set(source_files) - set(files) <= {key[0] for key in transformed}, "An unrelated source dependency was retired")
     require(preview_files(catalog) == preview_files(original_catalog)
             and all(sha(exact_file(staging, relative)) == hashes[relative] for relative in preview_files(catalog)),
-            "All540 original previews must remain byte-identical")
+            "All parent previews must remain byte-identical")
     require(all(sha(exact_file(source, relative)) == digest for relative, digest in hashes.items())
             and sha(source / "generation.json") == identity["generationSha256"]
             and sha(archive) == identity["archiveSha256"], "The immutable parent or its old archive changed")
@@ -148,7 +148,9 @@ def upgrade(source, reference_path, output):
         "adaptation": "Author-side percentage of normalized maximum, original graph digits plus ordinary OMS percent suffix."
                       " No calculated integer EX threshold, original keypad workflow, rotate algorithm, ghost or rival data.",
         "sourcePreservation": {"originalSourceClosureUnchanged": True, "originalArchiveUnchanged": True,
-            "changedExistingMedia": [], "catalogChoices": 1272, "previewFiles": 540,
+            "changedExistingMedia": [],
+            "catalogChoices": sum(len(module["choices"]) for module in catalog["modules"]),
+            "previewFiles": len(preview_files(catalog)),
             "retiredSceneFiles": sorted(set(source_files) - set(files))},
         "codecValidation": {"status": "pending"}, "runtimeValidation": {"status": "pending"},
         "budgets": audit["selectedUpperBound"], "unifiedOptionCount": audit["options"],

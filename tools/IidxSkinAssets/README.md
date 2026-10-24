@@ -23,7 +23,9 @@ dotnet run --project tools/SkinAuthoring -- check 'Y:\OmniAuthor'
 
 重新导出模块时省略 `--modules-directory`，改为提供 `--bemani-root`（与来源收据一致的独立 bemaniutils checkout）、`--image-tools`（下方依赖目录）和 `--frame-maps`。后者是15个Frame ID到各自原始 `skin-reference-map.json` 的JSON映射，路径相对映射文件所在目录并须位于其下；例如 `{"iidx33":"iidx33/skin-reference-map.json",...}`。`customization_modules.py` 接受相同三项参数；单独导出动画也须显式提供前两项，不再依赖某天的研究缓存路径。AFP解析器版本取来源收据，不由脚本自动下载或更新；玩家导入成品只需要对应OMS版本。
 
-实际选项包括15框体、27爆炸、46转盘、21判定、12音符、11套CN/HCN、15光柱、366挡板和25FC；Graph Area和LIFT可独立选择空白或366同源艺术。音符/CN尺寸、EXP缩放、光柱长度独立于设计。notes11缺少原尺寸档，复用同11原图做显式作者纵缩，不能换00冒充；HCN额外配色是同款CN原材质的作者选项，不声称已确认官方颜色编号。
+实际选项包括15框体、27爆炸、46转盘、21判定、12音符、11套CN/HCN、15光柱、366挡板和25FC；Graph Area可选空白或366同源艺术，LIFT仅保留366款艺术、默认000，紧接Lane Cover。音符/CN尺寸、EXP缩放、光柱长度独立于设计。notes11缺少原尺寸档，复用同11原图做显式作者纵缩，不能换00冒充；HCN额外配色是同款CN原材质的作者选项，不声称已确认官方颜色编号。
+
+`build_lighting_lift_default.py --source 'Y:\OldAuthor' --output 'Y:\FreshSibling'`仅修正冻结包的LIFT目录，不执行旧几何修复或重新导出素材；适用于已压缩本地ID的当前作者。它移除作者额外添加的`blank`纯黑款及其无引用文件，将默认改为`l000`，并把配置放在Lane Cover之后。新目录有1271款/539张预览；保留款式ID、贡献字节与选中上界不变，黑色内层衬底仍是艺术图的组成，不是可选款。普通源生成及旧冻结模块入口采用相同规则；后续亮度/轨底、HUD、高度和百分比工具接受旧1272/540及新1271/539两种父目录，并按实际输入登记保全数量，不改玩家保存值。
 
 `note_geometry.py`在完整导出和旧包重建时分别归一BMS与mania的单点、长条头尾。BMS原22.5载体、模板及身体保持；mania按原00标记图尺寸和实际48参考宽度换算高度/偏移，以不同C4资源名选择专用模板，只复制九张原图为逐字节相同的标记别名。不改图片或公共host，不同时实例化两套音符；CN/HCN资源变体保留。真实游玩须另核原生AutoSize高度、替代Sprite矩形及1080p原图尺寸，codec或自动演奏计分通过不证明音符可见。
 
@@ -37,7 +39,7 @@ Graph开启时收窄SP的原生BGA窗口；DP使用左侧视频，右列留给�
 
 `lighting_persistent.py`先按原层次重绘并逐RGBA核对旧背景，再排除明确组件重绘；输出独立reference，输入作者和素材只读。已核范围为28的lane-base入场、33及七支S5队伍各自的持续星形，共9框体/27布局。BPL必须保留原safe-BGA开口与DP固定符号层，不套33的组合；原星PNG、UV、mask与源循环分别保全，不擦图或烘焙整屏序列。`upgrade_lighting_components.py --source <原作者> --reference <完整reference.json> --output <全新作者目录>`消费该证据，生成新闭包和相邻OSK；`lighting_local_ids.py`仅缩短CN/Judge的内部声明及类型明确的引用，资源/字形/动画/拓扑/路径/选项键保持，减少配置重复。生成后的预算、codec与实际Player仍须独立验收，详见[持续组件记录](../../doc_md/other/OMNI_OPENINGS_20261021.md#2026-10-24持续组件与原版参照复核)。
 
-Start设置迁移分两步：`build_lighting_start_options.py`消费实际菜单的显式review JSON及原canonical小节线PNG，增加一个共用物件RGB亮度设置；`build_lighting_columns.py`另消费45布局的原轨底分层reference和独立review JSON，增加Column设置。两者均新建作者兄弟目录和相邻OSK，拒绝改旧作者；原1272款、540预览及旧选值保全。物件与轨底是两个设置，不能按五类物件再造五个独立旋钮，具体范围和证据取[Start记录](../../doc_md/other/OMNI_START_OPTIONS_20261024.md)。
+Start设置迁移分两步：`build_lighting_start_options.py`消费实际菜单的显式review JSON及原canonical小节线PNG，增加一个共用物件RGB亮度设置；`build_lighting_columns.py`另消费45布局的原轨底分层reference和独立review JSON，增加Column设置。两者均新建作者兄弟目录和相邻OSK，拒绝改旧作者；父目录款式、预览及旧选值保全。物件与轨底是两个设置，不能按五类物件再造五个独立旋钮，具体范围和历史1272/540证据取[Start记录](../../doc_md/other/OMNI_START_OPTIONS_20261024.md)。
 
 `lighting_columns.py`按原网格、UV、mask、Alpha和采样拆开底色，先证实源图重合成一致；保留28开场的base/column交错次序、hold和sentinel，同时退出C4/C5的旧baked游戏纹理。`--mode probe/merge`只产研究reference，`--mode upgrade`必须有完整15框体×三布局及哈希固定的`--reviewed-column`；JSON精确字段和准入见工具模块说明。没有review输入时不推断范围、步长或原版内部混合。构建后仍须现行CLI、实际Player的默认/最低值像素及非column区域验证，离线图不代签GPU或前台性能。
 
@@ -45,7 +47,7 @@ Start设置迁移分两步：`build_lighting_start_options.py`消费实际菜单
 
 `build_lighting_judgement_position.py`消费独立review JSON中真实游玩−2/0/+1/+10位移和OFF证据，以及225个profile/42组SD-HD贡献的几何审查，新增整体高度配置与独立内层关闭门。位移由既有根与同高关闭门各分半，守单节点绝对位置4预算，不增加额外节点或放宽限制。三种布局沿既有宿主高度换算，原行排版、字体、RGB和生命周期保持；锚点间线性插值、P2/DP沿用位移均明确属于OMS作者适配，未以设置页缩图或其它侧别代签逐像素校准。未取得完整review时拒绝生成。
 
-`build_lighting_percentage_target.py`在再下一份全新作者中追加百分比目标及0..100、步长1、默认50的数值配置。范围/默认取官方说明，review的`authorStep:1`单独记录作者整数步长，不冒称原版十键精度；原版50档实际选中的截图另行固定，旧五档目标保全。原柱使用已有非循环配置采样轴，原数字旁用普通文字显示百分号，不猜算原版EX整数取整、rotate或Ghost。两个新工具均保全父作者/OSK、原1272款及540张预览，发布前仍须当前CLI与真实Player验收。
+`build_lighting_percentage_target.py`在再下一份全新作者中追加百分比目标及0..100、步长1、默认50的数值配置。范围/默认取官方说明，review的`authorStep:1`单独记录作者整数步长，不冒称原版十键精度；原版50档实际选中的截图另行固定，旧五档目标保全。原柱使用已有非循环配置采样轴，原数字旁用普通文字显示百分号，不猜算原版EX整数取整、rotate或Ghost。两个工具均保全父作者/OSK及父目录的全部款式和预览，发布前仍须当前CLI与真实Player验收。
 
 ```powershell
 . .\UseDevelopmentStorage.ps1
@@ -67,7 +69,7 @@ python -B -X utf8 tools/IidxSkinAssets/build_lighting_details.py --source 'Y:\Va
 
 `--lane-reference`必须完整覆盖15框体各自1P/2P/DP两侧的60条原记录；`lighting_lane_intro.py export`从独立来源库提取开局循环前、实际与轨道相交的原层次/UV/遮罩/混合，排除框外装饰，保留终止空帧。不得用33替代其它代；七支S5是否共用33及SUPERNOVA使用0目录高清来源须逐包证明。`--ready-reference`取完整父movie，裸字母movie缺少退场，不能替代。已有本地化三PNG和外框曲线直接继承v14，不重新读取安装目录。来源记录与生成命令可通过各工具`--help`查看；构建成功只证明引用闭包与离线预算，实际验证及边界取[P1-A状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)。
 
-统一生成器为全部11类、1272款美术选项声明静态缩略图，共540张256×160 PNG、约12MiB编码字节。原六类132张保持；Frame取自身完整静态底图，普通挡板取原美术，动画挡板与25款FC取来源收据核对过的原CUSTOM选项图；Graph/LIFT与挡板的同源设计共用PNG，原空白与原黑色各有明确图示。`choice_previews.py`只生成独立预览，不改游玩图片、动画或默认选值。首次生成动画挡板/FC缩略图时，冻结目录重打包须提供`--choice-preview-library 'Y:\OriginalCustomLibrary'`（含`original-previews.json`）；完整源构建默认用`--custom-library`。已捕获的规范PNG可直接随冻结包重建，无需再次读取源库。预览纳入ZIP引用闭包与独立32MiB预算；设置只解码可见内容、每页最多12款，翻页/收起释放旧图卡。作者检查与实际导入的证据、未完成范围取[P1-A状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)。此工具不把Omni写入玩家目录、canonical或公开制作套件。
+统一生成器为全部11类、1271款美术选项声明静态缩略图，共539张256×160 PNG、约12MiB编码字节。原六类132张保持；Frame取自身完整静态底图，普通挡板取原美术，动画挡板与25款FC取来源收据核对过的原CUSTOM选项图；Graph/LIFT与挡板的同源设计共用PNG，Graph原空白有明确图示。`choice_previews.py`只生成独立预览，不改游玩图片、动画或默认选值。首次生成动画挡板/FC缩略图时，冻结目录重打包须提供`--choice-preview-library 'Y:\OriginalCustomLibrary'`（含`original-previews.json`）；完整源构建默认用`--custom-library`。已捕获的规范PNG可直接随冻结包重建，无需再次读取源库。预览纳入ZIP引用闭包与独立32MiB预算；设置只解码可见内容、每页最多12款，翻页/收起释放旧图卡。作者检查与实际导入的证据、未完成范围取[P1-A状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)。此工具不把Omni写入玩家目录、canonical或公开制作套件。
 
 2026-10-20按用户反馈，Omni仅提供主游玩画面：移除Lightning副屏、展开/专注/亮度三项配置、Premium背景/图标及专注背景。新导出与冻结模块/旧作者目录重打包都不再声明副屏，发布闭包排除其专用素材；原研究资料及旧版交付保留。Graph仍在主屏显示，不受此项移除影响，公共引擎及其它作者包的辅助屏能力保持。
 

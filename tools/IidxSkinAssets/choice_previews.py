@@ -222,16 +222,7 @@ class Illustration:
         return image
 
     def lift_art(self):
-        if any(item["id"].endswith(".art") and (item.get("resource") or item.get("animation"))
-               for template in self.scene.get("templates", []) for item in walk(template["root"])):
-            return self.lane_cover()
-        black = [identifier for identifier, resource in self.resources.items() if resource["path"].endswith("/control/lift-black.png")]
-        if len(black) != 1:
-            raise ValueError("The plain LIFT thumbnail requires its actual black fill")
-        image = self.image(black[0]).resize((208, 112), Image.Resampling.NEAREST)
-        draw = ImageDraw.Draw(image)
-        draw.rectangle((0, 0, 207, 111), outline=(130, 135, 154, 255), width=2)
-        return centred(image, maximum_scale=1)
+        return self.lane_cover()
 
 
 def horizontal(images, gap):

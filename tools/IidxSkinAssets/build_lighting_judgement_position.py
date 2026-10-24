@@ -88,8 +88,8 @@ def upgrade(source, output, reference):
     heights = frame_heights(source, catalog)
     judgement = [module for module in catalog["modules"] if module["id"] == "judgement"]
     require(len(judgement) == 1 and len(judgement[0]["choices"]) == 21
-            and sum(len(module["choices"]) for module in catalog["modules"]) == 1272
-            and len(set(preview_files(catalog))) == 540, "Preserve every original choice and preview")
+            and (sum(len(module["choices"]) for module in catalog["modules"]),
+                 len(preview_files(catalog))) in {(1272, 540), (1271, 539)}, "Preserve every original choice and preview")
     display = [option for option in manifest["options"] if option["id"] == "judgement-display"]
     require(len(display) == 1 and display[0]["default"] == "normal"
             and [choice["value"] for choice in display[0]["choices"]] == ["normal", "label-only"],
@@ -153,7 +153,9 @@ def upgrade(source, output, reference):
                              " retain the per-node position4 budget; P1/P2/DP share displacement as an OMS adaptation. The original"
                              " grade rows, fonts, RGB, lifecycle, clip and hit line stay unchanged. Independent child OFF gate.",
                "sourcePreservation": {"originalSourceClosureUnchanged": True, "originalArchiveUnchanged": True,
-                                      "changedExistingMedia": [], "catalogChoices": 1272, "previewFiles": 540},
+                                      "changedExistingMedia": [],
+                                      "catalogChoices": sum(len(module["choices"]) for module in catalog["modules"]),
+                                      "previewFiles": len(preview_files(catalog))},
                "codecValidation": {"status": "pending"}, "runtimeValidation": {"status": "pending"},
                "budgets": audit["selectedUpperBound"], "unifiedOptionCount": audit["options"],
                "closure": {"files": len(files), "uncompressedBytes": audit["uncompressedBytes"],

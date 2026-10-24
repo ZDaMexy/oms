@@ -393,6 +393,26 @@ def calibrate_full_combo(catalog):
             "playerPreferences": "not read or modified"}
 
 
+def calibrate_lift_art(catalog):
+    """Keep the 366 cover artworks together, with 000 as the LIFT default."""
+    modules = catalog["modules"]
+    lift = next((module for module in modules if module["id"] == "lift-art"), None)
+    if lift is None:
+        return {"status": "not-included"}
+    previous_index, previous_default = modules.index(lift), lift["default"]
+    removed = [choice["value"] for choice in lift["choices"] if choice["value"] == "blank"]
+    choices = [choice for choice in lift["choices"] if choice["value"] != "blank"]
+    if [choice["value"] for choice in choices] != [f"l{style:03}" for style in range(366)]:
+        raise ValueError("The Omni LIFT module must retain all 366 ordered cover artworks")
+    lift["choices"], lift["default"] = choices, "l000"
+    modules.remove(lift)
+    lane_index = next(index for index, module in enumerate(modules) if module["id"] == "lane-cover")
+    modules.insert(lane_index + 1, lift)
+    return {"previousDefault": previous_default, "default": "l000", "removedChoices": removed,
+            "previousIndex": previous_index, "index": lane_index + 1,
+            "artworkContributionsPreserved": True, "playerPreferences": "not read or modified"}
+
+
 def build_fullcombo(catalog_path: Path, output: Path):
     catalog = read_json(catalog_path)
     source = catalog_path.parent
@@ -1091,6 +1111,7 @@ def verify_repackage(source: Path, output: Path, files, progress_reference=None)
     expected_catalog = copy.deepcopy(original_catalog)
     expected_catalog["modules"] = [item for item in expected_catalog["modules"] if item["id"] not in AUXILIARY_MODULES]
     full_combo_default = calibrate_full_combo(expected_catalog)
+    lift_art_default = calibrate_lift_art(expected_catalog)
     retained_source_catalog = copy.deepcopy(expected_catalog)
     progress_manifests, progress_scenes = expected_progress_contributions(source, retained_source_catalog, progress_reference) \
         if progress_reference is not None else ({}, {})
@@ -1111,7 +1132,7 @@ def verify_repackage(source: Path, output: Path, files, progress_reference=None)
         if read_json(exact_file(output, flat_configuration_path(path, "m"))) != expected:
             raise ValueError(f"Repackaging changed a manifest beyond its fixed C1 header and verified progress resource: {path}")
     if read_json(output / "gameplay/content.json") != expected_catalog:
-        raise ValueError("Repackaging changed a catalog beyond auxiliary removal, verified 33 Full Combo default, configuration paths and exact option illustrations")
+        raise ValueError("Repackaging changed a catalog beyond auxiliary removal, Full Combo/LIFT defaults and order, configuration paths and exact option illustrations")
     expected_root = read_json(source / "gameplay-skin.json")
     expected_root.pop("auxiliaryDisplay", None)
     expected_root["options"] = [item for item in expected_root["options"] if item["id"] not in AUXILIARY_OPTIONS]
@@ -1200,8 +1221,9 @@ def verify_repackage(source: Path, output: Path, files, progress_reference=None)
     return {"source": str(source), "unchangedPathAndBytes": unchanged, "relocatedByteEqualScenes": byte_equal_scenes,
             "manifestsCheckedForFixedSceneHeader": len(manifests), "manifestSceneHeader": SCENE_HEADER_FILE,
             "actualSceneAuthority": "C2 catalog contribution.scene",
-            "catalogChanges": ["secondary-screen modules removed", "verified 33 Full Combo default and two labels", "contribution configuration paths", "per-choice optional preview paths"],
+            "catalogChanges": ["secondary-screen modules removed", "verified 33 Full Combo default and two labels", "LIFT black choice removed, default 000, immediately after Lane Cover", "contribution configuration paths", "per-choice optional preview paths"],
             "fullComboDefault": full_combo_default,
+            "liftArtDefault": lift_art_default,
             "removedSourceFiles": len(set(original_files) - set(retained_files)),
             "newPreviewFiles": len(preview_files(expected_catalog) - set(original_files)),
             "retainedPngClipAndOtherIniBytesPreserved": True,
@@ -1245,6 +1267,7 @@ def prepare_package(output: Path, receipt, repackage_source: Path | None = None,
     catalog_path = output / "gameplay/content.json"
     catalog = read_json(catalog_path)
     receipt["fullComboDefault"] = calibrate_full_combo(catalog)
+    receipt["liftArtDefault"] = calibrate_lift_art(catalog)
     write_json(catalog_path, catalog)
     receipt.pop("auxiliaryMarkers", None)
     if receipt["auxiliaryDisplayRemoval"]["removedModules"] and "customization" in receipt:
@@ -1266,8 +1289,11 @@ def prepare_package(output: Path, receipt, repackage_source: Path | None = None,
     if progress_reference is not None:
         receipt["songProgress"] = add_music_progress(output, progress_reference)
     default_changed = bool(receipt["enabledToggleDefaults"]) or receipt["fullComboDefault"]["previousDefault"] != receipt["fullComboDefault"]["default"]
+    default_changed |= receipt["liftArtDefault"].get("previousDefault") != receipt["liftArtDefault"].get("default")
+    lift_catalog_changed = (bool(receipt["liftArtDefault"].get("removedChoices"))
+                            or receipt["liftArtDefault"].get("previousIndex") != receipt["liftArtDefault"].get("index"))
     if (receipt["sceneContractCorrections"]["changedScenes"] or receipt.get("songProgress", {}).get("changedJson")
-            or receipt["maniaNoteGeometry"].get("changedScenes") or default_changed) and "codecValidation" in receipt:
+            or receipt["maniaNoteGeometry"].get("changedScenes") or default_changed or lift_catalog_changed) and "codecValidation" in receipt:
         receipt["sourceCodecValidation"] = receipt.pop("codecValidation")
         receipt["codecValidation"] = {"status": "pending", "reason": "Author declarations or selected defaults changed; the source package codec receipt is historical evidence only"}
     if repackage_source and "runtimeValidation" in receipt:
