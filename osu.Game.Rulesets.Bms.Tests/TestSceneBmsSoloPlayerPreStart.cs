@@ -22,6 +22,7 @@ using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Skinning;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.UI;
 using osu.Game.Scoring;
 using osu.Game.Screens.Play;
 using osu.Game.Skinning;
@@ -42,6 +43,8 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         private TestBmsSoloPlayer player = null!;
         private Mod[] selectedMods = null!;
+        private BmsDecodedBeatmap? sourceOverride;
+        private bool startInFloating;
 
         [Resolved]
         private SkinManager skinManager { get; set; } = null!;
@@ -64,7 +67,12 @@ namespace osu.Game.Rulesets.Bms.Tests
         protected override Ruleset CreateRuleset() => new BmsRuleset();
 
         [SetUp]
-        public void SetUp() => selectedMods = new Mod[] { new BmsModSudden() };
+        public void SetUp()
+        {
+            selectedMods = new Mod[] { new BmsModSudden() };
+            sourceOverride = null;
+            startInFloating = false;
+        }
 
         [SetUpSteps]
         public override void SetUpSteps()
@@ -77,8 +85,15 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddUntilStep("wait for previous gameplay layout owner retirement", () =>
                 player?.DrawableBmsRuleset?.LayoutProvider.RevisionOwner?.IsDisposed != false);
             AddStep("set ruleset", () => Ruleset.Value = bms_ruleset_info);
-            AddStep("set beatmap", () => Beatmap.Value = CreateWorkingBeatmap(sourceBeatmap));
+            AddStep("set beatmap", () => Beatmap.Value = CreateWorkingBeatmap(sourceOverride ?? sourceBeatmap));
             AddStep("set lane cover mods", () => SelectedMods.Value = selectedMods);
+            AddStep("set initial speed configuration", () =>
+            {
+                var config = (BmsRulesetConfigManager)RulesetConfigs.GetConfigFor(new BmsRuleset())!;
+                config.SetValue(BmsRulesetSetting.ScrollSpeed, 8.0);
+                config.SetValue(BmsRulesetSetting.FloatingHiSpeed, 2.5);
+                config.SetValue(BmsRulesetSetting.HiSpeedMode, startInFloating ? BmsHiSpeedMode.Floating : BmsHiSpeedMode.Normal);
+            });
             AddStep("load BMS solo player", () => LoadScreen(player = new TestBmsSoloPlayer()));
             AddUntilStep("wait for BMS solo player", () => player.IsCurrentScreen() && player.IsLoaded && player.DrawableBmsRuleset?.IsLoaded == true && player.GameplayInputManager != null);
         }
@@ -288,12 +303,12 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddStep("press pre-start hold", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_PreStartHold), Is.True));
             AddUntilStep("overlay visible while holding", () => player.PreStartOverlay?.State.Value == Visibility.Visible);
 
-            AddStep("raise hi-speed with an odd lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.Key1P_1), Is.True));
-            AddStep("release odd lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.Key1P_1), Is.True));
+            AddStep("raise hi-speed with an even lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.Key1P_2), Is.True));
+            AddStep("release even lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.Key1P_2), Is.True));
             AddAssert("overlay-driven hi-speed adjustment succeeds", () => Math.Abs(player.DrawableBmsRuleset!.SelectedHiSpeed.Value - (initialHiSpeed + hiSpeedStep)) <= 0.0001);
 
-            AddStep("lower hi-speed with an even lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.Key1P_2), Is.True));
-            AddStep("release even lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.Key1P_2), Is.True));
+            AddStep("lower hi-speed with an odd lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.Key1P_1), Is.True));
+            AddStep("release odd lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.Key1P_1), Is.True));
             AddAssert("overlay-driven hi-speed decrease succeeds", () => Math.Abs(player.DrawableBmsRuleset!.SelectedHiSpeed.Value - initialHiSpeed) <= 0.0001);
 
             AddStep("adjust lane cover while hold is active", () => adjustedLaneCoverWhilePaused = player.DrawableBmsRuleset!.AdjustLaneCover(1));
@@ -324,8 +339,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddStep("release pre-start hold before delay elapses", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_PreStartHold), Is.True));
             AddUntilStep("overlay hidden after early release", () => player.PreStartOverlay?.State.Value == Visibility.Hidden);
             AddAssert("underlying clock still not running", () => !player.GameplayClockContainer.IsRunning);
-            AddStep("try raising hi-speed after early release", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.Key1P_1), Is.True));
-            AddStep("release odd lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.Key1P_1), Is.True));
+            AddStep("try raising hi-speed after early release", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.Key1P_2), Is.True));
+            AddStep("release even lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.Key1P_2), Is.True));
             AddAssert("hi-speed stays unchanged after early release", () => Math.Abs(player.DrawableBmsRuleset!.SelectedHiSpeed.Value - initialHiSpeed) <= 0.0001);
 
             AddStep("expire the pre-start delay", () => player.ExpirePreStartDelay());
@@ -440,12 +455,12 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddStep("press keyboard pre-start hold", () => Assert.That(player.GameplayInputManager!.TriggerKeyPressed(InputKey.Q), Is.True));
             AddUntilStep("overlay visible while keyboard hold active", () => player.PreStartOverlay?.State.Value == Visibility.Visible);
 
-            AddStep("raise hi-speed with keyboard lane key", () => Assert.That(player.GameplayInputManager!.TriggerKeyPressed(InputKey.Z), Is.True));
-            AddStep("release keyboard lane key", () => Assert.That(player.GameplayInputManager!.TriggerKeyReleased(InputKey.Z), Is.True));
+            AddStep("raise hi-speed with keyboard lane key", () => Assert.That(player.GameplayInputManager!.TriggerKeyPressed(InputKey.X), Is.True));
+            AddStep("release keyboard lane key", () => Assert.That(player.GameplayInputManager!.TriggerKeyReleased(InputKey.X), Is.True));
             AddAssert("keyboard hold enables hi-speed increase", () => Math.Abs(player.DrawableBmsRuleset!.SelectedHiSpeed.Value - (initialHiSpeed + hiSpeedStep)) <= 0.0001);
 
-            AddStep("lower hi-speed with second keyboard lane key", () => Assert.That(player.GameplayInputManager!.TriggerKeyPressed(InputKey.X), Is.True));
-            AddStep("release second keyboard lane key", () => Assert.That(player.GameplayInputManager!.TriggerKeyReleased(InputKey.X), Is.True));
+            AddStep("lower hi-speed with second keyboard lane key", () => Assert.That(player.GameplayInputManager!.TriggerKeyPressed(InputKey.Z), Is.True));
+            AddStep("release second keyboard lane key", () => Assert.That(player.GameplayInputManager!.TriggerKeyReleased(InputKey.Z), Is.True));
             AddAssert("keyboard hold enables hi-speed decrease", () => Math.Abs(player.DrawableBmsRuleset!.SelectedHiSpeed.Value - initialHiSpeed) <= 0.0001);
         }
 
@@ -481,7 +496,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddStep("press Q via manual input while paused", () => InputManager.PressKey(Key.Q));
             AddUntilStep("manual input reaches pre-start hold while paused", () => player.GameplayInputManager!.PreStartHoldPressed.Value);
 
-            AddStep("press Z via manual input while paused", () => InputManager.Key(Key.Z));
+            AddStep("press X via manual input while paused", () => InputManager.Key(Key.X));
             AddAssert("manual paused pre-start hold still adjusts hi-speed", () => Math.Abs(player.DrawableBmsRuleset!.SelectedHiSpeed.Value - (initialHiSpeed + hiSpeedStep)) <= 0.0001);
 
             AddStep("release Q via manual input while paused", () => InputManager.ReleaseKey(Key.Q));
@@ -560,16 +575,21 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
-        public void TestHoldPreservesTemporaryBottomOverrideWhilePersistentTargetCycles()
+        public void TestFocusCyclesPersistentTargetWhenStartIsReleased()
         {
             selectedMods = new Mod[] { new BmsModSudden(), new BmsModHidden(), new BmsModLift() };
 
             AddAssert("three adjustment targets available", () => player.DrawableBmsRuleset?.EnabledAdjustmentTargetCount.Value == 3);
             AddAssert("persistent target starts at sudden", () => player.DrawableBmsRuleset?.ActiveAdjustmentTarget.Value == BmsGameplayAdjustmentTarget.Sudden);
 
-            AddStep("press pre-start hold", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_PreStartHold), Is.True));
-            AddUntilStep("overlay visible while holding", () => player.PreStartOverlay?.State.Value == Visibility.Visible);
             AddAssert("displayed target remains at persistent (sudden)", () => hasTargetState(BmsGameplayAdjustmentTarget.Sudden, 0, false));
+            AddStep("hold and release Start before entering gameplay", () =>
+            {
+                Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_PreStartHold), Is.True);
+                Assert.That(player.GameplayInputManager.TriggerOmsActionReleased(OmsAction.UI_PreStartHold), Is.True);
+                player.ExpirePreStartDelay();
+            });
+            AddUntilStep("the actual gameplay clock is running", () => player.GameplayClockContainer.IsRunning);
 
             AddStep("press lane cover focus to cycle to hidden", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_LaneCoverFocus), Is.True));
             AddAssert("persistent target cycled to hidden", () => hasTargetState(BmsGameplayAdjustmentTarget.Hidden, 1, false));
@@ -585,14 +605,12 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("persistent target cycled back to sudden", () => hasTargetState(BmsGameplayAdjustmentTarget.Sudden, 0, false));
             AddStep("release lane cover focus", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_LaneCoverFocus), Is.True));
 
-            AddAssert("overlay still visible while pre-start hold active", () => player.PreStartOverlay?.State.Value == Visibility.Visible);
-
-            AddStep("release pre-start hold", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_PreStartHold), Is.True));
-            AddUntilStep("overlay hidden after releasing pre-start hold", () => player.PreStartOverlay?.State.Value == Visibility.Hidden);
-            AddAssert("gameplay still waits for delay", () => !player.GameplayClockContainer.IsRunning);
-
-            AddStep("expire the pre-start delay", () => player.ExpirePreStartDelay());
-            AddUntilStep("gameplay starts after delay expires", () => player.GameplayClockContainer.IsRunning);
+            AddAssert("Start remains released while gameplay continues", () => !player.GameplayInputManager!.PreStartHoldPressed.Value
+                && !player.DrawableBmsRuleset!.AdjustmentHeld && player.GameplayClockContainer.IsRunning);
+            AddAssert("cycling targets keeps the configured and remembered mod amounts", () =>
+                selectedMods.OfType<IBmsGameplayAdjustmentMod>().All(mod => mod.RememberGameplayChanges.Value)
+                && selectedMods.OfType<BmsModLaneCover>().All(mod => mod.CoverPercent.Value == 250)
+                && selectedMods.OfType<BmsModLift>().Single().LiftUnits.Value == 250);
         }
 
         [Test]
@@ -613,8 +631,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddStep("expire the pre-start delay while still holding", () => player.ExpirePreStartDelay());
             AddAssert("gameplay still blocked while holding", () => !player.GameplayClockContainer.IsRunning);
 
-            AddStep("raise hi-speed after delay has elapsed", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.Key1P_1), Is.True));
-            AddStep("release odd lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.Key1P_1), Is.True));
+            AddStep("raise hi-speed after delay has elapsed", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.Key1P_2), Is.True));
+            AddStep("release even lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.Key1P_2), Is.True));
             AddAssert("hi-speed still adjusts after delay elapsed", () => Math.Abs(player.DrawableBmsRuleset!.SelectedHiSpeed.Value - (initialHiSpeed + hiSpeedStep)) <= 0.0001);
 
             AddStep("release pre-start hold", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_PreStartHold), Is.True));
@@ -625,11 +643,10 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
-        public void TestHoldEnablesInGameAdjustmentsAndKeepsSpeedToastVisible()
+        public void TestHoldEnablesInGameAdjustmentsAndPublishesState()
         {
             double initialHiSpeed = 0;
             double hiSpeedStep = 0;
-            ulong initialToastDisplayCount = 0;
 
             AddStep("expire the pre-start delay", () => player.ExpirePreStartDelay());
             AddUntilStep("gameplay starts after delay expires", () => player.GameplayClockContainer.IsRunning);
@@ -638,17 +655,16 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 initialHiSpeed = player.DrawableBmsRuleset!.SelectedHiSpeed.Value;
                 hiSpeedStep = player.DrawableBmsRuleset.HiSpeedMode.Value.GetAdjustmentStep();
-                initialToastDisplayCount = player.DrawableBmsRuleset.SpeedMetricsToastDisplayCount;
             });
 
             AddStep("press ingame start hold", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_PreStartHold), Is.True));
             AddAssert("pre-start overlay stays hidden during gameplay hold", () => player.PreStartOverlay?.State.Value == Visibility.Hidden);
-            AddUntilStep("speed toast refresh requests continue while holding", () => player.DrawableBmsRuleset!.SpeedMetricsToastDisplayCount >= initialToastDisplayCount + 2);
+            AddAssert("gameplay adjustment state is held", () => player.DrawableBmsRuleset!.AdjustmentHeld);
 
-            AddStep("raise hi-speed with odd lane key during gameplay", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.Key1P_1), Is.True));
-            AddStep("release odd lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.Key1P_1), Is.True));
+            AddStep("raise hi-speed with even lane key during gameplay", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.Key1P_2), Is.True));
+            AddStep("release even lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.Key1P_2), Is.True));
             AddAssert("hi-speed increases during gameplay hold", () => Math.Abs(player.DrawableBmsRuleset!.SelectedHiSpeed.Value - (initialHiSpeed + hiSpeedStep)) <= 0.0001);
-            AddAssert("speed toast keeps being requested while holding", () => player.DrawableBmsRuleset!.SpeedMetricsToastDisplayCount > initialToastDisplayCount + 2);
+            AddAssert("gameplay adjustment state remains held", () => player.DrawableBmsRuleset!.AdjustmentHeld);
 
             AddStep("release ingame start hold", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_PreStartHold), Is.True));
         }
@@ -672,16 +688,204 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("overlay mode text matches current mode", () => hasOverlayText(getOverlayModeText(hiSpeedMode)));
             AddAssert("overlay value text matches current hi-speed", () => hasOverlayText(hiSpeedMode.FormatValue(initialHiSpeed)));
 
-            AddStep("raise hi-speed with odd lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.Key1P_1), Is.True));
-            AddStep("release odd lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.Key1P_1), Is.True));
+            AddStep("raise hi-speed with even lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.Key1P_2), Is.True));
+            AddStep("release even lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.Key1P_2), Is.True));
             AddAssert("overlay value text updates after increase", () => hasOverlayText(hiSpeedMode.FormatValue(initialHiSpeed + hiSpeedStep)));
 
-            AddStep("lower hi-speed with even lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.Key1P_2), Is.True));
-            AddStep("release even lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.Key1P_2), Is.True));
+            AddStep("lower hi-speed with odd lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.Key1P_1), Is.True));
+            AddStep("release odd lane key", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.Key1P_1), Is.True));
             AddAssert("overlay value text returns after decrease", () => hasOverlayText(hiSpeedMode.FormatValue(initialHiSpeed)));
 
             AddStep("release pre-start hold", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_PreStartHold), Is.True));
             AddUntilStep("overlay hidden after releasing hold", () => player.PreStartOverlay?.State.Value == Visibility.Hidden);
+        }
+
+        [TestCase("none")]
+        [TestCase("sudden")]
+        [TestCase("hidden")]
+        [TestCase("both")]
+        [TestCase("lift")]
+        [TestCase("lift-sudden")]
+        public void TestDoubleShortStartTogglesTheSelectedCoversAndPreservesLift(string selection)
+        {
+            selectedMods = selection switch
+            {
+                "sudden" => new Mod[] { new BmsModSudden() },
+                "hidden" => new Mod[] { new BmsModHidden() },
+                "both" => new Mod[] { new BmsModSudden(), new BmsModHidden() },
+                "lift" => new Mod[] { new BmsModLift() },
+                "lift-sudden" => new Mod[] { new BmsModLift(), new BmsModSudden() },
+                _ => Array.Empty<Mod>(),
+            };
+            bool initiallyCovered = selection is "sudden" or "hidden" or "both" or "lift-sudden";
+            float initialLift = 0;
+            AddStep("capture actual Lift geometry", () => initialLift = player.DrawableBmsRuleset!.LiftUnits);
+            AddStep("double tap Start", () =>
+            {
+                tapStart(100);
+                tapStart(200);
+            });
+            AddAssert("the selected cover combination switches together", () => initiallyCovered
+                ? !player.DrawableBmsRuleset!.SuddenActive && !player.DrawableBmsRuleset.HiddenActive
+                : player.DrawableBmsRuleset!.SuddenActive && !player.DrawableBmsRuleset.HiddenActive);
+            AddAssert("Lift is retained", () => player.DrawableBmsRuleset!.LiftUnits == initialLift);
+            AddStep("double tap Start again", () =>
+            {
+                tapStart(1000);
+                tapStart(1100);
+            });
+            AddAssert("the same cover combination returns", () => initiallyCovered
+                ? player.DrawableBmsRuleset!.SuddenActive == (selection != "hidden") && player.DrawableBmsRuleset.HiddenActive == (selection is "hidden" or "both")
+                : !player.DrawableBmsRuleset!.SuddenActive && !player.DrawableBmsRuleset.HiddenActive);
+            AddAssert("configured amounts and Lift survive toggling", () => player.DrawableBmsRuleset!.LiftUnits == initialLift
+                && (selection == "hidden" || player.DrawableBmsRuleset.SuddenUnits == 250));
+        }
+
+        [Test]
+        public void TestSecondStartPressTogglesImmediatelyAndCanRemainHeld()
+        {
+            AddStep("short tap then press Start again", () =>
+            {
+                tapStart(100);
+                player.GestureTime = 220;
+                player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_PreStartHold);
+            });
+            AddAssert("the cover switches before the second press is released", () => !player.DrawableBmsRuleset!.SuddenActive
+                && player.DrawableBmsRuleset.AdjustmentHeld);
+            AddStep("release the long second press", () =>
+            {
+                player.GestureTime = 1220;
+                player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_PreStartHold);
+                tapStart(1300);
+            });
+            AddAssert("the second release cannot become a third tap", () => !player.DrawableBmsRuleset!.SuddenActive);
+        }
+
+        [Test]
+        public void TestLongStartAndInputResetCannotCompleteADoubleTap()
+        {
+            AddStep("hold Start beyond the short-press window", () =>
+            {
+                player.GestureTime = 100;
+                player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_PreStartHold);
+                player.GestureTime = 1000;
+                player.GameplayInputManager.TriggerOmsActionReleased(OmsAction.UI_PreStartHold);
+                tapStart(1100);
+            });
+            AddAssert("a long hold followed by a short tap leaves Sudden enabled", () => player.DrawableBmsRuleset!.SuddenActive);
+            AddStep("invalidate pending tap input", () => ((IFrameStableInputHandler)player.GameplayInputManager!).ResetInput());
+            AddWaitStep("deliver the reset", 2);
+            AddStep("make one short tap in the new input epoch", () => tapStart(1200));
+            AddAssert("a tap cannot pair across input reset", () => player.DrawableBmsRuleset!.SuddenActive);
+        }
+
+        [Test]
+        public void TestStartEffectSwitchesSpeedModeWithoutCyclingTheCoverTarget()
+        {
+            selectedMods = new Mod[] { new BmsModSudden(), new BmsModHidden(), new BmsModLift() };
+            double previousTime = 0;
+            AddStep("hold Start in Normal mode", () =>
+            {
+                player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_PreStartHold);
+                if (player.DrawableBmsRuleset!.HiSpeedMode.Value != BmsHiSpeedMode.Normal)
+                {
+                    player.DrawableBmsRuleset.ToggleHiSpeedMode();
+                    if (player.DrawableBmsRuleset.HiSpeedMode.Value != BmsHiSpeedMode.Normal)
+                        player.DrawableBmsRuleset.ToggleHiSpeedMode();
+                }
+            });
+            AddStep("capture current visible time", () => previousTime = player.DrawableBmsRuleset!.GetScrollSpeedMetrics().VisibleLaneTime);
+            AddStep("press EFFECT while holding", () => player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_LaneCoverFocus));
+            AddAssert("Floating is selected and the previous scrolling speed is retained", () => player.DrawableBmsRuleset!.HiSpeedMode.Value == BmsHiSpeedMode.Floating
+                && Math.Abs(player.DrawableBmsRuleset.GetScrollSpeedMetrics().VisibleLaneTime - previousTime) < 1);
+            AddAssert("the persistent cover target stays Sudden", () => player.DrawableBmsRuleset!.ActiveAdjustmentTarget.Value == BmsGameplayAdjustmentTarget.Sudden);
+            AddStep("release EFFECT", () => player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_LaneCoverFocus));
+            AddStep("press EFFECT again", () => player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_LaneCoverFocus));
+            AddAssert("Normal returns", () => player.DrawableBmsRuleset!.HiSpeedMode.Value == BmsHiSpeedMode.Normal);
+            AddStep("release EFFECT and Start", () =>
+            {
+                player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_LaneCoverFocus);
+                player.GameplayInputManager.TriggerOmsActionReleased(OmsAction.UI_PreStartHold);
+            });
+            AddAssert("the mode chord did not toggle the covers", () => player.DrawableBmsRuleset!.SuddenActive && player.DrawableBmsRuleset.HiddenActive);
+        }
+
+        [Test]
+        public void TestSavedFloatingRefloatsTheOpeningTargetAfterTheBpmChanges()
+        {
+            startInFloating = true;
+            sourceOverride = createSourceBeatmap(@"
+#TITLE Saved Floating With BPM Change
+#BPM 100
+#BPM01 200
+#00111:01
+#00208:01
+#00611:01
+", "saved-floating.bme");
+            double openingVisibleTime = 0;
+            AddUntilStep("the opening native geometry is applied", () => player.DrawableBmsRuleset!.Playfield.GameplaySkinLiftState.IsAvailable);
+            AddStep("remember the initial covered time without any Start interaction", () =>
+            {
+                Assert.That(player.DrawableBmsRuleset!.HiSpeedMode.Value, Is.EqualTo(BmsHiSpeedMode.Floating));
+                openingVisibleTime = player.DrawableBmsRuleset.SpeedMetrics.Value.VisibleLaneTime;
+                Assert.That(openingVisibleTime, Is.GreaterThan(0));
+                player.ExpirePreStartDelay();
+            });
+            AddUntilStep("gameplay starts", () => player.GameplayClockContainer.IsRunning);
+            AddStep("pass the real 100 to 200 BPM timing point", () => player.GameplayClockContainer.Seek(5000));
+            AddUntilStep("the live green number follows the doubled BPM", () =>
+                Math.Abs(player.DrawableBmsRuleset!.SpeedMetrics.Value.VisibleLaneTime - openingVisibleTime / 2) < 1);
+            AddStep("make the first Start scratch adjustment", () =>
+            {
+                player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_PreStartHold);
+                Assert.That(player.DrawableBmsRuleset!.AdjustFromScratch(new OmsAxisMotion(
+                    OmsAction.Key1P_Scratch, OmsAxisMode.RelativeMotion, 4, "mouse", null, 50)), Is.True);
+            });
+            AddAssert("the first scratch restores the saved opening target", () =>
+                Math.Abs(player.DrawableBmsRuleset!.SpeedMetrics.Value.VisibleLaneTime - openingVisibleTime) < openingVisibleTime * 0.005);
+            AddStep("release Start", () => player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_PreStartHold));
+        }
+
+        [Test]
+        public void TestFloatingScratchLocksVisibleTimeAndRestoresItAfterLiftChanges()
+        {
+            selectedMods = new Mod[] { new BmsModSudden(), new BmsModLift() };
+            double lockedTime = 0;
+            double speedWithCover = 0;
+            float originalLift = 0;
+            AddStep("hold Start and enable Floating", () =>
+            {
+                player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_PreStartHold);
+                if (player.DrawableBmsRuleset!.HiSpeedMode.Value != BmsHiSpeedMode.Floating)
+                    player.DrawableBmsRuleset.ToggleHiSpeedMode();
+                lockedTime = player.DrawableBmsRuleset.GetScrollSpeedMetrics().VisibleLaneTime;
+                originalLift = player.DrawableBmsRuleset.LiftUnits;
+            });
+            AddStep("turn the scratch with Sudden enabled", () => player.DrawableBmsRuleset!.AdjustFromScratch(
+                new OmsAxisMotion(OmsAction.Key1P_Scratch, OmsAxisMode.RelativeMotion, 80, "mouse", null, 50)));
+            AddAssert("Sudden moves while the visible time stays anchored", () => player.DrawableBmsRuleset!.SuddenUnits == 270
+                && Math.Abs(player.DrawableBmsRuleset.GetScrollSpeedMetrics().VisibleLaneTime - lockedTime) < 1);
+            AddStep("switch Sudden off and keep the current speed", () =>
+            {
+                speedWithCover = player.DrawableBmsRuleset!.SelectedHiSpeed.Value;
+                player.DrawableBmsRuleset.ToggleGameplayLaneCovers();
+                player.DrawableBmsRuleset.AdjustFromScratch(new OmsAxisMotion(OmsAction.Key1P_Scratch, OmsAxisMode.RelativeMotion, 80, "mouse", null, 50));
+            });
+            AddUntilStep("positive scratch lowers Lift while Sudden is off", () => player.DrawableBmsRuleset!.LiftUnits == originalLift - 20);
+            AddAssert("Lift adjustment keeps the speed value", () => player.DrawableBmsRuleset!.SelectedHiSpeed.Value == speedWithCover);
+            AddStep("switch Sudden back on", () => player.DrawableBmsRuleset!.ToggleGameplayLaneCovers());
+            AddAssert("the remembered covered time returns without changing speed", () => player.DrawableBmsRuleset!.SelectedHiSpeed.Value == speedWithCover
+                && Math.Abs(player.DrawableBmsRuleset.GetScrollSpeedMetrics().VisibleLaneTime - lockedTime) < 2);
+            AddStep("restore Normal mode", () => player.DrawableBmsRuleset!.ToggleHiSpeedMode());
+            AddStep("release Start", () => player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_PreStartHold));
+        }
+
+        private void tapStart(double time)
+        {
+            player.GestureTime = time;
+            Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_PreStartHold), Is.True);
+            player.GestureTime = time + 40;
+            Assert.That(player.GameplayInputManager.TriggerOmsActionReleased(OmsAction.UI_PreStartHold), Is.True);
         }
 
         private BmsDecodedBeatmap createSourceBeatmap(string text, string path)
@@ -738,6 +942,10 @@ namespace osu.Game.Rulesets.Bms.Tests
             private readonly List<(ScheduledDelegate Delegate, Action Callback)> scheduledPreStartDelays = new List<(ScheduledDelegate Delegate, Action Callback)>();
 
             public DrawableBmsRuleset? DrawableBmsRuleset => DrawableRuleset as DrawableBmsRuleset;
+
+            public double? GestureTime { get; set; }
+
+            protected override double AdjustmentGestureTime => GestureTime ?? base.AdjustmentGestureTime;
 
             public new GameplayClockContainer GameplayClockContainer => base.GameplayClockContainer;
 

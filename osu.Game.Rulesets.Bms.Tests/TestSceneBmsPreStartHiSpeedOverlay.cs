@@ -71,7 +71,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             AddUntilStep("overlay loaded", () => overlay.IsLoaded);
 
-            AddAssert("hidden overlay blocks hi-speed adjustment", () => !overlay.TryHandleActionPress(BmsAction.Key1));
+            AddAssert("hidden overlay blocks hi-speed adjustment", () => !overlay.TryHandleActionPress(BmsAction.Key2));
             AddAssert("hidden overlay does not invoke callback", () => adjustmentDirections.Count == 0);
 
             AddStep("show overlay", () => overlay.Show());
@@ -80,15 +80,15 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("non adjustment action ignored", () => !overlay.TryHandleActionPress(BmsAction.LaneCoverFocus));
             AddAssert("callback still untouched after non adjustment action", () => adjustmentDirections.Count == 0);
 
-            AddAssert("odd lane increases hi-speed", () => overlay.TryHandleActionPress(BmsAction.Key1));
+            AddAssert("black lane increases hi-speed", () => overlay.TryHandleActionPress(BmsAction.Key2));
             AddAssert("positive direction routed", () => adjustmentDirections.Last() == 1);
 
-            AddAssert("even lane decreases hi-speed", () => overlay.TryHandleActionPress(BmsAction.Key2));
+            AddAssert("white lane decreases hi-speed", () => overlay.TryHandleActionPress(BmsAction.Key1));
             AddAssert("negative direction routed", () => adjustmentDirections.Last() == -1);
 
             AddStep("hide overlay", () => overlay.Hide());
             AddUntilStep("overlay hidden", () => overlay.State.Value == Visibility.Hidden);
-            AddAssert("hidden overlay blocks later adjustment", () => !overlay.TryHandleActionPress(BmsAction.Key1));
+            AddAssert("hidden overlay blocks later adjustment", () => !overlay.TryHandleActionPress(BmsAction.Key2));
             AddAssert("callback count unchanged after hiding", () => adjustmentDirections.Count == 2);
         }
 

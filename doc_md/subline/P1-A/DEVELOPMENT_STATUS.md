@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-25（仅复核当前交付与历史验证边界；产品证据仍为10月24日）
+> 最后核对：2026-10-26（Omni游玩Start、挡板读数、甩盘与SUB TARGET；前台和设备门保持）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -9,7 +9,7 @@
 
 静线为唯一内置、首次默认与保底；complex已退役，历史作者文件和用户包保留。静线打磨按用户决定暂停。BMS/mania各有模式默认和键数覆盖，旧全局配置首次迁移；游玩按最终键数应用。原V-001～V-005、设备和长期体验未签收，Skin V1/release未完成。C1～C7证据不重计，OmsSkin物理删除仍待原实机门。
 
-Omni已实切Start普通/详细菜单及P1档位，P2/DP另有独立入口记录；`.v26102402`接续亮度、挡板透明度、Mod避让、判定高度/关闭及百分比目标，修正LIFT默认000、移除纯黑款并紧接Lane Cover。原版高度锚点与OFF已有证据；精度、Ghost等余项取[设置复核](../../other/OMNI_START_OPTIONS_20261024.md)，不据菜单或美术目录宣称设置完全等价。
+Omni当前`.v26102600`补齐游玩按住Start面板、Start与EFFECT切换模式、双击挡板、独立白绿字、甩盘及SUB TARGET；LIFT和组合挡板按独立原版实际运行复核，见[游玩Start记录](../../other/OMNI_GAMEPLAY_CONTROLS_20261025.md)。此前普通/详细菜单、亮度、透明度、Mod避让、判定高度与百分比目标继续取[设置复核](../../other/OMNI_START_OPTIONS_20261024.md)，不据菜单或美术目录宣称全部设置等价。
 
 ## 当前产品能力与剩余门
 
@@ -28,12 +28,14 @@ Omni已实切Start普通/详细菜单及P1档位，P2/DP另有独立入口记录
 | 实时演奏信息 | 实时判定与断连统计、EX SCORE/HiSpeed、MIN/当前/MAX BPM；曲名、作者标级与独立的表名/表内等级 | 读取规则真实状态；表归类不替代作者难度，皮肤不改变判定/计分、时间或难度表导入 |
 | 皮肤布局与公共能力 | 共用作者声明可给真实stage/lane指定位置、留空槽及独立键区，不创建输入。BMS保留键区、血槽、信息区与最多16个 `BgaViewports`，逐窗 fit/fill/stretch 或 none | 显式field不被旧BGA自适应挪动/压缩，放不下整组零窗并诊断；9K/PMS不应用黑白轨比。BGA内容/时钟归[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，选歌/结算面未扩展 |
 | 作者制作与可选演出 | [完整套件](../../../skin-authoring/README.md)含从零制作、按可见元素查文件/尺寸/动画、INI/scene/script字段与预算、刷新打包步骤；First Scene、Reference Study和BGA Layout明确完整包与练习片段 | 主手册与图片随套件发行，无需源码仓库；历史实机图与素材示意已区分。新增例子的工具检查/打包和真实挂载已验证，详见作者能力记录。原编辑器可编辑已有组件并保存独立副本，完整scene/script没有可视化编辑器；不据手册代签视觉或旧三包演练 |
-| IIDX 与 BPL 第三方作品 | Lighting Model Skin Omni Until 33本地.v26102402，默认33；27～33与八支BPL共15框体、1271款/539图，适用开关全开且按模式/键数覆盖。两种亮度、挡板透明度、Mod摆位、整体判定高度/关闭与百分比目标取[设置复核](../../other/OMNI_START_OPTIONS_20261024.md)；完整准备/预告同退、28入场、33/七队星形、约一秒顺时针转盘、主屏CUSTOM/25FC/游标保持。BMS5/7/14、mania5/6/7/8/14/16及两侧/DP | 转盘周期、Graph布局和部分外框时序为作者适配；PG三相已观察，精确节奏/命中原点仍无可靠clock，未发布猜定原型。游客CUSTOM入口、各代默认组合/滤镜、原进度算法及部分DP末端仍待校准。LIFT跟随原生几何，副屏移除；SUPERNOVA高清，26来源待补。原HDD保全；独立私下分享，不内置或进入公开发行/制作套件；Until34不在范围 |
+| IIDX 与 BPL 第三方作品 | Lighting Model Skin Omni Until 33本地.v26102600，默认33；27～33与八支BPL共15框体、1271款/539图，适用开关全开且按模式/键数覆盖。游玩Start、挡板/LIFT读数、甩盘及备用目标取[游玩Start记录](../../other/OMNI_GAMEPLAY_CONTROLS_20261025.md)；旧设置和持续组件各保原证据。BMS5/7/14、mania5/6/7/8/14/16及两侧/DP | 原机20档倍率整表、所有变速谱与实体手感未整体对齐；转盘周期、Graph布局和部分外框时序仍为作者适配。PG精确节奏/原点、游客CUSTOM入口、各代默认组合/滤镜及部分DP末端待校准。LIFT跟随原生几何，副屏移除；26来源待补。原HDD保全；独立私下分享，不内置或进入公开发行/制作套件；Until34不在范围 |
 | 安装与发行 | 旧选择迁移证据保留；2026-10-03 候选已有便携/自定义根、恢复及同包覆盖启动证据，见 [P1-F](../P1-F/DEVELOPMENT_STATUS.md) | 生成物已按用户要求删除；实网下载、新作者独立演练、跨版本、独立账户非便携及设备/长期/公开发行门未新签收 |
 
 C2～C6共享同一 package/layout/material/scene publication、lease/detach 与脚本隔离合同；无游玩宿主的菜单也检查整包。授权撤销不扩大 reload 准入，具体合同只在[技术约束](TECHNICAL_CONSTRAINTS.md)维护。
 
 ## 最近一次验证
+
+2026-10-26游玩Start增量：BMS完整3050通过/19跳过、mania完整995通过/2跳过，显式构建Core.Tests后的皮肤/HUD1371通过/3跳过；Desktop Release和作者CLI构建通过。最终同包12组原生Player、80个调整样本与63处实际挡板/LIFT边缘检查通过，包含SUB设置保存/恢复、主目标优先/备用/NO DATA与DP忽略SP侧选项。当前真实程序集、失败与后续复跑、原版观察及作者检查的准确范围统一取[专项记录](../../other/OMNI_GAMEPLAY_CONTROLS_20261025.md#本轮验证)；本轮BMS控制取景使用普通Player和显式模拟宿主活跃状态，不代签前台或硬件。
 
 2026-10-24的v28仅改LIFT目录；7027份闭包CRC/作者字节一致，7026份保留载荷字节未变，选中上界不增。BMS两侧HD/SD默认000、mania设置保存恢复及三局完整合成谱通过，图库9项与覆盖拒绝通过；旧完整CLI不冒称重跑，见[LIFT记录](CHANGELOG.md#2026-10-24lift默认款与配置顺序修正)。
 
@@ -47,7 +49,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 当前风险与未完成项
 
-- 原版百分比十键精度、Ghost/rotate、FAST/SLOW及部分Gauge语义仍缺可靠运行证据。正常VS Code窗口须复核新包LIFT默认/顺序、亮度/高度/目标及原缩略图、准备、跳转/统计/血条/FC。尚无Start支持的旧客户端先重编/重启；相对`.v26102401`，LIFT修正只需重导入新包。模式/键数显式覆盖保持，隔离结果不代签前台流畅度、原机或设备。
+- 原版百分比十键精度、Ghost/rotate、FAST/SLOW及部分Gauge语义仍缺可靠运行证据。当前包须先重编/重启OMS再导入；正常VS Code窗口继续验收Start/甩盘、挡板/LIFT、目标及原准备、跳转/统计/血条/FC。模式/键数显式覆盖保持，隔离结果不代签前台流畅度、原机整表或设备。
 
 - 原生媒体完整从零重编与剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，正常窗口/设备和发行门保持。清理后的测试/作者工具与临时取景宿主须按[开发约束](../../../AGENTS.md#开发磁盘约束)重建；原日志/TRX保留为历史证据。
 

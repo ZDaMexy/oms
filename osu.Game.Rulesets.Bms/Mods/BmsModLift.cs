@@ -50,7 +50,7 @@ namespace osu.Game.Rulesets.Bms.Mods
             if (delta == 0)
                 return false;
 
-            float nextValue = Math.Clamp(LiftUnits.Value + Math.Sign(delta), LiftUnits.MinValue, LiftUnits.MaxValue);
+            float nextValue = Math.Clamp(LiftUnits.Value + delta, LiftUnits.MinValue, LiftUnits.MaxValue);
 
             if (nextValue == LiftUnits.Value)
                 return false;

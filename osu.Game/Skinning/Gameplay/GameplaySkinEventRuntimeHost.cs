@@ -652,10 +652,11 @@ namespace osu.Game.Skinning.Gameplay
             double duration = lastHitTime - firstHitTime;
             double progress = duration == 0 ? 0 : Math.Clamp((time - firstHitTime) / duration, 0, 1);
             GameplaySkinLiftState lift = (drawableRuleset?.Playfield as IGameplaySkinLiftStateSource)?.GameplaySkinLiftState ?? default;
+            GameplaySkinAdjustmentState adjustment = (drawableRuleset as IGameplaySkinAdjustmentStateSource)?.GameplaySkinAdjustmentState ?? default;
             return new GameplaySkinTimingStateSnapshot(sample.Beat, sample.BarIndex, sample.Bpm, sample.IsStopped, sample.ScrollMultiplier, progress,
                 scrollSpeed?.Invoke() ?? 0, lift,
                 gameplayClockContainer is { } clock && double.IsFinite(clock.StartTime) && clock.StartTime != double.MinValue ? clock.StartTime : null,
-                preparationController?.State ?? default, updateArrivalCue(time));
+                preparationController?.State ?? default, updateArrivalCue(time), adjustment);
         }
 
         private void synchroniseActiveObjectsFromEngine(double gameplayTime)

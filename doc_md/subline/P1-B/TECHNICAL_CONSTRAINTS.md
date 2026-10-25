@@ -11,6 +11,7 @@
 3f. 新 HID 绑定使用具体实例标识和可读名称；旧型号标识只在唯一候选时解析，同型号歧义须明确失败并解除该旧别名引用，不能影响仍有效的具体实例绑定。该标识不承诺跨换口／驱动重装永久稳定。
 3g. Windows 以实体设备和扫描身份去重，重复 down 不增加引用；拔出一个键盘只移除它的按键，up 使用 down 捕获的身份。暂停／来源切换后已见实体 held 保持抑制到 break，不能把系统重复当新攻击；恢复焦点只核对已知 held 的当前 OS VKey level，不增加后台键盘采集，不把全局 level 当作每设备完整历史。mania 和 BMS 共用接收时间／epoch 队列，各自仍消费原动作与真实绑定解析器，不引入玩法间依赖。
 3h. 原生来源由主游玩管理器显式取得，恢复层等辅助管理器不得覆盖它。`UseParentInput=false` 不能同时代表暂停控制失效与回放独占：允许的暂停控制即时进入 Router，note 判定仍隔离；回放不接受父输入。
+3i. Start持有时，已接收的scratch运动只进入原生调节消费者，不产生新的皿攻击/长皿持有；先前已转交的按键仍配平释放。解释器已反相的相对counts与校准圈数分别换算并按来源保留有符号亚单位余量，反向先抵消；释放Start、失焦/暂停来源和epoch reset清空余量及未完成双击。皮肤只读结果，不捕获硬件或调用调节；玩法和持久化合同取[P1-A](../P1-A/TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代)，实际软件/设备证据分别记录。
 4. 输入行为、硬件口径或验收结论变化时，同次更新本线实际受影响的状态、计划、约束和验证记录；仅影响全局优先级、release gate 或硬约束时向 mainline 回写摘要与链接。同步规则以 [AGENTS](../../../AGENTS.md#权威与文档) 为准，不机械刷新无变化文件。
 5. 若 desktop public settings surface 需要裁剪 upstream `MouseSettings` / `TouchSettings` / `TabletSettings`，必须只在 `OsuGameDesktop` 这类 desktop 宿主层安全隐藏；不得在 `OsuGameBase`、runtime config 或 input handler 层直接删除，否则会连带改写 test scene / 非 desktop host 行为。
 6. 安全隐藏输入设置分区不等于删除输入语义：`MouseDisableButtons`、`MouseDisableWheel`、`ConfineMouseMode`、`TouchDisableGameplayTaps` 与 tablet/touch/mouse handler 的运行时消费链不得因此断开。

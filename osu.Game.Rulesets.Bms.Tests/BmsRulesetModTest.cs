@@ -502,6 +502,86 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.That(drawableRuleset.Playfield.LiftUnits.Value, Is.EqualTo(240));
         }
 
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public void TestGameplayCoverTogglePreservesAmountsAndLift(bool useSudden, bool useHidden)
+        {
+            var sudden = new BmsModSudden();
+            var hidden = new BmsModHidden();
+            var lift = new BmsModLift();
+            sudden.CoverPercent.Value = 173;
+            hidden.CoverPercent.Value = 219;
+            lift.LiftUnits.Value = 125;
+            Mod[] mods = new Mod[] { useSudden ? sudden : null!, useHidden ? hidden : null!, lift }.Where(mod => mod != null).ToArray();
+            var ruleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(createPlayableBeatmap(), mods);
+            foreach (var mod in mods.OfType<BmsModLaneCover>())
+                mod.ApplyToDrawableRuleset(ruleset);
+            lift.ApplyToDrawableRuleset(ruleset);
+
+            Assert.That(ruleset.ToggleGameplayLaneCovers(), Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(ruleset.SuddenActive, Is.False);
+                Assert.That(ruleset.HiddenActive, Is.False);
+                Assert.That(ruleset.GetScrollSpeedMetrics().SuddenUnits, Is.Zero);
+                Assert.That(ruleset.GetScrollSpeedMetrics().HiddenUnits, Is.Zero);
+                Assert.That(ruleset.Playfield.LaneCovers.All(cover => !cover.CoverEnabled.Value), Is.True);
+                Assert.That(ruleset.LiftUnits, Is.EqualTo(125));
+            });
+
+            Assert.That(ruleset.ToggleGameplayLaneCovers(), Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(ruleset.SuddenActive, Is.EqualTo(useSudden));
+                Assert.That(ruleset.HiddenActive, Is.EqualTo(useHidden));
+                Assert.That(sudden.CoverPercent.Value, Is.EqualTo(173));
+                Assert.That(hidden.CoverPercent.Value, Is.EqualTo(219));
+                Assert.That(ruleset.LiftUnits, Is.EqualTo(125));
+            });
+        }
+
+        [Test]
+        public void TestNoCoverSelectionCanToggleSuddenWithoutChangingSelectedMods()
+        {
+            var lift = new BmsModLift();
+            var ruleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(createPlayableBeatmap(), new Mod[] { lift });
+            lift.ApplyToDrawableRuleset(ruleset);
+            Assert.That(ruleset.SuddenActive, Is.False);
+            Assert.That(ruleset.ToggleGameplayLaneCovers(), Is.True);
+            Assert.That(ruleset.SuddenActive, Is.True);
+            Assert.That(ruleset.Mods.OfType<BmsModSudden>(), Is.Empty);
+            Assert.That(ruleset.ToggleGameplayLaneCovers(), Is.True);
+            Assert.That(ruleset.SuddenActive, Is.False);
+            Assert.That(ruleset.SuddenUnits, Is.EqualTo(250));
+            Assert.That(ruleset.LiftUnits, Is.EqualTo(250));
+        }
+
+        [Test]
+        public void TestScratchAdjustmentAccumulatesSignedUnitsAndClearsOnRelease()
+        {
+            var sudden = new BmsModSudden();
+            var ruleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(createPlayableBeatmap(), new Mod[] { sudden });
+            sudden.ApplyToDrawableRuleset(ruleset);
+            OmsAxisMotion motion(double delta, OmsAxisMode mode = OmsAxisMode.RelativeMotion, string source = "mouse")
+                => new OmsAxisMotion(OmsAction.Key1P_Scratch, mode, delta, source, null, 50);
+
+            ruleset.SetAdjustmentHeld(true);
+            Assert.That(ruleset.AdjustFromScratch(motion(2)), Is.False);
+            Assert.That(ruleset.AdjustFromScratch(motion(-1)), Is.False);
+            Assert.That(ruleset.AdjustFromScratch(motion(3)), Is.True);
+            Assert.That(sudden.CoverPercent.Value, Is.EqualTo(251));
+            Assert.That(ruleset.AdjustFromScratch(motion(-0.001, OmsAxisMode.CircularPosition, "hid")), Is.True);
+            Assert.That(sudden.CoverPercent.Value, Is.EqualTo(250));
+
+            Assert.That(ruleset.AdjustFromScratch(motion(2)), Is.False);
+            ruleset.SetAdjustmentHeld(false);
+            Assert.That(ruleset.AdjustFromScratch(motion(8)), Is.False);
+            ruleset.SetAdjustmentHeld(true);
+            Assert.That(ruleset.AdjustFromScratch(motion(2)), Is.False);
+            Assert.That(sudden.CoverPercent.Value, Is.EqualTo(250));
+        }
+
         [Test]
         public void TestGameplayAdjustmentFallsBackToLiftWhenOnlyLiftEnabled()
         {

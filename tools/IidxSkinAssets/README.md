@@ -47,6 +47,17 @@ Start设置迁移分两步：`build_lighting_start_options.py`消费实际菜单
 
 `build_lighting_judgement_position.py`消费独立review JSON中真实游玩−2/0/+1/+10位移和OFF证据，以及225个profile/42组SD-HD贡献的几何审查，新增整体高度配置与独立内层关闭门。位移由既有根与同高关闭门各分半，守单节点绝对位置4预算，不增加额外节点或放宽限制。三种布局沿既有宿主高度换算，原行排版、字体、RGB和生命周期保持；锚点间线性插值、P2/DP沿用位移均明确属于OMS作者适配，未以设置页缩图或其它侧别代签逐像素校准。未取得完整review时拒绝生成。
 
+`build_lighting_gameplay_controls.py`从冻结父作者及独立完整原图库新建游玩Start面板、上下挡板/LIFT白绿字和SUB TARGET。它核原AFP/GEO、窗口/字形来源及白字着色与原绿字逐RGBA相等；上下白字分别读真实Sudden/Hidden单位与active，LIFT位置沿原生已应用offset，mania不显示BMS调速面板。读数在完整Stage坐标跟随真实边缘，横排叶子保持合法像素尺寸，不随挡板长度或透明度缩放。Normal栏位与滑块沿OMS原速度范围，原机档位到倍率整表未推定。SUB只在主目标缺数据时接替，两者缺数据显示NO DATA，不生成对手或全国成绩。
+
+为守原预算，工具先证明15框体三布局的Graph声明归一后相同，再用实际`layout.presentation`和受限x/width变体共用；不依赖DP不适用的保存layout选项。366款LIFT的重复字体/读数改为同一原生边缘模板，FC只给原PNG建立更短的内容路径，原资源ID、像素、动画与选值保持。父作者和原包只读，新包必须另过当前CLI、真实Player和配置保存；闭包/CRC成功不代表引擎或画面验收。完整本轮边界取[游玩调速记录](../../doc_md/other/OMNI_GAMEPLAY_CONTROLS_20261025.md)。
+
+```powershell
+. .\UseDevelopmentStorage.ps1
+python -B tools/IidxSkinAssets/build_lighting_gameplay_controls.py --source 'Y:\PreviousOmniAuthor' --library 'Y:\OriginalCustomLibrary' --output 'Y:\NextOmniAuthor' --evidence 'Y:\GameplayControlsEvidence'
+python -B tools/IidxSkinAssets/test_lighting_gameplay_controls.py
+dotnet run --project tools/SkinAuthoring -- check 'Y:\NextOmniAuthor'
+```
+
 `build_lighting_percentage_target.py`在再下一份全新作者中追加百分比目标及0..100、步长1、默认50的数值配置。范围/默认取官方说明，review的`authorStep:1`单独记录作者整数步长，不冒称原版十键精度；原版50档实际选中的截图另行固定，旧五档目标保全。原柱使用已有非循环配置采样轴，原数字旁用普通文字显示百分号，不猜算原版EX整数取整、rotate或Ghost。两个工具均保全父作者/OSK及父目录的全部款式和预览，发布前仍须当前CLI与真实Player验收。
 
 ```powershell

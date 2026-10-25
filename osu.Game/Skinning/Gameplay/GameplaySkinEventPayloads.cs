@@ -494,6 +494,8 @@ namespace osu.Game.Skinning.Gameplay
 
         public GameplaySkinLiftState LiftState { get; }
 
+        public GameplaySkinAdjustmentState AdjustmentState { get; }
+
         /// <summary>Actual gameplay clock reset/entry origin, absent for a host without that authority.</summary>
         public double? StartTime { get; }
 
@@ -504,7 +506,8 @@ namespace osu.Game.Skinning.Gameplay
 
         internal GameplaySkinTimingStateSnapshot(double beat, long barIndex, double bpm, bool isStopped, double scrollMultiplier, double progress = 0,
                                                 double scrollSpeed = 0, GameplaySkinLiftState liftState = default, double? startTime = null,
-                                                GameplaySkinPreparationStateSnapshot preparation = default, double? arrivalCueFadeStartTime = null)
+                                                GameplaySkinPreparationStateSnapshot preparation = default, double? arrivalCueFadeStartTime = null,
+                                                GameplaySkinAdjustmentState adjustmentState = default)
         {
             if (!double.IsFinite(beat))
                 throw new ArgumentOutOfRangeException(nameof(beat), beat, "Beat must be finite.");
@@ -526,6 +529,7 @@ namespace osu.Game.Skinning.Gameplay
 
             ScrollSpeed = scrollSpeed;
             LiftState = liftState;
+            AdjustmentState = adjustmentState;
             if (startTime.HasValue && (!double.IsFinite(startTime.Value) || startTime.Value == double.MinValue))
                 throw new ArgumentOutOfRangeException(nameof(startTime));
             StartTime = startTime;
@@ -681,7 +685,7 @@ namespace osu.Game.Skinning.Gameplay
 
             _ = new GameplaySkinScoreStateSnapshot(score.Score, score.Combo, score.MaxCombo, score.Accuracy, score.Gauge, score.Statistics, score.GaugeState, score.MaximumScore, score.OffsetState);
             _ = new GameplaySkinTimingStateSnapshot(timing.Beat, timing.BarIndex, timing.Bpm, timing.IsStopped, timing.ScrollMultiplier, timing.Progress, timing.ScrollSpeed,
-                timing.LiftState, timing.StartTime, timing.Preparation, timing.ArrivalCueFadeStartTime);
+                timing.LiftState, timing.StartTime, timing.Preparation, timing.ArrivalCueFadeStartTime, timing.AdjustmentState);
 
             foreach (GameplaySkinBgaStateSnapshot viewport in copiedBga)
                 _ = new GameplaySkinBgaStateSnapshot(viewport.ViewportIndex, viewport.Viewport, viewport.ContentState, viewport.ContentRevision);

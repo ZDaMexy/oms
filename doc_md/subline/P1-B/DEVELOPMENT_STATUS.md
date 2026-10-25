@@ -1,6 +1,6 @@
 # P1-B 开发进度：输入语义与硬件验收
 
-> 最后核对：2026-10-21（真实输入入口、轴用途、长皿与设备身份；实体设备门保持）
+> 最后核对：2026-10-26（Start修饰轴、双击及模式组合；实体设备门保持）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，当前执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 
 ## 当前阶段
@@ -11,11 +11,12 @@
 - 主游玩区域明确持有原生键盘，恢复层不抢占；中途接管仍配平普通键盘松开，同键最后来源才释放。BMS 暂停时配置按键即时生效，音符判定仍隔离，回放保持独占。
 - HID 轴明确区分相对位移、环形编码器、位置按钮与摇杆模拟运动；鼠标仅相对位移。灵敏度、累积运动阈值、位置阈值／回差、死区、实际时间积分和停止等待由同一解释器消费；旧绑定保留相对脉冲默认值。
 - 运动攻击与长皿持续状态分开；连续运动可继续打普通皿，停止／断开／epoch 重置按来源结束持有。持续位和原 16 轨一同录制／播放，不改变计分、窗口或 TOTAL；具体长条合同归 [P1-E](../P1-E/TECHNICAL_CONSTRAINTS.md)。
+- 按住Start时，校准后的实际轴运动转入原生调速/挡板消费，不产生皿攻击；带符号余量按来源累积，反向亚单位抵消，失焦/epoch等重置清理。双击第二下立即切换上下挡板，Start与EFFECT切换普通/Floating；真实源状态与Omni面板同步。原版观察、软件/Player证据和范围见[游玩Start复核](../../other/OMNI_GAMEPLAY_CONTROLS_20261025.md)，鼠标counts与圈数映射不代签实体手感。
 - Windows 默认 HID backend 仍为 DirectInput，HidSharp 仅保留 `OMS_ENABLE_HIDSHARP=1` 诊断入口。DirectInput 显式 Acquire 并读取有序缓冲，快照不再代替完整 tap；溢出明确失败并释放，不伪造丢失历史。设备发现／退休仍唯一后台所有者，已连接设备持续采样，缺席设备500ms退避。
 - 新 HID 绑定指向具体实例并显示名称；旧型号标识只接受唯一匹配，多台歧义不任意认领。实例标识不承诺跨换口／驱动重装不变。配置和持续信号测试归 [P1-D](../P1-D/DEVELOPMENT_STATUS.md)。
 - desktop public settings surface 现已通过 `OsuGameDesktop.CreateSettingsSubsectionFor()` 安全隐藏 upstream 的 `MouseSettings` / `TouchSettings` / `TabletSettings`；这不等于删除 mouse/touch/tablet runtime config 或 handler，只是停止把非 OMS 通用 subsection 暴露给最终桌面产品面。
 - `TestSceneOmsScratchGameplayBridge` 已有 loaded-scene 回归，覆盖 mouse-axis / HID-axis / XInput、mixed-source suppression、hold survival 与 takeover 等边界；这些软件场景不等于真实控制器覆盖。
-- 本轮实际入口、批次时间、软件回归和性能范围集中见 [2026-10-21 输入审查](../../other/INPUT_SIGNAL_REVIEW_20261021.md)。剩余重点是正常窗口与实体设备验收。
+- 实际入口、批次时间和性能范围继续取[2026-10-21输入审查](../../other/INPUT_SIGNAL_REVIEW_20261021.md)；本次Start增量取[游玩Start复核](../../other/OMNI_GAMEPLAY_CONTROLS_20261025.md)。剩余重点是正常窗口与实体设备验收。
 
 ## 进度矩阵
 
@@ -27,6 +28,8 @@
 | 对外硬件行为口径 | 进行中 | “Windows 默认 DirectInput + HidSharp 诊断后端”已可写入文档 |
 
 ## 最近一次验证
+
+2026-10-26：Start双击/长按、模式组合、按住时的真实轴消费与不攻击音符、重置和带符号余量纳入BMS完整回归3050通过/19跳过。最终同包10组BMS普通Player控制取景通过，真实帧缓冲及源状态共同核对；宿主活跃状态显式模拟、动作软件注入，未代签前台或实体设备。失败、复跑与准确软件/画面范围见[专项记录](../../other/OMNI_GAMEPLAY_CONTROLS_20261025.md#本轮验证)。
 
 2026-10-21：实际结果、命令和证据只取 [输入审查的验证记录](../../other/INPUT_SIGNAL_REVIEW_20261021.md#验证证据)；输入接收／轮询观察时刻不等于物理触点时间，软件场景不代签硬件延迟。
 

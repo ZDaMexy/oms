@@ -12,8 +12,6 @@ using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Configuration;
 using osu.Game.Input.Handlers;
-using osu.Game.Overlays;
-using osu.Game.Overlays.OSD;
 using osu.Game.Replays;
 using osu.Game.Rulesets.Bms.Audio;
 using osu.Game.Rulesets.Bms.Beatmaps;
@@ -39,7 +37,8 @@ using osuTK.Input;
 namespace osu.Game.Rulesets.Bms.UI
 {
     [Cached]
-    public partial class DrawableBmsRuleset : DrawableScrollingRuleset<HitObject>, IGameplaySkinSceneRuntimeSource, IGameplaySkinEventObjectSnapshotSource
+    public partial class DrawableBmsRuleset : DrawableScrollingRuleset<HitObject>, IGameplaySkinSceneRuntimeSource, IGameplaySkinEventObjectSnapshotSource,
+        IGameplaySkinAdjustmentStateSource
     {
         public const double MIN_TIME_RANGE = 290;
 
@@ -73,7 +72,17 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly Bindable<int> activeAdjustmentTargetIndex = new Bindable<int>();
         private readonly BindableBool adjustmentTargetTemporarilyOverridden = new BindableBool();
         private readonly BindableBool allowAdjustmentWhilePaused = new BindableBool();
+        private readonly BmsModSudden? selectedSuddenMod;
+        private readonly BmsModHidden? selectedHiddenMod;
+        private readonly BmsModLift? selectedLiftMod;
+        private readonly double mostCommonBeatLength;
+        private readonly double initialBeatLength;
         private BmsGameplayAdjustmentTarget? currentGameplayAdjustmentTarget;
+        private BmsModSudden? gameplaySuddenMod;
+        private readonly Dictionary<string, double> scratchAdjustmentRemainders = new Dictionary<string, double>();
+        private double lastSpeedMetricsBeatLength = double.NaN;
+        private double? floatingCoveredVisibleTime;
+        private bool restoreFloatingCoverTime;
         private BmsPreStartSpeedPreview? preStartSpeedPreview;
         private BmsBgaPanel? bgaPanel;
         internal BmsBgaPlaybackSession? BgaPlaybackSession { get; private set; }
@@ -102,6 +111,27 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public IBindable<double> SelectedHiSpeed => selectedHiSpeed;
 
+        public bool AdjustmentHeld { get; private set; }
+
+        public bool SuddenActive => getSuddenMod()?.GameplayEnabled.Value == true;
+
+        public bool HiddenActive => getHiddenMod()?.GameplayEnabled.Value == true;
+
+        public float SuddenUnits => getSuddenMod()?.CoverPercent.Value ?? 0;
+
+        public float HiddenUnits => getHiddenMod()?.CoverPercent.Value ?? 0;
+
+        public float LiftUnits => Playfield.LiftUnits.Value;
+
+        public GameplaySkinAdjustmentState GameplaySkinAdjustmentState => new GameplaySkinAdjustmentState(
+            true, AdjustmentHeld, configHiSpeedMode.Value switch
+            {
+                BmsHiSpeedMode.Normal => GameplaySkinHiSpeedMode.Normal,
+                BmsHiSpeedMode.Floating => GameplaySkinHiSpeedMode.Floating,
+                BmsHiSpeedMode.Classic => GameplaySkinHiSpeedMode.Classic,
+                _ => GameplaySkinHiSpeedMode.Unspecified,
+            }, speedMetrics.Value.GreenNumber, SuddenUnits, HiddenUnits, SuddenActive, HiddenActive);
+
         public IBindable<BmsGameplayAdjustmentTarget?> ActiveAdjustmentTarget => activeAdjustmentTarget;
 
         public IBindable<int> EnabledAdjustmentTargetCount => enabledAdjustmentTargetCount;
@@ -117,8 +147,6 @@ namespace osu.Game.Rulesets.Bms.UI
         public int? PreStartSpeedPreviewLaneIndex => preStartSpeedPreview?.LaneIndex;
 
         public float PreStartSpeedPreviewProgress => preStartSpeedPreview?.PrimaryNoteProgress ?? -1;
-
-        internal ulong SpeedMetricsToastDisplayCount { get; private set; }
 
         public BmsInputManager? GameplayInputManager => KeyBindingInputManager as BmsInputManager;
 
@@ -169,9 +197,6 @@ namespace osu.Game.Rulesets.Bms.UI
         internal GameplaySkinResolvedMaterialSet? ComboMaterialSet => hudLayoutPanel?.Carrier?.ResolvedMaterialSet;
 
         [Resolved(CanBeNull = true)]
-        private OnScreenDisplay? bmsOnScreenDisplay { get; set; }
-
-        [Resolved(CanBeNull = true)]
         private IBindable<IReadOnlyList<Mod>>? selectedMods { get; set; }
 
         [Resolved(CanBeNull = true)]
@@ -184,6 +209,13 @@ namespace osu.Game.Rulesets.Bms.UI
                 throw new ArgumentException("Drawable BMS gameplay requires a converted BmsBeatmap.", nameof(beatmap));
 
             BmsBeatmapModApplicator.ApplyToBeatmap(beatmap, mods);
+            selectedSuddenMod = Mods.OfType<BmsModSudden>().SingleOrDefault();
+            selectedHiddenMod = Mods.OfType<BmsModHidden>().SingleOrDefault();
+            selectedLiftMod = Mods.OfType<BmsModLift>().SingleOrDefault();
+            mostCommonBeatLength = Beatmap.GetMostCommonBeatLength();
+            double referenceTime = Beatmap.HitObjects.Count > 0 ? Math.Max(0, Beatmap.HitObjects[0].StartTime) : 0;
+            double firstBeatLength = Beatmap.ControlPointInfo.TimingPointAt(referenceTime).BeatLength;
+            initialBeatLength = firstBeatLength > 0 ? firstBeatLength : TimingControlPoint.DEFAULT_BEAT_LENGTH;
             LongNoteMode = BmsScoreProcessor.GetLongNoteMode(Mods);
             LayoutProvider = Playfield.LayoutProvider;
             Direction.Value = ScrollingDirection.Down;
@@ -260,11 +292,20 @@ namespace osu.Game.Rulesets.Bms.UI
             laneCoverFocusPressed.BindValueChanged(e =>
             {
                 if (e.NewValue)
-                    CycleGameplayAdjustmentTarget();
+                {
+                    if (GameplayInputManager?.PreStartHoldPressed.Value == true)
+                        ToggleHiSpeedMode();
+                    else
+                        CycleGameplayAdjustmentTarget();
+                }
             });
 
             playfieldScrollLengthRatio = Playfield.ScrollLengthRatio.GetBoundCopy();
-            playfieldScrollLengthRatio.BindValueChanged(_ => updateTimeRange(), true);
+            playfieldScrollLengthRatio.BindValueChanged(_ =>
+            {
+                updateTimeRange();
+                refreshSpeedMetrics();
+            }, true);
 
             Config.BindWith(BmsRulesetSetting.HiSpeedMode, configHiSpeedMode);
             Config.BindWith(BmsRulesetSetting.ScrollSpeed, configNormalHiSpeed);
@@ -280,6 +321,8 @@ namespace osu.Game.Rulesets.Bms.UI
             // baseline) auto-grows on demand, so the playfield store is left at its constructed default here.
             getSuddenMod()?.CoverPercent.BindValueChanged(_ => refreshSpeedMetrics(), true);
             getHiddenMod()?.CoverPercent.BindValueChanged(_ => refreshSpeedMetrics(), true);
+            getSuddenMod()?.GameplayEnabled.BindValueChanged(_ => refreshSpeedMetrics());
+            getHiddenMod()?.GameplayEnabled.BindValueChanged(_ => refreshSpeedMetrics());
             getLiftMod()?.LiftUnits.BindValueChanged(_ => refreshSpeedMetrics(), true);
 
             setupBgaPanel();
@@ -536,12 +579,30 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             base.Update();
 
+            double beatLength = getCurrentBeatLength();
+            if (beatLength != lastSpeedMetricsBeatLength)
+            {
+                lastSpeedMetricsBeatLength = beatLength;
+                refreshSpeedMetrics();
+            }
+
             if (!gameplaySkinLifecycleStarted)
                 return;
 
             updateGameplaySkinInputEvents();
             updateGameplaySkinMotion();
             updateGameplaySkinBgaState();
+        }
+
+        protected override void UpdateAfterChildren()
+        {
+            base.UpdateAfterChildren();
+
+            // Lift applies its native projection after its children update. Capture the opening covered target
+            // only once that geometry is valid, including when Floating was already saved before entering play.
+            if (floatingCoveredVisibleTime == null && configHiSpeedMode.Value == BmsHiSpeedMode.Floating
+                && (SuddenActive || HiddenActive) && Playfield.GameplaySkinLiftState.IsAvailable)
+                floatingCoveredVisibleTime = speedMetrics.Value.VisibleLaneTime;
         }
 
         private void initialiseGameplaySkinEventBridge()
@@ -1068,8 +1129,8 @@ namespace osu.Game.Rulesets.Bms.UI
             int currentIndex = enabledTargets.IndexOf(currentTarget);
 
             currentGameplayAdjustmentTarget = enabledTargets[(currentIndex + 1) % enabledTargets.Count];
+            scratchAdjustmentRemainders.Clear();
             RefreshLaneCoverFocus();
-            showSpeedMetricsToast(currentGameplayAdjustmentTarget);
             return true;
         }
 
@@ -1132,6 +1193,117 @@ namespace osu.Game.Rulesets.Bms.UI
         public void SetPreStartSpeedPreviewState(bool active, bool paused = false)
             => preStartSpeedPreview?.UpdateState(active, paused);
 
+        public void SetAdjustmentHeld(bool held)
+        {
+            if (AdjustmentHeld == held)
+                return;
+
+            AdjustmentHeld = held;
+            scratchAdjustmentRemainders.Clear();
+        }
+
+        public bool ToggleHiSpeedMode()
+        {
+            if (!canAdjustGameplaySettings)
+                return false;
+
+            BmsHiSpeedMode nextMode = configHiSpeedMode.Value == BmsHiSpeedMode.Floating ? BmsHiSpeedMode.Normal : BmsHiSpeedMode.Floating;
+            double nextValue = selectedHiSpeed.Value * getModeTimeRangeScale(nextMode) / getModeTimeRangeScale(configHiSpeedMode.Value);
+            configHiSpeedMode.Value = nextMode;
+            getSelectedHiSpeedBindable().Value = nextValue;
+            floatingCoveredVisibleTime = nextMode == BmsHiSpeedMode.Floating && (SuddenActive || HiddenActive)
+                ? GetScrollSpeedMetrics().VisibleLaneTime : null;
+            restoreFloatingCoverTime = false;
+            scratchAdjustmentRemainders.Clear();
+            return true;
+        }
+
+        public bool ToggleGameplayLaneCovers()
+        {
+            if (!canAdjustGameplaySettings)
+                return false;
+
+            bool covered = SuddenActive || HiddenActive;
+            if (covered && configHiSpeedMode.Value == BmsHiSpeedMode.Floating)
+            {
+                floatingCoveredVisibleTime ??= GetScrollSpeedMetrics().VisibleLaneTime;
+                restoreFloatingCoverTime = true;
+            }
+
+            if (getSuddenMod() == null && getHiddenMod() == null)
+            {
+                gameplaySuddenMod = new BmsModSudden();
+                gameplaySuddenMod.ApplyToDrawableRuleset(this);
+                gameplaySuddenMod.CoverPercent.BindValueChanged(_ => refreshSpeedMetrics());
+                gameplaySuddenMod.GameplayEnabled.BindValueChanged(_ => refreshSpeedMetrics());
+            }
+            else
+            {
+                bool enabled = !SuddenActive && !HiddenActive;
+                if (getSuddenMod() is BmsModSudden sudden)
+                    sudden.GameplayEnabled.Value = enabled;
+                if (getHiddenMod() is BmsModHidden hidden)
+                    hidden.GameplayEnabled.Value = enabled;
+            }
+
+            scratchAdjustmentRemainders.Clear();
+            if (!covered && configHiSpeedMode.Value == BmsHiSpeedMode.Floating)
+            {
+                if (restoreFloatingCoverTime && floatingCoveredVisibleTime > 0)
+                    restoreFloatingCover();
+                else
+                    floatingCoveredVisibleTime = GetScrollSpeedMetrics().VisibleLaneTime;
+                restoreFloatingCoverTime = false;
+            }
+            RefreshLaneCoverFocus();
+            refreshSpeedMetrics();
+            return true;
+        }
+
+        public bool AdjustFromScratch(OmsAxisMotion motion)
+        {
+            if (!AdjustmentHeld || !canAdjustGameplaySettings || motion.Action is not (OmsAction.Key1P_Scratch or OmsAction.Key2P_Scratch))
+                return false;
+
+            // The input interpreter already supplies calibrated direction and distinct physical units.
+            // Accumulate signed movement, so sub-unit reversals cancel rather than generating extra steps.
+            double units = motion.Mode == OmsAxisMode.RelativeMotion ? motion.Delta / 4 : motion.Delta * 1000;
+            scratchAdjustmentRemainders.TryGetValue(motion.SourceId, out double remainder);
+            double total = remainder + units;
+            int steps = (int)Math.Truncate(total);
+            scratchAdjustmentRemainders[motion.SourceId] = total - steps;
+            if (steps == 0)
+                return false;
+
+            BmsGameplayAdjustmentTarget? target = SuddenActive ? BmsGameplayAdjustmentTarget.Sudden
+                : HiddenActive ? BmsGameplayAdjustmentTarget.Hidden
+                : getLiftMod() != null ? BmsGameplayAdjustmentTarget.Lift
+                : null;
+
+            if (target == null)
+            {
+                if (configHiSpeedMode.Value != BmsHiSpeedMode.Floating)
+                    return false;
+
+                double previous = configFloatingHiSpeed.Value;
+                configFloatingHiSpeed.Value += steps * 0.01;
+                return previous != configFloatingHiSpeed.Value;
+            }
+
+            double visibleTime = floatingCoveredVisibleTime ?? GetScrollSpeedMetrics().VisibleLaneTime;
+            bool changed = adjustGameplayAdjustment(target is BmsGameplayAdjustmentTarget.Lift or BmsGameplayAdjustmentTarget.Hidden ? -steps : steps, target);
+            if (target == BmsGameplayAdjustmentTarget.Sudden && HiddenActive)
+                changed |= adjustGameplayAdjustment(steps, BmsGameplayAdjustmentTarget.Hidden);
+
+            if (changed && target != BmsGameplayAdjustmentTarget.Lift && configHiSpeedMode.Value == BmsHiSpeedMode.Floating && visibleTime > 0)
+            {
+                configFloatingHiSpeed.Value *= GetScrollSpeedMetrics().VisibleLaneTime / visibleTime;
+                floatingCoveredVisibleTime = visibleTime;
+            }
+
+            return changed;
+        }
+
         public bool AdjustSelectedHiSpeed(int amount)
         {
             if (amount == 0)
@@ -1145,8 +1317,28 @@ namespace osu.Game.Rulesets.Bms.UI
             if (previous == bindable.Value)
                 return false;
 
-            showSpeedMetricsToast(getPersistentGameplayAdjustmentTarget());
+            if (configHiSpeedMode.Value == BmsHiSpeedMode.Floating && (SuddenActive || HiddenActive))
+                floatingCoveredVisibleTime = GetScrollSpeedMetrics().VisibleLaneTime;
+
             return true;
+        }
+
+        private void restoreFloatingCover()
+        {
+            double runtimeTime = GetScrollSpeedMetrics().RuntimeTimeRange;
+            double coverUnits = 1000 - floatingCoveredVisibleTime!.Value * 1000 / runtimeTime;
+            double currentCoverUnits = (SuddenActive ? SuddenUnits : 0) + (HiddenActive ? HiddenUnits : 0);
+
+            if (SuddenActive && getSuddenMod() is BmsModSudden sudden)
+            {
+                sudden.CoverPercent.Value = (float)(HiddenActive && currentCoverUnits > 0 ? coverUnits * SuddenUnits / currentCoverUnits : coverUnits);
+                rememberGameplayAdjustment(sudden);
+            }
+            if (HiddenActive && getHiddenMod() is BmsModHidden hidden)
+            {
+                hidden.CoverPercent.Value = (float)(SuddenActive && currentCoverUnits > 0 ? coverUnits - SuddenUnits : coverUnits);
+                rememberGameplayAdjustment(hidden);
+            }
         }
 
         internal BmsScrollSpeedMetrics GetScrollSpeedMetrics()
@@ -1154,13 +1346,10 @@ namespace osu.Game.Rulesets.Bms.UI
                 configHiSpeedMode.Value,
                 selectedHiSpeed.Value,
                 playfieldScrollLengthRatio?.Value ?? 1,
-                getModeTimeRangeScale(configHiSpeedMode.Value),
+                getModeTimeRangeScale(configHiSpeedMode.Value) * getCurrentBeatLength() / mostCommonBeatLength,
                 getLaneCoverUnits(BmsLaneCoverPosition.Sudden),
                 getLaneCoverUnits(BmsLaneCoverPosition.Hidden),
                 Playfield.LiftUnits.Value);
-
-        public void DisplaySpeedMetricsToast(BmsGameplayAdjustmentTarget? target = null)
-            => showSpeedMetricsToast(target);
 
         private void refreshHiSpeedConfiguration()
         {
@@ -1187,7 +1376,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 LayoutProvider.CurrentMaterialSet));
         }
 
-        private void updateTimeRange() => TimeRange.Value = BmsHiSpeedRuntimeCalculator.ComputeBaseTimeRange(configHiSpeedMode.Value, selectedHiSpeed.Value, Beatmap.GetMostCommonBeatLength(), getInitialBeatLength(), Beatmap.Difficulty.SliderMultiplier) * (playfieldScrollLengthRatio?.Value ?? 1);
+        private void updateTimeRange() => TimeRange.Value = BmsHiSpeedRuntimeCalculator.ComputeBaseTimeRange(configHiSpeedMode.Value, selectedHiSpeed.Value, mostCommonBeatLength, initialBeatLength, Beatmap.Difficulty.SliderMultiplier) * (playfieldScrollLengthRatio?.Value ?? 1);
 
         private void refreshSpeedMetrics()
         {
@@ -1202,7 +1391,7 @@ namespace osu.Game.Rulesets.Bms.UI
         }
 
         private float getLaneCoverUnits(BmsLaneCoverPosition position)
-            => Playfield.LaneCovers.FirstOrDefault(cover => cover.CoverPosition == position)?.CoverPercent.Value ?? 0;
+            => position == BmsLaneCoverPosition.Sudden ? (SuddenActive ? SuddenUnits : 0) : (HiddenActive ? HiddenUnits : 0);
 
         protected override PassThroughInputManager CreateInputManager() => new BmsInputManager(Ruleset.RulesetInfo, Variant);
 
@@ -1226,7 +1415,6 @@ namespace osu.Game.Rulesets.Bms.UI
             if (refreshLaneCoverFocus)
                 RefreshLaneCoverFocus();
 
-            showSpeedMetricsToast(target);
             return true;
         }
 
@@ -1275,11 +1463,11 @@ namespace osu.Game.Rulesets.Bms.UI
             return getPersistentGameplayAdjustmentTarget();
         }
 
-        private BmsModSudden? getSuddenMod() => Mods.OfType<BmsModSudden>().SingleOrDefault();
+        private BmsModSudden? getSuddenMod() => selectedSuddenMod ?? gameplaySuddenMod;
 
-        private BmsModHidden? getHiddenMod() => Mods.OfType<BmsModHidden>().SingleOrDefault();
+        private BmsModHidden? getHiddenMod() => selectedHiddenMod;
 
-        private BmsModLift? getLiftMod() => Mods.OfType<BmsModLift>().SingleOrDefault();
+        private BmsModLift? getLiftMod() => selectedLiftMod;
 
         private void rememberGameplayAdjustment(Mod? adjustedMod)
         {
@@ -1311,12 +1499,6 @@ namespace osu.Game.Rulesets.Bms.UI
                 _ => null,
             };
 
-        private void showSpeedMetricsToast(BmsGameplayAdjustmentTarget? target = null)
-        {
-            SpeedMetricsToastDisplayCount++;
-            bmsOnScreenDisplay?.Display(new BmsSpeedMetricsToast(GetScrollSpeedMetrics(), target ?? getPersistentGameplayAdjustmentTarget()));
-        }
-
         private bool canAdjustGameplaySettings => (!IsPaused.Value && (FrameStableClock?.IsRunning ?? true)) || allowAdjustmentWhilePaused.Value;
 
         private BindableDouble getSelectedHiSpeedBindable()
@@ -1332,26 +1514,15 @@ namespace osu.Game.Rulesets.Bms.UI
             => mode switch
             {
                 BmsHiSpeedMode.Normal => 1,
-                BmsHiSpeedMode.Floating => Beatmap.GetMostCommonBeatLength() / getInitialBeatLength(),
-                BmsHiSpeedMode.Classic => Beatmap.GetMostCommonBeatLength() / ((Beatmap.Difficulty.SliderMultiplier > 0 ? Beatmap.Difficulty.SliderMultiplier : 1) * TimingControlPoint.DEFAULT_BEAT_LENGTH),
+                BmsHiSpeedMode.Floating => mostCommonBeatLength / initialBeatLength,
+                BmsHiSpeedMode.Classic => mostCommonBeatLength / ((Beatmap.Difficulty.SliderMultiplier > 0 ? Beatmap.Difficulty.SliderMultiplier : 1) * TimingControlPoint.DEFAULT_BEAT_LENGTH),
                 _ => 1,
             };
 
-        private double getInitialBeatLength()
+        private double getCurrentBeatLength()
         {
-            double referenceTime = Beatmap.HitObjects.Count > 0 ? Math.Max(0, Beatmap.HitObjects[0].StartTime) : 0;
-            double beatLength = Beatmap.ControlPointInfo.TimingPointAt(referenceTime).BeatLength;
+            double beatLength = Beatmap.ControlPointInfo.TimingPointAt(FrameStableClock?.CurrentTime ?? 0).BeatLength;
             return beatLength > 0 ? beatLength : TimingControlPoint.DEFAULT_BEAT_LENGTH;
-        }
-
-        private partial class BmsSpeedMetricsToast : Toast
-        {
-            public BmsSpeedMetricsToast(BmsScrollSpeedMetrics metrics, BmsGameplayAdjustmentTarget? target)
-                : base(@"BMS speed", $@"GN {metrics.GreenNumber} ({metrics.VisibleLaneTime:0}ms)")
-            {
-                string targetText = target == null ? @"AUTO" : target.Value.GetAbbreviation();
-                ExtraText = $@"Target {targetText} | {metrics.HiSpeedMode.GetShortLabel()} {metrics.HiSpeedMode.FormatValue(metrics.ScrollSpeed)} | WN {metrics.WhiteNumber} | HID {metrics.HiddenUnits} | LIFT {metrics.LiftUnits}";
-            }
         }
     }
 }

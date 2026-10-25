@@ -1,6 +1,6 @@
 # P1-A 技术约束：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-20（目录缓存时间与开局失败收尾；原发行门保持）
+> 最后核对：2026-10-26（游玩Start、原生调整状态与Floating窄范围例外；原发行门保持）
 > 本文件是 P1-A 产品面及 Skin V1 的硬约束源。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，皮肤设计证据见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。若代码与本文冲突，先确认新事实并同步修正文档/代码，不能用历史 CHANGELOG 覆盖当前 authority。
 
 ## 按任务定位
@@ -95,7 +95,7 @@
 内置静线必须随正常开发启动、build、publish 从当前作者源文件更新；不得要求玩家导入或开发者先手工打包。当前实现与验证见[构建更新记录](../../other/SKIN_BUILTIN_BUILD_20260912.md)。普通构建不重生成覆盖作者美术，发行作者副本须与本次安装原件一致。
 
 1. P1-A 拥有 shared skin package/runtime/fallback、BMS playfield/BGA skin boundary、G1 和 release gate；判定/反馈、输入、BGA 时间线、存储底层语义仍分别归 P1-C/P1-E、P1-B/P1-D、P1-L、P1-H。
-2. 不得借 Skin V1 提前带入完整 FHS、dan、1P/2P binding flip、BSS/MSS、联网或其它 Phase 2/3 功能。5K/7K 的 P1/P2/center style 是视觉 lane order/停靠，不是 binding flip。
+2. 不得借 Skin V1 提前带入dan、1P/2P binding flip、BSS/MSS、联网或其它 Phase 2/3 功能。本轮用户明确授权的Start/Floating/甩盘与挡板专项按[游玩调速记录](../../other/OMNI_GAMEPLAY_CONTROLS_20261025.md)推进，不扩大为未验证的整套IIDX FHS等价声明。5K/7K 的 P1/P2/center style 是视觉 lane order/停靠，不是 binding flip。
 3. `osu.Game` 不得新增对 `osu.Game.Rulesets.Bms` 的编译期依赖。共享合同只能包含 ruleset-neutral DTO/runtime；BMS/mania 具体适配留在各自 ruleset。
 4. BMS→mania 公开入口、映射语义和 Skin V1 是不同专题。P1-A 只拥有入口/文案/presentation gate，source keymode→mania mapping 仍归 P1-K。
 5. 首次启动向导、settings trim 等既有产品面继续遵守 desktop-only 装配、OMS localisation 和模块缺失优雅退化约束；它们不因 Skin V1 重写。
@@ -142,12 +142,12 @@ Omni的Key beam是逐轨动态背景，使用现有`playfield.lane-surface`及Un
 
 ## 既有产品面硬约束（未被 Skin V1 取代）
 
-1. 当前 `GN / WN` 只能表述为 OMS 当前 `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` runtime surface 的反馈；`Floating` 只锚定 initial BPM，不得对外宣称完整 mid-song re-float、soflan GN range 或 IIDX `FHS`。
+1. `GN / WN` 表述为 OMS 当前 `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` 的原生反馈。Floating保留既有初始BPM基础映射，当前BPM变化进入真实可见时间；用户授权的转盘调节/重新开启挡板按保留目标refloat。原机20档倍率整表、所有soflan组合与完整FHS等价仍须独立证据。
 2. settings 可显示 Hi-Speed 模式、当前模式值和未启用 `Sudden / Hidden / Lift` 时的基础下落时间；不得在 settings 显示 runtime-adjusted `GreenNumber`/可见毫秒或暗示完整 BPM 补偿/FHS。
 3. `Lift` 是 geometry control，`Hidden` 是下遮挡；命名、状态、HUD 与 pre-start overlay 不得混写。
-4. Hi-Speed 范围保持 `Normal 1.0–20.0`、`Floating 0.5–10.0`、`Classic 0.5–10.0`；`GreenNumber = Round(VisibleLaneTime_ms × 0.6)`，`WhiteNumber = SuddenUnits`，`VisibleLaneUnits = 1000 - SuddenUnits - HiddenUnits`，Lift 只经几何间接影响可见时间。Classic 映射保持 `TimeRange = (100000 / 13) / HS`，`HS 10 + WN 350 => GN 300` 必须成立。
+4. Hi-Speed 范围保持 `Normal 1.0–20.0`、`Floating 0.5–10.0`、`Classic 0.5–10.0`；`GreenNumber = Round(VisibleLaneTime_ms × 0.6)`，上下白字各取所属原生挡板的保留长度，LIFT白字独立取其几何单位；`VisibleLaneUnits = 1000 - effectiveSuddenUnits - effectiveHiddenUnits`，关闭挡板不清原值，Lift只经几何影响可见时间。Classic基础映射保持`TimeRange = (100000 / 13) / HS`，默认几何/BPM样例`HS 10 + WN 350 => GN 300`必须成立。
 5. ruleset runtime geometry profile 继续冻结；`Playfield Scale` 固定 `1.0` 且不可配置。除 `Sudden/Hidden/Lift` 外，旧 playfield/receptor/bar-line config 不得作为用户可见 runtime contract 影响速度/几何；旧全局PlayfieldStyle已按上方皮肤配置合同废弃。Skin package geometry 是受合法域约束的作者面，不能借此恢复旧 runtime sliders。
-6. `UI_PreStartHold` 继续承担“前 5 秒阻止开始 + 全程调速修饰键”；若 delay 在 hold 中耗尽，松开时必须重新调度完整 delay，不能立即开谱。`UI_LaneCoverFocus` 是 click-to-cycle 持久 target；`READY HOLD` 只用于阻止开谱窗口，`BMS speed` toast 在 hold 调速期间持续可见。
+6. `UI_PreStartHold`承担“前5秒阻止开始 + 全程调速修饰键”；若delay在hold中耗尽，松开时重新调度完整delay，不能立即开谱。`UI_LaneCoverFocus`单按循环持久target，Start组合用作EFFECT切换普通/Floating；白键降、黑键升。两个短按在第二次按下立即切换所选上下挡板组合，无挡板/仅LIFT时切换SUD；LIFT几何保持。长按/用于调整的手势不补成双击，输入来源/epoch重置清理手势和轴余量。`READY HOLD`只用于阻止开谱窗口，原`BMS speed`透明toast及刷新循环退出，游玩读数由原生状态和皮肤承接。
 7. BMS mod/config 记忆必须 ruleset-local；不得隐式共享到 mania/全局 `SelectedMods`。局内 `Sudden/Hidden/Lift` 调整只在 `RememberGameplayChanges=true` 时回写所选 mod 与持久快照，关闭时保持 current-play-only。
 8. 冷启动不得在 `RulesetConfigCache` ready 前调用 `GetConfigFor()` 构建 BMS mod persistence；先允许无 config 首轮 apply，再在 cache ready 后 replay 当前 ruleset restore。
 9. 实现 `IPreserveSettingsWhenDisabled` 的 configurable BMS mod 停用只表示 inactive；除显式 reset/迁移外，不得清空最后配置。

@@ -102,7 +102,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Author.ps1 -Action imp
 | `tracks` | 动画数组 | 是，可 `[]` |
 | `stateMachines` | 状态机数组 | 是，可 `[]` |
 | `bindings` | 只读绑定数组 | 是，可 `[]` |
-| `variants` | 图片变体数组 | 否，建议明确 `[]` |
+| `variants` | 图片、显隐或横向x/width变体数组 | 否，建议明确 `[]` |
 | `completionOutro` | 全连演出总时长，有限数值0..3500毫秒；缺省0保持Player原等待 | 否 |
 | `preparationDuration` | 开局准备总时长，有限数值0..10000毫秒；缺省0保持原启动流程 | 否 |
 | `templates`、`instances` | 模板、实例数组 | 是，可 `[]` |
@@ -219,7 +219,7 @@ layout/gap-px/width-px/height-px不能被动画、绑定、状态机或脚本写
 
 只读来源 `layout.ruleset` 将当前context投影为 `bms/mania`，可写普通文字或用于resource/visible variants；不修改玩法。需要给两种计分格式不同排版时分别放节点并按此显隐。option toggle显式投影的0/1，以及min和step均为整数的number，还可用于已有整数位图格式；其它bool来源和不符合整数约束的option不因此获准。
 
-场景 binding 的 `source:"option.<id>"` 读取冻结值：toggle 可驱动 visible / 普通文字或作0/1数值；number 可驱动已有受限数值属性或数值文字；choice 写普通文字。variants 同样接受 `option.<id>`：choice 的 case key 来自 choices，toggle 为 `true/false`；按原规则提供 default 与至少一条 case，控制 resource 或 visible。所有资源仍须提前声明并受完整包预算限制。没有命中适用范围时，binding 保留作者原值，variant 使用自己的 default；未知来源拒绝。用不同节点承载输入显隐和用户开关，避免两个写入者争抢同一属性。
+场景 binding 的 `source:"option.<id>"` 读取冻结值：toggle 可驱动 visible / 普通文字或作0/1数值；number 可驱动已有受限数值属性或数值文字；choice 写普通文字。variants 同样接受 `option.<id>`：choice 的 case key 来自 choices，toggle 为 `true/false`；按原规则提供 default 与至少一条 case，控制 resource、visible或横向x/width。x/width使用数字default/case值，沿同一属性的有限数值/范围限制，不开放其它数字属性。所有资源仍须提前声明并受完整包预算限制。没有命中适用范围时，binding 保留作者原值，variant 使用自己的 default；未知来源拒绝。用不同节点承载输入显隐和用户开关，避免两个写入者争抢同一属性。
 
 最多32项、每项32个选择、标签128字符，每个适用列表最多32个token；数值绝对值最多1,000,000、区间最多10,000步。坏声明拒绝整份清单；保存值失效、越界或类型失配时使用作者默认。配置只控制表现，不能改输入、计分、判定、谱面或视频时钟。
 
@@ -462,6 +462,7 @@ bindings每项必填id/target/property/source，例如：
 | source | 值 | 能驱动的属性 |
 | --- | --- | --- |
 | layout.stage/layout.group/layout.lane | 目标稳定身份字符串，不是矩形或对象 | text |
+| layout.presentation | 已应用布局上下文的PresentationStyleId，精确字符串token；支持text和variants，不读取未适用的保存选项 | text或variants |
 | input.pressed | 当前目标轨道是否按下 | visible或text |
 | input.motion-counts-1 / input.motion-counts-2 | 对应逻辑组累计的带符号相对移动counts，已应用实际绑定的灵敏度与反转 | 数值或text |
 | input.motion-revolutions-1 / input.motion-revolutions-2 | 对应逻辑组累计的带符号圆形轴或摇杆模拟转数，已应用实际绑定配置 | 数值或text |
@@ -500,6 +501,11 @@ bindings每项必填id/target/property/source，例如：
 | song.table-classification | 已启用难度表归类，独立于作者标级；每项为“表名 等级标签”，多表按保存顺序以 ` / ` 连接，无归类为空。最多256个UTF-16单元，可使用 ellipsis。BMS及BMS转谱mania从当前游玩锁定的原谱资料读取 | text |
 | timing.bpm-min / timing.bpm-max | 当前谱面实际音乐BPM范围，不含滚速倍率或STOP兼容点 | 数值或text |
 | scroll.speed | 当前玩法已选滚速设置值，不是滚动倍率或绿数；未提供时0 | 数值或text |
+| scroll.available / scroll.adjusting | 原生调速快照是否可用 / 玩家是否正按住Start调速；当前由BMS提供，mania为false | visible或普通text |
+| scroll.mode | 原生模式normal/floating/classic；不可用为unavailable | text或variants |
+| scroll.green-number | 由当前BPM、真实滚速、挡板和LIFT几何计算的绿字；不可用为0 | 数值或text |
+| cover.sudden-units / cover.hidden-units | 上下挡板各自保留的0..1000长度；关闭不清值 | 数值或text |
+| cover.sudden-active / cover.hidden-active | 原生上下挡板当前是否生效 | visible或普通text |
 | judgement.count.perfect / great / good / ok / meh / miss | 计分器对应六档判定累计值 | 数值或text |
 | judgement.count.fast / judgement.count.slow | 满档为Perfect的真实基础成功判定中，偏差小于0 / 大于0的累计数 | 数值或text |
 | combo.breaks | 计分器断连统计 | 数值或text |
@@ -509,6 +515,8 @@ bindings每项必填id/target/property/source，例如：
 | bga.content-state | empty/ready/playing/paused/failed | text |
 
 字符串不能直接驱动数字或资源；换图用variants。数值限制在目标属性范围内，不修改玩法。首物件前进度0、末物件后1、零时长0；暂停保持、重试和跳转反映新位置。局部对象、轨道和组沿自身范围取值，不应由另一轨道的判定驱动。
+
+调速与挡板读数随同一Timing快照和静止时钟下的真实调整同步；作者不得累积按键或自行反推可见时间。上下白字分别用`cover.sudden-units`、`cover.hidden-units`，LIFT读`lift.value`，不能把Hidden长度或LIFT写成Sudden白字。只在`scroll.available`及`scroll.adjusting`成立时显示调整面板/读数，挡板行另检查各自active；mania及没有原生来源的预览应隐藏。`lift.reversed`可用true/false显隐变体，位置仍按实际`lift.offset`。`score.maximum-available`、`score.personal-best-available`与`score.rank-available`可用布尔variants的true/false分支，使主目标没有数据时才显示备用目标；两者都缺数据时显示NO DATA，不补造对手或成绩。
 
 `arrival.*` 取应用Mod后的实际谱面和真实C3轨道，Lane为该轨首音，Stage/Group为该组最早首音，Global为全谱最早首音；空谱、空组及只作留白的作者槽没有entry，不借用别轨。BMS排除自动背景物件，mania取普通音符或长条的开始。`arrival.visible`只表示尚未到来，不限制提前多久；作者应另用非循环 `arrival.remaining` 轨迹定义预告窗，并将窗口两端透明度设为0，以免远处首音长期显示。剩余值可以为负，重试、seek和完整状态恢复直接使用新位置，不由皮肤累计倒计时。
 

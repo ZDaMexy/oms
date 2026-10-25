@@ -31,6 +31,10 @@ namespace osu.Game.Rulesets.Bms.Input
 
         public BindableBool PreStartHoldPressed { get; } = new BindableBool();
 
+        public event Action<OmsAxisMotion>? AdjustmentMotion;
+
+        public event Action? AdjustmentInputReset;
+
         public OmsInputRouter Router { get; } = new OmsInputRouter();
 
         private readonly HashSet<BmsAction> forwardedPressedActions = new HashSet<BmsAction>();
@@ -86,7 +90,11 @@ namespace osu.Game.Rulesets.Bms.Input
             this.createHidProvider = createHidProvider;
             keyboardInputQueue = new GameplayKeyboardInputQueue(
                 (key, pressed) => tryHandleKeyboardEvent(key, pressed),
-                () => keyboardInputHandler.ReleaseAllPressed());
+                () =>
+                {
+                    AdjustmentInputReset?.Invoke();
+                    keyboardInputHandler.ReleaseAllPressed();
+                });
             scratchMotion = new BmsScratchMotionTracker(
                 action => KeyBindingContainer.TriggerPressed(action),
                 action => KeyBindingContainer.TriggerReleased(action));
@@ -157,8 +165,14 @@ namespace osu.Game.Rulesets.Bms.Input
 
         private void observeAxisMotion(OmsAxisMotion motion)
         {
-            if (!UseParentInput || !liveInputEnabled || PreStartHoldPressed.Value)
+            if (!UseParentInput || !liveInputEnabled)
                 return;
+
+            if (PreStartHoldPressed.Value)
+            {
+                AdjustmentMotion?.Invoke(motion);
+                return;
+            }
 
             scratchMotion.Observe(motion, toDeviceTime(Time.Current));
 
@@ -413,6 +427,7 @@ namespace osu.Game.Rulesets.Bms.Input
                     mouseAxisInputHandler.FinishFrame();
                     break;
                 case DeviceInputKind.MouseReset:
+                    AdjustmentInputReset?.Invoke();
                     mouseAxisInputHandler.ReleaseAll();
                     scratchMotion.ReleaseDevice(null);
                     break;
@@ -435,6 +450,7 @@ namespace osu.Game.Rulesets.Bms.Input
 
         private void releaseAppliedDeviceInput()
         {
+            AdjustmentInputReset?.Invoke();
             mouseAxisInputHandler.ReleaseAll();
             foreach (int button in heldJoystickButtons)
             {
@@ -668,14 +684,14 @@ namespace osu.Game.Rulesets.Bms.Input
             {
                 6 => action switch
                 {
-                    BmsAction.Key1 or BmsAction.Key3 or BmsAction.Key5 => 1,
-                    BmsAction.Key2 or BmsAction.Key4 => -1,
+                    BmsAction.Key1 or BmsAction.Key3 or BmsAction.Key5 => -1,
+                    BmsAction.Key2 or BmsAction.Key4 => 1,
                     _ => 0,
                 },
                 8 => action switch
                 {
-                    BmsAction.Key1 or BmsAction.Key3 or BmsAction.Key5 or BmsAction.Key7 => 1,
-                    BmsAction.Key2 or BmsAction.Key4 or BmsAction.Key6 => -1,
+                    BmsAction.Key1 or BmsAction.Key3 or BmsAction.Key5 or BmsAction.Key7 => -1,
+                    BmsAction.Key2 or BmsAction.Key4 or BmsAction.Key6 => 1,
                     _ => 0,
                 },
                 9 => action switch
@@ -686,8 +702,8 @@ namespace osu.Game.Rulesets.Bms.Input
                 },
                 16 => action switch
                 {
-                    BmsAction.Key1 or BmsAction.Key3 or BmsAction.Key5 or BmsAction.Key7 or BmsAction.Key8 or BmsAction.Key10 or BmsAction.Key12 or BmsAction.Key14 => 1,
-                    BmsAction.Key2 or BmsAction.Key4 or BmsAction.Key6 or BmsAction.Key9 or BmsAction.Key11 or BmsAction.Key13 => -1,
+                    BmsAction.Key1 or BmsAction.Key3 or BmsAction.Key5 or BmsAction.Key7 or BmsAction.Key8 or BmsAction.Key10 or BmsAction.Key12 or BmsAction.Key14 => -1,
+                    BmsAction.Key2 or BmsAction.Key4 or BmsAction.Key6 or BmsAction.Key9 or BmsAction.Key11 or BmsAction.Key13 => 1,
                     _ => 0,
                 },
                 _ => 0,

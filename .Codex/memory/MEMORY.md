@@ -15,7 +15,7 @@
 
 ## 皮肤恢复与存储
 
-- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage继承、轨宽、血槽/FC、组合预算与冻结ID重建；真实起点/预览、持续组件、轨底层拆分、原生Mod避让、原版菜单取证、判定宿主高度、共享亮度与独立RGB载体、挡板最终透明度、Spice覆盖与采样时钟、C4身份、裁切与退出HUD readiness。
+- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage继承、轨宽、血槽/FC、组合预算与冻结ID重建；真实起点/预览、持续组件、轨底层拆分、原生Mod避让、原版菜单取证、判定宿主高度、横排像素叶子与挡板/LIFT读数几何、共享亮度与独立RGB载体、挡板最终透明度、Spice覆盖与采样时钟、C4身份、裁切与退出HUD readiness。
 
 - [2026-07-10 皮肤恢复](reference_skin_recovery_20260710.md) — 恢复锚点、归档与重新准入；**皮肤任务先读**。
 - [2026-07-13 schema 56 皮肤清点](reference_skin_schema56_inventory_20260713.md) — 只读取证、失效类型与 Realm mtime 误判。
@@ -35,7 +35,7 @@
 
 ## 构建、存储与产品面参考
 
-- [构建与测试](reference_build_and_test.md) — 开发磁盘、缓存清理后的源码/依赖重建、宿主deps与空ENV、TRX跳过计数、音轨跳时/桌面GC、初始关闭内门与静态纹理、ruleset共享测试源码、formatter与输出锁、作者组合异常修正/取证、品牌贴图、退休fixture与混合谱包/Realm快照、内存峰值、图片许可/审计误判、公钥首次导入及MSBuild旁带文件元数据。
+- [构建与测试](reference_build_and_test.md) — 开发磁盘、缓存清理后的源码/依赖重建、宿主deps与空ENV、TRX跳过计数、音轨跳时/桌面GC、普通/回放Player取景与活动状态、同一步准时输入、初始关闭内门与静态纹理、ruleset共享测试源码、formatter与输出锁、作者组合异常修正/取证、品牌贴图、退休fixture与混合谱包/Realm快照、内存峰值、图片许可/审计误判、公钥首次导入及MSBuild旁带文件元数据。
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱库路径身份与历史保全](reference_filesystem_library_identity.md) — 同内容不同目录、失效与物删分离、多文件改名、重复素材枚举与增量查询放大器。
 - [谱面构成过滤](reference_bms_composition_filter.md) — 单轨上限、共享额度、零宽入口及无解条件。

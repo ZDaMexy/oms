@@ -26,6 +26,9 @@ namespace osu.Game.Rulesets.Bms.Mods
 
         protected abstract BmsLaneCoverPosition Position { get; }
 
+        // This is a current-play control, separate from selecting or remembering the mod.
+        public BindableBool GameplayEnabled { get; } = new BindableBool(true);
+
         [SettingSource(typeof(BmsModStrings), nameof(BmsModStrings.CoverValue), nameof(BmsModStrings.CoverValueDescription))]
         public BindableFloat CoverPercent { get; } = new BindableFloat(250)
         {
@@ -55,7 +58,7 @@ namespace osu.Game.Rulesets.Bms.Mods
             if (delta == 0)
                 return false;
 
-            float nextValue = Math.Clamp(CoverPercent.Value + Math.Sign(delta), CoverPercent.MinValue, CoverPercent.MaxValue);
+            float nextValue = Math.Clamp(CoverPercent.Value + delta, CoverPercent.MinValue, CoverPercent.MaxValue);
 
             if (nextValue == CoverPercent.Value)
                 return false;
@@ -68,6 +71,7 @@ namespace osu.Game.Rulesets.Bms.Mods
         {
             var laneCover = new BmsLaneCover(Position);
             laneCover.CoverPercent.BindTo(CoverPercent);
+            laneCover.CoverEnabled.BindTo(GameplayEnabled);
             laneCover.CoverOpacity.BindTo(CoverOpacity);
 
             if (drawableRuleset.Playfield is BmsPlayfield bmsPlayfield)

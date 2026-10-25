@@ -49,6 +49,34 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         [TestCase(false)]
         [TestCase(true)]
+        public void TestStartMotionUsesTheAcceptedAxisWithoutAttackingNotes(bool hid)
+        {
+            arrange(BmsLongNoteMode.LN, hid, longNote: false);
+            var motions = new List<OmsAxisMotion>();
+            int resets = 0;
+            seekTo(() => notes[0].HitObject.StartTime);
+            AddStep("hold Start and observe the production adjustment path", () =>
+            {
+                renderer.Input.AdjustmentMotion += motions.Add;
+                renderer.Input.AdjustmentInputReset += () => resets++;
+                Assert.That(renderer.Input.TriggerOmsActionPressed(OmsAction.UI_PreStartHold), Is.True);
+            });
+            move();
+            AddStep("accepted movement retains its physical units and cannot attack", () => Assert.Multiple(() =>
+            {
+                Assert.That(motions, Has.Count.EqualTo(1));
+                Assert.That(motions[0].Action, Is.EqualTo(OmsAction.Key1P_Scratch));
+                Assert.That(motions[0].Mode, Is.EqualTo(OmsAxisMode.RelativeMotion));
+                Assert.That(motions[0].Delta, Is.EqualTo(4));
+                Assert.That(renderer.Input.KeyBindingContainer.PressedActions, Does.Not.Contain(BmsAction.Scratch1));
+                Assert.That(notes[0].Judged, Is.False);
+            }));
+            AddStep("reset input ownership", () => ((IFrameStableInputHandler)renderer.Input).ResetInput());
+            AddUntilStep("the adjustment consumer receives the input reset", () => resets > 0);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
         public void TestAcceptedMotionPresentationUsesActualInputAndClearsWithEpoch(bool hid)
         {
             arrange(BmsLongNoteMode.LN, hid, longNote: false);

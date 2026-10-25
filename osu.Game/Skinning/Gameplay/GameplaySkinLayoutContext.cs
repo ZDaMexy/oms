@@ -375,9 +375,12 @@ namespace osu.Game.Skinning.Gameplay
         {
             ArgumentException.ThrowIfNullOrEmpty(value, parameterName);
 
-            if (value.Length > 80 || value.Any(character => !isTokenCharacter(character)))
+            if (!IsValidToken(value))
                 throw new ArgumentException("Gameplay layout context tokens must be short lowercase ASCII values.", parameterName);
         }
+
+        internal static bool IsValidToken(string? value)
+            => !string.IsNullOrEmpty(value) && value.Length <= 80 && value.All(isTokenCharacter);
 
         private static bool isTokenCharacter(char character)
             => character is >= 'a' and <= 'z'

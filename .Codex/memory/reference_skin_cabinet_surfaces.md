@@ -4,6 +4,10 @@
 
 原版Start设置须看实际普通/详细标题和当前选中栏，不能把初学者开曲确认窗、帮助页或按键后仍在SongSelect的截图算菜单。官网列五类可调亮度物体，不等于五个独立设置；实机carousel是一个共享Lane Objects Brightness选项。枚举要转到首项再次出现，数值记录初始值、边界与步长；切语言的按键须在招募页稳定出现后投递。冻结菜单倒计时的测试配置独立留证，不能代签自然开场时间。
 
+新增游玩读数不能把`width-px/height-px`放到container或普通sprite上；它们只准用于horizontal直接sprite叶子。白绿字按完整Stage跟随真实边缘，字号/标签使用既有横排自然尺寸，不随挡板高度或opacity缩小。`lift.offset`才是已应用判定线几何，`lift.value`只是单位；上下挡板在完整CoverContainer里线性取各自单位，不能误以为LIFT会缩短其父矩形。作者结构/Python检查不能代替实际codec与Player，诊断来源取[游玩复核](../../doc_md/other/OMNI_GAMEPLAY_CONTROLS_20261025.md)。
+
+C4的Stage Provide会继续匹配Group/Lane；`instances.material`精确匹配resource不等于只匹配一份原Stage。把原Stage Suppress替成读数Provide后，若不保留后代截断，7K一舞台会展开Stage+Group+8 lanes共10份，14K共20份；visible门不减准备储备。仅需舞台的自定义装饰应在相应Group显式Suppress，保持原后代不继承的结果。实际C3拒绝025须看runtime预留分项，不能按root声明数、CLI Select或单舞台猜DP；原例textGlyphs9073/14321，根因与修正见上述游玩复核，不靠增加8192上限通过。
+
 RGB亮度不能写到容器的ContentDrawable.Colour后再期望作者色还在：container/mask的Content与Transform可能同一对象。独立倍率复用既有RootDrawable，作者颜色与显隐保持在内层。普通与specialised构造均须初始化elapsed轨迹默认值，否则无Start的专用池节点会缺恢复表；回归保留旧rotation轨迹以区分新属性问题，语法取[作者参考](../../skin-authoring/docs/REFERENCE.md#节点目标和属性)。
 
 `visible`和`opacity`都写Transform.Alpha，同一节点不能同时承担OFF开关与原判定/准备淡出。需要两者相乘时用独立父子门，保留原grade选择和生命周期；改RGB倍率也不能把这个相互覆盖问题当作已经解决。

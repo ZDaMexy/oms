@@ -63,6 +63,14 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestHiddenOnlyReportsItsOwnWhiteNumber()
+        {
+            var metrics = BmsScrollSpeedMetrics.FromRuntime(BmsHiSpeedMode.Normal, 10, 1, hiddenUnits: 125);
+            Assert.That(metrics.WhiteNumber, Is.EqualTo(125));
+            Assert.That(metrics.GreenNumber, Is.EqualTo(404));
+        }
+
+        [Test]
         public void TestFloatingHiSpeedUsesInitialBeatLengthScale()
         {
             double baseTimeRange = BmsHiSpeedRuntimeCalculator.ComputeBaseTimeRange(BmsHiSpeedMode.Floating, 2.5, 500, 250, 1);

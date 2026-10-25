@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-25（进度、文档与诊断记忆专项复核；产品/生产证据仍沿原日期）
+> 最后核对：2026-10-26（Omni游玩Start与输入增量；其余产品/生产证据沿原日期）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -8,6 +8,8 @@
 OMS处于Phase 1.x后段，原生 BMS 与转谱游玩已完成热路径优化。静线是 BMS/mania 唯一内置、默认与保底，皮肤按模式和键数选择；固定目录刷新和原组件编辑器可保存独立副本。星轨已退役，静线外观打磨仍暂停。整体画面、真实设备与长期体验尚未签收，Skin V1 与 release 未完成。下载、BGA 作者能力和剩余门见 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)，性能与听感见 [P1-J](../subline/P1-J/DEVELOPMENT_STATUS.md)。
 
 Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，具名证据取[P1-A修复记录](../subline/P1-A/CHANGELOG.md#2026-10-22autoplay跳转与omni反馈修复)；正常窗口剩余门由其STATUS维护，先前重进或开场测试不代签。
+
+Omni游玩Start、挡板/LIFT白绿字、甩盘和SUB TARGET已接通，旧BMS调整透明浮窗移除；当前包、原版实测、软件/真实画面与待验范围取[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)及[专项记录](../other/OMNI_GAMEPLAY_CONTROLS_20261025.md)。共享皮肤只读原生状态，输入增量归[P1-B](../subline/P1-B/DEVELOPMENT_STATUS.md)，未改变统一阶段或发行门。
 
 ## 产品与仓库基线
 
@@ -48,6 +50,8 @@ Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，具
 皮肤安全与失败回退取 [P1-A 合同](../subline/P1-A/TECHNICAL_CONSTRAINTS.md)：无游玩中 reload / watcher，external 只读，授权撤销不扩大准入，C6 完成不代签 C7 / 人工门；异常归档只能定点取证。局部自动结果不证明完整选择链、视觉、硬件或特殊 Gimmick。
 
 ## 最近一次验证
+
+2026-10-26：本次BMS完整3050通过/19跳过、mania完整995通过/2跳过、Core皮肤/HUD1371通过/3跳过，以及最终同包12组原生Player通过。实际构建、失败复跑和原版/作者目录范围集中取[游玩Start记录](../other/OMNI_GAMEPLAY_CONTROLS_20261025.md#本轮验证)；正常窗口、完整真实歌曲和实体设备仍待验收。
 
 2026-10-24完整BMS补验关闭10月22日内存中止的回归缺口；Core皮肤、mania与Debug/Release同期通过，准确范围及旧告警取[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)。Omni持续组件与原版参照边界取[专项记录](../other/OMNI_OPENINGS_20261021.md#2026-10-24持续组件与原版参照复核)，不新增正常窗口、硬件或发行签收；原生最终配方从零重编仍待。
 

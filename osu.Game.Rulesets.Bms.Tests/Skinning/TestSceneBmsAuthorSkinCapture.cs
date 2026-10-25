@@ -82,6 +82,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             bool captureNoteGeometry = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_NOTE_GEOMETRY") == "1";
             bool captureFeedback = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_FEEDBACK") == "1";
             bool captureStartOptions = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_START_OPTIONS") == "1";
+            bool captureGameplayControls = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_GAMEPLAY_CONTROLS") == "1";
             double completionOrigin = 0;
             double completionSeekTime = 0;
             double completionDuration = 0;
@@ -134,7 +135,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     BmsLongNoteMode.HCN => [autoplay, new BmsModHellChargeNote()],
                     _ => throw new InvalidOperationException("The author capture long-note mode is invalid."),
                 };
-                Game.SelectedMods.Value = configureStartOptions(selectedMods);
+                Game.SelectedMods.Value = configureStartOptions(captureGameplayControls
+                    ? selectedMods.Where(mod => mod is not BmsModAutoplay).ToArray()
+                    : selectedMods);
                 DismissAnyNotifications();
             });
             AddStep("select the author package as the actual BMS mode preference", () =>
@@ -148,7 +151,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
             // Large author packages approach the framework UntilStep's fixed ten-second limit.
             // Keep the update thread processing the real asynchronous publication before the final bounded wait.
-            AddWaitStep("allow the large author selection its separate preparation budget", 200);
+            AddWaitStep("allow the large author selection its separate preparation budget", 600);
             AddUntilStep("wait for the exact imported skin selection", () =>
             {
                 if (selection?.IsCompleted != true)
@@ -174,7 +177,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 }));
                 return true;
             });
-            AddStep("enter the real replay player", () =>
+            AddStep("enter the real player", () =>
             {
                 var preferences = Game.Dependencies.Get<SkinOptionPreferences>();
                 preferences.SetOverride(import!.GetAwaiter().GetResult().ID, "bms", "layout", style == BmsPlayfieldStyle.P2 ? "p2" : "p1");
@@ -182,7 +185,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     foreach (var choice in System.Text.Json.JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, string>>(overrides)!)
                         preferences.SetOverride(import.GetAwaiter().GetResult().ID, "bms", choice.Key, choice.Value);
                 var ruleset = new BmsRuleset();
-                Game.ScreenStack.Push(new PlayerLoader(() => player = new ReplayPlayer(ruleset.GetAutoplayMod()!.CreateScoreFromReplayData)));
+                // ReplayPlayer has its own transport controls and does not own normal BMS Start gestures.
+                Game.ScreenStack.Push(new PlayerLoader(() => player = captureGameplayControls
+                    ? new BmsSoloPlayer()
+                    : new ReplayPlayer(ruleset.GetAutoplayMod()!.CreateScoreFromReplayData)));
             });
             AddUntilStep("wait for the committed author scene in Player", () =>
             {
@@ -230,6 +236,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     {
                         GameplaySkinOptionDefinition definition = skins.CurrentSkin.Value.PreparedGameplaySkinPackage!.Manifest!.Options.Single(option => option.Id == requested.Key);
                         Assert.That(definition.TryValidateValue(requested.Value, out GameplaySkinOptionValue expected), Is.True, requested.Key);
+                        GameplaySkinLayoutContext context = owner.CurrentPublication.Snapshot.Context;
+                        if (!definition.AppliesTo(context.RulesetId, context.KeymodeId))
+                        {
+                            Assert.That(publishedOptions.Values.ContainsKey(requested.Key), Is.False, "An out-of-scope saved value must not become the applied presentation.");
+                            continue;
+                        }
                         Assert.That(publishedOptions.TryGetValue(requested.Key, out GameplaySkinOptionValue actual), Is.True, requested.Key);
                         Assert.That(actual.CanonicalValue, Is.EqualTo(expected.CanonicalValue), requested.Key);
                     }
@@ -277,6 +289,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 addOpeningCaptureSteps();
             else if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_LIGHTING_DETAILS") == "1")
                 addLightingDetailsCaptureSteps();
+            else if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_GAMEPLAY_CONTROLS") == "1")
+                addGameplayControlsCaptureSteps();
 
             if (captureBurst)
             {
@@ -376,10 +390,17 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 AddStep("resume the remaining transparent completion tail", () => gameplayClock.Start());
                 AddUntilStep("the real Player leaves for results after the bounded outro", () => !ReferenceEquals(Game.ScreenStack.CurrentScreen, player));
             }
-            AddAssert("autoplay produced real EX score and judgements", () => score.TotalScore.Value > 0 && score.HighestCombo.Value > 0);
+            AddAssert(captureGameplayControls ? "normal lane input produced real EX score and judgements" : "autoplay produced real EX score and judgements",
+                () => score.TotalScore.Value > 0 && score.HighestCombo.Value > 0);
             AddAssert("the author scene survived complete playback", () => renderer.GameplaySkinSceneRuntime!.RuntimeFaults.Count == 0);
             if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_START_OPTIONS") == "1")
                 AddStep("verify requested brightness reached every live material", assertRgbEvidenceCoverage);
+            if (captureGameplayControls)
+                AddStep("restore observed host activity", () =>
+                {
+                    captureHostActivity.Value = captureObservedHostActivity;
+                    captureHostActivity.UnbindAll();
+                });
         }
 
         private void captureHitPhase()

@@ -33,6 +33,10 @@ namespace osu.Game.Skinning.Gameplay
         {
             switch (source)
             {
+                case GameplaySkinSceneBindingSource.ScrollAvailable: value = timingState.AdjustmentState.IsAvailable; return true;
+                case GameplaySkinSceneBindingSource.ScrollAdjusting: value = timingState.AdjustmentState.Adjusting; return true;
+                case GameplaySkinSceneBindingSource.CoverSuddenActive: value = timingState.AdjustmentState.SuddenActive; return true;
+                case GameplaySkinSceneBindingSource.CoverHiddenActive: value = timingState.AdjustmentState.HiddenActive; return true;
                 case GameplaySkinSceneBindingSource.TimingStartAvailable: value = timingState.StartTime.HasValue; return true;
                 case GameplaySkinSceneBindingSource.PreparationAvailable: value = timingState.Preparation.Available; return true;
                 case GameplaySkinSceneBindingSource.PreparationActive: value = timingState.Preparation.Active; return true;
@@ -47,6 +51,7 @@ namespace osu.Game.Skinning.Gameplay
                 case GameplaySkinSceneBindingSource.OffsetAvailable: value = scoreState.OffsetState.IsAvailable; return true;
                 case GameplaySkinSceneBindingSource.OffsetAutomatic: value = scoreState.OffsetState.Automatic; return true;
                 case GameplaySkinSceneBindingSource.ScorePersonalBestAvailable: value = chartPresentation?.PersonalBestScore.HasValue == true; return true;
+                case GameplaySkinSceneBindingSource.ScoreMaximumAvailable: value = scoreState.MaximumScore > 0; return true;
                 case GameplaySkinSceneBindingSource.ScoreRankAvailable: value = rankAvailable; return true;
                 default: value = false; return false;
             }
@@ -56,6 +61,9 @@ namespace osu.Game.Skinning.Gameplay
         {
             switch (source)
             {
+                case GameplaySkinSceneBindingSource.ScrollGreenNumber: value = timingState.AdjustmentState.GreenNumber; return true;
+                case GameplaySkinSceneBindingSource.CoverSuddenUnits: value = timingState.AdjustmentState.SuddenUnits; return true;
+                case GameplaySkinSceneBindingSource.CoverHiddenUnits: value = timingState.AdjustmentState.HiddenUnits; return true;
                 case GameplaySkinSceneBindingSource.TimingTime: value = sceneGameplayTime; return true;
                 case GameplaySkinSceneBindingSource.PreparationElapsed: value = timingState.Preparation.Elapsed; return true;
                 case GameplaySkinSceneBindingSource.PreparationRemaining: value = timingState.Preparation.Remaining; return true;
@@ -94,6 +102,16 @@ namespace osu.Game.Skinning.Gameplay
 
         private double trackClock(GameplaySkinPreparedSceneTrack track, GameplaySkinSceneRuntimeNode node)
             => presentationClock(track.ClockSource, track.ClockOptionId, node);
+
+        private static string adjustmentModeId(GameplaySkinHiSpeedMode mode)
+            => mode switch
+            {
+                GameplaySkinHiSpeedMode.Unspecified => "unavailable",
+                GameplaySkinHiSpeedMode.Normal => "normal",
+                GameplaySkinHiSpeedMode.Floating => "floating",
+                GameplaySkinHiSpeedMode.Classic => "classic",
+                _ => throw new ArgumentOutOfRangeException(nameof(mode)),
+            };
 
         private double presentationClock(GameplaySkinSceneBindingSource source, string? optionId, GameplaySkinSceneRuntimeNode node)
         {

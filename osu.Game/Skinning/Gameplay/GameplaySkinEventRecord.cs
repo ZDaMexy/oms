@@ -180,8 +180,10 @@ namespace osu.Game.Skinning.Gameplay
             long offsetBits = ((long)scalar2 << 32) | (uint)scalar1;
             var lift = new GameplaySkinLiftState((scalar0 & 2) != 0, BitConverter.Int64BitsToDouble(integral1),
                 BitConverter.Int64BitsToDouble(offsetBits), (scalar0 & 4) != 0);
+            var adjustment = new GameplaySkinAdjustmentState((scalar0 & 8) != 0, (scalar0 & 16) != 0,
+                (GameplaySkinHiSpeedMode)((scalar0 >> 7) & 3), statistics.Perfect, rect.X, rect.Y, (scalar0 & 32) != 0, (scalar0 & 64) != 0);
             return new GameplaySkinTimingStateSnapshot(number0, integral0, number1, (scalar0 & 1) != 0, number2, number3, number4, lift, timingStartTime,
-                preparation, arrivalCueFadeStartTime);
+                preparation, arrivalCueFadeStartTime, adjustment);
         }
 
         internal GameplaySkinBgaStateSnapshot GetBga()
@@ -439,7 +441,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinEventPayload? materialized)
         {
             _ = new GameplaySkinTimingStateSnapshot(state.Beat, state.BarIndex, state.Bpm, state.IsStopped, state.ScrollMultiplier, state.Progress, state.ScrollSpeed,
-                state.LiftState, state.StartTime, state.Preparation, state.ArrivalCueFadeStartTime);
+                state.LiftState, state.StartTime, state.Preparation, state.ArrivalCueFadeStartTime, state.AdjustmentState);
 
             if (eventKind is not GameplaySkinEventKind.TimingBeat
                 and not GameplaySkinEventKind.TimingBar
@@ -454,6 +456,9 @@ namespace osu.Game.Skinning.Gameplay
                 throw new ArgumentException("Timing stop event kind must match the complete timing state.", nameof(eventKind));
 
             long offsetBits = BitConverter.DoubleToInt64Bits(state.LiftState.OffsetRatio);
+            GameplaySkinAdjustmentState adjustment = state.AdjustmentState;
+            // Timing reuses the score/rectangle union storage, retaining native float cover units and the
+            // integral green number without adding fields to this value union or allocating a payload.
             return new GameplaySkinEventValue(
                 GameplaySkinEventPayloadFamily.Timing,
                 GameplaySkinEventDeliveryKind.Edge,
@@ -461,14 +466,19 @@ namespace osu.Game.Skinning.Gameplay
                 materialized,
                 integral0: state.BarIndex,
                 integral1: BitConverter.DoubleToInt64Bits(state.LiftState.Units),
-                scalar0: (state.IsStopped ? 1 : 0) | (state.LiftState.IsAvailable ? 2 : 0) | (state.LiftState.Reversed ? 4 : 0),
+                scalar0: (state.IsStopped ? 1 : 0) | (state.LiftState.IsAvailable ? 2 : 0) | (state.LiftState.Reversed ? 4 : 0)
+                         | (adjustment.IsAvailable ? 8 : 0) | (adjustment.Adjusting ? 16 : 0)
+                         | (adjustment.SuddenActive ? 32 : 0) | (adjustment.HiddenActive ? 64 : 0) | ((int)adjustment.Mode << 7),
                 scalar1: unchecked((int)offsetBits),
                 scalar2: unchecked((int)(offsetBits >> 32)),
                 number0: state.Beat,
                 number1: state.Bpm,
                 number2: state.ScrollMultiplier,
                 number3: state.Progress,
-                number4: state.ScrollSpeed, timingStartTime: state.StartTime, preparation: state.Preparation, arrivalCueFadeStartTime: state.ArrivalCueFadeStartTime);
+                number4: state.ScrollSpeed,
+                rect: GameplaySkinLayoutRect.Create(adjustment.SuddenUnits, adjustment.HiddenUnits, 1, 1),
+                statistics: new GameplaySkinJudgementStatistics(adjustment.GreenNumber, 0, 0, 0, 0, 0, 0),
+                timingStartTime: state.StartTime, preparation: state.Preparation, arrivalCueFadeStartTime: state.ArrivalCueFadeStartTime);
         }
 
         private static GameplaySkinEventValue bgaValue(
@@ -589,7 +599,8 @@ namespace osu.Game.Skinning.Gameplay
                 authoritativeTiming.LiftState,
                 authoritativeTiming.StartTime,
                 authoritativeTiming.Preparation,
-                authoritativeTiming.ArrivalCueFadeStartTime);
+                authoritativeTiming.ArrivalCueFadeStartTime,
+                authoritativeTiming.AdjustmentState);
 
             if (laneId != null && groupId == null)
                 throw new ArgumentException("A lane-targeted gameplay skin event must also carry its stable group ID.", nameof(groupId));

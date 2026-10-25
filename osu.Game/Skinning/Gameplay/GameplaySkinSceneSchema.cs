@@ -520,6 +520,15 @@ namespace osu.Game.Skinning.Gameplay
         ArrivalFirstRow = 84,
         ArrivalCueOpacity = 85,
         PresentationElapsed = 86,
+        ScrollAvailable = 87,
+        ScrollAdjusting = 88,
+        ScrollMode = 89,
+        ScrollGreenNumber = 90,
+        CoverSuddenUnits = 91,
+        CoverHiddenUnits = 92,
+        CoverSuddenActive = 93,
+        CoverHiddenActive = 94,
+        LayoutPresentation = 95,
     }
 
     public enum GameplaySkinSceneEvent
@@ -886,8 +895,8 @@ namespace osu.Game.Skinning.Gameplay
     }
 
     /// <summary>
-    /// One typed enum-key to resource or boolean mapping. Resources are resolved during preparation; visibility
-    /// remains a typed boolean through the same bounded variant program.
+    /// One typed enum-key mapping. Resources resolve during preparation; visibility and horizontal geometry retain
+    /// their validated boolean or numeric values through the same bounded variant program.
     /// </summary>
     public sealed class GameplaySkinSceneVariantCase
     {
@@ -915,7 +924,7 @@ namespace osu.Game.Skinning.Gameplay
     }
 
     /// <summary>
-    /// A closed resource or visibility variant driven only by one read-only engine enum source.
+    /// A closed resource, visibility or horizontal-geometry variant driven only by one read-only engine enum source.
     /// </summary>
     public sealed class GameplaySkinSceneVariant
     {
@@ -1057,6 +1066,7 @@ namespace osu.Game.Skinning.Gameplay
         {
             _ when id.StartsWith("option.", StringComparison.Ordinal) => GameplaySkinSceneBindingSource.Option,
             "layout.ruleset" => GameplaySkinSceneBindingSource.LayoutRuleset,
+            "layout.presentation" => GameplaySkinSceneBindingSource.LayoutPresentation,
             "layout.stage" => GameplaySkinSceneBindingSource.LayoutStage,
             "layout.group" => GameplaySkinSceneBindingSource.LayoutGroup,
             "layout.lane" => GameplaySkinSceneBindingSource.LayoutLane,
@@ -1113,6 +1123,14 @@ namespace osu.Game.Skinning.Gameplay
             "lift.offset" => GameplaySkinSceneBindingSource.LiftOffset,
             "lift.reversed" => GameplaySkinSceneBindingSource.LiftReversed,
             "lift.available" => GameplaySkinSceneBindingSource.LiftAvailable,
+            "scroll.available" => GameplaySkinSceneBindingSource.ScrollAvailable,
+            "scroll.adjusting" => GameplaySkinSceneBindingSource.ScrollAdjusting,
+            "scroll.mode" => GameplaySkinSceneBindingSource.ScrollMode,
+            "scroll.green-number" => GameplaySkinSceneBindingSource.ScrollGreenNumber,
+            "cover.sudden-units" => GameplaySkinSceneBindingSource.CoverSuddenUnits,
+            "cover.hidden-units" => GameplaySkinSceneBindingSource.CoverHiddenUnits,
+            "cover.sudden-active" => GameplaySkinSceneBindingSource.CoverSuddenActive,
+            "cover.hidden-active" => GameplaySkinSceneBindingSource.CoverHiddenActive,
             "score.accuracy" => GameplaySkinSceneBindingSource.ScoreAccuracy,
             "combo.value" => GameplaySkinSceneBindingSource.ComboValue,
             "combo.maximum" => GameplaySkinSceneBindingSource.ComboMaximum,

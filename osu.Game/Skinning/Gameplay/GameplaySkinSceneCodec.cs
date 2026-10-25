@@ -53,9 +53,11 @@ namespace osu.Game.Skinning.Gameplay
         {
             "preparation.available", "preparation.active", "preparation.elapsed", "preparation.remaining", "preparation.ready", "preparation.ready-elapsed", "arrival.first-row", "arrival.cue-opacity",
             "timing.time", "timing.elapsed", "presentation.elapsed", "timing.start-available", "timing.beat-phase", "arrival.available", "arrival.time", "arrival.remaining", "arrival.visible", "input.motion-counts-1", "input.motion-counts-2", "input.motion-revolutions-1", "input.motion-revolutions-2", "input.motion-available-1", "input.motion-available-2", "judgement.count.fast", "judgement.count.slow", "offset.value", "offset.available", "offset.automatic", "score.personal-best", "score.personal-best-progress", "score.personal-best-available", "score.rank-aaa", "score.rank-aa", "score.rank-a", "score.rank-aaa-progress", "score.rank-aa-progress", "score.rank-a-progress", "score.rank-available",
-            "layout.ruleset", "layout.stage", "layout.group", "layout.lane", "input.pressed", "gameplay.full-combo", "object.state", "judgement.result", "judgement.offset",
+            "layout.ruleset", "layout.presentation", "layout.stage", "layout.group", "layout.lane", "input.pressed", "gameplay.full-combo", "object.state", "judgement.result", "judgement.offset",
             "score.value", "score.accuracy", "combo.value", "combo.maximum", "gauge.value", "timing.beat", "timing.measure", "timing.bpm", "timing.progress", "bga.content-state",
             "score.maximum", "score.progress", "score.maximum-available", "lift.value", "lift.offset", "lift.reversed", "lift.available",
+            "scroll.available", "scroll.adjusting", "scroll.mode", "scroll.green-number", "cover.sudden-units", "cover.hidden-units",
+            "cover.sudden-active", "cover.hidden-active",
             "song.table-classification", "song.title", "song.artist", "song.difficulty", "song.level", "timing.bpm-min", "timing.bpm-max", "scroll.speed", "judgement.count.perfect", "judgement.count.great", "judgement.count.good", "judgement.count.ok", "judgement.count.meh", "judgement.count.miss", "combo.breaks",
             "object.long-note-mode", "object.long-note-appearance", "gauge.type", "gauge.maximum", "gauge.clear-threshold", "gauge.clear-state",
         };
@@ -63,6 +65,15 @@ namespace osu.Game.Skinning.Gameplay
         private static readonly IReadOnlyDictionary<string, HashSet<string>> variant_source_keys =
             new Dictionary<string, HashSet<string>>(StringComparer.Ordinal)
             {
+                ["scroll.available"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
+                ["scroll.adjusting"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
+                ["scroll.mode"] = new(new[] { "unavailable", "normal", "floating", "classic" }, StringComparer.Ordinal),
+                ["cover.sudden-active"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
+                ["cover.hidden-active"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
+                ["lift.reversed"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
+                ["score.maximum-available"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
+                ["score.personal-best-available"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
+                ["score.rank-available"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
                 ["preparation.available"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
                 ["preparation.active"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
                 ["preparation.ready"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
@@ -697,7 +708,8 @@ namespace osu.Game.Skinning.Gameplay
                     or GameplaySkinSceneBindingSource.JudgementCountMiss or GameplaySkinSceneBindingSource.ComboBreaks
                     or GameplaySkinSceneBindingSource.ScoreMaximum or GameplaySkinSceneBindingSource.JudgementCountFast
                     or GameplaySkinSceneBindingSource.JudgementCountSlow or GameplaySkinSceneBindingSource.ScorePersonalBest
-                    or GameplaySkinSceneBindingSource.ScoreRankAaa or GameplaySkinSceneBindingSource.ScoreRankAa or GameplaySkinSceneBindingSource.ScoreRankA;
+                    or GameplaySkinSceneBindingSource.ScoreRankAaa or GameplaySkinSceneBindingSource.ScoreRankAa or GameplaySkinSceneBindingSource.ScoreRankA
+                    or GameplaySkinSceneBindingSource.ScrollGreenNumber;
 
             static IEnumerable<GameplaySkinSceneNode> enumerate(GameplaySkinSceneNode node)
             {
@@ -1383,23 +1395,27 @@ namespace osu.Game.Skinning.Gameplay
                 string? source = getString(variantObject, "source", context);
                 bool isResource = property == "resource";
                 bool isVisibility = property == "visible";
+                bool isGeometryNumber = property is "x" or "width";
                 bool groupIdentitySource = source == "layout.group";
-                GameplaySkinScenePropertyValue? defaultValue = parseVariantValue(variantObject, "default", isResource, context);
+                bool presentationIdentitySource = source == "layout.presentation";
+                bool openIdentitySource = groupIdentitySource || presentationIdentitySource;
+                GameplaySkinScenePropertyValue? defaultValue = parseVariantValue(variantObject, "default", property, context);
 
                 if (target != null
                     && (!context.NodeTypes.TryGetValue(target, out GameplaySkinSceneNodeType nodeType)
                         || (isResource ? nodeType != GameplaySkinSceneNodeType.Sprite
+                            : isGeometryNumber ? !isAllowedNodeProperty(nodeType, property!)
                             : nodeType is not (GameplaySkinSceneNodeType.Container or GameplaySkinSceneNodeType.Text or GameplaySkinSceneNodeType.Sprite))))
                 {
                     context.Add(GameplaySkinSceneDiagnosticCode.InvalidReference);
                 }
 
-                if (!isResource && !isVisibility)
+                if (!isResource && !isVisibility && !isGeometryNumber)
                     context.Add(GameplaySkinSceneDiagnosticCode.UnknownProperty);
 
                 HashSet<string>? allowedKeys = null;
 
-                if (!groupIdentitySource && (source == null || !tryGetVariantKeys(source, context.Manifest, out allowedKeys)))
+                if (!openIdentitySource && (source == null || !tryGetVariantKeys(source, context.Manifest, out allowedKeys)))
                     context.Add(GameplaySkinSceneDiagnosticCode.UnknownBindingSource);
 
                 var cases = new List<GameplaySkinSceneVariantCase>();
@@ -1434,9 +1450,14 @@ namespace osu.Game.Skinning.Gameplay
                             context.Add(GameplaySkinSceneDiagnosticCode.DuplicateStableId);
 
                         string? key = groupIdentitySource ? getStableId(caseObject, "key", context) : getString(caseObject, "key", context);
-                        GameplaySkinScenePropertyValue? value = parseVariantValue(caseObject, valueField, isResource, context);
+                        if (presentationIdentitySource && key != null && !GameplaySkinLayoutContext.IsValidToken(key))
+                        {
+                            context.Add(GameplaySkinSceneDiagnosticCode.InvalidPropertyValue);
+                            key = null;
+                        }
+                        GameplaySkinScenePropertyValue? value = parseVariantValue(caseObject, valueField, property, context);
 
-                        if (key != null && !groupIdentitySource && (allowedKeys == null || !allowedKeys.Contains(key)))
+                        if (key != null && !openIdentitySource && (allowedKeys == null || !allowedKeys.Contains(key)))
                             context.Add(GameplaySkinSceneDiagnosticCode.InvalidPropertyValue);
 
                         if (key != null && !keys.Add(key))
@@ -1447,8 +1468,8 @@ namespace osu.Game.Skinning.Gameplay
                     }
                 }
 
-                if (id != null && target != null && (isResource || isVisibility) && source != null
-                    && (groupIdentitySource || allowedKeys != null) && defaultValue != null)
+                if (id != null && target != null && (isResource || isVisibility || isGeometryNumber) && source != null
+                    && (openIdentitySource || allowedKeys != null) && defaultValue != null)
                 {
                     variants.Add(new GameplaySkinSceneVariant(id, target, GameplaySkinSceneVocabulary.ParseProperty(property!), source, defaultValue, cases));
                 }
@@ -1457,9 +1478,9 @@ namespace osu.Game.Skinning.Gameplay
             return variants;
         }
 
-        private static GameplaySkinScenePropertyValue? parseVariantValue(JObject value, string field, bool isResource, DecodeContext context)
+        private static GameplaySkinScenePropertyValue? parseVariantValue(JObject value, string field, string? property, DecodeContext context)
         {
-            if (isResource)
+            if (property == "resource")
             {
                 string? resource = getStableId(value, field, context);
                 if (resource == null)
@@ -1467,6 +1488,16 @@ namespace osu.Game.Skinning.Gameplay
                 if (!isKnownResource(resource, context.Manifest))
                     context.Add(GameplaySkinSceneDiagnosticCode.UnknownResource);
                 return GameplaySkinScenePropertyValue.FromString(resource);
+            }
+
+            if (property is "x" or "width")
+            {
+                if (!value.TryGetValue(field, out JToken? token))
+                {
+                    context.Add(GameplaySkinSceneDiagnosticCode.MissingField);
+                    return null;
+                }
+                return parsePropertyValue(property, token, context);
             }
 
             bool? visible = getBoolean(value, field, context);
@@ -1897,11 +1928,13 @@ namespace osu.Game.Skinning.Gameplay
                 or "preparation.elapsed" or "preparation.remaining" or "preparation.ready-elapsed" or "arrival.cue-opacity"
                 or "judgement.offset" or "score.value" or "score.accuracy" or "combo.value" or "combo.maximum" or "gauge.value" or "gauge.maximum" or "gauge.clear-threshold"
                 or "score.maximum" or "score.progress" or "lift.value" or "lift.offset"
+                or "scroll.green-number" or "cover.sudden-units" or "cover.hidden-units"
                 or "timing.beat" or "timing.measure" or "timing.bpm" or "timing.progress"
                 or "timing.bpm-min" or "timing.bpm-max" or "scroll.speed" or "judgement.count.perfect" or "judgement.count.great" or "judgement.count.good" or "judgement.count.ok" or "judgement.count.meh" or "judgement.count.miss" or "combo.breaks";
             bool sourceIsBoolean = source is "timing.start-available" or "arrival.available" or "arrival.visible" or "input.motion-available-1" or "input.motion-available-2" or "offset.available" or "offset.automatic" or "score.personal-best-available" or "score.rank-available"
                 or "preparation.available" or "preparation.active" or "preparation.ready" or "arrival.first-row"
-                or "input.pressed" or "gameplay.full-combo" or "score.maximum-available" or "lift.reversed" or "lift.available";
+                or "input.pressed" or "gameplay.full-combo" or "score.maximum-available" or "lift.reversed" or "lift.available"
+                or "scroll.available" or "scroll.adjusting" or "cover.sudden-active" or "cover.hidden-active";
             return sourceIsNumber && number_properties.Contains(property)
                    || sourceIsBoolean && boolean_properties.Contains(property);
         }

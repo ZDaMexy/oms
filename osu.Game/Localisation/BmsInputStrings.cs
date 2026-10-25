@@ -9,14 +9,14 @@ namespace osu.Game.Localisation
         private const string prefix = @"osu.Game.Localisation.BmsInput";
 
         /// <summary>
-        /// "Cycle scroll adjustment target"
+        /// "EFFECT / adjustment target (Start + EFFECT: Hi-Speed mode)"
         /// </summary>
-        public static LocalisableString CycleScrollAdjustmentTarget => new TranslatableString(getKey(@"cycle_scroll_adjustment_target"), @"Cycle scroll adjustment target");
+        public static LocalisableString CycleScrollAdjustmentTarget => new TranslatableString(getKey(@"cycle_scroll_adjustment_target"), @"EFFECT / adjustment target (Start + EFFECT: Hi-Speed mode)");
 
         /// <summary>
-        /// "阻止谱面开始/ingame start"
+        /// "Start (hold: speed / ready hold; double tap: covers)"
         /// </summary>
-        public static LocalisableString PreStartHold => new TranslatableString(getKey(@"pre_start_hold"), @"阻止谱面开始/ingame start");
+        public static LocalisableString PreStartHold => new TranslatableString(getKey(@"pre_start_hold"), @"Start (hold: speed / ready hold; double tap: covers)");
 
         private static string getKey(string key) => $@"{prefix}:{key}";
     }

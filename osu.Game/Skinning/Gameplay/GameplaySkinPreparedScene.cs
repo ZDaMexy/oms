@@ -780,6 +780,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBindingSource.LayoutGroup => GameplaySkinSceneStateFamily.Layout,
             GameplaySkinSceneBindingSource.LayoutLane => GameplaySkinSceneStateFamily.Layout,
             GameplaySkinSceneBindingSource.LayoutRuleset => GameplaySkinSceneStateFamily.Layout,
+            GameplaySkinSceneBindingSource.LayoutPresentation => GameplaySkinSceneStateFamily.Layout,
             GameplaySkinSceneBindingSource.Option => GameplaySkinSceneStateFamily.Layout,
             GameplaySkinSceneBindingSource.InputPressed => GameplaySkinSceneStateFamily.Input,
             GameplaySkinSceneBindingSource.ObjectState => GameplaySkinSceneStateFamily.Object,
@@ -811,6 +812,10 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBindingSource.TimingBpmMinimum => GameplaySkinSceneStateFamily.Layout,
             GameplaySkinSceneBindingSource.TimingBpmMaximum => GameplaySkinSceneStateFamily.Layout,
             GameplaySkinSceneBindingSource.ScrollSpeed => GameplaySkinSceneStateFamily.Timing,
+            GameplaySkinSceneBindingSource.ScrollAvailable or GameplaySkinSceneBindingSource.ScrollAdjusting
+                or GameplaySkinSceneBindingSource.ScrollMode or GameplaySkinSceneBindingSource.ScrollGreenNumber
+                or GameplaySkinSceneBindingSource.CoverSuddenUnits or GameplaySkinSceneBindingSource.CoverHiddenUnits
+                or GameplaySkinSceneBindingSource.CoverSuddenActive or GameplaySkinSceneBindingSource.CoverHiddenActive => GameplaySkinSceneStateFamily.Timing,
             GameplaySkinSceneBindingSource.JudgementCountPerfect => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.JudgementCountGreat => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.JudgementCountGood => GameplaySkinSceneStateFamily.Score,
@@ -1156,7 +1161,15 @@ namespace osu.Game.Skinning.Gameplay
                     || reservedTextGlyphPixels > GameplaySkinPreparedSceneBudgets.MAX_RUNTIME_TEXT_GLYPH_PIXELS
                     || checked(reservedTextGlyphPixels * 4) > GameplaySkinPreparedSceneBudgets.MAX_RUNTIME_TEXT_GLYPH_BYTES)
                 {
-                    throw fail(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
+                    GameplaySkinScenePreparationException error = fail(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
+                    error.Data["preparedNodes"] = preparedNodeCount;
+                    error.Data["runtimeInstances"] = preparedVisuals;
+                    error.Data["recordedTriangles"] = reservation.RecordedTriangles;
+                    error.Data["runtimeEffects"] = preparedEffectCount;
+                    error.Data["effectSurfacePixels"] = preparedEffectSurfacePixels;
+                    error.Data["textGlyphs"] = reservedTextGlyphs;
+                    error.Data["textGlyphPixels"] = reservedTextGlyphPixels;
+                    throw error;
                 }
 
                 PreparedNodeCount = (int)preparedNodeCount;

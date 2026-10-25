@@ -270,6 +270,9 @@ __pycache__/
 !/tools/IidxSkinAssets/README.md
 !/tools/IidxSkinAssets/reference_api.py
 !/tools/IidxSkinAssets/build_skin.py
+!/tools/IidxSkinAssets/build_lighting_gameplay_controls.py
+!/tools/IidxSkinAssets/lighting_gameplay_controls.py
+!/tools/IidxSkinAssets/test_lighting_gameplay_controls.py
 /build/tools/**
 /build/temp/**
 

@@ -15,9 +15,12 @@ namespace osu.Game.Rulesets.Bms
 {
     public partial class BmsSoloPlayer : SoloPlayer
     {
-        private const double hold_speed_toast_refresh_interval = 200;
+        private const double short_start_press_duration = 250;
+        private const double double_start_press_interval = 350;
 
         protected virtual double PreStartDelay => 5000;
+
+        protected virtual double AdjustmentGestureTime => Time.Current;
 
         protected virtual ScheduledDelegate SchedulePreStartDelay(Action onElapsed) => Scheduler.AddDelayed(onElapsed, PreStartDelay);
 
@@ -29,10 +32,12 @@ namespace osu.Game.Rulesets.Bms
         private BmsInputManager? gameplayInputManager;
         private BmsPreStartHiSpeedOverlay? hiSpeedOverlay;
         private ScheduledDelegate? startDelayDelegate;
-        private ScheduledDelegate? holdSpeedToastRefreshDelegate;
         private bool startDelayElapsed;
         private bool gameplayStartPending;
         private bool suppressClockPausedHandler;
+        private double startPressedAt = double.NaN;
+        private double lastShortStartRelease = double.NegativeInfinity;
+        private bool startGestureUsed;
 
         protected BmsPreStartHiSpeedOverlay? PreStartHiSpeedOverlay => hiSpeedOverlay;
 
@@ -46,7 +51,12 @@ namespace osu.Game.Rulesets.Bms
             gameplayClockPaused.BindTarget = GameplayClockContainer.IsPaused;
             gameplayClockPaused.BindValueChanged(_ => handleGameplayClockPausedState(), true);
             pauseOverlayVisibility.BindTarget = PauseOverlay.State;
-            pauseOverlayVisibility.BindValueChanged(_ => updatePreStartSpeedPreviewState(), true);
+            pauseOverlayVisibility.BindValueChanged(e =>
+            {
+                if (e.NewValue == Visibility.Visible)
+                    resetAdjustmentGesture();
+                updatePreStartSpeedPreviewState();
+            }, true);
 
             if (DrawableRuleset is not DrawableBmsRuleset bmsRuleset || bmsRuleset.GameplayInputManager is not BmsInputManager inputManager)
                 return;
@@ -55,10 +65,18 @@ namespace osu.Game.Rulesets.Bms
             gameplayInputManager = inputManager;
 
             hiSpeedHoldPressed.BindTarget = inputManager.PreStartHoldPressed;
-            hiSpeedHoldPressed.BindValueChanged(state => updatePreStartAdjustmentState(
-                resetDelayOnPress: state.NewValue && !state.OldValue,
-                resetDelayOnReleaseAfterElapsed: state.OldValue && !state.NewValue), true);
+            hiSpeedHoldPressed.BindValueChanged(state =>
+            {
+                drawableBmsRuleset.SetAdjustmentHeld(state.NewValue);
+                if (state.NewValue)
+                    updatePreStartAdjustmentState(resetDelayOnPress: !state.OldValue);
+                handleStartGesture(state.NewValue);
+                if (!state.NewValue)
+                    updatePreStartAdjustmentState(resetDelayOnReleaseAfterElapsed: state.OldValue);
+            }, true);
             inputManager.Router.ActionPressed += handleGameplayActionPressed;
+            inputManager.AdjustmentMotion += handleScratchAdjustment;
+            inputManager.AdjustmentInputReset += resetAdjustmentGesture;
 
             drawableBmsRuleset.Overlays.Add(hiSpeedOverlay = new BmsPreStartHiSpeedOverlay(
                 drawableBmsRuleset.Variant,
@@ -107,17 +125,20 @@ namespace osu.Game.Rulesets.Bms
         {
             startDelayDelegate?.Cancel();
             startDelayDelegate = null;
-            holdSpeedToastRefreshDelegate?.Cancel();
-            holdSpeedToastRefreshDelegate = null;
             gameplayStartPending = false;
 
             if (gameplayInputManager != null)
+            {
                 gameplayInputManager.Router.ActionPressed -= handleGameplayActionPressed;
+                gameplayInputManager.AdjustmentMotion -= handleScratchAdjustment;
+                gameplayInputManager.AdjustmentInputReset -= resetAdjustmentGesture;
+            }
 
             gameplayClockPaused.UnbindAll();
             hiSpeedHoldPressed.UnbindAll();
             pauseOverlayVisibility.UnbindAll();
             drawableBmsRuleset?.SetAllowAdjustmentWhilePaused(false);
+            drawableBmsRuleset?.SetAdjustmentHeld(false);
             drawableBmsRuleset?.SetPreStartSpeedPreviewState(false);
             return base.OnExiting(e);
         }
@@ -126,6 +147,12 @@ namespace osu.Game.Rulesets.Bms
         {
             if (drawableBmsRuleset == null || hiSpeedOverlay == null)
                 return;
+
+            if (hiSpeedHoldPressed.Value && action != OmsAction.UI_PreStartHold)
+            {
+                startGestureUsed = true;
+                lastShortStartRelease = double.NegativeInfinity;
+            }
 
             if (!OmsBmsActionMap.TryMapToBmsAction(drawableBmsRuleset.Variant, action, out var bmsAction))
                 return;
@@ -158,8 +185,6 @@ namespace osu.Game.Rulesets.Bms
 
             updatePreStartSpeedPreviewState();
 
-            updateHoldSpeedToastState();
-
             if (!adjustmentActive)
             {
                 if (!HasGameplaySkinPreparation && resetDelayOnReleaseAfterElapsed && gameplayStartPending && startDelayElapsed)
@@ -185,31 +210,49 @@ namespace osu.Game.Rulesets.Bms
             return drawableBmsRuleset.AdjustSelectedHiSpeed(direction);
         }
 
-        private void updateHoldSpeedToastState()
+        private void handleScratchAdjustment(OmsAxisMotion motion)
         {
-            holdSpeedToastRefreshDelegate?.Cancel();
-            holdSpeedToastRefreshDelegate = null;
-
             if (drawableBmsRuleset == null || !hiSpeedHoldPressed.Value)
                 return;
 
-            drawableBmsRuleset.DisplaySpeedMetricsToast();
-            scheduleHoldSpeedToastRefresh();
+            startGestureUsed = true;
+            lastShortStartRelease = double.NegativeInfinity;
+            drawableBmsRuleset.AdjustFromScratch(motion);
         }
 
-        private void scheduleHoldSpeedToastRefresh()
+        private void handleStartGesture(bool pressed)
         {
-            holdSpeedToastRefreshDelegate = Scheduler.AddDelayed(() =>
+            double now = AdjustmentGestureTime;
+            if (pressed)
             {
-                if (drawableBmsRuleset == null || !hiSpeedHoldPressed.Value)
+                startPressedAt = now;
+                startGestureUsed = false;
+                if (now >= lastShortStartRelease && now - lastShortStartRelease <= double_start_press_interval)
                 {
-                    holdSpeedToastRefreshDelegate = null;
-                    return;
+                    drawableBmsRuleset?.ToggleGameplayLaneCovers();
+                    startGestureUsed = true;
+                    lastShortStartRelease = double.NegativeInfinity;
                 }
+                return;
+            }
 
-                drawableBmsRuleset.DisplaySpeedMetricsToast();
-                scheduleHoldSpeedToastRefresh();
-            }, hold_speed_toast_refresh_interval);
+            bool shortPress = !startGestureUsed && now >= startPressedAt && now - startPressedAt <= short_start_press_duration;
+            startPressedAt = double.NaN;
+            if (!shortPress)
+            {
+                lastShortStartRelease = double.NegativeInfinity;
+                return;
+            }
+
+            lastShortStartRelease = now;
+        }
+
+        private void resetAdjustmentGesture()
+        {
+            startPressedAt = double.NaN;
+            lastShortStartRelease = double.NegativeInfinity;
+            startGestureUsed = true;
+            drawableBmsRuleset?.SetAdjustmentHeld(false);
         }
 
         private void restartPreStartDelay()

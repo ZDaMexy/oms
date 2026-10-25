@@ -27,7 +27,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public double VisibleLaneTime { get; }
 
-        public int WhiteNumber => SuddenUnits;
+        public int WhiteNumber => SuddenUnits > 0 ? SuddenUnits : HiddenUnits;
 
         public int GreenNumber { get; }
 

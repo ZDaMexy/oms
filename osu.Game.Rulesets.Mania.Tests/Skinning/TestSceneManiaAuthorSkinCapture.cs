@@ -115,7 +115,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     (await skins.SelectSkinForScopeAsync(new SkinSelectionScope("mania"), selected).ConfigureAwait(false), watch.Elapsed.TotalMilliseconds);
             });
             // The real package preparation has its own budget outside the framework's ten-second UntilStep.
-            AddWaitStep("allow the large author selection its separate preparation budget", 200);
+            AddWaitStep("allow the large author selection its separate preparation budget", 600);
             AddUntilStep("wait for coherent selection", () =>
             {
                 if (selection?.IsCompleted != true)
@@ -148,6 +148,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 GameplaySkinOptionDefinition[] definitions = null!;
                 var changedNumbers = new Dictionary<string, string>();
                 string graphValue = null!;
+                bool verifySubTarget = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_GAMEPLAY_CONTROLS") == "1";
                 AddStep("open the complete skin configuration", () =>
                 {
                     Game.Dependencies.Get<SkinManager>().SelectionPreferences!.SetSkin(new SkinSelectionScope("mania"), import!.GetAwaiter().GetResult().ID);
@@ -193,12 +194,20 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                         changedNumbers.Add(definition.Id, requested.CanonicalValue);
                         control.Current.Value = requested.NumberValue;
                     }
+                    if (verifySubTarget)
+                    {
+                        GameplaySkinOptionDefinition definition = definitions.Single(item => item.Id == "graph-sub-target");
+                        var control = controls.ChildrenOfType<FormDropdown<string>>().Single(dropdown => dropdown.Caption.ToString() == definition.Label);
+                        Assert.That(control.Current.Value, Is.EqualTo("none"));
+                        control.Current.Value = "aaa";
+                    }
                 });
                 AddUntilStep("save the independent typed values for this package and mode", () =>
                 {
                     var saved = Game.Dependencies.Get<SkinOptionPreferences>().GetOverrides(import!.GetAwaiter().GetResult().ID, "mania");
-                    return saved.Count == 4 + changedNumbers.Count && saved["frame"] == "bpl-tradz" && saved["notes"] == "n03"
+                    return saved.Count == 4 + changedNumbers.Count + (verifySubTarget ? 1 : 0) && saved["frame"] == "bpl-tradz" && saved["notes"] == "n03"
                         && saved["explosion-scale"] == "1.25" && saved["graph-visible"] == graphValue
+                        && (!verifySubTarget || saved.TryGetValue("graph-sub-target", out string? subTarget) && subTarget == "aaa")
                         && changedNumbers.All(pair => saved.TryGetValue(pair.Key, out string? actual) && actual == pair.Value);
                 });
                 AddUntilStep("rebuild controls with the saved size", () =>
@@ -207,6 +216,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                         .Single(slider => slider.Caption.ToString() == "爆炸缩放");
                     SkinOptionsSettings controls = settings.ChildrenOfType<SkinOptionsSettings>().Single();
                     return !ReferenceEquals(originalScale, rebuilt) && rebuilt.Current.Value == 1.25
+                        && (!verifySubTarget || controls.ChildrenOfType<FormDropdown<string>>()
+                            .Single(dropdown => dropdown.Caption.ToString() == definitions.Single(item => item.Id == "graph-sub-target").Label).Current.Value == "aaa")
                         && changedNumbers.All(pair => Math.Abs(controls.ChildrenOfType<FormSliderBar<double>>()
                             .Single(slider => slider.Caption.ToString() == definitions.Single(definition => definition.Id == pair.Key).Label).Current.Value
                             - double.Parse(pair.Value, System.Globalization.CultureInfo.InvariantCulture)) < 0.000001);
@@ -222,6 +233,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 {
                     SkinOptionsSettings controls = settings.ChildrenOfType<SkinOptionsSettings>().Single();
                     return hasDeclaredSettingsControls(controls, definitions)
+                        && (!verifySubTarget || controls.ChildrenOfType<FormDropdown<string>>()
+                            .Single(dropdown => dropdown.Caption.ToString() == definitions.Single(item => item.Id == "graph-sub-target").Label).Current.Value == "none")
                         && definitions.Where(definition => changedNumbers.ContainsKey(definition.Id)).All(definition =>
                             Math.Abs(controls.ChildrenOfType<FormSliderBar<double>>().Single(slider => slider.Caption.ToString() == definition.Label).Current.Value
                                 - double.Parse(definition.DefaultValue, System.Globalization.CultureInfo.InvariantCulture)) < 0.000001);
@@ -239,6 +252,11 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                         restored = settings.ChildrenOfType<SkinOptionsSettings>().Single().ChildrenOfType<FormSliderBar<double>>()
                             .Single(slider => slider.Caption.ToString() == definition.Label).Current.Value,
                     }))));
+                if (verifySubTarget)
+                {
+                    AddStep("record the real sub-target control persistence and reset", () => File.WriteAllText(Path.Combine(output, "settings-sub-target.json"),
+                        JsonSerializer.Serialize(new { option = "graph-sub-target", initial = "none", savedAndRebuilt = "aaa", restored = "none" })));
+                }
                 AddStep("close the configuration and propagate capture failures", () => { capture!.GetAwaiter().GetResult(); settings.Hide(); });
             }
             if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_SETTINGS") == "1")
@@ -326,6 +344,12 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                         GameplaySkinOptionDefinition definition = Game.Dependencies.Get<SkinManager>().CurrentSkin.Value
                             .PreparedGameplaySkinPackage!.Manifest!.Options.Single(option => option.Id == requested.Key);
                         Assert.That(definition.TryValidateValue(requested.Value, out GameplaySkinOptionValue expected), Is.True, requested.Key);
+                        GameplaySkinLayoutContext context = owner.CurrentPublication.Snapshot.Context;
+                        if (!definition.AppliesTo(context.RulesetId, context.KeymodeId))
+                        {
+                            Assert.That(publishedOptions.Values.ContainsKey(requested.Key), Is.False, "An out-of-scope saved value must not become the applied presentation.");
+                            continue;
+                        }
                         Assert.That(publishedOptions.TryGetValue(requested.Key, out GameplaySkinOptionValue actual), Is.True, requested.Key);
                         Assert.That(actual.CanonicalValue, Is.EqualTo(expected.CanonicalValue), requested.Key);
                     }

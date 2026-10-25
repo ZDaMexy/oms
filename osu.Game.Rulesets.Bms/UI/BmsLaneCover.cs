@@ -27,6 +27,8 @@ namespace osu.Game.Rulesets.Bms.UI
     {
         public readonly BindableFloat CoverPercent = new BindableFloat();
 
+        public readonly BindableBool CoverEnabled = new BindableBool(true);
+
         public readonly BindableFloat CoverOpacity = new BindableFloat(1000)
         {
             MinValue = 0,
@@ -96,6 +98,7 @@ namespace osu.Game.Rulesets.Bms.UI
             };
 
             CoverPercent.BindValueChanged(_ => updateCoverage(), true);
+            CoverEnabled.BindValueChanged(_ => updateCoverage(), true);
             CoverOpacity.BindValueChanged(_ => updateOpacity(), true);
             IsFocused.BindValueChanged(_ => updateFocusState(), true);
         }
@@ -167,7 +170,8 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             float coverage = Math.Clamp(CoverPercent.Value / 1000f, 0, 1);
 
-            cover.Height = coverage;
+            cover.Height = CoverEnabled.Value ? coverage : 0;
+            cover.Alpha = CoverEnabled.Value ? 1 : 0;
 
             updateFocusState();
         }
@@ -182,7 +186,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private void updateFocusState()
         {
-            bool showFocus = CoverPercent.Value > 0 && IsFocused.Value;
+            bool showFocus = CoverEnabled.Value && CoverPercent.Value > 0 && IsFocused.Value;
 
             if (display.CurrentDisplay is IBmsLaneCoverDisplay laneCoverDisplay)
                 laneCoverDisplay.SetFocused(showFocus);

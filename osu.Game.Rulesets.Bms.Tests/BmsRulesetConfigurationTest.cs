@@ -60,14 +60,14 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestCreatesSupplementalBindingsKeyBindingSection()
             => Assert.That(new BmsRuleset().CreateKeyBindingSections().Single(), Is.TypeOf<BmsSupplementalBindingSettingsSection>());
 
-        [TestCase(6, BmsAction.Key1, 1)]
-        [TestCase(6, BmsAction.Key2, -1)]
-        [TestCase(8, BmsAction.Key7, 1)]
-        [TestCase(8, BmsAction.Key6, -1)]
+        [TestCase(6, BmsAction.Key1, -1)]
+        [TestCase(6, BmsAction.Key2, 1)]
+        [TestCase(8, BmsAction.Key7, -1)]
+        [TestCase(8, BmsAction.Key6, 1)]
         [TestCase(9, BmsAction.Key9, 1)]
         [TestCase(9, BmsAction.Key8, -1)]
-        [TestCase(16, BmsAction.Key8, 1)]
-        [TestCase(16, BmsAction.Key9, -1)]
+        [TestCase(16, BmsAction.Key8, -1)]
+        [TestCase(16, BmsAction.Key9, 1)]
         [TestCase(16, BmsAction.Scratch1, 0)]
         public void TestHiSpeedAdjustmentDirectionMapping(int variant, BmsAction action, int expectedDirection)
             => Assert.That(action.GetHiSpeedAdjustmentDirection(variant), Is.EqualTo(expectedDirection));

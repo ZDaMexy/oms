@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-25（移出已闭合CLI问题；原版校准与人工门保持）
+> 最后核对：2026-10-26（游玩Start、挡板与SUB TARGET接续；原版校准与人工门保持）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -11,7 +11,7 @@
 
 2026-10-18 用户授权从 1st style 到 33 Sparkle Shower 的历代作品制作，先利用现有 33 HDD 的实际资源；需要时允许补齐 OMS 代码能力。该授权是新增第三方作品线，不恢复静线打磨或 complex，不重计既有 C1～C7 campaign；本线使用现有公开作者链，实际不足由第一个作品组件驱动补齐。来源保全与后续界面边界只取[素材作品约束](TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)。
 
-以[设置复核](../../other/OMNI_START_OPTIONS_20261024.md)为输入，在用户正常VS Code窗口导入`.v26102402`，复核LIFT默认000及紧邻Lane Cover、亮度、判定高度/显示、目标图表和既有开场/持续组件；尚未载入Start设置支持的旧客户端先重编/重启。BMS/mania默认Graph/JUDGE、预告同退、慢载入和[10月22日修复](CHANGELOG.md#2026-10-22autoplay跳转与omni反馈修复)沿原范围观察。Ghost/rotate、FAST/SLOW类型/分开显示、部分Gauge语义和原十键精度只在取得新可靠证据后推进；不从菜单或美术数量外推等价，FHS/dan/binding flip保持冻结。模式/键数显式值保持或逐层恢复，交付按`.vyymmddxx.osk`逐日递增且不覆盖。软件/隔离Player不代签前台性能、原机或设备；保持Reset、epoch单调及真人PG早晚。
+以[游玩Start复核](../../other/OMNI_GAMEPLAY_CONTROLS_20261025.md)及[先前设置复核](../../other/OMNI_START_OPTIONS_20261024.md)为输入，在用户正常VS Code窗口重编/重启后导入STATUS所列最新包，复核Start长按/双击、Start与EFFECT组合、上下挡板/LIFT白绿字、甩盘方向和备用目标；亮度、判定高度/显示、LIFT000及既有开场/持续组件继续观察。Ghost/rotate、FAST/SLOW类型/分开显示、部分Gauge语义和原十键精度只在取得可靠新证据后推进。用户此次明确解除Start/挡板/甩盘所需的Floating冻结；原机20档倍率整表、完整soflan等价、dan/binding flip仍不外推。模式/键数显式值保持或逐层恢复，交付按`.vyymmddxx.osk`逐日递增且不覆盖。软件/隔离Player不代签前台性能、原机或设备；保持Reset、epoch单调及真人PG早晚。
 
 1. 使用[本地素材工具](../../../tools/IidxSkinAssets/README.md)保留来源、原始纹理、有效裁切、动画关联和可搜索预览；逐代核对所需组件，区分共用素材变体、明确代际框体与未确认归属。
 2. 26来源待用户下载并提供路径，届时先核游玩SP/DP框体、几何、动画及默认绑定，再按26→1逐代向前。版本标识不能代替整代来源，不要求预先下载全套；27～33及BPL已有结果从STATUS读取，不重复登记为待开发。

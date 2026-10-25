@@ -2278,6 +2278,9 @@ namespace osu.Game.Skinning.Gameplay
             return source switch
             {
                 GameplaySkinSceneBindingSource.LayoutRuleset => Publication.Snapshot.Context.RulesetId,
+                GameplaySkinSceneBindingSource.LayoutPresentation => Publication.Snapshot.Context.PresentationStyleId,
+                GameplaySkinSceneBindingSource.ScrollMode => adjustmentModeId(timingState.AdjustmentState.Mode),
+                GameplaySkinSceneBindingSource.LiftReversed => timingState.LiftState.Reversed ? "true" : "false",
                 GameplaySkinSceneBindingSource.LayoutGroup => groupId?.Value ?? string.Empty,
                 GameplaySkinSceneBindingSource.OffsetAutomatic => scoreState.OffsetState.Automatic ? "true" : "false",
                 GameplaySkinSceneBindingSource.ObjectState => objectStateId(obj?.State ?? GameplaySkinObjectState.Scheduled),
@@ -2426,8 +2429,16 @@ namespace osu.Game.Skinning.Gameplay
 
             switch (binding.Source)
             {
+                case GameplaySkinSceneBindingSource.ScrollMode:
+                    applyRuntimeStringProperty(target, binding.Property, adjustmentModeId(timingState.AdjustmentState.Mode));
+                    return;
+
                 case GameplaySkinSceneBindingSource.LayoutRuleset:
                     applyRuntimeStringProperty(target, binding.Property, Publication.Snapshot.Context.RulesetId);
+                    return;
+
+                case GameplaySkinSceneBindingSource.LayoutPresentation:
+                    applyRuntimeStringProperty(target, binding.Property, Publication.Snapshot.Context.PresentationStyleId);
                     return;
 
                 case GameplaySkinSceneBindingSource.Option:
@@ -3318,7 +3329,9 @@ namespace osu.Game.Skinning.Gameplay
                && first.IsStopped == second.IsStopped
                && first.ScrollMultiplier.Equals(second.ScrollMultiplier)
                && first.Progress.Equals(second.Progress)
+               && first.ScrollSpeed.Equals(second.ScrollSpeed)
                && first.LiftState.Equals(second.LiftState)
+               && first.AdjustmentState.Equals(second.AdjustmentState)
                && first.StartTime == second.StartTime
                && first.Preparation == second.Preparation
                && first.ArrivalCueFadeStartTime == second.ArrivalCueFadeStartTime;

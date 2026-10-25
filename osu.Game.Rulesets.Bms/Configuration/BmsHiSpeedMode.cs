@@ -40,7 +40,7 @@ namespace osu.Game.Rulesets.Bms.Configuration
             => mode switch
             {
                 BmsHiSpeedMode.Normal => 1,
-                BmsHiSpeedMode.Floating => 0.25,
+                BmsHiSpeedMode.Floating => 0.5,
                 BmsHiSpeedMode.Classic => 0.25,
                 _ => 1,
             };
