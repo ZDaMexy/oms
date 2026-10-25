@@ -13,7 +13,7 @@ Omni游玩Start、挡板/LIFT白绿字、甩盘和SUB TARGET已接通，旧BMS�
 
 ## 产品与仓库基线
 
-依赖安全修复已入树，10月24日完整BMS补验通过；具体版本、正规许可、告警和适用验证从[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)进入。原生最终配方从零重编与发行输出仍分别待验。
+依赖安全修复已入树；当前构建/回归、具体版本、正规许可和旧索引告警从[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)进入。原生最终配方从零重编与发行输出仍分别待验。
 
 游玩判定/结果及性能取[10月19日深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)；设备入口、输入时间、轴用途、长皿与校准接续取[10月21日输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)。前台帧时间与实体设备仍待验收。
 
