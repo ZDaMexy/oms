@@ -731,7 +731,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 hitObject.StartTime,
                 hitObject.GetEndTime(),
                 getGameplaySkinObjectProgress(hitObject),
-                getGameplaySkinLongNoteMode(hitObject));
+                getGameplaySkinLongNoteMode(hitObject),
+                getGameplaySkinObjectAutoAssist(hitObject));
         }
 
         private void synchroniseExistingGameplaySkinObjectUsages()
@@ -771,7 +772,8 @@ namespace osu.Game.Rulesets.Bms.UI
                     hitObject.StartTime,
                     hitObject.GetEndTime(),
                     0,
-                    getGameplaySkinLongNoteMode(hitObject));
+                    getGameplaySkinLongNoteMode(hitObject),
+                    getGameplaySkinObjectAutoAssist(hitObject));
 
                 // A seek can briefly leave the retiring and rebuilt pooled drawables for one logical hit object in
                 // the engine-owned usage graph together. They intentionally retain the same stable object ID; the
@@ -864,7 +866,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 hitObject.StartTime,
                 hitObject.GetEndTime(),
                 1,
-                getGameplaySkinLongNoteMode(hitObject));
+                getGameplaySkinLongNoteMode(hitObject),
+                getGameplaySkinObjectAutoAssist(hitObject));
 
             GameplaySkinEventRuntime!.PublishObject(
                 objectId,
@@ -876,7 +879,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 hitObject.StartTime,
                 hitObject.GetEndTime(),
                 1,
-                getGameplaySkinLongNoteMode(hitObject));
+                getGameplaySkinLongNoteMode(hitObject),
+                getGameplaySkinObjectAutoAssist(hitObject));
         }
 
         private void onGameplaySkinJudgement(JudgementResult result)
@@ -922,7 +926,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 // real body-state update uses the same clock progress; reporting one here would manufacture a
                 // backwards object update and reset every skin consumer's otherwise valid performance history.
                 getGameplaySkinObjectProgress(identityOwner),
-                getGameplaySkinLongNoteMode(identityOwner));
+                getGameplaySkinLongNoteMode(identityOwner),
+                getGameplaySkinObjectAutoAssist(identityOwner));
         }
 
         private bool tryGetGameplaySkinObjectTarget(
@@ -1009,6 +1014,11 @@ namespace osu.Game.Rulesets.Bms.UI
                 }
                 : GameplaySkinLongNoteMode.None;
 
+        private static GameplaySkinObjectAutoAssist getGameplaySkinObjectAutoAssist(HitObject hitObject)
+            => hitObject is BmsHitObject { AutoPlay: true, CountsForScore: false } note
+                ? note.IsScratch ? GameplaySkinObjectAutoAssist.Scratch : GameplaySkinObjectAutoAssist.Note
+                : GameplaySkinObjectAutoAssist.None;
+
         private void registerGameplaySkinObjectIdentityTree(HitObject hitObject, HitObject identityOwner)
         {
             if (gameplaySkinObjectIdentityOwners.TryGetValue(hitObject, out HitObject? existingOwner))
@@ -1069,7 +1079,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 hitObject.StartTime,
                 hitObject.GetEndTime(),
                 getGameplaySkinObjectProgress(hitObject),
-                getGameplaySkinLongNoteMode(hitObject));
+                getGameplaySkinLongNoteMode(hitObject),
+                getGameplaySkinObjectAutoAssist(hitObject));
         }
 
         private double getGameplaySkinObjectProgress(HitObject hitObject)

@@ -41,6 +41,7 @@ Legacy raw index、source-bound frame/width 与 borrow 地雷见 [[reference_gam
 - 原红线已在其它作者层绘制时，必需 `playfield.judgement-line` 槽仍不能写 `Suppress`，否则CLI报 `OMS-SKIN-CODEC-016`；用显式透明材质Provide替换原生重复线，保持原槽合同和实际红线消费者。字体预算计算全部声明，不只当前布局使用的字体；SP/DP相同字形和度量应复用，限额只取[作者参考](../../skin-authoring/docs/REFERENCE.md#用自己的图片字形显示数字)，不在记忆复制旧数值。作品合同见[P1-A素材边界](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)。
 - Snapshot/Reset 与运行事件来自 engine-owned bounded stream；engine 可发 GameplayResumed，scene ABI 不接受 gameplay.resume，因为 Snapshot 重建 Running。CLR envelope 构造能力不等于 scene author ABI。
 - scene/slot 故障只隔离其自身表现，不能获得判定、input、score、clock、BGA 内容 authority。
+- 将原material的sprite包进新container时，slot只能留在唯一owner；normal/AUTO等后代必须继承，不能复制原sprite的slot。静态codec通过也不证明C3实际prepare可用：嵌套owner会在`prepareNode`明确报`OMS-SKIN-SCENE-021`，即使该分支当前不可见。先按真实owner/layer数据流递归检查整棵模板，不应放宽prepare保护或用后续超时掩盖首个错误。原图/UV/variant保全和唯一owner是两条独立验收。
 - 新 beatmap-local public authoring 不在已开放面；真实 WorkingBeatmap.Skin 仍可惰性返回同一只读 LegacyBeatmapSkin direct compatibility。没有 sidecar/producer/revision authoring ownership 时，测试注入不能当用户能力。
 - 被 resolved material 取代的旧 lane-colour/bucket snapshot factory 不应恢复。Create(BmsLaneLayout,...)、raw requirement overload、PublishForTesting 等 isolated seam 不计产品进度；是否已有 sandbox/通用 authorization 只看 P1-A 当前门。
 

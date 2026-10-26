@@ -56,12 +56,12 @@ namespace osu.Game.Skinning.Gameplay
             "score.pacemaker-next", "score.pacemaker-next-progress", "score.pacemaker-next-label", "score.pacemaker-next-available",
             "judgement.timing-direction", "judgement.keys-timing-direction", "judgement.scratch-timing-direction",
             "layout.ruleset", "layout.presentation", "layout.stage", "layout.group", "layout.lane", "input.pressed", "gameplay.full-combo", "object.state", "judgement.result", "judgement.offset",
-            "score.value", "score.accuracy", "combo.value", "combo.maximum", "gauge.value", "timing.beat", "timing.measure", "timing.bpm", "timing.progress", "bga.content-state",
+            "score.value", "score.accuracy", "combo.value", "combo.active", "combo.maximum", "gauge.value", "timing.beat", "timing.measure", "timing.bpm", "timing.progress", "bga.content-state",
             "score.maximum", "score.progress", "score.maximum-available", "lift.value", "lift.offset", "lift.reversed", "lift.available",
             "scroll.available", "scroll.adjusting", "scroll.mode", "scroll.green-number", "cover.sudden-units", "cover.hidden-units",
             "cover.sudden-active", "cover.hidden-active",
             "song.table-classification", "song.title", "song.artist", "song.difficulty", "song.level", "timing.bpm-min", "timing.bpm-max", "scroll.speed", "judgement.count.perfect", "judgement.count.great", "judgement.count.good", "judgement.count.ok", "judgement.count.meh", "judgement.count.miss", "combo.breaks",
-            "object.long-note-mode", "object.long-note-appearance", "gauge.type", "gauge.maximum", "gauge.clear-threshold", "gauge.clear-state",
+            "object.long-note-mode", "object.long-note-appearance", "object.auto-assist", "gauge.type", "gauge.maximum", "gauge.clear-threshold", "gauge.clear-state",
         };
 
         private static readonly IReadOnlyDictionary<string, HashSet<string>> variant_source_keys =
@@ -85,12 +85,16 @@ namespace osu.Game.Skinning.Gameplay
                 ["preparation.ready"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
                 ["arrival.first-row"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
                 ["offset.automatic"] = new HashSet<string>(new[] { "true", "false" }, StringComparer.Ordinal),
+                ["combo.active"] = new HashSet<string>(new[] { "true", "false" }, StringComparer.Ordinal),
                 ["layout.ruleset"] = new HashSet<string>(new[] { "bms", "mania" }, StringComparer.Ordinal),
                 ["object.state"] = new HashSet<string>(
                     new[] { "scheduled", "visible", "holding", "hit", "missed", "completed", "despawned" },
                     StringComparer.Ordinal),
                 ["object.long-note-mode"] = new HashSet<string>(
                     new[] { "none", "ln", "cn", "hcn" },
+                    StringComparer.Ordinal),
+                ["object.auto-assist"] = new HashSet<string>(
+                    new[] { "none", "scratch", "note" },
                     StringComparer.Ordinal),
                 ["object.long-note-appearance"] = new HashSet<string>(
                     new[] { "none", "ln", "ln-holding", "ln-released", "cn", "cn-holding", "cn-released", "hcn", "hcn-holding", "hcn-released" },
@@ -1402,9 +1406,9 @@ namespace osu.Game.Skinning.Gameplay
                 string? source = getString(variantObject, "source", context);
                 bool isResource = property == "resource";
                 bool isVisibility = property == "visible";
-                bool isGeometryNumber = property is "x" or "width";
                 bool groupIdentitySource = source == "layout.group";
                 bool presentationIdentitySource = source == "layout.presentation";
+                bool isGeometryNumber = property is "x" or "width" || property == "y" && presentationIdentitySource;
                 bool openIdentitySource = groupIdentitySource || presentationIdentitySource;
                 GameplaySkinScenePropertyValue? defaultValue = parseVariantValue(variantObject, "default", property, context);
 
@@ -1497,7 +1501,7 @@ namespace osu.Game.Skinning.Gameplay
                 return GameplaySkinScenePropertyValue.FromString(resource);
             }
 
-            if (property is "x" or "width")
+            if (property is "x" or "y" or "width")
             {
                 if (!value.TryGetValue(field, out JToken? token))
                 {
@@ -1942,7 +1946,7 @@ namespace osu.Game.Skinning.Gameplay
             bool sourceIsBoolean = source is "timing.start-available" or "arrival.available" or "arrival.visible" or "input.motion-available-1" or "input.motion-available-2" or "offset.available" or "offset.automatic" or "score.personal-best-available" or "score.rank-available"
                 or "score.pacemaker-next-available"
                 or "preparation.available" or "preparation.active" or "preparation.ready" or "arrival.first-row"
-                or "input.pressed" or "gameplay.full-combo" or "score.maximum-available" or "lift.reversed" or "lift.available"
+                or "input.pressed" or "gameplay.full-combo" or "combo.active" or "score.maximum-available" or "lift.reversed" or "lift.available"
                 or "scroll.available" or "scroll.adjusting" or "cover.sudden-active" or "cover.hidden-active";
             return sourceIsNumber && number_properties.Contains(property)
                    || sourceIsBoolean && boolean_properties.Contains(property);

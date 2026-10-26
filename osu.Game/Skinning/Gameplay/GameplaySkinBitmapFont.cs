@@ -13,9 +13,9 @@ namespace osu.Game.Skinning.Gameplay
     /// <summary>Fixed limits for author-provided numeric glyphs, independent of the system font atlas.</summary>
     public static class GameplaySkinBitmapFontBudgets
     {
-        // Frame (6), judgement (2), lift readout (1) and live judgement counters (1)
+        // Frame (6), judgement palettes (4), lift readout (1) and live judgement counters (1)
         // have distinct original glyph metrics. This cap still bounds all selected fonts.
-        public const int MAX_FONTS = 10;
+        public const int MAX_FONTS = 12;
         public const int MAX_GLYPHS_PER_FONT = 16;
         public const int MAX_TEXT_CHARACTERS = 64;
         public const int MAX_GLYPH_DIMENSION = 512;

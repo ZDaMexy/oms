@@ -84,7 +84,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             bool captureStartOptions = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_START_OPTIONS") == "1";
             bool captureGameplayControls = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_GAMEPLAY_CONTROLS") == "1";
             bool captureJudgementTiming = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_JUDGEMENT_TIMING") == "1";
-            bool normalPlayer = captureGameplayControls || captureJudgementTiming;
+            bool captureComboStates = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_COMBO_STATES") == "1";
+            autoAssistCaptureMode = readAutoAssistCaptureMode();
+            bool captureAutoAssist = autoAssistCaptureMode != null;
+            bool normalPlayer = captureGameplayControls || captureJudgementTiming || captureAutoAssist || captureComboStates;
             double completionOrigin = 0;
             double completionSeekTime = 0;
             double completionDuration = 0;
@@ -106,6 +109,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                                               || Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_OPENING") == "1"
                                               || Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_LIGHTING_DETAILS") == "1"))
                     throw new InvalidOperationException("The judgement timing capture has its own normal-input sequence; run it separately from the other capture modes.");
+                if (captureAutoAssist && (captureBurst || captureFullCombo || captureNoteGeometry || captureFeedback || captureStartOptions || captureGameplayControls || captureJudgementTiming
+                                         || Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_OPENING") == "1"
+                                         || Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_LIGHTING_DETAILS") == "1"))
+                    throw new InvalidOperationException("The AUTO SCRATCH capture has its own normal Player and chart; run it separately from the other capture modes.");
+                if (captureComboStates && (captureBurst || captureFullCombo || captureNoteGeometry || captureFeedback || captureStartOptions || captureGameplayControls || captureJudgementTiming || captureAutoAssist
+                                          || Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_OPENING") == "1"
+                                          || Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_LIGHTING_DETAILS") == "1"))
+                    throw new InvalidOperationException("The COMBO capture has its own normal Player and sparse chart; run it separately from the other capture modes.");
                 doublePlay = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_KEYMODE") == "14K";
                 fiveKey = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_KEYMODE") == "5K";
                 longNoteMode = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_LONG_NOTE_MODE") switch
@@ -132,7 +143,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             {
                 var ruleset = new BmsRuleset();
                 Game.Ruleset.Value = ruleset.RulesetInfo;
-                Game.Beatmap.Value = CreateWorkingBeatmap(createChart(ruleset, doublePlay, fiveKey));
+                Game.Beatmap.Value = CreateWorkingBeatmap(captureComboStates
+                    ? createComboStatesChart(ruleset, doublePlay, fiveKey)
+                    : captureAutoAssist ? createAutoAssistChart(ruleset, doublePlay, fiveKey)
+                    : createChart(ruleset, doublePlay, fiveKey));
                 Mod autoplay = ruleset.GetAutoplayMod()!;
                 Mod[] selectedMods = longNoteMode switch
                 {
@@ -141,9 +155,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     BmsLongNoteMode.HCN => [autoplay, new BmsModHellChargeNote()],
                     _ => throw new InvalidOperationException("The author capture long-note mode is invalid."),
                 };
-                Game.SelectedMods.Value = configureStartOptions(normalPlayer
+                Mod[] playbackMods = normalPlayer
                     ? selectedMods.Where(mod => mod is not BmsModAutoplay).ToArray()
-                    : selectedMods);
+                    : selectedMods;
+                Game.SelectedMods.Value = configureStartOptions(captureAutoAssist ? configureAutoAssistCapture(playbackMods) : playbackMods);
                 DismissAnyNotifications();
             });
             AddStep("select the author package as the actual BMS mode preference", () =>
@@ -284,6 +299,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     captureHitPhase();
                     if (captureJudgementTiming)
                         sampleJudgementTimingInput();
+                    if (captureAutoAssist)
+                        sampleAutoAssistCaptureInput();
+                    if (captureComboStates)
+                        sampleComboStatesCaptureInput();
                 })
                 { AlwaysPresent = true });
                 Game.Notifications.Hide();
@@ -291,7 +310,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 freezeHitPhase = captureBurst;
             });
 
-            if (captureJudgementTiming)
+            if (captureComboStates)
+                addComboStatesCaptureSteps();
+            else if (captureAutoAssist)
+                addAutoAssistCaptureSteps();
+            else if (captureJudgementTiming)
                 addJudgementTimingCaptureSteps();
             else if (captureFeedback)
                 addFeedbackCaptureSteps();
@@ -331,7 +354,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             // At 3700ms the first hold is active and the following ordinary notes are already in their
             // real drawable lifetime. Earlier sampling can accidentally assert against an unbound pooled note.
-            foreach (double time in captureFeedback || captureJudgementTiming ? Array.Empty<double>() : new[] { 2600d, 3700d, 4200d, 6800d, 10100d })
+            foreach (double time in captureFeedback || captureJudgementTiming || captureAutoAssist || captureComboStates ? Array.Empty<double>() : new[] { 2600d, 3700d, 4200d, 6800d, 10100d })
             {
                 double captureTime = time;
                 AddUntilStep($"play naturally to {captureTime:0}ms", () =>

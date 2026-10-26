@@ -22,7 +22,7 @@ using SixLabors.ImageSharp.PixelFormats;
 namespace osu.Game.Tests.NonVisual.Skinning
 {
     [TestFixture]
-    public sealed class GameplaySkinContentCatalogTest
+    public sealed partial class GameplaySkinContentCatalogTest
     {
         [Test]
         public void TestCapsuleCatalogRetainsAllChoicesAfterMutableSourcesAndPublicCopiesChange()
@@ -407,7 +407,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
             Assert.That(package.Select(GameplaySkinOptionValues.Empty, CancellationToken.None), Is.SameAs(package));
             Assert.That(GameplaySkinSceneCodec.EncodeManifest(package.Manifest!), Is.EqualTo(fixture.RootManifest.ToString(Formatting.None)));
             Assert.That(GameplaySkinOptionBudgets.MAX_CHOICES, Is.EqualTo(32));
-            Assert.That(GameplaySkinBitmapFontBudgets.MAX_FONTS, Is.EqualTo(10));
+            Assert.That(GameplaySkinBitmapFontBudgets.MAX_FONTS, Is.EqualTo(12));
             Assert.That(GameplaySkinSceneBudgets.MAX_RESOURCES, Is.EqualTo(256));
             Assert.That(GameplaySkinSceneBudgets.MAX_SCENE_BYTES, Is.EqualTo(512 * 1024));
         }

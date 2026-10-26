@@ -1,5 +1,13 @@
 # P1-A 变动日志
 
+## 2026-10-27Omni已知素材候选闭合
+
+接入真实AUTO SCRATCH短皿及LN/CN/HCN原图，并修复池化物件在Mod先于真实物件应用时丢失Hidden/Tint的问题；完整Autoplay仍使用普通图。Graph分别显示原蓝Current、绿Personal Best和红Target，无记录不补0，PB-only不重复目标柱。lane345补齐被旧root导出截去的32个cat帧，cat与border按核对过的独立时间线循环，原机parent-loop未冒称已验。
+
+原版独立demo确认同一次PGREAT内部蓝/绿/粉完整label和COMBO配对，21种Judgement接入原RGBA；100ms每相是明确OMS作者节奏。BMS零连击与两玩法label-only改为单label居中，P1/P2/DP保留真实group起点和布局锚点。新增只读`object.auto-assist`、`combo.active`及受限`layout.presentation`的y变体；实际选中字体上限12，其他预算不变，Frame独占路径缩短且完整摘要防碰撞，INI/原图/Frame场景和539预览保全。
+
+58条挡板候选完成来源/消费者闭合，HCN gauge及红绿段只确认教学组合，不为未证实的正常游玩状态新增API。旧作者/OSK及原HDD14221份文件保全，参照副本正常退出。本轮`.v26102700`为最终v35-r3的逐字节复制；完整作者CLI13612组、同包九组正常Player、7070份ZIP/作者闭包核对通过，完整Core1434/BMS3079/mania995通过，分别3/19/2跳过，Python98项、Desktop Debug/Release与format verify通过。夹具最后修正连续时钟和IgnoreHit计数后重编取景；失败候选与旧结果不改写。身份、证据、预算及原版精确校准缺口只在[本轮记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27素材候选闭合与游玩增量)完整维护；前台、设备、完整歌曲与原发行门保持。
+
 ## 2026-10-26Omni判定提示NEXT与素材审计
 
 按未使用素材审计接入四张原FAST/SLOW图片，增加BMS专用Position A/B/C、合并/Separate Display及OFF，默认A。真实输入来源随原判定复制，单次Combined/Keys/Scratch保持精确group，完整Snapshot/背压与晚挂载保留，seek/rewind/retry清空；自动完成不补造时机，原判定/offset/计分及累计FAST/SLOW保持。A有原生SP字形参照；B/C精确几何、频道上下顺序与P2/DP镜像明示OMS适配，原版资格、PG覆盖和保留规则仍待闭合。

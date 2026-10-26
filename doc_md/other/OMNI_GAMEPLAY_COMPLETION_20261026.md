@@ -1,6 +1,6 @@
 # Omni gameplay 增量与未使用素材审计（2026-10-26）
 
-本轮基线为干净 `master@008f7a4998cd6e332f452519bd1719daed258910`，fetch后与origin一致。工作范围为客户端只读显示、独立作者包和原版参照，不涉及网络端点或正式玩家数据。当前交付与剩余门由[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)维护；此前Start、挡板、LIFT和甩盘证据仍取[原记录](OMNI_GAMEPLAY_CONTROLS_20261025.md)。
+10月26日首轮基线为干净 `master@008f7a4998cd6e332f452519bd1719daed258910`，fetch后与origin一致。工作范围为客户端只读显示、独立作者包和原版参照，不涉及网络端点或正式玩家数据。当前交付与剩余门由[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)维护；此前Start、挡板、LIFT和甩盘证据仍取[原记录](OMNI_GAMEPLAY_CONTROLS_20261025.md)。
 
 ## 本轮接入
 
@@ -66,3 +66,29 @@ FAST/SLOW使用原gameparts的四张64×22图片；Combined、Keys、Scratch沿�
 交付为独立 `Lighting Model Skin Omni Until 33.v26102601.osk`，收存在总工作区 `deliverables/skins/` 的同名版本目录，附说明、实际Player预览、SHA256及完整验证JSON。OSK为323355410字节、SHA256 `6d6a19413f5c145c91e5a47f162864415796daf4b500c64fbeeb4a4b856a6eca`；旧`.v26102600`及其作者/原包保留。先重编并重启OMS再导入，模式/键数显式设置继续优先；这不是新的Windows发行包或公开作品发布。
 
 磁盘空间不足时，将旧 `artifacts/omni-start-options-20261024/reference-captures` 的15149文件、2401203135字节完整归档到 `E:\oms-archived-validation-evidence-20261026`，逐文件SHA256复核，并用junction保留旧路径。没有删除截图、验收材料或正式玩家数据；此次归档不重试先前被拒绝的临时宿主删除，既有宿主继续保留复用。原HDD的14221份文件元数据及原件/参照各7份关键文件摘要均与本轮开始一致，旧参照配置也未变化；细节保留在仓库外 `source-before.json / source-after.json`，不把真实卡内容带入证据或交付。
+
+## 2026-10-27素材候选闭合与游玩增量
+
+接续基线为干净且与已fetch的origin一致的`master@87b4bc827aa820fc97c0d1f9349c273571d33f7b`。新证据独立保存在`E:\oms-omni-gameplay-states-20261026-r1`，不把上方v31或父候选的结果自动改记为新包。原版只启动既有E盘独立副本，未使用真实卡；本次通过官方`control.exit([0])`正常退出，原件14221份文件元数据及原件/副本关键文件摘要保持。
+
+AUTO SCRATCH接入原`notes_auto_turn`与长皿AUTO头/身/尾，依据精确真实物件的辅助角色换图，完整Autoplay仍走普通图。`notes_hcn01_long`的AUTO端点原高24、普通端点原高27，分别保留原尺寸；joint不充当body，未扩张BSS/MSS规则。实际Player另发现池在Mod应用时仍持未辅助占位物件而丢弃Hidden/Tint设置，现保留角色配置并在真实OnApply/复用时重采，普通物件恢复原Alpha/Colour。字段和恢复语义只在[作者参考](../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)维护。
+
+Graph使用原blue/green/red分别显示Current、真实Personal Best与Target；Personal Best独立于主目标，缺记录不制造0分，Personal Best only不再重复绘制PB目标柱。主/SUB/NO DATA资格保持。三柱使用90×690原PNG，显示高度689、边框94×692，固定于既有Graph区域；这些横向位置及1px缩放明确属于OMS作者适配，P2沿原-1502平移、DP保持右侧。未据文件名加入yellow/team/ROG或600帧滚动。
+
+58条挡板候选闭合为16条无GEO消费者、10条虽有GEO但未被AFP放置/导出，以及32条lane345后半cat帧。后一项原root边框128@60、同一cat child256@60，旧导出按root截掉cat33..64；新导出保持两个独立循环，并逐tick核对cat连续512tick、border128tick的原图、UV与几何。独立cat movie128@30已在嵌入时翻倍，不再二次倍速。为守原64MiB编码字节门，仅一张派生atlas使用lossless/exact WebP，整页含透明RGB逐字节一致，原PNG保留。原机游客CUSTOM仍不可用，不将来源连续性或OMS播放宣称为原机parent-loop验收。
+
+HCN gauge及红绿段只在已查来源中定位到固定教学组合`hcn_sp/dp`、`x_hcn/x_gauge`，不是可直接消费的实时正常游玩状态证据；本轮不为这些演示素材新增Gauge API，也不据此断言原机所有HCN显示已等价。该候选归为教学来源，后续若有正常游玩的具体缺失再以实际状态立项，不能按同名文件制造新功能。
+
+COMBO新原机无输入demo中，799–804图保持同一COMBO64/EX0128，实际显示pink label+red digits、blue+blue、white label（画面绿色）+green；原PNG匹配与EX局部像素一致，证明同一次PGREAT内部换色。已有正常输入图确认GOOD1仍是黄色，BAD/POOR不带0；[官方用语集](https://p.eagate.573.jp/game/bpl/bpl2021/about/term/index.html)也将PGREAT描述为彩色闪烁，但不提供33的相位表。新作者使用三套完整原RGBA配对，蓝→绿→粉各100ms、300ms循环是明确OMS作者节奏；沿原`judgement.hit`相对起点，不冒称原机精确周期或起相。yellow保留Great/Good等原规则，不当PGREAT第四相。
+
+BMS零连击改为单独居中判定；普通mania的零数规则保持。label-only独立单cell居中，消除隐藏数字仍占横排宽度的问题。P1/P2/DP共用同一模板并保留真实布局锚点，各material/实际Group仍有独立判定起点和状态；`combo.active`与`layout.presentation`的受限y变体不改计分或输入。四套COMBO字形使实际组合需要12套字体，声明上限相应为12，其余字形、图片、场景预算保持；并以Frame独占且未被INI消费的PNG短路径收敛manifest，不放宽64KiB/512KiB门。原图字节、Frame场景、全部INI、款式选值及539预览保全。
+
+最终冻结作者为`omni-full-v35-combo-states-r3`，OSK为331565626字节，SHA256 `6599e157bddd0b9765b17b71627d5c45255406da5792500c08e8cf9b3e0141ef`。完整当前CLI通过13612组代表组合及各显式分支，并非全部排列；日志为`tests/author-check-final-v35-r3.log`与同名exit回执。7070份ZIP条目CRC和逐SHA256作者闭包匹配，展开344881235字节，JSON/INI配置14969846字节，编码录制程序4855157字节单独记账；以`archive-final-v35-r3-integrity-r2.json`为准，前一份回执误把录制程序也计入配置，仅保留为诊断。选中上界manifest65530/65536、scene523788/524288、12套字体，原11类1271款及539预览保持。父v31～v34的OSK和来源摘要均未变。
+
+最终生产源码完整回归：Core非视觉Skinning1434通过/3跳过、BMS3079通过/19跳过、mania995通过/2跳过；Desktop Debug/Release与当前作者CLI构建通过。Python工具98项通过（AUTO25、Graph15、动态挡板15、COMBO17、原controls26），最终23份C#增量的format verify通过。完整回归后仅修改原生取景夹具并重新编译BMS Release，未改生产源码；准确命令、TRX与构建身份保存在本轮`tests/`，最后取景运行时身份为`current-binaries-v35-r4.json`。
+
+同一个最终OSK九组正常Player全部exit0：`native-ascr-visible-hcn-r6 / hidden-cn-r6 / untinted-ln-r6`核原图、材质、实际辅助状态及Hidden/Tint；`native-combo-p1-r4 / p2-label-only-r4 / dp-r4`核真实输入命中后的blue/green/pink和Miss零连击，DP两侧独立起点；`native-final-p2-pb-only-r3 / dp-next-fallback-r3 / mania16-r3`复查两侧、Graph缺PB/主SUB资格、双挡板/LIFT与mania隔离。COMBO按自然游戏时钟停帧，没有seek、重置或直接写入分数；barline的IgnoreHit不计作实际计分物件命中。取景显式模拟宿主活跃及软件输入，合成谱/隔离结果不代签用户正常窗口、PB持久化或实体控制器，真实PB生产链与数学边界另由现有测试覆盖。
+
+中间作者r1的slot重复、COMBO缺step easing/opacity carrier和label-only占位已在后续独立候选修正，失败作者及日志保留；取景夹具最初误把离散envelope时间当作连续consumer时间，并将barline IgnoreHit计入命中数，现已修正且不重写旧失败回执。它们不混计为最终同包通过。原版参照正常退出，`source-after.json`确认原HDD14221份文件元数据及关键摘要保全。
+
+本轮交付`Lighting Model Skin Omni Until 33.v26102700.osk`，由上述冻结OSK直接复制并核对摘要，连同说明、验证JSON、校验及最终同包预览收存在总工作区`deliverables/skins/`同名版本目录；旧交付不覆盖。须先重编/重启OMS再导入，原模式/键数显式设置保持。已识别候选的实施/排除已闭合；原版精确PG周期、lane345 parent-loop、FAST/SLOW资格及完整变速/设备体验仍保留具名缺口，本轮没有生成Windows发行包或公开发布素材作品。

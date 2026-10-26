@@ -788,6 +788,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBindingSource.ObjectState => GameplaySkinSceneStateFamily.Object,
             GameplaySkinSceneBindingSource.ObjectLongNoteMode => GameplaySkinSceneStateFamily.Object,
             GameplaySkinSceneBindingSource.ObjectLongNoteAppearance => GameplaySkinSceneStateFamily.Object,
+            GameplaySkinSceneBindingSource.ObjectAutoAssist => GameplaySkinSceneStateFamily.Object,
             GameplaySkinSceneBindingSource.JudgementResult => GameplaySkinSceneStateFamily.Judgement,
             GameplaySkinSceneBindingSource.JudgementOffset => GameplaySkinSceneStateFamily.Judgement,
             GameplaySkinSceneBindingSource.JudgementTimingDirection or GameplaySkinSceneBindingSource.JudgementKeysTimingDirection
@@ -799,6 +800,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBindingSource.GameplayFullCombo => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.ScoreAccuracy => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.ComboValue => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.ComboActive => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.ComboMaximum => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.GaugeValue => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.GaugeType => GameplaySkinSceneStateFamily.Score,

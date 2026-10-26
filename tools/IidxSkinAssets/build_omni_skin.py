@@ -681,7 +681,7 @@ def audit_package(output: Path, files):
             "recordedTriangles": sum(programs[item["path"]]["maximumLiveTriangles"] for item in animations.values())}
         for key, maximum in {"resources": 384, "pixels": 96 * 1024 * 1024, "decodedTextureBytes": 384 * 1024 * 1024,
                              "encodedTextureBytes": 64 * 1024 * 1024,
-                             "fonts": 10, "nodes": 2048,
+                             "fonts": 12, "nodes": 2048,
                              "tracks": 512, "keyframes": 8192, "bindings": 512, "variants": 512,
                              "templates": 128, "instances": 1024, "animations": 32,
                              "sceneBytes": 512 * 1024, "manifestBytes": 64 * 1024}.items():
@@ -754,7 +754,7 @@ def audit_package(output: Path, files):
     # These are deliberately conservative: they sum independent module maxima without relying on a lucky selection.
     for key, maximum in {"resources": 384, "pixels": 96 * 1024 * 1024, "decodedTextureBytes": 384 * 1024 * 1024,
                          "encodedTextureBytes": 64 * 1024 * 1024,
-                         "fonts": 10, "nodes": 2048,
+                         "fonts": 12, "nodes": 2048,
                          "tracks": 512, "keyframes": 8192, "bindings": 512, "variants": 512,
                          "templates": 128, "instances": 1024, "animations": 32,
                          "sceneBytes": 512 * 1024, "manifestBytes": 64 * 1024, "recordedDecodedBytes": 128 * 1024 * 1024,

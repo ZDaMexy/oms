@@ -2288,9 +2288,11 @@ namespace osu.Game.Skinning.Gameplay
                 GameplaySkinSceneBindingSource.LiftReversed => timingState.LiftState.Reversed ? "true" : "false",
                 GameplaySkinSceneBindingSource.LayoutGroup => groupId?.Value ?? string.Empty,
                 GameplaySkinSceneBindingSource.OffsetAutomatic => scoreState.OffsetState.Automatic ? "true" : "false",
+                GameplaySkinSceneBindingSource.ComboActive => scoreState.Combo > 0 ? "true" : "false",
                 GameplaySkinSceneBindingSource.ObjectState => objectStateId(obj?.State ?? GameplaySkinObjectState.Scheduled),
                 GameplaySkinSceneBindingSource.ObjectLongNoteMode => longNoteModeId(obj?.LongNoteMode ?? GameplaySkinLongNoteMode.None),
                 GameplaySkinSceneBindingSource.ObjectLongNoteAppearance => longNoteAppearanceId(obj),
+                GameplaySkinSceneBindingSource.ObjectAutoAssist => objectAutoAssistId(target),
                 GameplaySkinSceneBindingSource.GaugeType => gaugeTypeId(scoreState.GaugeState.Type),
                 GameplaySkinSceneBindingSource.GaugeClearState => gaugeClearStateId(scoreState.GaugeState.ClearState),
                 GameplaySkinSceneBindingSource.JudgementResult => judgementGradeId(judgement?.Grade ?? GameplaySkinJudgementGrade.Miss),
@@ -2482,6 +2484,10 @@ namespace osu.Game.Skinning.Gameplay
                     applyRuntimeBooleanProperty(target, binding.Property, lifecycleState == GameplaySkinLifecycleState.Completed && completion?.IsFullCombo == true);
                     return;
 
+                case GameplaySkinSceneBindingSource.ComboActive:
+                    applyRuntimeBooleanProperty(target, binding.Property, scoreState.Combo > 0);
+                    return;
+
                 case GameplaySkinSceneBindingSource.ObjectState:
                     applyRuntimeStringProperty(target, binding.Property, objectStateId(obj?.State ?? GameplaySkinObjectState.Scheduled));
                     return;
@@ -2492,6 +2498,10 @@ namespace osu.Game.Skinning.Gameplay
 
                 case GameplaySkinSceneBindingSource.ObjectLongNoteAppearance:
                     applyRuntimeStringProperty(target, binding.Property, longNoteAppearanceId(obj));
+                    return;
+
+                case GameplaySkinSceneBindingSource.ObjectAutoAssist:
+                    applyRuntimeStringProperty(target, binding.Property, objectAutoAssistId(target));
                     return;
 
                 case GameplaySkinSceneBindingSource.JudgementResult:
@@ -2703,6 +2713,21 @@ namespace osu.Game.Skinning.Gameplay
                 return firstObjectByGroup.TryGetValue(groupId, out GameplaySkinObjectStateSnapshot group) ? group : null;
 
             return firstObject;
+        }
+
+        private string objectAutoAssistId(GameplaySkinSceneRuntimeNode node)
+        {
+            // Assistance belongs to this exact pooled usage. A stage/global visual or a retired object must not
+            // borrow the first active note's assistance and present it as a mode for the whole playfield.
+            if (!node.BoundObjectId.HasValue || !objects.TryGetValue(node.BoundObjectId.Value, out GameplaySkinObjectStateSnapshot obj))
+                return "none";
+
+            return obj.AutoAssist switch
+            {
+                GameplaySkinObjectAutoAssist.Scratch => "scratch",
+                GameplaySkinObjectAutoAssist.Note => "note",
+                _ => "none",
+            };
         }
 
         private GameplaySkinBgaStateSnapshot? bgaFor(GameplaySkinSceneTarget target)

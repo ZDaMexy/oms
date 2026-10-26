@@ -150,7 +150,8 @@ namespace osu.Game.Skinning.Gameplay
                 number0,
                 number1,
                 number2,
-                (GameplaySkinLongNoteMode)integral1);
+                (GameplaySkinLongNoteMode)integral1,
+                (GameplaySkinObjectAutoAssist)scalar2);
         }
 
         internal GameplaySkinJudgementStateSnapshot GetJudgement(GameplaySkinLaneGroupId? groupId, GameplaySkinLaneId? laneId)
@@ -379,7 +380,8 @@ namespace osu.Game.Skinning.Gameplay
                 state.StartTime,
                 state.EndTime,
                 state.Progress,
-                state.LongNoteMode);
+                state.LongNoteMode,
+                state.AutoAssist);
 
             if (eventKind is not GameplaySkinEventKind.ObjectSpawned
                 and not GameplaySkinEventKind.ObjectDespawned
@@ -398,6 +400,7 @@ namespace osu.Game.Skinning.Gameplay
                 integral1: (int)state.LongNoteMode,
                 scalar0: (int)state.Kind,
                 scalar1: (int)state.State,
+                scalar2: (int)state.AutoAssist,
                 number0: state.StartTime,
                 number1: state.EndTime,
                 number2: state.Progress);

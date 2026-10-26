@@ -133,7 +133,7 @@ Omni的Key beam是逐轨动态背景，使用现有`playfield.lane-surface`及Un
 8. Lightning时期统一作品名称为Lighting Model Skin Omni Until 33；27～33与八支BPL作为Game Frame，默认目标是33整套表现，不限于框体，不扩展未来Until34。source00等素材编号不能作为当代默认依据；现有作者组合、主题来源确认与原host菜单默认映射分别记证，未确认部分不得冒称原版完整默认。独立作品的私下分享边界按第3项。
 9. 内容目录只扩展有界备选和选中内容能力，不改变无声明普通包的解码/材料路径。原图证明三类独立动态艺术与Frame/FC无法容纳于64MiP后，仅显式目录的冻结组合允许96MiP/384MiB；普通包仍64MiP/256MiB，单图16MiP、单资源16MiB、总编码64MiB、普通资源256和其它运行上限不变；轨道开场与完整READY的原图需求证明选中组合需296资源后，仅目录冻结组合允许384项。详细输入边界只取[作者参考](../../../skin-authoring/docs/REFERENCE.md#按选项组合内容)。
 9a. Omni歌曲游标属于Frame作者场景，通过既有只读`timing.progress`跟随首对象至最后结束（含长条尾）的实际Player时钟；不另建时间、输入或成绩权威。15框体分别采用原GEO显示尺寸和三布局，DP保留两个实例；22×30原PNG不等同于显示尺寸。缺少原纵向末端的布局采用自身E标记对齐并明确标记作者适配，不能从美术端点推定原游戏进度公式。来源、原PNG及精确映射仅保留本地，公开工具不携带原版美术。
-9b. 皮肤可只读引用真实entry起点/拍相、post-mod逐轨首音、FAST/SLOW、实际偏移、一次加载冻结的有效本地最好和带符号设备运动。未提供的能力保持不可用，不填造数据；数字输入、Auto和旧回放不补造运动方向。设备采集、判定/计分和时间仍由原生链路承担，C5运动状态不增加旧C6脚本回调。作者显式`clock`与`orderedVariants`才启用新合同，未声明的旧包保持原表现；字段、10套字体和预算取[作者参考](../../../skin-authoring/docs/REFERENCE.md)。完整ModAutoplay产生的更新帧偏移不属于玩家早晚输入，其FAST/SLOW中性化；真人PG仍按真实偏移计数，原HitEvent偏移、判定、成绩和血量不得改写。
+9b. 皮肤可只读引用真实entry起点/拍相、post-mod逐轨首音、FAST/SLOW、实际偏移、一次加载冻结的有效本地最好和带符号设备运动。未提供的能力保持不可用，不填造数据；数字输入、Auto和旧回放不补造运动方向。设备采集、判定/计分和时间仍由原生链路承担，C5运动状态不增加旧C6脚本回调。作者显式`clock`与`orderedVariants`才启用新合同，未声明的旧包保持原表现；字段、12套字体和预算取[作者参考](../../../skin-authoring/docs/REFERENCE.md)。完整ModAutoplay产生的更新帧偏移不属于玩家早晚输入，其FAST/SLOW中性化；真人PG仍按真实偏移计数，原HitEvent偏移、判定、成绩和血量不得改写。
 9c. Omni所有可见开关默认开启，包括Graph Area与实时JUDGE；选择项和数值不因“全开”改默认值。LIFT艺术仅提供366款，默认000，与Lane Cover相邻且排在其后，不提供作者额外添加的纯黑款。显式模式/键数覆盖继续优先，不跨模式复制或改写玩家保存值。首排预告同时受`preparation.active`约束，最迟与GET READY准备阶段一起退场，保留原生滚动投影更早撤销的能力；其它皮肤的`arrival.cue-opacity`语义不变。独立交付名采用`.vyymmddxx.osk`，日期按Asia/Shanghai，`xx`为当日从`00`起递增的两位序号，旧版不改名或覆盖。
 9d. 有负数取值的number配置可作为非循环轨迹的带符号采样轴，仍守原绝对关键帧预算、有限性和严格顺序；elapsed、事件、循环及非负配置不获负关键帧。首个消费者为Omni整体判定高度，须按真实宿主高度换算，保留原标签/连击排版与生命周期；关闭门单独嵌于生命周期根内，不覆盖原透明度。设置页预览位移不得直接当作真实游玩像素。
 9e. 单次FAST/SLOW与累计计数、短暂判定文字分别保存，真实输入来源只补显示事实，不改判定、offset或计分。Combined/Keys/Scratch按精确group投影，Global不借第一组；完整快照和背压保持已折叠事实，seek/rewind/retry清空。Omni默认Position A，可关闭或选择B/C及Separate Display；原版预览、实际字形和OMS几何适配分开记证。NEXT只从真实EX满分与匹配本地最好派生，不读取作者目标选项，不补造缺数据或Ghost；详细资格和七档取整只在[作者参考](../../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)维护，不增加脚本权限。原图未直接打包不等于未用，素材审计须追踪同像素别名、atlas、UV、字体与派生色，候选不直接计为缺失功能。
@@ -317,6 +317,10 @@ Container可静态声明 `layout: horizontal`，只排列普通Sprite与图片�
 `projective-sprite` 只消费已校验的四角坐标、正倒数W与透明度帧，使用同一准备、资源、帧和时钟预算；不提供作者shader、相机或任意几何。坐标有限且在±4内，倒数W为1/256～256，采用固定完整UV和双面绘制。纹理清单可选 `filter: nearest/linear`，默认linear，按具体已准备资源隔离采样设置；nearest只上传原始层，不由图形后端自动生成缩小平均层。公开语法及不适用的属性见[四角动画参考](../../../skin-authoring/docs/REFERENCE.md#已投影纹理的四角动画)。
 
 对象长条模式随原生对象、compact事件和完整快照传递，epoch内不可改变；appearance只由同一模式与现有对象状态派生。血槽类型、最大值、阈值和通关状态只读实际处理器，语义变化沿既有GaugeChanged发布；无提供者明确unavailable，不按mania血量猜通关。字段闭集见[只读绑定](../../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)，不另建输入、判定、计分或时间权威。
+
+物件自动辅助角色沿同一compact record、Snapshot/Reset和epoch内不可变身份传递；`object.auto-assist`只读精确绑定物件，不向lane/global借用范围首物件。BMS仅从真实`AutoPlay && !CountsForScore`区分Scratch/Note，完整Autoplay和没有提供者的玩法均为none。角色仅供文字/换图/可见性，不是数值clock或全局Mod开关；长条头身尾沿父身份，原生Hidden/Tint及计分资格仍归ruleset。池的drawable Mod设置须在真实OnApply时按当前物件重新投影，不能只在constructor占位物件上判断后丢弃，也不能将旧辅助外观带到普通物件。
+
+`combo.active`只从同一真实Score快照的`Combo>0`派生布尔值，支持普通text/visible及布尔变体，不增加事件、计分或时钟权威。`layout.presentation`的y变体沿既有x的有限范围，仅取实际应用上下文，其他来源的y和任意几何不扩张。字体声明上限12用于框体、四套独立COMBO字形、挡板及计数的真实组合；每字体16字形及原资源、纹理、场景、字形预留预算保持。字段和作者写法仍只在[作者参考](../../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)完整维护。
 
 开局准备仅由所选scene的`preparationDuration`正值启用，范围0..10000ms；Player父级更新时间驱动，歌曲/回放/判定保持原点，暂停冻结。BMS替代原等待，按住调速只延长倒计时、不重播美术；最后1500ms提供READY。自然完成保留已完成相位，跳过或退出撤销，未声明普通皮肤保持旧路径。准备值通过同一Timing快照只读传递，来源不用于新增脚本回调；记录节点或轨迹的显式clock只采样已验证数值。不可用时轨迹恢复静态默认、记录节点隐藏。`layout.group`变体按真实材质组稳定ID筛选，不按画面位置或作品名称猜组。公开字段与示例见[准备阶段](../../../skin-authoring/docs/REFERENCE.md#开局准备阶段)。
 

@@ -536,6 +536,8 @@ namespace osu.Game.Skinning.Gameplay
         JudgementTimingDirection = 100,
         JudgementKeysTimingDirection = 101,
         JudgementScratchTimingDirection = 102,
+        ObjectAutoAssist = 103,
+        ComboActive = 104,
     }
 
     public enum GameplaySkinSceneEvent
@@ -1127,6 +1129,7 @@ namespace osu.Game.Skinning.Gameplay
             "object.state" => GameplaySkinSceneBindingSource.ObjectState,
             "object.long-note-mode" => GameplaySkinSceneBindingSource.ObjectLongNoteMode,
             "object.long-note-appearance" => GameplaySkinSceneBindingSource.ObjectLongNoteAppearance,
+            "object.auto-assist" => GameplaySkinSceneBindingSource.ObjectAutoAssist,
             "judgement.result" => GameplaySkinSceneBindingSource.JudgementResult,
             "judgement.offset" => GameplaySkinSceneBindingSource.JudgementOffset,
             "score.value" => GameplaySkinSceneBindingSource.ScoreValue,
@@ -1147,6 +1150,7 @@ namespace osu.Game.Skinning.Gameplay
             "cover.hidden-active" => GameplaySkinSceneBindingSource.CoverHiddenActive,
             "score.accuracy" => GameplaySkinSceneBindingSource.ScoreAccuracy,
             "combo.value" => GameplaySkinSceneBindingSource.ComboValue,
+            "combo.active" => GameplaySkinSceneBindingSource.ComboActive,
             "combo.maximum" => GameplaySkinSceneBindingSource.ComboMaximum,
             "gauge.value" => GameplaySkinSceneBindingSource.GaugeValue,
             "gauge.type" => GameplaySkinSceneBindingSource.GaugeType,

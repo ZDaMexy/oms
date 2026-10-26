@@ -62,19 +62,23 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 Assert.That(((SpriteText)runtime(current, "presentation.text").ContentDrawable).Text.ToString(), Is.EqualTo(applied));
                 Assert.That(runtime(current, "presentation.p2").TransformDrawable.Alpha, Is.EqualTo(applied == "p2" ? 1 : 0));
                 Assert.That(runtime(current, "presentation.p2").TransformDrawable.X, Is.EqualTo(applied == "p2" ? 0.5 : -0.25));
+                Assert.That(runtime(current, "presentation.p2").TransformDrawable.Y, Is.EqualTo(dual ? 0.5 : 0.21749).Within(0.00001));
                 Assert.That(runtime(current, "presentation.p2").TransformDrawable.Width, Is.EqualTo(applied == "p2" ? 0.25 : 0.8).Within(0.00001));
                 Assert.That(runtime(current, "presentation.p2").TransformDrawable.RelativePositionAxes.HasFlag(Axes.X), Is.True);
+                Assert.That(runtime(current, "presentation.p2").TransformDrawable.RelativePositionAxes.HasFlag(Axes.Y), Is.True);
                 Assert.That(runtime(current, "presentation.p2").TransformDrawable.RelativeSizeAxes.HasFlag(Axes.X), Is.True);
             }
         }
 
         [TestCase("x", -4, 4)]
+        [TestCase("y", -4, 4)]
         [TestCase("width", 0, 4)]
-        public void TestHorizontalPresentationVariantsRoundTripAndPrepareTypedNumbers(string property, double first, double second)
+        public void TestPresentationGeometryVariantsRoundTripAndPrepareTypedNumbers(string property, double first, double second)
         {
             GameplaySkinSceneManifest manifest = GameplaySkinOptionsTest.DecodeManifest();
             JObject json = presentationScene();
             JToken variant = json["variants"]!.Single(item => item["property"]!.Value<string>() == property);
+            string key = variant["cases"]![0]!["key"]!.Value<string>()!;
             variant["default"] = first;
             variant["cases"]![0]!["value"] = second;
             GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> decoded = GameplaySkinSceneCodec.DecodeScene(json.ToString(), manifest);
@@ -85,32 +89,41 @@ namespace osu.Game.Tests.NonVisual.Skinning
             var prepared = new GameplaySkinPreparedSceneVariant(selected, new Dictionary<string, GameplaySkinPreparedSceneResource>());
             Assert.That(prepared.DefaultValue.Kind, Is.EqualTo(GameplaySkinScenePropertyValueKind.Number));
             Assert.That(prepared.DefaultValue.NumberValue, Is.EqualTo(first));
-            Assert.That(prepared.SelectValue("p2").NumberValue, Is.EqualTo(second));
-            Assert.That(prepared.SelectValue("center-p1"), Is.SameAs(prepared.DefaultValue), "Fallback retains its prepared numeric value.");
-            Assert.That(prepared.SelectValue("p2"), Is.SameAs(prepared.Cases.Single().Value), "Selection does not parse or allocate a new value.");
+            Assert.That(prepared.SelectValue(key).NumberValue, Is.EqualTo(second));
+            Assert.That(prepared.SelectValue("custom-fallback"), Is.SameAs(prepared.DefaultValue), "Fallback retains its prepared numeric value.");
+            Assert.That(prepared.SelectValue(key), Is.SameAs(prepared.Cases.Single(item => item.Key == key).Value), "Selection does not parse or allocate a new value.");
         }
 
         [TestCase("x", "default", "range", GameplaySkinSceneDiagnosticCode.InvalidPropertyValue)]
         [TestCase("x", "case", "range", GameplaySkinSceneDiagnosticCode.InvalidPropertyValue)]
+        [TestCase("y", "default", "range", GameplaySkinSceneDiagnosticCode.InvalidPropertyValue)]
+        [TestCase("y", "case", "range", GameplaySkinSceneDiagnosticCode.InvalidPropertyValue)]
+        [TestCase("y", "default", "below-range", GameplaySkinSceneDiagnosticCode.InvalidPropertyValue)]
+        [TestCase("y", "case", "below-range", GameplaySkinSceneDiagnosticCode.InvalidPropertyValue)]
         [TestCase("width", "default", "range", GameplaySkinSceneDiagnosticCode.InvalidPropertyValue)]
         [TestCase("width", "case", "range", GameplaySkinSceneDiagnosticCode.InvalidPropertyValue)]
         [TestCase("width", "default", "negative", GameplaySkinSceneDiagnosticCode.InvalidPropertyValue)]
         [TestCase("width", "case", "negative", GameplaySkinSceneDiagnosticCode.InvalidPropertyValue)]
         [TestCase("x", "default", "boolean", GameplaySkinSceneDiagnosticCode.InvalidValueType)]
         [TestCase("x", "case", "string", GameplaySkinSceneDiagnosticCode.InvalidValueType)]
+        [TestCase("y", "default", "boolean", GameplaySkinSceneDiagnosticCode.InvalidValueType)]
+        [TestCase("y", "case", "string", GameplaySkinSceneDiagnosticCode.InvalidValueType)]
         [TestCase("width", "default", "string", GameplaySkinSceneDiagnosticCode.InvalidValueType)]
         [TestCase("width", "case", "boolean", GameplaySkinSceneDiagnosticCode.InvalidValueType)]
         [TestCase("x", "default", "nan", GameplaySkinSceneDiagnosticCode.InvalidJson)]
         [TestCase("x", "case", "infinity", GameplaySkinSceneDiagnosticCode.InvalidJson)]
+        [TestCase("y", "default", "nan", GameplaySkinSceneDiagnosticCode.InvalidJson)]
+        [TestCase("y", "case", "infinity", GameplaySkinSceneDiagnosticCode.InvalidJson)]
         [TestCase("width", "default", "infinity", GameplaySkinSceneDiagnosticCode.InvalidJson)]
         [TestCase("width", "case", "nan", GameplaySkinSceneDiagnosticCode.InvalidJson)]
-        public void TestHorizontalPresentationVariantsRejectInvalidAuthoredValues(string property, string field, string change, GameplaySkinSceneDiagnosticCode diagnostic)
+        public void TestPresentationGeometryVariantsRejectInvalidAuthoredValues(string property, string field, string change, GameplaySkinSceneDiagnosticCode diagnostic)
         {
             JObject json = presentationScene();
             JToken variant = json["variants"]!.Single(item => item["property"]!.Value<string>() == property);
             JToken value = change switch
             {
                 "range" => new JValue(4.1),
+                "below-range" => new JValue(-4.1),
                 "negative" => new JValue(-0.1),
                 "boolean" => new JValue(true),
                 "string" => new JValue("0.5"),
@@ -128,16 +141,47 @@ namespace osu.Game.Tests.NonVisual.Skinning
             Assert.That(decoded.Diagnostics.Select(item => item.Code), Does.Contain(diagnostic));
         }
 
-        [TestCase("y")]
         [TestCase("height")]
         [TestCase("opacity")]
-        public void TestHorizontalPresentationVariantDoesNotAdmitOtherNumericProperties(string property)
+        [TestCase("scale-x")]
+        [TestCase("scale-y")]
+        [TestCase("rotation")]
+        [TestCase("z")]
+        public void TestPresentationGeometryVariantDoesNotAdmitOtherNumericProperties(string property)
         {
             JObject json = presentationScene();
             json["variants"]![1]!["property"] = property;
             GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> decoded = GameplaySkinSceneCodec.DecodeScene(json.ToString(), GameplaySkinOptionsTest.DecodeManifest());
             Assert.That(decoded.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Invalid));
             Assert.That(decoded.Diagnostics.Select(item => item.Code), Does.Contain(GameplaySkinSceneDiagnosticCode.UnknownProperty));
+        }
+
+        [TestCase("layout.group", "test.group")]
+        [TestCase("layout.ruleset", "bms")]
+        [TestCase("combo.active", "true")]
+        [TestCase("option.layout", "p1")]
+        public void TestPresentationYVariantDoesNotAdmitOtherSources(string source, string key)
+        {
+            JObject json = presentationScene();
+            JToken variant = json["variants"]!.Single(item => item["property"]!.Value<string>() == "y");
+            variant["source"] = source;
+            variant["cases"] = new JArray(new JObject { ["id"] = "presentation.y-other", ["key"] = key, ["value"] = 0.5 });
+            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> decoded = GameplaySkinSceneCodec.DecodeScene(json.ToString(), GameplaySkinOptionsTest.DecodeManifest());
+            Assert.That(decoded.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Invalid));
+            Assert.That(decoded.Diagnostics.Select(item => item.Code), Does.Contain(GameplaySkinSceneDiagnosticCode.UnknownProperty));
+        }
+
+        [Test]
+        public void TestPresentationYVariantDoesNotMakePresentationANumericBinding()
+        {
+            JObject json = presentationScene();
+            json["bindings"] = new JArray(new JObject
+            {
+                ["id"] = "presentation.y-binding", ["target"] = "presentation.p2", ["property"] = "y", ["source"] = "layout.presentation",
+            });
+            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> decoded = GameplaySkinSceneCodec.DecodeScene(json.ToString(), GameplaySkinOptionsTest.DecodeManifest());
+            Assert.That(decoded.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Invalid));
+            Assert.That(decoded.Diagnostics.Select(item => item.Code), Does.Contain(GameplaySkinSceneDiagnosticCode.InvalidPropertyValue));
         }
 
         [TestCase("1p", true)]
@@ -170,7 +214,9 @@ namespace osu.Game.Tests.NonVisual.Skinning
                {"id":"presentation.x","target":"presentation.p2","property":"x","source":"layout.presentation","default":-0.25,
                 "cases":[{"id":"presentation.x-p2","key":"p2","value":0.5}]},
                {"id":"presentation.width","target":"presentation.p2","property":"width","source":"layout.presentation","default":0.8,
-                "cases":[{"id":"presentation.width-p2","key":"p2","value":0.25}]}]}
+                "cases":[{"id":"presentation.width-p2","key":"p2","value":0.25}]},
+               {"id":"presentation.y","target":"presentation.p2","property":"y","source":"layout.presentation","default":0.21749,
+                "cases":[{"id":"presentation.y-dp","key":"center-p1","value":0.5},{"id":"presentation.y-mania-dual","key":"mania-dual","value":0.5}]}]}
             """);
 
         private static GameplaySkinLayoutPublication presentationPublication(Texture texture, string ruleset, string keymode, string presentation, bool dual,

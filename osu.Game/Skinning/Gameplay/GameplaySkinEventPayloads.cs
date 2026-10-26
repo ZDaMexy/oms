@@ -71,6 +71,13 @@ namespace osu.Game.Skinning.Gameplay
         HellCharge = 3,
     }
 
+    public enum GameplaySkinObjectAutoAssist
+    {
+        None = 0,
+        Scratch = 1,
+        Note = 2,
+    }
+
     public enum GameplaySkinJudgementGrade
     {
         Unspecified = 0,
@@ -179,6 +186,8 @@ namespace osu.Game.Skinning.Gameplay
 
         public GameplaySkinLongNoteMode LongNoteMode { get; }
 
+        public GameplaySkinObjectAutoAssist AutoAssist { get; }
+
         public GameplaySkinLaneGroupId GroupId { get; }
 
         public GameplaySkinLaneId? LaneId { get; }
@@ -198,7 +207,8 @@ namespace osu.Game.Skinning.Gameplay
             double startTime,
             double endTime,
             double progress,
-            GameplaySkinLongNoteMode? longNoteMode = null)
+            GameplaySkinLongNoteMode? longNoteMode = null,
+            GameplaySkinObjectAutoAssist autoAssist = GameplaySkinObjectAutoAssist.None)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(objectId);
             ArgumentNullException.ThrowIfNull(groupId);
@@ -218,6 +228,12 @@ namespace osu.Game.Skinning.Gameplay
             if ((kind == GameplaySkinObjectKind.LongNote) != (resolvedLongNoteMode != GameplaySkinLongNoteMode.None))
                 throw new ArgumentException("Only a long note can carry a non-empty long-note mode.", nameof(longNoteMode));
 
+            if (!Enum.IsDefined(autoAssist))
+                throw new ArgumentOutOfRangeException(nameof(autoAssist), autoAssist, "Object auto assist must be a known engine-owned value.");
+
+            if (autoAssist != GameplaySkinObjectAutoAssist.None && kind is not (GameplaySkinObjectKind.Note or GameplaySkinObjectKind.LongNote))
+                throw new ArgumentException("Only a note or long note can carry auto-assist state.", nameof(autoAssist));
+
             if (kind != GameplaySkinObjectKind.BarLine && laneId == null)
                 throw new ArgumentNullException(nameof(laneId), "Lane objects must carry a stable lane ID.");
 
@@ -234,6 +250,7 @@ namespace osu.Game.Skinning.Gameplay
             Kind = kind;
             State = state;
             LongNoteMode = resolvedLongNoteMode;
+            AutoAssist = autoAssist;
             GroupId = groupId;
             LaneId = laneId;
             StartTime = startTime;
@@ -696,7 +713,8 @@ namespace osu.Game.Skinning.Gameplay
                     obj.StartTime,
                     obj.EndTime,
                     obj.Progress,
-                    obj.LongNoteMode);
+                    obj.LongNoteMode,
+                    obj.AutoAssist);
             }
 
             foreach (GameplaySkinCurrentJudgementStateSnapshot retained in copiedJudgements)

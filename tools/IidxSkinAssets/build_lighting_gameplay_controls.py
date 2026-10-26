@@ -247,7 +247,7 @@ def audit_shared_root(output, catalog, audit):
         total["decodedTextureBytes"] += pixels * 4
         total["encodedTextureBytes"] += path.stat().st_size
     limits = {"resources": 384, "pixels": 96 * 1024 * 1024, "decodedTextureBytes": 384 * 1024 * 1024,
-              "encodedTextureBytes": 64 * 1024 * 1024, "fonts": 10, "nodes": 2048, "tracks": 512,
+              "encodedTextureBytes": 64 * 1024 * 1024, "fonts": 12, "nodes": 2048, "tracks": 512,
               "keyframes": 8192, "bindings": 512, "variants": 512, "templates": 128, "instances": 1024,
               "sceneBytes": 512 * 1024, "manifestBytes": 64 * 1024}
     violations = [{"budget": key, "upperBound": total[key], "limit": limit} for key, limit in limits.items() if total[key] > limit]

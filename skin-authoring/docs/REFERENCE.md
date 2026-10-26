@@ -72,7 +72,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Author.ps1 -Action imp
 ] }
 ```
 
-`character` 必须是一个字符，只允许 `0`～`9`、`.`、`,`、`%`、`+`、`-`、小写 `x`，不包括空格、换行或其它字母。每份清单及内容目录选中组合最多10个字体声明，每字体最多16字形。确需不同原始行高或步长时可分别声明字体；单纯改显示字号可复用同一字体。不同字体可共享同一已准备图片，十套独立字形度量仍计入同一上限。`lineHeight` 与 `advance` 都是有限数，范围1..512，单位为原图像素；字形图片每边1..512像素，高度还必须不超过 `lineHeight`。图片顶端对齐，没有独立偏移、基线或自动补字。显示时以 `font-size / lineHeight` 缩放图片和横向步长；`advance` 可与图片宽度不同，用来控制数字间距。
+`character` 必须是一个字符，只允许 `0`～`9`、`.`、`,`、`%`、`+`、`-`、小写 `x`，不包括空格、换行或其它字母。每份清单及内容目录选中组合最多12个字体声明，每字体最多16字形。确需不同原始行高或步长时可分别声明字体；单纯改显示字号可复用同一字体。不同字体可共享同一已准备图片，十二套独立字形度量仍计入同一上限。`lineHeight` 与 `advance` 都是有限数，范围1..512，单位为原图像素；字形图片每边1..512像素，高度还必须不超过 `lineHeight`。图片顶端对齐，没有独立偏移、基线或自动补字。显示时以 `font-size / lineHeight` 缩放图片和横向步长；`advance` 可与图片宽度不同，用来控制数字间距。
 
 在 `text` 节点的静态 `properties` 中选择字体，例如以下节点和绑定分别放入已有树与 `bindings` 数组；所属 `hud.text` 仍须由本包 `Provide`：
 
@@ -471,6 +471,7 @@ bindings每项必填id/target/property/source，例如：
 | object.state | scheduled/visible/holding/hit/missed/completed/despawned | text |
 | object.long-note-mode | none/ln/cn/hcn；实际对象的长条模式 | text |
 | object.long-note-appearance | none/ln/ln-holding/ln-released/cn/cn-holding/cn-released/hcn/hcn-holding/hcn-released | text |
+| object.auto-assist | 当前精确物件的自动辅助角色：none/scratch/note | 普通text或resource/visible variants |
 | judgement.result | miss/meh/ok/good/great/perfect | text |
 | judgement.offset | 当前判定偏差，毫秒 | 数值或text |
 | judgement.timing-direction | 当前精确组最后一次合格输入的早晚提示；none/fast/slow | 普通text或resource/visible variants |
@@ -487,6 +488,7 @@ bindings每项必填id/target/property/source，例如：
 | score.rank-available | 当前是否具有BMS EX SCORE与正的理论满分 | visible或普通text |
 | combo.value / gauge.value | 连击 / 归一化能量 | 数值或text |
 | combo.maximum | 本局已经达到的最高连击；真实计分器快照的非负整数，断连后保留 | 数值或text |
+| combo.active | 同一真实计分快照的当前连击是否大于0；不表示全连资格 | visible、普通text或布尔variants |
 | gauge.type | none/assist-easy/easy/normal/hard/ex-hard/hazard | text |
 | gauge.maximum / gauge.clear-threshold | 实际血槽最大值 / 通关阈值，与gauge.value使用相同0..1量纲；无此能力时都为0 | 数值或text |
 | gauge.clear-state | unavailable/uncleared/clear；引擎当前通关条件状态 | text |
@@ -539,13 +541,15 @@ FAST/SLOW读取真实HitEvent：只统计最大判定为Perfect且结果为基�
 
 `score.pacemaker-next*`使用同一匹配最佳成绩和真实满分，不读取作者的目标选项。七档依次是满分的12/18至18/18，各自只进行一次整数向上取整，选择严格高于最佳成绩的第一档；最高饱和为DJ AUTO。缺最佳成绩、零满分、超界最佳成绩或非BMS EX SCORE时不可用，不把缺数据当成0分。只有NEXT标签、available或数值clock的场景也会加载匹配成绩。七档含义取原版官方说明；整数舍入、等值升档是OMS明示策略，原机边界未实测；不据此提供NEXT+、rotate、Ghost或不存在的对手数据。`score.pacemaker-next`可使用现有十个数字的整数图片字体，label需普通文字。
 
-`combo.maximum` 直接读取与 `combo.value` 同一不可变计分快照的 `MaxCombo`，由真实计分器的 `HighestCombo` 提供。例如当前连击从19断到0，最高连击仍显示19；跳转采用重建快照中的最高值，重试归零，晚挂载保留当前快照。它不是谱面理论最大可达连击 `MaximumCombo`，也不是全连资格；不用皮肤脚本累计或取最大值。只显示整数的图片字体可以省略 `format`，仅声明十个数字即可。
+`combo.maximum` 直接读取与 `combo.value` 同一不可变计分快照的 `MaxCombo`，由真实计分器的 `HighestCombo` 提供。例如当前连击从19断到0，最高连击仍显示19；跳转采用重建快照中的最高值，重试归零，晚挂载保留当前快照。它不是谱面理论最大可达连击 `MaximumCombo`，也不是全连资格；不用皮肤脚本累计或取最大值。只显示整数的图片字体可以省略 `format`，仅声明十个数字即可。`combo.active`则从同一快照的当前`Combo>0`派生布尔值，支持普通文字、visible绑定及true/false变体，禁止数字、图片数字文字和动画clock；可用它切换“判定＋连击”和“单独居中判定”，不以判定等级猜零连击。
 
 BMS统计映射是perfect→PG、great→GR、good→GD、meh→BD、miss→PR、ok→空POOR，combo.breaks为真正断连；mania的ok仍是其自身判定档位，不叫空POOR。统计从真实计分器读取，随撤销、回放跳转和重试恢复，不以judgement.hit自行累计。曲目信息在完整快照中携带，重附着和epoch替换保留；BMS难度来自原始DIFFICULTY类别，等级保留PLAYLEVEL字符串，缺失保持空，不冒用星级。MIN/MAX取实际音乐时间线，未使用的BPM定义不计入范围。BMS scroll.speed为当前NHS/FHS/CHS选中数值，mania为自身ScrollSpeed设置；该绑定不输出模式名称，不把不同玩法数值当作同一物理单位。
 
 `gameplay.full-combo` 直接使用计分器完成状态和 `MaximumCombo>0 && Combo==MaximumCombo`，不是已达最高连击 `MaxCombo`，也不以 `combo.breaks==0` 推断；全Miss同样可能没有断连记录。它描述完整连击演出的资格，不等同于玩法自己的结算清灯枚举，不提供“仍可能全连”的预测值，也不接受数值比较表达式。
 
 `object.long-note-mode` 从真实长条对象读取，不从素材名或整局选项猜测；普通mania长条为 `ln`，非长条或没有当前对象为 `none`。`object.long-note-appearance` 只由同一模式和当前 `object.state` 派生：holding加 `-holding`，missed加 `-released`，其它状态使用基础 `ln/cn/hcn`。因此 `-released` 也可表示未命中或断持的missed外观，不是新的一条释放输入事件。HCN重新抓取后回到 `hcn-holding`；对象专用头/身/尾沿同一真实长条身份，seek/reset保留模式并重新取当前对象状态。写在lane或全局信息上时仍读取其范围当前对象，不代表整首谱面的统一模式。
+
+`object.auto-assist` 只读当前绑定物件的真实辅助角色。BMS仅对 `AutoPlay && !CountsForScore` 的物件按皿轨/普通键给出 `scratch`/`note`；完整Autoplay仍为 `none`。普通mania、非note/长条、已退休物件及未绑定精确物件的lane/global节点也为 `none`，不会借用范围内第一颗note的状态。长条头、身、尾沿同一父物件身份，seek/reset和晚挂载保留角色。它不是全局Mod开关，不提供数值绑定或动画clock，也不改变原生Hidden/Tint设置及计分资格。
 
 `gauge.type/maximum/clear-threshold/clear-state` 来自实际BMS血槽处理器，包含GAS切换后的当前类型、规则族阈值与失败状态。`clear` 表示此刻引擎的通关条件成立，不是已结算、全连或另一个玩家成绩。生存槽不能只用 `gauge.value >= gauge.clear-threshold` 判断通关，应直接读 `gauge.clear-state`。血量数值未改变时，真实类型或通关状态变化仍会更新。未提供此投影的玩法为 `type:none`、`clear-state:unavailable`，不会根据mania血量猜通关。重附着、跳转和重试通过完整快照恢复这些事实；作者只能显示它们，不能写回。
 
@@ -593,7 +597,9 @@ variants必填id/target/property/source/default/cases，至少一条case，同�
 }
 ```
 
-除前述配置、准备布尔、`arrival.first-row`与`layout.group`外，source还允许`layout.ruleset`（bms/mania）、`offset.automatic`（true/false）及 `object.state`、`object.long-note-mode`、`object.long-note-appearance`、`judgement.result`、`gauge.type`、`gauge.clear-state`、`bga.content-state`，key必须是上表对应字符串；当前值没有列入cases时使用default。长条模式和holding/released换图宜用单个 `object.long-note-appearance` 变体，避免两个变体同时改同一sprite资源。空态先按上一节投影，例如没有判定时也会命中作者的miss分支，不会越过该分支自动使用default。没有任意表达式、范围条件或外部资源路径。
+除前述配置、准备布尔、`arrival.first-row`与`layout.group`外，source还允许`layout.ruleset`（bms/mania）、`offset.automatic`（true/false）及 `object.state`、`object.long-note-mode`、`object.long-note-appearance`、`object.auto-assist`、`judgement.result`、`gauge.type`、`gauge.clear-state`、`bga.content-state`，key必须是上表对应字符串；当前值没有列入cases时使用default。长条模式和holding/released换图宜用单个 `object.long-note-appearance` 变体，避免两个变体同时改同一sprite资源。空态先按上一节投影，例如没有判定时也会命中作者的miss分支，不会越过该分支自动使用default。没有任意表达式、范围条件或外部资源路径。
+
+`combo.active`的变体key只接受`true/false`，使用同一Score快照，不按当前判定等级推测连击。`layout.presentation`除既有x/width外可单独选择y，y与x同为有限的-4..4数值；值来自当前实际应用的布局上下文，保存但不适用的选项不参与。其它source的y、height/scale/rotation等几何变体仍不开放，也不能将`layout.presentation`用作数值binding或clock。共享一个template时，每个实际material/Group实例仍有独立判定起点和runtime状态。
 
 templates每项必填id/root，root是完整节点；instances每项必填id/template，并在target与material之间二选一，没有实例properties、参数或循环生成字段：
 

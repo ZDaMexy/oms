@@ -298,10 +298,11 @@ namespace osu.Game.Skinning.Gameplay
             double startTime,
             double endTime,
             double progress,
-            GameplaySkinLongNoteMode? longNoteMode = null)
+            GameplaySkinLongNoteMode? longNoteMode = null,
+            GameplaySkinObjectAutoAssist autoAssist = GameplaySkinObjectAutoAssist.None)
         {
             validateExactTarget(groupId, laneId);
-            var state = new GameplaySkinObjectStateSnapshot(objectId, objectKind, objectState, groupId, laneId, startTime, endTime, progress, longNoteMode);
+            var state = new GameplaySkinObjectStateSnapshot(objectId, objectKind, objectState, groupId, laneId, startTime, endTime, progress, longNoteMode, autoAssist);
             GameplaySkinEventValue payload = GameplaySkinEventValue.Object(kind, state);
 
             if (kind == GameplaySkinEventKind.ObjectSpawned)
@@ -338,6 +339,7 @@ namespace osu.Game.Skinning.Gameplay
 
                 if (previous.Kind != state.Kind
                     || previous.LongNoteMode != state.LongNoteMode
+                    || previous.AutoAssist != state.AutoAssist
                     || previous.GroupId != state.GroupId
                     || previous.LaneId != state.LaneId
                     || previous.StartTime != state.StartTime
@@ -978,7 +980,8 @@ namespace osu.Game.Skinning.Gameplay
                 state.StartTime,
                 state.EndTime,
                 progress,
-                state.LongNoteMode);
+                state.LongNoteMode,
+                state.AutoAssist);
         }
 
         private void publish(

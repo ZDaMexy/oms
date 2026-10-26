@@ -53,6 +53,9 @@ publication与late attach见 [[reference_skin_atomic_reload_detach]]；capabilit
 
 ## 完整 HUD 的公开信息与真实显示
 
+- BMS池只在drawable初次构造时应用drawable Mod，当时HitObject仍可能是未辅助的占位。AUTO SCRATCH/AUTO NOTE若此时按`AutoPlay/CountsForScore/IsScratch`早退，就会丢掉Hidden/Tint设置；应保存各角色配置，在真实OnApply/复用时选择当前角色，离开辅助角色时清除旧Alpha/Colour。实际主视觉`BmsAsyncNoteDrawable`并非`SkinnableDrawable`；断言要落在真实宿主。Alpha=0的异步子树无需完成素材加载，隐藏测试保留真实物件/宿主及Alpha断言，不能用不可见子树加载超时判为产品失败。稳定角色合同取[P1-A](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)，不在记忆登记当前验收状态。
+- 停表取景不能把`LastGameplayTime`当当前轨道时间：它仅是最后一条离散envelope时间，轨道使用consumer timing high-water；判定起点、采样时间、当前clock与epoch须分别核对。原生`ScoreProcessor.HitEvents`还包含小节线的`IgnoreHit`，跨小节的同一次PG可能总事件增加而分数/Combo不变；计分稳定断言只统计真正`CountsForScore`且非IgnoreHit的物件，保留全事件诊断，不通过放宽轨道/字体数量掩盖断言来源。
+
 - FAST/SLOW观察的是玩家输入时机，不是判定等级。BMS Autoplay在下一次Update应用MaxResult时可留下整帧正偏移；仅过滤1ns浮点残差不能消除假SLOW。加载时冻结完整ModAutoplay标记，自动局的方向计数为0，保留原HitEvent.TimeOffset/成绩；真人PG的正负方向照常统计。真实测试用非整数BPM与多个自然命中，整数节拍恰好对齐回放帧会掩盖该问题。结果页退出须走实际Player合同，不能在ShowResults=false组合下仍要求PerformExit跳到菜单。
 
 - `hud.text`接管会替换原准确率与歌曲进度owner；不能仅验证gate ready或旧owner隐藏。`score.accuracy`数值0～1，text是固定两位百分数；`timing.progress`数值0～1，text是整数百分数。两者走普通scene绑定，不需要脚本权限，也不是canonical专属字段。

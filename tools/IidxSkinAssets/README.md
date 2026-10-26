@@ -55,6 +55,12 @@ Start设置迁移分两步：`build_lighting_start_options.py`消费实际菜单
 
 `build_lighting_pacemaker_targets.py`将原graph-target以同ID迁入C2，保留六个旧值/默认并加PACEMAKER NEXT；只发布所选目标及必要SUB树以守原预算。`build_lighting_timing_display.py`在下一独立作者中接四张原FAST/SLOW图片，增加BMS专用A/B/C、Separate Display及OFF，默认A。它必须消费独立`--positions`审查收据，核对15框体/既有全部Judgement款的相同宿主，以及105分支的声明/引用ID；不凭菜单预览推断原生精确坐标。两步均拒绝覆盖父作者和旧OSK，不增加字体/预算；数据资格、真实原版证据与OMS适配边界见[本轮记录](../../doc_md/other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。
 
+`build_lighting_auto_assist.py`在新作者中为真实`object.auto-assist=scratch`接入原AUTO SCRATCH短皿及长皿头身尾，普通物件与完整Autoplay保持原图。每个material模板只保留一个slot owner，逐边验证所有可见/隐藏分支继承；`notes_hcn01_long`的原24px AUTO端点与27px普通端点分支保留各自尺寸，不借joint充当body。`build_lighting_score_graph_roles.py`随后增加独立PB柱并分别使用原蓝/绿/红图，调用须提供父OSK的`--parent-sha256`；固定三柱几何是OMS作者适配，PB/主目标/SUB/NO DATA继续取真实状态。
+
+`lighting_dynamic_cover.py --library ... --output ... --bemani-root ... --image-tools ...`从哈希固定的独立源导出lane345完整cat256@60与border128@60，各自保留循环，不将截短成品重复为后半段。输出带512tick原child和128tick原border证明的reference；`build_lighting_dynamic_cover.py --source ... --output ... --reference ...`将其接入新作者的既有三处消费者。仅一张派生atlas使用lossless/exact WebP以守原编码字节预算，整页RGBA含透明RGB逐字节核对，其余原PNG保持。三步均新建兄弟目录/OSK、保全父包与预览；离线budget/CRC及原图证明不代签C3实际挂载、原机CUSTOM或设备体验。
+
+`build_lighting_combo_states.py --source ... --output ... --library ... --parent-sha256 ...`接续冻结父作者，为21种Judgement接入原blue/white/pink label及对应blue/green/red COMBO字形；yellow继续沿原GREAT规则。蓝→绿→粉各100ms是明确OMS作者节奏，使用真实group的`judgement.hit`起点，不冒称原机精确相位。BMS零连击与两玩法label-only均使用单独居中label，普通mania零数保持。共用模板依据真实`layout.presentation`选择受限y坐标；新增`combo.active`只读真实score。选中字体上限12，其余预算保持；Frame独占且未被INI引用的PNG可缩短路径，每次完整SHA256检查占位碰撞，保留原图字节、Frame场景、全部INI及539预览。生成失败保留诊断，不覆盖父作者或旧OSK；最终仍须当前CLI及实际Player验证。
+
 ```powershell
 . .\UseDevelopmentStorage.ps1
 python -B tools/IidxSkinAssets/audit_lighting_asset_usage.py --author 'Y:\FrozenAuthor' --library 'Y:\OriginalCustomLibrary' --fullcombo 'Y:\FullComboLibrary\v3' --localized 'Y:\LocalizedLibrary' --output 'Y:\FreshUsageAudit'

@@ -281,6 +281,18 @@ __pycache__/
 !/tools/IidxSkinAssets/lighting_timing_display.py
 !/tools/IidxSkinAssets/test_lighting_timing_display.py
 !/tools/IidxSkinAssets/build_lighting_timing_display.py
+!/tools/IidxSkinAssets/lighting_score_graph_roles.py
+!/tools/IidxSkinAssets/test_lighting_score_graph_roles.py
+!/tools/IidxSkinAssets/lighting_auto_assist.py
+!/tools/IidxSkinAssets/test_lighting_auto_assist.py
+!/tools/IidxSkinAssets/build_lighting_auto_assist.py
+!/tools/IidxSkinAssets/build_lighting_score_graph_roles.py
+!/tools/IidxSkinAssets/lighting_dynamic_cover.py
+!/tools/IidxSkinAssets/build_lighting_dynamic_cover.py
+!/tools/IidxSkinAssets/test_lighting_dynamic_cover.py
+!/tools/IidxSkinAssets/lighting_combo_states.py
+!/tools/IidxSkinAssets/build_lighting_combo_states.py
+!/tools/IidxSkinAssets/test_lighting_combo_states.py
 /build/tools/**
 /build/temp/**
 

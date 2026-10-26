@@ -771,6 +771,7 @@ namespace osu.Game.Skinning.Gameplay
 
                         if (obj.Kind != previous.Kind
                             || obj.LongNoteMode != previous.LongNoteMode
+                            || obj.AutoAssist != previous.AutoAssist
                             || obj.GroupId != previous.GroupId
                             || obj.LaneId != previous.LaneId
                             || obj.StartTime != previous.StartTime
@@ -790,6 +791,7 @@ namespace osu.Game.Skinning.Gameplay
 
                         if (obj.Kind != despawned.Kind
                             || obj.LongNoteMode != despawned.LongNoteMode
+                            || obj.AutoAssist != despawned.AutoAssist
                             || obj.GroupId != despawned.GroupId
                             || obj.LaneId != despawned.LaneId
                             || obj.StartTime != despawned.StartTime

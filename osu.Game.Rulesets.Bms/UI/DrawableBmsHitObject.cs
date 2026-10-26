@@ -64,9 +64,8 @@ namespace osu.Game.Rulesets.Bms.UI
         internal GameplaySkinResolvedMaterialSet? ExactMaterialSet => GameplayMaterialSet;
         private Container? nestedHitObjectContainer;
         private bool autoAssistVisualsApplied;
-        private bool autoAssistVisible = true;
-        private bool autoAssistTintEnabled;
-        private Color4 autoAssistTintColour = Color4.White;
+        private (bool Visible, bool TintEnabled, Color4 TintColour)? autoScratchVisuals;
+        private (bool Visible, bool TintEnabled, Color4 TintColour)? autoNoteVisuals;
         private long? gameplaySkinObjectId;
         private bool inheritsGameplaySkinObjectId;
 
@@ -162,6 +161,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 foreach (DrawableBmsHitObject child in nestedHitObjectContainer.Children.OfType<DrawableBmsHitObject>())
                     child.SetGameplaySkinObjectIdentity(gameplaySkinObjectId.Value);
             }
+
+            applyAutoAssistVisualState();
         }
 
         protected override void OnFree()
@@ -186,7 +187,7 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             base.Update();
 
-            if (autoAssistVisualsApplied)
+            if (autoScratchVisuals.HasValue || autoNoteVisuals.HasValue)
                 applyAutoAssistVisualState();
         }
 
@@ -428,16 +429,12 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private void applyAutoAssistVisuals(bool appliesToScratch, bool visible, bool tintEnabled, Color4 tintColour)
         {
-            if (mainVisual == null)
-                return;
-
-            if (HitObject is not BmsHitObject { AutoPlay: true, CountsForScore: false } bmsHitObject || bmsHitObject.IsScratch != appliesToScratch)
-                return;
-
-            autoAssistVisualsApplied = true;
-            autoAssistVisible = visible;
-            autoAssistTintEnabled = tintEnabled;
-            autoAssistTintColour = tintColour;
+            // The pooled playfield applies drawable mods once, before it assigns the first real hit object. Store
+            // each role's settings even when this drawable still carries its unassisted constructor placeholder.
+            if (appliesToScratch)
+                autoScratchVisuals = (visible, tintEnabled, tintColour);
+            else
+                autoNoteVisuals = (visible, tintEnabled, tintColour);
 
             applyAutoAssistVisualState();
         }
@@ -447,8 +444,16 @@ namespace osu.Game.Rulesets.Bms.UI
             if (mainVisual == null)
                 return;
 
-            float alpha = autoAssistVisible ? 1 : 0;
-            Color4 colour = autoAssistTintEnabled ? autoAssistTintColour : Color4.White;
+            (bool Visible, bool TintEnabled, Color4 TintColour)? settings = HitObject is BmsHitObject { AutoPlay: true, CountsForScore: false } note
+                ? note.IsScratch ? autoScratchVisuals : autoNoteVisuals
+                : null;
+
+            if (!settings.HasValue && !autoAssistVisualsApplied)
+                return;
+
+            float alpha = settings.HasValue && !settings.Value.Visible ? 0 : 1;
+            Color4 colour = settings.HasValue && settings.Value.TintEnabled ? settings.Value.TintColour : Color4.White;
+            autoAssistVisualsApplied = settings.HasValue;
 
             if (mainVisual is SkinnableDrawable skinnableDrawable && skinnableDrawable.IsLoaded)
             {
