@@ -98,3 +98,6 @@ Global装饰标记会沿材质作用域继承；框体信息通过Global decorat
 Headless的每例存储与失败收尾统一见[测试宿主地雷](reference_build_and_test.md#测试宿主与产物)；不能仅由测试顺序推断残留journal导致下一项失败，须保留具体拒绝原因和中间通过用例。
 
 - 独立大包同时受两道不同门约束：C2捕获结构64MiB，OSK导入全部配置仍16MiB，后者不能按前者放宽。相同几何可由不同选项清单声明自身纹理并共用scene；相同INI按完整字节去重。scene经codec将整数编码成double可能长出`.0`，不能只加原文件长度；缩短声明ID并给归一化留预算，保留全部原图/采样。详见[本轮记录](../../doc_md/other/LIGHTING_DETAILS_20261021.md)。
+
+- scene点分stable ID的每一段都须以字母开头；`td.0.keys`或`td.p0.0`即使无冲突、ZIP闭包正确，实际导入仍会以InvalidStableId拒绝。生成器应复用现有严格ID校验，并覆盖全部C2条件分支的声明及引用；不能只测默认树或放宽公共codec。诊断与本次原生拒绝见[增量记录](../../doc_md/other/OMNI_GAMEPLAY_COMPLETION_20261026.md#验证与保全)。
+- 未引用排查先展开`.json.br`并追到atlas/字形/UV消费者；原图文件名未出现不是未使用证据。原白图经tint变绿必须逐RGBA核对及保存来源收据，不能仅靠视觉相似；剩余候选也不能由文件名直接升级为HCN/COMBO等玩法状态。范围与工具入口见[素材审计](../../doc_md/other/OMNI_GAMEPLAY_COMPLETION_20261026.md#素材是否已经完整分类)。

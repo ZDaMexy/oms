@@ -1,5 +1,17 @@
 # P1-A 变动日志
 
+## 2026-10-26Omni判定提示NEXT与素材审计
+
+按未使用素材审计接入四张原FAST/SLOW图片，增加BMS专用Position A/B/C、合并/Separate Display及OFF，默认A。真实输入来源随原判定复制，单次Combined/Keys/Scratch保持精确group，完整Snapshot/背压与晚挂载保留，seek/rewind/retry清空；自动完成不补造时机，原判定/offset/计分及累计FAST/SLOW保持。A有原生SP字形参照；B/C精确几何、频道上下顺序与P2/DP镜像明示OMS适配，原版资格、PG覆盖和保留规则仍待闭合。
+
+PACEMAKER NEXT从匹配本地Personal Best及实际EX满分派生七档，label/available/clock单独使用也按需加载PB；缺数据沿主目标、SUB、NO DATA规则，不当0分或假对手。整数取整/等值升档为明示OMS策略，不附带NEXT+/rotate/Ghost。原graph-target以同ID移入C2，仅发布所选目标及必要SUB树，旧六值和默认保全；新增后13模块/32项统一配置/1285选值，原11类1271款美术与539预览不变，不增加字体或放宽预算。
+
+新增只读引用审计覆盖已有独立解包库，追踪RGBA别名、压缩记录、C2分支、INI、atlas、字体与tint收据，区分待核候选、范围外及证据不足。蓝黄COMBO和多数动态挡板已在使用，不按原PNG是否直包判缺失；未解包IFS不冒称已分类。下一步优先HCN gauge与Auto Scratch，再核Graph条图、COMBO条件及余挡板分支。
+
+独立作者r2交付`.v26102601`。完整BMS 3068通过/19跳过、mania 995通过/2跳过，删除无消费者Clear/Channel及Python重复NEXT算法后重跑Core Skinning 1397通过/3跳过、Python工具42通过；Desktop Debug/Release及作者CLI构建成功。最终同包六组实际Player、完整作者CLI 13612组代表组合和7071份ZIP/作者字节核对通过；原CLI/Player执行逻辑与作者字节不受无用代码清理影响。身份、命令/日志、实际范围及初次拒绝/取景失败修正统一见[专项记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#验证与保全)，不重计父作者证据。
+
+原HDD与旧作者/OSK保全；取证中组合重启被审批拒绝后的不当拆分重试如实登记，参照副本最终正常退出。前台、实体设备、真实歌曲及原人工/发行门保持。
+
 ## 2026-10-26Omni游玩Start与挡板读数
 
 按原版独立副本复测LIFT、LIFT与SUD、Hidden、双挡板及Start第二次按住，补齐普通/浮动面板、Start与EFFECT切换、双击挡板、原生白绿字和甩盘；原生BMS旧调整透明浮窗移除，开场READY HOLD保留。Floating按当前BPM与真实几何保持挡板目标可见时间，SUD关闭时改LIFT、重开按目标恢复；原机20档倍率整表及所有变速谱不冒称完整等价。SUB TARGET作为主目标无数据时的备用选项，两者都缺时显示NO DATA，不增加假对手数据。

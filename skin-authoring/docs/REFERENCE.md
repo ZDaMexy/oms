@@ -91,7 +91,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Author.ps1 -Action imp
 
 `bitmap-font` 只能静态引用已声明字体，不能由绑定、轨迹、状态机或脚本更换。位图文字每节点最多64字符，静态文字和状态赋值中的每个字符都必须有字形。绑定接受数值来源及配置开关的0/1投影；曲名、状态词、身份和其它布尔来源不能写入这种数字节点。它不接受 `uppercase` 或 `text-overflow`，也不会在缺字时切换系统字体。
 
-数值绑定必须声明全部十个数字。`fixed-2` 还需要 `.`，`signed-fixed-2` 必须同时提供 `.`、`+`、`-`，`percent` 还需要 `%`；未给 `format` 时使用最多三位小数，非整数来源还需要 `.`。这里的整数来源包括 `score.maximum`、`score.value`、`score.personal-best`、`score.rank-aaa/aa/a`、`combo.value`、`combo.maximum`、`timing.measure`、六档及FAST/SLOW的 `judgement.count.*` 和 `combo.breaks`；例如希望BPM只使用数字字形，应显式选 `integer`。`judgement.offset`、`timing.beat`、`timing.time`、`arrival.time/remaining`、两组 `input.motion-counts-* / input.motion-revolutions-*` 和 `offset.value` 还必须声明 `-`。其它可能出现负值的显示也应提供负号，例如前奏中的 `timing.measure` 可为-1。`,`、`+`、`x` 可用于自己写的静态数字文字，不会自动添加千位分隔或倍率前缀。
+数值绑定必须声明全部十个数字。`fixed-2` 还需要 `.`，`signed-fixed-2` 必须同时提供 `.`、`+`、`-`，`percent` 还需要 `%`；未给 `format` 时使用最多三位小数，非整数来源还需要 `.`。这里的整数来源包括 `score.maximum`、`score.value`、`score.personal-best`、`score.pacemaker-next`、`score.rank-aaa/aa/a`、`combo.value`、`combo.maximum`、`timing.measure`、六档及FAST/SLOW的 `judgement.count.*` 和 `combo.breaks`；例如希望BPM只使用数字字形，应显式选 `integer`。`judgement.offset`、`timing.beat`、`timing.time`、`arrival.time/remaining`、两组 `input.motion-counts-* / input.motion-revolutions-*` 和 `offset.value` 还必须声明 `-`。其它可能出现负值的显示也应提供负号，例如前奏中的 `timing.measure` 可为-1。`,`、`+`、`x` 可用于自己写的静态数字文字，不会自动添加千位分隔或倍率前缀。
 
 位图节点的数字统一沿 `format`：缺省最多三位小数，`integer` 舍入为无小数数字，`fixed-2` 固定两位小数，`signed-fixed-2` 固定两位小数并始终显示正负号（零为`+0.00`），`percent` 乘100后显示整数和百分号。因此位图准确率/进度要显示百分比时也应显式选择 `percent`。所有已声明字体都会准备；超尺寸、缺资源或运行数值超出64字符/缺少字形会报对应场景错误。字形图片和可选区域计入普通资源的文件、像素与解码预算，区域共享同一已准备纹理；动态位图文字每节点预留64字形，仍计入全场景8192字形和真实实例预算。
 
@@ -473,10 +473,15 @@ bindings每项必填id/target/property/source，例如：
 | object.long-note-appearance | none/ln/ln-holding/ln-released/cn/cn-holding/cn-released/hcn/hcn-holding/hcn-released | text |
 | judgement.result | miss/meh/ok/good/great/perfect | text |
 | judgement.offset | 当前判定偏差，毫秒 | 数值或text |
+| judgement.timing-direction | 当前精确组最后一次合格输入的早晚提示；none/fast/slow | 普通text或resource/visible variants |
+| judgement.keys-timing-direction / judgement.scratch-timing-direction | 同组键盘 / Scratch各自最后一次合格输入；none/fast/slow | 普通text或resource/visible variants |
 | score.value | 当前计分器分数；原生BMS为EX SCORE，mania为自身计分器分数 | 数值或text |
 | score.accuracy | 0..1；text为两位小数百分比 | 数值或text |
 | score.personal-best / score.personal-best-progress | 同条件有效本地最佳分数 / 最佳分数除以当前理论满分后夹至0..1；不可用时0 | 数值或text |
 | score.personal-best-available | 是否查得符合条件的本地成绩 | visible或普通text |
+| score.pacemaker-next / score.pacemaker-next-progress | 按匹配的本地最佳成绩选择下一档目标 / 该整数目标除以当前理论满分；不可用为0 | 数值或text |
+| score.pacemaker-next-label | LV A/A+/AA/AA+/AAA/AAA+或DJ AUTO；不可用为空 | 普通text |
+| score.pacemaker-next-available | BMS EX SCORE、正满分与有效匹配最佳成绩均可用 | visible或普通text |
 | score.rank-aaa / score.rank-aa / score.rank-a | BMS EX SCORE的AAA/AA/A阈值；不可用时0 | 数值或text |
 | score.rank-aaa-progress / score.rank-aa-progress / score.rank-a-progress | 对应阈值除以当前理论满分；不可用时0 | 数值或text |
 | score.rank-available | 当前是否具有BMS EX SCORE与正的理论满分 | visible或普通text |
@@ -526,9 +531,13 @@ bindings每项必填id/target/property/source，例如：
 
 FAST/SLOW读取真实HitEvent：只统计最大判定为Perfect且结果为基础成功击打的事件，零偏差两边均不计；Miss、自动长条body tick、长条父级记账及BMS空POOR不计入。计数随真实计分历史撤销和完整状态重建，不用 `judgement.hit` 在皮肤里再次累计。`offset.value`当前由BMS已经应用的VisualOffset提供，`offset.automatic`对应其原生自动显示时机调整开关；它不表示判定窗口或音频设备延迟。mania未提供相同投影，available/automatic为false、value为0；不可用时应隐藏读数，不显示伪造的已校准状态。
 
+三项 `judgement.*timing-direction` 是单次输入提示，与累计FAST/SLOW及500ms的判定文字显示期分别保存。当前OMS资格为BMS真实按下/抬起（含原始回放输入）、非Autoplay、结果为Great/Good/Ok/Meh、偏差绝对值至少0.000001ms；Perfect、自动完成、body tick和超时Miss不生成或覆盖提示。Combined按交付次序更新，Keys和Scratch独立保留；SpecialKey归Keys。没有合格输入时为none，后续非合格判定保留原提示；重试、跳转、倒带清空，重挂与背压恢复最新完整状态。只读取节点的精确material group，Global不借用第一组；不能直接驱动数字时钟，也不新增脚本权限。此为明确的OMS显示策略，原机全等级资格、覆盖及保留规则尚未整体复核，不能把它写成IIDX完全等价。
+
 `score.personal-best`只在选中场景实际消费最佳分数、比例或available来源时，于游玩后台加载一次。条件严格匹配当前本地玩家ID、谱面ID与hash、玩法及完整Mod设置；只选未删除、未失败、当前计分版本且具有效统计的本地成绩，BMS还校验其当前规则版本和结果统计。没有成绩或查询条件不可用时available为false，0不是已查得的最佳成绩。它不查询线上排行榜，不把其它玩家或不同Mod的成绩作为目标；作者不能在游玩中发起数据库查询。比例使用当前理论满分，满分不可用时为0。
 
 `score.rank-aaa/aa/a`只在BMS EX SCORE及正的理论满分可用时提供，分别为理论满分的8/9、7/9、6/9向上取整；比例来自这些实际整数阈值。mania不按该刻度造等级，available为false。上述来源只用于声明式绑定或数值clock，不增加可选脚本的输入名、权限或玩法写入能力。
+
+`score.pacemaker-next*`使用同一匹配最佳成绩和真实满分，不读取作者的目标选项。七档依次是满分的12/18至18/18，各自只进行一次整数向上取整，选择严格高于最佳成绩的第一档；最高饱和为DJ AUTO。缺最佳成绩、零满分、超界最佳成绩或非BMS EX SCORE时不可用，不把缺数据当成0分。只有NEXT标签、available或数值clock的场景也会加载匹配成绩。七档含义取原版官方说明；整数舍入、等值升档是OMS明示策略，原机边界未实测；不据此提供NEXT+、rotate、Ghost或不存在的对手数据。`score.pacemaker-next`可使用现有十个数字的整数图片字体，label需普通文字。
 
 `combo.maximum` 直接读取与 `combo.value` 同一不可变计分快照的 `MaxCombo`，由真实计分器的 `HighestCombo` 提供。例如当前连击从19断到0，最高连击仍显示19；跳转采用重建快照中的最高值，重试归零，晚挂载保留当前快照。它不是谱面理论最大可达连击 `MaximumCombo`，也不是全连资格；不用皮肤脚本累计或取最大值。只显示整数的图片字体可以省略 `format`，仅声明十个数字即可。
 

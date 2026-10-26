@@ -17,6 +17,7 @@ using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Bms.Skinning;
+using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.Scoring;
@@ -245,7 +246,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
                     if (result != HitResult.None)
                     {
-                        ApplyResult(result);
+                        ApplyTimingResult(result, hasPlayerTiming: true);
 
                         if (result.IsHit())
                             OnUserPressedSuccessfully?.Invoke(this);
@@ -255,7 +256,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 }
 
                 if (!CanStillBeHitByPlayer(HitObject, timeOffset))
-                    ApplyMinResult();
+                    ApplyTimingResult(Result.Judgement.MinResult);
 
                 return;
             }
@@ -263,11 +264,19 @@ namespace osu.Game.Rulesets.Bms.UI
             if (timeOffset < 0)
                 return;
 
-            if (ShouldAutoApplyMaxResult(HitObject))
-                ApplyMaxResult();
-            else
-                ApplyMinResult();
+            ApplyTimingResult(ShouldAutoApplyMaxResult(HitObject) ? Result.Judgement.MaxResult : Result.Judgement.MinResult);
         }
+
+        protected internal override JudgementResult CreateResult(Judgement judgement)
+            => new BmsJudgementTimingResult(HitObject, judgement);
+
+        protected void ApplyTimingResult(HitResult result, bool hasPlayerTiming = false)
+            => ApplyResult(static (judgement, state) =>
+            {
+                // Reset provenance on every application, including automatic results after a replay rewind.
+                ((BmsJudgementTimingResult)judgement).HasPlayerTiming = state.HasPlayerTiming;
+                judgement.Type = state.Result;
+            }, (Result: result, HasPlayerTiming: hasPlayerTiming && HitObject is BmsHitObject { AutoPlay: false }));
 
         protected override void UpdateHitStateTransforms(ArmedState state)
         {
@@ -402,13 +411,13 @@ namespace osu.Game.Rulesets.Bms.UI
         internal virtual void HitForcefully()
         {
             if (!Judged)
-                ApplyMaxResult();
+                ApplyTimingResult(Result.Judgement.MaxResult);
         }
 
         internal virtual void MissForcefully()
         {
             if (!Judged)
-                ApplyMinResult();
+                ApplyTimingResult(Result.Judgement.MinResult);
         }
 
         internal void ApplyAutoScratchVisuals(bool visible, bool tintEnabled, Color4 tintColour)

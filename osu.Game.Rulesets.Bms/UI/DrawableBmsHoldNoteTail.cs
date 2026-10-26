@@ -4,7 +4,6 @@ using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Difficulty;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Bms.Skinning;
-using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Skinning.Gameplay;
 
@@ -49,20 +48,15 @@ namespace osu.Game.Rulesets.Bms.UI
         {
         }
 
-        protected internal override JudgementResult CreateResult(Judgement judgement)
-            => new JudgementResult(HitObject, judgement);
-
-        internal void ApplyTailResult(HitResult result)
+        internal void ApplyTailResult(HitResult result, bool userReleased)
         {
             if (Judged)
                 return;
 
-            if (tailJudgement.CountsForScore)
-                ApplyResult(result);
-            else if (result.IsHit())
-                ApplyMaxResult();
-            else
-                ApplyMinResult();
+            HitResult appliedResult = tailJudgement.CountsForScore
+                ? result
+                : result.IsHit() ? Result.Judgement.MaxResult : Result.Judgement.MinResult;
+            ApplyTimingResult(appliedResult, hasPlayerTiming: userReleased);
         }
     }
 }

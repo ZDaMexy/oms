@@ -1373,6 +1373,7 @@ namespace osu.Game.Skinning.Gameplay
 
                     if (judgement.GroupId != null)
                     {
+                        judgementTimingGroups[judgement.GroupId] = judgement.JudgementTimingState;
                         judgementsByGroup[judgement.GroupId] = new GameplaySkinCurrentJudgementStateSnapshot(
                             GameplaySkinJudgementScope.Group,
                             judgement,
@@ -1439,9 +1440,13 @@ namespace osu.Game.Skinning.Gameplay
             bga.Clear();
             judgementsByLane.Clear();
             judgementsByGroup.Clear();
+            judgementTimingGroups.Clear();
             judgementsByObject.Clear();
             objectJudgementsToRetire.Clear();
             globalJudgement = null;
+
+            foreach (GameplaySkinJudgementTimingGroupStateSnapshot group in state.JudgementTimingGroups)
+                judgementTimingGroups.Add(group.GroupId, group.State);
 
             foreach (GameplaySkinCurrentJudgementStateSnapshot retained in state.CurrentJudgements)
             {
@@ -2289,6 +2294,8 @@ namespace osu.Game.Skinning.Gameplay
                 GameplaySkinSceneBindingSource.GaugeType => gaugeTypeId(scoreState.GaugeState.Type),
                 GameplaySkinSceneBindingSource.GaugeClearState => gaugeClearStateId(scoreState.GaugeState.ClearState),
                 GameplaySkinSceneBindingSource.JudgementResult => judgementGradeId(judgement?.Grade ?? GameplaySkinJudgementGrade.Miss),
+                GameplaySkinSceneBindingSource.JudgementTimingDirection or GameplaySkinSceneBindingSource.JudgementKeysTimingDirection
+                    or GameplaySkinSceneBindingSource.JudgementScratchTimingDirection => judgementTimingDirection(source, target),
                 GameplaySkinSceneBindingSource.BgaContentState => bgaStateId(bgaState?.ContentState ?? GameplaySkinBgaContentState.Empty),
                 _ => throw new InvalidOperationException(),
             };
@@ -2429,6 +2436,10 @@ namespace osu.Game.Skinning.Gameplay
 
             switch (binding.Source)
             {
+                case GameplaySkinSceneBindingSource.ScorePacemakerNextLabel:
+                    applyRuntimeStringProperty(target, binding.Property, pacemakerNext.Label);
+                    return;
+
                 case GameplaySkinSceneBindingSource.ScrollMode:
                     applyRuntimeStringProperty(target, binding.Property, adjustmentModeId(timingState.AdjustmentState.Mode));
                     return;
@@ -2489,6 +2500,12 @@ namespace osu.Game.Skinning.Gameplay
 
                 case GameplaySkinSceneBindingSource.JudgementOffset:
                     applyRuntimeNumberProperty(target, binding.Property, judgement?.Offset ?? 0);
+                    return;
+
+                case GameplaySkinSceneBindingSource.JudgementTimingDirection:
+                case GameplaySkinSceneBindingSource.JudgementKeysTimingDirection:
+                case GameplaySkinSceneBindingSource.JudgementScratchTimingDirection:
+                    applyRuntimeStringProperty(target, binding.Property, judgementTimingDirection(binding.Source, target));
                     return;
 
                 case GameplaySkinSceneBindingSource.SongTitle:

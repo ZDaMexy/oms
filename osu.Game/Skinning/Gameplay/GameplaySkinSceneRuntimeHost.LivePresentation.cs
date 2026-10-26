@@ -26,6 +26,9 @@ namespace osu.Game.Skinning.Gameplay
 
         private bool rankAvailable => chartPresentation?.UsesExScore == true && scoreState.MaximumScore > 0;
 
+        private GameplaySkinPacemakerNextTarget pacemakerNext
+            => GameplaySkinPacemakerNext.Calculate(chartPresentation?.UsesExScore == true, scoreState.MaximumScore, chartPresentation?.PersonalBestScore);
+
         private double rankValue(int ninths)
             => rankAvailable ? GameplaySkinChartPresentation.RankThreshold(scoreState.MaximumScore, ninths) : 0;
 
@@ -51,6 +54,7 @@ namespace osu.Game.Skinning.Gameplay
                 case GameplaySkinSceneBindingSource.OffsetAvailable: value = scoreState.OffsetState.IsAvailable; return true;
                 case GameplaySkinSceneBindingSource.OffsetAutomatic: value = scoreState.OffsetState.Automatic; return true;
                 case GameplaySkinSceneBindingSource.ScorePersonalBestAvailable: value = chartPresentation?.PersonalBestScore.HasValue == true; return true;
+                case GameplaySkinSceneBindingSource.ScorePacemakerNextAvailable: value = pacemakerNext.Available; return true;
                 case GameplaySkinSceneBindingSource.ScoreMaximumAvailable: value = scoreState.MaximumScore > 0; return true;
                 case GameplaySkinSceneBindingSource.ScoreRankAvailable: value = rankAvailable; return true;
                 default: value = false; return false;
@@ -87,6 +91,8 @@ namespace osu.Game.Skinning.Gameplay
                 case GameplaySkinSceneBindingSource.JudgementCountSlow: value = scoreState.Statistics.Slow; return true;
                 case GameplaySkinSceneBindingSource.OffsetValue: value = scoreState.OffsetState.Milliseconds; return true;
                 case GameplaySkinSceneBindingSource.ScorePersonalBest: value = chartPresentation?.PersonalBestScore ?? 0; return true;
+                case GameplaySkinSceneBindingSource.ScorePacemakerNext: value = pacemakerNext.Value; return true;
+                case GameplaySkinSceneBindingSource.ScorePacemakerNextProgress: value = pacemakerNext.Progress; return true;
                 case GameplaySkinSceneBindingSource.ScorePersonalBestProgress:
                     value = scoreState.MaximumScore > 0 && chartPresentation?.PersonalBestScore is long best ? Math.Clamp((double)best / scoreState.MaximumScore, 0, 1) : 0;
                     return true;

@@ -137,6 +137,7 @@ namespace osu.Game.Skinning.Gameplay
             lifecycle = initial.LifecycleState;
             completion = initial.Completion;
             restoreJudgements(initial.CurrentJudgements);
+            restoreJudgementTimingGroups(initial.JudgementTimingGroups);
             score = initial.Score;
             timing = initial.Timing;
             timingStopped = initial.Timing.IsStopped;
@@ -373,7 +374,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinLaneId? laneId,
             GameplaySkinJudgementGrade grade,
             double offset,
-            double gaugeDelta)
+            double gaugeDelta,
+            bool hasPlayerTiming = false)
         {
             if (groupId != null)
                 validateExactTarget(groupId, laneId);
@@ -384,7 +386,8 @@ namespace osu.Game.Skinning.Gameplay
             if (pendingReset is GameplaySkinEventResetReason.Seek or GameplaySkinEventResetReason.Rewind or GameplaySkinEventResetReason.Retry)
                 return;
 
-            var state = new GameplaySkinJudgementStateSnapshot(objectId, groupId, laneId, grade, offset, gaugeDelta);
+            // Validate the real judgement before updating the independently retained timing channels.
+            _ = new GameplaySkinJudgementStateSnapshot(objectId, groupId, laneId, grade, offset, gaugeDelta, hasPlayerTiming);
             if (objectId.HasValue)
             {
                 if (!activeObjects.TryGetValue(objectId.Value, out GameplaySkinObjectStateSnapshot active))
@@ -399,6 +402,8 @@ namespace osu.Game.Skinning.Gameplay
             }
 
             double appliedTime = AuthoritativeGameplayTime;
+            GameplaySkinJudgementTimingStateSnapshot timingState = foldJudgementTiming(groupId, laneId, grade, offset, hasPlayerTiming, appliedTime);
+            var state = new GameplaySkinJudgementStateSnapshot(objectId, groupId, laneId, grade, offset, gaugeDelta, hasPlayerTiming, timingState);
             double displayUntil = appliedTime + GameplaySkinEventBudgets.JUDGEMENT_DISPLAY_DURATION;
             globalJudgement = new GameplaySkinCurrentJudgementStateSnapshot(GameplaySkinJudgementScope.Global, state, appliedTime, displayUntil);
 
@@ -498,6 +503,7 @@ namespace osu.Game.Skinning.Gameplay
             if (reason is GameplaySkinEventResetReason.Seek or GameplaySkinEventResetReason.Rewind or GameplaySkinEventResetReason.Retry)
             {
                 clearInputOrigins();
+                clearJudgementTimingGroups();
                 restoreLifecycleAfterDiscontinuity(retainCompletion: reason != GameplaySkinEventResetReason.Retry);
             }
         }
@@ -555,6 +561,7 @@ namespace osu.Game.Skinning.Gameplay
                 if (reason is GameplaySkinEventResetReason.Seek or GameplaySkinEventResetReason.Rewind or GameplaySkinEventResetReason.Retry)
                 {
                     clearJudgements();
+                    clearJudgementTimingGroups();
                     objectCapacityExceeded = false;
                 }
 
@@ -877,7 +884,7 @@ namespace osu.Game.Skinning.Gameplay
                 timing,
                 bga.Values.OrderBy(viewport => viewport.ViewportIndex),
                 songInformation,
-                completion, chartPresentation);
+                completion, chartPresentation, currentJudgementTimingGroups());
 
         private IEnumerable<GameplaySkinCurrentJudgementStateSnapshot> currentJudgements(double gameplayTime)
         {
@@ -993,6 +1000,7 @@ namespace osu.Game.Skinning.Gameplay
             {
                 pendingReset = GameplaySkinEventResetReason.Rewind;
                 clearInputOrigins();
+                clearJudgementTimingGroups();
                 return;
             }
 
@@ -1034,6 +1042,7 @@ namespace osu.Game.Skinning.Gameplay
             deferDiscontinuityResetForDrawableState = objectSnapshotSource != null;
             pendingDiscontinuityGameplayTime = gameplayClockContainer?.LastSeekTarget;
             clearInputOrigins();
+            clearJudgementTimingGroups();
             restoreLifecycleAfterDiscontinuity(retainCompletion: seeking);
         }
 
@@ -1052,6 +1061,7 @@ namespace osu.Game.Skinning.Gameplay
             pendingDiscontinuityGameplayTime = seekDestination;
             retireArrivalCue(seekDestination);
             clearInputOrigins();
+            clearJudgementTimingGroups();
             restoreLifecycleAfterDiscontinuity(retainCompletion: true);
         }
 
@@ -1062,6 +1072,7 @@ namespace osu.Game.Skinning.Gameplay
             deferDiscontinuityResetForDrawableState = objectSnapshotSource != null;
             pendingDiscontinuityGameplayTime = gameplayClockContainer?.LastSeekTarget;
             clearInputOrigins();
+            clearJudgementTimingGroups();
             restoreLifecycleAfterDiscontinuity();
         }
 

@@ -51,6 +51,17 @@ Start设置迁移分两步：`build_lighting_start_options.py`消费实际菜单
 
 为守原预算，工具先证明15框体三布局的Graph声明归一后相同，再用实际`layout.presentation`和受限x/width变体共用；不依赖DP不适用的保存layout选项。366款LIFT的重复字体/读数改为同一原生边缘模板，FC只给原PNG建立更短的内容路径，原资源ID、像素、动画与选值保持。父作者和原包只读，新包必须另过当前CLI、真实Player和配置保存；闭包/CRC成功不代表引擎或画面验收。完整本轮边界取[游玩调速记录](../../doc_md/other/OMNI_GAMEPLAY_CONTROLS_20261025.md)。
 
+`audit_lighting_asset_usage.py`将冻结作者闭包与独立原图库逐RGBA比较，展开压缩scene、C2选项/条件、INI、字形与atlas裁片，并核对显式派生/tint收据。输出来源引用JSONL、独立像素候选及联系表，区分直接/等像素引用、已确认派生、待核候选、范围外及证据不足；没有直接打包原PNG不等于未使用，候选不等于缺失功能。主库未解包的IFS仍属未查范围。输入保持只读，输出必须是独立新目录，完整清单和图片仅留本地。参数`--derivation-receipt / --tint-receipt / --module-receipt`可重复提供，只接受实际生成收据，不按名称推断派生。
+
+`build_lighting_pacemaker_targets.py`将原graph-target以同ID迁入C2，保留六个旧值/默认并加PACEMAKER NEXT；只发布所选目标及必要SUB树以守原预算。`build_lighting_timing_display.py`在下一独立作者中接四张原FAST/SLOW图片，增加BMS专用A/B/C、Separate Display及OFF，默认A。它必须消费独立`--positions`审查收据，核对15框体/既有全部Judgement款的相同宿主，以及105分支的声明/引用ID；不凭菜单预览推断原生精确坐标。两步均拒绝覆盖父作者和旧OSK，不增加字体/预算；数据资格、真实原版证据与OMS适配边界见[本轮记录](../../doc_md/other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。
+
+```powershell
+. .\UseDevelopmentStorage.ps1
+python -B tools/IidxSkinAssets/audit_lighting_asset_usage.py --author 'Y:\FrozenAuthor' --library 'Y:\OriginalCustomLibrary' --fullcombo 'Y:\FullComboLibrary\v3' --localized 'Y:\LocalizedLibrary' --output 'Y:\FreshUsageAudit'
+python -B tools/IidxSkinAssets/build_lighting_pacemaker_targets.py --source 'Y:\FrozenControlsAuthor' --output 'Y:\FreshNextAuthor'
+python -B tools/IidxSkinAssets/build_lighting_timing_display.py --source 'Y:\FreshNextAuthor' --library 'Y:\OriginalCustomLibrary' --positions 'Y:\ReviewedTimingPositions.json' --output 'Y:\FreshTimingAuthor'
+```
+
 ```powershell
 . .\UseDevelopmentStorage.ps1
 python -B tools/IidxSkinAssets/build_lighting_gameplay_controls.py --source 'Y:\PreviousOmniAuthor' --library 'Y:\OriginalCustomLibrary' --output 'Y:\NextOmniAuthor' --evidence 'Y:\GameplayControlsEvidence'

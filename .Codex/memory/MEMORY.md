@@ -15,7 +15,7 @@
 
 ## 皮肤恢复与存储
 
-- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage继承、轨宽、血槽/FC、组合预算与冻结ID重建；真实起点/预览、持续组件、轨底层拆分、原生Mod避让、原版菜单取证、判定宿主高度、横排像素叶子与挡板/LIFT读数几何、共享亮度与独立RGB载体、挡板最终透明度、Spice覆盖与采样时钟、C4身份、裁切与退出HUD readiness。
+- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage继承、轨宽、血槽/FC、组合预算与冻结ID重建；真实起点/预览、持续组件、轨底层拆分、原生Mod避让、原版菜单取证、判定宿主高度、横排像素叶子与挡板/LIFT读数几何、共享亮度、挡板透明度、Spice采样时钟、C4身份、退出HUD readiness、点分ID与atlas未引用误判。
 
 - [2026-07-10 皮肤恢复](reference_skin_recovery_20260710.md) — 恢复锚点、归档与重新准入；**皮肤任务先读**。
 - [2026-07-13 schema 56 皮肤清点](reference_skin_schema56_inventory_20260713.md) — 只读取证、失效类型与 Realm mtime 误判。
@@ -72,6 +72,6 @@
 - [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — 唯一layout、准备失败与旧screen退役、显式空位/authorTop、mania键图mask、双stage判定、替换后AutoSize零高与跨玩法尺寸、光柱层级、图卡目标、AFP/SD、CUSTOM与开场短帧窗口。
 - [gameplay skin config presence](reference_gameplay_skin_config_presence.md) — accepted presence、synthetic default 与 per-index mask。
 - [gameplay skin lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md) — lane provenance、9K/14K 候选映射与资源退役。
-- [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — 事件顺序、移动源seek收敛与完整Reset、Autoplay假SLOW、callback拷贝、真实显示、可见后准备计时与首排提示退场。
+- [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — 事件顺序、移动源seek收敛与完整Reset、Autoplay/自动完成假SLOW、callback拷贝、真实显示、可见后准备计时、首排提示退场及取景consumer sequence。
 - [gameplay skin capability negotiation](reference_gameplay_skin_capability_negotiation.md) — closed allowlist、只读 token 与危险 handle。
 - [gameplay skin 脚本诊断](reference_gameplay_skin_scripts.md) — 授权撤销、暂停冻结、数值钳制、固定 tick 与纹理上传 ownership。

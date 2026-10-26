@@ -769,6 +769,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBindingSource.ScorePersonalBest => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.ScorePersonalBestProgress => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.ScorePersonalBestAvailable => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.ScorePacemakerNext or GameplaySkinSceneBindingSource.ScorePacemakerNextProgress
+                or GameplaySkinSceneBindingSource.ScorePacemakerNextLabel or GameplaySkinSceneBindingSource.ScorePacemakerNextAvailable => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.ScoreRankAaa => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.ScoreRankAa => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.ScoreRankA => GameplaySkinSceneStateFamily.Score,
@@ -788,6 +790,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBindingSource.ObjectLongNoteAppearance => GameplaySkinSceneStateFamily.Object,
             GameplaySkinSceneBindingSource.JudgementResult => GameplaySkinSceneStateFamily.Judgement,
             GameplaySkinSceneBindingSource.JudgementOffset => GameplaySkinSceneStateFamily.Judgement,
+            GameplaySkinSceneBindingSource.JudgementTimingDirection or GameplaySkinSceneBindingSource.JudgementKeysTimingDirection
+                or GameplaySkinSceneBindingSource.JudgementScratchTimingDirection => GameplaySkinSceneStateFamily.Judgement,
             GameplaySkinSceneBindingSource.ScoreValue => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.ScoreMaximum => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.ScoreProgress => GameplaySkinSceneStateFamily.Score,

@@ -35,7 +35,7 @@ using SixLabors.ImageSharp.PixelFormats;
 namespace osu.Game.Rulesets.Bms.Tests.Skinning
 {
     /// <summary>
-    /// Imports a local author's package into disposable storage and captures the actual autoplay Player.
+    /// Imports a local author's package into disposable storage and captures the actual Player.
     /// The synthetic chart exercises complete playback; it does not replace real-song or device acceptance.
     /// </summary>
     [TestFixture]
@@ -83,6 +83,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             bool captureFeedback = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_FEEDBACK") == "1";
             bool captureStartOptions = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_START_OPTIONS") == "1";
             bool captureGameplayControls = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_GAMEPLAY_CONTROLS") == "1";
+            bool captureJudgementTiming = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_JUDGEMENT_TIMING") == "1";
+            bool normalPlayer = captureGameplayControls || captureJudgementTiming;
             double completionOrigin = 0;
             double completionSeekTime = 0;
             double completionDuration = 0;
@@ -100,6 +102,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
                 outputDirectory = Path.GetFullPath(output!);
                 Directory.CreateDirectory(outputDirectory);
+                if (captureJudgementTiming && (captureBurst || captureFullCombo || captureNoteGeometry || captureFeedback || captureStartOptions || captureGameplayControls
+                                              || Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_OPENING") == "1"
+                                              || Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_LIGHTING_DETAILS") == "1"))
+                    throw new InvalidOperationException("The judgement timing capture has its own normal-input sequence; run it separately from the other capture modes.");
                 doublePlay = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_KEYMODE") == "14K";
                 fiveKey = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_KEYMODE") == "5K";
                 longNoteMode = Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_LONG_NOTE_MODE") switch
@@ -135,7 +141,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     BmsLongNoteMode.HCN => [autoplay, new BmsModHellChargeNote()],
                     _ => throw new InvalidOperationException("The author capture long-note mode is invalid."),
                 };
-                Game.SelectedMods.Value = configureStartOptions(captureGameplayControls
+                Game.SelectedMods.Value = configureStartOptions(normalPlayer
                     ? selectedMods.Where(mod => mod is not BmsModAutoplay).ToArray()
                     : selectedMods);
                 DismissAnyNotifications();
@@ -186,7 +192,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                         preferences.SetOverride(import.GetAwaiter().GetResult().ID, "bms", choice.Key, choice.Value);
                 var ruleset = new BmsRuleset();
                 // ReplayPlayer has its own transport controls and does not own normal BMS Start gestures.
-                Game.ScreenStack.Push(new PlayerLoader(() => player = captureGameplayControls
+                Game.ScreenStack.Push(new PlayerLoader(() => player = normalPlayer
                     ? new BmsSoloPlayer()
                     : new ReplayPlayer(ruleset.GetAutoplayMod()!.CreateScoreFromReplayData)));
             });
@@ -276,6 +282,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     if (captureStartOptions)
                         recordLiveHitExplosionRgb();
                     captureHitPhase();
+                    if (captureJudgementTiming)
+                        sampleJudgementTimingInput();
                 })
                 { AlwaysPresent = true });
                 Game.Notifications.Hide();
@@ -283,7 +291,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 freezeHitPhase = captureBurst;
             });
 
-            if (captureFeedback)
+            if (captureJudgementTiming)
+                addJudgementTimingCaptureSteps();
+            else if (captureFeedback)
                 addFeedbackCaptureSteps();
             else if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_OPENING") == "1")
                 addOpeningCaptureSteps();
@@ -321,7 +331,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 
             // At 3700ms the first hold is active and the following ordinary notes are already in their
             // real drawable lifetime. Earlier sampling can accidentally assert against an unbound pooled note.
-            foreach (double time in captureFeedback ? Array.Empty<double>() : new[] { 2600d, 3700d, 4200d, 6800d, 10100d })
+            foreach (double time in captureFeedback || captureJudgementTiming ? Array.Empty<double>() : new[] { 2600d, 3700d, 4200d, 6800d, 10100d })
             {
                 double captureTime = time;
                 AddUntilStep($"play naturally to {captureTime:0}ms", () =>
@@ -390,12 +400,14 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 AddStep("resume the remaining transparent completion tail", () => gameplayClock.Start());
                 AddUntilStep("the real Player leaves for results after the bounded outro", () => !ReferenceEquals(Game.ScreenStack.CurrentScreen, player));
             }
-            AddAssert(captureGameplayControls ? "normal lane input produced real EX score and judgements" : "autoplay produced real EX score and judgements",
+            AddAssert(normalPlayer ? "normal lane input produced real EX score and judgements" : "autoplay produced real EX score and judgements",
                 () => score.TotalScore.Value > 0 && score.HighestCombo.Value > 0);
             AddAssert("the author scene survived complete playback", () => renderer.GameplaySkinSceneRuntime!.RuntimeFaults.Count == 0);
             if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_START_OPTIONS") == "1")
                 AddStep("verify requested brightness reached every live material", assertRgbEvidenceCoverage);
-            if (captureGameplayControls)
+            if (captureJudgementTiming)
+                addJudgementTimingCompletionSteps();
+            if (normalPlayer)
                 AddStep("restore observed host activity", () =>
                 {
                     captureHostActivity.Value = captureObservedHostActivity;

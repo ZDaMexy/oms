@@ -62,9 +62,7 @@ namespace osu.Game.Skinning.Gameplay
         private void preparePersonalBest(RealmAccess? realm, IAPIProvider? api)
         {
             GameplaySkinPreparedSceneProgram program = Publication.PreparedScene.Program;
-            if (!program.UsesBindingSource(GameplaySkinSceneBindingSource.ScorePersonalBest)
-                && !program.UsesBindingSource(GameplaySkinSceneBindingSource.ScorePersonalBestProgress)
-                && !program.UsesBindingSource(GameplaySkinSceneBindingSource.ScorePersonalBestAvailable))
+            if (!RequiresPersonalBest(program))
                 return;
 
             if (realm == null || api == null || scoreProcessor == null || scoreBeatmap == null || chartPresentation == null
@@ -90,6 +88,15 @@ namespace osu.Game.Skinning.Gameplay
                                           .Select(score => (long?)score.TotalScore).Max());
             chartPresentation = new GameplaySkinChartPresentation(chartPresentation.Arrivals, chartPresentation.UsesExScore, best, chartPresentation.ArrivalCueAvailable);
         }
+
+        internal static bool RequiresPersonalBest(GameplaySkinPreparedSceneProgram program)
+            => program.UsesBindingSource(GameplaySkinSceneBindingSource.ScorePersonalBest)
+               || program.UsesBindingSource(GameplaySkinSceneBindingSource.ScorePersonalBestProgress)
+               || program.UsesBindingSource(GameplaySkinSceneBindingSource.ScorePersonalBestAvailable)
+               || program.UsesBindingSource(GameplaySkinSceneBindingSource.ScorePacemakerNext)
+               || program.UsesBindingSource(GameplaySkinSceneBindingSource.ScorePacemakerNextProgress)
+               || program.UsesBindingSource(GameplaySkinSceneBindingSource.ScorePacemakerNextLabel)
+               || program.UsesBindingSource(GameplaySkinSceneBindingSource.ScorePacemakerNextAvailable);
 
         private void prepareTimingCounts()
             => automatedTiming = scoreProcessor?.Mods.Value.Any(mod => mod is ModAutoplay) == true;

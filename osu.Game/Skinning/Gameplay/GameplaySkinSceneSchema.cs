@@ -529,6 +529,13 @@ namespace osu.Game.Skinning.Gameplay
         CoverSuddenActive = 93,
         CoverHiddenActive = 94,
         LayoutPresentation = 95,
+        ScorePacemakerNext = 96,
+        ScorePacemakerNextProgress = 97,
+        ScorePacemakerNextLabel = 98,
+        ScorePacemakerNextAvailable = 99,
+        JudgementTimingDirection = 100,
+        JudgementKeysTimingDirection = 101,
+        JudgementScratchTimingDirection = 102,
     }
 
     public enum GameplaySkinSceneEvent
@@ -1102,6 +1109,13 @@ namespace osu.Game.Skinning.Gameplay
             "score.personal-best" => GameplaySkinSceneBindingSource.ScorePersonalBest,
             "score.personal-best-progress" => GameplaySkinSceneBindingSource.ScorePersonalBestProgress,
             "score.personal-best-available" => GameplaySkinSceneBindingSource.ScorePersonalBestAvailable,
+            "score.pacemaker-next" => GameplaySkinSceneBindingSource.ScorePacemakerNext,
+            "score.pacemaker-next-progress" => GameplaySkinSceneBindingSource.ScorePacemakerNextProgress,
+            "score.pacemaker-next-label" => GameplaySkinSceneBindingSource.ScorePacemakerNextLabel,
+            "score.pacemaker-next-available" => GameplaySkinSceneBindingSource.ScorePacemakerNextAvailable,
+            "judgement.timing-direction" => GameplaySkinSceneBindingSource.JudgementTimingDirection,
+            "judgement.keys-timing-direction" => GameplaySkinSceneBindingSource.JudgementKeysTimingDirection,
+            "judgement.scratch-timing-direction" => GameplaySkinSceneBindingSource.JudgementScratchTimingDirection,
             "score.rank-aaa" => GameplaySkinSceneBindingSource.ScoreRankAaa,
             "score.rank-aa" => GameplaySkinSceneBindingSource.ScoreRankAa,
             "score.rank-a" => GameplaySkinSceneBindingSource.ScoreRankA,

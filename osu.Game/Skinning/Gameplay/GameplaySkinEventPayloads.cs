@@ -256,19 +256,29 @@ namespace osu.Game.Skinning.Gameplay
 
         public double GaugeDelta { get; }
 
+        public bool HasPlayerTiming { get; }
+
+        public GameplaySkinJudgementTimingStateSnapshot JudgementTimingState { get; }
+
         internal GameplaySkinJudgementStateSnapshot(
             long? objectId,
             GameplaySkinLaneGroupId? groupId,
             GameplaySkinLaneId? laneId,
             GameplaySkinJudgementGrade grade,
             double offset,
-            double gaugeDelta)
+            double gaugeDelta,
+            bool hasPlayerTiming = false,
+            GameplaySkinJudgementTimingStateSnapshot judgementTimingState = default)
         {
             if (objectId < 0)
                 throw new ArgumentOutOfRangeException(nameof(objectId));
 
             if (laneId != null && groupId == null)
                 throw new ArgumentException("A lane-targeted judgement must also carry its stable group ID.", nameof(groupId));
+
+            if (groupId == null && (hasPlayerTiming || judgementTimingState.Combined.HasValue
+                                                   || judgementTimingState.Keys.HasValue || judgementTimingState.Scratch.HasValue))
+                throw new ArgumentException("Player timing and retained timing channels require an exact group ID.", nameof(groupId));
 
             if (grade == GameplaySkinJudgementGrade.Unspecified || !Enum.IsDefined(grade))
                 throw new ArgumentOutOfRangeException(nameof(grade), grade, "Judgement grade must be specified.");
@@ -281,6 +291,9 @@ namespace osu.Game.Skinning.Gameplay
             Grade = grade;
             Offset = offset;
             GaugeDelta = gaugeDelta;
+            HasPlayerTiming = hasPlayerTiming;
+            JudgementTimingState = GameplaySkinJudgementTimingStateSnapshot.Restore(
+                judgementTimingState.Combined, judgementTimingState.Keys, judgementTimingState.Scratch);
         }
 
         private static void ensureFinite(double value, string name)
@@ -608,6 +621,8 @@ namespace osu.Game.Skinning.Gameplay
 
         public IReadOnlyList<GameplaySkinCurrentJudgementStateSnapshot> CurrentJudgements { get; }
 
+        public IReadOnlyList<GameplaySkinJudgementTimingGroupStateSnapshot> JudgementTimingGroups { get; }
+
         public GameplaySkinJudgementStateSnapshot? LastJudgement { get; }
 
         public GameplaySkinScoreStateSnapshot Score { get; }
@@ -629,7 +644,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinTimingStateSnapshot timing,
             IEnumerable<GameplaySkinBgaStateSnapshot> bgaViewports,
             GameplaySkinSongInformation? songInformation = null,
-            GameplaySkinCompletionStateSnapshot? completion = null, GameplaySkinChartPresentation? chartPresentation = null)
+            GameplaySkinCompletionStateSnapshot? completion = null, GameplaySkinChartPresentation? chartPresentation = null,
+            IEnumerable<GameplaySkinJudgementTimingGroupStateSnapshot>? judgementTimingGroups = null)
         {
             if (lifecycleState == GameplaySkinLifecycleState.Unspecified || !Enum.IsDefined(lifecycleState))
                 throw new ArgumentOutOfRangeException(nameof(lifecycleState), lifecycleState, "Lifecycle state must be specified.");
@@ -646,11 +662,25 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinObjectStateSnapshot[] copiedObjects = [.. activeObjects];
             GameplaySkinCurrentJudgementStateSnapshot[] copiedJudgements = [.. currentJudgements];
             GameplaySkinBgaStateSnapshot[] copiedBga = [.. bgaViewports];
+            GameplaySkinJudgementTimingGroupStateSnapshot[] copiedTimingGroups = judgementTimingGroups == null ? [] : [.. judgementTimingGroups];
 
             validateCollection(copiedInputs, GameplaySkinEventBudgets.MAX_INPUT_STATES, nameof(inputs));
             validateCollection(copiedObjects, GameplaySkinEventBudgets.MAX_ACTIVE_OBJECTS, nameof(activeObjects));
             validateCollection(copiedJudgements, GameplaySkinEventBudgets.MAX_CURRENT_JUDGEMENT_STATES, nameof(currentJudgements));
             validateCollection(copiedBga, GameplaySkinEventBudgets.MAX_BGA_VIEWPORTS, nameof(bgaViewports));
+
+            HashSet<GameplaySkinLaneGroupId> inputGroups = [.. copiedInputs.Select(input => input.GroupId)];
+            validateCollection(copiedTimingGroups, inputGroups.Count, nameof(judgementTimingGroups));
+
+            foreach (GameplaySkinJudgementTimingGroupStateSnapshot entry in copiedTimingGroups)
+            {
+                _ = new GameplaySkinJudgementTimingGroupStateSnapshot(entry.GroupId, entry.State);
+                if (!inputGroups.Contains(entry.GroupId))
+                    throw new ArgumentException("Judgement timing state must belong to a current input group.", nameof(judgementTimingGroups));
+            }
+
+            if (copiedTimingGroups.GroupBy(entry => entry.GroupId).Any(group => group.Skip(1).Any()))
+                throw new ArgumentException("A complete event snapshot cannot contain duplicate judgement timing groups.", nameof(judgementTimingGroups));
 
             foreach (GameplaySkinInputStateSnapshot input in copiedInputs)
                 _ = new GameplaySkinInputStateSnapshot(input.GroupId, input.LaneId, input.IsPressed, input.Strength, input.PressedAt, input.ReleasedAt, input.MotionCounts, input.MotionRevolutions, input.MotionAvailable);
@@ -678,7 +708,9 @@ namespace osu.Game.Skinning.Gameplay
                     judgement.LaneId,
                     judgement.Grade,
                     judgement.Offset,
-                    judgement.GaugeDelta);
+                    judgement.GaugeDelta,
+                    judgement.HasPlayerTiming,
+                    judgement.JudgementTimingState);
 
                 _ = new GameplaySkinCurrentJudgementStateSnapshot(retained.Scope, judgement, retained.AppliedTime, retained.DisplayUntil);
             }
@@ -717,12 +749,14 @@ namespace osu.Game.Skinning.Gameplay
             Array.Sort(copiedObjects, static (left, right) => left.ObjectId.CompareTo(right.ObjectId));
             Array.Sort(copiedJudgements, compareJudgements);
             Array.Sort(copiedBga, static (left, right) => left.ViewportIndex.CompareTo(right.ViewportIndex));
+            Array.Sort(copiedTimingGroups, static (left, right) => StringComparer.Ordinal.Compare(left.GroupId.Value, right.GroupId.Value));
 
             LifecycleState = lifecycleState;
             Completion = completion;
             Inputs = Array.AsReadOnly(copiedInputs);
             ActiveObjects = Array.AsReadOnly(copiedObjects);
             CurrentJudgements = Array.AsReadOnly(copiedJudgements);
+            JudgementTimingGroups = Array.AsReadOnly(copiedTimingGroups);
             LastJudgement = copiedJudgements.FirstOrDefault(retained => retained.Scope == GameplaySkinJudgementScope.Global).Judgement;
 
             if (!copiedJudgements.Any(retained => retained.Scope == GameplaySkinJudgementScope.Global))
@@ -762,6 +796,9 @@ namespace osu.Game.Skinning.Gameplay
             foreach (GameplaySkinInputStateSnapshot input in Inputs)
                 input.ValidateForGameplayTime(gameplayTime);
 
+            foreach (GameplaySkinJudgementTimingGroupStateSnapshot entry in JudgementTimingGroups)
+                entry.State.ValidateForGameplayTime(gameplayTime);
+
             foreach (GameplaySkinCurrentJudgementStateSnapshot retained in CurrentJudgements)
             {
                 if (retained.AppliedTime > gameplayTime)
@@ -769,6 +806,8 @@ namespace osu.Game.Skinning.Gameplay
 
                 if (retained.Scope is not GameplaySkinJudgementScope.Object && retained.DisplayUntil <= gameplayTime)
                     throw new ArgumentException("A complete snapshot cannot retain an expired transient judgement scope.", nameof(gameplayTime));
+
+                retained.Judgement.JudgementTimingState.ValidateForGameplayTime(gameplayTime);
             }
         }
 

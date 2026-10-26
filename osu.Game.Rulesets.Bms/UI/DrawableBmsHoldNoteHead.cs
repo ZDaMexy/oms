@@ -37,7 +37,7 @@ namespace osu.Game.Rulesets.Bms.UI
         internal void ApplyHeadResult(HitResult result)
         {
             if (!Judged)
-                ApplyResult(result);
+                ApplyTimingResult(result, hasPlayerTiming: true);
         }
     }
 }

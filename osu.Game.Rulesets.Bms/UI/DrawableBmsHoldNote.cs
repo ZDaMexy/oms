@@ -409,7 +409,7 @@ namespace osu.Game.Rulesets.Bms.UI
             resolveAllBodyTicks();
             IsHoldingForTesting = false;
 
-            tailDrawable?.ApplyTailResult(tailResult);
+            tailDrawable?.ApplyTailResult(tailResult, userReleased);
             finaliseHold();
         }
 

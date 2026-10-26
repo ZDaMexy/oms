@@ -273,6 +273,14 @@ __pycache__/
 !/tools/IidxSkinAssets/build_lighting_gameplay_controls.py
 !/tools/IidxSkinAssets/lighting_gameplay_controls.py
 !/tools/IidxSkinAssets/test_lighting_gameplay_controls.py
+!/tools/IidxSkinAssets/audit_lighting_asset_usage.py
+!/tools/IidxSkinAssets/test_lighting_asset_usage.py
+!/tools/IidxSkinAssets/lighting_pacemaker_targets.py
+!/tools/IidxSkinAssets/test_lighting_pacemaker_targets.py
+!/tools/IidxSkinAssets/build_lighting_pacemaker_targets.py
+!/tools/IidxSkinAssets/lighting_timing_display.py
+!/tools/IidxSkinAssets/test_lighting_timing_display.py
+!/tools/IidxSkinAssets/build_lighting_timing_display.py
 /build/tools/**
 /build/temp/**
 

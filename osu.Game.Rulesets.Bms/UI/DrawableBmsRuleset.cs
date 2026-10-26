@@ -896,7 +896,8 @@ namespace osu.Game.Rulesets.Bms.UI
             long? activeObjectId = gameplaySkinActiveObjectIds.Contains(objectId) ? objectId : null;
 
             if (tryMapJudgementGrade(result.Type, out GameplaySkinJudgementGrade grade))
-                GameplaySkinEventRuntime!.PublishJudgement(activeObjectId, groupId, laneId, grade, result.TimeOffset, result.HealthIncrease);
+                GameplaySkinEventRuntime!.PublishJudgement(activeObjectId, groupId, laneId, grade, result.TimeOffset, result.HealthIncrease,
+                    hasPlayerTiming: result is IGameplaySkinJudgementTimingMetadata { HasPlayerTiming: true });
 
             // Head, body-tick and tail judgements all retain the one long-note parent identity. The real pooled
             // hold owner publishes its continuous Visible/Holding/Missed state, so a nested judgement must not

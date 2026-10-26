@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-26（Omni游玩Start与输入增量；其余产品/生产证据沿原日期）
+> 最后核对：2026-10-26（Omni判定提示、目标与素材排查；其余产品/生产证据沿原日期）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -9,15 +9,13 @@ OMS处于Phase 1.x后段，原生 BMS 与转谱游玩已完成热路径优化。
 
 Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，具名证据取[P1-A修复记录](../subline/P1-A/CHANGELOG.md#2026-10-22autoplay跳转与omni反馈修复)；正常窗口剩余门由其STATUS维护，先前重进或开场测试不代签。
 
-Omni游玩Start、挡板/LIFT白绿字、甩盘和SUB TARGET已接通，旧BMS调整透明浮窗移除；当前包、原版实测、软件/真实画面与待验范围取[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)及[专项记录](../other/OMNI_GAMEPLAY_CONTROLS_20261025.md)。共享皮肤只读原生状态，输入增量归[P1-B](../subline/P1-B/DEVELOPMENT_STATUS.md)，未改变统一阶段或发行门。
-
 ## 产品与仓库基线
 
 依赖安全修复已入树；当前构建/回归、具体版本、正规许可和旧索引告警从[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)进入。原生最终配方从零重编与发行输出仍分别待验。
 
 游玩判定/结果及性能取[10月19日深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)；设备入口、输入时间、轴用途、长皿与校准接续取[10月21日输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)。前台帧时间与实体设备仍待验收。
 
-皮肤按模式/键数选择，作者声明布局、配置与预览，普通包保持原表现。Lighting Model Skin Omni Until 33默认33，27～33与八支BPL为Game Frame，主屏CUSTOM、歌曲游标与缩略图可用，副屏已移除；mania音符显示已修复，设备方向/主屏图表保持，逐框体轨道开场/GET READY、首排预告与完整JUDGE已[接通](../other/OMNI_OPENINGS_20261021.md)。作品独立私下分享，不内置或进入公开发行/制作套件。原HDD只读，26及更早来源待补；验证和缺口取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)推进，原发行门保持。
+皮肤按模式/键数选择，普通包保持原表现。Lighting Model Skin Omni Until 33默认33，27～33及八支BPL为Game Frame，主屏CUSTOM、开场、歌曲游标与缩略图可用；Start面板、挡板/LIFT读数、甩盘与SUB TARGET已接通，新增独立FAST/SLOW和PACEMAKER NEXT，见[增量与素材审计](../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。当前包、原版/OMS适配及人工缺口只取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，输入归[P1-B](../subline/P1-B/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。原HDD保全，26及更早来源待补；作品独立私下分享，不内置或公开分发，原阶段及发行门保持。
 
 玩家直接登录固定OMSIR，保存后新局上传；新闻 / 帮助 / 排行 / 玩家沿原生页面。谱面列表先选模式：BMS 仅 Ginger Rush / 616，osu!mania 仅 Sayobot，恢复上次 BMS 来源；紧凑筛选、原生卡片和各来源阅读状态保持。正常OMS窗口的lazer体验仍待签收，隔离内容宽度检查不代签；源码 / 软件及剩余门取[P3-IR状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。社交后续，旧ppy关闭；Phase1.x原门保持。
 
@@ -51,11 +49,7 @@ Omni游玩Start、挡板/LIFT白绿字、甩盘和SUB TARGET已接通，旧BMS�
 
 ## 最近一次验证
 
-2026-10-26：本次BMS完整3050通过/19跳过、mania完整995通过/2跳过、Core皮肤/HUD1371通过/3跳过，以及最终同包12组原生Player通过。实际构建、失败复跑和原版/作者目录范围集中取[游玩Start记录](../other/OMNI_GAMEPLAY_CONTROLS_20261025.md#本轮验证)；正常窗口、完整真实歌曲和实体设备仍待验收。
-
-2026-10-24完整BMS补验关闭10月22日内存中止的回归缺口；Core皮肤、mania与Debug/Release同期通过，准确范围及旧告警取[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)。Omni持续组件与原版参照边界取[专项记录](../other/OMNI_OPENINGS_20261021.md#2026-10-24持续组件与原版参照复核)，不新增正常窗口、硬件或发行签收；原生最终配方从零重编仍待。
-
-同日较早的Autoplay连续跳转、详细窗及独立Omni修复与原生取景取上方具名记录；安全迁移前的完整回归不代签新依赖，前台帧时间与原人工门保持。
+2026-10-26：FAST/SLOW、NEXT、BMS/mania与Core皮肤回归及实际Player结果取[P1-A最近验证](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)和[专项证据](../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#验证与保全)。较早Start及持续组件检查保留各自日期，不混计为新包结果；正常窗口、完整真实歌曲、设备和原生最终配方从零重编仍待。
 
 2026-10-11转谱补算、Debug读取及旧失败对照保留原日期，范围与未验项取[P1-H](../subline/P1-H/DEVELOPMENT_STATUS.md#最近一次验证)。
 

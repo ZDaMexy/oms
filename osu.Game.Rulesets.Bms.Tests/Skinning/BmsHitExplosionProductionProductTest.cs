@@ -102,7 +102,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
             AddStep("real tail judgement starts a separate native effect", () =>
             {
-                hold.NestedHitObjects.OfType<DrawableBmsHoldNoteTail>().Single().ApplyTailResult(HitResult.Perfect);
+                hold.NestedHitObjects.OfType<DrawableBmsHoldNoteTail>().Single().ApplyTailResult(HitResult.Perfect, userReleased: false);
                 sceneHost.ProcessFrame();
                 second = lane.ActiveHitExplosions.Single(explosion => !ReferenceEquals(explosion, first));
                 Assert.That(second.BoundObjectId, Is.EqualTo(first.BoundObjectId), "CN head and tail share the exact parent identity.");
@@ -427,7 +427,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
             AddStep("capture head judgement projection", () =>
                 projectionPassesAfterHead = sceneHost.StateMachineProjectionPassCount);
-            AddStep("apply real charge-long-note tail judgement", () => drawableTail.ApplyTailResult(HitResult.Perfect));
+            AddStep("apply real charge-long-note tail judgement", () => drawableTail.ApplyTailResult(HitResult.Perfect, userReleased: false));
             AddUntilStep("tail judgement retriggers same parent scene and overlaps head effect", () =>
             {
                 subscription.DrainFrame(observed.Add);

@@ -1,5 +1,9 @@
 # OMS 更新日志
 
+## 2026-10-26Omni判定提示与素材排查
+
+在既有游玩Start、挡板/LIFT和SUB TARGET基础上，独立Omni接入真实按键/转盘的单次FAST/SLOW及匹配本地最好驱动的PACEMAKER NEXT，并建立直接、atlas/字形/tint派生与待核候选的素材引用审计。当前包、回归与实际Player范围由[P1-A日志](../subline/P1-A/CHANGELOG.md#2026-10-26omni判定提示next与素材审计)维护；原版实测、OMS适配和误判撤回见[专项记录](../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。作品仍独立私下分享，原HDD及正式玩家数据保全，不改变统一阶段或原人工/发行门。
+
 ## 2026-10-25全工作区复核与遗漏状态回写
 
 从干净的`master@8e1c991c`开始，实际fetch确认与origin/master一致；复核全仓工作树、暂存区和非忽略未跟踪范围，未发现遗留代码或待推送提交。本轮在前次专项基础上核对子线消费者与既有诊断记忆，修正[P1-F](../subline/P1-F/CHANGELOG.md#2026-10-25完整bms补验状态回写)仍列完整BMS待补验、[P1-J](../subline/P1-J/CHANGELOG.md#2026-10-25连续跳转修复状态回写)仍称连续seek为当前故障的遗漏；产品证据继续使用10月24日和10月22日原记录，正常窗口、原生从零重编及发行门保持。

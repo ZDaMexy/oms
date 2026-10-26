@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-26（游玩Start、挡板与SUB TARGET接续；原版校准与人工门保持）
+> 最后核对：2026-10-26（FAST/SLOW、NEXT与素材排查接续；原版校准与人工门保持）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -11,9 +11,9 @@
 
 2026-10-18 用户授权从 1st style 到 33 Sparkle Shower 的历代作品制作，先利用现有 33 HDD 的实际资源；需要时允许补齐 OMS 代码能力。该授权是新增第三方作品线，不恢复静线打磨或 complex，不重计既有 C1～C7 campaign；本线使用现有公开作者链，实际不足由第一个作品组件驱动补齐。来源保全与后续界面边界只取[素材作品约束](TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)。
 
-以[游玩Start复核](../../other/OMNI_GAMEPLAY_CONTROLS_20261025.md)及[先前设置复核](../../other/OMNI_START_OPTIONS_20261024.md)为输入，在用户正常VS Code窗口重编/重启后导入STATUS所列最新包，复核Start长按/双击、Start与EFFECT组合、上下挡板/LIFT白绿字、甩盘方向和备用目标；亮度、判定高度/显示、LIFT000及既有开场/持续组件继续观察。Ghost/rotate、FAST/SLOW类型/分开显示、部分Gauge语义和原十键精度只在取得可靠新证据后推进。用户此次明确解除Start/挡板/甩盘所需的Floating冻结；原机20档倍率整表、完整soflan等价、dan/binding flip仍不外推。模式/键数显式值保持或逐层恢复，交付按`.vyymmddxx.osk`逐日递增且不覆盖。软件/隔离Player不代签前台性能、原机或设备；保持Reset、epoch单调及真人PG早晚。
+以[提示、目标与素材审计](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)、[游玩Start复核](../../other/OMNI_GAMEPLAY_CONTROLS_20261025.md)及[先前设置复核](../../other/OMNI_START_OPTIONS_20261024.md)为输入，在用户正常VS Code窗口重编/重启后导入STATUS所列最新包，复核Start长按/双击、模式切换、上下挡板/LIFT白绿字、甩盘、主/SUB目标及FAST/SLOW合并/分开、A/B/C/OFF；已有亮度、判定高度/显示和开场/持续组件继续观察。原版FAST/SLOW等级资格、PG覆盖/寿命及B/C实际坐标尚需新证据；NEXT整数边界是明示OMS策略，不冒称原机实测。单一BPM的20档截图不闭合跨BPM映射，完整soflan、dan/binding flip、Ghost/NEXT+/rotate和原十键精度仍不外推。模式/键数显式值保持或逐层恢复，交付按`.vyymmddxx.osk`逐日递增且不覆盖。软件/隔离Player不代签前台性能、原机或设备；保持Reset、epoch单调及真人PG早晚。
 
-1. 使用[本地素材工具](../../../tools/IidxSkinAssets/README.md)保留来源、原始纹理、有效裁切、动画关联和可搜索预览；逐代核对所需组件，区分共用素材变体、明确代际框体与未确认归属。
+1. 使用[本地素材工具](../../../tools/IidxSkinAssets/README.md)保留来源、原始纹理、有效裁切、动画关联和可搜索预览；按[未使用素材审计](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#素材是否已经完整分类)核对实际引用和atlas/字形/tint派生，不能按文件名或未直包判缺失。优先核HCN gauge/红绿分段与Auto Scratch的真实玩法状态，再评估Graph条图及剩余COMBO状态；挡板余项先查AFP分支和导出覆盖。证据不足的BSS/CN2/MSS不凭名称接入，主库未解包的IFS不计为已分类。
 2. 26来源待用户下载并提供路径，届时先核游玩SP/DP框体、几何、动画及默认绑定，再按26→1逐代向前。版本标识不能代替整代来源，不要求预先下载全套；27～33及BPL已有结果从STATUS读取，不重复登记为待开发。
 3. 已核源结构及已接入组件只取STATUS。进一步原版校准须先取得可实际操作的CUSTOM入口、同步游戏/渲染时钟与命中原点；现有游客与截图接口无法证明全部菜单默认或PG精确周期，不继续猜定色轮。继续保留Hazard、中心平移、判定锚点、数字/视频布局、长条脉冲/松手色及完整FC资格的原机缺口；31背景底693px与红线/键灯716/728px的关系、32纵缩亦不能凭单个源占位升为运行事实。各代截图不互相代签；来源不足按“版本 / 组件 / 已查来源 / 缺口”登记。
 4. 选曲、结算等页面随后按实际页面逐步实现，并保留原界面选项、共用谱库和成绩。新增表现能力须与首个真实作者组件或页面一起交付和验证，不先铺无消费者的接口或导入整个 IIDX 运行时。

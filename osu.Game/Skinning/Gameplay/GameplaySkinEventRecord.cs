@@ -162,8 +162,28 @@ namespace osu.Game.Skinning.Gameplay
                 laneId,
                 (GameplaySkinJudgementGrade)scalar0,
                 number0,
-                number1);
+                number1,
+                hasPlayerTiming: (scalar1 & 64) != 0,
+                judgementTimingState: GameplaySkinJudgementTimingStateSnapshot.Restore(
+                    unpackTimingHint(scalar1 & 3, number2), unpackTimingHint((scalar1 >> 2) & 3, number3),
+                    unpackTimingHint((scalar1 >> 4) & 3, number4)));
         }
+
+        private static GameplaySkinJudgementTimingHint? unpackTimingHint(int packed, double appliedTime) => packed switch
+        {
+            0 => null,
+            1 => new GameplaySkinJudgementTimingHint(GameplaySkinJudgementTimingDirection.Fast, appliedTime),
+            2 => new GameplaySkinJudgementTimingHint(GameplaySkinJudgementTimingDirection.Slow, appliedTime),
+            _ => throw new InvalidOperationException("The compact judgement timing channel is invalid."),
+        };
+
+        private static int packTimingHint(GameplaySkinJudgementTimingHint? hint) => hint?.Direction switch
+        {
+            null => 0,
+            GameplaySkinJudgementTimingDirection.Fast => 1,
+            GameplaySkinJudgementTimingDirection.Slow => 2,
+            _ => throw new InvalidOperationException("The judgement timing hint has an invalid direction."),
+        };
 
         internal GameplaySkinScoreStateSnapshot GetScore()
         {
@@ -391,7 +411,11 @@ namespace osu.Game.Skinning.Gameplay
                 state.LaneId,
                 state.Grade,
                 state.Offset,
-                state.GaugeDelta);
+                state.GaugeDelta,
+                state.HasPlayerTiming,
+                state.JudgementTimingState);
+
+            GameplaySkinJudgementTimingStateSnapshot timing = state.JudgementTimingState;
 
             return new GameplaySkinEventValue(
                 GameplaySkinEventPayloadFamily.Judgement,
@@ -401,8 +425,13 @@ namespace osu.Game.Skinning.Gameplay
                 integral0: state.ObjectId ?? 0,
                 integral1: state.ObjectId.HasValue ? 1 : 0,
                 scalar0: (int)state.Grade,
+                scalar1: packTimingHint(timing.Combined) | (packTimingHint(timing.Keys) << 2) | (packTimingHint(timing.Scratch) << 4)
+                         | (state.HasPlayerTiming ? 64 : 0),
                 number0: state.Offset,
-                number1: state.GaugeDelta);
+                number1: state.GaugeDelta,
+                number2: timing.Combined?.AppliedTime ?? 0,
+                number3: timing.Keys?.AppliedTime ?? 0,
+                number4: timing.Scratch?.AppliedTime ?? 0);
         }
 
         private static GameplaySkinEventValue scoreValue(
@@ -606,6 +635,9 @@ namespace osu.Game.Skinning.Gameplay
                 throw new ArgumentException("A lane-targeted gameplay skin event must also carry its stable group ID.", nameof(groupId));
 
             payload.ValidateTarget(groupId, laneId);
+
+            if (payload.Family == GameplaySkinEventPayloadFamily.Judgement)
+                payload.GetJudgement(groupId, laneId).JudgementTimingState.ValidateForGameplayTime(gameplayTime);
 
             return new GameplaySkinEventRecord(
                 GameplaySkinEventApiVersions.ContractId,

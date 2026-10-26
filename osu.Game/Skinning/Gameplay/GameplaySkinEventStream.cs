@@ -486,6 +486,7 @@ namespace osu.Game.Skinning.Gameplay
             private readonly Dictionary<long, GameplaySkinCurrentJudgementStateSnapshot> judgementsByObject = [];
             private readonly Dictionary<GameplaySkinLaneId, GameplaySkinCurrentJudgementStateSnapshot> judgementsByLane = [];
             private readonly Dictionary<GameplaySkinLaneGroupId, GameplaySkinCurrentJudgementStateSnapshot> judgementsByGroup = [];
+            private readonly Dictionary<GameplaySkinLaneGroupId, GameplaySkinJudgementTimingStateSnapshot> judgementTimingGroups;
             private GameplaySkinCurrentJudgementStateSnapshot? globalJudgement;
             private GameplaySkinScoreStateSnapshot score;
             private readonly GameplaySkinSongInformation? songInformation;
@@ -498,6 +499,10 @@ namespace osu.Game.Skinning.Gameplay
                 lifecycleState = snapshot.LifecycleState;
                 Completion = snapshot.Completion;
                 inputs = snapshot.Inputs.ToDictionary(input => input.LaneId);
+                judgementTimingGroups = snapshot.Inputs.Select(input => input.GroupId).Distinct()
+                                                .ToDictionary(group => group, _ => default(GameplaySkinJudgementTimingStateSnapshot));
+                foreach (GameplaySkinJudgementTimingGroupStateSnapshot entry in snapshot.JudgementTimingGroups)
+                    judgementTimingGroups[entry.GroupId] = entry.State;
                 objects = snapshot.ActiveObjects.ToDictionary(obj => obj.ObjectId);
                 objectResynchronisationAllowed = allowInitialResynchronisation
                     ? [.. objects.Keys]
@@ -543,6 +548,12 @@ namespace osu.Game.Skinning.Gameplay
 
                     case GameplaySkinEventPayloadFamily.Judgement:
                         GameplaySkinJudgementStateSnapshot judgement = payload.GetJudgement(groupId, laneId);
+                        judgement.JudgementTimingState.ValidateForGameplayTime(gameplayTime);
+
+                        if (judgement.GroupId != null && !judgementTimingGroups.ContainsKey(judgement.GroupId)
+                            && (judgement.HasPlayerTiming || judgement.JudgementTimingState.Combined.HasValue
+                                || judgement.JudgementTimingState.Keys.HasValue || judgement.JudgementTimingState.Scratch.HasValue))
+                            throw new InvalidOperationException("A judgement timing edge must belong to a current input group.");
 
                         if (judgement.ObjectId.HasValue)
                         {
@@ -601,6 +612,7 @@ namespace osu.Game.Skinning.Gameplay
                     case GameplaySkinEventPayloadFamily.Input:
                         GameplaySkinInputStateSnapshot input = payload.GetInput(requireGroup(groupId), requireLane(laneId));
                         inputs[input.LaneId] = input;
+                        judgementTimingGroups.TryAdd(input.GroupId, default);
                         break;
 
                     case GameplaySkinEventPayloadFamily.Object:
@@ -609,6 +621,8 @@ namespace osu.Game.Skinning.Gameplay
 
                     case GameplaySkinEventPayloadFamily.Judgement:
                         GameplaySkinJudgementStateSnapshot judgement = payload.GetJudgement(groupId, laneId);
+                        if (judgement.GroupId != null && judgementTimingGroups.ContainsKey(judgement.GroupId))
+                            judgementTimingGroups[judgement.GroupId] = judgement.JudgementTimingState;
                         double displayUntil = gameplayTime + GameplaySkinEventBudgets.JUDGEMENT_DISPLAY_DURATION;
                         globalJudgement = new GameplaySkinCurrentJudgementStateSnapshot(
                             GameplaySkinJudgementScope.Global,
@@ -676,7 +690,8 @@ namespace osu.Game.Skinning.Gameplay
                     Timing,
                     bga.Values.OrderBy(viewport => viewport.ViewportIndex),
                     songInformation,
-                    Completion, chartPresentation);
+                    Completion, chartPresentation,
+                    judgementTimingGroups.Select(entry => new GameplaySkinJudgementTimingGroupStateSnapshot(entry.Key, entry.Value)));
 
             public GameplaySkinCurrentJudgementStateSnapshot? ObjectJudgement(long objectId)
                 => judgementsByObject.TryGetValue(objectId, out GameplaySkinCurrentJudgementStateSnapshot judgement) ? judgement : null;

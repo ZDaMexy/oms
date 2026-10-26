@@ -46,6 +46,9 @@ envelope/scene ABI、版本与producer合同见 [P1-A CONSTRAINTS](../../doc_md/
 - SourceChanged会延后/合并且无package/layout authority，不能当原子reload producer。
 - Snapshot/运行事件由engine state生产，不是整包prepare预先产好全部事件。scene只读，不获得判定/input/score/clock/BGA内容权。
 
+- 自动完成的长条尾/身体也可能有非零offset；单次方向提示须在实际按下/抬起入口复制输入来源，不能由等级/offset反推。保留的方向状态必须独立于当前短暂grade，晚挂载/背压Snapshot携带完整exact group状态；不得给Global借第一组。显示政策与本次证据见[作者参考](../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)及[增量记录](../../doc_md/other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。
+- 真实Player取景在同一外层probe中注入输入后立即冻结，会出现producer已发布而scene consumer尚未消费、图片仍Alpha0的假失败。先记录实际judgement sequence/epoch，再至少让过一帧并等consumer highwater收敛后冻结；不修改生产处理顺序、不直接写hint或放松显示断言。
+
 publication与late attach见 [[reference_skin_atomic_reload_detach]]；capability/family filtering见 [[reference_gameplay_skin_capability_negotiation]]。
 
 ## 完整 HUD 的公开信息与真实显示

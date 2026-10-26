@@ -53,6 +53,8 @@ namespace osu.Game.Skinning.Gameplay
         {
             "preparation.available", "preparation.active", "preparation.elapsed", "preparation.remaining", "preparation.ready", "preparation.ready-elapsed", "arrival.first-row", "arrival.cue-opacity",
             "timing.time", "timing.elapsed", "presentation.elapsed", "timing.start-available", "timing.beat-phase", "arrival.available", "arrival.time", "arrival.remaining", "arrival.visible", "input.motion-counts-1", "input.motion-counts-2", "input.motion-revolutions-1", "input.motion-revolutions-2", "input.motion-available-1", "input.motion-available-2", "judgement.count.fast", "judgement.count.slow", "offset.value", "offset.available", "offset.automatic", "score.personal-best", "score.personal-best-progress", "score.personal-best-available", "score.rank-aaa", "score.rank-aa", "score.rank-a", "score.rank-aaa-progress", "score.rank-aa-progress", "score.rank-a-progress", "score.rank-available",
+            "score.pacemaker-next", "score.pacemaker-next-progress", "score.pacemaker-next-label", "score.pacemaker-next-available",
+            "judgement.timing-direction", "judgement.keys-timing-direction", "judgement.scratch-timing-direction",
             "layout.ruleset", "layout.presentation", "layout.stage", "layout.group", "layout.lane", "input.pressed", "gameplay.full-combo", "object.state", "judgement.result", "judgement.offset",
             "score.value", "score.accuracy", "combo.value", "combo.maximum", "gauge.value", "timing.beat", "timing.measure", "timing.bpm", "timing.progress", "bga.content-state",
             "score.maximum", "score.progress", "score.maximum-available", "lift.value", "lift.offset", "lift.reversed", "lift.available",
@@ -74,6 +76,10 @@ namespace osu.Game.Skinning.Gameplay
                 ["score.maximum-available"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
                 ["score.personal-best-available"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
                 ["score.rank-available"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
+                ["score.pacemaker-next-available"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
+                ["judgement.timing-direction"] = new(new[] { "none", "fast", "slow" }, StringComparer.Ordinal),
+                ["judgement.keys-timing-direction"] = new(new[] { "none", "fast", "slow" }, StringComparer.Ordinal),
+                ["judgement.scratch-timing-direction"] = new(new[] { "none", "fast", "slow" }, StringComparer.Ordinal),
                 ["preparation.available"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
                 ["preparation.active"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
                 ["preparation.ready"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
@@ -708,6 +714,7 @@ namespace osu.Game.Skinning.Gameplay
                     or GameplaySkinSceneBindingSource.JudgementCountMiss or GameplaySkinSceneBindingSource.ComboBreaks
                     or GameplaySkinSceneBindingSource.ScoreMaximum or GameplaySkinSceneBindingSource.JudgementCountFast
                     or GameplaySkinSceneBindingSource.JudgementCountSlow or GameplaySkinSceneBindingSource.ScorePersonalBest
+                    or GameplaySkinSceneBindingSource.ScorePacemakerNext
                     or GameplaySkinSceneBindingSource.ScoreRankAaa or GameplaySkinSceneBindingSource.ScoreRankAa or GameplaySkinSceneBindingSource.ScoreRankA
                     or GameplaySkinSceneBindingSource.ScrollGreenNumber;
 
@@ -1925,6 +1932,7 @@ namespace osu.Game.Skinning.Gameplay
             }
 
             bool sourceIsNumber = source is "timing.time" or "timing.elapsed" or "presentation.elapsed" or "timing.beat-phase" or "arrival.time" or "arrival.remaining" or "input.motion-counts-1" or "input.motion-counts-2" or "input.motion-revolutions-1" or "input.motion-revolutions-2" or "judgement.count.fast" or "judgement.count.slow" or "offset.value" or "score.personal-best" or "score.personal-best-progress" or "score.rank-aaa" or "score.rank-aa" or "score.rank-a" or "score.rank-aaa-progress" or "score.rank-aa-progress" or "score.rank-a-progress"
+                or "score.pacemaker-next" or "score.pacemaker-next-progress"
                 or "preparation.elapsed" or "preparation.remaining" or "preparation.ready-elapsed" or "arrival.cue-opacity"
                 or "judgement.offset" or "score.value" or "score.accuracy" or "combo.value" or "combo.maximum" or "gauge.value" or "gauge.maximum" or "gauge.clear-threshold"
                 or "score.maximum" or "score.progress" or "lift.value" or "lift.offset"
@@ -1932,6 +1940,7 @@ namespace osu.Game.Skinning.Gameplay
                 or "timing.beat" or "timing.measure" or "timing.bpm" or "timing.progress"
                 or "timing.bpm-min" or "timing.bpm-max" or "scroll.speed" or "judgement.count.perfect" or "judgement.count.great" or "judgement.count.good" or "judgement.count.ok" or "judgement.count.meh" or "judgement.count.miss" or "combo.breaks";
             bool sourceIsBoolean = source is "timing.start-available" or "arrival.available" or "arrival.visible" or "input.motion-available-1" or "input.motion-available-2" or "offset.available" or "offset.automatic" or "score.personal-best-available" or "score.rank-available"
+                or "score.pacemaker-next-available"
                 or "preparation.available" or "preparation.active" or "preparation.ready" or "arrival.first-row"
                 or "input.pressed" or "gameplay.full-combo" or "score.maximum-available" or "lift.reversed" or "lift.available"
                 or "scroll.available" or "scroll.adjusting" or "cover.sudden-active" or "cover.hidden-active";

@@ -39,6 +39,7 @@
 - [2026-10-21 Omni全框体开场](OMNI_OPENINGS_20261021.md)：各代原轨道演出、完整GET READY/JUDGE、首排预告与统一准备，普通皮肤边界及实际Player验证。
 - [2026-10-24 Omni Start设置复核](OMNI_START_OPTIONS_20261024.md)：普通/详细菜单、亮度、判定高度/关闭、目标图表及移植边界。
 - [2026-10-25～26 Omni游玩调速](OMNI_GAMEPLAY_CONTROLS_20261025.md)：Start、LIFT/上下挡板白绿字、Floating甩盘与SUB TARGET的原版观察和本轮验证。
+- [2026-10-26 Omni gameplay增量与素材审计](OMNI_GAMEPLAY_COMPLETION_20261026.md)：NEXT、FAST/SLOW分离、真实参照与未引用/派生素材的区分。
 - [2026-10-21 设备输入与校准审查](INPUT_SIGNAL_REVIEW_20261021.md)：spice2x研究、真实父输入／相对鼠标、HID缓冲／身份、四种轴用途、持续测试与长皿回放的修复和验收边界。
 - [2026-10-21 Omni与真实游玩状态](LIGHTING_DETAILS_20261021.md)：主屏目标图/JUDGE、真实方向转盘、首音预告和组件入场，与输入工作的接通及原版校准边界。
 - [2026-10-19 游玩性能与判定深审](GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)：卡顿输入时刻、同批松键、note lock、跨轨撤销、自动演奏结算、失败回放和组件/实机前后证据。
