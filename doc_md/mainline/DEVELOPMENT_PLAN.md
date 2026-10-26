@@ -80,7 +80,7 @@ P1-F结合P1-G统一复核：
 ## 冻结项
 
 - P1-M播放器在R3～R6/release门前不抢占工作；除产品明确改序外保持后置。
-- 已提前实现的Phase 2能力不代表Phase 1完成；1P/2P flip、dan、BSS/MSS等继续冻结。用户本轮指定的Omni Start/Floating/甩盘专项取[P1-A合同](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代)，不据局部交互与读数签收完整原机FHS等价。
+- 已提前实现的Phase 2能力不代表Phase 1完成；1P/2P flip、dan、BSS/MSS等继续冻结。已授权的Omni Start/Floating/甩盘专项取[P1-A合同](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代)，不据局部交互与读数签收完整原机FHS等价。
 - 2026-10-03 用户授权的 [P3-IR](../subline/P3-IR/DEVELOPMENT_PLAN.md) 独立按需服务已进入主动连接 / 公网试运行；2026-10-05 后续批准来源的官网谱面获取沿外部玩家网站专项推进。旧 osu! API endpoint、聊天、多人与自动更新仍冻结；既有客户端公共下载沿 P1-A，不扩大旧全套在线面。
 - 不盲目同步上游，只按[UPSTREAM](../other/UPSTREAM.md)选择性cherry-pick。
 

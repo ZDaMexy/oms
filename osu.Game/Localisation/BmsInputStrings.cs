@@ -9,9 +9,9 @@ namespace osu.Game.Localisation
         private const string prefix = @"osu.Game.Localisation.BmsInput";
 
         /// <summary>
-        /// "EFFECT / adjustment target (Start + EFFECT: Hi-Speed mode)"
+        /// "Gameplay: Cover / Hi-Speed (press: cycle target; hold Start + press: switch mode)"
         /// </summary>
-        public static LocalisableString CycleScrollAdjustmentTarget => new TranslatableString(getKey(@"cycle_scroll_adjustment_target"), @"EFFECT / adjustment target (Start + EFFECT: Hi-Speed mode)");
+        public static LocalisableString CycleScrollAdjustmentTarget => new TranslatableString(getKey(@"cycle_scroll_adjustment_target"), @"Gameplay: Cover / Hi-Speed (press: cycle target; hold Start + press: switch mode)");
 
         /// <summary>
         /// "Start (hold: speed / ready hold; double tap: covers)"
