@@ -9,9 +9,9 @@ namespace osu.Game.Localisation
         private const string prefix = @"osu.Game.Localisation.BmsInput";
 
         /// <summary>
-        /// "Gameplay: Cover / Hi-Speed (press to choose Sudden, Hidden or Lift for mouse-wheel adjustment; hold Start and press to switch between Normal and Floating Hi-Speed)"
+        /// "Gameplay: Cover / Hi-Speed (press to choose Sudden, Hidden or Lift for mouse-wheel adjustment; hold Start and press to switch between Normal Hi-Speed and Floating Hi-Speed)"
         /// </summary>
-        public static LocalisableString CycleScrollAdjustmentTarget => new TranslatableString(getKey(@"cycle_scroll_adjustment_target"), @"Gameplay: Cover / Hi-Speed (press to choose Sudden, Hidden or Lift for mouse-wheel adjustment; hold Start and press to switch between Normal and Floating Hi-Speed)");
+        public static LocalisableString CycleScrollAdjustmentTarget => new TranslatableString(getKey(@"cycle_scroll_adjustment_target"), @"Gameplay: Cover / Hi-Speed (press to choose Sudden, Hidden or Lift for mouse-wheel adjustment; hold Start and press to switch between Normal Hi-Speed and Floating Hi-Speed)");
 
         /// <summary>
         /// "Start (hold: speed / ready hold; double tap: covers)"
