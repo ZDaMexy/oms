@@ -93,7 +93,7 @@ namespace osu.Game.Overlays.Settings.Sections.Input
 
         private Container content = null!;
 
-        private OsuSpriteText text = null!;
+        private TruncatingSpriteText text = null!;
         private SettingsRevertToDefaultButton revertButton = null!;
         private FillFlowContainer cancelAndClearButtons = null!;
         private FillFlowContainer<KeyButton> buttons = null!;
@@ -166,7 +166,7 @@ namespace osu.Game.Overlays.Settings.Sections.Input
                                     RelativeSizeAxes = Axes.Both,
                                     Colour = colourProvider.Background5,
                                 },
-                                text = new OsuSpriteText
+                                text = new TruncatingSpriteText
                                 {
                                     Text = Action.GetLocalisableDescription(),
                                     Margin = new MarginPadding(1.5f * padding),
@@ -231,6 +231,13 @@ namespace osu.Game.Overlays.Settings.Sections.Input
                 else
                     revertButton.Show();
             }, true);
+        }
+
+        protected override void UpdateAfterChildren()
+        {
+            base.UpdateAfterChildren();
+
+            text.MaxWidth = Math.Max(0, content.DrawWidth - buttons.DrawWidth - text.Margin.TotalHorizontal - padding);
         }
 
         public void RestoreDefaults()

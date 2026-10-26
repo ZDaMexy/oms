@@ -2,6 +2,6 @@
 <root>
   <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
   <resheader name="version"><value>2.0</value></resheader>
-  <data name="cycle_scroll_adjustment_target" xml:space="preserve"><value>Gameplay: Cover / Hi-Speed (press: cycle target; hold Start + press: switch mode)</value></data>
+  <data name="cycle_scroll_adjustment_target" xml:space="preserve"><value>Gameplay: Cover / Hi-Speed (press to choose Sudden, Hidden or Lift for mouse-wheel adjustment; hold Start and press to switch between Normal and Floating Hi-Speed)</value></data>
   <data name="pre_start_hold" xml:space="preserve"><value>Start (hold: speed / ready hold; double tap: covers)</value></data>
 </root>

@@ -2,6 +2,6 @@
 <root>
   <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
   <resheader name="version"><value>2.0</value></resheader>
-  <data name="cycle_scroll_adjustment_target" xml:space="preserve"><value>游玩：挡板／调速（单按切换对象；按住 Start + 此键切换模式）</value></data>
+  <data name="cycle_scroll_adjustment_target" xml:space="preserve"><value>游玩：挡板／调速（单按选择用鼠标滚轮调节上挡板、下挡板或 LIFT；按住 Start 再按此键，在普通调速与浮动调速之间切换）</value></data>
   <data name="pre_start_hold" xml:space="preserve"><value>Start（长按调速/阻止开谱；双击开关挡板）</value></data>
 </root>
