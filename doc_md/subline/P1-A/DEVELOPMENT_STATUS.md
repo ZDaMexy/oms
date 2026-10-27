@@ -45,7 +45,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 当前风险与未完成项
 
-- 原版百分比十键精度、NEXT+/Ghost/rotate、FAST/SLOW资格/PG覆盖/寿命、PGREAT精确周期/起相与lane345原机parent-loop仍待可靠运行证据，单BPM20档不闭合跨BPM映射。HCN gauge/红绿段仅闭合到已查教学组合，不推定正常游玩全等价。当前包须重编/重启后导入；正常VS Code窗口复核Start/甩盘、挡板/LIFT、目标、判定提示及原准备/跳转/统计/血条/FC。未解包素材不计缺失功能，隔离结果不代签前台或设备。
+- Omni交叉评估确认PB/NEXT被纯外观Mod参数分组、普通血条固定80%分界、非33框体缺HAZARD映射，尚未修复，见[交叉评估](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27omni与bmsmod交叉评估)。原机精确时序、跨BPM、HCN教学来源与未解包素材不外推；正常窗口、完整歌曲及设备门沿[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)，隔离结果不代签。
 
 - 原生媒体完整从零重编与剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，正常窗口/设备和发行门保持。清理后的测试/作者工具与临时取景宿主须按[开发约束](../../../AGENTS.md#开发磁盘约束)重建；原日志/TRX保留为历史证据。
 

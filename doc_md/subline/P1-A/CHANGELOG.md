@@ -1,5 +1,11 @@
 # P1-A 变动日志
 
+## 2026-10-27Omni与BMSMod交叉评估
+
+核对v26102700最终包32项配置和BMS23个Mod，1557份scene/41份INI及45个Frame/layout收据确认非33框体HAZARD回落普通图、固定80%血条分界未消费真实Clear门槛；真实Mod/APIMod探针另确认SUD/HID透明度、ASCR/ANOT着色和LIFT记忆偏好会改变PB/NEXT的完整Mod匹配条件。原生遮挡/抬升、长条与判定机制、随机排列和皮肤美术分工未见抢写，Tint乘法及判定OFF不关闭独立FAST/SLOW另作入口含义记录。
+
+当前Release定向复跑PB22、辅助/挡板/LIFT11、Gauge/GAS65项全部通过；探针首次仅因自身引用路径错误失败，修正r2成功，旧失败保留。此次是评估，没有改玩法/作者或生成新包；具体事实、建议、证据和未修复项统一取[交叉评估](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27omni与bmsmod交叉评估)，不据现有链路通过代签显示修复。产品/原机、前台、设备及原发行门不变。
+
 ## 2026-10-27Omni已知素材候选闭合
 
 接入真实AUTO SCRATCH短皿及LN/CN/HCN原图，并修复池化物件在Mod先于真实物件应用时丢失Hidden/Tint的问题；完整Autoplay仍使用普通图。Graph分别显示原蓝Current、绿Personal Best和红Target，无记录不补0，PB-only不重复目标柱。lane345补齐被旧root导出截去的32个cat帧，cat与border按核对过的独立时间线循环，原机parent-loop未冒称已验。

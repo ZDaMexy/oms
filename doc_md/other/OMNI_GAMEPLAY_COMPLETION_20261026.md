@@ -92,3 +92,23 @@ BMS零连击改为单独居中判定；普通mania的零数规则保持。label-
 中间作者r1的slot重复、COMBO缺step easing/opacity carrier和label-only占位已在后续独立候选修正，失败作者及日志保留；取景夹具最初误把离散envelope时间当作连续consumer时间，并将barline IgnoreHit计入命中数，现已修正且不重写旧失败回执。它们不混计为最终同包通过。原版参照正常退出，`source-after.json`确认原HDD14221份文件元数据及关键摘要保全。
 
 本轮交付`Lighting Model Skin Omni Until 33.v26102700.osk`，由上述冻结OSK直接复制并核对摘要，连同说明、验证JSON、校验及最终同包预览收存在总工作区`deliverables/skins/`同名版本目录；旧交付不覆盖。须先重编/重启OMS再导入，原模式/键数显式设置保持。已识别候选的实施/排除已闭合；原版精确PG周期、lane345 parent-loop、FAST/SLOW资格及完整变速/设备体验仍保留具名缺口，本轮没有生成Windows发行包或公开发布素材作品。
+
+## 2026-10-27Omni与BMSMod交叉评估
+
+按用户要求评估当前32项Omni配置与BMS实际提供的23个Mod，基线为干净且已fetch一致的`9a6d1459`，使用上述最终v35-r3及相同OSK摘要；没有修改玩法、作者目录或生成新皮肤包。作者侧实际扫描1557份scene及41份INI，定义、适用范围和消费者见本地忽略证据`artifacts/omni-mod-config-audit-20261027/author-options.json`，15框体×三布局的精确节点/默认图/分支收据为同目录`gauge-45-layouts.json`。这是源码与最终包评估，不是新增原机或正常前台实测。
+
+确认三项需要后续处理的设计/显示问题：
+
+| 问题 | 最终事实与玩家影响 | 建议处理方向 |
+| --- | --- | --- |
+| 普通血条固定80%视觉分界 | 最终普通PNG有50格，第40格起红；全部Frame未消费`gauge.clear-threshold`。IIDX/LR2规则的A-EASY门槛为60%，BRG 5K Normal/Easy为75%、Assist为50%，真实已Clear仍可能未到原图红区 | 保留原美术，同时明确表达真实Clear门槛/状态；不能让固定配色代替当前规则 |
+| 非33框体HAZARD落回普通图 | 仅iidx33三布局有hazard资源分支，27～32及八支BPL的42布局在普通底、亮填充和暗区均回退normal；真实HAZARD规则仍生效 | 补齐可靠的HAZARD视觉映射；原代素材不足时明确标示当前模式，不无声使用普通图 |
+| PB/NEXT按纯外观与记忆偏好分组 | `GameplaySkinEventRuntimeHost.LivePresentation.cs`按全部APIMod设置精确匹配本地成绩；SUD/HID透明度、ASCR/ANOT着色以及LIFT的RememberGameplayChanges单独变化，都会使旧Mod签名不匹配，PB与NEXT可能读不到原成绩 | 依据实际计分/判定影响区分比较资格与外观/记忆偏好；不得简单忽略所有Mod或跨规则合并成绩 |
+
+第三项由独立诊断程序使用真实Mod、APIMod序列化与生产相同的DeepEquals谓词验证五组设置；结果为五组均不匹配。没有伪造真实用户成绩丢失或在正常窗口演奏复现；现有Realm生产链另确认有效成绩加载及不兼容成绩拒绝。探针首次仅因自身ProjectReference多一级路径而编译失败，修正后的r2成功，旧日志保留，不计为产品失败。
+
+另有一处明确外观职责重叠：ASCR/ANOT的Tint与原音符/HCN配色、皮肤亮度逐层相乘，因此开启Mod着色后不会保持原图原色；这是当前正确叠加，没有互抢同一设置，也不是刚修复过的池化Hidden/Tint失效。后续可明确“原皮肤配色/叠加着色”的入口语义。挡板图案与SUD/HID启用、LIFT艺术与真实抬升、CN/HCN款式与长条机制、判定高度/字形与Judge Mode/Rank、P1/P2停靠与Mirror/Random均有独立消费者，未发现皮肤改写玩法状态。选框体不自动选择IIDX Judge/Gauge；BMS可选Mod中没有Reverse、ConstantSpeed或Hi-Speed，Hi-Speed仍归规则集配置与Start控制。
+
+判定显示OFF只关文字/COMBO，独立FAST/SLOW仍由自己的选项控制；透明挡板不等于禁用SUD/HID。这些是入口含义与依赖提示问题，不能冒称Mod覆盖故障。GAS真实类型变更会持续发布，问题在作者缺少相应图形分支/门槛表达，不是规则状态被冻结。
+
+本次定向复跑全部通过：PB加载22项，ASCR/挡板透明度/LIFT显示11项，Gauge/GAS65项；与同基线当前Release产物一致，命令、TRX、探针源快照及日志留在`artifacts/omni-mod-assessment-20261027`。98项结果只证明所述原生链路和现行语义，未代签42布局HAZARD或非80%门槛的修复；上述三项仍未实施。
