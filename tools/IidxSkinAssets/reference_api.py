@@ -7,8 +7,11 @@ from pathlib import Path
 import socket
 import time
 
+from Crypto.Cipher import ARC4
+
 
 def rc4(key):
+    """Legacy keystream interface retained for existing offline/shutdown helpers."""
     state = list(range(256))
     offset = 0
     for index in range(256):
@@ -34,8 +37,10 @@ class ReferenceApi:
     def __enter__(self):
         if self.connection is not None:
             raise RuntimeError("Reference API connection is already open")
+        cipher = ARC4.new(self.session["password"].encode(), drop=0)
         self.connection = socket.create_connection(("127.0.0.1", self.session["port"]), timeout=8)
-        self.cipher = rc4(self.session["password"].encode())
+        # The wire protocol shares one continuous state across both directions and calls.
+        self.cipher = cipher
         return self
 
     def __exit__(self, exception_type, exception, traceback):
@@ -63,14 +68,14 @@ class ReferenceApi:
         if temporary_connection:
             self.__enter__()
         try:
-            encoded = bytes(value ^ next(self.cipher) for value in request)
+            encoded = self.cipher.encrypt(request)
             self.connection.sendall(encoded)
             reply = bytearray()
             while not reply or reply[-1] != 0:
                 chunk = self.connection.recv(65536)
                 if not chunk:
                     raise RuntimeError("Reference API closed its connection before replying")
-                reply.extend(value ^ next(self.cipher) for value in chunk)
+                reply.extend(self.cipher.encrypt(chunk))
                 if len(reply) > 32 * 1024 * 1024:
                     raise RuntimeError("Reference API response exceeded the capture budget")
         finally:

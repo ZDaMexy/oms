@@ -257,6 +257,21 @@ namespace osu.Game.Rulesets.Bms
             return BmsSongSelectLampPalette.GetAccent(scoreData.ClearLamp!.Value);
         }
 
+        public override bool? GetResultsClearState(ScoreInfo score)
+        {
+            if (!BmsClearLampProcessor.TryGetStoredResult(score, out BmsClearLamp lamp, out _))
+                return null;
+
+            return lamp switch
+            {
+                BmsClearLamp.Failed => false,
+                BmsClearLamp.AssistEasyClear or BmsClearLamp.EasyClear or BmsClearLamp.NormalClear
+                    or BmsClearLamp.HardClear or BmsClearLamp.ExHardClear or BmsClearLamp.HazardClear
+                    or BmsClearLamp.FullCombo or BmsClearLamp.Perfect => true,
+                _ => null,
+            };
+        }
+
         public override Drawable? CreateBeatmapDetailsComponent(IBindable<WorkingBeatmap> beatmap) => new BmsNoteDistributionGraph(beatmap);
 
         public override IRulesetFilterCriteria CreateRulesetFilterCriteria() => new BmsFilterCriteria();

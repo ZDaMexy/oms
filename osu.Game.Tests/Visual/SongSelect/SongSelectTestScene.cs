@@ -147,21 +147,44 @@ namespace osu.Game.Tests.Visual.SongSelect
         protected void ImportBeatmapForRuleset(params int[] rulesetIds) => ImportBeatmapForRuleset(_ => { }, 3, rulesetIds);
 
         protected void ImportBeatmapForRuleset(Action<BeatmapSetInfo> applyToBeatmap, int difficultyCount, params int[] rulesetIds)
+            => importBeatmaps(string.Join(", ", rulesetIds), () => rulesetIds.Select(id => Rulesets.AvailableRulesets.SingleOrDefault(r => r.OnlineID == id)
+                ?? throw new ArgumentOutOfRangeException(nameof(rulesetIds), id, "This ruleset ID is not registered in OMS.")).ToArray(), applyToBeatmap, difficultyCount);
+
+        protected void ImportBeatmapForModes(params string[] modes) => ImportBeatmapForModes(_ => { }, 3, modes);
+
+        protected void ImportBeatmapForModes(Action<BeatmapSetInfo> applyToBeatmap, int difficultyCount, params string[] modes)
+            => importBeatmaps(string.Join(", ", modes), () => modes.Select(mode => Rulesets.AvailableRulesets.SingleOrDefault(r => r.ShortName == mode)
+                ?? throw new ArgumentException($"The requested mode is not registered in OMS: {mode}", nameof(modes))).ToArray(), set =>
+            {
+                // TestResources only creates generic metadata. Give these explicit OMS-native fixtures a legal
+                // stored column/key count before a caller deliberately overrides any difficulty properties.
+                foreach (var beatmap in set.Beatmaps.Where(beatmap => beatmap.Ruleset.ShortName is "mania" or "bms"))
+                    beatmap.Difficulty.CircleSize = 7;
+                applyToBeatmap(set);
+            }, difficultyCount);
+
+        private void importBeatmaps(string description, Func<RulesetInfo[]> resolveRulesets, Action<BeatmapSetInfo> applyToBeatmap, int difficultyCount)
         {
             int beatmapsCount = 0;
 
-            AddStep($"import test map for ruleset {rulesetIds}", () =>
+            AddStep($"import test map for {description}", () =>
             {
-                beatmapsCount = SongSelect.IsNull() ? 0 : Carousel.Filters.OfType<BeatmapCarouselFilterGrouping>().Single().SetItems.Count;
+                beatmapsCount = SongSelect.IsNull() ? 0 : Carousel.ItemsTracked;
+                RulesetInfo[] selectedRulesets = resolveRulesets();
+                if (selectedRulesets.Length == 0)
+                    throw new ArgumentException("A test import must name at least one registered mode.", nameof(resolveRulesets));
 
-                var beatmapSet = TestResources.CreateTestBeatmapSetInfo(difficultyCount, Rulesets.AvailableRulesets.Where(r => rulesetIds.Contains(r.OnlineID)).ToArray());
+                var beatmapSet = TestResources.CreateTestBeatmapSetInfo(difficultyCount, selectedRulesets);
                 applyToBeatmap(beatmapSet);
                 Beatmaps.Import(beatmapSet);
             });
 
             // This is specifically for cases where the add is happening post song select load.
             // For cases where song select is null, the assertions are provided by the load checks.
-            AddUntilStep("wait for imported to arrive in carousel", () => SongSelect.IsNull() || Carousel.Filters.OfType<BeatmapCarouselFilterGrouping>().Single().SetItems.Count > beatmapsCount);
+            // Imported sources can intentionally be hidden by the active mode's native filter (e.g. a BMS-only set
+            // while mania converts are hidden). Track ingestion and filter completion, rather than visible set count.
+            AddUntilStep("wait for imported sources and native filtering", () => SongSelect.IsNull()
+                || Carousel.ItemsTracked == beatmapsCount + difficultyCount && !SongSelect.IsFiltering);
         }
 
         protected void ChangeMods(params Mod[] mods) => AddStep($"change mods to {string.Join(", ", mods.Select(m => m.Acronym))}", () => SelectedMods.Value = mods);
@@ -170,6 +193,9 @@ namespace osu.Game.Tests.Visual.SongSelect
         {
             AddStep($"change ruleset to {rulesetId}", () => Ruleset.Value = Rulesets.AvailableRulesets.First(r => r.OnlineID == rulesetId));
         }
+
+        protected void ChangeMode(string mode) => AddStep($"change mode to {mode}", () =>
+            Ruleset.Value = Rulesets.AvailableRulesets.Single(r => r.ShortName == mode));
 
         /// <summary>
         /// Imports test beatmap sets to show in the carousel.

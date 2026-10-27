@@ -24,6 +24,8 @@ metadata:
 
 BmsScrollProfile 的基准应来自 raw BPM 的 non-STOP 时长。Normal Hi-Speed 的 modeScale=1，不借 GetMostCommonBeatLength 缩放，基准132段因此可忠实；Floating/Classic 的绝对标定与反向滚动不能从 Normal 结果推断完成，进度回 P1-L。
 
+读数/甩盘与本地运动不符时，先核`BmsPlayfield.ActiveScrollAlgorithm`，不要只看ruleset的base `ScrollingInfo`或重算Auto条件。On的reference与Off已经生成的ControlPoints.Multiplier可能不同，长STOP会把共享mostCommon拉成6；混用二者会让Floating/Classic压缩，或让GN在短STOP/SCROLL边界说谎。音乐TimingProfile还必须在同BPM的SCROLL点切段，保留STOP同刻新BPM与既有SCROLL；只在beatLength变化时刷新会漏这些边界。真实lane.PositionAtTime相邻观测可独立测局部时距，不能以另一个同公式指标互相佐证。
+
 ## 门控与相关复现
 
 - 用户决定默认 Auto；Off 是显式回退。检测使用 MaxSlope/FrozenFraction，正常/中度 soflan 不应轻易触发；阈值只在现行合同/代码维护，调整必须复核正常谱回归，不能在 memory 固化第二份常数表。

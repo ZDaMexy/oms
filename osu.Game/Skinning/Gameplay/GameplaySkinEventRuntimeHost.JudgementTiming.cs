@@ -23,9 +23,13 @@ namespace osu.Game.Skinning.Gameplay
         internal static GameplaySkinJudgementTimingStateSnapshot FoldJudgementTiming(GameplaySkinJudgementTimingStateSnapshot previous,
                                                                                    GameplaySkinLaneRole role, bool hasPlayerTiming,
                                                                                    bool automated, GameplaySkinJudgementGrade grade,
-                                                                                   double offset, double appliedTime)
+                                                                                   double offset, double appliedTime,
+                                                                                   GameplaySkinJudgementTimingDirection timingFeedback = GameplaySkinJudgementTimingDirection.None)
         {
-            GameplaySkinJudgementTimingDirection direction = QualifyJudgementTiming(hasPlayerTiming, automated, grade, offset);
+            // Rulesets may qualify display-only feedback without claiming that an automatic result measured input.
+            GameplaySkinJudgementTimingDirection direction = automated ? GameplaySkinJudgementTimingDirection.None
+                : timingFeedback != GameplaySkinJudgementTimingDirection.None ? timingFeedback
+                : QualifyJudgementTiming(hasPlayerTiming, false, grade, offset);
             return direction != GameplaySkinJudgementTimingDirection.None
                    && role is GameplaySkinLaneRole.Key or GameplaySkinLaneRole.SpecialKey or GameplaySkinLaneRole.Scratch
                 ? previous.Apply(role, new GameplaySkinJudgementTimingHint(direction, appliedTime))
@@ -34,7 +38,8 @@ namespace osu.Game.Skinning.Gameplay
 
         private GameplaySkinJudgementTimingStateSnapshot foldJudgementTiming(GameplaySkinLaneGroupId? groupId, GameplaySkinLaneId? laneId,
                                                                             GameplaySkinJudgementGrade grade, double offset,
-                                                                            bool hasPlayerTiming, double appliedTime)
+                                                                            bool hasPlayerTiming, double appliedTime,
+                                                                            GameplaySkinJudgementTimingDirection timingFeedback)
         {
             if (groupId == null)
                 return default;
@@ -43,7 +48,7 @@ namespace osu.Game.Skinning.Gameplay
             if (laneId != null)
             {
                 GameplaySkinLaneRole role = Publication.Snapshot.GetLane(laneId).TopologyEntry.Identity.Role;
-                state = FoldJudgementTiming(state, role, hasPlayerTiming, automatedTiming, grade, offset, appliedTime);
+                state = FoldJudgementTiming(state, role, hasPlayerTiming, automatedTiming, grade, offset, appliedTime, timingFeedback);
             }
             judgementTimingGroups[groupId] = state;
             return state;

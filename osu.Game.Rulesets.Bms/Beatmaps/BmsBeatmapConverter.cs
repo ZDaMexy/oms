@@ -370,7 +370,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             var bpmDurations = new Dictionary<double, double>();
             var timingSegments = new List<BmsTimingSegment>
             {
-                new BmsTimingSegment(0, 0, currentBpm, false),
+                new BmsTimingSegment(0, 0, currentBpm, false, currentScroll),
             };
 
             addTimingControlPoint(controlPointInfo, 0, currentBpm);
@@ -409,7 +409,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                         {
                             foreach (var stopEvent in stopEvents)
                             {
-                                double stopDuration = stopEvent.StopValue / 192.0 * 4.0 * getBeatLength(currentBpm);
+                                double stopDuration = stopEvent.StopValue / 192.0 * 4.0 * GetBeatLength(currentBpm);
 
                                 if (stopDuration <= 0)
                                     continue;
@@ -433,6 +433,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                             {
                                 addEffectControlPoint(controlPointInfo, currentTime, scrollEvent.ScrollValue);
                                 currentScroll = scrollEvent.ScrollValue;
+                                addTimingSegment(false);
                             }
                         }
 
@@ -448,7 +449,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
             // Scale scroll-weighted beats into base-BPM milliseconds so D(t) ~= t for a normal (most-common BPM,
             // scroll 1) section and the bypass degenerates to constant scroll. The base is the raw, UNCLAMPED
             // most-common BPM by playing time (132 for DEAD SOUL), not the clamped control-point value.
-            double baseBeatLength = getBeatLength(computeBaseBpm(bpmDurations, currentBpm));
+            double baseBeatLength = GetBeatLength(computeBaseBpm(bpmDurations, currentBpm));
 
             for (int i = 0; i < knotDistances.Count; i++)
                 knotDistances[i] *= baseBeatLength;
@@ -466,7 +467,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 if (beats <= 0)
                     return;
 
-                double dt = beats * getBeatLength(currentBpm);
+                double dt = beats * GetBeatLength(currentBpm);
                 currentTime += dt;
                 currentBeat += beats;
                 currentDistance += currentScroll * beats;
@@ -477,7 +478,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
             void addTimingSegment(bool isStopped)
             {
-                var segment = new BmsTimingSegment(currentTime, currentBeat, currentBpm, isStopped);
+                var segment = new BmsTimingSegment(currentTime, currentBeat, currentBpm, isStopped, currentScroll);
 
                 if (timingSegments[^1].StartTime == currentTime)
                     timingSegments[^1] = segment;
@@ -556,12 +557,12 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
         }
 
         private static void addTimingControlPoint(ControlPointInfo controlPointInfo, double time, double bpm)
-            => controlPointInfo.Add(time, new TimingControlPoint { BeatLength = getBeatLength(bpm) });
+            => controlPointInfo.Add(time, new TimingControlPoint { BeatLength = GetBeatLength(bpm) });
 
         private static void addEffectControlPoint(ControlPointInfo controlPointInfo, double time, double scrollSpeed)
             => controlPointInfo.Add(time, new EffectControlPoint { ScrollSpeed = scrollSpeed });
 
-        private static double getBeatLength(double bpm) => 60000.0 / Math.Max(minimum_effective_bpm, Math.Abs(bpm));
+        internal static double GetBeatLength(double bpm) => 60000.0 / Math.Max(minimum_effective_bpm, Math.Abs(bpm));
 
         private static int mapLaneIndex(BmsKeymode keymode, int channel)
         {

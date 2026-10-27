@@ -179,3 +179,47 @@ Omni32项的评估分组为20项保留皮肤、7项玩家偏好候选、5项先�
 最终BMS完整回归3160通过/19跳过/0失败，日志及TRX为`tests/bms-full-final-r2`，12分57秒；最终源码Desktop Release/Debug分别取`tests/build-desktop-release-r2 / debug-r2`，格式验证为`format-verify-final-r1`。同一原OSK三组正常Player全部exit0：`native-p1-both-lift-r2 / p2-hidden-r2 / dp-lift-r2`，各13张PNG，共39张，含每组8个控制阶段实景/读数及5张自然时钟画面。校验原生/作者同源的Start状态、模式、甩盘、双击组合、Lift与白绿字，实际selected/player/renderer Mods均无三项旧挡板；汇总为`native-summary-r2.json`，程序集身份为`current-binaries-reading-r2.json`。已人工检查P1恢复双挡板、P2下挡板和DP读数/面板图，均维持原包布局。原测试宿主活动状态显式模拟，输入为软件动作，不代签真实前台或控制器。
 
 上述结果完成本次两项软件实施和同包复核；只改BMS专属链路，没有重跑或重记旧Core/mania全量、原作者CLI/美术保全结论，不生成新包。正常用户窗口、完整真实歌曲及实体设备仍沿原人工门，进一步显示偏好迁移继续属于待判决设计。
+
+## 2026-10-27Omni持续完善读谱回放与结果页
+
+本goal从干净且已fetch一致的`master@a7071d6c48532cb9753b086ed41a375464aa2921`继续，作品名`Lighting Model Skin Omni Until 33`和`.vyymmddxx.osk`策略保持；源与证据收在统一父目录内的`evidence/omni-completion-20261027-r1`。软件整合与v39作者检查已过，当前私下交付仍为`.v26102701`；新OSK仅为同包原生验收候选，尚未替换正式取用版本，未生成Windows发行物。
+
+BMS新增本局13字段读谱变化时间线，按真实游玩时刻记录成组结果，同刻归并末值，回放与seek/reset恢复且不写个人偏好；旧初始快照和旧Mod读取保持。移除早于三种Hi-Speed设计的290～7692ms截断，读数由实际TimeRange回推；满Lift正分母与零读谱区分开。SCROLL/STOP读数、长STOP下的参考基准和Floating重锚已沿实际选中的原生算法补修，短STOP硬回退、Off既有算法及零/负SCROLL边界保持，不据此宣称Off/SCROLL全语义或完整变速谱已实机对齐。元数据不改变规则版本、旧ModsJson、累计统计或OMSIR白名单body。
+
+首轮原版独立副本留下249张实际EXTRA STAGE/Chewingood!!!/BEGINNER Lv.1图，后来的DEMONSTRATION明确排除。采样循环无游玩输入、held为空，但启动前有一次P1 1操作，不能称为物理输入全无或精确命中校准。SLOW可与自然漏音POOR同显，POOR闪烁不代表SLOW结束；14条轨迹与slot3曲中片段相合，另8条未闭合，不据153notes/1263ms候选安排确定输入。Position A合并提示的P1横向约16px差异仍是候选，不推广到P2。该次副本已官方exit退出并核对原件元数据及七项关键摘要；不适用日志参数的首轮启动失败仍保留。
+
+普通可操作键/皿音符自然超时新增独立SLOW反馈，不伪造grade、offset或HasPlayerTiming，累计FAST/SLOW仍不计Miss；自动成功、强制Miss、长条尾/tick与完整Autoplay不扩大资格。Core只承接规则集明确的显示事实，group/lane、epoch/reset和完整快照保持。
+
+父v36经可逆精简形成`omni-full-v37-compact-r1`：只缩短私有typed scene ID及未被INI/preview/C4引用的物理路径，资源、字体、材质、选项身份和动画采样保持。投影scene523741→513629、manifest65051→57531；7071源文件映射到6597唯一目标，474条路径减少来自相同字节配置目标合并，非删除美术或功能。14项工具回归通过，旧作者/OSK及反向证明保全。
+
+33主屏六包独立复制核SHA后选择性解出2690纹理，raw/XML/UV/AFP/GEO保持，未用副屏result素材。`omni-full-v38-results-r1`使用16张原图、39元素、21项真实文本来源；声明7,258字节，图片4,528,712字节/9,593,352像素，父v37的6597项gameplay闭包逐字节保持。可选`skin-pages.json`与图像走同一revision/capsule和公开CLI，默认原结果页、显式切换，共用实际成绩和原操作。Clear/Failed只取规则集确认的`score.cleared`，BMS未知值中性显示；`score.passed`不冒充Clear，EX标签及判定名称由玩法提供，DJ/Gauge沿真实native-statistics。版式、静态层序与乘色是OMS首版适配，未签原版AFP布局/动画。现用Python重包入口已纳入页面闭包，不能漏装JSON/图。
+
+结果页早期失败抓到每次prepare过早解绑、页面未沿同一retained capsule读取，以及Realm只有`skin-pages.json`时绕过author prepare；均修生产根因，保留严格reader断言。测试另修真实read reservation释放顺序、framework取消返回cleanup continuation语义，以及BMS夹具混淆RawTime/TimeOffset和BGM事件的假设。`core-focused-r6`154通过、`bms-focused-r2/r3`各183通过属于当时构建，失败日志保留，不代签后续修正。
+
+`python-api-package-results-r3`57项通过，其中ReferenceApi31项覆盖分块/连续收发与异常。ARC4改为每连接一个C实现对象、双向连续共享流，旧generator保留给既有退出工具；吞吐不冒充原机帧时。五组实际CLI图片夹具确认page与gameplay独立预算：page1M可与gameplay64M共存；共享/INI及未知旧PNG仍计原预算，page17M拒绝，未放宽旧包上限。
+
+整合作者为`omni-full-v39-song-select-r1`：五张已核主屏原图装饰真实原生选曲控件，默认原界面、页脚切换；不用MUSIC/ARTIST等`*_usr`占位冒充元数据，不重造列表、动作或成绩。父v38生成前后6614项闭包摘要一致；只追加页声明与五张PNG，两页共21资源、9,775,852像素、4,564,295字节，声明7,815字节，gameplay/INI/预览/C4与Results语义保持。合同接受Results/SongSelect任一或两页，共守原总预算；活跃非空选曲外观显式阻塞C2，先清可见及池化行引用再释放owner，不借空布局receipt放行。
+
+软件分项`core-pages-combined-r9`176通过、`bms-reading-combined-r8`269通过及`python-combined-r4`62通过。转谱夹具曾只证mania/7、未锁定BMS源，并修改了被overlay替换的旧Random实例；现经真实PresentBeatmap、核对source/ID并操作原面板，4K目标未放宽。Results坏gameplay脚本回归保留精确错误提示、原页与操作。这些分项不冒充完整Core或用户窗口验收。
+
+本轮r13完整回归使用`combined-r12`构建：BMS共3272项，3253通过/19跳过/0失败；mania共997项，995通过/2跳过/0失败，分别见`tests/bms-full-combined-r13`与`tests/mania-full-combined-r13`日志、TRX和exit回执。r12的Release Desktop/Core/BMS/mania/作者及Debug Desktop已编译；其后r14改动不能由r12结果代签。
+
+Core broad r1的27个失败已与同一`a707`只读baseline逐身份对照。旧夹具引用已删除的Osu/Taiko/Catch，或依赖旧在线按钮、共享metadata假设，已改用真实mania/BMS输入；另修共用Carousel展开组时覆盖collapsed set子难度可见性的实际问题。r12受影响76项为75通过/1失败；最后一项违背BMS默认root下Carousel无当前选项、全局保留mania原曲的合同，未修改production迎合旧自动fallback。夹具现精确断言默认root，再显式选BMS并检验mania的GroupMode.None合法跨set fallback。
+
+新SongSelect page host另补真实兼容前提：当前曲不满足`AllowGameplayWithRuleset(..., true)`时使用mode-default，不从保留的mania7误取BMS7；真实BMS→mania7及Key4仍按实际转换键数解析。`combined-r14` Core Release与Desktop Release/Debug均通过；`core-select-pages-results-r14`为292通过/1失败，新scope回归通过，失败仍为旧TestRulesetChange。
+
+按冻结源码SHA还原行号后，确认r12的78行与r14的79行都指第一次mixed set的mania→BMS，先前口头定位为mania-only不准确；没有由此证明生产竞态。BMS根分组不因同set有另一张BMS难度而例外。夹具改为两次切BMS均强断言root，再显式选mixed BMS→mania的真实None分组检验同set推荐；bmsOnly→mania仍检验跨set。开头等待实际CarouselItemsPresented，而非仅后台筛选任务完成。`core-release-combined-r15`通过，`core-select-pages-results-r15`最终293通过/0失败/0跳过，覆盖全SongSelect及Results/页面；未将此子集称为完整Core全量。
+
+`author-v38-pack-r1`因v39整合候选取代，在六类检查后主动停止，未创建archive；`-superseded.json`与原退出码保留，不是完整通过或作者错误。`author-v39-pack-r1`最终exit0，公开CLI全部13,612种代表组合与条件分支通过（非全部排列），普通导入器路径检查后生成`assets/omni-v39-checked-r1.osk`，335,375,466字节，SHA256 `3a297cde6a84afbe4e13ba7d47a8ccc3be39fb241611739ee0eee5d007615977`。独立`omni-v39-archive-proof-r1.json`再核6621个ZIP实体条目全CRC、无大小写重名与路径越界、全部作者文件逐字节一致；其中6619为包payload，另两项为generation/audit元数据。
+
+原生Results初次r1在启动时因私有Program从OsuGameTestScene所在production程序集找ExactVisualTestGame而TypeLoad失败，改为明确载入当前osu.Game.Tests；r2普通谱面注册成功但Player拒绝空谱，原因是私有TestOsuGame漏接Desktop的BmsBeatmapLoader，BMS文件落到通用decoder。三份私有夹具现按真实Desktop接同一loader，并在进Player前异步核原WorkingBeatmap解码类型、元数据、音符/事件且保存JSON；没有改production、延长超时或构造替代WorkingBeatmap。旧退出回执保留，Results r3正在运行，尚无本轮最终包PNG通过结论。
+
+三份私有宿主当前重编分别为Results r5、SongSelect r3、Reading r2。Reading首次prepare明确拒绝旧依赖图：当前Mania.Tests的六条SharpGen依赖边与旧template不同，并非文件丢失。新宿主实际只引用Core.Tests与production owner，现按当前Core.Tests与generated host构成228项闭包，逐项核实际资产与源/目标SHA；被排除的两个ruleset Tests图及差异留receipt，不混合冲突版本。`native-reading-prepare-r2`通过，仅准备643.2MiB程序资产，无旧data复制或game执行，不是原生验收。
+
+原版r3现已运行独立副本，实际场景为190 BPM、NORMAL Lv.4、CLASSIC OFF与Display OFF：1～18档稳定可读，19档淡出但可读、20档黑屏，不能签收完整20档；130 BPM尚未补采。正式HDD本goal始终未运行或改写；r3副本仍运行，正常退出及最终保全核对待做。先前离线would-plan不算真实输入或档位资格。
+
+Results r3以真实Generated Autoplay自然完成、两次真实按钮切换、三张PNG及host/OS exit0通过行为断言，但人工审图发现作者将MISS COUNT原图误认作MAX COMBO：实际128确为Max Combo，数据未算错，画面不签收。新v40撤去该图，公共结果数据提供准确的`score.accuracy.label`与`score.max-combo.label`，分别显示ACCURACY/MAX COMBO；不从ComboBreak猜原版MISS COUNT。CLEAR/FAILED改用已核主屏英文原图，原kana纹理上的框形濁点本就存在于source raw裁边与sprite，并非字体缺字。v40保留6597项gameplay逐字节及SongSelect声明原value字节、五张图；两页共20资源、4,653,273字节、9,837,048像素，JSON7943字节。新作者与所有差异/15图原始RGBA裁边证明取`assets/v40-results-labels-r1`，标准`author-v40-pack-r1`仍在检查，未签新OSK。
+
+标签修正后Core Release、Desktop Release/Debug与作者CLI重新编译通过，`core-select-pages-results-r16`293通过；Python当前整目录discover `python-combined-r5`363通过，包含替换Results保留其它页和拒绝误删共享资源的回归。v39选曲原生r1因夹具仅更新global WorkingBeatmap而未显式打开具体BMS谱，在默认root无谱卡处超时；已补真实PresentBeatmap入口与初始状态记录，未改BMS root合同。Reading v39 SP首轮真实解码、按住Start画面及读数通过，在释放Start后因夹具无条件要求绿字可见而失败；保存帧的时钟仅晚1.8ms、数值仍正确，已改核可见性等于真实Adjusting，回放不制造Start，其他时间/数值断言保持，待重跑。
+
+剩余门为v40作者完整检查/OSK、最终包选曲与Results原生画面、多BPM/SCROLL与Off下STOP实测及真实回放、原版精确提示/动画与真实歌曲/设备。未解包IFS不计已分类，26及更早不借资源标签补造；更多显示偏好的保存范围沿已采纳合同，不静默重定义。

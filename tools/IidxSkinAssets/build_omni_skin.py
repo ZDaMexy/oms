@@ -493,9 +493,45 @@ def catalog_contributions(catalog):
     return result
 
 
+def _optional_page_files(root: Path):
+    """Enumerate declared page files only; the shared C# codec owns all page semantics and budgets."""
+    declaration = "skin-pages.json"
+    try:
+        (root / declaration).lstat()
+    except FileNotFoundError:
+        return set()
+    document_path = exact_file(root, declaration)
+    if not document_path.is_file():
+        raise ValueError("The optional skin-pages.json declaration must be a file")
+    document = read_json(document_path)
+    if not isinstance(document, dict):
+        raise ValueError("Cannot enumerate the optional skin-pages.json resource tables")
+    files = {declaration}
+    for page_name, page in document.items():
+        if page_name == "contract":
+            continue
+        if not isinstance(page, dict) or not isinstance(page.get("resources"), list):
+            raise ValueError(f"Cannot enumerate resources for skin-pages.json page: {page_name}")
+        for resource in page["resources"]:
+            relative = resource.get("path") if isinstance(resource, dict) else None
+            if not isinstance(relative, str) or not relative or ":" in relative or "\\" in relative \
+                    or relative.startswith("/") or any(part in ("", ".", "..") for part in relative.split("/")):
+                raise ValueError(f"A declared skin page resource must be a contained package-relative path: {relative!r}")
+            try:
+                path = exact_file(root, relative)
+            except FileNotFoundError as error:
+                raise ValueError(f"Missing declared skin page resource: {relative}") from error
+            if not path.is_file():
+                raise ValueError(f"A declared skin page resource is not a file: {relative}")
+            files.add(relative)
+    return files
+
+
 def package_closure(output: Path, configuration_overrides=None):
     """Ship referenced data only; offline research/checkpoints are never skin resources."""
+    output = Path(output).resolve(strict=True)
     files = {"skin.ini", "gameplay-skin.json", "gameplay-skin.scene.json"}
+    files.update(_optional_page_files(output))
     pending = ["gameplay-skin.json", "skin.ini"]
     visited = set()
     while pending:

@@ -12,11 +12,18 @@ namespace osu.Game.Rulesets.Bms.Scoring
     internal sealed class BmsJudgementTimingResult : JudgementResult, IGameplaySkinJudgementTimingMetadata
     {
         private bool hasPlayerTiming;
+        private bool isNaturalMiss;
 
         public bool HasPlayerTiming
         {
             get => HasResult && hasPlayerTiming;
             internal set => hasPlayerTiming = value;
+        }
+
+        internal bool IsNaturalMiss
+        {
+            get => HasResult && isNaturalMiss;
+            set => isNaturalMiss = value;
         }
 
         public BmsJudgementTimingResult(HitObject hitObject, Judgement judgement)

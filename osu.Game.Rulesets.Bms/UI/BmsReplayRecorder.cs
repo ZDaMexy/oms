@@ -1,5 +1,6 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using System;
 using System.Collections.Generic;
 using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Input;
@@ -17,6 +18,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly Score score;
         private readonly BmsVisualOffsetTimeline? visualOffset;
         private readonly BmsReadingSettingsSnapshot? readingSettings;
+        private readonly BmsReadingSettingsTimeline readingSettingsTimeline = new BmsReadingSettingsTimeline();
 
         public BmsReplayRecorder(Score score)
             : this(score, null)
@@ -37,8 +39,23 @@ namespace osu.Game.Rulesets.Bms.UI
             var data = score.ScoreInfo.GetRulesetData<BmsScoreInfoData>()!;
             data.VisualOffset = visualOffset;
             data.ReadingSettings = readingSettings;
+            data.ReadingSettingsTimeline = readingSettingsTimeline.Changes.Count > 0 ? readingSettingsTimeline : null;
             score.ScoreInfo.SetRulesetData(data);
             base.EndRecording();
+        }
+
+        internal void RecordReadingSettings(double time, BmsReadingSettingsSnapshot settings)
+        {
+            if (RecordingEnded)
+                return;
+
+            if (readingSettings is not BmsReadingSettingsSnapshot initial)
+                throw new InvalidOperationException("A reading-settings recording requires its initial snapshot.");
+
+            readingSettingsTimeline.Record(time, settings, initial);
+            // Preserve this actual gameplay-clock boundary even when no lane input changed. The frame contains
+            // only the existing lane/motion state; the reading operation itself remains ruleset metadata.
+            RecordFrame(true);
         }
 
         protected override ReplayFrame HandleFrame(Vector2 mousePosition, List<BmsAction> actions, ReplayFrame previousFrame)

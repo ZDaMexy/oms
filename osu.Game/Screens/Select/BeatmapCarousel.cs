@@ -734,7 +734,11 @@ namespace osu.Game.Screens.Select
 
                         case GroupedBeatmapSet groupedSet:
                             i.IsVisible = expanded;
-                            setExpansionStateOfSetItems(groupedSet, expanded && i.IsExpanded);
+                            setExpansionStateOfSetItems(groupedSet, expanded && groupedSet.Equals(ExpandedBeatmapSet));
+                            break;
+
+                        case GroupedBeatmap when grouping.BeatmapSetsGroupedTogether:
+                            // The set header above owns its children's visibility, including its collapsed state.
                             break;
 
                         default:
@@ -974,7 +978,7 @@ namespace osu.Game.Screens.Select
                 return Task.FromResult<IReadOnlyDictionary<Guid, double>>(new Dictionary<Guid, double>());
 
             var resolvedStarRatings = new Dictionary<Guid, double>(beatmapsRequiringLookup.Count);
-            var beatmapsMissingFromCache = new List<BeatmapInfo>();
+            _ = new List<BeatmapInfo>();
 
             foreach (var beatmap in beatmapsRequiringLookup)
             {
@@ -1120,7 +1124,7 @@ namespace osu.Game.Screens.Select
         {
             var topRankMapping = new Dictionary<Guid, ScoreRank>();
             var rulesetInstance = criteria.Ruleset?.CreateInstance();
-            var scoreDisplayBucket = rulesetInstance?.GetScoreDisplayBucket(criteria.Mods);
+            string? scoreDisplayBucket = rulesetInstance?.GetScoreDisplayBucket(criteria.Mods);
 
             var allLocalScores = r.GetAllLocalScoresForUser(criteria.LocalUserId)
                                   .Filter($@"{nameof(ScoreInfo.Ruleset)}.{nameof(RulesetInfo.ShortName)} == $0", criteria.Ruleset?.ShortName)
@@ -1144,7 +1148,7 @@ namespace osu.Game.Screens.Select
         {
             var topScoreMapping = new Dictionary<Guid, ScoreInfo>();
             var rulesetInstance = criteria.Ruleset?.CreateInstance();
-            var scoreDisplayBucket = rulesetInstance?.GetScoreDisplayBucket(criteria.Mods);
+            string? scoreDisplayBucket = rulesetInstance?.GetScoreDisplayBucket(criteria.Mods);
 
             var allLocalScores = r.GetAllLocalScoresForUser(criteria.LocalUserId)
                                   .Filter($@"{nameof(ScoreInfo.Ruleset)}.{nameof(RulesetInfo.ShortName)} == $0", criteria.Ruleset?.ShortName)

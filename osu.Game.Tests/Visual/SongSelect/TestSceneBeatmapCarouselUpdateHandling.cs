@@ -395,11 +395,11 @@ namespace osu.Game.Tests.Visual.SongSelect
                 {
                     var set = TestResources.CreateTestBeatmapSetInfo(diff_count);
 
-                    // only need to set the first as they are a shared reference.
-                    var beatmap = set.Beatmaps.First();
-
-                    beatmap.Metadata.Artist = "same artist";
-                    beatmap.Metadata.Title = "same title";
+                    foreach (var beatmap in set.Beatmaps)
+                    {
+                        beatmap.Metadata.Artist = "same artist";
+                        beatmap.Metadata.Title = "same title";
+                    }
 
                     // testing the case where DateAdded happens to equal (quite rare).
                     set.DateAdded = DateTimeOffset.UnixEpoch;
@@ -447,11 +447,11 @@ namespace osu.Game.Tests.Visual.SongSelect
                 {
                     var set = TestResources.CreateTestBeatmapSetInfo(diff_count);
 
-                    // only need to set the first as they are a shared reference.
-                    var beatmap = set.Beatmaps.First();
-
-                    beatmap.Metadata.Artist = "same artist";
-                    beatmap.Metadata.Title = "same title";
+                    foreach (var beatmap in set.Beatmaps)
+                    {
+                        beatmap.Metadata.Artist = "same artist";
+                        beatmap.Metadata.Title = "same title";
+                    }
 
                     // testing the case where DateAdded happens to equal (quite rare).
                     set.DateAdded = DateTimeOffset.UnixEpoch;
@@ -469,13 +469,13 @@ namespace osu.Game.Tests.Visual.SongSelect
 
             AddStep("Add new item", () =>
             {
-                var set = TestResources.CreateTestBeatmapSetInfo();
+                var set = TestResources.CreateTestBeatmapSetInfo(diff_count);
 
-                // only need to set the first as they are a shared reference.
-                var beatmap = set.Beatmaps.First();
-
-                beatmap.Metadata.Artist = "same artist";
-                beatmap.Metadata.Title = "same title";
+                foreach (var beatmap in set.Beatmaps)
+                {
+                    beatmap.Metadata.Artist = "same artist";
+                    beatmap.Metadata.Title = "same title";
+                }
 
                 set.DateAdded = DateTimeOffset.FromUnixTimeSeconds(1);
 

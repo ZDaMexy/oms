@@ -296,6 +296,15 @@ __pycache__/
 !/tools/IidxSkinAssets/lighting_gauge_state.py
 !/tools/IidxSkinAssets/build_lighting_gauge_state.py
 !/tools/IidxSkinAssets/test_lighting_gauge_state.py
+!/tools/IidxSkinAssets/lighting_package_compaction.py
+!/tools/IidxSkinAssets/build_lighting_package_compaction.py
+!/tools/IidxSkinAssets/test_lighting_package_compaction.py
+!/tools/IidxSkinAssets/lighting_results_page.py
+!/tools/IidxSkinAssets/build_lighting_results_page.py
+!/tools/IidxSkinAssets/test_lighting_results_page.py
+!/tools/IidxSkinAssets/lighting_song_select.py
+!/tools/IidxSkinAssets/build_lighting_song_select.py
+!/tools/IidxSkinAssets/test_lighting_song_select.py
 /build/tools/**
 /build/temp/**
 

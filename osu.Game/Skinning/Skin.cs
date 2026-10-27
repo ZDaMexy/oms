@@ -26,6 +26,7 @@ using osu.Game.IO;
 using osu.Game.Rulesets;
 using osu.Game.Screens.Play.HUD;
 using osu.Game.Skinning.Gameplay;
+using osu.Game.Skinning.Pages;
 
 namespace osu.Game.Skinning
 {
@@ -111,6 +112,11 @@ namespace osu.Game.Skinning
         public IReadOnlyList<GameplaySkinOptionDefinition> GameplayOptions => PreparedGameplaySkinManifest?.Options ?? Array.Empty<GameplaySkinOptionDefinition>();
 
         public IReadOnlyList<GameplaySkinAuthorLayout> GameplayLayouts => PreparedGameplaySkinManifest?.AuthorLayouts ?? Array.Empty<GameplaySkinAuthorLayout>();
+
+        /// <summary>Optional non-gameplay pages captured together with this owner's exact package revision.</summary>
+        public SkinPageDocument? Pages => PreparedGameplaySkinPackage?.Pages?.Document;
+
+        internal SkinPagePreparedPackage? PreparedPages => PreparedGameplaySkinPackage?.Pages;
 
         /// <summary>Freezes one selected combination for a new gameplay root, without changing this skin or an active root.</summary>
         public GameplaySkinContentSelection PrepareGameplaySkinContent(GameplaySkinOptionValues options, CancellationToken cancellationToken = default)

@@ -20,8 +20,8 @@ using osu.Game.Beatmaps.Drawables;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Carousel;
 using osu.Game.Graphics.Containers;
-using osu.Game.Graphics.UserInterface;
 using osu.Game.Graphics.Sprites;
+using osu.Game.Graphics.UserInterface;
 using osu.Game.Overlays;
 using osu.Game.Resources.Localisation.Web;
 using osu.Game.Rulesets;
@@ -115,6 +115,7 @@ namespace osu.Game.Screens.Select
             Content.Children = new Drawable[]
             {
                 beatmapBackground = new PanelSetBackground(),
+                CreateSongSelectChrome(),
                 lampAccentStrip = new Box
                 {
                     RelativeSizeAxes = Axes.Y,

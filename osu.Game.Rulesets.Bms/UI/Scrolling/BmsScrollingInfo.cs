@@ -36,6 +36,8 @@ namespace osu.Game.Rulesets.Bms.UI.Scrolling
 
         public IBindable<IScrollAlgorithm> Algorithm => algorithm;
 
+        internal IScrollAlgorithm ActiveAlgorithm => stopMotionAlgorithm ?? baseAlgorithm.Value;
+
         public BmsScrollingInfo(IScrollingInfo baseInfo)
         {
             Direction = baseInfo.Direction;
@@ -67,7 +69,7 @@ namespace osu.Game.Rulesets.Bms.UI.Scrolling
 
         private void updateAlgorithm()
         {
-            IScrollAlgorithm selected = stopMotionAlgorithm ?? baseAlgorithm.Value;
+            IScrollAlgorithm selected = ActiveAlgorithm;
 
             if (VisualOffset.Value == 0 && !AutomaticVisualOffsetEnabled.Value)
             {

@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using osu.Game.Skinning.Gameplay.Scripting;
+using osu.Game.Skinning.Pages;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.PixelFormats;
@@ -29,6 +30,7 @@ namespace osu.Game.Skinning.Gameplay
         internal GameplaySkinCapturedContentCatalog? ContentCatalog { get; }
         internal GameplaySkinDocument? MaterialDocument { get; }
         internal GameplaySkinOptionPreviews OptionPreviews { get; }
+        internal SkinPagePreparedPackage? Pages { get; }
 
         internal GameplaySkinPreparedPackage(
             string contentRevision,
@@ -40,7 +42,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinCapturedContentCatalog? contentCatalog = null,
             IReadOnlyDictionary<string, GameplaySkinRecordedAnimationProgram>? recordedAnimations = null,
             GameplaySkinDocument? materialDocument = null,
-            GameplaySkinOptionPreviews? optionPreviews = null)
+            GameplaySkinOptionPreviews? optionPreviews = null,
+            SkinPagePreparedPackage? pages = null)
         {
             ContentRevision = contentRevision;
             Manifest = manifest;
@@ -51,12 +54,17 @@ namespace osu.Game.Skinning.Gameplay
             ContentCatalog = contentCatalog;
             MaterialDocument = materialDocument;
             OptionPreviews = optionPreviews ?? GameplaySkinOptionPreviews.Empty;
+            Pages = pages;
             RecordedAnimations = recordedAnimations ?? new System.Collections.ObjectModel.ReadOnlyDictionary<string, GameplaySkinRecordedAnimationProgram>(
                 new Dictionary<string, GameplaySkinRecordedAnimationProgram>(StringComparer.Ordinal));
         }
 
         internal GameplaySkinPreparedPackage Select(GameplaySkinOptionValues options, CancellationToken cancellationToken)
-            => ContentCatalog?.PrepareSelected(options, cancellationToken) ?? this;
+            => ContentCatalog?.PrepareSelected(options, cancellationToken).withPages(Pages) ?? this;
+
+        private GameplaySkinPreparedPackage withPages(SkinPagePreparedPackage? pages)
+            => pages == null ? this : new GameplaySkinPreparedPackage(ContentRevision, Manifest, Document, Resources,
+                ScriptProgram, ScriptAuthorization, ContentCatalog, RecordedAnimations, MaterialDocument, OptionPreviews, pages);
 
         public static GameplaySkinPreparedPackage Prepare(
             Func<string, int, byte[]?> read,
@@ -67,18 +75,32 @@ namespace osu.Game.Skinning.Gameplay
             Func<string, SkinPackageRevisionCapsule.ResourceReference?>? retainResource = null)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            byte[]? readPageResource(string path, int limit)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (retainResource == null)
+                    return read(path, limit);
+                // Optional absence is a fact of this exact capsule. It must never fall back to a live reader.
+                SkinPackageRevisionCapsule.ResourceReference? reference = retainResource(path);
+                if (reference == null)
+                    return null;
+                if (reference.Length > limit)
+                    throw fail(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
+                return reference.ReadOwnedBytes();
+            }
+            SkinPagePreparedPackage? pages = SkinPageCodec.Prepare(readPageResource, packageRevision, cancellationToken);
             byte[]? manifestBytes = read(GameplaySkinSceneContracts.MANIFEST_FILE_NAME, GameplaySkinSceneBudgets.MAX_MANIFEST_BYTES);
             if (manifestBytes == null)
-                return new GameplaySkinPreparedPackage(packageRevision, null, null, Array.Empty<GameplaySkinCapturedSceneResource>(), null, null);
+                return new GameplaySkinPreparedPackage(packageRevision, null, null, Array.Empty<GameplaySkinCapturedSceneResource>(), null, null, pages: pages);
 
             GameplaySkinSceneManifest manifest = RequireValid(GameplaySkinSceneCodec.DecodeManifest(manifestBytes));
             if (manifest.ContentCatalogFile != null)
-                return GameplaySkinCapturedContentCatalog.Capture(read, packageRevision, recordId, authorizations, manifest, manifestBytes, cancellationToken, retainResource);
+                return GameplaySkinCapturedContentCatalog.Capture(read, packageRevision, recordId, authorizations, manifest, manifestBytes, cancellationToken, retainResource).withPages(pages);
             byte[] sceneBytes = read(manifest.SceneFile, GameplaySkinSceneBudgets.MAX_SCENE_BYTES)
                                 ?? throw fail(GameplaySkinSceneDiagnosticCode.InvalidReference);
             cancellationToken.ThrowIfCancellationRequested();
             GameplaySkinSceneDocument document = RequireValid(GameplaySkinSceneCodec.DecodeScene(sceneBytes, manifest));
-            return PrepareActive(read, packageRevision, recordId, authorizations, manifest, document, cancellationToken);
+            return PrepareActive(read, packageRevision, recordId, authorizations, manifest, document, cancellationToken).withPages(pages);
         }
 
         internal static GameplaySkinPreparedPackage PrepareActive(

@@ -111,6 +111,12 @@ python -B -X utf8 tools/IidxSkinAssets/build_lighting_details.py --source 'Y:\Va
 
 ## 使用
 
+Omni的页面增量沿普通`skin-pages.json`作者路径，完整合同见[结算与选曲页](../../skin-authoring/docs/REFERENCE.md#可选结算与选曲页)。`build_lighting_package_compaction.py`生成独立可逆精简作者；`build_lighting_results_page.py`从已核主屏result库追加首个Results；`build_lighting_song_select.py`从主屏mselect库追加原生选曲外观。各工具只准备新的独立作者与来源证明，不运行公开CLI、原生游戏或覆盖旧作者；基础作品名保持。
+
+页面源使用已提取库的精确原PNG，不以截图或`*_usr`占位伪造元数据。Results使用真实score/cleared与原统计，选曲仅装饰真实原控件，保留共用谱库、操作与clear lamp；版式、静态层序及固定透明度为OMS适配，不代表原AFP动画已复刻。两页共同守32资源/32MiB/16M像素，且不改变gameplay选项或预算。
+
+普通`build_omni_skin.py --repackage-directory`会枚举可选页面的全部声明资源，缺失、越界或非规范路径明确失败；该闭包收集器不另立页面语义，最终仍由公开C#作者CLI及普通importer校验。准备成功不代表最终OSK或界面验收，须对同包记录闭包摘要、真实Player/选曲操作、截图与失败身份。局部父包gate不能冒充新页面已验收，旧图/动画逐字节保全也不能代签当前原生画面。
+
 在 OMS 仓库根目录的新 PowerShell 中运行。Python 3.11 以上；依赖安装到本仓开发缓存，不安装进游戏目录或系统 Python。
 
 ```powershell
@@ -174,12 +180,25 @@ BPL使用同一生成器，通过`--frame-package`指定实际归档标识、`--
 
 会话 JSON 包含 `host/port/password/captureRoot`。截图仅允许在 `captureRoot` 内新建，不覆盖已有图片；持续导航可用 `with ReferenceApi(session_path) as api` 复用连接，避免每次输入都弹出连接通知。
 
+客户端另需 `pycryptodome==3.23.0`，使用其 C 实现 `Crypto.Cipher.ARC4`。2026-10-27 本机已存在该版本，本轮只复用，未安装或修改系统 Python；缺少依赖的新环境可从 OMS 仓库根目录安装到非系统盘开发缓存：
+
+```powershell
+. .\UseDevelopmentStorage.ps1
+python -B -m pip install --target .dev-cache/tools/iidx-assets --no-cache-dir --no-compile "pycryptodome==3.23.0"
+$env:PYTHONPATH = (Resolve-Path '.dev-cache/tools/iidx-assets').Path
+```
+
+每个 TCP 连接只创建一个 ARC4 对象，`drop=0`；请求和响应分块沿同一密钥流连续处理，跨请求保留状态，临时连接关闭后才重新开始。收发不能拆成两个对象，也不能逐请求重置。公开的 `rc4(key)` 生成器继续供已有会话结束辅助脚本使用，不作为实时客户端的性能回退；操作白名单、参数与路径限制、32 MiB 响应上限、EOF、请求 ID 和响应错误校验保持。
+
+同日离线使用48字节 dummy key、249张已保存 JPG 的尺寸以及模拟连接测得：典型317279字节响应的 Python 解码中位45.62ms，C实现0.83ms；真实 `call` 的模拟传输、JSON与base64路径为48.35ms和2.45ms。整体、分块及连续请求已逐字节核对；这些是本机离线吞吐证据，不是原机端到端抓图、游戏时钟或渲染 tick 的证明。公开客户端改动仍须串行回归和独立参照实测。`cryptography` 的 ARC4 在本机实测拒绝48字节 key，不能直接替换。
+
 截图的 `--quality` 范围为1～100，默认100；`--divide` 为本工具限制的1～8整数倍缩小，默认1。例如2使宽高各减半，减少编码、传输与本机保存成本，不改变游戏分辨率或刷新率。[官方capture实现](https://github.com/spice2x/spice2x.github.io/blob/c83496776e4dfa06f286e483d21fd269c331505c/src/spice2x/api/modules/capture.cpp)的第三参数是缩小倍数，不是帧率或等待时间。连续采样须排除旧图/旧时间戳；新时间戳也不是游戏时钟、Present序号或命中帧：该版本在RGB转换完成、入队时记录整数毫秒。D3D9读回占用Present线程，divide在完整读回后才缩小，减小输出图像不能证明捕获不影响原机节奏。来源和适用边界见[参照记录](../../doc_md/other/OMNI_OPENINGS_20261021.md#2026-10-24持续组件与原版参照复核)，没有宣称本地二进制与该源码提交完全匹配。
 
 `keypad-write --keypad 0|1 --keys '2'`向P1/P2依次输入导航字符，仅接受非空的ASCII字符串`0-9/A/D`（A为00，D为小数键）；工具不开放数字键盘持续覆盖，不回显输入内容，不用于真实卡或PIN。[官方keypads实现](https://github.com/spice2x/spice2x.github.io/blob/main/src/spice2x/api/modules/keypads.cpp)每个字符先按下再松开，两段各约70ms；短导航按需发送，不用于逐帧高速输入。Python入口分别为`api.capture(path, screen=0, quality=100, divide=1)`及`api.keypad_write(0, "2")`。
 
 ```powershell
 . .\UseDevelopmentStorage.ps1
+$env:PYTHONPATH = (Resolve-Path '.dev-cache/tools/iidx-assets').Path
 python -B tools/IidxSkinAssets/reference_api.py --session 'Y:\IIDX-Reference\api-session.json' screens
 python -B tools/IidxSkinAssets/reference_api.py --session 'Y:\IIDX-Reference\api-session.json' capture --screen 0 --output 'Y:\IIDX-Reference\captures\reference-001.jpg'
 python -B tools/IidxSkinAssets/reference_api.py --session 'Y:\IIDX-Reference\api-session.json' capture --screen 0 --quality 70 --divide 2 --output 'Y:\IIDX-Reference\captures\reference-fast-001.jpg'

@@ -440,6 +440,9 @@ namespace osu.Game.Tests.Visual.SongSelect
             // Guards the legitimate behaviour the gate must preserve: with a concrete selection, a draw-size change
             // (window resize) still re-centres that selection.
             AddBeatmaps(40, 3, true);
+            AddUntilStep("all added difficulties reach the committed carousel", () => !Carousel.IsFiltering
+                && Carousel.PostFilterBeatmaps.Count() == BeatmapSets.Sum(set => set.Beatmaps.Count)
+                && Carousel.GetCarouselItems()?.Count(item => item.Model is GroupedBeatmap) == BeatmapSets.Sum(set => set.Beatmaps.Count));
             WaitForDrawablePanels();
 
             SelectNextSet();

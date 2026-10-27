@@ -466,6 +466,91 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.That(score.GetRulesetData<BmsScoreInfoData>()?.LongNoteMode, Is.EqualTo(expectedMode));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestResultsClearStateSeparatesNormalGaugeClearFromSongCompletion(bool clear)
+        {
+            var beatmap = createBeatmap(100, total: 200);
+            HitResult[] results = clear
+                ? Enumerable.Repeat(HitResult.Perfect, 99).Append(HitResult.Good).ToArray()
+                : Enumerable.Repeat(HitResult.Miss, 100).ToArray();
+            var score = createScore(beatmap, results);
+            score.Passed = true;
+            var ruleset = new BmsRuleset();
+
+            ruleset.PrepareScoreInfoForResults(score, beatmap);
+            Assert.Multiple(() =>
+            {
+                Assert.That(score.HitEvents.Count, Is.EqualTo(beatmap.HitObjects.Count), "The complete song has been judged.");
+                Assert.That(score.Passed, Is.True, "The ordinary gauge does not stop the song when it drops below the clear threshold.");
+                Assert.That(score.GetRulesetData<BmsScoreInfoData>()!.ClearLamp,
+                    Is.EqualTo(clear ? BmsClearLamp.NormalClear : BmsClearLamp.Failed));
+                Assert.That(ruleset.GetResultsClearState(score), Is.EqualTo(clear));
+            });
+        }
+
+        [Test]
+        public void TestResultsClearStateRetainsMidSongGaugeFailure()
+        {
+            var beatmap = createBeatmap(100);
+            var score = createScore(beatmap, HitResult.Miss);
+            score.Mods = new Mod[] { new BmsModGaugeHazard() };
+            score.MaximumStatistics[HitResult.Perfect] = 100;
+            score.Passed = false;
+            var ruleset = new BmsRuleset();
+
+            ruleset.PrepareScoreInfoForResults(score, beatmap);
+            Assert.Multiple(() =>
+            {
+                Assert.That(score.HitEvents.Count, Is.LessThan(beatmap.HitObjects.Count));
+                Assert.That(score.GetRulesetData<BmsScoreInfoData>()!.ClearLamp, Is.EqualTo(BmsClearLamp.Failed));
+                Assert.That(score.GetRulesetData<BmsScoreInfoData>()!.FinalGauge, Is.Zero);
+                Assert.That(score.Passed, Is.False);
+                Assert.That(ruleset.GetResultsClearState(score), Is.False);
+            });
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestResultsClearStateDoesNotReconstructMissingLegacyResultData(bool passed)
+        {
+            var beatmap = createBeatmap(1);
+            var score = createScore(beatmap, HitResult.Perfect);
+            score.Passed = passed;
+            var ruleset = new BmsRuleset();
+
+            Assert.That(ruleset.GetResultsClearState(score), Is.Null);
+            foreach (BmsScoreInfoData incomplete in new[]
+                     {
+                         new BmsScoreInfoData(),
+                         new BmsScoreInfoData { ClearLamp = BmsClearLamp.Perfect },
+                         new BmsScoreInfoData { FinalGauge = 1 },
+                     })
+            {
+                score.SetRulesetData(incomplete);
+                Assert.That(ruleset.GetResultsClearState(score), Is.Null,
+                    "Neither Passed, surviving hit events nor one missing stored field can stand in for a reliable clear lamp.");
+            }
+        }
+
+        [TestCase(BmsClearLamp.NoPlay, null)]
+        [TestCase(BmsClearLamp.Failed, false)]
+        [TestCase(BmsClearLamp.AssistEasyClear, true)]
+        [TestCase(BmsClearLamp.EasyClear, true)]
+        [TestCase(BmsClearLamp.NormalClear, true)]
+        [TestCase(BmsClearLamp.HardClear, true)]
+        [TestCase(BmsClearLamp.ExHardClear, true)]
+        [TestCase(BmsClearLamp.HazardClear, true)]
+        [TestCase(BmsClearLamp.FullCombo, true)]
+        [TestCase(BmsClearLamp.Perfect, true)]
+        [TestCase((BmsClearLamp)999, null)]
+        public void TestResultsClearStateUsesOnlyKnownStoredClearLamps(BmsClearLamp lamp, bool? expected)
+        {
+            var score = new ScoreInfo { Passed = true };
+            score.SetRulesetData(new BmsScoreInfoData { ClearLamp = lamp, FinalGauge = 0.5 });
+            Assert.That(new BmsRuleset().GetResultsClearState(score), Is.EqualTo(expected));
+        }
+
         private static BmsBeatmap createBeatmap(int noteCount, double total = 200)
         {
             var beatmap = new BmsBeatmap

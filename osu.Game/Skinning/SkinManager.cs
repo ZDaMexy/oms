@@ -4897,8 +4897,9 @@ namespace osu.Game.Skinning
                 switch (request.Resolution.Authority)
                 {
                     case SkinFilesystemStorageAuthority.RealmPackage:
-                        if (target.PerformRead(info => info.Files.Any(file => string.Equals(
-                                file.Filename, GameplaySkinSceneContracts.MANIFEST_FILE_NAME, StringComparison.OrdinalIgnoreCase))))
+                        if (target.PerformRead(info => info.Files.Any(file =>
+                                string.Equals(file.Filename, GameplaySkinSceneContracts.MANIFEST_FILE_NAME, StringComparison.OrdinalIgnoreCase)
+                                || string.Equals(file.Filename, Pages.SkinPageContracts.FILE_NAME, StringComparison.OrdinalIgnoreCase))))
                         {
                             beginRealmAuthorPackageSelection(generation, target);
                             return false;

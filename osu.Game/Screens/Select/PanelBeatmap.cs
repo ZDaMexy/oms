@@ -109,6 +109,7 @@ namespace osu.Game.Screens.Select
                 {
                     RelativeSizeAxes = Axes.Both,
                 },
+                CreateSongSelectChrome(),
                 lampAccentStrip = new Box
                 {
                     RelativeSizeAxes = Axes.Y,

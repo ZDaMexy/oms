@@ -12,6 +12,8 @@ metadata:
 
 ## 配置语义
 
+- 选曲页切到BMS根分组时可保留原mania播放曲目，不能从它的CircleSize误取BMS键数覆盖。独立页面预览须先用现有`AllowGameplayWithRuleset(..., true)`核兼容；不兼容取模式默认，不能简单按source!=mode或空carousel选中清键数，否则会破坏真实BMS→mania转谱和已播放BMS的键数。见[P1-A记录](../../doc_md/other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27omni持续完善读谱回放与结果页)。
+
 - `OsuSetting.Skin` 继续作为旧版全局值和兼容投影；新增 `SkinBms`、`SkinMania` 两个 mode override。
 - 新安装或旧配置首次进入 `OsuGame.LoadComplete` 时，先迁移旧内置 complex 并规范化失效配置，再把结果复制到空的 mode key。仍有效的普通用户皮肤选择保持；旧内置 complex、缺失或不合资格的记录回到静线，不能笼统承诺所有旧外观不变。之后两个 key 独立保存，修改一个不会改另一个。
 - 启动与规则集切换均在 update thread 的既有 `SkinManager` selection publication 入口应用对应 key。SkinManager 仍独占 current pair、revision、filesystem capture 与失败回退 authority；UI 只保留本地展示 bindable。
@@ -23,6 +25,7 @@ metadata:
 
 ## 验证与踩坑
 
+- 可选页面包可能只有`skin-pages.json`而无gameplay声明。Realm选择的后台author准入必须包含它，否则会同步发布未准备owner，独立preview尚可而复用current lease时页面消失；不要在页面host改为另读live源或换owner掩盖缺口。回归需同时测试键数独立包与已选current模式默认，实际合同取[P1-A非游玩页面](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#非游玩皮肤页面)。
 - 有preview的配置只保留整行/箭头打开图卡这一个入口；左图另开图库、右侧文字dropdown会让正常操作看不到全部预览。真实输入测试须点主体和箭头、再点图卡核scope；不能只直接调用Action。图库收起后GridContainer会延后重建隐藏cells，按IsExpanded/保存值验证收起，别要求ChildrenOfType立刻为空。截图与Xecus事故取[P1-A日志](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-19配置图库入口与xecus崩溃修复)。
 - 皮肤选项与选择皮肤不同：`SkinOptionPreferences`按record+ruleset+可选键数覆盖，root准备才冻结到Context；不要为了更换图案触发reload、重选current或改包。键数恢复只清当前层，不清模式默认；作者默认仍可覆盖已改过的模式配置。首次显示控件不写覆盖，失效旧值读作者默认；声明删除后的旧ID仅在玩家主动保存时清理，避免占满32项。
 - 数值网格以作者min为原点，不能直接把step给BindableDouble.Precision（framework按0取整）。提交时按min+n×step吸附，再保存canonical值。控件重建要验证值和store一致；未加载就Dispose必须容许Resolved尚为空。

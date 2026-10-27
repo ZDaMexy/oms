@@ -28,23 +28,23 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 GameplaySkinJudgementTimingDirection.None, GameplaySkinJudgementTimingDirection.Fast, GameplaySkinJudgementTimingDirection.Slow,
             };
             foreach (bool marker in new[] { false, true })
-            foreach (GameplaySkinJudgementTimingDirection combined in directions)
-            foreach (GameplaySkinJudgementTimingDirection keys in directions)
-            foreach (GameplaySkinJudgementTimingDirection scratch in directions)
-            {
-                GameplaySkinJudgementTimingStateSnapshot channels = GameplaySkinJudgementTimingStateSnapshot.Restore(
-                    hint(combined, -123.125), hint(keys, -0.0), hint(scratch, 12.000000000000002));
-                var original = new GameplaySkinJudgementStateSnapshot(9007199254740993, firstGroup, firstLane,
-                    GameplaySkinJudgementGrade.Good, -17.125, 0.03125, marker, channels);
-                GameplaySkinEventValue compact = GameplaySkinEventValue.Judgement(original);
-                GameplaySkinJudgementStateSnapshot restored = compact.GetJudgement(firstGroup, firstLane);
-                GameplaySkinJudgementStateSnapshot materialized = ((GameplaySkinJudgementEventPayload)compact.Materialize(firstGroup, firstLane)).State;
-                Assert.That(restored, Is.EqualTo(original));
-                Assert.That(materialized, Is.EqualTo(original));
-                assertHintBits(restored.JudgementTimingState.Combined, channels.Combined);
-                assertHintBits(restored.JudgementTimingState.Keys, channels.Keys);
-                assertHintBits(restored.JudgementTimingState.Scratch, channels.Scratch);
-            }
+                foreach (GameplaySkinJudgementTimingDirection combined in directions)
+                    foreach (GameplaySkinJudgementTimingDirection keys in directions)
+                        foreach (GameplaySkinJudgementTimingDirection scratch in directions)
+                        {
+                            GameplaySkinJudgementTimingStateSnapshot channels = GameplaySkinJudgementTimingStateSnapshot.Restore(
+                                hint(combined, -123.125), hint(keys, -0.0), hint(scratch, 12.000000000000002));
+                            var original = new GameplaySkinJudgementStateSnapshot(9007199254740993, firstGroup, firstLane,
+                                GameplaySkinJudgementGrade.Good, -17.125, 0.03125, marker, channels);
+                            GameplaySkinEventValue compact = GameplaySkinEventValue.Judgement(original);
+                            GameplaySkinJudgementStateSnapshot restored = compact.GetJudgement(firstGroup, firstLane);
+                            GameplaySkinJudgementStateSnapshot materialized = ((GameplaySkinJudgementEventPayload)compact.Materialize(firstGroup, firstLane)).State;
+                            Assert.That(restored, Is.EqualTo(original));
+                            Assert.That(materialized, Is.EqualTo(original));
+                            assertHintBits(restored.JudgementTimingState.Combined, channels.Combined);
+                            assertHintBits(restored.JudgementTimingState.Keys, channels.Keys);
+                            assertHintBits(restored.JudgementTimingState.Scratch, channels.Scratch);
+                        }
             Assert.That(typeof(GameplaySkinEventValue).GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
                 .Any(field => field.FieldType == typeof(GameplaySkinJudgementTimingStateSnapshot)
                               || field.FieldType == typeof(GameplaySkinJudgementTimingHint)), Is.False,
@@ -168,6 +168,51 @@ namespace osu.Game.Tests.NonVisual.Skinning
             host.PublishJudgement(null, target.GroupId, target.LaneId, GameplaySkinJudgementGrade.Great, -5, 0, hasPlayerTiming: true);
             host.RequestReset(reason);
             Assert.That(group(producerSnapshot(host, 100), target.GroupId).Combined.HasValue, Is.EqualTo(retain));
+        }
+
+        [Test]
+        public void TestRulesetFeedbackPublishesSlowWithoutRewritingTheActualMissOrInputProvenance()
+        {
+            using Texture texture = new DummyRenderer().CreateTexture(8, 8);
+            using GameplaySkinLayoutPublication publication = GameplaySkinSceneRuntimeHostTest.CreateEssentialInformationPublication(texture, false);
+            using GameplaySkinEventRuntimeHost host = createHost(publication, 100);
+            GameplaySkinInputStateSnapshot target = publication.PreparedScene.InitialEventState.Inputs.First();
+
+            host.PublishJudgement(null, target.GroupId, target.LaneId, GameplaySkinJudgementGrade.Miss, 999, -0.06,
+                timingFeedback: GameplaySkinJudgementTimingDirection.Slow);
+            GameplaySkinEventStateSnapshot snapshot = current(host.EventStream);
+            GameplaySkinJudgementStateSnapshot judgement = snapshot.CurrentJudgements.First().Judgement;
+            Assert.Multiple(() =>
+            {
+                Assert.That(judgement.Grade, Is.EqualTo(GameplaySkinJudgementGrade.Miss));
+                Assert.That(judgement.Offset, Is.EqualTo(999));
+                Assert.That(judgement.GaugeDelta, Is.EqualTo(-0.06));
+                Assert.That(judgement.HasPlayerTiming, Is.False);
+                Assert.That(group(snapshot, target.GroupId).Keys?.Direction, Is.EqualTo(GameplaySkinJudgementTimingDirection.Slow));
+                Assert.That(group(snapshot, target.GroupId).Keys?.AppliedTime, Is.EqualTo(100));
+                Assert.That(group(snapshot, target.GroupId).Scratch, Is.Null);
+                Assert.That(snapshot.Score.Statistics.Fast, Is.Zero);
+                Assert.That(snapshot.Score.Statistics.Slow, Is.Zero);
+            });
+
+            host.RequestReset(GameplaySkinEventResetReason.Rewind);
+            host.PublishJudgement(null, target.GroupId, target.LaneId, GameplaySkinJudgementGrade.Miss, 999, -0.06,
+                timingFeedback: GameplaySkinJudgementTimingDirection.Slow);
+            Assert.That(group(producerSnapshot(host, 100), target.GroupId).Combined, Is.Null,
+                "A stale feedback callback cannot resurrect a discontinuous epoch.");
+        }
+
+        [Test]
+        public void TestExplicitTimingFeedbackStillExcludesAutomatedPlayAndNonPlayableLaneRoles()
+        {
+            GameplaySkinJudgementTimingStateSnapshot previous = fast(10);
+            Assert.That(GameplaySkinEventRuntimeHost.FoldJudgementTiming(previous, GameplaySkinLaneRole.Key, false, true,
+                GameplaySkinJudgementGrade.Miss, 999, 20, GameplaySkinJudgementTimingDirection.Slow), Is.EqualTo(previous));
+            Assert.That(GameplaySkinEventRuntimeHost.FoldJudgementTiming(previous, GameplaySkinLaneRole.Unspecified, false, false,
+                GameplaySkinJudgementGrade.Miss, 999, 20, GameplaySkinJudgementTimingDirection.Slow), Is.EqualTo(previous));
+            Assert.That(GameplaySkinEventRuntimeHost.FoldJudgementTiming(previous, GameplaySkinLaneRole.Scratch, false, false,
+                GameplaySkinJudgementGrade.Miss, 999, 20, GameplaySkinJudgementTimingDirection.Slow).Scratch?.Direction,
+                Is.EqualTo(GameplaySkinJudgementTimingDirection.Slow));
         }
 
         [Test]

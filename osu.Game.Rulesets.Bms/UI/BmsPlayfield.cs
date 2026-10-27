@@ -21,6 +21,7 @@ using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.UI;
 using osu.Game.Rulesets.UI.Scrolling;
+using osu.Game.Rulesets.UI.Scrolling.Algorithms;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
 
@@ -36,6 +37,10 @@ namespace osu.Game.Rulesets.Bms.UI
         // BMS-side scrolling info re-cached to lanes so the stop-motion bypass can be injected without touching shared
         // core types (P1-L Phase 2). Also supplies the independent BMS display-clock offset.
         private BmsScrollingInfo bmsScrollingInfo = null!;
+
+        internal IScrollAlgorithm? ActiveScrollAlgorithm => bmsScrollingInfo?.ActiveAlgorithm;
+
+        internal event Action? ScrollAlgorithmChanged;
 
         public BmsLaneLayout LaneLayout { get; private set; } = null!;
 
@@ -189,6 +194,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 bmsScrollingInfo = new BmsScrollingInfo(baseScrollingInfo);
                 bmsScrollingInfo.VisualOffset.BindTo(VisualOffset);
                 bmsScrollingInfo.AutomaticVisualOffsetEnabled.BindTo(AutomaticVisualOffsetEnabled);
+                bmsScrollingInfo.Algorithm.BindValueChanged(_ => ScrollAlgorithmChanged?.Invoke());
                 dependencies.CacheAs<IScrollingInfo>(bmsScrollingInfo);
             }
 

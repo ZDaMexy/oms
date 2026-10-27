@@ -1,6 +1,6 @@
 # P1-L 当前状态：BMS Gimmick 与 BGA 视觉
 
-> 最后核对：2026-10-25（接续10月24日BMS补验；未新增原生或逐谱验证）
+> 最后核对：2026-10-28（正SCROLL与实际旁路刻度回归通过；同包原生门仍在收口）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，机理分析见 [BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)。
 
 ## 当前阶段
@@ -9,6 +9,7 @@
 
 - 地雷视觉已落地。
 - BMS 专用滚动位置积分旁路 A–C 已落地，Auto 检测存在；正常链路保持隔离。
+- GN与Floating补偿已改取真实选中算法的倍率，On的长STOP基准不再沿受标记污染的shared mostCommon；正SCROLL即使BPM不变也刷新，Off继续保留原算法/夹定并显示实际读数。音乐时间投影、判定及Auto检测不改，零/负SCROLL不做正速补偿；整合验证取[P1-A记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27omni持续完善读谱回放与结果页)。
 - 已接入 P1-C 的 BMS 显示偏移：普通/STOP 映射、小节线/地雷淡出随显示时间，长条嵌套不重复偏移；原判定/音频时间保持，额外预加载不扩大空 POOR/辅助列消音。验证与人工未签收边界统一见 [P1-C](../P1-C/DEVELOPMENT_STATUS.md)。
 - BGA 图序列/视频/POOR/转码缓存/预加载主链已落地。
 - 可达图片已随真实后台加载准备，同层同刻替代项和关闭的POOR不加载，缺失结果也保留为空；Update切图只选已准备纹理。使用原TextureStore寿命，不把CPU解码移出Update扩大成GPU上传、视频初始化或任意大图谱的内存成本已消失。
@@ -34,9 +35,11 @@
 - DEAD SOUL 等 Gimmick 谱尚未与 beatoraja 做逐帧对照。
 - overlay 黑透与 `#ARGB` 仍是近似合成。
 - 已消除按viewport重复创建player/视频资源；此前四窗证据保留历史身份，本轮独立会话和三种比例窗口已完成专项及桌面像素验证。合成framebuffer的GPU成本与代表谱帧时仍须实测，不能由资源计数或合成图推导所有谱面保真达标。
-- Floating/Classic 绝对刻度、负向/反向滚动未实现。
+- Floating/Classic的旁路基准与正SCROLL读数已有分项软件运动证据，复杂真实soflan与设备仍未签收；负向/反向滚动与其距离逆函数仍未实现。
 
 ## 最近一次验证
+
+2026-10-28实际lane运动分项回归及完整BMS回归已通过，覆盖正SCROLL、长STOP共享base=6/profile base=500、Off/Auto/On与跨倍率首次scratch成组保存；准确构建、命令与计数取上方P1-A记录。Desktop Debug/Release已通过，当前同包原生门尚未完成，不代签实谱或刷新旧媒体验证。
 
 2026-10-24完整BMS补验已关闭10月22日内存中止的回归缺口，具名范围见[P1-A记录](../P1-A/CHANGELOG.md#2026-10-24omni持续背景与原版参照边界)。这不是最终原生配方的从零重编，也不新增逐谱、GPU帧时、设备/DPI或Windows发行包签收。
 

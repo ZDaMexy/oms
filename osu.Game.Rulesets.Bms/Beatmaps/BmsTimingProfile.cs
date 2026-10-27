@@ -53,7 +53,7 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 beat += (gameplayTime - segment.StartTime) / (60000 / segment.Bpm);
 
             long barIndex = findFloor(measureStartTimes, gameplayTime);
-            return new BmsTimingSample(beat, Math.Max(-1, barIndex), segment.Bpm, segment.IsStopped);
+            return new BmsTimingSample(beat, Math.Max(-1, barIndex), segment.Bpm, segment.IsStopped, segment.ScrollSpeed);
         }
 
         private static int findFloor(BmsTimingSegment[] values, double time)
@@ -115,12 +115,15 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         public bool IsStopped { get; }
 
-        internal BmsTimingSample(double beat, long barIndex, double bpm, bool isStopped)
+        internal double ScrollSpeed { get; }
+
+        internal BmsTimingSample(double beat, long barIndex, double bpm, bool isStopped, double scrollSpeed)
         {
             Beat = beat;
             BarIndex = barIndex;
             Bpm = bpm;
             IsStopped = isStopped;
+            ScrollSpeed = scrollSpeed;
         }
     }
 
@@ -134,12 +137,15 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         public bool IsStopped { get; }
 
-        public BmsTimingSegment(double startTime, double startBeat, double bpm, bool isStopped)
+        public double ScrollSpeed { get; }
+
+        public BmsTimingSegment(double startTime, double startBeat, double bpm, bool isStopped, double scrollSpeed)
         {
             StartTime = startTime;
             StartBeat = startBeat;
             Bpm = bpm;
             IsStopped = isStopped;
+            ScrollSpeed = scrollSpeed;
         }
     }
 }

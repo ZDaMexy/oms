@@ -195,6 +195,68 @@ container可静态声明 `"layout":"horizontal"`。直接孩子按源文件顺�
 
 layout/gap-px/width-px/height-px不能被动画、绑定、状态机或脚本写入；gap-px只能随horizontal声明，两个像素尺寸只用于横排的sprite直接孩子。直接孩子不能声明或被程序修改x/y、width/height、scale、rotation、anchor/origin、alignment、layout-surface；可改文字、字号、资源、颜色、透明度与可见性。脚本对直接孩子只可写alpha。横排、直接孩子及其祖先不能挂C5 effects，避免动态自然宽绕过固定效果缓冲预算。需要统一位移、缩放或旋转时，控制父横排容器。
 
+## 可选结算与选曲页
+
+包根可选`skin-pages.json`，合同为`oms-skin-pages.v1`；可声明`results`、`songSelect`或两者，至少一页。两页均默认原界面，有效声明才开放“皮肤界面／原界面”切换。结算的原成绩列表与重试、回放、收藏等操作继续由客户端管理。
+
+```json
+{
+  "contract": "oms-skin-pages.v1",
+  "results": {
+    "width": 1920,
+    "height": 1080,
+    "resources": [{ "id": "background", "path": "pages/results.png", "filtering": "linear" }],
+    "elements": [
+      { "id": "background", "type": "sprite", "x": 0, "y": 0, "width": 1920, "height": 1080, "resource": "background" },
+      { "id": "title", "type": "text", "x": 80, "y": 60, "width": 1760, "height": 80, "source": "beatmap.title", "fontSize": 48, "align": "centre", "colour": "ffffffff" },
+      { "id": "statistics", "type": "native-statistics", "x": 1040, "y": 180, "width": 800, "height": 800 }
+    ]
+  }
+}
+```
+
+画布宽320～3840、高240～2160，等比适配页面可用区域。元素按声明顺序绘制；`id/type/x/y/width/height`必填，矩形有限、正尺寸且完全位于画布内。sprite引用同页资源；text使用下表来源、`fontSize`1～128、`align`为left/centre/right；两者可用`opacity`0～1及八位RRGGBBAA乘色。native-statistics至多一个，只定位原生真实统计，不复制玩法计分规则。
+
+| text source | 实际含义 |
+| --- | --- |
+| `beatmap.title/artist/version` | 本地谱面展示标题、作者和真实难度名 |
+| `score.value/label` | 当前ScoreManager显示分及玩法提供的标签；BMS沿EX-SCORE，不强套到mania |
+| `score.accuracy/max-combo` | 真实准确率及最大连击；各自的 `.label` 为 ACCURACY / MAX COMBO，不用 MISS COUNT 等其它含义的图片作标题 |
+| `score.rank` | 原生ScoreGrade枚举文字，不等于IIDX DJ LEVEL；需要DJ/Clear/Gauge时用native-statistics |
+| `score.passed` | 原成绩Passed，不保证普通Gauge已Clear |
+| `score.cleared` | 玩法确认的bool? Clear状态，未知为空 |
+| `hit.<name>`及`.label` | 该玩法实际显示的判定计数及名称；name使用序列化HitResult名，不适用时为空，不造零 |
+
+各元素可有`visibleWhen: {"source":"score.cleared","value":true}`；仅允许`score.passed`或`score.cleared`与真实bool比较，未知不匹配true或false。它不是表达式或脚本。Clear/Failed艺术应读取cleared，不能把完曲当作Clear。
+
+整份定义最多64KiB；Results最多128元素、32文本，文本每项最多256字符并受64Mi glyph像素保守预算约束。两页共同最多32张唯一资源，跨页id和路径也不得重复。资源仅包内规范相对PNG/JPEG/WebP路径，不允许越界、链接或晚读；每张至多8MiB，两页合计32MiB/16Mi像素。定义和资源随同一revision捕获并校验，CLI逐图解码；同图同时用于gameplay时仍计两边用途预算，不放宽原gameplay门。未知字段、非法来源、缺图、损坏图或超限明确拒绝。
+
+页面按实际成绩玩法/键数读取所选皮肤，所有文本与统计来自同一真实Score/SelectedScore；不能提交成绩、发送输入、读任意文件或新增联网。切换成绩重新取得对应准备结果；取消/卸载先回收显示再释放原lease，活跃页面继续阻止旧source reload。
+
+选曲页只装饰现有原生控件，示例可单独使用，也可与上面的`results`放在同一根对象中：
+
+```json
+{
+  "contract": "oms-skin-pages.v1",
+  "songSelect": {
+    "resources": [
+      { "id": "select.background", "path": "pages/select-background.png" },
+      { "id": "select.edge", "path": "pages/select-edge.png" },
+      { "id": "select.row", "path": "pages/select-row.png" },
+      { "id": "select.selected", "path": "pages/select-selected.png" }
+    ],
+    "background": "select.background",
+    "listEdge": "select.edge",
+    "row": "select.row",
+    "selectedRow": "select.selected"
+  }
+}
+```
+
+四个外观角色必填，可另声明第五个资源并用`brand`引用。每个角色引用同页已声明资源，所有资源必须被使用。geometry、层级与输入仍由真实原生控件拥有，不接受此页的任意元素树、坐标、文字、数据、动作或脚本；列表行随真实Selected/Expanded更新，保留原背景、clear lamp与元数据。默认原界面，页脚按钮显式切换；没有声明时原选曲保持。
+
+选曲外观按实际玩法、当前WorkingBeatmap与Mods确定键数；空谱库使用模式默认，不造默认谱面。换歌但scope/目标相同时复用owner；模式、有效键数或分配变化会重新准备，晚到旧结果不能覆盖当前选择。页面不应用全局换肤或保存覆盖，不接管筛选、搜索、试听、Random、Mods、合集或SelectAndRun。关闭/挂起同步清空全部可见及池化行的贴图引用，再释放纹理和lease；已挂载外观阻止无staged支持的reload。坏包提示读取失败并保留原界面。
+
 ## 皮肤配置项
 
 玩家在设置中选择 BMS / mania、模式默认或某个键数，再调整卡片上皮肤的配置。皮肤选择和配置分别支持键数覆盖：未指定的键数跟随模式默认；未修改的配置继承同一皮肤的模式配置，再取作者默认，不跨皮肤继承。恢复操作只清除当前层。浏览设置不会切换玩法、谱面或当前皮肤；配置在下次进入游玩或重新打开预览时冻结，不改进行中的一局，不写皮肤或外部来源目录。未声明选项的旧包继续使用原有表现。
@@ -533,7 +595,7 @@ bindings每项必填id/target/property/source，例如：
 
 FAST/SLOW读取真实HitEvent：只统计最大判定为Perfect且结果为基础成功击打的事件，零偏差两边均不计；Miss、自动长条body tick、长条父级记账及BMS空POOR不计入。计数随真实计分历史撤销和完整状态重建，不用 `judgement.hit` 在皮肤里再次累计。`offset.value`当前由BMS已经应用的VisualOffset提供，`offset.automatic`对应其原生自动显示时机调整开关；它不表示判定窗口或音频设备延迟。mania未提供相同投影，available/automatic为false、value为0；不可用时应隐藏读数，不显示伪造的已校准状态。
 
-三项 `judgement.*timing-direction` 是单次输入提示，与累计FAST/SLOW及500ms的判定文字显示期分别保存。当前OMS资格为BMS真实按下/抬起（含原始回放输入）、非Autoplay、结果为Great/Good/Ok/Meh、偏差绝对值至少0.000001ms；Perfect、自动完成、body tick和超时Miss不生成或覆盖提示。Combined按交付次序更新，Keys和Scratch独立保留；SpecialKey归Keys。没有合格输入时为none，后续非合格判定保留原提示；重试、跳转、倒带清空，重挂与背压恢复最新完整状态。只读取节点的精确material group，Global不借用第一组；不能直接驱动数字时钟，也不新增脚本权限。此为明确的OMS显示策略，原机全等级资格、覆盖及保留规则尚未整体复核，不能把它写成IIDX完全等价。
+三项 `judgement.*timing-direction` 是单次反馈，与累计FAST/SLOW及500ms的判定文字显示期分别保存。BMS真实按下/抬起（含原始回放输入）、非Autoplay、结果为Great/Good/Ok/Meh、偏差绝对值至少0.000001ms时保留原早晚资格；普通键/皿音符在无输入分支自然超时Miss另按已确认来源发布Slow，不伪造grade、offset或HasPlayerTiming，也不增加累计计数。Perfect、自动成功完成、body tick、强制Miss及完整Autoplay不补造反馈，未确认的长条Miss边界不扩张。Combined按交付次序更新，Keys和Scratch独立保留；SpecialKey归Keys。没有合格反馈时为none，后续非合格判定保留原提示；重试、跳转、倒带清空，重挂与背压恢复最新完整状态。只读取节点的精确material group，Global不借用第一组；不能直接驱动数字时钟，也不新增脚本权限。原机全等级资格、覆盖及保留规则尚未整体复核，不能把局部实测写成IIDX完全等价。
 
 `score.personal-best`只在选中场景实际消费最佳分数、比例或available来源时，于游玩后台加载一次。条件匹配当前本地玩家ID、谱面ID与hash、玩法及可比较的Mod设置；只选未删除、未失败、当前计分版本且具有效统计的本地成绩，BMS还校验其当前规则版本和结果统计。BMS比较忽略Sudden、Hidden、Lift的选用、位置、挡板透明度与记忆偏好，以及Auto Scratch/Auto Note的叠加着色开关和颜色；辅助Mod本身及其Hidden/Visible仍须匹配。Judge/Gauge、LN/CN/HCN、Random/Mirror等玩法条件继续区分，Random seed仍保留。已知Mod的显式默认设置与省略默认等价；未知Mod、未知设置和值保持严格比较，Sudden/Hidden/Lift若带未知设置仍保留其身份与未知字段。其它玩法保持完整Mod设置精确匹配。此规则只影响查询比较，不修改保存的Mod、回放或传分。没有成绩或查询条件不可用时available为false，0不是已查得的最佳成绩。它不查询线上排行榜，不把其它玩家或不兼容玩法条件的成绩作为目标；作者不能在游玩中发起数据库查询。比例使用当前理论满分，满分不可用时为0。
 

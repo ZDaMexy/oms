@@ -8,6 +8,8 @@ using NUnit.Framework;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
 using osu.Game.Configuration;
+using osu.Game.Rulesets.Bms;
+using osu.Game.Screens;
 using osu.Game.Screens.Select;
 using osu.Game.Screens.Select.Filter;
 using osuTK.Input;
@@ -23,22 +25,27 @@ namespace osu.Game.Tests.Visual.SongSelect
     /// - Beatmap difficulty hidden (select closest valid difficulty from same set)
     /// - Beatmap set deleted (select closest valid beatmap post-deletion)
     ///
-    /// We are working with 5 sets, each with 3 difficulties (all osu! ruleset).
+    /// We are working with 5 sets, each with 3 native mania difficulties.
     /// </summary>
     public partial class TestSceneSongSelectCurrentSelectionInvalidated : SongSelectTestScene
     {
         private BeatmapInfo? selectedBeatmap => Carousel.CurrentBeatmap;
         private BeatmapSetInfo? selectedBeatmapSet => selectedBeatmap?.BeatmapSet;
+        private int loadedFilterCount;
 
         [SetUpSteps]
         public override void SetUpSteps()
         {
             base.SetUpSteps();
 
+            ChangeMode("mania");
+
             for (int i = 0; i < 5; i++)
-                ImportBeatmapForRuleset(0);
+                ImportBeatmapForModes("mania");
 
             LoadSongSelect();
+            WaitForFiltering();
+            AddStep("capture the fully loaded screen's actual filter baseline", () => loadedFilterCount = Carousel.FilterCount);
         }
 
         [Test]
@@ -46,35 +53,106 @@ namespace osu.Game.Tests.Visual.SongSelect
         {
             AddStep("disable converts", () => Config.SetValue(OsuSetting.ConvertedBeatmapsDisplay, ConvertedBeatmapsDisplay.Hidden));
 
-            ImportBeatmapForRuleset(0, 1);
-            ImportBeatmapForRuleset(0, 1);
-            ImportBeatmapForRuleset(0, 2);
-            waitForFiltering(5);
+            ImportBeatmapForModes("mania", "bms");
+            ImportBeatmapForModes("mania", "bms");
+            ImportBeatmapForModes("bms");
+            WaitForFiltering();
+            AddUntilStep("native carousel items have actually been presented", () => SongSelect.CarouselItemsPresented && !SongSelect.IsFiltering);
 
-            ChangeRuleset(1);
-            waitForFiltering(6);
+            BeatmapSetInfo mixed = null!;
+            BeatmapSetInfo maniaOnly = null!;
+            BeatmapSetInfo bmsOnly = null!;
+            BeatmapInfo[] bmsSources = null!;
+            AddStep("retain actual mixed and single-mode sets", () =>
+            {
+                var sets = Beatmaps.GetAllUsableBeatmapSets().OrderBy(set => set.OnlineID).ToArray();
+                mixed = sets.First(set => set.Beatmaps.Any(beatmap => beatmap.Ruleset.ShortName == "mania")
+                                         && set.Beatmaps.Any(beatmap => beatmap.Ruleset.ShortName == "bms"));
+                maniaOnly = sets.First(set => set.Beatmaps.All(beatmap => beatmap.Ruleset.ShortName == "mania"));
+                bmsOnly = sets.Single(set => set.Beatmaps.All(beatmap => beatmap.Ruleset.ShortName == "bms"));
+                bmsSources = sets.SelectMany(set => set.Beatmaps).Where(beatmap => beatmap.Ruleset.ShortName == "bms").ToArray();
+                Assert.That(bmsSources.All(beatmap => BmsRuleset.TryGetKeyCount(beatmap, out int keys) && keys == 7), Is.True,
+                    "Every native BMS fixture must carry a supported persisted key count.");
+            });
+            presentNative(() => mixed, "mania");
 
-            BeatmapInfo? initiallySelected = null;
-            AddAssert("carousel beatmap is taiko", () => (initiallySelected = selectedBeatmap)?.Ruleset.OnlineID, () => Is.EqualTo(1));
-            AddUntilStep("global beatmap is taiko", () => Beatmap.Value.BeatmapInfo.Ruleset.OnlineID, () => Is.EqualTo(1));
+            // A compatible difficulty in the same set does not override BMS's default root grouping.
+            ChangeMode("bms");
+            assertBmsRootWhileManiaPlays(() => mixed, () => bmsSources);
 
-            ChangeRuleset(0);
-            waitForFiltering(7);
-            AddAssert("carousel beatmap is osu", () => selectedBeatmap?.Ruleset.OnlineID, () => Is.EqualTo(0));
-            AddUntilStep("global beatmap is osu", () => Beatmap.Value.BeatmapInfo.Ruleset.OnlineID, () => Is.EqualTo(0));
-            AddAssert("carousel beatmap is same set as original", () => selectedBeatmap?.BeatmapSet, () => Is.EqualTo(initiallySelected!.BeatmapSet));
+            presentNative(() => mixed, "bms");
+            ChangeMode("mania");
+            assertUngroupedNativeManiaSelection();
+            AddAssert("BMS to mania uses the same mixed set", () => selectedBeatmapSet, () => Is.EqualTo(mixed));
 
-            ChangeRuleset(1);
-            waitForFiltering(8);
-            AddAssert("carousel beatmap is taiko", () => selectedBeatmap?.Ruleset.OnlineID, () => Is.EqualTo(1));
-            AddUntilStep("global beatmap is taiko", () => Beatmap.Value.BeatmapInfo.Ruleset.OnlineID, () => Is.EqualTo(1));
-            AddAssert("carousel beatmap is same set as original", () => selectedBeatmap?.BeatmapSet, () => Is.EqualTo(initiallySelected!.BeatmapSet));
+            // BMS switches to its default root grouping rather than automatically choosing an unrelated chart.
+            presentNative(() => maniaOnly, "mania");
+            ChangeMode("bms");
+            assertBmsRootWhileManiaPlays(() => maniaOnly, () => bmsSources);
 
-            ChangeRuleset(2);
-            waitForFiltering(9);
-            AddAssert("carousel beatmap is catch", () => selectedBeatmap?.Ruleset.OnlineID, () => Is.EqualTo(2));
-            AddUntilStep("global beatmap is catch", () => Beatmap.Value.BeatmapInfo.Ruleset.OnlineID, () => Is.EqualTo(2));
-            AddAssert("carousel beatmap is different set", () => selectedBeatmap?.BeatmapSet, () => Is.Not.EqualTo(initiallySelected!.BeatmapSet));
+            // A real user selection ends root focus. Mania supports None, so the incompatible single-mode set
+            // now exercises the cross-set fallback without bypassing BMS's grouping contract.
+            presentNative(() => bmsOnly, "bms");
+            ChangeMode("mania");
+            assertUngroupedNativeManiaSelection();
+            AddAssert("BMS-only set falls back to a different mania set", () => selectedBeatmapSet, () => Is.Not.EqualTo(bmsOnly));
+        }
+
+        private void assertBmsRootWhileManiaPlays(Func<BeatmapSetInfo> playingSet, Func<BeatmapInfo[]> bmsSources)
+        {
+            WaitForFiltering();
+            AddAssert("BMS default grouping agrees across mode, config, control and carousel", () =>
+                (Ruleset.Value.ShortName, Config.Get<GroupMode>(OsuSetting.SongSelectGroupMode),
+                    SongSelect.ChildrenOfType<FilterControl>().Single().CreateCriteria().Group, Carousel.Criteria?.Group),
+                () => Is.EqualTo(("bms", GroupMode.DifficultyTable, GroupMode.DifficultyTable, (GroupMode?)GroupMode.DifficultyTable)));
+            AddAssert("all imported native BMS sources are matched", () => Carousel.MatchedBeatmapsCount, () => Is.EqualTo(bmsSources().Length));
+            AddAssert("matched BMS source identities are preserved", () => Carousel.GetCarouselItems()!
+                    .Select(item => item.Model).OfType<GroupedBeatmap>()
+                    .Select(grouped => (grouped.Beatmap.ID, grouped.Beatmap.Ruleset.ShortName)).Distinct().ToArray(),
+                () => Is.EquivalentTo(bmsSources().Select(beatmap => (beatmap.ID, "bms"))));
+            AddAssert("no BMS beatmap is auto-selected", () => Carousel.CurrentGroupedBeatmap, () => Is.Null);
+            AddAssert("no BMS group is auto-expanded", () => Carousel.CurrentExpandedGroup.Value, () => Is.Null);
+            AddAssert("BMS root rows are visible", () => Carousel.GetCarouselItems()!.Count(item => item.IsVisible), () => Is.GreaterThan(0));
+            AddAssert("only BMS root group models are visible", () => Carousel.GetCarouselItems()!
+                .Where(item => item.IsVisible).All(item => item.Model is GroupDefinition { Depth: 0 }));
+            AddAssert("root grouping retains the exact global mania source", () =>
+                (Beatmap.Value.BeatmapInfo.ID, Beatmap.Value.BeatmapInfo.Ruleset.ShortName,
+                    Beatmap.Value.BeatmapInfo.BeatmapSet?.ID, Beatmap.IsDefault),
+                () => Is.EqualTo((playingSet().Beatmaps.First(beatmap => beatmap.Ruleset.ShortName == "mania").ID,
+                    "mania", (Guid?)playingSet().ID, false)));
+        }
+
+        private void assertUngroupedNativeManiaSelection()
+        {
+            GroupBy(GroupMode.None);
+            WaitForFiltering();
+            AddAssert("mania uses its actual ungrouped entry", () =>
+                (Ruleset.Value.ShortName, Config.Get<GroupMode>(OsuSetting.SongSelectGroupMode),
+                    SongSelect.ChildrenOfType<FilterControl>().Single().CreateCriteria().Group, Carousel.Criteria?.Group),
+                () => Is.EqualTo(("mania", GroupMode.None, GroupMode.None, (GroupMode?)GroupMode.None)));
+            assertNativeSelection("mania");
+        }
+
+        private void presentNative(Func<BeatmapSetInfo> set, string mode)
+        {
+            AddStep($"present actual native {mode} source", () =>
+            {
+                var beatmap = set().Beatmaps.First(beatmap => beatmap.Ruleset.ShortName == mode);
+                ((IHandlePresentBeatmap)SongSelect).PresentBeatmap(Beatmaps.GetWorkingBeatmap(beatmap), Ruleset.Value);
+            });
+            assertNativeSelection(mode);
+            AddAssert("specified set is selected", () => selectedBeatmapSet, () => Is.EqualTo(set()));
+            AddAssert("the exact presented native source is selected", () => selectedBeatmap?.ID,
+                () => Is.EqualTo(set().Beatmaps.First(beatmap => beatmap.Ruleset.ShortName == mode).ID));
+        }
+
+        private void assertNativeSelection(string mode)
+        {
+            WaitForFiltering();
+            AddUntilStep($"native {mode} selection agrees across carousel and global working beatmap", () =>
+                (Ruleset.Value.ShortName, selectedBeatmap?.Ruleset.ShortName, Beatmap.Value.BeatmapInfo.Ruleset.ShortName,
+                    selectedBeatmap?.ID, Beatmap.Value.BeatmapInfo.ID, Beatmap.IsDefault),
+                () => Is.EqualTo((mode, (string?)mode, mode, (Guid?)Beatmap.Value.BeatmapInfo.ID, Beatmap.Value.BeatmapInfo.ID, false)));
         }
 
         /// <summary>
@@ -85,7 +163,7 @@ namespace osu.Game.Tests.Visual.SongSelect
         [TestCase(SortMode.Difficulty)]
         public void TestDeleteAllSets(SortMode sortMode)
         {
-            int filterCount = sortMode != SortMode.Title ? 2 : 1;
+            int filterCount = sortMode != SortMode.Title ? 1 : 0;
 
             SortBy(sortMode);
             waitForFiltering(filterCount);
@@ -108,7 +186,7 @@ namespace osu.Game.Tests.Visual.SongSelect
         public void DifficultiesGrouped_DeleteSet_SelectsAdjacent()
         {
             SortAndGroupBy(SortMode.Difficulty, GroupMode.Difficulty);
-            waitForFiltering(2);
+            waitForFiltering(1);
 
             makePanelSelected<PanelGroupStarDifficulty>(2);
             makePanelSelected<PanelBeatmapStandalone>(3);
@@ -116,14 +194,14 @@ namespace osu.Game.Tests.Visual.SongSelect
             // Deleting second-last, should select last
             BeatmapSetInfo deletedSet = null!;
             AddStep("delete selected", () => Beatmaps.Delete(deletedSet = selectedBeatmapSet!));
-            waitForFiltering(3);
+            waitForFiltering(2);
 
             selectionChangedFrom(() => deletedSet);
             assertPanelSelected<PanelBeatmapStandalone>(3);
 
             // Deleting last, should select previous
             AddStep("delete selected", () => Beatmaps.Delete(deletedSet = selectedBeatmapSet!));
-            waitForFiltering(4);
+            waitForFiltering(3);
 
             selectionChangedFrom(() => deletedSet);
             assertPanelSelected<PanelBeatmapStandalone>(2);
@@ -133,7 +211,7 @@ namespace osu.Game.Tests.Visual.SongSelect
         [TestCase(SortMode.Artist)]
         public void SetsGrouped_DeleteSet_SelectsAdjacent(SortMode sortMode)
         {
-            int filterCount = sortMode != SortMode.Title ? 2 : 1;
+            int filterCount = sortMode != SortMode.Title ? 1 : 0;
 
             SortBy(sortMode);
             waitForFiltering(filterCount);
@@ -164,7 +242,7 @@ namespace osu.Game.Tests.Visual.SongSelect
         [TestCase(SortMode.Artist)]
         public void SetsGrouped_DeleteSet_SelectsNextSetRecommendedDifficulty(SortMode sortMode)
         {
-            int filterCount = sortMode != SortMode.Title ? 2 : 1;
+            int filterCount = sortMode != SortMode.Title ? 1 : 0;
 
             SortBy(sortMode);
             waitForFiltering(filterCount);
@@ -192,12 +270,12 @@ namespace osu.Game.Tests.Visual.SongSelect
             BeatmapInfo hiddenBeatmap = null!;
 
             AddStep("hide selected", () => Beatmaps.Hide(hiddenBeatmap = selectedBeatmap!));
-            waitForFiltering(2);
+            waitForFiltering(1);
 
             AddAssert("selected beatmap below", () => selectedBeatmap!.BeatmapSet, () => Is.EqualTo(hiddenBeatmap.BeatmapSet));
 
             AddStep("hide selected", () => Beatmaps.Hide(hiddenBeatmap = selectedBeatmap!));
-            waitForFiltering(3);
+            waitForFiltering(2);
 
             AddAssert("selected beatmap below", () => selectedBeatmap!.BeatmapSet, () => Is.EqualTo(hiddenBeatmap.BeatmapSet));
             assertPanelSelected<PanelBeatmap>(0);
@@ -240,9 +318,10 @@ namespace osu.Game.Tests.Visual.SongSelect
             AddUntilStep("selection has changed after debounce", () => selectedBeatmapDuringDebounce, () => Is.Not.EqualTo(Beatmap.Value.BeatmapInfo));
         }
 
-        private void waitForFiltering(int filterCount = 1)
+        private void waitForFiltering(int filterCount = 0)
         {
-            AddUntilStep("wait for filter count", () => Carousel.FilterCount, () => Is.EqualTo(filterCount));
+            AddUntilStep($"wait for exactly {filterCount} filter operations after screen load", () => Carousel.FilterCount,
+                () => Is.EqualTo(loadedFilterCount + filterCount));
             AddUntilStep("filtering finished", () => Carousel.IsFiltering, () => Is.False);
         }
 

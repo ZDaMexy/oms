@@ -23,6 +23,8 @@ namespace osu.Game.Rulesets.Bms.UI.Scrolling
     {
         private readonly BmsScrollProfile profile;
 
+        internal double ReferenceBeatLength => profile.BaseBeatLength;
+
         public BmsStopMotionScrollAlgorithm(BmsScrollProfile profile)
         {
             this.profile = profile;

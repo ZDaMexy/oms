@@ -22,7 +22,9 @@ using osu.Framework.Screens;
 using osu.Game.Audio;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
+using osu.Game.Graphics.Sprites;
 using osu.Game.Graphics.UserInterface;
+using osu.Game.Graphics.UserInterfaceV2;
 using osu.Game.Input.Bindings;
 using osu.Game.Localisation;
 using osu.Game.Online.Placeholders;
@@ -33,6 +35,7 @@ using osu.Game.Screens.Play;
 using osu.Game.Screens.Ranking.Expanded.Accuracy;
 using osu.Game.Screens.Ranking.Statistics;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Pages;
 using osuTK;
 
 namespace osu.Game.Screens.Ranking
@@ -66,6 +69,13 @@ namespace osu.Game.Screens.Ranking
 
         private Drawable bottomPanel = null!;
         private Container<ScorePanel> detachedPanelContainer = null!;
+        private SkinResultsPageHost skinPageHost = null!;
+        private RoundedButton skinPageSwitch = null!;
+        private OsuSpriteText skinPageError = null!;
+
+        internal bool SkinPageAvailable => skinPageHost.Available;
+        internal bool ShowingSkinPage => skinPageHost.ShowingSkinPage;
+        internal Skin? ResultsPageSkin => skinPageHost.PageSkin;
 
         private Task lastFetchTask = Task.CompletedTask;
 
@@ -114,37 +124,70 @@ namespace osu.Game.Screens.Ranking
                     {
                         new Drawable[]
                         {
-                            VerticalScrollContent = new VerticalScrollContainer
+                            new Container
                             {
                                 RelativeSizeAxes = Axes.Both,
-                                ScrollbarVisible = false,
-                                Child = new Container
+                                Children = new Drawable[]
                                 {
-                                    RelativeSizeAxes = Axes.Both,
-                                    Children = new Drawable[]
+                                    new GlobalScrollAdjustsVolume(),
+                                    VerticalScrollContent = new VerticalScrollContainer
                                     {
-                                        new GlobalScrollAdjustsVolume(),
-                                        StatisticsPanel = new StatisticsPanel
+                                        RelativeSizeAxes = Axes.Both,
+                                        ScrollbarVisible = false,
+                                        Child = new Container
                                         {
                                             RelativeSizeAxes = Axes.Both,
-                                            Score = { BindTarget = SelectedScore },
-                                            AchievedScore = IsLocalPlay && Score != null ? Score : null,
+                                            Children = new Drawable[]
+                                            {
+                                                StatisticsPanel = new StatisticsPanel
+                                                {
+                                                    RelativeSizeAxes = Axes.Both,
+                                                    Score = { BindTarget = SelectedScore },
+                                                    AchievedScore = IsLocalPlay && Score != null ? Score : null,
+                                                },
+                                                ScorePanelList = new ScorePanelList
+                                                {
+                                                    RelativeSizeAxes = Axes.Both,
+                                                    SelectedScore = { BindTarget = SelectedScore },
+                                                    PostExpandAction = () => StatisticsPanel.ToggleVisibility()
+                                                },
+                                                detachedPanelContainer = new Container<ScorePanel>
+                                                {
+                                                    RelativeSizeAxes = Axes.Both
+                                                },
+                                                new SkinnableContainer(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.Results))
+                                                {
+                                                    RelativeSizeAxes = Axes.Both,
+                                                },
+                                            }
                                         },
-                                        ScorePanelList = new ScorePanelList
-                                        {
-                                            RelativeSizeAxes = Axes.Both,
-                                            SelectedScore = { BindTarget = SelectedScore },
-                                            PostExpandAction = () => StatisticsPanel.ToggleVisibility()
-                                        },
-                                        detachedPanelContainer = new Container<ScorePanel>
-                                        {
-                                            RelativeSizeAxes = Axes.Both
-                                        },
-                                        new SkinnableContainer(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.Results))
-                                        {
-                                            RelativeSizeAxes = Axes.Both,
-                                        },
-                                    }
+                                    },
+                                    skinPageHost = new SkinResultsPageHost(SelectedScore, () => new StatisticsPanel(compact: true)
+                                    {
+                                        RelativeSizeAxes = Axes.Both,
+                                        Score = { BindTarget = SelectedScore },
+                                        AchievedScore = IsLocalPlay ? Score : null,
+                                        State = { Value = Visibility.Visible },
+                                    }, new MarginPadding { Top = 48 }),
+                                    skinPageSwitch = new RoundedButton
+                                    {
+                                        Anchor = Anchor.TopRight,
+                                        Origin = Anchor.TopRight,
+                                        Position = new Vector2(-12, 8),
+                                        Size = new Vector2(180, 32),
+                                        Depth = float.MinValue,
+                                        Text = "皮肤界面",
+                                        Alpha = 0,
+                                        Action = () => ShowSkinResultsPage(!ShowingSkinPage),
+                                    },
+                                    skinPageError = new OsuSpriteText
+                                    {
+                                        Anchor = Anchor.TopRight,
+                                        Origin = Anchor.TopRight,
+                                        Position = new Vector2(-12, 12),
+                                        Font = OsuFont.GetFont(size: 14),
+                                        Alpha = 0,
+                                    },
                                 }
                             },
                         },
@@ -245,6 +288,8 @@ namespace osu.Game.Screens.Ranking
             base.LoadComplete();
 
             StatisticsPanel.State.BindValueChanged(onStatisticsStateChanged, true);
+            skinPageHost.AvailabilityChanged += updatePageControls;
+            updatePageControls();
 
             fetchScores(null);
         }
@@ -253,10 +298,30 @@ namespace osu.Game.Screens.Ranking
         {
             base.Update();
 
+            if (ShowingSkinPage)
+                return;
+
             if (ScorePanelList.IsScrolledToStart)
                 fetchScores(-1);
             else if (ScorePanelList.IsScrolledToEnd)
                 fetchScores(1);
+        }
+
+        internal void ShowSkinResultsPage(bool show)
+        {
+            if (show && skinPageHost.Available)
+                StatisticsPanel.Hide();
+            skinPageHost.ShowSkinPage(show);
+            updatePageControls();
+        }
+
+        private void updatePageControls()
+        {
+            VerticalScrollContent.Alpha = ShowingSkinPage ? 0 : 1;
+            skinPageSwitch.Alpha = skinPageHost.Available ? 1 : 0;
+            skinPageSwitch.Text = ShowingSkinPage ? "原界面" : "皮肤界面";
+            skinPageError.Text = skinPageHost.PreparationError ?? string.Empty;
+            skinPageError.Alpha = skinPageHost.PreparationError == null ? 0 : 1;
         }
 
         #region Applause
@@ -402,6 +467,8 @@ namespace osu.Game.Screens.Ranking
         protected override void Dispose(bool isDisposing)
         {
             PendingAsyncDrawableOwnership<PoolableSkinnableSample>? pendingOwnership = cancelPendingRankApplauseLoad();
+            if (skinPageHost != null)
+                skinPageHost.AvailabilityChanged -= updatePageControls;
             base.Dispose(isDisposing);
             pendingOwnership?.JoinAfterParentDisposal();
         }
@@ -507,7 +574,16 @@ namespace osu.Game.Screens.Ranking
             // the exact load-task continuation can reclaim it without waiting for this screen to resume or dispose.
             cancelPendingRankApplauseLoad();
             StatisticsPanel.CancelPendingLoad();
+            skinPageHost.Suspend();
+            updatePageControls();
             base.OnSuspending(e);
+        }
+
+        public override void OnResuming(ScreenTransitionEvent e)
+        {
+            base.OnResuming(e);
+            skinPageHost.ResumePreparation();
+            updatePageControls();
         }
 
         public override bool OnExiting(ScreenExitEvent e)
@@ -517,6 +593,8 @@ namespace osu.Game.Screens.Ranking
 
             cancelPendingRankApplauseLoad();
             StatisticsPanel.CancelPendingLoad();
+            skinPageHost.Suspend();
+            updatePageControls();
 
             // This is a stop-gap safety against components holding references to gameplay after exiting the gameplay flow.
             // Right now, HitEvents are only used up to the results screen. If this changes in the future we need to remove
@@ -616,7 +694,10 @@ namespace osu.Game.Screens.Ranking
 
                 case GlobalAction.Select:
                     if (SelectedScore.Value != null)
+                    {
+                        ShowSkinResultsPage(false);
                         StatisticsPanel.ToggleVisibility();
+                    }
                     return true;
             }
 

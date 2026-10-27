@@ -257,7 +257,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 }
 
                 if (!CanStillBeHitByPlayer(HitObject, timeOffset))
-                    ApplyTimingResult(Result.Judgement.MinResult);
+                    ApplyTimingResult(Result.Judgement.MinResult, isNaturalMiss: true);
 
                 return;
             }
@@ -271,13 +271,16 @@ namespace osu.Game.Rulesets.Bms.UI
         protected internal override JudgementResult CreateResult(Judgement judgement)
             => new BmsJudgementTimingResult(HitObject, judgement);
 
-        protected void ApplyTimingResult(HitResult result, bool hasPlayerTiming = false)
+        protected void ApplyTimingResult(HitResult result, bool hasPlayerTiming = false, bool isNaturalMiss = false)
             => ApplyResult(static (judgement, state) =>
             {
                 // Reset provenance on every application, including automatic results after a replay rewind.
-                ((BmsJudgementTimingResult)judgement).HasPlayerTiming = state.HasPlayerTiming;
+                var timingResult = (BmsJudgementTimingResult)judgement;
+                timingResult.HasPlayerTiming = state.HasPlayerTiming;
+                timingResult.IsNaturalMiss = state.IsNaturalMiss;
                 judgement.Type = state.Result;
-            }, (Result: result, HasPlayerTiming: hasPlayerTiming && HitObject is BmsHitObject { AutoPlay: false }));
+            }, (Result: result, HasPlayerTiming: hasPlayerTiming && HitObject is BmsHitObject { AutoPlay: false },
+                IsNaturalMiss: isNaturalMiss && result == HitResult.Miss && HitObject is BmsHitObject { AutoPlay: false, CountsForScore: true }));
 
         protected override void UpdateHitStateTransforms(ArmedState state)
         {

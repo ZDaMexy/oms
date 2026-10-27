@@ -15,6 +15,9 @@ using osu.Game.Extensions;
 using osu.Game.Models;
 using osu.Game.Online.API;
 using osu.Game.Online.API.Requests.Responses;
+using osu.Game.Rulesets.Mania.Mods;
+using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Scoring;
 using osu.Game.Scoring;
 using osu.Game.Screens.Select;
 using osu.Game.Screens.Select.Filter;
@@ -33,14 +36,21 @@ namespace osu.Game.Tests.Visual.SongSelect
         [SetUp]
         public void SetUp() => Schedule(() => API.Logout());
 
+        [SetUpSteps]
+        public override void SetUpSteps()
+        {
+            base.SetUpSteps();
+            ChangeMode("mania");
+        }
+
         #region Collection grouping
 
         [Test]
         public void TestCollectionGrouping()
         {
-            ImportBeatmapForRuleset(0);
-            ImportBeatmapForRuleset(0);
-            ImportBeatmapForRuleset(0);
+            ImportBeatmapForModes("mania");
+            ImportBeatmapForModes("mania");
+            ImportBeatmapForModes("mania");
 
             BeatmapSetInfo[] beatmapSets = null!;
 
@@ -70,7 +80,7 @@ namespace osu.Game.Tests.Visual.SongSelect
         [Test]
         public void TestCollectionGroupingUpdatesOnChange()
         {
-            ImportBeatmapForRuleset(0);
+            ImportBeatmapForModes("mania");
 
             BeatmapSetInfo beatmapSet = null!;
 
@@ -119,9 +129,9 @@ namespace osu.Game.Tests.Visual.SongSelect
         [Test]
         public void TestMyMapsGrouping()
         {
-            ImportBeatmapForRuleset(s => ((RealmUser)s.Metadata.Author).Username = "user1", 3, 0);
-            ImportBeatmapForRuleset(s => ((RealmUser)s.Metadata.Author).Username = "user2", 3, 0);
-            ImportBeatmapForRuleset(s => ((RealmUser)s.Metadata.Author).Username = "user3", 3, 0);
+            ImportBeatmapForModes(s => ((RealmUser)s.Metadata.Author).Username = "user1", 3, "mania");
+            ImportBeatmapForModes(s => ((RealmUser)s.Metadata.Author).Username = "user2", 3, "mania");
+            ImportBeatmapForModes(s => ((RealmUser)s.Metadata.Author).Username = "user3", 3, "mania");
 
             BeatmapSetInfo[] beatmapSets = null!;
 
@@ -144,13 +154,13 @@ namespace osu.Game.Tests.Visual.SongSelect
         [Test]
         public void TestMyMapsGroupingRenamedUsername()
         {
-            ImportBeatmapForRuleset(s =>
+            ImportBeatmapForModes(s =>
             {
                 ((RealmUser)s.Metadata.Author).Username = "user1_old";
                 ((RealmUser)s.Metadata.Author).OnlineID = DummyAPIAccess.DUMMY_USER_ID;
-            }, 3, 0);
-            ImportBeatmapForRuleset(s => ((RealmUser)s.Metadata.Author).Username = "user2", 3, 0);
-            ImportBeatmapForRuleset(s => ((RealmUser)s.Metadata.Author).Username = "user3", 3, 0);
+            }, 3, "mania");
+            ImportBeatmapForModes(s => ((RealmUser)s.Metadata.Author).Username = "user2", 3, "mania");
+            ImportBeatmapForModes(s => ((RealmUser)s.Metadata.Author).Username = "user3", 3, "mania");
 
             BeatmapSetInfo[] beatmapSets = null!;
 
@@ -173,9 +183,9 @@ namespace osu.Game.Tests.Visual.SongSelect
         [Test]
         public void TestMyMapsGroupingUpdatesOnUserChange()
         {
-            ImportBeatmapForRuleset(s => ((RealmUser)s.Metadata.Author).Username = "user1", 3, 0);
-            ImportBeatmapForRuleset(s => ((RealmUser)s.Metadata.Author).Username = "user2", 3, 0);
-            ImportBeatmapForRuleset(s => ((RealmUser)s.Metadata.Author).Username = new GuestUser().Username, 3, 0);
+            ImportBeatmapForModes(s => ((RealmUser)s.Metadata.Author).Username = "user1", 3, "mania");
+            ImportBeatmapForModes(s => ((RealmUser)s.Metadata.Author).Username = "user2", 3, "mania");
+            ImportBeatmapForModes(s => ((RealmUser)s.Metadata.Author).Username = new GuestUser().Username, 3, "mania");
 
             BeatmapSetInfo[] beatmapSets = null!;
 
@@ -209,11 +219,11 @@ namespace osu.Game.Tests.Visual.SongSelect
         [Test]
         public void TestRankAchievedGrouping()
         {
-            ImportBeatmapForRuleset(_ => { }, 1, 0);
-            ImportBeatmapForRuleset(_ => { }, 1, 0);
-            ImportBeatmapForRuleset(_ => { }, 1, 0);
-            ImportBeatmapForRuleset(_ => { }, 1, 0);
-            ImportBeatmapForRuleset(_ => { }, 1, 0);
+            ImportBeatmapForModes(_ => { }, 1, "mania");
+            ImportBeatmapForModes(_ => { }, 1, "mania");
+            ImportBeatmapForModes(_ => { }, 1, "mania");
+            ImportBeatmapForModes(_ => { }, 1, "mania");
+            ImportBeatmapForModes(_ => { }, 1, "mania");
 
             AddStep("log in", () =>
             {
@@ -331,7 +341,25 @@ namespace osu.Game.Tests.Visual.SongSelect
         {
             var score = TestResources.CreateTestScoreInfo(beatmap);
             score.User = API.LocalUser.Value;
-            score.Rank = rank ?? Enum.GetValues<ScoreRank>().MinBy(_ => RNG.Next());
+            ScoreRank requested = rank ?? Enum.GetValues<ScoreRank>().MinBy(_ => RNG.Next());
+            using var processor = beatmap.Ruleset.CreateInstance().CreateScoreProcessor();
+            score.Accuracy = requested == ScoreRank.F ? 0 : processor.AccuracyCutoffFromRank(requested);
+            int perfects = (int)Math.Round(score.Accuracy * 1000);
+            score.Statistics = new Dictionary<HitResult, int> { [HitResult.Perfect] = perfects, [HitResult.Miss] = 1000 - perfects };
+            score.MaximumStatistics = new Dictionary<HitResult, int> { [HitResult.Perfect] = 1000 };
+            score.MaxCombo = perfects;
+            score.Passed = requested != ScoreRank.F;
+            score.Mods = beatmap.Ruleset.ShortName == "mania"
+                ? requested is ScoreRank.SH or ScoreRank.XH
+                    ? new Mod[] { new ManiaModNoFail(), new ManiaModHidden() }
+                    : new Mod[] { new ManiaModNoFail() }
+                : Array.Empty<Mod>();
+            score.Rank = score.Passed ? processor.RankFromScore(score.Accuracy, score.Statistics) : ScoreRank.F;
+            foreach (var mod in score.Mods.OfType<IApplicableToScoreProcessor>())
+                score.Rank = mod.AdjustRank(score.Rank, score.Accuracy);
+            if (rank.HasValue)
+                Assert.That(score.Rank, Is.EqualTo(rank.Value), "The requested stored grade must be produced by its actual ruleset and mods.");
+            // This monotonic fixture total chooses the best stored grade; it does not simulate a full play session.
             score.TotalScore = (long)(((double)score.Rank + 1) / (Enum.GetValues<ScoreRank>().Length + 1) * 1000000);
             score.Date = DateTimeOffset.Now;
             applyToScore?.Invoke(score);

@@ -45,6 +45,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(timingAtDelivery, Is.True, "Provenance must be set before the real judgement event is delivered.");
                 Assert.That(metadata(drawable.Result).HasPlayerTiming, Is.True,
                     "This records input provenance even for a pressed POOR; display qualification remains separate.");
+                Assert.That(((BmsJudgementTimingResult)drawable.Result).IsNaturalMiss, Is.False);
                 Assert.That(drawable.Result.Type, Is.EqualTo(expected));
                 Assert.That(drawable.Result.RawTime, Is.EqualTo(note.StartTime + offset));
                 Assert.That(drawable.Result.TimeOffset, Is.EqualTo(offset));
@@ -78,6 +79,38 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(drawable.Result.TimeOffset, Is.EqualTo(7));
                 Assert.That(metadata(drawable.Result).HasPlayerTiming, Is.False,
                     "A frame-sized automatic offset is not measured player timing.");
+                Assert.That(((BmsJudgementTimingResult)drawable.Result).IsNaturalMiss, Is.False);
+            });
+        }
+
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public void TestNaturalTimeoutHasDistinctProvenanceFromForcedMiss(bool scratch, bool forced)
+        {
+            BmsHitObject note = createNote(scratch);
+            var manual = new ManualClock { CurrentTime = note.StartTime + 1000 };
+            var clock = new FramedClock(manual);
+            using var drawable = new TestNote(note) { Clock = clock };
+            drawable.Apply(note);
+            clock.ProcessFrame();
+            bool? naturalAtDelivery = null;
+            drawable.OnNewResult += (_, result) => naturalAtDelivery = ((BmsJudgementTimingResult)result).IsNaturalMiss;
+
+            if (forced)
+                drawable.MissForcefully();
+            else
+                drawable.JudgeFrame();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(drawable.Result.Type, Is.EqualTo(HitResult.Miss));
+                Assert.That(drawable.Result.RawTime, Is.EqualTo(note.StartTime + 1000));
+                Assert.That(drawable.Result.TimeOffset, Is.EqualTo(note.MaximumJudgementOffset), "Natural and forced late misses retain the existing clamped scoring offset.");
+                Assert.That(metadata(drawable.Result).HasPlayerTiming, Is.False);
+                Assert.That(((BmsJudgementTimingResult)drawable.Result).IsNaturalMiss, Is.EqualTo(!forced));
+                Assert.That(naturalAtDelivery, Is.EqualTo(!forced));
             });
         }
 
@@ -96,6 +129,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             drawable.Entry!.OnRevertResult();
             drawable.Result.Reset();
             Assert.That(metadata(drawable.Result).HasPlayerTiming, Is.False, "A reverted result has no surviving timing observation.");
+            Assert.That(((BmsJudgementTimingResult)drawable.Result).IsNaturalMiss, Is.False);
 
             manual.CurrentTime = note.StartTime + 1000;
             clock.ProcessFrame();
@@ -105,6 +139,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(drawable.Result.Type, Is.EqualTo(HitResult.Miss));
                 Assert.That(drawable.Result.RawTime, Is.EqualTo(note.StartTime + 1000));
                 Assert.That(metadata(drawable.Result).HasPlayerTiming, Is.False, "Timeout after a rewind must replace the old input provenance.");
+                Assert.That(((BmsJudgementTimingResult)drawable.Result).IsNaturalMiss, Is.True);
             });
 
             BmsHitObject next = createNote(false);
@@ -120,6 +155,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(drawable.Result.RawTime, Is.EqualTo(next.StartTime + 7));
                 Assert.That(drawable.Result.TimeOffset, Is.EqualTo(7));
                 Assert.That(metadata(drawable.Result).HasPlayerTiming, Is.False);
+                Assert.That(((BmsJudgementTimingResult)drawable.Result).IsNaturalMiss, Is.False);
             });
         }
 

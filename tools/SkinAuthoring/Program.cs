@@ -155,14 +155,15 @@ namespace SkinAuthoring
                 revision = capsule.ContentRevision;
             }
             var errors = new List<string>();
-            validateIni("skin.ini", ini, captured, errors);
+            var nativeImageReferences = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            validateIni("skin.ini", ini, captured, errors, nativeImageReferences);
             if (hasContentCatalog)
             {
                 // A misspelled or unselected INI is still package input. Do not let an inactive contribution hide
                 // an invalid resource declaration behind the currently selected default.
                 foreach ((string path, byte[] bytes) in captured.Where(item => item.Key.EndsWith(".ini", StringComparison.OrdinalIgnoreCase)
                                                                              && !item.Key.Equals("skin.ini", StringComparison.OrdinalIgnoreCase)))
-                    validateIni(path, bytes, captured, errors);
+                    validateIni(path, bytes, captured, errors, nativeImageReferences);
             }
             var previewPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (declaration != null)
@@ -175,11 +176,15 @@ namespace SkinAuthoring
                     if (choice.PreviewPath != null)
                         previewPaths.Add(choice.PreviewPath);
             }
-            validateImages(captured, hasContentCatalog, previewPaths, errors);
+            if (declaration != null)
+                foreach (GameplaySkinSceneResource resource in declaration.Resources)
+                    nativeImageReferences.Add(resource.Path);
+            IReadOnlySet<string> pageOnlyImages = findPageOnlyImages(captured, nativeImageReferences);
+            validateImages(captured, hasContentCatalog, previewPaths, pageOnlyImages, errors);
             if (errors.Count > 0)
                 throw new InvalidDataException(string.Join(Environment.NewLine, errors.Distinct(StringComparer.Ordinal)));
 
-            if (declaration != null)
+            if (declaration != null || captured.ContainsKey(osu.Game.Skinning.Pages.SkinPageContracts.FILE_NAME))
             {
                 string lastRead = GameplaySkinSceneContracts.MANIFEST_FILE_NAME;
                 byte[]? read(string path, int limit)
@@ -203,7 +208,7 @@ namespace SkinAuthoring
                     throw new InvalidDataException($"{lastRead}: {error.Message}", error);
                 }
                 if (hasContentCatalog)
-                    validateContentCatalog(package, declaration, captured, read);
+                    validateContentCatalog(package, declaration!, captured, read);
                 else
                     validateBitmapGlyphs(package);
             }
@@ -229,7 +234,8 @@ namespace SkinAuthoring
             => result.Status == GameplaySkinSceneDecodeStatus.Valid && result.Value != null ? result.Value
                 : throw new InvalidDataException($"{path}: {string.Join(", ", result.Diagnostics.Select(item => item.Id))}");
 
-        private static void validateIni(string path, byte[] bytes, IReadOnlyDictionary<string, byte[]> captured, List<string> errors)
+        private static void validateIni(string path, byte[] bytes, IReadOnlyDictionary<string, byte[]> captured, List<string> errors,
+                                        ISet<string>? nativeImageReferences = null)
         {
             var document = GameplaySkinDocumentCodec.Decode(bytes, GameplaySkinDocumentIdentity.CreateUnboundPackageParse(Convert.ToHexString(SHA256.HashData(bytes))));
             foreach (var diagnostic in document.Diagnostics)
@@ -246,6 +252,7 @@ namespace SkinAuthoring
                     || line.Key.StartsWith("KeyImage", StringComparison.Ordinal) || line.Key is "StageLeft" or "StageRight" or "StageBottom" or "StageHint"))
                     continue;
                 string resource = line.Value.Trim();
+                nativeImageReferences?.Add(resource);
                 if (!safeResource(resource) || !captured.ContainsKey(resource + ".png") && !captured.ContainsKey(resource + "-0.png"))
                     errors.Add($"{path}:{line.LineNumber}: 找不到兼容素材 {resource}。");
             }
@@ -253,6 +260,7 @@ namespace SkinAuthoring
             {
                 if (entry.Operation != GameplaySkinDocumentOperation.Provide || entry.Value == null)
                     continue;
+                nativeImageReferences?.Add(entry.Value);
                 if (!safeResource(entry.Value))
                     errors.Add($"{path}:{entry.LineNumber}: 素材路径必须位于包内。");
                 else if (!captured.ContainsKey(entry.Value + ".png") && !captured.ContainsKey(entry.Value + "-0.png"))
@@ -260,8 +268,56 @@ namespace SkinAuthoring
             }
         }
 
+        private static IReadOnlySet<string> findPageOnlyImages(IReadOnlyDictionary<string, byte[]> captured, ISet<string> nativeImageReferences)
+        {
+            var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (!captured.TryGetValue(osu.Game.Skinning.Pages.SkinPageContracts.FILE_NAME, out byte[]? bytes))
+                return result;
+            var pages = osu.Game.Skinning.Pages.SkinPageCodec.Decode(bytes);
+            // These are the only legacy JSON layouts the runtime reads. Author receipts and unrelated metadata
+            // cannot turn a page-only image into a gameplay resource merely by mentioning its filename.
+            foreach (GlobalSkinnableContainers target in Enum.GetValues<GlobalSkinnableContainers>())
+            {
+                if (!captured.TryGetValue(target + ".json", out byte[]? layoutBytes))
+                    continue;
+                using var layout = JsonDocument.Parse(layoutBytes, new JsonDocumentOptions { MaxDepth = GameplaySkinSceneBudgets.MAX_JSON_DEPTH });
+                foreach (string reference in layoutStrings(layout.RootElement))
+                    nativeImageReferences.Add(reference);
+            }
+            foreach (var resource in pages.Resources)
+                if (!nativeImageReferences.Any(reference => refersToPng(reference, resource.Path)))
+                    result.Add(resource.Path);
+            return result;
+        }
+
+        private static IEnumerable<string> layoutStrings(JsonElement element)
+        {
+            if (element.ValueKind == JsonValueKind.String)
+                yield return element.GetString()!;
+            else if (element.ValueKind == JsonValueKind.Object)
+                foreach (JsonProperty property in element.EnumerateObject())
+                    foreach (string value in layoutStrings(property.Value))
+                        yield return value;
+            else if (element.ValueKind == JsonValueKind.Array)
+                foreach (JsonElement child in element.EnumerateArray())
+                    foreach (string value in layoutStrings(child))
+                        yield return value;
+        }
+
+        private static bool refersToPng(string reference, string path)
+        {
+            if (reference.Equals(path, StringComparison.OrdinalIgnoreCase) || (reference + ".png").Equals(path, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (!path.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                return false;
+            string stem = path[..^4];
+            int dash = stem.LastIndexOf('-');
+            return dash >= 0 && stem[..dash].Equals(reference, StringComparison.OrdinalIgnoreCase)
+                             && int.TryParse(stem.AsSpan(dash + 1), NumberStyles.None, CultureInfo.InvariantCulture, out _);
+        }
+
         private static void validateImages(IReadOnlyDictionary<string, byte[]> captured, bool hasContentCatalog,
-                                           IReadOnlySet<string> previewPaths, List<string> errors)
+                                           IReadOnlySet<string> previewPaths, IReadOnlySet<string> pageOnlyImages, List<string> errors)
         {
             long pixels = 0;
             foreach ((string path, byte[] bytes) in captured.Where(item => item.Key.EndsWith(".png", StringComparison.OrdinalIgnoreCase)))
@@ -279,7 +335,10 @@ namespace SkinAuthoring
                 {
                     var info = Image.Identify(bytes);
                     long area = (long)info.Width * info.Height;
-                    pixels += area;
+                    // Pages have their own 16M-pixel aggregate in SkinPageCodec.Prepare. A resource shared with
+                    // gameplay, INI or a runtime legacy layout remains charged to both independent scopes.
+                    if (!pageOnlyImages.Contains(path))
+                        pixels += area;
                     if (area <= 0 || area > GameplaySkinPreparedSceneBudgets.MAX_TEXTURE_PIXELS
                         || !hasContentCatalog && pixels > GameplaySkinPreparedSceneBudgets.MAX_TOTAL_TEXTURE_PIXELS
                         || area * Math.Max(1, info.FrameMetadataCollection.Count) > GameplaySkinPreparedSceneBudgets.MAX_TOTAL_TEXTURE_PIXELS)

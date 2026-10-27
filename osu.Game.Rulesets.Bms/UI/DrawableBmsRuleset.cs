@@ -22,6 +22,7 @@ using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Replays;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Bms.Skinning;
+using osu.Game.Rulesets.Bms.UI.Scrolling;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Objects;
@@ -29,6 +30,7 @@ using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.Scoring;
 using osu.Game.Rulesets.UI;
 using osu.Game.Rulesets.UI.Scrolling;
+using osu.Game.Rulesets.UI.Scrolling.Algorithms;
 using osu.Game.Scoring;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
@@ -40,9 +42,8 @@ namespace osu.Game.Rulesets.Bms.UI
     public partial class DrawableBmsRuleset : DrawableScrollingRuleset<HitObject>, IGameplaySkinSceneRuntimeSource, IGameplaySkinEventObjectSnapshotSource,
         IGameplaySkinAdjustmentStateSource
     {
-        public const double MIN_TIME_RANGE = 290;
-
         // Derived from the official-cab reference HS 10 + WN 350 => GN 300.
+        // This is the HS calibration constant, not an upper bound on the native scrolling time range.
         public const double MAX_TIME_RANGE = 100000d / 13d;
 
         public new BmsPlayfield Playfield => (BmsPlayfield)base.Playfield;
@@ -78,7 +79,7 @@ namespace osu.Game.Rulesets.Bms.UI
             MaxValue = BmsRulesetConfigManager.CLASSIC_HI_SPEED_MAX,
             Precision = BmsRulesetConfigManager.CLASSIC_HI_SPEED_PRECISION,
         };
-        private readonly BindableDouble selectedHiSpeed = new BindableDouble();
+        private readonly BindableDouble selectedHiSpeed = new BindableDouble(8);
         private IBindable<double>? playfieldScrollLengthRatio;
         private readonly BindableBool laneCoverFocusPressed = new BindableBool();
         private readonly Bindable<BmsScrollSpeedMetrics> speedMetrics = new Bindable<BmsScrollSpeedMetrics>();
@@ -92,12 +93,13 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly BmsModLift? selectedLiftMod;
         private readonly double mostCommonBeatLength;
         private readonly double initialBeatLength;
+        private readonly double initialProfileBeatLength;
         private BmsGameplayAdjustmentTarget? currentGameplayAdjustmentTarget;
         private BmsModSudden? gameplaySuddenMod;
         private BmsModHidden? gameplayHiddenMod;
         private BmsModLift? gameplayLiftMod;
         private readonly Dictionary<string, double> scratchAdjustmentRemainders = new Dictionary<string, double>();
-        private double lastSpeedMetricsBeatLength = double.NaN;
+        private double lastSpeedMetricsMultiplier = double.NaN;
         private double? floatingCoveredVisibleTime;
         private bool restoreFloatingCoverTime;
         private BmsPreStartSpeedPreview? preStartSpeedPreview;
@@ -228,14 +230,18 @@ namespace osu.Game.Rulesets.Bms.UI
             selectedLiftMod = Mods.OfType<BmsModLift>().SingleOrDefault();
             mostCommonBeatLength = Beatmap.GetMostCommonBeatLength();
             double referenceTime = Beatmap.HitObjects.Count > 0 ? Math.Max(0, Beatmap.HitObjects[0].StartTime) : 0;
-            double firstBeatLength = Beatmap.ControlPointInfo.TimingPointAt(referenceTime).BeatLength;
+            double firstBeatLength = getBeatLengthAt(referenceTime);
             initialBeatLength = firstBeatLength > 0 ? firstBeatLength : TimingControlPoint.DEFAULT_BEAT_LENGTH;
+            initialProfileBeatLength = beatmap is BmsBeatmap { TimingProfile: not null } bms
+                ? BmsBeatmapConverter.GetBeatLength(bms.TimingProfile.Sample(referenceTime).Bpm) : initialBeatLength;
             LongNoteMode = BmsScoreProcessor.GetLongNoteMode(Mods);
             LayoutProvider = Playfield.LayoutProvider;
             Direction.Value = ScrollingDirection.Down;
 
-            TimeRange.MinValue = MIN_TIME_RANGE;
-            TimeRange.MaxValue = MAX_TIME_RANGE;
+            // The BMS settings already constrain Hi-Speed. Legacy 290..MAX_TIME_RANGE limits truncated valid
+            // Floating/Classic values and Lift geometry before they reached the real scrolling algorithm.
+            TimeRange.MinValue = double.Epsilon;
+            TimeRange.MaxValue = double.MaxValue;
         }
 
         protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
@@ -326,6 +332,7 @@ namespace osu.Game.Rulesets.Bms.UI
             configNormalHiSpeed.BindValueChanged(_ => refreshHiSpeedConfiguration());
             configFloatingHiSpeed.BindValueChanged(_ => refreshHiSpeedConfiguration());
             configClassicHiSpeed.BindValueChanged(_ => refreshHiSpeedConfiguration());
+            Playfield.ScrollAlgorithmChanged += refreshHiSpeedConfiguration;
             initialiseReadingSettings();
 
             // The keysound channel count is no longer user-configurable: the shared pool (created with its default
@@ -570,6 +577,7 @@ namespace osu.Game.Rulesets.Bms.UI
             foreach (Action unbind in readingSettingUnbinders)
                 unbind();
             readingSettingUnbinders.Clear();
+            Playfield.ScrollAlgorithmChanged -= refreshHiSpeedConfiguration;
             NewResult -= HandleGameplayJudgementResult;
             NewResult -= adjustVisualOffsetFromResult;
 
@@ -594,10 +602,10 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             base.Update();
 
-            double beatLength = getCurrentBeatLength();
-            if (beatLength != lastSpeedMetricsBeatLength)
+            double multiplier = sampleScrollSpeed().Multiplier;
+            if (multiplier != lastSpeedMetricsMultiplier)
             {
-                lastSpeedMetricsBeatLength = beatLength;
+                lastSpeedMetricsMultiplier = multiplier;
                 refreshSpeedMetrics();
             }
 
@@ -616,7 +624,7 @@ namespace osu.Game.Rulesets.Bms.UI
             // Lift applies its native projection after its children update. Capture the opening covered target
             // only once that geometry is valid, including when Floating was already saved before entering play.
             if (floatingCoveredVisibleTime == null && configHiSpeedMode.Value == BmsHiSpeedMode.Floating
-                && (SuddenActive || HiddenActive) && Playfield.GameplaySkinLiftState.IsAvailable)
+                && (SuddenActive || HiddenActive) && Playfield.GameplaySkinLiftState.IsAvailable && sampleScrollSpeed().SupportsRefloat)
                 floatingCoveredVisibleTime = speedMetrics.Value.VisibleLaneTime;
         }
 
@@ -916,7 +924,9 @@ namespace osu.Game.Rulesets.Bms.UI
 
             if (tryMapJudgementGrade(result.Type, out GameplaySkinJudgementGrade grade))
                 GameplaySkinEventRuntime!.PublishJudgement(activeObjectId, groupId, laneId, grade, result.TimeOffset, result.HealthIncrease,
-                    hasPlayerTiming: result is IGameplaySkinJudgementTimingMetadata { HasPlayerTiming: true });
+                    hasPlayerTiming: result is IGameplaySkinJudgementTimingMetadata { HasPlayerTiming: true },
+                    timingFeedback: result is BmsJudgementTimingResult { IsNaturalMiss: true }
+                        ? GameplaySkinJudgementTimingDirection.Slow : GameplaySkinJudgementTimingDirection.None);
 
             // Head, body-tick and tail judgements all retain the one long-note parent identity. The real pooled
             // hold owner publishes its continuous Visible/Holding/Missed state, so a nested judgement must not
@@ -1131,7 +1141,7 @@ namespace osu.Game.Rulesets.Bms.UI
             if (adjusted)
             {
                 UpdateLaneCoverFocus(preferBottom);
-                rememberReadingSettings();
+                completeReadingAdjustment();
             }
 
             return adjusted;
@@ -1144,7 +1154,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
             bool adjusted = adjustGameplayAdjustment(scrollDelta, getPersistentGameplayAdjustmentTarget());
             if (adjusted)
-                rememberReadingSettings();
+                completeReadingAdjustment();
             return adjusted;
         }
 
@@ -1198,7 +1208,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
             if (canAdjustGameplaySettings && adjustGameplayAdjustment((float)e.ScrollDelta.Y, getDisplayedGameplayAdjustmentTarget()))
             {
-                rememberReadingSettings();
+                completeReadingAdjustment();
                 return true;
             }
 
@@ -1251,7 +1261,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 ? GetScrollSpeedMetrics().VisibleLaneTime : null;
             restoreFloatingCoverTime = false;
             scratchAdjustmentRemainders.Clear();
-            rememberReadingSettings();
+            completeReadingAdjustment();
             return true;
         }
 
@@ -1294,7 +1304,7 @@ namespace osu.Game.Rulesets.Bms.UI
             RefreshLaneCoverFocus();
             refreshSpeedMetrics();
             readingLaneCoversEnabled = SuddenActive || HiddenActive;
-            rememberReadingSettings();
+            completeReadingAdjustment();
             return true;
         }
 
@@ -1327,7 +1337,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 configFloatingHiSpeed.Value += steps * 0.01;
                 bool adjusted = previous != configFloatingHiSpeed.Value;
                 if (adjusted)
-                    rememberReadingSettings();
+                    completeReadingAdjustment();
                 return adjusted;
             }
 
@@ -1336,14 +1346,15 @@ namespace osu.Game.Rulesets.Bms.UI
             if (target == BmsGameplayAdjustmentTarget.Sudden && HiddenActive)
                 changed |= adjustGameplayAdjustment(steps, BmsGameplayAdjustmentTarget.Hidden);
 
-            if (changed && target != BmsGameplayAdjustmentTarget.Lift && configHiSpeedMode.Value == BmsHiSpeedMode.Floating && visibleTime > 0)
+            if (changed && target != BmsGameplayAdjustmentTarget.Lift && configHiSpeedMode.Value == BmsHiSpeedMode.Floating
+                && visibleTime > 0 && sampleScrollSpeed().SupportsRefloat)
             {
                 configFloatingHiSpeed.Value *= GetScrollSpeedMetrics().VisibleLaneTime / visibleTime;
                 floatingCoveredVisibleTime = visibleTime;
             }
 
             if (changed)
-                rememberReadingSettings();
+                completeReadingAdjustment();
             return changed;
         }
 
@@ -1363,12 +1374,15 @@ namespace osu.Game.Rulesets.Bms.UI
             if (configHiSpeedMode.Value == BmsHiSpeedMode.Floating && (SuddenActive || HiddenActive))
                 floatingCoveredVisibleTime = GetScrollSpeedMetrics().VisibleLaneTime;
 
-            rememberReadingSettings();
+            completeReadingAdjustment();
             return true;
         }
 
         private void restoreFloatingCover()
         {
+            if (!sampleScrollSpeed().SupportsRefloat)
+                return;
+
             double runtimeTime = GetScrollSpeedMetrics().RuntimeTimeRange;
             double coverUnits = 1000 - floatingCoveredVisibleTime!.Value * 1000 / runtimeTime;
             double currentCoverUnits = (SuddenActive ? SuddenUnits : 0) + (HiddenActive ? HiddenUnits : 0);
@@ -1384,14 +1398,20 @@ namespace osu.Game.Rulesets.Bms.UI
         }
 
         internal BmsScrollSpeedMetrics GetScrollSpeedMetrics()
-            => BmsScrollSpeedMetrics.FromRuntime(
+        {
+            double ratio = playfieldScrollLengthRatio?.Value ?? 1;
+            double selectedTimeRange = ComputeScrollTime(selectedHiSpeed.Value);
+            double nativeBaseTimeRange = ratio > 0 ? TimeRange.Value / ratio : selectedTimeRange * getModeTimeRangeScale(configHiSpeedMode.Value);
+
+            return BmsScrollSpeedMetrics.FromRuntime(
                 configHiSpeedMode.Value,
                 selectedHiSpeed.Value,
-                playfieldScrollLengthRatio?.Value ?? 1,
-                getModeTimeRangeScale(configHiSpeedMode.Value) * getCurrentBeatLength() / mostCommonBeatLength,
+                ratio,
+                nativeBaseTimeRange / selectedTimeRange / sampleScrollSpeed().Multiplier,
                 getLaneCoverUnits(BmsLaneCoverPosition.Sudden),
                 getLaneCoverUnits(BmsLaneCoverPosition.Hidden),
                 Playfield.LiftUnits.Value);
+        }
 
         private void refreshHiSpeedConfiguration()
         {
@@ -1418,7 +1438,18 @@ namespace osu.Game.Rulesets.Bms.UI
                 LayoutProvider.CurrentMaterialSet));
         }
 
-        private void updateTimeRange() => TimeRange.Value = BmsHiSpeedRuntimeCalculator.ComputeBaseTimeRange(configHiSpeedMode.Value, selectedHiSpeed.Value, mostCommonBeatLength, initialBeatLength, Beatmap.Difficulty.SliderMultiplier) * (playfieldScrollLengthRatio?.Value ?? 1);
+        private void updateTimeRange()
+        {
+            double ratio = playfieldScrollLengthRatio?.Value ?? 1;
+            // Full Lift has no visible scrolling area. Keep the algorithm's denominator positive while its
+            // zero-height projection and the metrics both report no readable interval.
+            double timeRange = ratio == 0 ? 1 : ComputeScrollTime(selectedHiSpeed.Value) * getModeTimeRangeScale(configHiSpeedMode.Value) * ratio;
+
+            if (!double.IsFinite(timeRange) || timeRange <= 0)
+                throw new InvalidOperationException("The BMS native scrolling time range must be finite and positive.");
+
+            TimeRange.Value = timeRange;
+        }
 
         private void refreshSpeedMetrics()
         {
@@ -1537,17 +1568,41 @@ namespace osu.Game.Rulesets.Bms.UI
             };
 
         private double getModeTimeRangeScale(BmsHiSpeedMode mode)
-            => mode switch
-            {
-                BmsHiSpeedMode.Normal => 1,
-                BmsHiSpeedMode.Floating => mostCommonBeatLength / initialBeatLength,
-                BmsHiSpeedMode.Classic => mostCommonBeatLength / ((Beatmap.Difficulty.SliderMultiplier > 0 ? Beatmap.Difficulty.SliderMultiplier : 1) * TimingControlPoint.DEFAULT_BEAT_LENGTH),
-                _ => 1,
-            };
+            => BmsHiSpeedRuntimeCalculator.ComputeBaseTimeRange(mode, 1,
+                Playfield.ActiveScrollAlgorithm is BmsStopMotionScrollAlgorithm stopMotion ? stopMotion.ReferenceBeatLength : mostCommonBeatLength,
+                Playfield.ActiveScrollAlgorithm is BmsStopMotionScrollAlgorithm ? initialProfileBeatLength : initialBeatLength,
+                Beatmap.Difficulty.SliderMultiplier) / MAX_TIME_RANGE;
 
-        private double getCurrentBeatLength()
+        private (double Multiplier, bool SupportsRefloat) sampleScrollSpeed()
         {
-            double beatLength = Beatmap.ControlPointInfo.TimingPointAt(FrameStableClock?.CurrentTime ?? 0).BeatLength;
+            double time = (FrameStableClock?.CurrentTime ?? 0) + Playfield.VisualOffset.Value;
+            BmsTimingSample? timing = (Beatmap as BmsBeatmap)?.TimingProfile?.Sample(time);
+            bool supportsRefloat = timing == null || timing.Value.ScrollSpeed > 0;
+            IScrollAlgorithm algorithm = Playfield.ActiveScrollAlgorithm ?? ScrollingInfo.Algorithm.Value;
+
+            if (algorithm is BmsStopMotionScrollAlgorithm stopMotion)
+            {
+                BmsTimingSample sample = timing!.Value;
+                double musicalMultiplier = stopMotion.ReferenceBeatLength / BmsBeatmapConverter.GetBeatLength(sample.Bpm);
+                // STOP and zero SCROLL keep the approved musical reference rather than dividing by a frozen slope.
+                // Negative SCROLL remains outside the forward profile's supported domain; never refloat it as positive.
+                return (musicalMultiplier * (supportsRefloat ? sample.ScrollSpeed : 1), supportsRefloat);
+            }
+
+            if (algorithm is ConstantScrollAlgorithm || ControlPoints.Count == 0)
+                return (1, supportsRefloat);
+
+            // Reuse the base algorithm's aggregate, including its actual clamping and STOP-marker behaviour.
+            return ((ControlPointInfo.BinarySearch(ControlPoints, time) ?? ControlPoints[0]).Multiplier, supportsRefloat);
+        }
+
+        private double getBeatLengthAt(double time)
+        {
+            TimingControlPoint point = Beatmap.ControlPointInfo.TimingPointAt(time);
+            if (point is BmsStopFreezeTimingControlPoint && Beatmap is BmsBeatmap { TimingProfile: not null } bms)
+                return 60000 / bms.TimingProfile.Sample(time).Bpm;
+
+            double beatLength = point.BeatLength;
             return beatLength > 0 ? beatLength : TimingControlPoint.DEFAULT_BEAT_LENGTH;
         }
     }

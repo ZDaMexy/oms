@@ -18,6 +18,7 @@ metadata:
 - 独占defensive byte backing，metadata只读，resource view非owning，Get/GetStream返回副本。view Dispose不释放capsule；owner退役幂等清零。失败/取消清本次及此前provisional backing，不返回半包。
 - catalog引用须保活capsule对象，不能只保活其`byte[]`或`ReadOnlyMemory`：capsule终结器仍会清零数组，单独保活数组会得到被改写的“不可变”素材。引用不拥有显式Dispose权，退休仍按原lease链；具体约束见上述P1-A的3m4c。
 - 捕获同名图片前先按精确包内路径去重；否则即便最终目录只保存一个引用，验证循环也会为每个替代项临时复制同一大图。测分配时须排除相同场景/JSON解析的固定成本，不能将它误认成图像重复复制。
+- 可选页面的JSON/图片也必须沿传入的retained capsule reference读取；同一capsule中缺失是确定事实，不能回退第二个reader从live目录补图。已解码页面像素可独立活到owner退役；同内容revision的另一capsule释放不能清掉当前页，回归同时保留旧catalog严格reader与两份相同revision的退休案例。
 
 ## 它没有证明什么
 

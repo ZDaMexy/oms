@@ -350,6 +350,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddStep("set unrelated personal values and load that recording", () =>
             {
                 config.SaveReadingSettings(laterPersonalSettings);
+                clock.CurrentTime = 900;
                 renderer.SetReplayScore(recorded);
             });
             assertRuntimeReading(() => initial);
@@ -401,13 +402,12 @@ namespace osu.Game.Rulesets.Bms.Tests
             });
         }
 
-        private void loadGame(Mod[]? mods = null)
+        private void loadGame(Mod[]? mods = null, string chartText = "#TITLE Reading settings\n#BPM 120\n#RANK 2\n#00811:01\n")
         {
             AddStep("load a real BMS ruleset with the reading configuration", () =>
             {
                 var ruleset = new BmsRuleset();
-                var source = new BmsDecodedBeatmap(new BmsBeatmapDecoder().DecodeText(
-                    "#TITLE Reading settings\n#BPM 120\n#RANK 2\n#00811:01\n", "reading-settings.bme"));
+                var source = new BmsDecodedBeatmap(new BmsBeatmapDecoder().DecodeText(chartText, "reading-settings.bme"));
                 beatmap = (BmsBeatmap)new BmsBeatmapConverter(source, ruleset).Convert();
                 clock = new ManualClock { CurrentTime = 1000, IsRunning = true };
                 renderer = new DrawableBmsRuleset(ruleset, beatmap, mods)

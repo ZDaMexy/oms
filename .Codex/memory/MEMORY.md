@@ -20,7 +20,7 @@
 - [2026-07-10 皮肤恢复](reference_skin_recovery_20260710.md) — 恢复锚点、归档与重新准入；**皮肤任务先读**。
 - [2026-07-13 schema 56 皮肤清点](reference_skin_schema56_inventory_20260713.md) — 只读取证、失效类型与 Realm mtime 误判。
 - [skin folder authority/path preflight](reference_skin_filesystem_authority_preflight.md) — 声明/path preflight 不等于安全打开或写入授权。
-- [skin package immutable revision capsule](reference_skin_package_revision_capsule.md) — 内容身份、物理捕获、catalog引用保活与终结器清零陷阱。
+- [skin package immutable revision capsule](reference_skin_package_revision_capsule.md) — 内容身份、物理捕获、catalog引用保活、页面同源读取与终结器清零陷阱。
 - [skin folder Windows handle capture](reference_skin_windows_handle_capture.md) — held no-follow、文件身份竞态、目录index缓存时间与handle生命周期。
 - [managed skin folder scanner](reference_skin_managed_folder_scanner.md) — Observed/Valid、启动/手动扫描与reload，NTFS枚举影子时间与造包夹具诊断。
 - [managed skin folder factory/selection](reference_skin_managed_folder_selection.md) — 选择竞态、typed epoch、shutdown 与隐式提交前同值重选的 fixture 时序。
@@ -31,7 +31,7 @@
 - [canonical 构建、安装与用户数据保护](reference_skin_canonical_installation.md) — 静线唯一保底、原件/工作副本、退役迁移与缺行修复；便携/缓存隔离、冷启动线程、Ready早于载入所有权交还。
 - [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 随包手册与示例闭合、作者边界、用户决定与诊断入口。
 - [Skin V1 价值与工作预算](project_oms_skin_product_progress.md) — 区分效果能力、成品与创作便利度；星轨实际体验否定、有限反馈与本轮停止边界，当前状态读 P1-A。
-- [模式/键数皮肤选择](reference_skin_mode_selection.md) — 独立设置目标、模式遗漏覆盖与作者默认、逐层继承、配置冻结、图库旧页释放及选曲确认删除/隐藏音效收尾。
+- [模式/键数皮肤选择](reference_skin_mode_selection.md) — 独立设置目标、模式遗漏覆盖与作者默认、仅页面包准入、逐层继承、配置冻结、图库旧页释放及选曲确认删除/隐藏音效收尾。
 
 ## 构建、存储与产品面参考
 

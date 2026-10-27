@@ -74,12 +74,12 @@ namespace osu.Game.Screens.Ranking.Statistics
         internal Task? PendingStatisticsLoadTask
             => Volatile.Read(ref pendingStatisticsLoad)?.LoadTask;
 
-        public StatisticsPanel()
+        public StatisticsPanel(bool compact = false)
         {
             InternalChild = new Container
             {
                 RelativeSizeAxes = Axes.Both,
-                Padding = new MarginPadding
+                Padding = compact ? default : new MarginPadding
                 {
                     Left = ScorePanel.EXPANDED_WIDTH + SIDE_PADDING * 3,
                     Right = SIDE_PADDING,

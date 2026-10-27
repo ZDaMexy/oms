@@ -52,6 +52,7 @@ using osu.Game.Screens.Play;
 using osu.Game.Screens.Ranking;
 using osu.Game.Screens.Select.Filter;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Pages;
 using osu.Game.Utils;
 using osuTK;
 using osuTK.Graphics;
@@ -110,6 +111,16 @@ namespace osu.Game.Screens.Select
         // TODO: Colour scheme choice should probably be customisable by the user.
         [Cached]
         private readonly OverlayColourProvider colourProvider = new OverlayColourProvider(OverlayColourScheme.Blue);
+
+        [Cached]
+        private readonly SkinSongSelectPageThemeSource songSelectTheme = new SkinSongSelectPageThemeSource();
+
+        private SkinSongSelectPageHost skinPageHost = null!;
+        private ScreenFooterButton? skinPageButton;
+
+        internal bool SkinPageAvailable => skinPageHost.Available;
+        internal bool ShowingSkinPage => skinPageHost.ShowingSkinPage;
+        internal Skin? SongSelectPageSkin => skinPageHost.PageSkin;
 
         private BeatmapCarousel carousel = null!;
 
@@ -175,23 +186,24 @@ namespace osu.Game.Screens.Select
 
             errorSample = audio.Samples.Get(@"UI/generic-error");
 
-            var songSelectChildren = new List<Drawable>();
-
-            songSelectChildren.Add(new GlobalScrollAdjustsVolume());
-            songSelectChildren.Add(mainContent = new Container
+            var songSelectChildren = new List<Drawable>
             {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                RelativeSizeAxes = Axes.Both,
-                Padding = new MarginPadding { Bottom = ScreenFooter.HEIGHT },
-                Child = new OsuContextMenuContainer
+                new GlobalScrollAdjustsVolume(),
+                (mainContent = new Container
                 {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
                     RelativeSizeAxes = Axes.Both,
-                    Child = new PopoverContainer
+                    Padding = new MarginPadding { Bottom = ScreenFooter.HEIGHT },
+                    Child = new OsuContextMenuContainer
                     {
                         RelativeSizeAxes = Axes.Both,
-                        Children = new Drawable[]
+                        Child = new PopoverContainer
                         {
+                            RelativeSizeAxes = Axes.Both,
+                            Children = new Drawable[]
+                        {
+                            new SkinSongSelectChrome(SkinSongSelectChromeSlot.Background),
                             new Box
                             {
                                 RelativeSizeAxes = Axes.Both,
@@ -267,6 +279,11 @@ namespace osu.Game.Screens.Select
                                                     },
                                                     Children = new Drawable[]
                                                     {
+                                                        new SkinSongSelectChrome(SkinSongSelectChromeSlot.ListEdge)
+                                                        {
+                                                            RelativeSizeAxes = Axes.Y,
+                                                            Width = 8,
+                                                        },
                                                         carousel = new BeatmapCarousel
                                                         {
                                                             BleedTop = FilterControl.HEIGHT_FROM_SCREEN_TOP + 5,
@@ -296,15 +313,18 @@ namespace osu.Game.Screens.Select
                                 }
                             },
                         }
-                    },
-                }
-            });
-            songSelectChildren.Add(skinnableContent = new SkinnableContainer(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.SongSelect))
-            {
-                Anchor = Anchor.Centre,
-                Origin = Anchor.Centre,
-                RelativeSizeAxes = Axes.Both,
-            });
+                        },
+                    }
+                }),
+                (skinnableContent = new SkinnableContainer(new GlobalSkinnableContainerLookup(GlobalSkinnableContainers.SongSelect))
+                {
+                    Anchor = Anchor.Centre,
+                    Origin = Anchor.Centre,
+                    RelativeSizeAxes = Axes.Both,
+                }),
+                (skinPageHost = new SkinSongSelectPageHost(Beatmap, Ruleset, Mods, songSelectTheme))
+            };
+            skinPageHost.AvailabilityChanged += updateSkinPageControls;
             songSelectChildren.Add(modSpeedHotkeyHandler = new ModSpeedHotkeyHandler());
 
             if (onlineFeaturesEnabled)
@@ -376,8 +396,33 @@ namespace osu.Game.Screens.Select
             new FooterButtonOptions
             {
                 Hotkey = GlobalAction.ToggleBeatmapOptions,
-            }
+            },
+            skinPageButton = new ScreenFooterButton
+            {
+                Text = skinPageHost?.PreparationError != null ? "外观读取失败" : skinPageHost?.ShowingSkinPage == true ? "原界面" : "皮肤界面",
+                Icon = FontAwesome.Solid.PaintBrush,
+                AccentColour = Color4Extensions.FromHex("#B8F23A"),
+                Action = () => ShowSkinSongSelectPage(!ShowingSkinPage),
+                TooltipText = skinPageHost?.PreparationError ?? "切换此模式和键数的选曲外观，保留当前选曲和操作。",
+                Enabled = { Value = skinPageHost?.Available == true },
+                Alpha = skinPageHost?.Available == true || skinPageHost?.PreparationError != null ? 1 : 0,
+            },
         };
+
+        internal void ShowSkinSongSelectPage(bool show) => skinPageHost.ShowSkinPage(show);
+
+        private void updateSkinPageControls()
+        {
+            if (skinPageButton != null)
+            {
+                skinPageButton.Alpha = skinPageHost.Available || skinPageHost.PreparationError != null ? 1 : 0;
+                skinPageButton.Enabled.Value = skinPageHost.Available;
+                skinPageButton.Text = skinPageHost.PreparationError != null ? "外观读取失败" : ShowingSkinPage ? "原界面" : "皮肤界面";
+                skinPageButton.TooltipText = skinPageHost.PreparationError ?? "切换此模式和键数的选曲外观，保留当前选曲和操作。";
+            }
+            if (revealBackgroundDelegate?.Completed != true)
+                skinnableContent.Alpha = ShowingSkinPage ? 0 : 1;
+        }
 
         protected override void LoadComplete()
         {
@@ -744,6 +789,7 @@ namespace osu.Game.Screens.Select
 
         private void onArrivingAtScreen(bool isResuming)
         {
+            skinPageHost.ResumePreparation();
             modSelectOverlay.Beatmap.BindTo(Beatmap);
             // required due to https://github.com/ppy/osu-framework/issues/3218
             modSelectOverlay.SelectedMods.Disabled = false;
@@ -796,6 +842,7 @@ namespace osu.Game.Screens.Select
 
         private void onLeavingScreen()
         {
+            skinPageHost.Suspend();
             restoreBackground();
 
             Beatmap.ValueChanged -= updateVariousState;
@@ -1074,7 +1121,7 @@ namespace osu.Game.Screens.Select
 
                 skinnableContent.ResizeWidthTo(1f, 500, Easing.OutQuint);
                 skinnableContent.ScaleTo(1, 500, Easing.OutQuint);
-                skinnableContent.FadeIn(500, Easing.OutQuint);
+                skinnableContent.FadeTo(ShowingSkinPage ? 0 : 1, 500, Easing.OutQuint);
 
                 Footer?.Show();
             }
@@ -1355,6 +1402,11 @@ namespace osu.Game.Screens.Select
 
         protected override void Dispose(bool isDisposing)
         {
+            if (skinPageHost != null)
+            {
+                skinPageHost.AvailabilityChanged -= updateSkinPageControls;
+                skinPageHost.Suspend();
+            }
             base.Dispose(isDisposing);
             modSelectOverlayRegistration?.Dispose();
         }

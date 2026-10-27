@@ -25,6 +25,7 @@ using osu.Game.Overlays;
 using osu.Game.Resources.Localisation.Web;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Skinning.Pages;
 using osu.Game.Utils;
 using osuTK;
 
@@ -90,6 +91,13 @@ namespace osu.Game.Screens.Select
             InternalChildren = new Drawable[]
             {
                 new WedgeBackground(),
+                new Container
+                {
+                    Anchor = Anchor.BottomRight,
+                    Origin = Anchor.BottomRight,
+                    Size = new Vector2(110, 55),
+                    Child = new SkinSongSelectChrome(SkinSongSelectChromeSlot.Brand),
+                },
                 new FillFlowContainer
                 {
                     RelativeSizeAxes = Axes.X,

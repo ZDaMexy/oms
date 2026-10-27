@@ -394,6 +394,12 @@ namespace osu.Game.Rulesets
         public virtual Drawable CreateResultsRankBadge(ScoreInfo score) => new DrawableRank(score.Rank);
 
         /// <summary>
+        /// The ruleset's authoritative clear outcome for a saved score. Null means that this record does not contain
+        /// a reliable outcome; completing a play and meeting a ruleset's clear condition may be different facts.
+        /// </summary>
+        public virtual bool? GetResultsClearState(ScoreInfo score) => score.Passed;
+
+        /// <summary>
         /// Returns optional label text to display above the main score counter in the expanded results panel.
         /// </summary>
         /// <param name="score">The score being displayed.</param>

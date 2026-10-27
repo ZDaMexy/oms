@@ -21,6 +21,7 @@ using osu.Game.Graphics.Carousel;
 using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.UserInterface;
 using osu.Game.Overlays;
+using osu.Game.Skinning.Pages;
 using osuTK;
 using osuTK.Graphics;
 
@@ -57,6 +58,10 @@ namespace osu.Game.Screens.Select
 
         private Container contentPaddingContainer = null!;
         protected Container Content { get; private set; } = null!;
+
+        private SkinSongSelectChrome? songSelectChrome;
+
+        protected Drawable CreateSongSelectChrome() => songSelectChrome = new SkinSongSelectChrome(SkinSongSelectChromeSlot.Row);
 
         public Drawable Background
         {
@@ -247,6 +252,8 @@ namespace osu.Game.Screens.Select
         protected override void PrepareForUse()
         {
             base.PrepareForUse();
+            if (songSelectChrome != null)
+                songSelectChrome.RowPresent = true;
 
             // Slightly offset the flash animation based on the panel depth.
             // This assumes a minimum depth of -2 (groups).
@@ -262,6 +269,8 @@ namespace osu.Game.Screens.Select
 
         protected override void FreeAfterUse()
         {
+            if (songSelectChrome != null)
+                songSelectChrome.RowPresent = false;
             base.FreeAfterUse();
 
             Hide();
@@ -288,6 +297,8 @@ namespace osu.Game.Screens.Select
         private void updateSelectedState(bool animated = true)
         {
             bool selectedOrExpanded = Expanded.Value || Selected.Value;
+            if (songSelectChrome != null)
+                songSelectChrome.Selected = selectedOrExpanded;
 
             var edgeEffectColour = accentColour ?? Color4Extensions.FromHex(@"4EBFFF");
 

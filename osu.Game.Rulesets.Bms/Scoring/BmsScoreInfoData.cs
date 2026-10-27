@@ -36,6 +36,9 @@ namespace osu.Game.Rulesets.Bms.Scoring
         [JsonProperty("reading_settings", NullValueHandling = NullValueHandling.Ignore)]
         public BmsReadingSettingsSnapshot? ReadingSettings { get; set; }
 
+        [JsonProperty("reading_settings_timeline", NullValueHandling = NullValueHandling.Ignore)]
+        public BmsReadingSettingsTimeline? ReadingSettingsTimeline { get; set; }
+
         [JsonProperty("gauge_auto_shift")]
         public bool UsesGaugeAutoShift { get; set; }
 

@@ -379,8 +379,13 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinJudgementGrade grade,
             double offset,
             double gaugeDelta,
-            bool hasPlayerTiming = false)
+            bool hasPlayerTiming = false,
+            GameplaySkinJudgementTimingDirection timingFeedback = GameplaySkinJudgementTimingDirection.None)
         {
+            if (timingFeedback is not GameplaySkinJudgementTimingDirection.None
+                and not GameplaySkinJudgementTimingDirection.Fast and not GameplaySkinJudgementTimingDirection.Slow)
+                throw new ArgumentOutOfRangeException(nameof(timingFeedback));
+
             if (groupId != null)
                 validateExactTarget(groupId, laneId);
 
@@ -406,7 +411,7 @@ namespace osu.Game.Skinning.Gameplay
             }
 
             double appliedTime = AuthoritativeGameplayTime;
-            GameplaySkinJudgementTimingStateSnapshot timingState = foldJudgementTiming(groupId, laneId, grade, offset, hasPlayerTiming, appliedTime);
+            GameplaySkinJudgementTimingStateSnapshot timingState = foldJudgementTiming(groupId, laneId, grade, offset, hasPlayerTiming, appliedTime, timingFeedback);
             var state = new GameplaySkinJudgementStateSnapshot(objectId, groupId, laneId, grade, offset, gaugeDelta, hasPlayerTiming, timingState);
             double displayUntil = appliedTime + GameplaySkinEventBudgets.JUDGEMENT_DISPLAY_DURATION;
             globalJudgement = new GameplaySkinCurrentJudgementStateSnapshot(GameplaySkinJudgementScope.Global, state, appliedTime, displayUntil);

@@ -2,7 +2,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using osu.Framework.Bindables;
+using osu.Framework.Graphics;
 using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Mods;
 using osu.Game.Rulesets.Bms.Replays;
@@ -24,6 +26,9 @@ namespace osu.Game.Rulesets.Bms.UI
         private bool readingLaneCoversEnabled = true;
         private bool readingSuddenMounted;
         private bool readingHiddenMounted;
+        private BmsReadingSettingsSnapshot? replayReadingSettingsInitial;
+        private BmsReadingSettingsTimeline? replayReadingSettingsTimeline;
+        private BmsReadingSettingsSnapshot? appliedReplayReadingSettings;
 
         private bool hasLegacyReadingMods => selectedSuddenMod != null || selectedHiddenMod != null || selectedLiftMod != null;
 
@@ -58,6 +63,7 @@ namespace osu.Game.Rulesets.Bms.UI
             trackReadingSetting<float>(BmsRulesetSetting.LiftUnits, (state, value) => state with { LiftUnits = value });
             trackReadingSetting<float>(BmsRulesetSetting.SuddenOpacity, (state, value) => state with { SuddenOpacity = value }, resetAdjustment: false);
             trackReadingSetting<float>(BmsRulesetSetting.HiddenOpacity, (state, value) => state with { HiddenOpacity = value }, resetAdjustment: false);
+            FrameStableComponents.Add(new ReplayReadingSettingsUpdater(this));
         }
 
         private void trackReadingSetting<T>(BmsRulesetSetting setting, Func<BmsReadingSettingsSnapshot, T, BmsReadingSettingsSnapshot> update, bool resetAdjustment = true)
@@ -67,7 +73,10 @@ namespace osu.Game.Rulesets.Bms.UI
             source.BindValueChanged(change =>
             {
                 if (!readingSettingsReadOnlyReplay && !savingReadingSettings)
+                {
                     applyReadingSettings(update(captureReadingSettings(), change.NewValue), resetAdjustment);
+                    recordReadingSettings(captureReadingSettings());
+                }
             });
             readingSettingUnbinders.Add(source.UnbindAll);
         }
@@ -138,14 +147,21 @@ namespace osu.Game.Rulesets.Bms.UI
             readingHiddenMounted = true;
         }
 
-        private void rememberReadingSettings()
+        private void completeReadingAdjustment()
         {
-            if (!readingSettingsInitialised || readingSettingsReadOnlyReplay || !Config.Get<bool>(BmsRulesetSetting.RememberReadingChanges))
+            if (!readingSettingsInitialised || readingSettingsReadOnlyReplay)
                 return;
+
+            var state = captureReadingSettings();
+            recordReadingSettings(state);
+
+            if (!Config.Get<bool>(BmsRulesetSetting.RememberReadingChanges))
+                return;
+
             savingReadingSettings = true;
             try
             {
-                Config.SaveReadingSettings(captureReadingSettings());
+                Config.SaveReadingSettings(state);
             }
             finally
             {
@@ -153,16 +169,29 @@ namespace osu.Game.Rulesets.Bms.UI
             }
         }
 
+        private void recordReadingSettings(BmsReadingSettingsSnapshot state)
+            => (GameplayInputManager?.Recorder as BmsReplayRecorder)?.RecordReadingSettings(FrameStableClock.CurrentTime, state);
+
         private void applyReplayReadingSettings(Score? score)
         {
             readingSettingsReadOnlyReplay = score != null && score.Replay is not BmsGeneratedAutoplayReplay;
+            replayReadingSettingsInitial = null;
+            replayReadingSettingsTimeline = null;
+            appliedReplayReadingSettings = null;
             if (!readingSettingsReadOnlyReplay)
                 return;
 
-            if (score!.ScoreInfo.GetRulesetData<BmsScoreInfoData>()?.ReadingSettings is BmsReadingSettingsSnapshot state)
+            BmsScoreInfoData? data = score!.ScoreInfo.GetRulesetData<BmsScoreInfoData>();
+            if (data?.ReadingSettingsTimeline != null && data.ReadingSettings == null)
+                throw new InvalidDataException("A BMS replay reading-settings timeline requires its initial snapshot.");
+
+            if (data?.ReadingSettings is BmsReadingSettingsSnapshot state)
             {
                 state.Validate();
-                applyReadingSettings(state);
+                data.ReadingSettingsTimeline?.Validate();
+                replayReadingSettingsInitial = state;
+                replayReadingSettingsTimeline = data.ReadingSettingsTimeline;
+                updateReplayReadingSettings(FrameStableClock.CurrentTime);
             }
             else
             {
@@ -174,6 +203,35 @@ namespace osu.Game.Rulesets.Bms.UI
                     LiftEnabled = false,
                     LaneCoversEnabled = true,
                 });
+            }
+        }
+
+        private void updateReplayReadingSettings(double time)
+        {
+            if (replayReadingSettingsInitial is not BmsReadingSettingsSnapshot initial)
+                return;
+
+            var state = replayReadingSettingsTimeline?.SettingsAt(time, initial) ?? initial;
+            if (appliedReplayReadingSettings == state)
+                return;
+
+            applyReadingSettings(state);
+            appliedReplayReadingSettings = state;
+        }
+
+        private partial class ReplayReadingSettingsUpdater : Component
+        {
+            private readonly DrawableBmsRuleset ruleset;
+
+            public ReplayReadingSettingsUpdater(DrawableBmsRuleset ruleset)
+            {
+                this.ruleset = ruleset;
+            }
+
+            protected override void Update()
+            {
+                base.Update();
+                ruleset.updateReplayReadingSettings(Time.Current);
             }
         }
     }

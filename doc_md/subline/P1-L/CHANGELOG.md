@@ -5,6 +5,12 @@
 
 ---
 
+## 2026-10-28实际滚动算法的读谱刻度
+
+GN与Floating补偿统一消费实际选中的BMS滚动算法：Off保留原control-point夹定与短STOP回退；On使用profile音乐基准与实际BPM/SCROLL，长STOP不再借受6ms标记污染的shared base。相同BPM的SCROLL变化、VisualOffset与模式切换均更新刻度；零/负SCROLL不做正速补偿，判定、音频时钟与Auto检测不变。
+
+定向lane.PositionAtTime运动与成组保存269项通过，后续完整BMS3253通过/19跳过及Desktop Release/Debug通过；同包原生运动、复杂实谱和设备仍待验。命令、身份和边界统一取[P1-A本轮记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27omni持续完善读谱回放与结果页)，不代签负向滚动或原生依赖从零重编。
+
 ## 2026-10-22进程内FFmpeg原生依赖升级
 
 本轮处理的是`ppy.osu.Framework 2026.303.0`的真实进程内视频链：`BmsBgaPlayer → Video → VideoDecoder → FFmpeg.AutoGen 4.3.0.1`，原生文件来自`ppy.osu.Framework.NativeLibs 2025.806.0-nativelibs`，原身份为FFmpeg 4.3.3。外部`ffmpeg.exe`继续只承担opt-in老式视频转码，其升级不能代替这次修复。没有改BGA内容authority、时钟、seek/reset、POOR、失败回退或判定/计分，也没有fork框架。

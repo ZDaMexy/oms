@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-27（BMS读谱、Omni修正及存储归整；其余产品/生产证据沿原日期）
+> 最后核对：2026-10-28（Omni读谱回放与可选选曲/结算页软件整合；其余产品/生产证据沿原日期）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -15,7 +15,7 @@ Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，具
 
 游玩判定/结果及性能取[10月19日深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)；设备入口、输入时间、轴用途、长皿与校准接续取[10月21日输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)。前台帧时间与实体设备仍待验收。
 
-Lighting Model Skin Omni Until 33默认33，27～33及八支BPL为Game Frame；已知素材候选闭合，PB/NEXT、Clear门槛与HAZARD已修，辅助Tint默认保持。BMS另将Sudden/Hidden/Lift迁入读谱设置并统一局内记忆，皮肤只读状态且原包不变，见[读谱实施](../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)。当前包、既有能力与人工缺口只取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。原HDD保全，26及更早来源待补；作品独立私下分享，不内置或公开分发，原阶段及发行门保持。
+Lighting Model Skin Omni Until 33默认33，27～33及八支BPL为Game Frame；读谱设置支持成组记忆与局内变化回放，可选选曲/Results沿同一包快照、真实谱库/成绩及原操作。软件整合和作者检查已过，同包原生画面仍待验，当前交付及命名保持。准确能力、包与缺口取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。原HDD保全，26及更早来源、原版精确校准仍待补；作品独立私下分享，不内置或公开分发，原阶段、设备及发行门保持。
 
 玩家直接登录固定OMSIR，保存后新局上传；新闻 / 帮助 / 排行 / 玩家沿原生页面。谱面列表先选模式：BMS 仅 Ginger Rush / 616，osu!mania 仅 Sayobot，恢复上次 BMS 来源；紧凑筛选、原生卡片和各来源阅读状态保持。正常OMS窗口的lazer体验仍待签收，隔离内容宽度检查不代签；源码 / 软件及剩余门取[P3-IR状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。社交后续，旧ppy关闭；Phase1.x原门保持。
 

@@ -39,14 +39,15 @@ namespace osu.Game.Tests.Visual.SongSelect
                 }
             });
 
-            AddAssert("button visible", () => button.Alpha == 1f);
+            AddAssert("offline OMS does not offer the retired online update entry", () => button.Alpha == 0f && !button.Enabled.Value);
+            AddAssert("no legacy update action or tooltip is installed", () => button.Action == null && string.IsNullOrEmpty(button.TooltipText.ToString()));
         }
 
         [Test]
         public void TestNullBeatmap()
         {
             AddStep("null beatmap", () => button.BeatmapSet = null);
-            AddAssert("button invisible", () => button.Alpha == 0f);
+            AddAssert("button invisible and disabled", () => button.Alpha == 0f && !button.Enabled.Value);
         }
 
         [Test]
@@ -56,7 +57,7 @@ namespace osu.Game.Tests.Visual.SongSelect
             {
                 Beatmaps = { new BeatmapInfo() }
             });
-            AddAssert("button invisible", () => button.Alpha == 0f);
+            AddAssert("button invisible and disabled", () => button.Alpha == 0f && !button.Enabled.Value);
         }
     }
 }

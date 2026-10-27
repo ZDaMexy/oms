@@ -14,7 +14,6 @@ using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.UserInterface;
-using osu.Framework.Localisation;
 using osu.Framework.Platform;
 using osu.Framework.Threading;
 using osu.Game.Beatmaps;
@@ -123,6 +122,7 @@ namespace osu.Game.Screens.Select
             Content.Children = new Drawable[]
             {
                 setBackground = new PanelSetBackground(),
+                CreateSongSelectChrome(),
                 new FillFlowContainer
                 {
                     AutoSizeAxes = Axes.Both,
