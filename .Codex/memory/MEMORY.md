@@ -72,6 +72,6 @@
 - [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — 唯一layout、准备失败与旧screen退役、显式空位/authorTop、mania键图mask、双stage判定、替换后AutoSize零高与跨玩法尺寸、光柱层级、图卡目标、AFP/SD、CUSTOM与开场短帧窗口。
 - [gameplay skin config presence](reference_gameplay_skin_config_presence.md) — accepted presence、synthetic default 与 per-index mask。
 - [gameplay skin lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md) — lane provenance、9K/14K 候选映射与资源退役。
-- [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — 事件顺序、移动源seek收敛与完整Reset、Autoplay/自动完成假SLOW、AUTO辅助池占位/Hidden/Tint、PB查询投影与原Mod签名、callback拷贝、真实显示、可见后准备计时、首排提示退场及取景consumer sequence。
+- [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — 事件顺序/Reset、Autoplay假SLOW、AUTO池占位/Hidden/Tint、PB查询与原Mod签名、读谱成组记忆/opacity恢复目标/System旧Mod、callback拷贝、真实显示、准备计时/首排退场及取景consumer sequence。
 - [gameplay skin capability negotiation](reference_gameplay_skin_capability_negotiation.md) — closed allowlist、只读 token 与危险 handle。
 - [gameplay skin 脚本诊断](reference_gameplay_skin_scripts.md) — 授权撤销、暂停冻结、数值钳制、固定 tick 与纹理上传 ownership。

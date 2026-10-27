@@ -8,14 +8,9 @@ using osu.Framework.Input.Bindings;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Mods;
-using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Replays;
-using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Bms.UI;
-using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Mods;
-using osu.Game.Rulesets.Objects;
-using osu.Game.Rulesets.Scoring;
 using osu.Game.Utils;
 
 namespace osu.Game.Rulesets.Bms.Tests
@@ -28,7 +23,8 @@ namespace osu.Game.Rulesets.Bms.Tests
         [Test]
         public void TestExposesLaneCoverMods()
         {
-            var mods = new BmsRuleset().GetModsFor(ModType.Conversion).ToArray();
+            var ruleset = new BmsRuleset();
+            var mods = ruleset.GetModsFor(ModType.System).ToArray();
             var suddenMods = mods.OfType<BmsModSudden>().ToArray();
             var hiddenMods = mods.OfType<BmsModHidden>().ToArray();
             var liftMods = mods.OfType<BmsModLift>().ToArray();
@@ -38,9 +34,11 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(suddenMods, Has.Length.EqualTo(1));
                 Assert.That(hiddenMods, Has.Length.EqualTo(1));
                 Assert.That(liftMods, Has.Length.EqualTo(1));
-                Assert.That(suddenMods.Single().Type, Is.EqualTo(ModType.Conversion));
-                Assert.That(hiddenMods.Single().Type, Is.EqualTo(ModType.Conversion));
-                Assert.That(liftMods.Single().Type, Is.EqualTo(ModType.Conversion));
+                Assert.That(suddenMods.Single().Type, Is.EqualTo(ModType.System));
+                Assert.That(hiddenMods.Single().Type, Is.EqualTo(ModType.System));
+                Assert.That(liftMods.Single().Type, Is.EqualTo(ModType.System));
+                Assert.That(ruleset.GetModsFor(ModType.Conversion).OfType<BmsModLaneCover>(), Is.Empty);
+                Assert.That(ruleset.GetModsFor(ModType.Conversion).OfType<BmsModLift>(), Is.Empty);
             });
         }
 
@@ -563,7 +561,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             var sudden = new BmsModSudden();
             var ruleset = (DrawableBmsRuleset)new BmsRuleset().CreateDrawableRulesetWith(createPlayableBeatmap(), new Mod[] { sudden });
             sudden.ApplyToDrawableRuleset(ruleset);
-            OmsAxisMotion motion(double delta, OmsAxisMode mode = OmsAxisMode.RelativeMotion, string source = "mouse")
+            static OmsAxisMotion motion(double delta, OmsAxisMode mode = OmsAxisMode.RelativeMotion, string source = "mouse")
                 => new OmsAxisMotion(OmsAction.Key1P_Scratch, mode, delta, source, null, 50);
 
             ruleset.SetAdjustmentHeld(true);

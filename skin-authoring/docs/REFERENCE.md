@@ -523,7 +523,7 @@ bindings每项必填id/target/property/source，例如：
 
 字符串不能直接驱动数字或资源；换图用variants。数值限制在目标属性范围内，不修改玩法。首物件前进度0、末物件后1、零时长0；暂停保持、重试和跳转反映新位置。局部对象、轨道和组沿自身范围取值，不应由另一轨道的判定驱动。
 
-调速与挡板读数随同一Timing快照和静止时钟下的真实调整同步；作者不得累积按键或自行反推可见时间。上下白字分别用`cover.sudden-units`、`cover.hidden-units`，LIFT读`lift.value`，不能把Hidden长度或LIFT写成Sudden白字。只在`scroll.available`及`scroll.adjusting`成立时显示调整面板/读数，挡板行另检查各自active；mania及没有原生来源的预览应隐藏。`lift.reversed`可用true/false显隐变体，位置仍按实际`lift.offset`。`score.maximum-available`、`score.personal-best-available`与`score.rank-available`可用布尔variants的true/false分支，使主目标没有数据时才显示备用目标；两者都缺数据时显示NO DATA，不补造对手或成绩。
+调速与挡板读数随同一Timing快照和静止时钟下的真实调整同步；作者不得累积按键或自行反推可见时间。BMS的新游玩由游戏“读谱设置”提供Sudden/Hidden/Lift，不再要求选中同名Mod；作者应读取实际值和active，而非用Mod列表猜开关。上下白字分别用`cover.sudden-units`、`cover.hidden-units`，LIFT读`lift.value`，不能把Hidden长度或LIFT写成Sudden白字。只在`scroll.available`及`scroll.adjusting`成立时显示调整面板/读数，挡板行另检查各自active；mania及没有原生来源的预览应隐藏。`lift.reversed`可用true/false显隐变体，位置仍按实际`lift.offset`。`score.maximum-available`、`score.personal-best-available`与`score.rank-available`可用布尔variants的true/false分支，使主目标没有数据时才显示备用目标；两者都缺数据时显示NO DATA，不补造对手或成绩。
 
 `arrival.*` 取应用Mod后的实际谱面和真实C3轨道，Lane为该轨首音，Stage/Group为该组最早首音，Global为全谱最早首音；空谱、空组及只作留白的作者槽没有entry，不借用别轨。BMS排除自动背景物件，mania取普通音符或长条的开始。`arrival.visible`只表示尚未到来，不限制提前多久；作者应另用非循环 `arrival.remaining` 轨迹定义预告窗，并将窗口两端透明度设为0，以免远处首音长期显示。剩余值可以为负，重试、seek和完整状态恢复直接使用新位置，不由皮肤累计倒计时。
 

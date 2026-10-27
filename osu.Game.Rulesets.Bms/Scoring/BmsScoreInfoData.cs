@@ -2,6 +2,7 @@
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Scoring;
 
 namespace osu.Game.Rulesets.Bms.Scoring
@@ -12,10 +13,11 @@ namespace osu.Game.Rulesets.Bms.Scoring
         public const int EMPTY_POOR_SEPARATION_VERSION = 6;
         public const int TOTAL_RULES_VERSION = 7;
 
-        internal static void InitialiseNewPlay(ScoreInfo score)
+        internal static void InitialiseNewPlay(ScoreInfo score, BmsReadingSettingsSnapshot? readingSettings = null)
             => score.SetRulesetData(new BmsScoreInfoData
             {
                 Version = TOTAL_RULES_VERSION,
+                ReadingSettings = readingSettings,
                 UsesGaugeAutoShift = BmsGaugeProcessor.UsesGaugeAutoShift(score.Mods),
                 StartingGaugeType = BmsGaugeProcessor.GetStartingGaugeType(score.Mods),
                 FloorGaugeType = BmsGaugeProcessor.GetFloorGaugeType(score.Mods),
@@ -30,6 +32,9 @@ namespace osu.Game.Rulesets.Bms.Scoring
 
         [JsonProperty("visual_offset")]
         public BmsVisualOffsetTimeline? VisualOffset { get; set; }
+
+        [JsonProperty("reading_settings", NullValueHandling = NullValueHandling.Ignore)]
+        public BmsReadingSettingsSnapshot? ReadingSettings { get; set; }
 
         [JsonProperty("gauge_auto_shift")]
         public bool UsesGaugeAutoShift { get; set; }

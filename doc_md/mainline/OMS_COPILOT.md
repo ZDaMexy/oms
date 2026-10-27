@@ -434,14 +434,14 @@ Current Phase 1 surface: settings now expose a basic single-play `Playfield Styl
 
 Sudden and Hidden are rendered as opaque overlay panels on the playfield, while Lift independently raises the judgement line by shortening the lane from the bottom.
 
-Controlled by Mods:
-- `BmsModSudden` — enables upper masking, exposes the legacy-named `CoverPercent` setting on the 0–1000 cover-unit scale
-- `BmsModHidden` — enables lower masking, exposes the legacy-named `CoverPercent` setting on the 0–1000 cover-unit scale
-- `BmsModLift` — raises the judgement line with an independent `LiftUnits` setting (0–1000)
+Controlled by BMS reading settings:
+- `Sudden` — upper masking on the 0–1000 cover-unit scale, with independent opacity
+- `Hidden` — lower masking on the 0–1000 cover-unit scale, with independent opacity
+- `Lift` — raises the judgement line with an independent 0–1000 value
 
 Sudden and Hidden can be active simultaneously. In gameplay, the scroll wheel adjusts the current persistent range target without pausing: default target order prefers Sudden, and clicking `UI_LaneCoverFocus` (or mouse middle-click) cycles across enabled `Sudden / Hidden / Lift` targets. Lift remains a separate geometry control and must not be conflated with Hidden.
 
-Current Phase 1 contract: configurable BMS mods keep their remembered settings across deselect / re-enable and across BMS session restoration. `BmsModSudden`, `BmsModHidden`, and `BmsModLift` also expose a `Remember gameplay changes` toggle (default `true`). When enabled, gameplay wheel adjustments must write back to the selected BMS mod instance and its persisted ruleset snapshot; when disabled, those adjustments remain current-play-only.
+Reading preferences and Hi-Speed follow the unified [P1-A reading contract](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代). The current play uses a detached copy. One remember switch saves the complete result after a coupled adjustment; when disabled, gameplay changes remain local to that play. Explicit settings edits still persist. The cover display toggle preserves the selected Sudden/Hidden combination and leaves Lift independent. Legacy `BmsModSudden/Hidden/Lift` remain system-only decoders for old records and replays, with one-time migration of remembered values; they are absent from the selectable Mod menu. Other configurable BMS Mods retain their own remembered settings.
 
 ### 7.3 Scroll Speed
 

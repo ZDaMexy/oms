@@ -3,22 +3,22 @@
 using System;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics.Sprites;
-using osu.Game.Graphics;
 using osu.Game.Configuration;
+using osu.Game.Graphics;
 using osu.Game.Localisation;
+using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.UI;
-using osu.Framework.Localisation;
-using osu.Game.Rulesets.Bms.UI;
 
 namespace osu.Game.Rulesets.Bms.Mods
 {
+    /// <summary>Legacy score/replay settings; new plays obtain reading controls from BMS configuration.</summary>
     public abstract class BmsModLaneCover : Mod, IApplicableToDrawableRuleset<HitObject>, IPreserveSettingsWhenDisabled, IBmsGameplayAdjustmentMod
     {
         public override IconUsage? Icon => OsuIcon.ModCover;
 
-        public override ModType Type => ModType.Conversion;
+        public override ModType Type => ModType.System;
 
         public override double ScoreMultiplier => 1;
 

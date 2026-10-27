@@ -169,9 +169,6 @@ namespace osu.Game.Rulesets.Bms
                         new BmsModRandom(),
                         new BmsModChargeNote(),
                         new BmsModHellChargeNote(),
-                        new BmsModSudden(),
-                        new BmsModHidden(),
-                        new BmsModLift(),
                         new BmsModGaugeRulesBeatoraja(),
                         new BmsModGaugeRulesLr2(),
                         new BmsModGaugeRulesIidx(),
@@ -179,6 +176,15 @@ namespace osu.Game.Rulesets.Bms
                         new BmsModJudgeLr2(),
                         new BmsModJudgeIidx(),
                         new BmsModJudgeRank(),
+                    };
+
+                case ModType.System:
+                    // Retain saved-score/replay decoding without offering reading settings as selectable Mods.
+                    return new Mod[]
+                    {
+                        new BmsModSudden(),
+                        new BmsModHidden(),
+                        new BmsModLift(),
                     };
 
                 default:

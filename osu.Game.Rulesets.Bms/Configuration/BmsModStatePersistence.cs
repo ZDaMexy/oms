@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
 using osu.Framework.Bindables;
+using osu.Framework.Logging;
 using osu.Game.Configuration;
 using osu.Game.Online.API;
 using osu.Game.Rulesets.Mods;
@@ -16,7 +17,7 @@ namespace osu.Game.Rulesets.Bms.Configuration
     {
         private readonly BmsRuleset ruleset;
         private readonly Bindable<string> storedState;
-        private IBindable<IReadOnlyList<Mod>>? trackedSelectedMods;
+        private Bindable<IReadOnlyList<Mod>>? trackedSelectedMods;
         private ModSettingChangeTracker? changeTracker;
 
         private readonly Dictionary<string, APIMod> rememberedMods = new Dictionary<string, APIMod>(StringComparer.OrdinalIgnoreCase);
@@ -27,12 +28,15 @@ namespace osu.Game.Rulesets.Bms.Configuration
             this.ruleset = ruleset;
             storedState = config.GetBindable<string>(BmsRulesetSetting.PersistedModState);
 
-            var snapshot = deserialise(storedState.Value);
+            var snapshot = ReadStoredState(storedState.Value);
 
-            selectedModAcronyms.AddRange(snapshot.SelectedModAcronyms);
+            selectedModAcronyms.AddRange(snapshot.SelectedModAcronyms.Where(acronym => !IsLegacyReadingMod(acronym)));
 
             foreach (var mod in snapshot.RememberedMods)
-                rememberedMods[mod.Acronym] = mod;
+            {
+                if (!IsLegacyReadingMod(mod.Acronym))
+                    rememberedMods[mod.Acronym] = mod;
+            }
         }
 
         public void ApplyStoredState(Dictionary<ModType, IReadOnlyList<Mod>> availableMods)
@@ -72,7 +76,7 @@ namespace osu.Game.Rulesets.Bms.Configuration
         public void BindSelectedMods(IBindable<IReadOnlyList<Mod>> selectedMods)
         {
             trackedSelectedMods?.UnbindAll();
-            trackedSelectedMods = selectedMods.GetBoundCopy();
+            trackedSelectedMods = (Bindable<IReadOnlyList<Mod>>)selectedMods.GetBoundCopy();
             trackedSelectedMods.BindValueChanged(onSelectedModsChanged, true);
         }
 
@@ -87,6 +91,13 @@ namespace osu.Game.Rulesets.Bms.Configuration
 
         private void onSelectedModsChanged(ValueChangedEvent<IReadOnlyList<Mod>> mods)
         {
+            if (mods.NewValue.Any(mod => IsLegacyReadingMod(mod.Acronym)))
+            {
+                // Old presets can still contain these mods. Change the live selection, never the preset or its reading settings.
+                trackedSelectedMods!.Value = mods.NewValue.Where(mod => !IsLegacyReadingMod(mod.Acronym)).ToArray();
+                return;
+            }
+
             changeTracker?.Dispose();
             changeTracker = new ModSettingChangeTracker(mods.NewValue);
             changeTracker.SettingChanged += _ => saveCurrentState(mods.NewValue);
@@ -125,22 +136,35 @@ namespace osu.Game.Rulesets.Bms.Configuration
         private static IEnumerable<Mod> flattenMods(IReadOnlyDictionary<ModType, IReadOnlyList<Mod>> mods)
             => mods.Values.SelectMany(group => group).SelectMany(ModUtils.FlattenMod);
 
-        private static PersistedState deserialise(string rawState)
+        internal static bool IsLegacyReadingMod(string acronym)
+            => acronym.Equals("SUD", StringComparison.OrdinalIgnoreCase)
+               || acronym.Equals("HID", StringComparison.OrdinalIgnoreCase)
+               || acronym.Equals("LIFT", StringComparison.OrdinalIgnoreCase);
+
+        internal static PersistedState ReadStoredState(string rawState)
         {
             if (string.IsNullOrWhiteSpace(rawState))
                 return new PersistedState();
 
             try
             {
-                return JsonConvert.DeserializeObject<PersistedState>(rawState) ?? new PersistedState();
+                var state = JsonConvert.DeserializeObject<PersistedState>(rawState) ?? new PersistedState();
+
+                if (state.SelectedModAcronyms == null || state.RememberedMods == null
+                    || state.SelectedModAcronyms.Any(acronym => acronym == null)
+                    || state.RememberedMods.Any(mod => mod == null || mod.Acronym == null || mod.Settings == null))
+                    throw new JsonSerializationException("The saved BMS mod state contains null collections or entries.");
+
+                return state;
             }
-            catch
+            catch (JsonException exception)
             {
+                Logger.Log($"The saved BMS mod state could not be read; defaults will be used. {exception.Message}", level: LogLevel.Important);
                 return new PersistedState();
             }
         }
 
-        private class PersistedState
+        internal class PersistedState
         {
             public List<string> SelectedModAcronyms { get; set; } = new List<string>();
 

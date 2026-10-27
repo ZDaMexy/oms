@@ -43,20 +43,21 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         private long? pendingExplosionObjectId;
         private Exception? explosionRgbFailure;
 
-        // These are existing OMS mods/configuration, not emulated original-game settings or a new FHS implementation.
+        // Use the real reading settings and gameplay Mods, rather than emulating original-game controls.
         private Mod[] configureStartOptions(Mod[] original)
         {
             var mods = original.ToList();
-            addCover("COVER", new BmsModSudden());
-            addCover("HIDDEN", new BmsModHidden());
+            var config = (BmsRulesetConfigManager)Game.Dependencies.Get<IRulesetConfigCache>().GetConfigFor(new BmsRuleset())!;
+            configureCover("COVER", BmsRulesetSetting.SuddenEnabled, BmsRulesetSetting.SuddenUnits, BmsRulesetSetting.SuddenOpacity);
+            configureCover("HIDDEN", BmsRulesetSetting.HiddenEnabled, BmsRulesetSetting.HiddenUnits, BmsRulesetSetting.HiddenOpacity);
+            config.SetValue(BmsRulesetSetting.LiftEnabled, captureFlag("LIFT"));
+            config.SetValue(BmsRulesetSetting.LiftUnits, 250f);
             if (captureFlag("LIFT"))
-            {
-                var lift = new BmsModLift();
-                lift.LiftUnits.Value = (float)captureNumber("LIFT_VALUE", lift.LiftUnits.Value, 0, 1000, 1);
-                mods.Add(lift);
-            }
+                config.SetValue(BmsRulesetSetting.LiftUnits, (float)captureNumber("LIFT_VALUE", 250, 0, 1000, 1));
             else
                 requireEnabled("LIFT", "LIFT_VALUE");
+            config.SetValue(BmsRulesetSetting.LaneCoversEnabled, true);
+            config.SetValue(BmsRulesetSetting.RememberReadingChanges, true);
 
             if (Environment.GetEnvironmentVariable(capture_setting_prefix + "GAUGE") is string gauge)
             {
@@ -88,7 +89,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     mods.Add(rulesMod);
             }
 
-            var config = (BmsRulesetConfigManager)Game.Dependencies.Get<IRulesetConfigCache>().GetConfigFor(new BmsRuleset())!;
             if (Environment.GetEnvironmentVariable(capture_setting_prefix + "HISPEED_MODE") is string speedMode)
             {
                 (BmsHiSpeedMode mode, BmsRulesetSetting setting, double min, double max, double step) = speedMode switch
@@ -103,18 +103,22 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             }
             else
                 requireEnabled("HISPEED_MODE", "HISPEED_VALUE");
+            Assert.That(mods.Any(mod => mod is BmsModLaneCover or BmsModLift), Is.False,
+                "The author capture must configure reading controls through settings, without legacy reading Mods.");
             return mods.ToArray();
 
-            void addCover(string name, BmsModLaneCover cover)
+            void configureCover(string name, BmsRulesetSetting enabled, BmsRulesetSetting units, BmsRulesetSetting opacity)
             {
+                config.SetValue(enabled, captureFlag(name));
+                config.SetValue(units, 250f);
+                config.SetValue(opacity, 1000f);
                 if (!captureFlag(name))
                 {
                     requireEnabled(name, name + "_VALUE", name + "_OPACITY");
                     return;
                 }
-                cover.CoverPercent.Value = (float)captureNumber(name + "_VALUE", cover.CoverPercent.Value, 0, 1000, 1);
-                cover.CoverOpacity.Value = (float)captureNumber(name + "_OPACITY", cover.CoverOpacity.Value, 0, 1000, 1);
-                mods.Add(cover);
+                config.SetValue(units, (float)captureNumber(name + "_VALUE", 250, 0, 1000, 1));
+                config.SetValue(opacity, (float)captureNumber(name + "_OPACITY", 1000, 0, 1000, 1));
             }
         }
 
@@ -146,24 +150,40 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         private void recordStartOptions()
         {
             Mod[] actualMods = player.GameplayState.Mods.ToArray();
+            var config = (BmsRulesetConfigManager)Game.Dependencies.Get<IRulesetConfigCache>().GetConfigFor(new BmsRuleset())!;
+            BmsReadingSettingsSnapshot reading = config.CaptureReadingSettings();
             var nativeCovers = renderer.Playfield.CoverContainer.Children.OfType<BmsLaneCover>().ToArray();
-            foreach (BmsModLaneCover selected in Game.SelectedMods.Value.OfType<BmsModLaneCover>())
+            Assert.Multiple(() =>
             {
-                BmsModLaneCover applied = actualMods.OfType<BmsModLaneCover>().Single(mod => mod.GetType() == selected.GetType());
-                BmsLaneCover native = nativeCovers.Single(cover => cover.CoverPosition == (selected is BmsModSudden ? BmsLaneCoverPosition.Sudden : BmsLaneCoverPosition.Hidden));
-                Assert.That(applied.CoverPercent.Value, Is.EqualTo(selected.CoverPercent.Value));
-                Assert.That(applied.CoverOpacity.Value, Is.EqualTo(selected.CoverOpacity.Value));
-                Assert.That(native.CoverPercent.Value, Is.EqualTo(applied.CoverPercent.Value));
-                Assert.That(native.CoverOpacity.Value, Is.EqualTo(applied.CoverOpacity.Value));
-                Assert.That(coverDisplayAlpha(native), Is.EqualTo(applied.CoverOpacity.Value / 1000f).Within(0.00001));
+                Assert.That(actualMods.Any(mod => mod is BmsModLaneCover or BmsModLift), Is.False);
+                Assert.That(renderer.Mods.Any(mod => mod is BmsModLaneCover or BmsModLift), Is.False);
+                Assert.That(Game.SelectedMods.Value.Any(mod => mod is BmsModLaneCover or BmsModLift), Is.False);
+                Assert.That(reading.SuddenEnabled, Is.EqualTo(captureFlag("COVER")));
+                Assert.That(reading.HiddenEnabled, Is.EqualTo(captureFlag("HIDDEN")));
+                Assert.That(reading.LiftEnabled, Is.EqualTo(captureFlag("LIFT")));
+                Assert.That(reading.LaneCoversEnabled, Is.True);
+                Assert.That(config.Get<bool>(BmsRulesetSetting.RememberReadingChanges), Is.True);
+                Assert.That(renderer.SuddenActive, Is.EqualTo(reading.SuddenEnabled));
+                Assert.That(renderer.HiddenActive, Is.EqualTo(reading.HiddenEnabled));
+                Assert.That(renderer.SuddenUnits, Is.EqualTo(reading.SuddenEnabled ? reading.SuddenUnits : 0));
+                Assert.That(renderer.HiddenUnits, Is.EqualTo(reading.HiddenEnabled ? reading.HiddenUnits : 0));
+                Assert.That(nativeCovers.Length, Is.EqualTo((reading.SuddenEnabled ? 1 : 0) + (reading.HiddenEnabled ? 1 : 0)));
+            });
+            foreach (BmsLaneCover native in nativeCovers)
+            {
+                bool sudden = native.CoverPosition == BmsLaneCoverPosition.Sudden;
+                float units = sudden ? reading.SuddenUnits : reading.HiddenUnits;
+                float opacity = sudden ? reading.SuddenOpacity : reading.HiddenOpacity;
+                Assert.That(native.CoverEnabled.Value, Is.True);
+                Assert.That(native.CoverPercent.Value, Is.EqualTo(units));
+                Assert.That(native.CoverOpacity.Value, Is.EqualTo(opacity));
+                Assert.That(coverDisplayAlpha(native), Is.EqualTo(opacity / 1000f).Within(0.00001));
                 Container sceneHost = coverSceneHost(native);
                 if (sceneHost.ChildrenOfType<GameplaySkinSpecialisedSceneVisual>().Any(visual => visual.IsApplied))
-                    Assert.That(sceneHost.Alpha, Is.EqualTo(applied.CoverOpacity.Value / 1000f).Within(0.00001),
+                    Assert.That(sceneHost.Alpha, Is.EqualTo(opacity / 1000f).Within(0.00001),
                         "Authored cover parts must receive the same native opacity as the compatibility display.");
             }
-            BmsModLift? lift = actualMods.OfType<BmsModLift>().SingleOrDefault();
-            Assert.That(renderer.Playfield.LiftUnits.Value, Is.EqualTo(lift?.LiftUnits.Value ?? 0));
-            var config = (BmsRulesetConfigManager)Game.Dependencies.Get<IRulesetConfigCache>().GetConfigFor(new BmsRuleset())!;
+            Assert.That(renderer.Playfield.LiftUnits.Value, Is.EqualTo(reading.LiftEnabled ? reading.LiftUnits : 0));
             BmsScrollSpeedMetrics metrics = renderer.SpeedMetrics.Value;
             Assert.That(renderer.HiSpeedMode.Value, Is.EqualTo(config.Get<BmsHiSpeedMode>(BmsRulesetSetting.HiSpeedMode)));
             Assert.That(metrics.HiSpeedMode, Is.EqualTo(renderer.HiSpeedMode.Value));
@@ -186,6 +206,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 covers = nativeCovers.Select(cover => new
                 {
                     position = cover.CoverPosition.ToString(),
+                    enabled = cover.CoverEnabled.Value,
                     value = cover.CoverPercent.Value,
                     opacity = cover.CoverOpacity.Value,
                     displayAlpha = coverDisplayAlpha(cover),
@@ -197,7 +218,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     mode = config.Get<BmsHiSpeedMode>(BmsRulesetSetting.HiSpeedMode).ToString(),
                     normal = config.Get<double>(BmsRulesetSetting.ScrollSpeed),
                     floating = config.Get<double>(BmsRulesetSetting.FloatingHiSpeed),
-                    classic = config.Get<double>(BmsRulesetSetting.ClassicHiSpeed)
+                    classic = config.Get<double>(BmsRulesetSetting.ClassicHiSpeed),
+                    readingSettings = reading,
+                    rememberReadingChanges = config.Get<bool>(BmsRulesetSetting.RememberReadingChanges)
                 },
                 actualMode = renderer.HiSpeedMode.Value.ToString(),
                 selectedValue = renderer.SelectedHiSpeed.Value,

@@ -157,3 +157,23 @@ Omni32项的评估分组为20项保留皮肤、7项玩家偏好候选、5项先�
 两个边界需保持：BMS Hidden是下遮挡，mania Hidden是随combo变化的淡出挑战，mania Cover/Constant Speed也各有原生Mod语义，不能跨玩法按同名批量迁移。Floating当前基准时长仍取mostCommon/initial anchor，当前BPM参与实时读数和转盘重锚；不能因旧提示不完整就声称已自动随当前BPM恒定绿字。`GimmickScrollMode`是BMS渲染算法选择，不是皮肤动画，也不能仅因“视觉”字样与mania Constant Speed归为同一设置。
 
 建议实施顺序为先闭合读谱联动保存，再分离纯显示偏好，最后整理入口和作品局部配置。迁移须保留玩家显式值、旧Mod/回放读取及原成绩，区分恢复玩家偏好与恢复作者样式。当前PB投影的已知忽略字段从现行SettingSource元数据构造，移走Tint声明时必须显式保留历史字段的查询处理，否则旧Tint会变成未知字段而重新拆分PB；不得改写历史ModsJson。是否完全移除SUD/HID/LIFT的Mod入口、合并三个Remember开关、按键数保存读谱配方、回放采用历史Tint还是当前偏好、公共偏好如何覆盖皮肤默认尚属待判决设计，不在本次评估中执行。
+
+## 2026-10-27BMS读谱设置与统一记忆实施
+
+用户采纳上述两项：Sudden/Hidden/Lift迁出可选Mod菜单，三个Remember合并为“记住游玩中的读谱调整”。接续干净且已fetch一致的`master@2c8bb223d328374ba255448d0b147d8ed9715618`，证据独立保存在`E:\oms-bms-reading-settings-20261027-r1`。其它显示偏好、Tint、Graph、每键数读谱保存与作品配置尚未迁移；旧交付`.v26102701`及作者/OSK字节不变，不生成新皮肤包或Windows发行物。
+
+入口为BMS游戏设置内的“读谱设置”，集中三种Hi-Speed、Sudden/Hidden的组合/白字/不透明度、Lift及独立挡板显示开关。`LaneCoversEnabled`记录当前显示，`SuddenEnabled/HiddenEnabled`保留所选组合，双击关闭后仍可恢复Hidden或双挡板；Lift不随双击改变。中文提示引用实际“游玩：挡板／调速”绑定，不要求玩家寻找不存在的EFFECT绑定行。
+
+运行时使用脱离配置的本局值，私有原生挡板适配器不进入Mods。每个顶层动作完成全部速度/几何联动后才按统一Remember保存13字段；关闭时本局改变不会单独留下补偿Hi-Speed。设置页显式编辑单向更新当前局，保存回灌有同根抑制，退出解绑；不透明度更新不重置Floating暂存目标。统一配置仍是BMS规则集级，未新增按键数配置。准确行为以[P1-A合同](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代)为准。
+
+首次构造在读取旧PersistedModState后迁移已选组合和保留参数；任一明确旧Remember=false则统一false，已有新键或完成标记优先，坏旧JSON/值明确记录并按原可恢复语义处理。Mod持久化绑定过滤旧预设带入的三项，仅调整新选择，不改旧预设或成绩。三种旧类型保留为System，CreateAllMods/APIMod解码及已知PB字段继续可用，实际判定、计分、Gauge和PB策略不变。
+
+新录制在`reading_settings`保存不可变的初始配方，录制结束不让后续配置覆盖开局值；没有新增局内读谱变化轨迹。历史无快照时仅由旧Mod决定挡板/Lift，不把当前个人新挡板套入旧回放；播放只读，不回写个人配置。GeneratedAutoplay继续按当前局处理。原TOTAL_RULES_VERSION=7与旧结果/Mod数据保持。只读核对当前实际OMSIR适配器`OmsIrSubmissionContext.createBmsResult()`仍白名单提取原10个最终规则/计分字段，不提交reading_settings；后端DTO严格额外字段拒绝未改。旧待交body/UUID不重写，本地PB比较不代替IR受理条件；未连接真实账号或验收当前服务上传。
+
+初次编译修正了IBindable静态接口不能直接BindTo、测试raw插值括号、受保护Drawable.IsDisposed及ThreadSafety setter不可写。首轮focused因夹具未释放其自建compatibility owner、迁移测试在非update线程构造Realm配置、旧ScoreInfo未设BMS身份及过紧的固定Floating误差断言失败并主动停止；保留原日志/停止回执。现分别使用真实update步骤、显式释放fixture-owned owner、真实Ruleset身份及由0.01速度精度推导的误差界，未放宽生产线程或生命周期合同。另有源码审查发现的opacity清目标问题已修并补专用回归。
+
+第一轮定向173项通过后，完整BMS回归3159通过/1失败/19跳过，唯一失败为opacity编辑未同步到当前局。检查实际框架IL确认GetBindable已经返回bound copy，再取一次GetBoundCopy留下弱引用中间层，GC后回调链断开。补强制回收步骤后两个相关用例修前均失败；去除第二次复制、直接持有首个副本后均通过。没有用轮询/重绑或放宽断言掩盖寿命问题，修前/后TRX为`reading-watch-before-r1 / after-r1`。Desktop Release/Debug及最终format verify通过；原生首次取景回执缺少ExitCode不计为通过，修正测试进程句柄保存后以独立r2重跑，不改旧回执。初始和中间失败不得混记为下方最终通过，软件/隔离结果不代签用户正常窗口、真实歌曲或实体设备。
+
+最终BMS完整回归3160通过/19跳过/0失败，日志及TRX为`tests/bms-full-final-r2`，12分57秒；最终源码Desktop Release/Debug分别取`tests/build-desktop-release-r2 / debug-r2`，格式验证为`format-verify-final-r1`。同一原OSK三组正常Player全部exit0：`native-p1-both-lift-r2 / p2-hidden-r2 / dp-lift-r2`，各13张PNG，共39张，含每组8个控制阶段实景/读数及5张自然时钟画面。校验原生/作者同源的Start状态、模式、甩盘、双击组合、Lift与白绿字，实际selected/player/renderer Mods均无三项旧挡板；汇总为`native-summary-r2.json`，程序集身份为`current-binaries-reading-r2.json`。已人工检查P1恢复双挡板、P2下挡板和DP读数/面板图，均维持原包布局。原测试宿主活动状态显式模拟，输入为软件动作，不代签真实前台或控制器。
+
+上述结果完成本次两项软件实施和同包复核；只改BMS专属链路，没有重跑或重记旧Core/mania全量、原作者CLI/美术保全结论，不生成新包。正常用户窗口、完整真实歌曲及实体设备仍沿原人工门，进一步显示偏好迁移继续属于待判决设计。

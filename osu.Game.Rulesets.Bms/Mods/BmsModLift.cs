@@ -14,11 +14,12 @@ using osu.Game.Rulesets.UI;
 
 namespace osu.Game.Rulesets.Bms.Mods
 {
+    /// <summary>Legacy score/replay settings; new plays obtain reading controls from BMS configuration.</summary>
     public class BmsModLift : Mod, IApplicableToDrawableRuleset<HitObject>, IPreserveSettingsWhenDisabled, IBmsGameplayAdjustmentMod
     {
         public override IconUsage? Icon => OsuIcon.ModCover;
 
-        public override ModType Type => ModType.Conversion;
+        public override ModType Type => ModType.System;
 
         public override double ScoreMultiplier => 1;
 

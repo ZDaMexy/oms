@@ -1,19 +1,17 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using System;
+using System.IO;
+using System.Threading.Tasks;
 using osu.Framework.Allocation;
-using osu.Framework.Bindables;
 using osu.Framework.Extensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Localisation;
 using osu.Framework.Platform;
-using System;
-using System.IO;
-using System.Threading.Tasks;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.UserInterfaceV2;
-using osu.Game.Localisation;
 using osu.Game.Overlays;
 using osu.Game.Overlays.Settings;
 using osu.Game.Rulesets.Bms.Configuration;
@@ -47,38 +45,6 @@ namespace osu.Game.Rulesets.Bms
         private void load()
         {
             var config = (BmsRulesetConfigManager)Config;
-            var hiSpeedMode = config.GetBindable<BmsHiSpeedMode>(BmsRulesetSetting.HiSpeedMode);
-            var normalHiSpeed = config.GetBindable<double>(BmsRulesetSetting.ScrollSpeed);
-            var floatingHiSpeed = config.GetBindable<double>(BmsRulesetSetting.FloatingHiSpeed);
-            var classicHiSpeed = config.GetBindable<double>(BmsRulesetSetting.ClassicHiSpeed);
-
-            var hiSpeedSlider = new FormSliderBar<double>
-            {
-                Caption = hiSpeedMode.Value.ToString(),
-                HintText = @"括号内为不启用sudden/hidden/lift的下落时间（ms），绿字（GreenNumber）需要在游戏内结合sudden/hidden/lift调节查看。",
-                Current = normalHiSpeed,
-                KeyboardStep = (float)hiSpeedMode.Value.GetAdjustmentStep(),
-                LabelFormat = value => formatHiSpeedSettingValue(hiSpeedMode.Value, value),
-            };
-
-            hiSpeedMode.BindValueChanged(mode =>
-            {
-                hiSpeedSlider.Caption = mode.NewValue switch
-                {
-                    BmsHiSpeedMode.Normal => @"Normal Hi-Speed",
-                    BmsHiSpeedMode.Floating => @"Floating Hi-Speed",
-                    BmsHiSpeedMode.Classic => @"Classic Hi-Speed",
-                    _ => @"Hi-Speed",
-                };
-                hiSpeedSlider.Current = mode.NewValue switch
-                {
-                    BmsHiSpeedMode.Normal => normalHiSpeed,
-                    BmsHiSpeedMode.Floating => floatingHiSpeed,
-                    BmsHiSpeedMode.Classic => classicHiSpeed,
-                    _ => normalHiSpeed,
-                };
-                hiSpeedSlider.KeyboardStep = (float)mode.NewValue.GetAdjustmentStep();
-            }, true);
 
             Children = new Drawable[]
             {
@@ -91,15 +57,7 @@ namespace osu.Game.Rulesets.Bms
                 {
                     Keywords = new[] { "auto", "keysound" },
                 },
-                new SettingsItemV2(new FormEnumDropdown<BmsHiSpeedMode>
-                {
-                    Caption = @"Hi-Speed 模式",
-                    HintText = "Normal：基础定速模式，直接按数值调速。\n"
-                               + "Floating：按谱面初始 BPM 做补偿，更适合配合 sudden/hidden/lift 调整可见时间。\n"
-                               + "Classic：按传统 Hi-Speed 语义计算。",
-                    Current = hiSpeedMode,
-                }),
-                new SettingsItemV2(hiSpeedSlider),
+                new BmsReadingSettingsControl(config),
                 new SettingsItemV2(new FormEnumDropdown<BmsGimmickScrollMode>
                 {
                     Caption = @"特效谱滚动（实验性）",
@@ -177,12 +135,6 @@ namespace osu.Game.Rulesets.Bms
                 new BmsDifficultyTableSettingsSection(),
             };
 
-            static string formatHiSpeedSettingValue(BmsHiSpeedMode mode, double value)
-            {
-                double fallTime = DrawableBmsRuleset.ComputeScrollTime(value);
-                int fallTimeMs = (int)Math.Round(fallTime, MidpointRounding.AwayFromZero);
-                return $@"{mode.FormatValue(value)} ({fallTimeMs}ms)";
-            }
         }
 
         private void detectFfmpegStatus()

@@ -86,13 +86,20 @@ namespace osu.Game.Rulesets.Bms.Tests
                 player?.DrawableBmsRuleset?.LayoutProvider.RevisionOwner?.IsDisposed != false);
             AddStep("set ruleset", () => Ruleset.Value = bms_ruleset_info);
             AddStep("set beatmap", () => Beatmap.Value = CreateWorkingBeatmap(sourceOverride ?? sourceBeatmap));
-            AddStep("set lane cover mods", () => SelectedMods.Value = selectedMods);
-            AddStep("set initial speed configuration", () =>
+            AddStep("set gameplay mods", () => SelectedMods.Value = selectedMods
+                .Where(mod => mod is not BmsModLaneCover and not BmsModLift).ToArray());
+            AddStep("set initial reading configuration", () =>
             {
                 var config = (BmsRulesetConfigManager)RulesetConfigs.GetConfigFor(new BmsRuleset())!;
-                config.SetValue(BmsRulesetSetting.ScrollSpeed, 8.0);
-                config.SetValue(BmsRulesetSetting.FloatingHiSpeed, 2.5);
-                config.SetValue(BmsRulesetSetting.HiSpeedMode, startInFloating ? BmsHiSpeedMode.Floating : BmsHiSpeedMode.Normal);
+                var sudden = selectedMods.OfType<BmsModSudden>().SingleOrDefault();
+                var hidden = selectedMods.OfType<BmsModHidden>().SingleOrDefault();
+                var lift = selectedMods.OfType<BmsModLift>().SingleOrDefault();
+                config.SetValue(BmsRulesetSetting.RememberReadingChanges, true);
+                config.SaveReadingSettings(new BmsReadingSettingsSnapshot(
+                    startInFloating ? BmsHiSpeedMode.Floating : BmsHiSpeedMode.Normal, 8, 2.5, 2.5,
+                    sudden != null, hidden != null, lift != null, true,
+                    sudden?.CoverPercent.Value ?? 250, hidden?.CoverPercent.Value ?? 250, lift?.LiftUnits.Value ?? 250,
+                    sudden?.CoverOpacity.Value ?? 1000, hidden?.CoverOpacity.Value ?? 1000));
             });
             AddStep("load BMS solo player", () => LoadScreen(player = new TestBmsSoloPlayer()));
             AddUntilStep("wait for BMS solo player", () => player.IsCurrentScreen() && player.IsLoaded && player.DrawableBmsRuleset?.IsLoaded == true && player.GameplayInputManager != null);
@@ -287,18 +294,18 @@ namespace osu.Game.Rulesets.Bms.Tests
             bool adjustedLaneCoverWhilePaused = false;
             double initialHiSpeed = 0;
             double hiSpeedStep = 0;
-            BmsModSudden runtimeSuddenMod = null!;
+            float initialCover = 0;
 
             AddAssert("pre-start overlay exists", () => player.PreStartOverlay != null);
             AddStep("capture initial hi-speed", () =>
             {
                 initialHiSpeed = player.DrawableBmsRuleset!.SelectedHiSpeed.Value;
                 hiSpeedStep = player.DrawableBmsRuleset.HiSpeedMode.Value.GetAdjustmentStep();
-                runtimeSuddenMod = player.DrawableBmsRuleset.Mods.OfType<BmsModSudden>().Single();
+                initialCover = player.DrawableBmsRuleset.SuddenUnits;
             });
 
             AddStep("try paused lane cover adjustment without hold", () => adjustedLaneCoverWhilePaused = player.DrawableBmsRuleset!.AdjustLaneCover(1));
-            AddAssert("paused lane cover adjustment is blocked before hold", () => !adjustedLaneCoverWhilePaused && runtimeSuddenMod.CoverPercent.Value == runtimeSuddenMod.CoverPercent.Default);
+            AddAssert("paused lane cover adjustment is blocked before hold", () => !adjustedLaneCoverWhilePaused && player.DrawableBmsRuleset!.SuddenUnits == initialCover);
 
             AddStep("press pre-start hold", () => Assert.That(player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_PreStartHold), Is.True));
             AddUntilStep("overlay visible while holding", () => player.PreStartOverlay?.State.Value == Visibility.Visible);
@@ -312,7 +319,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("overlay-driven hi-speed decrease succeeds", () => Math.Abs(player.DrawableBmsRuleset!.SelectedHiSpeed.Value - initialHiSpeed) <= 0.0001);
 
             AddStep("adjust lane cover while hold is active", () => adjustedLaneCoverWhilePaused = player.DrawableBmsRuleset!.AdjustLaneCover(1));
-            AddAssert("paused lane cover adjustment succeeds during hold", () => adjustedLaneCoverWhilePaused && runtimeSuddenMod.CoverPercent.Value == runtimeSuddenMod.CoverPercent.Default + 1);
+            AddAssert("paused lane cover adjustment succeeds during hold", () => adjustedLaneCoverWhilePaused && player.DrawableBmsRuleset!.SuddenUnits == initialCover + 1);
 
             AddStep("expire the pre-start delay while still holding", () => player.ExpirePreStartDelay());
             AddAssert("gameplay stays held while hold remains active", () => !player.GameplayClockContainer.IsRunning);
@@ -607,10 +614,13 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             AddAssert("Start remains released while gameplay continues", () => !player.GameplayInputManager!.PreStartHoldPressed.Value
                 && !player.DrawableBmsRuleset!.AdjustmentHeld && player.GameplayClockContainer.IsRunning);
-            AddAssert("cycling targets keeps the configured and remembered mod amounts", () =>
-                selectedMods.OfType<IBmsGameplayAdjustmentMod>().All(mod => mod.RememberGameplayChanges.Value)
-                && selectedMods.OfType<BmsModLaneCover>().All(mod => mod.CoverPercent.Value == 250)
-                && selectedMods.OfType<BmsModLift>().Single().LiftUnits.Value == 250);
+            AddAssert("cycling targets keeps the saved reading amounts", () =>
+            {
+                var config = (BmsRulesetConfigManager)RulesetConfigs.GetConfigFor(new BmsRuleset())!;
+                BmsReadingSettingsSnapshot state = config.CaptureReadingSettings();
+                return config.Get<bool>(BmsRulesetSetting.RememberReadingChanges)
+                       && state.SuddenUnits == 250 && state.HiddenUnits == 250 && state.LiftUnits == 250;
+            });
         }
 
         [Test]
