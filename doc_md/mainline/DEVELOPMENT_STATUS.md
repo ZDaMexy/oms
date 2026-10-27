@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-27（Omni已知素材候选闭合；其余产品/生产证据沿原日期）
+> 最后核对：2026-10-27（Omni素材闭合及Mod显示/成绩比较修正；其余产品/生产证据沿原日期）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -15,7 +15,7 @@ Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，具
 
 游玩判定/结果及性能取[10月19日深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)；设备入口、输入时间、轴用途、长皿与校准接续取[10月21日输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)。前台帧时间与实体设备仍待验收。
 
-Lighting Model Skin Omni Until 33默认33，27～33及八支BPL为Game Frame；本轮补齐AUTO SCRATCH专用图、三条Graph、COMBO三色/居中与lane345缺帧，已知素材候选闭合。来源及适配边界见[记录](../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27素材候选闭合与游玩增量)，当前包、既有能力与人工缺口只取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。原HDD保全，26及更早来源待补；作品独立私下分享，不内置或公开分发，原阶段及发行门保持。
+Lighting Model Skin Omni Until 33默认33，27～33及八支BPL为Game Frame；已知素材候选闭合，并按用户判决修正PB/NEXT外观分组、真实Clear门槛与HAZARD生存标识，辅助Tint默认保持。来源及适配边界见[Mod修正记录](../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)，当前包、既有能力与人工缺口只取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。原HDD保全，26及更早来源待补；作品独立私下分享，不内置或公开分发，原阶段及发行门保持。
 
 玩家直接登录固定OMSIR，保存后新局上传；新闻 / 帮助 / 排行 / 玩家沿原生页面。谱面列表先选模式：BMS 仅 Ginger Rush / 616，osu!mania 仅 Sayobot，恢复上次 BMS 来源；紧凑筛选、原生卡片和各来源阅读状态保持。正常OMS窗口的lazer体验仍待签收，隔离内容宽度检查不代签；源码 / 软件及剩余门取[P3-IR状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。社交后续，旧ppy关闭；Phase1.x原门保持。
 
@@ -49,7 +49,7 @@ Lighting Model Skin Omni Until 33默认33，27～33及八支BPL为Game Frame；�
 
 ## 最近一次验证
 
-2026-10-27：AUTO SCRATCH、三条Graph、COMBO和动态挡板的当前回归、九组同包Player与完整作者检查取[P1-A最近验证](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)及[本轮证据](../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27素材候选闭合与游玩增量)。较早FAST/SLOW、Start及持续组件检查保留各自日期，不混计为新包结果；正常窗口、完整真实歌曲、设备和原生最终配方从零重编仍待。
+2026-10-27：PB/NEXT比较、真实Clear门槛及HAZARD修正的完整回归、同包Player与完整作者检查取[P1-A最近验证](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)及[Mod修正证据](../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)。较早AUTO SCRATCH、Graph、COMBO、FAST/SLOW及Start验证保留各自身份，不混计为新包结果；正常窗口、完整真实歌曲、设备和原生最终配方从零重编仍待。
 
 2026-10-11转谱补算、Debug读取及旧失败对照保留原日期，范围与未验项取[P1-H](../subline/P1-H/DEVELOPMENT_STATUS.md#最近一次验证)。
 

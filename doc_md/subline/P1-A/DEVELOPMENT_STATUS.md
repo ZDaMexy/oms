@@ -9,7 +9,7 @@
 
 静线为唯一内置、首次默认与保底；complex已退役，历史作者文件和用户包保留。静线打磨按用户决定暂停。BMS/mania各有模式默认和键数覆盖，旧全局配置首次迁移；游玩按最终键数应用。原V-001～V-005、设备和长期体验未签收，Skin V1/release未完成。C1～C7证据不重计，OmsSkin物理删除仍待原实机门。
 
-Omni当前`.v26102700`完成已识别素材候选的实施与排除，来源和适配边界取[候选闭合记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27素材候选闭合与游玩增量)。既有交互沿[游玩Start记录](../../other/OMNI_GAMEPLAY_CONTROLS_20261025.md)与[设置复核](../../other/OMNI_START_OPTIONS_20261024.md)，资源存在不代表原版全项等价。
+Omni当前`.v26102701`接续已识别素材候选闭合，按用户判决修正PB/NEXT比较、真实Clear门槛及HAZARD标识，辅助Tint默认保持；准确范围取[Mod修正记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)。既有交互沿[游玩Start记录](../../other/OMNI_GAMEPLAY_CONTROLS_20261025.md)与[设置复核](../../other/OMNI_START_OPTIONS_20261024.md)，资源存在不代表原版全项等价。
 
 ## 当前产品能力与剩余门
 
@@ -28,14 +28,14 @@ Omni当前`.v26102700`完成已识别素材候选的实施与排除，来源和�
 | 实时演奏信息 | 实时判定与断连统计、EX SCORE/HiSpeed、MIN/当前/MAX BPM；曲名、作者标级与独立的表名/表内等级 | 读取规则真实状态；表归类不替代作者难度，皮肤不改变判定/计分、时间或难度表导入 |
 | 皮肤布局与公共能力 | 共用作者声明可给真实stage/lane指定位置、留空槽及独立键区，不创建输入。BMS保留键区、血槽、信息区与最多16个 `BgaViewports`，逐窗 fit/fill/stretch 或 none | 显式field不被旧BGA自适应挪动/压缩，放不下整组零窗并诊断；9K/PMS不应用黑白轨比。BGA内容/时钟归[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，选歌/结算面未扩展 |
 | 作者制作与可选演出 | [完整套件](../../../skin-authoring/README.md)含从零制作、按可见元素查文件/尺寸/动画、INI/scene/script字段与预算、刷新打包步骤；First Scene、Reference Study和BGA Layout明确完整包与练习片段 | 主手册与图片随套件发行，无需源码仓库；历史实机图与素材示意已区分。新增例子的工具检查/打包和真实挂载已验证，详见作者能力记录。原编辑器可编辑已有组件并保存独立副本，完整scene/script没有可视化编辑器；不据手册代签视觉或旧三包演练 |
-| IIDX 与 BPL 第三方作品 | Lighting Model Skin Omni Until 33本地.v26102700，默认33；27～33与八支BPL共15框体，1271款美术/539图，13模块/32项配置，适用开关默认全开。AUTO SCRATCH专用图、三条Graph、COMBO三色/居中与lane345完整cat已接入；BMS5/7/14、mania5/6/7/8/14/16及两侧/DP，模式/键数覆盖保持 | Normal Hi-Speed跨BPM映射、完整变速谱与实体手感未整体对齐；转盘周期、Graph布局和部分外框时序仍为作者适配。FAST/SLOW原版资格/寿命、PG精确周期/起相、lane345原机parent-loop、游客CUSTOM、各代默认/滤镜及部分DP末端待校准。HCN正常游玩显示未由教学素材代签。LIFT沿原生几何，副屏移除；26来源待补。独立私下分享，不内置或公开分发；Until34不在范围 |
+| IIDX 与 BPL 第三方作品 | Lighting Model Skin Omni Until 33本地.v26102701，默认33；27～33与八支BPL共15框体，1271款美术/539图，13模块/32项配置，适用开关默认全开。AUTO SCRATCH专用图、三条Graph、COMBO三色/居中与lane345完整cat已接入；另补真实Clear门槛/状态及HAZARD生存标识。BMS5/7/14、mania5/6/7/8/14/16及两侧/DP，模式/键数覆盖保持 | Normal Hi-Speed跨BPM映射、完整变速谱与实体手感未整体对齐；转盘周期、Graph布局和部分外框时序仍为作者适配。FAST/SLOW原版资格/寿命、PG精确周期/起相、lane345原机parent-loop、游客CUSTOM、各代默认/滤镜及部分DP末端待校准。HCN正常游玩显示未由教学素材代签。LIFT沿原生几何，副屏移除；26来源待补。独立私下分享，不内置或公开分发；Until34不在范围 |
 | 安装与发行 | 旧选择迁移证据保留；2026-10-03 候选已有便携/自定义根、恢复及同包覆盖启动证据，见 [P1-F](../P1-F/DEVELOPMENT_STATUS.md) | 生成物已按用户要求删除；实网下载、新作者独立演练、跨版本、独立账户非便携及设备/长期/公开发行门未新签收 |
 
 C2～C6共享同一 package/layout/material/scene publication、lease/detach 与脚本隔离合同；无游玩宿主的菜单也检查整包。授权撤销不扩大 reload 准入，具体合同只在[技术约束](TECHNICAL_CONSTRAINTS.md)维护。
 
 ## 最近一次验证
 
-2026-10-27Mod修正候选：BMS完整3104通过/19跳过、mania995通过/2跳过、Core非视觉Skinning1455通过/3跳过；Desktop Debug/Release、作者CLI构建与最终format verify通过。PB focused43+25及Gauge Python6项通过，v36-r1同包六组BMS门槛/HAZARD与两组mania实际Player通过；7071份ZIP与父包闭包保全已核，最终完整作者CLI和新版交付待收口。
+2026-10-27Mod修正：BMS完整3104通过/19跳过、mania995通过/2跳过、Core非视觉Skinning1455通过/3跳过；Desktop Debug/Release、作者CLI构建与最终format verify通过。PB focused43+25及Gauge Python6项通过，v36-r1同包六组BMS门槛/HAZARD与两组mania实际Player通过；最终作者CLI13612组代表组合、7071份ZIP与父包闭包保全通过，冻结包交付为`.v26102701`。
 
 准确身份、判决及失败修正取[Mod修正记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)。原生取景用隔离Player及真实Autoplay结果，无生命/分数注入或seek；PB另有实际Realm旧记录回归。v35素材增量及更早FAST/SLOW、Start、设置/LIFT结果保留原日期，不计为新包验证。
 
@@ -45,7 +45,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 当前风险与未完成项
 
-- Omni的PB/门槛/HAZARD修正已具完整回归及同包实景，最终作者CLI与新版本交付待收口，见[修正记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)。原机精确时序、跨BPM、HCN教学来源与未解包素材不外推；正常窗口、完整歌曲及设备门沿[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)，隔离结果不代签。
+- Omni的PB/门槛/HAZARD修正及私下交付完成，证据取[修正记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)。原机精确时序、跨BPM、HCN教学来源与未解包素材不外推；正常窗口、完整歌曲及设备门沿[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)，隔离结果不代签。
 
 - 原生媒体完整从零重编与剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，正常窗口/设备和发行门保持。清理后的测试/作者工具与临时取景宿主须按[开发约束](../../../AGENTS.md#开发磁盘约束)重建；原日志/TRX保留为历史证据。
 

@@ -128,3 +128,5 @@ BMS新增规则集拥有的本地PB比较副本：剥离SUD/HID/LIFT已知显示
 最终生产源码完整Core非视觉Skinning1455通过/3跳过、BMS3104通过/19跳过、mania995通过/2跳过，Desktop Debug/Release与当前作者CLI构建通过，最终formatter verify无改动。新PB focused为43项真实Realm/原链路及25项领域比较，Python Gauge工具6项通过；数字不与旧修正轮次相加。命令、TRX和构建身份取本轮`tests/`，最新原生程序集封存为`current-binaries-v36-r2.json`。
 
 同一f1251bda最终包八组实际Player通过：`native-iidx33-aeasy60-p1-r2`、`native-iidx27-normal75-p2-r2`、`native-iidx28-aeasy50-p1-r2`、`native-iidx27-hazard-p2-r2`、`native-bpl-hazard-dp-r2`、`native-iidx33-normal80-dp-r2`及`native-mania-7k-r1 / 16k-r1`。六组BMS各五个自然时钟样本核实际规则、门槛、坐标、正向文字及clear-state，HAZARD标识实时读取type且不画0%线；另两组mania复核隔离。全部40张PNG与30份Gauge严格读数回执保留，汇总为`native-summary-r1.json`；取景明确使用隔离正常Player和真实Autoplay结果，无生命/分数注入或seek，不代签用户正常窗口、真实歌曲或实体设备。
+
+最终当前作者CLI检查exit0，13612种代表组合及各显式条件分支全部通过，并非全部排列；原日志为`tests/author-check-v36-r1.log`及同名exit回执。实现已提交`0b9f3c9695d6fd294595ddc2b3cacb7d337b6fb0`，最终文档与交付另外收口；完整验证后没有改变作者源或OSK字节。新交付`Lighting Model Skin Omni Until 33.v26102701.osk`为上述f1251bda冻结包的直接复制，连同六张最终实景预览、说明、SHA256及含实际源码提交身份的验证JSON收存在总工作区`deliverables/skins/`同名版本目录，旧版不覆盖。须重编/重启OMS后导入；原成绩、回放、传分与原HDD均未改动，没有生成Windows发行包或公开发布素材作品。
