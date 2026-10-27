@@ -49,6 +49,7 @@ metadata:
 
 ## 检查脚本与环境
 
+- Windows同卷移动父目录返回`WinError 5`也可能是其子目录仍有打开句柄，并非ACL错误。先只读取证具体占用；本次可直接移动该子目录到已校验的同卷临时位置，再移动父目录并归回子目录，NTFS身份与完整文件清单保持。不得强关其它进程句柄或默默转成复制/删除；来源/目标、子目录边界或身份不明时停止。实例见[归并记录](../../doc_md/mainline/CHANGELOG.md#2026-10-27oms外置开发目录归并)。
 - 作者CLI先独立准备片段，再遍历代表组合；`GameplaySkinRecordedPreparedFrame.vector`越界不能按最后模块标题归为坏素材，组合还带其它默认贡献。该例已收敛至合法共享状态的颜色组合产出零长数组，改用明确分配/逐项计算后通过回归及完整目录；这证明代码修正有效，不证明.NET根因，也不应继续列当前故障。若再现，保留同SHA程序集、choice/布局/clip/帧及Multiply/Add长度，定点通过不代签长跑，不凭相似异常认定旧ArrayBuilder同源。原失败与修正分别取[10月23日](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-23omni默认显示与开场交接修复)与[10月24日](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-24omni持续背景与原版参照边界)。
 
 - `osu.Game` 内新增 `Resources/Textures/` 资源时，`DllResourceStore` 只剥程序集名称，仍保留 `Resources/`。直接加 store 后按 `Textures/` 请求会返回 null；应通过 `NamespacedResourceStore` 接入该目录。控件 `IsLoaded` 和旧启动测试可在缺图时通过，须核实际绘制尺寸或截图。`LogoAnimation` 的 R/G 分别是时间/覆盖率，不能换成普通 RGBA 图；其高亮先于填充绘制，外侧描边才能保留。资源合同见 [品牌资源](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#客户端品牌资源)，失败与修正来源见 [品牌日志](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-13客户端品牌标识专项)。

@@ -2,6 +2,8 @@
 
 10月26日首轮基线为干净 `master@008f7a4998cd6e332f452519bd1719daed258910`，fetch后与origin一致。工作范围为客户端只读显示、独立作者包和原版参照，不涉及网络端点或正式玩家数据。当前交付与剩余门由[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)维护；此前Start、挡板、LIFT和甩盘证据仍取[原记录](OMNI_GAMEPLAY_CONTROLS_20261025.md)。
 
+2026-10-27存储归整后，下文历史`E:\...`证据路径按[归并表](../mainline/CHANGELOG.md#2026-10-27oms外置开发目录归并)读取：素材/独立参照在`E:\OMS-Development\sources/`，其余九个证据目录在`evidence/`，原目录名和内部相对路径保持。原命令、来源日期与验证身份不改写。
+
 ## 本轮接入
 
 PACEMAKER NEXT读取严格匹配的有效本地Personal Best和实际EX满分，七档为LV A、A+、AA、AA+、AAA、AAA+、DJ AUTO。[原版说明](https://p.eagate.573.jp/game/2dx/33/howto/play/score_graph.html)确认档位含义；OMS对满分的12/18至18/18逐项只向上取整一次，选择严格大于Personal Best的第一档，最高饱和。缺数据不当作0分，原主目标优先、SUB仅补缺、双方不可用则NO DATA。整数边界和等值升档是OMS策略，原机尚未逐项核对；NEXT+、rotate和Ghost不据此补造。

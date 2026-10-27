@@ -1,5 +1,22 @@
 # OMS 更新日志
 
+## 2026-10-27OMS外置开发目录归并
+
+用户要求停止在盘符根目录散建OMS工作产物。将E盘根目录既有11个目录在同一卷内移动到`E:\OMS-Development\`，未删除其文件、重打皮肤包或触碰D盘原HDD：
+
+| 原目录名 | 新父目录 |
+| --- | --- |
+| `OMS-IIDX-Omni-Until33-20261018`、`oms-iidx-reference-20261018` | `E:\OMS-Development\sources\` |
+| `oms-archived-validation-evidence-20261026`、`oms-bms-reading-settings-20261027-r1` | `E:\OMS-Development\evidence\` |
+| `oms-omni-asset-audit-20261026-r1`～`r4` | 同上 |
+| `oms-omni-gameplay-completion-20261026-r1`、`oms-omni-gameplay-states-20261026-r1`、`oms-omni-mod-solutions-20261027-r1` | 同上 |
+
+目录原名和内部相对路径保持。带日期的原命令、JSON收据、来源快照保留历史原路径，读取时按上表换算，不改写原验证身份。总工作区`deliverables/`成品位置保持；后续存储约束归[AGENTS](../../AGENTS.md#开发磁盘约束)，工具入口已同步。
+
+迁移前后逐目录比较完整相对路径、文件大小、修改时间、属性摘要及NTFS目录身份，共756896文件一致；v35-r3与最终v36-r1的OSK SHA256一致。最后一个目录受本会话已有图像目录句柄占用，通过直接移动该子目录、移动父目录、归回子目录完成，保留原NTFS对象，未关闭其它进程的句柄。根目录旧11项均不存在，不留下根级兼容链接。
+
+更新58份现用辅助脚本中的路径并保留修改前原文；Python语法与PowerShell解析通过，独立参照启动器使用自身相对路径。仓库内既有`artifacts/omni-start-options-20261024/reference-captures`继续指向迁后归档：原链接删除被自动审批拦截，实际改为归档原junction、创建新junction并验证可读，没有执行被拒绝的删除。完整迁移、脚本备份和链接回执位于新父目录的`evidence/storage-migration-20261027/`；本轮不重跑产品回归或宣称新的原版/设备验收。
+
 ## 2026-10-26Omni判定提示与素材排查
 
 在既有游玩Start、挡板/LIFT和SUB TARGET基础上，独立Omni接入真实按键/转盘的单次FAST/SLOW及匹配本地最好驱动的PACEMAKER NEXT，并建立直接、atlas/字形/tint派生与待核候选的素材引用审计。当前包、回归与实际Player范围由[P1-A日志](../subline/P1-A/CHANGELOG.md#2026-10-26omni判定提示next与素材审计)维护；原版实测、OMS适配和误判撤回见[专项记录](../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。作品仍独立私下分享，原HDD及正式玩家数据保全，不改变统一阶段或原人工/发行门。
