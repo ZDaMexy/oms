@@ -130,3 +130,30 @@ BMS新增规则集拥有的本地PB比较副本：剥离SUD/HID/LIFT已知显示
 同一f1251bda最终包八组实际Player通过：`native-iidx33-aeasy60-p1-r2`、`native-iidx27-normal75-p2-r2`、`native-iidx28-aeasy50-p1-r2`、`native-iidx27-hazard-p2-r2`、`native-bpl-hazard-dp-r2`、`native-iidx33-normal80-dp-r2`及`native-mania-7k-r1 / 16k-r1`。六组BMS各五个自然时钟样本核实际规则、门槛、坐标、正向文字及clear-state，HAZARD标识实时读取type且不画0%线；另两组mania复核隔离。全部40张PNG与30份Gauge严格读数回执保留，汇总为`native-summary-r1.json`；取景明确使用隔离正常Player和真实Autoplay结果，无生命/分数注入或seek，不代签用户正常窗口、真实歌曲或实体设备。
 
 最终当前作者CLI检查exit0，13612种代表组合及各显式条件分支全部通过，并非全部排列；原日志为`tests/author-check-v36-r1.log`及同名exit回执。实现已提交`0b9f3c9695d6fd294595ddc2b3cacb7d337b6fb0`，最终文档与交付另外收口；完整验证后没有改变作者源或OSK字节。新交付`Lighting Model Skin Omni Until 33.v26102701.osk`为上述f1251bda冻结包的直接复制，连同六张最终实景预览、说明、SHA256及含实际源码提交身份的验证JSON收存在总工作区`deliverables/skins/`同名版本目录，旧版不覆盖。须重编/重启OMS后导入；原成绩、回放、传分与原HDD均未改动，没有生成Windows发行包或公开发布素材作品。
+
+## 2026-10-27Mod游戏设置与皮肤职责分离评估
+
+本次接续干净且已fetch一致的`master@1336d257f6f468ff8ee5c97fd7fc551f3d26798d`，核对现有BMS Mod、游戏设置、Omni最终32项配置及真实消费者。以下为源码与冻结作者的静态评估和建议，尚未移动入口、迁移配置或更改玩法；没有新运行构建、回归、原机或用户窗口验收，当前交付仍为`.v26102701`。上节三项用户判决保持，不能把本节建议当作已采纳合同。
+
+划分建议以数据职责为准：Mod表达当局谱面、判定、计分、辅助与挑战条件；游戏设置保存玩家操作、读谱、显示偏好及记忆策略；皮肤声明美术、排版、可支持的展示和作品默认。Mod也可被长期记忆；改变视觉的挑战亦可能属于Mod，不能只按是否改变分数倍率划分。多个页面或Start快捷操作可控制同一状态，不能因此复制持久化源。
+
+| 当前内容与实际落点 | 建议职责与保持项 |
+| --- | --- |
+| ASCR/ANOT的自动演奏、Visible/Hidden与Tint均在Mod的SettingSource | 自动演奏和辅助可见性仍按既定成绩条件区分；Tint开关/颜色适合独立的玩家显示偏好，默认true和旧保存值保持。皮肤提供AUTO图，读取真实辅助角色，不决定辅助是否生效 |
+| SUD/HID的值、透明度及Remember、LIFT的值和Remember位于Mod；Hi-Speed在规则集配置 | 读谱几何与Hi-Speed/目标可见时间须由同一个游戏侧状态和完整记忆策略管理。皮肤只绘制真实边界/白绿字与图案。是否保留Mod快捷入口属于产品取舍；现有Mod类型和旧记录读取不得直接删除 |
+| Graph主目标、SUB目标及FAST/SLOW开关/频道等选项跟随皮肤保存 | 目标选择及反馈内容适合作为按玩法保存的玩家偏好；Graph外框/条图、FAST/SLOW字形与A/B/C实际位置继续归作品。皮肤未声明展示能力时明确边界，不能制造假目标或自动新增通用浮窗 |
+| 判定美术/高度、音符亮度、特效尺寸、P1/P2和转盘表现等位于皮肤配置 | 保留作品原坐标、适用键数和支持布局。公共“显示什么”与皮肤局部“画在哪里/多大”分开；跨皮肤默认与每皮肤校准的覆盖关系须明确，不直接全局套用原图像素或原版标尺 |
+| Judge/Gauge家族、Gauge类型、CN/HCN、Mirror/Random等位于Mod | 继续保留当局规则和成绩身份；可以整理为规则预设/分组入口，选IIDX/BPL框体不能暗中切换Judge或Gauge。血条美术只消费真实type/threshold/state |
+| Hi-Speed、自动键音、BGA开关、输入与音频偏移属于游戏设置 | 不随皮肤重置。BGA窗口/外框与键区美术归作品；音频偏移、显示偏移和判定文字高度不可混为一个“判定调整” |
+
+Omni32项的评估分组为20项保留皮肤、7项玩家偏好候选、5项先拆语义与适配。20项涵盖11类美术、note/charge尺寸、HCN着色、爆炸尺寸/光柱长度、开场三开关和柱底亮度，保留实际原素材/局部校准。7项为`graph-visible / graph-target / graph-sub-target / pacemaker-percent / judge-panel-visible / arrival-cue / lift-readout`，候选保存范围是规则集默认及可选键数覆盖，不能声称已经迁移。5项为`layout / timing-display / judgement-display / judgement-position / lane-objects-brightness`，需先定义公共语义与作品适配的边界。
+
+三个具体混合点已有消费者证据：`lighting_timing_display.py`将开关、合并/键皿分离频道和A/B/C原布局位置合为一项；`lighting_combo_states.py`的`judgement-display=off`仅关判定标签/COMBO，不关独立FAST/SLOW；`lighting_judgement_position.py`的-2..10是作品标尺，不能直接当跨皮肤像素。32项没有独立“判定大小”，爆炸尺寸不能代称它。`lighting_start_options.py:8`现标签确为“轨道物件亮度”，绑定范围包括音符、长条、光柱、爆炸、判定及小节线，FAST/SLOW沿同亮度投影；这是现有宽范围语义，不是已经叫成“音符亮度”的文案错误，迁移为窄范围值前须明确取舍。`layout`应映射皮肤支持的展示角色，而不是把作者p1/p2 ID无条件套用到另一包。
+
+当前保存范围确有差异：`BmsModStatePersistence`保存选中acronym及各Mod的APIMod设置；Player先DeepClone出当局Mods，挡板通过`rememberGameplayAdjustment()`有条件回写原选中Mod。`RulesetConfigCache`目前按ruleset缓存、配置默认variant=0，不能把尚未实现的按键数读谱配置说成当前能力。`SkinOptionPreferences`按skinId/ruleset/keycount保存，键数层覆盖模式默认；`SkinOptionsSettings`和布局准备冻结下次游玩/预览的配置。因此现在换皮肤会换Graph/反馈偏好，游戏内速度调整却立即修改游戏配置，单纯挪控件不能统一这些生命周期。
+
+另发现一条需要运行回归的具体保存风险：`DrawableBmsRuleset.cs`的311–314行把Hi-Speed双向绑定共享配置；`AdjustFromScratch()`的1306–1314行先调runtime挡板，再把Floating补偿写入该配置；`rememberGameplayAdjustment()`的1485–1494行在Remember=false时拒绝回写选中Mod。于是同一操作可能保留新Hi-Speed而在新局恢复旧挡板，目标可见时间不再成对恢复。例：相同BPM/几何下Floating2.50、SUD250且Remember=false，80个relative counts折为20单位，挡板局内变270而选中值仍250，补偿Hi-Speed约2.43被保存；下一局组合不再是原来的配方。数值是现行公式的推导，不是本次运行测量。SUD+HID记忆开关不一致也有部分几何/完整速度组合风险，不能只给SUD单项打补丁；应先明确成组记忆语义，再补新局/重启/混合开关/模式切换回归。
+
+两个边界需保持：BMS Hidden是下遮挡，mania Hidden是随combo变化的淡出挑战，mania Cover/Constant Speed也各有原生Mod语义，不能跨玩法按同名批量迁移。Floating当前基准时长仍取mostCommon/initial anchor，当前BPM参与实时读数和转盘重锚；不能因旧提示不完整就声称已自动随当前BPM恒定绿字。`GimmickScrollMode`是BMS渲染算法选择，不是皮肤动画，也不能仅因“视觉”字样与mania Constant Speed归为同一设置。
+
+建议实施顺序为先闭合读谱联动保存，再分离纯显示偏好，最后整理入口和作品局部配置。迁移须保留玩家显式值、旧Mod/回放读取及原成绩，区分恢复玩家偏好与恢复作者样式。当前PB投影的已知忽略字段从现行SettingSource元数据构造，移走Tint声明时必须显式保留历史字段的查询处理，否则旧Tint会变成未知字段而重新拆分PB；不得改写历史ModsJson。是否完全移除SUD/HID/LIFT的Mod入口、合并三个Remember开关、按键数保存读谱配方、回放采用历史Tint还是当前偏好、公共偏好如何覆盖皮肤默认尚属待判决设计，不在本次评估中执行。

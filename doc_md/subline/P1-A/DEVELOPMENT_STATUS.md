@@ -45,7 +45,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 当前风险与未完成项
 
-- Omni的PB/门槛/HAZARD修正及私下交付完成，证据取[修正记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)。原机精确时序、跨BPM、HCN教学来源与未解包素材不外推；正常窗口、完整歌曲及设备门沿[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)，隔离结果不代签。
+- Omni修正及私下交付完成；另查出Floating与挡板“记住调整”的联动保存风险，尚未运行复现。现状与待判决建议取[职责分离评估](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod游戏设置与皮肤职责分离评估)。原机时序、跨BPM、HCN及未解包素材不外推；正常窗口、完整歌曲与设备门沿[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。
 
 - 原生媒体完整从零重编与剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，正常窗口/设备和发行门保持。清理后的测试/作者工具与临时取景宿主须按[开发约束](../../../AGENTS.md#开发磁盘约束)重建；原日志/TRX保留为历史证据。
 
