@@ -535,7 +535,7 @@ FAST/SLOW读取真实HitEvent：只统计最大判定为Perfect且结果为基�
 
 三项 `judgement.*timing-direction` 是单次输入提示，与累计FAST/SLOW及500ms的判定文字显示期分别保存。当前OMS资格为BMS真实按下/抬起（含原始回放输入）、非Autoplay、结果为Great/Good/Ok/Meh、偏差绝对值至少0.000001ms；Perfect、自动完成、body tick和超时Miss不生成或覆盖提示。Combined按交付次序更新，Keys和Scratch独立保留；SpecialKey归Keys。没有合格输入时为none，后续非合格判定保留原提示；重试、跳转、倒带清空，重挂与背压恢复最新完整状态。只读取节点的精确material group，Global不借用第一组；不能直接驱动数字时钟，也不新增脚本权限。此为明确的OMS显示策略，原机全等级资格、覆盖及保留规则尚未整体复核，不能把它写成IIDX完全等价。
 
-`score.personal-best`只在选中场景实际消费最佳分数、比例或available来源时，于游玩后台加载一次。条件严格匹配当前本地玩家ID、谱面ID与hash、玩法及完整Mod设置；只选未删除、未失败、当前计分版本且具有效统计的本地成绩，BMS还校验其当前规则版本和结果统计。没有成绩或查询条件不可用时available为false，0不是已查得的最佳成绩。它不查询线上排行榜，不把其它玩家或不同Mod的成绩作为目标；作者不能在游玩中发起数据库查询。比例使用当前理论满分，满分不可用时为0。
+`score.personal-best`只在选中场景实际消费最佳分数、比例或available来源时，于游玩后台加载一次。条件匹配当前本地玩家ID、谱面ID与hash、玩法及可比较的Mod设置；只选未删除、未失败、当前计分版本且具有效统计的本地成绩，BMS还校验其当前规则版本和结果统计。BMS比较忽略Sudden、Hidden、Lift的选用、位置、挡板透明度与记忆偏好，以及Auto Scratch/Auto Note的叠加着色开关和颜色；辅助Mod本身及其Hidden/Visible仍须匹配。Judge/Gauge、LN/CN/HCN、Random/Mirror等玩法条件继续区分，Random seed仍保留。已知Mod的显式默认设置与省略默认等价；未知Mod、未知设置和值保持严格比较，Sudden/Hidden/Lift若带未知设置仍保留其身份与未知字段。其它玩法保持完整Mod设置精确匹配。此规则只影响查询比较，不修改保存的Mod、回放或传分。没有成绩或查询条件不可用时available为false，0不是已查得的最佳成绩。它不查询线上排行榜，不把其它玩家或不兼容玩法条件的成绩作为目标；作者不能在游玩中发起数据库查询。比例使用当前理论满分，满分不可用时为0。
 
 `score.rank-aaa/aa/a`只在BMS EX SCORE及正的理论满分可用时提供，分别为理论满分的8/9、7/9、6/9向上取整；比例来自这些实际整数阈值。mania不按该刻度造等级，available为false。上述来源只用于声明式绑定或数值clock，不增加可选脚本的输入名、权限或玩法写入能力。
 

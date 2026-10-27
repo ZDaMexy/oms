@@ -13,7 +13,7 @@
 
 以[提示、目标与素材审计](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)、[游玩Start复核](../../other/OMNI_GAMEPLAY_CONTROLS_20261025.md)及[先前设置复核](../../other/OMNI_START_OPTIONS_20261024.md)为输入，在用户正常VS Code窗口重编/重启后导入STATUS所列最新包，复核Start长按/双击、模式切换、上下挡板/LIFT白绿字、甩盘、主/SUB目标及FAST/SLOW合并/分开、A/B/C/OFF；已有亮度、判定高度/显示和开场/持续组件继续观察。原版FAST/SLOW等级资格、PG覆盖/寿命及B/C实际坐标尚需新证据；NEXT整数边界是明示OMS策略，不冒称原机实测。单一BPM的20档截图不闭合跨BPM映射，完整soflan、dan/binding flip、Ghost/NEXT+/rotate和原十键精度仍不外推。模式/键数显式值保持或逐层恢复，交付按`.vyymmddxx.osk`逐日递增且不覆盖。软件/隔离Player不代签前台性能、原机或设备；保持Reset、epoch单调及真人PG早晚。
 
-1. 按[交叉评估](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27omni与bmsmod交叉评估)处理真实Clear门槛与HAZARD视觉映射，依据实际计分影响评估PB比较中的外观/记忆参数；不忽略所有Mod合并成绩。继续用[素材工具](../../../tools/IidxSkinAssets/README.md)追踪实际引用和派生；HCN若有正常游玩缺失再取证，不从教学素材推定API，BSS/CN2/MSS不凭名称接入，未解包IFS不计已分类。
+1. 按[Mod修正记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)在正常窗口复核旧PB、50/60/75/80%门槛、HAZARD与原保存Tint；保持实际玩法条件的成绩隔离。继续用[素材工具](../../../tools/IidxSkinAssets/README.md)追踪真实引用/派生；HCN若有正常游玩缺失再取证，不从教学素材推定API，BSS/CN2/MSS不凭名称接入，未解包IFS不计已分类。
 2. 26来源待用户下载并提供路径，届时先核游玩SP/DP框体、几何、动画及默认绑定，再按26→1逐代向前。版本标识不能代替整代来源，不要求预先下载全套；27～33及BPL已有结果从STATUS读取，不重复登记为待开发。
 3. 已核源结构及已接入组件只取STATUS。进一步原版校准须取得可实际操作的CUSTOM入口、同步游戏/渲染时钟与命中原点；新原机demo已证PGREAT内部blue/green/pink完整配对，现有截图接口仍无法确定精确周期与起相，当前100ms分相明确为OMS作者适配。lane345双循环来源已核，原机parent-loop仍待可靠运行证据。继续保留Hazard、中心平移、判定锚点、数字/视频布局、长条脉冲/松手色及完整FC资格的原机缺口；31背景底693px与红线/键灯716/728px的关系、32纵缩亦不能凭单个源占位升为运行事实。各代截图不互相代签；来源不足按“版本 / 组件 / 已查来源 / 缺口”登记。
 4. 选曲、结算等页面随后按实际页面逐步实现，并保留原界面选项、共用谱库和成绩。新增表现能力须与首个真实作者组件或页面一起交付和验证，不先铺无消费者的接口或导入整个 IIDX 运行时。

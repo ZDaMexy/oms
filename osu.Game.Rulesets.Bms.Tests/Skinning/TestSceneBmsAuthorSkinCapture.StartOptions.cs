@@ -74,6 +74,20 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     mods.Add(gaugeMod);
             }
 
+            if (Environment.GetEnvironmentVariable(capture_setting_prefix + "GAUGE_RULES") is string gaugeRules)
+            {
+                Mod? rulesMod = gaugeRules switch
+                {
+                    "legacy" => null,
+                    "beatoraja" => new BmsModGaugeRulesBeatoraja(),
+                    "lr2" => new BmsModGaugeRulesLr2(),
+                    "iidx" => new BmsModGaugeRulesIidx(),
+                    _ => throw new InvalidOperationException("The author capture gauge rules must be legacy, beatoraja, lr2 or iidx."),
+                };
+                if (rulesMod != null)
+                    mods.Add(rulesMod);
+            }
+
             var config = (BmsRulesetConfigManager)Game.Dependencies.Get<IRulesetConfigCache>().GetConfigFor(new BmsRuleset())!;
             if (Environment.GetEnvironmentVariable(capture_setting_prefix + "HISPEED_MODE") is string speedMode)
             {
@@ -161,11 +175,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             Assert.That(metrics.LiftUnits, Is.EqualTo(renderer.Playfield.LiftUnits.Value));
             var gauge = (BmsGaugeProcessor)player.GameplayState.HealthProcessor;
             Assert.That(gauge.GaugeType, Is.EqualTo(actualMods.OfType<BmsModGauge>().SingleOrDefault()?.GaugeType ?? BmsGaugeType.Normal));
+            Assert.That(gauge.GaugeRulesFamily, Is.EqualTo(actualMods.OfType<BmsModGaugeRules>().SingleOrDefault()?.GaugeRulesFamily ?? BmsGaugeRulesFamily.Legacy));
             File.WriteAllText(Path.Combine(outputDirectory, "start-options.json"), JsonSerializer.Serialize(new
             {
                 purpose = "actual-OMS-Player-configuration-not-original-menu-equivalence",
                 requested = new[] { "COVER", "COVER_VALUE", "COVER_OPACITY", "HIDDEN", "HIDDEN_VALUE", "HIDDEN_OPACITY", "LIFT", "LIFT_VALUE",
-                    "HISPEED_MODE", "HISPEED_VALUE", "GAUGE" }.Where(name => Environment.GetEnvironmentVariable(capture_setting_prefix + name) != null)
+                    "HISPEED_MODE", "HISPEED_VALUE", "GAUGE", "GAUGE_RULES" }.Where(name => Environment.GetEnvironmentVariable(capture_setting_prefix + name) != null)
                     .ToDictionary(name => name, name => Environment.GetEnvironmentVariable(capture_setting_prefix + name)),
                 mods = actualMods.Select(mod => new { type = mod.GetType().Name, mod.Acronym }).ToArray(),
                 covers = nativeCovers.Select(cover => new

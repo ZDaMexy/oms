@@ -112,3 +112,19 @@ BMS零连击改为单独居中判定；普通mania的零数规则保持。label-
 判定显示OFF只关文字/COMBO，独立FAST/SLOW仍由自己的选项控制；透明挡板不等于禁用SUD/HID。这些是入口含义与依赖提示问题，不能冒称Mod覆盖故障。GAS真实类型变更会持续发布，问题在作者缺少相应图形分支/门槛表达，不是规则状态被冻结。
 
 本次定向复跑全部通过：PB加载22项，ASCR/挡板透明度/LIFT显示11项，Gauge/GAS65项；与同基线当前Release产物一致，命令、TRX、探针源快照及日志留在`artifacts/omni-mod-assessment-20261027`。98项结果只证明所述原生链路和现行语义，未代签42布局HAZARD或非80%门槛的修复；上述三项仍未实施。
+
+## 2026-10-27Mod问题修正与用户判决
+
+修正接续干净且已fetch一致的`master@52b0fe5bb67486522116d076b4b0c28db17e57cf`，独立证据位于`E:\oms-omni-mod-solutions-20261027-r1`。用户分别选择：PB/NEXT不按Sudden/Hidden/Lift有无、位置或透明度分开；ASCR/ANOT保留默认叠加着色和原保存值并说明关闭后使用皮肤原色；旧框体保留原图，以明确HAZARD/生存状态标识区分，不借用33蓝条。上节为修正前评估，不将其“未修复”状态当作新候选事实。
+
+BMS新增规则集拥有的本地PB比较副本：剥离SUD/HID/LIFT已知显示/记忆字段，只有没有未知设置时才去除该Mod空壳；ASCR/ANOT只忽略Tint开关及颜色。辅助有无、辅助可见性、Judge/Gauge、CN/HCN、MR/RD与seed及未知数据保持严格区别，已声明默认值才与省略值等价，不解析文本猜数值。真实默认元数据只捕获一次并冻结，逐条候选不新建全部Mod或反射。Core仅接收可选规则集回调，无BMS acronym；无回调仍完整匹配，回调违约不静默换回另一策略。原玩家/谱面/玩法身份、版本、规则统计、失败/删除及有效成绩门保持，原ModsJson/APIMods、回放和传分不改。真实Realm回归实际保存BmsScoreProcessor结果，核旧记录、PB/NEXT同源、未知拒绝及关闭Realm后的reset/晚挂载，不手填假成绩。
+
+原代HAZARD来源检查另确认共用`playm_gauge_event2`与Hard/ExHard同几何，但已查AFP/GEO没有足够关联证明其HAZARD语义，且不是33 HAZARD的同像素别名；它没有被采用。冻结新作者为`omni-full-v36-gauge-state-r1`：45布局按真实门槛画细线，P2只反向线坐标，CLEAR/NOT CLEAR文字仍正向；Hard/ExHard/Hazard不画0%线，HAZARD / SURVIVAL读取实时type。原图的80%配色保留为美术，真实资格由新线/状态表达。新子树只对BMS显示，没有新配置/bitmap字体，mania保持原表现。
+
+为守原预算，仅压缩没有引用的Frame program/case/keyframe身份，避开所有其它模块的声明ID；节点、resource/font/material/INI身份保持。另46个不被C4/INI引用的私有媒体路径采用完整SHA核对的短别名。3505份旧PNG、41份INI、1511份非Frame scene与root scene逐字节保全；45个Frame移除新增子树并反向映射后完整恢复原JSON，1285选值、539预览及其bytes保持。独立证明为`artifacts/omni-mod-config-audit-20261027/gauge-state-r1-preservation.json`。新OSK331581856字节、SHA256 `f1251bdaa01e7d0ffa63ebb0790ded170d21e58afbe0a0405bf79675dd29195a`；父包仍为上节6599e157摘要。闭包7071文件/344991393字节，配置15079936字节；选中上界manifest65051/65536、scene523741/524288、12字体，配置仍32项/13模块。
+
+初次夹具使用了不存在的Host.RuntimeNodes属性，改为既有lightingNodes读取后重编；最初Core focused只发现旧22项，因Desktop.slnf不含Core测试工程，显式编译后实际43项全部通过，并再次编译BMS/mania消费者，避免Core helper新签名与旧引用混用。原生r1先因漏启CAPTURE_COLUMN导致原RGB合同拒绝，修正运行参数后r2六组BMS实际Player全部通过；这些是夹具/执行配置错误，旧失败日志保留，不作为玩法或作者修复证据。
+
+最终生产源码完整Core非视觉Skinning1455通过/3跳过、BMS3104通过/19跳过、mania995通过/2跳过，Desktop Debug/Release与当前作者CLI构建通过，最终formatter verify无改动。新PB focused为43项真实Realm/原链路及25项领域比较，Python Gauge工具6项通过；数字不与旧修正轮次相加。命令、TRX和构建身份取本轮`tests/`，最新原生程序集封存为`current-binaries-v36-r2.json`。
+
+同一f1251bda最终包八组实际Player通过：`native-iidx33-aeasy60-p1-r2`、`native-iidx27-normal75-p2-r2`、`native-iidx28-aeasy50-p1-r2`、`native-iidx27-hazard-p2-r2`、`native-bpl-hazard-dp-r2`、`native-iidx33-normal80-dp-r2`及`native-mania-7k-r1 / 16k-r1`。六组BMS各五个自然时钟样本核实际规则、门槛、坐标、正向文字及clear-state，HAZARD标识实时读取type且不画0%线；另两组mania复核隔离。全部40张PNG与30份Gauge严格读数回执保留，汇总为`native-summary-r1.json`；取景明确使用隔离正常Player和真实Autoplay结果，无生命/分数注入或seek，不代签用户正常窗口、真实歌曲或实体设备。

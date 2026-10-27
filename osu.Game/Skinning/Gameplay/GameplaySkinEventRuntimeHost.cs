@@ -114,7 +114,8 @@ namespace osu.Game.Skinning.Gameplay
             Func<double>? scrollSpeed = null,
             IEnumerable<GameplaySkinLaneArrival>? arrivals = null,
             bool usesExScore = false, Func<GameplaySkinOffsetStateSnapshot>? appliedOffset = null, BeatmapInfo? scoreBeatmap = null,
-            Func<ScoreInfo, bool>? validSavedScore = null, IGameplaySkinArrivalVisibilityProjection? arrivalVisibility = null)
+            Func<ScoreInfo, bool>? validSavedScore = null, IGameplaySkinArrivalVisibilityProjection? arrivalVisibility = null,
+            Func<IReadOnlyList<APIMod>, IReadOnlyList<APIMod>>? personalBestModProjection = null)
         {
             Publication = publication ?? throw new ArgumentNullException(nameof(publication));
             ArgumentNullException.ThrowIfNull(beatmap);
@@ -126,6 +127,7 @@ namespace osu.Game.Skinning.Gameplay
             this.appliedOffset = appliedOffset;
             this.scoreBeatmap = scoreBeatmap ?? beatmap.BeatmapInfo;
             this.validSavedScore = validSavedScore;
+            this.personalBestModProjection = personalBestModProjection;
             this.arrivalVisibility = arrivalVisibility;
             chartPresentation = new GameplaySkinChartPresentation(arrivals ?? Array.Empty<GameplaySkinLaneArrival>(), usesExScore,
                 arrivalCueAvailable: arrivalVisibility != null);

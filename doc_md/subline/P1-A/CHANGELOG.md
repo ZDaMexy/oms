@@ -1,5 +1,11 @@
 # P1-A 变动日志
 
+## 2026-10-27Omni与Mod问题修正
+
+按用户判决，本地PB/NEXT查询忽略SUD/HID/LIFT有无及已知显示/记忆差异，ASCR/ANOT仅忽略Tint偏好，实际玩法条件、未知字段和值类型仍区分。BMS提供查询副本投影，非BMS保持完整匹配；原成绩、ModsJson/APIMods、回放和传分不改，原身份/版本/统计/失败门不变。Tint默认及保存值保持，只明确“叠加着色／关闭使用皮肤原色”。
+
+Omni保留原代血条图，新增真实Clear门槛线与CLEAR/NOT CLEAR，P2只镜像线；HAZARD按实时type显示生存标识、不画0%线，不借33蓝条或未经证实的EVENT2。45个Frame通过可逆无引用身份压缩及SHA校核私有短路径守预算，其它图像、INI、1511个非Frame scene、1285选值与539预览保全。当前v36-r1候选完整Core1455/3跳过、BMS3104/19跳过、mania995/2跳过、Debug/Release及8组同包实际Player通过；最终完整作者CLI与版本化交付待收口。准确范围、初次夹具/执行错误及收据只在[修正记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)维护，较早v35结果保留原身份，不混作新包验证。
+
 ## 2026-10-27Omni与BMSMod交叉评估
 
 核对v26102700最终包32项配置和BMS23个Mod，1557份scene/41份INI及45个Frame/layout收据确认非33框体HAZARD回落普通图、固定80%血条分界未消费真实Clear门槛；真实Mod/APIMod探针另确认SUD/HID透明度、ASCR/ANOT着色和LIFT记忆偏好会改变PB/NEXT的完整Mod匹配条件。原生遮挡/抬升、长条与判定机制、随机排列和皮肤美术分工未见抢写，Tint乘法及判定OFF不关闭独立FAST/SLOW另作入口含义记录。

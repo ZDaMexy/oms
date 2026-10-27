@@ -35,9 +35,9 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-10-27素材候选闭合增量：BMS完整3079通过/19跳过、mania完整995通过/2跳过、Core非视觉Skinning完整1434通过/3跳过；Desktop Debug/Release与作者CLI构建通过，Python工具98项及最终format verify通过。最终v35-r3同包九组正常Player覆盖AUTO SCRATCH三组、COMBO P1/P2 label-only/DP三组，以及P2 PB-only、DP NEXT备用、mania16三组；完整作者CLI通过13612组代表组合，7070份ZIP/作者字节核对通过，旧美术、INI与539图保全。
+2026-10-27Mod修正候选：BMS完整3104通过/19跳过、mania995通过/2跳过、Core非视觉Skinning1455通过/3跳过；Desktop Debug/Release、作者CLI构建与最终format verify通过。PB focused43+25及Gauge Python6项通过，v36-r1同包六组BMS门槛/HAZARD与两组mania实际Player通过；7071份ZIP与父包闭包保全已核，最终完整作者CLI和新版交付待收口。
 
-本轮准确身份、中间失败及原版/OMS边界取[候选闭合记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27素材候选闭合与游玩增量)。取景显式模拟宿主活跃及软件输入；COMBO采用自然时钟停帧，不写分数或seek，合成谱不证明PB持久化，PB匹配另有真实Realm生产链测试。10月26日提示/NEXT六组、旧Start十二组及更早设置/LIFT/持续组件结果保留原日期，不计为本轮同包结果。
+准确身份、判决及失败修正取[Mod修正记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)。原生取景用隔离Player及真实Autoplay结果，无生命/分数注入或seek；PB另有实际Realm旧记录回归。v35素材增量及更早FAST/SLOW、Start、设置/LIFT结果保留原日期，不计为新包验证。
 
 五条已解释ImageSharp旧索引警告不抑制，版本与正规许可取[原记录](CHANGELOG.md#2026-10-22客户端依赖安全修复接入)。正常工作区、图库前台FPS/长期内存、原机精确时序和原生最终配方从零重编未由软件或隔离结果代签；媒体剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)。
 
@@ -45,7 +45,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 当前风险与未完成项
 
-- Omni交叉评估确认PB/NEXT被纯外观Mod参数分组、普通血条固定80%分界、非33框体缺HAZARD映射，尚未修复，见[交叉评估](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27omni与bmsmod交叉评估)。原机精确时序、跨BPM、HCN教学来源与未解包素材不外推；正常窗口、完整歌曲及设备门沿[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)，隔离结果不代签。
+- Omni的PB/门槛/HAZARD修正已具完整回归及同包实景，最终作者CLI与新版本交付待收口，见[修正记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)。原机精确时序、跨BPM、HCN教学来源与未解包素材不外推；正常窗口、完整歌曲及设备门沿[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)，隔离结果不代签。
 
 - 原生媒体完整从零重编与剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，正常窗口/设备和发行门保持。清理后的测试/作者工具与临时取景宿主须按[开发约束](../../../AGENTS.md#开发磁盘约束)重建；原日志/TRX保留为历史证据。
 

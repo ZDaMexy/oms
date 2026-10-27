@@ -263,7 +263,8 @@ namespace osu.Game.Rulesets.Bms.UI
                     appliedOffset: () => new GameplaySkinOffsetStateSnapshot(true, Playfield.VisualOffset.Value, Playfield.AutomaticVisualOffsetEnabled.Value),
                     scoreBeatmap: working?.Value.BeatmapInfo ?? Beatmap.BeatmapInfo,
                     validSavedScore: score => score.GetRulesetData<BmsScoreInfoData>() is { Version: BmsScoreInfoData.TOTAL_RULES_VERSION, HasResultStatistics: true },
-                    arrivalVisibility: this);
+                    arrivalVisibility: this,
+                    personalBestModProjection: BmsPersonalBestModComparison.Normalize);
                 dependencies.Cache(GameplaySkinEventRuntime);
                 dependencies.Cache(GameplaySkinEventRuntime.EventStream);
 

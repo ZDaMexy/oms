@@ -54,7 +54,7 @@ publication与late attach见 [[reference_skin_atomic_reload_detach]]；capabilit
 ## 完整 HUD 的公开信息与真实显示
 
 - BMS池只在drawable初次构造时应用drawable Mod，当时HitObject仍可能是未辅助的占位。AUTO SCRATCH/AUTO NOTE若此时按`AutoPlay/CountsForScore/IsScratch`早退，就会丢掉Hidden/Tint设置；应保存各角色配置，在真实OnApply/复用时选择当前角色，离开辅助角色时清除旧Alpha/Colour。实际主视觉`BmsAsyncNoteDrawable`并非`SkinnableDrawable`；断言要落在真实宿主。Alpha=0的异步子树无需完成素材加载，隐藏测试保留真实物件/宿主及Alpha断言，不能用不可见子树加载超时判为产品失败。稳定角色合同取[P1-A](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)，不在记忆登记当前验收状态。
-- Graph的PB/NEXT突然无数据不一定是Realm或图形故障：当前PB匹配比较完整APIMod设置，透明度、Tint甚至RememberGameplayChanges也会改变签名，皮肤配置则不进入该签名。诊断时先比较真实Mod序列化；不能为恢复PB直接忽略全部Mod，必须保留实际计分/判定资格。设计问题与证据取[交叉评估](../../doc_md/other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27omni与bmsmod交叉评估)，本条不建立新的比较合同。
+- PB/NEXT的本地查询比较不能直接等同于回放/传分的原始Mod签名。BMS已按用户选择对查询副本剥离指定外观/记忆差异，原ModsJson/APIMods保持；未知设置及实际玩法条件继续strict，Core没有规则集投影时仍完整比较。诊断时检查规则集是否注入实际投影和当前Core测试程序集，不能靠忽略全部Mod或改历史记录恢复PB。闭合范围取[合同](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)，原故障取[评估](../../doc_md/other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27omni与bmsmod交叉评估)。
 - 停表取景不能把`LastGameplayTime`当当前轨道时间：它仅是最后一条离散envelope时间，轨道使用consumer timing high-water；判定起点、采样时间、当前clock与epoch须分别核对。原生`ScoreProcessor.HitEvents`还包含小节线的`IgnoreHit`，跨小节的同一次PG可能总事件增加而分数/Combo不变；计分稳定断言只统计真正`CountsForScore`且非IgnoreHit的物件，保留全事件诊断，不通过放宽轨道/字体数量掩盖断言来源。
 
 - FAST/SLOW观察的是玩家输入时机，不是判定等级。BMS Autoplay在下一次Update应用MaxResult时可留下整帧正偏移；仅过滤1ns浮点残差不能消除假SLOW。加载时冻结完整ModAutoplay标记，自动局的方向计数为0，保留原HitEvent.TimeOffset/成绩；真人PG的正负方向照常统计。真实测试用非整数BPM与多个自然命中，整数节拍恰好对齐回放帧会掩盖该问题。结果页退出须走实际Player合同，不能在ShowResults=false组合下仍要求PerformExit跳到菜单。

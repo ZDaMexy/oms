@@ -484,6 +484,19 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         private async Task saveCapture(string filename)
         {
             recordRgbEvidence(filename);
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo? gaugeFailure = null;
+            if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_GAUGE_STATE") == "1")
+            {
+                try
+                {
+                    recordGaugeStateEvidence(filename);
+                }
+                catch (Exception exception)
+                {
+                    // Keep the real framebuffer for diagnosis, then fail with the original assertion stack.
+                    gaugeFailure = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(exception);
+                }
+            }
             if (Environment.GetEnvironmentVariable("OMS_AUTHOR_SKIN_CAPTURE_LIGHTING_DETAILS") == "1")
                 File.WriteAllText(Path.Combine(outputDirectory, filename + ".timing.json"), System.Text.Json.JsonSerializer.Serialize(new
                 {
@@ -501,6 +514,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             if (pixels == null || pixels.Width < 640 || pixels.Height < 360)
                 throw new InvalidOperationException("Desktop capture did not return a usable framebuffer.");
             await pixels.SaveAsPngAsync(Path.Combine(outputDirectory, filename)).ConfigureAwait(false);
+            gaugeFailure?.Throw();
         }
 
         private void recordBeamLayer(bool verify)

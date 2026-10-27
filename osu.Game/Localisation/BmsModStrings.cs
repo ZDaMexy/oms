@@ -34,24 +34,24 @@ namespace osu.Game.Localisation
         public static LocalisableString NoteVisibilityDescription => new TranslatableString(getKey(@"note_visibility_description"), @"Controls whether auto-noted notes remain visible on the playfield.");
 
         /// <summary>
-        /// "Tint notes"
+        /// "Additional note tint"
         /// </summary>
-        public static LocalisableString TintNotes => new TranslatableString(getKey(@"tint_notes"), @"Tint notes");
+        public static LocalisableString TintNotes => new TranslatableString(getKey(@"tint_notes"), @"Additional note tint");
 
         /// <summary>
-        /// "Tint auto-noted notes to make the assist state obvious during play."
+        /// "Apply an additional tint to the skin's note colours to identify Auto Note. Turn this off to use the skin's original colours."
         /// </summary>
-        public static LocalisableString TintNotesDescription => new TranslatableString(getKey(@"tint_notes_description"), @"Tint auto-noted notes to make the assist state obvious during play.");
+        public static LocalisableString TintNotesDescription => new TranslatableString(getKey(@"tint_notes_description"), @"Apply an additional tint to the skin's note colours to identify Auto Note. Turn this off to use the skin's original colours.");
 
         /// <summary>
-        /// "Note tint colour"
+        /// "Additional tint colour"
         /// </summary>
-        public static LocalisableString NoteTintColour => new TranslatableString(getKey(@"note_tint_colour"), @"Note tint colour");
+        public static LocalisableString NoteTintColour => new TranslatableString(getKey(@"note_tint_colour"), @"Additional tint colour");
 
         /// <summary>
-        /// "The tint applied to auto-noted notes when tinting is enabled."
+        /// "The additional tint applied over the skin's original colours when enabled."
         /// </summary>
-        public static LocalisableString NoteTintColourDescription => new TranslatableString(getKey(@"note_tint_colour_description"), @"The tint applied to auto-noted notes when tinting is enabled.");
+        public static LocalisableString NoteTintColourDescription => new TranslatableString(getKey(@"note_tint_colour_description"), @"The additional tint applied over the skin's original colours when enabled.");
 
         /// <summary>
         /// "Scratch visibility"
@@ -64,24 +64,24 @@ namespace osu.Game.Localisation
         public static LocalisableString ScratchVisibilityDescription => new TranslatableString(getKey(@"scratch_visibility_description"), @"Controls whether auto-scratched notes remain visible on the playfield.");
 
         /// <summary>
-        /// "Tint scratch notes"
+        /// "Additional scratch tint"
         /// </summary>
-        public static LocalisableString TintScratchNotes => new TranslatableString(getKey(@"tint_scratch_notes"), @"Tint scratch notes");
+        public static LocalisableString TintScratchNotes => new TranslatableString(getKey(@"tint_scratch_notes"), @"Additional scratch tint");
 
         /// <summary>
-        /// "Tint auto-scratched notes to make the assist state obvious during play."
+        /// "Apply an additional tint to the skin's scratch colours to identify Auto Scratch. Turn this off to use the skin's original colours."
         /// </summary>
-        public static LocalisableString TintScratchNotesDescription => new TranslatableString(getKey(@"tint_scratch_notes_description"), @"Tint auto-scratched notes to make the assist state obvious during play.");
+        public static LocalisableString TintScratchNotesDescription => new TranslatableString(getKey(@"tint_scratch_notes_description"), @"Apply an additional tint to the skin's scratch colours to identify Auto Scratch. Turn this off to use the skin's original colours.");
 
         /// <summary>
-        /// "Scratch tint colour"
+        /// "Additional tint colour"
         /// </summary>
-        public static LocalisableString ScratchTintColour => new TranslatableString(getKey(@"scratch_tint_colour"), @"Scratch tint colour");
+        public static LocalisableString ScratchTintColour => new TranslatableString(getKey(@"scratch_tint_colour"), @"Additional tint colour");
 
         /// <summary>
-        /// "The tint applied to auto-scratched notes when tinting is enabled."
+        /// "The additional tint applied over the skin's original colours when enabled."
         /// </summary>
-        public static LocalisableString ScratchTintColourDescription => new TranslatableString(getKey(@"scratch_tint_colour_description"), @"The tint applied to auto-scratched notes when tinting is enabled.");
+        public static LocalisableString ScratchTintColourDescription => new TranslatableString(getKey(@"scratch_tint_colour_description"), @"The additional tint applied over the skin's original colours when enabled.");
 
         /// <summary>
         /// "Visible"

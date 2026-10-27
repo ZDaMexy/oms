@@ -61,6 +61,8 @@ Start设置迁移分两步：`build_lighting_start_options.py`消费实际菜单
 
 `build_lighting_combo_states.py --source ... --output ... --library ... --parent-sha256 ...`接续冻结父作者，为21种Judgement接入原blue/white/pink label及对应blue/green/red COMBO字形；yellow继续沿原GREAT规则。蓝→绿→粉各100ms是明确OMS作者节奏，使用真实group的`judgement.hit`起点，不冒称原机精确相位。BMS零连击与两玩法label-only均使用单独居中label，普通mania零数保持。共用模板依据真实`layout.presentation`选择受限y坐标；新增`combo.active`只读真实score。选中字体上限12，其余预算保持；Frame独占且未被INI引用的PNG可缩短路径，每次完整SHA256检查占位碰撞，保留原图字节、Frame场景、全部INI及539预览。生成失败保留诊断，不覆盖父作者或旧OSK；最终仍须当前CLI及实际Player验证。
 
+`build_lighting_gauge_state.py --source ... --output ... --library ... --parent-sha256 ...`在新作者的45个Frame布局读取真实BMS Clear门槛和状态；P2补偿标线方向，survival不画0%线，HAZARD使用明确的生存标识。原图与原有模式分支保留，不据EVENT2文件名认领本代HAZARD，也不借33蓝条；新增子树对mania关闭。`lighting_gauge_state.py`只压缩已证明无任何引用的program/case/keyframe身份，并避开全包其它模块的所有ID；节点/resource/font/material/INI身份保持。私有媒体短别名排除全部C4/INI引用，完整SHA校核占位碰撞。反向身份映射并移除新增子树后必须完整恢复原Frame JSON；旧媒体、非Frame场景、选值和539预览逐字节保全。无新配置、bitmap字体或预算放宽；生成/离线证明仍需当前CLI及真实Player验收。
+
 ```powershell
 . .\UseDevelopmentStorage.ps1
 python -B tools/IidxSkinAssets/audit_lighting_asset_usage.py --author 'Y:\FrozenAuthor' --library 'Y:\OriginalCustomLibrary' --fullcombo 'Y:\FullComboLibrary\v3' --localized 'Y:\LocalizedLibrary' --output 'Y:\FreshUsageAudit'

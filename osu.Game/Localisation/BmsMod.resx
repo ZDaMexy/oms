@@ -7,16 +7,16 @@
   <data name="auto_note_description" xml:space="preserve"><value>Automatically handles non-scratch notes and removes them from scoring and gauge.</value></data>
   <data name="note_visibility" xml:space="preserve"><value>Note visibility</value></data>
   <data name="note_visibility_description" xml:space="preserve"><value>Controls whether auto-noted notes remain visible on the playfield.</value></data>
-  <data name="tint_notes" xml:space="preserve"><value>Tint notes</value></data>
-  <data name="tint_notes_description" xml:space="preserve"><value>Tint auto-noted notes to make the assist state obvious during play.</value></data>
-  <data name="note_tint_colour" xml:space="preserve"><value>Note tint colour</value></data>
-  <data name="note_tint_colour_description" xml:space="preserve"><value>The tint applied to auto-noted notes when tinting is enabled.</value></data>
+  <data name="tint_notes" xml:space="preserve"><value>Additional note tint</value></data>
+  <data name="tint_notes_description" xml:space="preserve"><value>Apply an additional tint to the skin's note colours to identify Auto Note. Turn this off to use the skin's original colours.</value></data>
+  <data name="note_tint_colour" xml:space="preserve"><value>Additional tint colour</value></data>
+  <data name="note_tint_colour_description" xml:space="preserve"><value>The additional tint applied over the skin's original colours when enabled.</value></data>
   <data name="scratch_visibility" xml:space="preserve"><value>Scratch visibility</value></data>
   <data name="scratch_visibility_description" xml:space="preserve"><value>Controls whether auto-scratched notes remain visible on the playfield.</value></data>
-  <data name="tint_scratch_notes" xml:space="preserve"><value>Tint scratch notes</value></data>
-  <data name="tint_scratch_notes_description" xml:space="preserve"><value>Tint auto-scratched notes to make the assist state obvious during play.</value></data>
-  <data name="scratch_tint_colour" xml:space="preserve"><value>Scratch tint colour</value></data>
-  <data name="scratch_tint_colour_description" xml:space="preserve"><value>The tint applied to auto-scratched notes when tinting is enabled.</value></data>
+  <data name="tint_scratch_notes" xml:space="preserve"><value>Additional scratch tint</value></data>
+  <data name="tint_scratch_notes_description" xml:space="preserve"><value>Apply an additional tint to the skin's scratch colours to identify Auto Scratch. Turn this off to use the skin's original colours.</value></data>
+  <data name="scratch_tint_colour" xml:space="preserve"><value>Additional tint colour</value></data>
+  <data name="scratch_tint_colour_description" xml:space="preserve"><value>The additional tint applied over the skin's original colours when enabled.</value></data>
   <data name="auto_scratch_visibility_visible" xml:space="preserve"><value>Visible</value></data>
   <data name="auto_scratch_visibility_hidden" xml:space="preserve"><value>Hidden</value></data>
   <data name="charge_note_description" xml:space="preserve"><value>Uses charge-note long note timing.</value></data>

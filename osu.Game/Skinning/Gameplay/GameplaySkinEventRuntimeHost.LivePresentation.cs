@@ -20,6 +20,7 @@ namespace osu.Game.Skinning.Gameplay
         private Func<GameplaySkinOffsetStateSnapshot>? appliedOffset;
         private BeatmapInfo? scoreBeatmap;
         private Func<ScoreInfo, bool>? validSavedScore;
+        private readonly Func<IReadOnlyList<APIMod>, IReadOnlyList<APIMod>>? personalBestModProjection;
         private int countedHitEvents;
         private int fastCount;
         private int slowCount;
@@ -73,7 +74,7 @@ namespace osu.Game.Skinning.Gameplay
             string beatmapHash = scoreBeatmap.Hash;
             string rulesetName = scoreProcessor.Ruleset.ShortName;
             int userId = api.LocalUser.Value.Id;
-            JArray mods = new JArray(scoreProcessor.Mods.Value.Select(mod => new APIMod(mod)).OrderBy(mod => mod.Acronym).Select(mod => JObject.FromObject(mod)));
+            JArray mods = personalBestMods(scoreProcessor.Mods.Value.Select(mod => new APIMod(mod)).ToArray());
 
             // This is a once-per-gameplay background load. Only detached numeric information crosses into the
             // event stream; neither a Realm model nor a query is retained by the renderer.
@@ -84,10 +85,13 @@ namespace osu.Game.Skinning.Gameplay
                                                           && score.TotalScoreVersion == LegacyScoreEncoder.LATEST_VERSION
                                                           && score.TotalScore >= 0 && score.Rank != ScoreRank.F && score.MaximumStatistics.Count > 0
                                                           && (validSavedScore?.Invoke(score) ?? true)
-                                                          && JToken.DeepEquals(mods, new JArray(score.APIMods.OrderBy(mod => mod.Acronym).Select(mod => JObject.FromObject(mod)))))
+                                                          && JToken.DeepEquals(mods, personalBestMods(score.APIMods)))
                                           .Select(score => (long?)score.TotalScore).Max());
             chartPresentation = new GameplaySkinChartPresentation(chartPresentation.Arrivals, chartPresentation.UsesExScore, best, chartPresentation.ArrivalCueAvailable);
         }
+
+        private JArray personalBestMods(IReadOnlyList<APIMod> mods)
+            => new JArray((personalBestModProjection is null ? mods : personalBestModProjection(mods)).OrderBy(mod => mod.Acronym).Select(mod => JObject.FromObject(mod)));
 
         internal static bool RequiresPersonalBest(GameplaySkinPreparedSceneProgram program)
             => program.UsesBindingSource(GameplaySkinSceneBindingSource.ScorePersonalBest)

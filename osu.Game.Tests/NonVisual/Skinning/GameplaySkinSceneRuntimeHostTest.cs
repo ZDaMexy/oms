@@ -220,9 +220,10 @@ namespace osu.Game.Tests.NonVisual.Skinning
             }).Publication;
         }
 
-        internal static GameplaySkinLayoutPublication CreateEssentialInformationPublication(Texture texture, bool authorScene, string? presentation = null, string? bindingSource = null, bool ellipsis = false, string? trackClock = null)
+        internal static GameplaySkinLayoutPublication CreateEssentialInformationPublication(Texture texture, bool authorScene, string? presentation = null, string? bindingSource = null, bool ellipsis = false, string? trackClock = null,
+                                                                                           string rulesetId = "mania")
         {
-            LayoutFixture layout = createLayout();
+            LayoutFixture layout = createLayout(rulesetId);
             GameplaySkinResolvedMaterialTarget global = GameplaySkinResolvedMaterialTarget.Global;
             GameplaySkinResolvedMaterialSet materials = materialSetFor(layout.Snapshot, new[]
             {
@@ -273,7 +274,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
             Assert.That(decoded.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid), string.Join(", ", decoded.Diagnostics.Select(d => d.Code)));
             GameplaySkinSceneDocument document = decoded.Value!;
             GameplaySkinSceneNode root = document.Root;
-            GameplaySkinLayoutRect rect = layout.Snapshot.GetSurface("mania.hud").Rect;
+            GameplaySkinLayoutRect rect = layout.Snapshot.GetSurface($"{rulesetId}.hud").Rect;
             var owner = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.TextHud, global);
             var scene = new GameplaySkinPreparedScene(layout.Snapshot, materials, "essential-public-fields", manifest, document,
                 Array.Empty<GameplaySkinPreparedSceneResource>(), new[]
