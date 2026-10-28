@@ -1,5 +1,17 @@
 # P1-A 变动日志
 
+## 2026-10-29Header29软件门与27双侧残字修复准备
+
+此前r21的公开Python13/413及r22作者身份保持；本次封存CLI实际检查13612种代表组合并打包v47-r2，6654份CRC及作者逐字节等通过。独立诊断ZIP与正式ZIP的全部6654份内容亦逐项相等，但归档SHA不同，诊断用例不能改标为正式包运行。证据只取私有`assets/omni-v47-archive-proof-r2.json`与`omni-v47-formal-diagnostic-equivalence-r1.json`；原入场邻层/完整时序未由稳态原图代签。
+
+R43先通过29个实际原图布局；Root另逐布局目视held代表图，并看27 P1 released，共30图。追加BEGINNER1与INSANE14两组通过；empty-r1在真实decoder旁车保留null后，被私有校验错误期望0拒绝，未产出游玩图。R44仅将该一行改成nullable null，机械字节逆转完全等于R43；其它私有源、10份owner程序集、非host依赖及其它准备字段相同，编译/准备均0。旧失败及原冻结保留，empty-r2和余三组由R44完成。混合身份collector固定两份完整冻结与delta，不依赖后来被替换的共享receipt；最终35诊断组70帧、Root36图通过。另用确切正式包独立运行27 P1、31 P2、Tradz DP及27 P2 INSANE14四组8帧，Root全看，未把诊断29布局说成全正式。实际汇总为`native-header29-diagnostic-collected-r2.json`与`native-header29-formal-collected-r2.json`。
+
+新增的独立私有mania宿主保留真实Mode3/CircleSize7原.osu文件、ManiaFolderImporter、普通working decoder与实际Mania ReplayPlayer/7列，使用规则集Generated Autoplay自然进入普通OMS Results；未恢复已取消的皮肤页面。R45实际Rebuild/prepare与host/process均0；84物件、实际计分/统计及2张游玩/1张普通结算图通过，Root三图全看。原始decoder为正常的Game.Beatmap，不能改造为BmsBeatmap或为了名称好看替换metadata。public22源/10程序集仍同r39，源后核与29份私有源/编译封存已留存；软件证据不签真人输入、设备或Omni Results页。汇总`native-mania-gameplay-v47formal-verified-r45.json`。此前02的118帧与独立DP长文字2帧、r28 BMS195/0及3303/19、r29后置构建仍取[原记录](#2026-10-28classic11局内选择与原图面板准备)，不列成本轮重跑。
+
+Root在27 P1/P2实际画面确认Graph边缘分别露出另一侧静态MAXCOMBO残字。父版已存在，Header节点逆转及原背景字节证明不是新标识回归；但不因此记成画面完成。当前候选暂不交付，最新成品仍02，先完成双侧单活动成绩适配。P1精确排除原draw21/22，P2独立核原draw19/20，均保留活动侧和原Column分层；原机单人/Graph隐藏规则仍未证明。P1实际四项私有合成测试及源重画通过，完整RGBA基线相等，3088像素变化全部位于两原标签的实际支持域；Root已看新源图，尚非作者/native接入。P2新源入口已准备未执行。实际生命周期每侧均有7个背景叶子，须合并两份共享有效INI各6条每侧声明，并同步fbd的无扩展名material路径、C5资源path及实际catalog引用；两份轨道/开道br不含成绩标签，无须重录。旧PNG由DP/旧INI的真实闭包保留，不新增闲置resource。27曲名/作者解码非空、当前作者明确跳过；本库尚无合格原位置，不补猜。七BPL DP宽度已对v47取得新父资格，只拟改14个width；双侧背景接入后须再次rebase，不能挪用旧父许可。
+
+另按三份固定清单，仅回收29个已退出诊断副本的12673份重复程序依赖；自身host、归档、谱面、数据、截图/日志/作者和case目录均保留，当前reader/mania prepared及CLI封存保留。清理回执在`native-header29-completed-batch1/2/3-reclaimed-r1.json`各自实文件；不以回收空间代替产品门。两页取消、现有命名、私下分享及持续goal边界保持。
+
 ## 2026-10-28其它FrameHeader原图准备
 
 以已交付02及45ce03b6为基线，将29布局的原difficulty/Lv/number升级器加入公开工具：27三布局、28 DP、31/32两侧与七BPL三布局；27 BEGINNER保持真实文本，13未资格布局不变。原PNG/几何/源实例及完整父identity来自外部私有qualification，不把原图/hash清单放入公开仓；每个选中布局新增7节点、2绑定、7变体和512字符fallback预留，仍守原预算、不加字体，不能称零成本或原入场效果已还原。

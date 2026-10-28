@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-28（Classic11原图与33 DP避让已私下交付02；完整形态继续）
+> 最后核对：2026-10-29（Header29软件门通过；候选待合并27双侧残字修复，交付仍02）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -13,7 +13,7 @@ Omni最新私下交付`.v26102802`，源码f6997e96需重编/重启后导入；�
 
 02已接Classic十一档原图与33 DP原锚点避让；354px省略/现字体为OMS适配，原数学及存档/Replay范围不变。r1重叠候选拒交，证据保留。两页取消、保留OMS原界面；PageAPI保留，未来仅新可靠路线再评，取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
 
-33 Header原图、空/未知fallback及EASY避让已交付；其它Frame候选已按独立来源生成，正式整包/实际画面待验。
+33 Header原图、空/未知fallback及EASY避让已交付；其它Frame的29布局原Header已通过来源、整包及软件画面门。候选暂不交付，先合并27双侧无活动成绩标签的残字修复；原机入场时序未签。
 
 ## 当前产品能力与剩余门
 
@@ -39,7 +39,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-10-28：Header29 Python13/413、作者r22及27 P1两帧过，根看2图，整包/其余布局待验；02正式CLI13612代表组合、6619文件CRC/作者字节通过；同包五组Classic96帧加往返/真实OSR22帧共118通过，另DP长文字2帧通过，根仅目视7+2图。私有R35→R37仅修往返取景门/普通Loader鼠标路径，其余源/依赖及public19源/10程序集字节相同；两次旧失败保留。沿r28 BMS195/0、3303/19及后置说明r29构建0；Python400（含DP8）不重计。r6/r7无新增原机DP/FHS资格，不签原数学/字体/设备。取[本次日志](CHANGELOG.md#2026-10-28classic11局内选择与原图面板准备)，01的86帧保留[原身份](CHANGELOG.md#2026-10-28gameplay33header原图与歌曲literal变体)。
+2026-10-29：Header29正式CLI13612代表组合、6654份CRC/作者字节通过；诊断35组70帧根看36图，另正式包4组8帧全部目视，两包逐文件字节相等，不冒称29布局全跑正式包。真实raw mania7导入/decoder、84物件、7列及Generated Autoplay自然进入普通OMS Results通过，2游玩+1结算图全目视；不签真人/设备或Omni两页。私有R44仅纠正遗漏DIFFICULTY的null期望，31组旧R43身份保留；public22源/10程序集仍同r39。Python13/413与02的118+2帧、r28/r29工程门沿[各自原身份](CHANGELOG.md#2026-10-29header29软件门与27双侧残字修复准备)，不重计；原数学/时序、字体和设备仍未签。
 
 2026-10-27旧包三组正常Player、39张实景覆盖P1双挡板/Lift、P2 Hidden与DP Lift，沿[读谱实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)；隔离软件操作无生命/分数注入或seek。[旧作者/美术保全](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)不计为新包验收。
 
