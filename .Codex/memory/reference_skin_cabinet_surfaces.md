@@ -112,3 +112,7 @@ Headless的每例存储与失败收尾统一见[测试宿主地雷](reference_bu
 Classic数字整条可用既有`original_sprite`直接画`tx_num1_4`；`gc.font`重拼即使字值相同也不等于源像素。Classic专用cursor是150×70，Normal是130×70，不能因角色相近共用。标签PNG正确不证明GEO正确：Classic NOTES TIME与绿字须沿各侧/DP原anchor，已正确的底板/竖排标签无需重做；输入/存档合同取[P1-A](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代)。
 
 私有来源receipt未提供`size`时，先核其真实schema及独立PNG/GEO来源，不把读取器假设失败说成源图坏；修读取器后仍须保留源hash、真实尺寸、nearest和路径边界，不能退成文件名存在检查。当前原图和验证证据只回链[P1-A日志](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-28classic11局内选择与原图面板准备)，不在memory复制进度或源图摘要表。
+
+原机`usr_l_music`/artist的重复占位字矩形不证明真实字体、长文字裁剪或缩放；DP2P占位甚至能出屏。只按已核AFP锚点落位，宿主fit策略另取真实DP图；同名机身texture可左右各画一次，须按left export的layer_path定位边界。style33特判也须覆盖DP，不能让原锚点被SP写死矩形绕过。视觉回归应按SongTitle/SongArtist真实绑定抓quad，对实际可见label/GN/面板核相交，结构CLI与原图字节相等不能代签无重叠。
+
+原生PlayerLoader尚不进入游玩时先区分LoadTask/ownership与ReadyForGameplay。后台Ready、已解码和无scope拒绝不等于已允许push；加载页的hover/idle/focus条件仍有效。隔离夹具按正常鼠标路径离开预览pane，再用原predicate等待；不得写ready/idle/clock或仅加timeout宣称修好。

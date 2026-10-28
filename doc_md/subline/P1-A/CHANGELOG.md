@@ -10,7 +10,15 @@ r28的format、BMS Release、Desktop Release/Debug和SkinAuthoring Release全部
 
 Python r13 Classic10/combined392通过，保留原PNG哈希/尺寸/nearest验证。真实作者r12曾因读取器假设私有receipt有size而失败，修正读取实际schema，未放松源图验证；r14真实生成exit0。新`authors/omni-full-v46-classic-original-r1`为6619物理文件/6617 runtime文件，新增2张原PNG；父作者、非Classic、539预览和15 Frame保全。全payload身份和逐文件证据只取`assets/v46-classic-original-r1`，r12失败与r13/r14原日志保留，不把作者生成当作OSK、正式CLI或原生验收。
 
-正式CLI `author-v46-pack-r1`运行中，尚无新正式OSK或交付；私有诊断ZIP只供夹具运行，不能替代正式整包。新五case预期96帧，尚未游玩；r29私有夹具因新partial遗漏`osu.Framework.Allocation`产生编译错误，原日志保留，补一行using后r30 rebuild/prepare均0，旧14方法与HeaderArt保持。私有源码保全和准备身份取`assets/native-classic11-fixture-source-r1/r2`及prepared receipt。原版r5的190/Classic/FHS补采进行中，不由本轮推导公式或签offgrid模式返回；r4已资格130 BPM十一档仍沿原历史。最新实际交付仍`.v26102801`，软件/隔离宿主不代签实体输入、原时序、发行或完全体；两页继续取消，gameplay goal保持active。
+正式CLI `author-v46-pack-r1`已exit0，13612种代表组合、6619份CRC/作者字节通过；该结构包仍因下述实际DP视觉缺陷被拒交，私有诊断ZIP也不作为交付。源码已提交/推送`fb45d3c1`，旧版01保留。
+
+诊断P1-r1真实键盘链、23 live/23真实OSR自然Replay共46帧通过；根看1.00/4.00两图。DP-r1在PlayerLoader原10s内未进入游玩；r31只读观测的DP-r2仍失败，确认解码18物件、LoadTask完成、scope bms14无拒绝、ownership移交已完，卡点为原`ReadyForGameplay=false`。r32只为新Classic场景增加普通鼠标移开加载页pane，再由原predicate/10s判定；DP-r3真实23帧及自然计分通过，不改游戏或时钟。私有r29缺Allocation using的编译失败、r30修复、r31/r32构建准备与前本均保留；旧14方法、HeaderArt及public source不动。原始ReadingFrame结构保持。
+
+根目视DP-r3一张2.50图发现曲名/作者与Classic label/GN/面板重叠。离线按真实SongTitle/SongArtist绑定复核该23帧，共48处矩形相交；r33新增实际旁车遮挡回归已编译准备、未跑新包。`assets/v46-r1-visual-rejection.json`绑定被拒archive，明确不交付。静态取证确认公开build_skin对style33误给DP套SP居中矩形；原DP title/artist锚点为(15,56)/(15,83)，但540px是重复占位字而非真实文字clip/fit权威。左柜x384须按实际left export layer锁定，不能取同名texture首个右柜x926。原锚点修正、新child作者及真实DP长文字资格正在准备，未计完成；证据只取私有`dp-song-information-audit-r1/analysis-r2.json`、`classic11-header-text-audit-r1`和原图。
+
+原版r5在独立E guest取得Chewingood!!! NORMAL4/190完整20档开场/Tips读数；N1为GN1200/HS0.62，N20为260/2.84。CLASSIC OFF、Display OFF、Camera TYPE OFF、Judge+1.90；白值不可读留null，1920×1080的field ROI上沿裁切，不能拿726px拟合完整轨高/K。20档逐项由子代理读图、根仅看N20，175张原图收据通过；与r3/r4独立，不重写旧原记录。Classic190/FHS三点/上下限和第二guest均未发生。正式normalexit0、全controller关闭/按键0、D/E元数据与关键hash保全；运行XML自行回写使旧退出SHAguard拒绝，初始manifest保留，经PID/Eexe/config/port/session身份及语义核对后正常exit，无kill/来源guard降级。收口在`assets/r5-normal190-qualified-r1`，不推导公式或签原运动。r6仅准备/补DP header资格，未以准备计采集。
+
+当前仍未新交付，后续新正式包、六组预期118帧及代表图只在实际通过后登记；软件/隔离宿主不代签实体输入、原时序、发行或完全体。两页继续取消，gameplay goal保持active。
 
 ## 2026-10-28Gameplay33Header原图与歌曲literal变体
 

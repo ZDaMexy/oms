@@ -11,7 +11,7 @@
 
 Omni最新私下交付`.v26102801`，源码40b6ddb4需重编/重启后导入；旧00保留。原版/设备及完整形态未签，边界取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。
 
-01仍为legacy Classic面板；当前局内/READY十一档代码及v46原strip/cursor/labelGEO作者源已实施，整包/原生/交付待验，既有数学与存档/Replay范围不变。两页仍取消、保留OMS原界面；原素材可读但列表/层级/PlaceCamera无可验拟真闭环，PageAPI保留，仅新可靠路线再评，取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
+01仍为legacy Classic面板；十一档代码/原图候选已实施，r1整包通过但DP曲名/作者与绿字重叠，明确不交付，修原锚点后再验同包。既有数学与存档/Replay范围不变。两页仍取消、保留OMS原界面；PageAPI保留，仅新可靠路线再评，取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
 
 33 Header已交付：七组86自动帧通过，主代理仅看7代表图，实际Texture/GEO、空/未知fallback及EASY避让已验；不签逐86图或实体设备。其它Frame/DP仍仅提案。
 
@@ -39,7 +39,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-10-28：Classic r28聚焦195/0、完整3303/19（通过/跳过）及构建均exit0；其后仅改说明，r29 format、BMS Release及Desktop Release/Debug均0，已测逻辑/测试SHA一致。Python r13 Classic10/combined392、r14作者生成通过；私有宿主r30编译/准备0，尚未游玩。正式CLI运行中，未签新正式包/Native或交付，取[Classic日志](CHANGELOG.md#2026-10-28classic11局内选择与原图面板准备)。01的r25/26与86帧保留[原身份](CHANGELOG.md#2026-10-28gameplay33header原图与歌曲literal变体)。
+2026-10-28：Classic r28聚焦195/0、完整3303/19及构建均0；后置说明r29构建0、已测逻辑/测试SHA一致。Python r13为10/392通过，r14作者生成；r1正式CLI13612、6619份CRC/作者字节通过。诊断P1共46帧、DP-r3共23帧自动通过，根仅看3图，发现DP重叠后拒交r1。修复/最终同包门未过，取[Classic日志](CHANGELOG.md#2026-10-28classic11局内选择与原图面板准备)；01的86帧保留[原身份](CHANGELOG.md#2026-10-28gameplay33header原图与歌曲literal变体)。
 
 2026-10-27旧包三组正常Player、39张实景覆盖P1双挡板/Lift、P2 Hidden与DP Lift，沿[读谱实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)；隔离软件操作无生命/分数注入或seek。[旧作者/美术保全](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)不计为新包验收。
 
@@ -49,7 +49,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 当前风险与未完成项
 
-- 读谱联动保存与GC后同步已修，其余偏好/作品配置未迁移，边界取[职责评估](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod游戏设置与皮肤职责分离评估)。原版NORMAL：130BPM全20档已资格；190BPM仅1～18稳定、19淡出可读、20黑无值；不据此推出公式或完整FHS等价。原机时序、HCN、未解包素材及设备门沿[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。
+- 读谱联动保存与GC后同步已修，其余偏好边界取[职责评估](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod游戏设置与皮肤职责分离评估)。原版NORMAL的130与新r5独立190样本均有20档，后者仅开场/Tips静态读数；裁切ROI/不可读白值不用于拟合K，Classic190/FHS细表未采。不据此推出公式或运动等价。原机时序、HCN、未解包素材及设备门沿[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。
 
 - 原生媒体从零重编与剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，正常窗口/设备和发行门保持。测试、作者工具与取景宿主须匹配当前构建，沿[开发约束](../../../AGENTS.md#开发磁盘约束)；旧日志/TRX只作历史证据。
 
