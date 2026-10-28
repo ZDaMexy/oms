@@ -20,6 +20,12 @@ Python r13 Classic10/combined392通过，保留原PNG哈希/尺寸/nearest验证
 
 当前仍未新交付，后续新正式包、六组预期118帧及代表图只在实际通过后登记；软件/隔离宿主不代签实体输入、原时序、发行或完全体。两页继续取消，gameplay goal保持active。
 
+DP修正随后实际接入：公开`build_skin.py`仅33/gmframe33/DP分支共用新`build_lighting_dp_song_information.py`的几何函数，SP、其它代/BPL保持；只改实际两消费者x/y/w/h/left alignment，原字号/绑定/owner/512字符预留保持。原锚点(15,56)/(15,83)、高26/19.199707来自AFP/GEO；在384左柜中以原15px边距取354px bounded ellipsis，宽度与现字体仍为明确OMS适配。`python-dp-song-information-r15`8通过、combined400通过；真实r16生成新sibling v46-r2，6619物理/6617 runtime，只变原路径DP scene及两report，6616其余文件字节相同，typed仅五属性逆转相等，预算不增。来源/10程序集在r34实采，BMS/C5代码与此前门保持。`author-v46-pack-r2`正在封存CLI中重验，未签新包/原生/交付。
+
+修正r2诊断`native-reading-v46diag2-classic11-dp-r1`在r33新Title/Artist真实绑定遮挡回归下，23帧/实际host与process均0，根另看一张2.50图确认两行在左框、无绿字/面板相交；仍是诊断ZIP，不能代签待出的正式r2 archive或未跑P2/完整118帧。原版r6本轮取得102份原图收据但始终SP，17代表图审看后合格DP gameplay为0，相关文字/geometry全部null。NORMAL4、关初心folder、换曲、API3/副屏touch均未构成DP成功；收到额外credit单点假说时已正常exit，未执行也未定因。官方exit0、按键全0、D元数据与D/E关键hash保全，原运行XML语义等价；证据在私有`assets/r6-dp-header-attempt-r1`。不能拿SP或准备脚本替代原机DP长文字资格。
+
+GN原g数字另作只读审查：10对白/g共4400像素的alpha相同，非透明编码RGB乘现色并8bit量化后差异0；严格hidden RGB、未量化浮点、任意opacity/父色并未证明等价。固定框架的SRGB顶点/RGBA8纹理/直接乘色链不支持假定线性化来报gamma bug；g图不在现gc.font中消费。原g直接integer font需额外10资源和1字体，字体12→13超当前12合同；无实证证明当前稳定可见色错误，保持实现，不扩限。报告仅在私有green-digit-source-audit-r1，不把未证明的Framebuffer全等升级成结论。
+
 ## 2026-10-28Gameplay33Header原图与歌曲literal变体
 
 以已交付`.v26102800`及`71ea283b`为基线，仅为gameplay 33 Header开放既有`song.difficulty/song.level`的精确Ordinal literal resource/visible变体。key复用SongInformation的256 UTF-16单元上限，空字段与无来源分开；不trim、改大小写、Unicode归一化或解析`01/1`，未匹配/无来源取default。非法类型、重复或超长拒绝，不开放numeric/geometry/clock；其它歌曲文字源、来源enum、C6 callback、计分/Replay和Hi-Speed数学保持。作者合同只取[REFERENCE](../../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)。

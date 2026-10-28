@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-28（Classic11代码/原图作者源已实施待整包，最新交付仍.v26102801）
+> 最后核对：2026-10-28（Classic候选r1因DP重叠拒交，原锚点修正r2待验；交付仍01）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -11,7 +11,7 @@
 
 Omni最新私下交付`.v26102801`，源码40b6ddb4需重编/重启后导入；旧00保留。原版/设备及完整形态未签，边界取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。
 
-01仍为legacy Classic面板；十一档代码/原图候选已实施，r1整包通过但DP曲名/作者与绿字重叠，明确不交付，修原锚点后再验同包。既有数学与存档/Replay范围不变。两页仍取消、保留OMS原界面；PageAPI保留，仅新可靠路线再评，取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
+01仍为legacy Classic面板；r1结构包因DP曲名/作者重叠拒交。r2已按原锚点修正，宽度/字体仍明确OMS适配，待新整包/同包原生；数学及存档/Replay范围不变。两页仍取消、保留OMS原界面；PageAPI保留，仅新可靠路线再评，取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
 
 33 Header已交付：七组86自动帧通过，主代理仅看7代表图，实际Texture/GEO、空/未知fallback及EASY避让已验；不签逐86图或实体设备。其它Frame/DP仍仅提案。
 
@@ -39,7 +39,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-10-28：Classic r28聚焦195/0、完整3303/19及构建均0；后置说明r29构建0、已测逻辑/测试SHA一致。Python r13为10/392通过，r14作者生成；r1正式CLI13612、6619份CRC/作者字节通过。诊断P1共46帧、DP-r3共23帧自动通过，根仅看3图，发现DP重叠后拒交r1。修复/最终同包门未过，取[Classic日志](CHANGELOG.md#2026-10-28classic11局内选择与原图面板准备)；01的86帧保留[原身份](CHANGELOG.md#2026-10-28gameplay33header原图与歌曲literal变体)。
+2026-10-28：BMS r28聚焦195/0、完整3303/19、后置说明r29构建0，已测逻辑/测试SHA一致。r1 CLI13612/6619份字节通过，诊断P1 46帧/DP 23帧过但根看3图发现重叠而拒交。修正r2的Python8/combined400、作者r16及诊断DP23帧通过，根另看1图；正式CLI仍跑，最终同包未签。r6合格DP原图0，clip/字体不升级资格。取[日志](CHANGELOG.md#2026-10-28classic11局内选择与原图面板准备)；01的86帧保留[原身份](CHANGELOG.md#2026-10-28gameplay33header原图与歌曲literal变体)。
 
 2026-10-27旧包三组正常Player、39张实景覆盖P1双挡板/Lift、P2 Hidden与DP Lift，沿[读谱实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)；隔离软件操作无生命/分数注入或seek。[旧作者/美术保全](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)不计为新包验收。
 

@@ -310,6 +310,8 @@ __pycache__/
 !/tools/IidxSkinAssets/test_lighting_header.py
 !/tools/IidxSkinAssets/build_lighting_classic.py
 !/tools/IidxSkinAssets/test_lighting_classic.py
+!/tools/IidxSkinAssets/build_lighting_dp_song_information.py
+!/tools/IidxSkinAssets/test_lighting_dp_song_information.py
 /build/tools/**
 /build/temp/**
 

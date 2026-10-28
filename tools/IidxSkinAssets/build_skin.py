@@ -823,6 +823,10 @@ class Builder:
                     "node": f"{self.prefix}.{layout}.{suffix}", "sourceMovie": "center_frame_sp", "sourceBounds": original_bounds,
                     "dx": centre_dx, "appliedBounds": bounds})
             information_children.append(self.numeric(f"{self.prefix}.{layout}.{suffix}", source, font, size, bounds, fmt=fmt))
+        dp_song_placement = None
+        if self.style == 33 and self.frame_package == "gmframe33" and dp:
+            from build_lighting_dp_song_information import dp_song_geometry
+            dp_song_placement = dp_song_geometry(self.map)
         for suffix, source, y, size in [("title", "song.title", 43, 24), ("artist", "song.artist", 72, 18)]:
             if self.style == 27:
                 # The frame181 centre panel is SCORE/MAXCOMBO; it has no song-text hook.
@@ -830,7 +834,12 @@ class Builder:
             identifier = f"{self.prefix}.{layout}.{suffix}"
             properties = {"x": (610 + centre_dx) / WIDTH, "y": y / HEIGHT, "width": 700 / WIDTH,
                 "height": 28 / HEIGHT, "font-size": size * REFERENCE_FONT_SCALE, "text": "", "alignment": "centre", "text-overflow": "ellipsis", "colour": "#ffffffff"}
-            if self.style != 33:
+            if dp_song_placement is not None:
+                fields, receipt = dp_song_placement
+                properties.update({**geometry(fields[suffix]), "alignment": "left"})
+                self.calibration_receipts.append({"change": "33-source-dp-song-information-placement", "layout": layout,
+                    "node": identifier, "sourceBinding": suffix, "appliedBounds": fields[suffix], **receipt})
+            elif self.style != 33:
                 movie = "center_frame_dp_1p" if dp else "center_frame_sp"
                 source_bounds = self.source_bounds([movie], suffix)
                 bounds = shifted_bounds(source_bounds, centre_dx)

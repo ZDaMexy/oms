@@ -111,11 +111,11 @@ python -B -X utf8 tools/IidxSkinAssets/build_lighting_details.py --source 'Y:\Va
 
 ## 使用
 
-Omni的页面增量沿普通`skin-pages.json`作者路径，完整合同见[结算与选曲页](../../skin-authoring/docs/REFERENCE.md#可选结算与选曲页)。`build_lighting_package_compaction.py`生成独立可逆精简作者；`build_lighting_results_page.py`从已核主屏result库追加首个Results；`build_lighting_song_select.py`从主屏mselect库追加原生选曲外观。各工具只准备新的独立作者与来源证明，不运行公开CLI、原生游戏或覆盖旧作者；基础作品名保持。
+Omni当前SongSelect/Results扩展方案已取消，统一作者保留OMS原页面，不含两页样机。`build_lighting_results_page.py`、`build_lighting_song_select.py`及其来源只作历史保全，不作为当前重建步骤；通用PageAPI和普通可选页面闭包收集器保留，合同见[结算与选曲页](../../skin-authoring/docs/REFERENCE.md#可选结算与选曲页)。
 
-页面源使用已提取库的精确原PNG，不以截图或`*_usr`占位伪造元数据。Results使用真实score/cleared与原统计，选曲仅装饰真实原控件，保留共用谱库、操作与clear lamp；版式、静态层序及固定透明度为OMS适配，不代表原AFP动画已复刻。两页共同守32资源/32MiB/16M像素，且不改变gameplay选项或预算。
+`build_lighting_classic.py`将冻结的旧控制层升级为原Classic数字整条、专用cursor及NOTES TIME锚点；`build_lighting_dp_song_information.py`仅纠正冻结作者中33 DP的曲名/作者几何，并与普通`build_skin.py`的33 DP分支共用同一几何函数。两者必填完整父payload SHA；DP入口另需校正后的私有audit SHA、reference和library。只生成全新sibling与证据，不打包或验收。DP采用原(15,56)/(15,83)锚点，354px有界省略宽度及现字体明确为OMS适配，不能拿重复占位字540px当原机clip/fit。
 
-普通`build_omni_skin.py --repackage-directory`会枚举可选页面的全部声明资源，缺失、越界或非规范路径明确失败；该闭包收集器不另立页面语义，最终仍由公开C#作者CLI及普通importer校验。准备成功不代表最终OSK或界面验收，须对同包记录闭包摘要、真实Player/选曲操作、截图与失败身份。局部父包gate不能冒充新页面已验收，旧图/动画逐字节保全也不能代签当前原生画面。
+各次升级逐文件保全其它Frame、原图、配置及预览，并保存typed逆转；正式CLI和同包原生画面仍须独立通过。结构成功、原图字节相等或局部父包gate不能代签视觉。当前候选/交付与失败身份只取[P1-A状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 在 OMS 仓库根目录的新 PowerShell 中运行。Python 3.11 以上；依赖安装到本仓开发缓存，不安装进游戏目录或系统 Python。
 
