@@ -118,3 +118,5 @@ Classic数字整条可用既有`original_sprite`直接画`tx_num1_4`；`gc.font`
 同一个scroll.mode来源可同时控制三种整面板和NOTES TIME等子门，子门可能没有true case；面板取景须按实际同owner的三兄弟识别，不能对所有该来源variant直接Single(true)。保留三mode等价、实际alpha及Start可见性断言。
 
 原生PlayerLoader尚不进入游玩时先区分LoadTask/ownership与ReadyForGameplay。后台Ready、已解码和无scope拒绝不等于已允许push；加载页的hover/idle/focus条件仍有效。隔离夹具按正常鼠标路径离开预览pane，再用原predicate等待；不得写ready/idle/clock或仅加timeout宣称修好。
+
+PowerShell7读取私有API输入锁时，`ConvertFrom-Json`可自动把ISO deadline转成DateTime，CLI插值随后变成本地格式，令Python在API连接前拒绝。用`-DateKind String`保留原ISO字符串，不能重写锁或延期掩盖解析失败；实际失败与保全边界见[P1-A日志](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29原版游客导航r8窄门)。

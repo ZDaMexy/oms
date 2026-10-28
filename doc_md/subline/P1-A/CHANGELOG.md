@@ -1,5 +1,11 @@
 # P1-A 变动日志
 
+## 2026-10-29原版游客导航R8窄门
+
+Root实际Prepare生成新的D/E before基线后，仅启动独立E副本及21344 owned端点，无卡游客、单一控制器和新固定15分钟deadline。首个控制器因PowerShell7 JSON自动把ISO deadline转DateTime、CLI插值变成本地格式而在连接API前退出1；原失败保留，改用DateKind String读取同一锁与截止时间后实际运行，未改控制器源码或延长时间。17张实际截图Root全看：游客确认和两页ModeSelect引导后进入STANDARD/TUTORIAL，按该页printed VEFX+EFFECT跳过后仍有Welcome教学；一次150ms Start只到第二页“画面の見かた”，不能退出引导。按窄门立即停止新输入并正常关闭，不把过渡中的MusicSelect、重复超时游客页或ModeSelect临界超时归因当可靠路径。
+
+控制器及游戏实际退出0，official control.exit只发给PID/创建时间/固定exe/config/patch/port全匹配的本轮副本。D全metadata、D/E九份critical摘要、owned按钮归零及空卡保全通过，runtime XML脱敏semantic equal；原D未启动、无真实卡。实际汇总`reference-r8-narrow-guest-outcome-r1.json`，SHA `2793aa3678ef00633f4848ef2abfff8661a18874d69392682279f4ae50f7e95e`。未补成Classic190、Floating往返、DP或原公式/时序资格，r5 NORMAL20旧结果保持；后续须先取得实际可用路径，不重复本次无效跳过猜测。
+
 ## 2026-10-29Omni原Header与双侧修正交付
 
 正式`.v26102900`由fresh v49作者交付，331300955B/6658项，SHA256 `a9234c1eb46169e76e66c3ddee46314579c8ff4c3d6b9b2dcf14c226694cdb87`。最低运行时源码仍f6997e96，本次核验HEAD644b7f2b，public22源/10程序集同r39；未新增运行时代码或客户端发行副本。原Header29的来源与前轮35诊断/4正式组身份沿下节，不改标为本轮运行。保留旧成品/作者/原素材；独立私下分享、名称及逐日序号、两页取消与普通OMS页面保持，持续goal未完成。
