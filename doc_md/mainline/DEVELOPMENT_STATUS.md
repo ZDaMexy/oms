@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-28（正式v44整包/三组软件原生及r23 full通过；尚未交付）
+> 最后核对：2026-10-28（正式同包软件门与r23 full通过，已私下交付.v26102800）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -15,7 +15,7 @@ Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，具
 
 游玩判定/结果及性能取[10月19日深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)；设备入口、输入时间、轴用途、长皿与校准接续取[10月21日输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)。前台帧时间与实体设备仍待验收。
 
-Lighting Model Skin Omni Until 33默认33，27～33及八支BPL为Game Frame；正式v44完整CLI/归档、r23 Classic返回修复full及三组同包软件原生通过，尚未交付。两页取消，保留OMS原界面，v44剔除样机；gameplay继续，下一Header原图增量尚未实现。身份取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，动作沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。原HDD保全，PageAPI保持；作品私下分享、不内置或公开分发，原版/设备/发行门保持。
+Lighting Model Skin Omni Until 33默认33，27～33及八支BPL为Game Frame；正式v44完整CLI/归档、r23 Classic返回修复full及三组同包软件原生通过，已私下交付.v26102800。两页取消，保留OMS原界面，v44剔除样机；gameplay继续，下一Header原图增量尚未实现。身份取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，动作沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。原HDD保全，PageAPI保持；作品私下分享、不内置或公开分发，原版/设备/发行门保持。
 
 玩家直接登录固定OMSIR，保存后新局上传；新闻 / 帮助 / 排行 / 玩家沿原生页面。谱面列表先选模式：BMS 仅 Ginger Rush / 616，osu!mania 仅 Sayobot，恢复上次 BMS 来源；紧凑筛选、原生卡片和各来源阅读状态保持。正常OMS窗口的lazer体验仍待签收，隔离内容宽度检查不代签；源码 / 软件及剩余门取[P3-IR状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。社交后续，旧ppy关闭；Phase1.x原门保持。
 
@@ -51,7 +51,7 @@ Lighting Model Skin Omni Until 33默认33，27～33及八支BPL为Game Frame；�
 
 ## 最近一次验证
 
-2026-10-28：正式v44整包与r23运行时三组49帧自动断言、6代表图目视通过；r23构建/定向及BMS full通过，Core/mania未重跑。冻结SHA匹配、旧Release失败/诊断身份保留，无新交付。准确包与验证取[P1-A最近验证](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)及[日志](../subline/P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)；Classic板仍legacy，r4字面资格不升级公式/运动，设备与最终原生配方门保持。
+2026-10-28：正式v44整包与r23运行时三组49帧自动断言、6代表图目视通过；r23构建/定向及BMS full通过，Core/mania未重跑。冻结SHA匹配、旧Release失败/诊断身份保留；已交付.v26102800。准确包与验证取[P1-A最近验证](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)及[日志](../subline/P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)；Classic板仍legacy，r4字面资格不升级公式/运动，设备与最终原生配方门保持。
 
 2026-10-11转谱补算、Debug读取及旧失败对照保留原日期，范围与未验项取[P1-H](../subline/P1-H/DEVELOPMENT_STATUS.md#最近一次验证)。
 

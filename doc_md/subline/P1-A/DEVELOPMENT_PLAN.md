@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-28（正式v44软件门已过待交付；下一独立增量为gameplay 33 Header）
+> 最后核对：2026-10-28（.v26102800已私下交付；下一独立增量为gameplay 33 Header）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -13,7 +13,7 @@
 
 以[提示、目标与素材审计](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)、[游玩Start复核](../../other/OMNI_GAMEPLAY_CONTROLS_20261025.md)及[先前设置复核](../../other/OMNI_START_OPTIONS_20261024.md)为输入，在用户正常VS Code窗口重编/重启后导入STATUS所列最新包，复核Start长按/双击、模式切换、上下挡板/LIFT白绿字、甩盘、主/SUB目标及FAST/SLOW合并/分开、A/B/C/OFF；已有亮度、判定高度/显示和开场/持续组件继续观察。原版FAST/SLOW等级资格、PG覆盖/寿命及B/C实际坐标尚需新证据；NEXT整数边界是明示OMS策略。Normal跨BPM校准须沿[已资格读数](CHANGELOG.md#2026-10-28omni读谱版本兼容与候选验收)补190未稳定档及独立对照，不把近似nominal表或拟合K当作原公式。完整soflan、dan/binding flip、Ghost/NEXT+/rotate和原十键精度仍不外推。模式/键数显式值保持或逐层恢复，交付按`.vyymmddxx.osk`逐日递增且不覆盖。软件/隔离Player不代签前台性能、原机或设备；保持Reset、epoch单调及真人PG早晚。
 
-1. 私下交付已过软件门的v44；无新风险不重复验证，窗口/实体设备门保留。下一独立增量以原图/几何替换gameplay 33 Header白字：`playm_{beginner,normal,hyper,another,leggendaria}.png`、`txt_lv_dot`、`lvlnum1..12`；C5缺`song.difficulty/song.level`精确字符串variants，随真实消费者最小中立实现。BMS INSANE不猜成LEGGENDARIA，超12保留真值、不钳制。头图未接入，两页取消不恢复，身份取[日志](CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)。
+1. 以已交付.v26102800为基线，无新风险不重复验证，窗口/实体设备门保留。下一独立增量以原图/几何替换gameplay 33 Header白字：`playm_{beginner,normal,hyper,another,leggendaria}.png`、`txt_lv_dot`、`lvlnum1..12`；C5缺`song.difficulty/song.level`精确字符串variants，随真实消费者最小中立实现。BMS INSANE不猜成LEGGENDARIA，超12保留真值、不钳制。头图未接入，两页取消不恢复，身份取[日志](CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)。
 2. 26来源待用户下载并提供路径，届时先核游玩SP/DP框体、几何、动画及默认绑定，再按26→1逐代向前。版本标识不能代替整代来源，不要求预先下载全套；27～33及BPL已有结果从STATUS读取，不重复登记为待开发。
 3. 已核源结构及已接入组件只取STATUS。进一步原版校准须取得可实际操作的CUSTOM入口、同步游戏/渲染时钟与命中原点；新原机demo已证PGREAT内部blue/green/pink完整配对，现有截图接口仍无法确定精确周期与起相，当前100ms分相明确为OMS作者适配。lane345双循环来源已核，原机parent-loop仍待可靠运行证据。继续保留Hazard、中心平移、判定锚点、数字/视频布局、长条脉冲/松手色及完整FC资格的原机缺口；31背景底693px与红线/键灯716/728px的关系、32纵缩亦不能凭单个源占位升为运行事实。各代截图不互相代签；来源不足按“版本 / 组件 / 已查来源 / 缺口”登记。
 4. 通用PageAPI和内部数据/操作证据保留，不把它们当页面交付或用户认可。未来只有新的可靠拟真路线才重评Omni两页；当前方案取消不代表技术永久不可能，不影响gameplay持续goal，也不导入整个IIDX运行时。
