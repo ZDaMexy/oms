@@ -2,6 +2,12 @@
 
 > 本文件只记录 `P1-C` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-10-28自动偏移开关独立记录
+
+真实自动开关与既有数值VisualOffset轨迹分开记录，使用可选`visual_offset.automatic={initial,changes:[{time,enabled}]}`。live从实际开关/原生clock记边；Replay按记录恢复及seek/reset，旧无metadata与无来源GeneratedAutoplay保持unknown，不从numeric Changes猜开关或写个人配置。外部输入明确拒绝无初始值、非法状态、缺失/null time、非有限或非递增时间；旧numeric格式、wrapper/寿命和算法保持。只读C5的状态可用性与开关分开，由首个真实Omni作者消费，没有改读谱13字段、calculation version0、TOTAL/计分或IR。
+
+r19及补Auto.Time边界后的r20构建/focused、r21对应r20源BMS完整回归通过。HUD提示后续移至真实start，r22四项构建/Core再过，BMS计分源未改，不转记r21身份。诊断ZIP默认DP的AUTO knownOff/ms已实绘，新旧Replay仍跑；此ZIP非CLI验收或交付候选。计数/命令取[P1-A日志](../P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)，9月原style和10月旧证据不重计，设备、收敛/听感及外部播放器逐帧门保持。
+
 ## 2026-10-19跨轨撤销与结算一致性
 
 根Playfield沿实际应用顺序统一逆序撤销既有entry，修复BMS/mania跨列回退的health快照覆盖；未创建第二份判定/血量历史。全自动BMS按CountsForScore保留实际回血分母，AutoPlay只表示输入来源，ASCR/ANOT仍排除；LN/CN/HCN实际AT实况、重建和最终灯一致，TOTAL v7未变。

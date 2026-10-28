@@ -348,7 +348,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 new GameplaySkinLaneArrival(lanes[1].Identity.Group.Id, lanes[1].Identity.Id, swapFirstRow ? 10000 : 11000),
             };
             return new GameplaySkinEventStateSnapshot(initial.LifecycleState, initial.Inputs, initial.ActiveObjects, initial.CurrentJudgements,
-                new GameplaySkinScoreStateSnapshot(0, 0, 0, 1, 1, offsetState: new GameplaySkinOffsetStateSnapshot(true, offset, false)),
+                new GameplaySkinScoreStateSnapshot(0, 0, 0, 1, 1, offsetState: new GameplaySkinOffsetStateSnapshot(true, offset, false, true)),
                 preparationTiming(default), initial.BgaViewports, chartPresentation: new GameplaySkinChartPresentation(arrivals, arrivalCueAvailable: cueAvailable));
         }
 

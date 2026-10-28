@@ -1,6 +1,8 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
 using System.IO;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Bms.UI;
@@ -81,6 +83,93 @@ namespace osu.Game.Rulesets.Bms.Tests
             timeline.InitialOffset = 0;
             timeline.Changes.Add(new BmsVisualOffsetTimeline.Change { Time = 1, Offset = 501 });
             Assert.Throws<InvalidDataException>(timeline.Validate);
+        }
+
+        [Test]
+        public void TestAutomaticHistoryIsIndependentOfManualOffsetsAndCoalescesActualModeChanges()
+        {
+            var timeline = new BmsVisualOffsetTimeline
+            {
+                InitialOffset = 0,
+                Automatic = new BmsVisualOffsetTimeline.AutomaticState { Initial = false },
+            };
+            timeline.Record(1000, 20);
+            timeline.Automatic.Record(900, true);
+            timeline.Automatic.Record(1000, false);
+            timeline.Automatic.Record(1000, true);
+            timeline.Automatic.Record(1500, false);
+            timeline.Validate();
+            var saved = JsonConvert.DeserializeObject<BmsVisualOffsetTimeline>(JsonConvert.SerializeObject(timeline))!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(saved.Changes, Has.Count.EqualTo(1));
+                Assert.That(saved.OffsetAt(999), Is.Zero);
+                Assert.That(saved.OffsetAt(1000), Is.EqualTo(20));
+                Assert.That(saved.Automatic!.Changes, Has.Count.EqualTo(2));
+                Assert.That(saved.Automatic.At(899), Is.False);
+                Assert.That(saved.Automatic.At(900), Is.True);
+                Assert.That(saved.Automatic.At(1499), Is.True);
+                Assert.That(saved.Automatic.At(1500), Is.False);
+                Assert.That(saved.Automatic.At(800), Is.False);
+            });
+            saved.Automatic!.Record(1000, false);
+            Assert.That(saved.Automatic.At(1400), Is.False);
+            Assert.That(saved.Automatic.Changes, Has.Count.EqualTo(2));
+            Assert.That(saved.Changes, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public void TestLegacyVisualHistoryHasNoInventedAutomaticMode()
+        {
+            const string json = "{\"initial\":0,\"changes\":[{\"time\":1000,\"offset\":20}]}";
+            var legacy = JsonConvert.DeserializeObject<BmsVisualOffsetTimeline>(json)!;
+            legacy.Validate();
+            Assert.That(legacy.Automatic, Is.Null);
+            Assert.That(legacy.OffsetAt(1000), Is.EqualTo(20));
+            Assert.That(JObject.Parse(JsonConvert.SerializeObject(legacy)).Property("automatic"), Is.Null);
+        }
+
+        [Test]
+        public void TestAutomaticModeCanRemainOnWithoutAnyNumericOffsetChanges()
+        {
+            var timeline = new BmsVisualOffsetTimeline
+            {
+                InitialOffset = 0,
+                Automatic = new BmsVisualOffsetTimeline.AutomaticState { Initial = true },
+            };
+            timeline.Validate();
+            Assert.That(timeline.Changes, Is.Empty);
+            Assert.That(timeline.Automatic.At(2000), Is.True);
+            Assert.That(timeline.Automatic.Changes, Is.Empty);
+        }
+
+        [TestCase("{\"enabled\":true}")]
+        [TestCase("{\"time\":null,\"enabled\":true}")]
+        public void TestAutomaticModeChangeRequiresItsActualRecordedTime(string change)
+        {
+            string json = "{\"initial\":0,\"changes\":[],\"automatic\":{\"initial\":false,\"changes\":[" + change + "]}}";
+            Assert.That(() => JsonConvert.DeserializeObject<BmsVisualOffsetTimeline>(json), Throws.TypeOf<JsonSerializationException>());
+        }
+
+        [TestCase("missing initial")]
+        [TestCase("missing changes")]
+        [TestCase("missing enabled")]
+        [TestCase("duplicate time")]
+        [TestCase("nonfinite time")]
+        public void TestMalformedAutomaticStateCannotBeInterpretedAsOff(string invalidity)
+        {
+            var automatic = new BmsVisualOffsetTimeline.AutomaticState { Initial = false };
+            automatic.Changes.Add(new BmsVisualOffsetTimeline.AutomaticChange { Time = 1000, Enabled = true });
+            switch (invalidity)
+            {
+                case "missing initial": automatic.Initial = null; break;
+                case "missing changes": automatic.Changes = null!; break;
+                case "missing enabled": automatic.Changes[0].Enabled = null; break;
+                case "duplicate time": automatic.Changes.Add(new BmsVisualOffsetTimeline.AutomaticChange { Time = 1000, Enabled = false }); break;
+                case "nonfinite time": automatic.Changes[0].Time = double.NaN; break;
+            }
+            var timeline = new BmsVisualOffsetTimeline { Automatic = automatic };
+            Assert.That(timeline.Validate, Throws.TypeOf<InvalidDataException>());
         }
     }
 }

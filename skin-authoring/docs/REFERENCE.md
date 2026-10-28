@@ -579,7 +579,9 @@ bindings每项必填id/target/property/source，例如：
 | judgement.count.fast / judgement.count.slow | 满档为Perfect的真实基础成功判定中，偏差小于0 / 大于0的累计数 | 数值或text |
 | combo.breaks | 计分器断连统计 | 数值或text |
 | offset.value | 玩法已经应用的显示时机偏移，毫秒；不可用时0 | 数值或text |
-| offset.available / offset.automatic | 是否提供此偏移投影 / 对应原生自动调整是否开启 | visible或普通text |
+| offset.available | 是否提供已经应用的数值偏移投影；与自动调整开关是否已知分开 | visible或普通text |
+| offset.automatic-available | 原生自动调整开关的当前状态是否有实际来源；没有记录的历史回放为false | visible或普通text |
+| offset.automatic | 仅在automatic-available为true时表示原生自动调整是否开启；状态未知时为false，不代表已知关闭 | visible或普通text |
 | timing.progress | 可玩起止间0..1；text为整数百分比 | 数值或text |
 | bga.content-state | empty/ready/playing/paused/failed | text |
 
@@ -593,7 +595,9 @@ bindings每项必填id/target/property/source，例如：
 
 两组motion来源的 `1/2` 分别指拓扑逻辑组0/1；单人切换左右位置仍使用1，双舞台右组使用2，不根据屏幕左右重新编号。counts和revolutions分别累计，不能把鼠标一个count当成物理一圈；作者可用不同父子容器及不同clock轨迹叠加常态旋转与两种真实增量。当前运动投影来自BMS已接收的真实轴信号，mania及无方向信号保持不可用；数字键、Auto和没有方向记录的旧回放不补造逆转。默认转速、阻尼及视觉比例属于作品，皮肤不能改写设备灵敏度、发送输入或改变判定。重试、seek及输入来源重置沿引擎快照同步，不能把累计值视为永久硬件里程。
 
-FAST/SLOW读取真实HitEvent：只统计最大判定为Perfect且结果为基础成功击打的事件，零偏差两边均不计；Miss、自动长条body tick、长条父级记账及BMS空POOR不计入。计数随真实计分历史撤销和完整状态重建，不用 `judgement.hit` 在皮肤里再次累计。`offset.value`当前由BMS已经应用的VisualOffset提供，`offset.automatic`对应其原生自动显示时机调整开关；它不表示判定窗口或音频设备延迟。mania未提供相同投影，available/automatic为false、value为0；不可用时应隐藏读数，不显示伪造的已校准状态。
+FAST/SLOW读取真实HitEvent：只统计最大判定为Perfect且结果为基础成功击打的事件，零偏差两边均不计；Miss、自动长条body tick、长条父级记账及BMS空POOR不计入。计数随真实计分历史撤销和完整状态重建，不用 `judgement.hit` 在皮肤里再次累计。
+
+`offset.value`由BMS已经应用的VisualOffset提供，`offset.available`只说明这个数值投影可用，不说明自动调整开启或关闭。`offset.automatic-available`另行说明原生自动显示时机调整的开关状态已知；为true时才可按`offset.automatic`显示已知ON/OFF。真实演奏从原生开关提供状态；真实Replay按独立记录的初始开关和变化恢复，seek/reset同步查询。旧回放缺少该开关记录、或GeneratedAutoplay没有此来源时保持未知，不能用数值是否为0、数值变化次数或当前个人设置猜ON/OFF。未知时仍可显示可用的毫秒数，须隐藏AUTO标签/灯或明确表示未知。它们均不表示判定窗口或音频设备延迟。mania未提供此投影，三个布尔均为false、value为0；数值不可用时隐藏读数，不显示伪造的已校准状态。三个布尔不接受数值属性或clock，普通text显示true/false；后两项另支持下述布尔variants。
 
 三项 `judgement.*timing-direction` 是单次反馈，与累计FAST/SLOW及500ms的判定文字显示期分别保存。BMS真实按下/抬起（含原始回放输入）、非Autoplay、结果为Great/Good/Ok/Meh、偏差绝对值至少0.000001ms时保留原早晚资格；普通键/皿音符在无输入分支自然超时Miss另按已确认来源发布Slow，不伪造grade、offset或HasPlayerTiming，也不增加累计计数。Perfect、自动成功完成、body tick、强制Miss及完整Autoplay不补造反馈，未确认的长条Miss边界不扩张。Combined按交付次序更新，Keys和Scratch独立保留；SpecialKey归Keys。没有合格反馈时为none，后续非合格判定保留原提示；重试、跳转、倒带清空，重挂与背压恢复最新完整状态。只读取节点的精确material group，Global不借用第一组；不能直接驱动数字时钟，也不新增脚本权限。原机全等级资格、覆盖及保留规则尚未整体复核，不能把局部实测写成IIDX完全等价。
 
@@ -659,7 +663,7 @@ variants必填id/target/property/source/default/cases，至少一条case，同�
 }
 ```
 
-除前述配置、准备布尔、`arrival.first-row`与`layout.group`外，source还允许`layout.ruleset`（bms/mania）、`offset.automatic`（true/false）及 `object.state`、`object.long-note-mode`、`object.long-note-appearance`、`object.auto-assist`、`judgement.result`、`gauge.type`、`gauge.clear-state`、`bga.content-state`，key必须是上表对应字符串；当前值没有列入cases时使用default。长条模式和holding/released换图宜用单个 `object.long-note-appearance` 变体，避免两个变体同时改同一sprite资源。空态先按上一节投影，例如没有判定时也会命中作者的miss分支，不会越过该分支自动使用default。没有任意表达式、范围条件或外部资源路径。
+除前述配置、准备布尔、`arrival.first-row`与`layout.group`外，source还允许`layout.ruleset`（bms/mania）、`offset.automatic`与`offset.automatic-available`（true/false）及 `object.state`、`object.long-note-mode`、`object.long-note-appearance`、`object.auto-assist`、`judgement.result`、`gauge.type`、`gauge.clear-state`、`bga.content-state`，key必须是上表对应字符串；当前值没有列入cases时使用default。AUTO的ON/OFF资源变体必须另受automatic-available门控，未知时automatic=false不能冒充OFF。长条模式和holding/released换图宜用单个 `object.long-note-appearance` 变体，避免两个变体同时改同一sprite资源。空态先按上一节投影，例如没有判定时也会命中作者的miss分支，不会越过该分支自动使用default。没有任意表达式、范围条件或外部资源路径。
 
 `combo.active`的变体key只接受`true/false`，使用同一Score快照，不按当前判定等级推测连击。`layout.presentation`除既有x/width外可单独选择y，y与x同为有限的-4..4数值；值来自当前实际应用的布局上下文，保存但不适用的选项不参与。其它source的y、height/scale/rotation等几何变体仍不开放，也不能将`layout.presentation`用作数值binding或clock。共享一个template时，每个实际material/Group实例仍有独立判定起点和runtime状态。
 

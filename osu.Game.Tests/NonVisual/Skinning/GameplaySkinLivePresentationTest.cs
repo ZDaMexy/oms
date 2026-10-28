@@ -46,7 +46,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
         [Test]
         public void TestCompactTransportRetainsOffsetTimingOriginAndIndependentMotionWithoutAnInputAttack()
         {
-            var offset = new GameplaySkinOffsetStateSnapshot(true, -12.75, true);
+            var offset = new GameplaySkinOffsetStateSnapshot(true, -12.75, true, true);
             var statistics = new GameplaySkinJudgementStatistics(1, 2, 3, 4, 5, 6, 7, 8, 9);
             var score = new GameplaySkinScoreStateSnapshot(4, 0, 5, 0.5, 0.6, statistics, maximumScore: 100, offsetState: offset);
             GameplaySkinEventValue compact = GameplaySkinEventValue.Score(GameplaySkinEventKind.ScoreChanged, score);
@@ -95,9 +95,25 @@ namespace osu.Game.Tests.NonVisual.Skinning
         public void TestUnknownClockOriginsAndInventedUnavailableDisplacementAreRejected()
         {
             Assert.Throws<ArgumentOutOfRangeException>(() => new GameplaySkinTimingStateSnapshot(0, 0, 120, false, 1, startTime: double.MinValue));
-            Assert.Throws<ArgumentException>(() => new GameplaySkinOffsetStateSnapshot(false, 0, true));
+            Assert.Throws<ArgumentException>(() => new GameplaySkinOffsetStateSnapshot(false, 0, true, true));
+            Assert.Throws<ArgumentException>(() => new GameplaySkinOffsetStateSnapshot(true, 0, true, false));
+            Assert.Throws<ArgumentException>(() => new GameplaySkinOffsetStateSnapshot(false, 0, false, true));
             Assert.Throws<ArgumentException>(() => new GameplaySkinInputStateSnapshot(GameplaySkinLaneGroupId.Create("test.group"), GameplaySkinLaneId.Create("test.lane"),
                 false, 0, motionCounts: 1));
+        }
+
+        [Test]
+        public void TestUnknownAutomaticModeRemainsDistinctFromKnownOffInCompactScoreState()
+        {
+            var unknown = new GameplaySkinOffsetStateSnapshot(true, -7.5, false, false);
+            var knownOff = new GameplaySkinOffsetStateSnapshot(true, -7.5, false, true);
+            var value = GameplaySkinEventValue.Score(GameplaySkinEventKind.ScoreChanged,
+                new GameplaySkinScoreStateSnapshot(0, 0, 0, 1, 0, offsetState: unknown));
+            Assert.That(value.GetScore().OffsetState, Is.EqualTo(unknown));
+            Assert.That(value.GetScore().OffsetState.IsAvailable, Is.True);
+            Assert.That(value.GetScore().OffsetState.AutomaticAvailable, Is.False);
+            Assert.That(knownOff, Is.Not.EqualTo(unknown));
+            Assert.That(default(GameplaySkinOffsetStateSnapshot).AutomaticAvailable, Is.False);
         }
 
         private sealed class NonTimingObject : HitObject

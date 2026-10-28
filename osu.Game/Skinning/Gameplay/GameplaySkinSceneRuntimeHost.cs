@@ -2288,6 +2288,7 @@ namespace osu.Game.Skinning.Gameplay
                 GameplaySkinSceneBindingSource.LiftReversed => timingState.LiftState.Reversed ? "true" : "false",
                 GameplaySkinSceneBindingSource.LayoutGroup => groupId?.Value ?? string.Empty,
                 GameplaySkinSceneBindingSource.OffsetAutomatic => scoreState.OffsetState.Automatic ? "true" : "false",
+                GameplaySkinSceneBindingSource.OffsetAutomaticAvailable => scoreState.OffsetState.AutomaticAvailable ? "true" : "false",
                 GameplaySkinSceneBindingSource.ComboActive => scoreState.Combo > 0 ? "true" : "false",
                 GameplaySkinSceneBindingSource.ObjectState => objectStateId(obj?.State ?? GameplaySkinObjectState.Scheduled),
                 GameplaySkinSceneBindingSource.ObjectLongNoteMode => longNoteModeId(obj?.LongNoteMode ?? GameplaySkinLongNoteMode.None),

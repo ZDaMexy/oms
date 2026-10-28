@@ -32,7 +32,8 @@ JUDGE_BOUNDS = {"p1": (596, 923, 280, 142), "p2": (1044, 923, 280, 142),
                 "dp": (548, 923, 280, 142)}
 
 JUDGE_SOURCES = {"fast": "judgement.count.fast", "slow": "judgement.count.slow",
-                 "offset": "offset.value", "offset-available": "offset.available", "automatic": "offset.automatic"}
+                 "offset": "offset.value", "offset-available": "offset.available", "automatic": "offset.automatic",
+                 "automatic-available": "offset.automatic-available"}
 PREPARATION_CLOCK = "preparation.elapsed"
 JUDGE_ENTRANCE_MS = 500
 GRAPH_TARGETS = {
@@ -293,10 +294,10 @@ def _track(identifier, target, prop, clock, values, *, easing="linear"):
 def build_judge(identifier, layout, *, sources, bounds=None, counter_font=JUDGE_FONT):
     """Build BMS original-statistics art and a correctly labelled mania view.
 
-    sources is the actual engine fast/slow/offset/offset-available/automatic
+    sources is the actual engine fast/slow/offset and automatic state/availability
     contract.  This read-only panel never adjusts timing or implements keys.
     """
-    if set(sources) != {"fast", "slow", "offset", "offset-available", "automatic"}:
+    if set(sources) != {"fast", "slow", "offset", "offset-available", "automatic", "automatic-available"}:
         raise ValueError("Judge panels require the complete actual timing/counter source contract")
     bounds = tuple(bounds if bounds is not None else JUDGE_BOUNDS[layout])
     if len(bounds) != 4 or bounds[2:] != (280, 142):
@@ -339,13 +340,21 @@ def build_judge(identifier, layout, *, sources, bounds=None, counter_font=JUDGE_
     flipped = layout == "p2"
     plate = "omni.lighting.judge-auto-flip" if flipped else "omni.lighting.judge-auto"
     bms["children"].append(_box(identifier + ".original-frame", (x, y, 280, 142), resource=plate))
-    # Sample the plate's own empty black field over the HDD-only 0/9/3 keys.
+    # Sample the plate's own opaque black pixels over the HDD-only 0/9/3 keys.
+    # The empty field has alpha 204 and would leave the original shortcuts visible.
     # Nothing in this read-only panel advertises a keyboard operation that OMS
     # does not implement. The complete source PNG remains byte-for-byte intact.
     shortcuts = ((91, 10), (7, 10), (7, 113)) if flipped else ((103, 10), (190, 10), (190, 113))
+    shortcut_source = (224, 22, 3, 3) if flipped else (38, 22, 3, 3)
     for index, (px, py) in enumerate(shortcuts):
         bms["children"].append(_panel_sample(identifier + ".shortcut" + str(index),
-            (x + px, y + py, 20, 20), plate, (70, 31, 20, 20)))
+            (x + px, y + py, 20, 20), plate, shortcut_source))
+    automatic_x = 112 if flipped else 124
+    # The original grey caption is part of the plate. Mask it even when a
+    # historical replay has no actual automatic-mode metadata, then restore
+    # its exact source slice only inside the explicitly known-state group.
+    bms["children"].append(_panel_sample(identifier + ".automatic-mask",
+        (x + automatic_x, y + 9, 58, 22), plate, shortcut_source))
     # Complete judge_auto has row centres 44/60/.../124. Original 14px
     # glyphs have a 7/7 origin; the display reserves more than four digits.
     count_x = 207 if flipped else 38
@@ -389,10 +398,14 @@ def build_judge(identifier, layout, *, sources, bounds=None, counter_font=JUDGE_
     bindings.append(_bind(value["id"], "text", sources["offset"]))
     offset["children"].append(text("offset-label", "ms", (center - 10, 82, 20, 12), 9,
                                  alignment="centre", colour="#ddddddff"))
-    automatic = _box(identifier + ".automatic", (x + (112 if flipped else 124), y + 9, 58, 22),
+    automatic = _box(identifier + ".automatic", (x + automatic_x, y + 9, 58, 22),
                      resource="omni.lighting.judge-auto-on", visible=False)
     bindings.append(_bind(automatic["id"], "visible", sources["automatic"]))
-    offset["children"].extend([value, automatic])
+    known = _node(identifier + ".automatic-known", properties={"visible": False}, children=[
+        _panel_sample(identifier + ".automatic-off", (x + automatic_x, y + 9, 58, 22),
+                      plate, (automatic_x, 9, 58, 22)), automatic])
+    bindings.append(_bind(known["id"], "visible", sources["automatic-available"]))
+    offset["children"].extend([value, known])
     bms["children"].append(offset)
     root["children"] = [bms, mania]
     return {"roots": [root], "bindings": bindings, "variants": variants, "tracks": tracks,
@@ -401,8 +414,8 @@ def build_judge(identifier, layout, *, sources, bounds=None, counter_font=JUDGE_
                         "bmsRows": "PG perfect, GR great, GD good, BD meh, PR miss, CB actual combo breaks; empty POOR ok is not PR",
                         "maniaRows": "MAX/300/200/100/50/MISS are mania's own six judgement results",
                         "authorAdaptation": "Main-screen anchor; actual signed OMS millisecond readout, not IIDX adjustment units; mania retains its own six-tier labels",
-                        "controls": "Read-only; plate's own black pixels cover only the original 0/9/3 shortcuts, which are not OMS controls",
-                        "automatic": "Original unlit AUTO ADJUST text for OFF; original orange lamp and pointer for actual ON",
+                        "controls": "Read-only; plate's opaque black pixels cover the original 0/9/3 shortcuts, which are not OMS controls",
+                        "automatic": "Original grey plate slice for known OFF; original orange lamp and pointer for known ON; unknown mode masks the caption and hides its grey/orange state art while retaining the neutral zero reference",
                         "entry": {"clock": PREPARATION_CLOCK, "durationMs": JUDGE_ENTRANCE_MS,
                                   "source": "Author timing for the observed host-controlled slide from below; original plate itself is static"},
                         "counterFont": "original judge_num 14px" if counter_font == JUDGE_FONT else

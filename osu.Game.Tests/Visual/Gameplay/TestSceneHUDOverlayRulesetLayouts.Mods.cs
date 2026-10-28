@@ -40,10 +40,12 @@ namespace osu.Game.Tests.Visual.Gameplay
 {
     public partial class TestSceneHUDOverlayRulesetLayouts
     {
-        [TestCase("bms", true)]
-        [TestCase("mania", true)]
-        [TestCase("mania", false)]
-        public void TestAuthorModsPlacementRetainsTheRealReplayDisplayAcrossCanvasAndModChanges(string rulesetName, bool declared)
+        [TestCase("bms", true, false)]
+        [TestCase("mania", true, false)]
+        [TestCase("mania", false, false)]
+        [TestCase("bms", true, true)]
+        [TestCase("mania", false, true)]
+        public void TestAuthorModsPlacementRetainsTheRealReplayDisplayAcrossCanvasAndModChanges(string rulesetName, bool declared, bool delayedLiveEntry)
         {
             Drawable[] previous = [];
             Task<Live<SkinInfo>> import = null!;
@@ -112,7 +114,7 @@ namespace osu.Game.Tests.Visual.Gameplay
                 foreach (var hitObject in beatmap.HitObjects)
                     hitObject.ApplyDefaults(beatmap.ControlPointInfo, beatmap.Difficulty);
                 drawableRuleset = ruleset.CreateDrawableRulesetWith(beatmap);
-                drawableRuleset.HasReplayLoaded.Value = true;
+                drawableRuleset.HasReplayLoaded.Value = !delayedLiveEntry;
                 var gameplayState = new GameplayState(beatmap, ruleset);
                 gameplayState.ScoreProcessor.ApplyBeatmap(beatmap);
                 gameplayState.HealthProcessor.ApplyBeatmap(beatmap);
@@ -156,8 +158,27 @@ namespace osu.Game.Tests.Visual.Gameplay
                 };
                 clock.Start();
             });
-            AddUntilStep("the actual replay HUD has loaded and faded in", () => overlay.IsLoaded && overlay.ModDisplay.Alpha >= 0.99f
+            AddUntilStep("the actual HUD and its scene have loaded", () => overlay.IsLoaded && (delayedLiveEntry || overlay.ModDisplay.Alpha >= 0.99f)
                 && drawableRuleset is IGameplaySkinSceneRuntimeSource { GameplaySkinSceneRuntime: { IsSceneReady: true } });
+            if (delayedLiveEntry)
+            {
+                double shownAt = 0;
+                AddUntilStep("the load-time live Mod window has already elapsed", () => overlay.ModDisplay.Alpha == 0);
+                AddStep("enter the real live HUD after loading", () =>
+                {
+                    Assert.That(drawableRuleset.HasReplayLoaded.Value, Is.False);
+                    overlay.ShowInitialMods();
+                    shownAt = Time.Current;
+                });
+                AddUntilStep("the first second of the visible live window elapses", () => Time.Current - shownAt >= 1000);
+                AddAssert("the real Mods remain visible during their renewed window", () => overlay.ModDisplay.Alpha, () => Is.EqualTo(1));
+                AddUntilStep("the normal live Mod window ends", () => overlay.ModDisplay.Alpha == 0);
+                AddStep("attach the actual ruleset's replay HUD state", () => drawableRuleset.HasReplayLoaded.Value = true);
+                AddUntilStep("the real replay Mods fade in", () => overlay.ModDisplay.Alpha >= 0.99f);
+                AddStep("entering a replay preserves its persistent Mod display", () => overlay.ShowInitialMods());
+                AddWaitStep("continue beyond a live display window", 50);
+                AddAssert("replay Mods retain their native persistent display", () => overlay.ModDisplay.Alpha, () => Is.GreaterThanOrEqualTo(0.99f));
+            }
             AddStep("capture the frozen canvas and original native mod objects", () =>
             {
                 scene = ((IGameplaySkinSceneRuntimeSource)drawableRuleset).GameplaySkinSceneRuntime!;

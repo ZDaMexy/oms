@@ -1363,6 +1363,8 @@ namespace osu.Game.Screens.Play
                 Logger.Error(new InvalidOperationException($"{nameof(StartGameplay)} should not be called when the gameplay clock is already running"), "Clock failure");
 
             GameplayClockContainer.Reset(startClock: true);
+            // Loading and author preparation can outlast the HUD's initial display window.
+            HUDOverlay.ShowInitialMods();
 
             if (Configuration.AutomaticallySkipIntro)
                 SkipIntroOverlay.SkipWhenReady();

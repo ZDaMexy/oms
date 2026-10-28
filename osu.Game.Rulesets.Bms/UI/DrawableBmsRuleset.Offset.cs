@@ -8,6 +8,7 @@ using osu.Game.Rulesets.Bms.Objects;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Scoring;
+using osu.Game.Skinning.Gameplay;
 
 namespace osu.Game.Rulesets.Bms.UI
 {
@@ -17,6 +18,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly BindableDouble configuredVisualOffset = new BindableDouble();
         private BmsVisualOffsetTimeline? recordedVisualOffset;
         private BmsVisualOffsetTimeline? replayVisualOffset;
+        private bool? appliedAutomaticOffsetMode;
 
         private void initialiseOffset(OsuConfigManager config)
         {
@@ -30,12 +32,19 @@ namespace osu.Game.Rulesets.Bms.UI
 
         private void refreshVisualOffsetMode()
         {
+            appliedAutomaticOffsetMode = HasReplayLoaded.Value
+                ? replayVisualOffset?.Automatic?.At(FrameStableClock.CurrentTime)
+                : automaticOffsetStyle.Value == AutomaticOffsetStyle.Beatoraja;
+            // Numeric history controls the existing dynamic scrolling wrapper, not the AUTO indicator.
             Playfield.AutomaticVisualOffsetEnabled.Value = HasReplayLoaded.Value
                 ? replayVisualOffset?.Changes.Count > 0
                 : automaticOffsetStyle.Value == AutomaticOffsetStyle.Beatoraja;
             double offset = HasReplayLoaded.Value
                 ? replayVisualOffset?.OffsetAt(FrameStableClock.CurrentTime) ?? 0
                 : configuredVisualOffset.Value;
+
+            if (!HasReplayLoaded.Value && GameplayInputManager?.Recorder is BmsReplayRecorder recorder)
+                recorder.RecordAutomaticOffsetMode(FrameStableClock.CurrentTime, automaticOffsetStyle.Value == AutomaticOffsetStyle.Beatoraja);
 
             if (Playfield.VisualOffset.Value == offset)
                 return;
@@ -44,6 +53,9 @@ namespace osu.Game.Rulesets.Bms.UI
             if (!HasReplayLoaded.Value)
                 recordedVisualOffset?.Record(FrameStableClock.CurrentTime, offset);
         }
+
+        internal GameplaySkinOffsetStateSnapshot GetAppliedVisualOffsetState()
+            => new GameplaySkinOffsetStateSnapshot(true, Playfield.VisualOffset.Value, appliedAutomaticOffsetMode == true, appliedAutomaticOffsetMode.HasValue);
 
         private void adjustVisualOffsetFromResult(JudgementResult result)
         {
@@ -82,7 +94,10 @@ namespace osu.Game.Rulesets.Bms.UI
             {
                 base.Update();
                 if (ruleset.HasReplayLoaded.Value)
+                {
+                    ruleset.appliedAutomaticOffsetMode = ruleset.replayVisualOffset?.Automatic?.At(Time.Current);
                     ruleset.Playfield.VisualOffset.Value = ruleset.replayVisualOffset?.OffsetAt(Time.Current) ?? 0;
+                }
             }
         }
     }

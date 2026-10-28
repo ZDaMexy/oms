@@ -281,7 +281,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 GameplaySkinEventRuntime = new GameplaySkinEventRuntimeHost(publication, Beatmap, timingProjection, this,
                     createSongInformation(persistedMetadata), () => SelectedHiSpeed.Value,
                     createGameplaySkinArrivals(publication), usesExScore: true,
-                    appliedOffset: () => new GameplaySkinOffsetStateSnapshot(true, Playfield.VisualOffset.Value, Playfield.AutomaticVisualOffsetEnabled.Value),
+                    appliedOffset: GetAppliedVisualOffsetState,
                     scoreBeatmap: working?.Value.BeatmapInfo ?? Beatmap.BeatmapInfo,
                     validSavedScore: score => score.GetRulesetData<BmsScoreInfoData>() is { Version: BmsScoreInfoData.TOTAL_RULES_VERSION, HasResultStatistics: true },
                     arrivalVisibility: this,
@@ -491,7 +491,11 @@ namespace osu.Game.Rulesets.Bms.UI
 
         protected override ReplayRecorder CreateReplayRecorder(Score score)
         {
-            recordedVisualOffset = new BmsVisualOffsetTimeline { InitialOffset = Playfield.VisualOffset.Value };
+            recordedVisualOffset = new BmsVisualOffsetTimeline
+            {
+                InitialOffset = Playfield.VisualOffset.Value,
+                Automatic = new BmsVisualOffsetTimeline.AutomaticState { Initial = automaticOffsetStyle.Value == AutomaticOffsetStyle.Beatoraja },
+            };
             return new BmsReplayRecorder(score, recordedVisualOffset, captureReadingSettings());
         }
 
@@ -502,13 +506,15 @@ namespace osu.Game.Rulesets.Bms.UI
             else if (replayScore?.ScoreInfo.GetRulesetData<BmsScoreInfoData>()?.ReadingCalculationVersion is int calculationVersion && calculationVersion != 0)
                 throw new InvalidDataException($"Unsupported BMS replay reading calculation version {calculationVersion}.");
 
+            BmsVisualOffsetTimeline? incomingVisualOffset = replayScore?.ScoreInfo.GetRulesetData<BmsScoreInfoData>()?.VisualOffset;
+            incomingVisualOffset?.Validate();
+
             if (replayScore != null && healthProcessor is BmsGaugeProcessor gauge)
                 gauge.ApplyScoreTotalRules(replayScore.ScoreInfo);
 
             base.SetReplayScore(replayScore!);
             applyReplayReadingSettings(replayScore);
-            replayVisualOffset = replayScore?.ScoreInfo.GetRulesetData<BmsScoreInfoData>()?.VisualOffset;
-            replayVisualOffset?.Validate();
+            replayVisualOffset = incomingVisualOffset;
             refreshVisualOffsetMode();
         }
 

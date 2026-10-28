@@ -58,6 +58,16 @@ namespace osu.Game.Rulesets.Bms.UI
             RecordFrame(true);
         }
 
+        internal void RecordAutomaticOffsetMode(double time, bool enabled)
+        {
+            if (RecordingEnded)
+                return;
+            if (visualOffset?.Automatic is not BmsVisualOffsetTimeline.AutomaticState automatic)
+                throw new InvalidOperationException("Automatic offset recording requires its actual opening mode.");
+            if (automatic.Record(time, enabled))
+                RecordFrame(true);
+        }
+
         protected override ReplayFrame HandleFrame(Vector2 mousePosition, List<BmsAction> actions, ReplayFrame previousFrame)
             => new BmsReplayFrame(Time.Current, actions);
     }

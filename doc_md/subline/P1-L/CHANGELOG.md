@@ -5,6 +5,10 @@
 
 ---
 
+## 2026-10-28v41真实导出回放与AUTO语义
+
+v41 SP Floating自然导出/Replay、r20构建/focused及r21对应r20源BMS完整回归保留原身份。HUD改取真实start后，r22构建/Core及非交付诊断ZIP默认DP Classic低速取景通过；该取景不签完整CLI，余下新旧Replay仍跑。独立AUTO不改变numeric轨迹、wrapper/寿命或数学，不能由numeric变化推断开关；准确范围取[P1-A日志](../P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)，实谱、原机、设备与最终原生配方门保持。
+
 ## 2026-10-28读谱版本与原生运动证据
 
 读谱计算版本改为可选独立元数据，旧缺值/0维持现有计算，未知非0真实Replay在采用前拒绝；数学、precision、Auto检测、Off回退及判定/计分未变。r17源完整BMS回归与三组共同gameplay隔离原生已通过，覆盖SP Floating与真实Replay、DP Classic低速、Auto短STOP；准确命令、计数和v39/v40身份只在[P1-A本轮日志](../P1-A/CHANGELOG.md#2026-10-28omni读谱版本兼容与候选验收)维护，旧v39页面错误不作为交付。

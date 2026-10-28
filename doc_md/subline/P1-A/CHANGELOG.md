@@ -1,5 +1,29 @@
 # P1-A 变动日志
 
+## 2026-10-28Omni两页拟真硬门
+
+用户明确要求SongSelect/Results必须拟真，原美术可直接使用就直接使用，做不到则取消两页作品计划。当前v40/v41混搭页只保留数据、操作、资源和原生调用链的内部工程证据，不是可交付页或正式原型认可；此前审图只核语义/可读性，不代签原版布局、层级和主要动效。v44已落实剥离混搭页，未来拟真门实证闭合前不重新交付；两页尚未永久取消。定点7IFS、127图、27AFP及原font33 face均已可读，原33角色/Results全屏原图已找到，不能以无素材或字体不可读判定失败；剩余仅做真实列表、文本角色与插画选图策略的窄对照。此决定不取消整个Omni、既有通用PageAPI或gameplay持续goal。
+
+## 2026-10-28OmniAUTO状态与最终候选续验
+
+`49faffb`之后将VisualOffset自动开关与numeric Changes分离，live记录真实初始模式、开关边与原生clock；真实Replay按记录查询、seek/reset，旧无metadata和无来源GeneratedAutoplay为unknown。新增只读布尔`offset.automatic-available`（enum105），与数值偏移可用性`offset.available`及开关`offset.automatic`分别消费；普通text/visible与typed bool variants可用，不允许数值属性或clock。外部新Auto.Time缺失/null明确拒绝，旧numeric格式、wrapper/寿命、采样算法、读谱13字段、calculation version0、计分及IR均保持；合同归[P1-C](../P1-C/TECHNICAL_CONSTRAINTS.md#自动调整偏移合同2026-09-29)，作者定义归[REFERENCE](../../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)。
+
+v41完整公共CLI13612代表组合与作者/ZIP CRC逐字节核对通过，6620文件、335467881字节，SHA256 `63cd2adbb040d16c464978919646bdc5495cd5b86baaa3008b94c57d3b0ead59`；证明在`E:\OMS-Development\evidence\omni-completion-20261027-r1\assets\omni-v41-archive-proof-r1.json`。其两页逐字节保留已验v40：`assets/native-results-v40-three-cases-r2.json`登记BMS Clear、Normal完曲未Clear及mania三组正常Player/Results，均host/OS exit0，原/皮肤/原切换、真实Score与原操作一致，主代理已逐图审看；未将Passed当Clear或造额外MISS COUNT算法。
+
+v41 `native-reading-v41-sp7-floating-r1`18帧含自然录制、真实`ScoreManager.Export`产生1204字节OSR、`DatabasedLegacyScoreDecoder`读回显式calculation version0与13字段、通过原Replay按钮自然完曲，host/OS exit0。主代理核图确认Header实际HYPER/1、白270/绿1156；软件取景不签实体HID、原机时序或跨BPM公式。
+
+v41 SongSelect分项已实际走BMS7→canonical5→mania7→BMS7，换歌、搜索、Mods、池复用和退出释放有证据；整体尚未闭合。一轮私有loader deadline10秒不足，下一轮将converted `BmsBeatmap`新ID误作stored ID；实际Converter创建新`BeatmapInfo`，原ID由`Player.Score.ScoreInfo`提供。私有夹具已改60秒及实际stored ID/hash/converted title断言，失败保留，不作为产品缺陷或公开功能变更。v41 DP+EASY发现Mod提示在加载完成前已淡出，首次改为OnEntering重给2秒并通过r20 Core；但v44实际诊断DP仍不足，C5/5秒准备在Entering后继续耗时。最终调用移到`Player.startGameplayImmediately`真实`Reset(startClock:true)`后，Replay guard/HUD父显隐不变，旧失败不删。
+
+v42/v43分别生成独立可逆作者，证据在`assets/v42-judge-shortcuts-r1`与`v43-judge-auto-state-r1`。v42将原0/9/3遮罩从alpha204空区改取原图opaque3×3；v43未知AUTO状态遮灰标签及灯，毫秒值独立显示，已知才恢复原灰slice/橙灯，无新图/字体/配置。v43仅45份scene变化且可逆回父字节，payload清单6620份、未压缩348372908字节、摘要`5fc756cfd97a8e0a3a074f988b4e009cc8570b9107734f03acf8ea593bb4d58e`；471779/51481仅Python保守预算，不是C#结果或OSK身份。
+
+v43真正公共CLI在`key-beam/b01/variant19 bms/6k`报`SCENE021 InvalidReference`并exit1；不是预算失败或成功superseded。v44 fresh1在同一gameplay故障发现后被精确中止，仅默认Frame模块通过，不冒称完整检查。单6K以及同captured先7K再6K的实际Select/字形校验两种单点，v43与旧v41均通过，不能据此抹掉全序列失败。诊断版保留全部前序/顺序，仅增加failure catch的values/context/stack，已越过原失败点并通过key-beam及lane-cover/lift-art，但尚未完成；原public CLI首次失败未复现、根因未判，不称已修，未改作者或放宽预算。
+
+v44 `assets/v44-gameplay-only-r1`已移除`skin-pages.json`、15张Results PNG及5张SongSelect PNG，合计21文件/4661216字节；6597保留文件与v43逐字节一致，仅两份报告重写真实待验身份，539预览/397份C7不变。新目录6599物理文件、343701702字节，完整闭包摘要`6c8a73ed0394d2de9825ee8030f4c0a191318dd8fd38b9968d5ec34881e3f53c`，没有经CLI验收的OSK或新交付，不将目录证明写成整包通过。
+
+仅用于取景的`assets/omni-v44-native-diagnostic-r1.osk`为330884609字节、SHA256 `4ef35908d7000b3519deae54c1e559392af4b1cd089dc86751154d80353bc03e`，6599文件CRC/作者逐字节一致，回执明确`authorCliAccepted=false`及`deliveryCandidate=false`。`native-reading-v44diag-dp14-classic-low-mods-r2`按live950ms验证，10帧verified、host/OS exit0；主代理审`live-header-mods.png`确认EASY可见、HYPER/1与icon不叠、DP双白250/125及双绿3029、Classic0.5、AUTO knownOff与ms读数、原0/9/3已遮没。它只证明未变默认gameplay树，不是正式v44 OSK/完整CLI签收；新旧Replay actual legacy取景仍在跑，未登记通过。
+
+r19全format、Python `python-combined-r7`374项及五项构建通过。补Auto.Time边界后，r20两文件format/四项构建、BMS173及Core393 focused通过；r21对应r20源的BMS完整3276通过/19跳过/3295总项，18分53秒、exit0。Mod提示移至真实start后，r22 Core/BMS Tests、Desktop Release/Debug四项构建及同Core393/0再过；BMS计分源未改，未把r21写成r22重跑。三类私有宿主重建/prepare与旧r18各留身份；命令、TRX及失败在同一证据根`tests/`保留。交付仍为`.v26102701`、goal active；原版Hi-Speed数学未改，完整CLI、余下原生和设备/长期/发行门未闭合。
+
 ## 2026-10-28Omni读谱版本兼容与候选验收
 
 在`ef8c86b`之后增加可选`reading_calculation_version`，独立于BMS计分版本7。旧缺值/null及0继续现有legacy读谱计算；新局和GeneratedAutoplay明确记录0，未知非0版本的真实Replay在应用其状态前拒绝。七文件增量覆盖存取、真实回放和兼容测试，没有改数学、precision、配置迁移或历史记录。旧`HS 10 + WN 350 => GN 300`样例已明确为Normal当前公式fixture，测试名为`TestLegacyNormalHiSpeedCalculationKeepsItsExistingMetrics`，不再暗示原版或Classic实测。

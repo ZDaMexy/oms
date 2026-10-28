@@ -3,6 +3,8 @@
 import copy
 import unittest
 
+from PIL import Image
+
 import lighting_panels as panels
 
 
@@ -68,6 +70,56 @@ class LightingPanelsTest(unittest.TestCase):
                 self.assertEqual(frame["resource"], image["resource"])
                 self.assertLessEqual(max(image["properties"]["width"], image["properties"]["height"]), 4)
             self.assertFalse(any(node["properties"].get("text") in ("0", "9", "3") for node in nodes.values()))
+
+    def test_shortcut_samples_completely_erase_the_original_key_pixels(self):
+        for layout, opaque_x in (("p1", 38), ("p2", 224), ("dp", 38)):
+            with self.subTest(layout=layout):
+                # Reproduce the source plate's translucent black field and its verified opaque 3x3 patch.
+                plate = Image.new("RGBA", (280, 142), (0, 0, 0, 204))
+                for y in range(22, 25):
+                    for x in range(opaque_x, opaque_x + 3):
+                        plate.putpixel((x, y), (0, 0, 0, 255))
+                result = panels.build_judge("test.judge", layout, sources=panels.JUDGE_SOURCES)
+                patches = [node for node in panels.walk(result["roots"][0])
+                           if node["id"].startswith("test.judge.shortcut") and node["type"] == "clip"]
+                self.assertEqual(3, len(patches))
+                for patch in patches:
+                    properties = patch["children"][0]["children"][0]["properties"]
+                    width = 280 / (properties["width"] * 32)
+                    height = 142 / (properties["height"] * 32)
+                    left = -properties["x"] * width * 32
+                    top = -properties["y"] * height * 32
+                    self.assertEqual((opaque_x, 22, 3, 3), tuple(round(value) for value in (left, top, width, height)))
+                    sample = plate.crop((round(left), round(top), round(left + width), round(top + height)))
+                    overlay = sample.resize((20, 20), Image.Resampling.NEAREST)
+                    original_key = Image.new("RGBA", (20, 20), (231, 231, 231, 255))
+                    composed = Image.alpha_composite(original_key, overlay)
+                    self.assertEqual(((0, 0), (0, 0), (0, 0), (255, 255)), composed.getextrema())
+
+    def test_unknown_automatic_mode_hides_the_baked_caption_and_both_state_art_consumers(self):
+        for layout, source_x, opaque_x in (("p1", 124, 38), ("p2", 112, 224), ("dp", 124, 38)):
+            with self.subTest(layout=layout):
+                result = panels.build_judge("test.judge", layout, sources=panels.JUDGE_SOURCES)
+                nodes = {node["id"]: node for node in panels.walk(result["roots"][0])}
+                mask = nodes["test.judge.automatic-mask"]
+                known = nodes["test.judge.automatic-known"]
+                grey = nodes["test.judge.automatic-off"]
+                lamp = nodes["test.judge.automatic"]
+                self.assertFalse(known["properties"]["visible"])
+                self.assertEqual([grey, lamp], known["children"])
+                self.assertIn({"id": known["id"] + ".bind.visible", "target": known["id"], "property": "visible",
+                               "source": "offset.automatic-available"}, result["bindings"])
+                self.assertIn({"id": lamp["id"] + ".bind.visible", "target": lamp["id"], "property": "visible",
+                               "source": "offset.automatic"}, result["bindings"])
+                for node, expected in ((mask, (opaque_x, 22, 3, 3)), (grey, (source_x, 9, 58, 22))):
+                    properties = node["children"][0]["children"][0]["properties"]
+                    width = 280 / (properties["width"] * 32)
+                    height = 142 / (properties["height"] * 32)
+                    rectangle = (-properties["x"] * width * 32, -properties["y"] * height * 32, width, height)
+                    self.assertEqual(expected, tuple(round(value) for value in rectangle))
+                self.assertEqual(nodes["test.judge.original-frame"]["resource"], mask["children"][0]["children"][0]["resource"])
+                self.assertEqual(nodes["test.judge.original-frame"]["resource"], grey["children"][0]["children"][0]["resource"])
+                self.assertIn(nodes["test.judge.offset-value"], nodes["test.judge.offset"]["children"])
 
     def test_panel_entry_uses_preparation_and_leaves_statistics_out_of_animation(self):
         result = panels.build_judge("test.judge", "p1", sources=panels.JUDGE_SOURCES)

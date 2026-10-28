@@ -53,6 +53,7 @@ namespace osu.Game.Skinning.Gameplay
                 case GameplaySkinSceneBindingSource.InputMotionAvailable2: value = motionForGroup(1).HasValue; return true;
                 case GameplaySkinSceneBindingSource.OffsetAvailable: value = scoreState.OffsetState.IsAvailable; return true;
                 case GameplaySkinSceneBindingSource.OffsetAutomatic: value = scoreState.OffsetState.Automatic; return true;
+                case GameplaySkinSceneBindingSource.OffsetAutomaticAvailable: value = scoreState.OffsetState.AutomaticAvailable; return true;
                 case GameplaySkinSceneBindingSource.ScorePersonalBestAvailable: value = chartPresentation?.PersonalBestScore.HasValue == true; return true;
                 case GameplaySkinSceneBindingSource.ScorePacemakerNextAvailable: value = pacemakerNext.Available; return true;
                 case GameplaySkinSceneBindingSource.ScoreMaximumAvailable: value = scoreState.MaximumScore > 0; return true;

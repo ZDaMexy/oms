@@ -538,6 +538,7 @@ namespace osu.Game.Skinning.Gameplay
         JudgementScratchTimingDirection = 102,
         ObjectAutoAssist = 103,
         ComboActive = 104,
+        OffsetAutomaticAvailable = 105,
     }
 
     public enum GameplaySkinSceneEvent
@@ -1108,6 +1109,7 @@ namespace osu.Game.Skinning.Gameplay
             "offset.value" => GameplaySkinSceneBindingSource.OffsetValue,
             "offset.available" => GameplaySkinSceneBindingSource.OffsetAvailable,
             "offset.automatic" => GameplaySkinSceneBindingSource.OffsetAutomatic,
+            "offset.automatic-available" => GameplaySkinSceneBindingSource.OffsetAutomaticAvailable,
             "score.personal-best" => GameplaySkinSceneBindingSource.ScorePersonalBest,
             "score.personal-best-progress" => GameplaySkinSceneBindingSource.ScorePersonalBestProgress,
             "score.personal-best-available" => GameplaySkinSceneBindingSource.ScorePersonalBestAvailable,

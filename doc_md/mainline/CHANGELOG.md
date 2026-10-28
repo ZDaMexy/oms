@@ -1,5 +1,15 @@
 # OMS 更新日志
 
+## 2026-10-28Omni两页拟真准入
+
+用户要求SongSelect/Results拟真，原美术能直接用必须直接用；先对照原版布局、层级和主要动效的可行性，做不到取消两页作品计划并保留OMS原界面。v40/v41混搭页只保留内部工程证据，不作为交付或用户认可，后续候选不得带当前混搭页。gameplay与通用PageAPI继续，准确边界取[P1-A记录](../subline/P1-A/CHANGELOG.md#2026-10-28omni两页拟真硬门)，不将此决定扩为取消整个Omni。
+
+## 2026-10-28OmniAUTO真值与候选续验
+
+真实AUTO开关独立记录，不改算法、Hi-Speed数学、计分或IR。Mod提示从OnEntering改至真实start，防C5准备耗完可见期，Replay guard/HUD父显隐保持；r22四项构建/Core再过，r21 full仍记r20源。私有诊断ZIP默认DP取景已过，但明确非CLI验收/非交付候选；完整诊断CLI越过原失败点仍未完，原public CLI首次失败未复现、不称已修。包/失败/余下Replay身份取[P1-A日志](../subline/P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)，录制边界归[P1-C](../subline/P1-C/CHANGELOG.md#2026-10-28自动偏移开关独立记录)。旧页面仅内部工程证据，goal active且无新交付。
+
+此窄回填前文档r7健康检查通过216 Markdown、2591链接、708锚点及123份memory，workspace r3通过；本次文档又有修改，需由主代理fresh检查，不能将r7结果直接转记当前文本。文档通过不提升产品或交付状态。
+
 ## 2026-10-28Omni候选验收与读谱版本边界
 
 读谱计算版本独立于计分版本，旧缺值/0沿legacy计算，新局与GeneratedAutoplay明确0，未知非0真实Replay采用前拒绝；没有修改公式、精度或配置迁移。当前源回归、v40完整作者/ZIP证明、共同gameplay原生与BMS Clear单场景人工审图，以及v41和其余未完成门只在[P1-A本轮记录](../subline/P1-A/CHANGELOG.md#2026-10-28omni读谱版本兼容与候选验收)维护；滚动边界与实谱门取[P1-L](../subline/P1-L/CHANGELOG.md#2026-10-28读谱版本与原生运动证据)。原版Normal采样分别资格，不能把拟合或legacy fixture升级为原公式。参照r3正常退出并完成原件保全，作品交付名、私下分享、设备与发行门不变。

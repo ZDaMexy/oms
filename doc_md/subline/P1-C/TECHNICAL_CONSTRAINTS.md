@@ -1,6 +1,6 @@
 # P1-C 技术约束：判定语义与反馈边界
 
-> 最后核对：2026-10-19（跨轨撤销、全自动计分资格及失败回放元数据；窗口/TOTAL身份保持）
+> 最后核对：2026-10-28（自动显示偏移的开关独立记录；窗口/TOTAL身份保持）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线与产品边界
@@ -26,7 +26,7 @@
 
 ## 当前反馈与 HUD 边界
 
-1. 全局 `JudgementCounterDisplay` 与皮肤 scene 的只读 `GameplaySkinJudgementStatistics` 共同消费 score statistics；静线已显示 PG/GR/GD/BD/PR/EP/CB，COMBO BREAK 不要求额外伪造 judgement event。GN 只在现有调速 toast 与 pre-start overlay 出现；不得把已删除的常驻 card 描述为当前 fallback 或待接线组件。
+1. 全局`JudgementCounterDisplay`与皮肤scene的只读`GameplaySkinJudgementStatistics`共同消费score statistics；静线显示PG/GR/GD/BD/PR/EP/CB，COMBO BREAK不伪造judgement event。GN由原生只读状态和皮肤承接，旧调速toast及常驻card已退出；当前宿主合同取[P1-A](../P1-A/TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代)，不复活旧fallback。
 2. 新反馈不得通过遍历 wrapped HUD 子节点、修改 `GaugeBar`/`ComboCounter` 或暗改 `IBmsHudLayoutDisplay` 三件套宿主植入。
 3. 任何新常驻反馈都必须先在独立专题冻结产品价值、数据 authority、P1-A 宿主、fallback、验收和删除路径；不得复活旧 aggregate 规避设计审查。
 4. `Sudden/Hidden/Lift` target/cycle/remember 行为与判定正交；`Lift` 是 geometry control，`Hidden` 是下遮挡，两者不得混写。
@@ -39,6 +39,7 @@
 - 普通键/皿 PG/GR/GD、绝对误差 ≤150ms 按 `sign(error)*floor((abs(error)+15)/30)` ms 推动，OMS error 晚正早负；单次变更限幅。LN 在完成时只采一个合并样本；CN/HCN 头与真实释放分别采样。OMS 已有自动到尾行为不改，自动到尾不采帧延迟，不能据此声称长条 runtime 与原版完全相同。AutoPlay/辅助音、持续 tick、空 POOR、parent Ignore 均不学习。
 - 显示修正只作用于 BMS 显示时间，不能改变音符时间、判定、成绩、gauge、输入、键音/BGM/BGA。BMS 侧算法包装同步小节线/地雷，嵌套长条位置与长度不重复偏移。真实演奏中，beatoraja 自动调整未启用且固定偏移为 0ms 时保留原算法实例；自动启用时保持同一包装跨零变化，避免逐音重算全谱。额外预加载对象不能扩大空 POOR 候选或提前屏蔽辅助列空按声音。
 - 真实演奏持续更新用户配置，失败/退出/重试保留。回放只读成绩中的初始值和变更时间线，seek 按时间查询；记录含变化轨迹时保持显示包装跨零，不受个人 style 选择影响；旧记录缺失字段按 0ms，不学习、不写个人配置。轨迹随 BMS ruleset data 保存，TOTAL version=7 语义不变；停止录制、score clone 前一次序列化，不能逐判定重序列化整个历史。导入轨迹验证有限数、偏移范围和严格递增时间。
+- `visual_offset.automatic`为可选独立开关历史：`initial`必须是实际bool，`changes`各项含必填有限`time`与bool `enabled`，时间严格递增；缺失/null的time或状态在外部边界拒绝。真实演奏记录开关边与原生clock，同刻/倒带按录制未来替换规则处理；真实Replay按时间恢复，seek/reset不借个人配置。数值`Changes`及其显示包装/寿命条件保持，不能由数值变化次数推断自动ON/OFF。旧无此metadata和无来源GeneratedAutoplay的自动状态为unknown；数值偏移仍可独立显示，皮肤只读known/ON来源见[作者参考](../../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)。此记录不改变自动调整算法、读谱13字段、calculation version0、计分或IR。
 - 来源：[JudgeManager](https://github.com/exch-bms2/beatoraja/blob/9aea9471f4490732cbbd6b71ca639ee823d20635/src/bms/player/beatoraja/play/JudgeManager.java)、[LaneRenderer](https://github.com/exch-bms2/beatoraja/blob/9aea9471f4490732cbbd6b71ca639ee823d20635/src/bms/player/beatoraja/play/LaneRenderer.java)。独立实现行为，不复制播放器 runtime。
 
 ## Results 与验证边界

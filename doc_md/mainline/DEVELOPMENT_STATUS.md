@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-28（Omni读谱回放与可选选曲/结算页软件整合；其余产品/生产证据沿原日期）
+> 最后核对：2026-10-28（Omni当前源回归通过；v44剥页后完整CLI/新原生待闭合）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -15,7 +15,7 @@ Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，具
 
 游玩判定/结果及性能取[10月19日深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)；设备入口、输入时间、轴用途、长皿与校准接续取[10月21日输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)。前台帧时间与实体设备仍待验收。
 
-Lighting Model Skin Omni Until 33默认33，27～33及八支BPL为Game Frame；读谱支持成组记忆、变化回放及独立计算版本，可选选曲/Results共用真实数据和原操作。v40整包与BMS Clear单场景原生/审图已过，v41难度/等级及其余原生仍在验收，交付/命名保持。范围取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。原HDD保全，早期来源与原版校准待补；作品独立私下分享，不内置或公开分发，原阶段、设备及发行门保持。
+Lighting Model Skin Omni Until 33默认33，27～33及八支BPL为Game Frame；AUTO/HUD软件回归及私有诊断ZIP默认DP取景已有分项证据，v44已剥页，完整CLI/余下原生未闭合，无新交付。两页只核拟真可行性，达不到取消两页作品计划，保留OMS原界面与通用PageAPI。身份取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，动作沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。原HDD保全，作品私下分享、不内置或公开分发，原版校准、设备及发行门保持。
 
 玩家直接登录固定OMSIR，保存后新局上传；新闻 / 帮助 / 排行 / 玩家沿原生页面。谱面列表先选模式：BMS 仅 Ginger Rush / 616，osu!mania 仅 Sayobot，恢复上次 BMS 来源；紧凑筛选、原生卡片和各来源阅读状态保持。正常OMS窗口的lazer体验仍待签收，隔离内容宽度检查不代签；源码 / 软件及剩余门取[P3-IR状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。社交后续，旧ppy关闭；Phase1.x原门保持。
 
@@ -51,7 +51,7 @@ Lighting Model Skin Omni Until 33默认33，27～33及八支BPL为Game Frame；�
 
 ## 最近一次验证
 
-2026-10-28：读谱版本兼容与当前源BMS完整回归、v40整包/字节证明及分项软件原生取[P1-A最近验证](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)和[本轮日志](../subline/P1-A/CHANGELOG.md#2026-10-28omni读谱版本兼容与候选验收)。旧v39共同gameplay与v40页面身份分开，原版130/190读数分别资格，不提升为原公式；v41与剩余最终页面、正常窗口、真实歌曲、设备和原生最终配方从零重编仍待。较早Mod/Start证据保留原日期。
+2026-10-28：r22构建/Core、非交付诊断ZIP默认DP取景，以及仍属r20源的r21 BMS full取[P1-A最近验证](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)和[日志](../subline/P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)。完整诊断CLI越过原失败点但未完，不称已修；新旧Replay仍跑。旧页面不签拟真/交付，原版130/190不提升为公式；正常窗口、设备与最终原生配方门保持。
 
 2026-10-11转谱补算、Debug读取及旧失败对照保留原日期，范围与未验项取[P1-H](../subline/P1-H/DEVELOPMENT_STATUS.md#最近一次验证)。
 

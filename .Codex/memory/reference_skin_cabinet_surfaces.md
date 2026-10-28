@@ -103,4 +103,6 @@ Headless的每例存储与失败收尾统一见[测试宿主地雷](reference_bu
 
 - scene点分stable ID的每一段都须以字母开头；`td.0.keys`或`td.p0.0`即使无冲突、ZIP闭包正确，实际导入仍会以InvalidStableId拒绝。生成器应复用现有严格ID校验，并覆盖全部C2条件分支的声明及引用；不能只测默认树或放宽公共codec。诊断与本次原生拒绝见[增量记录](../../doc_md/other/OMNI_GAMEPLAY_COMPLETION_20261026.md#验证与保全)。
 - 未引用排查先展开`.json.br`并追到atlas/字形/UV消费者；原图文件名未出现不是未使用证据。原白图经tint变绿必须逐RGBA核对及保存来源收据，不能仅靠视觉相似；剩余候选也不能由文件名直接升级为HCN/COMBO等玩法状态。范围与工具入口见[素材审计](../../doc_md/other/OMNI_GAMEPLAY_COMPLETION_20261026.md#素材是否已经完整分类)。
+- 用原图空区遮HDD专用快捷键前须核alpha；judge plate空区alpha204会留下0/9/3残影，应取已核实opaque像素而非继续叠半透明遮罩。AUTO灰字可能烘在整张plate内，只隐藏橙灯仍会让unknown看成OFF；先遮原灰字，再在实际known门内恢复原灰slice/橙灯，毫秒读数独立。原PNG字节保全不等于显示语义正确，准入取[P1-A合同](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)。
+- 原生Mod提示消失要比较HUD.LoadComplete、Player.OnEntering、IsSceneReady与实际start四个时点；只在Entering重给2秒仍会被C5/5秒准备耗完。可见期应落在`startGameplayImmediately`的真实`Reset(startClock:true)`后，不能只搬modsRect、加假Mod图或强开HUD父级；Replay guard保持。几何和可见生命周期分别核对，合同归[P1-A](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#皮肤配置项与显式舞台)。
 - 嵌套AFP不能只按root总帧数截导出。lane345的root边框128@60、同一cat child256@60；独立cat movie128@30已在嵌入时翻倍，不能再翻一次。原root结束不证明child也结束；先核source renderer行为和逐tick原PNG/UV，再将作者明确选择的两循环分别保留，不重复旧128成品假装补帧。原机parent-loop仍需原机CUSTOM，来源连续性与OMS播放各自留证。PGREAT同级蓝/绿/粉数字也不是简单tint：alpha可不同，须用原图配对；采集timestamp不是renderclock，不能据稀疏截图宣布精确原机周期。

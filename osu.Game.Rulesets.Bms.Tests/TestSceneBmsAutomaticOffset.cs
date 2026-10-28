@@ -1,5 +1,6 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using osu.Framework.Allocation;
@@ -9,9 +10,11 @@ using osu.Framework.Input.States;
 using osu.Framework.Testing;
 using osu.Framework.Timing;
 using osu.Game.Configuration;
+using osu.Game.Replays;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.Input;
 using osu.Game.Rulesets.Bms.Objects;
+using osu.Game.Rulesets.Bms.Replays;
 using osu.Game.Rulesets.Bms.Scoring;
 using osu.Game.Rulesets.Bms.UI;
 using osu.Game.Rulesets.Scoring;
@@ -111,6 +114,155 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("personal offset unchanged", () => config.Get<double>(OsuSetting.BmsVisualOffset), () => Is.EqualTo(-42));
             AddStep("load historical replay", () => ruleset.SetReplayScore(new Score()));
             AddAssert("old replay has zero visual correction", () => ruleset.Playfield.VisualOffset.Value, () => Is.Zero);
+        }
+
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        public void TestReplayAutomaticDisplayUsesActualModeRatherThanOffsetChangeCount(bool automatic, bool manualChange)
+        {
+            Score score = null!;
+            createScene(automatic ? AutomaticOffsetStyle.Beatoraja : AutomaticOffsetStyle.Off, 0);
+            AddStep("record the actual opening automatic mode", () => ruleset.SetRecordTarget(score = new Score()));
+            AddStep("advance to a real manual configuration boundary", () => seek(note.StartTime - 200));
+            AddStep("change only the manual offset when requested then flush", () =>
+            {
+                if (manualChange)
+                    config.SetValue(OsuSetting.BmsVisualOffset, 20d);
+                ruleset.SetRecordTarget(null!);
+                var saved = score.ScoreInfo.GetRulesetData<BmsScoreInfoData>()!;
+                Assert.That(saved.ReadingCalculationVersion, Is.EqualTo(0));
+                Assert.That(saved.VisualOffset!.Automatic!.Initial, Is.EqualTo(automatic));
+                Assert.That(saved.VisualOffset.Automatic.Changes, Is.Empty);
+                Assert.That(saved.VisualOffset.Changes.Count, Is.EqualTo(manualChange ? 1 : 0));
+            });
+            AddStep("load the recording against different personal preferences", () =>
+            {
+                config.SetValue(OsuSetting.AutomaticOffsetStyle, automatic ? AutomaticOffsetStyle.Off : AutomaticOffsetStyle.Beatoraja);
+                config.SetValue(OsuSetting.BmsVisualOffset, -42d);
+                ruleset.SetReplayScore(score);
+                seek(note.StartTime - 250);
+            });
+            AddAssert("initial automatic UI is known independently of dynamic scrolling", () =>
+                ruleset.GetAppliedVisualOffsetState().AutomaticAvailable
+                && ruleset.GetAppliedVisualOffsetState().Automatic == automatic
+                && ruleset.GetAppliedVisualOffsetState().Milliseconds == 0
+                && ruleset.Playfield.AutomaticVisualOffsetEnabled.Value == manualChange);
+            AddStep("seek beyond the manual offset boundary", () => seek(note.StartTime - 100));
+            AddAssert("the real offset history does not invent automatic mode", () =>
+                ruleset.Playfield.VisualOffset.Value == (manualChange ? 20 : 0)
+                && ruleset.GetAppliedVisualOffsetState().AutomaticAvailable
+                && ruleset.GetAppliedVisualOffsetState().Automatic == automatic);
+            AddAssert("playback does not learn either personal preference", () =>
+                config.Get<double>(OsuSetting.BmsVisualOffset) == -42
+                && config.Get<AutomaticOffsetStyle>(OsuSetting.AutomaticOffsetStyle) == (automatic ? AutomaticOffsetStyle.Off : AutomaticOffsetStyle.Beatoraja));
+        }
+
+        [Test]
+        public void TestAutoOnlyChangesUseNativeReplayClockAndRestoreOnSeekAndRetry()
+        {
+            Score score = null!;
+            Score retry = null!;
+            string original = string.Empty;
+            createScene(AutomaticOffsetStyle.Off, 0);
+            AddStep("start an actual native recording", () => ruleset.SetRecordTarget(score = new Score()));
+            AddStep("enable automatic mode at its native clock", () =>
+            {
+                seek(note.StartTime - 400);
+                config.SetValue(OsuSetting.AutomaticOffsetStyle, AutomaticOffsetStyle.Beatoraja);
+            });
+            AddStep("disable automatic mode later without changing numeric offset", () =>
+            {
+                seek(note.StartTime - 200);
+                config.SetValue(OsuSetting.AutomaticOffsetStyle, AutomaticOffsetStyle.Off);
+                ruleset.SetRecordTarget(null!);
+                var saved = score.ScoreInfo.GetRulesetData<BmsScoreInfoData>()!;
+                Assert.That(saved.VisualOffset!.Changes, Is.Empty);
+                Assert.That(saved.VisualOffset.Automatic!.Changes.Select(change => change.Time),
+                    Is.EqualTo(new[] { note.StartTime - 400, note.StartTime - 200 }));
+                Assert.That(saved.VisualOffset.Automatic.Changes.Select(change => change.Enabled), Is.EqualTo(new bool?[] { true, false }));
+                Assert.That(score.Replay.Frames.Any(frame => frame.Time == note.StartTime - 400), Is.True);
+                Assert.That(score.Replay.Frames.Any(frame => frame.Time == note.StartTime - 200), Is.True);
+                original = score.ScoreInfo.RulesetDataJson;
+                config.SetValue(OsuSetting.AutomaticOffsetStyle, AutomaticOffsetStyle.Beatoraja);
+                config.SetValue(OsuSetting.BmsVisualOffset, -42d);
+                ruleset.SetReplayScore(score);
+            });
+            AddStep("seek before either mode edge", () => seek(note.StartTime - 450));
+            AddAssert("recorded initial Off is known", () => ruleset.GetAppliedVisualOffsetState().AutomaticAvailable && !ruleset.GetAppliedVisualOffsetState().Automatic);
+            AddStep("seek between the mode edges", () => seek(note.StartTime - 300));
+            AddAssert("recorded On remains known with zero offset changes", () => ruleset.GetAppliedVisualOffsetState().AutomaticAvailable && ruleset.GetAppliedVisualOffsetState().Automatic);
+            AddStep("seek after the Off edge", () => seek(note.StartTime - 100));
+            AddAssert("recorded Off returns", () => ruleset.GetAppliedVisualOffsetState().AutomaticAvailable && !ruleset.GetAppliedVisualOffsetState().Automatic);
+            AddStep("rewind and reattach the same history", () =>
+            {
+                ruleset.SetReplayScore(score);
+                seek(note.StartTime - 300);
+            });
+            AddAssert("reset restores the same On interval", () => ruleset.GetAppliedVisualOffsetState().AutomaticAvailable && ruleset.GetAppliedVisualOffsetState().Automatic);
+            AddAssert("viewing preserves source metadata and personal preferences", () => score.ScoreInfo.RulesetDataJson == original
+                && config.Get<double>(OsuSetting.BmsVisualOffset) == -42
+                && config.Get<AutomaticOffsetStyle>(OsuSetting.AutomaticOffsetStyle) == AutomaticOffsetStyle.Beatoraja);
+            AddStep("a fresh recording captures today's real initial mode", () =>
+            {
+                ruleset.SetReplayScore(null!);
+                ruleset.SetRecordTarget(retry = new Score());
+                ruleset.SetRecordTarget(null!);
+                var saved = retry.ScoreInfo.GetRulesetData<BmsScoreInfoData>()!.VisualOffset!;
+                Assert.That(saved.Automatic!.Initial, Is.True);
+                Assert.That(saved.Automatic.Changes, Is.Empty);
+                Assert.That(saved.InitialOffset, Is.EqualTo(-42));
+            });
+        }
+
+        [Test]
+        public void TestLegacyManualOffsetHistoryRemainsDynamicButItsAutomaticModeIsUnknown()
+        {
+            createScene(AutomaticOffsetStyle.Beatoraja, -42);
+            AddStep("load literal old offset-only metadata", () =>
+            {
+                var score = new Score
+                {
+                    ScoreInfo = { Ruleset = new BmsRuleset().RulesetInfo,
+                        RulesetDataJson = "{\"visual_offset\":{\"initial\":0,\"changes\":[{\"time\":1000,\"offset\":20}]}}" },
+                    Replay = new Replay { Frames = { new BmsReplayFrame(0), new BmsReplayFrame(20000) } },
+                };
+                string original = score.ScoreInfo.RulesetDataJson;
+                ruleset.SetReplayScore(score);
+                seek(500);
+                Assert.That(ruleset.Playfield.AutomaticVisualOffsetEnabled.Value, Is.True, "Manual offset history still requires its original dynamic scrolling wrapper.");
+                Assert.That(ruleset.GetAppliedVisualOffsetState().IsAvailable, Is.True);
+                Assert.That(ruleset.GetAppliedVisualOffsetState().AutomaticAvailable, Is.False);
+                Assert.That(ruleset.Playfield.VisualOffset.Value, Is.Zero);
+                seek(1200);
+                Assert.That(ruleset.GetAppliedVisualOffsetState().AutomaticAvailable, Is.False);
+                Assert.That(ruleset.GetAppliedVisualOffsetState().Milliseconds, Is.EqualTo(20));
+                seek(500);
+                Assert.That(ruleset.Playfield.VisualOffset.Value, Is.Zero);
+                Assert.That(score.ScoreInfo.RulesetDataJson, Is.EqualTo(original));
+                Assert.That(config.Get<double>(OsuSetting.BmsVisualOffset), Is.EqualTo(-42));
+            });
+        }
+
+        [TestCase("{\"initial\":0,\"changes\":[],\"automatic\":{\"changes\":[]}}")]
+        [TestCase("{\"initial\":0,\"changes\":[],\"automatic\":{\"initial\":false,\"changes\":[{\"time\":1000}]}}")]
+        public void TestMalformedAutomaticHistoryIsRejectedBeforeTheReplayIsAdopted(string visualOffset)
+        {
+            createScene(AutomaticOffsetStyle.Beatoraja, -42);
+            AddStep("reject malformed automatic metadata at the actual playback boundary", () =>
+            {
+                var score = new Score
+                {
+                    ScoreInfo = { Ruleset = new BmsRuleset().RulesetInfo, RulesetDataJson = "{\"visual_offset\":" + visualOffset + "}" },
+                };
+                string original = score.ScoreInfo.RulesetDataJson;
+                Assert.Throws<InvalidDataException>(() => ruleset.SetReplayScore(score));
+                Assert.That(ruleset.HasReplayLoaded.Value, Is.False);
+                Assert.That(ruleset.GetAppliedVisualOffsetState().AutomaticAvailable, Is.True);
+                Assert.That(ruleset.GetAppliedVisualOffsetState().Automatic, Is.True);
+                Assert.That(ruleset.Playfield.VisualOffset.Value, Is.EqualTo(-42));
+                Assert.That(score.ScoreInfo.RulesetDataJson, Is.EqualTo(original));
+                Assert.That(config.Get<double>(OsuSetting.BmsVisualOffset), Is.EqualTo(-42));
+            });
         }
 
         [TestCase(BmsLongNoteMode.LN, 0, -2)]

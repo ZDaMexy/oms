@@ -18,6 +18,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
         [TestCase("offset.value", "-7.5")]
         [TestCase("offset.available", "true")]
         [TestCase("offset.automatic", "true")]
+        [TestCase("offset.automatic-available", "true")]
         [TestCase("timing.time", "250")]
         [TestCase("timing.elapsed", "750")]
         [TestCase("presentation.elapsed", "750")]
@@ -49,7 +50,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 new[] { new GameplaySkinInputStateSnapshot(lane.GroupId, lane.LaneId, false, 0, motionCounts: -20, motionRevolutions: 0.25, motionAvailable: true) },
                 initial.ActiveObjects, initial.CurrentJudgements,
                 new GameplaySkinScoreStateSnapshot(29, 0, 19, 0.8, 0.5, new GameplaySkinJudgementStatistics(10, 9, 8, 7, 6, 5, 4, 3, 4), maximumScore: 100,
-                    offsetState: new GameplaySkinOffsetStateSnapshot(true, -7.5, true)),
+                    offsetState: new GameplaySkinOffsetStateSnapshot(true, -7.5, true, true)),
                 new GameplaySkinTimingStateSnapshot(-0.25, -1, 120, false, 1, startTime: -500), initial.BgaViewports,
                 chartPresentation: new GameplaySkinChartPresentation(new[] { new GameplaySkinLaneArrival(lane.GroupId, lane.LaneId, 1000) }, true, 75));
             using var stream = new GameplaySkinEventStream(publication, 250, snapshot);
@@ -68,6 +69,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
 
         [TestCase("offset.available")]
         [TestCase("offset.automatic")]
+        [TestCase("offset.automatic-available")]
         [TestCase("score.personal-best-available")]
         [TestCase("score.rank-available")]
         [TestCase("arrival.available")]
@@ -83,6 +85,63 @@ namespace osu.Game.Tests.NonVisual.Skinning
             Assert.That(host.TryGetRuntimeNode("accuracy", out GameplaySkinSceneRuntimeNode? text), Is.True);
             Assert.That(((SpriteText)text!.ContentDrawable).Text.ToString(), Is.EqualTo("false"));
             Assert.That(host.RuntimeFaults, Is.Empty);
+        }
+
+        [TestCase("offset.value", "-7.5")]
+        [TestCase("offset.available", "true")]
+        [TestCase("offset.automatic-available", "false")]
+        public void TestUnknownAutomaticModeDoesNotHideTheAppliedNumericOffset(string binding, string expected)
+        {
+            using Texture texture = new DummyRenderer().CreateTexture(8, 8);
+            using GameplaySkinLayoutPublication publication = CreateEssentialInformationPublication(texture, true, bindingSource: binding);
+            GameplaySkinEventStateSnapshot initial = publication.PreparedScene.InitialEventState;
+            var snapshot = new GameplaySkinEventStateSnapshot(initial.LifecycleState, initial.Inputs, initial.ActiveObjects, initial.CurrentJudgements,
+                new GameplaySkinScoreStateSnapshot(0, 0, 0, 1, 0, offsetState: new GameplaySkinOffsetStateSnapshot(true, -7.5, false, false)),
+                initial.Timing, initial.BgaViewports);
+            using var stream = new GameplaySkinEventStream(publication, 0, snapshot);
+            using var host = new GameplaySkinSceneRuntimeHost(publication, stream);
+            host.ProcessFrame();
+            Assert.That(host.TryGetRuntimeNode("accuracy", out GameplaySkinSceneRuntimeNode? text), Is.True);
+            Assert.That(((SpriteText)text!.ContentDrawable).Text.ToString(), Is.EqualTo(expected));
+            Assert.That(host.RuntimeFaults, Is.Empty);
+        }
+
+        [Test]
+        public void TestAutomaticAvailabilityGatesTheCaptionAndLampAcrossLiveDeliveryAndReset()
+        {
+            using Texture texture = new DummyRenderer().CreateTexture(8, 8);
+            using GameplaySkinLayoutPublication publication = offsetAutomaticPublication(texture);
+            GameplaySkinEventStateSnapshot initial = publication.PreparedScene.InitialEventState;
+            GameplaySkinScoreStateSnapshot score(bool? automatic) => new(0, 0, 0, 1, 0,
+                offsetState: new GameplaySkinOffsetStateSnapshot(true, -7.5, automatic == true, automatic.HasValue));
+            var unknown = new GameplaySkinEventStateSnapshot(initial.LifecycleState, initial.Inputs, initial.ActiveObjects,
+                initial.CurrentJudgements, score(null), initial.Timing, initial.BgaViewports);
+            using var stream = new GameplaySkinEventStream(publication, 0, unknown);
+            GameplaySkinEventProducer producer = stream.CreateProducer();
+            try
+            {
+                using var host = new GameplaySkinSceneRuntimeHost(publication, stream);
+                int time = 0;
+                foreach (bool? automatic in new bool?[] { null, false, true, null })
+                {
+                    publishScore(stream, producer, ++time, GameplaySkinEventKind.ScoreChanged, score(automatic));
+                    host.ProcessFrame();
+                    Assert.That(runtime(host, "auto.known").TransformDrawable.Alpha, Is.EqualTo(automatic.HasValue ? 1 : 0));
+                    Assert.That(runtime(host, "auto.variant").TransformDrawable.Alpha, Is.EqualTo(automatic.HasValue ? 1 : 0));
+                    Assert.That(runtime(host, "auto.lamp").TransformDrawable.Alpha, Is.EqualTo(automatic == true ? 1 : 0));
+                    Assert.That(((SpriteText)runtime(host, "auto.offset").ContentDrawable).Text.ToString(), Is.EqualTo("-7.5"));
+                }
+                producer = producer.Reset(0, unknown, GameplaySkinEventResetReason.Retry);
+                host.ProcessFrame();
+                Assert.That(runtime(host, "auto.known").TransformDrawable.Alpha, Is.Zero);
+                Assert.That(runtime(host, "auto.variant").TransformDrawable.Alpha, Is.Zero);
+                Assert.That(((SpriteText)runtime(host, "auto.offset").ContentDrawable).Text.ToString(), Is.EqualTo("-7.5"));
+                Assert.That(host.RuntimeFaults, Is.Empty);
+            }
+            finally
+            {
+                producer.Dispose();
+            }
         }
 
         [Test]
@@ -202,6 +261,47 @@ namespace osu.Game.Tests.NonVisual.Skinning
             Assert.That(runtime(host, "phase").TransformDrawable.Rotation, Is.EqualTo(36).Within(0.0001), "Skipping optional preparation uses the real gameplay clock.");
             Assert.That(host.RuntimeFaults, Is.Empty);
             producer.Dispose();
+        }
+
+        private static GameplaySkinLayoutPublication offsetAutomaticPublication(Texture texture)
+        {
+            LayoutFixture layout = createLayout();
+            GameplaySkinResolvedMaterialTarget global = GameplaySkinResolvedMaterialTarget.Global;
+            GameplaySkinResolvedMaterialSet materials = materialSetFor(layout.Snapshot, new[] { provide(GameplaySkinSlotCatalog.TextHud, global, texture, source()) });
+            var manifest = new GameplaySkinSceneManifest(Array.Empty<GameplaySkinSceneResource>());
+            const string json = """
+                {"contract":"oms-gameplay-skin-scene.v1",
+                 "root":{"id":"auto.hud","type":"container","target":{"kind":"global"},"slot":"hud.text","blend":"alpha","properties":{},"effects":[],"children":[
+                   {"id":"auto.offset","type":"text","target":{"kind":"global"},"blend":"alpha","properties":{"text":""},"effects":[],"children":[]},
+                   {"id":"auto.known","type":"container","target":{"kind":"global"},"blend":"alpha","properties":{"visible":false},"effects":[],"children":[
+                     {"id":"auto.caption","type":"text","target":{"kind":"global"},"blend":"alpha","properties":{"text":"AUTO ADJUST"},"effects":[],"children":[]},
+                     {"id":"auto.lamp","type":"container","target":{"kind":"global"},"blend":"alpha","properties":{"visible":false},"effects":[],"children":[]}]},
+                   {"id":"auto.variant","type":"container","target":{"kind":"global"},"blend":"alpha","properties":{"visible":false},"effects":[],"children":[]}]},
+                 "bindings":[
+                   {"id":"auto.offset.text","target":"auto.offset","property":"text","source":"offset.value"},
+                   {"id":"auto.known.visible","target":"auto.known","property":"visible","source":"offset.automatic-available"},
+                   {"id":"auto.lamp.visible","target":"auto.lamp","property":"visible","source":"offset.automatic"}],
+                 "variants":[{"id":"auto.variant.visible","target":"auto.variant","property":"visible","source":"offset.automatic-available","default":false,
+                   "cases":[{"id":"auto.variant.yes","key":"true","value":true},{"id":"auto.variant.no","key":"false","value":false}]}],
+                 "tracks":[],"stateMachines":[],"templates":[],"instances":[]}
+                """;
+            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> decoded = GameplaySkinSceneCodec.DecodeScene(json, manifest);
+            Assert.That(decoded.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid), string.Join(", ", decoded.Diagnostics.Select(d => d.Code)));
+            GameplaySkinSceneDocument document = decoded.Value!;
+            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> roundTrip = GameplaySkinSceneCodec.DecodeScene(GameplaySkinSceneCodec.EncodeScene(document), manifest);
+            Assert.That(roundTrip.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+            Assert.That(roundTrip.Value!.Variants.Single().SourceId, Is.EqualTo("offset.automatic-available"));
+            var owner = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.TextHud, global);
+            GameplaySkinLayoutRect rect = layout.Snapshot.GetSurface("mania.hud").Rect;
+            GameplaySkinPreparedSceneNode childNode(GameplaySkinSceneNode node)
+                => new(node.Id, node, node.Target, rect, global, null, null, null,
+                    node.Children.Select(childNode).ToArray(), GameplaySkinSceneLayer.HudForeground, owner, false);
+            var scene = new GameplaySkinPreparedScene(layout.Snapshot, materials, "offset-automatic", manifest, document,
+                Array.Empty<GameplaySkinPreparedSceneResource>(), new[]
+                {
+                    prepared(document.Root, rect, global, GameplaySkinSlotCatalog.TextHud, null, document.Root.Children.Select(childNode).ToArray()),
+                });
+            return GameplaySkinLayoutPublication.Create(new Adapter(layout.Snapshot), materials, scene);
         }
 
         private static GameplaySkinLayoutPublication liveClockPublication(Texture texture, string clock, double initialRotation = 0, double period = 1)

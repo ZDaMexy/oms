@@ -15,7 +15,7 @@
 
 ## 皮肤恢复与存储
 
-- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage继承、轨宽、血槽/FC、组合预算与冻结ID重建；真实起点/预览、持续组件、轨底层拆分、原生Mod避让、原版菜单取证、判定宿主高度、横排像素叶子与挡板/LIFT读数几何、共享亮度、挡板透明度、Spice时钟/Hi-Speed样本资格、C4身份、退出HUD readiness、点分ID与atlas未引用误判。
+- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage继承、轨宽、血槽/FC、组合预算与冻结ID重建；真实起点/预览、持续组件、原生Mod避让/慢加载寿命、判定宿主高度、横排像素叶子与挡板/LIFT几何、opaque遮罩/AUTO未知态、亮度/透明度、Spice时钟/Hi-Speed样本资格、C4身份、退出HUD readiness、点分ID与atlas误判。
 
 - [2026-07-10 皮肤恢复](reference_skin_recovery_20260710.md) — 恢复锚点、归档与重新准入；**皮肤任务先读**。
 - [2026-07-13 schema 56 皮肤清点](reference_skin_schema56_inventory_20260713.md) — 只读取证、失效类型与 Realm mtime 误判。
@@ -29,13 +29,13 @@
 - [managed skin atomic reload/detach](reference_skin_atomic_reload_detach.md) — 三源 publication、lease/retire 与调度竞态。
 - [ordinary `.osk` archive import safety](reference_skin_osk_archive_import_safety.md) — archive 预检、same-hash receipt 与非对称回滚。
 - [canonical 构建、安装与用户数据保护](reference_skin_canonical_installation.md) — 静线唯一保底、原件/工作副本、退役迁移与缺行修复；便携/缓存隔离、冷启动线程、Ready早于载入所有权交还。
-- [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 随包手册与示例闭合、作者边界、用户决定与诊断入口。
+- [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 随包手册/示例闭合、作者边界、Omni两页拟真硬门与工程证据不等于交付、用户决定及诊断入口。
 - [Skin V1 价值与工作预算](project_oms_skin_product_progress.md) — 区分效果能力、成品与创作便利度；星轨实际体验否定、有限反馈与本轮停止边界，当前状态读 P1-A。
 - [模式/键数皮肤选择](reference_skin_mode_selection.md) — 独立设置目标、模式遗漏覆盖与作者默认、仅页面包准入、逐层继承、配置冻结、图库旧页释放及选曲确认删除/隐藏音效收尾。
 
 ## 构建、存储与产品面参考
 
-- [构建与测试](reference_build_and_test.md) — 开发磁盘、占用句柄下的同卷目录归并、缓存清理后的源码/依赖重建、宿主deps与空ENV、TRX跳过计数、音轨跳时/桌面GC、普通/回放Player取景与活动状态、同一步准时输入、初始关闭内门与静态纹理、ruleset共享测试源码、formatter与输出锁、作者组合异常修正/取证、品牌贴图、退休fixture与混合谱包/Realm快照、内存峰值、图片许可/审计误判、公钥首次导入及MSBuild旁带文件元数据。
+- [构建与测试](reference_build_and_test.md) — 开发磁盘、占用句柄下的同卷目录归并、缓存清理后的源码/依赖重建、宿主deps与空ENV、TRX跳过计数、音轨跳时/桌面GC、普通/回放Player取景及converted/stored身份、同一步准时输入、初始关闭内门与静态纹理、ruleset共享源码、formatter与输出锁、作者组合异常修正、品牌贴图、退休fixture与混合谱包/Realm快照、内存峰值、许可/审计误判、公钥导入及MSBuild元数据。
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱库路径身份与历史保全](reference_filesystem_library_identity.md) — 同内容不同目录、失效与物删分离、多文件改名、重复素材枚举与增量查询放大器。
 - [谱面构成过滤](reference_bms_composition_filter.md) — 单轨上限、共享额度、零宽入口及无解条件。
@@ -57,7 +57,7 @@
 - [lane 重排](reference_bms_lane_rearrangement.md) — 重复应用的三次置换故障及 P1-K/P1-J 回链。
 - [stop-motion 滚动旁路](reference_bms_stopmotion_bypass.md)
 - [判定 parity](reference_bms_judgement_parity.md) — 家族边界、全自动计分资格与跨列health撤销顺序。
-- [自动调整偏移](reference_bms_auto_offset.md) — 继承入口与迁移、Gimmick 独立开关、视觉寿命、提前加载候选与录制结束持久化。
+- [自动调整偏移](reference_bms_auto_offset.md) — 继承入口与迁移、Gimmick独立开关、numeric包装与独立AUTO真值、JSON缺time默认0、视觉寿命、提前加载候选与录制结束持久化。
 - [TOTAL 与成绩版本](reference_bms_total_rules.md) — 作者值/缺省值、辅助前后两个物量、历史反序列化默认与新游玩版本、autoplay 身份。
 - [mania HoldNote 地雷](reference_mania_autoplay_holdnote.md) — nested过滤与note lock父寿命、同批松键读显示状态的误判。
 

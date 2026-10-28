@@ -766,6 +766,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBindingSource.OffsetValue => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.OffsetAvailable => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.OffsetAutomatic => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.OffsetAutomaticAvailable => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.ScorePersonalBest => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.ScorePersonalBestProgress => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.ScorePersonalBestAvailable => GameplaySkinSceneStateFamily.Score,

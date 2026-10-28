@@ -1,6 +1,6 @@
 # P1-A 技术约束：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-28（读谱计算版本与legacy公式边界；原发行门保持）
+> 最后核对：2026-10-28（Omni两页拟真硬门、AUTO真值及Mod提示；计算/发行边界保持）
 > 本文件是 P1-A 产品面及 Skin V1 的硬约束源。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，皮肤设计证据见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。若代码与本文冲突，先确认新事实并同步修正文档/代码，不能用历史 CHANGELOG 覆盖当前 authority。
 
 ## 按任务定位
@@ -107,7 +107,7 @@
 2026-10-18用户授权以皮肤配置项替代旧全局BMS游玩区域样式。作者在同一manifest声明choice/toggle/number、默认值与玩法/键数适用范围；玩家覆盖按皮肤记录、规则集和可选键数保存在用户配置。键数未设置的选项继承同一皮肤的模式配置，再取作者默认；不同皮肤不互借配置，不写包或external源。旧全局PlayfieldStyle只保留历史配置键，production不再将它作为布局authority。静线与制作示例仅声明原有四种视觉布局，默认居中左皿，不改其素材或比例。
 
 1. 选项在每次root准备时验证并冻结于同一LayoutContext；偏好改变只影响下一次游玩/重新打开预览，不监听或修改活跃publication。无声明/失效覆盖使用作者默认或原有布局，不增设reload、watcher、publication authority。
-   有效作者layout可用可选`modsRect`给已有原生Mod提示指定安全区矩形，同一snapshot发布为`hud.mods`；原生HUD按同C5全画布坐标移动并必要时等比缩小现有控件，保留真实Mods、回放/悬停/HUD可见性，不生成视觉、资源、离屏缓冲或输入轨道。缺省和不匹配layout保留旧行为；字段合同只在[作者参考](../../../skin-authoring/docs/REFERENCE.md#显式舞台与留空位置)维护。
+   有效作者layout可用可选`modsRect`给已有原生Mod提示指定安全区矩形，同一snapshot发布为`hud.mods`；原生HUD按同C5全画布坐标移动并必要时等比缩小现有控件，保留真实Mods、回放/悬停/HUD可见性，不生成视觉、资源、离屏缓冲或输入轨道。live在实际开谱`Reset(startClock:true)`后给予原生提示2秒可见期，不能被加载或C5准备消耗；Replay guard与HUD父显隐不变。缺省和不匹配layout保留原几何；字段只在[作者参考](../../../skin-authoring/docs/REFERENCE.md#显式舞台与留空位置)维护。
 2. `option.<id>`沿现有scene binding/variant与完整资源预算消费；普通inline分支沿原准备路径；显式contentCatalog先捕获全部闭包、校验所有结构/图片头，再只解码冻结组合，作者CLI另外逐张完整解码备用PNG。选中值不授予动态文件访问权。`layout.ruleset`只读同一context。类型、适用性、默认值、预算和作者语法的唯一实现是shared codec，参考见[作者手册](../../../skin-authoring/docs/REFERENCE.md#皮肤配置项)。
 3. 可选manifest.layouts仅为原solver的显式作者输入，真实stage/逻辑lane序与immutable topology保持。矩形、空白和键图外扩不得制造输入、移动action/role、改变判定/计分/时间；同一solver输出所有native/scene消费者的几何。未匹配旧包不走新几何分支；规则集不得硬编码IIDX键数、留空、样式或贴图。
 4. IIDX包自身声明BMS5/7/14K与mania5/6/7/8/14/16K。5K忽略远皿两普通槽；mania5/7/14保留空皿，6/8/16将其作为普通可打列；mania原SpecialKey身份和实际双stage向量保持。其余皮肤的原生布局、声音、长条和fallback必须回归，不把作者作品规则推广成玩法合同。
@@ -139,6 +139,7 @@ Omni的Key beam是逐轨动态背景，使用现有`playfield.lane-surface`及Un
 9e. 单次FAST/SLOW与累计计数、短暂判定文字分别保存，真实输入来源只补显示事实，不改判定、offset或计分。Combined/Keys/Scratch按精确group投影，Global不借第一组；完整快照和背压保持已折叠事实，seek/rewind/retry清空。Omni默认Position A，可关闭或选择B/C及Separate Display；原版预览、实际字形和OMS几何适配分开记证。NEXT只从真实EX满分与匹配本地最好派生，不读取作者目标选项，不补造缺数据或Ghost；详细资格和七档取整只在[作者参考](../../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)维护，不增加脚本权限。原图未直接打包不等于未用，素材审计须追踪同像素别名、atlas、UV、字体与派生色，候选不直接计为缺失功能。
 9f. 本地PB/NEXT的Mod比较由原生规则集提供查询投影，未提供者继续完整APIMod匹配，Core不识别BMS名称。按用户选择，BMS忽略Sudden/Hidden/Lift有无及已知显示/记忆设置，ASCR/ANOT仅忽略叠加着色；辅助及其可见性、判定/Gauge、CN/HCN、MR/RD及seed等其余条件保持。未知Mod/设置/类型不解析或猜默认，比较副本不得修改保存的ModsJson、APIMods、回放或传分；原身份、谱面、分数版本、规则统计与失败资格门不变。准确规范化范围取[作者参考](../../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)。
 9g. Omni血槽保留各Frame原图，以实际`gauge.clear-threshold`及`gauge.clear-state`补充真实门槛/状态，P2只镜像标线且文字保持正向；survival零门槛不显示百分比线。HAZARD按真实type标示生存模式，不把未证实EVENT2或其它代蓝条冒充本代来源。新增子树仅BMS，mania保持原表现；无新增配置、bitmap字体或预算放宽。ASCR/ANOT默认叠加着色及原保存值保持，入口须明确关闭后使用皮肤原色。
+9h. `offset.available`只代表数值偏移可用，自动开关另由`offset.automatic-available`确认已知后再读`offset.automatic`。未知来源不得以0或numeric变化数冒充OFF/ON，数值仍可独立显示；三者均为只读布尔，不扩脚本权限。C5精确类型只在[作者参考](../../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)维护，录制和Replay真值归[P1-C](../P1-C/TECHNICAL_CONSTRAINTS.md#自动调整偏移合同2026-09-29)。Omni未知时遮原AUTO灰标签/灯，已知才恢复原灰slice与橙灯；原0/9/3并非OMS快捷键，不得因遮罩半透明残影重新展示。
 10. 按键记录动画起点只能来自原生输入的真实游玩时间边沿；完整快照、队列重建和晚挂载保留，seek/retry不得伪造旧起点。持续按住但旧边沿未知时仅投影稳定held帧，真实release仍可独立播放尾段。原生EXP按选中记录的完整时长保留，不能因历史200ms效果寿命截断；裁切后真实三角形、片数与原生池重复均计入准备预算。
 10a. 记录动画的层级、camera/mask 裁切结果在原准备期校验后冻结为私有不可变几何/颜色值，同一 program 的原生 clone 共用；整包剩余三角预算须在冻结下一帧前检查，不降低原合法准入范围。draw node 只读自身冻结的 frame、piece、DrawSize 与 DrawInfo，不在绘制线程读取活动 Source，也不按各 piece 历史最大值积存额外数组；保留内存与稳态分配的取舍须单独记录，不以组件分配量宣称整局帧率。
 10b. 原始循环有一次性开头时，记录数据可声明 `loopStartFrame`，末尾空帧仍只作终止哨兵；完整字段合同见[作者参考](../../../skin-authoring/docs/REFERENCE.md#记录动画)。从准备延续到游玩的装饰使用派生只读 `presentation.elapsed`，只合成原准备已过时间与实际Gameplay Start后的时间，不增设时钟authority。首个真实消费者是33及七支S5框体各自的源星形循环；关闭外框入场或准备不可用时保留原静态作者分支，不把静态预览当作动态验收。
@@ -151,7 +152,9 @@ Omni的Key beam是逐轨动态背景，使用现有`playfield.lane-surface`及Un
 
 SongSelect只提供背景、列表边栏、普通/真实选中行与可选brand的非输入美术槽，保留原控件几何、原背景、BMS clear lamp、文字、实际谱库及所有操作。scope跟随实际玩法/WorkingBeatmap/Mods及皮肤分配，不另存谱面或在浏览时ApplySkinScope；空库只取模式默认。相同scope/target不重复读包；切换/挂起先同步清全部可见及池化行引用再释放owner，活动外观明确阻止没有staged receipt的C2。该窄页不扩展任意菜单布局或动作DSL。
 
-`score.passed`保留真实完成/失败语义，`score.cleared`由`Ruleset.GetResultsClearState()`提供；BMS只读已存ClearLamp，普通Gauge完曲未Clear仍为false，缺值/未知为null。页面不得按Passed、框体或图片猜Clear，不改原计分/保存/传分。首次Omni首版使用33主屏原图及真实统计，版式适配与原版布局/动画还原分开验收。
+`score.passed`保留真实完成/失败语义，`score.cleared`由`Ruleset.GetResultsClearState()`提供；BMS只读已存ClearLamp，普通Gauge完曲未Clear仍为false，缺值/未知为null。页面不得按Passed、框体或图片猜Clear，不改原计分/保存/传分。
+
+Omni的SongSelect/Results另守用户拟真硬门：先对照原版布局、层级和主要动效，原美术可直接使用就直接使用；做不到则取消这两页作品计划、保留OMS原界面。v40/v41混搭页仅为内部工程样机，其数据/API/原生通过不代表可交付页或用户认可。后续交付候选不得带当前混搭页，除非未来拟真门实证闭合；这不取消Omni gameplay持续goal或既有通用PageAPI。
 
 ## 既有产品面硬约束（未被 Skin V1 取代）
 

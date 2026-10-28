@@ -304,7 +304,7 @@ namespace osu.Game.Screens.Play
                 }
                 else
                 {
-                    ModDisplay.Delay(2000).FadeOut(200);
+                    ShowInitialMods();
                     InputCountController.Margin = new MarginPadding(10);
                 }
 
@@ -313,6 +313,14 @@ namespace osu.Game.Screens.Play
 
             ModDisplay.ExpansionMode = ExpansionMode.AlwaysExpanded;
             Scheduler.AddDelayed(() => ModDisplay.ExpansionMode = ExpansionMode.ExpandOnHover, 1200);
+        }
+
+        internal void ShowInitialMods()
+        {
+            if (replayLoaded.Value)
+                return;
+
+            ModDisplay.FadeIn().Delay(2000).FadeOut(200);
         }
 
         protected override void Dispose(bool isDisposing)

@@ -1,6 +1,6 @@
 # P1-C 当前状态：判定语义与反馈闭环
 
-> 最后核对：2026-10-19（跨轨撤销、全自动结算及失败回放元数据；真实设备体验待验收）
+> 最后核对：2026-10-28（自动偏移独立模式软件回归通过；新原生/真实设备门保持）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，HUD/skin 宿主边界归 [P1-A](../P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 当前阶段
@@ -8,6 +8,8 @@
 跨轨结果已按全局实际应用顺序逆序撤销，修复BMS/mania血量快照恢复错误；BMS全自动结算按CountsForScore保留回血分母，辅助仍排除。失败回放增加可选passed，旧F恢复失败且已存F重导不受Realm ignored bool默认值影响；普通mania同批松键和note lock归[P1-E](../P1-E/DEVELOPMENT_STATUS.md)。未更换窗口数表、TOTAL身份或新局OMSIR合同，范围见[本轮深审](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)。
 
 「自动调整偏移」已统一为 `关闭 / osu!lazer style / beatoraja style` 单选，旧开启设置迁移为 lazer。玩家可在同一音频设置区查看/修改 BMS 显示偏移；beatoraja 在真实 BMS 演奏中按有效时机调整，关闭后保留固定值，mania 不执行该算法。LN 合并采样、CN/HCN 真实松键、辅助过滤、回放只读轨迹已接入；回放不覆盖个人设置。具体合同见[自动调整偏移](TECHNICAL_CONSTRAINTS.md#自动调整偏移合同2026-09-29)。
+
+真实自动开关与数值变化已分开记录，Replay按记录时刻恢复；旧无开关记录及无来源GeneratedAutoplay保持unknown，皮肤不能用numeric变化数伪装ON/OFF。算法、判定/计分及个人配置合同不变，软件基线取下方验证，新原生与设备门保持；范围取[日志](CHANGELOG.md#2026-10-28自动偏移开关独立记录)。
 
 2026-09-22 TOTAL 修正：已接入合法作者值优先、Beatoraja/LR2 各自缺省、辅助前后物量分离与 v7 新局身份；v7之前（含v6）及无版本历史结果使用旧缺省，已存终值/灯保留。精确来源、失败身份与验证边界统一见[TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。现有 Gauge Mod/默认规则、GAS 与 HCN 持续速率保持。
 
@@ -34,6 +36,8 @@ IIDX/LR2/beatoraja/OD 判定家族与主要边界 parity 已落地并由契约�
 - 被删除的 `GameplayFeedbackState`、常驻 feedback card、FAST/SLOW/pacemaker 管线不是当前能力；如重建必须另立专题。
 
 ## 最近一次验证
+
+2026-10-28：r20构建/focused与r21对应r20源BMS完整回归通过；r22只追加HUD起点修正及构建/Core回归，不转记BMS full。诊断ZIP默认DP的AUTO knownOff/ms有分项实绘，新旧Replay仍在跑，未登记通过。计数与非交付边界取[P1-A日志](../P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)，设备/听感门保持。
 
 2026-10-19：真实手动回放跨轨回退、LN/CN/HCN全自动实况/结算与持久化数据、失败回放新旧元数据控制均有修前失败和修后证明；另补固定混合谱验证BMS四家族与mania六类判定到完成成绩的统计、准确率、连击与分数。完整回归、旧失败身份及当前构建取[集中记录](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#验证证据)，不将本地Rank展示误写成Passed持久化；真实设备收敛、听感和外部播放器逐帧对照仍未签收。
 

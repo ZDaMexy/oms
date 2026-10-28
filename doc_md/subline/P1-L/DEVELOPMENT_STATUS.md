@@ -39,7 +39,7 @@
 
 ## 最近一次验证
 
-2026-10-28实际lane运动及r17源完整BMS回归通过，覆盖正SCROLL、长STOP共享base=6/profile base=500、Off/Auto/On与首次scratch成组保存。共同gameplay的SP Floating含真实Replay、DP Classic低速、Auto短STOP三组隔离原生通过；没有改数学/precision，构建、计数和包身份统一取[P1-A日志](../P1-A/CHANGELOG.md#2026-10-28omni读谱版本兼容与候选验收)。这不代签原机时序、实谱、设备或刷新旧媒体验证。
+2026-10-28既有lane运动、v41回放及r21对应r20源BMS full保留各自身份。r22 HUD修正后Core再过，私有诊断ZIP默认DP Classic0.5读数/Mod提示10帧通过；数学/precision与wrapper不变，完整CLI及余下Replay未闭合。范围取[P1-A日志](../P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)，诊断取景不代签正式包、原机时序、复杂实谱或设备。
 
 2026-10-24完整BMS补验已关闭10月22日内存中止的回归缺口，具名范围见[P1-A记录](../P1-A/CHANGELOG.md#2026-10-24omni持续背景与原版参照边界)。这不是最终原生配方的从零重编，也不新增逐谱、GPU帧时、设备/DPI或Windows发行包签收。
 

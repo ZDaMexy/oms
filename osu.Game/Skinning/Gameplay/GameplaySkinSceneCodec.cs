@@ -52,7 +52,7 @@ namespace osu.Game.Skinning.Gameplay
         private static readonly HashSet<string> binding_source_ids = new(StringComparer.Ordinal)
         {
             "preparation.available", "preparation.active", "preparation.elapsed", "preparation.remaining", "preparation.ready", "preparation.ready-elapsed", "arrival.first-row", "arrival.cue-opacity",
-            "timing.time", "timing.elapsed", "presentation.elapsed", "timing.start-available", "timing.beat-phase", "arrival.available", "arrival.time", "arrival.remaining", "arrival.visible", "input.motion-counts-1", "input.motion-counts-2", "input.motion-revolutions-1", "input.motion-revolutions-2", "input.motion-available-1", "input.motion-available-2", "judgement.count.fast", "judgement.count.slow", "offset.value", "offset.available", "offset.automatic", "score.personal-best", "score.personal-best-progress", "score.personal-best-available", "score.rank-aaa", "score.rank-aa", "score.rank-a", "score.rank-aaa-progress", "score.rank-aa-progress", "score.rank-a-progress", "score.rank-available",
+            "timing.time", "timing.elapsed", "presentation.elapsed", "timing.start-available", "timing.beat-phase", "arrival.available", "arrival.time", "arrival.remaining", "arrival.visible", "input.motion-counts-1", "input.motion-counts-2", "input.motion-revolutions-1", "input.motion-revolutions-2", "input.motion-available-1", "input.motion-available-2", "judgement.count.fast", "judgement.count.slow", "offset.value", "offset.available", "offset.automatic", "offset.automatic-available", "score.personal-best", "score.personal-best-progress", "score.personal-best-available", "score.rank-aaa", "score.rank-aa", "score.rank-a", "score.rank-aaa-progress", "score.rank-aa-progress", "score.rank-a-progress", "score.rank-available",
             "score.pacemaker-next", "score.pacemaker-next-progress", "score.pacemaker-next-label", "score.pacemaker-next-available",
             "judgement.timing-direction", "judgement.keys-timing-direction", "judgement.scratch-timing-direction",
             "layout.ruleset", "layout.presentation", "layout.stage", "layout.group", "layout.lane", "input.pressed", "gameplay.full-combo", "object.state", "judgement.result", "judgement.offset",
@@ -85,6 +85,7 @@ namespace osu.Game.Skinning.Gameplay
                 ["preparation.ready"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
                 ["arrival.first-row"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
                 ["offset.automatic"] = new HashSet<string>(new[] { "true", "false" }, StringComparer.Ordinal),
+                ["offset.automatic-available"] = new HashSet<string>(new[] { "true", "false" }, StringComparer.Ordinal),
                 ["combo.active"] = new HashSet<string>(new[] { "true", "false" }, StringComparer.Ordinal),
                 ["layout.ruleset"] = new HashSet<string>(new[] { "bms", "mania" }, StringComparer.Ordinal),
                 ["object.state"] = new HashSet<string>(
@@ -1943,7 +1944,7 @@ namespace osu.Game.Skinning.Gameplay
                 or "scroll.green-number" or "cover.sudden-units" or "cover.hidden-units"
                 or "timing.beat" or "timing.measure" or "timing.bpm" or "timing.progress"
                 or "timing.bpm-min" or "timing.bpm-max" or "scroll.speed" or "judgement.count.perfect" or "judgement.count.great" or "judgement.count.good" or "judgement.count.ok" or "judgement.count.meh" or "judgement.count.miss" or "combo.breaks";
-            bool sourceIsBoolean = source is "timing.start-available" or "arrival.available" or "arrival.visible" or "input.motion-available-1" or "input.motion-available-2" or "offset.available" or "offset.automatic" or "score.personal-best-available" or "score.rank-available"
+            bool sourceIsBoolean = source is "timing.start-available" or "arrival.available" or "arrival.visible" or "input.motion-available-1" or "input.motion-available-2" or "offset.available" or "offset.automatic" or "offset.automatic-available" or "score.personal-best-available" or "score.rank-available"
                 or "score.pacemaker-next-available"
                 or "preparation.available" or "preparation.active" or "preparation.ready" or "arrival.first-row"
                 or "input.pressed" or "gameplay.full-combo" or "combo.active" or "score.maximum-available" or "lift.reversed" or "lift.available"

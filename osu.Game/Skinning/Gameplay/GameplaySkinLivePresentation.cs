@@ -45,16 +45,20 @@ namespace osu.Game.Skinning.Gameplay
         public bool IsAvailable { get; }
         public double Milliseconds { get; }
         public bool Automatic { get; }
+        public bool AutomaticAvailable { get; }
 
-        internal GameplaySkinOffsetStateSnapshot(bool isAvailable, double milliseconds, bool automatic)
+        internal GameplaySkinOffsetStateSnapshot(bool isAvailable, double milliseconds, bool automatic, bool automaticAvailable)
         {
             if (!double.IsFinite(milliseconds))
                 throw new ArgumentOutOfRangeException(nameof(milliseconds));
             if (!isAvailable && (milliseconds != 0 || automatic))
                 throw new ArgumentException("An unavailable offset cannot claim an applied value or automatic adjustment.");
+            if (automatic && !automaticAvailable || !isAvailable && automaticAvailable)
+                throw new ArgumentException("Automatic offset mode must be explicitly known before it can be published.");
             IsAvailable = isAvailable;
             Milliseconds = milliseconds;
             Automatic = automatic;
+            AutomaticAvailable = automaticAvailable;
         }
     }
 
