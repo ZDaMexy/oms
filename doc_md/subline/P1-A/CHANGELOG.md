@@ -1,5 +1,15 @@
 # P1-A 变动日志
 
+## 2026-10-29Omni原Header与双侧修正交付
+
+正式`.v26102900`由fresh v49作者交付，331300955B/6658项，SHA256 `a9234c1eb46169e76e66c3ddee46314579c8ff4c3d6b9b2dcf14c226694cdb87`。最低运行时源码仍f6997e96，本次核验HEAD644b7f2b，public22源/10程序集同r39；未新增运行时代码或客户端发行副本。原Header29的来源与前轮35诊断/4正式组身份沿下节，不改标为本轮运行。保留旧成品/作者/原素材；独立私下分享、名称及逐日序号、两页取消与普通OMS页面保持，持续goal未完成。
+
+27 P1精确排除原draw21/22，P2排除draw19/20，仅移除无活动侧SCORE/MAXCOMBO，保留活动侧与原Column层。独立源重画完整RGBA基线相等，分别3088/3095变化像素全部在两标签支持域，域外0；Root两源图均看。v48联动两份共享有效INI的24条、C5/fbd/manifest和各7背景叶，旧DP/第三INI及397份br保留；8行为测试及真实生成通过。此为OMS单活动成绩适配，不声称已证原机Graph隐藏规则。七BPL DP对真实v48父重新固定资格，仅14个width改354px，保持原锚点/高度/字体与其它值，7测试/真实生成通过；v49保全Header、33与539预览，未修改父。
+
+正式CLI实际退出0，13612代表组合与6658项CRC/作者字节通过；正式/诊断归档全6658项内容相同，SHA身份分开。诊断14组BPL ASCII/CJK共28游玩图、8组27两侧×Graph×Entrance共16游玩/16生命周期图通过；Root看28+16及1准备图，准备图有test-browser淡出只作生命周期证据。正式包另跑27 P1/P2、APINA ASCII/Tradz CJK DP及真实raw mania7共5组，10游玩+4生命周期+1普通OMS Results图；Root11张必需图全看。合计本轮27组/75PNG、Root56图，不称逐75图或29布局全正式重跑。BMS实际键盘首物件EX2、自然普通Results；mania真实Mode3/7列/84物件，Generated Autoplay，非真人/设备。各7背景叶prepared不等于全7相位目视，f23仅取消fallback未注入。实际汇总`native-iidx27-background-v49diag-matrix-r1.json`、`native-bpl-long-v49diag-aggregate-r1.json`及三份v49formal汇总，交付回执`omni-v49-delivery-finalized-r1.json`。
+
+私有R47封存首次basename冲突在启动前失败，源按实际路径编号后r2通过，旧失败保留。回收14个已退出case的3556份重复依赖/9003089956B；第一批r3执行在全部定点删除后因dictionary排序比较退出1，未复跑，独立实际审计确认1778项均已移除、2207程序及1003保护文件摘要和7个完整剩余集合精确相等。后批r4只修显式path排序并用新Plan，实际退出0，1778依赖移除、2203程序及522保护文件保全；无目录/作者/归档/数据/证据或共享prepared删除。两次Plan前失败也保留，不以空间回收代签验收。R8已准备独立E盘游客参照及新D/E基线，本次交付时尚未启动；无原数学/时序、原字体/clip、入场或设备新签收。
+
 ## 2026-10-29Header29软件门与27双侧残字修复准备
 
 此前r21的公开Python13/413及r22作者身份保持；本次封存CLI实际检查13612种代表组合并打包v47-r2，6654份CRC及作者逐字节等通过。独立诊断ZIP与正式ZIP的全部6654份内容亦逐项相等，但归档SHA不同，诊断用例不能改标为正式包运行。证据只取私有`assets/omni-v47-archive-proof-r2.json`与`omni-v47-formal-diagnostic-equivalence-r1.json`；原入场邻层/完整时序未由稳态原图代签。

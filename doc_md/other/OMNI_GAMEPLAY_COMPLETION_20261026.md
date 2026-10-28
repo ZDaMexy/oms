@@ -232,4 +232,4 @@ Classic局内/READY已按十一档执行方向相邻选择，旧offgrid无请求
 
 r28行为与构建通过，随后只改十一档/模式返回说明，r29最终编译通过；已测Classic逻辑和测试字节保持。Python r13已过，真实r12的私有receipt schema误读原失败保留、源PNG哈希/尺寸/nearest检查未减；r14已成功生成`omni-full-v46-classic-original-r1`（6619物理/6617 runtime、新增2PNG），父作者、非Classic、539预览和15 Frame保全，证据取`assets/v46-classic-original-r1`。
 
-首个r1候选因真实DP曲名/作者与面板重叠拒交，结构通过未代签视觉。r2恢复33 DP原锚点，354px有界省略和现字体明确为OMS适配；当前原图十一档、正式包、真实操作/OSR和独立DP长文字已验，实际交付为`.v26102802`，来源f6997e96。身份、计数、代表图与两次私有往返夹具失败只取上述P1-A日志；旧成品/原图与失败证据保全。原版r5 NORMAL20档已齐，r6/r7未补成DP/FHS资格；不把当前面板、静态读数或截取ROI当完整原数学/时序、原字体或设备验收。其它Frame原图继续沿PLAN，选曲/结算扩展保持取消。
+首个r1候选因真实DP曲名/作者与面板重叠拒交，结构通过未代签视觉。r2恢复33 DP原锚点，354px有界省略和现字体明确为OMS适配；原图十一档、正式包、真实操作/OSR和独立DP长文字于`.v26102802`交付，来源f6997e96。后续`.v26102900`补其它Frame原Header、27双侧残字与BPL DP宽度；当前范围及身份取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)和[最新交付日志](../subline/P1-A/CHANGELOG.md#2026-10-29omni原header与双侧修正交付)，旧证据不重计。原版r5 NORMAL20档已齐，r6/r7未补成DP/FHS资格；不把当前面板、静态读数或截取ROI当完整原数学/时序、原字体或设备验收。33 DP及原版校准沿PLAN，选曲/结算扩展保持取消。
