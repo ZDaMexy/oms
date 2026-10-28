@@ -13,7 +13,7 @@ Omni最新私下交付`.v26102802`，源码f6997e96需重编/重启后导入；�
 
 02已接Classic十一档原图与33 DP原锚点避让；354px省略/现字体为OMS适配，原数学及存档/Replay范围不变。r1重叠候选拒交，证据保留。两页取消、保留OMS原界面；PageAPI保留，未来仅新可靠路线再评，取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
 
-33 Header原图、空/未知fallback及EASY避让已交付；其它Frame的Header仍是私有提案，尚未生成或签收。
+33 Header原图、空/未知fallback及EASY避让已交付；其它Frame候选已按独立来源生成，正式整包/实际画面待验。
 
 ## 当前产品能力与剩余门
 
@@ -39,7 +39,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-10-28：02正式CLI13612代表组合、6619文件CRC/作者字节通过；同包五组Classic96帧加往返/真实OSR22帧共118通过，另DP长文字2帧通过，根仅目视7+2图。私有R35→R37仅修往返取景门/普通Loader鼠标路径，其余源/依赖及public19源/10程序集字节相同；两次旧失败保留。沿r28 BMS195/0、3303/19及后置说明r29构建0；Python400（含DP8）不重计。r6/r7无新增原机DP/FHS资格，不签原数学/字体/设备。取[本次日志](CHANGELOG.md#2026-10-28classic11局内选择与原图面板准备)，01的86帧保留[原身份](CHANGELOG.md#2026-10-28gameplay33header原图与歌曲literal变体)。
+2026-10-28：Header29 Python13/413、作者r22及27 P1两帧过，根看2图，整包/其余布局待验；02正式CLI13612代表组合、6619文件CRC/作者字节通过；同包五组Classic96帧加往返/真实OSR22帧共118通过，另DP长文字2帧通过，根仅目视7+2图。私有R35→R37仅修往返取景门/普通Loader鼠标路径，其余源/依赖及public19源/10程序集字节相同；两次旧失败保留。沿r28 BMS195/0、3303/19及后置说明r29构建0；Python400（含DP8）不重计。r6/r7无新增原机DP/FHS资格，不签原数学/字体/设备。取[本次日志](CHANGELOG.md#2026-10-28classic11局内选择与原图面板准备)，01的86帧保留[原身份](CHANGELOG.md#2026-10-28gameplay33header原图与歌曲literal变体)。
 
 2026-10-27旧包三组正常Player、39张实景覆盖P1双挡板/Lift、P2 Hidden与DP Lift，沿[读谱实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)；隔离软件操作无生命/分数注入或seek。[旧作者/美术保全](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)不计为新包验收。
 

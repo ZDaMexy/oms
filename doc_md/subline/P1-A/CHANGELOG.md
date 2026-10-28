@@ -1,5 +1,19 @@
 # P1-A 变动日志
 
+## 2026-10-28其它FrameHeader原图准备
+
+以已交付02及45ce03b6为基线，将29布局的原difficulty/Lv/number升级器加入公开工具：27三布局、28 DP、31/32两侧与七BPL三布局；27 BEGINNER保持真实文本，13未资格布局不变。原PNG/几何/源实例及完整父identity来自外部私有qualification，不把原图/hash清单放入公开仓；每个选中布局新增7节点、2绑定、7变体和512字符fallback预留，仍守原预算、不加字体，不能称零成本或原入场效果已还原。
+
+旧私有提案r17的9测试为8过1失败，catalog测试将default与嵌套variant路径混比；修正测试逐项保留完整when/INI/其它字段及反向等于原catalog，没有改rewrite语义。另补命令父pin必须等于资格父pin、已有输出在读取/复制前拒绝及无输出负向回归。私有r18的11项通过；公开三源只改docstring后，`python-other-header-r19`11通过、combined411通过，均exit0，不当作真实作者或Native通过。
+
+真实作者r20在来源预检失败：31 P1同一difficulty geometry/texture/矩阵存在white/blend0主图及settled-alpha0/blend8入场邻层，旧验证将两者全部当主图。原AFP证明邻层有实际入场衰减，不能标成永久不用；正在改用精确source draw/layer身份并保全整个同hook族的快照，保留原色/blend/源SHA及typed逆转检查。原资格/失败日志保留，当时未生成或签收新作者，交付仍02。
+
+q4随后逐套固定87个主图draw_order/layer_path完整快照及25份同hook邻层，整个源族必须精确相同，不能新增/变色/漏层或误选邻层；主图仍强验white/add0/blend0，几何/采样/PNG/typed逆转不减。参考帧181分别在原loop90/120/180后，邻层的原入场alpha记录保留，只签稳态，不把它称永久不用。`python-other-header-instance-r21`13项、combined413均过；实际`python-other-header-author-r22`生成fresh sibling v47-r2，6654物理/6652 runtime，29布局和35张原PNG（24686B），替换58份自身manifest/scene，不修改父、33及13排除布局。typed/SourcePost通过，公共上界仍374资源/12字体/610节点，不用上界未增掩盖每组选中布局的真实增量。
+
+来源22份和10程序集在`tests/other-header-source-and-binaries-r39.json`实采，旧C#实现/测试及全部owner DLL与此前门字节相同；339文件CLI再次核封存及当前Core/Author身份，`author-v47-pack-r1`正在正式检查，未签OSK。独立诊断ZIP仅供同raw作者的并行软件取景，全部6654原文件CRC/字节一致，不交付；最终正式archive仍须实际CLI/CRC和普通导入代表scope验收，旧诊断观察只能凭逐文件内容全等复用，不能称全在正式ZIP运行。新OtherHeader独立夹具编译r40因误写不存在的BmsModEasy失败，r41额外using并未解决；核实际生产BmsModGaugeEasy后r42重编/prepare0。首个27 P1病例因夹具漏掉既有10s普通作者准备而在scope提交前超时，尚无PNG；r43恢复原准备步，原PlayerReady10s与行为断言保持，fresh r2随后实际两帧/host/process exit0，根已看两图，确认27 P1原HYPER/Lv.图在自身底部位置、Start两阶段均避开控件；950ms Mod旁车独立保留。仅此首组，未签其余28布局。旧14/Classic11/InfoLong及ReadingFrame正文保全，不用夹具准备代签新画面。
+
+02交付后依实际runtime-preparation逐文件回收15个已退出取景副本的6555份重复程序依赖，10054280145B（约9.364GiB逻辑大小）；1953份其它运行文件、每个旧host自身编译文件、15份canonical OSK、所有case目录和E盘截图/日志/作者/回放保全。共享prepared runtime及339文件CLI保留，R35/R36/R37源/编译另有长期封存；旧取景副本须重建依赖后才可复跑。原r1仅计划未删除，字典求和摘要为null，r2按逐文件长度纠正并明确保护归档后，执行前重核路径/全部hash/进程与保留集、完成后复核通过。实际回执只取`assets/native-v46-run-program-reclaimed-r2.json`，不把空间回收提升为产品验收。
+
 ## 2026-10-28Classic11局内选择与原图面板准备
 
 以已交付`.v26102801`及`1e68a6ec`后的工作树继续实施。Classic局内/READY改为十一档方向相邻选择，多步只完成一次并保存最终成组状态；旧offgrid没有请求方向邻档时保留原值。完整档表和不变量只在[合同](TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代)维护。没有改Normal/Floating步长、`GetAdjustmentStep`滑条、Classic合法存档/Replay范围0.5～10、precision、refloat、13字段或calculation0，也未改既有Hi-Speed数学。

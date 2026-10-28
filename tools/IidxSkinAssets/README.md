@@ -115,6 +115,8 @@ Omni当前SongSelect/Results扩展方案已取消，统一作者保留OMS原页�
 
 `build_lighting_classic.py`将冻结的旧控制层升级为原Classic数字整条、专用cursor及NOTES TIME锚点；`build_lighting_dp_song_information.py`仅纠正冻结作者中33 DP的曲名/作者几何，并与普通`build_skin.py`的33 DP分支共用同一几何函数。两者必填完整父payload SHA；DP入口另需校正后的私有audit SHA、reference和library。只生成全新sibling与证据，不打包或验收。DP采用原(15,56)/(15,83)锚点，354px有界省略宽度及现字体明确为OMS适配，不能拿重复占位字540px当原机clip/fit。
 
+`build_lighting_other_frame_header.py`消费外部私有qualification及其SHA、完整父payload SHA，为29个有来源的非33 BMS布局补原难度/Lv.图：27三布局、28 DP、31/32两侧和七BPL三布局。每套沿自己的PNG/GEO和实际owner，来源按完整draw/layer身份及同hook邻层快照核对；只接reference稳态主图，原入场衰减效果另验。HD仅在原字节完全相同后复用已有h33资源，SD保留自身画布投影，P2文字正向。27 BEGINNER及所有未知/空值沿真实原文fallback，未资格的13布局不改。每个选中布局新增的512字符fallback预留计入既有预算，不新增字体或放宽上限；只生成全新sibling/证据，不打包或宣称原机等价。资格必须绑定当前完整父身份，不能在另一次升级后继续沿用旧scene SHA。
+
 各次升级逐文件保全其它Frame、原图、配置及预览，并保存typed逆转；正式CLI和同包原生画面仍须独立通过。结构成功、原图字节相等或局部父包gate不能代签视觉。当前候选/交付与失败身份只取[P1-A状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)。
 
 在 OMS 仓库根目录的新 PowerShell 中运行。Python 3.11 以上；依赖安装到本仓开发缓存，不安装进游戏目录或系统 Python。
