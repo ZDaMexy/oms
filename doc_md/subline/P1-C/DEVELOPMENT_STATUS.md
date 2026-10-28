@@ -37,7 +37,7 @@ IIDX/LR2/beatoraja/OD 判定家族与主要边界 parity 已落地并由契约�
 
 ## 最近一次验证
 
-2026-10-28：r20构建/focused与r21对应r20源BMS完整回归通过；r22只追加HUD起点修正及构建/Core回归，不转记BMS full。诊断ZIP默认DP的AUTO knownOff/ms有分项实绘，新旧Replay仍在跑，未登记通过。计数与非交付边界取[P1-A日志](../P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)，设备/听感门保持。
+2026-10-28：r20构建/focused与r21对应r20源BMS完整回归通过；r22只追加HUD/构建/Core，不转记BMS full。私有诊断ZIP旧OSR自然导入的AUTO未知/毫秒保留，以及新SP自然录制/导出/Replay通过，均非正式包验收。计数与范围取[P1-A日志](../P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)，设备/听感门保持。
 
 2026-10-19：真实手动回放跨轨回退、LN/CN/HCN全自动实况/结算与持久化数据、失败回放新旧元数据控制均有修前失败和修后证明；另补固定混合谱验证BMS四家族与mania六类判定到完成成绩的统计、准确率、连击与分数。完整回归、旧失败身份及当前构建取[集中记录](../../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md#验证证据)，不将本地Rank展示误写成Passed持久化；真实设备收敛、听感和外部播放器逐帧对照仍未签收。
 

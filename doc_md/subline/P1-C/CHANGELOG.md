@@ -6,7 +6,7 @@
 
 真实自动开关与既有数值VisualOffset轨迹分开记录，使用可选`visual_offset.automatic={initial,changes:[{time,enabled}]}`。live从实际开关/原生clock记边；Replay按记录恢复及seek/reset，旧无metadata与无来源GeneratedAutoplay保持unknown，不从numeric Changes猜开关或写个人配置。外部输入明确拒绝无初始值、非法状态、缺失/null time、非有限或非递增时间；旧numeric格式、wrapper/寿命和算法保持。只读C5的状态可用性与开关分开，由首个真实Omni作者消费，没有改读谱13字段、calculation version0、TOTAL/计分或IR。
 
-r19及补Auto.Time边界后的r20构建/focused、r21对应r20源BMS完整回归通过。HUD提示后续移至真实start，r22四项构建/Core再过，BMS计分源未改，不转记r21身份。诊断ZIP默认DP的AUTO knownOff/ms已实绘，新旧Replay仍跑；此ZIP非CLI验收或交付候选。计数/命令取[P1-A日志](../P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)，9月原style和10月旧证据不重计，设备、收敛/听感及外部播放器逐帧门保持。
+r19及补Auto.Time边界后的r20构建/focused、r21对应r20源BMS完整回归通过。HUD移至真实start后r22构建/Core再过，BMS计分源未改。私有诊断ZIP四case已通过，含DP knownOff/ms、旧OSR自然完曲时AUTO未知但ms保留、新SP自然录制/真实导出与Replay；不是CLI验收或交付候选。计数/命令取[P1-A日志](../P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)，原style/旧证据不重计，设备、收敛/听感及外部播放器逐帧门保持。
 
 ## 2026-10-19跨轨撤销与结算一致性
 

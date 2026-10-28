@@ -39,7 +39,7 @@
 
 ## 最近一次验证
 
-2026-10-28既有lane运动、v41回放及r21对应r20源BMS full保留各自身份。r22 HUD修正后Core再过，私有诊断ZIP默认DP Classic0.5读数/Mod提示10帧通过；数学/precision与wrapper不变，完整CLI及余下Replay未闭合。范围取[P1-A日志](../P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)，诊断取景不代签正式包、原机时序、复杂实谱或设备。
+2026-10-28既有lane运动、v41回放及r21对应r20源BMS full保留各自身份。r22 Core及私有诊断ZIP四case通过，含DP Classic低速、新旧Replay与P2 C4；数学/precision及wrapper不变。instrumented Debug完整通过不替代正在运行的原封Release；范围取[P1-A日志](../P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)，不代签正式包、原机时序、复杂实谱或设备。
 
 2026-10-24完整BMS补验已关闭10月22日内存中止的回归缺口，具名范围见[P1-A记录](../P1-A/CHANGELOG.md#2026-10-24omni持续背景与原版参照边界)。这不是最终原生配方的从零重编，也不新增逐谱、GPU帧时、设备/DPI或Windows发行包签收。
 

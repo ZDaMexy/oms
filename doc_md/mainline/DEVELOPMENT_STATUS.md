@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-28（Omni当前源回归通过；v44剥页后完整CLI/新原生待闭合）
+> 最后核对：2026-10-28（Omni诊断四组通过；正式v44仍验收，当前两页方案取消）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -15,7 +15,7 @@ Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，具
 
 游玩判定/结果及性能取[10月19日深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)；设备入口、输入时间、轴用途、长皿与校准接续取[10月21日输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)。前台帧时间与实体设备仍待验收。
 
-Lighting Model Skin Omni Until 33默认33，27～33及八支BPL为Game Frame；AUTO/HUD软件回归及私有诊断ZIP默认DP取景已有分项证据，v44已剥页，完整CLI/余下原生未闭合，无新交付。两页只核拟真可行性，达不到取消两页作品计划，保留OMS原界面与通用PageAPI。身份取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，动作沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。原HDD保全，作品私下分享、不内置或公开分发，原版校准、设备及发行门保持。
+Lighting Model Skin Omni Until 33默认33，27～33及八支BPL为Game Frame；软件/私有诊断四组已过，正式v44原封Release与该包原生/交付未闭合。当前SongSelect/Results方案取消，保留OMS原界面，v44剔除样机；PageAPI与gameplay持续，未来仅新可靠拟真路线才重评。身份取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，动作沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。原HDD保全，作品私下分享、不内置或公开分发，原版、设备及发行门保持。
 
 玩家直接登录固定OMSIR，保存后新局上传；新闻 / 帮助 / 排行 / 玩家沿原生页面。谱面列表先选模式：BMS 仅 Ginger Rush / 616，osu!mania 仅 Sayobot，恢复上次 BMS 来源；紧凑筛选、原生卡片和各来源阅读状态保持。正常OMS窗口的lazer体验仍待签收，隔离内容宽度检查不代签；源码 / 软件及剩余门取[P3-IR状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。社交后续，旧ppy关闭；Phase1.x原门保持。
 
@@ -51,7 +51,7 @@ Lighting Model Skin Omni Until 33默认33，27～33及八支BPL为Game Frame；A
 
 ## 最近一次验证
 
-2026-10-28：r22构建/Core、非交付诊断ZIP默认DP取景，以及仍属r20源的r21 BMS full取[P1-A最近验证](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)和[日志](../subline/P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)。完整诊断CLI越过原失败点但未完，不称已修；新旧Replay仍跑。旧页面不签拟真/交付，原版130/190不提升为公式；正常窗口、设备与最终原生配方门保持。
+2026-10-28：私有诊断ZIP四case含新旧Replay已通过，instrumented Debug旧v43完整13612/0；原封Release r19的v44 pack仍跑，原Release失败未定位，不称已修。软件/包身份取[P1-A最近验证](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)及[日志](../subline/P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)，不签正式包或交付。原版r4正常退出并保全，Classic字面资格完成但未签公式/运动；设备与最终原生配方门保持。
 
 2026-10-11转谱补算、Debug读取及旧失败对照保留原日期，范围与未验项取[P1-H](../subline/P1-H/DEVELOPMENT_STATUS.md#最近一次验证)。
 

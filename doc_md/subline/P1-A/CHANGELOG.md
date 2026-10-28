@@ -2,7 +2,7 @@
 
 ## 2026-10-28Omni两页拟真硬门
 
-用户明确要求SongSelect/Results必须拟真，原美术可直接使用就直接使用，做不到则取消两页作品计划。当前v40/v41混搭页只保留数据、操作、资源和原生调用链的内部工程证据，不是可交付页或正式原型认可；此前审图只核语义/可读性，不代签原版布局、层级和主要动效。v44已落实剥离混搭页，未来拟真门实证闭合前不重新交付；两页尚未永久取消。定点7IFS、127图、27AFP及原font33 face均已可读，原33角色/Results全屏原图已找到，不能以无素材或字体不可读判定失败；剩余仅做真实列表、文本角色与插画选图策略的窄对照。此决定不取消整个Omni、既有通用PageAPI或gameplay持续goal。
+用户要求SongSelect/Results必须拟真，原美术能直接用必须直接用。按此门完成产品判断后，当前两页扩展方案取消，保留OMS原界面，v44已剔除样机；不留当前方案的页面实施待办。原图/font齐全可读：7IFS、127图、27AFP及原font33 face已读，原33角色/Results全屏图已找到；问题是列表、层级和PlaceCamera转场缺可验证拟真闭环，不以缺素材或字体不可读解释取消，也不宣称永久技术不可能。v40/v41仅保留数据/API/原生内部工程证据，此前审图只核语义/可读性，不代表页面交付或用户认可。未来只有新可靠拟真路线才重新评估；通用PageAPI及Omni gameplay持续goal保持。
 
 ## 2026-10-28OmniAUTO状态与最终候选续验
 
@@ -16,13 +16,17 @@ v41 SongSelect分项已实际走BMS7→canonical5→mania7→BMS7，换歌、搜
 
 v42/v43分别生成独立可逆作者，证据在`assets/v42-judge-shortcuts-r1`与`v43-judge-auto-state-r1`。v42将原0/9/3遮罩从alpha204空区改取原图opaque3×3；v43未知AUTO状态遮灰标签及灯，毫秒值独立显示，已知才恢复原灰slice/橙灯，无新图/字体/配置。v43仅45份scene变化且可逆回父字节，payload清单6620份、未压缩348372908字节、摘要`5fc756cfd97a8e0a3a074f988b4e009cc8570b9107734f03acf8ea593bb4d58e`；471779/51481仅Python保守预算，不是C#结果或OSK身份。
 
-v43真正公共CLI在`key-beam/b01/variant19 bms/6k`报`SCENE021 InvalidReference`并exit1；不是预算失败或成功superseded。v44 fresh1在同一gameplay故障发现后被精确中止，仅默认Frame模块通过，不冒称完整检查。单6K以及同captured先7K再6K的实际Select/字形校验两种单点，v43与旧v41均通过，不能据此抹掉全序列失败。诊断版保留全部前序/顺序，仅增加failure catch的values/context/stack，已越过原失败点并通过key-beam及lane-cover/lift-art，但尚未完成；原public CLI首次失败未复现、根因未判，不称已修，未改作者或放宽预算。
+v43真正公共Release CLI在`key-beam/b01/variant19 bms/6k`报`SCENE021 InvalidReference`并exit1；不是预算失败或成功superseded。v44 fresh1在同一gameplay故障发现后被精确中止，仅默认Frame通过，不冒称完整检查。单6K及同captured先7K再6K的实际Select/字形校验，v43与旧v41均通过，不能抹掉全序列失败。保全部前序/顺序、只添failure catch values/context/stack的instrumented Debug旧v43已完整13612/0；原Release失败仍未定位，不称已修。原封sealed Release r19正执行v44完整pack，已过key-beam/lane/lift但尚未完成，不转记为通过，未改作者或放宽预算。
 
 v44 `assets/v44-gameplay-only-r1`已移除`skin-pages.json`、15张Results PNG及5张SongSelect PNG，合计21文件/4661216字节；6597保留文件与v43逐字节一致，仅两份报告重写真实待验身份，539预览/397份C7不变。新目录6599物理文件、343701702字节，完整闭包摘要`6c8a73ed0394d2de9825ee8030f4c0a191318dd8fd38b9968d5ec34881e3f53c`，没有经CLI验收的OSK或新交付，不将目录证明写成整包通过。
 
-仅用于取景的`assets/omni-v44-native-diagnostic-r1.osk`为330884609字节、SHA256 `4ef35908d7000b3519deae54c1e559392af4b1cd089dc86751154d80353bc03e`，6599文件CRC/作者逐字节一致，回执明确`authorCliAccepted=false`及`deliveryCandidate=false`。`native-reading-v44diag-dp14-classic-low-mods-r2`按live950ms验证，10帧verified、host/OS exit0；主代理审`live-header-mods.png`确认EASY可见、HYPER/1与icon不叠、DP双白250/125及双绿3029、Classic0.5、AUTO knownOff与ms读数、原0/9/3已遮没。它只证明未变默认gameplay树，不是正式v44 OSK/完整CLI签收；新旧Replay actual legacy取景仍在跑，未登记通过。
+仅用于取景的`assets/omni-v44-native-diagnostic-r1.osk`为330884609字节、SHA256 `4ef35908d7000b3519deae54c1e559392af4b1cd089dc86751154d80353bc03e`，6599文件CRC/作者逐字节一致，明确`authorCliAccepted=false`及`deliveryCandidate=false`。最终`assets/native-v44-diagnostic-four-cases-r1.json`汇总4case/46帧，host/OS均0且主代理目视通过：DP live950ms的EASY/header10帧；旧OSR自然导入/完曲9帧，AUTO未知时灰字/灯隐藏而ms仍在；新SP自然演奏、实际新OSR导出及Replay18帧；P2实际C4与右侧几何9帧。DP图另确认HYPER/1与icon不叠、双白250/125及双绿3029、Classic0.5、AUTO knownOff/ms、原0/9/3遮没。它只证明这四组具体配置的gameplay路径，不是正式v44 OSK/完整CLI或实体设备签收。
 
-r19全format、Python `python-combined-r7`374项及五项构建通过。补Auto.Time边界后，r20两文件format/四项构建、BMS173及Core393 focused通过；r21对应r20源的BMS完整3276通过/19跳过/3295总项，18分53秒、exit0。Mod提示移至真实start后，r22 Core/BMS Tests、Desktop Release/Debug四项构建及同Core393/0再过；BMS计分源未改，未把r21写成r22重跑。三类私有宿主重建/prepare与旧r18各留身份；命令、TRX及失败在同一证据根`tests/`保留。交付仍为`.v26102701`、goal active；原版Hi-Speed数学未改，完整CLI、余下原生和设备/长期/发行门未闭合。
+r19全format、Python `python-combined-r7`374项及五项构建通过。补Auto.Time边界后，r20两文件format/四项构建、BMS173及Core393 focused通过；r21对应r20源的BMS完整3276通过/19跳过/3295总项，18分53秒、exit0。Mod提示移至真实start后，r22 Core/BMS Tests、Desktop Release/Debug四项构建及同Core393/0再过；BMS计分源未改，未把r21写成r22重跑。三类私有宿主重建/prepare与旧r18各留身份；命令、TRX及失败在同一证据根`tests/`保留。交付仍为`.v26102701`、goal active；原版Hi-Speed数学未改，正式包CLI/原生及设备/长期/发行门未闭合。
+
+独立参照r4于2026-10-28 04:49:20 UTC正常exit0，`runtime/r4/source-preservation.json`确认四项保全条件满足：原元数据及关键摘要保持，原HDD未启动、未用真实卡。离线核对561原图及侧录摘要；`assets/normal-hispeed-audit-r1/r4-classic-qualified-r1/qualification.json`逐图确认130 BPM的Classic 11档：1.00/1.50/2.00/2.25/2.50/2.75/3.00/3.25/3.50/3.75/4.00，对应NOTES TIME1140/760/570/507/456/415/380/351/326/304/285；边界额外按键不再改变，底部HS与所选值相同。实际Classic4→FHS4→白键3.5→Classic3.5只签本次动作及字面读数；均为原生开场/Tips，不代签运动、公式或完整Classic等价。
+
+`r4-mode-readouts-r1/scene-context-final-r2.json`保留r3/r4相同130 BPM的Normal3/8/18/20：GN同为800/500/301/260，底部HS由1.52/2.44/4.06/4.69变为1.42/2.28/3.80/4.38。两轮可见菜单Display/Classic/Camera OFF及Judge0，截图分辨率和可见红线几何相同；未显示数字Cover/Lift或内部屏幕外起点，不能补为0，也不能从像素相同推出内部旅行距离相同，差异未解释，未拟合新公式。`r4-pages-qualified-r1/qualification.json`另登记自然早期失败的FAILED Results前中后4图、干净歌曲滚动40帧和已有真实难度切换；最后三组菜单补采只移动folder层，明确排除。旧自动Results detector=false保留，人工资格不冒充原检测成功；这些原版证据不改变当前两页方案取消决定。
 
 ## 2026-10-28Omni读谱版本兼容与候选验收
 

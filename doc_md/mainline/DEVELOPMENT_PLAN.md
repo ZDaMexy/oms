@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后核对：2026-10-28（Omni两页先过拟真可行性门；原产品与发行门保持）
+> 最后核对：2026-10-28（Omni当前两页方案取消；gameplay与原产品/发行门保持）
 > 本页维护全局顺序、跨线依赖和改动验收；当前事实见[STATUS](DEVELOPMENT_STATUS.md)，专项动作从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 当前目标
@@ -9,7 +9,7 @@
 
 按[P1-A修复后复核](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)在正常窗口检查Autoplay跳转、统计及新包血条/默认FC；沿下方P1-B/P1-E/P1-J/P1-L与P1-G验证真实设备、长条/键音/BGA和长期体验。[既有游玩审查](../other/GAMEPLAY_REVIEW_20261019.md)作为输入，不扩成无现场依据的重构。正常窗口、隔离宿主与发行证据分开。
 
-2026-10-18用户授权IIDX历代第三方皮肤，缺少的表现能力随真实组件补齐。当前Omni两页必须先核原版布局/层级/主要动效和原美术直接复用的拟真可行性，做不到取消两页作品计划、保留OMS原界面；当前混搭样机不进后续交付。gameplay持续推进，通用PageAPI保留，范围和顺序只取[P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)，不恢复静线打磨或改变原release门。
+2026-10-18用户授权IIDX历代第三方皮肤，缺少的表现能力随真实组件补齐。当前Omni SongSelect/Results扩展方案按拟真硬门取消，保留OMS原界面，v44剔除样机，不留该方案实施待办；未来仅新可靠拟真路线才重评。gameplay持续推进，通用PageAPI保留，范围和顺序只取[P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)，不恢复静线打磨或改变原release门。
 
 先按[P3-IR 原生页面接续计划](../subline/P3-IR/CLIENT_NATIVE_SERVICES_PLAN.md)在用户正常OMS窗口对标lazer，验已交付模式→所属来源、BMS来源恢复、加载中关闭与阅读体验。按已授权的独立IR与完整玩家网站范围，沿[P3-IR真人接续](../subline/P3-IR/DEVELOPMENT_PLAN.md#原版官网部署后的接续)验收原账号、保存后的新局 / 断网补交、网站公开最佳可见记录及同谱同来源 / 条件，先完成OMS＋全量历史＋ED7K的P，再完成指定宿主与玩法的C；继续维护备份、增长和同库回退，不重复未变已过门。用户通过VS Code非调试启动当前工作区，发行构建自行执行，不生成额外Windows包或安装副本；旧 osu! API endpoint 与下方Phase 1.x门不变。
 

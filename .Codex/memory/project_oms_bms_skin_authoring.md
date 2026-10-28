@@ -12,8 +12,8 @@ metadata:
 
 ## 必须召回的用户决定
 
-- 既有主体是gameplay；Omni后续页面另守当前P1-A拟真门，不移植LR2/beatoraja runtime，只对齐元素族与表达力。保持.osk、根skin.ini、mania素材/动画命名、目录编辑与拖入导入；BMS/scene/script为版本化扩展，不要求DLL。
-- Omni SongSelect/Results必须拟真，原美术能直用就直用；数据/API/原生跑通只算内部工程证据，不能转记为用户认可。先核原版布局/层级/主要动效可行性，做不到取消这两页作品计划，保留OMS原界面；后续交付不得夹带当前混搭样机。这不取消Omni gameplay或通用PageAPI，准确边界取[P1-A](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#非游玩皮肤页面)。
+- 既有主体是gameplay；Omni当前两页方案已取消，不移植LR2/beatoraja runtime，只对齐元素族与表达力。保持.osk、根skin.ini、mania素材/动画命名、目录编辑与拖入导入；BMS/scene/script为版本化扩展，不要求DLL。
+- Omni SongSelect/Results按拟真硬门取消当前扩展方案，保留OMS原界面，v44剔除样机，不留现行页面实施待办。原图/font齐全但列表/层级/PlaceCamera转场缺可验证闭环，不能把内部数据/API/原生成功当页面交付或用户认可。不是永久技术不可能；未来只有新可靠拟真路线才重评，届时原美术能直用必须直用。Omni gameplay与通用PageAPI保持，边界取[P1-A](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#非游玩皮肤页面)。
 - mania 普通 .osk 是固定行为宿主 + legacy 素材/参数，不能当作通用作者脚本上限。共享 neutral codec/scene/event/reload/sandbox，ruleset topology adapter 各自保留。
 - 引擎掌握 gameplay truth、layout、滚动/LN 裁剪、池、BGA 内容时钟与安全；作者控制 scene/动画/只读响应。三态按 catalog 的 requirement/applicability 决定，不另列会漂移的 suppress 清单。
 - canonical oms-simple 是唯一内置、默认与保底，覆盖 mania/BMS；用户已放弃 oms-complex，其文件只作历史作者样本，不再作为启动、构建或视觉签收对象。Authoring Kit 是可编辑源、模板、schema/事件/layout/预算说明、validator/diagnostics 与打包文档，不是第二套 SDK/runtime。

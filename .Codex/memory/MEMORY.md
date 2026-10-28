@@ -29,7 +29,7 @@
 - [managed skin atomic reload/detach](reference_skin_atomic_reload_detach.md) — 三源 publication、lease/retire 与调度竞态。
 - [ordinary `.osk` archive import safety](reference_skin_osk_archive_import_safety.md) — archive 预检、same-hash receipt 与非对称回滚。
 - [canonical 构建、安装与用户数据保护](reference_skin_canonical_installation.md) — 静线唯一保底、原件/工作副本、退役迁移与缺行修复；便携/缓存隔离、冷启动线程、Ready早于载入所有权交还。
-- [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 随包手册/示例闭合、作者边界、Omni两页拟真硬门与工程证据不等于交付、用户决定及诊断入口。
+- [BMS 皮肤创作](project_oms_bms_skin_authoring.md) — 随包手册/示例、作者边界、Omni当前两页方案取消与未来拟真重评、工程证据不等于交付、用户决定及诊断入口。
 - [Skin V1 价值与工作预算](project_oms_skin_product_progress.md) — 区分效果能力、成品与创作便利度；星轨实际体验否定、有限反馈与本轮停止边界，当前状态读 P1-A。
 - [模式/键数皮肤选择](reference_skin_mode_selection.md) — 独立设置目标、模式遗漏覆盖与作者默认、仅页面包准入、逐层继承、配置冻结、图库旧页释放及选曲确认删除/隐藏音效收尾。
 

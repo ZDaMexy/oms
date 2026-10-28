@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-28（v44无混搭页；定位CLI全序列失败，两页仅核拟真可行性）
+> 最后核对：2026-10-28（当前两页方案取消；gameplay v44正式包验证继续）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -13,10 +13,10 @@
 
 以[提示、目标与素材审计](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)、[游玩Start复核](../../other/OMNI_GAMEPLAY_CONTROLS_20261025.md)及[先前设置复核](../../other/OMNI_START_OPTIONS_20261024.md)为输入，在用户正常VS Code窗口重编/重启后导入STATUS所列最新包，复核Start长按/双击、模式切换、上下挡板/LIFT白绿字、甩盘、主/SUB目标及FAST/SLOW合并/分开、A/B/C/OFF；已有亮度、判定高度/显示和开场/持续组件继续观察。原版FAST/SLOW等级资格、PG覆盖/寿命及B/C实际坐标尚需新证据；NEXT整数边界是明示OMS策略。Normal跨BPM校准须沿[已资格读数](CHANGELOG.md#2026-10-28omni读谱版本兼容与候选验收)补190未稳定档及独立对照，不把近似nominal表或拟合K当作原公式。完整soflan、dan/binding flip、Ghost/NEXT+/rotate和原十键精度仍不外推。模式/键数显式值保持或逐层恢复，交付按`.vyymmddxx.osk`逐日递增且不覆盖。软件/隔离Player不代签前台性能、原机或设备；保持Reset、epoch单调及真人PG早晚。
 
-1. 以已过软件门为基线，先定位完整CLI的SCENE021全序列失败，按实际根因修复后验证剥页v44及新原生，不把单点Select通过当完整成功。两页仅做原版布局/层级/主要动效的拟真可行性；原素材/字体已可读，待真实列表/文本角色/插画策略对照，达不到取消两页作品计划。v44已落实当前混搭交付NO-GO，保留OMS原界面；身份取[日志](CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)。
+1. 完成v44正式整包、同包原生及私下交付，保留旧CLI失败身份。随后修局内Classic进入FHS后错误返回Normal的问题，保留现有计算、13字段及旧Replay；原版数值/档位须另经校准和版本化，不能混作该交互修复。当前SongSelect/Results方案取消，保留OMS原界面、不再排样机实施；身份取[日志](CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)。
 2. 26来源待用户下载并提供路径，届时先核游玩SP/DP框体、几何、动画及默认绑定，再按26→1逐代向前。版本标识不能代替整代来源，不要求预先下载全套；27～33及BPL已有结果从STATUS读取，不重复登记为待开发。
 3. 已核源结构及已接入组件只取STATUS。进一步原版校准须取得可实际操作的CUSTOM入口、同步游戏/渲染时钟与命中原点；新原机demo已证PGREAT内部blue/green/pink完整配对，现有截图接口仍无法确定精确周期与起相，当前100ms分相明确为OMS作者适配。lane345双循环来源已核，原机parent-loop仍待可靠运行证据。继续保留Hazard、中心平移、判定锚点、数字/视频布局、长条脉冲/松手色及完整FC资格的原机缺口；31背景底693px与红线/键灯716/728px的关系、32纵缩亦不能凭单个源占位升为运行事实。各代截图不互相代签；来源不足按“版本 / 组件 / 已查来源 / 缺口”登记。
-4. 通用PageAPI及内部真实数据/操作证据保留，但不把接口或原生测试成功当作Omni页面拟真认可；页面计划仅在上述可行性门通过后继续。gameplay持续goal不取消，不能为完成清单交付混搭页，也不导入整个IIDX运行时。
+4. 通用PageAPI和内部数据/操作证据保留，不把它们当页面交付或用户认可。未来只有新的可靠拟真路线才重评Omni两页；当前方案取消不代表技术永久不可能，不影响gameplay持续goal，也不导入整个IIDX运行时。
 
 2026-10-18追加授权的扩展键数、皮肤配置项与BPL结果只在[STATUS](DEVELOPMENT_STATUS.md)维护。后续修改继续复验真实键数/两侧、选择保存/重置及未声明普通包；新能力须随实际作者消费者交付，不能把作品留空、素材组合或默认布局写成引擎专例。原 Skin V1、设备、完整歌曲和发行门保持，原版美术不并入 canonical 或公开发行。
 

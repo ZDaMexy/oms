@@ -2,13 +2,13 @@
 
 ## 2026-10-28Omni两页拟真准入
 
-用户要求SongSelect/Results拟真，原美术能直接用必须直接用；先对照原版布局、层级和主要动效的可行性，做不到取消两页作品计划并保留OMS原界面。v40/v41混搭页只保留内部工程证据，不作为交付或用户认可，后续候选不得带当前混搭页。gameplay与通用PageAPI继续，准确边界取[P1-A记录](../subline/P1-A/CHANGELOG.md#2026-10-28omni两页拟真硬门)，不将此决定扩为取消整个Omni。
+按用户拟真硬门完成产品判断后，当前Omni SongSelect/Results扩展方案取消，保留OMS原界面，v44剔除样机且不留该方案实施待办。原美术/font齐全，但列表/层级/PlaceCamera转场缺可验证闭环；不是永久技术不可能，未来仅新可靠拟真路线才重评。v40/v41只作内部工程证据，不代表页面交付或用户认可。gameplay与通用PageAPI继续，边界取[P1-A记录](../subline/P1-A/CHANGELOG.md#2026-10-28omni两页拟真硬门)，不扩为取消整个Omni。
 
 ## 2026-10-28OmniAUTO真值与候选续验
 
-真实AUTO开关独立记录，不改算法、Hi-Speed数学、计分或IR。Mod提示从OnEntering改至真实start，防C5准备耗完可见期，Replay guard/HUD父显隐保持；r22四项构建/Core再过，r21 full仍记r20源。私有诊断ZIP默认DP取景已过，但明确非CLI验收/非交付候选；完整诊断CLI越过原失败点仍未完，原public CLI首次失败未复现、不称已修。包/失败/余下Replay身份取[P1-A日志](../subline/P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)，录制边界归[P1-C](../subline/P1-C/CHANGELOG.md#2026-10-28自动偏移开关独立记录)。旧页面仅内部工程证据，goal active且无新交付。
+真实AUTO不改算法、Hi-Speed数学、计分或IR；Mod提示取真实start，保留Replay/HUD父显隐。r22/Core与r20源r21 full各留身份；私有诊断ZIP四case/46帧及目视通过，但明确非CLI验收/非交付。instrumented Debug旧v43完整13612/0，原Release失败未定位，sealed Release r19完整v44仍跑。r4正常exit0并保全，Classic11档字面资格完成但未签公式/运动；准确身份取[P1-A日志](../subline/P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)，录制合同归[P1-C](../subline/P1-C/CHANGELOG.md#2026-10-28自动偏移开关独立记录)。goal active且无新交付。
 
-此窄回填前文档r7健康检查通过216 Markdown、2591链接、708锚点及123份memory，workspace r3通过；本次文档又有修改，需由主代理fresh检查，不能将r7结果直接转记当前文本。文档通过不提升产品或交付状态。
+本次同步后的文档健康检查通过216 Markdown、2591相对链接、708本地锚点及123份memory链接；这只证明文档结构与链接，不提升产品或交付状态。
 
 ## 2026-10-28Omni候选验收与读谱版本边界
 

@@ -154,7 +154,7 @@ SongSelect只提供背景、列表边栏、普通/真实选中行与可选brand�
 
 `score.passed`保留真实完成/失败语义，`score.cleared`由`Ruleset.GetResultsClearState()`提供；BMS只读已存ClearLamp，普通Gauge完曲未Clear仍为false，缺值/未知为null。页面不得按Passed、框体或图片猜Clear，不改原计分/保存/传分。
 
-Omni的SongSelect/Results另守用户拟真硬门：先对照原版布局、层级和主要动效，原美术可直接使用就直接使用；做不到则取消这两页作品计划、保留OMS原界面。v40/v41混搭页仅为内部工程样机，其数据/API/原生通过不代表可交付页或用户认可。后续交付候选不得带当前混搭页，除非未来拟真门实证闭合；这不取消Omni gameplay持续goal或既有通用PageAPI。
+Omni当前SongSelect/Results扩展方案已按用户拟真硬门取消，保留OMS原界面，v44剔除混搭样机。原图/font齐全，但列表、层级和PlaceCamera转场未形成可验证的拟真闭环；这是当前方案的产品取舍，不宣称技术永久不可能。v40/v41数据/API/原生通过仅为内部工程证据，不代表页面交付或用户认可。未来只有新可靠拟真路线才重评，原美术能直接用必须直接用；既有PageAPI与Omni gameplay持续goal保持。
 
 ## 既有产品面硬约束（未被 Skin V1 取代）
 
