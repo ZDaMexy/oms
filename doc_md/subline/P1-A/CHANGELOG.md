@@ -1,5 +1,17 @@
 # P1-A 变动日志
 
+## 2026-10-28Classic11局内选择与原图面板准备
+
+以已交付`.v26102801`及`1e68a6ec`后的工作树继续实施。Classic局内/READY改为十一档方向相邻选择，多步只完成一次并保存最终成组状态；旧offgrid没有请求方向邻档时保留原值。完整档表和不变量只在[合同](TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代)维护。没有改Normal/Floating步长、`GetAdjustmentStep`滑条、Classic合法存档/Replay范围0.5～10、precision、refloat、13字段或calculation0，也未改既有Hi-Speed数学。
+
+作者沿既有`original_sprite`直接使用Classic数字整条原PNG（90×394）和Classic专用cursor（150×70），不用`gc.font`重拼，也不再误用Normal的130×70cursor；档间37px，NOTES TIME及绿字按原Classic anchor。已正确的底板和竖排CLASSIC原字节/GEO保留，Normal/Floating及其它Frame不重做。原图/几何来源在私有证据，不新增公开PNG摘要表，当前面板不代表原版数值换算或时序已签。
+
+r28的format、BMS Release、Desktop Release/Debug和SkinAuthoring Release全部exit0；`bms-focused-classic11-r28`195通过/0跳过、`bms-full-classic11-r28`3303通过/19跳过，均exit0。命令/产物身份沿本轮同名日志/exit及`author-runtime-r28-r1.json`，不把旧Core/mania结果重计成本轮运行。full后仅`BmsReadingSettingsControl.cs`两行提示补明确十一档和Normal或Classic→Floating→返回；r29 format、BMS Release及Desktop Release/Debug均0，已测Classic逻辑和测试逐字节保持，不为文案重跑完整回归。最终16份来源/10程序集实采于`tests/classic11-source-and-binaries-r29.json`，不倒称为测试前快照；CLI仍用339文件的独立r28封存，其Core和作者程序集与当前相同。
+
+Python r13 Classic10/combined392通过，保留原PNG哈希/尺寸/nearest验证。真实作者r12曾因读取器假设私有receipt有size而失败，修正读取实际schema，未放松源图验证；r14真实生成exit0。新`authors/omni-full-v46-classic-original-r1`为6619物理文件/6617 runtime文件，新增2张原PNG；父作者、非Classic、539预览和15 Frame保全。全payload身份和逐文件证据只取`assets/v46-classic-original-r1`，r12失败与r13/r14原日志保留，不把作者生成当作OSK、正式CLI或原生验收。
+
+正式CLI `author-v46-pack-r1`运行中，尚无新正式OSK或交付；私有诊断ZIP只供夹具运行，不能替代正式整包。新五case预期96帧，尚未游玩；r29私有夹具因新partial遗漏`osu.Framework.Allocation`产生编译错误，原日志保留，补一行using后r30 rebuild/prepare均0，旧14方法与HeaderArt保持。私有源码保全和准备身份取`assets/native-classic11-fixture-source-r1/r2`及prepared receipt。原版r5的190/Classic/FHS补采进行中，不由本轮推导公式或签offgrid模式返回；r4已资格130 BPM十一档仍沿原历史。最新实际交付仍`.v26102801`，软件/隔离宿主不代签实体输入、原时序、发行或完全体；两页继续取消，gameplay goal保持active。
+
 ## 2026-10-28Gameplay33Header原图与歌曲literal变体
 
 以已交付`.v26102800`及`71ea283b`为基线，仅为gameplay 33 Header开放既有`song.difficulty/song.level`的精确Ordinal literal resource/visible变体。key复用SongInformation的256 UTF-16单元上限，空字段与无来源分开；不trim、改大小写、Unicode归一化或解析`01/1`，未匹配/无来源取default。非法类型、重复或超长拒绝，不开放numeric/geometry/clock；其它歌曲文字源、来源enum、C6 callback、计分/Replay和Hi-Speed数学保持。作者合同只取[REFERENCE](../../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)。

@@ -106,3 +106,9 @@ Headless的每例存储与失败收尾统一见[测试宿主地雷](reference_bu
 - 用原图空区遮HDD专用快捷键前须核alpha；judge plate空区alpha204会留下0/9/3残影，应取已核实opaque像素而非继续叠半透明遮罩。AUTO灰字可能烘在整张plate内，只隐藏橙灯仍会让unknown看成OFF；先遮原灰字，再在实际known门内恢复原灰slice/橙灯，毫秒读数独立。原PNG字节保全不等于显示语义正确，准入取[P1-A合同](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)。
 - 原生Mod提示消失要比较HUD.LoadComplete、Player.OnEntering、IsSceneReady与实际start四个时点；只在Entering重给2秒仍会被C5/5秒准备耗完。可见期应落在`startGameplayImmediately`的真实`Reset(startClock:true)`后，不能只搬modsRect、加假Mod图或强开HUD父级；Replay guard保持。几何和可见生命周期分别核对，合同归[P1-A](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#皮肤配置项与显式舞台)。
 - 嵌套AFP不能只按root总帧数截导出。lane345的root边框128@60、同一cat child256@60；独立cat movie128@30已在嵌入时翻倍，不能再翻一次。原root结束不证明child也结束；先核source renderer行为和逐tick原PNG/UV，再将作者明确选择的两循环分别保留，不重复旧128成品假装补帧。原机parent-loop仍需原机CUSTOM，来源连续性与OMS播放各自留证。PGREAT同级蓝/绿/粉数字也不是简单tint：alpha可不同，须用原图配对；采集timestamp不是renderclock，不能据稀疏截图宣布精确原机周期。
+
+## Classic原图面板与私有receipt边界
+
+Classic数字整条可用既有`original_sprite`直接画`tx_num1_4`；`gc.font`重拼即使字值相同也不等于源像素。Classic专用cursor是150×70，Normal是130×70，不能因角色相近共用。标签PNG正确不证明GEO正确：Classic NOTES TIME与绿字须沿各侧/DP原anchor，已正确的底板/竖排标签无需重做；输入/存档合同取[P1-A](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代)。
+
+私有来源receipt未提供`size`时，先核其真实schema及独立PNG/GEO来源，不把读取器假设失败说成源图坏；修读取器后仍须保留源hash、真实尺寸、nearest和路径边界，不能退成文件名存在检查。当前原图和验证证据只回链[P1-A日志](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-28classic11局内选择与原图面板准备)，不在memory复制进度或源图摘要表。

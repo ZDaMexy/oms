@@ -308,6 +308,8 @@ __pycache__/
 !/tools/IidxSkinAssets/lighting_header.py
 !/tools/IidxSkinAssets/build_lighting_header.py
 !/tools/IidxSkinAssets/test_lighting_header.py
+!/tools/IidxSkinAssets/build_lighting_classic.py
+!/tools/IidxSkinAssets/test_lighting_classic.py
 /build/tools/**
 /build/temp/**
 

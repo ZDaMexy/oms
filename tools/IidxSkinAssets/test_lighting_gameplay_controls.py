@@ -196,11 +196,25 @@ class GameplayControlPresentationTest(unittest.TestCase):
                             "p2": ([1286, 316, 74, 22], [1292, 625, 62, 22], (1250, 1277, 1312, 1339), 707),
                             "dp": ([923, 96, 74, 22], [929, 405, 62, 22], (903, 930, 963, 990), 492)}
         for layout, (maximum, minimum, digit_x, digit_y) in source_positions.items():
+            for mode in ("normal", "floating", "classic"):
+                reference["panels"][mode][layout]["window"]["bounds"] = {"p1": [541, 295, 152, 442],
+                    "p2": [1233, 295, 152, 442], "dp": [896, 68, 128, 498]}[layout]
             reference["panels"]["floating"][layout]["shapes"] = [
                 {"region": "tx_fspd_num10", "bounds": maximum}, {"region": "tx_fspd_num05", "bounds": minimum},
                 *({"region": "playm_spd_00", "bounds": [x, digit_y, 28, 20]} for x in digit_x)]
+            classic_geometry = controls.CLASSIC_GEOMETRY[layout]
+            cx, cy = classic_geometry["center"]
+            lx, ly, _, _ = classic_geometry["notes"]
+            reference["panels"]["classic"][layout]["shapes"] = [
+                {"region": "tx_num1_4", "bounds": list(classic_geometry["strip"]), "mirroredX": False},
+                {"region": "playm_classic_spd_sel", "bounds": [cx - 75, cy + 370 - 35, 150, 70], "mirroredX": False},
+                {"region": "tx_notes_time", "bounds": list(classic_geometry["notes"]), "mirroredX": False},
+                *({"region": "notes_time_num9g", "bounds": [lx + 10 + 21 * index, ly + 12, 22, 20]} for index in range(3))]
+            if layout != "dp":
+                reference["panels"]["classic"][layout]["shapes"].append({"region": "tx_classic_hispeed",
+                    "bounds": [665 if layout == "p1" else 1243, 364, 18, 304], "mirroredX": False})
         names = ("normal", "floating", "classic", "tx_sub_length", "tx_notes_time", "slider_bar", "playm_spd_sel",
-                 "tx_fspd_num10", "tx_fspd_num05")
+                 "tx_fspd_num10", "tx_fspd_num05", "tx_classic_hispeed", *controls.CLASSIC_ASSET_NAMES)
         assets = {"mapping": {name: "synthetic." + name for name in names}}
         return controls.build_controls(reference, assets, stage_geometry=geometry or [{"width": 440, "height": 728, "frames": ["synthetic"]}])
 
@@ -235,21 +249,25 @@ class GameplayControlPresentationTest(unittest.TestCase):
             self.assertFalse(slider["loop"])
             self.assertNotIn("trigger", slider)
             self.assertEqual(slider["property"], "y")
-            self.assertEqual(slider["keyframes"][0]["time"], 1 if ".normal." in slider["id"] else 0.5)
-            self.assertEqual(slider["keyframes"][-1]["time"], 20 if ".normal." in slider["id"] else 10)
+            self.assertEqual(slider["keyframes"][0]["time"], 1 if ".normal." in slider["id"] or ".classic." in slider["id"] else 0.5)
+            self.assertEqual(slider["keyframes"][-1]["time"], 20 if ".normal." in slider["id"] else 4 if ".classic." in slider["id"] else 10)
             self.assertGreater(slider["keyframes"][0]["value"], slider["keyframes"][1]["value"])
 
-    def test_normal_and_classic_have_eleven_real_ticks_and_original_selected_strip(self):
+    def test_normal_ticks_are_unchanged_and_classic_uses_one_complete_original_strip(self):
         scene = self.fixture()
         for layout in controls.LAYOUTS:
             for mode in ("normal", "classic"):
                 ticks = [node for node in nodes(scene) if node["id"].startswith(f"gc.{layout}.{mode}.tick")]
-                self.assertEqual(len(ticks), 11)
-                values = [float(node["properties"]["text"]) for node in ticks]
-                self.assertEqual(values[0], 20 if mode == "normal" else 10)
-                self.assertEqual(values[-1], 1 if mode == "normal" else 0.5)
+                self.assertEqual(len(ticks), 11 if mode == "normal" else 0)
+                if mode == "normal":
+                    values = [float(node["properties"]["text"]) for node in ticks]
+                    self.assertEqual((values[0], values[-1]), (20, 1))
+                else:
+                    strip, = [node for node in nodes(scene) if node["id"] == "cl." + layout + ".s"]
+                    self.assertEqual(strip["resource"], "synthetic.tx_num1_4")
+                    self.assertEqual(strip["type"], "sprite")
                 selected, = [node for node in nodes(scene) if node["id"] == f"gc.{layout}.{mode}.slider"]
-                self.assertEqual(selected["resource"], "synthetic.playm_spd_sel")
+                self.assertEqual(selected["resource"], "synthetic.playm_spd_sel" if mode == "normal" else "synthetic.playm_classic_spd_sel")
 
     def test_only_floating_keeps_the_extra_current_speed_readout(self):
         scene = self.fixture()
@@ -329,7 +347,7 @@ class GameplayControlPresentationTest(unittest.TestCase):
         scene = self.fixture()
         green_targets = {item["target"] for item in scene["bindings"] if item["source"] == "scroll.green-number"}
         by_id = {node["id"]: node for node in nodes(scene)}
-        self.assertEqual(len(green_targets), 7)
+        self.assertEqual(len(green_targets), 10)
         for target in green_targets:
             self.assertEqual(by_id[target]["properties"]["bitmap-font"], controls.FONT)
             self.assertEqual(by_id[target]["properties"]["colour"], "#64ff00ff")

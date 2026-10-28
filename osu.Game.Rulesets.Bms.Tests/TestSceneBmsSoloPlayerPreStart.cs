@@ -825,6 +825,75 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("the mode chord did not toggle the covers", () => player.DrawableBmsRuleset!.SuddenActive && player.DrawableBmsRuleset.HiddenActive);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestClassicLiveKeysTraverseAllElevenChoicesAndSaturate(bool dualPlay)
+        {
+            initialHiSpeedMode = BmsHiSpeedMode.Classic;
+            sourceOverride = createSourceBeatmap("#TITLE Classic live choices\n#BPM 130\n#RANK 2\n"
+                + (dualPlay ? "#PLAYER 3\n#00319:AA\n#00329:AA\n" : "#00319:AA\n") + "#WAVAA key1.wav\n", "classic-live-choices.bme");
+            OmsAction lower = dualPlay ? OmsAction.Key2P_1 : OmsAction.Key1P_1;
+            OmsAction raise = dualPlay ? OmsAction.Key2P_2 : OmsAction.Key1P_2;
+            double[] choices = { 1, 1.5, 2, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75, 4 };
+            AddStep("hold actual Start", () => player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_PreStartHold));
+            AddStep("start at the lowest Classic choice", () =>
+            {
+                var config = (BmsRulesetConfigManager)RulesetConfigs.GetConfigFor(new BmsRuleset())!;
+                config.SetValue(BmsRulesetSetting.ClassicHiSpeed, 1d);
+                Assert.That(player.DrawableBmsRuleset!.Variant, Is.EqualTo(dualPlay ? 16 : 8));
+                Assert.That(player.DrawableBmsRuleset.SelectedHiSpeed.Value, Is.EqualTo(1));
+            });
+            foreach (double value in choices.Skip(1))
+                pressKey(raise, value);
+            pressKey(raise, 4);
+            foreach (double value in choices.Reverse().Skip(1))
+                pressKey(lower, value);
+            pressKey(lower, 1);
+            AddStep("release Start", () => player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_PreStartHold));
+
+            void pressKey(OmsAction action, double expected)
+            {
+                AddStep($"press {action} toward {expected}", () => player.GameplayInputManager!.TriggerOmsActionPressed(action));
+                AddStep("release adjustment key", () => player.GameplayInputManager!.TriggerOmsActionReleased(action));
+                AddAssert("native Classic speed matches the next choice", () => player.DrawableBmsRuleset!.SelectedHiSpeed.Value, () => Is.EqualTo(expected));
+                AddAssert("READY HOLD shows the actual selected value", () => hasOverlayText(BmsHiSpeedMode.Classic.FormatValue(expected)));
+            }
+        }
+
+        [TestCase(0.5, -1, 0.5)]
+        [TestCase(0.5, 1, 1)]
+        [TestCase(1.25, -1, 1)]
+        [TestCase(1.25, 1, 1.5)]
+        [TestCase(1.75, -1, 1.5)]
+        [TestCase(1.75, 1, 2)]
+        [TestCase(4.25, -1, 4)]
+        [TestCase(4.25, 1, 4.25)]
+        [TestCase(10, -1, 4)]
+        [TestCase(10, 1, 10)]
+        public void TestClassicLiveKeysEnterTheListOnlyInTheRequestedDirection(double initial, int direction, double expected)
+        {
+            initialHiSpeedMode = BmsHiSpeedMode.Classic;
+            OmsAction action = direction > 0 ? OmsAction.Key1P_2 : OmsAction.Key1P_1;
+            AddStep("hold actual Start", () => player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_PreStartHold));
+            AddStep("load a supported old Classic value", () =>
+            {
+                var config = (BmsRulesetConfigManager)RulesetConfigs.GetConfigFor(new BmsRuleset())!;
+                config.SetValue(BmsRulesetSetting.ClassicHiSpeed, initial);
+                Assert.That(player.DrawableBmsRuleset!.SelectedHiSpeed.Value, Is.EqualTo(initial));
+            });
+            AddStep("press the actual white or black key", () => player.GameplayInputManager!.TriggerOmsActionPressed(action));
+            AddStep("release adjustment key", () => player.GameplayInputManager!.TriggerOmsActionReleased(action));
+            AddAssert("the old value moves only in the requested direction", () => player.DrawableBmsRuleset!.SelectedHiSpeed.Value, () => Is.EqualTo(expected));
+            AddAssert("READY HOLD retains the actual value even outside the list", () => hasOverlayText(BmsHiSpeedMode.Classic.FormatValue(expected)));
+            AddStep("other mode values retain their independent settings", () =>
+            {
+                var config = (BmsRulesetConfigManager)RulesetConfigs.GetConfigFor(new BmsRuleset())!;
+                Assert.That(config.Get<double>(BmsRulesetSetting.ScrollSpeed), Is.EqualTo(8));
+                Assert.That(config.Get<double>(BmsRulesetSetting.FloatingHiSpeed), Is.EqualTo(2.5));
+            });
+            AddStep("release Start", () => player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_PreStartHold));
+        }
+
         [Test]
         public void TestStartEffectFromInitialFloatingReturnsToNormal()
         {

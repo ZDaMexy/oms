@@ -47,6 +47,9 @@ namespace osu.Game.Rulesets.Bms.UI
         // This is the HS calibration constant, not an upper bound on the native scrolling time range.
         public const double MAX_TIME_RANGE = 100000d / 13d;
 
+        // Live key selection only. Stored reading settings, replay values and mode conversion keep their legacy domain.
+        private static readonly double[] classic_hi_speed_choices = { 1, 1.5, 2, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75, 4 };
+
         public new BmsPlayfield Playfield => (BmsPlayfield)base.Playfield;
 
         public BmsLongNoteMode LongNoteMode { get; }
@@ -1383,7 +1386,9 @@ namespace osu.Game.Rulesets.Bms.UI
             BindableDouble bindable = getSelectedHiSpeedBindable();
             double previous = bindable.Value;
 
-            bindable.Value += amount * configHiSpeedMode.Value.GetAdjustmentStep();
+            bindable.Value = configHiSpeedMode.Value == BmsHiSpeedMode.Classic
+                ? adjacentClassicHiSpeed(previous, amount)
+                : previous + amount * configHiSpeedMode.Value.GetAdjustmentStep();
 
             if (previous == bindable.Value)
                 return false;
@@ -1393,6 +1398,30 @@ namespace osu.Game.Rulesets.Bms.UI
 
             completeReadingAdjustment();
             return true;
+        }
+
+        private static double adjacentClassicHiSpeed(double current, int amount)
+        {
+            // Old values may lie between or outside the live choices. Enter the list only in the requested
+            // direction; an unavailable neighbour leaves the old value intact rather than reversing the input.
+            if (amount > 0)
+            {
+                for (int index = 0; index < classic_hi_speed_choices.Length; index++)
+                {
+                    if (classic_hi_speed_choices[index] > current)
+                        return classic_hi_speed_choices[(int)Math.Min(classic_hi_speed_choices.Length - 1, (long)index + amount - 1)];
+                }
+            }
+            else
+            {
+                for (int index = classic_hi_speed_choices.Length - 1; index >= 0; index--)
+                {
+                    if (classic_hi_speed_choices[index] < current)
+                        return classic_hi_speed_choices[(int)Math.Max(0, (long)index + amount + 1)];
+                }
+            }
+
+            return current;
         }
 
         private void restoreFloatingCover()

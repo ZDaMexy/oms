@@ -26,6 +26,14 @@ LAYOUTS = ("p1", "p2", "dp")
 SOURCE_MOVIES = ("spd_p1", "spd_p2", "spd_dp", "spd2_p1", "spd2_p2", "spd2_dp",
                  "spd3_p1", "spd3_p2", "spd3_dp", "lane_sud", "lane_lift_sud",
                  "x_sub_length_lane", "x_notes_time_lane", "x_lift_number")
+CLASSIC_ASSET_NAMES = ("tx_num1_4", "playm_classic_spd_sel")
+CLASSIC_ASSET_SIZES = {"tx_num1_4": (90, 394), "playm_classic_spd_sel": (150, 70)}
+CLASSIC_VALUES = (4, 3.75, 3.5, 3.25, 3, 2.75, 2.5, 2.25, 2, 1.5, 1)
+CLASSIC_GEOMETRY = {
+    "p1": {"strip": (555, 320, 90, 394), "center": (600, 331), "notes": (574, 264, 84, 12)},
+    "p2": {"strip": (1281, 320, 90, 394), "center": (1326, 331), "notes": (1269, 264, 84, 12)},
+    "dp": {"strip": (915, 98, 90, 394), "center": (960, 109), "notes": (918, 37, 84, 12)},
+}
 
 
 def require(value, message):
@@ -281,7 +289,7 @@ def prepare_assets(library, output, reference):
     resources, mapping, receipt = [], {}, []
     # Append the newly used original labels, preserving every existing resource
     # identity and the source font's unchanged glyph mapping/metrics.
-    ordered_names = [*sorted(names), *(name for name in ("tx_fspd_num10", "tx_fspd_num05") if name not in names)]
+    ordered_names = [*sorted(names), *(name for name in ("tx_fspd_num10", "tx_fspd_num05", *CLASSIC_ASSET_NAMES) if name not in names)]
     for index, name in enumerate(ordered_names):
         row = rows[PACKAGE, name]
         require(row["sampler"]["min"] == row["sampler"]["mag"] and row["sampler"]["mag"] in ("linear", "nearest"),
@@ -451,7 +459,176 @@ def build_controls(reference, assets, *, stage_geometry):
                 "keyframes": [{"id": identifier + ".e0", "time": 0, "value": 0 if reverse else 1},
                               {"id": identifier + ".e1", "time": 1, "value": 1 if reverse else 0}]})
     _template(scene, stage, COVER_MARKER)
-    return scene
+    return upgrade_classic_presentation(scene, reference, mapping)[0]
+
+
+def classic_geometry(reference, layout):
+    """Use the whole original strip and common numeric baseline, not digit-count formatting."""
+    source = reference["panels"]["classic"][layout]
+    expected = CLASSIC_GEOMETRY[layout]
+    def one(region):
+        matches = [item for item in source["shapes"] if item["region"] == region]
+        require(len(matches) == 1, "Classic needs its one original " + region + " shape")
+        return matches[0]
+    strip, cursor, notes = (one(name) for name in (*CLASSIC_ASSET_NAMES, "tx_notes_time"))
+    cx, cy = expected["center"]
+    require(tuple(strip["bounds"]) == expected["strip"] and not strip.get("mirroredX", False), "Use the complete upright Classic strip GEO")
+    require(tuple(cursor["bounds"]) == (cx - 75, cy + 37 * 10 - 35, 150, 70)
+            and not cursor.get("mirroredX", False), "Use the original upright 150x70 Classic selector GEO")
+    require(tuple(notes["bounds"]) == expected["notes"] and not notes.get("mirroredX", False), "Use the original Classic NOTES TIME anchor")
+    digits = [item for item in source["shapes"] if item["region"].startswith("notes_time_num") and item["region"].endswith("g")]
+    require(digits and all(item["bounds"][1] == expected["notes"][1] + 12 and item["bounds"][3] == 20
+                           and not item.get("mirroredX", False) for item in digits), "Classic numeric source rows need their common 20px baseline")
+    label_x, label_y, label_width, _ = expected["notes"]
+    return {"strip": strip, "cursor": cursor, "notes": notes, "center": (cx, cy),
+            "greenCenter": (label_x + label_width / 2, label_y + 12 + 10),
+            "qualification": "Label-centred natural integer text at the common source numeric row; no 3/4-digit padding or original host formatter inferred"}
+
+
+def _classic_properties(properties):
+    return {key: float(format(value, ".9g")) if key in ("x", "y", "width", "height") else value for key, value in properties.items()}
+
+
+def _classic_pixel(identifier, bounds, resource):
+    result = _pixel(identifier, bounds, resource)
+    result["properties"] = _classic_properties(result["properties"])
+    return result
+
+
+def _scene_nodes(scene):
+    return [item for root in (scene["root"], *(template["root"] for template in scene["templates"])) for item in walk(root)]
+
+
+def _same_bounds(node, bounds, *, centered=False):
+    expected = (bounds[0] / 1920 - (0.5 if centered else 0), bounds[1] / 1080 - (0.5 if centered else 0))
+    p = node["properties"]
+    position = all(abs(p.get(key, float("inf")) - value) * dimension < 1e-4 for key, value, dimension in zip(("x", "y"), expected, (1920, 1080)))
+    return position and (centered or all(abs(p.get(key, float("inf")) * dimension - value) < 1e-4
+                                        for key, value, dimension in zip(("width", "height"), bounds[2:], (1920, 1080))))
+
+
+def reverse_classic_presentation(scene, receipt):
+    result = copy.deepcopy(scene)
+    by_id = {item["id"]: item for item in _scene_nodes(result)}
+    for change in receipt["layouts"]:
+        for field in ("oldClassic", "oldGreenGate"):
+            original = change[field]
+            target = by_id[original["id"]]
+            target.clear(); target.update(copy.deepcopy(original))
+    old_tracks = {change["oldTrack"]["id"]: change["oldTrack"] for change in receipt["layouts"]}
+    result["tracks"] = [copy.deepcopy(old_tracks.get(item["id"], item)) for item in result["tracks"]]
+    for field in ("bindings", "variants"):
+        added = set(receipt["addedPrograms"][field])
+        require({item["id"] for item in result[field]} >= added, "Classic additions are no longer reversible")
+        result[field] = [item for item in result[field] if item["id"] not in added]
+    return result
+
+
+def upgrade_classic_presentation(scene, reference, mapping):
+    """Replace only three real Classic branches, recognising compact or original IDs structurally."""
+    result = copy.deepcopy(scene)
+    old_ids = {item["id"] for item in _declarations(scene, _scene_nodes(scene))}
+    additions = {"bindings": [], "variants": []}
+    changes = []
+    for layout in LAYOUTS:
+        geometry = classic_geometry(reference, layout)
+        templates = [template for template in result["templates"] if any(
+            instance["template"] == template["id"] and instance.get("material") == {"slot": "decoration", "resource": "markers/frame-" + layout + "-information"}
+            for instance in result["instances"])]
+        candidates = []
+        for template in templates:
+            nodes = {node["id"]: node for node in walk(template["root"])}
+            for variant in result["variants"]:
+                if variant["target"] in nodes and variant["source"] == "scroll.mode" and variant["property"] == "visible" and variant["default"] is False and len(variant["cases"]) == 1 and all(
+                        case["key"] == "classic" and case.get("value") is True for case in variant["cases"]):
+                    candidates.append((template, nodes, nodes[variant["target"]]))
+        require(len(candidates) == 1, "Use exactly one actual Classic information branch per layout")
+        template, nodes, classic = candidates[0]
+        require(classic["type"] == "container" and classic["target"] == {"kind": "global"}
+                and classic["properties"] == {"visible": False}, "Use the unchanged Classic mode carrier")
+        require(template["root"]["target"] == {"kind": "global"} and template["root"].get("slot") == "decoration"
+                and template["root"]["properties"] == {"visible": False, "z": -31}, "Classic requires its existing full-canvas control owner")
+        require(sum(instance["template"] == template["id"] for instance in result["instances"]) == 1,
+                "Do not attach Classic to a pooled information owner")
+        children = classic["children"]
+        sliders = [child for child in children if any(track["target"] == child["id"] and track.get("clock") == "scroll.speed"
+                                                    and track["property"] == "y" for track in result["tracks"])]
+        require(len(sliders) == 1 and sliders[0]["type"] == "sprite" and sliders[0]["resource"] == mapping["playm_spd_sel"],
+                "Use the actual old130x70 Classic cursor, not an inferred suffix")
+        slider = sliders[0]
+        cx, first = geometry["center"]
+        require(_same_bounds(slider, (cx - 65, first + 37 * 10 - 35, 130, 70)), "The old Classic cursor geometry differs")
+        ticks = [child for child in children if child["type"] == "text" and child["properties"].get("bitmap-font") == FONT]
+        old_values = (10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0.5)
+        require(len(ticks) == 11 and [child["properties"].get("text") for child in ticks] == [str(value) for value in old_values]
+                and all(_same_bounds(child, (cx, first + 37 * index), centered=True) for index, child in enumerate(ticks)),
+                "Use the actual old eleven text ticks; reject already-upgraded or different Classic branches")
+        removed = {child["id"] for child in ticks}
+        require(not any(item["target"] in removed for field in ("bindings", "variants", "tracks") for item in result[field]),
+                "A Classic static tick has another semantic consumer")
+        source = reference["panels"]["classic"][layout]
+        static = [child for child in children if child["id"] not in removed and child is not slider]
+        expected_static = [(source["window"], mapping[source["window"]["region"]])]
+        expected_static.extend((item, mapping["tx_classic_hispeed"]) for item in source["shapes"] if item["region"] == "tx_classic_hispeed")
+        require(len(static) == len(expected_static) and all(child.get("resource") == resource and _same_bounds(child, shape["bounds"])
+                for child, (shape, resource) in zip(static, expected_static)), "Keep the original Classic plate/title and their exact source placement")
+        track, = [track for track in result["tracks"] if track["target"] == slider["id"] and track["property"] == "y"]
+        require(track["type"] == "tween" and track["clock"] == "scroll.speed" and track["easing"] == "linear" and track["loop"] is False
+                and len(track["keyframes"]) == 11 and [item["time"] for item in track["keyframes"]] == list(reversed(old_values)),
+                "Keep the existing linear, clamped Classic clock and track identity")
+        green_bindings = [binding for binding in result["bindings"] if binding["source"] == "scroll.green-number" and binding["target"] in nodes]
+        require(len(green_bindings) == 1, "The actual control owner needs one existing shared GN numeric carrier")
+        green = nodes[green_bindings[0]["target"]]
+        green_gates = [node for node in nodes.values() if green in node["children"]]
+        require(len(green_gates) == 1 and len(green_gates[0]["children"]) == 2, "Use the existing shared GN pair")
+        green_gate = green_gates[0]
+        label, = [child for child in green_gate["children"] if child is not green]
+        require(label["type"] == "sprite" and label["resource"] == mapping["tx_notes_time"]
+                and green["type"] == "text" and green["properties"].get("bitmap-font") == FONT
+                and green["properties"].get("format") == "integer" and green["properties"].get("colour") == "#64ff00ff"
+                and green["properties"].get("alignment") == "centre", "Retain the actual shared integer/font/tint; no placeholder formatter inference")
+        prefix = "cl." + layout
+        change = {"layout": layout, "template": template["id"], "oldClassic": copy.deepcopy(classic),
+                  "oldTrack": copy.deepcopy(track), "oldGreenGate": copy.deepcopy(green_gate), "removedTickIds": sorted(removed),
+                  "geometry": geometry}
+        strip = _classic_pixel(prefix + ".s", geometry["strip"]["bounds"], mapping["tx_num1_4"])
+        replacement = []
+        for child in children:
+            if child["id"] in removed:
+                if child is ticks[0]: replacement.append(strip)
+            else: replacement.append(child)
+        classic["children"] = replacement
+        # Cursor remains after the strip, as in the real speed(depth5) source layer.
+        slider["resource"] = mapping["playm_classic_spd_sel"]
+        slider["properties"].update(_classic_pixel(slider["id"], geometry["cursor"]["bounds"], slider["resource"])["properties"])
+        for keyframe, (value, index) in zip(track["keyframes"], reversed(list(zip(CLASSIC_VALUES, range(11))))):
+            keyframe.update(time=value, value=(first + 37 * index - 35) / 1080)
+        # Keep the old pair's IDs/properties/binding in Normal/Floating; only Classic uses the new anchor.
+        normal = _node(prefix + ".n", children=green_gate["children"])
+        classic_label = _classic_pixel(prefix + ".l", geometry["notes"]["bounds"], mapping["tx_notes_time"])
+        classic_green = copy.deepcopy(green); classic_green["id"] = prefix + ".g"
+        gx, gy = geometry["greenCenter"]
+        classic_green["properties"].update(_classic_properties({"x": gx / 1920 - 0.5, "y": gy / 1080 - 0.5}))
+        separate = _node(prefix + ".c", properties={"visible": False}, children=[classic_label, classic_green])
+        green_gate["children"] = [normal, separate]
+        for suffix, target, default, value in (("nv", normal["id"], True, False), ("cv", separate["id"], False, True)):
+            variant = {"id": prefix + "." + suffix, "target": target, "property": "visible", "source": "scroll.mode", "default": default,
+                       "cases": [{"id": prefix + "." + suffix + ".c", "key": "classic", "value": value}]}
+            result["variants"].append(variant); additions["variants"].append(variant["id"])
+        binding = {"id": prefix + ".gb", "target": classic_green["id"], "property": "text", "source": "scroll.green-number"}
+        result["bindings"].append(binding); additions["bindings"].append(binding["id"])
+        change.update(stripNode=strip["id"], cursorNode=slider["id"], classicGreen=classic_green["id"],
+                      oldPairModeGate=normal["id"], classicPairModeGate=separate["id"])
+        changes.append(change)
+    declarations = _declarations(result, _scene_nodes(result))
+    ids = [item["id"] for item in declarations]
+    require(len(ids) == len(set(ids)), "Classic additions collide with a current typed identity")
+    new_ids = set(ids) - old_ids
+    receipt = {"layouts": changes, "addedPrograms": additions, "addedIds": sorted(new_ids),
+               "normalFloatingNodesBindingsTracksPreserved": True, "originalFontDefinitionUnchanged": True,
+               "clock": "scroll.speed", "offGrid": "Existing linear interpolation and endpoint clamp only; actual legacy values and speed math unchanged"}
+    require(reverse_classic_presentation(result, receipt) == scene, "A non-Classic or unplanned typed field changed")
+    return result, receipt
 
 
 def _selected_document(document, template_ids):

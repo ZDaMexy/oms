@@ -54,8 +54,8 @@ namespace osu.Game.Rulesets.Bms
                     Caption = "Hi-Speed 模式",
                     HintText = "Normal：基础定速模式，直接按数值调速。\n"
                                + "Floating：以谱面初始 BPM 为基准；调整已启用的 Sudden／Hidden 时按当前 BPM 和可见区域补偿 Hi-Speed。谱面变速本身不会自动锁定绿字。\n"
-                               + "Classic：按传统 Hi-Speed 语义计算。\n\n"
-                               + "游玩中按住 Start 打开调速面板，白键降低、黑键提高；按住 Start 再按‘游玩：挡板／调速’绑定键（EFFECT）可切换 Normal／Floating。",
+                               + "Classic：游玩中按 1.00、1.50、2.00、2.25、2.50、2.75、3.00、3.25、3.50、3.75、4.00 共 11 档切换；设置中的已有数值仍会保留。\n\n"
+                               + "游玩中按住 Start 打开调速面板，白键降低、黑键提高；按住 Start 再按‘游玩：挡板／调速’绑定键（EFFECT）可从 Normal 或 Classic 切至 Floating，再按一次返回。",
                     Current = hiSpeedMode,
                 }),
                 new SettingsItemV2(hiSpeedSlider),

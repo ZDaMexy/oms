@@ -223,3 +223,13 @@ Results r3以真实Generated Autoplay自然完成、两次真实按钮切换、�
 标签修正后Core Release、Desktop Release/Debug与作者CLI重新编译通过，`core-select-pages-results-r16`293通过；Python当前整目录discover `python-combined-r5`363通过，包含替换Results保留其它页和拒绝误删共享资源的回归。v39选曲原生r1因夹具仅更新global WorkingBeatmap而未显式打开具体BMS谱，在默认root无谱卡处超时；已补真实PresentBeatmap入口与初始状态记录，未改BMS root合同。Reading v39 SP首轮真实解码、按住Start画面及读数通过，在释放Start后因夹具无条件要求绿字可见而失败；保存帧的时钟仅晚1.8ms、数值仍正确，已改核可见性等于真实Adjusting，回放不制造Start，其他时间/数值断言保持，待重跑。
 
 剩余门为v40作者完整检查/OSK、最终包选曲与Results原生画面、多BPM/SCROLL与Off下STOP实测及真实回放、原版精确提示/动画与真实歌曲/设备。未解包IFS不计已分类，26及更早不借资源标签补造；更多显示偏好的保存范围沿已采纳合同，不静默重定义。
+
+## 2026-10-28Classic11局内选择与原图面板准备
+
+本节只记录本轮Classic增量；当前状态、档表和后续门分别取[P1-A STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md)、[稳定合同](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代)与[PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)，完整命令/失败身份取[当次日志](../subline/P1-A/CHANGELOG.md#2026-10-28classic11局内选择与原图面板准备)。
+
+Classic局内/READY已按十一档执行方向相邻选择，旧offgrid无请求方向邻档时不反向钳制；一次多步只发布并记忆最终成组状态。Normal/Floating、设置滑条、Classic合法存档/Replay范围0.5～10、precision/refloat、13字段和calculation0保持。原数字整条90×394、专用cursor150×70、37px档间及原Classic NOTES TIME/GN anchor由现有作者能力直接接入；底板/竖排CLASSIC原图保留，不再用字体拼数字或Normal cursor冒充。
+
+r28行为与构建通过，随后只改十一档/模式返回说明，r29最终编译通过；已测Classic逻辑和测试字节保持。Python r13已过，真实r12的私有receipt schema误读原失败保留、源PNG哈希/尺寸/nearest检查未减；r14已成功生成`omni-full-v46-classic-original-r1`（6619物理/6617 runtime、新增2PNG），父作者、非Classic、539预览和15 Frame保全，证据取`assets/v46-classic-original-r1`。
+
+此为已实施代码/作者候选，正式CLI运行中；私有宿主已编译准备、尚未游玩，未签新正式包或交付。最新实际交付仍`.v26102801`，原版r5补采未收口，当前11档输入和原图面板不等于原数学、跨BPM/offgrid模式返值或原时序等价；设备/发行门保持，两页继续取消、保留OMS原界面。
