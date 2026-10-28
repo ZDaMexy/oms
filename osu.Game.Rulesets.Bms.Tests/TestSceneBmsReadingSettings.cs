@@ -101,6 +101,59 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         [TestCase(false)]
         [TestCase(true)]
+        public void TestClassicFloatingRoundTripRemembersTheWholeReadingGroup(bool remember)
+        {
+            BmsReadingSettingsSnapshot initial = settings(BmsHiSpeedMode.Classic);
+            BmsReadingSettingsSnapshot floating = initial;
+            BmsReadingSettingsSnapshot returned = initial;
+            BmsReadingSettingsSnapshot expected = initial;
+            prepare(initial, remember);
+            loadGame(chartText: "#TITLE Classic Floating reading\n#BPM 130\n#RANK 2\n#00811:01\n");
+            AddStep("enter Floating and manually lower its speed", () =>
+            {
+                Assert.That(renderer.ToggleHiSpeedMode(), Is.True);
+                Assert.That(renderer.HiSpeedMode.Value, Is.EqualTo(BmsHiSpeedMode.Floating));
+                Assert.That(renderer.AdjustSelectedHiSpeed(-1), Is.True);
+                floating = initial with { HiSpeedMode = BmsHiSpeedMode.Floating, FloatingHiSpeed = renderer.SelectedHiSpeed.Value };
+                Assert.That(config.CaptureReadingSettings(), Is.EqualTo(remember ? floating : initial));
+            });
+            AddStep("return to Classic with the completed speed adjustment", () =>
+            {
+                Assert.That(renderer.ToggleHiSpeedMode(), Is.True);
+                Assert.That(renderer.HiSpeedMode.Value, Is.EqualTo(BmsHiSpeedMode.Classic));
+                Assert.That(renderer.SelectedHiSpeed.Value, Is.Not.EqualTo(initial.ClassicHiSpeed));
+                returned = floating with { HiSpeedMode = BmsHiSpeedMode.Classic, ClassicHiSpeed = renderer.SelectedHiSpeed.Value };
+                expected = remember ? returned : initial;
+                Assert.That(config.CaptureReadingSettings(), Is.EqualTo(expected));
+                Assert.That(config.Get<double>(BmsRulesetSetting.ScrollSpeed), Is.EqualTo(initial.NormalHiSpeed), "Classic navigation must not overwrite Normal Hi-Speed.");
+            });
+            assertRuntimeReading(() => returned);
+            recreateConfigAndGame();
+            assertRuntimeReading(() => expected);
+        }
+
+        [TestCase(BmsHiSpeedMode.Normal, BmsHiSpeedMode.Classic)]
+        [TestCase(BmsHiSpeedMode.Classic, BmsHiSpeedMode.Normal)]
+        public void TestExplicitLiveBaseModeUpdatesTheFloatingReturnMode(BmsHiSpeedMode initialMode, BmsHiSpeedMode explicitMode)
+        {
+            prepare(settings(initialMode), remember: false);
+            loadGame();
+            AddStep("enter Floating from the original base mode", () => Assert.That(renderer.ToggleHiSpeedMode(), Is.True));
+            AddStep("select a different base mode and Floating in settings", () =>
+            {
+                config.SetValue(BmsRulesetSetting.HiSpeedMode, explicitMode);
+                Assert.That(renderer.HiSpeedMode.Value, Is.EqualTo(explicitMode));
+                config.SetValue(BmsRulesetSetting.HiSpeedMode, BmsHiSpeedMode.Floating);
+                Assert.That(renderer.HiSpeedMode.Value, Is.EqualTo(BmsHiSpeedMode.Floating));
+            });
+            AddStep("leave Floating using the live control", () => Assert.That(renderer.ToggleHiSpeedMode(), Is.True));
+            AddAssert("the most recent explicit live base mode returns", () => renderer.HiSpeedMode.Value, () => Is.EqualTo(explicitMode));
+            AddAssert("temporary navigation does not overwrite the explicit settings", () => config.Get<BmsHiSpeedMode>(BmsRulesetSetting.HiSpeedMode),
+                () => Is.EqualTo(BmsHiSpeedMode.Floating));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
         public void TestModeAndCoverDisplayToggleKeepTheSelectedDoubleCoverCombination(bool remember)
         {
             BmsReadingSettingsSnapshot initial = settings(BmsHiSpeedMode.Normal);

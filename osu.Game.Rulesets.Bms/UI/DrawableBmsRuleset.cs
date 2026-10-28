@@ -101,6 +101,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private BmsModLift? gameplayLiftMod;
         private readonly Dictionary<string, double> scratchAdjustmentRemainders = new Dictionary<string, double>();
         private double lastSpeedMetricsMultiplier = double.NaN;
+        private BmsHiSpeedMode nonFloatingHiSpeedMode = BmsHiSpeedMode.Normal;
         private double? floatingCoveredVisibleTime;
         private bool restoreFloatingCoverTime;
         private BmsPreStartSpeedPreview? preStartSpeedPreview;
@@ -329,7 +330,14 @@ namespace osu.Game.Rulesets.Bms.UI
                 refreshSpeedMetrics();
             }, true);
 
-            configHiSpeedMode.BindValueChanged(_ => refreshHiSpeedConfiguration(), true);
+            configHiSpeedMode.BindValueChanged(change =>
+            {
+                // This is live, per-play navigation state. A replay consumes its recorded modes directly.
+                if (!readingSettingsReadOnlyReplay && change.NewValue != BmsHiSpeedMode.Floating)
+                    nonFloatingHiSpeedMode = change.NewValue;
+
+                refreshHiSpeedConfiguration();
+            }, true);
             configNormalHiSpeed.BindValueChanged(_ => refreshHiSpeedConfiguration());
             configFloatingHiSpeed.BindValueChanged(_ => refreshHiSpeedConfiguration());
             configClassicHiSpeed.BindValueChanged(_ => refreshHiSpeedConfiguration());
@@ -1262,7 +1270,7 @@ namespace osu.Game.Rulesets.Bms.UI
             if (!canAdjustGameplaySettings)
                 return false;
 
-            BmsHiSpeedMode nextMode = configHiSpeedMode.Value == BmsHiSpeedMode.Floating ? BmsHiSpeedMode.Normal : BmsHiSpeedMode.Floating;
+            BmsHiSpeedMode nextMode = configHiSpeedMode.Value == BmsHiSpeedMode.Floating ? nonFloatingHiSpeedMode : BmsHiSpeedMode.Floating;
             double nextValue = selectedHiSpeed.Value * getModeTimeRangeScale(nextMode) / getModeTimeRangeScale(configHiSpeedMode.Value);
             configHiSpeedMode.Value = nextMode;
             getSelectedHiSpeedBindable().Value = nextValue;

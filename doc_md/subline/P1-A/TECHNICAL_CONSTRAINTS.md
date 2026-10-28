@@ -1,6 +1,6 @@
 # P1-A 技术约束：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-28（Omni两页拟真硬门、AUTO真值及Mod提示；计算/发行边界保持）
+> 最后核对：2026-10-28（Classic局内来源返回；既有计算、两页取消和发行边界保持）
 > 本文件是 P1-A 产品面及 Skin V1 的硬约束源。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，皮肤设计证据见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。若代码与本文冲突，先确认新事实并同步修正文档/代码，不能用历史 CHANGELOG 覆盖当前 authority。
 
 ## 按任务定位
@@ -163,7 +163,7 @@ Omni当前SongSelect/Results扩展方案已按用户拟真硬门取消，保留O
 3. `Lift` 是 geometry control，`Hidden` 是下遮挡；命名、状态、HUD 与 pre-start overlay 不得混写。
 4. Hi-Speed范围保持`Normal 1.0–20.0`、`Floating 0.5–10.0`、`Classic 0.5–10.0`；`GreenNumber = Round(VisibleLaneTime_ms × 0.6)`，上下白字取所属挡板保留长度，LIFT白字独立取几何单位。`VisibleLaneUnits = 1000 - effectiveSuddenUnits - effectiveHiddenUnits`；关闭挡板不清原值，Lift只经几何影响可见时间。当前legacy基础映射为`TimeRange = (100000 / 13) / HS`；`TestLegacyNormalHiSpeedCalculationKeepsItsExistingMetrics`中的Normal `HS 10 + WN 350 => GN 300`只锁定现有OMS公式，不是Classic专属合同或原版实测。合法配置须到达实际原生滚动，不沿旧290～7692ms截断；读数与补偿取同一实际范围。满Lift保持正分母、读谱区与GN为0。正SCROLL取实际已选算法：On沿未夹定profile的base及音乐BPM/SCROLL，Off沿原生Multiplier及夹定；不重复Auto检测或强制旁路。On冻结保留音乐参考，长STOP不污染其Floating/Classic基准；Off忠实原路径。零/负SCROLL不做正倍率refloat，音乐参考不冒称反向可见时间；细则取[P1-L](../P1-L/TECHNICAL_CONSTRAINTS.md)。
 5. ruleset runtime geometry profile 继续冻结；`Playfield Scale` 固定 `1.0` 且不可配置。除 `Sudden/Hidden/Lift` 外，旧 playfield/receptor/bar-line config 不得作为用户可见 runtime contract 影响速度/几何；旧全局PlayfieldStyle已按上方皮肤配置合同废弃。Skin package geometry 是受合法域约束的作者面，不能借此恢复旧 runtime sliders。
-6. `UI_PreStartHold`承担“前5秒阻止开始 + 全程调速修饰键”；若delay在hold中耗尽，松开时重新调度完整delay，不能立即开谱。`UI_LaneCoverFocus`单按循环持久target，Start组合用作EFFECT切换普通/Floating；白键降、黑键升。两个短按在第二次按下立即切换所选上下挡板组合，无挡板/仅LIFT时切换SUD；LIFT几何保持。长按/用于调整的手势不补成双击，输入来源/epoch重置清理手势和轴余量。`READY HOLD`只用于阻止开谱窗口，原`BMS speed`透明toast及刷新循环退出，游玩读数由原生状态和皮肤承接。
+6. `UI_PreStartHold`承担“前5秒阻止开始 + 全程调速修饰键”；若delay在hold中耗尽，松开时重排完整delay。`UI_LaneCoverFocus`单按循环持久target，Start组合切换Floating与本局最近Normal/Classic来源；live显式设置更新此来源，Floating起局无来源时返回Normal。真实Replay不更新live来源且拒绝live Toggle；既有scale、precision、范围、refloat及一次操作完成语义不变。白键降、黑键升；两个短按在第二次按下立即切换选中上下挡板，无挡板/仅LIFT时切SUD，不改LIFT几何。长按/调整不补成双击，输入来源/epoch重置清手势和轴余量。`READY HOLD`仅阻止开谱，旧`BMS speed`toast退出，读数由原生状态和皮肤承接。
 7. BMS读谱配置只按规则集保存，不与mania共享。Sudden/Hidden/Lift及Hi-Speed统一在“读谱设置”管理，新选择/预设应用不再把旧三项加入有效Mod。局内以脱离配置的副本运行；“记住游玩中的读谱调整”开启才在一次联动结束后整组保存，关闭时速度、组合、显示状态及几何均只影响本局；设置页显式修改始终保存。双击显示开关独立于选中的上下挡板组合，关闭保留白字/组合且不改Lift。仅改不透明度不得清空Floating恢复目标。旧Mod参数一次迁移，任一旧Remember=false则统一关闭，已有新设置优先；旧类型/字段只作历史读取，成绩与PB比较口径保持。新回放保存初始13字段快照及按真实游玩时间记录的成组变化，同时间动作归并最终值；seek/reset按时间恢复，不伪造计分输入。外部时间线须有初始值、有限严格递增时间和合法完整状态；旧无时间线沿初始快照，历史无快照只取旧Mod挡板参数。回放不读入个人新挡板或回写配置，GeneratedAutoplay仍属当前局。
 7a. 成绩可选`reading_calculation_version`独立于计分版本；旧缺值/null及0沿现有legacy计算，新局与GeneratedAutoplay明确记录0。未知非0版本的真实Replay在应用状态前明确拒绝，不静默按0播放。此字段不改变数学、精度、配置迁移、历史记录或计分版本。
 8. 冷启动不得在 `RulesetConfigCache` ready 前调用 `GetConfigFor()` 构建 BMS mod persistence；先允许无 config 首轮 apply，再在 cache ready 后 replay 当前 ruleset restore。

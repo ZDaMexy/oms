@@ -39,7 +39,7 @@
 
 ## 最近一次验证
 
-2026-10-28既有lane运动、v41回放及r21对应r20源BMS full保留各自身份。r22 Core及私有诊断ZIP四case通过，含DP Classic低速、新旧Replay与P2 C4；数学/precision及wrapper不变。instrumented Debug完整通过不替代正在运行的原封Release；范围取[P1-A日志](../P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)，不代签正式包、原机时序、复杂实谱或设备。
+2026-10-28正式v44/r23运行时三组软件原生与BMS full通过，含Classic实际往返/导出Replay，旧诊断46帧另留身份。仅live导航修复，scale/precision/refloat及旁路不变，Classic板仍legacy0.5～10，未对齐原版11档/公式/时序。Core/mania未重跑、未交付；范围取[P1-A日志](../P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)，r4字面资格保持，原机/实谱/实体设备门未闭合。
 
 2026-10-24完整BMS补验已关闭10月22日内存中止的回归缺口，具名范围见[P1-A记录](../P1-A/CHANGELOG.md#2026-10-24omni持续背景与原版参照边界)。这不是最终原生配方的从零重编，也不新增逐谱、GPU帧时、设备/DPI或Windows发行包签收。
 

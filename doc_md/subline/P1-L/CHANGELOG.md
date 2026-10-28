@@ -7,7 +7,7 @@
 
 ## 2026-10-28v41真实导出回放与AUTO语义
 
-v41 SP Floating导出/Replay与r20/r21软件门保留原身份。r22 Core及非交付诊断ZIP四case/46帧通过，覆盖DP Classic低速、旧OSR自然导入完曲、新SP实际导出/Replay及P2 C4/右几何，均非正式包或实体设备签收。instrumented Debug旧v43整轮通过，原封Release v44仍跑，原Release失败未定位。独立AUTO未改numeric轨迹、wrapper/寿命或数学；准确身份取[P1-A日志](../P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)，原机、实谱、设备及最终原生配方门保持。
+旧软件门/诊断46帧保留身份；r23 Classic返回不改scale、precision、refloat、numeric轨迹或旁路。正式f427包/r23运行时三case49帧自动断言全过，仅6代表图目视；BMS full通过，未重跑Core/mania，r22仍属旧证据。Classic板保持legacy0.5～10，未对齐原版11档，不签公式/时序等价，r4字面资格保持；旧v43 Release失败未抹去。无新交付，命令/冻结SHA取[P1-A日志](../P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)，原机/实谱/实体设备门保持。
 
 ## 2026-10-28读谱版本与原生运动证据
 

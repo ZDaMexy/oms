@@ -44,7 +44,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         private TestBmsSoloPlayer player = null!;
         private Mod[] selectedMods = null!;
         private BmsDecodedBeatmap? sourceOverride;
-        private bool startInFloating;
+        private BmsHiSpeedMode initialHiSpeedMode;
 
         [Resolved]
         private SkinManager skinManager { get; set; } = null!;
@@ -71,7 +71,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             selectedMods = new Mod[] { new BmsModSudden() };
             sourceOverride = null;
-            startInFloating = false;
+            initialHiSpeedMode = BmsHiSpeedMode.Normal;
         }
 
         [SetUpSteps]
@@ -96,7 +96,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 var lift = selectedMods.OfType<BmsModLift>().SingleOrDefault();
                 config.SetValue(BmsRulesetSetting.RememberReadingChanges, true);
                 config.SaveReadingSettings(new BmsReadingSettingsSnapshot(
-                    startInFloating ? BmsHiSpeedMode.Floating : BmsHiSpeedMode.Normal, 8, 2.5, 2.5,
+                    initialHiSpeedMode, 8, 2.5, 2.5,
                     sudden != null, hidden != null, lift != null, true,
                     sudden?.CoverPercent.Value ?? 250, hidden?.CoverPercent.Value ?? 250, lift?.LiftUnits.Value ?? 250,
                     sudden?.CoverOpacity.Value ?? 1000, hidden?.CoverOpacity.Value ?? 1000));
@@ -789,20 +789,18 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("a tap cannot pair across input reset", () => player.DrawableBmsRuleset!.SuddenActive);
         }
 
-        [Test]
-        public void TestStartEffectSwitchesSpeedModeWithoutCyclingTheCoverTarget()
+        [TestCase(BmsHiSpeedMode.Normal)]
+        [TestCase(BmsHiSpeedMode.Classic)]
+        public void TestStartEffectSwitchesSpeedModeWithoutCyclingTheCoverTarget(BmsHiSpeedMode initialMode)
         {
+            initialHiSpeedMode = initialMode;
             selectedMods = new Mod[] { new BmsModSudden(), new BmsModHidden(), new BmsModLift() };
             double previousTime = 0;
-            AddStep("hold Start in Normal mode", () =>
+            double floatingSpeed = 0;
+            AddStep("hold Start in the configured base mode", () =>
             {
                 player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_PreStartHold);
-                if (player.DrawableBmsRuleset!.HiSpeedMode.Value != BmsHiSpeedMode.Normal)
-                {
-                    player.DrawableBmsRuleset.ToggleHiSpeedMode();
-                    if (player.DrawableBmsRuleset.HiSpeedMode.Value != BmsHiSpeedMode.Normal)
-                        player.DrawableBmsRuleset.ToggleHiSpeedMode();
-                }
+                Assert.That(player.DrawableBmsRuleset!.HiSpeedMode.Value, Is.EqualTo(initialMode));
             });
             AddStep("capture current visible time", () => previousTime = player.DrawableBmsRuleset!.GetScrollSpeedMetrics().VisibleLaneTime);
             AddStep("press EFFECT while holding", () => player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_LaneCoverFocus));
@@ -810,8 +808,15 @@ namespace osu.Game.Rulesets.Bms.Tests
                 && Math.Abs(player.DrawableBmsRuleset.GetScrollSpeedMetrics().VisibleLaneTime - previousTime) < 1);
             AddAssert("the persistent cover target stays Sudden", () => player.DrawableBmsRuleset!.ActiveAdjustmentTarget.Value == BmsGameplayAdjustmentTarget.Sudden);
             AddStep("release EFFECT", () => player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_LaneCoverFocus));
+            AddStep("capture Floating speed before the white key", () => floatingSpeed = player.DrawableBmsRuleset!.SelectedHiSpeed.Value);
+            AddStep("lower Floating speed with a white key", () => player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.Key1P_1));
+            AddStep("release the white key", () => player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.Key1P_1));
+            AddAssert("the actual Floating adjustment is applied", () => player.DrawableBmsRuleset!.SelectedHiSpeed.Value,
+                () => Is.EqualTo(floatingSpeed - 0.5).Within(0.000001));
+            AddStep("capture adjusted visible time", () => previousTime = player.DrawableBmsRuleset!.GetScrollSpeedMetrics().VisibleLaneTime);
             AddStep("press EFFECT again", () => player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_LaneCoverFocus));
-            AddAssert("Normal returns", () => player.DrawableBmsRuleset!.HiSpeedMode.Value == BmsHiSpeedMode.Normal);
+            AddAssert("the same base mode returns with the adjusted scrolling speed", () => player.DrawableBmsRuleset!.HiSpeedMode.Value == initialMode
+                && Math.Abs(player.DrawableBmsRuleset.GetScrollSpeedMetrics().VisibleLaneTime - previousTime) < 1);
             AddStep("release EFFECT and Start", () =>
             {
                 player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_LaneCoverFocus);
@@ -821,9 +826,24 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
+        public void TestStartEffectFromInitialFloatingReturnsToNormal()
+        {
+            initialHiSpeedMode = BmsHiSpeedMode.Floating;
+            AddStep("hold Start in initial Floating", () => player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_PreStartHold));
+            AddAssert("Floating is the opening mode", () => player.DrawableBmsRuleset!.HiSpeedMode.Value, () => Is.EqualTo(BmsHiSpeedMode.Floating));
+            AddStep("press EFFECT without a prior base mode", () => player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_LaneCoverFocus));
+            AddAssert("the existing default return mode is Normal", () => player.DrawableBmsRuleset!.HiSpeedMode.Value, () => Is.EqualTo(BmsHiSpeedMode.Normal));
+            AddStep("release EFFECT and Start", () =>
+            {
+                player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_LaneCoverFocus);
+                player.GameplayInputManager.TriggerOmsActionReleased(OmsAction.UI_PreStartHold);
+            });
+        }
+
+        [Test]
         public void TestSavedFloatingRefloatsTheOpeningTargetAfterTheBpmChanges()
         {
-            startInFloating = true;
+            initialHiSpeedMode = BmsHiSpeedMode.Floating;
             sourceOverride = createSourceBeatmap(@"
 #TITLE Saved Floating With BPM Change
 #BPM 100

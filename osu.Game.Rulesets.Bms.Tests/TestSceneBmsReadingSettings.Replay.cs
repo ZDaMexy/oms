@@ -17,15 +17,24 @@ namespace osu.Game.Rulesets.Bms.Tests
 {
     public partial class TestSceneBmsReadingSettings
     {
-        [Test]
-        public void TestRecordedReadingChangesReplayAtTheirGameplayTimesAndRestoreOnSeek()
+        [TestCase(BmsHiSpeedMode.Normal)]
+        [TestCase(BmsHiSpeedMode.Classic)]
+        public void TestRecordedReadingChangesReplayAtTheirGameplayTimesAndRestoreOnSeek(BmsHiSpeedMode initialMode)
         {
-            var initial = settings(BmsHiSpeedMode.Normal);
-            var personal = initial with { HiSpeedMode = BmsHiSpeedMode.Classic, ClassicHiSpeed = 4.25, SuddenEnabled = false, HiddenEnabled = false, LiftEnabled = false };
+            var initial = settings(initialMode);
+            var personal = initial with
+            {
+                HiSpeedMode = initialMode == BmsHiSpeedMode.Classic ? BmsHiSpeedMode.Normal : BmsHiSpeedMode.Classic,
+                ClassicHiSpeed = 4.25,
+                SuddenEnabled = false,
+                HiddenEnabled = false,
+                LiftEnabled = false,
+            };
             BmsReadingSettingsSnapshot first = initial;
             BmsReadingSettingsSnapshot uncovered = initial;
             BmsReadingSettingsSnapshot opacity = initial;
             BmsReadingSettingsSnapshot restored = initial;
+            BmsReadingSettingsSnapshot returned = initial;
             Score score = null!;
             prepare(initial, remember: false);
             loadGame();
@@ -67,6 +76,18 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(renderer.ToggleGameplayLaneCovers(), Is.True);
                 restored = opacity with { LaneCoversEnabled = true, SuddenUnits = renderer.SuddenUnits, HiddenUnits = renderer.HiddenUnits };
             });
+            advanceReadingClock(4500);
+            AddStep("record the return to the original live base mode", () =>
+            {
+                Assert.That(renderer.ToggleHiSpeedMode(), Is.True);
+                Assert.That(renderer.HiSpeedMode.Value, Is.EqualTo(initialMode));
+                returned = restored with
+                {
+                    HiSpeedMode = initialMode,
+                    NormalHiSpeed = initialMode == BmsHiSpeedMode.Normal ? renderer.SelectedHiSpeed.Value : initial.NormalHiSpeed,
+                    ClassicHiSpeed = initialMode == BmsHiSpeedMode.Classic ? renderer.SelectedHiSpeed.Value : initial.ClassicHiSpeed,
+                };
+            });
             advanceReadingClock(5000);
             AddStep("flush the actual recorder before loading playback", () =>
             {
@@ -75,8 +96,8 @@ namespace osu.Game.Rulesets.Bms.Tests
                 var data = score.ScoreInfo.GetRulesetData<BmsScoreInfoData>()!;
                 Assert.That(data.ReadingCalculationVersion, Is.EqualTo(0));
                 Assert.That(data.ReadingSettings, Is.EqualTo(initial));
-                Assert.That(data.ReadingSettingsTimeline!.Changes.Select(change => change.Time), Is.EqualTo(new[] { 1500d, 2200d, 3200d, 4200d }));
-                Assert.That(data.ReadingSettingsTimeline.Changes.Select(change => change.Settings), Is.EqualTo(new[] { first, uncovered, opacity, restored }));
+                Assert.That(data.ReadingSettingsTimeline!.Changes.Select(change => change.Time), Is.EqualTo(new[] { 1500d, 2200d, 3200d, 4200d, 4500d }));
+                Assert.That(data.ReadingSettingsTimeline.Changes.Select(change => change.Settings), Is.EqualTo(new[] { first, uncovered, opacity, restored, returned }));
                 var json = JObject.Parse(score.ScoreInfo.RulesetDataJson);
                 Assert.That(json["reading_calculation_version"]!.Value<int>(), Is.Zero);
                 Assert.That(((JObject)json["reading_settings"]!).Properties().Count(), Is.EqualTo(13));
@@ -97,6 +118,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             assertRuntimeReading(() => opacity);
             advanceReadingClock(4200);
             assertRuntimeReading(() => restored);
+            advanceReadingClock(4500);
+            assertRuntimeReading(() => returned);
             advanceReadingClock(1200);
             assertRuntimeReading(() => initial);
             advanceReadingClock(2500);
@@ -106,6 +129,12 @@ namespace osu.Game.Rulesets.Bms.Tests
             assertRuntimeReading(() => initial);
             assertReplayCannotAdjust();
             AddAssert("viewing and seeking do not overwrite personal reading preferences", () => config.CaptureReadingSettings(), () => Is.EqualTo(personal));
+            advanceReadingClock(1500);
+            assertRuntimeReading(() => first);
+            AddStep("detach playback while its recorded mode is Floating", () => renderer.SetReplayScore(null!));
+            AddStep("leave Floating after replay ownership ends", () => Assert.That(renderer.ToggleHiSpeedMode(), Is.True));
+            AddAssert("replayed and sought modes did not replace the live return mode", () => renderer.HiSpeedMode.Value, () => Is.EqualTo(personal.HiSpeedMode));
+            AddAssert("returning to live controls still respects disabled Remember", () => config.CaptureReadingSettings(), () => Is.EqualTo(personal));
         }
 
         [TestCase(null)]

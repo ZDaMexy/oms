@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-28（诊断四组通过，正式v44仍验收；当前两页方案取消）
+> 最后核对：2026-10-28（r23 full与正式v44三组软件原生通过；尚未交付）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -11,7 +11,7 @@
 
 Omni交付仍为`.v26102701`；PB/NEXT、Gauge、Tint及Start既有边界取[作品实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)，不冒称原版全等。
 
-gameplay的AUTO/HUD软件回归及私有诊断ZIP四组46帧通过，原封Release完整检查仍在跑，正式包原生/交付未闭合。当前SongSelect/Results扩展方案已取消，Omni保留OMS原界面，v44剔除样机。原图/font齐全，但列表/层级/PlaceCamera转场缺可验证拟真闭环；不宣称技术永久不可能。PageAPI保留，未来仅新可靠路线才重评，取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
+Classic局内返回修复、完整BMS回归及正式v44三组软件原生通过，尚未交付。面板仍legacy0.5～10，未对齐原版11档，不签公式/时序；旧46帧仅诊断包证据。当前两页方案取消，Omni保留OMS原界面，v44剔除样机；原图/font齐全但列表/层级/PlaceCamera缺可验证闭环，不宣称永久技术不可能。PageAPI保留，未来仅新可靠路线才重评，取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
 
 ## 当前产品能力与剩余门
 
@@ -37,7 +37,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-10-28：r22四项构建/Core393通过，r21 BMS完整3276通过/19跳过仍属r20源，r19/20各留身份。非交付诊断ZIP四case46帧全部退出0并经审图，含旧OSR AUTO未知、新SP自然导出/回放、DP EASY与P2 C4。instrumented Debug旧v43完整13612/0；原Release失败未定位，sealed Release r19的v44 pack仍跑，不能转记通过。无正式v44 CLI/原生/交付，范围取[日志](CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)。
+2026-10-28：正式v44完整13612/exit0及6599文件CRC/作者字节通过；同一f427…包/r23运行时三case49帧自动断言全过、host/OS均0，仅6代表图目视。含SP/Classic往返新导出Replay与旧r17导入，旧46帧不改签。r23构建/定向155及BMS full3283通过/19跳过/3302、18分55秒/exit0，冻结SHA匹配；未重跑Core/mania，无新交付。旧v43失败保留，取[日志](CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)。
 
 2026-10-27旧包三组正常Player、39张实景覆盖P1双挡板/Lift、P2 Hidden与DP Lift，沿[读谱实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)；隔离软件操作无生命/分数注入或seek。[旧作者/美术保全](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)不计为新包验收。
 

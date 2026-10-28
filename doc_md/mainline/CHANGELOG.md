@@ -6,9 +6,9 @@
 
 ## 2026-10-28OmniAUTO真值与候选续验
 
-真实AUTO不改算法、Hi-Speed数学、计分或IR；Mod提示取真实start，保留Replay/HUD父显隐。r22/Core与r20源r21 full各留身份；私有诊断ZIP四case/46帧及目视通过，但明确非CLI验收/非交付。instrumented Debug旧v43完整13612/0，原Release失败未定位，sealed Release r19完整v44仍跑。r4正常exit0并保全，Classic11档字面资格完成但未签公式/运动；准确身份取[P1-A日志](../subline/P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)，录制合同归[P1-C](../subline/P1-C/CHANGELOG.md#2026-10-28自动偏移开关独立记录)。goal active且无新交付。
+Classic返回本局最近Normal/Classic来源，Replay只读，scale/precision/refloat及13字段/calc0不变。r23构建/定向及BMS完整回归通过，冻结source/binary SHA匹配；Core/mania未重跑。正式sealed Release v44 CLI/归档及同一f427包/r23运行时三组49帧自动断言通过，仅6代表图目视，不改签旧46诊断帧。Classic板仍legacy范围/倍率，未签原版11档/公式/时序等价；r4字面资格保持完成，旧v43 Release失败未定位。命令/准备失败/范围取[P1-A日志](../subline/P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)，AUTO合同归[P1-C](../subline/P1-C/CHANGELOG.md#2026-10-28自动偏移开关独立记录)。goal active且无新交付。
 
-本次同步后的文档健康检查通过216 Markdown、2591相对链接、708本地锚点及123份memory链接；这只证明文档结构与链接，不提升产品或交付状态。
+`31d2de37`记录的文档健康检查通过216 Markdown、2591相对链接、708本地锚点及123份memory链接；后续文档改动须另验，旧检查不直接转记当前文本，也不提升产品或交付状态。
 
 ## 2026-10-28Omni候选验收与读谱版本边界
 
