@@ -1,5 +1,9 @@
 # OMS 更新日志
 
+## 2026-10-28Gameplay33Header歌曲literal变体
+
+既有两项歌曲源仅新增精确literal resource/visible变体，空字段/无来源分开，不开numeric/geometry/clock或C6权限。Core聚焦与Skinning、BMS/mania full、五项构建及Python均通过，BMS全测试身份/结果同r23；冻结回执在BMS运行期间采集，不作事前证据。公开Header工具必填私有`--art-inventory`，18原PNG摘要不入源码；v45-r2与r1的6615 runtime文件字节一致，报告补inventory来源。正式CLI仍跑，无新OSK/Native/交付；计数、失败及私有夹具修正取[P1-A日志](../subline/P1-A/CHANGELOG.md#2026-10-28gameplay33header原图与歌曲literal变体)。.v26102800和两页取消保持，候选不计Header完成。
+
 ## 2026-10-28Omni两页拟真准入
 
 按用户拟真硬门完成产品判断后，当前Omni SongSelect/Results扩展方案取消，保留OMS原界面，v44剔除样机且不留该方案实施待办。原美术/font齐全，但列表/层级/PlaceCamera转场缺可验证闭环；不是永久技术不可能，未来仅新可靠拟真路线才重评。v40/v41只作内部工程证据，不代表页面交付或用户认可。gameplay与通用PageAPI继续，边界取[P1-A记录](../subline/P1-A/CHANGELOG.md#2026-10-28omni两页拟真硬门)，不扩为取消整个Omni。

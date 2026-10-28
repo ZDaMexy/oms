@@ -566,7 +566,8 @@ bindings每项必填id/target/property/source，例如：
 | arrival.available / arrival.visible | 当前范围有首音entry / 有entry且当前时间早于首音时间 | visible或普通text |
 | arrival.first-row | 当前目标首音是否属于全谱最早同一排；空目标为false | visible或普通text |
 | arrival.cue-opacity | 全谱第一排预告0..1；实际音符进入可视区域前淡出，无原生可视投影时0 | 数值或text |
-| song.title / song.artist / song.difficulty / song.level | 当前曲名、艺术家、难度类别或名称、原始等级文字；每项最多256个UTF-16单元 | text |
+| song.title / song.artist | 当前曲名、艺术家；每项最多256个UTF-16单元 | text |
+| song.difficulty / song.level | 当前难度类别或名称、原始等级文字；每项最多256个UTF-16单元；变体按原字符串精确匹配，不猜测难度或解析等级 | text或resource/visible variants |
 | song.table-classification | 已启用难度表归类，独立于作者标级；每项为“表名 等级标签”，多表按保存顺序以 ` / ` 连接，无归类为空。最多256个UTF-16单元，可使用 ellipsis。BMS及BMS转谱mania从当前游玩锁定的原谱资料读取 | text |
 | timing.bpm-min / timing.bpm-max | 当前谱面实际音乐BPM范围，不含滚速倍率或STOP兼容点 | 数值或text |
 | scroll.speed | 当前玩法已选滚速设置值，不是滚动倍率或绿数；未提供时0 | 数值或text |
@@ -645,6 +646,12 @@ variants必填id/target/property/source/default/cases，至少一条case，同�
 
 准备三个布尔来源与`arrival.first-row`可按true/false选择变体。`layout.group`按当前真实材质目标的稳定组ID选择，case key必须是合法稳定ID；无对应目标取default。组ID属于拓扑事实，不能把画面左右、作者空槽或另一组ID当成本组。此选择不创建新舞台或输入。
 
+`song.difficulty`与`song.level`只新增resource/visible变体：case key必须是JSON字符串literal，最多256个UTF-16单元，复用来源的`GameplaySkinSongInformation.MAX_TEXT_LENGTH`。JSON解码后的字符串按Ordinal逐字匹配，保留大小写、首尾空白、Unicode码元序列及`01`/`1`区别，不trim、转大写、归一化或解析数值；没有预设难度/等级key清单。
+
+允许空literal，但只有SongInformation存在且对应字段为空才匹配空；完全没有SongInformation时直接取default，不借空字符串命中case。其它未匹配值也取default。非法key类型、同一variant内重复key或超长key均拒绝；resource/visible值类型及原预算继续严格校验。
+
+两源不能驱动numeric、geometry或clock，`song.title/artist/table-classification`等仍仅text；没有新增来源enum、C6 callback或玩法/回放写权限。
+
 ```json
 {
   "id": "my.grade-image", "target": "ref.icon", "property": "resource",
@@ -663,7 +670,7 @@ variants必填id/target/property/source/default/cases，至少一条case，同�
 }
 ```
 
-除前述配置、准备布尔、`arrival.first-row`与`layout.group`外，source还允许`layout.ruleset`（bms/mania）、`offset.automatic`与`offset.automatic-available`（true/false）及 `object.state`、`object.long-note-mode`、`object.long-note-appearance`、`object.auto-assist`、`judgement.result`、`gauge.type`、`gauge.clear-state`、`bga.content-state`，key必须是上表对应字符串；当前值没有列入cases时使用default。AUTO的ON/OFF资源变体必须另受automatic-available门控，未知时automatic=false不能冒充OFF。长条模式和holding/released换图宜用单个 `object.long-note-appearance` 变体，避免两个变体同时改同一sprite资源。空态先按上一节投影，例如没有判定时也会命中作者的miss分支，不会越过该分支自动使用default。没有任意表达式、范围条件或外部资源路径。
+除前述配置、准备布尔、`arrival.first-row`、`layout.group`和两项song literal来源外，source还允许`layout.ruleset`（bms/mania）、`offset.automatic`与`offset.automatic-available`（true/false）及 `object.state`、`object.long-note-mode`、`object.long-note-appearance`、`object.auto-assist`、`judgement.result`、`gauge.type`、`gauge.clear-state`、`bga.content-state`；这些闭集来源的key必须是上表对应字符串，未列case取default。AUTO的ON/OFF资源变体必须另受automatic-available门控，未知时automatic=false不能冒充OFF。长条模式和holding/released换图宜用单个 `object.long-note-appearance` 变体，避免两个变体同时改同一sprite资源。空态先按上一节投影，例如没有判定时也会命中作者的miss分支，不会越过该分支自动使用default。没有任意表达式、范围条件或外部资源路径。
 
 `combo.active`的变体key只接受`true/false`，使用同一Score快照，不按当前判定等级推测连击。`layout.presentation`除既有x/width外可单独选择y，y与x同为有限的-4..4数值；值来自当前实际应用的布局上下文，保存但不适用的选项不参与。其它source的y、height/scale/rotation等几何变体仍不开放，也不能将`layout.presentation`用作数值binding或clock。共享一个template时，每个实际material/Group实例仍有独立判定起点和runtime状态。
 

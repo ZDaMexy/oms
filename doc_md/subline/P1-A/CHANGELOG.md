@@ -1,5 +1,17 @@
 # P1-A 变动日志
 
+## 2026-10-28Gameplay33Header原图与歌曲literal变体
+
+以已交付`.v26102800`及`71ea283b`为基线，仅为gameplay 33 Header开放既有`song.difficulty/song.level`的精确Ordinal literal resource/visible变体。key复用SongInformation的256 UTF-16单元上限，空字段与无来源分开；不trim、改大小写、Unicode归一化或解析`01/1`，未匹配/无来源取default。非法类型、重复或超长拒绝，不开放numeric/geometry/clock；其它歌曲文字源、来源enum、C6 callback、计分/Replay和Hi-Speed数学保持。作者合同只取[REFERENCE](../../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)。
+
+r24 Core构建exit0，codec/runtime聚焦476通过/4失败；四例均因重复key虽已记DuplicateField却仍加入case，在后续构造抛异常。边界修为记诊断后跳过重复项，保持整份输入拒绝，并追加两项旧typed变体回归。r25 Core构建及482项codec/runtime全部通过，旧失败原件保留。
+
+三份Python工具接入原33 labels、Lv及1～12原PNG的known选择，INSANE/未知类别与大于12保留白字fallback，空字段空；DP按原46×20、2px gap与36×20在safe区居中，scale1、不放大。首轮16例15通过/1失败，定位为9g序列化约4.8e-7px断言精度；只修subpixel测试容差，不改输出/原PNG，header r25最终16/16、combined r8为381/381。随后为遵守原资产私有边界，将初版公开工具的18个精确PNG摘要移至显式必填外部`--art-inventory`；完整18名/64hex及逐图校验保持，不退成文件名检查，公开只留名称/尺寸/语义映射。header r26为17/17、combined r9为382/382。
+
+首候选`authors/omni-full-v45-header-art-r1`6617文件，原目录/证据冻结。改用私有inventory后生成独立`omni-full-v45-header-art-r2`，同为6617文件，完整来源摘要只保留在私有证据；r1/r2全部6615个runtime路径/字节一致，仅generation报告增加私有inventory来源。18 PNG仍为18910字节/33740像素，每manifest18 resources、每33场景4 nodes/6 variants/51 cases，无font/option/dataSource新增。475640 sceneBytes/53024 manifestBytes等仅Python保守预算，不是C# gate或OSK身份；源/原PNG/旧typed逆转及r2来源证明沿`assets/v45-header-art-r1`与对应r2证据保留。
+
+r26五项构建（BMS.Tests、mania.Tests、Desktop Release/Debug、author）全部exit0，Core编译仍记r25。Core Skinning r26为1623通过/3跳过/1626；BMS full r26为3283通过/19跳过/3302、23分27秒；mania full r26为995通过/2跳过/997、2分34秒，三条测试命令实际exit0。`tests/bms-full-header-vs-r23-outcomes-r1.json`逐个核对3302个TestId及完整class/name/outcome均等同r23，无新增/变化skip。`tests/header-source-and-binaries-r26.json`冻结7源/10DLL及当前私有Native准备身份；回执在BMS执行期间采集，不是事前快照。私有取景r26仅因Image.Load命名空间歧义构建失败，限定SixLabors后r27重建/prepare0，未改生产，失败保留。正式sealed当前CLI `author-v45-pack-r1`仍跑，尚无新OSK/Native/交付，最新仍.v26102800；不将候选/预算写成Header完成，两页取消不恢复。
+
 ## 2026-10-28Omni两页拟真硬门
 
 用户要求SongSelect/Results必须拟真，原美术能直接用必须直接用。按此门完成产品判断后，当前两页扩展方案取消，保留OMS原界面，v44已剔除样机；不留当前方案的页面实施待办。原图/font齐全可读：7IFS、127图、27AFP及原font33 face已读，原33角色/Results全屏图已找到；问题是列表、层级和PlaceCamera转场缺可验证拟真闭环，不以缺素材或字体不可读解释取消，也不宣称永久技术不可能。v40/v41仅保留数据/API/原生内部工程证据，此前审图只核语义/可读性，不代表页面交付或用户认可。未来只有新可靠拟真路线才重新评估；通用PageAPI及Omni gameplay持续goal保持。

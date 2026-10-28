@@ -2253,8 +2253,11 @@ namespace osu.Game.Skinning.Gameplay
                     try
                     {
                         VariantApplicationCount++;
-                        string key = variantKey(variant, target);
-                        applyRuntimeProperty(target, variant.Property, variant.SelectValue(key));
+                        GameplaySkinPreparedSceneValue value = songInformation == null
+                            && variant.Source is GameplaySkinSceneBindingSource.SongDifficulty or GameplaySkinSceneBindingSource.SongLevel
+                                ? variant.DefaultValue
+                                : variant.SelectValue(variantKey(variant, target));
+                        applyRuntimeProperty(target, variant.Property, value);
                     }
                     catch
                     {
@@ -2284,6 +2287,8 @@ namespace osu.Game.Skinning.Gameplay
             {
                 GameplaySkinSceneBindingSource.LayoutRuleset => Publication.Snapshot.Context.RulesetId,
                 GameplaySkinSceneBindingSource.LayoutPresentation => Publication.Snapshot.Context.PresentationStyleId,
+                GameplaySkinSceneBindingSource.SongDifficulty => songInformation!.Difficulty,
+                GameplaySkinSceneBindingSource.SongLevel => songInformation!.Level,
                 GameplaySkinSceneBindingSource.ScrollMode => adjustmentModeId(timingState.AdjustmentState.Mode),
                 GameplaySkinSceneBindingSource.LiftReversed => timingState.LiftState.Reversed ? "true" : "false",
                 GameplaySkinSceneBindingSource.LayoutGroup => groupId?.Value ?? string.Empty,

@@ -16,6 +16,7 @@ public ID/字段/适用性只读 [public catalog](../../doc_md/other/GAMEPLAY_SK
 - section 的 Common/Bms 是 catalog 元素族，不是目标玩法。BGA 只适用于 BMS，元素仍属于 Common；写入 `[GameplaySkin.Bms:1]` 会失败，玩法由 target 的 ruleset 限定。2026-09-30 作者验证曾误写该 section；必须先用同基线成功例确认真实选择与挂载，防止共用的无效声明掩盖负例预期的拒绝原因。
 - canonical 原件无错而普通导入出现 `OMS-SKIN-CODEC-008` 时，先查末尾公共段与追加 `[General]` 之间的游戏说明：importer 使用整行 `//`。公共 parser 兼容 trim 后的整行注释即可读取既有导入内容，不迁移或重写用户文件；不可改成全局截断 `//`。复验应涵盖真实说明位置、General 元数据、quoted 值和 round-trip，并保留行内 `//`、未知字段、BOM/坏 header 的严格边界。
 - Absent、DeclaredEmpty、Invalid、Valid、Suppress 必须区分。malformed 第一声明仍占 duplicate target；后行不能借“第一行没完整 tokenize”夺 winner。
+- scene变体遇到重复key时，只记`DuplicateField`却仍加入case，会在immutable字典构造时抛异常，来不及返回输入诊断。应在codec边界记录后跳过重复项，整份输入仍拒绝，不削弱构造器唯一键契约；同时复验旧typed resource/visible路径，不能只测新增literal来源。复现与修正见[Header记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-28gameplay33header原图与歌曲literal变体)。
 - package 内 specificity 为 ruleset→keymode→stage-mode→presentation→scope。最高项遮蔽该 package 更宽声明：它 Inherit/empty/invalid 时转下一 authority，不回头聚合同 package。
 - legacy beatmap direct visual compatibility 优先于 selected public；但它不读取 public section。selected public/legacy、ruleset resource与真实canonical的顺序以合同为准；旧programmatic阶段仅作历史/隔离测试，不重新接入产品链，也不构造伪canonical candidate。
 - Required/Recommended 不可 Suppress；Optional 仍受 applicability/runtime capability。null、缺 entry、异常、Drawable.Empty 都不是三态声明。

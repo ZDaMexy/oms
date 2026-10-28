@@ -1,6 +1,6 @@
 # P1-A 技术约束：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-28（Classic局内来源返回；既有计算、两页取消和发行边界保持）
+> 最后核对：2026-10-28（Header私有inventory与literal变体；玩法、两页取消及发行边界保持）
 > 本文件是 P1-A 产品面及 Skin V1 的硬约束源。执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，皮肤设计证据见 [SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md](../../other/SKIN_SYSTEM_V1_ARCHITECTURE_20260710.md)。若代码与本文冲突，先确认新事实并同步修正文档/代码，不能用历史 CHANGELOG 覆盖当前 authority。
 
 ## 按任务定位
@@ -125,7 +125,7 @@ Omni的Key beam是逐轨动态背景，使用现有`playfield.lane-surface`及Un
 
 1. 所有用户原 HDD 安装根只读，不从原根启动游戏或向其写配置、日志、缓存、补丁和重打包 IFS。第三方解包器只处理经摘要核对的独立副本；输出与整个原游戏根不得重叠，不覆盖既有素材库。用户已允许通过 spice2x API 观察与操作，运行参照限完整独立可玩副本，路径、配置及输出均与原安装分离；副本不使用真实卡或账号。副本启动检查调整和实际刷新率须留证，不能代签原安装或原版时序。采集后复核原安装元数据与关键文件摘要，解包另核对源包摘要和源美术清单。
 2. 用户保有整理的历代 HDD 网盘资源。先用已提供本地来源，实际缺口按“版本 / 组件 / 已查来源 / 缺口”登记，由用户下载相应版本后告知路径。网盘储备不等于已读取或已确认的素材覆盖，不提前获取全部版本。
-3. 原版素材、源清单、摘要和生成的作者作品保留在本地忽略目录或仓库外；Omni 作为独立皮肤包供作者使用和熟人间私下分享，不内置到 OMS，不进入客户端公开发行或公开制作套件。公共仓库只收工具、映射与文档，不把原版美术并入静线作者源或 canonical。默认与保底继续使用静线，原用户皮肤保全。
+3. 原版素材、源清单、摘要和作者作品只存本地忽略目录或仓库外；Omni仅独立私下分享，不内置OMS或进入公开发行/制作套件。公共仓库只收工具、名称/尺寸/语义映射和文档，不含原PNG精确摘要或美术，不并入canonical。Header公开构建入口必填外部私有`--art-inventory`：JSON须恰含18个指定name→64hex，边界一次校验名称/格式并逐图核摘要，不能退成仅文件名检查。默认/保底仍静线，玩家包保全。
 4. 纹理须保留原始图和 `imgrect/uvrect`，按有效区域解码，不靠缩放或重绘掩盖裁切问题；动画、几何、关联清单同源保留。PNG尺寸不代替GEO网格/UV，画布投影须明示来源与比例，共用素材按自身stage处理；单个数字占位符不证明原版动态排布，视频裸矩形不代替框体遮挡后的开口。文件名与素材编号只提供候选归属，解包成功和PNG有效不证明组件齐全、动画还原或完整可玩。
 5. 允许补齐真实缺少的作者表现和页面能力；版本、资源、布局、事件与性能边界仍沿既有唯一 authority。每项新增能力同时指定第一个真实组件 / 作者包 / 页面消费者，验证原包、BMS / mania、canonical 回落和实际画面；不由皮肤改判定、计分、输入或 BGA 时钟，不引入整个 IIDX 运行时。
 6. 游玩候选按用户指定代数与已确认资源推进；可导入、真实 Player 可玩和经原版完整歌曲校准须分别记录，未完成还原不伪称完成，也不阻止用户指定下一代的资源尝试。完整选曲 / 结算界面属于后续增量页面，保留原界面可选和共用数据；当前 gameplay V1 不因本授权被描述为已经支持这些页面。静线暂停及原设备 / 发行门保持。
@@ -140,6 +140,7 @@ Omni的Key beam是逐轨动态背景，使用现有`playfield.lane-surface`及Un
 9f. 本地PB/NEXT的Mod比较由原生规则集提供查询投影，未提供者继续完整APIMod匹配，Core不识别BMS名称。按用户选择，BMS忽略Sudden/Hidden/Lift有无及已知显示/记忆设置，ASCR/ANOT仅忽略叠加着色；辅助及其可见性、判定/Gauge、CN/HCN、MR/RD及seed等其余条件保持。未知Mod/设置/类型不解析或猜默认，比较副本不得修改保存的ModsJson、APIMods、回放或传分；原身份、谱面、分数版本、规则统计与失败资格门不变。准确规范化范围取[作者参考](../../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)。
 9g. Omni血槽保留各Frame原图，以实际`gauge.clear-threshold`及`gauge.clear-state`补充真实门槛/状态，P2只镜像标线且文字保持正向；survival零门槛不显示百分比线。HAZARD按真实type标示生存模式，不把未证实EVENT2或其它代蓝条冒充本代来源。新增子树仅BMS，mania保持原表现；无新增配置、bitmap字体或预算放宽。ASCR/ANOT默认叠加着色及原保存值保持，入口须明确关闭后使用皮肤原色。
 9h. `offset.available`只代表数值偏移可用，自动开关另由`offset.automatic-available`确认已知后再读`offset.automatic`。未知来源不得以0或numeric变化数冒充OFF/ON，数值仍可独立显示；三者均为只读布尔，不扩脚本权限。C5精确类型只在[作者参考](../../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)维护，录制和Replay真值归[P1-C](../P1-C/TECHNICAL_CONSTRAINTS.md#自动调整偏移合同2026-09-29)。Omni未知时遮原AUTO灰标签/灯，已知才恢复原灰slice与橙灯；原0/9/3并非OMS快捷键，不得因遮罩半透明残影重新展示。
+9i. 既有`song.difficulty/song.level`只新增精确Ordinal literal的resource/visible变体；不trim、改大小写或解析数值。字段空与没有SongInformation分开，后者直接default；key类型、长度、重复及原预算在作者输入边界拒绝。完整key/domain/default合同只在[作者参考](../../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)维护，不开放numeric/geometry/clock，不改其它歌曲文字源、来源enum或C6。首个作者消费者是Omni gameplay 33 Header原图，BMS INSANE不猜成LEGGENDARIA、超12不钳制；不恢复取消的两页，也不改变计分/Replay或Hi-Speed数学。
 10. 按键记录动画起点只能来自原生输入的真实游玩时间边沿；完整快照、队列重建和晚挂载保留，seek/retry不得伪造旧起点。持续按住但旧边沿未知时仅投影稳定held帧，真实release仍可独立播放尾段。原生EXP按选中记录的完整时长保留，不能因历史200ms效果寿命截断；裁切后真实三角形、片数与原生池重复均计入准备预算。
 10a. 记录动画的层级、camera/mask 裁切结果在原准备期校验后冻结为私有不可变几何/颜色值，同一 program 的原生 clone 共用；整包剩余三角预算须在冻结下一帧前检查，不降低原合法准入范围。draw node 只读自身冻结的 frame、piece、DrawSize 与 DrawInfo，不在绘制线程读取活动 Source，也不按各 piece 历史最大值积存额外数组；保留内存与稳态分配的取舍须单独记录，不以组件分配量宣称整局帧率。
 10b. 原始循环有一次性开头时，记录数据可声明 `loopStartFrame`，末尾空帧仍只作终止哨兵；完整字段合同见[作者参考](../../../skin-authoring/docs/REFERENCE.md#记录动画)。从准备延续到游玩的装饰使用派生只读 `presentation.elapsed`，只合成原准备已过时间与实际Gameplay Start后的时间，不增设时钟authority。首个真实消费者是33及七支S5框体各自的源星形循环；关闭外框入场或准备不可用时保留原静态作者分支，不把静态预览当作动态验收。
@@ -324,7 +325,7 @@ L12. lane-resource candidate/snapshot与configuration candidate已经接入BMS e
 
 清单可选 `bitmapFonts` 只引用同包已准备的纹理，Text通过静态 `bitmap-font` 选用。字体、字形、字符、像素与运行文字均有硬预算；缺字或超限明确失败，不回落系统字形，不在update线程读文件或建新图集。尺寸、格式和完整字段见[公开参考](../../../skin-authoring/docs/REFERENCE.md#用自己的图片字形显示数字)。普通Text未声明该字段时保留原表现。
 
-Container可静态声明 `layout: horizontal`，只排列普通Sprite与图片数字叶子；有符号间距、指定高度/可选宽度及自然字形画布范围参与整体并集居中，单位与font-size一致，不替换C3矩形。布局字段禁止动画/绑定/状态/脚本写入，行、祖先及直接孩子不能挂缓冲效果；图片依本帧已准备纹理求比例，数字首帧取AuthorText与同一字体，无系统字体或新I/O。`visible`变体只把既有只读枚举映射为布尔值，资源变体保持原语法与owner/冲突/预算合同，不能动态更换图片字体。完整规则取[横排参考](../../../skin-authoring/docs/REFERENCE.md#标签与数字整体居中的横排)。
+Container可静态声明 `layout: horizontal`，只排列普通Sprite与图片数字叶子；有符号间距、指定高度/可选宽度及自然字形画布范围参与整体并集居中，单位与font-size一致，不替换C3矩形。布局字段禁止动画/绑定/状态/脚本写入，行、祖先及直接孩子不能挂缓冲效果；图片依本帧已准备纹理求比例，数字首帧取AuthorText与同一字体，无系统字体或新I/O。`visible`变体只把已准入的只读枚举/literal映射为布尔值，资源变体保持原语法与owner/冲突/预算合同，不能动态更换图片字体。完整规则取[横排参考](../../../skin-authoring/docs/REFERENCE.md#标签与数字整体居中的横排)。
 
 轨迹可选 `trigger: judgement.hit` 以目标真实判定的AppliedTime起播；省略仍使用全局游玩时间。局部目标不借用其它车道事件，池化击打实例各自保留起点，CN头尾可同时播放；暂停冻结，reset/epoch替换及复用清理旧起点。BMS滚动内容保留自身蒙版，击打效果可越过单车道和落键区边缘，仍使用原生目标、既有池上限与同一场景预算。
 

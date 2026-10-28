@@ -1409,8 +1409,9 @@ namespace osu.Game.Skinning.Gameplay
                 bool isVisibility = property == "visible";
                 bool groupIdentitySource = source == "layout.group";
                 bool presentationIdentitySource = source == "layout.presentation";
-                bool isGeometryNumber = property is "x" or "width" || property == "y" && presentationIdentitySource;
-                bool openIdentitySource = groupIdentitySource || presentationIdentitySource;
+                bool songTextSource = source is "song.difficulty" or "song.level";
+                bool isGeometryNumber = !songTextSource && (property is "x" or "width" || property == "y" && presentationIdentitySource);
+                bool openIdentitySource = groupIdentitySource || presentationIdentitySource || songTextSource;
                 GameplaySkinScenePropertyValue? defaultValue = parseVariantValue(variantObject, "default", property, context);
 
                 if (target != null
@@ -1467,13 +1468,21 @@ namespace osu.Game.Skinning.Gameplay
                             context.Add(GameplaySkinSceneDiagnosticCode.InvalidPropertyValue);
                             key = null;
                         }
+                        if (songTextSource && key != null && key.Length > GameplaySkinSongInformation.MAX_TEXT_LENGTH)
+                        {
+                            context.Add(GameplaySkinSceneDiagnosticCode.InvalidPropertyValue);
+                            key = null;
+                        }
                         GameplaySkinScenePropertyValue? value = parseVariantValue(caseObject, valueField, property, context);
 
                         if (key != null && !openIdentitySource && (allowedKeys == null || !allowedKeys.Contains(key)))
                             context.Add(GameplaySkinSceneDiagnosticCode.InvalidPropertyValue);
 
                         if (key != null && !keys.Add(key))
+                        {
                             context.Add(GameplaySkinSceneDiagnosticCode.DuplicateField);
+                            continue;
+                        }
 
                         if (caseId != null && key != null && value != null)
                             cases.Add(new GameplaySkinSceneVariantCase(caseId, key, value));

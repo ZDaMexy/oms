@@ -14,6 +14,151 @@ namespace osu.Game.Tests.NonVisual.Skinning
     [TestFixture]
     public sealed class GameplaySkinSceneCodecTest
     {
+        [Test]
+        public void TestSongTextVariantKeysRoundTripAsExactLiterals(
+            [Values("song.difficulty", "song.level")] string source,
+            [Values("resource", "visible")] string property)
+        {
+            GameplaySkinSceneManifest manifest = decodeManifest(valid_manifest).Value!;
+            JObject scene = songTextVariantScene(source, property);
+            string[] keys = { "", "NORMAL", "normal", " NORMAL ", "01", "1", "初心者★１２", "é", "e\u0301", new string('界', GameplaySkinSongInformation.MAX_TEXT_LENGTH) };
+            var cases = (JArray)scene["variants"]![0]!["cases"]!;
+            JObject template = (JObject)cases[0]!;
+            cases.Clear();
+            foreach ((string key, int index) in keys.Select((key, index) => (key, index)))
+            {
+                var item = (JObject)template.DeepClone();
+                item["id"] = $"song.literal-{index}";
+                item["key"] = key;
+                cases.Add(item);
+            }
+
+            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> decoded = decodeScene(scene.ToString(), manifest);
+            Assert.That(decoded.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid), string.Join(",", decoded.Diagnostics.Select(item => item.Code)));
+            string encoded = GameplaySkinSceneCodec.EncodeScene(decoded.Value!);
+            GameplaySkinSceneDecodeResult<GameplaySkinSceneDocument> roundTrip = decodeScene(encoded, manifest);
+            Assert.That(roundTrip.Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+            Assert.That(roundTrip.Value!.Variants.Single().Cases.Select(item => item.Key), Is.EqualTo(keys));
+            Assert.That(GameplaySkinSceneCodec.EncodeScene(roundTrip.Value), Is.EqualTo(encoded));
+        }
+
+        [Test]
+        public void TestSongTextVariantKeysRejectInvalidValues(
+            [Values("song.difficulty", "song.level")] string source,
+            [Values("resource", "visible")] string property,
+            [Values("null", "boolean", "number", "array", "too-long", "duplicate")] string invalidity)
+        {
+            JObject scene = songTextVariantScene(source, property);
+            var cases = (JArray)scene["variants"]![0]!["cases"]!;
+            if (invalidity == "duplicate")
+            {
+                var duplicate = (JObject)cases[0]!.DeepClone();
+                duplicate["id"] = "song.literal-duplicate";
+                cases.Add(duplicate);
+            }
+            else
+            {
+                cases[0]!["key"] = invalidity switch
+                {
+                    "null" => JValue.CreateNull(),
+                    "boolean" => new JValue(true),
+                    "number" => new JValue(1),
+                    "array" => new JArray("NORMAL"),
+                    _ => new JValue(new string('界', GameplaySkinSongInformation.MAX_TEXT_LENGTH + 1)),
+                };
+            }
+
+            GameplaySkinSceneDiagnosticCode expected = invalidity switch
+            {
+                "duplicate" => GameplaySkinSceneDiagnosticCode.DuplicateField,
+                "too-long" => GameplaySkinSceneDiagnosticCode.InvalidPropertyValue,
+                _ => GameplaySkinSceneDiagnosticCode.InvalidValueType,
+            };
+            assertInvalidWith(decodeScene(scene.ToString(), decodeManifest(valid_manifest).Value!), expected);
+        }
+
+        [Test]
+        public void TestSongTextVariantsKeepTheExistingCaseBudget([Values("song.difficulty", "song.level")] string source)
+        {
+            JObject scene = songTextVariantScene(source, "resource");
+            var cases = (JArray)scene["variants"]![0]!["cases"]!;
+            JObject template = (JObject)cases[0]!;
+            cases.Clear();
+            for (int index = 0; index <= GameplaySkinSceneBudgets.MAX_VARIANT_CASES_PER_VARIANT; index++)
+            {
+                var item = (JObject)template.DeepClone();
+                item["id"] = $"song.literal-{index}";
+                item["key"] = $"literal {index}";
+                cases.Add(item);
+            }
+            assertInvalidWith(decodeScene(scene.ToString(), decodeManifest(valid_manifest).Value!), GameplaySkinSceneDiagnosticCode.BudgetExceeded);
+        }
+
+        [Test]
+        public void TestSongTextVariantsDoNotGainGeometryOrNumericProperties(
+            [Values("song.difficulty", "song.level")] string source,
+            [Values("x", "y", "width", "opacity", "scale-x")] string property)
+            => assertInvalidWith(decodeScene(songTextVariantScene(source, property).ToString(), decodeManifest(valid_manifest).Value!),
+                GameplaySkinSceneDiagnosticCode.UnknownProperty);
+
+        [Test]
+        public void TestSongTextBindingsAndClocksKeepTheirExistingTypes([Values("song.difficulty", "song.level")] string source)
+        {
+            GameplaySkinSceneManifest manifest = decodeManifest(valid_manifest).Value!;
+            JObject scene = JObject.Parse(valid_scene);
+            scene["bindings"] = new JArray(new JObject { ["id"] = "song.text", ["target"] = "node.text", ["property"] = "text", ["source"] = source });
+            Assert.That(decodeScene(scene.ToString(), manifest).Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
+            scene["bindings"]![0]!["property"] = "x";
+            Assert.That(decodeScene(scene.ToString(), manifest).Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Invalid));
+            scene["bindings"]![0]!["property"] = "text";
+            scene["root"]!["clock"] = source;
+            Assert.That(decodeScene(scene.ToString(), manifest).Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Invalid));
+            ((JObject)scene["root"]!).Remove("clock");
+            scene["tracks"]![0]!["clock"] = source;
+            Assert.That(decodeScene(scene.ToString(), manifest).Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Invalid));
+        }
+
+        [TestCase("song.title")]
+        [TestCase("song.artist")]
+        [TestCase("song.table-classification")]
+        public void TestOtherSongTextSourcesDoNotGainVariants(string source)
+            => assertInvalidWith(decodeScene(songTextVariantScene(source, "resource").ToString(), decodeManifest(valid_manifest).Value!),
+                GameplaySkinSceneDiagnosticCode.UnknownBindingSource);
+
+        [TestCase("resource")]
+        [TestCase("visible")]
+        public void TestExistingTypedVariantDuplicateKeysReturnDiagnostics(string property)
+        {
+            JObject scene = songTextVariantScene("layout.ruleset", property);
+            var cases = (JArray)scene["variants"]![0]!["cases"]!;
+            cases[0]!["key"] = "bms";
+            var duplicate = (JObject)cases[0]!.DeepClone();
+            duplicate["id"] = "typed.literal-duplicate";
+            cases.Add(duplicate);
+            assertInvalidWith(decodeScene(scene.ToString(), decodeManifest(valid_manifest).Value!), GameplaySkinSceneDiagnosticCode.DuplicateField);
+        }
+
+        private static JObject songTextVariantScene(string source, string property)
+        {
+            JObject scene = JObject.Parse(valid_scene);
+            bool resource = property == "resource";
+            scene["variants"] = new JArray(new JObject
+            {
+                ["id"] = "song.variant",
+                ["target"] = "node.note",
+                ["property"] = property,
+                ["source"] = source,
+                ["default"] = resource ? new JValue("texture.note") : property == "visible" ? new JValue(false) : new JValue(0.5),
+                ["cases"] = new JArray(new JObject
+                {
+                    ["id"] = "song.literal",
+                    ["key"] = "NORMAL",
+                    [resource ? "resource" : "value"] = resource ? new JValue("texture.frame-2") : property == "visible" ? new JValue(true) : new JValue(0.75),
+                }),
+            });
+            return scene;
+        }
+
         [TestCase("object.long-note-mode", "none|ln|cn|hcn")]
         [TestCase("object.long-note-appearance", "none|ln|ln-holding|ln-released|cn|cn-holding|cn-released|hcn|hcn-holding|hcn-released")]
         [TestCase("gauge.type", "none|assist-easy|easy|normal|hard|ex-hard|hazard")]

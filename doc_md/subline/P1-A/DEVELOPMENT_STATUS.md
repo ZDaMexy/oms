@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-28（r23 full与正式同包软件原生通过，已私下交付.v26102800）
+> 最后核对：2026-10-28（Header宽回归通过、v45-r2已生成；正式CLI/Native仍待）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -11,7 +11,9 @@
 
 Omni最新私下交付为`.v26102800`，原版/设备与完整形态未签收；既有边界取[作品实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。
 
-Classic局内返回修复、完整BMS回归及正式v44三组软件原生已闭合并交付。面板仍legacy0.5～10，未对齐原版11档，不签公式/时序；旧46帧仅诊断包证据。当前两页方案取消，Omni保留OMS原界面，v44剔除样机；原图/font齐全但列表/层级/PlaceCamera缺可验证闭环，不宣称永久技术不可能。PageAPI保留，未来仅新可靠路线才重评，取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
+已交付包包含Classic返回来源修复；面板仍legacy0.5～10，不签原版11档/公式/时序，旧46帧仅诊断。两页取消，保留OMS原界面，v44剔除样机；原素材可读但列表/层级/PlaceCamera无可验拟真闭环，非永久技术不可能。PageAPI保留，仅新可靠路线再评，取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
+
+后续gameplay 33 Header的literal变体/原图工具及宽回归已过，独立v45-r2与r1的6615 runtime路径/字节相同，仅报告补私有inventory来源。正式CLI仍跑，无新OSK/Native/交付，.v26102800保持，不计为头图完成。
 
 ## 当前产品能力与剩余门
 
@@ -37,7 +39,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-10-28：正式v44完整13612/exit0及6599文件CRC/作者字节通过；同一f427…包/r23运行时三case49帧自动断言全过、host/OS均0，6代表图目视。含SP/Classic往返新导出Replay与旧r17导入，旧46帧不改签。r23构建/定向155及BMS full3283通过/19跳过/3302、18分55秒/exit0，冻结SHA匹配；未重跑Core/mania。已交付.v26102800，旧v43失败保留，取[日志](CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)。
+2026-10-28本增量：r25 Core构建/482聚焦、r26五项构建通过；Core Skinning1623/3、BMS full3283/19、mania full995/2（通过/跳过），三命令exit0。BMS3302逐身份/结果同r23、skip未变；7源/10DLL回执在BMS运行中采集。Python header r26为17/17、combined r9为382/382；v45-r2计6617文件，预算仍只属Python，正式CLI/Native待验。原失败与身份取[日志](CHANGELOG.md#2026-10-28gameplay33header原图与歌曲literal变体)，.v26102800不改签。
 
 2026-10-27旧包三组正常Player、39张实景覆盖P1双挡板/Lift、P2 Hidden与DP Lift，沿[读谱实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)；隔离软件操作无生命/分数注入或seek。[旧作者/美术保全](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)不计为新包验收。
 
