@@ -5,11 +5,17 @@
 
 ---
 
+## 2026-10-28读谱版本与原生运动证据
+
+读谱计算版本改为可选独立元数据，旧缺值/0维持现有计算，未知非0真实Replay在采用前拒绝；数学、precision、Auto检测、Off回退及判定/计分未变。r17源完整BMS回归与三组共同gameplay隔离原生已通过，覆盖SP Floating与真实Replay、DP Classic低速、Auto短STOP；准确命令、计数和v39/v40身份只在[P1-A本轮日志](../P1-A/CHANGELOG.md#2026-10-28omni读谱版本兼容与候选验收)维护，旧v39页面错误不作为交付。
+
+原版Normal的130BPM全20档与190BPM部分档位已有分别资格的字面读数；它们尚不证明完整跨BPM公式、Floating等价或实谱保真。独立参照r3正常exit0及原HDD保全已核；设备、复杂soflan、逐谱视觉、GPU帧时和最终原生依赖从零重编门保持。
+
 ## 2026-10-28实际滚动算法的读谱刻度
 
 GN与Floating补偿统一消费实际选中的BMS滚动算法：Off保留原control-point夹定与短STOP回退；On使用profile音乐基准与实际BPM/SCROLL，长STOP不再借受6ms标记污染的shared base。相同BPM的SCROLL变化、VisualOffset与模式切换均更新刻度；零/负SCROLL不做正速补偿，判定、音频时钟与Auto检测不变。
 
-定向lane.PositionAtTime运动与成组保存269项通过，后续完整BMS3253通过/19跳过及Desktop Release/Debug通过；同包原生运动、复杂实谱和设备仍待验。命令、身份和边界统一取[P1-A本轮记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27omni持续完善读谱回放与结果页)，不代签负向滚动或原生依赖从零重编。
+当时定向lane.PositionAtTime运动与成组保存269项通过，早期完整BMS3253通过/19跳过及Desktop Release/Debug通过；当时同包原生运动、复杂实谱和设备仍待验。原命令、身份和边界取[P1-A实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27omni持续完善读谱回放与结果页)，后续原生范围取[本次接续](#2026-10-28读谱版本与原生运动证据)，不代签负向滚动或原生依赖从零重编。
 
 ## 2026-10-22进程内FFmpeg原生依赖升级
 

@@ -1,10 +1,24 @@
 # P1-A 变动日志
 
+## 2026-10-28Omni读谱版本兼容与候选验收
+
+在`ef8c86b`之后增加可选`reading_calculation_version`，独立于BMS计分版本7。旧缺值/null及0继续现有legacy读谱计算；新局和GeneratedAutoplay明确记录0，未知非0版本的真实Replay在应用其状态前拒绝。七文件增量覆盖存取、真实回放和兼容测试，没有改数学、precision、配置迁移或历史记录。旧`HS 10 + WN 350 => GN 300`样例已明确为Normal当前公式fixture，测试名为`TestLegacyNormalHiSpeedCalculationKeepsItsExistingMetrics`，不再暗示原版或Classic实测。
+
+本轮原版独立参照r3在NORMAL Lv.4、Display Area OFF、CLASSIC OFF条件下取得130BPM全1～20档实际读数，资格位于`E:\OMS-Development\evidence\omni-completion-20261027-r1\assets\normal-hispeed-audit-r1\r3-normal130-qualified-r1\qualification.json`。190BPM另取`r3-qualification-r1/qualification.json`：1～18稳定，19仅淡出中可读，20黑屏无值。此前误命名的130序列仍排除；原截图、字面读数和失败日志保留，不从文件名、相邻档、拟合K或近似nominal表补值，也未据此改为所谓原版公式。r3已通过正常退出路径exit0；`runtime/r3/source-preservation.json`确认原元数据/关键摘要保全、原HDD未启动、未用真实卡，未公开私有来源精确身份。
+
+主代理串行验证：r17 Core/BMS Release、Desktop Release/Debug四项构建及format通过；`bms-reading-version-r17`为226/226。基于r17当前源的`bms-full-combined-r18` exit0，3260通过/19跳过/3279总项，耗时20分17秒。此前Core页面293/293与mania995通过/2跳过保留各自构建身份，没有计为r17重跑；Python `python-combined-r6`共372通过。命令、TRX、退出回执和旧失败均在同一证据根`tests/`保留。
+
+v40 `omni-full-v40-results-labels-r1`修正Results标题和CLEAR/FAILED原图语义，保全SongSelect原JSON值/资源及v39全部6597份gameplay资源字节。公共CLI完整13612代表组合通过，`assets/omni-v40-archive-proof-r1.json`完成6620物理文件CRC及与作者逐字节一致核对，OSK为335465640字节，SHA256 `4515b207293c80d3f7d036e025b38f29a41e0bcf24d9c38e7d102def3dd71723`。Python闭包6618份与ZIP6620份的差额是生成/打包审计元数据，不是漏页或删功能。
+
+v39共同gameplay已有三组独立正常Player证据：`native-reading-sp7-floating-r3`18张含真实Replay，`native-reading-dp14-classic-low-r1`9张，`native-reading-sp7-auto-short-stop-r1`9张；旧v39页面语义错误，不作为交付。v40 `native-results-v40-bms-clear-7k-r1`自然完曲、同一真实Score/原操作、两次原生页面切换及host/进程exit0通过；主代理人工核图确认ACCURACY100%、MAX COMBO128、EX256、CLEAR与实际Perfect lamp一致可读。此结论只适用该BMS Clear场景，不代签其它页面/玩法。v40 SongSelect首轮在私有夹具Down导航未切中真实下一曲后exit1，已有原/皮肤图而验收未闭合；失败证据保留，未据此归因为产品缺陷。
+
+v41新增33框体P1/P2/DP的真实difficulty/level消费者，无新原图；DP等级因实际ModsRect位置移至难度旁。完整公共CLI仍在运行，未登记通过或OSK交付。以上原生均是隔离软件宿主，未签实体HID、原机精确时序、完整变速谱、长期或发行；当前正式交付仍为`.v26102701`，作品名、默认33和私下分享边界保持。进一步过程与素材收据见[持续完善记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27omni持续完善读谱回放与结果页)。
+
 ## 2026-10-28Omni读谱回放与可选页面
 
 新增局内13字段读谱变化时间线及回放恢复，移除旧TimeRange截断，校正SCROLL/STOP下GN与Floating补偿；普通可操作音符自然漏音显示独立SLOW且不伪造判定时间或累计FAST/SLOW。作者包的可选选曲与Results页沿同一revision快照，默认原界面、显式切换，保留真实谱库、成绩、计分标签与原操作；BMS根分组保留不可玩mania曲目时只取模式默认皮肤，合法BMS→mania转谱仍按实际键数预测。
 
-本轮BMS完整3253通过/19跳过、mania完整995通过/2跳过；最终Core选曲/Results/页面293通过，Desktop Release/Debug通过。大范围Core检查同时暴露旧三模式夹具和折叠谱面集子项可见性错误，已按现有两模式与BMS根分组合同修正；原失败和baseline身份完整保留。作者v39、同包原生门及原版校准仍在推进，当前交付未变，不称完全体。作者精简/原图来源、失败修正与准确命令取[持续完善记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27omni持续完善读谱回放与结果页)。
+早期r13 BMS完整3253通过/19跳过、mania完整995通过/2跳过；r15 Core选曲/Results/页面293通过，Desktop Release/Debug通过。大范围Core检查同时暴露旧三模式夹具和折叠谱面集子项可见性错误，已按现有两模式与BMS根分组合同修正；原失败和baseline身份完整保留。当时作者v39、同包原生门及原版校准尚在推进，当前后续取[版本与候选验收](#2026-10-28omni读谱版本兼容与候选验收)，不称完全体。作者精简/原图来源、失败修正与准确命令取[持续完善记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27omni持续完善读谱回放与结果页)。
 
 ## 2026-10-27BMS读谱设置与统一记忆
 

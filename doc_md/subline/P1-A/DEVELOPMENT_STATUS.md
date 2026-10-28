@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-28（Omni读谱、回放与选曲/结算整合验收中；人工门保持）
+> 最后核对：2026-10-28（读谱版本与v40整包已验；v41、最终页面及人工门保持）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -9,9 +9,9 @@
 
 静线为唯一内置、首次默认与保底；complex已退役，历史作者文件和用户包保留。静线打磨按用户决定暂停。BMS/mania各有模式默认和键数覆盖，旧全局配置首次迁移；游玩按最终键数应用。原V-001～V-005、设备和长期体验未签收，Skin V1/release未完成。C1～C7证据不重计，OmsSkin物理删除仍待原实机门。
 
-Omni当前`.v26102701`接续已识别素材候选闭合，按用户判决修正PB/NEXT比较、真实Clear门槛及HAZARD标识，辅助Tint默认保持；准确范围取[Mod修正记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)。既有交互沿[游玩Start记录](../../other/OMNI_GAMEPLAY_CONTROLS_20261025.md)与[设置复核](../../other/OMNI_START_OPTIONS_20261024.md)，资源存在不代表原版全项等价。
+Omni交付仍为`.v26102701`；PB/NEXT、Clear门槛、HAZARD及Tint范围取[Mod记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)，交互沿[游玩Start](../../other/OMNI_GAMEPLAY_CONTROLS_20261025.md)与[设置复核](../../other/OMNI_START_OPTIONS_20261024.md)，不冒称原版全等。
 
-Omni持续完善已实现读谱变化回放、低速/Lift/SCROLL/STOP读数、自然漏音SLOW与可选选曲/Results首版；内部v39共用真实谱库、成绩和原操作，默认仍为原界面。当前交付不变，整合回归、最终作者和原生门取[本轮记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27omni持续完善读谱回放与结果页)，原版布局/时序未签收。
+持续完善已实现读谱变化回放、低速/Lift/SCROLL/STOP读数、自然漏音SLOW与可选选曲/Results，默认原界面、共用真实数据和原操作。v40修正Results标题/原图语义并保全SongSelect；v41补33框体P1/P2/DP难度与等级消费者，整包仍验收中。当前交付不变，准确包身份及原生门取[本轮日志](CHANGELOG.md#2026-10-28omni读谱版本兼容与候选验收)，原版布局/时序未签收。
 
 ## 当前产品能力与剩余门
 
@@ -37,9 +37,9 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-10-28本goal：r13 BMS/mania完整回归、r15 Core选曲/Results/页面回归、r14 Desktop Release/Debug及v39完整作者检查通过。同包原生门正在运行，当前交付仍不变；实数、构建身份、取景修正与原版采样范围见[本轮记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27omni持续完善读谱回放与结果页)。
+2026-10-28：r17四项构建/format及读谱版本226/226、r18当前源BMS完整3260通过/19跳过；此前Core页面293/293、mania995通过/2跳过保留各自身份。Python r6共372通过；v40公共CLI13612组合及6620物理文件CRC/作者逐字节核对通过。v39三组读谱原生有独立证据；v40 BMS Clear自然完曲/切换/退出与该场景人工审图通过，其余最终原生及v41整包未闭合。身份与失败边界取[日志](CHANGELOG.md#2026-10-28omni读谱版本兼容与候选验收)。
 
-2026-10-27旧包`.v26102701`三组正常Player、39张实景及读数覆盖P1双挡板/Lift、P2 Hidden与DP Lift，沿[读谱实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)；隔离软件操作无生命/分数注入或seek。旧作者/美术保全取[原包验证](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)，不计为v39新验收。
+2026-10-27旧包三组正常Player、39张实景覆盖P1双挡板/Lift、P2 Hidden与DP Lift，沿[读谱实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)；隔离软件操作无生命/分数注入或seek。[旧作者/美术保全](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)不计为新包验收。
 
 五条已解释ImageSharp旧索引警告不抑制，版本与正规许可取[原记录](CHANGELOG.md#2026-10-22客户端依赖安全修复接入)。正常工作区、图库前台FPS/长期内存、原机精确时序和原生最终配方从零重编未由软件或隔离结果代签；媒体剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)。
 
@@ -47,7 +47,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 当前风险与未完成项
 
-- 读谱联动保存与GC后同步已修；其余显示偏好及作品配置尚未迁移，边界取[职责评估](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod游戏设置与皮肤职责分离评估)。原机时序、跨BPM、HCN及未解包素材不外推；正常窗口、完整歌曲与设备门沿[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。
+- 读谱联动保存与GC后同步已修，其余偏好/作品配置未迁移，边界取[职责评估](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod游戏设置与皮肤职责分离评估)。原版NORMAL：130BPM全20档已资格；190BPM仅1～18稳定、19淡出可读、20黑无值；不据此推出公式或完整FHS等价。原机时序、HCN、未解包素材及设备门沿[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。
 
 - 原生媒体从零重编与剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，正常窗口/设备和发行门保持。测试、作者工具与取景宿主须匹配当前构建，沿[开发约束](../../../AGENTS.md#开发磁盘约束)；旧日志/TRX只作历史证据。
 

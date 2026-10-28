@@ -362,14 +362,17 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TestGeneratedAutoplayRemainsACurrentPlayForReadingAdjustments()
         {
             BmsReadingSettingsSnapshot initial = settings(BmsHiSpeedMode.Floating);
+            Score generated = null!;
             prepare(initial);
             loadGame();
             AddStep("load freshly generated native autoplay", () =>
             {
                 var autoplay = new BmsModAutoplay();
-                renderer.SetReplayScore(autoplay.CreateScoreFromReplayData(beatmap, new Mod[] { autoplay }));
+                renderer.SetReplayScore(generated = autoplay.CreateScoreFromReplayData(beatmap, new Mod[] { autoplay }));
             });
             AddUntilStep("generated autoplay is loaded", () => renderer.HasReplayLoaded.Value);
+            AddAssert("generated autoplay explicitly uses the current legacy reading calculation", () => generated.ScoreInfo.GetRulesetData<BmsScoreInfoData>()?.ReadingCalculationVersion,
+                () => Is.EqualTo(0));
             AddStep("current-play adjustment remains available", () =>
             {
                 renderer.SetAdjustmentHeld(true);
@@ -379,6 +382,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                     Assert.That(renderer.SuddenUnits, Is.EqualTo(initial.SuddenUnits + 20));
                     Assert.That(config.Get<float>(BmsRulesetSetting.SuddenUnits), Is.EqualTo(renderer.SuddenUnits));
                     Assert.That(config.Get<double>(BmsRulesetSetting.FloatingHiSpeed), Is.EqualTo(renderer.SelectedHiSpeed.Value));
+                    Assert.That(generated.ScoreInfo.GetRulesetData<BmsScoreInfoData>()!.ReadingCalculationVersion, Is.EqualTo(0));
                 });
             });
         }

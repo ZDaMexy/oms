@@ -305,6 +305,9 @@ __pycache__/
 !/tools/IidxSkinAssets/lighting_song_select.py
 !/tools/IidxSkinAssets/build_lighting_song_select.py
 !/tools/IidxSkinAssets/test_lighting_song_select.py
+!/tools/IidxSkinAssets/lighting_header.py
+!/tools/IidxSkinAssets/build_lighting_header.py
+!/tools/IidxSkinAssets/test_lighting_header.py
 /build/tools/**
 /build/temp/**
 

@@ -1,6 +1,6 @@
 # P1-L 技术约束：BMS 演出/Gimmick 谱视觉复刻
 
-> 最后核对：2026-10-28（实际滚动路径的Hi-Speed读数与基准；Off硬回退保持）
+> 最后核对：2026-10-28（实际Hi-Speed刻度与计算版本边界；Off硬回退保持）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，完整背景见 [../../other/BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)。若实现与本文冲突，先修正其一再继续开发。
 
 ## 红线（最高优先级，贯穿全线）
@@ -32,6 +32,7 @@
 3. 判定/计分继续走 `HitObject.StartTime` 时间链路；旁路只接管**视觉定位**，position 不得回流判定。`BmsScrollProfile` 不得进入 `beatmap.HitObjects`。
 4. `BmsScrollProfile` 必须用**原始未钳制** BPM/STOP/measure-length/scroll 构建（复用 `buildEventTimeline` 游走），不得改用钳制后的 `ControlPointInfo`；STOP 段距离零增长（真冻结）、负向滚动留待 Phase 3（当前 `D` 单调非减，`TimeAtDistance` 取最早达成时间）。
 5. **base 刻度 = 非冻结时长最常见 BPM**（`computeBaseBpm`，DEAD SOUL=132）。注意 `GetMostCommonBeatLength` 对演出谱会被 STOP-freeze/钳制点拉成 6；旁路不能改用6做base，Normal的TimeRange与它无关，Floating/Classic则使用实际旁路的profile base与真实初始BPM。Off仍沿共享原生base及Multiplier，不把profile基准强加到旧算法。绿字与Floating读谱补偿统一采样实际已选路径和显示时间：正SCROLL用实际音乐/滚动倍率，On冻结沿音乐参考，Off反映原生夹定与STOP标记的真实行为；不借显示修正改判定、Auto阈值或硬回退。零/负SCROLL保留现有数据和渲染，不取abs或做正倍率refloat；负向距离逆函数仍归Phase3，音乐参考不代表其实际可见时间。
+5a. 读谱计算版本与计分版本分开；旧回放不能被新公式静默改写，真实Replay的版本准入及legacy计算合同只在[P1-A](../P1-A/TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代)维护。原版档位读数、拟合与OMS当前公式须分开举证，不从本线运动回归推导IIDX内部公式。
 6. 极端谱（DEAD SOUL：5645 地雷、6522 knots、~1300 control point、390 STOP 帧）必须有对象池/生命周期预算（与 P1-J 协同），不得无界实例化导致正常链路卡顿。
 
 ## Phase 5（BGA 链路）约束 —— viewport/scene/event 与共享 content 已接线

@@ -74,6 +74,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(saved.Version, Is.EqualTo(BmsScoreInfoData.TOTAL_RULES_VERSION));
+                Assert.That(saved.ReadingCalculationVersion, Is.EqualTo(0));
                 Assert.That(saved.ReadingSettings, Is.EqualTo(initial));
                 Assert.That(saved.ReadingSettingsTimeline!.Changes, Has.Count.EqualTo(1));
                 Assert.That(saved.ReadingSettingsTimeline.SettingsAt(1300, initial), Is.EqualTo(adjusted));
@@ -85,10 +86,13 @@ namespace osu.Game.Rulesets.Bms.Tests
             var imported = JsonConvert.DeserializeObject<LegacyReplaySoloScoreInfo>(JsonConvert.SerializeObject(exported))!;
             var replayScore = new ScoreInfo { Ruleset = new BmsRuleset().RulesetInfo, APIMods = imported.Mods, RulesetDataJson = imported.RulesetDataJson! };
             var replayData = replayScore.GetRulesetData<BmsScoreInfoData>()!;
+            Assert.That(replayData.ReadingCalculationVersion, Is.EqualTo(0));
             replayData.ReadingSettingsTimeline!.Validate();
             Assert.That(replayData.ReadingSettingsTimeline.SettingsAt(1200, replayData.ReadingSettings!.Value), Is.EqualTo(adjusted));
             Assert.That(replayScore.ModsJson, Is.EqualTo(originalMods));
             var json = JObject.Parse(replayScore.RulesetDataJson);
+            Assert.That(json["reading_calculation_version"]!.Value<int>(), Is.Zero);
+            Assert.That(((JObject)json["reading_settings"]!).Properties().Count(), Is.EqualTo(13));
             Assert.That(((JObject)json["reading_settings_timeline"]!["changes"]![0]!["settings"]!).Properties().Count(), Is.EqualTo(13));
         }
 

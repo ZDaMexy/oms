@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using oms.Input;
 using osu.Framework.Allocation;
@@ -498,6 +499,8 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             if (replayScore?.Replay is BmsGeneratedAutoplayReplay)
                 BmsScoreInfoData.InitialiseNewPlay(replayScore.ScoreInfo, captureReadingSettings());
+            else if (replayScore?.ScoreInfo.GetRulesetData<BmsScoreInfoData>()?.ReadingCalculationVersion is int calculationVersion && calculationVersion != 0)
+                throw new InvalidDataException($"Unsupported BMS replay reading calculation version {calculationVersion}.");
 
             if (replayScore != null && healthProcessor is BmsGaugeProcessor gauge)
                 gauge.ApplyScoreTotalRules(replayScore.ScoreInfo);

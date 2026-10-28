@@ -30,7 +30,7 @@ namespace osu.Game.Rulesets.Bms.Tests
         }
 
         [Test]
-        public void TestOfficialNormalHiSpeedSampleMatchesReference()
+        public void TestLegacyNormalHiSpeedCalculationKeepsItsExistingMetrics()
         {
             var metrics = BmsScrollSpeedMetrics.FromRuntime(BmsHiSpeedMode.Normal, 10.0, 1.0, suddenUnits: 350);
 

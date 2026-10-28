@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-28（Omni读谱及两页整合验收；人工门保持）
+> 最后核对：2026-10-28（v40页面与v41整包门接续；原机、人工门保持）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -11,12 +11,12 @@
 
 2026-10-18 用户授权从 1st style 到 33 Sparkle Shower 的历代作品制作，先利用现有 33 HDD 的实际资源；需要时允许补齐 OMS 代码能力。该授权是新增第三方作品线，不恢复静线打磨或 complex，不重计既有 C1～C7 campaign；本线使用现有公开作者链，实际不足由第一个作品组件驱动补齐。来源保全与后续界面边界只取[素材作品约束](TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)。
 
-以[提示、目标与素材审计](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)、[游玩Start复核](../../other/OMNI_GAMEPLAY_CONTROLS_20261025.md)及[先前设置复核](../../other/OMNI_START_OPTIONS_20261024.md)为输入，在用户正常VS Code窗口重编/重启后导入STATUS所列最新包，复核Start长按/双击、模式切换、上下挡板/LIFT白绿字、甩盘、主/SUB目标及FAST/SLOW合并/分开、A/B/C/OFF；已有亮度、判定高度/显示和开场/持续组件继续观察。原版FAST/SLOW等级资格、PG覆盖/寿命及B/C实际坐标尚需新证据；NEXT整数边界是明示OMS策略，不冒称原机实测。单一BPM的20档截图不闭合跨BPM映射，完整soflan、dan/binding flip、Ghost/NEXT+/rotate和原十键精度仍不外推。模式/键数显式值保持或逐层恢复，交付按`.vyymmddxx.osk`逐日递增且不覆盖。软件/隔离Player不代签前台性能、原机或设备；保持Reset、epoch单调及真人PG早晚。
+以[提示、目标与素材审计](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)、[游玩Start复核](../../other/OMNI_GAMEPLAY_CONTROLS_20261025.md)及[先前设置复核](../../other/OMNI_START_OPTIONS_20261024.md)为输入，在用户正常VS Code窗口重编/重启后导入STATUS所列最新包，复核Start长按/双击、模式切换、上下挡板/LIFT白绿字、甩盘、主/SUB目标及FAST/SLOW合并/分开、A/B/C/OFF；已有亮度、判定高度/显示和开场/持续组件继续观察。原版FAST/SLOW等级资格、PG覆盖/寿命及B/C实际坐标尚需新证据；NEXT整数边界是明示OMS策略。Normal跨BPM校准须沿[已资格读数](CHANGELOG.md#2026-10-28omni读谱版本兼容与候选验收)补190未稳定档及独立对照，不把近似nominal表或拟合K当作原公式。完整soflan、dan/binding flip、Ghost/NEXT+/rotate和原十键精度仍不外推。模式/键数显式值保持或逐层恢复，交付按`.vyymmddxx.osk`逐日递增且不覆盖。软件/隔离Player不代签前台性能、原机或设备；保持Reset、epoch单调及真人PG早晚。
 
-1. 软件回归与v39作者检查已过，按[持续完善记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27omni持续完善读谱回放与结果页)继续闭合同包局内读谱回放、SCROLL/STOP刻度及共用谱库选曲/Results首版的原生画面。原版精确校准沿实际输入/抓图证据，不把软件映射签成IIDX全等价。HCN只追具体缺失，不从教学图推API；BSS/CN2/MSS不凭名称接入。
+1. 以当前软件回归、v39共同gameplay读谱原生及v40完整作者/ZIP证明为输入，完成v40最终页面人工审图与两玩法原生门，并等待v41难度/等级消费者的完整作者检查；准确身份取[验收日志](CHANGELOG.md#2026-10-28omni读谱版本兼容与候选验收)。原版校准沿实际输入/抓图，不把软件映射签成IIDX全等价。HCN只追具体缺失，不从教学图推API；BSS/CN2/MSS不凭名称接入。
 2. 26来源待用户下载并提供路径，届时先核游玩SP/DP框体、几何、动画及默认绑定，再按26→1逐代向前。版本标识不能代替整代来源，不要求预先下载全套；27～33及BPL已有结果从STATUS读取，不重复登记为待开发。
 3. 已核源结构及已接入组件只取STATUS。进一步原版校准须取得可实际操作的CUSTOM入口、同步游戏/渲染时钟与命中原点；新原机demo已证PGREAT内部blue/green/pink完整配对，现有截图接口仍无法确定精确周期与起相，当前100ms分相明确为OMS作者适配。lane345双循环来源已核，原机parent-loop仍待可靠运行证据。继续保留Hazard、中心平移、判定锚点、数字/视频布局、长条脉冲/松手色及完整FC资格的原机缺口；31背景底693px与红线/键灯716/728px的关系、32纵缩亦不能凭单个源占位升为运行事实。各代截图不互相代签；来源不足按“版本 / 组件 / 已查来源 / 缺口”登记。
-4. 选曲、结算等页面随后按实际页面逐步实现，并保留原界面选项、共用谱库和成绩。新增表现能力须与首个真实作者组件或页面一起交付和验证，不先铺无消费者的接口或导入整个 IIDX 运行时。
+4. 选曲、Results首版沿已实现的真实数据/原操作路径继续验收与校准，保留原界面选项；下一页面按实际需求逐步推进。新增表现能力须与首个真实作者组件或页面一起交付和验证，不先铺无消费者的接口或导入整个IIDX运行时。
 
 2026-10-18追加授权的扩展键数、皮肤配置项与BPL结果只在[STATUS](DEVELOPMENT_STATUS.md)维护。后续修改继续复验真实键数/两侧、选择保存/重置及未声明普通包；新能力须随实际作者消费者交付，不能把作品留空、素材组合或默认布局写成引擎专例。原 Skin V1、设备、完整歌曲和发行门保持，原版美术不并入 canonical 或公开发行。
 

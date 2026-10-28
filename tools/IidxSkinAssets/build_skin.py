@@ -853,6 +853,14 @@ class Builder:
                     "sourceBounds": self.source_bounds(["center_frame_sp"], suffix), "dx": centre_dx,
                     "appliedCentreX": WIDTH / 2 + centre_dx,
                     "limit": "Existing metadata font, text width and vertical placement are retained."})
+        if self.style == 33 and self.frame_package == "gmframe33":
+            from lighting_header import header_program
+            from build_lighting_native_hud import RECTANGLES
+            header = header_program(self.map, layout, f"{self.prefix}.header.{layout}", mods_rect=RECTANGLES[layout])
+            information_children.append(header["root"])
+            self.bindings.extend(header["bindings"])
+            self.variants.extend(header["variants"])
+            self.calibration_receipts.append({"change": "real-chart-header-native-text", **header["receipt"]})
         information_children.append(self.fullcombo_overlay(layout))
         self.template(f"{layout}.information", node(f"{self.prefix}.{layout}.information", slot="decoration", children=information_children),
                       "decoration", information_material)

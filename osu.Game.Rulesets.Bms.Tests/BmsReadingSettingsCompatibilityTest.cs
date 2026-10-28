@@ -67,9 +67,10 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.That(stored.ModsJson, Is.EqualTo(original), "Recognising old reading Mods must not rewrite the historical settings payload.");
         }
 
-        [TestCase(6)]
-        [TestCase(7)]
-        public void TestHistoricalScoreWithoutSnapshotKeepsItsVersionResultsAndLegacyModParameters(int version)
+        [TestCase(6, null)]
+        [TestCase(7, null)]
+        [TestCase(7, 0)]
+        public void TestHistoricalScoreWithoutSnapshotKeepsItsVersionResultsAndLegacyModParameters(int version, int? readingCalculationVersion)
         {
             var legacy = new BmsModSudden { CoverPercent = { Value = 681 }, CoverOpacity = { Value = 427 } };
             var stored = new ScoreInfo { Ruleset = new BmsRuleset().RulesetInfo, Mods = new Mod[] { legacy }, TotalScore = 8 };
@@ -78,6 +79,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             stored.SetRulesetData(new BmsScoreInfoData
             {
                 Version = version,
+                ReadingCalculationVersion = readingCalculationVersion,
                 FinalGauge = 0.82,
                 ClearLamp = BmsClearLamp.NormalClear,
                 GaugeRulesFamily = BmsGaugeRulesFamily.LR2,
@@ -86,11 +88,13 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.That(JObject.Parse(stored.RulesetDataJson).Property("reading_settings"), Is.Null);
             BmsScoreInfoData before = stored.GetRulesetData<BmsScoreInfoData>()!;
             Assert.That(before.ReadingSettings, Is.Null);
+            Assert.That(before.ReadingCalculationVersion, Is.EqualTo(readingCalculationVersion));
             new BmsRuleset().PrepareScoreInfoForResults(stored, new BmsBeatmap());
             BmsScoreInfoData after = stored.GetRulesetData<BmsScoreInfoData>()!;
             Assert.Multiple(() =>
             {
                 Assert.That(after.ReadingSettings, Is.Null);
+                Assert.That(after.ReadingCalculationVersion, Is.EqualTo(readingCalculationVersion));
                 Assert.That(after.Version, Is.EqualTo(version));
                 Assert.That(after.FinalGauge, Is.EqualTo(0.82));
                 Assert.That(after.ClearLamp, Is.EqualTo(BmsClearLamp.NormalClear));
@@ -103,6 +107,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.That(restored.CoverPercent.Value, Is.EqualTo(681));
             Assert.That(restored.CoverOpacity.Value, Is.EqualTo(427));
             Assert.That(JObject.Parse(stored.RulesetDataJson).Property("reading_settings"), Is.Null);
+            Assert.That(JObject.Parse(stored.RulesetDataJson).Property("reading_calculation_version") != null, Is.EqualTo(readingCalculationVersion.HasValue));
         }
 
         [TestCase(false)]
@@ -127,6 +132,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             var offsets = new BmsVisualOffsetTimeline { InitialOffset = 12 };
             using var recorder = new BmsReplayRecorder(score, offsets, initial);
             Assert.That(score.ScoreInfo.GetRulesetData<BmsScoreInfoData>()!.ReadingSettings, Is.EqualTo(initial));
+            Assert.That(score.ScoreInfo.GetRulesetData<BmsScoreInfoData>()!.ReadingCalculationVersion, Is.EqualTo(0));
             // Later runtime/result data cannot replace the one entry snapshot captured by the recorder.
             BmsScoreInfoData later = score.ScoreInfo.GetRulesetData<BmsScoreInfoData>()!;
             later.ReadingSettings = snapshot(!enabled);
@@ -139,6 +145,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(saved.Version, Is.EqualTo(BmsScoreInfoData.TOTAL_RULES_VERSION));
+                Assert.That(saved.ReadingCalculationVersion, Is.EqualTo(0));
                 Assert.That(saved.ReadingSettings, Is.EqualTo(initial));
                 Assert.That(saved.FinalGauge, Is.EqualTo(0.91));
                 Assert.That(saved.ClearLamp, Is.EqualTo(BmsClearLamp.FullCombo));
@@ -155,6 +162,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             LegacyReplaySoloScoreInfo imported = JsonConvert.DeserializeObject<LegacyReplaySoloScoreInfo>(JsonConvert.SerializeObject(exported))!;
             var replay = new ScoreInfo { Ruleset = new BmsRuleset().RulesetInfo, APIMods = imported.Mods, RulesetDataJson = imported.RulesetDataJson! };
             BmsScoreInfoData decoded = replay.GetRulesetData<BmsScoreInfoData>()!;
+            Assert.That(decoded.ReadingCalculationVersion, Is.EqualTo(0));
             Assert.That(decoded.ReadingSettings, Is.EqualTo(initial));
             decoded.ReadingSettings!.Value.Validate();
             Assert.That(replay.ModsJson, Is.EqualTo(originalMods));
@@ -170,6 +178,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             using var recorder = new BmsReplayRecorder(score);
             recorder.EndRecording();
             Assert.That(score.ScoreInfo.GetRulesetData<BmsScoreInfoData>()!.ReadingSettings, Is.Null);
+            Assert.That(score.ScoreInfo.GetRulesetData<BmsScoreInfoData>()!.ReadingCalculationVersion, Is.EqualTo(0));
             Assert.That(JObject.Parse(score.ScoreInfo.RulesetDataJson).Property("reading_settings"), Is.Null);
             Assert.That(score.ScoreInfo.ModsJson, Is.EqualTo(original));
         }

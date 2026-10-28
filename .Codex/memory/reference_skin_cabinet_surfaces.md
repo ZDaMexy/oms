@@ -32,6 +32,8 @@ Group素材匹配需同时检查codec作用域准入、ResolveMaterialTemplateEn
 
 原版参照须核最终日志而非只看CLI：XML已有非空选项会覆盖CLI，布尔值文本`0`仍可因非空被启用；已有服务器URL会使内置离线EA选项失效。游客Start选项需持续按住；副屏机台“設定”不等于CUSTOM。Spice截图新时间戳和不同JPEG只证明捕获样本不同，不能当作每个Present、游戏tick或判定原点；缩小倍数在D3D完整读回后应用，采图仍会扰动帧预算。PG相位或转盘速度对毫秒/BPM拟合冲突时，保留竞争解释，不据三组颜色或文件名发布统一周期。具体源证据与未匹配二进制边界取[参照复核](../../doc_md/other/OMNI_OPENINGS_20261021.md#2026-10-24持续组件与原版参照复核)。
 
+Hi-Speed采样先核实际选曲、难度、BPM、CLASSIC/Display Area状态及高亮档位；helper文件名不证明它真的进入该曲或该档。淡出可读只支持字面数值，不能充作稳定控制样本；黑屏不从相邻档或既有表补值。跨BPM的近似nominal或拟合K仍不是内部公式，命名为“official”的旧单元测试也不能补足原版证据；资格与legacy fixture边界只取[P1-A](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代)。
+
 原生取景ENV的`OMS_AUTHOR_SKIN_OPTIONS`由夹具读为`Dictionary<string,string>`，布尔/数值也须用规范字符串；JSON字面量false或1.5会在进入Player前失败，不是产品选项拒绝。BMS旧取景的15/24px断言只覆盖默认00画布，不能拿它验证n11或其它CN尺寸；该分支的CUSTOM取景保留实际画面、冻结选项、计分/结算与错误检查，量化尺寸另沿选中源验证，不把跳过不适用断言写作尺寸通过。
 
 取景宿主重建后的deps覆盖、空ENV及缓存清理后的源码接续统一见[构建与测试](reference_build_and_test.md#测试宿主与产物)，不把宿主失效当作皮肤故障。
