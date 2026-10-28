@@ -115,4 +115,6 @@ Classic数字整条可用既有`original_sprite`直接画`tx_num1_4`；`gc.font`
 
 原机`usr_l_music`/artist的重复占位字矩形不证明真实字体、长文字裁剪或缩放；DP2P占位甚至能出屏。只按已核AFP锚点落位，宿主fit策略另取真实DP图；同名机身texture可左右各画一次，须按left export的layer_path定位边界。style33特判也须覆盖DP，不能让原锚点被SP写死矩形绕过。视觉回归应按SongTitle/SongArtist真实绑定抓quad，对实际可见label/GN/面板核相交，结构CLI与原图字节相等不能代签无重叠。
 
+同一个scroll.mode来源可同时控制三种整面板和NOTES TIME等子门，子门可能没有true case；面板取景须按实际同owner的三兄弟识别，不能对所有该来源variant直接Single(true)。保留三mode等价、实际alpha及Start可见性断言。
+
 原生PlayerLoader尚不进入游玩时先区分LoadTask/ownership与ReadyForGameplay。后台Ready、已解码和无scope拒绝不等于已允许push；加载页的hover/idle/focus条件仍有效。隔离夹具按正常鼠标路径离开预览pane，再用原predicate等待；不得写ready/idle/clock或仅加timeout宣称修好。

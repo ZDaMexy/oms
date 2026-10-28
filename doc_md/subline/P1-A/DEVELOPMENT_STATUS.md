@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-28（Classic候选r1因DP重叠拒交，原锚点修正r2待验；交付仍01）
+> 最后核对：2026-10-28（Classic11原图与33 DP避让已私下交付02；完整形态继续）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -9,11 +9,11 @@
 
 静线为唯一内置、首次默认与保底；complex已退役，历史作者文件和用户包保留。静线打磨按用户决定暂停。BMS/mania各有模式默认和键数覆盖，旧全局配置首次迁移；游玩按最终键数应用。原V-001～V-005、设备和长期体验未签收，Skin V1/release未完成。C1～C7证据不重计，OmsSkin物理删除仍待原实机门。
 
-Omni最新私下交付`.v26102801`，源码40b6ddb4需重编/重启后导入；旧00保留。原版/设备及完整形态未签，边界取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。
+Omni最新私下交付`.v26102802`，源码f6997e96需重编/重启后导入；旧00/01保留。原版/设备及完整形态未签，边界取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。
 
-01仍为legacy Classic面板；r1结构包因DP曲名/作者重叠拒交。r2已按原锚点修正，宽度/字体仍明确OMS适配，待新整包/同包原生；数学及存档/Replay范围不变。两页仍取消、保留OMS原界面；PageAPI保留，仅新可靠路线再评，取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
+02已接Classic十一档原图与33 DP原锚点避让；354px省略/现字体为OMS适配，原数学及存档/Replay范围不变。r1重叠候选拒交，证据保留。两页取消、保留OMS原界面；PageAPI保留，未来仅新可靠路线再评，取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
 
-33 Header已交付：七组86自动帧通过，主代理仅看7代表图，实际Texture/GEO、空/未知fallback及EASY避让已验；不签逐86图或实体设备。其它Frame/DP仍仅提案。
+33 Header原图、空/未知fallback及EASY避让已交付；其它Frame的Header仍是私有提案，尚未生成或签收。
 
 ## 当前产品能力与剩余门
 
@@ -32,14 +32,14 @@ Omni最新私下交付`.v26102801`，源码40b6ddb4需重编/重启后导入；�
 | 实时演奏信息 | 实时判定与断连统计、EX SCORE/HiSpeed、MIN/当前/MAX BPM；曲名、作者标级与独立的表名/表内等级 | 读取规则真实状态；表归类不替代作者难度，皮肤不改变判定/计分、时间或难度表导入 |
 | 皮肤布局与公共页面 | 作者声明stage/lane位置、留空槽和键区，不创建输入；BMS最多16个`BgaViewports`，逐窗fit/fill/stretch或none。通用选曲/Results接口共用真实数据及原操作，默认原界面 | 显式field不被旧BGA自适应挪动；冲突整组零窗并诊断，9K/PMS不套黑白比。BGA归[P1-L](../P1-L/DEVELOPMENT_STATUS.md)；Omni当前两页方案取消、保留OMS原界面 |
 | 作者制作与可选演出 | [完整套件](../../../skin-authoring/README.md)含制作、元素文件/尺寸/动画、INI/scene/script字段与预算、刷新打包；示例区分完整包与练习片段，手册/图片随套件发行 | 示例工具检查/打包和真实挂载已验证；历史实机图与素材示意分开。原编辑器可改既有组件并存独立副本，无完整scene/script可视化编辑器；不据手册代签视觉或旧三包演练 |
-| IIDX 与 BPL 第三方作品 | Lighting Model Skin Omni Until 33本地.v26102801，默认33；27～33与八支BPL共15框体，1271款美术/539图，13模块/32项配置，适用开关默认全开。AUTO SCRATCH专用图、三条Graph、COMBO三色/居中与lane345完整cat已接入；另补真实Clear门槛/状态及HAZARD生存标识。BMS5/7/14、mania5/6/7/8/14/16及两侧/DP，模式/键数覆盖保持 | Normal Hi-Speed跨BPM映射、完整变速谱与实体手感未整体对齐；转盘周期、Graph布局和部分外框时序仍为作者适配。FAST/SLOW原版资格/寿命、PG精确周期/起相、lane345原机parent-loop、游客CUSTOM、各代默认/滤镜及部分DP末端待校准。HCN正常游玩显示未由教学素材代签。LIFT沿原生几何，副屏移除；26来源待补。独立私下分享，不内置或公开分发；Until34不在范围 |
+| IIDX 与 BPL 第三方作品 | Lighting Model Skin Omni Until 33本地.v26102802，默认33；27～33与八支BPL共15框体，1271款美术/539图，13模块/32项配置，适用开关默认全开。AUTO SCRATCH专用图、三条Graph、COMBO三色/居中与lane345完整cat已接入；另补真实Clear门槛/状态及HAZARD生存标识。BMS5/7/14、mania5/6/7/8/14/16及两侧/DP，模式/键数覆盖保持 | Normal Hi-Speed跨BPM映射、完整变速谱与实体手感未整体对齐；转盘周期、Graph布局和部分外框时序仍为作者适配。FAST/SLOW原版资格/寿命、PG精确周期/起相、lane345原机parent-loop、游客CUSTOM、各代默认/滤镜及部分DP末端待校准。HCN正常游玩显示未由教学素材代签。LIFT沿原生几何，副屏移除；26来源待补。独立私下分享，不内置或公开分发；Until34不在范围 |
 | 安装与发行 | 旧选择迁移证据保留；2026-10-03 候选已有便携/自定义根、恢复及同包覆盖启动证据，见 [P1-F](../P1-F/DEVELOPMENT_STATUS.md) | 生成物已按用户要求删除；实网下载、新作者独立演练、跨版本、独立账户非便携及设备/长期/公开发行门未新签收 |
 
 C2～C6共享同一 package/layout/material/scene publication、lease/detach 与脚本隔离合同；无游玩宿主的菜单也检查整包。授权撤销不扩大 reload 准入，具体合同只在[技术约束](TECHNICAL_CONSTRAINTS.md)维护。
 
 ## 最近一次验证
 
-2026-10-28：BMS r28聚焦195/0、完整3303/19、后置说明r29构建0，已测逻辑/测试SHA一致。r1 CLI13612/6619份字节通过，诊断P1 46帧/DP 23帧过但根看3图发现重叠而拒交。修正r2的Python8/combined400、作者r16及诊断DP23帧通过，根另看1图；正式CLI仍跑，最终同包未签。r6合格DP原图0，clip/字体不升级资格。取[日志](CHANGELOG.md#2026-10-28classic11局内选择与原图面板准备)；01的86帧保留[原身份](CHANGELOG.md#2026-10-28gameplay33header原图与歌曲literal变体)。
+2026-10-28：02正式CLI13612代表组合、6619文件CRC/作者字节通过；同包五组Classic96帧加往返/真实OSR22帧共118通过，另DP长文字2帧通过，根仅目视7+2图。私有R35→R37仅修往返取景门/普通Loader鼠标路径，其余源/依赖及public19源/10程序集字节相同；两次旧失败保留。沿r28 BMS195/0、3303/19及后置说明r29构建0；Python400（含DP8）不重计。r6/r7无新增原机DP/FHS资格，不签原数学/字体/设备。取[本次日志](CHANGELOG.md#2026-10-28classic11局内选择与原图面板准备)，01的86帧保留[原身份](CHANGELOG.md#2026-10-28gameplay33header原图与歌曲literal变体)。
 
 2026-10-27旧包三组正常Player、39张实景覆盖P1双挡板/Lift、P2 Hidden与DP Lift，沿[读谱实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)；隔离软件操作无生命/分数注入或seek。[旧作者/美术保全](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)不计为新包验收。
 

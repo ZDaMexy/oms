@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-28（33 Header正式整包/七组软件原生完成，已私下交付.v26102801）
+> 最后核对：2026-10-28（Classic原图/十一档与33 DP避让已私下交付.v26102802）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -15,7 +15,7 @@ Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，具
 
 游玩判定/结果及性能取[10月19日深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)；设备入口、输入时间、轴用途、长皿与校准接续取[10月21日输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)。前台帧时间与实体设备仍待验收。
 
-Lighting Model Skin Omni Until 33已私下交付.v26102801，源码40b6ddb4需重编/重启再导入；33 Header原图、正式CLI及七组同包软件原生完成，Frame范围/默认33保持。两页取消、保留OMS原界面；Classic11、其它Frame与DP调整仅计划，身份取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。原HDD保全，PageAPI及原版/设备/发行门、私下分享边界保持。
+Lighting Model Skin Omni Until 33已私下交付.v26102802，源码f6997e96需重编/重启再导入；Classic原图/十一档、33 DP信息避让与同包游玩/回放已验，Frame范围/默认33保持。两页取消、保留OMS原界面；其它Frame原图及原版数学/时序继续，身份取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。原HDD保全，PageAPI及设备/发行门、私下分享边界保持。
 
 玩家直接登录固定OMSIR，保存后新局上传；新闻 / 帮助 / 排行 / 玩家沿原生页面。谱面列表先选模式：BMS 仅 Ginger Rush / 616，osu!mania 仅 Sayobot，恢复上次 BMS 来源；紧凑筛选、原生卡片和各来源阅读状态保持。正常OMS窗口的lazer体验仍待签收，隔离内容宽度检查不代签；源码 / 软件及剩余门取[P3-IR状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。社交后续，旧ppy关闭；Phase1.x原门保持。
 
@@ -51,7 +51,7 @@ Lighting Model Skin Omni Until 33已私下交付.v26102801，源码40b6ddb4需�
 
 ## 最近一次验证
 
-2026-10-28 Header正式包CLI/归档与86自动帧通过，仅7最终代表图目视；真实OSR、原图/Texture/GEO与EASY避让已验。源码40b6ddb4已推送，11文件交付01、旧00保留，r25/26沿原身份未重复跑；计数/失败/诊断/清理取[P1-A交付记录](../subline/P1-A/CHANGELOG.md#2026-10-28gameplay33header原图与歌曲literal变体)，不提升原版时序、设备或发行状态。
+2026-10-28 Classic正式包/CRC与同包软件游玩、真实回放及独立DP长文字通过，代表图已审看；02已生成，旧00/01保留。来源f6997e96及必要构建/回归沿原身份，具体计数、私有夹具修正和历史失败取[P1-A记录](../subline/P1-A/CHANGELOG.md#2026-10-28classic11局内选择与原图面板准备)，不提升原版数学/时序、设备或发行状态。
 
 2026-10-11转谱补算、Debug读取及旧失败对照保留原日期，范围与未验项取[P1-H](../subline/P1-H/DEVELOPMENT_STATUS.md#最近一次验证)。
 

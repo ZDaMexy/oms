@@ -18,13 +18,21 @@ Python r13 Classic10/combined392通过，保留原PNG哈希/尺寸/nearest验证
 
 原版r5在独立E guest取得Chewingood!!! NORMAL4/190完整20档开场/Tips读数；N1为GN1200/HS0.62，N20为260/2.84。CLASSIC OFF、Display OFF、Camera TYPE OFF、Judge+1.90；白值不可读留null，1920×1080的field ROI上沿裁切，不能拿726px拟合完整轨高/K。20档逐项由子代理读图、根仅看N20，175张原图收据通过；与r3/r4独立，不重写旧原记录。Classic190/FHS三点/上下限和第二guest均未发生。正式normalexit0、全controller关闭/按键0、D/E元数据与关键hash保全；运行XML自行回写使旧退出SHAguard拒绝，初始manifest保留，经PID/Eexe/config/port/session身份及语义核对后正常exit，无kill/来源guard降级。收口在`assets/r5-normal190-qualified-r1`，不推导公式或签原运动。r6仅准备/补DP header资格，未以准备计采集。
 
-当前仍未新交付，后续新正式包、六组预期118帧及代表图只在实际通过后登记；软件/隔离宿主不代签实体输入、原时序、发行或完全体。两页继续取消，gameplay goal保持active。
+在r1阶段尚未新交付，后续正式包/118帧门仅在实际通过后登记；软件/隔离宿主不代签实体输入、原时序、发行或完全体。两页继续取消，gameplay goal保持active。
 
-DP修正随后实际接入：公开`build_skin.py`仅33/gmframe33/DP分支共用新`build_lighting_dp_song_information.py`的几何函数，SP、其它代/BPL保持；只改实际两消费者x/y/w/h/left alignment，原字号/绑定/owner/512字符预留保持。原锚点(15,56)/(15,83)、高26/19.199707来自AFP/GEO；在384左柜中以原15px边距取354px bounded ellipsis，宽度与现字体仍为明确OMS适配。`python-dp-song-information-r15`8通过、combined400通过；真实r16生成新sibling v46-r2，6619物理/6617 runtime，只变原路径DP scene及两report，6616其余文件字节相同，typed仅五属性逆转相等，预算不增。来源/10程序集在r34实采，BMS/C5代码与此前门保持。`author-v46-pack-r2`正在封存CLI中重验，未签新包/原生/交付。
+DP修正随后实际接入：公开`build_skin.py`仅33/gmframe33/DP分支共用新`build_lighting_dp_song_information.py`的几何函数，SP、其它代/BPL保持；只改实际两消费者x/y/w/h/left alignment，原字号/绑定/owner/512字符预留保持。原锚点(15,56)/(15,83)、高26/19.199707来自AFP/GEO；在384左柜中以原15px边距取354px bounded ellipsis，宽度与现字体仍为明确OMS适配。`python-dp-song-information-r15`8通过、combined400通过；真实r16生成新sibling v46-r2，6619物理/6617 runtime，只变原路径DP scene及两report，6616其余文件字节相同，typed仅五属性逆转相等，预算不增。来源/10程序集在r34实采，BMS/C5代码与此前门保持。当时`author-v46-pack-r2`在封存CLI中重验，尚未签新包/原生/交付。
 
 修正r2诊断`native-reading-v46diag2-classic11-dp-r1`在r33新Title/Artist真实绑定遮挡回归下，23帧/实际host与process均0，根另看一张2.50图确认两行在左框、无绿字/面板相交；仍是诊断ZIP，不能代签待出的正式r2 archive或未跑P2/完整118帧。原版r6本轮取得102份原图收据但始终SP，17代表图审看后合格DP gameplay为0，相关文字/geometry全部null。NORMAL4、关初心folder、换曲、API3/副屏touch均未构成DP成功；收到额外credit单点假说时已正常exit，未执行也未定因。官方exit0、按键全0、D元数据与D/E关键hash保全，原运行XML语义等价；证据在私有`assets/r6-dp-header-attempt-r1`。不能拿SP或准备脚本替代原机DP长文字资格。
 
 GN原g数字另作只读审查：10对白/g共4400像素的alpha相同，非透明编码RGB乘现色并8bit量化后差异0；严格hidden RGB、未量化浮点、任意opacity/父色并未证明等价。固定框架的SRGB顶点/RGBA8纹理/直接乘色链不支持假定线性化来报gamma bug；g图不在现gc.font中消费。原g直接integer font需额外10资源和1字体，字体12→13超当前12合同；无实证证明当前稳定可见色错误，保持实现，不扩限。报告仅在私有green-digit-source-audit-r1，不把未证明的Framebuffer全等升级成结论。
+
+最终r2正式CLI exit0、13612种代表组合通过；`omni-v46-checked-r2.osk`的6619实体条目全CRC及作者逐文件字节相同，330895572B。最终来源f6997e96，public19源/10程序集保持r34身份；BMS行为仍沿已通过r28，后置提示及作者变更不倒称为重跑完整回归。新成品`.v26102802`已按既有命名生成11文件，旧00/01未覆盖；原版美术仍仅私下分享。
+
+正式同包五组新Classic11在R35取得96帧；旧往返r2因将新NOTES TIME的scroll.mode门误当整面板而抛Single异常，r36仅按实际三兄弟owner识别面板，但r3重跑在普通PlayerLoader原10s门超时。r37再仅为该旧场景增加实际Loader入屏和普通鼠标移离pane两步，不写ready/clock、不延时放行。r4真实往返/OSR22帧、host/process exit0，原三mode/alpha/Start/13字段/录制断言保持。R35与R37的唯一差异是上述collector和环境特定hook；机械逆转主文件逐字节回到R35，其余private源、全部依赖、public源/程序集相同，故保留已过五组，不重跑或掩盖旧失败。最终118帧在`native-v46-formal-classic11-r4.json`，根只目视7张代表图。
+
+另用普通raw BMS导入109字符Title/114字符Artist，实际decoder/retained state/SpriteText保留完整值，在Start释放/按住的两张真实DP画面检验真实Truncate/IsTruncated、354px框内quad及中央原图/绿字避让。真实键盘首note由0到2，时钟自然到Results，无metadata/clock/score注入；独立两帧及host/process均0，两图均目视，不并入118。临时raw实体由原测试正常退役，保留文本及UTF8摘要与实际decode/UI证据，不重建后伪称原实体仍在。正式包实际Sprite.Texture/源PNG身份及两份Root目视记录单独保留；原机字体/clip/fit未升级资格。最终R37私有源/编译及owner封存在`assets/native-classic11-fixture-source-r6`。
+
+交付脚本r37曾错把TRX Counters.notExecuted字段当跳过数；该字段为0，实际19条UnitTestResult为NotExecuted。r38按真实逐例outcome及total/executed一致性核195/0与3303/19，原TRX/失败脚本和回执保持，未放宽任何预期或重跑产品测试；随后实际成品生成成功。原版r7补FHS路线未进入目标曲，合格FHS/Classic190均0；一次白键超自记截止，deadline门如实未通过。已正常exit0、全键释放、D/E来源保全，不能用其教学页或截图数量签速度数学。独立记录取`assets/r7-fhs-attempt-r1`。当前原版/设备/完全体门与两页取消决定保持。
 
 ## 2026-10-28Gameplay33Header原图与歌曲literal变体
 
