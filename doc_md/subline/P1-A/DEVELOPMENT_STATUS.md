@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-28（Header宽回归通过、v45-r2已生成；正式CLI/Native仍待）
+> 最后核对：2026-10-28（33 Header正式整包/七组软件原生通过，已私下交付.v26102801）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -9,11 +9,11 @@
 
 静线为唯一内置、首次默认与保底；complex已退役，历史作者文件和用户包保留。静线打磨按用户决定暂停。BMS/mania各有模式默认和键数覆盖，旧全局配置首次迁移；游玩按最终键数应用。原V-001～V-005、设备和长期体验未签收，Skin V1/release未完成。C1～C7证据不重计，OmsSkin物理删除仍待原实机门。
 
-Omni最新私下交付为`.v26102800`，原版/设备与完整形态未签收；既有边界取[作品实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。
+Omni最新私下交付`.v26102801`，源码40b6ddb4需重编/重启后导入；旧00保留。原版/设备及完整形态未签，边界取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。
 
 已交付包包含Classic返回来源修复；面板仍legacy0.5～10，不签原版11档/公式/时序，旧46帧仅诊断。两页取消，保留OMS原界面，v44剔除样机；原素材可读但列表/层级/PlaceCamera无可验拟真闭环，非永久技术不可能。PageAPI保留，仅新可靠路线再评，取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
 
-后续gameplay 33 Header的literal变体/原图工具及宽回归已过，独立v45-r2与r1的6615 runtime路径/字节相同，仅报告补私有inventory来源。正式CLI仍跑，无新OSK/Native/交付，.v26102800保持，不计为头图完成。
+33 Header原图完成正式包七组软件验收并交付：86自动帧通过，主代理仅看7代表图；实际Texture/GEO、空/未知fallback及EASY避让已验，未签逐86图或实体设备。下一Classic11档/其它Frame/DP方案仅提案，不计已做。
 
 ## 当前产品能力与剩余门
 
@@ -39,7 +39,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-10-28本增量：r25 Core构建/482聚焦、r26五项构建通过；Core Skinning1623/3、BMS full3283/19、mania full995/2（通过/跳过），三命令exit0。BMS3302逐身份/结果同r23、skip未变；7源/10DLL回执在BMS运行中采集。Python header r26为17/17、combined r9为382/382；v45-r2计6617文件，预算仍只属Python，正式CLI/Native待验。原失败与身份取[日志](CHANGELOG.md#2026-10-28gameplay33header原图与歌曲literal变体)，.v26102800不改签。
+2026-10-28：r25 Core482聚焦、r26 Skinning1623/3、BMS3283/19、mania995/2（通过/跳过）、Python header17/17及combined382/382保留原身份，构建均0。正式CLI13612/exit0、6617文件CRC/作者字节通过；同51ceb包七组86自动帧、7代表图目视，各host/process及批次0。真实新/旧OSR、原图/Texture/GEO已验，已交付.v26102801，不改签诊断包或称86逐图；命令/旧失败/采集时点取[日志](CHANGELOG.md#2026-10-28gameplay33header原图与歌曲literal变体)。
 
 2026-10-27旧包三组正常Player、39张实景覆盖P1双挡板/Lift、P2 Hidden与DP Lift，沿[读谱实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)；隔离软件操作无生命/分数注入或seek。[旧作者/美术保全](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)不计为新包验收。
 

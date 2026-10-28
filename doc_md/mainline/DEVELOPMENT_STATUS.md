@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-28（正式同包软件门与r23 full通过，已私下交付.v26102800）
+> 最后核对：2026-10-28（33 Header正式整包/七组软件原生完成，已私下交付.v26102801）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -15,7 +15,7 @@ Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，具
 
 游玩判定/结果及性能取[10月19日深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)；设备入口、输入时间、轴用途、长皿与校准接续取[10月21日输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)。前台帧时间与实体设备仍待验收。
 
-Lighting Model Skin Omni Until 33最新私下交付仍.v26102800，默认33、27～33及八支BPL为Game Frame。Header literal/工具及宽回归已过，v45-r2实际候选与r1 runtime相同，正式CLI/Native未完成，无新交付。两页取消、保留OMS原界面；身份取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。原HDD保全、PageAPI保持，原版/设备/发行门及独立私下分享边界不变。
+Lighting Model Skin Omni Until 33已私下交付.v26102801，源码40b6ddb4需重编/重启再导入；33 Header原图、正式CLI及七组同包软件原生完成，Frame范围/默认33保持。两页取消、保留OMS原界面；Classic11、其它Frame与DP调整仅计划，身份取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。原HDD保全，PageAPI及原版/设备/发行门、私下分享边界保持。
 
 玩家直接登录固定OMSIR，保存后新局上传；新闻 / 帮助 / 排行 / 玩家沿原生页面。谱面列表先选模式：BMS 仅 Ginger Rush / 616，osu!mania 仅 Sayobot，恢复上次 BMS 来源；紧凑筛选、原生卡片和各来源阅读状态保持。正常OMS窗口的lazer体验仍待签收，隔离内容宽度检查不代签；源码 / 软件及剩余门取[P3-IR状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。社交后续，旧ppy关闭；Phase1.x原门保持。
 
@@ -51,7 +51,7 @@ Lighting Model Skin Omni Until 33最新私下交付仍.v26102800，默认33、27
 
 ## 最近一次验证
 
-2026-10-28 Header增量：Core codec/runtime及Skinning、BMS/mania full、构建和Python通过，准确范围/采集时点取[P1-A验证](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)。v45-r2仅报告补私有inventory来源，正式CLI仍跑、Native未验；.v26102800沿[原交付身份](../subline/P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)，两页/设备/发行门不变。
+2026-10-28 Header正式包CLI/归档与86自动帧通过，仅7最终代表图目视；真实OSR、原图/Texture/GEO与EASY避让已验。源码40b6ddb4已推送，11文件交付01、旧00保留，r25/26沿原身份未重复跑；计数/失败/诊断/清理取[P1-A交付记录](../subline/P1-A/CHANGELOG.md#2026-10-28gameplay33header原图与歌曲literal变体)，不提升原版时序、设备或发行状态。
 
 2026-10-11转谱补算、Debug读取及旧失败对照保留原日期，范围与未验项取[P1-H](../subline/P1-H/DEVELOPMENT_STATUS.md#最近一次验证)。
 

@@ -12,6 +12,18 @@ r24 Core构建exit0，codec/runtime聚焦476通过/4失败；四例均因重复k
 
 r26五项构建（BMS.Tests、mania.Tests、Desktop Release/Debug、author）全部exit0，Core编译仍记r25。Core Skinning r26为1623通过/3跳过/1626；BMS full r26为3283通过/19跳过/3302、23分27秒；mania full r26为995通过/2跳过/997、2分34秒，三条测试命令实际exit0。`tests/bms-full-header-vs-r23-outcomes-r1.json`逐个核对3302个TestId及完整class/name/outcome均等同r23，无新增/变化skip。`tests/header-source-and-binaries-r26.json`冻结7源/10DLL及当前私有Native准备身份；回执在BMS执行期间采集，不是事前快照。私有取景r26仅因Image.Load命名空间歧义构建失败，限定SixLabors后r27重建/prepare0，未改生产，失败保留。正式sealed当前CLI `author-v45-pack-r1`仍跑，尚无新OSK/Native/交付，最新仍.v26102800；不将候选/预算写成Header完成，两页取消不恢复。
 
+随后从同一冻结v45-r2生成独立诊断OSK，全部6617文件CRC/作者字节核对通过；`native-reading-v45diagnostic-dp14-r1`正常Player自然完成10帧、host/process均exit0，逐帧验证外部原PNG、实际Sprite.Texture与GEO。主代理核对2张代表图，原HYPER/Lv.1按原尺寸正向显示，并避开950ms实际EASY提示；其余8帧未逐张目视。记录取`assets/native-v45-diagnostic-dp-r1.json`，不代签仍在运行的正式CLI或正式包Native，Classic仍legacy刻度。诊断辅助器首次把Windows Path排序当Ordinal相对路径排序，事前清单比较失败，未创建OSK且源文件全同；改私有排序后通过，失败证明单独保留，未改生产源码。
+
+此后冻结当前Release作者CLI正式完成13612组代表组合并打包exit0；`assets/omni-v45-checked-r1.osk`计330886171字节，SHA256 `51ceb1ac1de217c16e76fde4ac822a00927604522419fcdd8521d6cb77d6afc4`，6617物理文件CRC及逐个作者字节核对通过。正式包与诊断包全部6617原文件相同，仍保留各自归档身份；正式包七组Native另跑，不用诊断DP代签，亦未在此时生成新交付。
+
+正式同一51ceb包最终完成七组软件Native：SP live/新Replay18帧、P2 9帧、DP EASY10帧、INSANE14白字fallback9帧、空字段9帧、Classic往返/新Replay22帧、旧OSR9帧，共86帧自动断言全部通过；每组host/process及批次均exit0。`assets/native-v45-formal-header-r1.json`与`native-v45-root-visual-review-r1.json`分别记录自动验证和主代理亲自审看的7张最终代表图，未声称86张逐图目视。原图摘要、实际Sprite.Texture/GEO及真实EASY避让验证通过；无seek/分数/生命注入，真实新OSR导出/回放与旧OSR原字节保持。只签这些配置的软件输入/宿主路径，不签前台性能、实体设备、原版公式/时序或完整Classic拟真；诊断10帧保持旧身份。
+
+源码`40b6ddb40b3bb23a79a6e91f5afef6a930163603`已推送，finalize实际成功，将同一正式OSK交付至`F:/zdamexy-workspace/deliverables/skins/Lighting Model Skin Omni Until 33.v26102801`；11文件为OSK、7张预览、README、VALIDATION和SHA256清单，回执`assets/omni-v45-delivery-finalized-r1.json`。旧`.v26102800`保留未覆盖；使用需重编此源码或后续兼容源码、重启再导入。此前r25/26 Core/BMS/mania/Python计数与身份保持，未为交付重复跑测试；无页面恢复，原人工/设备/发行门及持续goal不变。
+
+交付索引已更新01并保留00历史，`assets/v45-delivery-postverify-r1.json`确认新11文件、两版SHA清单及旧00包保持；随后只按manifest精确hash清理8个已停成功run的程序依赖副本3504文件/5392426408字节，退出0且未删目录，旧run不再完整可运行，source/当前prepared runtime/host小文件/data/谱面/皮肤/OSR/PNG/证据/交付均保留，回执`tests/native-program-cleanup-r26-r1.json`；E长期`assets/native-v45-source-runtime-freeze-r1`保存41文件/42102097字节（精确私有fixture/helper、7源、10 owner DLL及private host），前后SHA一致，清理后3504目标全缺、当前prepared443文件/7源10DLL/新11成品仍同，回执`tests/native-program-cleanup-r26-r1-postverify.json`，不刷新设备门。
+
+后续仅有只读提案与素材审查，未应用或编译新实现：`artifacts/`下`classic11-proposal-r1`基于40b6ddb4，Classic面板优先用原`tx_num1_4`整条90×394图，经既有`original_sprite`显示4.00…1.00两位小数的11行，`gc.font`拼字不等像素；cursor须随之由误用的normal130×70换原`playm_classic_spd_sel`150×70，NOTES TIME原PNG正确但Classic label GEO待校，底板及竖排CLASSIC原字节/GEO已正确不重做，详细坐标留私有证据。须保留GetAdjustmentStep滑条语义、存档/Replay0.5～10、precision/calc0/13字段；offgrid方向邻档仅OMS策略，190/offgrid跨BPM换算/模式返回缺原机证据。`assets/other-frame-header-audit-r1`核出其它14Frame共42分支无difficulty/level消费者，11HD的18图同33可复用；先27及七BPL全部布局，白字fallback最多新增512字形、不能沿33的0预算，余冲突逐Frame。33 DP原Header/移动Native ModsRect的A/B也仅候选，须7种真实兼容Mods、hover及边框Native后才替代已交付避让；不记完成，不公布原PNG摘要。
+
 ## 2026-10-28Omni两页拟真硬门
 
 用户要求SongSelect/Results必须拟真，原美术能直接用必须直接用。按此门完成产品判断后，当前两页扩展方案取消，保留OMS原界面，v44已剔除样机；不留当前方案的页面实施待办。原图/font齐全可读：7IFS、127图、27AFP及原font33 face已读，原33角色/Results全屏图已找到；问题是列表、层级和PlaceCamera转场缺可验证拟真闭环，不以缺素材或字体不可读解释取消，也不宣称永久技术不可能。v40/v41仅保留数据/API/原生内部工程证据，此前审图只核语义/可读性，不代表页面交付或用户认可。未来只有新可靠拟真路线才重新评估；通用PageAPI及Omni gameplay持续goal保持。
