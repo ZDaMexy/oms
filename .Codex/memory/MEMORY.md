@@ -15,7 +15,7 @@
 
 ## 皮肤恢复与存储
 
-- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage继承、轨宽、血槽/FC、组合预算与冻结ID重建；真实起点/预览、持续组件、原生Mod避让/慢加载寿命、SFNT/CP932字体取证、判定宿主高度、横排像素叶子与挡板/LIFT几何、opaque遮罩/AUTO未知态、亮度/透明度、Spice时钟/Hi-Speed样本资格、Time Freeze/开场hold/deadline、同显示值异选档与只读标量、Bindable子类round-trip/CreateInstance、Demo运动标尺/取景stage/缺失exit回执、首组教学末页实证、Classic原strip/cursor/GEO与私有receipt、DP动态文字/Loader就绪、整面板与readout门区分、C4身份、退出HUD/Results计数器就绪、Vector2递归旁车、playable难度与metadata、点分ID与atlas误判。
+- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage继承、轨宽、血槽/FC、组合预算与冻结ID重建；真实起点/预览、持续组件、原生Mod避让/慢加载寿命、SFNT/CP932与实际字体绑定证据分级、判定宿主高度、横排像素叶子与挡板/LIFT几何、opaque遮罩/AUTO未知态、亮度/透明度、Spice时钟/Hi-Speed样本资格、Time Freeze/开场hold/deadline、同显示值异选档与只读标量、Bindable子类round-trip/CreateInstance、Demo运动标尺/取景stage/缺失exit回执、首组教学末页实证、Classic原strip/cursor/GEO与私有receipt、DP动态文字/Loader就绪、整面板与readout门区分、C4身份、退出HUD/Results计数器就绪、Vector2递归旁车、playable难度与metadata、点分ID与atlas误判。
 
 - [2026-07-10 皮肤恢复](reference_skin_recovery_20260710.md) — 恢复锚点、归档与重新准入；**皮肤任务先读**。
 - [2026-07-13 schema 56 皮肤清点](reference_skin_schema56_inventory_20260713.md) — 只读取证、失效类型与 Realm mtime 误判。
@@ -35,7 +35,7 @@
 
 ## 构建、存储与产品面参考
 
-- [构建与测试](reference_build_and_test.md) — 开发磁盘、占用句柄下的同卷目录归并、缓存清理后的源码/依赖重建、宿主deps/satellite所有权与空ENV、TRX跳过计数、音轨跳时/桌面GC、普通/回放Player取景及converted/stored身份、OSR录制收尾/零计数省略、同一步准时输入、初始关闭内门与静态纹理、ruleset共享源码、formatter与输出锁、作者组合异常修正、品牌贴图、退休fixture与混合谱包/Realm快照、内存峰值、许可/审计误判、公钥导入及MSBuild元数据。
+- [构建与测试](reference_build_and_test.md) — 开发磁盘、占用句柄下的同卷目录归并、缓存清理后的源码/依赖重建、宿主deps/satellite所有权与空ENV、TRX跳过计数、音轨跳时/桌面GC、普通/回放Player取景及converted/stored身份、OSR录制收尾/零计数省略、步骤捕获与完整计分键、同一步准时输入、初始关闭内门与静态纹理、ruleset共享源码、formatter与输出锁、作者组合异常修正、品牌贴图、退休fixture与混合谱包/Realm快照、内存峰值、许可/审计误判、公钥导入及MSBuild元数据。
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱库路径身份与历史保全](reference_filesystem_library_identity.md) — 同内容不同目录、失效与物删分离、多文件改名、重复素材枚举与增量查询放大器。
 - [谱面构成过滤](reference_bms_composition_filter.md) — 单轨上限、共享额度、零宽入口及无解条件。

@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-10-29（Omni33 DP等级/Mods布局已私下交付.v26102901）
+> 最后核对：2026-10-29（Omni停止自动推进；区分源码、候选与实际交付）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -15,7 +15,7 @@ Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，具
 
 游玩判定/结果及性能取[10月19日深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)；设备入口、输入时间、轴用途、长皿与校准接续取[10月21日输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)。前台帧时间与实体设备仍待验收。
 
-Lighting Model Skin Omni Until 33已私下交付.v26102901，最低源码仍f6997e96；已按前版重编/重启者可直接导入。33 DP原等级位置与Mods避让已验，保留Classic十一档、此前框体修正与默认33。两页取消、保留OMS原界面；Hi-Speed计算版本1已实现，新候选检查中；整体原版数学/时序及字体仍继续，当前证据取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。原HDD保全，PageAPI及设备/发行门、私下分享边界保持。
+Lighting Model Skin Omni Until 33最新私下交付仍为.v26102901；Hi-Speed版本1与CURRENT格式已提交，新候选完成软件核验但尚未交付。2026-10-29按用户要求停止自动推进，完整形态未完成。两页取消并保留OMS原界面，PageAPI及原产品/设备/发行门保持；当前状态取[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)，保留范围取[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。
 
 玩家直接登录固定OMSIR，保存后新局上传；新闻 / 帮助 / 排行 / 玩家沿原生页面。谱面列表先选模式：BMS 仅 Ginger Rush / 616，osu!mania 仅 Sayobot，恢复上次 BMS 来源；紧凑筛选、原生卡片和各来源阅读状态保持。正常OMS窗口的lazer体验仍待签收，隔离内容宽度检查不代签；源码 / 软件及剩余门取[P3-IR状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。社交后续，旧ppy关闭；Phase1.x原门保持。
 
@@ -51,7 +51,7 @@ Lighting Model Skin Omni Until 33已私下交付.v26102901，最低源码仍f699
 
 ## 最近一次验证
 
-2026-10-28 Classic正式包/CRC与同包软件游玩、真实回放及独立DP长文字通过，代表图已审看；02已生成，旧00/01保留。来源f6997e96及必要构建/回归沿原身份，具体计数、私有夹具修正和历史失败取[P1-A记录](../subline/P1-A/CHANGELOG.md#2026-10-28classic11局内选择与原图面板准备)，不提升原版数学/时序、设备或发行状态。
+2026-10-29 Hi-Speed相关回归、候选正式包与隔离原生软件核验已闭合，来源、具名失败和范围只取[P1-A记录](../subline/P1-A/CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)。候选未交付，自动推进已停止；没有新增用户正常窗口、原机完整数学/时序、实体设备或发行签收。
 
 2026-10-11转谱补算、Debug读取及旧失败对照保留原日期，范围与未验项取[P1-H](../subline/P1-H/DEVELOPMENT_STATUS.md#最近一次验证)。
 
@@ -67,6 +67,6 @@ Lighting Model Skin Omni Until 33已私下交付.v26102901，最低源码仍f699
 
 ## 文档治理验证
 
-2026-10-27完成外置目录归并和存储约束回写，目录/包完整性、辅助脚本语法、文档及总工作区链接检查通过，范围见[归并记录](CHANGELOG.md#2026-10-27oms外置开发目录归并)；产品、生产与人工证据日期保持。10月25日跨线核对取[前次记录](CHANGELOG.md#2026-10-25全工作区复核与遗漏状态回写)。
+2026-10-29完成Omni停止推进后的专项收尾：复核干净工作区、最近实现提交与既有验证回执，修正候选“检查中”等过期状态并补充诊断记忆；没有新功能开发、出包或恢复自动执行，范围见[本轮记录](CHANGELOG.md#2026-10-29omni进度与文档记忆收尾同步)。外置目录归并及旧证据保留原日期与[身份](CHANGELOG.md#2026-10-27oms外置开发目录归并)，治理不提升产品验收。
 
 开发存储继续遵守 [AGENTS](../../AGENTS.md#开发磁盘约束)。旧系统盘产物回收和 Codex 全局迁移未完成，不能因文档检查通过而宣称已释放或零增长；待办保留在 [PLAN](DEVELOPMENT_PLAN.md#改动验收矩阵)。

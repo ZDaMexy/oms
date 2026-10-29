@@ -1,6 +1,6 @@
 # Omni gameplay 增量与未使用素材审计（2026-10-26）
 
-10月26日首轮基线为干净 `master@008f7a4998cd6e332f452519bd1719daed258910`，fetch后与origin一致。工作范围为客户端只读显示、独立作者包和原版参照，不涉及网络端点或正式玩家数据。当前交付与剩余门由[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)维护；此前Start、挡板、LIFT和甩盘证据仍取[原记录](OMNI_GAMEPLAY_CONTROLS_20261025.md)。
+10月26日首轮基线为干净 `master@008f7a4998cd6e332f452519bd1719daed258910`，fetch后与origin一致。工作范围为客户端只读显示、独立作者包和原版参照，不涉及网络端点或正式玩家数据。当前交付、执行状态与剩余门由[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)维护；本文保留各日期实施/审计范围，不另立当前自动计划。此前Start、挡板、LIFT和甩盘证据仍取[原记录](OMNI_GAMEPLAY_CONTROLS_20261025.md)。
 
 2026-10-27存储归整后，下文历史`E:\...`证据路径按[归并表](../mainline/CHANGELOG.md#2026-10-27oms外置开发目录归并)读取：素材/独立参照在`E:\OMS-Development\sources/`，其余九个证据目录在`evidence/`，原目录名和内部相对路径保持。原命令、来源日期与验证身份不改写。
 

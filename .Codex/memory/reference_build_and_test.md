@@ -12,6 +12,8 @@ metadata:
 
 ## 测试宿主与产物
 
+- TestScene构建步骤时，把尚未由AddStep赋值的字段传给capture helper，捕获的是构建时旧值；之后执行赋值不会追溯更新预期。预期模式应取已固定scenario或执行期委托，保留真实模式断言。调速夹具只解析白/黑键还不足以演奏实际谱面，须按全部真实计分lane解析binding；不能为了通过删掉第7键音符。私有原失败与修后范围见[P1-A收尾记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)。
+
 - OSR往返的`Statistics`不能按字典键集合直接等同：生产`LegacyReplaySoloScoreInfo.FromScore`明确省略零计数。比较两侧所有key并集的实际次数，缺项按该格式的0计，同时保留EX/Combo/Clear/读谱及真实Replay核对；不能删除非零项或修改解码成绩迎合断言。私有整曲失败及修正取[P1-A实谱记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29omni实谱整曲与回放)。
 
 - `BmsReplayRecorder`在`EndRecording()`才把读谱timeline回写ScoreInfo；开场直接检查该字段为空不能判为录制丢失。实际验收应在自然开始后产生真实输入、自然Results后读取，再由ScoreManager导出实际OSR核对；保留过早读取的失败，见[CURRENT修正记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29current-hi-speed前导零)。

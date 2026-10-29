@@ -1,4 +1,4 @@
-# 静线机台底板与跨拓扑 scene（2026-09-12）
+# 机台底板、跨拓扑 scene 与原版素材诊断
 
 当前进度与验收只读 [P1-A STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)，图像及对应迭代见[原图索引](../../doc_md/other/references/simple-1p-20260912/README.md)。以下保留截图暴露的诊断因果，不把历次检查合并成当前验收。
 
@@ -139,4 +139,4 @@ Time Freeze先核实际`-patchcfgpath`和最终日志，不能只看默认配置
 
 `BindableDouble`默认持久化字符串会舍入内部精度。需要round-trip时应覆写虚方法`ToString(string?, IFormatProvider?)`，不是不存在的单参数重载；自定义子类还必须覆写`CreateInstance()`返回同一运行时子类，否则framework的`GetBoundCopy()`会在载入配置时拒绝。显示两位小数与保存精度分开，尤其不能让保存后的值跨过Classic选档中点；合同取[P1-A读谱](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代)。
 
-原字体先看SFNT签名，不按扩展名筛掉.bin：已核源有一个三face TTC采用.bin。原模块字族名用CP932，UTF-8/UTF-16或字体文件名搜索会漏；字族/路径出现、指针邻域、初始化与实际曲名/作者绑定是不同证据。不能据此先选“相近字体”，边界取[P1-A记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29读谱夹具快照与原字体来源)。
+原字体先看SFNT签名，不按扩展名筛掉.bin：已核源有一个三face TTC采用.bin。原模块字族名用CP932，UTF-8/UTF-16或字体文件名搜索会漏；字族/路径出现、指针邻域、初始化与实际曲名/作者绑定是不同证据。字体字段还须核对所属资源，视频列表的artist字段不是gameplay文字槽。独立进程GDI/SFNT表比对可校准face识别，不能代签HDD实际绘制绑定或字体已应用；不得据此先选“相近字体”，边界取[P1-A收尾记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)。
