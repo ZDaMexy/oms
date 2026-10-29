@@ -1,7 +1,7 @@
 """Original gameplay controls on read-only OMS speed and cover projections.
 
-The source AFP/GEO data establish artwork and geometry. They do not supply an
-IIDX speed algorithm: the normal ladder explicitly spans OMS's existing 1..20.
+The source AFP/GEO data establish artwork and geometry. The actual ruleset owns
+the speed calculation; the Normal ladder follows its selected 1..20 preset.
 Score SUB TARGET is a fallback for an unavailable primary, never a third bar.
 """
 from __future__ import annotations
@@ -344,6 +344,38 @@ def _readout_row(scene, identifier, value_source, assets, *, stage_width, stage_
     return row
 
 
+def upgrade_hi_speed_readouts(scene):
+    """Add the native BMS multiplier while retaining the existing parameter where unavailable."""
+    result = copy.deepcopy(scene)
+    roots = [result["root"], *(item["root"] for item in result.get("templates", []))]
+    nodes = {item["id"]: item for root in roots for item in walk(root)}
+    parents = {child["id"]: item for item in nodes.values() for child in item.get("children", [])}
+    upgraded = []
+    for binding in list(result["bindings"]):
+        if binding["property"] != "text" or binding["source"] != "scroll.speed":
+            continue
+        target = binding["target"]
+        if any(item["target"] == target and item["source"] == "scroll.hi-speed-available" for item in result.get("variants", [])):
+            continue
+        require(target in parents and nodes[target]["type"] == "text", "A Hi-Speed readout needs its existing container and text owner")
+        require(not any(item["target"] == target for item in result["tracks"]), "A directly animated Hi-Speed text needs its animation ownership qualified before cloning")
+        require(sum(item["target"] == target for item in result["bindings"]) == 1
+                and not any(item.get("target") == target for key in ("variants", "stateMachines") for item in result.get(key, [])),
+                "A Hi-Speed text with other direct controllers needs its ownership qualified before cloning")
+        native_id = target + ".actual"
+        require(native_id not in nodes, "The native Hi-Speed readout identity is already occupied")
+        native = copy.deepcopy(nodes[target])
+        native["id"] = native_id
+        parents[target]["children"].append(native)
+        result["bindings"].append({**binding, "id": binding["id"] + ".actual", "target": native_id, "source": "scroll.hi-speed"})
+        for identifier, default, selected in ((target, True, False), (native_id, False, True)):
+            result["variants"].append({"id": identifier + ".hs-availability", "target": identifier,
+                "property": "visible", "source": "scroll.hi-speed-available", "default": default,
+                "cases": [{"id": identifier + ".hs-availability.true", "key": "true", "value": selected}]})
+        upgraded.append({"legacy": target, "native": native_id})
+    return result, {"readouts": upgraded, "scope": "Native BMS multiplier when provided; original parameter and art retained for mania/legacy. Tween clocks unchanged."}
+
+
 def build_controls(reference, assets, *, stage_geometry):
     scene = empty_scene("gc.root")
     mapping = assets["mapping"]
@@ -400,7 +432,7 @@ def build_controls(reference, assets, *, stage_geometry):
                 current_right, current_bottom = max(item[0] + item[2] for item in digits), max(item[1] + item[3] for item in digits)
                 value = _centered_text(selected["id"] + ".value", (current_left + current_right) / 2,
                                        (current_top + current_bottom) / 2, format="fixed-2")
-                _bind(scene, value["id"], "text", "scroll.speed")
+                _bind(scene, value["id"], "text", "scroll.hi-speed")
                 selected["children"].append(value)
                 actual_label = [item for item in source["shapes"] if item["region"] == "tx_current_hispeed"]
                 if actual_label:

@@ -50,8 +50,12 @@ namespace osu.Game.Rulesets.Bms.UI
 
             // Explicit changes in settings reach the current root. Runtime edits only persist at the end of a
             // complete adjustment, including Floating's cover/speed compensation.
-            trackReadingSetting<BmsHiSpeedMode>(BmsRulesetSetting.HiSpeedMode, (state, value) => state with { HiSpeedMode = value });
-            trackReadingSetting<double>(BmsRulesetSetting.ScrollSpeed, (state, value) => state with { NormalHiSpeed = value });
+            trackReadingSetting<BmsHiSpeedMode>(BmsRulesetSetting.HiSpeedMode, (state, value) => state with
+            {
+                HiSpeedMode = value,
+                NormalHiSpeedMultiplier = value == BmsHiSpeedMode.Normal ? null : state.NormalHiSpeedMultiplier,
+            });
+            trackReadingSetting<double>(BmsRulesetSetting.ScrollSpeed, (state, value) => state with { NormalHiSpeed = value, NormalHiSpeedMultiplier = null });
             trackReadingSetting<double>(BmsRulesetSetting.FloatingHiSpeed, (state, value) => state with { FloatingHiSpeed = value });
             trackReadingSetting<double>(BmsRulesetSetting.ClassicHiSpeed, (state, value) => state with { ClassicHiSpeed = value });
             trackReadingSetting<bool>(BmsRulesetSetting.SuddenEnabled, (state, value) => state with { SuddenEnabled = value });
@@ -90,11 +94,22 @@ namespace osu.Game.Rulesets.Bms.UI
                 configHiSpeedMode.Value, configNormalHiSpeed.Value, configFloatingHiSpeed.Value, configClassicHiSpeed.Value,
                 getSuddenMod() != null, getHiddenMod() != null, getLiftMod() != null, readingLaneCoversEnabled,
                 sudden.CoverPercent.Value, hidden.CoverPercent.Value, lift.LiftUnits.Value,
-                sudden.CoverOpacity.Value, hidden.CoverOpacity.Value);
+                sudden.CoverOpacity.Value, hidden.CoverOpacity.Value,
+                readingCalculationVersion == 0 ? null : normalHiSpeedMultiplier);
         }
 
         private void applyReadingSettings(BmsReadingSettingsSnapshot state, bool resetAdjustment = true)
         {
+            if (readingCalculationVersion != 0)
+            {
+                if (state.NormalHiSpeedMultiplier is double multiplier)
+                    normalHiSpeedMultiplier = multiplier;
+                else if (!readingSettingsInitialised || configNormalHiSpeed.Value != state.NormalHiSpeed
+                         || state.HiSpeedMode == BmsHiSpeedMode.Normal && configHiSpeedMode.Value != state.HiSpeedMode)
+                    normalHiSpeedMultiplier = BmsHiSpeedRuntimeCalculator.GetNormalMultiplier(state.NormalHiSpeed,
+                        readingSettingsInitialised ? getCurrentReadingBeatLength() : initialBeatLength,
+                        readingSettingsInitialised ? getNormalPresetVisibleRatio() : 1);
+            }
             configNormalHiSpeed.Value = state.NormalHiSpeed;
             configFloatingHiSpeed.Value = state.FloatingHiSpeed;
             configClassicHiSpeed.Value = state.ClassicHiSpeed;
@@ -182,13 +197,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 return;
 
             BmsScoreInfoData? data = score!.ScoreInfo.GetRulesetData<BmsScoreInfoData>();
-            if (data?.ReadingSettingsTimeline != null && data.ReadingSettings == null)
-                throw new InvalidDataException("A BMS replay reading-settings timeline requires its initial snapshot.");
-
             if (data?.ReadingSettings is BmsReadingSettingsSnapshot state)
             {
-                state.Validate();
-                data.ReadingSettingsTimeline?.Validate();
                 replayReadingSettingsInitial = state;
                 replayReadingSettingsTimeline = data.ReadingSettingsTimeline;
                 updateReplayReadingSettings(FrameStableClock.CurrentTime);
@@ -204,6 +214,27 @@ namespace osu.Game.Rulesets.Bms.UI
                     LaneCoversEnabled = true,
                 });
             }
+        }
+
+        private static void validateReplayReadingSettings(Score score, int calculationVersion)
+        {
+            BmsScoreInfoData? data = score.ScoreInfo.GetRulesetData<BmsScoreInfoData>();
+            if (data?.ReadingSettingsTimeline != null && data.ReadingSettings == null)
+                throw new InvalidDataException("A BMS replay reading-settings timeline requires its initial snapshot.");
+            if (data?.ReadingSettings is not BmsReadingSettingsSnapshot state)
+            {
+                if (calculationVersion != 0)
+                    throw new InvalidDataException("A native BMS replay requires its initial reading snapshot.");
+                return;
+            }
+            state.Validate();
+            data.ReadingSettingsTimeline?.Validate();
+            if (calculationVersion == 0)
+                return;
+            if (state.NormalHiSpeedMultiplier == null)
+                throw new InvalidDataException("A native BMS replay requires the resolved Normal Hi-Speed multiplier.");
+            if (data.ReadingSettingsTimeline?.Changes.Exists(change => change.Settings.NormalHiSpeedMultiplier == null) == true)
+                throw new InvalidDataException("A native BMS reading adjustment requires the resolved Normal Hi-Speed multiplier.");
         }
 
         private void updateReplayReadingSettings(double time)

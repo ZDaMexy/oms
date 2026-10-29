@@ -15,7 +15,7 @@ Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，具
 
 游玩判定/结果及性能取[10月19日深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)；设备入口、输入时间、轴用途、长皿与校准接续取[10月21日输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)。前台帧时间与实体设备仍待验收。
 
-Lighting Model Skin Omni Until 33已私下交付.v26102901，最低源码仍f6997e96；已按前版重编/重启者可直接导入。33 DP原等级位置与Mods避让已验，保留Classic十一档、此前框体修正与默认33。两页取消、保留OMS原界面；原版数学/时序及字体仍继续，当前证据取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。原HDD保全，PageAPI及设备/发行门、私下分享边界保持。
+Lighting Model Skin Omni Until 33已私下交付.v26102901，最低源码仍f6997e96；已按前版重编/重启者可直接导入。33 DP原等级位置与Mods避让已验，保留Classic十一档、此前框体修正与默认33。两页取消、保留OMS原界面；Hi-Speed计算版本1已实现，新候选检查中；整体原版数学/时序及字体仍继续，当前证据取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，后续沿[作品计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。原HDD保全，PageAPI及设备/发行门、私下分享边界保持。
 
 玩家直接登录固定OMSIR，保存后新局上传；新闻 / 帮助 / 排行 / 玩家沿原生页面。谱面列表先选模式：BMS 仅 Ginger Rush / 616，osu!mania 仅 Sayobot，恢复上次 BMS 来源；紧凑筛选、原生卡片和各来源阅读状态保持。正常OMS窗口的lazer体验仍待签收，隔离内容宽度检查不代签；源码 / 软件及剩余门取[P3-IR状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。社交后续，旧ppy关闭；Phase1.x原门保持。
 

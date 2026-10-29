@@ -202,7 +202,8 @@ namespace osu.Game.Skinning.Gameplay
             var lift = new GameplaySkinLiftState((scalar0 & 2) != 0, BitConverter.Int64BitsToDouble(integral1),
                 BitConverter.Int64BitsToDouble(offsetBits), (scalar0 & 4) != 0);
             var adjustment = new GameplaySkinAdjustmentState((scalar0 & 8) != 0, (scalar0 & 16) != 0,
-                (GameplaySkinHiSpeedMode)((scalar0 >> 7) & 3), statistics.Perfect, rect.X, rect.Y, (scalar0 & 32) != 0, (scalar0 & 64) != 0);
+                (GameplaySkinHiSpeedMode)((scalar0 >> 7) & 3), statistics.Perfect, rect.X, rect.Y, (scalar0 & 32) != 0, (scalar0 & 64) != 0,
+                (scalar0 & 512) != 0 ? rect.Width : null);
             return new GameplaySkinTimingStateSnapshot(number0, integral0, number1, (scalar0 & 1) != 0, number2, number3, number4, lift, timingStartTime,
                 preparation, arrivalCueFadeStartTime, adjustment);
         }
@@ -500,7 +501,8 @@ namespace osu.Game.Skinning.Gameplay
                 integral1: BitConverter.DoubleToInt64Bits(state.LiftState.Units),
                 scalar0: (state.IsStopped ? 1 : 0) | (state.LiftState.IsAvailable ? 2 : 0) | (state.LiftState.Reversed ? 4 : 0)
                          | (adjustment.IsAvailable ? 8 : 0) | (adjustment.Adjusting ? 16 : 0)
-                         | (adjustment.SuddenActive ? 32 : 0) | (adjustment.HiddenActive ? 64 : 0) | ((int)adjustment.Mode << 7),
+                         | (adjustment.SuddenActive ? 32 : 0) | (adjustment.HiddenActive ? 64 : 0) | ((int)adjustment.Mode << 7)
+                         | (adjustment.ActualHiSpeed != null ? 512 : 0),
                 scalar1: unchecked((int)offsetBits),
                 scalar2: unchecked((int)(offsetBits >> 32)),
                 number0: state.Beat,
@@ -508,7 +510,7 @@ namespace osu.Game.Skinning.Gameplay
                 number2: state.ScrollMultiplier,
                 number3: state.Progress,
                 number4: state.ScrollSpeed,
-                rect: GameplaySkinLayoutRect.Create(adjustment.SuddenUnits, adjustment.HiddenUnits, 1, 1),
+                rect: GameplaySkinLayoutRect.Create(adjustment.SuddenUnits, adjustment.HiddenUnits, adjustment.ActualHiSpeed ?? 1, 1),
                 statistics: new GameplaySkinJudgementStatistics(adjustment.GreenNumber, 0, 0, 0, 0, 0, 0),
                 timingStartTime: state.StartTime, preparation: state.Preparation, arrivalCueFadeStartTime: state.ArrivalCueFadeStartTime);
         }

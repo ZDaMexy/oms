@@ -23,9 +23,10 @@ namespace osu.Game.Skinning.Gameplay
         public float HiddenUnits { get; }
         public bool SuddenActive { get; }
         public bool HiddenActive { get; }
+        public float? ActualHiSpeed { get; }
 
         public GameplaySkinAdjustmentState(bool isAvailable, bool adjusting, GameplaySkinHiSpeedMode mode, int greenNumber,
-                                          float suddenUnits, float hiddenUnits, bool suddenActive, bool hiddenActive)
+                                          float suddenUnits, float hiddenUnits, bool suddenActive, bool hiddenActive, float? actualHiSpeed = null)
         {
             if (!Enum.IsDefined(mode))
                 throw new ArgumentOutOfRangeException(nameof(mode));
@@ -36,8 +37,10 @@ namespace osu.Game.Skinning.Gameplay
                 throw new ArgumentOutOfRangeException(nameof(hiddenUnits));
             if (isAvailable && mode == GameplaySkinHiSpeedMode.Unspecified)
                 throw new ArgumentException("An available adjustment requires its actual speed mode.");
+            if (actualHiSpeed is float speed && (!float.IsFinite(speed) || speed <= 0))
+                throw new ArgumentOutOfRangeException(nameof(actualHiSpeed));
             if (!isAvailable && (adjusting || mode != GameplaySkinHiSpeedMode.Unspecified || greenNumber != 0
-                                 || suddenUnits != 0 || hiddenUnits != 0 || suddenActive || hiddenActive))
+                                 || suddenUnits != 0 || hiddenUnits != 0 || suddenActive || hiddenActive || actualHiSpeed != null))
                 throw new ArgumentException("An unavailable adjustment cannot carry live values.");
             IsAvailable = isAvailable;
             Adjusting = adjusting;
@@ -47,6 +50,7 @@ namespace osu.Game.Skinning.Gameplay
             HiddenUnits = hiddenUnits;
             SuddenActive = suddenActive;
             HiddenActive = hiddenActive;
+            ActualHiSpeed = actualHiSpeed;
         }
     }
 

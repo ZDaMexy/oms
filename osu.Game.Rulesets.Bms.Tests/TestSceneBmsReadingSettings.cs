@@ -2,6 +2,7 @@
 
 using System;
 using System.Linq;
+using System.Reflection;
 using NUnit.Framework;
 using oms.Input;
 using osu.Framework.Graphics;
@@ -73,10 +74,9 @@ namespace osu.Game.Rulesets.Bms.Tests
             });
             AddStep("the native adjustment changes cover and compensating speed together", () =>
             {
-                // At fixed geometry and cover, visible time is C / HS. Rounding the ideal Floating HS to the
-                // configured 0.01 grid permits |time error| <= targetTime * halfStep / actualHS.
-                double timeTolerance = initialVisibleTime * BmsRulesetConfigManager.FLOATING_HI_SPEED_PRECISION
-                    / (2 * renderer.SelectedHiSpeed.Value) + 0.000001;
+                // Source float32 operation boundaries limit the refloat interval's arithmetic precision;
+                // HUD decimal formatting does not quantise the stored multiplier.
+                double timeTolerance = (float.BitIncrement((float)initialVisibleTime) - (float)initialVisibleTime) * 8;
                 Assert.Multiple(() =>
                 {
                     Assert.That(renderer.SuddenUnits, Is.EqualTo(initial.SuddenUnits + 20));
@@ -390,7 +390,7 @@ namespace osu.Game.Rulesets.Bms.Tests
             prepare(initial);
             loadGame();
             AddStep("record with the actual native recorder", () => renderer.SetRecordTarget(recorded = new Score()));
-            AddAssert("recording stores the opening reading settings", () => recorded.ScoreInfo.GetRulesetData<BmsScoreInfoData>()?.ReadingSettings,
+            AddAssert("recording stores the opening reading preferences", () => readingPreferences(recorded.ScoreInfo.GetRulesetData<BmsScoreInfoData>()!.ReadingSettings!.Value),
                 () => Is.EqualTo(initial));
             AddStep("change the current play then finish recording", () =>
             {
@@ -398,7 +398,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(renderer.AdjustFromScratch(scratch(80)), Is.True);
                 renderer.SetRecordTarget(null!);
             });
-            AddAssert("later adjustments do not mutate the opening snapshot", () => recorded.ScoreInfo.GetRulesetData<BmsScoreInfoData>()?.ReadingSettings,
+            AddAssert("later adjustments do not mutate the opening preferences", () => readingPreferences(recorded.ScoreInfo.GetRulesetData<BmsScoreInfoData>()!.ReadingSettings!.Value),
                 () => Is.EqualTo(initial));
             AddStep("set unrelated personal values and load that recording", () =>
             {
@@ -424,8 +424,8 @@ namespace osu.Game.Rulesets.Bms.Tests
                 renderer.SetReplayScore(generated = autoplay.CreateScoreFromReplayData(beatmap, new Mod[] { autoplay }));
             });
             AddUntilStep("generated autoplay is loaded", () => renderer.HasReplayLoaded.Value);
-            AddAssert("generated autoplay explicitly uses the current legacy reading calculation", () => generated.ScoreInfo.GetRulesetData<BmsScoreInfoData>()?.ReadingCalculationVersion,
-                () => Is.EqualTo(0));
+            AddAssert("generated autoplay explicitly uses the current native reading calculation", () => generated.ScoreInfo.GetRulesetData<BmsScoreInfoData>()?.ReadingCalculationVersion,
+                () => Is.EqualTo(1));
             AddStep("current-play adjustment remains available", () =>
             {
                 renderer.SetAdjustmentHeld(true);
@@ -435,7 +435,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                     Assert.That(renderer.SuddenUnits, Is.EqualTo(initial.SuddenUnits + 20));
                     Assert.That(config.Get<float>(BmsRulesetSetting.SuddenUnits), Is.EqualTo(renderer.SuddenUnits));
                     Assert.That(config.Get<double>(BmsRulesetSetting.FloatingHiSpeed), Is.EqualTo(renderer.SelectedHiSpeed.Value));
-                    Assert.That(generated.ScoreInfo.GetRulesetData<BmsScoreInfoData>()!.ReadingCalculationVersion, Is.EqualTo(0));
+                    Assert.That(generated.ScoreInfo.GetRulesetData<BmsScoreInfoData>()!.ReadingCalculationVersion, Is.EqualTo(1));
                 });
             });
         }
@@ -487,28 +487,35 @@ namespace osu.Game.Rulesets.Bms.Tests
         private void retireGame()
         {
             GameplaySkinLayoutRevisionOwner? previousOwner = null;
+            DrawableBmsRuleset? previousRenderer = null;
             AddStep("retire the previous gameplay tree", () =>
             {
+                previousRenderer = renderer;
                 previousOwner = renderer?.LayoutProvider.RevisionOwner;
                 Clear();
                 // This fixture created the detached compatibility owner; a production PlayerLoader owns its
                 // own publication. Disposing the drawable tree alone does not retire our fixture-owned owner.
                 previousOwner?.Dispose();
             });
-            AddUntilStep("the previous gameplay publication is retired", () => previousOwner == null
-                || previousOwner.IsDisposed && previousOwner.CurrentPublication == null);
+            AddUntilStep("the previous gameplay tree and publication are retired", () =>
+                (previousRenderer == null || (bool)typeof(Drawable).GetProperty("IsDisposed", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(previousRenderer)!)
+                && (previousOwner == null || previousOwner.IsDisposed && previousOwner.CurrentPublication == null));
         }
 
         private void recreateConfigAndGame()
         {
+            BmsReadingSettingsSnapshot beforeRetire = default;
+            AddStep("capture persisted preferences before retiring the old game", () => beforeRetire = config.CaptureReadingSettings());
             retireGame();
             AddStep("flush and recreate the configuration from the isolated database", () =>
             {
                 bool remember = config.Get<bool>(BmsRulesetSetting.RememberReadingChanges);
+                Assert.That(config.CaptureReadingSettings(), Is.EqualTo(beforeRetire), "Retiring gameplay cannot mutate reading preferences.");
                 config.Save();
                 config.Dispose();
                 config = new BmsRulesetConfigManager(new SettingsStore(Realm), new BmsRuleset().RulesetInfo);
                 Assert.That(config.Get<bool>(BmsRulesetSetting.RememberReadingChanges), Is.EqualTo(remember));
+                Assert.That(config.CaptureReadingSettings(), Is.EqualTo(beforeRetire), "Saving and recreating the manager must preserve the complete reading preferences.");
             });
             loadGame();
         }
@@ -580,6 +587,9 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         private static OmsAxisMotion scratch(double delta)
             => new OmsAxisMotion(OmsAction.Key1P_Scratch, OmsAxisMode.RelativeMotion, delta, "reading-settings-test", null, 50);
+
+        private static BmsReadingSettingsSnapshot readingPreferences(BmsReadingSettingsSnapshot value)
+            => value with { NormalHiSpeedMultiplier = null };
 
         private sealed class ReadingConfigCache : IRulesetConfigCache
         {

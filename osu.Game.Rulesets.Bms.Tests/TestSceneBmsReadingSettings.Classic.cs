@@ -70,11 +70,13 @@ namespace osu.Game.Rulesets.Bms.Tests
                 ((BmsReplayRecorder)renderer.GameplayInputManager!.Recorder!).RecordFrame(true);
                 renderer.SetRecordTarget(null!);
                 var data = score.ScoreInfo.GetRulesetData<BmsScoreInfoData>()!;
-                Assert.That(data.ReadingCalculationVersion, Is.EqualTo(0));
-                Assert.That(data.ReadingSettings, Is.EqualTo(initial));
+                Assert.That(data.ReadingCalculationVersion, Is.EqualTo(1));
+                Assert.That(readingPreferences(data.ReadingSettings!.Value), Is.EqualTo(initial));
+                Assert.That(data.ReadingSettings.Value.NormalHiSpeedMultiplier, Is.EqualTo(2.9126275380452475));
                 Assert.That(data.ReadingSettingsTimeline!.Changes.Count, Is.EqualTo(1));
                 Assert.That(data.ReadingSettingsTimeline.Changes.Single().Time, Is.EqualTo(1500));
-                Assert.That(data.ReadingSettingsTimeline.Changes.Single().Settings, Is.EqualTo(expected));
+                Assert.That(readingPreferences(data.ReadingSettingsTimeline.Changes.Single().Settings), Is.EqualTo(expected));
+                Assert.That(data.ReadingSettingsTimeline.Changes.Single().Settings.NormalHiSpeedMultiplier, Is.EqualTo(data.ReadingSettings.Value.NormalHiSpeedMultiplier));
                 runtimeSpeed.UnbindAll();
                 storedSpeed.UnbindAll();
             });

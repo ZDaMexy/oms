@@ -1,6 +1,5 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 
-using System;
 using osu.Framework.Graphics;
 using osu.Framework.Localisation;
 using osu.Game.Graphics.UserInterfaceV2;
@@ -23,7 +22,7 @@ namespace osu.Game.Rulesets.Bms
 
             var hiSpeedSlider = new FormSliderBar<double>
             {
-                HintText = "括号内为基础下落时间（ms）。绿字（Green Number）在游玩中按实际 BPM、Sudden、Hidden 和 Lift 的可见区域显示。",
+                HintText = "Normal 选择绿字预设档位；Floating 和 Classic 选择 Hi-Speed 倍率。游玩中的绿字（Green Number）按实际 BPM、Sudden、Hidden 和 Lift 的可见区域显示。",
                 Current = normalHiSpeed,
                 LabelFormat = value => formatHiSpeedSettingValue(hiSpeedMode.Value, value),
             };
@@ -52,10 +51,10 @@ namespace osu.Game.Rulesets.Bms
                 new SettingsItemV2(new FormEnumDropdown<BmsHiSpeedMode>
                 {
                     Caption = "Hi-Speed 模式",
-                    HintText = "Normal：基础定速模式，直接按数值调速。\n"
-                               + "Floating：以谱面初始 BPM 为基准；调整已启用的 Sudden／Hidden 时按当前 BPM 和可见区域补偿 Hi-Speed。谱面变速本身不会自动锁定绿字。\n"
+                    HintText = "Normal：20 个绿字预设档位；在游玩中选档时按当前速度和可见区域确定倍率。\n"
+                               + "Floating：支持连续倍率和转盘细调；调整已启用的 Sudden／Hidden 时按当前可见区域补偿 Hi-Speed。谱面变速本身不会自动锁定绿字。\n"
                                + "Classic：游玩中按 1.00、1.50、2.00、2.25、2.50、2.75、3.00、3.25、3.50、3.75、4.00 共 11 档切换；设置中的已有数值仍会保留。\n\n"
-                               + "游玩中按住 Start 打开调速面板，白键降低、黑键提高；按住 Start 再按‘游玩：挡板／调速’绑定键（EFFECT）可从 Normal 或 Classic 切至 Floating，再按一次返回。",
+                               + "游玩中按住 Start 打开调速面板，白键降低、黑键提高；按住 Start 再按‘游玩：挡板／调速’绑定键可从 Normal 或 Classic 切至 Floating，再按一次返回最近档位。",
                     Current = hiSpeedMode,
                 }),
                 new SettingsItemV2(hiSpeedSlider),
@@ -118,9 +117,8 @@ namespace osu.Game.Rulesets.Bms
             });
 
         private static string formatHiSpeedSettingValue(BmsHiSpeedMode mode, double value)
-        {
-            int fallTimeMs = (int)Math.Round(DrawableBmsRuleset.ComputeScrollTime(value), MidpointRounding.AwayFromZero);
-            return $"{mode.FormatValue(value)} ({fallTimeMs}ms)";
-        }
+            => mode == BmsHiSpeedMode.Normal
+                ? $"{BmsHiSpeedRuntimeCalculator.GetNormalLevel(value)}（无遮挡绿字 {BmsHiSpeedRuntimeCalculator.GetNormalGreenNumber(value)}）"
+                : mode.FormatValue(value);
     }
 }

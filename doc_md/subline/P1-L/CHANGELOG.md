@@ -1,5 +1,10 @@
 # P1-L 变更日志：BMS 演出/Gimmick 谱视觉复刻
 
+## 2026-10-29：Hi-Speed计算版本分流
+
+- Normal/Floating/Classic版本1接入原单位与float32精度，版本0回放保持旧路径；已选profile/Off原生reference继续配对，积分、Auto/硬回退、判定与零/负SCROLL边界不变。实现、验证与新候选剩余门唯一取[P1-A记录](../P1-A/CHANGELOG.md#2026-10-29原生hi-speed计算版本1)，本线只同步稳定reference合同，不以旧Normal modeScale=1解释新版本。
+
+
 > 本文件记录 `P1-L` 相关变更及各自验证状态，按时间倒序排列；实现记录不自动表示通过验收。
 > 当前进度见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行规划见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
 

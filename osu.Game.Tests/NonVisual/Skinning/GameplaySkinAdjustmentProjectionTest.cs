@@ -22,6 +22,9 @@ namespace osu.Game.Tests.NonVisual.Skinning
             var inactive = new GameplaySkinAdjustmentState(true, false, GameplaySkinHiSpeedMode.Floating, 300, 350, 125, false, false);
             Assert.That(inactive.SuddenUnits, Is.EqualTo(350));
             Assert.That(inactive.HiddenUnits, Is.EqualTo(125));
+            Assert.That(inactive.ActualHiSpeed, Is.Null);
+            foreach (float value in new[] { 0, -1, float.NaN, float.PositiveInfinity })
+                Assert.Throws<ArgumentOutOfRangeException>(() => new GameplaySkinAdjustmentState(true, false, GameplaySkinHiSpeedMode.Normal, 0, 0, 0, false, false, value));
             Assert.Throws<ArgumentException>(() => new GameplaySkinAdjustmentState(false, true, GameplaySkinHiSpeedMode.Unspecified, 0, 0, 0, false, false));
             Assert.Throws<ArgumentException>(() => new GameplaySkinAdjustmentState(true, false, GameplaySkinHiSpeedMode.Unspecified, 0, 0, 0, false, false));
             Assert.Throws<ArgumentOutOfRangeException>(() => new GameplaySkinAdjustmentState(true, false, (GameplaySkinHiSpeedMode)99, 0, 0, 0, false, false));
@@ -44,7 +47,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
             {
                 foreach (bool active in new[] { false, true })
                 {
-                    var adjustment = new GameplaySkinAdjustmentState(true, active, mode, int.MaxValue, float.Epsilon, 999.1234f, active, !active);
+                    var adjustment = new GameplaySkinAdjustmentState(true, active, mode, int.MaxValue, float.Epsilon, 999.1234f, active, !active, 1.7533334f);
                     var lift = new GameplaySkinLiftState(true, 150.123456789, 0.12345678901234, true);
                     var timing = new GameplaySkinTimingStateSnapshot(3.5, 2, 150, kind == GameplaySkinEventKind.TimingStopStarted, -0.5, 0.625, 2.25,
                         lift, -500, adjustmentState: adjustment);
@@ -123,6 +126,8 @@ namespace osu.Game.Tests.NonVisual.Skinning
     public sealed partial class GameplaySkinSceneRuntimeHostTest
     {
         [TestCase("scroll.available", "true", "false")]
+        [TestCase("scroll.hi-speed-available", "true", "false")]
+        [TestCase("scroll.hi-speed", "3.125", "0")]
         [TestCase("scroll.adjusting", "true", "false")]
         [TestCase("scroll.mode", "floating", "unavailable")]
         [TestCase("scroll.green-number", "300", "0")]
@@ -139,7 +144,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
             using var host = new GameplaySkinSceneRuntimeHost(publication, stream);
             host.ProcessFrame();
             Assert.That(((SpriteText)runtime(host, "accuracy").ContentDrawable).Text.ToString(), Is.EqualTo(unavailable));
-            var adjustment = new GameplaySkinAdjustmentState(true, true, GameplaySkinHiSpeedMode.Floating, 300, 350, 125, true, false);
+            var adjustment = new GameplaySkinAdjustmentState(true, true, GameplaySkinHiSpeedMode.Floating, 300, 350, 125, true, false, 3.125f);
             GameplaySkinTimingStateSnapshot initial = publication.PreparedScene.InitialEventState.Timing;
             producer.SynchroniseTiming(0, new GameplaySkinTimingStateSnapshot(initial.Beat, initial.BarIndex, initial.Bpm, initial.IsStopped,
                 initial.ScrollMultiplier, initial.Progress, initial.ScrollSpeed, initial.LiftState, initial.StartTime, initial.Preparation,
@@ -154,6 +159,35 @@ namespace osu.Game.Tests.NonVisual.Skinning
             producer = producer.Reset(0, publication.PreparedScene.InitialEventState, GameplaySkinEventResetReason.Retry);
             host.ProcessFrame();
             Assert.That(((SpriteText)runtime(host, "accuracy").ContentDrawable).Text.ToString(), Is.EqualTo(unavailable));
+            Assert.That(host.RuntimeFaults, Is.Empty);
+            producer.Dispose();
+        }
+
+        [Test]
+        public void TestActualHiSpeedAvailabilityTracksTheProviderAtStationaryTime()
+        {
+            using Texture texture = new DummyRenderer().CreateTexture(8, 8);
+            using GameplaySkinLayoutPublication publication = adjustmentAvailabilityPublication(texture, "scroll.hi-speed-available");
+            using GameplaySkinEventStream stream = createStream(publication);
+            GameplaySkinEventProducer producer = stream.CreateProducer();
+            using var host = new GameplaySkinSceneRuntimeHost(publication, stream);
+            host.ProcessFrame();
+            Assert.That(runtime(host, "availability.probe").TransformDrawable.Alpha, Is.EqualTo(1));
+            GameplaySkinTimingStateSnapshot initial = publication.PreparedScene.InitialEventState.Timing;
+            foreach (float? actual in new float?[] { 3.125f, null, 1.75f })
+            {
+                var adjustment = new GameplaySkinAdjustmentState(true, false, GameplaySkinHiSpeedMode.Normal, 300, 0, 0, false, false, actual);
+                producer.SynchroniseTiming(0, new GameplaySkinTimingStateSnapshot(initial.Beat, initial.BarIndex, initial.Bpm, initial.IsStopped,
+                    initial.ScrollMultiplier, initial.Progress, 8, adjustmentState: adjustment));
+                host.ProcessFrame();
+                Assert.That(runtime(host, "availability.probe").TransformDrawable.Alpha, Is.EqualTo(actual == null ? 1 : 0));
+                using var late = new GameplaySkinSceneRuntimeHost(publication, stream);
+                late.ProcessFrame();
+                Assert.That(runtime(late, "availability.probe").TransformDrawable.Alpha, Is.EqualTo(actual == null ? 1 : 0));
+            }
+            producer = producer.Reset(0, publication.PreparedScene.InitialEventState, GameplaySkinEventResetReason.Retry);
+            host.ProcessFrame();
+            Assert.That(runtime(host, "availability.probe").TransformDrawable.Alpha, Is.EqualTo(1));
             Assert.That(host.RuntimeFaults, Is.Empty);
             producer.Dispose();
         }

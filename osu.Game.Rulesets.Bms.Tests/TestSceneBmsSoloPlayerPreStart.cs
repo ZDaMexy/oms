@@ -815,8 +815,11 @@ namespace osu.Game.Rulesets.Bms.Tests
                 () => Is.EqualTo(floatingSpeed - 0.5).Within(0.000001));
             AddStep("capture adjusted visible time", () => previousTime = player.DrawableBmsRuleset!.GetScrollSpeedMetrics().VisibleLaneTime);
             AddStep("press EFFECT again", () => player.GameplayInputManager!.TriggerOmsActionPressed(OmsAction.UI_LaneCoverFocus));
-            AddAssert("the same base mode returns with the adjusted scrolling speed", () => player.DrawableBmsRuleset!.HiSpeedMode.Value == initialMode
-                && Math.Abs(player.DrawableBmsRuleset.GetScrollSpeedMetrics().VisibleLaneTime - previousTime) < 1);
+            AddAssert("the same base mode returns with its nearest legal selection", () => player.DrawableBmsRuleset!.HiSpeedMode.Value == initialMode
+                && (initialMode == BmsHiSpeedMode.Normal
+                    // With two250 covers and250 Lift the edited multiplier exceeds the fastest visible preset.
+                    ? player.DrawableBmsRuleset.SelectedHiSpeed.Value == 20
+                    : Math.Abs(player.DrawableBmsRuleset.GetScrollSpeedMetrics().VisibleLaneTime - previousTime) < 1));
             AddStep("release EFFECT and Start", () =>
             {
                 player.GameplayInputManager!.TriggerOmsActionReleased(OmsAction.UI_LaneCoverFocus);

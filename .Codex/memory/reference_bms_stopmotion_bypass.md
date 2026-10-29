@@ -22,7 +22,7 @@ metadata:
 
 历史实谱诊断中 GetMostCommonBeatLength 得到 6（BPM 10000），而不是基准 BPM 132 对应的约454.5ms：STOP/极端 BPM 的时长权重与 clamp 会支配该统计。将 baseBeatLength 改成 6 来“对齐”会重现常速段挤压。
 
-BmsScrollProfile 的基准应来自 raw BPM 的 non-STOP 时长。Normal Hi-Speed 的 modeScale=1，不借 GetMostCommonBeatLength 缩放，基准132段因此可忠实；Floating/Classic 的绝对标定与反向滚动不能从 Normal 结果推断完成，进度回 P1-L。
+BmsScrollProfile的基准来自raw BPM的non-STOP时长。旧计算版本0的Normal modeScale=1；不能把这个诊断结论套到版本1的已解析倍率。原生倍率与算法reference必须配对，新旧Hi-Speed合同只取[P1-A](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代)，反向滚动不从Normal结果推断完成。
 
 读数/甩盘与本地运动不符时，先核`BmsPlayfield.ActiveScrollAlgorithm`，不要只看ruleset的base `ScrollingInfo`或重算Auto条件。On的reference与Off已经生成的ControlPoints.Multiplier可能不同，长STOP会把共享mostCommon拉成6；混用二者会让Floating/Classic压缩，或让GN在短STOP/SCROLL边界说谎。音乐TimingProfile还必须在同BPM的SCROLL点切段，保留STOP同刻新BPM与既有SCROLL；只在beatLength变化时刷新会漏这些边界。真实lane.PositionAtTime相邻观测可独立测局部时距，不能以另一个同公式指标互相佐证。
 

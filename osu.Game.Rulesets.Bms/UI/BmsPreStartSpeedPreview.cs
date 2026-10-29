@@ -63,11 +63,9 @@ namespace osu.Game.Rulesets.Bms.UI
 
             InternalChildren = previewNotes = new[]
             {
-                new PreviewNote(0, lane, keymode, LayoutSnapshot, materialSet),
-                new PreviewNote(0.5, lane, keymode, LayoutSnapshot, materialSet),
+                new PreviewNote(0, lane, keymode, LayoutSnapshot, materialSet) { Height = noteHeight },
+                new PreviewNote(0.5, lane, keymode, LayoutSnapshot, materialSet) { Height = noteHeight },
             };
-
-            this.speedMetrics.BindValueChanged(_ => updatePreviewTransforms(), true);
         }
 
         protected override void Update()
@@ -78,11 +76,6 @@ namespace osu.Game.Rulesets.Bms.UI
                 return;
 
             updatePreviewTransforms();
-        }
-
-        protected override void Dispose(bool isDisposing)
-        {
-            base.Dispose(isDisposing);
         }
 
         public void UpdateState(bool active, bool paused)
@@ -108,14 +101,14 @@ namespace osu.Game.Rulesets.Bms.UI
                 animationClock.Start();
 
             Alpha = 1;
-            updatePreviewTransforms();
         }
 
         private void updatePreviewTransforms()
         {
             double travelDuration = Math.Max(minimum_travel_duration, speedMetrics.Value.VisibleLaneTime);
             double elapsed = Math.Max(0, animationClock.CurrentTime - activationStartTime);
-            float availableHeight = DrawHeight;
+            // During parent layout and full Lift there may be no drawable interval yet.
+            float availableHeight = Math.Max(0, DrawHeight);
 
             foreach (var note in previewNotes)
             {
@@ -159,8 +152,6 @@ namespace osu.Game.Rulesets.Bms.UI
             public void ApplyProgress(float progress, float noteHeight, float availableHeight)
             {
                 Progress = progress;
-                Height = noteHeight;
-
                 float drawHeight = Math.Clamp(noteHeight * availableHeight, 0, availableHeight);
                 float endY = Math.Max(availableHeight - drawHeight, 0);
                 Y = -drawHeight + (endY + drawHeight) * progress;

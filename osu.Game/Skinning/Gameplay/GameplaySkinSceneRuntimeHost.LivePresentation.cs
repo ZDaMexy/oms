@@ -37,6 +37,7 @@ namespace osu.Game.Skinning.Gameplay
             switch (source)
             {
                 case GameplaySkinSceneBindingSource.ScrollAvailable: value = timingState.AdjustmentState.IsAvailable; return true;
+                case GameplaySkinSceneBindingSource.ScrollActualHiSpeedAvailable: value = timingState.AdjustmentState.ActualHiSpeed != null; return true;
                 case GameplaySkinSceneBindingSource.ScrollAdjusting: value = timingState.AdjustmentState.Adjusting; return true;
                 case GameplaySkinSceneBindingSource.CoverSuddenActive: value = timingState.AdjustmentState.SuddenActive; return true;
                 case GameplaySkinSceneBindingSource.CoverHiddenActive: value = timingState.AdjustmentState.HiddenActive; return true;
@@ -67,6 +68,7 @@ namespace osu.Game.Skinning.Gameplay
             switch (source)
             {
                 case GameplaySkinSceneBindingSource.ScrollGreenNumber: value = timingState.AdjustmentState.GreenNumber; return true;
+                case GameplaySkinSceneBindingSource.ScrollActualHiSpeed: value = timingState.AdjustmentState.ActualHiSpeed ?? 0; return true;
                 case GameplaySkinSceneBindingSource.CoverSuddenUnits: value = timingState.AdjustmentState.SuddenUnits; return true;
                 case GameplaySkinSceneBindingSource.CoverHiddenUnits: value = timingState.AdjustmentState.HiddenUnits; return true;
                 case GameplaySkinSceneBindingSource.TimingTime: value = sceneGameplayTime; return true;

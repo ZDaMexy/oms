@@ -25,13 +25,17 @@ namespace osu.Game.Rulesets.Bms.UI
         {
         }
 
-        public BmsReplayRecorder(Score score, BmsVisualOffsetTimeline? visualOffset, BmsReadingSettingsSnapshot? readingSettings = null)
+        public BmsReplayRecorder(Score score, BmsVisualOffsetTimeline? visualOffset, BmsReadingSettingsSnapshot? readingSettings = null, int readingCalculationVersion = 0)
             : base(score)
         {
             this.score = score;
             this.visualOffset = visualOffset;
             this.readingSettings = readingSettings;
-            BmsScoreInfoData.InitialiseNewPlay(score.ScoreInfo, readingSettings);
+            if (readingCalculationVersion is not (0 or BmsHiSpeedRuntimeCalculator.CURRENT_VERSION))
+                throw new ArgumentOutOfRangeException(nameof(readingCalculationVersion));
+            if (readingCalculationVersion != 0 && readingSettings?.NormalHiSpeedMultiplier == null)
+                throw new ArgumentException("A native reading recording requires its resolved Normal Hi-Speed multiplier.", nameof(readingSettings));
+            BmsScoreInfoData.InitialiseNewPlay(score.ScoreInfo, readingSettings, readingCalculationVersion);
         }
 
         public override void EndRecording()

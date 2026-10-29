@@ -17,6 +17,11 @@ namespace osu.Game.Rulesets.Bms.Configuration
         [JsonProperty("normal_hi_speed")]
         public double NormalHiSpeed { get; init; }
 
+        // The preset resolves to a multiplier when selected. BPM/cover changes do not reselect it.
+        // This is per-play replay state; the persistent preset remains chart-independent.
+        [JsonProperty("normal_hi_speed_multiplier", NullValueHandling = NullValueHandling.Ignore)]
+        public double? NormalHiSpeedMultiplier { get; init; }
+
         [JsonProperty("floating_hi_speed")]
         public double FloatingHiSpeed { get; init; }
 
@@ -63,10 +68,12 @@ namespace osu.Game.Rulesets.Bms.Configuration
                                           [JsonProperty("hidden_units")] float hiddenUnits,
                                           [JsonProperty("lift_units")] float liftUnits,
                                           [JsonProperty("sudden_opacity")] float suddenOpacity,
-                                          [JsonProperty("hidden_opacity")] float hiddenOpacity)
+                                          [JsonProperty("hidden_opacity")] float hiddenOpacity,
+                                          [JsonProperty("normal_hi_speed_multiplier")] double? normalHiSpeedMultiplier = null)
         {
             HiSpeedMode = hiSpeedMode;
             NormalHiSpeed = normalHiSpeed;
+            NormalHiSpeedMultiplier = normalHiSpeedMultiplier;
             FloatingHiSpeed = floatingHiSpeed;
             ClassicHiSpeed = classicHiSpeed;
             SuddenEnabled = suddenEnabled;
@@ -86,6 +93,13 @@ namespace osu.Game.Rulesets.Bms.Configuration
                 throw new InvalidDataException("The BMS reading configuration has an unknown Hi-Speed mode.");
 
             validateRange(NormalHiSpeed, BmsRulesetConfigManager.NORMAL_HI_SPEED_MIN, BmsRulesetConfigManager.NORMAL_HI_SPEED_MAX, nameof(NormalHiSpeed));
+            if (NormalHiSpeedMultiplier is double normalMultiplier)
+            {
+                validateRange(normalMultiplier, double.Epsilon, double.MaxValue, nameof(NormalHiSpeedMultiplier));
+                float raw = (float)(normalMultiplier * 3);
+                if (!float.IsFinite(raw) || raw <= 0)
+                    throw new InvalidDataException("The resolved Normal Hi-Speed multiplier must fit a positive native raw speed.");
+            }
             validateRange(FloatingHiSpeed, BmsRulesetConfigManager.FLOATING_HI_SPEED_MIN, BmsRulesetConfigManager.FLOATING_HI_SPEED_MAX, nameof(FloatingHiSpeed));
             validateRange(ClassicHiSpeed, BmsRulesetConfigManager.CLASSIC_HI_SPEED_MIN, BmsRulesetConfigManager.CLASSIC_HI_SPEED_MAX, nameof(ClassicHiSpeed));
             validateRange(SuddenUnits, 0, 1000, nameof(SuddenUnits));

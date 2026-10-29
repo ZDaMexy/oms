@@ -1,6 +1,6 @@
 # P1-L 当前状态：BMS Gimmick 与 BGA 视觉
 
-> 最后核对：2026-10-28（实际旁路刻度与三组软件原生已验；实谱/设备门保持）
+> 最后核对：2026-10-29（Hi-Speed版本分流已接；积分/Off回退与实谱设备门保持）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，机理分析见 [BMS_GIMMICK_CHART_RENDERING.md](../../other/BMS_GIMMICK_CHART_RENDERING.md)。
 
 ## 当前阶段
@@ -9,7 +9,7 @@
 
 - 地雷视觉已落地。
 - BMS 专用滚动位置积分旁路 A–C 已落地，Auto 检测存在；正常链路保持隔离。
-- GN与Floating补偿已取真实选中算法的倍率，On的长STOP基准不沿受标记污染的shared mostCommon；正SCROLL即使BPM不变也刷新，Off保留原算法/夹定及实际读数。音乐时间投影、判定与Auto检测不改，零/负SCROLL不做正速补偿；版本兼容、原版采样及证据身份取[P1-A日志](../P1-A/CHANGELOG.md#2026-10-28omni读谱版本兼容与候选验收)，当前公式没有借采样改写。
+- GN/Floating补偿继续取已选算法，On长STOP基准不沿受标记污染的shared mostCommon，正SCROLL同BPM变化也刷新，Off保持其原生夹定。Hi-Speed新旧计算分流及当前软件/候选状态只取[P1-A](../P1-A/DEVELOPMENT_STATUS.md)，不改音乐积分、判定、Auto检测或负速能力。
 - 已接入 P1-C 的 BMS 显示偏移：普通/STOP 映射、小节线/地雷淡出随显示时间，长条嵌套不重复偏移；原判定/音频时间保持，额外预加载不扩大空 POOR/辅助列消音。验证与人工未签收边界统一见 [P1-C](../P1-C/DEVELOPMENT_STATUS.md)。
 - BGA 图序列/视频/POOR/转码缓存/预加载主链已落地。
 - 可达图片已随真实后台加载准备，同层同刻替代项和关闭的POOR不加载，缺失结果也保留为空；Update切图只选已准备纹理。使用原TextureStore寿命，不把CPU解码移出Update扩大成GPU上传、视频初始化或任意大图谱的内存成本已消失。
@@ -39,7 +39,7 @@
 
 ## 最近一次验证
 
-2026-10-28正式v44/r23运行时三组软件原生与BMS full通过，含Classic实际往返/导出Replay，旧诊断46帧另留身份。仅live导航修复，scale/precision/refloat及旁路不变，Classic板仍legacy0.5～10，未对齐原版11档/公式/时序。Core/mania未重跑、未交付；范围取[P1-A日志](../P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)，r4字面资格保持，原机/实谱/实体设备门未闭合。
+2026-10-29 Hi-Speed版本1相关软件、初次full的六项修正及尚待候选原生取[P1-A本轮记录](../P1-A/CHANGELOG.md#2026-10-29原生hi-speed计算版本1)。较早v44/r23及r4字面资格保留历史身份，不代签新计算、原机时序或实谱/实体设备。
 
 2026-10-24完整BMS补验已关闭10月22日内存中止的回归缺口，具名范围见[P1-A记录](../P1-A/CHANGELOG.md#2026-10-24omni持续背景与原版参照边界)。这不是最终原生配方的从零重编，也不新增逐谱、GPU帧时、设备/DPI或Windows发行包签收。
 

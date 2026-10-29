@@ -29,8 +29,11 @@ namespace osu.Game.Rulesets.Bms.Tests
                 var lane = renderer.Playfield.Lanes[0];
                 double ratio = renderer.Playfield.ScrollLengthRatio.Value;
                 double nativeTimeRange = renderer.ScrollingInfo.TimeRange.Value;
-                // This fixture has one 120 BPM segment, SliderMultiplier=1, and no SV. Classic alone scales by 0.5.
-                double expectedRange = 100000d / 13 / speed * (mode == BmsHiSpeedMode.Classic ? 0.5 : 1) * ratio;
+                // The native reference units give these intervals for this one120 BPM segment.
+                double expectedFullRange = mode == BmsHiSpeedMode.Normal
+                    ? speed == 1 ? 2000 : 433.333282470703125
+                    : speed == 0.5 ? 4854.3798828125 : 242.718963623046875;
+                double expectedRange = expectedFullRange * ratio;
                 float height = lane.HitObjectContainer.DrawHeight;
                 double distance = Math.Abs(lane.HitObjectContainer.PositionAtTime(1100, 1000));
                 Assert.That(double.IsFinite(nativeTimeRange) && nativeTimeRange > 0, Is.True);
@@ -50,7 +53,9 @@ namespace osu.Game.Rulesets.Bms.Tests
                 Assert.That(distance, Is.EqualTo(100 / expectedRange * height).Within(0.001));
                 double observedFullLaneTime = 100 * height / distance;
                 Assert.That(renderer.SpeedMetrics.Value.RuntimeTimeRange, Is.EqualTo(observedFullLaneTime).Within(0.01));
-                Assert.That(renderer.SpeedMetrics.Value.GreenNumber, Is.EqualTo((int)Math.Round(observedFullLaneTime * 0.6, MidpointRounding.AwayFromZero)));
+                Assert.That(renderer.SpeedMetrics.Value.GreenNumber, Is.InRange(
+                    (int)Math.Ceiling((float)((observedFullLaneTime - 0.01) * 0.6)),
+                    (int)Math.Ceiling((float)((observedFullLaneTime + 0.01) * 0.6))));
             });
         }
 

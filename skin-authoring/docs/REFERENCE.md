@@ -571,6 +571,7 @@ bindings每项必填id/target/property/source，例如：
 | song.table-classification | 已启用难度表归类，独立于作者标级；每项为“表名 等级标签”，多表按保存顺序以 ` / ` 连接，无归类为空。最多256个UTF-16单元，可使用 ellipsis。BMS及BMS转谱mania从当前游玩锁定的原谱资料读取 | text |
 | timing.bpm-min / timing.bpm-max | 当前谱面实际音乐BPM范围，不含滚速倍率或STOP兼容点 | 数值或text |
 | scroll.speed | 当前玩法已选滚速设置值，不是滚动倍率或绿数；未提供时0 | 数值或text |
+| scroll.hi-speed / scroll.hi-speed-available | 原生玩法提供的实际Hi-Speed倍率 / 是否有此数据；当前BMS计算版本1提供，mania及legacy回放不提供；不可用数值为0，作者须用availability选择原`scroll.speed`或隐藏 | 数值、text / visible或variants |
 | scroll.available / scroll.adjusting | 原生调速快照是否可用 / 玩家是否正按住Start调速；当前由BMS提供，mania为false | visible或普通text |
 | scroll.mode | 原生模式normal/floating/classic；不可用为unavailable | text或variants |
 | scroll.green-number | 由当前BPM、真实滚速、挡板和LIFT几何计算的绿字；不可用为0 | 数值或text |

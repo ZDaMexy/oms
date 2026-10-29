@@ -13,11 +13,11 @@ namespace osu.Game.Rulesets.Bms.Scoring
         public const int EMPTY_POOR_SEPARATION_VERSION = 6;
         public const int TOTAL_RULES_VERSION = 7;
 
-        internal static void InitialiseNewPlay(ScoreInfo score, BmsReadingSettingsSnapshot? readingSettings = null)
+        internal static void InitialiseNewPlay(ScoreInfo score, BmsReadingSettingsSnapshot? readingSettings = null, int readingCalculationVersion = 0)
             => score.SetRulesetData(new BmsScoreInfoData
             {
                 Version = TOTAL_RULES_VERSION,
-                ReadingCalculationVersion = 0,
+                ReadingCalculationVersion = readingCalculationVersion,
                 ReadingSettings = readingSettings,
                 UsesGaugeAutoShift = BmsGaugeProcessor.UsesGaugeAutoShift(score.Mods),
                 StartingGaugeType = BmsGaugeProcessor.GetStartingGaugeType(score.Mods),
@@ -37,7 +37,7 @@ namespace osu.Game.Rulesets.Bms.Scoring
         [JsonProperty("reading_settings", NullValueHandling = NullValueHandling.Ignore)]
         public BmsReadingSettingsSnapshot? ReadingSettings { get; set; }
 
-        // Missing and explicit zero both use the existing reading calculation, independently of score rules.
+        // Missing and explicit zero preserve historical reading math, independently of score rules.
         [JsonProperty("reading_calculation_version", NullValueHandling = NullValueHandling.Ignore)]
         public int? ReadingCalculationVersion { get; set; }
 

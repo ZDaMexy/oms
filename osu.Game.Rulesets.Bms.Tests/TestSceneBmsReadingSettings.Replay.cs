@@ -39,8 +39,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             prepare(initial, remember: false);
             loadGame();
             AddStep("start the actual native recorder", () => renderer.SetRecordTarget(score = new Score()));
-            AddAssert("new recording explicitly owns the legacy reading calculation", () => score.ScoreInfo.GetRulesetData<BmsScoreInfoData>()?.ReadingCalculationVersion,
-                () => Is.EqualTo(0));
+            AddAssert("new recording explicitly owns the native reading calculation", () => score.ScoreInfo.GetRulesetData<BmsScoreInfoData>()?.ReadingCalculationVersion,
+                () => Is.EqualTo(1));
             advanceReadingClock(1500);
             AddStep("complete mode and Floating scratch changes at one gameplay time", () =>
             {
@@ -94,14 +94,15 @@ namespace osu.Game.Rulesets.Bms.Tests
                 ((BmsReplayRecorder)renderer.GameplayInputManager!.Recorder!).RecordFrame(true);
                 renderer.SetRecordTarget(null!);
                 var data = score.ScoreInfo.GetRulesetData<BmsScoreInfoData>()!;
-                Assert.That(data.ReadingCalculationVersion, Is.EqualTo(0));
-                Assert.That(data.ReadingSettings, Is.EqualTo(initial));
+                Assert.That(data.ReadingCalculationVersion, Is.EqualTo(1));
+                Assert.That(readingPreferences(data.ReadingSettings!.Value), Is.EqualTo(initial));
+                Assert.That(data.ReadingSettings.Value.NormalHiSpeedMultiplier, Is.EqualTo(2.9126275380452475));
                 Assert.That(data.ReadingSettingsTimeline!.Changes.Select(change => change.Time), Is.EqualTo(new[] { 1500d, 2200d, 3200d, 4200d, 4500d }));
-                Assert.That(data.ReadingSettingsTimeline.Changes.Select(change => change.Settings), Is.EqualTo(new[] { first, uncovered, opacity, restored, returned }));
+                Assert.That(data.ReadingSettingsTimeline.Changes.Select(change => readingPreferences(change.Settings)), Is.EqualTo(new[] { first, uncovered, opacity, restored, returned }));
                 var json = JObject.Parse(score.ScoreInfo.RulesetDataJson);
-                Assert.That(json["reading_calculation_version"]!.Value<int>(), Is.Zero);
-                Assert.That(((JObject)json["reading_settings"]!).Properties().Count(), Is.EqualTo(13));
-                Assert.That(json["reading_settings_timeline"]!["changes"]!.All(change => ((JObject)change["settings"]!).Properties().Count() == 13), Is.True);
+                Assert.That(json["reading_calculation_version"]!.Value<int>(), Is.EqualTo(1));
+                Assert.That(((JObject)json["reading_settings"]!).Properties().Count(), Is.EqualTo(14));
+                Assert.That(json["reading_settings_timeline"]!["changes"]!.All(change => ((JObject)change["settings"]!).Properties().Count() == 14), Is.True);
                 config.SaveReadingSettings(personal);
                 renderer.SetReplayScore(score);
             });
@@ -189,8 +190,8 @@ namespace osu.Game.Rulesets.Bms.Tests
             assertRuntimeReading(() => personal);
         }
 
-        [TestCase(1, true)]
-        [TestCase(1, false)]
+        [TestCase(2, true)]
+        [TestCase(2, false)]
         [TestCase(-1, true)]
         [TestCase(int.MaxValue, true)]
         public void TestUnknownReadingCalculationIsRejectedBeforeHistoricalReplayAdoption(int calculationVersion, bool withSnapshot)
@@ -276,6 +277,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                     Assert.That(distance, Is.EqualTo(100 / expectedTimeRange * height).Within(0.001));
                     Assert.That(renderer.SpeedMetrics.Value.RuntimeTimeRange, Is.EqualTo(expectedTimeRange).Within(0.001));
                     Assert.That(renderer.SpeedMetrics.Value.GreenNumber, Is.EqualTo(expectedGreenNumber));
+                    Assert.That(renderer.GameplaySkinAdjustmentState.ActualHiSpeed, Is.Null, "Legacy replay keeps its original parameter readout.");
                 });
             });
         }

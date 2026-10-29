@@ -2,7 +2,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using osu.Framework.Bindables;
 using osu.Framework.Configuration.Tracking;
 using osu.Framework.Logging;
 using osu.Game.Configuration;
@@ -20,7 +22,7 @@ namespace osu.Game.Rulesets.Bms.Configuration
 
         public const double FLOATING_HI_SPEED_MIN = 0.5;
         public const double FLOATING_HI_SPEED_MAX = 10.0;
-        public const double FLOATING_HI_SPEED_PRECISION = 0.01;
+        public const double FLOATING_HI_SPEED_PRECISION = double.Epsilon;
 
         public const double CLASSIC_HI_SPEED_MIN = 0.5;
         public const double CLASSIC_HI_SPEED_MAX = 10.0;
@@ -43,7 +45,12 @@ namespace osu.Game.Rulesets.Bms.Configuration
 
             SetDefault(BmsRulesetSetting.HiSpeedMode, BmsHiSpeedMode.Normal);
             SetDefault(BmsRulesetSetting.ScrollSpeed, 8.0, NORMAL_HI_SPEED_MIN, NORMAL_HI_SPEED_MAX, NORMAL_HI_SPEED_PRECISION);
-            SetDefault(BmsRulesetSetting.FloatingHiSpeed, 2.50, FLOATING_HI_SPEED_MIN, FLOATING_HI_SPEED_MAX, FLOATING_HI_SPEED_PRECISION);
+            AddBindable(BmsRulesetSetting.FloatingHiSpeed, new ReadingSpeedBindable(2.5)
+            {
+                MinValue = FLOATING_HI_SPEED_MIN,
+                MaxValue = FLOATING_HI_SPEED_MAX,
+                Precision = FLOATING_HI_SPEED_PRECISION,
+            });
             SetDefault(BmsRulesetSetting.ClassicHiSpeed, 2.50, CLASSIC_HI_SPEED_MIN, CLASSIC_HI_SPEED_MAX, CLASSIC_HI_SPEED_PRECISION);
             SetDefault(BmsRulesetSetting.SuddenEnabled, false);
             SetDefault(BmsRulesetSetting.HiddenEnabled, false);
@@ -90,6 +97,19 @@ namespace osu.Game.Rulesets.Bms.Configuration
             GetBindable<float>(BmsRulesetSetting.LiftUnits).Value,
             GetBindable<float>(BmsRulesetSetting.SuddenOpacity).Value,
             GetBindable<float>(BmsRulesetSetting.HiddenOpacity).Value);
+
+        private sealed class ReadingSpeedBindable : BindableDouble
+        {
+            public ReadingSpeedBindable(double value)
+                : base(value)
+            {
+            }
+
+            // Settings persistence must not round native scratch/refloat values to display decimals.
+            public override string ToString(string? format, IFormatProvider? provider) => Value.ToString(format ?? "R", provider ?? CultureInfo.InvariantCulture);
+
+            protected override Bindable<double> CreateInstance() => new ReadingSpeedBindable(Default);
+        }
 
         public void SaveReadingSettings(BmsReadingSettingsSnapshot snapshot)
         {

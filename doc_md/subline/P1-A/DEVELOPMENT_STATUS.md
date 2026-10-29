@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-29（33 DP原等级位置与Mods避让已私下交付.v26102901）
+> 最后核对：2026-10-29（Hi-Speed计算版本1已实现；v51候选检查中，现交付仍.v26102901）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -32,16 +32,16 @@ Classic十一档、其它Frame原Header、27双侧残字及BPL DP宽度保持。
 | 实时演奏信息 | 实时判定与断连统计、EX SCORE/HiSpeed、MIN/当前/MAX BPM；曲名、作者标级与独立的表名/表内等级 | 读取规则真实状态；表归类不替代作者难度，皮肤不改变判定/计分、时间或难度表导入 |
 | 皮肤布局与公共页面 | 作者声明stage/lane位置、留空槽和键区，不创建输入；BMS最多16个`BgaViewports`，逐窗fit/fill/stretch或none。通用选曲/Results接口共用真实数据及原操作，默认原界面 | 显式field不被旧BGA自适应挪动；冲突整组零窗并诊断，9K/PMS不套黑白比。BGA归[P1-L](../P1-L/DEVELOPMENT_STATUS.md)；Omni当前两页方案取消、保留OMS原界面 |
 | 作者制作与可选演出 | [完整套件](../../../skin-authoring/README.md)含制作、元素文件/尺寸/动画、INI/scene/script字段与预算、刷新打包；示例区分完整包与练习片段，手册/图片随套件发行 | 示例工具检查/打包和真实挂载已验证；历史实机图与素材示意分开。原编辑器可改既有组件并存独立副本，无完整scene/script可视化编辑器；不据手册代签视觉或旧三包演练 |
-| IIDX 与 BPL 第三方作品 | Lighting Model Skin Omni Until 33本地.v26102901，默认33；27～33与八支BPL共15框体，1271款美术/539图，13模块/32项配置，适用开关默认全开。AUTO SCRATCH专用图、三条Graph、COMBO三色/居中与lane345完整cat已接入；另补真实Clear门槛/状态及HAZARD生存标识。BMS5/7/14、mania5/6/7/8/14/16及两侧/DP，模式/键数覆盖保持 | Normal Hi-Speed跨BPM映射、完整变速谱与实体手感未整体对齐；转盘周期、Graph布局和部分外框时序仍为作者适配。FAST/SLOW原版资格/寿命、PG精确周期/起相、lane345原机parent-loop、游客CUSTOM、各代默认/滤镜及部分DP末端待校准。HCN正常游玩显示未由教学素材代签。LIFT沿原生几何，副屏移除；26来源待补。独立私下分享，不内置或公开分发；Until34不在范围 |
+| IIDX 与 BPL 第三方作品 | Lighting Model Skin Omni Until 33本地.v26102901，默认33；27～33与八支BPL共15框体，1271款美术/539图，13模块/32项配置，适用开关默认全开。AUTO SCRATCH专用图、三条Graph、COMBO三色/居中与lane345完整cat已接入；另补真实Clear门槛/状态及HAZARD生存标识。BMS5/7/14、mania5/6/7/8/14/16及两侧/DP，模式/键数覆盖保持 | 计算版本1已接原指令单位，完整原机数学/变速谱与实体手感未整体签收；转盘周期、Graph布局和部分外框时序仍为作者适配。FAST/SLOW原版资格/寿命、PG精确周期/起相、lane345原机parent-loop、游客CUSTOM、各代默认/滤镜及部分DP末端待校准。HCN正常游玩显示未由教学素材代签。LIFT沿原生几何，副屏移除；26来源待补。独立私下分享，不内置或公开分发；Until34不在范围 |
 | 安装与发行 | 旧选择迁移证据保留；2026-10-03 候选已有便携/自定义根、恢复及同包覆盖启动证据，见 [P1-F](../P1-F/DEVELOPMENT_STATUS.md) | 生成物已按用户要求删除；实网下载、新作者独立演练、跨版本、独立账户非便携及设备/长期/公开发行门未新签收 |
 
 C2～C6共享同一 package/layout/material/scene publication、lease/detach 与脚本隔离合同；无游玩宿主的菜单也检查整包。授权撤销不扩大 reload 准入，具体合同只在[技术约束](TECHNICAL_CONSTRAINTS.md)维护。
 
 ## 最近一次验证
 
-2026-10-29：[正式布局/归档](CHANGELOG.md#2026-10-29omni33dp原header布局修正)及同包[Xecus双全曲/OSR](CHANGELOG.md#2026-10-29omni实谱整曲与回放)通过。原版静态表沿[R12](CHANGELOG.md#2026-10-29原版classic与floating190读数)/[R13](CHANGELOG.md#2026-10-29原版独立bpm与内部速度核对)；[R15](CHANGELOG.md#2026-10-29原版demo自然运动标尺)新增130 BPM Demo同一音符五帧下落与只读时间标尺，源计算符合观测区间。R14正常退出回执缺失，独立保全核对通过；R15退出0与完整保全通过。公开代码/包未改，三项timer/start ON不签全部计时冻结；模式切换运动、整体数学/时序、字体与设备未签。
+2026-10-29：[Hi-Speed版本1](CHANGELOG.md#2026-10-29原生hi-speed计算版本1)相关BMS 237/237、core scene/event 557/557、mania skin 238通过/2跳过、Python 415/415、Release与定点格式检查通过。初次BMS full为3316通过/6失败/19跳过；六项已由相关237项复验，不能写成新一轮full全绿。v51仅候选，正式CLI/同包原生尚待闭合；现交付仍为[33 DP布局](CHANGELOG.md#2026-10-29omni33dp原header布局修正)与[Xecus双全曲/OSR](CHANGELOG.md#2026-10-29omni实谱整曲与回放)已验的.v26102901。
 
-2026-10-27旧包三组正常Player、39张实景覆盖P1双挡板/Lift、P2 Hidden与DP Lift，沿[读谱实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)；隔离软件操作无生命/分数注入或seek。[旧作者/美术保全](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)不计为新包验收。
+原版依据沿[R12/R13静态与内部精度](CHANGELOG.md#2026-10-29原版独立bpm与内部速度核对)及[R15有限Demo运动](CHANGELOG.md#2026-10-29原版demo自然运动标尺)。R14正常退出回执缺失、独立保全通过；R15退出0及保全通过。测试副本timer/start开关沿原回执，不签全部计时冻结。旧包Start/挡板/Lift原生证据取[实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)，不代签v51。
 
 五条已解释ImageSharp旧索引警告不抑制，版本与正规许可取[原记录](CHANGELOG.md#2026-10-22客户端依赖安全修复接入)。正常工作区、图库前台FPS/长期内存、原机精确时序和原生最终配方从零重编未由软件或隔离结果代签；媒体剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)。
 
@@ -49,7 +49,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 当前风险与未完成项
 
-- 读谱保存/GC同步已修，其余取[职责评估](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod游戏设置与皮肤职责分离评估)。原静态表及有限Demo运动取最近验证；下一步联动原计算单位、模式/精度与旧回放，不把单个运动区间外推完整等价或固定K。原机时序、HCN、素材及设备门沿[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。
+- 读谱职责分离取[评估](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod游戏设置与皮肤职责分离评估)。计算版本1采用120参考时钟归一化，不外推原机可变浮点时钟、整数挡板/Lift像素、模式切换运动或完整时序等价；v51正式包/原生与剩余字体、HCN、素材、设备门沿[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。
 
 - 原生媒体从零重编与剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，正常窗口/设备和发行门保持。测试、作者工具与取景宿主须匹配当前构建，沿[开发约束](../../../AGENTS.md#开发磁盘约束)；旧日志/TRX只作历史证据。
 

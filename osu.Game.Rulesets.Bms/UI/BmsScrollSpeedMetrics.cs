@@ -31,7 +31,7 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public int GreenNumber { get; }
 
-        private BmsScrollSpeedMetrics(BmsHiSpeedMode hiSpeedMode, double scrollSpeed, double baseTimeRange, double runtimeTimeRange, double scrollLengthRatio, int suddenUnits, int hiddenUnits, int liftUnits, int visibleLaneUnits, double visibleLaneTime)
+        private BmsScrollSpeedMetrics(BmsHiSpeedMode hiSpeedMode, double scrollSpeed, double baseTimeRange, double runtimeTimeRange, double scrollLengthRatio, int suddenUnits, int hiddenUnits, int liftUnits, int visibleLaneUnits, double visibleLaneTime, int calculationVersion)
         {
             HiSpeedMode = hiSpeedMode;
             ScrollSpeed = scrollSpeed;
@@ -43,12 +43,19 @@ namespace osu.Game.Rulesets.Bms.UI
             LiftUnits = liftUnits;
             VisibleLaneUnits = visibleLaneUnits;
             VisibleLaneTime = visibleLaneTime;
-            GreenNumber = Math.Max(0, (int)Math.Round(visibleLaneTime * 0.6, MidpointRounding.AwayFromZero));
+            GreenNumber = Math.Max(0, calculationVersion == 0
+                ? (int)Math.Round(visibleLaneTime * 0.6, MidpointRounding.AwayFromZero)
+                : (int)Math.Ceiling((float)(visibleLaneTime * 0.6)));
         }
 
         public static BmsScrollSpeedMetrics FromRuntime(BmsHiSpeedMode hiSpeedMode, double scrollSpeed, double scrollLengthRatio, double timeRangeScale = 1, float suddenUnits = 0, float hiddenUnits = 0, float liftUnits = 0)
         {
             double baseTimeRange = DrawableBmsRuleset.ComputeScrollTime(scrollSpeed) * Math.Max(0, timeRangeScale);
+            return FromTimeRange(hiSpeedMode, scrollSpeed, baseTimeRange, scrollLengthRatio, suddenUnits, hiddenUnits, liftUnits, 0);
+        }
+
+        public static BmsScrollSpeedMetrics FromTimeRange(BmsHiSpeedMode hiSpeedMode, double scrollSpeed, double baseTimeRange, double scrollLengthRatio, float suddenUnits, float hiddenUnits, float liftUnits, int calculationVersion)
+        {
             double normalisedScrollLengthRatio = Math.Max(0, scrollLengthRatio);
             double runtimeTimeRange = baseTimeRange * normalisedScrollLengthRatio;
 
@@ -67,7 +74,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 clampedHiddenUnits,
                 clampedLiftUnits,
                 visibleLaneUnits,
-                runtimeTimeRange * visibleLaneUnits / 1000.0);
+                runtimeTimeRange * visibleLaneUnits / 1000.0,
+                calculationVersion);
         }
 
         public bool Equals(BmsScrollSpeedMetrics other)

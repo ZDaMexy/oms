@@ -47,8 +47,8 @@ namespace osu.Game.Rulesets.Bms.UI
         // This is the HS calibration constant, not an upper bound on the native scrolling time range.
         public const double MAX_TIME_RANGE = 100000d / 13d;
 
-        // Live key selection only. Stored reading settings, replay values and mode conversion keep their legacy domain.
-        private static readonly double[] classic_hi_speed_choices = { 1, 1.5, 2, 2.25, 2.5, 2.75, 3, 3.25, 3.5, 3.75, 4 };
+        // Live Classic key selection uses the original eleven choices; old off-grid settings remain readable.
+        private static ReadOnlySpan<double> classic_hi_speed_choices => BmsHiSpeedRuntimeCalculator.ClassicChoices;
 
         public new BmsPlayfield Playfield => (BmsPlayfield)base.Playfield;
 
@@ -98,6 +98,8 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly double mostCommonBeatLength;
         private readonly double initialBeatLength;
         private readonly double initialProfileBeatLength;
+        private int readingCalculationVersion = BmsHiSpeedRuntimeCalculator.CURRENT_VERSION;
+        private double normalHiSpeedMultiplier;
         private BmsGameplayAdjustmentTarget? currentGameplayAdjustmentTarget;
         private BmsModSudden? gameplaySuddenMod;
         private BmsModHidden? gameplayHiddenMod;
@@ -154,7 +156,8 @@ namespace osu.Game.Rulesets.Bms.UI
                 BmsHiSpeedMode.Floating => GameplaySkinHiSpeedMode.Floating,
                 BmsHiSpeedMode.Classic => GameplaySkinHiSpeedMode.Classic,
                 _ => GameplaySkinHiSpeedMode.Unspecified,
-            }, speedMetrics.Value.GreenNumber, SuddenUnits, HiddenUnits, SuddenActive, HiddenActive);
+            }, speedMetrics.Value.GreenNumber, SuddenUnits, HiddenUnits, SuddenActive, HiddenActive,
+            readingCalculationVersion == 0 ? null : (float)getDisplayedHiSpeed());
 
         public IBindable<BmsGameplayAdjustmentTarget?> ActiveAdjustmentTarget => activeAdjustmentTarget;
 
@@ -237,6 +240,7 @@ namespace osu.Game.Rulesets.Bms.UI
             double referenceTime = Beatmap.HitObjects.Count > 0 ? Math.Max(0, Beatmap.HitObjects[0].StartTime) : 0;
             double firstBeatLength = getBeatLengthAt(referenceTime);
             initialBeatLength = firstBeatLength > 0 ? firstBeatLength : TimingControlPoint.DEFAULT_BEAT_LENGTH;
+            normalHiSpeedMultiplier = BmsHiSpeedRuntimeCalculator.GetNormalMultiplier(configNormalHiSpeed.Value, initialBeatLength);
             initialProfileBeatLength = beatmap is BmsBeatmap { TimingProfile: not null } bms
                 ? BmsBeatmapConverter.GetBeatLength(bms.TimingProfile.Sample(referenceTime).Bpm) : initialBeatLength;
             LongNoteMode = BmsScoreProcessor.GetLongNoteMode(Mods);
@@ -507,24 +511,39 @@ namespace osu.Game.Rulesets.Bms.UI
                 InitialOffset = Playfield.VisualOffset.Value,
                 Automatic = new BmsVisualOffsetTimeline.AutomaticState { Initial = automaticOffsetStyle.Value == AutomaticOffsetStyle.Beatoraja },
             };
-            return new BmsReplayRecorder(score, recordedVisualOffset, captureReadingSettings());
+            return new BmsReplayRecorder(score, recordedVisualOffset, captureReadingSettings(), readingCalculationVersion);
         }
 
         public override void SetReplayScore(Score replayScore)
         {
-            if (replayScore?.Replay is BmsGeneratedAutoplayReplay)
-                BmsScoreInfoData.InitialiseNewPlay(replayScore.ScoreInfo, captureReadingSettings());
-            else if (replayScore?.ScoreInfo.GetRulesetData<BmsScoreInfoData>()?.ReadingCalculationVersion is int calculationVersion && calculationVersion != 0)
+            int calculationVersion = replayScore == null || replayScore.Replay is BmsGeneratedAutoplayReplay
+                ? BmsHiSpeedRuntimeCalculator.CURRENT_VERSION
+                : replayScore.ScoreInfo.GetRulesetData<BmsScoreInfoData>()?.ReadingCalculationVersion ?? 0;
+            if (calculationVersion is not (0 or BmsHiSpeedRuntimeCalculator.CURRENT_VERSION))
                 throw new InvalidDataException($"Unsupported BMS replay reading calculation version {calculationVersion}.");
 
             BmsVisualOffsetTimeline? incomingVisualOffset = replayScore?.ScoreInfo.GetRulesetData<BmsScoreInfoData>()?.VisualOffset;
             incomingVisualOffset?.Validate();
+            if (replayScore != null && replayScore.Replay is not BmsGeneratedAutoplayReplay)
+                validateReplayReadingSettings(replayScore, calculationVersion);
+
+            if (replayScore == null && readingCalculationVersion == 0)
+                normalHiSpeedMultiplier = BmsHiSpeedRuntimeCalculator.GetNormalMultiplier(configNormalHiSpeed.Value, getCurrentReadingBeatLength(), getNormalPresetVisibleRatio());
+            readingCalculationVersion = calculationVersion;
+            configFloatingHiSpeed.Precision = calculationVersion == 0 ? 0.01 : BmsRulesetConfigManager.FLOATING_HI_SPEED_PRECISION;
+
+            if (replayScore?.Replay is BmsGeneratedAutoplayReplay)
+            {
+                applyReadingSettings(Config.CaptureReadingSettings());
+                BmsScoreInfoData.InitialiseNewPlay(replayScore.ScoreInfo, captureReadingSettings(), calculationVersion);
+            }
 
             if (replayScore != null && healthProcessor is BmsGaugeProcessor gauge)
                 gauge.ApplyScoreTotalRules(replayScore.ScoreInfo);
 
             base.SetReplayScore(replayScore!);
             applyReplayReadingSettings(replayScore);
+            refreshHiSpeedConfiguration();
             replayVisualOffset = incomingVisualOffset;
             refreshVisualOffsetMode();
         }
@@ -1274,7 +1293,17 @@ namespace osu.Game.Rulesets.Bms.UI
                 return false;
 
             BmsHiSpeedMode nextMode = configHiSpeedMode.Value == BmsHiSpeedMode.Floating ? nonFloatingHiSpeedMode : BmsHiSpeedMode.Floating;
-            double nextValue = selectedHiSpeed.Value * getModeTimeRangeScale(nextMode) / getModeTimeRangeScale(configHiSpeedMode.Value);
+            double multiplier = getDisplayedHiSpeed();
+            double beatLength = getCurrentReadingBeatLength();
+            double visibleRatio = getNormalPresetVisibleRatio();
+            double nextValue = nextMode switch
+            {
+                BmsHiSpeedMode.Classic => BmsHiSpeedRuntimeCalculator.NearestClassic(multiplier),
+                BmsHiSpeedMode.Normal => BmsHiSpeedRuntimeCalculator.NearestNormalLevel(multiplier, beatLength, visibleRatio),
+                _ => multiplier,
+            };
+            if (nextMode == BmsHiSpeedMode.Normal)
+                normalHiSpeedMultiplier = BmsHiSpeedRuntimeCalculator.GetNormalMultiplier(nextValue, beatLength, visibleRatio);
             configHiSpeedMode.Value = nextMode;
             getSelectedHiSpeedBindable().Value = nextValue;
             floatingCoveredVisibleTime = nextMode == BmsHiSpeedMode.Floating && (SuddenActive || HiddenActive)
@@ -1354,7 +1383,7 @@ namespace osu.Game.Rulesets.Bms.UI
                     return false;
 
                 double previous = configFloatingHiSpeed.Value;
-                configFloatingHiSpeed.Value += steps * 0.01;
+                configFloatingHiSpeed.Value = BmsHiSpeedRuntimeCalculator.AdjustFloatingFromScratch(previous, steps);
                 bool adjusted = previous != configFloatingHiSpeed.Value;
                 if (adjusted)
                     completeReadingAdjustment();
@@ -1386,9 +1415,21 @@ namespace osu.Game.Rulesets.Bms.UI
             BindableDouble bindable = getSelectedHiSpeedBindable();
             double previous = bindable.Value;
 
-            bindable.Value = configHiSpeedMode.Value == BmsHiSpeedMode.Classic
-                ? adjacentClassicHiSpeed(previous, amount)
-                : previous + amount * configHiSpeedMode.Value.GetAdjustmentStep();
+            if (configHiSpeedMode.Value == BmsHiSpeedMode.Normal)
+            {
+                double next = amount > 0 ? Math.Floor(previous) + amount : Math.Ceiling(previous) + amount;
+                next = Math.Clamp(next, BmsRulesetConfigManager.NORMAL_HI_SPEED_MIN, BmsRulesetConfigManager.NORMAL_HI_SPEED_MAX);
+                if (next == previous)
+                    return false;
+                normalHiSpeedMultiplier = BmsHiSpeedRuntimeCalculator.GetNormalMultiplier(next, getCurrentReadingBeatLength(), getNormalPresetVisibleRatio());
+                bindable.Value = next;
+            }
+            else
+            {
+                bindable.Value = configHiSpeedMode.Value == BmsHiSpeedMode.Classic
+                    ? adjacentClassicHiSpeed(previous, amount)
+                    : previous + amount * configHiSpeedMode.Value.GetAdjustmentStep();
+            }
 
             if (previous == bindable.Value)
                 return false;
@@ -1446,17 +1487,25 @@ namespace osu.Game.Rulesets.Bms.UI
         internal BmsScrollSpeedMetrics GetScrollSpeedMetrics()
         {
             double ratio = playfieldScrollLengthRatio?.Value ?? 1;
-            double selectedTimeRange = ComputeScrollTime(selectedHiSpeed.Value);
-            double nativeBaseTimeRange = ratio > 0 ? TimeRange.Value / ratio : selectedTimeRange * getModeTimeRangeScale(configHiSpeedMode.Value);
+            double nativeBaseTimeRange = ratio > 0 ? TimeRange.Value / ratio : getBaseTimeRange(configHiSpeedMode.Value, selectedHiSpeed.Value);
 
-            return BmsScrollSpeedMetrics.FromRuntime(
+            if (readingCalculationVersion == 0)
+            {
+                double selectedTimeRange = ComputeScrollTime(selectedHiSpeed.Value);
+                return BmsScrollSpeedMetrics.FromRuntime(configHiSpeedMode.Value, selectedHiSpeed.Value, ratio,
+                    nativeBaseTimeRange / selectedTimeRange / sampleScrollSpeed().Multiplier,
+                    getLaneCoverUnits(BmsLaneCoverPosition.Sudden), getLaneCoverUnits(BmsLaneCoverPosition.Hidden), Playfield.LiftUnits.Value);
+            }
+
+            return BmsScrollSpeedMetrics.FromTimeRange(
                 configHiSpeedMode.Value,
-                selectedHiSpeed.Value,
+                getDisplayedHiSpeed(),
+                nativeBaseTimeRange / sampleScrollSpeed().Multiplier,
                 ratio,
-                nativeBaseTimeRange / selectedTimeRange / sampleScrollSpeed().Multiplier,
                 getLaneCoverUnits(BmsLaneCoverPosition.Sudden),
                 getLaneCoverUnits(BmsLaneCoverPosition.Hidden),
-                Playfield.LiftUnits.Value);
+                Playfield.LiftUnits.Value,
+                readingCalculationVersion);
         }
 
         private void refreshHiSpeedConfiguration()
@@ -1489,7 +1538,7 @@ namespace osu.Game.Rulesets.Bms.UI
             double ratio = playfieldScrollLengthRatio?.Value ?? 1;
             // Full Lift has no visible scrolling area. Keep the algorithm's denominator positive while its
             // zero-height projection and the metrics both report no readable interval.
-            double timeRange = ratio == 0 ? 1 : ComputeScrollTime(selectedHiSpeed.Value) * getModeTimeRangeScale(configHiSpeedMode.Value) * ratio;
+            double timeRange = ratio == 0 ? 1 : getBaseTimeRange(configHiSpeedMode.Value, selectedHiSpeed.Value) * ratio;
 
             if (!double.IsFinite(timeRange) || timeRange <= 0)
                 throw new InvalidOperationException("The BMS native scrolling time range must be finite and positive.");
@@ -1613,11 +1662,36 @@ namespace osu.Game.Rulesets.Bms.UI
                 _ => configNormalHiSpeed,
             };
 
-        private double getModeTimeRangeScale(BmsHiSpeedMode mode)
-            => BmsHiSpeedRuntimeCalculator.ComputeBaseTimeRange(mode, 1,
-                Playfield.ActiveScrollAlgorithm is BmsStopMotionScrollAlgorithm stopMotion ? stopMotion.ReferenceBeatLength : mostCommonBeatLength,
-                Playfield.ActiveScrollAlgorithm is BmsStopMotionScrollAlgorithm ? initialProfileBeatLength : initialBeatLength,
-                Beatmap.Difficulty.SliderMultiplier) / MAX_TIME_RANGE;
+        private double getBaseTimeRange(BmsHiSpeedMode mode, double value)
+        {
+            double reference = Playfield.ActiveScrollAlgorithm is BmsStopMotionScrollAlgorithm stopMotion ? stopMotion.ReferenceBeatLength : mostCommonBeatLength;
+            double initial = Playfield.ActiveScrollAlgorithm is BmsStopMotionScrollAlgorithm ? initialProfileBeatLength : initialBeatLength;
+            if (readingCalculationVersion == 0)
+            {
+                double scale = BmsHiSpeedRuntimeCalculator.ComputeBaseTimeRange(mode, 1, reference, initial, Beatmap.Difficulty.SliderMultiplier) / MAX_TIME_RANGE;
+                return ComputeScrollTime(value) * scale;
+            }
+            return BmsHiSpeedRuntimeCalculator.ComputeBaseTimeRange(mode, value, reference, initial,
+                Beatmap.Difficulty.SliderMultiplier, readingCalculationVersion, normalHiSpeedMultiplier);
+        }
+
+        private double getDisplayedHiSpeed()
+            => readingCalculationVersion != 0 && configHiSpeedMode.Value == BmsHiSpeedMode.Normal
+                ? normalHiSpeedMultiplier : selectedHiSpeed.Value;
+
+        private double getCurrentReadingBeatLength()
+        {
+            double reference = Playfield.ActiveScrollAlgorithm is BmsStopMotionScrollAlgorithm stopMotion ? stopMotion.ReferenceBeatLength : mostCommonBeatLength;
+            double multiplier = sampleScrollSpeed().Multiplier;
+            return multiplier > 0 ? reference / multiplier : getBeatLengthAt(FrameStableClock.CurrentTime + Playfield.VisualOffset.Value);
+        }
+
+        private double getNormalPresetVisibleRatio()
+        {
+            double ratio = (playfieldScrollLengthRatio?.Value ?? 1) * Math.Max(0, 1000 - getLaneCoverUnits(BmsLaneCoverPosition.Sudden) - getLaneCoverUnits(BmsLaneCoverPosition.Hidden)) / 1000.0;
+            // With no readable interval, selecting a preset uses its full-lane basis; its actual GN stays zero.
+            return ratio > 0 ? ratio : 1;
+        }
 
         private (double Multiplier, bool SupportsRefloat) sampleScrollSpeed()
         {

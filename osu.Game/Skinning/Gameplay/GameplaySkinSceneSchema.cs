@@ -539,6 +539,8 @@ namespace osu.Game.Skinning.Gameplay
         ObjectAutoAssist = 103,
         ComboActive = 104,
         OffsetAutomaticAvailable = 105,
+        ScrollActualHiSpeed = 106,
+        ScrollActualHiSpeedAvailable = 107,
     }
 
     public enum GameplaySkinSceneEvent
@@ -1170,6 +1172,8 @@ namespace osu.Game.Skinning.Gameplay
             "timing.bpm-min" => GameplaySkinSceneBindingSource.TimingBpmMinimum,
             "timing.bpm-max" => GameplaySkinSceneBindingSource.TimingBpmMaximum,
             "scroll.speed" => GameplaySkinSceneBindingSource.ScrollSpeed,
+            "scroll.hi-speed" => GameplaySkinSceneBindingSource.ScrollActualHiSpeed,
+            "scroll.hi-speed-available" => GameplaySkinSceneBindingSource.ScrollActualHiSpeedAvailable,
             "judgement.count.perfect" => GameplaySkinSceneBindingSource.JudgementCountPerfect,
             "judgement.count.great" => GameplaySkinSceneBindingSource.JudgementCountGreat,
             "judgement.count.good" => GameplaySkinSceneBindingSource.JudgementCountGood,

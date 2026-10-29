@@ -58,7 +58,7 @@ namespace osu.Game.Skinning.Gameplay
             "layout.ruleset", "layout.presentation", "layout.stage", "layout.group", "layout.lane", "input.pressed", "gameplay.full-combo", "object.state", "judgement.result", "judgement.offset",
             "score.value", "score.accuracy", "combo.value", "combo.active", "combo.maximum", "gauge.value", "timing.beat", "timing.measure", "timing.bpm", "timing.progress", "bga.content-state",
             "score.maximum", "score.progress", "score.maximum-available", "lift.value", "lift.offset", "lift.reversed", "lift.available",
-            "scroll.available", "scroll.adjusting", "scroll.mode", "scroll.green-number", "cover.sudden-units", "cover.hidden-units",
+            "scroll.available", "scroll.adjusting", "scroll.mode", "scroll.green-number", "scroll.hi-speed", "scroll.hi-speed-available", "cover.sudden-units", "cover.hidden-units",
             "cover.sudden-active", "cover.hidden-active",
             "song.table-classification", "song.title", "song.artist", "song.difficulty", "song.level", "timing.bpm-min", "timing.bpm-max", "scroll.speed", "judgement.count.perfect", "judgement.count.great", "judgement.count.good", "judgement.count.ok", "judgement.count.meh", "judgement.count.miss", "combo.breaks",
             "object.long-note-mode", "object.long-note-appearance", "object.auto-assist", "gauge.type", "gauge.maximum", "gauge.clear-threshold", "gauge.clear-state",
@@ -68,6 +68,7 @@ namespace osu.Game.Skinning.Gameplay
             new Dictionary<string, HashSet<string>>(StringComparer.Ordinal)
             {
                 ["scroll.available"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
+                ["scroll.hi-speed-available"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
                 ["scroll.adjusting"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
                 ["scroll.mode"] = new(new[] { "unavailable", "normal", "floating", "classic" }, StringComparer.Ordinal),
                 ["cover.sudden-active"] = new(new[] { "true", "false" }, StringComparer.Ordinal),
@@ -1952,12 +1953,12 @@ namespace osu.Game.Skinning.Gameplay
                 or "score.maximum" or "score.progress" or "lift.value" or "lift.offset"
                 or "scroll.green-number" or "cover.sudden-units" or "cover.hidden-units"
                 or "timing.beat" or "timing.measure" or "timing.bpm" or "timing.progress"
-                or "timing.bpm-min" or "timing.bpm-max" or "scroll.speed" or "judgement.count.perfect" or "judgement.count.great" or "judgement.count.good" or "judgement.count.ok" or "judgement.count.meh" or "judgement.count.miss" or "combo.breaks";
+                or "timing.bpm-min" or "timing.bpm-max" or "scroll.speed" or "scroll.hi-speed" or "judgement.count.perfect" or "judgement.count.great" or "judgement.count.good" or "judgement.count.ok" or "judgement.count.meh" or "judgement.count.miss" or "combo.breaks";
             bool sourceIsBoolean = source is "timing.start-available" or "arrival.available" or "arrival.visible" or "input.motion-available-1" or "input.motion-available-2" or "offset.available" or "offset.automatic" or "offset.automatic-available" or "score.personal-best-available" or "score.rank-available"
                 or "score.pacemaker-next-available"
                 or "preparation.available" or "preparation.active" or "preparation.ready" or "arrival.first-row"
                 or "input.pressed" or "gameplay.full-combo" or "combo.active" or "score.maximum-available" or "lift.reversed" or "lift.available"
-                or "scroll.available" or "scroll.adjusting" or "cover.sudden-active" or "cover.hidden-active";
+                or "scroll.available" or "scroll.hi-speed-available" or "scroll.adjusting" or "cover.sudden-active" or "cover.hidden-active";
             return sourceIsNumber && number_properties.Contains(property)
                    || sourceIsBoolean && boolean_properties.Contains(property);
         }

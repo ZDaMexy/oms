@@ -2540,7 +2540,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 #00114:0100
 #00115:0100
 #00151:02000200
-#001D1:00AA0000
+#001D1:00AA000000000000
 "
                         : @"
 #TITLE Current revision layout product

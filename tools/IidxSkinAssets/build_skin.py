@@ -400,6 +400,15 @@ class Builder:
             self.visible_variant(value["id"], "layout.ruleset", ["bms"])
             self.visible_variant(mania["id"], "layout.ruleset", ["mania"])
             return node(identifier + ".formats", children=[value, mania])
+        if source == "scroll.hi-speed":
+            value["id"] = identifier + ".native"
+            self.bindings[-1]["target"] = value["id"]
+            legacy = json.loads(json.dumps(value))
+            legacy["id"] = identifier + ".legacy"
+            self.bind(legacy["id"], "text", "scroll.speed")
+            self.visible_variant(value["id"], "scroll.hi-speed-available", ["true"])
+            self.visible_variant(legacy["id"], "scroll.hi-speed-available", ["false"])
+            return node(identifier + ".formats", children=[value, legacy])
         return value
 
     def static_turntable_nodes(self, layout):
@@ -798,7 +807,7 @@ class Builder:
             information_children.extend(self.sd_information_numbers(layout, movies, player, centre_dx))
         for suffix, source, font, size, prefix, fmt in ([] if self.sd else [
             ("score", "score.value", self.score_font, 24, f"score_{player}_", "integer"),
-            ("hs", "scroll.speed", self.hs_font, 19, f"hs_{player}_", "fixed-2"),
+            ("hs", "scroll.hi-speed", self.hs_font, 19, f"hs_{player}_", "fixed-2"),
             ("bpm", "timing.bpm", self.bpm_font, 28, "bpm_", "integer"),
             ("bpm-min", "timing.bpm-min", self.small_bpm_font, 18, "bpm_min_", "integer"),
             ("bpm-max", "timing.bpm-max", self.small_bpm_font, 18, "bpm_max_", "integer")]):
@@ -971,7 +980,7 @@ class Builder:
     def sd_information_numbers(self, layout, movies, player, centre_dx):
         children = []
         entries = [("score", "score.value", self.score_font, 33, f"score_{player}_", "integer"),
-                   ("hs", "scroll.speed", self.hs_fonts[layout], 18 if self.style == 27 else 27, f"hs_{player}_", "fixed-2"),
+                   ("hs", "scroll.hi-speed", self.hs_fonts[layout], 18 if self.style == 27 else 27, f"hs_{player}_", "fixed-2"),
                    ("bpm", "timing.bpm", self.bpm_font, 33, "bpm_", "integer"),
                    ("bpm-min", "timing.bpm-min", self.small_bpm_font, 24, "bpm_min_", "integer"),
                    ("bpm-max", "timing.bpm-max", self.small_bpm_font, 24, "bpm_max_", "integer")]

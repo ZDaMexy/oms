@@ -821,6 +821,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBindingSource.ScrollSpeed => GameplaySkinSceneStateFamily.Timing,
             GameplaySkinSceneBindingSource.ScrollAvailable or GameplaySkinSceneBindingSource.ScrollAdjusting
                 or GameplaySkinSceneBindingSource.ScrollMode or GameplaySkinSceneBindingSource.ScrollGreenNumber
+                or GameplaySkinSceneBindingSource.ScrollActualHiSpeed or GameplaySkinSceneBindingSource.ScrollActualHiSpeedAvailable
                 or GameplaySkinSceneBindingSource.CoverSuddenUnits or GameplaySkinSceneBindingSource.CoverHiddenUnits
                 or GameplaySkinSceneBindingSource.CoverSuddenActive or GameplaySkinSceneBindingSource.CoverHiddenActive => GameplaySkinSceneStateFamily.Timing,
             GameplaySkinSceneBindingSource.JudgementCountPerfect => GameplaySkinSceneStateFamily.Score,

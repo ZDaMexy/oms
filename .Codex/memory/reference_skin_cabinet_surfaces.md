@@ -136,3 +136,5 @@ Time Freeze先核实际`-patchcfgpath`和最终日志，不能只看默认配置
 取景旁车不要直接序列化osuTK `Vector2`：其`PerpendicularRight`等计算属性可递归，投影成X/Y标量即可，不改被观察对象。`ChildrenOfType<T>()`可包含根/content自身，额外Prepend后须先按同一drawable身份Distinct，再保留真正的Single断言，不能改First掩盖多计数器。普通Results等待实际SelectedScore、展开面板和原计数器完成后再取景，不以已push或固定延时代表稳定；居中fallback须分别检查TransformDrawable盒子和ContentDrawable字形。失败与修正见[33DP日志](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29omni33dp原header布局修正)。
 
 难度Mod修改playable `Beatmap.Difficulty`，不一定改独立克隆的`BeatmapInfo.Difficulty`。核JD生效应同时读取真实Mod设置、playable难度及实际音符消费的HitWindows；只看原metadata会把正确生效误判为失败，不得改metadata迎合断言。来源见上述[33DP日志](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29omni33dp原header布局修正)。
+
+`BindableDouble`默认持久化字符串会舍入内部精度。需要round-trip时应覆写虚方法`ToString(string?, IFormatProvider?)`，不是不存在的单参数重载；自定义子类还必须覆写`CreateInstance()`返回同一运行时子类，否则framework的`GetBoundCopy()`会在载入配置时拒绝。显示两位小数与保存精度分开，尤其不能让保存后的值跨过Classic选档中点；合同取[P1-A读谱](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代)。

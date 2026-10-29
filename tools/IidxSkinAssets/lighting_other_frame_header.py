@@ -118,7 +118,8 @@ def append_branch(scene, manifest, frame, branch, art, occupied):
             and instances[0]["material"] == {"slot": "decoration", "resource": "markers/frame-" + branch["layout"] + "-information"},
             "Do not attach to a pooled, transformed or different material owner")
     node_ids = {node["id"] for node in walk(host)}
-    require({"score.value", "scroll.speed", "timing.bpm"}.issubset(item["source"] for item in scene["bindings"] if item["target"] in node_ids),
+    bound_sources = {item["source"] for item in scene["bindings"] if item["target"] in node_ids}
+    require({"score.value", "timing.bpm"}.issubset(bound_sources) and bool({"scroll.speed", "scroll.hi-speed"} & bound_sources),
             "Use the real information owner;27 does not need title/artist consumers")
     prefix = "oh." + frame["id"] + "." + branch["layout"]
     known = known_difficulties(frame["id"])

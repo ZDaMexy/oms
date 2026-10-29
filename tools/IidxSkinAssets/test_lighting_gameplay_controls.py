@@ -234,7 +234,7 @@ class GameplayControlPresentationTest(unittest.TestCase):
         scene = self.fixture()
         self.assertEqual(sum(item["source"] == "scroll.adjusting" for item in scene["bindings"]), 4)
         self.assertEqual({item["source"] for item in scene["bindings"] if item["property"] == "text"},
-                         {"scroll.speed", "scroll.green-number", "cover.sudden-units", "cover.hidden-units", "lift.value"})
+                         {"scroll.hi-speed", "scroll.green-number", "cover.sudden-units", "cover.hidden-units", "lift.value"})
         by_id = {node["id"]: node for node in nodes(scene)}
         self.assertEqual(by_id["gc.stage.g0.sudden.wlr"]["properties"]["y"], -30 / 728)
         self.assertEqual(by_id["gc.stage.g0.hidden.wlr"]["properties"]["y"], 10 / 728)
@@ -271,7 +271,7 @@ class GameplayControlPresentationTest(unittest.TestCase):
 
     def test_only_floating_keeps_the_extra_current_speed_readout(self):
         scene = self.fixture()
-        speed_readouts = [item for item in scene["bindings"] if item["property"] == "text" and item["source"] == "scroll.speed"]
+        speed_readouts = [item for item in scene["bindings"] if item["property"] == "text" and item["source"] == "scroll.hi-speed"]
         self.assertEqual([item["target"] for item in speed_readouts], ["gc." + layout + ".floating.value" for layout in controls.LAYOUTS])
 
     def test_floating_limits_use_original_baked_sprites_and_current_uses_source_digit_union(self):

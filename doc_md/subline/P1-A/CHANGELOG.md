@@ -1,5 +1,15 @@
 # P1-A 变动日志
 
+## 2026-10-29：原生Hi-Speed计算版本1
+
+- 按已资格的R13内部精度/R15有限Demo运动接入原指令单位及float32运算边界，以120参考时钟归一化为OMS时间，独立于物理FPS。Normal使用20项GN预设并在选择时解析倍率；Floating/Classic共用绝对倍率。此适配不等于原机可变时钟、挡板整数像素、模式切换运动或完整soflan/STOP/SCROLL已经对齐。
+- Floating转盘每步在raw域加0.01后除3，保留完整内部/保存精度；同样显示1.75的精确中点与细调值分别返回Classic 1.5与2。Classic按最近十一档、等距取较低值，Normal重选/返回按当前算法和可见比例取预设。存档原范围、个人配置13项及Remember成组语义保持。
+- 新局/GeneratedAutoplay明确写reading calculation 1；回放初始及变化新增仅本局的Normal已解析倍率，seek/reset恢复，缺值/未知版本在采用状态前拒绝。缺版本/null/0回放保留原运算顺序、Round/精度和13字段，不重写历史、个人配置、计分版本或IR。新增scroll.hi-speed/availability，旧scroll.speed继续是设置参数，mania/legacy无实际倍率时保留旧读数。
+- 修正预告音符载入时的首帧高度及布局负尺寸回调；实际帧更新消费指标。五键素材夹具把mine从2500移到2250，保持固定1500取景下note/hold/mine/bar-line共存，未删检查；Start模式测试改验最近预设/端点。读谱夹具重建配置前还等待旧drawable实际dispose；r6单项保存异常未独立重现，保存前后诊断及后续相关检查均保留，不能凭一次通过宣布历史根因唯一确定。
+- 验证：core scene/event focused 557/557；BMS reading/metrics/native-math/AutomaticOffset/PreStart/DPI/三来源素材focused 237/237；mania skin 238通过/2跳过；Python全发现415/415；Desktop Release 0 error/5条原ImageSharp旧索引告警，定点whitespace verify exit0。初次BMS full 3316通过/6失败/19跳过；六项为三来源素材等待、两项DPI首帧高度和Normal返回旧等速期待，均已被237项修后覆盖。修后尚未重新跑full，不表述全量全绿；r2/r3/r5/r6/r9等失败日志/TRX完整保留。
+- 私有v51从冻结v50复制，只在46份scene增加48处同字体/几何的实际倍率分支，保留原游标参数时钟及所有原图、manifest/catalog/INI/预览字节。新selected上界614 nodes/193 bindings/164 variants，未放宽预算；正式CLI仍在检查，同包原生未运行，未新增交付。现交付仍.v26102901，原软件整曲/OSR门保留原日期和身份。源码、夹具、日志及候选/闭包证明取本地omni-completion验收资料，不进入公开包。
+
+
 ## 2026-10-29原版Demo自然运动标尺
 
 R15改用无按键的Attract Demo，不再经过游客、教学或选曲。新鲜D/E before、新固定20分钟UTC/monotonic界线、Root独占及两处2GiB启动检查保持；五项专用补丁不变，日志确认两项Time Freeze与CS-style Song Start Delay均ON。取景控制器的API请求为一次buttons/read和309次get_jpg；随后退出流程独立读取输入并发送精确owned官方退出。无hold、coin、卡或正向按键/轴，采集链不写游戏或时钟。读取器仍只VM_READ，精确进程/启动身份、模块路径及DLL字节核对后分别有限采3001和24001条。

@@ -130,7 +130,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                     config.SetValue(OsuSetting.BmsVisualOffset, 20d);
                 ruleset.SetRecordTarget(null!);
                 var saved = score.ScoreInfo.GetRulesetData<BmsScoreInfoData>()!;
-                Assert.That(saved.ReadingCalculationVersion, Is.EqualTo(0));
+                Assert.That(saved.ReadingCalculationVersion, Is.EqualTo(1));
                 Assert.That(saved.VisualOffset!.Automatic!.Initial, Is.EqualTo(automatic));
                 Assert.That(saved.VisualOffset.Automatic.Changes, Is.Empty);
                 Assert.That(saved.VisualOffset.Changes.Count, Is.EqualTo(manualChange ? 1 : 0));
