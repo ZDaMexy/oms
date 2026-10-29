@@ -123,7 +123,9 @@ PowerShell7读取私有API输入锁时，`ConvertFrom-Json`可自动把ISO deadl
 
 原版Welcome与第二阶段选曲教学都有六点，但不是同一组六页；loop数量也不是逻辑页数，两个timer分支可占同一第4点。按实际白点、AFP/GEO/文字和host关联辨页，独立Start終了素材不能证明首组末页有该footer，正文白键决定曲目更不能当安全skip。旧来源取[R8审查](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29原版游客导航r8窄门)；[R11](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29原版教学退出与classic入口)才实证首组第六点/printed Start終了及其后无遮挡MusicSelect，不追溯补签每页控制。大图往返可能耗尽guest或整首歌，先用缩图辨页、保留原图核数字；开曲确认后需立即hold Start，专用CS-style延迟须单列，不能用菜单冻结代替歌曲开场暂停或签自然时序。
 
-Time Freeze先核实际启动所用`-patchcfgpath`和最终日志，不能只看默认配置。R9已有Standard/Menu ON；R10专用配置补Premium后两项ON，Mode Select实测冻结，但游客刷卡提示仍倒计时。两项补丁不覆盖全部timer，也不延长host输入deadline；后续沿R10配置，不再另写guest自动导航。实际边界取[冻结实测](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29原版timefreeze补齐与实测)。
+Time Freeze先核实际`-patchcfgpath`和最终日志，不能只看默认配置。R9已有Standard/Menu ON；R10补Premium后两项ON，但20稳定只观测于Mode Select教学覆盖层，不能外推所有timer或补丁因果。R12结束帮助后显示00再进入Tutorial，尚不能区分超时/Start传递。游客提示仍倒计时；不延长host deadline，不另写guest导航。CS-style Song Start Delay需单列，并在实际白键确认开曲后同一Root调用立即hold Start，延后一次截图可能已失去整首歌。持有后才可在同一开场有限连续采速度档位，每条仍检查deadline/owned，实际数字逐原图核读，不推自然时序。资格取[R12](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29原版classic与floating190读数)。
+
+原版显示1.47不等于内部值精确1.47，不能用显示两位小数证明0.01粒度或把API轴位移当实体编码器单位。Classic/Floating必须同时记实际面板、选中档、倍率、绿字、BPM和往返；R12已证Classic会收束非整档/边界且把结果带回Floating，但当前OMS modeScale换算、相邻Classic选档及旧回放0版本是不同层，需联动核实际滚动，不能只改显示或仅按单BPM拟合K。完整数字只取上述R12记录。
 
 取景旁车不要直接序列化osuTK `Vector2`：其`PerpendicularRight`等计算属性可递归，投影成X/Y标量即可，不改被观察对象。`ChildrenOfType<T>()`可包含根/content自身，额外Prepend后须先按同一drawable身份Distinct，再保留真正的Single断言，不能改First掩盖多计数器。普通Results等待实际SelectedScore、展开面板和原计数器完成后再取景，不以已push或固定延时代表稳定；居中fallback须分别检查TransformDrawable盒子和ContentDrawable字形。失败与修正见[33DP日志](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29omni33dp原header布局修正)。
 

@@ -1,5 +1,17 @@
 # P1-A 变动日志
 
+## 2026-10-29原版Classic与Floating190读数
+
+独立E参照R12在原两项Time Freeze外补本机已有、匹配当前DLL的CS-style Song Start Delay；日志确认三项ON。实际Play Start白键确认后，在同一Root调用立即接上owned Start hold，成功停在Chewingood!!! BEGINNER1、190 BPM的真实开场。持续保持该hold完成采样，不以延后截图冒充未经过的歌曲；开场是显式补丁条件，不签自然入场、运动或判定时序。原D仍只读保全，不启动/写入；新鲜D/E before、新固定60分钟UTC/monotonic界线及原两处2GiB启动检查保持，未延长。
+
+Classic实际11档完整升/降及两端饱和，倍率→绿字依次为1.00→795、1.50→530、2.00→398、2.25→354、2.50→318、2.75→289、3.00→265、3.25→245、3.50→228、3.75→212、4.00→199。Floating键盘以0.50为步长，0.50至10.00共20档依次为1590、795、530、398、318、265、228、199、177、159、145、133、123、114、106、100、94、89、84、80，两端饱和另有实际重复图。画面没有可见挡板；该范围只属于本局静态UI，不能覆盖其它BPM/挡板/版本。
+
+Floating从1.50/530经一次正向软件analog手势变为显示1.47/542，反向回到1.50/530，再次同向重复该非整档。EFFECT实际把1.47/542收束为Classic1.50/530，再回Floating保持1.50/530；10.00/80→Classic4.00/199→Floating4.00/199，0.50/1590→Classic1.00/795→Floating1.00/795。显示1.47不证明内部数值精确1.47，API位移也不是实体转盘标定。已有OMS的ToggleHiSpeedMode仍按modeScale换算，Classic11档仅用于相邻调节；后续须结合独立BPM、非整档精度及实际滚动标尺联动修正，不能只snap面板或改旧回放的0版本语义。本轮未改公开代码/作者/交付包，不以单BPM表或拟合K宣称内部公式。
+
+77份实际JPG与每次请求/owned状态完整保留，59份数值图经Root原像素ROI/并排图核读，BPM footer ROI逐RGBA一致。009复用008旧timestamp/画面，保留但不计新的状态证据。模式选择在结束帮助的Start后显示00并进入Tutorial，尚不能区分超时与Start传递；R10仅在教学覆盖层见20稳定，不能据此推断全部菜单计时覆盖。数值与边界的当前权威为私有`assets/reference-r12-readouts-root-reviewed-r1/root-readouts-r2.json`；首份收据的唯一超时因果措辞已由r2明确收窄、原份保留。Root有限连续发送同一已确认调速键用于档位采样，每条沿原deadline/owned释放检查，不新增guest分类器或通用导航。
+
+游戏/两个工具实际退出0，D元数据、D/E关键字节及owned输入归零通过；原图/日志位于`reference-captures/r12/root-speed-calibration-r1`与`runtime/r12`，已用源和四张原像素读数并排图另在上述assets保全。启动前只对已退出r8～r11的八份生成JSON before/after做普通NTFS压缩，实存减少26424581B；内容/长度/创建及修改时间相同，仅Compressed属性改变，回执`tests/reference-runtime-snapshot-ntfs-compression-r1.json`。未删证据、源、作者、素材或玩家数据。
+
 ## 2026-10-29原版教学退出与Classic入口
 
 独立E参照R11沿R10两项Time Freeze配置、新鲜D/E before及固定35分钟输入界线实际运行并官方正常退出。Root已在首组Welcome的实际第六白点看到`START 終了`，单次Start后确认无遮挡Music Select；这是本轮新增的可靠退出路径，不能把此前独立footer素材或第二阶段六点图追溯补签。普通Chewingood!!!190 BPM/BEGINNER1选中，实际Start选项从Beginner切Standard，再VEFX切Advanced；转盘切列、白键把Classic Hi-Speed由OFF设为ON后释放Start，原选择保持。仍未取得Classic190/FHS新读数，不据开关预览签公式或实际滚动。
