@@ -1,5 +1,15 @@
 # P1-A 变动日志
 
+## 2026-10-29原版TimeFreeze补齐与实测
+
+独立E参照的专用R10配置保留原Standard/Menu Timer Freeze及两项必要补丁，仅补Premium Free Timer Freeze；游戏启动日志确认两项均ON。Standard此前在R9已经ON，E默认配置也已有两项，不能把此前导航失败归因为未启用冻结。实际九张JPG由Root全部审看：游客刷卡提示35→07仍倒计时；成功游客确认后，Mode Select教学层间隔48.83712秒仍为20，背景动画继续，证明该菜单计时冻结。Premium本轮只签配置及应用日志，不冒称已观察其实际界面，更不签歌曲时钟/自然开场或全部计时器。
+
+R10沿已审R9控制器/transport原字节，生命周期仅换独立身份/端口，XML仅三项路径/端口变化；取消另写guest识别/自动导航，草稿保留而不加载。Root实际Prepare重新采集D/E before、单一输入owner及固定25分钟UTC/monotonic界线，官方正常退出、游戏/工具均0；原D元数据、D/E关键文件及输入归零通过。两项冻结沿此配置用于后续测试，不能延长host输入授权；FirstWelcome首组六点末页仍未签。私有实测与已用源保全于`assets/time-freeze-r10-root-reviewed-r1/root-result.json`，实际运行归`runtime/r10`与`reference-captures/r10/root-time-freeze-r1`，公开客户端与当前交付包未改。
+
+此前R9实际已准备、启动并正常关闭，九图仅到游客页/转场/标题，未取得Mode Select或速度新资格；实际保全及独立审查保留于`runtime/r9`与`reference-r9-outcome-audit-r1`。此前Root XML校验误把既有placeholder也要求换身份的失败保留，修正审核而不改正确来源或降低保护。
+
+空间准备随后取得明确范围：只对72份派生AFP解析JSON执行普通NTFS压缩，实际存储减少309001858B；内容、长度及创建/修改时间一致，仅增加Compressed属性。原HDD、原始IFS/AFP/GEO/PNG、作者/成品及玩家数据未压缩或删除。实际回执`e-derived-text-compression-r65/canary.json`及`remaining.json`与此前未执行的广泛评估分开；不以释放空间代签原版或产品体验。
+
 ## 2026-10-29Omni33DP原Header布局修正
 
 33 DP恢复原Lv./等级位置并将原生Mods下移，避免为Mods挪走原等级图；正式`.v26102901`已独立私下交付，331295645B/6658项，SHA256 `67d339d3637ec8cb71e57c997e6d82b94e570b9c45a56d0f9d4a73fa386d29d5`。最低运行时源码仍f6997e96，本次核验HEAD597713e0，public22源/10程序集同r39；已按前版重编/重启者直接导入。旧成品/作者/原素材、命名和逐日序号保留；两页取消、普通OMS界面及持续goal边界保持，未称完全体。
