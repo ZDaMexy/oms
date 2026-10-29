@@ -31,6 +31,8 @@ Lighting Model Skin Omni Until 33最新私下交付仍为.v26102901；Hi-Speed�
 
 10月27日将E盘根目录散落的11个OMS目录归入`E:\OMS-Development\sources/`与`evidence/`，原文件及皮肤包保持，当前辅助脚本与验收链接已修正；历史路径换算和本轮核对见[归并记录](CHANGELOG.md#2026-10-27oms外置开发目录归并)。这是存储整理，不刷新产品、原版或设备验收。
 
+10月29日再次[核对空间回收范围](CHANGELOG.md#2026-10-29工作区空间清查与待执行回收)，残留staging内容已去重保全。自动审批拒绝直接删除，当前仍待执行本地清单，实际释放空间尚未确认；不是已完成清理，不恢复Omni开发或刷新产品验收。
+
 ## 当前执行门与全局风险
 
 下载首次完成后的可玩状态已修复；后续维护、具名旧检查及实网成功门见[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)与[计划](../subline/P1-A/DEVELOPMENT_PLAN.md)，不扩大全局在线能力。
