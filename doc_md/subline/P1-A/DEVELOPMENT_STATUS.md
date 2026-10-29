@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-29（Omni自动推进停止；v52已核验未交付，现交付.v26102901）
+> 最后核对：2026-10-29（v52已交付.v26102902；Omni自动推进仍停止）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -9,7 +9,7 @@
 
 静线为唯一内置、首次默认与保底；complex已退役，历史作者文件和用户包保留。静线打磨按用户决定暂停。BMS/mania各有模式默认和键数覆盖，旧全局配置首次迁移；游玩按最终键数应用。原V-001～V-005、设备和长期体验未签收，Skin V1/release未完成。C1～C7证据不重计，OmsSkin物理删除仍待原实机门。
 
-Omni自动推进已按用户10月29日要求停止，完整形态未完成。最新私下交付仍为[.v26102901](CHANGELOG.md#2026-10-29omni33dp原header布局修正)，最低源码f6997e96；Hi-Speed源码83e27770已提交，v52核验完成但未交付，最低运行时83e27770。旧版与原产品/设备门保留，范围取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。
+Omni自动推进仍停止，完整形态未完成。按用户追加要求，v52已交付[.v26102902](CHANGELOG.md#2026-10-29omniv52私下交付)，最低运行时83e27770；先从当前工作区重编并重启OMS，再导入新版。包含Hi-Speed版本1及CURRENT前导零，旧版与原产品/设备门保留，范围取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。
 
 Classic十一档、其它Frame原Header、27双侧残字及BPL DP宽度保持。33 BMS14K恢复原Lv./数字位置，Mods下移且支持真实hover/tooltip；未知等级保留居中文本。字体、省略及单活动成绩标签为OMS适配，原数学/时序未签。
 
@@ -32,14 +32,14 @@ Classic十一档、其它Frame原Header、27双侧残字及BPL DP宽度保持。
 | 实时演奏信息 | 实时判定与断连统计、EX SCORE/HiSpeed、MIN/当前/MAX BPM；曲名、作者标级与独立的表名/表内等级 | 读取规则真实状态；表归类不替代作者难度，皮肤不改变判定/计分、时间或难度表导入 |
 | 皮肤布局与公共页面 | 作者声明stage/lane位置、留空槽和键区，不创建输入；BMS最多16个`BgaViewports`，逐窗fit/fill/stretch或none。通用选曲/Results接口共用真实数据及原操作，默认原界面 | 显式field不被旧BGA自适应挪动；冲突整组零窗并诊断，9K/PMS不套黑白比。BGA归[P1-L](../P1-L/DEVELOPMENT_STATUS.md)；Omni当前两页方案取消、保留OMS原界面 |
 | 作者制作与可选演出 | [完整套件](../../../skin-authoring/README.md)含制作、元素文件/尺寸/动画、INI/scene/script字段与预算、刷新打包；示例区分完整包与练习片段，手册/图片随套件发行 | 示例工具检查/打包和真实挂载已验证；历史实机图与素材示意分开。原编辑器可改既有组件并存独立副本，无完整scene/script可视化编辑器；不据手册代签视觉或旧三包演练 |
-| IIDX 与 BPL 第三方作品 | Lighting Model Skin Omni Until 33本地.v26102901，默认33；27～33与八支BPL共15框体，1271款美术/539图，13模块/32项配置，适用开关默认全开。AUTO SCRATCH专用图、三条Graph、COMBO三色/居中与lane345完整cat已接入；另补真实Clear门槛/状态及HAZARD生存标识。BMS5/7/14、mania5/6/7/8/14/16及两侧/DP，模式/键数覆盖保持 | 计算版本1已接原指令单位，完整原机数学/变速谱与实体手感未整体签收；转盘周期、Graph布局和部分外框时序仍为作者适配。FAST/SLOW原版资格/寿命、PG精确周期/起相、lane345原机parent-loop、游客CUSTOM、各代默认/滤镜及部分DP末端待校准。HCN正常游玩显示未由教学素材代签。LIFT沿原生几何，副屏移除；26来源待补。独立私下分享，不内置或公开分发；Until34不在范围 |
+| IIDX 与 BPL 第三方作品 | Lighting Model Skin Omni Until 33本地.v26102902，默认33；27～33与八支BPL共15框体，1271款美术/539图，13模块/32项配置，适用开关默认全开。AUTO SCRATCH专用图、三条Graph、COMBO三色/居中与lane345完整cat已接入；另补真实Clear门槛/状态及HAZARD生存标识。BMS5/7/14、mania5/6/7/8/14/16及两侧/DP，模式/键数覆盖保持 | 计算版本1已接原指令单位，完整原机数学/变速谱与实体手感未整体签收；转盘周期、Graph布局和部分外框时序仍为作者适配。FAST/SLOW原版资格/寿命、PG精确周期/起相、lane345原机parent-loop、游客CUSTOM、各代默认/滤镜及部分DP末端待校准。HCN正常游玩显示未由教学素材代签。LIFT沿原生几何，副屏移除；26来源待补。独立私下分享，不内置或公开分发；Until34不在范围 |
 | 安装与发行 | 旧选择迁移证据保留；2026-10-03 候选已有便携/自定义根、恢复及同包覆盖启动证据，见 [P1-F](../P1-F/DEVELOPMENT_STATUS.md) | 生成物已按用户要求删除；实网下载、新作者独立演练、跨版本、独立账户非便携及设备/长期/公开发行门未新签收 |
 
 C2～C6共享同一 package/layout/material/scene publication、lease/detach 与脚本隔离合同；无游玩宿主的菜单也检查整包。授权撤销不扩大 reload 准入，具体合同只在[技术约束](TECHNICAL_CONSTRAINTS.md)维护。
 
 ## 最近一次验证
 
-2026-10-29：[候选收尾](CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)复核源码83e27770及既有回执：Hi-Speed版本1修后BMS full 3323通过/19跳过；CURRENT格式core 629/629、Python 416/416，BMS相关1444通过/19跳过、mania239通过/2跳过，Release/格式通过。v52正式CLI 13612代表组合、6658项CRC/作者字节相同；SP1 r73、SP2/DP r74均自然完成并导出实际OSR，SP1另经原生Replay同分结束，原有19张图已审看。本轮仅重核日志/TRX、包摘要和原生回执，没有新产品测试；候选仍未交付。
+2026-10-29：[候选收尾](CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)复核源码83e27770及既有回执：Hi-Speed版本1修后BMS full 3323通过/19跳过；CURRENT格式core 629/629、Python 416/416，BMS相关1444通过/19跳过、mania239通过/2跳过，Release/格式通过。v52正式CLI 13612代表组合、6658项CRC/作者字节相同；SP1 r73、SP2/DP r74均自然完成并导出实际OSR，SP1另经原生Replay同分结束，原19图已审看。随后[交付.v26102902](CHANGELOG.md#2026-10-29omniv52私下交付)只复核归档/作者字节、原回执及三张原实景，成品与已验候选同字节，未重跑产品测试。
 
 原版依据沿[R12/R13静态与内部精度](CHANGELOG.md#2026-10-29原版独立bpm与内部速度核对)及[R15有限Demo运动](CHANGELOG.md#2026-10-29原版demo自然运动标尺)。R14正常退出回执缺失、独立保全通过；R15退出0及保全通过。测试副本timer/start开关沿原回执，不签全部计时冻结。旧包Start/挡板/Lift原生证据取[实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)，不代签新候选。
 
@@ -49,7 +49,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 当前风险与未完成项
 
-- 读谱职责分离取[评估](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod游戏设置与皮肤职责分离评估)。新计算的归一化不代签原机数学/时序；字体来源已核、曲名/作者绑定未定。v52交付及HCN、素材、设备缺口沿[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。
+- 读谱职责分离取[评估](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod游戏设置与皮肤职责分离评估)。新计算的归一化不代签原机数学/时序；字体来源已核、曲名/作者绑定未定。HCN、素材与设备缺口沿[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。
 
 - 原生媒体从零重编与剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，正常窗口/设备和发行门保持。测试、作者工具与取景宿主须匹配当前构建，沿[开发约束](../../../AGENTS.md#开发磁盘约束)；旧日志/TRX只作历史证据。
 
