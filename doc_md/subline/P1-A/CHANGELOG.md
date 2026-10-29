@@ -1,5 +1,15 @@
 # P1-A 变动日志
 
+## 2026-10-29Omni实谱整曲与回放
+
+确切正式`.v26102901`在33 SP7/P1完成真实Xecus整曲演奏及实际录制回放，皮肤包、公开运行时代码与最低源码f6997e96未改，不为增加验证重复打包。正常raw目录导入/真实decoder得到2714个可演奏物件、62长条、2878 BGA事件，末物件130384.615ms。整曲依据实际最终lane/当前绑定发送5428个软件键沿，逐项handled；没有生成AT、直接判定/分数/生命写入、seek或快进。自然普通Results保存后正常Export OSR/生产decoder，再点击该成绩原Replay按钮，回放阶段不发送演奏键。两遍自然完成，EX5428、MaxCombo2714、100%/FullCombo、判定统计/Mods/Clear及读谱设置相同，真实得出Perfect2714与IgnoreHit2495，不注入完美成绩。
+
+私有r70宿主及进程实际0；Root逐看开头/中点/尾段各两遍六张游玩图、两个稳定普通OMS Results，共八图接受。Note/LN、BGA及未被导出通知遮挡的Graph在实图可见，两遍BGA owner/播放状态保持且无scene/material fault。完整557份独立F谱源的SHA/长度/mtime前后相同，未访问原D、玩家账号或既有成绩库；隔离临时存储仍按正常生命周期退役，不冒称永久保存Realm。软件键盘、截图/回放及本曲通过不代签实体手感、听感、前台FPS、HCN全范围、原版数学或完全体，两页方案仍取消。
+
+当前实际证据为私有`native-real-song-v50formal-xecus-sp7-p1-r2`的`verified.json`、`root-review.json`、实际OSR及源保全收据。`assets/native-real-song-v50-source-r70-root-reviewed-r1`另保留r68/r69/r70源及实际编译宿主47文件。Root先实际Rebuild、Prepare，再Invoke新case；r68缺少StepButton required初始化/命名空间及FileInfo歧义的编译失败保留。r69已完成演奏但私有断言误将OSR省略零计数字段当差异，进程/host1与四张实际图保留，不计整条通过；生产`LegacyReplaySoloScoreInfo.FromScore`明确省略零值，r70改为按两侧全部key并集比较次数，保留真实值与完整双全曲流程。
+
+仅定点回收r69 prepared及失败run中各381份重复程序依赖，共982891162B；逐份与仍保留的同字节完整来源核对，owning编译件/宿主、源、cache、谱、OSR、图和失败日志保留，未删目录。回执`tests/native-real-song-r69-prepared-dependency-reclaim-r1.json`与`native-real-song-r69-run-dependency-reclaim-r1.json`区分两个范围；旧run不再具完整依赖，需按收据恢复，不伪称原样可直接运行。
+
 ## 2026-10-29原版TimeFreeze补齐与实测
 
 独立E参照的专用R10配置保留原Standard/Menu Timer Freeze及两项必要补丁，仅补Premium Free Timer Freeze；游戏启动日志确认两项均ON。Standard此前在R9已经ON，E默认配置也已有两项，不能把此前导航失败归因为未启用冻结。实际九张JPG由Root全部审看：游客刷卡提示35→07仍倒计时；成功游客确认后，Mode Select教学层间隔48.83712秒仍为20，背景动画继续，证明该菜单计时冻结。Premium本轮只签配置及应用日志，不冒称已观察其实际界面，更不签歌曲时钟/自然开场或全部计时器。

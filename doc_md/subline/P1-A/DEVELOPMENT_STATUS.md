@@ -39,7 +39,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-10-29：v50 A的17项行为测试、作者生成、正式CLI13612组合及6658份CRC/作者/诊断内容等通过。三组各跑诊断与确切正式包，32PNG全看；诊断一张Results过渡仅作生命周期，正式12游玩/4稳定Results接受。实际RD后软件按键、自然成绩/OSR/Replay及六段hover通过；public22源/10程序集同r39，取[交付日志](CHANGELOG.md#2026-10-29omni33dp原header布局修正)。[R10实测](CHANGELOG.md#2026-10-29原版timefreeze补齐与实测)确认两项Time Freeze应用、菜单冻结；游客提示仍倒计时。原数学/时序、字体及设备未签。
+2026-10-29：v50 A的17行为、作者生成、CLI13612组合及6658项CRC/字节通过；诊断与正式32图全看，正式12游玩/4稳定Results接受，取[布局交付](CHANGELOG.md#2026-10-29omni33dp原header布局修正)。同正式包[Xecus整曲演奏/OSR/Replay](CHANGELOG.md#2026-10-29omni实谱整曲与回放)通过，两遍EX5428/Combo2714/FullCombo、8图接受，557源文件保全，公开运行时代码未变。[R10冻结](CHANGELOG.md#2026-10-29原版timefreeze补齐与实测)确认两项应用及菜单冻结，游客倒计时独立。原数学/时序、字体及设备未签。
 
 2026-10-27旧包三组正常Player、39张实景覆盖P1双挡板/Lift、P2 Hidden与DP Lift，沿[读谱实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)；隔离软件操作无生命/分数注入或seek。[旧作者/美术保全](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)不计为新包验收。
 
