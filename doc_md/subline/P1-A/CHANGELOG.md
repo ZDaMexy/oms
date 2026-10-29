@@ -1,5 +1,13 @@
 # P1-A 变动日志
 
+## 2026-10-29原版教学退出与Classic入口
+
+独立E参照R11沿R10两项Time Freeze配置、新鲜D/E before及固定35分钟输入界线实际运行并官方正常退出。Root已在首组Welcome的实际第六白点看到`START 終了`，单次Start后确认无遮挡Music Select；这是本轮新增的可靠退出路径，不能把此前独立footer素材或第二阶段六点图追溯补签。普通Chewingood!!!190 BPM/BEGINNER1选中，实际Start选项从Beginner切Standard，再VEFX切Advanced；转盘切列、白键把Classic Hi-Speed由OFF设为ON后释放Start，原选择保持。仍未取得Classic190/FHS新读数，不据开关预览签公式或实际滚动。
+
+正常选曲白键后进入Play Options确认，当前Play Start实际高亮且明确白键决定，确认后只抓到黑色加载帧。下一次Start hold请求在该capture主机UTC后67.537387秒才发送，实际图已经是该曲零分/50POOR的FAILED Results；不以请求时间冒称accepted frame或游戏时钟。菜单冻结不能延长这段普通游玩。下次专用配置应补本机既有`CS-style Song Start Delay`，在已确认开曲后立即按住Start留在开场调速；该改动只用于读数，不代签自然入场时序或未修改行为。本轮未启用该补丁，不能写成已验证效果。
+
+29份实际JPG完整保留，前八整帧审看、其余用原图缩图辨页，末页六点/Start footer及Classic ON再核原尺寸ROI；缩图不替代数字原图，也没有加入guest分类器/自动导航。游戏及两工具退出0，原D元数据、D/E关键字节与owned输入归零通过，无卡且未启动/写入原D；公开代码、作者/交付包未改。实际原图与命令位于私有`reference-captures/r11/root-gameplay-speed-r1`及`runtime/r11`，已用源和Root逐帧分类保全于`assets/reference-r11-root-review-r1/root-review.json`。
+
 ## 2026-10-29Omni实谱整曲与回放
 
 确切正式`.v26102901`在33 SP7/P1完成真实Xecus整曲演奏及实际录制回放，皮肤包、公开运行时代码与最低源码f6997e96未改，不为增加验证重复打包。正常raw目录导入/真实decoder得到2714个可演奏物件、62长条、2878 BGA事件，末物件130384.615ms。整曲依据实际最终lane/当前绑定发送5428个软件键沿，逐项handled；没有生成AT、直接判定/分数/生命写入、seek或快进。自然普通Results保存后正常Export OSR/生产decoder，再点击该成绩原Replay按钮，回放阶段不发送演奏键。两遍自然完成，EX5428、MaxCombo2714、100%/FullCombo、判定统计/Mods/Clear及读谱设置相同，真实得出Perfect2714与IgnoreHit2495，不注入完美成绩。

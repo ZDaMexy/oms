@@ -121,7 +121,7 @@ Classic数字整条可用既有`original_sprite`直接画`tx_num1_4`；`gc.font`
 
 PowerShell7读取私有API输入锁时，`ConvertFrom-Json`可自动把ISO deadline转成DateTime，CLI插值随后变成本地格式，令Python在API连接前拒绝。用`-DateKind String`保留原ISO字符串，不能重写锁或延期掩盖解析失败；实际失败与保全边界见[P1-A日志](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29原版游客导航r8窄门)。
 
-原版Welcome与第二阶段选曲教学都有六点，但不是同一组六页；loop数量也不是逻辑页数，两个timer分支可占同一第4点。按实际白点、AFP/GEO/文字和host关联辨页，独立Start終了素材不能证明首组末页有该footer，正文白键决定曲目更不能当安全skip。来源与仍缺的调用层取上述[R8及离线源审查](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29原版游客导航r8窄门)。
+原版Welcome与第二阶段选曲教学都有六点，但不是同一组六页；loop数量也不是逻辑页数，两个timer分支可占同一第4点。按实际白点、AFP/GEO/文字和host关联辨页，独立Start終了素材不能证明首组末页有该footer，正文白键决定曲目更不能当安全skip。旧来源取[R8审查](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29原版游客导航r8窄门)；[R11](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29原版教学退出与classic入口)才实证首组第六点/printed Start終了及其后无遮挡MusicSelect，不追溯补签每页控制。大图往返可能耗尽guest或整首歌，先用缩图辨页、保留原图核数字；开曲确认后需立即hold Start，专用CS-style延迟须单列，不能用菜单冻结代替歌曲开场暂停或签自然时序。
 
 Time Freeze先核实际启动所用`-patchcfgpath`和最终日志，不能只看默认配置。R9已有Standard/Menu ON；R10专用配置补Premium后两项ON，Mode Select实测冻结，但游客刷卡提示仍倒计时。两项补丁不覆盖全部timer，也不延长host输入deadline；后续沿R10配置，不再另写guest自动导航。实际边界取[冻结实测](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29原版timefreeze补齐与实测)。
 
