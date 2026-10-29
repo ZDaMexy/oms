@@ -322,7 +322,7 @@ L12. lane-resource candidate/snapshot与configuration candidate已经接入BMS e
 
 ## scene、事件与脚本约束
 
-`instances`的`target`与`material`二选一；后者只按选定包同一ContentRevision的Global/Stage/Group/Lane Provide声明及精确slot/resource匹配，模板根slot相同，准备仍复核exact owner，不借用canonical scene/resources。实际展开参与既有节点、帧、事件与文字预算，Stage/Group/Lane实例保留原作用域、稳定目标身份和真实索引，不把Group改作Stage或扩大slot允许的作用域；Global实例只生成一次。`reveal-x`只用于clip，范围0..1，保留完整子坐标；`format`只允许静态percent/uppercase/fixed-2/signed-fixed-2/integer，格式化后继续限制长度，accuracy/progress保留既有专用格式。BMS `GaugeHeight`仅选定包读取，默认0.036、范围0.02..0.12，由唯一solver与键区/BGA/底部信息共同避让。原模板与血槽证据见[历史记录](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md)，新增能力验证取本线STATUS。
+`instances`的`target`与`material`二选一；后者只按选定包同一ContentRevision的Global/Stage/Group/Lane Provide声明及精确slot/resource匹配，模板根slot相同，准备仍复核exact owner，不借用canonical scene/resources。实际展开参与既有节点、帧、事件与文字预算，Stage/Group/Lane实例保留原作用域、稳定目标身份和真实索引，不把Group改作Stage或扩大slot允许的作用域；Global实例只生成一次。`reveal-x`只用于clip，范围0..1，保留完整子坐标；`format`只允许静态percent/uppercase/fixed-2/fixed-2-pad2/signed-fixed-2/integer，格式化后继续限制长度，accuracy/progress保留既有专用格式。BMS `GaugeHeight`仅选定包读取，默认0.036、范围0.02..0.12，由唯一solver与键区/BGA/底部信息共同避让。原模板与血槽证据见[历史记录](../../other/SKIN_SIMPLE_STAGE_HUD_20260913.md)，新增能力验证取本线STATUS。
 
 清单可选 `bitmapFonts` 只引用同包已准备的纹理，Text通过静态 `bitmap-font` 选用。字体、字形、字符、像素与运行文字均有硬预算；缺字或超限明确失败，不回落系统字形，不在update线程读文件或建新图集。尺寸、格式和完整字段见[公开参考](../../../skin-authoring/docs/REFERENCE.md#用自己的图片字形显示数字)。普通Text未声明该字段时保留原表现。
 

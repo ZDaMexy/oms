@@ -685,7 +685,7 @@ namespace osu.Game.Skinning.Gameplay
                 }
 
                 if (!declaration.Font.CanRender("0123456789")
-                    || declaration.Format is "fixed-2" or "signed-fixed-2" && !declaration.Font.CanRender(".")
+                    || declaration.Format is "fixed-2" or "fixed-2-pad2" or "signed-fixed-2" && !declaration.Font.CanRender(".")
                     || declaration.Format == "signed-fixed-2" && !declaration.Font.CanRender("+-")
                     || declaration.Format == "percent" && !declaration.Font.CanRender("%")
                     || declaration.Format.Length == 0 && !integerSource(binding.Source)
@@ -1745,7 +1745,7 @@ namespace osu.Game.Skinning.Gameplay
                 || property == "alignment" && value.StringValue is not ("left" or "centre" or "right")
                 || property == "mask-mode" && value.StringValue != "ellipse"
                 || property == "clip-mode" && value.StringValue is not ("bounds" or "rounded")
-                || property == "format" && value.StringValue is not ("percent" or "uppercase" or "fixed-2" or "signed-fixed-2" or "integer")
+                || property == "format" && value.StringValue is not ("percent" or "uppercase" or "fixed-2" or "fixed-2-pad2" or "signed-fixed-2" or "integer")
                 || property == "text-overflow" && value.StringValue != "ellipsis"
                 || property == "layout" && value.StringValue != "horizontal"
                 || property == "layout-surface" && value.StringValue is not ("information.song" or "information.judgements" or "information.tempo" or "information.player"))

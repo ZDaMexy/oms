@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-29（Hi-Speed版本1；v51检查中，交付.v26102901）
+> 最后核对：2026-10-29（Hi-Speed版本1；v52检查中，交付.v26102901）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -9,11 +9,11 @@
 
 静线为唯一内置、首次默认与保底；complex已退役，历史作者文件和用户包保留。静线打磨按用户决定暂停。BMS/mania各有模式默认和键数覆盖，旧全局配置首次迁移；游玩按最终键数应用。原V-001～V-005、设备和长期体验未签收，Skin V1/release未完成。C1～C7证据不重计，OmsSkin物理删除仍待原实机门。
 
-Omni最新私下交付`.v26102901`，最低源码仍f6997e96；已按前版重编/重启者可直接导入。本次核验HEAD597713e0，未新增运行时代码；旧版保留。原版/设备及完整形态未签，边界取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。
+Omni最新私下交付`.v26102901`，最低源码仍f6997e96；已按前版重编/重启者可直接导入。旧版保留。原版/设备及完整形态未签，边界取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。
 
-Classic十一档、其它Frame原Header、27双侧残字及BPL DP宽度保持。33 BMS14K恢复原Lv./数字位置，Mods下移且支持真实hover/tooltip；未知等级保留居中文本。现字体、354px省略及单活动成绩标签为OMS适配，原数学/时序未签。
+Classic十一档、其它Frame原Header、27双侧残字及BPL DP宽度保持。33 BMS14K恢复原Lv./数字位置，Mods下移且支持真实hover/tooltip；未知等级保留居中文本。字体、省略及单活动成绩标签为OMS适配，原数学/时序未签。
 
-两页取消、保留OMS原界面及PageAPI；未来仅新可靠路线再评，取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。r1重叠候选及旧失败证据保留。27曲名/作者在已查自有源族无直接锚点，不补猜；原机隐藏规则、字体及入场时序仍缺证。
+两页取消、保留OMS原界面及PageAPI；未来仅新可靠路线再评，取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。27曲名/作者在已查自有源族无直接锚点，不补猜；原机隐藏规则、字体及入场时序仍缺证。
 
 ## 当前产品能力与剩余门
 
@@ -39,9 +39,9 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-10-29：[Hi-Speed版本1](CHANGELOG.md#2026-10-29原生hi-speed计算版本1)BMS相关237/237、core scene/event 557/557、mania skin 238通过/2跳过、Python 415/415及Release/格式已过。修后第二次BMS full为3320通过/2失败/19跳过；[夹具生命周期/同帧读取快照](CHANGELOG.md#2026-10-29读谱夹具快照与原字体来源)修正后读谱105项连续两轮通过，第三次full运行中，未签全量全绿。v51正式CLI/同包原生未闭合；现交付仍为[33 DP布局](CHANGELOG.md#2026-10-29omni33dp原header布局修正)与[Xecus双全曲/OSR](CHANGELOG.md#2026-10-29omni实谱整曲与回放)已验的.v26102901。
+2026-10-29：[Hi-Speed版本1](CHANGELOG.md#2026-10-29原生hi-speed计算版本1)修后第三次BMS full为3323通过/19跳过，前两轮失败保留。[CURRENT格式](CHANGELOG.md#2026-10-29current-hi-speed前导零)core 629/629、Python 416/416；BMS相关1444、mania239通过/2跳过，Release/格式通过。v51正式CLI 13612代表组合、6658项CRC/作者字节相同；原生五张开场读数正确，但CURRENT缺前导零、录制检查过早失败，不签整组通过。v52仅改六处格式，正式检查/同包原生待闭合。现交付仍为[33 DP布局](CHANGELOG.md#2026-10-29omni33dp原header布局修正)与[Xecus双全曲/OSR](CHANGELOG.md#2026-10-29omni实谱整曲与回放)已验的.v26102901。
 
-原版依据沿[R12/R13静态与内部精度](CHANGELOG.md#2026-10-29原版独立bpm与内部速度核对)及[R15有限Demo运动](CHANGELOG.md#2026-10-29原版demo自然运动标尺)。R14正常退出回执缺失、独立保全通过；R15退出0及保全通过。测试副本timer/start开关沿原回执，不签全部计时冻结。旧包Start/挡板/Lift原生证据取[实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)，不代签v51。
+原版依据沿[R12/R13静态与内部精度](CHANGELOG.md#2026-10-29原版独立bpm与内部速度核对)及[R15有限Demo运动](CHANGELOG.md#2026-10-29原版demo自然运动标尺)。R14正常退出回执缺失、独立保全通过；R15退出0及保全通过。测试副本timer/start开关沿原回执，不签全部计时冻结。旧包Start/挡板/Lift原生证据取[实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)，不代签新候选。
 
 五条已解释ImageSharp旧索引警告不抑制，版本与正规许可取[原记录](CHANGELOG.md#2026-10-22客户端依赖安全修复接入)。正常工作区、图库前台FPS/长期内存、原机精确时序和原生最终配方从零重编未由软件或隔离结果代签；媒体剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)。
 
@@ -49,7 +49,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 当前风险与未完成项
 
-- 读谱职责分离取[评估](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod游戏设置与皮肤职责分离评估)。新计算的归一化不代签原机数学/时序；字体来源已核、曲名/作者绑定未定。v51正式包/原生及HCN、素材、设备门沿[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。
+- 读谱职责分离取[评估](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod游戏设置与皮肤职责分离评估)。新计算的归一化不代签原机数学/时序；字体来源已核、曲名/作者绑定未定。v52正式包/原生及HCN、素材、设备门沿[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。
 
 - 原生媒体从零重编与剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，正常窗口/设备和发行门保持。测试、作者工具与取景宿主须匹配当前构建，沿[开发约束](../../../AGENTS.md#开发磁盘约束)；旧日志/TRX只作历史证据。
 

@@ -367,13 +367,35 @@ def upgrade_hi_speed_readouts(scene):
         native = copy.deepcopy(nodes[target])
         native["id"] = native_id
         parents[target]["children"].append(native)
+        nodes[native_id] = native
+        parents[native_id] = parents[target]
         result["bindings"].append({**binding, "id": binding["id"] + ".actual", "target": native_id, "source": "scroll.hi-speed"})
         for identifier, default, selected in ((target, True, False), (native_id, False, True)):
             result["variants"].append({"id": identifier + ".hs-availability", "target": identifier,
                 "property": "visible", "source": "scroll.hi-speed-available", "default": default,
                 "cases": [{"id": identifier + ".hs-availability.true", "key": "true", "value": selected}]})
         upgraded.append({"legacy": target, "native": native_id})
-    return result, {"readouts": upgraded, "scope": "Native BMS multiplier when provided; original parameter and art retained for mania/legacy. Tween clocks unchanged."}
+    current_formats = []
+    floating_gates = {item["target"] for item in result["variants"] if item["source"] == "scroll.mode"
+        and item["property"] == "visible" and item["default"] is False
+        and any(case["key"] == "floating" and case["value"] is True for case in item["cases"])
+        and all(case["key"] == "floating" or case["value"] is False for case in item["cases"])}
+    for binding in result["bindings"]:
+        if binding["property"] != "text" or binding["source"] not in ("scroll.speed", "scroll.hi-speed"):
+            continue
+        identifier = binding["target"]
+        owner = nodes[identifier]
+        while owner["id"] not in floating_gates and owner["id"] in parents:
+            owner = parents[owner["id"]]
+        if owner["id"] not in floating_gates:
+            continue
+        properties = nodes[identifier]["properties"]
+        require(properties.get("format") in ("fixed-2", "fixed-2-pad2"), "Keep the qualified original Floating CURRENT numeric owner")
+        if properties["format"] == "fixed-2":
+            properties["format"] = "fixed-2-pad2"
+            current_formats.append(identifier)
+    return result, {"readouts": upgraded, "currentFormats": current_formats,
+        "scope": "Native BMS multiplier when provided; original parameter/art and selector clocks retained. Floating CURRENT keeps two integer digits."}
 
 
 def build_controls(reference, assets, *, stage_geometry):
@@ -431,7 +453,7 @@ def build_controls(reference, assets, *, stage_geometry):
                 current_left, current_top = min(item[0] for item in digits), min(item[1] for item in digits)
                 current_right, current_bottom = max(item[0] + item[2] for item in digits), max(item[1] + item[3] for item in digits)
                 value = _centered_text(selected["id"] + ".value", (current_left + current_right) / 2,
-                                       (current_top + current_bottom) / 2, format="fixed-2")
+                                       (current_top + current_bottom) / 2, format="fixed-2-pad2")
                 _bind(scene, value["id"], "text", "scroll.hi-speed")
                 selected["children"].append(value)
                 actual_label = [item for item in source["shapes"] if item["region"] == "tx_current_hispeed"]

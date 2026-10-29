@@ -134,6 +134,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
         [TestCase("uppercase", GameplaySkinSceneDiagnosticCode.InvalidPropertyValue)]
         [TestCase("ellipsis", GameplaySkinSceneDiagnosticCode.InvalidPropertyValue)]
         [TestCase("fractional-format", GameplaySkinSceneDiagnosticCode.InvalidReference)]
+        [TestCase("padded-fractional-format", GameplaySkinSceneDiagnosticCode.InvalidReference)]
         [TestCase("percent-format", GameplaySkinSceneDiagnosticCode.InvalidReference)]
         [TestCase("default-fractional-bpm", GameplaySkinSceneDiagnosticCode.InvalidReference)]
         [TestCase("metadata-binding", GameplaySkinSceneDiagnosticCode.InvalidPropertyValue)]
@@ -156,6 +157,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 case "uppercase": properties["format"] = "uppercase"; break;
                 case "ellipsis": properties["text-overflow"] = "ellipsis"; break;
                 case "fractional-format": properties["format"] = "fixed-2"; break;
+                case "padded-fractional-format": properties["format"] = "fixed-2-pad2"; break;
                 case "percent-format": properties["format"] = "percent"; break;
                 case "default-fractional-bpm": properties.Remove("format"); break;
                 case "metadata-binding": binding["source"] = "song.title"; break;
@@ -364,6 +366,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
         }
 
         [TestCase("timing.bpm", "fixed-2", "1.20")]
+        [TestCase("timing.bpm", "fixed-2-pad2", "01.20")]
         [TestCase("score.accuracy", "percent", "99%")]
         [TestCase("timing.progress", "percent", "42%")]
         public void TestDeclaredNumericSymbolsAndFormatsReachBitmapRenderer(string source, string format, string expected)

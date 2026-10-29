@@ -115,7 +115,7 @@ Omni当前SongSelect/Results扩展方案已取消，统一作者保留OMS原页�
 
 `build_lighting_classic.py`将冻结的旧控制层升级为原Classic数字整条、专用cursor及NOTES TIME锚点；`build_lighting_dp_song_information.py`仅纠正冻结作者中33 DP的曲名/作者几何，并与普通`build_skin.py`的33 DP分支共用同一几何函数。两者必填完整父payload SHA；DP入口另需校正后的私有audit SHA、reference和library。只生成全新sibling与证据，不打包或验收。DP采用原(15,56)/(15,83)锚点，354px有界省略宽度及现字体明确为OMS适配，不能拿重复占位字540px当原机clip/fit。
 
-`upgrade_hi_speed_readouts`为旧作者的Hi-Speed文字添加实际倍率分支，保留相同原图字体/位置；`scroll.hi-speed-available`为true时取`scroll.hi-speed`，否则沿原`scroll.speed`。Normal面板游标仍按所选档位移动，不把实际倍率当档号；mania及legacy回放保持原参数读数。直接受其它控制器驱动的文字须先核对所有权，不能盲目复制；生成新作者后仍需预算、CLI及实际画面验证。
+`upgrade_hi_speed_readouts`为旧作者的Hi-Speed文字添加实际倍率分支，保留相同原图字体/位置；`scroll.hi-speed-available`为true时取`scroll.hi-speed`，否则沿原`scroll.speed`。Floating独占容器内的CURRENT使用`fixed-2-pad2`显示如`01.75`，通过祖先的`scroll.mode`显隐判断，不依赖打包前节点名称；底部读数保持原格式。Normal面板游标仍按所选档位移动，不把实际倍率当档号；mania及legacy回放保持原参数来源。直接受其它控制器驱动的文字须先核对所有权，不能盲目复制；生成新作者后仍需预算、CLI及实际画面验证。
 
 `build_lighting_other_frame_header.py`消费外部私有qualification及其SHA、完整父payload SHA，为29个有来源的非33 BMS布局补原难度/Lv.图：27三布局、28 DP、31/32两侧和七BPL三布局。每套沿自己的PNG/GEO和实际owner，来源按完整draw/layer身份及同hook邻层快照核对；只接reference稳态主图，原入场衰减效果另验。HD仅在原字节完全相同后复用已有h33资源，SD保留自身画布投影，P2文字正向。27 BEGINNER及所有未知/空值沿真实原文fallback，未资格的13布局不改。每个选中布局新增的512字符fallback预留计入既有预算，不新增字体或放宽上限；只生成全新sibling/证据，不打包或宣称原机等价。资格必须绑定当前完整父身份，不能在另一次升级后继续沿用旧scene SHA。
 

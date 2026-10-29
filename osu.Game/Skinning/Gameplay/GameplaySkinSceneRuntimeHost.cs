@@ -3056,6 +3056,7 @@ namespace osu.Game.Skinning.Gameplay
                     {
                         "percent" => (value * 100).ToString("0", CultureInfo.InvariantCulture) + "%",
                         "fixed-2" => value.ToString("0.00", CultureInfo.InvariantCulture),
+                        "fixed-2-pad2" => value.ToString("00.00", CultureInfo.InvariantCulture),
                         "signed-fixed-2" => value.ToString("+0.00;-0.00;+0.00", CultureInfo.InvariantCulture),
                         "integer" => value.ToString("0", CultureInfo.InvariantCulture),
                         _ => value.ToString("0.###", CultureInfo.InvariantCulture),

@@ -14,6 +14,8 @@ metadata:
 
 - OSR往返的`Statistics`不能按字典键集合直接等同：生产`LegacyReplaySoloScoreInfo.FromScore`明确省略零计数。比较两侧所有key并集的实际次数，缺项按该格式的0计，同时保留EX/Combo/Clear/读谱及真实Replay核对；不能删除非零项或修改解码成绩迎合断言。私有整曲失败及修正取[P1-A实谱记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29omni实谱整曲与回放)。
 
+- `BmsReplayRecorder`在`EndRecording()`才把读谱timeline回写ScoreInfo；开场直接检查该字段为空不能判为录制丢失。实际验收应在自然开始后产生真实输入、自然Results后读取，再由ScoreManager导出实际OSR核对；保留过早读取的失败，见[CURRENT修正记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29current-hi-speed前导零)。
+
 - `ClockBackedTestWorkingBeatmap.TrackVirtualManual`挂在真实AudioManager时，即使Rate=0，音频Update仍会读改写`accumulated`。Update线程直接Seek可被该旧值覆写，使一次跳时后的整个主时钟停在0；`SeekAsync`也是同步包装。测试先捕获source/offset，再经公开`GameHost.AudioThread.Scheduler`串行跳时，保留真实`OnSeek`区别与业务断言；`IAudioChannel.EnqueueAction`是framework内部成员，不可外调。日志未含source快照时，不宣称已唯一重放历史交错。见[P1-A取证](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-20选曲与皮肤遗留软件问题收尾)。
 
 - `osu.Desktop.slnf` 包含 BMS/mania tests，core `osu.Game.Tests` 须单独编译；只有相同项目/配置的当前代码成功编译后才能用 `--no-build`。

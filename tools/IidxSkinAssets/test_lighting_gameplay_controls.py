@@ -282,7 +282,7 @@ class GameplayControlPresentationTest(unittest.TestCase):
                 ("p2", (1308.5, 717), (1286, 316, 74, 22), (1292, 625, 62, 22)),
                 ("dp", (960.5, 502), (923, 96, 74, 22), (929, 405, 62, 22))):
             current = by_id["gc." + layout + ".floating.value"]["properties"]
-            self.assertEqual(current["format"], "fixed-2")
+            self.assertEqual(current["format"], "fixed-2-pad2")
             self.assertAlmostEqual(current["x"], center[0] / 1920 - 0.5)
             self.assertAlmostEqual(current["y"], center[1] / 1080 - 0.5)
             for suffix, name, bounds in (("max", "tx_fspd_num10", maximum), ("min", "tx_fspd_num05", minimum)):

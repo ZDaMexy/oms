@@ -1,5 +1,12 @@
 # P1-A 变动日志
 
+## 2026-10-29：CURRENT HI-SPEED前导零
+
+- Hi-Speed版本1修后第三次BMS full实际3323通过/19跳过，前两轮失败及读谱快照红绿证据保留；不再将完整回归记为运行中。生产数学/保存逻辑未再改动。
+- v51正式CLI退出0：13612代表组合、6658归档项CRC与作者逐字节一致。实际SP开场五张跟随真实按键/MouseX变化，Root审看发现CURRENT原应为`03.03`却显示`3.03`；随后私有夹具在EndRecording之前读取尚未写回的timeline而失败，整组不签通过。改用自然开始后的真实调整、自然Results收尾再检查及实际OSR导出，旧失败原样保全。
+- 新增静态格式`fixed-2-pad2`，普通及位图文字均显示至少两位整数与固定两位小数，旧`fixed-2`保持。Codec继续验证小数点字形、长度与原预算。作者升级按Floating独占祖先显隐识别CURRENT，支持打包后的不透明节点ID，保持底部读数格式；重复升级不再修改。
+- 私有v52只在v51的同一scene改六个format叶，其它6657份文件和所有原图/字体/几何/绑定/manifest/catalog/INI字节保持；逐叶逆转恢复父，selected预算不放宽。core scene/event/codec/bitmap 629/629、Python全发现416/416、BMS skin/reading相关1444通过/19跳过、mania skin相关239通过/2跳过；Desktop Release 0 error/5条原ImageSharp旧索引告警，定点whitespace verify exit0。正式CLI仍在处理冻结候选；修正后的私有宿主已编译/准备，新增自然开始后真实调整、自然Results、实际OSR及SP原生Replay检查尚未执行。同包SP/P2/DP未闭合，未新增交付。
+
 ## 2026-10-29：读谱夹具快照与原字体来源
 
 - 修后第二次BMS full为3320通过/2失败/19跳过；此前三来源素材、DPI及Normal返回期待均不再失败。两项剩余为读谱夹具旧drawable异步释放超时及配置重建读到旧值。夹具现在立即释放自身完整依赖树，再释放配置；每次prepare也清理前例，覆盖视觉失败会跳过TearDownSteps的现实，不改生产生命周期。

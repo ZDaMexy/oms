@@ -84,11 +84,12 @@ namespace osu.Game.Tests.NonVisual.Skinning
             Assert.That(((SpriteText)text!.ContentDrawable).Text.ToString(), Is.EqualTo(expected));
         }
 
-        [Test]
-        public void TestFixedTwoDecimalSpeedPresentation()
+        [TestCase("fixed-2", "2.50")]
+        [TestCase("fixed-2-pad2", "02.50")]
+        public void TestFixedTwoDecimalSpeedPresentation(string format, string expected)
         {
             using var texture = new DummyRenderer().CreateTexture(8, 8);
-            GameplaySkinLayoutPublication publication = CreateEssentialInformationPublication(texture, true, "fixed-2");
+            GameplaySkinLayoutPublication publication = CreateEssentialInformationPublication(texture, true, format);
             using GameplaySkinEventStream stream = createStream(publication);
             using GameplaySkinEventProducer producer = stream.CreateProducer();
             using var host = new GameplaySkinSceneRuntimeHost(publication, stream);
@@ -96,7 +97,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 new GameplaySkinTimingStateSnapshot(0, 0, 120, false, 1, scrollSpeed: 2.5)), null, null);
             host.ProcessFrame();
             Assert.That(host.TryGetRuntimeNode("accuracy", out GameplaySkinSceneRuntimeNode? text), Is.True);
-            Assert.That(((SpriteText)text!.ContentDrawable).Text.ToString(), Is.EqualTo("2.50"));
+            Assert.That(((SpriteText)text!.ContentDrawable).Text.ToString(), Is.EqualTo(expected));
         }
 
         [Test]
@@ -259,7 +260,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
             {
                 sourceJson = sourceJson.Replace("\"font-size\":24", "\"font-size\":24,\"format\":\"" + presentation + "\"");
                 sourceJson = sourceJson.Replace("\"property\":\"text\",\"source\":\"score.accuracy\"",
-                    "\"property\":\"text\",\"source\":\"" + (presentation == "percent" ? "gauge.value" : presentation == "fixed-2" ? "scroll.speed" : "judgement.result") + "\"");
+                    "\"property\":\"text\",\"source\":\"" + (presentation == "percent" ? "gauge.value" : presentation is "fixed-2" or "fixed-2-pad2" ? "scroll.speed" : "judgement.result") + "\"");
                 sourceJson = sourceJson.Replace("\"id\":\"progress-bar\",\"type\":\"container\"", "\"id\":\"progress-bar\",\"type\":\"clip\"");
                 sourceJson = sourceJson.Replace("\"target\":\"progress-bar\",\"property\":\"scale-x\",\"source\":\"timing.progress\"",
                     "\"target\":\"progress-bar\",\"property\":\"reveal-x\",\"source\":\"gauge.value\"");

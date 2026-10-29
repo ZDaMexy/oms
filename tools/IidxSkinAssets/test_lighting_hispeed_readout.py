@@ -7,6 +7,29 @@ from lighting_gameplay_controls import upgrade_hi_speed_readouts
 
 
 class HiSpeedReadoutTest(unittest.TestCase):
+    def test_floating_current_padding_upgrades_both_branches_without_changing_art(self):
+        identifiers = ["opaque" + str(index) for index in range(3)]
+        scene = {"root": {"id": "root", "type": "container", "children": [
+            {"id": "panel", "type": "container", "children": [
+                {"id": identifier, "type": "text", "properties": {"bitmap-font": "original", "x": 0.2, "format": "fixed-2"}}
+                for identifier in identifiers]}]}, "templates": [], "tracks": [],
+            "variants": [{"id": "floating", "target": "panel", "property": "visible", "source": "scroll.mode", "default": False,
+                          "cases": [{"id": "floating.only", "key": "floating", "value": True}]}],
+            "bindings": [{"id": identifier + ".b", "target": identifier, "property": "text", "source": "scroll.speed"} for identifier in identifiers]}
+        upgraded, receipt = upgrade_hi_speed_readouts(scene)
+        self.assertEqual(len(receipt["currentFormats"]), 6)
+        for node in upgraded["root"]["children"][0]["children"]:
+            self.assertEqual(node["properties"], {"bitmap-font": "original", "x": 0.2, "format": "fixed-2-pad2"})
+            node["properties"]["format"] = "fixed-2"  # Actual frozen v51 already has both branches.
+        migrated, second = upgrade_hi_speed_readouts(upgraded)
+        self.assertEqual(second["readouts"], [])
+        self.assertEqual(len(second["currentFormats"]), 6)
+        self.assertEqual(migrated["bindings"], upgraded["bindings"])
+        self.assertEqual(migrated["variants"], upgraded["variants"])
+        again, final = upgrade_hi_speed_readouts(migrated)
+        self.assertEqual(again, migrated)
+        self.assertEqual(final["currentFormats"], [])
+
     def test_existing_author_readout_retains_parameter_cursor_and_mania_fallback(self):
         scene = {"root": {"id": "root", "type": "container", "children": [
             {"id": "hs", "type": "text", "properties": {"bitmap-font": "original", "x": 0.2}}]},

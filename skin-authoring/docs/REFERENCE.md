@@ -91,9 +91,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Author.ps1 -Action imp
 
 `bitmap-font` 只能静态引用已声明字体，不能由绑定、轨迹、状态机或脚本更换。位图文字每节点最多64字符，静态文字和状态赋值中的每个字符都必须有字形。绑定接受数值来源及配置开关的0/1投影；曲名、状态词、身份和其它布尔来源不能写入这种数字节点。它不接受 `uppercase` 或 `text-overflow`，也不会在缺字时切换系统字体。
 
-数值绑定必须声明全部十个数字。`fixed-2` 还需要 `.`，`signed-fixed-2` 必须同时提供 `.`、`+`、`-`，`percent` 还需要 `%`；未给 `format` 时使用最多三位小数，非整数来源还需要 `.`。这里的整数来源包括 `score.maximum`、`score.value`、`score.personal-best`、`score.pacemaker-next`、`score.rank-aaa/aa/a`、`combo.value`、`combo.maximum`、`timing.measure`、六档及FAST/SLOW的 `judgement.count.*` 和 `combo.breaks`；例如希望BPM只使用数字字形，应显式选 `integer`。`judgement.offset`、`timing.beat`、`timing.time`、`arrival.time/remaining`、两组 `input.motion-counts-* / input.motion-revolutions-*` 和 `offset.value` 还必须声明 `-`。其它可能出现负值的显示也应提供负号，例如前奏中的 `timing.measure` 可为-1。`,`、`+`、`x` 可用于自己写的静态数字文字，不会自动添加千位分隔或倍率前缀。
+数值绑定必须声明全部十个数字。`fixed-2` 和 `fixed-2-pad2` 还需要 `.`，`signed-fixed-2` 必须同时提供 `.`、`+`、`-`，`percent` 还需要 `%`；未给 `format` 时使用最多三位小数，非整数来源还需要 `.`。这里的整数来源包括 `score.maximum`、`score.value`、`score.personal-best`、`score.pacemaker-next`、`score.rank-aaa/aa/a`、`combo.value`、`combo.maximum`、`timing.measure`、六档及FAST/SLOW的 `judgement.count.*` 和 `combo.breaks`；例如希望BPM只使用数字字形，应显式选 `integer`。`judgement.offset`、`timing.beat`、`timing.time`、`arrival.time/remaining`、两组 `input.motion-counts-* / input.motion-revolutions-*` 和 `offset.value` 还必须声明 `-`。其它可能出现负值的显示也应提供负号，例如前奏中的 `timing.measure` 可为-1。`,`、`+`、`x` 可用于自己写的静态数字文字，不会自动添加千位分隔或倍率前缀。
 
-位图节点的数字统一沿 `format`：缺省最多三位小数，`integer` 舍入为无小数数字，`fixed-2` 固定两位小数，`signed-fixed-2` 固定两位小数并始终显示正负号（零为`+0.00`），`percent` 乘100后显示整数和百分号。因此位图准确率/进度要显示百分比时也应显式选择 `percent`。所有已声明字体都会准备；超尺寸、缺资源或运行数值超出64字符/缺少字形会报对应场景错误。字形图片和可选区域计入普通资源的文件、像素与解码预算，区域共享同一已准备纹理；动态位图文字每节点预留64字形，仍计入全场景8192字形和真实实例预算。
+位图节点的数字统一沿 `format`：缺省最多三位小数，`integer` 舍入为无小数数字，`fixed-2` 固定两位小数，`fixed-2-pad2` 固定两位小数且整数至少两位（如`01.75`、`10.00`），`signed-fixed-2` 固定两位小数并始终显示正负号（零为`+0.00`），`percent` 乘100后显示整数和百分号。因此位图准确率/进度要显示百分比时也应显式选择 `percent`。所有已声明字体都会准备；超尺寸、缺资源或运行数值超出64字符/缺少字形会报对应场景错误。字形图片和可选区域计入普通资源的文件、像素与解码预算，区域共享同一已准备纹理；动态位图文字每节点预留64字形，仍计入全场景8192字形和真实实例预算。
 
 | 场景顶层字段 | 内容 | 必填 |
 | --- | --- | --- |
@@ -161,7 +161,7 @@ id 与非负整数 index 必须同时匹配布局。BMS 舞台/组为 `bms.group
 | `mask-mode` | ellipse | mask |
 | `clip-mode/corner-radius` | bounds或rounded / 0..256 | clip |
 | `reveal-x` | 0..1；从左揭露固定宽度内容，0仍保留作者的独立底槽 | clip |
-| `format` | percent / uppercase / fixed-2 / signed-fixed-2 / integer；静态声明，不接受绑定、动画或状态赋值；位图文字不接受uppercase | text |
+| `format` | percent / uppercase / fixed-2 / fixed-2-pad2 / signed-fixed-2 / integer；静态声明，不接受绑定、动画或状态赋值；位图文字不接受uppercase | text |
 | `text-overflow` | ellipsis；静态声明，不能用于位图文字 | text |
 | `layout-surface` | information.song / information.judgements / information.tempo / information.player；静态布局区域 | hud.text 所有者及其子树 |
 
