@@ -2,7 +2,9 @@
 
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using NUnit.Framework;
+using osu.Game.Configuration;
 using osu.Game.Replays;
 using osu.Game.Rulesets.Bms.Configuration;
 using osu.Game.Rulesets.Bms.Replays;
@@ -14,6 +16,29 @@ namespace osu.Game.Rulesets.Bms.Tests
 {
     public partial class TestSceneBmsReadingSettings
     {
+        [Test]
+        public void TestBackgroundSavedReadingGroupSurvivesImmediateManagerRecreation()
+        {
+            var initial = settings(BmsHiSpeedMode.Normal);
+            var changed = initial with
+            {
+                HiSpeedMode = BmsHiSpeedMode.Floating,
+                FloatingHiSpeed = 1.7533334096272786,
+                SuddenUnits = 350,
+                LaneCoversEnabled = false,
+            };
+            prepare(initial);
+            AddStep("save on the real background path and recreate without an intervening frame", () =>
+            {
+                config.SaveReadingSettings(changed);
+                Assert.That(Task.Run(config.Save).GetAwaiter().GetResult(), Is.True);
+                config.Dispose();
+                Realm.Realm.Refresh();
+                config = new BmsRulesetConfigManager(new SettingsStore(Realm), new BmsRuleset().RulesetInfo);
+                Assert.That(config.CaptureReadingSettings(), Is.EqualTo(changed));
+            });
+        }
+
         [TestCase("missing snapshot")]
         [TestCase("missing initial multiplier")]
         [TestCase("missing timeline multiplier")]

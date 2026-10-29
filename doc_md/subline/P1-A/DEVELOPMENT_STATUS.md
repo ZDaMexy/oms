@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-29（Hi-Speed计算版本1已实现；v51候选检查中，现交付仍.v26102901）
+> 最后核对：2026-10-29（Hi-Speed版本1；v51检查中，交付.v26102901）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -39,7 +39,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-10-29：[Hi-Speed版本1](CHANGELOG.md#2026-10-29原生hi-speed计算版本1)相关BMS 237/237、core scene/event 557/557、mania skin 238通过/2跳过、Python 415/415、Release与定点格式检查通过。初次BMS full为3316通过/6失败/19跳过；六项已由相关237项复验，不能写成新一轮full全绿。v51仅候选，正式CLI/同包原生尚待闭合；现交付仍为[33 DP布局](CHANGELOG.md#2026-10-29omni33dp原header布局修正)与[Xecus双全曲/OSR](CHANGELOG.md#2026-10-29omni实谱整曲与回放)已验的.v26102901。
+2026-10-29：[Hi-Speed版本1](CHANGELOG.md#2026-10-29原生hi-speed计算版本1)BMS相关237/237、core scene/event 557/557、mania skin 238通过/2跳过、Python 415/415及Release/格式已过。修后第二次BMS full为3320通过/2失败/19跳过；[夹具生命周期/同帧读取快照](CHANGELOG.md#2026-10-29读谱夹具快照与原字体来源)修正后读谱105项连续两轮通过，第三次full运行中，未签全量全绿。v51正式CLI/同包原生未闭合；现交付仍为[33 DP布局](CHANGELOG.md#2026-10-29omni33dp原header布局修正)与[Xecus双全曲/OSR](CHANGELOG.md#2026-10-29omni实谱整曲与回放)已验的.v26102901。
 
 原版依据沿[R12/R13静态与内部精度](CHANGELOG.md#2026-10-29原版独立bpm与内部速度核对)及[R15有限Demo运动](CHANGELOG.md#2026-10-29原版demo自然运动标尺)。R14正常退出回执缺失、独立保全通过；R15退出0及保全通过。测试副本timer/start开关沿原回执，不签全部计时冻结。旧包Start/挡板/Lift原生证据取[实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)，不代签v51。
 
@@ -49,7 +49,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 当前风险与未完成项
 
-- 读谱职责分离取[评估](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod游戏设置与皮肤职责分离评估)。计算版本1采用120参考时钟归一化，不外推原机可变浮点时钟、整数挡板/Lift像素、模式切换运动或完整时序等价；v51正式包/原生与剩余字体、HCN、素材、设备门沿[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。
+- 读谱职责分离取[评估](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod游戏设置与皮肤职责分离评估)。新计算的归一化不代签原机数学/时序；字体来源已核、曲名/作者绑定未定。v51正式包/原生及HCN、素材、设备门沿[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。
 
 - 原生媒体从零重编与剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，正常窗口/设备和发行门保持。测试、作者工具与取景宿主须匹配当前构建，沿[开发约束](../../../AGENTS.md#开发磁盘约束)；旧日志/TRX只作历史证据。
 

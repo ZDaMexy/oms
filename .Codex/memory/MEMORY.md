@@ -15,7 +15,7 @@
 
 ## 皮肤恢复与存储
 
-- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage继承、轨宽、血槽/FC、组合预算与冻结ID重建；真实起点/预览、持续组件、原生Mod避让/慢加载寿命、判定宿主高度、横排像素叶子与挡板/LIFT几何、opaque遮罩/AUTO未知态、亮度/透明度、Spice时钟/Hi-Speed样本资格、Time Freeze/开场hold/deadline、同显示值异选档与只读标量、Bindable子类round-trip/CreateInstance、Demo运动标尺/取景stage/缺失exit回执、首组教学末页实证、Classic原strip/cursor/GEO与私有receipt、DP动态文字/Loader就绪、整面板与readout门区分、C4身份、退出HUD/Results计数器就绪、Vector2递归旁车、playable难度与metadata、点分ID与atlas误判。
+- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage继承、轨宽、血槽/FC、组合预算与冻结ID重建；真实起点/预览、持续组件、原生Mod避让/慢加载寿命、SFNT/CP932字体取证、判定宿主高度、横排像素叶子与挡板/LIFT几何、opaque遮罩/AUTO未知态、亮度/透明度、Spice时钟/Hi-Speed样本资格、Time Freeze/开场hold/deadline、同显示值异选档与只读标量、Bindable子类round-trip/CreateInstance、Demo运动标尺/取景stage/缺失exit回执、首组教学末页实证、Classic原strip/cursor/GEO与私有receipt、DP动态文字/Loader就绪、整面板与readout门区分、C4身份、退出HUD/Results计数器就绪、Vector2递归旁车、playable难度与metadata、点分ID与atlas误判。
 
 - [2026-07-10 皮肤恢复](reference_skin_recovery_20260710.md) — 恢复锚点、归档与重新准入；**皮肤任务先读**。
 - [2026-07-13 schema 56 皮肤清点](reference_skin_schema56_inventory_20260713.md) — 只读取证、失效类型与 Realm mtime 误判。

@@ -2,7 +2,7 @@
 
 using System;
 using System.Linq;
-using System.Reflection;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using oms.Input;
 using osu.Framework.Graphics;
@@ -30,6 +30,7 @@ namespace osu.Game.Rulesets.Bms.Tests
     {
         private BmsRulesetConfigManager config = null!;
         private DrawableBmsRuleset renderer = null!;
+        private DependencyProvidingContainer gameplayRoot = null!;
         private BmsBeatmap beatmap = null!;
         private ManualClock clock = null!;
 
@@ -39,7 +40,11 @@ namespace osu.Game.Rulesets.Bms.Tests
         public void TearDown()
         {
             retireGame();
-            AddStep("dispose isolated reading configuration", () => config?.Dispose());
+            AddStep("dispose isolated reading configuration", () =>
+            {
+                config?.Dispose();
+                config = null!;
+            });
         }
 
         [TestCase(BmsHiSpeedMode.Normal)]
@@ -450,8 +455,13 @@ namespace osu.Game.Rulesets.Bms.Tests
 
         private void prepare(BmsReadingSettingsSnapshot initial, bool remember = true)
         {
+            // A failed visual step can skip TearDownSteps. Retire this fixture's previous ownership before
+            // constructing another manager against the same Realm, including its automatic save timer.
+            retireGame();
             AddStep("create isolated persistent reading configuration", () =>
             {
+                config?.Dispose();
+                Realm.Realm.Refresh();
                 config = new BmsRulesetConfigManager(new SettingsStore(Realm), new BmsRuleset().RulesetInfo);
                 config.SetValue(BmsRulesetSetting.RememberReadingChanges, remember);
                 config.SaveReadingSettings(initial);
@@ -473,7 +483,7 @@ namespace osu.Game.Rulesets.Bms.Tests
                     Clock = new FramedClock(clock),
                 };
                 renderer.InitialiseCompatibilityLayoutForTesting();
-                Child = new DependencyProvidingContainer
+                Child = gameplayRoot = new DependencyProvidingContainer
                 {
                     RelativeSizeAxes = Axes.Both,
                     CachedDependencies = new (Type, object)[] { (typeof(IRulesetConfigCache), new ReadingConfigCache(config)) },
@@ -487,19 +497,26 @@ namespace osu.Game.Rulesets.Bms.Tests
         private void retireGame()
         {
             GameplaySkinLayoutRevisionOwner? previousOwner = null;
-            DrawableBmsRuleset? previousRenderer = null;
             AddStep("retire the previous gameplay tree", () =>
             {
-                previousRenderer = renderer;
                 previousOwner = renderer?.LayoutProvider.RevisionOwner;
-                Clear();
+                if (gameplayRoot != null)
+                {
+                    // This fixture owns the whole dependency tree. Immediate disposal makes configuration
+                    // recreation independent of the global async-disposal backlog from other visual cases.
+                    if (gameplayRoot.Parent != null)
+                        Assert.That(Remove(gameplayRoot, true), Is.True);
+                    else
+                        gameplayRoot.Dispose();
+                    gameplayRoot = null!;
+                    renderer = null!;
+                }
                 // This fixture created the detached compatibility owner; a production PlayerLoader owns its
                 // own publication. Disposing the drawable tree alone does not retire our fixture-owned owner.
                 previousOwner?.Dispose();
             });
-            AddUntilStep("the previous gameplay tree and publication are retired", () =>
-                (previousRenderer == null || (bool)typeof(Drawable).GetProperty("IsDisposed", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(previousRenderer)!)
-                && (previousOwner == null || previousOwner.IsDisposed && previousOwner.CurrentPublication == null));
+            AddUntilStep("the previous gameplay publication is retired", () => previousOwner == null
+                || previousOwner.IsDisposed && previousOwner.CurrentPublication == null);
         }
 
         private void recreateConfigAndGame()
@@ -511,8 +528,11 @@ namespace osu.Game.Rulesets.Bms.Tests
             {
                 bool remember = config.Get<bool>(BmsRulesetSetting.RememberReadingChanges);
                 Assert.That(config.CaptureReadingSettings(), Is.EqualTo(beforeRetire), "Retiring gameplay cannot mutate reading preferences.");
-                config.Save();
+                Assert.That(Task.Run(config.Save).GetAwaiter().GetResult(), Is.True, "The actual background configuration save must complete.");
                 config.Dispose();
+                // Save's background Realm committed, but this update-thread read view has not advanced within
+                // the same step. A real restart opens a fresh Realm; explicitly refresh our reused test view.
+                Realm.Realm.Refresh();
                 config = new BmsRulesetConfigManager(new SettingsStore(Realm), new BmsRuleset().RulesetInfo);
                 Assert.That(config.Get<bool>(BmsRulesetSetting.RememberReadingChanges), Is.EqualTo(remember));
                 Assert.That(config.CaptureReadingSettings(), Is.EqualTo(beforeRetire), "Saving and recreating the manager must preserve the complete reading preferences.");
