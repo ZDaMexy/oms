@@ -39,7 +39,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-10-29：[正式布局/归档](CHANGELOG.md#2026-10-29omni33dp原header布局修正)及同包[Xecus双全曲/OSR](CHANGELOG.md#2026-10-29omni实谱整曲与回放)通过。[R12](CHANGELOG.md#2026-10-29原版classic与floating190读数)齐190 BPM两表；[R13](CHANGELOG.md#2026-10-29原版独立bpm与内部速度核对)独立157 BPM的15幅原像素读数与只读DLL/标量吻合，证同显示值可异选Classic档。自然连续取景晚到Results，不签运动；公开代码/包未改。三项timer/start补丁ON不代表所有计时冻结。原数学整体/时序、字体与设备未签。
+2026-10-29：[正式布局/归档](CHANGELOG.md#2026-10-29omni33dp原header布局修正)及同包[Xecus双全曲/OSR](CHANGELOG.md#2026-10-29omni实谱整曲与回放)通过。原版静态表沿[R12](CHANGELOG.md#2026-10-29原版classic与floating190读数)/[R13](CHANGELOG.md#2026-10-29原版独立bpm与内部速度核对)；[R15](CHANGELOG.md#2026-10-29原版demo自然运动标尺)新增130 BPM Demo同一音符五帧下落与只读时间标尺，源计算符合观测区间。R14正常退出回执缺失，独立保全核对通过；R15退出0与完整保全通过。公开代码/包未改，三项timer/start ON不签全部计时冻结；模式切换运动、整体数学/时序、字体与设备未签。
 
 2026-10-27旧包三组正常Player、39张实景覆盖P1双挡板/Lift、P2 Hidden与DP Lift，沿[读谱实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)；隔离软件操作无生命/分数注入或seek。[旧作者/美术保全](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)不计为新包验收。
 
@@ -49,7 +49,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 当前风险与未完成项
 
-- 读谱保存/GC同步已修，其余取[职责评估](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod游戏设置与皮肤职责分离评估)。NORMAL130/190静态表及Classic/Floating两BPM证据只取最近验证。原速率字段语义、自然滚动标尺与模式/精度/旧回放兼容仍待联动；不把静态吻合称运动等价或硬套固定K。原机时序、HCN、未解包素材及设备门沿[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。
+- 读谱保存/GC同步已修，其余取[职责评估](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod游戏设置与皮肤职责分离评估)。原静态表及有限Demo运动取最近验证；下一步联动原计算单位、模式/精度与旧回放，不把单个运动区间外推完整等价或固定K。原机时序、HCN、素材及设备门沿[作品计划](DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。
 
 - 原生媒体从零重编与剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)，正常窗口/设备和发行门保持。测试、作者工具与取景宿主须匹配当前构建，沿[开发约束](../../../AGENTS.md#开发磁盘约束)；旧日志/TRX只作历史证据。
 

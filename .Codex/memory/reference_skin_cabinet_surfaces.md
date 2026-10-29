@@ -129,6 +129,10 @@ Time Freeze先核实际`-patchcfgpath`和最终日志，不能只看默认配置
 
 自然运动的release→有限连续取景须放在同一Root调用，中间挂图分析可能已耗尽整首歌。每图按实际stage资格，文件名active或残留chart标量不能证明gameplay；R13的040～046实际Results，033是guard拒绝且无图，后续034/035的预期名字也不是分支证据。均保留失败原件，不放宽限制。PE叶函数可能无exception-directory项；明确的byte span只签所读指令，不伪称函数边界或静默猜入口。
 
+原版自然运动可优先用无输入Demo，把一次有界标量采样与有限小段密集取景覆盖轮播，省去guest/教学导航；首张已是Logo也不重启。按同一音符、实际BPM/raw及保存时间两侧标量核位移，保留tick向量累加与绘制投影的float32顺序，不用猜定K或把绿字推算当实读。保存UTC不等于呈现帧相位，字段与tick频率吻合也不证明实体FPS；资格见[R15](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29原版demo自然运动标尺)。
+
+连续批次前先核owned状态，重复hold会被拒绝，预期文件名不会因此生成。handle、进程和端口消失而exit回执缺失时，退出代码/原因只能记未知；可离线另核原元数据/关键摘要，不能造exit0或冒签依赖最终输入读取的正常gate。R14限制及失败原件取[独立保全核对](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29原版r14失败取景与独立保全核对)。
+
 取景旁车不要直接序列化osuTK `Vector2`：其`PerpendicularRight`等计算属性可递归，投影成X/Y标量即可，不改被观察对象。`ChildrenOfType<T>()`可包含根/content自身，额外Prepend后须先按同一drawable身份Distinct，再保留真正的Single断言，不能改First掩盖多计数器。普通Results等待实际SelectedScore、展开面板和原计数器完成后再取景，不以已push或固定延时代表稳定；居中fallback须分别检查TransformDrawable盒子和ContentDrawable字形。失败与修正见[33DP日志](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29omni33dp原header布局修正)。
 
 难度Mod修改playable `Beatmap.Difficulty`，不一定改独立克隆的`BeatmapInfo.Difficulty`。核JD生效应同时读取真实Mod设置、playable难度及实际音符消费的HitWindows；只看原metadata会把正确生效误判为失败，不得改metadata迎合断言。来源见上述[33DP日志](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29omni33dp原header布局修正)。
