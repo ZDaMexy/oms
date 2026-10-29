@@ -1,5 +1,17 @@
 # P1-A 变动日志
 
+## 2026-10-29原版独立BPM与内部速度核对
+
+R13沿R12五项专用补丁、Root独占、新固定60分钟界线及两处2GiB启动检查运行，三项timer/start补丁日志均ON。Daisuke / Y&Co. / BEGINNER Lv2的实际157 BPM已核；Classic ON、无可见挡板，在Play Start白键确认后同一Root调用立即hold Start。45份原图和请求保全，其中15份数值图经原像素面板核读。Classic实际1.00/989、1.50/660、2.00/495、2.25/440；Floating从2.25/440白键降至1.75/566，回Classic为1.50/660，再回Floating仍1.50/660。
+
+本轮首次用匹配当前DLL的只读反汇编与精确owned进程的选定标量读取交叉核对；只申请PROCESS_VM_READ，核PID、启动身份、模块路径和字节身份，不注入/写内存。原Classic11字面表与最近档选择调用已找到，中点取较低档；实际内部target5.25经相同倍率基准显示1.75，切Classic落1.50；稍高的5.260000228881836也显示1.75，却落2.00/495并带回Floating。不得根据两位显示值选档。
+
+正向API转盘手势.04实际把内部4.5降至4.389999866485596、显示1.46/676，反向恢复；三次有界反向手势到达上述5.26附近值。它证明内部值不等同于显示精度，不能把API位移当实体转盘标定，也不能沿R12的同名.04手势假定固定10个编码器计数。当前整数/浮点速率字段实际为120及106.6021728515625；以该组标量按DLL指令顺序作float32计算，15份倍率/绿字显示均吻合，含向上取整分支，未拟合K。字段的完整语义及与真实帧时间的关系尚未闭合，不外推固定速率或跨会话公式，也不倒推R12未读过的速率。当前权威收据为私有`assets/reference-r13-speed-root-reviewed-r1/root-review.json`，同处保全52份源/面板文件；公开数学、作者及交付包未改。
+
+选曲帮助关闭后的实际MusicSelect两图相隔40.124679 host秒、期间转选曲目，两图均60；这补充帮助层之外的观察，不是patch-off因果实验，也不覆盖Guest/Mode Select。松开Start后的039有实际红音符，但下一次hold/连续取景已晚到FAILED Results；040～046及其后残留chart标量不签运动。下次必须在同一Root调用完成release后的有限连续取景，中间不挂一次图片分析。033因超过既有每步.15上限被拒、无图；其标量标签与034/035的“above”文件名不证明中点上方，实际两图仍1.50，只有036/037证明该分支。原失败均保留，未放宽guard。
+
+R13首份源码准备因误把带port/path的snapshot-policy当字节不变量而中止，无Prepare/Start；r2只容许其三项身份差异，根及关键路径保持。首次非TTY控制器收到EOF退出0，无输入；后续TTY batch沿同一原截止时间，未重启游戏或延长锁。游戏及两个实际工具退出0，D元数据、D/E关键字节、空卡及owned归零通过。R12已退出的两份生成before/after JSON另做普通NTFS压缩，内容/长度/时间保持，仅Compressed属性变，API存储字节差6606274；回执`tests/reference-r12-snapshot-ntfs-compression-r1.json`。没有删除原件、作者、素材、玩家数据或失败证据。
+
 ## 2026-10-29原版Classic与Floating190读数
 
 独立E参照R12在原两项Time Freeze外补本机已有、匹配当前DLL的CS-style Song Start Delay；日志确认三项ON。实际Play Start白键确认后，在同一Root调用立即接上owned Start hold，成功停在Chewingood!!! BEGINNER1、190 BPM的真实开场。持续保持该hold完成采样，不以延后截图冒充未经过的歌曲；开场是显式补丁条件，不签自然入场、运动或判定时序。原D仍只读保全，不启动/写入；新鲜D/E before、新固定60分钟UTC/monotonic界线及原两处2GiB启动检查保持，未延长。

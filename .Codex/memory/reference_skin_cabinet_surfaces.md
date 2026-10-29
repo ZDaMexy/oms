@@ -125,7 +125,9 @@ PowerShell7读取私有API输入锁时，`ConvertFrom-Json`可自动把ISO deadl
 
 Time Freeze先核实际`-patchcfgpath`和最终日志，不能只看默认配置。R9已有Standard/Menu ON；R10补Premium后两项ON，但20稳定只观测于Mode Select教学覆盖层，不能外推所有timer或补丁因果。R12结束帮助后显示00再进入Tutorial，尚不能区分超时/Start传递。游客提示仍倒计时；不延长host deadline，不另写guest导航。CS-style Song Start Delay需单列，并在实际白键确认开曲后同一Root调用立即hold Start，延后一次截图可能已失去整首歌。持有后才可在同一开场有限连续采速度档位，每条仍检查deadline/owned，实际数字逐原图核读，不推自然时序。资格取[R12](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29原版classic与floating190读数)。
 
-原版显示1.47不等于内部值精确1.47，不能用显示两位小数证明0.01粒度或把API轴位移当实体编码器单位。Classic/Floating必须同时记实际面板、选中档、倍率、绿字、BPM和往返；R12已证Classic会收束非整档/边界且把结果带回Floating，但当前OMS modeScale换算、相邻Classic选档及旧回放0版本是不同层，需联动核实际滚动，不能只改显示或仅按单BPM拟合K。完整数字只取上述R12记录。
+原版显示小数不等于内部精度，API轴位移也不是实体编码器单位。只读选定标量先核精确PID/启动身份、模块路径及DLL字节，仅VM_READ；地址/字节源留私下。R13证同显示1.75的两内部值会落到不同Classic档，实际最近档中点取低；相同API手势亦可能落在不同整数计数边界。完整数字只取[R13](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29原版独立bpm与内部速度核对)，R12的190表不补签未读过的速率字段。字段类型/数值不证明完整语义；不能固定K外推。OMS modeScale、内部精度、相邻选档与旧回放0需联动实际滚动，不能只修显示。
+
+自然运动的release→有限连续取景须放在同一Root调用，中间挂图分析可能已耗尽整首歌。每图按实际stage资格，文件名active或残留chart标量不能证明gameplay；R13的040～046实际Results，033是guard拒绝且无图，后续034/035的预期名字也不是分支证据。均保留失败原件，不放宽限制。PE叶函数可能无exception-directory项；明确的byte span只签所读指令，不伪称函数边界或静默猜入口。
 
 取景旁车不要直接序列化osuTK `Vector2`：其`PerpendicularRight`等计算属性可递归，投影成X/Y标量即可，不改被观察对象。`ChildrenOfType<T>()`可包含根/content自身，额外Prepend后须先按同一drawable身份Distinct，再保留真正的Single断言，不能改First掩盖多计数器。普通Results等待实际SelectedScore、展开面板和原计数器完成后再取景，不以已push或固定延时代表稳定；居中fallback须分别检查TransformDrawable盒子和ContentDrawable字形。失败与修正见[33DP日志](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29omni33dp原header布局修正)。
 
