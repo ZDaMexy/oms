@@ -1,10 +1,28 @@
 # P1-A 变动日志
 
+## 2026-10-29Omni33DP原Header布局修正
+
+33 DP恢复原Lv./等级位置并将原生Mods下移，避免为Mods挪走原等级图；正式`.v26102901`已独立私下交付，331295645B/6658项，SHA256 `67d339d3637ec8cb71e57c997e6d82b94e570b9c45a56d0f9d4a73fa386d29d5`。最低运行时源码仍f6997e96，本次核验HEAD597713e0，public22源/10程序集同r39；已按前版重编/重启者直接导入。旧成品/作者/原素材、命名和逐日序号保留；两页取消、普通OMS界面及持续goal边界保持，未称完全体。
+
+以实际v49父作者固定新资格，fresh v50 A仅改33 BMS14K的九个数值叶：按1920×1080作者画布，Lv./等级原图恢复(72,158)/(118,158)px；真实未知文本保留居中，位置(72,158)px、大小82×20px；原生ModsRect仅Y下移至180/1080。difficulty原图、字体/绑定/门、mania/SP/BPL及其它6654份runtime字节保持；typed/literal双重逆转恢复父，未新增节点/资源/字体或放宽预算。17项私有行为测试、实际资格及生成通过；作者完整payload与资格/来源只保留私有回执，不将原PNG摘要入公开仓。
+
+诊断包实际三组普通Player通过：无Mods、EASY+INSANE14、EASY/ASCR/RD/HCN/IIDXG/LR2/JD。隔离Player使用真实raw14K/BGA/WAV、实际RD后软件按键及自然Results；七Mod实际导出OSR/解码，再从普通Replay按钮回放，软件鼠标完成六段实际hover，RD478231/JD HARD可读，实际LR2 Hard窗口15/30/60ms。12张游玩图与四张普通OMS Results图Root全看；第一组Results尚在过渡，只作生命周期证据，其余15张接受。回放导出通知遮右上Graph，不据这些图签收无遮挡Graph。实际汇总`native-33dp-mods-a-diagnostic-root-review-r1.json`，诊断身份不改标正式包。
+
+正式CLI实际退出0，13612代表组合、6658项CRC/作者逐字节相同，正式与诊断全部内容等。再用确切正式SHA及同一r9编译独立跑上述三组，actual process/host全0，Root逐看12游玩和4稳定普通Results，16张均接受；首组也已稳定，不借旧过渡图签收。六组共32PNG全看，不计失败组两张游玩图为通过。`native-33dp-mods-v50formal-root-review-r1.json`、`omni-v50-a-formal-diagnostic-equivalence-r1.json`与交付回执`omni-v50-a-delivery-finalized-r1.json`分别保留身份。其它Frame/mania前轮结果不冒称本轮重跑；原动态字体/clip/fit、完整速度数学/时序及设备仍未签。
+
+私有夹具r54/r55编译失败、Vector2递归序列化崩溃、r5反向替换失败、Results根节点重复计数和JD误读原metadata均保留；修正只在fresh私有源，公开22源/10程序集仍同r39。居中文字必须核Transform box与glyph各自几何，Results须等真实计数器完成，JD须核playable Difficulty及实际HitWindows；不通过改分数/时钟/生命或注入Replay放行。三组诊断通过分别固定r4/r8/r9源身份，不把混合诊断改标同一编译。
+
+另只读核27自有七布局、全部31 AFP/关联BSI与678 GEO，三个布局均无title/artist直接锚点；三份实际C5 scene也未消费两项数据，不能以information槽或被Suppress的原生hud.text伪称已显示。1476实读输入前后相等，BSI仅观测SHA不冒称原receipt验证；v49/A限定12份27相关文件字节相同，未准备补猜作者修改。两份离线审查由Root重核1683次输入SHA并保全至`assets/offline-source-audits-r63`，不是原机、字体或页面资格。
+
+按独立固定Plan定点回收已退出v49五个formal和剩余八个BPL诊断case共2886份重复依赖/7209431060B，均实际退出0。随后三个已完成A诊断case再回收636份/1537263564B，另保留51份host/owning编译件、1052份其它程序和1585份保护文件，末尾完整集合/目录/hash均精确相等。各自源码/编译归档、数据、OSR、截图、旧失败、作者/成品、共享prepared与CLI保留；回执分别为`native-v49-formal-reclaimed-r1.json`、`native-v49-bpl-rest-reclaimed-r1.json`及`native-v50-a-diagnostic-reclaimed-r1.json`。E普通NTFS压缩只读评估未取得合格范围，无压缩或属性改动；原版R9未准备或启动，不以空间操作代签产品门。
+
 ## 2026-10-29原版游客导航R8窄门
 
 Root实际Prepare生成新的D/E before基线后，仅启动独立E副本及21344 owned端点，无卡游客、单一控制器和新固定15分钟deadline。首个控制器因PowerShell7 JSON自动把ISO deadline转DateTime、CLI插值变成本地格式而在连接API前退出1；原失败保留，改用DateKind String读取同一锁与截止时间后实际运行，未改控制器源码或延长时间。17张实际截图Root全看：游客确认和两页ModeSelect引导后进入STANDARD/TUTORIAL，按该页printed VEFX+EFFECT跳过后仍有Welcome教学；一次150ms Start只到第二页“画面の見かた”，不能退出引导。按窄门立即停止新输入并正常关闭，不把过渡中的MusicSelect、重复超时游客页或ModeSelect临界超时归因当可靠路径。
 
 控制器及游戏实际退出0，official control.exit只发给PID/创建时间/固定exe/config/patch/port全匹配的本轮副本。D全metadata、D/E九份critical摘要、owned按钮归零及空卡保全通过，runtime XML脱敏semantic equal；原D未启动、无真实卡。实际汇总`reference-r8-narrow-guest-outcome-r1.json`，SHA `2793aa3678ef00633f4848ef2abfff8661a18874d69392682279f4ae50f7e95e`。未补成Classic190、Floating往返、DP或原公式/时序资格，r5 NORMAL20旧结果保持；后续须先取得实际可用路径，不重复本次无效跳过猜测。
+
+随后仅离线精确解包navigate_mselect及本地化两包，96张UV图、52个AFP及原源保全通过；静态解析沿实际白点/AFP/GEO关联第一组3/5/6正文。第3页讲VEFX换难度，第5页turntable移光标，第6页说明白键决定曲目后开始游玩；两套timer分支同属第4白点，七个loop不等于七页。独立Start終了按钮存在，但该组页位到footer的host关联未证；历史第二组六点的末页不能代签第一组安全退出。`reference-welcome-source-audit-r1`保留207份实读SHA及原解析链，无新游戏/API/输入、render/GPU或导航资格，也不恢复Omni页面计划。
 
 ## 2026-10-29Omni原Header与双侧修正交付
 

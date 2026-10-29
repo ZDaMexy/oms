@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-29（原Header、27双侧残字与BPL DP长文字已私下交付.v26102900）
+> 最后核对：2026-10-29（33 DP原等级位置与Mods避让已私下交付.v26102901）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -9,11 +9,11 @@
 
 静线为唯一内置、首次默认与保底；complex已退役，历史作者文件和用户包保留。静线打磨按用户决定暂停。BMS/mania各有模式默认和键数覆盖，旧全局配置首次迁移；游玩按最终键数应用。原V-001～V-005、设备和长期体验未签收，Skin V1/release未完成。C1～C7证据不重计，OmsSkin物理删除仍待原实机门。
 
-Omni最新私下交付`.v26102900`，最低源码f6997e96需重编/重启后导入，本次核验HEAD644b7f2b，未新增运行时代码；旧版保留。原版/设备及完整形态未签，边界取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。
+Omni最新私下交付`.v26102901`，最低源码仍f6997e96；已按前版重编/重启者可直接导入。本次核验HEAD597713e0，未新增运行时代码；旧版保留。原版/设备及完整形态未签，边界取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。
 
-02已接Classic十一档原图与33 DP原锚点避让；354px省略/现字体为OMS适配，原数学及存档/Replay范围不变。r1重叠候选拒交，证据保留。两页取消、保留OMS原界面；PageAPI保留，未来仅新可靠路线再评，取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
+Classic十一档、其它Frame原Header、27双侧残字及BPL DP宽度保持。33 BMS14K恢复原Lv./数字位置，Mods下移且支持真实hover/tooltip；未知等级保留居中文本。现字体、354px省略及单活动成绩标签为OMS适配，原数学/时序未签。
 
-33及其它Frame的29布局原Header、空/未知fallback已交付；27双侧无活动成绩标签残字已清除，七BPL DP长文字恢复安全宽度。单活动成绩/354px省略为OMS适配，原机隐藏规则、字体及入场时序未签。
+两页取消、保留OMS原界面及PageAPI；未来仅新可靠路线再评，取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。r1重叠候选及旧失败证据保留。27曲名/作者在已查自有源族无直接锚点，不补猜；原机隐藏规则、字体及入场时序仍缺证。
 
 ## 当前产品能力与剩余门
 
@@ -32,14 +32,14 @@ Omni最新私下交付`.v26102900`，最低源码f6997e96需重编/重启后导�
 | 实时演奏信息 | 实时判定与断连统计、EX SCORE/HiSpeed、MIN/当前/MAX BPM；曲名、作者标级与独立的表名/表内等级 | 读取规则真实状态；表归类不替代作者难度，皮肤不改变判定/计分、时间或难度表导入 |
 | 皮肤布局与公共页面 | 作者声明stage/lane位置、留空槽和键区，不创建输入；BMS最多16个`BgaViewports`，逐窗fit/fill/stretch或none。通用选曲/Results接口共用真实数据及原操作，默认原界面 | 显式field不被旧BGA自适应挪动；冲突整组零窗并诊断，9K/PMS不套黑白比。BGA归[P1-L](../P1-L/DEVELOPMENT_STATUS.md)；Omni当前两页方案取消、保留OMS原界面 |
 | 作者制作与可选演出 | [完整套件](../../../skin-authoring/README.md)含制作、元素文件/尺寸/动画、INI/scene/script字段与预算、刷新打包；示例区分完整包与练习片段，手册/图片随套件发行 | 示例工具检查/打包和真实挂载已验证；历史实机图与素材示意分开。原编辑器可改既有组件并存独立副本，无完整scene/script可视化编辑器；不据手册代签视觉或旧三包演练 |
-| IIDX 与 BPL 第三方作品 | Lighting Model Skin Omni Until 33本地.v26102900，默认33；27～33与八支BPL共15框体，1271款美术/539图，13模块/32项配置，适用开关默认全开。AUTO SCRATCH专用图、三条Graph、COMBO三色/居中与lane345完整cat已接入；另补真实Clear门槛/状态及HAZARD生存标识。BMS5/7/14、mania5/6/7/8/14/16及两侧/DP，模式/键数覆盖保持 | Normal Hi-Speed跨BPM映射、完整变速谱与实体手感未整体对齐；转盘周期、Graph布局和部分外框时序仍为作者适配。FAST/SLOW原版资格/寿命、PG精确周期/起相、lane345原机parent-loop、游客CUSTOM、各代默认/滤镜及部分DP末端待校准。HCN正常游玩显示未由教学素材代签。LIFT沿原生几何，副屏移除；26来源待补。独立私下分享，不内置或公开分发；Until34不在范围 |
+| IIDX 与 BPL 第三方作品 | Lighting Model Skin Omni Until 33本地.v26102901，默认33；27～33与八支BPL共15框体，1271款美术/539图，13模块/32项配置，适用开关默认全开。AUTO SCRATCH专用图、三条Graph、COMBO三色/居中与lane345完整cat已接入；另补真实Clear门槛/状态及HAZARD生存标识。BMS5/7/14、mania5/6/7/8/14/16及两侧/DP，模式/键数覆盖保持 | Normal Hi-Speed跨BPM映射、完整变速谱与实体手感未整体对齐；转盘周期、Graph布局和部分外框时序仍为作者适配。FAST/SLOW原版资格/寿命、PG精确周期/起相、lane345原机parent-loop、游客CUSTOM、各代默认/滤镜及部分DP末端待校准。HCN正常游玩显示未由教学素材代签。LIFT沿原生几何，副屏移除；26来源待补。独立私下分享，不内置或公开分发；Until34不在范围 |
 | 安装与发行 | 旧选择迁移证据保留；2026-10-03 候选已有便携/自定义根、恢复及同包覆盖启动证据，见 [P1-F](../P1-F/DEVELOPMENT_STATUS.md) | 生成物已按用户要求删除；实网下载、新作者独立演练、跨版本、独立账户非便携及设备/长期/公开发行门未新签收 |
 
 C2～C6共享同一 package/layout/material/scene publication、lease/detach 与脚本隔离合同；无游玩宿主的菜单也检查整包。授权撤销不扩大 reload 准入，具体合同只在[技术约束](TECHNICAL_CONSTRAINTS.md)维护。
 
 ## 最近一次验证
 
-2026-10-29：v49正式CLI13612代表组合、6658份CRC/作者字节及诊断包内容等通过；22诊断组与5正式组共75张实景，Root看56张，其中正式必需11图全看。覆盖27双侧Graph/Entrance开关、七BPL DP ASCII/CJK及真实raw mania7/84物件自然进入普通OMS Results。public22源/10程序集同r39；原Header前轮35+4组、Python13/413及02的118+2帧、r28/r29工程门保留各自身份，不重计。实际范围与失败取[本轮日志](CHANGELOG.md#2026-10-29omni原header与双侧修正交付)；原数学/时序、字体和设备仍未签。
+2026-10-29：v50 A的17项行为测试、实际作者生成、正式CLI13612代表组合及6658份CRC/作者字节和诊断内容等通过。无Mods、EASY+INSANE14、七合法Mods各跑诊断及确切正式包，共32PNG全看；诊断一张Results过渡仅作生命周期，正式12游玩/4稳定普通Results全部接受。实际RD后软件按键、自然成绩/OSR/Replay与六段hover通过；public22源/10程序集同r39。v49及旧Header/Classic工程门保留历史身份，取[本轮日志](CHANGELOG.md#2026-10-29omni33dp原header布局修正)；原数学/时序、字体及设备仍未签。
 
 2026-10-27旧包三组正常Player、39张实景覆盖P1双挡板/Lift、P2 Hidden与DP Lift，沿[读谱实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)；隔离软件操作无生命/分数注入或seek。[旧作者/美术保全](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27mod问题修正与用户判决)不计为新包验收。
 

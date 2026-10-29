@@ -120,3 +120,9 @@ Classic数字整条可用既有`original_sprite`直接画`tx_num1_4`；`gc.font`
 原生PlayerLoader尚不进入游玩时先区分LoadTask/ownership与ReadyForGameplay。后台Ready、已解码和无scope拒绝不等于已允许push；加载页的hover/idle/focus条件仍有效。隔离夹具按正常鼠标路径离开预览pane，再用原predicate等待；不得写ready/idle/clock或仅加timeout宣称修好。
 
 PowerShell7读取私有API输入锁时，`ConvertFrom-Json`可自动把ISO deadline转成DateTime，CLI插值随后变成本地格式，令Python在API连接前拒绝。用`-DateKind String`保留原ISO字符串，不能重写锁或延期掩盖解析失败；实际失败与保全边界见[P1-A日志](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29原版游客导航r8窄门)。
+
+原版Welcome与第二阶段选曲教学都有六点，但不是同一组六页；loop数量也不是逻辑页数，两个timer分支可占同一第4点。按实际白点、AFP/GEO/文字和host关联辨页，独立Start終了素材不能证明首组末页有该footer，正文白键决定曲目更不能当安全skip。来源与仍缺的调用层取上述[R8及离线源审查](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29原版游客导航r8窄门)。
+
+取景旁车不要直接序列化osuTK `Vector2`：其`PerpendicularRight`等计算属性可递归，投影成X/Y标量即可，不改被观察对象。`ChildrenOfType<T>()`可包含根/content自身，额外Prepend后须先按同一drawable身份Distinct，再保留真正的Single断言，不能改First掩盖多计数器。普通Results等待实际SelectedScore、展开面板和原计数器完成后再取景，不以已push或固定延时代表稳定；居中fallback须分别检查TransformDrawable盒子和ContentDrawable字形。失败与修正见[33DP日志](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29omni33dp原header布局修正)。
+
+难度Mod修改playable `Beatmap.Difficulty`，不一定改独立克隆的`BeatmapInfo.Difficulty`。核JD生效应同时读取真实Mod设置、playable难度及实际音符消费的HitWindows；只看原metadata会把正确生效误判为失败，不得改metadata迎合断言。来源见上述[33DP日志](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29omni33dp原header布局修正)。
