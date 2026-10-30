@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-10-29（v52已交付.v26102902；Omni自动推进仍停止）
+> 最后核对：2026-10-31（HDD本体参照；Omni自动推进仍停止）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -41,7 +41,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 2026-10-29：[候选收尾](CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)复核源码83e27770及既有回执：Hi-Speed版本1修后BMS full 3323通过/19跳过；CURRENT格式core 629/629、Python 416/416，BMS相关1444通过/19跳过、mania239通过/2跳过，Release/格式通过。v52正式CLI 13612代表组合、6658项CRC/作者字节相同；SP1 r73、SP2/DP r74均自然完成并导出实际OSR，SP1另经原生Replay同分结束，原19图已审看。随后[交付.v26102902](CHANGELOG.md#2026-10-29omniv52私下交付)只复核归档/作者字节、原回执及三张原实景，成品与已验候选同字节，未重跑产品测试。
 
-原版依据沿[R12/R13静态与内部精度](CHANGELOG.md#2026-10-29原版独立bpm与内部速度核对)及[R15有限Demo运动](CHANGELOG.md#2026-10-29原版demo自然运动标尺)。R14正常退出回执缺失、独立保全通过；R15退出0及保全通过。测试副本timer/start开关沿原回执，不签全部计时冻结。旧包Start/挡板/Lift原生证据取[实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)，不代签新候选。
+原版依据沿[R12/R13静态与内部精度](CHANGELOG.md#2026-10-29原版独立bpm与内部速度核对)及[R15有限Demo运动](CHANGELOG.md#2026-10-29原版demo自然运动标尺)。R14正常退出回执缺失、独立保全通过；R15退出0及保全通过。timer/start保留原回执，完整副本已退役，不签全部计时冻结。旧包Start/挡板/Lift原生证据取[实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)，不代签新候选。
 
 五条已解释ImageSharp旧索引警告不抑制，版本与正规许可取[原记录](CHANGELOG.md#2026-10-22客户端依赖安全修复接入)。正常工作区、图库前台FPS/长期内存、原机精确时序和原生最终配方从零重编未由软件或隔离结果代签；媒体剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)。
 
