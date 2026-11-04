@@ -140,3 +140,11 @@ Time Freeze先核实际`-patchcfgpath`和最终日志，不能只看默认配置
 `BindableDouble`默认持久化字符串会舍入内部精度。需要round-trip时应覆写虚方法`ToString(string?, IFormatProvider?)`，不是不存在的单参数重载；自定义子类还必须覆写`CreateInstance()`返回同一运行时子类，否则framework的`GetBoundCopy()`会在载入配置时拒绝。显示两位小数与保存精度分开，尤其不能让保存后的值跨过Classic选档中点；合同取[P1-A读谱](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代)。
 
 原字体先看SFNT签名，不按扩展名筛掉.bin：已核源有一个三face TTC采用.bin。原模块字族名用CP932，UTF-8/UTF-16或字体文件名搜索会漏；字族/路径出现、指针邻域、初始化与实际曲名/作者绑定是不同证据。字体字段还须核对所属资源，视频列表的artist字段不是gameplay文字槽。独立进程GDI/SFNT表比对可校准face识别，不能代签HDD实际绘制绑定或字体已应用；不得据此先选“相近字体”，边界取[P1-A收尾记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)。
+
+26 原版单人画面不可只枚举 `center_frame_sp`：同源还存在 `center_frame_wide_1p/2p`，Graph 开关使用不同中心电影与数字锚点。源电影名不等于已观察到的游戏分支；先比较实际开口、SCORE/MAXCOMBO 位置和原动态实例，再决定选择与宿主平移。`apertures()`若已合成平移后的全局画布，写 BgaViewports 时不得再次加偏移。逐代来源与实际资格取 [Standard 26 记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)，不能借 Lightning 的宿主偏移填空。
+
+26 游客能进入标题但选模式回标题时，须分清基础 e-amusement 服务与游戏专用协议；只有 services/pcbtracker/facility 正常不证明 IIDX 配置已返回。Copula 以后还依赖服务发现的 `local2`，漏项会使游戏专用请求根本不发出。对未知请求只记录已校验的模块/方法，不打印账号、请求体或完整启动参数；空日志也不能证明无错误。该诊断不授予使用真实卡或存档的权限。
+
+spice2x 启动器可能重新启动管理员子进程；仅等待启动器 PID 退出会错误宣称游戏已经停止。取实际 API 监听 PID，并在正常 control.exit 后确认该子进程停止，再备份运行后差异和恢复小文件。对 Suppress 材料记录使用 `TryGetMaterial`，不能无条件读取 `Material`；实际渲染已准备成功时，诊断器自身取空载荷也会中止取景，不能归为作者包故障。
+
+BMS 作者 BGA 还受公共 solver 的全宽底部 8% HUD 保留区约束，即使那里不与轨道相交。DP 原下窗到 670px 并不意味着可以原样声明；越界会使整组窗口 unavailable。先保存完整原开口，再把 720px 画布的实际窗口裁至 662px 内，并用谱面真实加载的图片验证 viewport/content-state/纹理及 framebuffer；默认背景不能证明 BGA 成功。DP 上下窗应按真实 qpro hook 分区测量，不能全栏只取最大的透明矩形。

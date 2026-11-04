@@ -1,0 +1,29 @@
+<Project>
+  <PropertyGroup>
+    <ImportDirectoryBuildProps>false</ImportDirectoryBuildProps>
+    <ImportDirectoryBuildTargets>false</ImportDirectoryBuildTargets>
+  </PropertyGroup>
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>12.0</LangVersion>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <StartupObject>osu.Tools.StandardSkinCapture.Program</StartupObject>
+    <DefineConstants>$(DefineConstants);OSU_EXECUTABLE_TEST_PROJECT</DefineConstants>
+    <CaptureRuntimeDirectory Condition="'$(CaptureRuntimeDirectory)' == ''">$(MSBuildThisFileDirectory)../../osu.Desktop/bin/$(Configuration)/net8.0</CaptureRuntimeDirectory>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs;TestSceneStandardSkinCapture.cs;BgaCaptureWorkingBeatmap.cs" />
+    <Compile Include="../../osu.Game/Tests/VisualTestRunner.cs" Link="ExactVisualTestRunner.cs" />
+    <Reference Include="osu.Framework;osu.Game;osu.Game.Rulesets.Bms;osu.Game.Rulesets.Mania;oms.Input;osuTK;Realm;nunit.framework;SixLabors.ImageSharp;Newtonsoft.Json;JetBrains.Annotations;System.Text.Json;System.Text.Encodings.Web;System.Diagnostics.DiagnosticSource;System.Threading.Channels">
+      <HintPath>$(CaptureRuntimeDirectory)/%(Identity).dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+  <Target Name="RequireCaptureRuntime" BeforeTargets="ResolveReferences">
+    <Error Condition="!Exists('$(CaptureRuntimeDirectory)/osu.Game.dll')" Text="Build the current OMS runtime first, then set CaptureRuntimeDirectory to its verified program directory." />
+  </Target>
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+</Project>

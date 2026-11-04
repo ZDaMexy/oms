@@ -2,9 +2,33 @@
 
 读取用户提供的现有 HDD 美术目录，建立来源清单，并在独立非系统盘目录中处理 IFS 副本。原始图、原始 XML / AFP / 几何数据和按 UV 裁切的 PNG 分别保留；`index.html` 可离线搜索、筛选和预览。
 
+## 独立 Standard 时期作品
+
+`build_standard_skin.py` 只消费 26 HDD 的独立素材库、研究输出及组件目录，基础名称为 **Standard Model Skin Omni Until 26**。本轮实际来源、适配和验证缺口集中记录在[作品记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)。最早源样式是 03，实际十种款式不代表连续 03～26；`selection-26-hdd.json` 明列合格的 282 个 IFS，不包含无用且严格解码失败的 `1/common.ifs`。
+
+四个阶段分别由 `build_library.py`、`standard_reference.py`、`standard_components.py` 和 `build_standard_skin.py` 执行；`standard_controls.py` 与 `standard_graph.py` 由整合器调用。工具只复用中立解析及公开合同，不读取 Lightning 作者包。以下从仓库根执行；选定新输出父目录，并将解析器指向已复核的 bemaniutils 源码。中间文件与原图都不进入公开仓库。
+
+```powershell
+. .\UseDevelopmentStorage.ps1
+$taskStandardRoot = 'E:/OMS-Development/sources/Standard26-rebuild'
+$taskImageTools = 'F:/zdamexy-workspace/oms/.dev-cache/tools/iidx-assets'
+$taskParserRoot = 'F:/zdamexy-workspace/oms/.dev-cache/temp/iidx-afp-research-20261018/sources/bemaniutils'
+New-Item -ItemType Directory -Path $taskStandardRoot -ErrorAction Stop
+python -B tools/IidxSkinAssets/build_library.py --game-root D:/LDJ-2019090200 --output "$taskStandardRoot/library" --selection tools/IidxSkinAssets/selection-26-hdd.json --ifstools-path $taskImageTools
+python -B tools/IidxSkinAssets/standard_reference.py --library "$taskStandardRoot/library" --bemani-root $taskParserRoot --image-tools $taskImageTools --output "$taskStandardRoot/research" --styles 3 8 12 14 16 17 19 21 25 26 --common-family 0 --recorded
+$taskMaps = [ordered]@{}
+3,8,12,14,16,17,19,21,25,26 | ForEach-Object { $taskMaps[('iidx{0:00}' -f $_)] = ('research/gmframe{0:00}/skin-reference-map.json' -f $_) }
+$taskMaps | ConvertTo-Json | Set-Content "$taskStandardRoot/frame-maps.json" -Encoding utf8
+python -B tools/IidxSkinAssets/standard_components.py --library "$taskStandardRoot/library" --bemani-root $taskParserRoot --image-tools $taskImageTools --frame-maps "$taskStandardRoot/frame-maps.json" --output "$taskStandardRoot/components" --modules notes,charge-notes,judgement,explosion,key-beam,lane-cover,lift-art,turntable,graph-area,full-combo
+python -B tools/IidxSkinAssets/build_standard_skin.py --library "$taskStandardRoot/library" --research "$taskStandardRoot/research" --components "$taskStandardRoot/components" --image-tools $taskImageTools --output "$taskStandardRoot/author"
+dotnet run --project tools/SkinAuthoring -- pack "$taskStandardRoot/author" "$taskStandardRoot/Standard26.osk"
+```
+
+`--common-family` 必须由实际源配置确定，不能从画布尺寸猜测。当前代码从零生成时已包含判定/FC 修正；仅复用早期组件导出时才使用 `--component-overrides` 加载同一来源身份的修订目录。来源收据写在作者目录外，不能随 OSK 打包。作者检查覆盖单选项加其余默认值及明确条件的代表组合，不展开所有选择的笛卡尔积，也不代替[真实 Player 取景](../StandardSkinCapture/README.md)。
+
 ## 统一 Lightning 时期作品
 
-当前整合入口为 `build_omni_skin.py`，作者作品基础名称固定 **Lighting Model Skin Omni Until 33**，默认33；27～33和八支BPL进入同一Game Frame选项。各代及BPL的candidate09目录是整合器当前读取的Frame来源，重建时须保留；它们不再作为多套成品交付，已被替代的旧包和暂存可清理。Until34不在本轮范围。
+当前整合入口为 `build_omni_skin.py`，作者作品基础名称更正为 **Lightning Model Skin Omni Until 33**，默认33；27～33和八支BPL进入同一Game Frame选项。旧版的 Lighting 文件名与字节保留，不借本次名称纠正继续开发该作品。各代及BPL的candidate09目录是整合器当前读取的Frame来源，重建时须保留；它们不再作为多套成品交付。Until34不在本轮范围。
 
 Omni 是供作者使用及熟人间私下分享的独立 `.osk`，不内置到 OMS，也不随客户端公开发行或公开制作套件分发。客户端的通用皮肤能力和素材作品分开交付；默认与保底仍为静线。
 
@@ -176,9 +200,9 @@ SD源红线按原GEO在scene显示，原生必需判定线槽用透明材质 `Pr
 
 BPL使用同一生成器，通过`--frame-package`指定实际归档标识、`--identity`给稳定节点前缀、`--name`给本地显示名。研究输入必须逐队对应；同位置或同数字PNG不意味着可以混用战队框体。当前来源含S5七队及0目录SUPERNOVA高清框体；1目录同名旧SD研究另存，不能依据相似文件名或小PNG推定相同画布。若research有effective-bga-viewports.json，HD也使用逐框透明开口和原框下方黑底，避免裸movie矩形覆盖装饰；合成框体显式nearest。原动画仍冻结源181帧，未复刻完整原版界面。
 
-## 通过隔离副本采集原版参照
+## 直接使用 HDD 本体采集原版参照
 
-原始可玩安装保持只读。运行参照使用另一处完整物理副本；启动前核对路径，独立保存配置、补丁选择、截图和日志，结束后复核源安装清单及关键文件摘要。副本清空卡号与自动插卡设置，不使用真实卡或账号；配置和 API 密码只存本地忽略目录，不进入 Git 或命令输出。
+按当前工作区约束，直接使用用户现有 HDD，不建立完整游戏副本。启动前核对来源并只备份会改动的小文件，启动配置、补丁选择、截图和日志独立保存在已约定的非系统盘目录；使用空卡与关闭自动插卡的配置，不使用真实卡或账号。结束时通过实际 API 监听进程确认游戏已退出，再保全并恢复发生变化的小文件，逐字节复核；启动器父进程先退出不等于游戏已退出。配置和 API 密码只存本地忽略目录，不进入 Git 或命令输出。原图、XML、AFP、GEO 不原地修改。
 
 `reference_api.py` 只连接会话指定的 `127.0.0.1` Spice API，要求非空独立密码；提供截图、按钮、数字键盘导航、模拟轴、触控及投币，不提供卡、内存、进程或电源操作，也不负责复制或启动游戏。Spice API 服务自身的监听范围须在启动配置中另行核对，本客户端的 localhost 限制不能证明服务只监听回环。
 
@@ -209,7 +233,7 @@ python -B tools/IidxSkinAssets/reference_api.py --session 'Y:\IIDX-Reference\api
 python -B tools/IidxSkinAssets/reference_api.py --session 'Y:\IIDX-Reference\api-session.json' keypad-write --keypad 0 --keys '2'
 ```
 
-截图用于对位，连续帧辅助观察动画；普通运行日志不保证列出每次纹理绘制。素材关联仍需对照原 XML、AFP / GEO 和实际画面。副本为适配参考环境启用的启动检查调整必须单独记录，不作为原安装、设备或原版刷新率的验收结果。
+截图用于对位，连续帧辅助观察动画；普通运行日志不保证列出每次纹理绘制。素材关联仍需对照原 XML、AFP / GEO 和实际画面。隔离启动配置中为适配参考环境启用的调整必须单独记录，不作为原安装、设备或原版刷新率的验收结果。Standard 26 本轮明确禁止 computer use，取景与导航只使用 API。
 
 需要在内置浏览器预览时，可从素材库启动只监听本机的 HTTP 服务；该浏览器不允许 `file://`，不调整其安全策略。预览服务只指向生成库，不指向 HDD 或整个工作区。
 

@@ -31,7 +31,7 @@ from note_geometry import (ALIASES as NOTE_MARKER_ALIASES, apply_to_author as co
                            marker_dimensions as note_marker_dimensions)
 from lighting_arrival import synchronise_preparation as synchronise_arrival_preparation
 
-NAME = "Lighting Model Skin Omni Until 33"
+NAME = "Lightning Model Skin Omni Until 33"
 MANIFEST_CONTRACT = "oms-gameplay-skin-manifest.v1"
 SCENE_CONTRACT = "oms-gameplay-skin-scene.v1"
 EVENT_CONTRACT = "oms-gameplay-skin-event.v1"
