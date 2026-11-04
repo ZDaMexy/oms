@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-11-05（Standard独立作品获授权；Lightning停止边界保留）
+> 最后核对：2026-11-05（Standard下一阶段来源与缺口；Lightning停止边界保留）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -11,7 +11,7 @@
 
 ### Standard Model Skin Omni Until 26
 
-完成26独立包的同包Player矩阵与版本化私下交付，事实与适配取[Standard记录](../../other/STANDARD_MODEL_SKIN_20261105.md)。更早缺失框体待用户提供对应HDD；不复制游戏，不混用Lightning，不使用computer use。原机、设备和发行门分别验收。
+更早缺失框体待对应HDD；CN/HCN持续光效、FC17原宿主裁切等缺口取[Standard记录](../../other/STANDARD_MODEL_SKIN_20261105.md)。两作品保持独立，禁止computer use；原机、设备和发行门另验。
 
 ### Lightning Model Skin Omni Until 33（停止自动推进）
 

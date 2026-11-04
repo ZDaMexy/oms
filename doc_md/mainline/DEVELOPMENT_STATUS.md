@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-11-05（文档语义与旧证据核对；产品验收仍沿原日期）
+> 最后核对：2026-11-05（Standard初版本地验收；其它产品、设备及发行门沿原日期）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -15,7 +15,7 @@ Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，具
 
 游玩判定/结果及性能取[10月19日深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)；设备入口、输入时间、轴用途、长皿与校准接续取[10月21日输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)。前台帧时间与实体设备仍待验收。
 
-Lightning Model Skin Omni Until 33 最新私下交付仍为历史 Lighting 文件名的.v26102902，原验证和停止推进边界保持。11月5日另获授权制作 Standard Model Skin Omni Until 26，使用26 HDD独立来源，进展和实测边界取[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)及[作品记录](../other/STANDARD_MODEL_SKIN_20261105.md)。名称纠正不覆盖旧包，两作品不混合；选曲/Results及原产品/设备/发行门保持。
+Standard Model Skin Omni Until 26 初版 `.v26110500` 已完成本地演奏验证并独立私下交付，十款实际来源与限制取[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)及[作品记录](../other/STANDARD_MODEL_SKIN_20261105.md)。Lightning Model Skin Omni Until 33 仍保留历史 Lighting 文件名的.v26102902及停止边界，现行拼写纠正不覆盖旧包。两作品不混合；选曲/Results及原产品、设备、发行门保持。
 
 玩家直接登录固定OMSIR，保存后新局上传；新闻 / 帮助 / 排行 / 玩家沿原生页面。谱面列表先选模式：BMS 仅 Ginger Rush / 616，osu!mania 仅 Sayobot，恢复上次 BMS 来源；紧凑筛选、原生卡片和各来源阅读状态保持。正常OMS窗口的lazer体验仍待签收，隔离内容宽度检查不代签；源码 / 软件及剩余门取[P3-IR状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。社交后续，旧ppy关闭；Phase1.x原门保持。
 
@@ -71,6 +71,6 @@ Lightning Model Skin Omni Until 33 最新私下交付仍为历史 Lighting 文�
 
 ## 文档治理验证
 
-2026-11-05从干净且fetch后与origin/master一致的ab58abd2核对全仓状态、当前子线入口及最近实现证据。修正主合同仍强制旧Hi-Speed公式/设置页毫秒、P1-C仍列旧toast和泛化反馈删除、作者手册仍要求BMS完整Mod精确比较等偏移；原10月29日四份TRX与Python结果复核一致。范围和检查见[本轮记录](CHANGELOG.md#2026-11-05专项进度与文档语义复核)，没有新产品测试、原机/设备验收、打包或恢复Omni开发；旧证据保留原日期。
+2026-11-05 Standard初版交付同步了来源、已实现范围、可见限制、独立作品边界与诊断记忆，客户端文档检查、工作区协作检查及diff检查通过。产品验证取[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)，文档通过不代签设备或原机。此前同日从ab58abd2进行的全仓语义复核及旧TRX核对保留在[历史记录](CHANGELOG.md#2026-11-05专项进度与文档语义复核)，未刷新旧测试日期。
 
 开发存储继续遵守 [AGENTS](../../AGENTS.md#开发磁盘约束)。旧系统盘产物回收和 Codex 全局迁移未完成，不能因文档检查通过而宣称已释放或零增长；待办保留在 [PLAN](DEVELOPMENT_PLAN.md#改动验收矩阵)。

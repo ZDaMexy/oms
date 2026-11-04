@@ -148,3 +148,5 @@ Time Freeze先核实际`-patchcfgpath`和最终日志，不能只看默认配置
 spice2x 启动器可能重新启动管理员子进程；仅等待启动器 PID 退出会错误宣称游戏已经停止。取实际 API 监听 PID，并在正常 control.exit 后确认该子进程停止，再备份运行后差异和恢复小文件。对 Suppress 材料记录使用 `TryGetMaterial`，不能无条件读取 `Material`；实际渲染已准备成功时，诊断器自身取空载荷也会中止取景，不能归为作者包故障。
 
 BMS 作者 BGA 还受公共 solver 的全宽底部 8% HUD 保留区约束，即使那里不与轨道相交。DP 原下窗到 670px 并不意味着可以原样声明；越界会使整组窗口 unavailable。先保存完整原开口，再把 720px 画布的实际窗口裁至 662px 内，并用谱面真实加载的图片验证 viewport/content-state/纹理及 framebuffer；默认背景不能证明 BGA 成功。DP 上下窗应按真实 qpro hook 分区测量，不能全栏只取最大的透明矩形。
+
+原判定标签加 COMBO 的横排要按实际位数核总宽；计分/自然 Results 成功不能证明三位、四位字形仍在轨内。隐藏数字的 alpha 不会自动消除横排占位，无 COMBO 须独立居中。按数值驱动缩放还须遵守 C4 轨迹时间上限，超范围不能伪称精确分段。看似缺数字时先核原图 alpha bbox 与实心笔画，再映射 framebuffer；透明 padding 的 quad 越界不等于笔画被遮挡。实际资格取 [Standard 验证](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#验证与原版参照)。

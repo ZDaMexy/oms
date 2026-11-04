@@ -1,10 +1,10 @@
 # Standard Model Skin Omni Until 26：独立作品记录
 
-2026-11-05。本轮使用用户提供的 `D:\LDJ-2019090200`，制作 Lightning 框体之前的独立作品。当前制作与验证仍在进行，尚未据此签收最终成品。当前状态由 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)引用本记录，工具入口为 [IidxSkinAssets](../../tools/IidxSkinAssets/README.md)。
+2026-11-05。使用用户提供的 `D:\LDJ-2019090200`，完成 Lightning 框体之前的独立作品初版 **Standard Model Skin Omni Until 26.v26110500**，本地私下交付。当前状态由 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)引用本记录，工具入口为 [IidxSkinAssets](../../tools/IidxSkinAssets/README.md)。以下明确区分已实现、作者适配与尚未签收的原机细节。
 
 ## 身份与来源
 
-作品暂名 **Standard Model Skin Omni Until 26**，默认 Rootage。它与 **Lightning Model Skin Omni Until 33** 的素材库、作者目录、配置、名称和 OSK 分开；后者只更正现行名称，历史 Lighting 成品不改名、不覆盖，原停止推进边界保留。新作品不读取旧作者包，也不以 27～33 图像补齐缺口。
+作品命名为 **Standard Model Skin Omni Until 26**，默认 Rootage。它与 **Lightning Model Skin Omni Until 33** 的素材库、作者目录、配置、名称和 OSK 分开；后者只更正现行名称，历史 Lighting 成品不改名、不覆盖，原停止推进边界保留。新作品不读取旧作者包，也不以 27～33 图像补齐缺口。
 
 该 HDD 实际包含十种 Game Frame：03 / 08 / 12 / 14 / 16 / 17 / 19 / 21 / 25 / 26。分别为 3rd style、8th style、HAPPY SKY、GOLD、EMPRESS、SIRIUS、Lincle、SPADA、CANNON BALLERS、Rootage。最早可用的样式是 03；这是 26 HDD 内保留的款式，不能表述为从初代到 26 连续齐全，也不能据此断言原发行 HDD 的每项美术完全一致。缺失框体待用户后续提供更早 HDD。
 
@@ -42,12 +42,18 @@ FC17 的 DP 源电影内，COMBO 大字本来宽于轨道，瞬间运动还会�
 
 首次实际 Player 暴露出全屏 `decoration` 被 Stage/Group/Lane 继承，BMS 7K 因而重复加载十一份信息层，触发文字预算。作者工具在 Stage 明确抑制继承，只保留 Global 一份；没有放宽客户端预算。验证工具 [StandardSkinCapture](../../tools/StandardSkinCapture/README.md)通过普通导入、模式选择、真实 ReplayPlayer、实际成绩与自然 Results 记录精确包身份和 framebuffer，禁止以静态拼图替代真实演奏。
 
-r11 的29局软件路径通过后，逐图复核发现长 COMBO 的横排行超宽，不能把这些回执当成最终外观验收。真实压力谱用1024个原生mania音符/长条累积到1040 COMBO；10100ms的1024读数在r11越界，r12修后探针已在两侧完整居中收拢。正式r12只改14份判定场景，其余文件及全部原图保持；最终同包矩阵另行执行，不复用旧包截图签收。
+r11 的29局软件路径通过后，逐图复核发现长 COMBO 的横排行超宽，不能把这些回执当成最终外观验收。真实压力谱用1024个原生mania音符/长条累积到1040 COMBO；10100ms的1024读数在r11越界，r12修后两侧完整居中收拢。正式r12只改14份判定场景，其余文件及全部原图保持；下方最终矩阵重新使用正式同一包，不复用旧包或探针截图。
 
 原版测查直接启动 HDD 本体，使用独立启动配置及空卡游客流程，只备份少量 NVRAM 文件。最初的本机游客服务缺少 `local2` 服务注册，另缺一个无状态到期接口；修复后已进入游客选曲与 1P/2P 实际演奏，宽布局取得 API 图像。游客服务协议沿固定版本的 [IIDX 基类](https://github.com/DragonMinded/bemaniutils/blob/1e66fcd780afb3088ce8e78c88615a143db492ee/bemani/backend/iidx/base.py)与 [Rootage 实现](https://github.com/DragonMinded/bemaniutils/blob/1e66fcd780afb3088ce8e78c88615a143db492ee/bemani/backend/iidx/rootage.py)核对，只在本机运行、不保存卡片/成绩、不转发请求。各次退出以实际 API 监听子进程为准；最后 r7 与游客服务均已停止，恢复后 17 个受保护文件与启动前相同。禁止 computer use；没有创建 HDD 副本、使用真实卡片或上传玩家数据。
 
-正式成品检查、实际 Player 组合、视觉结论和交付摘要在完成后回填本节。既有 Lightning、静线、设备与公开发行门不因本作品的检查而提升。
+正式作者检查通过 2158 个不同代表组合，覆盖各选项及明确条件分支，不代表全部排列。3621 个归档成员与作者闭包逐字节一致，1942 张 PNG、CRC、成员路径和私有收据排除检查通过。48 项 focused 测试及取景宿主 Release 构建通过；客户端运行时代码基线为 `2a1f9a2a`，本次只增加制作/验证工具，未修改玩法引擎。既有五条 ImageSharp 构建告警保留，未重复执行未变的全量产品测试。
+
+最终同包完成 30 局真实 ReplayPlayer：15 个基础玩法/键数/侧别组合、9 个其它框体组合、5 个 Graph 关闭组合，另加一局 mania16 DP 四位数压力谱。全部经过普通导入、原生计分、自然 Full Combo 与普通 Results；压力谱最终为 1,000,000 分、1040 COMBO。180 张实绘 PNG 已检查完整性，其中 44 张逐图审看；不是逐180图视觉签收。BMS 测试谱通过原生 BGA 读取棋盘图片并核对实际纹理/窗口，预览中的棋盘属于测试谱，不是皮肤素材。25 DP 满血时的窄百位“1”另以原图 alpha 与实绘白色笔画复核完整；FC17 的遮挡仍按上文限制保留。
+
+最终包原样复制为 `.v26110500.osk`，与七张原实景、README、VALIDATION 和 SHA256 共11个文件，收存于本机 `deliverables/skins/Standard Model Skin Omni Until 26.v26110500`。详细身份与审图记录保存在私有 evidence 的 `player/final-r12-acceptance.json`、三份视觉报告及 `delivery-r12-receipt.json`。源码制作阶段为 `efd0f70c` / `35fb5b31`，交付需使用已验证基线或后续兼容 OMS；旧窗口先重启再导入。正常工作区长期体验、实体设备、原机完全等价与公开发行未签收；既有 Lightning、静线及原产品门不因此提升。
 
 ## 存储与收尾边界
 
 旧字体缓存 11.10 GiB 的清理与五个过期小型探针目录删除均被自动批准审查拒绝，未换方法删除；已有证据及恢复备份保留。手动维护脚本只列出经核对的旧字体缓存，存于本机 deliverables/maintenance；未执行即不能声称已释放空间。临时游客规划文件的一次写入也被拒绝，未重试；这不构成游戏来源或成品证据。
+
+本次收尾仅清除已确认可再生成的单个新 Python 字节码缓存；作者源、最终包、失败候选、截图、回执与恢复备份均保留。旧清理受阻项仍未删除，不以此次小缓存清除冒称已完成大规模回收。

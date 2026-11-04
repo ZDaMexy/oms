@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-11-05（Standard 26 独立制作；Lightning 自动推进仍停止）
+> 最后核对：2026-11-05（Standard 26 初版私下交付；Lightning 自动推进仍停止）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -11,11 +11,9 @@
 
 Lightning Model Skin Omni Until 33 自动推进仍停止，完整形态未完成。最新私下交付和运行要求取[.v26102902](CHANGELOG.md#2026-10-29omniv52私下交付)，历史 Lighting 文件名保留；范围与未验项取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。
 
-Standard Model Skin Omni Until 26 正在验收最终包的真实Player矩阵，独立26来源和全部适配取[作品记录](../../other/STANDARD_MODEL_SKIN_20261105.md)。
+Standard Model Skin Omni Until 26 已独立交付 `.v26110500`，默认Rootage；十款实际来源、适配和可见限制取[作品记录](../../other/STANDARD_MODEL_SKIN_20261105.md)。
 
-Classic十一档、其它Frame原Header、27双侧残字及BPL DP宽度保持。33 BMS14K恢复原Lv./数字位置，Mods下移且支持真实hover/tooltip；未知等级保留居中文本。字体、省略及单活动成绩标签为OMS适配，原数学/时序未签。
-
-两页取消、保留OMS原界面及PageAPI；未来仅新可靠路线再评，取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。27曲名/作者在已查自有源族无直接锚点，不补猜；原机隐藏规则、字体及入场时序仍缺证。
+两作品选曲与Results均保留OMS原界面及PageAPI。Lightning的Classic/Header等已有表现与27文字锚点缺口取上方作品记录，旧页面方案取消取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
 
 ## 当前产品能力与剩余门
 
@@ -27,7 +25,7 @@ Classic十一档、其它Frame原Header、27双侧残字及BPL DP宽度保持。
 | 公共 BMS 浏览下载 | BMS模式→所属来源→表→等级/关键词，匹配谱面、后台下载、通知、自动入库和精确选歌；追加时已有卡片仍能下载 | 首次打开才联网，原包直读 chartbms；无独立在线试听、整表下载或续传/跨重启恢复。窗口/DPI/网络、大包、完整歌曲与听感待观察，旧在线及发行门不变 |
 | Sayobot mania 镜像 | 同一列表按 osu!mania→Sayobot 进入，按原编号/关键词及键数/星级/状态筛选；后台任务、安全解包、只索引mania与原bid精确打开已有软件证据 | 真实纯mania/混合小包未验收；最近实网日期见下方，失败显示中文重试。首次进入才联网、无需账号；旧上游在线关闭，OMSIR不改变下载路径。无视频/独立试听/续传，网络、大包与发行门保留 |
 | 导入、选择与管理 | 普通.osk、固定chartskin目录；单一卡片按BMS/mania→模式默认或键数设置，未指定键数继承默认；可用的重命名、导出、删除与编辑直接显示并指向卡片皮肤 | 浏览不切模式/谱面/current；失效键数指定依次取模式默认/静线，原ID保留。旧external只读；手动刷新发现目录，编辑需兼容当前谱面 |
-| 皮肤配置项 | 作者下拉/开关/数值按皮肤、模式和键数保存并逐层继承；预览整行/箭头可浏览、搜索分页，点图才保存。Omni11类1271款共用539张小图；无预览保留文字 | 下次游玩/重开预览冻结同一选项/INI/布局/美术publication，无进行中换包。图卡可见才解码，每页最多12款，换页/收起释放旧卡；普通包原几何保持 |
+| 皮肤配置项 | 作者下拉/开关/数值按皮肤、模式和键数保存并逐层继承；预览整行/箭头可浏览、搜索分页，点图才保存。美术预览按包提供，无预览保留文字 | 下次游玩/重开预览冻结同一选项/INI/布局/美术publication，无进行中换包。图卡可见才解码，每页最多12款，换页/收起释放旧卡；普通包原几何保持 |
 | 更新与失败保护 | 设置“刷新皮肤”重新发现固定目录并重载当前整包，失败保留此前外观；开局布局未准备完成时提示重试并回原页，回收未挂资源 | 游玩/预览期间不可 reload；无 watcher 或游玩中替换，不将半载规则集当作成功 |
 | 唯一内置与恢复 | 正常开发启动、build/publish 从作者源自动同步 simple；安装原件验证后恢复工作副本，旧内置 complex 选择迁回 simple | canonical 原件故障须提示修复安装并阻止游玩/预览，不恢复程序化主题；不按同名清除用户包 |
 | 静线游玩外观 | 文件素材提供完整底板、轨道、转盘/键帽、固定分段血槽和 BGA 外框；白黑/皿轨独立比例、分隔线补偿、14K 每侧键序一致 | 已依据用户参考反复改进；当前暂停继续打磨，完整歌曲、其它尺寸及设备体验未整体签收 |
@@ -42,7 +40,9 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-10-29：[候选收尾](CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)复核源码83e27770及既有回执：Hi-Speed版本1修后BMS full 3323通过/19跳过；CURRENT格式core 629/629、Python 416/416，BMS相关1444通过/19跳过、mania239通过/2跳过，Release/格式通过。v52正式CLI 13612代表组合、6658项CRC/作者字节相同；SP1 r73、SP2/DP r74均自然完成并导出实际OSR，SP1另经原生Replay同分结束，原19图已审看。随后[交付.v26102902](CHANGELOG.md#2026-10-29omniv52私下交付)只复核归档/作者字节、原回执及三张原实景，成品与已验候选同字节，未重跑产品测试。
+2026-11-05：[Standard初版](CHANGELOG.md#2026-11-05standard26初版私下交付)的48项focused测试、2158代表组合及3621成员闭包通过。最终同包30局真实Player自然计分/FC/Results，180张PNG完整性检查、44张目视，压力谱1040 COMBO；已验OSK原样交付，原机、设备及可见限制取作品记录。运行时代码基线2a1f9a2a，未修改玩法或重跑未变产品门。
+
+2026-10-29：[Lightning候选收尾](CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)保留83e27770的BMS full 3323通过/19跳过，以及core、Python、BMS/mania相关回归、Release/格式与v52正式CLI、原生回放和实景证据。[.v26102902交付](CHANGELOG.md#2026-10-29omniv52私下交付)与原候选同字节；没有借Standard刷新旧作品验证日期。
 
 原版依据沿[R12/R13静态与内部精度](CHANGELOG.md#2026-10-29原版独立bpm与内部速度核对)及[R15有限Demo运动](CHANGELOG.md#2026-10-29原版demo自然运动标尺)。R14正常退出回执缺失、独立保全通过；R15退出0及保全通过。timer/start保留原回执，完整副本已退役，不签全部计时冻结。旧包Start/挡板/Lift原生证据取[实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)，不代签新候选。
 
