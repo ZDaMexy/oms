@@ -30,6 +30,8 @@ dotnet build tools/StandardSkinCapture/StandardSkinCapture.csproj -c Release `
 
 BMS 支持 5/7/14K，mania 支持 5/6/7/8/14/16K；单舞台使用 `p1/p2`，14/16K 使用 `dp`。BMS 长条为 `ln/cn/hcn`，缺省 `cn`。包实际未声明的选项不会被猜测或静默替代。
 
+`--chart` 缺省为 `standard`，沿用普通矩阵的原合成谱。四位 Combo 专项使用 `--ruleset mania --keys 16 --presentation dp --chart combo-stress`；其它模式、键数或布局不能使用 `combo-stress`。该谱从 2000 毫秒开始，以 125 毫秒行距、每轨 0.2 毫秒偏移生成 64×16 个原生对象：前 63 行为 Note，末行为 700 毫秒 HoldNote，同轨长条不重叠，末行头部位于 9875～9878 毫秒，最后结束于 10578 毫秒。10100 毫秒取景位于末行判定后的 500 毫秒内；该自然取景和完整计分时都要求实际 `ScoreProcessor.Combo` 至少达到 1000，回执保留真实当前 Combo，不向皮肤注入数字。最终计分、full combo 与自然 Results 继续由原生玩法判定，不硬写预期最终 Combo。`host-started.json`、`chart.json`、`player-chart.json`、游玩帧和完成回执均记录 `ChartVariant`，与普通矩阵分开取证。
+
 每局输出包身份及运行程序集 SHA256、选择与精确 publication、全部材料来源、选项/轨道几何/绑定/时钟声明、四张自然游玩帧及取景前采样的真实状态和节点/纹理观察、普通 Results 帧与真实成绩，最后以 `completed.json` 和 `host-exit.json` 闭合。运行失败或缺少完成回执均返回非零；图片文件写出不等于目视验收。宿主使用真实渲染 API 取景，不使用 computer use。
 
 完整计分后还会确认真实 full combo 与保留的 `gameplay.complete` 事件，沿自然时钟等待至少 300 毫秒及实际已应用动画帧中可见的纹理片段，然后输出 `full-combo-outro.png`、对应游玩状态与 `full-combo-observation.json`。取景不 seek、不暂停时钟、不修改 alpha；采图后继续自然进入 Results。

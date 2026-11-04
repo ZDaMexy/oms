@@ -31,10 +31,25 @@ SOURCE_WIDTHS = {"white": 34, "black": 26, "scratch": 60}
 SOURCE_TO_LOGICAL = 768 / 720
 SOURCE_TO_REFERENCE = 1.5
 SOURCE_STAGE_HEIGHT = 484
+SOURCE_STAGE_WIDTH = 292
 REFERENCE_STAGE_HEIGHT = SOURCE_STAGE_HEIGHT * SOURCE_TO_REFERENCE
 SOURCE_HIT_OFFSET = 10 / 3  # Explicit OMS alignment; original-game hit-point calibration is separate.
 SUPPORTED_MODULES = ("notes", "charge-notes", "judgement", "explosion", "key-beam", "lane-cover",
                      "lift-art", "turntable", "graph-area", "full-combo")
+
+
+def judgement_fit_steps(label_width, digit_advance):
+    """Fit the complete source row, retaining full size while it fits.
+
+    C4 clock keyframes stop at 86,400,000, so the final legal decimal boundary
+    reserves ten digits for all 8--10 digit int values. Realistic 1--7 digit
+    combos use their exact integer digit count, with no cropping or ellipsis.
+    """
+    def scale(digits):
+        width = max(label_width, label_width - 8 + digit_advance * digits)
+        return min(1, SOURCE_STAGE_WIDTH / width)
+
+    return [(0, scale(1))] + [(10 ** (digits - 1), scale(digits)) for digits in range(2, 8)] + [(10_000_000, scale(10))]
 
 
 def turntable_motion(identifier, draw, layout, group):
@@ -584,31 +599,49 @@ class StandardComponents(ModuleBuilder):
             height_logical = height * SOURCE_TO_LOGICAL
             root_id = branch.prefix + ".group"
             children = []
-            for palette, label_name, grades in (("b", "judge_p_great_blue", ["perfect"]),
-                                                ("g", "judge_p_great_white", ["perfect"]),
-                                                ("r", "judge_p_great_pink", ["perfect"]),
-                                                ("y", "judge_great_yellow", ["great", "good", "meh", "miss", "ok"])):
-                pair_id = root_id + "." + palette
+            for name, palette, label_name, grades in (("b", "b", "judge_p_great_blue", ["perfect"]),
+                                                      ("g", "g", "judge_p_great_white", ["perfect"]),
+                                                      ("r", "r", "judge_p_great_pink", ["perfect"]),
+                                                      ("y-great", "y", "judge_great_yellow", ["great"]),
+                                                      ("y-good", "y", "judge_good", ["good"]),
+                                                      ("y-bad", "y", "judge_bad", ["meh"]),
+                                                      ("y-poor", "y", "judge_poor", ["miss", "ok"])):
+                pair_id = root_id + "." + name
                 label_resource = branch.asset(package, label_name)[0]
                 label = node(pair_id + ".label", "sprite", {"height-px": height_logical}, label_resource)
                 combo = node(pair_id + ".combo", "text", {"text": "", "font-size": height_logical,
                              "bitmap-font": fonts[palette], "format": "integer"})
                 branch.bind(combo["id"], "text", "combo.value")
-                branch.bind(combo["id"], "visible", "combo.active")
                 pair = node(pair_id, properties={"x": .5, "y": .5, "origin": "centre", "layout": "horizontal", "gap-px": -8 * SOURCE_TO_LOGICAL},
                             children=[label, combo])
-                grade_gate = node(pair_id + ".grade", children=[pair])
+                branch.bind(pair_id, "visible", "combo.active")
+                label_source = self.index[package, label_name]
+                label_width = label_source["width"] * height / label_source["height"]
+                digit_advance = max(glyphs[palette, digit][2] for digit in range(10))
+                steps = judgement_fit_steps(label_width, digit_advance)
+                for prop in ("scale-x", "scale-y"):
+                    identifier = pair_id + ".fit." + prop
+                    branch.tracks.append({"id": identifier, "type": "tween", "target": pair_id, "property": prop,
+                        "easing": "step", "loop": False, "clock": "combo.value",
+                        "keyframes": [{"id": identifier + ".n" + str(i), "time": time, "value": value}
+                                      for i, (time, value) in enumerate(steps)]})
+                # A hidden horizontal cell still occupies its natural width.
+                # The inactive state therefore owns a label-only centred row.
+                no_combo = node(pair_id + ".no-combo", properties={"x": .5, "y": .5, "origin": "centre", "layout": "horizontal"},
+                    children=[node(pair_id + ".no-combo.label", "sprite", {"height-px": height_logical}, label_resource)])
+                branch.show(no_combo["id"], "combo.active", ["false"])
+                phase_layer = node(pair_id + ".palette", children=[pair, no_combo])
+                grade_gate = node(pair_id + ".grade", children=[phase_layer])
                 branch.show(grade_gate["id"], "judgement.result", grades)
-                if palette == "y":
-                    branch.variant(label["id"], "judgement.result", label_resource, {
-                        grade: branch.asset(package, name)[0] for grade, name in
-                        (("great", "judge_great_yellow"), ("good", "judge_good"), ("meh", "judge_bad"), ("miss", "judge_poor"), ("ok", "judge_poor"))})
-                else:
+                if palette != "y":
                     phase = "bgr".index(palette)
-                    branch.tracks.append({"id": pair_id + ".phase", "type": "tween", "target": pair_id, "property": "opacity",
+                    branch.tracks.append({"id": pair_id + ".phase", "type": "tween", "target": phase_layer["id"], "property": "opacity",
                         "easing": "step", "loop": True, "trigger": "judgement.hit",
                         "keyframes": [{"id": pair_id + ".phase.n" + str(i), "time": i * 100, "value": int(i % 3 == phase)} for i in range(4)]})
                 children.append(grade_gate)
+                self.receipts.append({"category": "judgement", "style": style, "grade": grades, "palette": palette,
+                    "sourceLabelWidth": label_width, "sourceDigitAdvance": digit_advance, "sourceStageWidth": SOURCE_STAGE_WIDTH,
+                    "fitSteps": steps, "noCombo": "Separate centred label-only row at original size"})
             gate = node(root_id + ".display", children=children)
             branch.bind(gate["id"], "visible", "option.judgement-display")
             root = node(root_id, properties={"opacity": 0}, slot="hud.judgement", children=[gate])
@@ -624,6 +657,7 @@ class StandardComponents(ModuleBuilder):
         self.add_module("judgement", "Judgment Characters", choices, "j00")
         self.receipts.append({"category": "judgement", "choices": 14, "sourceSize": "Per-source complete74px label and digit canvas",
             "position": "Native exact group judgement slot centre; original26 executable anchor is not yet asserted",
+            "widthFit": "Whole label-plus-digits uses equal X/Y scaling only when its source width exceeds292px; exact digit thresholds1-7, conservative10-digit fit from10,000,000 because C4 keyframe times are limited to86,400,000. Original PNG/atlas/number value unchanged; no crop or ellipsis.",
             "PGCycle": "Original blue/green/pink label-and-number pairs;100ms per phase is an explicit OMS author rhythm, not measured source timing",
             "noCombo": "Real combo.active hides digits without replacing gameplay scores"})
 

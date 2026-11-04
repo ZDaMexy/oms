@@ -9,7 +9,8 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from standard_components import FRAME_IDS, StandardBranch, StandardComponents, terminal_repeat_control, turntable_motion
+from standard_components import (FRAME_IDS, StandardBranch, StandardComponents, judgement_fit_steps,
+                                 terminal_repeat_control, turntable_motion)
 
 
 class AP2DoActionTag:
@@ -43,6 +44,23 @@ def memory_owner():
     owner.modules, owner.branch_counts, owner.documents = [], [], {}
     owner.json = lambda path, value: owner.documents.__setitem__(path, copy.deepcopy(value))
     owner.text = lambda path, value: owner.documents.__setitem__(path, value)
+    return owner
+
+
+def judgement_owner():
+    owner = memory_owner()
+    owner.packages = {f"judge{i:02}": {} for i in range(14)}
+    owner.options, owner.receipts, owner.contexts = [], [], []
+    owner.preview = lambda *args: "preview.png"
+    owner.fallback_marker = lambda *args: "marker"
+    owner.asset = lambda category, package, name: ({"id": category + "." + name, "path": "source.png"}, {})
+    owner.index = {(f"judge{i:02}", name): {"width": 164 if i == 11 else width, "height": 74}
+                   for i in range(14) for name, width in (("judge_p_great_blue", 170), ("judge_p_great_white", 170),
+                       ("judge_p_great_pink", 170), ("judge_great_yellow", 170), ("judge_good", 141),
+                       ("judge_bad", 112), ("judge_poor", 141))}
+    owner.judgement_atlas = lambda package: (
+        {"id": "atlas." + package, "type": "texture", "path": "atlas.png"},
+        {(palette, digit): [digit * 55, 0, 55, 74] for palette in "bgry" for digit in range(10)}, 74)
     return owner
 
 
@@ -92,15 +110,7 @@ class StandardComponentsTests(unittest.TestCase):
                 self.assertEqual({"time": 2500, "value": 0}, {k: retention["keyframes"][-1][k] for k in ("time", "value")})
 
     def test_judgement_grade_gate_does_not_overwrite_palette_phase_opacity(self):
-        owner = memory_owner()
-        owner.packages = {f"judge{i:02}": {} for i in range(14)}
-        owner.options, owner.receipts, owner.contexts = [], [], []
-        owner.preview = lambda *args: "preview.png"
-        owner.fallback_marker = lambda *args: "marker"
-        owner.asset = lambda category, package, name: ({"id": category + "." + name, "path": "source.png"}, {})
-        owner.judgement_atlas = lambda package: (
-            {"id": "atlas." + package, "type": "texture", "path": "atlas.png"},
-            {(palette, digit): [digit * 55, 0, 55, 74] for palette in "bgry" for digit in range(10)}, 74)
+        owner = judgement_owner()
         owner.judgements()
         for choice in owner.modules[0]["choices"]:
             scene = owner.documents[choice["scene"]]
@@ -108,6 +118,59 @@ class StandardComponentsTests(unittest.TestCase):
             visible_targets = {v["target"] for v in scene["variants"] if v["property"] == "visible"}
             self.assertEqual(3, len(opacity_targets))
             self.assertFalse(opacity_targets & visible_targets)
+
+    def test_combo_rows_fit_three_four_five_and_ten_digits_without_shrinking_short_rows(self):
+        def evaluate(steps, value):
+            return next(scale for threshold, scale in reversed(steps) if value >= threshold)
+
+        steps = judgement_fit_steps(170, 55)
+        for value in (0, 1, 9, 10, 99):
+            self.assertEqual(1, evaluate(steps, value))
+        for value, width in ((100, 327), (999, 327), (1000, 382), (9999, 382),
+                             (10000, 437), (99999, 437), (1_000_000_000, 712), (2_147_483_647, 712)):
+            self.assertAlmostEqual(292 / width, evaluate(steps, value))
+        for label_width in (112, 141, 164, 170):
+            steps = judgement_fit_steps(label_width, 55)
+            self.assertTrue(all(time <= 86_400_000 for time, _ in steps))
+            for digits in range(1, 11):
+                width = label_width - 8 + 55 * digits
+                scale = evaluate(steps, 10 ** (digits - 1))
+                self.assertLessEqual(width * scale, 292 + 1e-10)
+                if width <= 292:
+                    self.assertEqual(1, scale)
+                elif digits <= 7:
+                    self.assertAlmostEqual(292, width * scale)
+        self.assertEqual(1, evaluate(judgement_fit_steps(112, 55), 999), "BAD with three digits already fits")
+        self.assertAlmostEqual(292 / 298, evaluate(judgement_fit_steps(141, 55), 999))
+
+    def test_judgement_fit_is_on_the_centred_whole_row_and_inactive_combo_has_no_digit_cell(self):
+        owner = judgement_owner()
+        owner.judgements()
+        for choice in owner.modules[0]["choices"]:
+            scene = owner.documents[choice["scene"]]
+            nodes = {n["id"]: n for t in scene["templates"] for n in self.walk(t["root"])}
+            combo_bindings = [b for b in scene["bindings"] if b["source"] == "combo.value"]
+            self.assertEqual(7, len(combo_bindings))
+            for binding in combo_bindings:
+                pair_id = binding["target"].removesuffix(".combo")
+                pair = nodes[pair_id]
+                self.assertEqual(["sprite", "text"], [c["type"] for c in pair["children"]])
+                self.assertEqual((.5, .5, "centre"), tuple(pair["properties"][p] for p in ("x", "y", "origin")))
+                self.assertTrue(any(b["target"] == pair_id and b["property"] == "visible" and b["source"] == "combo.active"
+                                    for b in scene["bindings"]))
+                fit = [t for t in scene["tracks"] if t["target"] == pair_id]
+                self.assertEqual({"scale-x", "scale-y"}, {t["property"] for t in fit})
+                self.assertEqual([[k["value"] for k in t["keyframes"]] for t in fit][0],
+                                 [[k["value"] for k in t["keyframes"]] for t in fit][1])
+                self.assertTrue(all(t["clock"] == "combo.value" and t["easing"] == "step" and not t["loop"] for t in fit))
+                inactive = nodes[pair_id + ".no-combo"]
+                self.assertEqual(["sprite"], [c["type"] for c in inactive["children"]])
+                self.assertEqual("centre", inactive["properties"]["origin"])
+                self.assertFalse(any(t["target"] == inactive["id"] for t in scene["tracks"]))
+                gate = next(v for v in scene["variants"] if v["target"] == inactive["id"])
+                self.assertEqual("combo.active", gate["source"])
+                self.assertFalse(gate["default"])
+                self.assertEqual([("false", True)], [(c["key"], c["value"]) for c in gate["cases"]])
 
     def test_turntable_export_keeps_the_source_quad_and_uses_logical_motion_groups(self):
         owner = memory_owner()

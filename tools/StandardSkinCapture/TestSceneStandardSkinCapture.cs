@@ -126,6 +126,7 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
                 ruleset = ruleset.RulesetInfo.ShortName,
                 settings.Keys,
                 settings.LongNoteMode,
+                settings.ChartVariant,
                 mods = Game.SelectedMods.Value.Select(mod => mod.Acronym).ToArray(),
                 physicalInput = false,
                 realSongAcceptance = false,
@@ -199,6 +200,7 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
                 convertedHitObjects,
                 settings.Ruleset,
                 settings.Keys,
+                settings.ChartVariant,
                 requestedLongNoteMode = settings.LongNoteMode,
                 actualLongNoteMode,
                 nativeHoldModes,
@@ -285,6 +287,8 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
             {
                 Assert.That(runtime.RuntimeFaults, Is.Empty);
                 Assert.That(ReferenceEquals(Game.ScreenStack.CurrentScreen, player), Is.True);
+                if (settings.ChartVariant == "combo-stress" && sample == 10100)
+                    Assert.That(score.Combo.Value, Is.GreaterThanOrEqualTo(1000), "The actual scored Player must reach four-digit combo before this capture.");
                 string name = $"gameplay-{sample:00000}";
                 RecordGameplay(name, sample);
                 screenshot = Capture(name);
@@ -297,6 +301,8 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
         {
             Assert.That(score.TotalScore.Value, Is.GreaterThan(0));
             Assert.That(score.HighestCombo.Value, Is.GreaterThan(0));
+            if (settings.ChartVariant == "combo-stress")
+                Assert.That(score.Combo.Value, Is.GreaterThanOrEqualTo(1000));
             Assert.That(score.HitEvents, Is.Not.Empty);
             Assert.That(player.Score.ScoreInfo.Passed, Is.True, "The replay must complete without a native failure.");
             Assert.That(player.GameplayState.HasFailed, Is.False);
@@ -386,6 +392,7 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
                 settings.Ruleset,
                 settings.Keys,
                 settings.Presentation,
+                settings.ChartVariant,
                 screenshots = captured.ToArray(),
                 normalImport = true,
                 actualPlayer = player.GetType().FullName,
@@ -445,6 +452,7 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
         }).ToArray();
         settings.Write(name + ".json", new
         {
+            settings.ChartVariant,
             requestedTime,
             actualGameplayTime = ReadProperty<double>(events, "AuthoritativeGameplayTime"),
             runtime.LastGameplayTime,
@@ -454,6 +462,7 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
             bga,
             nativeScore = score.TotalScore.Value,
             nativeCombo = score.HighestCombo.Value,
+            nativeCurrentCombo = score.Combo.Value,
             nativeHitCount = score.HitEvents.Count,
             statistics = score.Statistics.ToDictionary(pair => pair.Key.ToString(), pair => pair.Value),
             nodes,
@@ -669,6 +678,15 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
         if (settings.Keys >= 14)
             beatmap.Stages.Add(new StageDefinition(columns));
         beatmap.Difficulty.CircleSize = settings.Keys;
+        if (settings.ChartVariant == "combo-stress")
+        {
+            for (int row = 0; row < 64; row++)
+                for (int lane = 0; lane < beatmap.TotalColumns; lane++)
+                    beatmap.HitObjects.Add(row < 63
+                        ? new Note { Column = lane, StartTime = 2000 + row * 125 + lane * 0.2 }
+                        : new HoldNote { Column = lane, StartTime = 2000 + row * 125 + lane * 0.2, Duration = 700 });
+            return beatmap;
+        }
         for (int row = 0; row < 8; row++)
             for (int lane = 0; lane < beatmap.TotalColumns; lane++)
                 beatmap.HitObjects.Add(row % 2 == 0

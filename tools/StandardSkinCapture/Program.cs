@@ -45,6 +45,7 @@ internal static class Program
                 settings.Keys,
                 settings.Presentation,
                 settings.LongNoteMode,
+                settings.ChartVariant,
                 settings.Options,
                 settings.TemporaryRoot,
                 runtime = AppContext.BaseDirectory,
@@ -149,7 +150,7 @@ internal static class Program
 }
 
 internal sealed record CaptureSettings(string Package, string PackageSha256, string Output, string TemporaryRoot,
-                                       string Ruleset, int Keys, string Presentation, string LongNoteMode,
+                                       string Ruleset, int Keys, string Presentation, string LongNoteMode, string ChartVariant,
                                        IReadOnlyDictionary<string, string> Options)
 {
     public static CaptureSettings Current { get; set; } = null!;
@@ -157,9 +158,9 @@ internal sealed record CaptureSettings(string Package, string PackageSha256, str
     public static CaptureSettings Parse(string[] args)
     {
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
-        string[] known = ["package", "sha256", "output", "temp-root", "ruleset", "keys", "presentation", "long-note-mode", "options"];
+        string[] known = ["package", "sha256", "output", "temp-root", "ruleset", "keys", "presentation", "long-note-mode", "chart", "options"];
         if (args.Length == 0 || args.Length % 2 != 0)
-            throw new ArgumentException("Usage: --package <osk> --sha256 <hash> --output <fresh directory> --ruleset bms|mania --keys <count> --presentation p1|p2|dp [--options <JSON object>] [--long-note-mode ln|cn|hcn] [--temp-root <directory>]");
+            throw new ArgumentException("Usage: --package <osk> --sha256 <hash> --output <fresh directory> --ruleset bms|mania --keys <count> --presentation p1|p2|dp [--options <JSON object>] [--long-note-mode ln|cn|hcn] [--chart standard|combo-stress] [--temp-root <directory>]");
         for (int index = 0; index < args.Length; index += 2)
         {
             string key = args[index];
@@ -188,6 +189,11 @@ internal sealed record CaptureSettings(string Package, string PackageSha256, str
         string longNoteMode = values.GetValueOrDefault("long-note-mode", "cn");
         if (longNoteMode is not ("ln" or "cn" or "hcn"))
             throw new ArgumentException("The BMS long-note mode must be ln, cn or hcn.");
+        string chartVariant = values.GetValueOrDefault("chart", "standard");
+        if (chartVariant is not ("standard" or "combo-stress"))
+            throw new ArgumentException("The chart must be standard or combo-stress.");
+        if (chartVariant == "combo-stress" && (ruleset != "mania" || keys != 16 || presentation != "dp"))
+            throw new ArgumentException("The combo-stress chart requires mania 16K dp.");
         using JsonDocument optionJson = JsonDocument.Parse(values.GetValueOrDefault("options", "{}"));
         if (optionJson.RootElement.ValueKind != JsonValueKind.Object)
             throw new ArgumentException("--options must be a JSON object of canonical string values.");
@@ -200,7 +206,7 @@ internal sealed record CaptureSettings(string Package, string PackageSha256, str
         AssertNonSystemPlainDirectory(output);
         AssertNonSystemPlainDirectory(temporary);
         AssertNonSystemPlainDirectory(AppContext.BaseDirectory);
-        return new CaptureSettings(package, hash, output, temporary, ruleset, keys, presentation, longNoteMode, options);
+        return new CaptureSettings(package, hash, output, temporary, ruleset, keys, presentation, longNoteMode, chartVariant, options);
     }
 
     internal static void AssertNonSystemPlainDirectory(string path)
