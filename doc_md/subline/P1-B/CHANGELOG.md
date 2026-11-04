@@ -1,5 +1,9 @@
 # P1-B 变动日志
 
+## 2026-11-05模式返回语义同步
+
+静态核对`DrawableBmsRuleset.ToggleHiSpeedMode`、当前读谱设置说明及P1-A合同：Start组合切入Floating后返回本局最近Normal/Classic来源，已经不是固定只返回Normal。修正STATUS遗漏摘要，保留旧输入与真实设备验证日期；没有修改输入实现或运行新产品测试，治理检查取[主线记录](../../mainline/CHANGELOG.md#2026-11-05专项进度与文档语义复核)。
+
 ## 2026-10-26专有名词恢复原文
 
 按用户纠正，绑定提示恢复 Sudden、Hidden、Lift、Normal Hi-Speed、Floating Hi-Speed 的原有显示名；Classic Hi-Speed 在后续说明中同样保留原名。中文只解释功能和操作，不将类型另起中文名称。稳定用词偏好写入本仓AGENTS，英文提示也补全 Normal Hi-Speed 全名；保留原翻译key、动作ID、输入及显示行为。

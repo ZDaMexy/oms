@@ -1,6 +1,6 @@
 # P1-C 当前计划：判定语义与反馈边界
 
-> 最后核对：2026-10-28（独立AUTO记录续验；既有style与设备门保持）
+> 最后核对：2026-11-05（退出旧反馈入口；现有只读能力与人工门保持）
 > 主线顺序见 [../../mainline/DEVELOPMENT_PLAN.md](../../mainline/DEVELOPMENT_PLAN.md)。当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，稳定合同见 [TECHNICAL_CONSTRAINTS.md](TECHNICAL_CONSTRAINTS.md)，已完成实现与删除记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 子线职责
@@ -15,8 +15,8 @@ P1-C 只维护 BMS 判定家族、窗口/poor/release parity、判定结果到�
 ## 当前基线
 
 - IIDX/LR2/beatoraja/OD 的主要窗口、边界、scratch、release 与 excessive/empty-poor 合同已落，并由 parity test 守门。
-- 常驻 `DefaultBmsSpeedFeedbackDisplay`、`GameplayFeedbackState` 及其 FAST/SLOW、pacemaker、summary、常驻 GN 已按产品决定删除，不是当前能力。
-- 当前反馈面包含全局 `JudgementCounterDisplay`、静线通过普通 scene 绑定的实时判定统计、调速 toast、pre-start overlay 与既有 target/cycle/remember 行为。皮肤统计只读同一 score statistics，不恢复旧反馈卡。
+- 旧常驻 `DefaultBmsSpeedFeedbackDisplay`、`GameplayFeedbackState` 及其聚合管线已按产品决定删除，不恢复该卡；现有只读 FAST/SLOW、本地 PB/NEXT 与读谱反馈沿[P1-A合同](../P1-A/TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)。
+- 当前反馈面包含全局 `JudgementCounterDisplay`、皮肤只读状态、pre-start overlay 与既有 target/cycle/remember 行为；旧调速 toast 已删除。皮肤统计只读同一 score statistics，不恢复旧反馈卡。
 - pre-start 纯视觉流速 preview 已存在，但不得进入 hit object、判定、计分、键音、replay 或 autoplay authority。
 
 完成阶段的设计和删除经过不在本页展开，按日期查 [CHANGELOG](CHANGELOG.md)。
@@ -59,14 +59,14 @@ P1-C 只维护 BMS 判定家族、窗口/poor/release parity、判定结果到�
 
 ### 3. 未来反馈需求必须另立专题
 
-只有用户重新确认 FAST/SLOW、pacemaker 或其它训练反馈的产品价值后，才允许新建实施专题；不得直接复活已删除 aggregate/card。
+现有只读 FAST/SLOW、本地 PB/NEXT 的维护沿 P1-A；超出该合同的新训练反馈需先明确产品价值，再新建实施专题，不得直接复活已删除 aggregate/card。
 
 新专题必须先冻结：
 
 1. 玩家问题与最小用户可见结果。
 2. 数据 authority、生命周期与是否需要持久化。
 3. P1-A 提供的宿主/skin slot 与 fallback 粒度。
-4. 与全局 `JudgementCounterDisplay`、toast、pre-start overlay、results 的去重边界。
+4. 与全局 `JudgementCounterDisplay`、现有皮肤只读反馈、pre-start overlay、results 的去重边界。
 5. 自动与人工验收、回退路径和删除策略。
 
 未完成以上决议前，反馈需求不得偷塞进 gauge、combo、wrapped HUD 子节点或旧 `IBmsHudLayoutDisplay` 扩展。

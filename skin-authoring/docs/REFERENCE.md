@@ -597,7 +597,7 @@ bindings每项必填id/target/property/source，例如：
 
 两组motion来源的 `1/2` 分别指拓扑逻辑组0/1；单人切换左右位置仍使用1，双舞台右组使用2，不根据屏幕左右重新编号。counts和revolutions分别累计，不能把鼠标一个count当成物理一圈；作者可用不同父子容器及不同clock轨迹叠加常态旋转与两种真实增量。当前运动投影来自BMS已接收的真实轴信号，mania及无方向信号保持不可用；数字键、Auto和没有方向记录的旧回放不补造逆转。默认转速、阻尼及视觉比例属于作品，皮肤不能改写设备灵敏度、发送输入或改变判定。重试、seek及输入来源重置沿引擎快照同步，不能把累计值视为永久硬件里程。
 
-FAST/SLOW读取真实HitEvent：只统计最大判定为Perfect且结果为基础成功击打的事件，零偏差两边均不计；Miss、自动长条body tick、长条父级记账及BMS空POOR不计入。计数随真实计分历史撤销和完整状态重建，不用 `judgement.hit` 在皮肤里再次累计。
+FAST/SLOW读取真实HitEvent：只统计最大判定为Perfect且结果为基础成功击打、偏差绝对值至少0.000001ms的事件；零偏差和更小的数值残差两边均不计。完整ModAutoplay保持两侧计数为0，原HitEvent偏移与成绩不改；真人Perfect仍按真实偏差计数。Miss、自动长条body tick、长条父级记账及BMS空POOR不计入。计数随真实计分历史撤销和完整状态重建，不用 `judgement.hit` 在皮肤里再次累计。
 
 `offset.value`由BMS已经应用的VisualOffset提供，`offset.available`只说明这个数值投影可用，不说明自动调整开启或关闭。`offset.automatic-available`另行说明原生自动显示时机调整的开关状态已知；为true时才可按`offset.automatic`显示已知ON/OFF。真实演奏从原生开关提供状态；真实Replay按独立记录的初始开关和变化恢复，seek/reset同步查询。旧回放缺少该开关记录、或GeneratedAutoplay没有此来源时保持未知，不能用数值是否为0、数值变化次数或当前个人设置猜ON/OFF。未知时仍可显示可用的毫秒数，须隐藏AUTO标签/灯或明确表示未知。它们均不表示判定窗口或音频设备延迟。mania未提供此投影，三个布尔均为false、value为0；数值不可用时隐藏读数，不显示伪造的已校准状态。三个布尔不接受数值属性或clock，普通text显示true/false；后两项另支持下述布尔variants。
 

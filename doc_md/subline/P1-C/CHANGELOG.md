@@ -2,6 +2,14 @@
 
 > 本文件只记录 `P1-C` 子线已确认、已验证或已完成挂接的变更摘要。
 
+## 2026-11-05反馈与读谱合同勘误
+
+静态对照`BmsHiSpeedRuntimeCalculator`、`DrawableBmsRuleset`的版本准入/读取分支与`BmsReadingSettingsControl`，确认当前新局为版本1，旧缺版本/0回放保留legacy；主合同不能继续用未限定的旧公式覆盖新行为。设置页显示Normal预设GN，实际谱面毫秒与GN仍由游玩上下文提供，具体读谱合同统一取P1-A。
+
+对照`GameplaySkinEventRuntimeHost.LivePresentation`和`BmsPersonalBestModComparison`，确认完整Autoplay不产生累计FAST/SLOW、数值残差不计方向，本地PB/NEXT查询采用BMS明确投影且不改保存/回放/传分。将P1-C泛化的“反馈已删除”限定为旧aggregate/card，移除当前toast描述，并同步随包作者指南；现有只读能力维护归P1-A，新训练产品仍需独立定义。
+
+仅文档勘误，旧自动偏移、判定/计分与设备门未变化；未运行新产品测试或实机。原10月28日产品验证保持，治理检查与10月29日原回归回执复核取[主线记录](../../mainline/CHANGELOG.md#2026-11-05专项进度与文档语义复核)。
+
 ## 2026-10-28自动偏移开关独立记录
 
 真实自动开关与既有数值VisualOffset轨迹分开记录，使用可选`visual_offset.automatic={initial,changes:[{time,enabled}]}`。live从实际开关/原生clock记边；Replay按记录恢复及seek/reset，旧无metadata与无来源GeneratedAutoplay保持unknown，不从numeric Changes猜开关或写个人配置。外部输入明确拒绝无初始值、非法状态、缺失/null time、非有限或非递增时间；旧numeric格式、wrapper/寿命和算法保持。只读C5的状态可用性与开关分开，由首个真实Omni作者消费，没有改读谱13字段、calculation version0、TOTAL/计分或IR。

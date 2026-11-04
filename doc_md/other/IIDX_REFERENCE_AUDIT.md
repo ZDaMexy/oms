@@ -3,7 +3,7 @@
 > 初始外部参考审计：2026-04-20；beatoraja 窗口校正见 2026-06-14 条目；历史边界与 OMS 映射澄清：2026-09-12（未重新验证外部来源）
 > 本文档沉淀对 iidx.org 及相关差异资料的整理结果，用于审核和校正 OMS 的产品方向。
 > 本文档不是进度日志，不替代 [../mainline/DEVELOPMENT_STATUS.md](../mainline/DEVELOPMENT_STATUS.md)、[../mainline/DEVELOPMENT_PLAN.md](../mainline/DEVELOPMENT_PLAN.md) 或 [../mainline/OMS_COPILOT.md](../mainline/OMS_COPILOT.md)。
-> 下文仓库映射、体验缺口和推进顺序均为当次审计输入。常驻 FAST/SLOW/pacemaker/summary/GN 卡已于 2026-06-15 按产品决定删除；不得把历史建议重新解释为活动待办。当前判定/反馈以 [P1-C](../subline/P1-C/DEVELOPMENT_STATUS.md) 为准，硬件校准以 [P1-D](../subline/P1-D/DEVELOPMENT_STATUS.md) 为准；GN 当前只在调速 toast 与 pre-start overlay 显示。
+> 下文仓库映射、体验缺口和推进顺序均为当次审计输入。旧常驻 FAST/SLOW/pacemaker/summary/GN 卡已于 2026-06-15 按产品决定删除；不得把历史建议重新解释为活动待办。2026-11-05校正导航边界：下文的基础毫秒、toast与旧公式仅描述当时映射，现行读谱版本和只读反馈取[P1-A合同](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代)，判定取[P1-C](../subline/P1-C/DEVELOPMENT_STATUS.md)，硬件校准取[P1-D](../subline/P1-D/DEVELOPMENT_STATUS.md)；未重新验证外部来源。
 
 ## 文档定位
 

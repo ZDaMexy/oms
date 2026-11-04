@@ -409,7 +409,7 @@ This intentionally follows the 27-step beatoraja / IIDX rank ladder: `AAA = 24/2
 
 ### 6.7 Timing Feedback and Offset
 
-- BMS judgement and EX-SCORE remain the gameplay semantics. The always-on speed/FAST-SLOW/pacemaker card was removed by product decision; current speed feedback uses the pre-start preview and held-adjustment toast. Do not infer a task to restore a permanent card from this section.
+- BMS judgement and EX-SCORE remain the gameplay semantics. The old always-on speed/FAST-SLOW/pacemaker card and adjustment toast are removed. Current feedback uses native read-only skin state; the pre-start visual preview remains separate from judgement. Author-facing FAST/SLOW and local PB/NEXT follow [P1-A](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束) and do not restore the deleted card.
 - For key-sounded BMS play, the primary user-facing timing correction path is a visual draw offset / note presentation adjustment. Do not make audio playback offset the default or sole timing-fix control for BMS mode.
 - Timing feedback and adjustment should be low-friction from gameplay and result flow so future retry / pacemaker / target-practice features can reuse the same loop.
 
@@ -445,13 +445,11 @@ Reading preferences and Hi-Speed follow the unified [P1-A reading contract](../s
 
 ### 7.3 Scroll Speed
 
-OMS now exposes a BMS-local tri-mode Hi-Speed surface rather than inheriting osu!mania scroll speed verbatim.
+OMS exposes BMS-local `Normal / Floating / Classic Hi-Speed`. The versioned calculation, stored ranges, live controls and replay admission are owned by the [P1-A reading contract](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代); this section must not impose an unversioned legacy formula.
 
-- `Normal Hi-Speed`: user-facing range `1.0 - 20.0`; primary general-purpose surface.
-- `Floating Hi-Speed`: user-facing range `0.5 - 10.0`; the initial-BPM base mapping remains, while runtime feedback follows current BPM and native visible geometry. The explicitly authorised Start/scratch work preserves a covered visible-time target for manual re-float; this does not establish the original cabinet's complete speed table, all soflan behaviour or full FHS parity. Current contract and evidence are owned by [P1-A](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代).
-- `Classic Hi-Speed`: user-facing range `0.5 - 10.0`; base time mapping must remain `(100000 / 13) / HS` so the official sample `HS 10 + WN 350 => GN 300` continues to hold.
+Current calculation version 1 uses 20 Normal GN presets and an absolute multiplier for Floating/Classic. Live Classic adjustment selects its eleven defined steps while preserving readable legacy configuration values. New plays and GeneratedAutoplay record version 1; old replays without a version, or with version 0, retain the legacy calculation. Reading versions do not change scoring or IR identity, and unknown replay versions are rejected before applying their state.
 
-Settings may show the selected Hi-Speed mode, that mode's numeric value, and the base fall time in milliseconds when `Sudden / Hidden / Lift` are not applied. Do not surface `Green Number` itself or runtime-adjusted visible milliseconds in settings; those remain gameplay-runtime feedback only.
+Settings show mode/parameter, the Normal preset's uncovered GN and operating guidance. They do not calculate base milliseconds or the current chart's runtime-adjusted GN without a gameplay context. The selected setting and actual multiplier are distinct read-only skin values; availability is explicit.
 
 OMS may surface `Green Number` / `White Number` during gameplay as part of its current BMS runtime speed-feedback model, but that model is presently scoped to `Normal / Floating / Classic Hi-Speed + Sudden / Hidden / Lift` and must not be described as proof that full IIDX-style Floating Hi-Speed parity already exists.
 
@@ -953,7 +951,7 @@ BMS-specific visual rules:
 - `5K` / `7K` / `9K_Bms` / `9K_Pms` / `14K` must reuse one theme family but allow layout-sensitive per-lane rendering.
 - `1P/2P` side flips must not require a second asset family; side-sensitive elements respond to runtime bindables/lookup metadata.
 - Lane cover `Sudden / Hidden` states and lane-cover focus state are first-class skinnable elements, not debug overlays.
-- Persistent gameplay feedback, including speed metrics and later `FAST/SLOW` / judge display / pacemaker data, must remain BMS-owned skinnable components instead of ad-hoc overlays hidden inside unrelated HUD elements. (Note: the always-on `DefaultBmsSpeedFeedbackDisplay` card that carried this family — FAST/SLOW, judge display, visual timing-offset, EX pacemaker, judgement summary, always-on GN — was removed 2026-06-15 by product decision; see P1-C. This constraint governs any future re-introduction. Live judgement *counts* are now served by the global `JudgementCounterDisplay`.)
+- Gameplay feedback consumes engine-owned read-only state through the skin contract, rather than ad-hoc overlays hidden inside unrelated HUD elements. The old `DefaultBmsSpeedFeedbackDisplay` card remains deleted. Current judgement statistics, FAST/SLOW, offset, local PB/NEXT and speed bindings are documented once in the [author reference](../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板); the global `JudgementCounterDisplay` remains a separate consumer. Their existence does not authorise restoring the old card or changing judgement/score state.
 - If BMS HUD composition needs more children than the current wrapped HUD + gauge bar + combo counter contract, extend it via a versioned optional interface or wrapper contract; do not break `IBmsHudLayoutDisplay` in place.
 - Do not inject gameplay feedback widgets by crawling arbitrary wrapped HUD children or by overloading `GaugeBar` / `ComboCounter` with unrelated semantics.
 - Results summary and clear lamp must remain separable skinnable components, so a skin can override the whole summary panel or only the lamp badge.

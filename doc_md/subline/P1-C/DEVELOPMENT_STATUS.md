@@ -1,6 +1,6 @@
 # P1-C 当前状态：判定语义与反馈闭环
 
-> 最后核对：2026-10-28（自动偏移独立模式软件回归通过；新原生/真实设备门保持）
+> 最后核对：2026-11-05（反馈入口与版本合同勘误；产品验证日期及人工门保持）
 > 全局状态见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，HUD/skin 宿主边界归 [P1-A](../P1-A/DEVELOPMENT_STATUS.md)。
 
 ## 当前阶段
@@ -13,7 +13,7 @@
 
 2026-09-22 TOTAL 修正：已接入合法作者值优先、Beatoraja/LR2 各自缺省、辅助前后物量分离与 v7 新局身份；v7之前（含v6）及无版本历史结果使用旧缺省，已存终值/灯保留。精确来源、失败身份与验证边界统一见[TOTAL报告](../../other/BMS_TOTAL_RULES_AUDIT_20260922.md)。现有 Gauge Mod/默认规则、GAS 与 HCN 持续速率保持。
 
-IIDX/LR2/beatoraja/OD 判定家族与主要边界 parity 已落地并由契约测试守门。常驻速度反馈卡及其 FAST/SLOW、pacemaker、summary、常驻 GN 已按产品决定整体删除；当前工作是保持判定合同稳定，并只补仍有真实用户价值的展示/人工证明。
+IIDX/LR2/beatoraja/OD 判定家族与主要边界 parity 已落地并由契约测试守门。旧常驻速度反馈卡及其聚合管线已按产品决定删除；当前皮肤的 FAST/SLOW、GN 与本地 PB/NEXT 沿 P1-A 的原生只读状态提供。卡片删除不表示现有作者能力不存在，也不构成恢复旧卡的待办。
 
 ## 当前有效判定合同
 
@@ -30,10 +30,10 @@ IIDX/LR2/beatoraja/OD 判定家族与主要边界 parity 已落地并由契约�
 
 - 全局 `JudgementCounterDisplay` 承担判定计数，COMBO BREAK 已纳入。
 - 静线还通过普通皮肤 scene 绑定通用 `GameplaySkinJudgementStatistics`，在 BGA 下方显示实时 PG/GR/GD/BD/PR/EP/CB。计数来自 score statistics，COMBO BREAK 不要求额外伪造 judgement event；这是只读展示，不恢复已删除的反馈卡或改变判定/计分合同，布局归 [P1-A](../P1-A/DEVELOPMENT_STATUS.md)。
-- GN 仅在调速 toast 与 pre-start overlay 显示，不常驻 HUD。
+- GN、Hi-Speed 与挡板读数由原生只读状态和皮肤承接，旧调速 toast 已删除；字段与实际倍率可用性只取[P1-A读谱合同](../P1-A/TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代)。
 - `Sudden/Hidden/Lift` 的 target/cycle/remember-gameplay-changes 基线保留。
 - `UI_PreStartHold` 负责前 5 秒阻止开始和全程调速修饰；视觉流速 preview 不得接入判定链。
-- 被删除的 `GameplayFeedbackState`、常驻 feedback card、FAST/SLOW/pacemaker 管线不是当前能力；如重建必须另立专题。
+- 被删除的 `GameplayFeedbackState` 与旧常驻 feedback card 不恢复；现有单次/累计 FAST/SLOW 及本地 PB/NEXT 的资格和来源见[作者参考](../../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)，不从历史删除决定否定这些独立只读能力。
 
 ## 最近一次验证
 
@@ -56,8 +56,8 @@ IIDX/LR2/beatoraja/OD 判定家族与主要边界 parity 已落地并由契约�
 1. 按 PLAN 的自动调整偏移人工门验证稳定谱/和弦/皿/长条/变速、关闭固定、重启保存与回放；发现样本或显示问题只在该专题修复，不扩训练卡。
 2. 任何窗口/poor/release 改动先扩 parity test，再改实现。
 3. 把剩余真实谱判定体验与 LN/CN/HCN 人工结果交给 P1-E/P1-G。
-4. 若用户重新需要 FAST/SLOW 或 pacemaker，先重新定义产品价值、宿主和最小状态合同，不复活已删 aggregate。
+4. 超出现有只读 FAST/SLOW、本地 PB/NEXT 的新训练需求，先定义产品价值、宿主和最小状态合同，不复活已删 aggregate。
 
 ## 文档治理验证
 
-2026-09-29 自动调整偏移交付后复核：代码与当前互斥、迁移、采样及回放合同一致；回读四个最终 TRX 和 Release 日志，确认上述产品验证记录及29项旧失败身份。已完成七步规划移入 CHANGELOG，PLAN 只留真实设备/实谱验收；记忆只保留诊断与权威回链。未改产品、未重跑测试或 Release、未新增人工签收；原统计/TOTAL审查见 [CHANGELOG](CHANGELOG.md)。
+2026-11-05对照当前读谱控件、计算器和皮肤状态生产链，移除仍列为当前能力的调速toast，区分旧反馈卡删除与已交付只读FAST/SLOW/PB/NEXT，并回链版本0/1合同。仅文档勘误，产品测试、实机和原版证据均保留原日期；具体来源与治理验证见[本线记录](CHANGELOG.md#2026-11-05反馈与读谱合同勘误)。

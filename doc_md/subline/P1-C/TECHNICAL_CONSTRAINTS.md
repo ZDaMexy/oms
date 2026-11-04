@@ -1,13 +1,13 @@
 # P1-C 技术约束：判定语义与反馈边界
 
-> 最后核对：2026-10-28（自动显示偏移的开关独立记录；窗口/TOTAL身份保持）
+> 最后核对：2026-11-05（区分旧反馈卡与当前只读能力；窗口/TOTAL身份保持）
 > 当前事实见 [DEVELOPMENT_STATUS.md](DEVELOPMENT_STATUS.md)，执行顺序见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)，历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 归线与产品边界
 
 1. P1-C 维护判定 family、窗口/poor/release parity 与反馈语义，不得借题提前引入完整 FHS、dan、1P/2P flip、BSS/MSS。
 2. HUD/skin 宿主和 slot/fallback 归 P1-A；真实谱 LN/CN/HCN 验校归 P1-E；人工结果汇总归 P1-G；Gimmick 视觉位置归 P1-L。
-3. 常驻 `DefaultBmsSpeedFeedbackDisplay`、`GameplayFeedbackState`、FAST/SLOW、pacemaker、summary 与常驻 GN 已删除，不是当前能力。未来若重建必须另立专题，不得把历史接口当成兼容承诺。
+3. 旧常驻 `DefaultBmsSpeedFeedbackDisplay`、`GameplayFeedbackState` 及其聚合管线已删除，不得把历史接口当成兼容承诺。现有只读 FAST/SLOW、GN、本地 PB/NEXT 的资格与宿主归[P1-A](../P1-A/TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)；新增训练产品仍须独立定义，不恢复旧卡。
 4. 当前 GN/WN 只能描述 OMS `Normal/Floating/Classic Hi-Speed + Sudden/Hidden/Lift` 的现有 runtime surface，不得对外宣称完整 IIDX FHS。
 
 ## 判定 family 合同
@@ -39,7 +39,7 @@
 - 普通键/皿 PG/GR/GD、绝对误差 ≤150ms 按 `sign(error)*floor((abs(error)+15)/30)` ms 推动，OMS error 晚正早负；单次变更限幅。LN 在完成时只采一个合并样本；CN/HCN 头与真实释放分别采样。OMS 已有自动到尾行为不改，自动到尾不采帧延迟，不能据此声称长条 runtime 与原版完全相同。AutoPlay/辅助音、持续 tick、空 POOR、parent Ignore 均不学习。
 - 显示修正只作用于 BMS 显示时间，不能改变音符时间、判定、成绩、gauge、输入、键音/BGM/BGA。BMS 侧算法包装同步小节线/地雷，嵌套长条位置与长度不重复偏移。真实演奏中，beatoraja 自动调整未启用且固定偏移为 0ms 时保留原算法实例；自动启用时保持同一包装跨零变化，避免逐音重算全谱。额外预加载对象不能扩大空 POOR 候选或提前屏蔽辅助列空按声音。
 - 真实演奏持续更新用户配置，失败/退出/重试保留。回放只读成绩中的初始值和变更时间线，seek 按时间查询；记录含变化轨迹时保持显示包装跨零，不受个人 style 选择影响；旧记录缺失字段按 0ms，不学习、不写个人配置。轨迹随 BMS ruleset data 保存，TOTAL version=7 语义不变；停止录制、score clone 前一次序列化，不能逐判定重序列化整个历史。导入轨迹验证有限数、偏移范围和严格递增时间。
-- `visual_offset.automatic`为可选独立开关历史：`initial`必须是实际bool，`changes`各项含必填有限`time`与bool `enabled`，时间严格递增；缺失/null的time或状态在外部边界拒绝。真实演奏记录开关边与原生clock，同刻/倒带按录制未来替换规则处理；真实Replay按时间恢复，seek/reset不借个人配置。数值`Changes`及其显示包装/寿命条件保持，不能由数值变化次数推断自动ON/OFF。旧无此metadata和无来源GeneratedAutoplay的自动状态为unknown；数值偏移仍可独立显示，皮肤只读known/ON来源见[作者参考](../../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)。此记录不改变自动调整算法、读谱13字段、calculation version0、计分或IR。
+- `visual_offset.automatic`为可选独立开关历史：`initial`必须是实际bool，`changes`各项含必填有限`time`与bool `enabled`，时间严格递增；缺失/null的time或状态在外部边界拒绝。真实演奏记录开关边与原生clock，同刻/倒带按录制未来替换规则处理；真实Replay按时间恢复，seek/reset不借个人配置。数值`Changes`及其显示包装/寿命条件保持，不能由数值变化次数推断自动ON/OFF。旧无此metadata和无来源GeneratedAutoplay的自动状态为unknown；数值偏移仍可独立显示，皮肤只读known/ON来源见[作者参考](../../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)。自动偏移记录独立于读谱计算版本，不改变其兼容、计分或IR身份；版本0/1及读谱快照字段只取[P1-A读谱合同](../P1-A/TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代)。
 - 来源：[JudgeManager](https://github.com/exch-bms2/beatoraja/blob/9aea9471f4490732cbbd6b71ca639ee823d20635/src/bms/player/beatoraja/play/JudgeManager.java)、[LaneRenderer](https://github.com/exch-bms2/beatoraja/blob/9aea9471f4490732cbbd6b71ca639ee823d20635/src/bms/player/beatoraja/play/LaneRenderer.java)。独立实现行为，不复制播放器 runtime。
 
 ## Results 与验证边界
