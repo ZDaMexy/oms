@@ -4,7 +4,7 @@ import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from standard_failure import export_failure, validate_failure_source
@@ -35,8 +35,14 @@ class StandardFailureTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory, patch("standard_failure.StandardComponents", return_value=exporter):
             output = Path(directory)
             result = export_failure(output, output, output, output)
-            exporter.clip.assert_called_once_with("0/gameparts", "miss", "sf.failed", loop=False, trigger="gameplay.fail")
-            self.assertEqual(180, result["clip"]["source"]["sourceFrames"])
+            self.assertEqual([
+                call("0/gameparts", "miss", "sf.failed", loop=False, trigger="gameplay.fail"),
+                call("1/gameparts", "miss", "sf.failed.legacy", loop=False, trigger="gameplay.fail"),
+            ], exporter.clip.call_args_list)
+            self.assertEqual("oms-standard-failure.v2", result["contract"])
+            self.assertEqual({"0", "1"}, set(result["families"]))
+            for family in result["families"].values():
+                self.assertEqual(180, family["clip"]["source"]["sourceFrames"])
             self.assertTrue((output / "failure.json").is_file())
 
 

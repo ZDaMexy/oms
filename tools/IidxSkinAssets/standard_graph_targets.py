@@ -9,7 +9,7 @@ import shutil
 from standard_graph import GraphOPTIONS, TARGETS, build_graph_target, digest, node
 
 
-def export_graph_target_module(library, output, prepared_font):
+def export_graph_target_module(library, output, prepared_font, *, notifications=None):
     """Write only this module's exact files and return its catalog contribution.
 
     Existing identical files are shared with the frame/feedback source closure.
@@ -46,9 +46,12 @@ def export_graph_target_module(library, output, prepared_font):
 
     for target, label in TARGETS.items():
         layouts = {}
-        for layout in ("p1", "p2", "dp"):
-            contribution = build_graph_target(library, layout, target, prepared_font)
-            base = f"standard/graph/targets/{target}/{layout}"
+        for common_family, layout in ((family, layout) for family in ("0", "1") for layout in ("p1", "p2", "dp")):
+            contribution = build_graph_target(library, layout, target, prepared_font, common_family=common_family,
+                notifications=notifications[common_family]["clips"] if notifications is not None else None)
+            family_path = "/f1" if common_family == "1" else ""
+            family_id = ".f1" if common_family == "1" else ""
+            base = f"standard/graph{family_path}/targets/{target}/{layout}"
             for row in contribution["files"]:
                 source = Path(row["source"]).resolve(strict=True)
                 if digest(source) != row["sha256"]:
@@ -62,16 +65,23 @@ def export_graph_target_module(library, output, prepared_font):
                 record(row["path"], copied)
             manifest = {"contract": "oms-gameplay-skin-manifest.v1", "scene": "gameplay-skin.scene.json",
                 "sceneContract": "oms-gameplay-skin-scene.v1", "eventContract": "oms-gameplay-skin-event.v1",
-                "resources": contribution["resources"], "bitmapFonts": contribution["bitmapFonts"], "animations": []}
-            scene = {"contract": "oms-gameplay-skin-scene.v1", "root": node(f"standard.graph.target.{target}.{layout}.root")}
+                "resources": contribution["resources"], "bitmapFonts": contribution["bitmapFonts"], "animations": contribution["animations"]}
+            scene = {"contract": "oms-gameplay-skin-scene.v1", "root": node(f"standard.graph{family_id}.target.{target}.{layout}.root")}
             for field in ("tracks", "stateMachines", "bindings", "variants", "templates", "instances", "numericSources"):
                 scene[field] = contribution[field]
             write(base + "/manifest.json", manifest)
             write(base + "/scene.json", scene)
             write(base + "/materials.ini", "\n")
-            layouts[layout] = {"manifest": base + "/manifest.json", "scene": base + "/scene.json", "ini": base + "/materials.ini"}
+            layouts[common_family, layout] = {"manifest": base + "/manifest.json", "scene": base + "/scene.json", "ini": base + "/materials.ini"}
             receipts.append(contribution["receipt"])
-        choices.append({"value": target, "label": label, **layouts["dp"],
-            "variants": [{"when": {"layout": layout}, **layouts[layout]} for layout in ("p1", "p2")]})
+        # Public ordered variants select the first matching contribution.
+        # A DP publication has no layout option, so its family1 fallback must
+        # follow the two more specific single-player branches.
+        choices.append({"value": target, "label": label, **layouts["0", "dp"], "orderedVariants": True,
+            "variants": [
+                *[{"when": {"frame": "iidx25", "layout": layout}, **layouts["1", layout]} for layout in ("p1", "p2")],
+                {"when": {"frame": "iidx25"}, **layouts["1", "dp"]},
+                *[{"when": {"layout": layout}, **layouts["0", layout]} for layout in ("p1", "p2")],
+            ]})
     return {"module": {"id": "graph-target", "label": "PACEMAKER", "rulesets": ["bms"], "default": "aaa", "choices": choices},
             "files": list(files.values()), "receipts": receipts, "options": copy.deepcopy(GraphOPTIONS)}

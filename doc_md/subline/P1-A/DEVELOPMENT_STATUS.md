@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-11-05（Standard素材查漏收窄完成范围；Lightning自动推进仍停止）
+> 最后核对：2026-11-05（Standard v02私下交付；Lightning仍停止）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -11,7 +11,7 @@
 
 Lightning Model Skin Omni Until 33 自动推进仍停止，完整形态未完成。最新私下交付和运行要求取[.v26102902](CHANGELOG.md#2026-10-29omniv52私下交付)，历史 Lighting 文件名保留；范围与未验项取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。
 
-Standard Model Skin Omni Until 26 已私下交付 `.v26110501`，包含25残留、26及ARC SCORE八款复刻。后续[查漏](../../other/STANDARD_MODEL_SKIN_20261105.md#素材查漏与未采用范围)恢复漏审包，仍有未采用美术和未识别来源，撤回“HDD素材已全部完成”；原包验收保持，更早HDD另属下一阶段。
+Standard Model Skin Omni Until 26 已私下交付`.v26110502`，接入1族失败、Graph原图、PB标签与过线通知，另有默认关闭的Classic BGA Frame。范围仍为25残留、26及八款ARC SCORE复刻；来源边界与同包验收取[作品记录](../../other/STANDARD_MODEL_SKIN_20261105.md#本轮验证与交付)，不宣称HDD素材穷尽，更早HDD另属下一阶段。
 
 两作品选曲与Results均保留OMS原界面及PageAPI。Lightning的Classic/Header等已有表现与27文字锚点缺口取上方作品记录，旧页面方案取消取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
 
@@ -40,9 +40,9 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-11-05：[Standard范围完成](CHANGELOG.md#2026-11-05standard26当前来源范围完成)：同包51局原生Player、326张PNG完整性及108张逐图审看通过；3521个作者代表组合、106项Python、必要产品回归与Release通过。宽测、末段补测的时间和适用范围取[作品记录](../../other/STANDARD_MODEL_SKIN_20261105.md#本轮验证与交付)，不代签设备或原机等价。
+2026-11-05：[Standard接入](CHANGELOG.md#2026-11-05standard保留美术与graph通知接入)同包通过3651代表组合、31场景（34局/30次Results/4次失败）、234张PNG完整性、38张逐图审看及交付核验。Python147/末段15、core皮肤738（含过线41）、BMS皮肤1226/15跳过、mania相关97/1跳过及Release通过。跳过原因、作者工具/宿主构建和精确身份取[作品记录](../../other/STANDARD_MODEL_SKIN_20261105.md#本轮验证与交付)，不复用v01旧验收。
 
-2026-10-29：[Lightning候选收尾](CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)保留83e27770的BMS full 3323通过/19跳过，以及core、Python、BMS/mania相关回归、Release/格式与v52正式CLI、原生回放和实景证据。[.v26102902交付](CHANGELOG.md#2026-10-29omniv52私下交付)与原候选同字节；没有借Standard刷新旧作品验证日期。
+Lightning的10月29日候选、产品回归和Release保持[原记录](CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)；[.v26102902交付](CHANGELOG.md#2026-10-29omniv52私下交付)与候选同字节，Standard不刷新其验证日期。
 
 原版依据沿[R12/R13静态与内部精度](CHANGELOG.md#2026-10-29原版独立bpm与内部速度核对)及[R15有限Demo运动](CHANGELOG.md#2026-10-29原版demo自然运动标尺)。R14正常退出回执缺失、独立保全通过；R15退出0及保全通过。timer/start保留原回执，完整副本已退役，不签全部计时冻结。旧包Start/挡板/Lift原生证据取[实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)，不代签新候选。
 

@@ -17,6 +17,7 @@ BAR_COLUMNS = {"current": 54, "best": 128, "target": 202}
 TARGETS = {"aaa": "AAA", "aa": "AA", "a": "A", "custom": "CUSTOM %", "next": "NEXT", "next-plus": "NEXT+"}
 GraphOPTIONS = [
     {"id": "graph-difference", "type": "toggle", "label": "Graph score difference", "default": True},
+    {"id": "graph-cutin", "type": "toggle", "label": "Graph cut-in", "default": True, "rulesets": ["bms"]},
     {"id": "graph-custom-percent", "type": "number", "label": "PACEMAKER CUSTOM %", "default": 80,
      "min": 0, "max": 100, "step": 1, "rulesets": ["bms"]},
 ]
@@ -43,12 +44,18 @@ def bar_columns(layout):
 
 
 class _Graph:
-    def __init__(self, library, layout, prepared_font=None, *, target=None):
+    def __init__(self, library, layout, prepared_font=None, *, target=None, common_family="0"):
         if layout not in ("p1", "p2", "dp"):
             raise ValueError("Graph layout must be p1, p2 or dp")
+        if common_family not in ("0", "1"):
+            raise ValueError("Graph common family must be 0 or 1")
         self.library = Path(library).resolve(strict=True)
+        self.common_family = common_family
+        self.package = f"contents/data/graphic/{common_family}/graph.ifs"
+        self.identity = "standard.graph" + (".f1" if common_family == "1" else "")
+        self.path_prefix = "standard/graph" + ("/f1" if common_family == "1" else "")
         self.layout, self.left = layout, 0 if layout == "p2" else 1000
-        self.prefix = "standard.graph." + (layout if target is None else f"target.{target}.{layout}")
+        self.prefix = self.identity + "." + (layout if target is None else f"target.{target}.{layout}")
         metadata = json.loads((self.library / "library.json").read_text(encoding="utf-8"))
         if metadata["status"] != "complete" or metadata["sourceMetadataUnchanged"] is not True:
             raise ValueError("Graph requires the complete verified IIDX26 library")
@@ -56,15 +63,15 @@ class _Graph:
                   if (match := re.fullmatch(r"contents/data/graphic/gmframe(\d+)\.ifs", package["source"]))}
         if frames != FRAME_IDS:
             raise ValueError("Graph requires the independent IIDX26 cabinet selection")
-        packages = [package for package in metadata["packages"] if package["source"] == PACKAGE]
+        packages = [package for package in metadata["packages"] if package["source"] == self.package]
         if len(packages) != 1:
-            raise ValueError("Graph requires exactly one source-qualified 0/graph package")
-        archive = (self.library / "source-copies" / PACKAGE).resolve(strict=True)
+            raise ValueError(f"Graph requires exactly one source-qualified {common_family}/graph package")
+        archive = (self.library / "source-copies" / self.package).resolve(strict=True)
         if not archive.is_relative_to(self.library) or not archive.is_file() or digest(archive) != packages[0]["sha256"]:
             raise ValueError("Graph archive differs from the private source inventory")
         self.source_sha = packages[0]["sha256"]
-        self.index = {Path(row["name"]).stem: row for row in metadata["textures"] if row["package"] == PACKAGE}
-        texture_list = self.library / "packages/contents/data/graphic/0/graph/raw/tex/texturelist.xml"
+        self.index = {Path(row["name"]).stem: row for row in metadata["textures"] if row["package"] == self.package}
+        texture_list = self.library / f"packages/contents/data/graphic/{common_family}/graph/raw/tex/texturelist.xml"
         self.samplers = {image.attrib["name"]: atlas.attrib["mag_filter"]
                          for atlas in ET.parse(texture_list).getroot().findall("texture") for image in atlas.findall("image")}
         self.value = {key: [] for key in ("resources", "bitmapFonts", "animations", "templates", "instances", "bindings",
@@ -76,12 +83,10 @@ class _Graph:
             fonts = [font for font in prepared_font["bitmapFonts"] if font["id"] == self.small_font]
             if len(fonts) != 1 or not set("0123456789-").issubset({glyph["character"] for glyph in fonts[0]["glyphs"]}):
                 raise ValueError("Graph differences need the prepared source small numeric font")
-            self.value["bitmapFonts"].extend(copy.deepcopy(fonts))
             resources = {glyph["resource"] for glyph in fonts[0]["glyphs"]}
             rows = [row for row in prepared_font["resources"] if row["id"] in resources]
             if len(rows) != len(resources):
                 raise ValueError("Prepared Graph font resource closure is incomplete")
-            self.value["resources"].extend(copy.deepcopy(rows))
             paths = {row["path"] for row in rows}
             files = [row for row in prepared_font["files"] if row["path"] in paths]
             if {row["path"] for row in files} != paths:
@@ -89,8 +94,14 @@ class _Graph:
             for row in files:
                 if digest(row["source"]) != row["sha256"]:
                     raise ValueError("Prepared Graph font bytes changed")
-            self.value["files"].extend(copy.deepcopy(files))
-        self.score_font = "standard.graph.font.score"
+            fonts, rows, files = copy.deepcopy((fonts, rows, files))
+            # Both families use this same qualified software font for the OMS
+            # difference readout. Retain its exact shared identity; duplicating
+            # it would spend a thirteenth font without adding different art.
+            self.value["bitmapFonts"].extend(fonts)
+            self.value["resources"].extend(rows)
+            self.value["files"].extend(files)
+        self.score_font = self.identity + ".font.score"
         self.value["bitmapFonts"].append({"id": self.score_font, "lineHeight": 22,
             "glyphs": [{"character": str(i), "resource": self.asset(f"gr_sco_{i:02}", (23, 22)), "advance": 23} for i in range(10)]})
 
@@ -103,8 +114,8 @@ class _Graph:
         source = (self.library / unquote(row["sprite"])).resolve(strict=True)
         if not source.is_relative_to(self.library) or not source.is_file() or digest(source) != row["sha256"]:
             raise ValueError(f"Original Graph bytes changed: {name}")
-        identifier = "standard.graph.texture." + name.replace("_", "-")
-        relative = "standard/graph/source/" + name + ".png"
+        identifier = self.identity + ".texture." + name.replace("_", "-")
+        relative = self.path_prefix + "/source/" + name + ".png"
         self.value["resources"].append({"id": identifier, "type": "texture", "path": relative, "filter": self.samplers[name]})
         self.value["files"].append({"source": str(source), "path": relative, "sha256": row["sha256"]})
         self.used[name] = identifier
@@ -198,7 +209,9 @@ class _Graph:
             "material": {"slot": "decoration", "resource": f"markers/frame-{self.layout}-information"}})
 
     def receipt(self):
-        return {"contract": "oms-standard-graph.v2", "sourcePackage": PACKAGE, "sourcePackageSHA256": self.source_sha,
+        return {"contract": "oms-standard-graph.v2", "sourcePackage": self.package, "sourcePackageSHA256": self.source_sha,
+            "commonFamily": self.common_family,
+            "familyScope": "Source-qualified retained art only. The live scores and PACEMAKER policy remain the existing OMS/26 software adaptation; no original25 software timing is asserted.",
             "layout": self.layout, "sourceMovie": "graph_2p" if self.layout == "p2" else "graph_1p", "originalCanvas": [1280, 720],
             "panel": [self.left, 0, 280, 720], "barPlacement": {"localX": bar_columns(self.layout), "top": BAR_TOP, "bottom": BAR_BOTTOM, "width": BAR_WIDTH},
             "barGeometry": "Original gauge_0/1/2 PNGs; opposite rotations plus reveal-x retain source scale/UVs while cropping upward from the baseline.",
@@ -209,23 +222,27 @@ class _Graph:
             "mount": "Existing Global frame information marker only; Stage decoration remains suppressed."}
 
 
-def build_graph(library: Path, layout: str, prepared_font=None):
+def build_graph(library: Path, layout: str, prepared_font=None, *, common_family="0"):
     """Panel/current score/terminal local PB. PACEMAKER is a separate module."""
-    graph = _Graph(library, layout, prepared_font)
+    graph = _Graph(library, layout, prepared_font, common_family=common_family)
     base = node(graph.prefix + ".base", properties={"z": -10}, slot="decoration", children=[
         graph.sprite("panel", "gr_score_graph_panel", (280, 720), 0, 0)])
     bars = [graph.bar("current", "current", "score.progress"),
         graph.gate("bar.best.available", "score.personal-best-available", [graph.bar("best", "best", "score.personal-best-progress")]),
         graph.gate("bar.best.missing", "score.personal-best-available", [graph.bar("best-fallback", "best", "score.progress")], when=False),
         graph.sprite("line.maximum", "gr_line_max", (276, 20), 4, 90),
-        graph.sprite("line.baseline", "gr_line_under", (272, 6), 4, 540)]
+        # The family1 movie uses the original graph-line name at exactly the
+        # same projected rectangle; it has no gr_line_under texture.
+        graph.sprite("line.baseline", "gr_score_graph_line" if common_family == "1" else "gr_line_under", (272, 6), 4, 540)]
     ranks = []
     for rank in ("aaa", "aa", "a"):
         line = graph.sprite("line." + rank, "gr_line_" + rank, (272, 18), 4, BAR_BOTTOM - 14)
         graph.track(line["id"], "y", "score.rank-" + rank + "-progress", [(0, (BAR_BOTTOM - 14) / 720), (1, (BAR_TOP - 14) / 720)])
         ranks.append(line)
     bars.append(graph.gate("rank.available", "score.rank-available", ranks))
-    best = [graph.caption("best.label", "LOCAL PB TOTAL", 143, 572, 128, size=12),
+    # Original score_tag_1 is the135x31 right-hand tag at(140,567).
+    # The displayed PB remains OMS's matching local final total, not a ghost.
+    best = [graph.sprite("best.label", "gr_p_bstsc", (135, 31), 140, 567),
             graph.number("best.value", "score.personal-best", 143, 603, 128)]
     if prepared_font is not None:
         difference = graph.numeric("pb-difference", "subtract", "score.value", "score.personal-best")
@@ -242,7 +259,7 @@ def build_graph(library: Path, layout: str, prepared_font=None):
     graph.mount(base)
     graph.mount(data)
     graph.value["receipt"] = {**graph.receipt(),
-        "localBest": "Matching local PB final total, explicitly labelled LOCAL PB TOTAL. No per-note ghost is invented. Without PB, second bar follows current and PB labels/difference disappear.",
+        "localBest": "Matching local PB final total, labelled by the selected family's original gr_p_bstsc at the original score_tag_1 rectangle. No per-note ghost or new-best update is invented. Without PB, second bar follows current and PB labels/difference disappear.",
         "target": "Separate BMS-only six-choice PACEMAKER module; no MAXIMUM placeholder.",
         "differences": prepared_font is not None, "differenceFont": graph.small_font,
         "rankLines": "Original rank sprites use real EX thresholds and their availability gate."}
@@ -257,8 +274,6 @@ def _target_value(graph, target):
         product = graph.numeric("custom-product", "multiply", maximum, "option.graph-custom-percent")
         ratio = graph.numeric("custom-ratio", "divide", product, 100)
         return graph.numeric("target", "floor", ratio)
-    # Native snapshot PB is nonnegative by contract; original upper clamp stays.
-    best = graph.numeric("bounded-best", "min", best, maximum)
     if target == "next":
         boundaries = ["score.rank-a", "score.rank-aa", "score.rank-aaa", maximum]
         thresholds = []
@@ -268,17 +283,24 @@ def _target_value(graph, target):
             midpoint = graph.numeric(f"midpoint.n{i}", "floor", half)
             thresholds.extend((lower, midpoint))
         thresholds.append(maximum)
-        deductions = []
+        # PB and rounded boundaries are integers. A candidate is its upper
+        # boundary once PB reaches the lower one, otherwise it is <=0. Taking
+        # their maximum with A gives exactly the native next band, without
+        # the former per-band clamp and width declarations.
+        candidates = ["score.rank-a"]
         for i, (lower, upper) in enumerate(zip(thresholds, thresholds[1:])):
-            step = graph.numeric(f"band.n{i}.step", "subtract", upper, lower)
             remaining = graph.numeric(f"band.n{i}.remaining", "subtract", lower, best)
-            nonnegative = graph.numeric(f"band.n{i}.positive", "max", remaining, 0)
-            selected = graph.numeric(f"band.n{i}.selected", "min", nonnegative, 1)
-            deductions.append(graph.numeric(f"band.n{i}.deduction", "multiply", step, selected))
-        result = graph.numeric("target-unclamped", "subtract", maximum, graph.sum("deductions", deductions))
-        # This also proves the digit-only target font's nonnegative domain to
-        # the public codec; it does not change any valid native target.
-        return graph.numeric("target", "max", result, 0)
+            positive = graph.numeric(f"band.n{i}.positive", "max", remaining, 0)
+            deduction = graph.numeric(f"band.n{i}.deduction", "multiply", positive, upper)
+            candidates.append(graph.numeric(f"band.n{i}.candidate", "subtract", upper, deduction))
+        level = 0
+        while len(candidates) > 1:
+            candidates = [graph.numeric(f"selected.l{level}.n{i//2}", "max", candidates[i], candidates[i+1])
+                          if i+1 < len(candidates) else candidates[i] for i in range(0, len(candidates), 2)]
+            level += 1
+        return candidates[0]
+    # Native snapshot PB is nonnegative by contract; NEXT+ keeps its upper clamp.
+    best = graph.numeric("bounded-best", "min", best, maximum)
     rate = struct.unpack("<f", struct.pack("<f", .005))[0]
     span = graph.numeric("span", "subtract", maximum, "score.rank-a")
     safe_span = graph.numeric("safe-span", "max", span, 1)
@@ -295,13 +317,56 @@ def _target_value(graph, target):
     return graph.numeric("target", "max", capped_target, "score.rank-a")
 
 
-def build_graph_target(library: Path, layout: str, target: str, prepared_font):
+def _add_notifications(graph, total, clips):
+    """Source movies use finite real score crossings, including one shared flash."""
+    if set(clips) != {"mybest", "target", "aaa", "aa", "a", "update"}:
+        raise ValueError("Graph notifications require the five qualified cut-ins and their single update movie")
+    thresholds = {
+        "mybest": {"source": "score.personal-best", "comparison": "greater"},
+        "target": {"source": total, "comparison": "greater"},
+        **{rank: {"source": "score.rank-" + rank, "comparison": "at-least"} for rank in ("aaa", "aa", "a")},
+    }
+    resources = {row["id"]: row for row in graph.value["resources"]}
+    animations = {row["id"]: row for row in graph.value["animations"]}
+    children = []
+    for name in ("update", "mybest", "target", "aaa", "aa", "a"):
+        clip = clips[name]
+        for key, table in (("resources", resources), ("animations", animations)):
+            for row in clip[key]:
+                if row["id"] in table and table[row["id"]] != row:
+                    raise ValueError("Graph notification conflicts with an existing exact resource")
+                table[row["id"]] = copy.deepcopy(row)
+        item = copy.deepcopy(clip["node"])
+        item["id"] = graph.prefix + ".cutin." + name
+        item["properties"] = {"x": 0, "y": 0, "width": 1, "height": 1, "z": 1 if name == "update" else 0}
+        item["scoreCrossing"] = {"thresholds": list(thresholds.values()) if name == "update" else [thresholds[name]]}
+        # Native lv_pass retains only the highest reached rank. A jump across
+        # several boundaries must not stack three independent grade images.
+        if name in ("a", "aa"):
+            upper = "aa" if name == "a" else "aaa"
+            remaining = graph.numeric("cutin." + name + ".remaining", "subtract", "score.rank-" + upper, "score.value")
+            positive = graph.numeric("cutin." + name + ".positive", "max", remaining, 0)
+            visible = graph.numeric("cutin." + name + ".visible", "min", positive, 1)
+            gate = node(item["id"] + ".rank-gate", children=[item])
+            graph.bind(gate["id"], "opacity", visible)
+            item = gate
+        children.append(item)
+    graph.value["resources"] = list(resources.values())
+    graph.value["animations"] = list(animations.values())
+    original = node(graph.prefix + ".cutin.original", properties=graph.rect(0, 0, 280, 720), children=children)
+    available = graph.gate("cutin.available", "score.rank-available", [original])
+    enabled = graph.gate("cutin.enabled", "option.graph-cutin", [available])
+    root = node(graph.prefix + ".cutin.root", properties={"z": -35}, slot="decoration", children=[enabled])
+    graph.mount(root)
+
+
+def build_graph_target(library: Path, layout: str, target: str, prepared_font, *, common_family="0", notifications=None):
     """One selected policy participates in the scene, not all six alternatives."""
     if target not in TARGETS:
         raise ValueError("Unknown IIDX26 PACEMAKER policy")
     if prepared_font is None:
         raise ValueError("PACEMAKER requires the prepared source numeric font")
-    graph = _Graph(library, layout, prepared_font, target=target)
+    graph = _Graph(library, layout, prepared_font, target=target, common_family=common_family)
     total = _target_value(graph, target)
     count = graph.sum("judged", ["judgement.count." + name for name in ("perfect", "great", "good", "meh", "miss")])
     judged_maximum = graph.numeric("judged-maximum", "multiply", count, 2)
@@ -323,13 +388,20 @@ def build_graph_target(library: Path, layout: str, target: str, prepared_font):
     ready = graph.gate("available", "score.rank-available", content)
     root = node(graph.prefix + ".data", properties={"z": -30}, slot="decoration", children=[ready])
     graph.mount(root)
+    if notifications is not None:
+        _add_notifications(graph, total, notifications)
     graph.value["receipt"] = {**graph.receipt(), "target": target, "label": TARGETS[target],
         "targetTotalSource": total, "targetPaceSource": pace, "targetProgressSource": progress, "differenceSource": difference,
         "availability": "BMS EX score.rank-available; module is BMS-only. No mania EX pacemaker is inferred.",
         "pace": "ceilf(float32(float32(judgedMaximumEX*target)/maximumEX)); judgedMaximumEX=2*(PG+GR+GD+BD+Miss), excluding empty POOR/Ignore and HCN gauge-only ticks.",
         "policy": "Original AAA/AA/A integer thresholds; CUSTOM floor(maximum*percent/100); NEXT floor of rounded rank midpoints; NEXT+ original float32 arithmetic, truncation and A..MAX limits.",
         "missingPB": "Existing public missing-PB numeric source is zero; target calculations use zero without claiming a stored PB.",
-        "difference": "Real current score minus current target pace, using the source small numeric font."}
+        "difference": "Real current score minus current target pace, using the source small numeric font.",
+        "cutins": {"enabled": notifications is not None,
+            "clock": "Only actual score-crossing event times; PB/target strictly exceed positive totals, rank uses at-least. Each threshold is consumed once; one shared update movie restarts for new crossings.",
+            "layers": "Native priority68 update maps to132, behind priority67 notifications at133. The source panel280x720 is unscaled within the original Graph rectangle; the original150-frame nonlooping movies retain their500ms transparent start.",
+            "rank": "Only the highest currently reached A/AA/AAA is visible, matching the original lv_pass replacement. No achievement badge trigger is inferred.",
+            "boundary": "This does not extend Results waiting or reconstruct events missed before the scene attached."}}
     return graph.value
 
 

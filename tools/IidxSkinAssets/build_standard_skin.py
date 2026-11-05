@@ -118,6 +118,66 @@ def largest_clear_rectangle(image, x0, x1, y0=0, y1=None):
     return best[1]
 
 
+def recorded_branch(branch):
+    """Read an existing source-qualified program, without copying its files."""
+    import brotli
+    animation, = branch['animations']
+    source, = (item for item in branch['files'] if item['path'] == animation['path'])
+    if branch['node']['animation'] != animation['id'] or sha(source['source']) != source['sha256']:
+        raise ValueError('Cabinet recorded program differs from its source receipt')
+    return json.loads(brotli.decompress(Path(source['source']).read_bytes()))
+
+
+def recorded_frame_draws(program, frame_index):
+    """Canonical draw order, including every original ancestor and source UV.
+
+    A single-frame export renumbers its tables. Compare the referenced data,
+    not those incidental indices, and retain camera/mask/colour/blend state.
+    """
+    frame = program['frames'][frame_index]
+    chains, draws = {}, []
+    for node_index, state_index in frame['nodes']:
+        item = program['nodes'][node_index]
+        chain = ([] if item['parent'] == -1 else chains[item['parent']]) + [
+            {'state': program['states'][state_index], 'blend': item['blend']}]
+        chains[node_index] = chain
+        if item['geometry'] >= 0:
+            draws.append({'geometry': program['geometries'][item['geometry']], 'ancestors': chain})
+    return {'canvas': [program['width'], program['height']], 'fps': program['fps'],
+            'camera': frame['camera'], 'draws': draws}
+
+
+def steady_program_reuse(original, exported, split):
+    """Prove each old static layer is the same source frame of its motion clip."""
+    sample, fps = original['source']['steadyFrameZeroBased'], original['source']['fps']
+    motion = exported['motion']['layers'] if split else [exported['motion']]
+    steady = exported['steady']['layers'] if split else [exported['steady']]
+    kinds = [branch.get('kind', 'frame') for branch in motion]
+    if kinds != [branch.get('kind', 'frame') for branch in steady]:
+        raise ValueError('Cabinet steady/motion layer order differs; cannot share programs')
+    proofs = []
+    for dynamic, static in zip(motion, steady, strict=True):
+        moving, held = recorded_branch(dynamic), recorded_branch(static)
+        if (type(sample) is not int or not 0 <= sample < len(moving['frames']) - 1
+                or moving['fps'] != fps or held['fps'] != fps or len(held['frames']) != 2
+                or moving['frames'][-1]['nodes'] or held['frames'][-1]['nodes']):
+            raise ValueError('Cabinet steady frame is outside its complete original motion')
+        bindings = lambda branch: [{key: value for key, value in binding.items() if key not in ('id', 'target')}
+                                   for binding in branch.get('bindings', [])]
+        selected, previous = recorded_frame_draws(moving, sample), recorded_frame_draws(held, 0)
+        if (selected != previous or dynamic['node']['blend'] != static['node']['blend']
+                or bindings(dynamic) != bindings(static)):
+            raise ValueError('Cabinet steady frame geometry, hierarchy or brightness differs from motion')
+        signature = json.dumps(selected, sort_keys=True, separators=(',', ':'), allow_nan=False).encode('utf-8')
+        proofs.append({'kind': dynamic.get('kind', 'frame'), 'motionAnimation': dynamic['animations'][0]['id'],
+                       'retiredSteadyAnimation': static['animations'][0]['id'], 'draws': len(selected['draws']),
+                       'sourceFrameDrawSHA256': hashlib.sha256(signature).hexdigest()})
+    return motion, {'movie': original['source']['movie'], 'steadyFrameZeroBased': sample,
+                    'fps': fps, 'fixedClockMs': sample * 1000 / fps, 'layers': proofs,
+                    'oldPrograms': len(motion) + len(steady), 'newPrograms': len(motion),
+                    'equivalence': 'Exact source-frame camera, geometry/UV, ordered ancestor transforms, masks, colours and blends; lane brightness bindings retained. No PNG or motion-phase changes.'}
+
+
 class Package:
     def __init__(self, library, output, image_tools):
         self.library, self.output = library.resolve(strict=True), output.resolve()
@@ -177,6 +237,7 @@ class Package:
 class Frame:
     def __init__(self, owner, research, style, layout, *, wide=False):
         self.owner, self.research, self.style, self.layout = owner, research, style, layout
+        self.common_family = '1' if style == 25 else '0'
         if wide and layout == 'dp':
             raise ValueError('The evidenced wide movies belong to single-player layouts')
         self.wide = wide
@@ -336,26 +397,38 @@ class Frame:
                 self.evidence.append({'laneBrightness': exported['receipt']})
             else:
                 exported = original
+            layers, proof = steady_program_reuse(original, exported, split)
+            proof['sourceExportSHA256'] = sha(source_export)
+            if split:
+                source_root = source_export.parent / 'source-root.json'
+                if exported['receipt']['sourceRootSHA256'] != sha(source_root):
+                    raise ValueError('Lane split no longer matches its original source frame graph')
+                proof['sourceRootSHA256'] = exported['receipt']['sourceRootSHA256']
+            self.evidence.append({'steadyProgramReuse': proof})
+            fixed_clock = self.prefix + '.m-' + movie.replace('_', '-') + '.steady-time'
+            self.scene.setdefault('numericSources', []).append(
+                {'id': fixed_clock, 'operation': 'add', 'left': proof['fixedClockMs'], 'right': 0})
+            # Both branches use the complete original motion. Only the inactive
+            # entry choice changes; its steady branch samples an immutable time.
+            for branch in layers:
+                for file in branch['files']:
+                    self.owner.copy(file['source'], file['path'], file['sha256'])
+                for resource in branch['resources']:
+                    self.resource(resource)
+                for animation in branch['animations']:
+                    if animation['id'] in self.animations and self.animations[animation['id']] != animation:
+                        raise ValueError('Animation ID collision')
+                    self.animations[animation['id']] = animation
             variants = []
             for mode in ('motion', 'steady'):
-                layers = exported[mode]['layers'] if split else [exported[mode]]
                 layer_nodes = []
                 branch_id = self.prefix + '.m-' + movie.replace('_', '-') + '.' + mode
                 for index, branch in enumerate(layers):
-                    for file in branch['files']:
-                        self.owner.copy(file['source'], file['path'], file['sha256'])
-                    for resource in branch['resources']:
-                        self.resource(resource)
-                    for animation in branch['animations']:
-                        if animation['id'] in self.animations and self.animations[animation['id']] != animation:
-                            raise ValueError('Animation ID collision')
-                        self.animations[animation['id']] = animation
                     animation_node = copy.deepcopy(branch['node'])
                     source_id = animation_node['id']
                     animation_node['id'] = branch_id + f'.animation{index}'
                     animation_node['properties'] = {'x': dx/1280, 'y': 0, 'width': 1, 'height': 1}
-                    if mode == 'motion':
-                        animation_node['clock'] = 'presentation.elapsed'
+                    animation_node['clock'] = 'presentation.elapsed' if mode == 'motion' else 'value.' + fixed_clock
                     for binding in branch.get('bindings', []):
                         if binding['target'] != source_id:
                             raise ValueError('Lane brightness must bind its own original layer')
@@ -552,7 +625,8 @@ class Frame:
 
     def graph(self):
         from standard_graph import build_graph
-        exported = build_graph(self.owner.library, self.layout, self.owner.feedback_font)
+        exported = build_graph(self.owner.library, self.layout, self.owner.feedback_font,
+                               common_family=self.common_family)
         for file in exported['files']:
             self.owner.copy(file['source'], file['path'], file['sha256'])
         for declaration in exported['resources']:
@@ -594,7 +668,8 @@ class Frame:
         self.failure_feedback()
 
     def failure_feedback(self):
-        clip = self.owner.failure_clip
+        source = self.owner.failure_families[self.common_family]
+        clip = source['clip']
         for resource in clip['resources']:
             self.resource(resource)
         for animation in clip['animations']:
@@ -607,7 +682,7 @@ class Frame:
         self.scene['root']['children'].append(node(self.prefix + '.failure',
             properties={'z': -100}, slot='hud.text', children=[copy.deepcopy(clip['node'])]))
         self.scene['failureOutro'] = 3000
-        self.evidence.append({'failure': {**self.owner.failure_receipt,
+        self.evidence.append({'failure': {**source['receipt'],
             'mount': 'One direct Global hud.text foreground owner with an explicit slotless Global child using frozen SafeBounds; independent of JUDGE preferences and preparation. Original gameplay.fail clip and 3000 ms outro are unchanged.'}})
 
     def gauge_feedback(self):
@@ -692,6 +767,8 @@ class Frame:
         controls=self.controls()
         profiles=self.material_ini(background,information,controls)
         apertures=self.apertures()
+        self.owner.bga_contexts.append({'style':self.style,'layout':self.layout,'wide':self.wide,
+                                       'apertures':apertures})
         for mode in (14,) if self.dp else (5,7):
             fields={'PlayfieldWidth':672/1280 if self.dp else 292/1280,'PlayfieldHeight':484/720,
                 'PlayfieldSideInset':48/1280,'LaneSidePadding':2/292,'NormalLaneWidth':1,
@@ -699,10 +776,7 @@ class Frame:
                 'ScratchLaneSpacing':2/34,'LongNoteBodyWidth':1,'KeyAreaHeight':80/720,
                 'GaugeHeight':74/720,'BgaInformationHeight':0,'BarLineHeight':1,'HitTargetLineHeight':5*LOGICAL}
             if self.dp:fields['DualStageGap']=88/672
-            viewports='; '.join(','.join(f'{v:.10g}' for v in (b['left']/1280,b['top']/720,
-                (b['right']-b['left'])/1280,(b['bottom']-b['top'])/720))+',fit' for b in apertures)
-            self.ini += ['[Bms]',f'Keymode: {mode}K',*[f'{k}: {v:.12g}' for k,v in fields.items()],
-                         ('BgaViewports' if self.dp else 'BgaViewportsP2' if self.p2 else 'BgaViewportsP1')+': '+viewports,'']
+            self.ini += ['[Bms]',f'Keymode: {mode}K',*[f'{k}: {v:.12g}' for k,v in fields.items()],'']
         relative=f'standard/frames/f{self.style:02}/{self.layout}'+('-wide' if self.wide else '')
         manifest={'contract':MANIFEST,'scene':'gameplay-skin.scene.json','sceneContract':SCENE,'eventContract':EVENT,
                   'resources':list(self.resources.values()),'bitmapFonts':list(self.fonts.values()),
@@ -740,14 +814,18 @@ def build(args):
         owner.copy(contained(args.reading_assets.resolve(), row['path']), row['path'], row['sha256'])
     gauge = read(args.gauge_assets / 'gauge-feedback.json')
     failure = read(args.failure_assets / 'failure.json')
+    notifications = read(args.graph_notifications / 'graph-notifications.json')
     for catalog, contract, directory in ((gauge, 'oms-standard-gauge-feedback.v1', args.gauge_assets),
-                                          (failure, 'oms-standard-failure.v1', args.failure_assets)):
+                                        (failure, 'oms-standard-failure.v2', args.failure_assets),
+                                        (notifications, 'oms-standard-graph-notifications.v1', args.graph_notifications)):
         if catalog.get('contract') != contract or catalog.get('librarySHA256') != sha(owner.library / 'library.json'):
             raise ValueError('Stage feedback must belong to this exact independent26 library')
         for row in catalog['files']:
             owner.copy(contained(directory.resolve(), row['path']), row['path'], row['sha256'])
     owner.gauge_feedback = gauge['frames']
-    owner.failure_clip, owner.failure_receipt = failure['clip'], failure['receipt']
+    if set(failure['families']) != {'0', '1'}:
+        raise ValueError('Failure export must retain both qualified source families')
+    owner.failure_families = failure['families']
     import brotli
     for layouts in owner.gauge_feedback.values():
         for clip in layouts.values():
@@ -766,6 +844,7 @@ def build(args):
             clip['initial']['id'] += '.initial'
             clip['initial']['animation'] = animation['id']
     choices=[]
+    owner.bga_contexts=[]
     for style in FRAMES:
         parts={layout:Frame(owner,args.research/f'gmframe{style:02}',style,layout).build() for layout in ('p1','p2','dp')}
         wide={layout:Frame(owner,args.research/f'gmframe{style:02}',style,layout,wide=True).build() for layout in ('p1','p2')}
@@ -811,9 +890,13 @@ def build(args):
     for root,row in files.values():
         owner.copy(contained(root,row['path']),row['path'],row['sha256'])
     from standard_graph_targets import export_graph_target_module
-    graph_targets = export_graph_target_module(owner.library, owner.output, owner.feedback_font)
-    for row in graph_targets['files']:
-        owner.copy(row['source'], row['path'], row['sha256'])
+    graph_targets = export_graph_target_module(owner.library, owner.output, owner.feedback_font,
+                                               notifications=notifications['families'])
+    from standard_bga import export_bga_module
+    bga = export_bga_module(owner.library, owner.output, owner.bga_contexts, source_geometry=args.bga_geometry)
+    for contribution in (graph_targets, bga):
+        for row in contribution['files']:
+            owner.copy(row['source'], row['path'], row['sha256'])
     root={'contract':MANIFEST,'scene':'gameplay-skin.scene.json','sceneContract':SCENE,'eventContract':EVENT,
           'resources':[],'contentCatalog':'gameplay/content.json','options':[
               {'id':'layout','type':'choice','label':'游玩区域样式','default':'p1','effect':'presentation',
@@ -830,21 +913,24 @@ def build(args):
     write(owner.output/'gameplay-skin.json',root)
     write(owner.output/'gameplay-skin.scene.json',document('std.root'))
     write(owner.output/'gameplay/content.json',{'contract':'oms-gameplay-skin-content.v1','modules':[
-        {'id':'frame','label':'Game Frame','default':'iidx26','choices':choices}, graph_targets['module'], *components['modules']]})
+        {'id':'frame','label':'Game Frame','default':'iidx26','choices':choices}, graph_targets['module'], bga['module'], *components['modules']]})
     (owner.output/'skin.ini').write_text(f'[General]\nName: {NAME}\nAuthor: OMS local author\nVersion: 2.7\n',encoding='utf-8')
     write(owner.output.with_name(owner.output.name+'.source-receipt.json'),{'name':NAME,'status':'generated-pending-author-cli-and-player',
         'frames':[f'iidx{x:02}' for x in FRAMES],'sourceLibrary':str(owner.library),'sourceExclusions':owner.exclusions,
         'frameReceipts':owner.receipts,'frameSourceAssets':list(owner.sources.values()),
         'componentsSource':str(args.components),'componentOverrides':[str(p) for p in args.component_overrides],
         'graphTargets':graph_targets['receipts'],
+        'graphNotifications':{'source':str(args.graph_notifications),
+                              'families':{family:value['receipt'] for family,value in notifications['families'].items()}},
+        'bga':{'receipts':bga['receipts'],'sourceBoundary':bga['sourceBoundary']},
         'noLightningArtworkInputs':True,
         'scope':'Private independent gameplay skin; native OMS song selection and results; original runtime parity is a separate evidence boundary.'})
-    print(json.dumps({'author':str(owner.output),'frames':len(choices),'modules':len(components['modules'])+2}))
+    print(json.dumps({'author':str(owner.output),'frames':len(choices),'modules':len(components['modules'])+3}))
 
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
-    for field in ('library','research','components','output','image-tools','reading-assets','source-font','presentation-assets','gauge-assets','failure-assets'):
+    for field in ('library','research','components','output','image-tools','reading-assets','source-font','presentation-assets','gauge-assets','failure-assets','graph-notifications','bga-geometry'):
         parser.add_argument('--'+field,type=Path,required=True)
     parser.add_argument('--component-overrides',type=Path,nargs='*',default=[])
     build(parser.parse_args())

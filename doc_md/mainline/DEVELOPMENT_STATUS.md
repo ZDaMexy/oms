@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-11-05（Standard素材查漏收窄完成范围；其它产品、设备及发行门沿原日期）
+> 最后核对：2026-11-05（Standard v02私下交付与公共过线能力；原产品/发行门保持）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -15,7 +15,7 @@ Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，具
 
 游玩判定/结果及性能取[10月19日深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)；设备入口、输入时间、轴用途、长皿与校准接续取[10月21日输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)。前台帧时间与实体设备仍待验收。
 
-Standard Model Skin Omni Until 26 已独立私下交付 `.v26110501`；随后素材查漏确认仍有未采用美术和未识别来源，不能称整份HDD素材范围完成。现有成品、来源与后续缺口取[作品记录](../other/STANDARD_MODEL_SKIN_20261105.md)。Lightning仍停止，历史Lighting文件保留；两作品独立，原产品、设备及发行门未提升。
+Standard Model Skin Omni Until 26 已私下交付`.v26110502`，接入HDD保留的1族演奏美术与Graph通知，同包验收取[作品记录](../other/STANDARD_MODEL_SKIN_20261105.md#本轮验证与交付)。公共`score.crossing`沿真实分数边沿，不改计分。范围为25残留、26与八款复刻，未称HDD穷尽；Lightning仍停止，两作品独立，原产品、设备及发行门不提升。
 
 玩家直接登录固定OMSIR，保存后新局上传；新闻 / 帮助 / 排行 / 玩家沿原生页面。谱面列表先选模式：BMS 仅 Ginger Rush / 616，osu!mania 仅 Sayobot，恢复上次 BMS 来源；紧凑筛选、原生卡片和各来源阅读状态保持。正常OMS窗口的lazer体验仍待签收，隔离内容宽度检查不代签；源码 / 软件及剩余门取[P3-IR状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。社交后续，旧ppy关闭；Phase1.x原门保持。
 
@@ -55,7 +55,7 @@ Standard Model Skin Omni Until 26 已独立私下交付 `.v26110501`；随后素
 
 ## 最近一次验证
 
-2026-10-29 Hi-Speed相关回归、正式包与隔离原生软件核验范围沿原身份；已验包原样交付.v26102902，交付复核取[P1-A记录](../subline/P1-A/CHANGELOG.md#2026-10-29omniv52私下交付)。自动推进仍停止；没有新增产品复测、正常窗口、原机完整数学/时序、实体设备或发行签收。
+2026-11-05 Standard同包原生矩阵、逐图审看、公共能力回归与交付核验完成，范围取[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)。Lightning的10月29日已验包及.v26102902交付仍取[原记录](../subline/P1-A/CHANGELOG.md#2026-10-29omniv52私下交付)，不借本轮刷新其验收。
 
 2026-10-11转谱补算、Debug读取及旧失败对照保留原日期，范围与未验项取[P1-H](../subline/P1-H/DEVELOPMENT_STATUS.md#最近一次验证)。
 
@@ -71,6 +71,6 @@ Standard Model Skin Omni Until 26 已独立私下交付 `.v26110501`；随后素
 
 ## 文档治理验证
 
-2026-11-05 Standard交付后的素材查漏重新收窄完成范围，状态、计划、来源说明与诊断记忆同步；已交付包和原测试身份保持。查漏取[P1-A记录](../subline/P1-A/CHANGELOG.md#2026-11-05standard素材查漏与完成范围收窄)，产品验证取[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)，文档通过不代签设备或原机。此前同日从ab58abd2进行的全仓语义复核及旧TRX核对保留在[历史记录](CHANGELOG.md#2026-11-05专项进度与文档语义复核)，未刷新旧测试日期。
+2026-11-05 Standard查漏后的来源接入与公共过线能力同步到状态、计划和作品记录，不刷新旧测试日期或代签设备。此前专项语义复核取[历史记录](CHANGELOG.md#2026-11-05专项进度与文档语义复核)，本轮产品证据只取[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)。
 
 开发存储继续遵守 [AGENTS](../../AGENTS.md#开发磁盘约束)。旧系统盘产物回收和 Codex 全局迁移未完成，不能因文档检查通过而宣称已释放或零增长；待办保留在 [PLAN](DEVELOPMENT_PLAN.md#改动验收矩阵)。

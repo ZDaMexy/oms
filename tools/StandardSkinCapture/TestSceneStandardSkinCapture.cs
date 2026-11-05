@@ -110,6 +110,8 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
             if (IsReadingCase)
                 ConfigureReadingCase();
             IBeatmap beatmap = settings.Ruleset == "bms" ? CreateBmsChart((BmsRuleset)ruleset) : CreateManiaChart((ManiaRuleset)ruleset);
+            if (IsPersonalBestCase)
+                ImportPersonalBestBeatmap(beatmap);
             Game.Beatmap.Value = settings.Ruleset == "bms"
                 ? bgaWorking = new BgaCaptureWorkingBeatmap(beatmap, Clock, Audio, bgaFixtureDirectory!)
                 : CreateWorkingBeatmap(beatmap);
@@ -125,7 +127,7 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
                 ? nativeMods.Append(new BmsModGaugeHazard()).ToArray()
                 : IsAutoScratchCase
                 ? nativeMods.Append(new BmsModAutoScratch { TintScratchNotes = { Value = false } }).ToArray()
-                : IsLongNoteTransitionCase || IsReadingCase ? nativeMods : nativeMods.Prepend(autoplay).ToArray();
+                : IsLongNoteTransitionCase || IsReadingCase || IsPersonalBestCase ? nativeMods : nativeMods.Prepend(autoplay).ToArray();
             settings.Write("chart.json", new
             {
                 source = settings.Ruleset == "bms" ? "Synthetic BMS fixture file through BmsBeatmapDecoder" : "Synthetic ManiaBeatmap with explicit native StageDefinition",
@@ -161,11 +163,14 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
                 preferences.SetOverride(import.Result.ID, settings.Ruleset, choice.Key, choice.Value);
             settings.Write("skin-selection.json", new { importedId = import.Result.ID, selectedId = skins.CurrentSkinInfo.Value.ID, scope = skins.CurrentSkinScope.ToString() });
             Game.ScreenStack.Push(new PlayerLoader(() => player = IsFailureCase ? new CaptureFailurePlayer()
+                : IsPersonalBestCase ? new CaptureReadingPlayer { OmitFirstTwoChordsForPersonalBest = personalBestPlayCount++ == 0 }
                 : IsReadingCase ? new CaptureReadingPlayer()
                 : IsAutoScratchCase ? new ReplayPlayer(CreateAutoScratchReplay)
                 : IsLongNoteTransitionCase ? new ReplayPlayer(CreateTransitionReplay)
                 : new ReplayPlayer(ruleset.GetAutoplayMod()!.CreateScoreFromReplayData)));
         });
+        if (IsPersonalBestCase)
+            AddPersonalBestWarmupSteps();
         AddUntilStep("the real Player and exact authored scene are ready", () =>
         {
             DismissAnyNotifications();
@@ -299,6 +304,7 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
                 tracks = runtime.PreparedScene.Program.Tracks.Select(track => new { track.Id, target = track.TargetNodeId, clock = track.ClockSource.ToString(), property = track.Property.ToString() }).ToArray(),
             });
             ExposeGameFramebuffer();
+            StartGraphObservations();
             if (IsAutoScratchCase)
                 RecordAutoScratchPublication();
         });
@@ -309,6 +315,8 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
         }
         if (IsReadingCase)
             AddReadingCaptures();
+        if (IsPersonalBestCase)
+            AddPersonalBestReadingSteps();
         if (IsLongNoteTransitionCase)
             AddLongNoteTransitionCaptures();
         else
@@ -333,6 +341,8 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
                 AddStep("propagate capture failures", () => screenshot!.GetAwaiter().GetResult());
             }
         }
+        if (IsPersonalBestCase)
+            AddPersonalBestCrossingCapture();
         AddUntilStep("finish scoring the complete chart", () => score.HasCompleted.Value);
         AddStep("retain real completion and score", () =>
         {
@@ -420,6 +430,8 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
             Assert.That(results.Score!.TotalScore, Is.EqualTo(score.TotalScore.Value));
             Assert.That(results.Score.Passed, Is.True);
             Assert.That(results.Score.Mods.OfType<ModNoFail>(), Is.Empty);
+            if (IsPersonalBestCase)
+                ValidatePersonalBestCompletion();
             settings.Write("results.json", new
             {
                 screen = results.GetType().FullName,
@@ -438,6 +450,7 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
         {
             screenshot!.GetAwaiter().GetResult();
             settings.VerifyPackage();
+            FinishGraphObservations();
             settings.Write("completed.json", new
             {
                 success = true,
@@ -648,6 +661,9 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
                 ? runtime.PreparedScene.Resources.Where(resource => resource.Texture != null && ReferenceEquals(resource.Texture, sprite.Texture)).Select(resource => resource.Id).ToArray()
                 : Array.Empty<string>(),
             type = node.ContentDrawable.GetType().FullName,
+            animation = prepared.Source.AnimationId,
+            recordedFrame = node.ContentDrawable.GetType().Name == "GameplaySkinRecordedAnimationDrawable"
+                ? ReadField<int>(node.ContentDrawable, "appliedFrame") : (int?)null,
             text = node.ContentDrawable is SpriteText text ? text.Text.ToString() : null,
             authorText = node.ContentDrawable.GetType().FullName == "osu.Game.Skinning.Gameplay.GameplaySkinBitmapText"
                 ? ReadProperty<string>(node.ContentDrawable, "AuthorText") : null,
@@ -689,7 +705,8 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
             throw new InvalidOperationException("The desktop framebuffer was unavailable or unexpectedly small.");
         string filename = name + ".png";
         await image.SaveAsPngAsync(Path.Combine(settings.Output, filename)).ConfigureAwait(false);
-        captured.Add(filename);
+        lock (captured)
+            captured.Add(filename);
     }
 
     private IBeatmap CreateBmsChart(BmsRuleset bms)
@@ -793,6 +810,7 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
         if (isDisposing)
         {
             longNoteSubscription?.Dispose();
+            graphSubscription?.Dispose();
             RestoreHostActivity();
         }
         base.Dispose(isDisposing);

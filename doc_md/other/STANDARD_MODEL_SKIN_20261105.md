@@ -1,6 +1,6 @@
 # Standard Model Skin Omni Until 26：独立作品记录
 
-2026-11-05。使用用户提供的 `D:\LDJ-2019090200`，已正式私下交付 **Standard Model Skin Omni Until 26.v26110501**。本版补齐下述普通演奏功能；随后素材查漏恢复了一个漏审包，并确认还有未采用的另一套共用演奏美术，撤回“现有 HDD 素材范围全部完成”的笼统结论。当前状态由 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)引用本记录，工具入口为 [IidxSkinAssets](../../tools/IidxSkinAssets/README.md)。
+2026-11-05。使用用户提供的 `D:\LDJ-2019090200`，已正式私下交付 **Standard Model Skin Omni Until 26.v26110502**。本版接入查漏确认的另一族失败演出、Graph 美术与通知，并提供旧式 BGA 外框选项；同一最终包已完成作者与实际 Player 验收。`cm_system.ifs` 等未解决边界继续保留，未恢复“现有 HDD 素材范围全部完成”的笼统结论。当前状态由 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)引用本记录，工具入口为 [IidxSkinAssets](../../tools/IidxSkinAssets/README.md)。
 
 ## 身份与来源
 
@@ -8,9 +8,9 @@
 
 成品提供 **25 CANNON BALLERS 与 26 Rootage** 的框体主题，来源均为本次 26 HDD；共用软件表现以 26 为依据，不代表另外取得并复刻了 25 的软件。另有八款 **26 ARC SCORE 的旧作复刻主题**：3rd style、8th style、HAPPY SKY、GOLD、EMPRESS、SIRIUS、Lincle、SPADA。它们对应 `gmframe03/08/12/14/16/17/19/21`，与 `gmframe25/26` 合计十款，但不能合称“实际覆盖 3～26 代”或“十代原版框体”。本次原程序调用复核进一步确认：26 的演奏主题索引只映射 Rootage 加八款 ARC SCORE；`gmframe25` 是本 HDD 保留并被本作品采用的旧主题资源，不是已确认的 26 原生可选框体。
 
-2026-11-05 用户指出代数口径错误后，重新核对 [Rootage 官方 ARC SCORE 活动](https://p.eagate.573.jp/game/2dx/26/event/arc_score/index.html)、[当年 3rd style 主题获取记录](https://purotora.com/log/20190601.html)与本地源包，撤回此前把最小资源编号 03 当作实际原版覆盖起点的结论。编号确实指向旧作主题，但这些是 Rootage 内的活动复刻，不能证明已取得相应旧版 HDD 或保全了该版完整框体及软件表现。24 及更早的常规版本来源仍属下一阶段；以后按对应 HDD 的实际内容确认，不把复刻主题当作已完成代数。已交付 v00/v01 的包字节与原测试身份保留，本次只更正来源分类和说明。
+2026-11-05 用户指出代数口径错误后，重新核对 [Rootage 官方 ARC SCORE 活动](https://p.eagate.573.jp/game/2dx/26/event/arc_score/index.html)、[当年 3rd style 主题获取记录](https://purotora.com/log/20190601.html)与本地源包，撤回此前把最小资源编号 03 当作实际原版覆盖起点的结论。编号确实指向旧作主题，但这些是 Rootage 内的活动复刻，不能证明已取得相应旧版 HDD 或保全了该版完整框体及软件表现。24 及更早的常规版本来源仍属下一阶段；以后按对应 HDD 的实际内容确认，不把复刻主题当作已完成代数。该次口径更正仅改变来源说明；后续 v02 另行制作和验收，已交付 v00/v01 的包字节与原测试身份保留。
 
-原图按 XML/UV 解包，AFP/GEO 按真实父子变换、相机、遮罩和循环指令解析；不描摹、重画或从截图替代原始部件。v01 原构建选取 283 个小型 IFS，合计约 197.53 MiB；当时 `1/common.ifs` 被 ifstools 的名称文本解码拒绝，复跑选择文件保留其余 282 个包、4373 张 UV 图。该失败是历史事实，不能再写成整包纹理损坏或无法提取：本次已按原名称字节恢复全部 266 张图，单独保存在 `library-recovery-1-common-r1`。旧库、作者收据和成品不覆盖，当前成品的共用部件仍取 `0` 源族；恢复素材不等于已纳入皮肤。
+原图按 XML/UV 解包，AFP/GEO 按真实父子变换、相机、遮罩和循环指令解析；不描摹、重画或从截图替代原始部件。v01 原构建选取 283 个小型 IFS，合计约 197.53 MiB；当时 `1/common.ifs` 被 ifstools 的名称文本解码拒绝，复跑选择文件保留其余 282 个包、4373 张 UV 图。该失败是历史事实，不能再写成整包纹理损坏或无法提取：查漏已按原名称字节恢复全部 266 张图，后续制作链通过显式 `--preserve-raw-texture-names` 形成新的 283 包、4639 张 UV 图完整选中库，保留原名称字节、XML 与实际 entry 对照。旧库、作者收据和成品不覆盖；恢复完整选中库不代表整份 HDD 每张图都被作品使用。
 
 私有来源、PNG 摘要、展开指令及游戏截图分别保存在本机 `E:\OMS-Development\sources\OMS-Standard-Model-Until26-20261105` 与 `E:\OMS-Development\evidence\standard-model-20261105`。源码仓只维护提取算法、公开合同、无原图的测试和来源名称；原图及其私有摘要清单不入 Git。成品仍按 [IIDX 素材作品约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)独立私下使用，不内置或公开分发。
 
@@ -24,26 +24,37 @@
 
 `1/common` 的唯一异常名称按原始字节计算 MD5 后准确命中原 entry；266 张图全部解码，未猜名、替换字符或重封 HDD。异常名的像素与 `0/common` 的 `txt_arena_ready` 相同，原名仍按未知文本保留；这不表示整个包重复。两族同名 234 张图中有 58 张像素不同，`1/common` 共 88 张不能用 `0/common` 的相同像素代替。恢复源包含 266 张完整 imgrect PNG 与 266 张 UV PNG、原名称字节和映射，约 8.76 MiB，没有新复制 IFS。
 
-**已确认尚未采用的演奏美术**：已在原库中的 `1/gameparts` 含另一套 180 帧 `miss`，有 `x_font`、`x_noise_bg`、laser、noise 与 ENGINE BLOW-OUT 原图；此外两族的部分 Stage、effect、读谱文字和 Graph 图像不同。`1/gameparts` 同名图中 46 张不同，另有 21 张独有；`1/graph` 有 32 张同名图不同。当前 v01 使用 `0` 族，不能把这些未采用素材说成已覆盖，也不能只因当前 26 未调用就排除；`5key_auto` 在两族像素相同，不能重复计作新样式。后续先核对并处理这些已有 HDD 的演奏素材，再将真正缺少来源的更早框体交给下一阶段 HDD，不能把两种缺口混在一起。
+**查漏确认的另一套演奏美术**：原库中的 `1/gameparts` 含另一套 180 帧 `miss`，有 `x_font`、`x_noise_bg`、laser、noise 与 ENGINE BLOW-OUT 原图；此外两族的部分 Stage、effect、读谱文字和 Graph 图像不同。`1/gameparts` 同名图中 46 张不同，另有 21 张独有；`1/graph` 有 32 张同名图不同。v01 只采用 `0` 族是历史缺口；本轮按实际电影和消费者重新接入的范围见下节，未把所有差异一并宣布完成。`5key_auto` 在两族像素相同，不能重复计作新样式。
 
-`graphic/cm_system.ifs` 是约 460 KiB 的未识别容器：标准 IFS 头不成立，已查原 DLL 没有同名字面引用；这两点均不能证明其内容无关或损坏。此项保留未识别状态。因此本轮可说“尚未找到额外完整演奏框体”，不能宣称“整份 HDD 每一项素材均已排尽”。
+`graphic/cm_system.ifs` 是 470592 字节的未识别容器：标准 IFS 头不成立，已查原 DLL 没有同名字面引用；本轮另做十五项格式/压缩探测，未获得可读内容。程序存在 cryptfs/Camellia 也不足以证明它与本文件有关或提供了可用密钥。此项仍未识别，不能断言无关或损坏。因此可说“尚未找到额外完整演奏框体”，不能宣称“整份 HDD 每一项素材均已排尽”。
 
-完整私有证据在 `completion/source-reaudit-20261105/{inventory,native,common,integration}`，含可复跑只读脚本、来源对照及恢复收据。282 个原选中包重新核对与旧库一致，1830 个不同原图来源/摘要对无差异；v01 与冻结候选仍同字节。本轮没有启动原版或 OMS、重打包或新增游玩验收；未使用 computer use、完整 HDD 副本或 Lightning 素材。
+首次查漏的完整私有证据在 `completion/source-reaudit-20261105/{inventory,native,common,integration}`，含可复跑只读脚本、来源对照及恢复收据。282 个原选中包重新核对与旧库一致，1830 个不同原图来源/摘要对无差异；v01 与其冻结候选仍同字节。该次只读查漏没有启动原版或 OMS、重打包或新增游玩验收；本次后续实施与实际 Player 证据独立记录，未使用 computer use、完整 HDD 副本或 Lightning 素材。
+
+## 查漏后的接入与适配
+
+新来源库、研究与作者源独立保存在 `sources/OMS-Standard-Model-Until26-20261105/family1-r1`，本轮证据位于 `evidence/standard-model-20261105/completion/family1-completion`。25 框体使用保留的 `1` 族 Graph、失败与 BGA 外框，26 与八款复刻使用 `0` 族。这是本作品的明确作者配方；26 原主题选择器没有25入口，不能称已验证25原软件会这样组合。
+
+- **失败演出**：两族各自导出完整180帧，25选择实际 ENGINE BLOW-OUT 源电影，沿真实 `gameplay.fail` 和已有三秒独立视觉退场；没有把失败噪声改作常驻装饰。
+- **Graph**：采用1族实际面板、分数数字和原 PB 标签；两族完全相同的软件小字体共用。MYBEST、TARGET、AAA、AA、A 与背景 UPDATE 使用完整150帧源电影和实际源图，保留首500ms透明阶段、尾段及 UPDATE 在通知后方的层序。读取真实分数穿越：PB/目标严格超过正门槛，等级达到门槛；同次跃过多档只显示最高档。没有PB时中柱沿现有配方跟随当前分，PB标签、差分及通知隐藏，不假造历史成绩。Graph通知可单独关闭，不延长 Results 等待。金属 `achieve_pass` 仍缺已确认的启用分支，不凭资源名字加入。
+- **旧式 BGA 外框**：十框体的60份中心电影中，40份SP/宽布局各420帧的原钩子变换恒定，20份DP没有该钩子；25宽2P的负X镜像按来源保留。原26 Camera OFF时按曲目年代与特例决定旧式外框，OMS没有对应元数据，因此新增默认关闭的 `Classic BGA Frame` 手选项。开启后使用完整原图与四角投影，在原透明开口内合成并按原图中央完全透明孔调整视频窗口；DP保持原双窗口，不伪造外框或摄像头。这是明确的OMS画面适配，不冒称复刻Camera/歌曲年代资格。
+- **入场关闭时的框体**：70份中心/侧边电影覆盖50个作者上下文，逐项证明静态画面与原运动电影中的指定帧在几何、UV、全部祖先状态、遮罩、颜色和层序上相同后，共用同一程序。入场时钟仍取真实呈现时间，静态分支只采样该原帧。未提高32程序、12字体、64数值或16MiB配置等既有预算。
+
+共用演奏图的187项真实差异已按实际消费者分类，不能都算成187个待补功能。READY/Start九份电影及44项依赖在两族的像素、几何和时序一致；Normal预览与首排提示仍明确以26来源适配。原Stage的11种状态映射到9种标签，EQ表有26项音频DSP引用；另一个不同的`playm_ef_on`不在该表，不能冒称同一调用已覆盖。摄像头、服务、账户和菜单资源没有相应OMS状态，不能拿现有Mod状态假接；相关未采用来源保留记录。更早常规框体缺少HDD与这些已知但不适用/未识别项分别维护。
 
 ## 当前完成范围
 
-以下内容来自对 26 原软件、原素材与 v00 的独立差异审计。作者工具、所需最小公共能力、实际 Player 与同包画面已完成本轮验收；具体证据及适配边界见下文，v00 保留独立历史记录。
+以下普通演奏能力主要在 v01 阶段实现，并由 v02 保留；本轮新增接入见上节。来源审计、旧版专项与本轮同包验证分别记录，不把旧版的长条、读谱或压力谱矩阵冒称全部在 v02 重跑。
 
 | 26 普通演奏部件 | 当前实现与来源 | 明确的 OMS 适配 |
 | --- | --- | --- |
 | Start 调速窗口、当前绿数与范围 | `standard_reading.py` 使用 `0/gameparts` 的 Normal/Floating 原窗、原滑块锚点，以及 26 的 DF 平成 Gothic W7 字体；绿数范围取实际最大端到最小端 | 原 Normal 只有十行；OMS 20 档分两页显示真实档位，Classic 明确另标。保持 OMS 速度公式，不冒充原 26 数学；窗口使用原稳态画面 |
 | Sudden / Hidden / Lift 边缘读数 | `standard_cover_readout.py` 沿原固定软件锚点显示白字、当前绿数和范围，保留原字号、补零与居中；实际 Start、各自 active 和已应用 Lift 控制显隐、位置 | 原白字是原像素换算的 0～999；这里显示 OMS 实际 0～1000，满值可四位。原 482px 裁切保留，Lift 反向滚动另作实际几何映射；不受 Start 面板偏好开关影响 |
 | Normal 速度预览与首排提示 | 唯一原生预览投影到原小窗；原 BPM 条的 38×27 图、30px 支点和强度变化读取同一预览的实际 phase。首排原图沿 active Sudden 顶边，完整图在 482px 处裁切 | 预览采用 OMS 两音符与同一暂停/激活时钟，未复刻原十六音符、每四音符线和十六帧开合。首排采用实际全局第一排与原生 200ms 退场，未冒充原课程难度资格和脉冲时钟 |
-| GET READY、普通失败演出 | 三份原 90 帧 READY 由准备时钟驱动；`standard_failure.py` 导出共享 `miss` 的完整 180 帧，绑定真实 `gameplay.fail` | 失败后使用独立 3000ms 视觉退场，曲时和计分停止，再交回原生失败界面；保留完整素材不代表原程序全部 180 帧都可见 |
+| GET READY、普通失败演出 | 三份原 90 帧 READY 由准备时钟驱动；`standard_failure.py` 导出两族 `miss` 的各180帧，按主题配方绑定真实 `gameplay.fail` | 失败后使用独立 3000ms 视觉退场，曲时和计分停止，再交回原生失败界面；保留完整素材不代表原程序全部 180 帧都可见 |
 | 实时 JUDGE、FAST/SLOW、判定位置 | `standard_feedback.py` 使用各框体真实 JUDGE 钩子与原字体；原 A/B/C/OFF 位置、normal/up100/up200/up300/off 与实际 Lift 共用。BMS PR 汇总真实 miss 与空 POOR | mania 六档统计单独映射；不以缺一项统计为由冒充原 PR，也不移动 CN 固定判定线 |
 | Graph 目标与差分 | `standard_graph.py` / `standard_graph_targets.py` 使用原 Graph 艺术与原目标调用证据，增加 AAA/AA/A/CUSTOM/NEXT/NEXT+ 和差分，读取实际得分、理论满分、已有 PB | BMS 目标计算和原图组合属于 OMS 计分映射；没有实际对手或 ghost 数据时不补造数据。v00 的固定 MAXIMUM 红柱只属下文历史 |
 | Gauge A/B/C、增加提示、轨道亮度 | 原调用方证实 A 全显、B 保留百分比与暗底、C 暗底及有资格的原横线；原 `gauge_up` 取每款框体的三个源电影。轨底按原层序拆分，六级 RGB 亮度只作用 `lane_1p/2p` | 增加提示读取实际 Gauge 正增；达到实际 Clear 条件则循环，初始已 Clear 而无增长历史时取真实挂载起点。B/C 不禁用该光效；没有捏造初始增长，也不改变血量规则 |
-| EXP 七档、HCN 显示、长条持续效果、ASCR 显示 | `standard_components.py` 按 26 自身的七档范围与 HCN 外观选项组织；CN/HCN 光效改由真实长条对象在判定线驱动。ASCR OFF 只隐藏实际辅助 Scratch 对象的普通音符及长条头/体/尾 | 不更改自动辅助资格、输入或计分；HCN 采用 CN 外观不改变 HCN 状态。全部 18 款 FC 的共用原宿主层序已确认，本版修正初版 Graph 遮挡，FC17 与 FC13 由 DP、压力谱和重资源组合实绘确认 |
+| EXP 七档、HCN 显示、长条持续效果、ASCR 显示 | `standard_components.py` 按 26 自身的七档范围与 HCN 外观选项组织；CN/HCN 光效改由真实长条对象在判定线驱动。ASCR OFF 只隐藏实际辅助 Scratch 对象的普通音符及长条头/体/尾 | 不更改自动辅助资格、输入或计分；HCN 采用 CN 外观不改变 HCN 状态。全部 18 款 FC 的共用原宿主层序已确认；v01 修正初版 Graph 遮挡，当时以 DP、压力谱和重资源组合实绘确认 FC17 与 FC13 |
 
 原部件和研究出口仍只来自 26：`standard_presentation_options.py` 导出有原层序的轨底片段，`standard_gauge_effect.py` 导出三十份原 Gauge 电影，`standard_failure.py` 导出普通失败片段；整合器从同一私有库核对来源。公开脚本不含原美术或私有摘要。字体使用原 TTC 字形，在 Windows 内存 GDI 中生成固定字格；这不等于原游戏 GPU 字库采样逐像素相同。
 
@@ -51,13 +62,31 @@
 
 26 官方显示区域组合为 SUDDEN+、HIDDEN+、SUD+&HID+、LIFT、LIFT&SUD+，没有 Hidden+Lift。取景分别验证 LIFT&SUD+ 与 SUD+&HID+；OMS 额外允许的 Hidden+Lift 同开会让相近底边的读数相叠，不移动读数去冒充实际边界，也不将该组合记为原26能力。组合来源取[26 官方选项说明](https://p.eagate.573.jp/game/2dx/26/howto/play/option.html)。
 
-来源审计将条目分为已有、26 确有而 v00 未接、仅有资源或外部数据边界、26 不适用；每项分别记录当前实现路径与适配。普通失败、Gauge、ASCR、读谱预览及挡板读数的实际调用方已经核明，不能再笼统记为“资源存在，待查”。原 HD Start 参照和只读调用分析属于本轮证据；attract 的 HCN/Gauge 教学画面不签实际长条交互。本轮最终包的实际 Player 证据独立取得，身份见下文。
+来源审计将条目分为已有、26 确有而 v00 未接、仅有资源或外部数据边界、26 不适用；每项分别记录当前实现路径与适配。普通失败、Gauge、ASCR、读谱预览及挡板读数的实际调用方已经核明，不能再笼统记为“资源存在，待查”。原 HD Start 参照与相关只读调用分析属于 v01 阶段证据；attract 的 HCN/Gauge 教学画面不签实际长条交互。v02 的实际 Player 证据独立取得，身份见下文。
 
 资源清单不是整款原游戏重做清单。Qpro 账户装扮、e-amusement 对手/ghost 和摄像头在 26 确实存在，但没有对应的 OMS 实际数据；当前作品不伪造角色、对手或视频流。`5key_auto` 是 HDD 中保留的图，十框体钩子、软件字面引用与[26 Assist 清单](https://p.eagate.573.jp/game/2dx/26/howto/play/option.html)未提供可用的 26 普通演奏调用证据，不能把真实 BMS 5K 称作该辅助模式。Beginner 教学属于[STEP UP 模式流程](https://p.eagate.573.jp/game/2dx/26/howto/mode/game_mode.html)。独立 LIFT CUSTOM、光柱长度、音符厚度由[31 官方新功能页](https://p.eagate.573.jp/game/2dx/31/howto/new/05.html)明确列为新增，不能用后代功能倒推 26 缺项；v00 的独立 LIFT 艺术选择因此是 OMS 作者扩展。
 
 当前私有证据集中在 `completion/source-coverage-audit.json` 和对应的 `native-*.json`，其分类以 v00/r12 为历史基线，后续实现另记。来源审计与最终包验收分别保留：前者确认实际调用与适配，后者确认同一成品的预算、画面、状态和交付，未将源分析冒充游戏截图。
 
 ## 本轮验证与交付
+
+正式 `.v26110502` 使用 `family1-completion/candidate-r3.osk` 原样交付，98,648,436 字节，4186 个成员与冻结作者源逐字节一致；1920 张 PNG、归档 CRC 和独立 Standard 身份检查通过。配置文本合计16,451,981字节，低于既有16MiB；未提高程序、字体、数值或其它预算。作者 CLI 通过3651个不同代表组合，不展开全部排列。原11类609款美术与275张小预览保留，加Graph目标、BGA外框共13模块，连同普通选项共31项公开设置。
+
+最终包与冻结 `runtime-r3` 完成31场景、34局原生 Player：30次自然进入普通 Results，另有四个真实失败场景，三次自然进入 FailOverlay、一次实际 Esc 提前结束演出。矩阵包含25/26的P1/P2/DP、Graph和BGA开关、两项静态框体、八款ARC SCORE、三种mania布局、六种Graph目标，以及Judgement/JUDGE关闭的失败场景。234张原生PNG全部检查完整性，38张逐图审看；不是逐234张视觉签收。
+
+三个PB场景均先用普通Player演奏并保存较低成绩，再正常重开第二局，由生产查询加载该成绩并自然超过：P1/P2为208→224，DP为416→448。第一局只省略实际短音符输入，未写入假PB、分数、事件或判定。Graph另按24个场景的3248条真实ScoreChanged边沿核对22863条源帧观测，MYBEST/TARGET与A/AA/AAA通知、共享UPDATE及禁用分支通过；两项静态框体跨四个时点保持各自指定源帧。一次看图预览误显黑色BGA已由原PNG像素与原分辨率复看排除，未据此修改包。
+
+公共 `score.crossing` 的41项专项及738项皮肤回归通过，前者包含于后者；Python制作工具147项通过，最后软件字体共用修订另有15项通过。末段BMS皮肤相关回归1226通过/15跳过、mania皮肤相关97通过/1跳过：前者跳过需要真实数据根备份的专项，后者跳过需要Desktop取景的一个参数分支，均不计为通过。作者CLI、Desktop Release及最终取景宿主构建成功，取景宿主0警告/错误；五条既有ImageSharp依赖告警保留。v01的全量BMS/mania、读谱/长条/ASCR/压力谱结果保持下方历史身份，未冒称本轮全部重跑。
+
+前两次作者候选分别因程序及字体预算被正式工具拒绝，修正后才形成r3；首次PB预检的输入省略不足，未超过已保存PB，属失败证据，调整合成输入后以同一最终包取得上述新矩阵。失败候选、日志和 `player-smoke-r1` 保留且不计入通过；验收没有通过放宽预算、注入PB或沿用旧包图像来绕过失败。
+
+已验OSK与九张本版已审看原生实景、README、VALIDATION、SHA256共13文件，保存在本机 `deliverables/skins/Standard Model Skin Omni Until 26.v26110502`；旧v00/v01不覆盖。独立来源和作者目录位于 `sources/OMS-Standard-Model-Until26-20261105/family1-r1`。本轮完整回执为 `completion/family1-completion/{final-native-acceptance,graph-native-audit-final,visual-review-final,delivery-r3-receipt}.json`；制作/验证脚本、日志与TRX另保存在同目录 `validation-tools/`、`gates/`，不能只依赖仓内临时产物。
+
+使用前须从包含本轮 `score.crossing` 公共能力的当前OMS源码重建、重启，再导入新包；仅导入OSK不会升级客户端。本轮没有再次启动原版游戏，没有computer use、完整HDD副本、真实账户/卡片数据或Lightning素材；未制作额外Windows发行包。实体设备、前台性能、正常工作区长期体验和完整原机等价未代签。已确认的本轮接入与交付完成，未识别容器、未确认触发和缺少OMS状态的资源仍按上文分别保留，不宣称整份HDD穷尽。
+
+## v01 验证与交付：历史
+
+以下只描述 `.v26110501` / r27 的当时验收，不作为 v02 的同包证据；“本轮”“本版”均指该历史版本。
 
 正式 `.v26110501` 使用 r27 同一 OSK，4194 个成员与冻结作者源逐字节一致，2162 张 PNG、归档 CRC 与独立 Standard 身份检查通过。原素材和动画的几何、时序、数值保留；配置文本压缩后为 15,985,442 字节，低于既有 16MiB 限制，未放宽预算。作者 CLI 检查通过 3521 个不同代表组合，覆盖各选项及条件分支，不是全部排列。11 类 609 款美术、275 张预览不变，连同 Graph 目标共 12 模块、29 项公开设置。
 

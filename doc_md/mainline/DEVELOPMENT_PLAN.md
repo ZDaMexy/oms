@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后核对：2026-11-05（Standard后续来源；Lightning停止及原产品/发行门保持）
+> 最后核对：2026-11-05（Standard v02交付后边界；Lightning停止及原产品/发行门保持）
 > 本页维护全局顺序、跨线依赖和改动验收；当前事实见[STATUS](DEVELOPMENT_STATUS.md)，专项动作从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 当前目标
@@ -9,7 +9,7 @@
 
 Autoplay跳转、统计及Omni血条/默认FC的既有修复与保留人工门取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，不把原窗口待验列为恢复Omni自动开发的队列。其它设备、长条/键音/BGA和长期门仍沿下方P1-B/P1-E/P1-J/P1-L与P1-G。[既有游玩审查](../other/GAMEPLAY_REVIEW_20261019.md)只作输入，正常窗口、隔离宿主与发行证据分开。
 
-Lightning Model Skin Omni Until 33 仍按10月29日要求停止自动推进。独立 Standard Model Skin Omni Until 26 的后续来源与缺口取[P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)；更早框体等待对应HDD。两作品不混合素材或交付；SongSelect/Results保留OMS原界面和通用PageAPI，静线暂停及原release门保持。
+独立Standard Model Skin Omni Until 26以v02验收与交付为输入，后续按实际反馈或新来源继续，未解来源和更早HDD边界取[P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。Lightning仍按10月29日要求停止，两作品不混合素材或交付；SongSelect/Results保留OMS原界面和通用PageAPI，静线暂停及原release门保持。
 
 先按[P3-IR 原生页面接续计划](../subline/P3-IR/CLIENT_NATIVE_SERVICES_PLAN.md)在用户正常OMS窗口对标lazer，验已交付模式→所属来源、BMS来源恢复、加载中关闭与阅读体验。按已授权的独立IR与完整玩家网站范围，沿[P3-IR真人接续](../subline/P3-IR/DEVELOPMENT_PLAN.md#原版官网部署后的接续)验收原账号、保存后的新局 / 断网补交、网站公开最佳可见记录及同谱同来源 / 条件，先完成OMS＋全量历史＋ED7K的P，再完成指定宿主与玩法的C；继续维护备份、增长和同库回退，不重复未变已过门。用户通过VS Code非调试启动当前工作区，发行构建自行执行，不生成额外Windows包或安装副本；旧 osu! API endpoint 与下方Phase 1.x门不变。
 

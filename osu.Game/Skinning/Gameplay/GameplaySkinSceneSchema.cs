@@ -666,6 +666,8 @@ namespace osu.Game.Skinning.Gameplay
 
         public string? AnimationId { get; }
 
+        public IReadOnlyList<GameplaySkinScoreCrossingThreshold> ScoreCrossingThresholds { get; }
+
         public string? ClockSourceId { get; }
 
         public GameplaySkinSceneBindingSource ClockSource { get; }
@@ -692,7 +694,8 @@ namespace osu.Game.Skinning.Gameplay
             IReadOnlyDictionary<string, GameplaySkinScenePropertyValue> properties,
             IEnumerable<GameplaySkinSceneEffect> effects,
             IEnumerable<GameplaySkinSceneNode> children,
-            string? animationId = null, string? clockSourceId = null)
+            string? animationId = null, string? clockSourceId = null,
+            IEnumerable<GameplaySkinScoreCrossingThreshold>? scoreCrossingThresholds = null)
         {
             Id = id;
             Type = type;
@@ -700,6 +703,7 @@ namespace osu.Game.Skinning.Gameplay
             SlotId = slotId;
             ResourceId = resourceId;
             AnimationId = animationId;
+            ScoreCrossingThresholds = Array.AsReadOnly((scoreCrossingThresholds ?? Array.Empty<GameplaySkinScoreCrossingThreshold>()).ToArray());
             ClockSourceId = clockSourceId;
             ClockSource = clockSourceId == null ? GameplaySkinSceneBindingSource.Unspecified : GameplaySkinSceneVocabulary.ParseBindingSource(clockSourceId);
             ClockOptionId = clockSourceId?.StartsWith("option.", StringComparison.Ordinal) == true ? clockSourceId[7..] : null;

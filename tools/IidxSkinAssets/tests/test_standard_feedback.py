@@ -151,12 +151,14 @@ class StandardFeedbackTests(unittest.TestCase):
         value = self.build()
         frame = object.__new__(Frame)
         frame.prefix = "test.frame"
+        frame.common_family = '0'
         frame.owner = SimpleNamespace(failure_clip={"resources": [], "animations": [
             {"id": "test.failure.clip", "path": "synthetic/failure.json.br", "resources": []}],
             "node": {"id": "test.failure.node", "type": "recorded-animation", "target": {"kind": "global"},
                      "animation": "test.failure.clip", "blend": "alpha", "effects": [], "children": [],
                      "properties": {"x": 0, "y": 0, "width": 1, "height": 1}}},
             failure_receipt={"source": "synthetic full-canvas failure"})
+        frame.owner.failure_families = {'0': {'clip':frame.owner.failure_clip, 'receipt':frame.owner.failure_receipt}}
         frame.resources, frame.animations, frame.evidence = {}, {}, []
         frame.scene = document("test.root")
         frame.scene.update({field: value[field] for field in ("bindings", "variants", "templates", "instances")})

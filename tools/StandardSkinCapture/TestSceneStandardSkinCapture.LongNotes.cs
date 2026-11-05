@@ -192,6 +192,7 @@ public partial class TestSceneStandardSkinCapture
     {
         base.Update();
         DrainLongNoteObservations();
+        ObserveGraphNotifications();
     }
 
     private void DrainLongNoteObservations()

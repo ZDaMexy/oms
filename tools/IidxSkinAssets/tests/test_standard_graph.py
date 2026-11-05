@@ -1,4 +1,5 @@
 """Real-policy, geometry and source-boundary checks for the independent26 Graph."""
+import copy
 import hashlib
 import json
 import math
@@ -89,7 +90,7 @@ class StandardGraphTests(unittest.TestCase):
         self.library.mkdir()
         sizes = {f"gr_sco_{i:02}": (23, 22) for i in range(10)}
         sizes.update({"gr_score_graph_panel": (280, 720), "gr_line_max": (276, 20), "gr_line_under": (272, 6),
-                      "gr_p_nowsc": (135, 31), "gr_score_tag_red": (135, 31), "gr_gt_pacemaker": (160, 28)})
+                      "gr_p_nowsc": (135, 31), "gr_p_bstsc": (135, 31), "gr_score_tag_red": (135, 31), "gr_gt_pacemaker": (160, 28)})
         sizes.update({"gr_line_" + rank: (272, 18) for rank in ("aaa", "aa", "a")})
         sizes.update({"gr_sco_gauge_" + str(i): (66, 448) for i in range(3)})
         textures = []
@@ -106,10 +107,23 @@ class StandardGraphTests(unittest.TestCase):
         self.metadata = {"status": "complete", "sourceMetadataUnchanged": True,
             "packages": [{"source": PACKAGE, "sha256": self.source_sha256}]
             + [{"source": f"contents/data/graphic/gmframe{frame:02}.ifs"} for frame in FRAME_IDS], "textures": textures}
+        family1_package = "contents/data/graphic/1/graph.ifs"
+        family1_sizes = {("gr_score_graph_line" if name == "gr_line_under" else name): size for name, size in sizes.items()}
+        for name, (width, height) in family1_sizes.items():
+            path = self.library / ("sprites-family1/" + name + ".png")
+            path.parent.mkdir(exist_ok=True)
+            path.write_bytes(("family1-source-byte-fixture:" + name).encode("ascii"))
+            textures.append({"package": family1_package, "name": name + ".png", "width": width, "height": height,
+                "sprite": path.relative_to(self.library).as_posix(), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()})
+        family1_archive = self.library / "source-copies" / family1_package
+        family1_archive.parent.mkdir(parents=True)
+        family1_archive.write_bytes(b"unit-test retained family1 archive identity")
+        self.metadata["packages"].append({"source": family1_package, "sha256": hashlib.sha256(family1_archive.read_bytes()).hexdigest()})
         self.write_metadata()
-        xml = self.library / "packages/contents/data/graphic/0/graph/raw/tex/texturelist.xml"
-        xml.parent.mkdir(parents=True)
-        xml.write_text('<texturelist><texture mag_filter="nearest">' + "".join(f'<image name="{name}" />' for name in sizes) + '</texture></texturelist>', encoding="utf-8")
+        for family, family_sizes in (("0", sizes), ("1", family1_sizes)):
+            xml = self.library / f"packages/contents/data/graphic/{family}/graph/raw/tex/texturelist.xml"
+            xml.parent.mkdir(parents=True)
+            xml.write_text('<texturelist><texture mag_filter="nearest">' + "".join(f'<image name="{name}" />' for name in family_sizes) + '</texture></texturelist>', encoding="utf-8")
         font = Path(self.temporary.name) / "font.png"
         font.write_bytes(b"prepared-font-byte-fixture")
         resources = [{"id": f"fixture.font.g{i}", "type": "texture", "path": "fixture-font.png"} for i in range(13)]
@@ -120,6 +134,42 @@ class StandardGraphTests(unittest.TestCase):
 
     def write_metadata(self):
         (self.library / "library.json").write_text(json.dumps(self.metadata), encoding="utf-8")
+
+    def test_cutins_share_one_real_crossing_flash_and_keep_only_the_highest_rank(self):
+        clips = {name: {"node": {"id": "source." + name, "type": "recorded-animation", "target": {"kind": "global"},
+            "blend": "alpha", "animation": "clip." + name, "properties": {}, "effects": [], "children": []},
+            "resources": [], "animations": [{"id": "clip." + name, "path": name + ".json.br", "resources": []}]}
+            for name in ("mybest", "target", "aaa", "aa", "a", "update")}
+        for family in ("0", "1"):
+            for layout in ("p1", "p2", "dp"):
+                for target in TARGETS:
+                    with self.subTest(family=family, layout=layout, target=target):
+                        value = build_graph_target(self.library, layout, target, self.font,
+                            common_family=family, notifications=clips)
+                        nodes = {n["id"]: n for t in value["templates"] for n in walk(t["root"])}
+                        notifications = [n for n in nodes.values() if n["type"] == "recorded-animation"]
+                        self.assertEqual(len(notifications), 6)
+                        update, = (n for n in notifications if n["id"].endswith(".update"))
+                        thresholds = update["scoreCrossing"]["thresholds"]
+                        self.assertEqual(len(thresholds), 5)
+                        self.assertEqual([t["comparison"] for t in thresholds], ["greater", "greater", "at-least", "at-least", "at-least"])
+                        self.assertEqual(thresholds[1]["source"], value["receipt"]["targetTotalSource"])
+                        self.assertEqual(update["properties"]["z"], 1)
+                        for notification in notifications:
+                            if notification is not update:
+                                self.assertEqual(len(notification["scoreCrossing"]["thresholds"]), 1)
+                                self.assertEqual(notification["properties"]["z"], 0)
+                        self.assertLessEqual(len(value["numericSources"]) + 4, 64)  # frame calculations and two original steady-frame clocks
+                        self.assertEqual(len(value["animations"]), 6)
+                        self.assertTrue(any(b["source"] == "option.graph-cutin" for b in value["bindings"]))
+                        gates = {n["id"]: next(b["source"] for b in value["bindings"] if b["target"] == n["id"] and b["property"] == "opacity")
+                                 for n in nodes.values() if n["id"].endswith(".rank-gate")}
+                        for current, expected in ((267, (1, 1)), (312, (0, 1)), (356, (0, 0))):
+                            values = evaluate(value, state(score=current))
+                            a = next(source for identity, source in gates.items() if identity.endswith(".a.rank-gate"))
+                            aa = next(source for identity, source in gates.items() if identity.endswith(".aa.rank-gate"))
+                            self.assertEqual((values[a], values[aa]), expected)
+        self.assertTrue(all("scoreCrossing" not in clip["node"] for clip in clips.values()))
 
     def test_source_panel_surrounds_art_and_data_at_exact_global_marker(self):
         value = build_graph(self.library, "p1", self.font)
@@ -137,7 +187,9 @@ class StandardGraphTests(unittest.TestCase):
         self.assertEqual("score.personal-best-available", bindings["standard.graph.p1.best.available", "visible"])
         nodes = [n for t in value["templates"] for n in walk(t["root"])]
         captions = {n["properties"].get("text") for n in nodes}
-        self.assertIn("LOCAL PB TOTAL", captions)
+        best_label = next(n for n in nodes if n["id"] == "standard.graph.p1.best.label")
+        self.assertEqual("standard.graph.texture.gr-p-bstsc", best_label["resource"])
+        self.assertEqual("score.personal-best", bindings["standard.graph.p1.best.value", "text"])
         self.assertIn("EX PACEMAKER: BMS ONLY", captions)
         self.assertNotIn("NO DATA", captions)
         self.assertNotIn("MAXIMUM", captions)
@@ -218,6 +270,20 @@ class StandardGraphTests(unittest.TestCase):
         zero = evaluate(value, state(maximum=0, best=0, judged=0))
         self.assertIsNone(zero[value["receipt"]["targetPaceSource"]])
 
+    def test_next_compact_candidates_keep_large_chart_boundary_rounding(self):
+        value = build_graph_target(self.library, "p1", "next", self.font)
+        for notes in (1000, 30143, 1_000_003, 2_147_483_647):
+            maximum = notes * 2
+            ranks = [(maximum * multiplier + 8) // 9 for multiplier in (6, 7, 8)] + [maximum]
+            boundaries = ranks + [(lower + upper) // 2 for lower, upper in zip(ranks, ranks[1:])]
+            probes = {0, maximum + 1} | {max(0, edge + delta) for edge in boundaries for delta in (-1, 0, 1)}
+            for best in probes:
+                with self.subTest(notes=notes, best=best):
+                    actual = evaluate(value, state(maximum=maximum, best=best))[value["receipt"]["targetTotalSource"]]
+                    self.assertEqual(native_next(maximum, best), actual)
+                    self.assertGreaterEqual(actual, ranks[0])
+                    self.assertLessEqual(actual, maximum)
+
     def test_every_selected_id_reference_and_numeric_dependency_is_public_and_bounded(self):
         pattern = re.compile(r"[a-z](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z](?:[a-z0-9-]*[a-z0-9])?)*")
         for layout in ("p1", "p2", "dp"):
@@ -252,13 +318,97 @@ class StandardGraphTests(unittest.TestCase):
         self.assertEqual("aaa", result["module"]["default"])
         self.assertEqual(list(TARGETS), [choice["value"] for choice in result["module"]["choices"]])
         self.assertEqual(GraphOPTIONS, result["options"])
-        self.assertEqual(18, len(result["receipts"]))
+        self.assertEqual(36, len(result["receipts"]))
         for row in result["files"]:
             self.assertEqual(row["sha256"], hashlib.sha256((output / row["path"]).read_bytes()).hexdigest())
         first = result["module"]["choices"][0]
         self.assertTrue(first["scene"].endswith("/dp/scene.json"))
-        self.assertEqual(["p1", "p2"], [variant["when"]["layout"] for variant in first["variants"]])
+        self.assertTrue(first["orderedVariants"])
+        self.assertEqual([{"frame": "iidx25", "layout": "p1"}, {"frame": "iidx25", "layout": "p2"},
+                          {"frame": "iidx25"}, {"layout": "p1"}, {"layout": "p2"}],
+                         [variant["when"] for variant in first["variants"]])
+        for choice in result["module"]["choices"]:
+            for frame in FRAME_IDS:
+                for layout in ("p1", "p2", "dp"):
+                    selectors = {"frame": f"iidx{frame:02}"}
+                    if layout != "dp":
+                        selectors["layout"] = layout
+                    selected = next((variant for variant in choice["variants"]
+                                     if all(selectors.get(key) == value for key, value in variant["when"].items())), choice)
+                    family_path = "/f1" if frame == 25 else ""
+                    self.assertEqual(f"standard/graph{family_path}/targets/{choice['value']}/{layout}/scene.json", selected["scene"])
         self.assertEqual(result, export_graph_target_module(self.library, output, self.font))
+
+    def test_family1_uses_qualified_art_with_separate_ids_paths_and_source_baseline(self):
+        original_font = copy.deepcopy(self.font)
+        zero = build_graph(self.library, "p1", self.font)
+        self.assertEqual(zero, build_graph(self.library, "p1", self.font, common_family="0"))
+        one = build_graph(self.library, "p1", self.font, common_family="1")
+        self.assertEqual("contents/data/graphic/1/graph.ifs", one["receipt"]["sourcePackage"])
+        self.assertEqual("1", one["receipt"]["commonFamily"])
+        self.assertEqual(original_font, self.font)
+        for field in ("resources", "bitmapFonts"):
+            shared = {row["id"] for row in self.font[field]}
+            self.assertEqual(shared, {row["id"] for row in zero[field]} & {row["id"] for row in one[field]})
+            self.assertEqual([row for row in zero[field] if row['id'] in shared],
+                             [row for row in one[field] if row['id'] in shared])
+        common_paths = {row["path"] for row in self.font["files"]}
+        self.assertEqual(common_paths, {row["path"] for row in zero["resources"]} & {row["path"] for row in one["resources"]})
+        self.assertTrue(all(row["path"] in common_paths or row["path"].startswith("standard/graph/f1/") for row in one["files"]))
+        self.assertTrue(all(row["sha256"] == hashlib.sha256(Path(row["source"]).read_bytes()).hexdigest() for row in one["files"]))
+        nodes = {n["id"]: n for template in one["templates"] for n in walk(template["root"])}
+        baseline = nodes["standard.graph.f1.p1.line.baseline"]
+        self.assertEqual("standard.graph.f1.texture.gr-score-graph-line", baseline["resource"])
+        self.assertEqual({"x": 1004 / 1280, "y": 540 / 720, "width": 272 / 1280, "height": 6 / 720}, baseline["properties"])
+        current = next(row for row in one["files"] if row["path"].endswith("/gr_p_nowsc.png"))
+        self.assertEqual(self.library / "sprites-family1/gr_p_nowsc.png", Path(current["source"]))
+        zero_nodes = {n["id"].replace("standard.graph.", "standard.graph.f1."): n for template in zero["templates"] for n in walk(template["root"])}
+        for identifier, item in nodes.items():
+            before = copy.deepcopy(zero_nodes[identifier]["properties"])
+            if "bitmap-font" in before:
+                before["bitmap-font"] = item["properties"]["bitmap-font"]
+            self.assertEqual(before, item["properties"])
+        pattern = re.compile(r"[a-z](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z](?:[a-z0-9-]*[a-z0-9])?)*")
+        for target in TARGETS:
+            value = build_graph_target(self.library, "dp", target, self.font, common_family="1")
+            other = build_graph_target(self.library, "dp", target, self.font)
+            self.assertEqual(evaluate(other, state())[other["receipt"]["targetTotalSource"]],
+                             evaluate(value, state())[value["receipt"]["targetTotalSource"]])
+            declarations = [row["id"] for field in ("resources", "bitmapFonts", "tracks", "bindings", "variants", "numericSources") for row in value[field]]
+            declarations += [n["id"] for template in value["templates"] for n in walk(template["root"])]
+            for identifier in declarations:
+                self.assertIsNotNone(pattern.fullmatch(identifier))
+                self.assertLessEqual(len(identifier), 128)
+
+    def test_original_personal_best_tag_uses_source_slot_and_real_availability(self):
+        for family in ("0", "1"):
+            for layout in ("p1", "p2", "dp"):
+                value = build_graph(self.library, layout, self.font, common_family=family)
+                prefix = "standard.graph" + (".f1" if family == "1" else "") + "." + layout
+                nodes = {n["id"]: n for template in value["templates"] for n in walk(template["root"])}
+                label = nodes[prefix + ".best.label"]
+                self.assertEqual("sprite", label["type"])
+                self.assertEqual("standard.graph" + (".f1" if family == "1" else "") + ".texture.gr-p-bstsc", label["resource"])
+                self.assertEqual({"x": ((0 if layout == "p2" else 1000) + 140) / 1280,
+                                  "y": 567 / 720, "width": 135 / 1280, "height": 31 / 720}, label["properties"])
+                gate = nodes[prefix + ".best.available"]
+                self.assertIn(label, gate["children"])
+                bindings = {(row["target"], row["property"]): row["source"] for row in value["bindings"]}
+                self.assertEqual("score.personal-best-available", bindings[gate["id"], "visible"])
+                self.assertEqual("score.personal-best", bindings[prefix + ".best.value", "text"])
+                self.assertFalse(any("gr_mybest_update" in row["path"] for row in value["files"]))
+
+    def test_family1_does_not_fall_back_to_family0_when_unqualified(self):
+        for family in ("2", "../1", 1):
+            with self.assertRaisesRegex(ValueError, "common family"):
+                build_graph(self.library, "p1", common_family=family)
+        row = self.metadata["packages"][-1]
+        row["sha256"] = "0" * 64
+        self.write_metadata()
+        with self.assertRaisesRegex(ValueError, "archive differs"):
+            build_graph(self.library, "p1", common_family="1")
+        # The unchanged family remains usable and does not consume the bad one.
+        build_graph(self.library, "p1")
 
     def test_other_hdd_identity_changed_sprite_and_wrong_font_are_rejected(self):
         self.metadata["packages"].append({"source": "contents/data/graphic/gmframe33.ifs"})

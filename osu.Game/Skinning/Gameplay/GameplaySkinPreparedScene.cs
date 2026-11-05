@@ -707,6 +707,9 @@ namespace osu.Game.Skinning.Gameplay
 
         internal GameplaySkinPreparedNumericSources NumericSources { get; }
 
+        private readonly Dictionary<string, IReadOnlyList<GameplaySkinScoreCrossingThreshold>> scoreCrossings = new(StringComparer.Ordinal);
+        internal IReadOnlyDictionary<string, IReadOnlyList<GameplaySkinScoreCrossingThreshold>> ScoreCrossings => scoreCrossings;
+
         internal GameplaySkinPreparedSceneProgram(
             GameplaySkinSceneDocument? document,
             IReadOnlyDictionary<string, GameplaySkinPreparedSceneResource> resources)
@@ -748,6 +751,17 @@ namespace osu.Game.Skinning.Gameplay
 
         private void registerNodeClocks(GameplaySkinSceneNode node)
         {
+            if (node.ScoreCrossingThresholds.Count > 0)
+            {
+                scoreCrossings.Add(node.Id, node.ScoreCrossingThresholds);
+                foreach (GameplaySkinScoreCrossingThreshold threshold in node.ScoreCrossingThresholds)
+                {
+                    if (threshold.Operand.ReferenceIndex >= 0)
+                        NumericSources.IncludeDependencies(threshold.SourceId[6..], usedBindingSources);
+                    else
+                        usedBindingSources.Add(threshold.Operand.Source);
+                }
+            }
             if (node.ClockSource != GameplaySkinSceneBindingSource.Unspecified)
                 usedBindingSources.Add(node.ClockSource);
             if (node.ClockValueId != null)
@@ -1133,6 +1147,8 @@ namespace osu.Game.Skinning.Gameplay
                 GameplaySkinPreparedSceneResource[] copiedResources = [.. resources];
                 GameplaySkinPreparedSceneNode[] copiedRoots = [.. roots];
                 GameplaySkinRecordedAnimationCodec.ValidateFailureOutro(document?.FailureOutro ?? 0,
+                    enumeratePreparedNodes(copiedRoots).Select(node => node.Source), RecordedAnimations);
+                GameplaySkinRecordedAnimationCodec.ValidateScoreCrossings(
                     enumeratePreparedNodes(copiedRoots).Select(node => node.Source), RecordedAnimations);
                 Resources = Array.AsReadOnly(copiedResources);
                 Roots = Array.AsReadOnly(copiedRoots);

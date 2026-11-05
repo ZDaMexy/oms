@@ -413,6 +413,7 @@ namespace osu.Game.Skinning.Gameplay
                         : GameplaySkinRuntimeSlotCapability.None))));
 
             initialiseScript();
+            initialiseScoreCrossings();
 
             // Accept the already background-prepared attach snapshot before the production event host announces the
             // exact committed publication in LoadComplete. This preserves a contiguous Snapshot -> publication Reset
@@ -1307,10 +1308,12 @@ namespace osu.Game.Skinning.Gameplay
             {
                 case GameplaySkinEventPayloadFamily.State:
                     applyCompleteState(envelope.Payload.CompleteState);
+                    resetScoreCrossings(envelope.GameplayTime, envelope.Payload.ResetReason == GameplaySkinEventResetReason.Retry);
                     break;
 
                 case GameplaySkinEventPayloadFamily.Publication:
                     applyCompleteState(envelope.Payload.CompleteState);
+                    resetScoreCrossings(envelope.GameplayTime, false);
                     break;
 
                 case GameplaySkinEventPayloadFamily.Lifecycle:
@@ -1406,6 +1409,7 @@ namespace osu.Game.Skinning.Gameplay
 
                 case GameplaySkinEventPayloadFamily.Score:
                     scoreState = envelope.Payload.GetScore();
+                    observeScoreCrossings(envelope);
                     changedStateFamilies |= GameplaySkinSceneStateFamily.Score;
                     break;
 
@@ -2120,6 +2124,7 @@ namespace osu.Game.Skinning.Gameplay
                     "object.state" => objectStateAnimationTime(node, gameplayTime),
                     "object.long-note-transition" => longNoteTransitionAnimationTime(node, gameplayTime),
                     "gauge.increase" => scoreState.LastGaugeIncreaseAt is { } increasedAt && increasedAt <= gameplayTime ? gameplayTime - increasedAt : -1,
+                    "score.crossing" => scoreCrossings[node.PreparedNode.Source.Id].Elapsed(gameplayTime),
                     _ => throw new InvalidOperationException(),
                 };
                 animation.ApplyTime(elapsed);

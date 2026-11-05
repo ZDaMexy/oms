@@ -274,6 +274,8 @@ __pycache__/
 !/tools/IidxSkinAssets/standard_controls.py
 !/tools/IidxSkinAssets/standard_graph.py
 !/tools/IidxSkinAssets/standard_graph_targets.py
+!/tools/IidxSkinAssets/standard_graph_notifications.py
+!/tools/IidxSkinAssets/standard_bga.py
 !/tools/IidxSkinAssets/standard_feedback.py
 !/tools/IidxSkinAssets/standard_reading.py
 !/tools/IidxSkinAssets/standard_presentation_options.py
@@ -287,6 +289,8 @@ __pycache__/
 !/tools/IidxSkinAssets/tests/test_standard_components.py
 !/tools/IidxSkinAssets/tests/test_standard_controls.py
 !/tools/IidxSkinAssets/tests/test_standard_graph.py
+!/tools/IidxSkinAssets/tests/test_standard_graph_notifications.py
+!/tools/IidxSkinAssets/tests/test_standard_bga.py
 !/tools/IidxSkinAssets/tests/test_standard_feedback.py
 !/tools/IidxSkinAssets/tests/test_standard_reading.py
 !/tools/IidxSkinAssets/tests/test_standard_presentation_options.py
@@ -295,6 +299,7 @@ __pycache__/
 !/tools/IidxSkinAssets/tests/test_standard_cover_readout.py
 !/tools/IidxSkinAssets/tests/test_standard_package_compaction.py
 !/tools/IidxSkinAssets/tests/test_build_standard_skin.py
+!/tools/IidxSkinAssets/tests/test_build_library.py
 !/tools/StandardSkinCapture/
 !/tools/StandardSkinCapture/StandardSkinCapture.csproj
 !/tools/StandardSkinCapture/Program.cs
@@ -303,6 +308,8 @@ __pycache__/
 !/tools/StandardSkinCapture/TestSceneStandardSkinCapture.AutoScratch.cs
 !/tools/StandardSkinCapture/TestSceneStandardSkinCapture.Reading.cs
 !/tools/StandardSkinCapture/TestSceneStandardSkinCapture.Failure.cs
+!/tools/StandardSkinCapture/TestSceneStandardSkinCapture.PersonalBest.cs
+!/tools/StandardSkinCapture/TestSceneStandardSkinCapture.Graph.cs
 !/tools/StandardSkinCapture/BgaCaptureWorkingBeatmap.cs
 !/tools/StandardSkinCapture/README.md
 !/tools/IidxSkinAssets/reference_api.py

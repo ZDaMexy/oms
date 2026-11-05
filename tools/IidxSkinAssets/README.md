@@ -4,13 +4,15 @@
 
 ## 独立 Standard 时期作品
 
-`build_standard_skin.py` 只消费 26 HDD 的独立素材库、研究输出及组件目录，基础名称为 **Standard Model Skin Omni Until 26**。成品包含25残留主题、26 Rootage与26 ARC SCORE八款旧作复刻；原程序九项主题索引没有25，资源编号03也不能作为原版覆盖起点。分类、适配和验证集中记录在[作品记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)。`selection-26-hdd.json` 是复跑既有成品的282个IFS选择，不是素材穷尽清单；其中未含的 `1/common.ifs` 曾被ifstools名称解码拒绝，本次已按原字节完整恢复到独立来源目录，仍未由当前family 0制作链消费。未采用的另一套演奏美术和未识别容器取[查漏记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#素材查漏与未采用范围)，不把未消费等同无关或重复。
+`build_standard_skin.py` 只消费 26 HDD 的独立素材库、研究输出及组件目录，基础名称为 **Standard Model Skin Omni Until 26**。作品包含25残留主题、26 Rootage与26 ARC SCORE八款旧作复刻；原程序九项主题索引没有25，资源编号03也不能作为原版覆盖起点。分类、适配和验证集中记录在[作品记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)。当前 `selection-26-hdd.json` 选择283个IFS，包含此前名称解码失败的 `1/common.ifs`；新库保留4639张UV裁图。这是明确选择的来源范围，不是HDD素材穷尽清单；未采用和未识别来源取[查漏记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#素材查漏与未采用范围)。
 
-v00 保留历史初版身份。当前管线以26自身普通演奏调用为依据，补齐原 Start/读数、实时反馈、轨底亮度、Gauge、真实长条与失败片段，已以同一最终包通过 CLI、原生 Player 和逐图复核，详见作品记录。工具只复用中立解析及公开合同，不读取 Lightning 作者包；后续重建仍须对自己的成品独立验证。
+既有v00/v01保留各自历史身份和验证边界。下面的来源补完管线保留原 Start/读数、实时反馈、轨底亮度、Gauge、真实长条与失败片段，并接入BGA外框和Graph cut-in；已交付v02的同包CLI、原生Player与逐图结果取[本轮验证](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#本轮验证与交付)。以后重建仍须重新核对产物身份，不能沿用旧包结论。工具只复用中立解析及公开合同，不读取Lightning作者包。
+
+25框体配对保留在本HDD中的family1 Graph、失败和Classic BGA外框美术，其余框体使用family0。这是独立OMS作品的来源配方，不等于25软件复刻，也不据相同画布把两个来源族当作HD/SD副本；原25软件的调用和时序未由26程序证明。
 
 | 入口 | 责任 |
 | --- | --- |
-| `build_library.py` | 按明确选择提取 IFS，保存原件、XML/UV、AFP/GEO 及来源清单 |
+| `build_library.py` | 按明确选择提取IFS；显式保留异常纹理名字节，保存原件、XML/UV、AFP/GEO及名称映射 |
 | `standard_reference.py` | 每款框体完整 narrow/wide/DP 源电影、静态核对图、原几何和 recorded 片段 |
 | `standard_components.py` | 原 CUSTOM 图与动画贡献、真实对象状态、共享判定位置和 26 自身选项 |
 | `standard_presentation_options.py` | 按原绘制顺序拆出轨底与其它框体层，保留祖先、mask、UV 和状态 |
@@ -18,10 +20,12 @@ v00 保留历史初版身份。当前管线以26自身普通演奏调用为依�
 | `standard_gauge_effect.py` / `standard_failure.py` | 各代原 Gauge 增加电影，以及普通 `miss` 失败电影；完整源帧保留 |
 | `standard_controls.py` / `standard_feedback.py` / `standard_cover_readout.py` | 整合时接入真实按键、原 JUDGE/FAST-SLOW 字体与每代钩子，以及实际挡板边缘读数 |
 | `standard_graph.py` / `standard_graph_targets.py` | 原 Graph 艺术、实际目标与差分的独立贡献 |
+| `standard_graph_notifications.py` | 导出两族MYBEST、TARGET、A/AA/AAA和独立update电影，保留完整150帧 |
+| `standard_bga.py` | 准备原BGA外框几何JSON；整合时生成手动选择的完整画面/Classic旧式外框贡献 |
 | `build_standard_skin.py` | 校验所有贡献属于同一纯 26 库，合并作者闭包；来源收据留在作者目录外 |
 | `standard_package_compaction.py` | 在新目录缩短声明身份与资源引用，保持素材、场景身份及几何；输出独立私有校验收据 |
 
-以下从仓库根执行。选定新的非系统盘输出父目录，并将解析器指向已复核的 bemaniutils 源码。`--source-font` 是必需的外部输入，必须使用该 26 软件的原 DF 平成 Gothic W7 TTC；导出会核对实际字体表，不能静默换成系统近似字体。`--reading-assets`、`--presentation-assets`、`--gauge-assets` 与 `--failure-assets` 也都是必需贡献，分别使用下面的独立导出。中间文件、原字体和原图不进入公开仓库。已有合格素材库可以复用，勿为重建皮肤再次复制整个 HDD。
+以下从仓库根逐条执行，前一阶段成功后再继续。选定新的非系统盘输出父目录，并将解析器指向已复核的bemaniutils源码。`--source-font` 是必需的外部输入，必须使用该26软件的原DF平成Gothic W7 TTC；导出会核对实际字体表，不能静默换成系统近似字体。`--reading-assets`、`--presentation-assets`、`--gauge-assets`、`--failure-assets`、`--graph-notifications` 都指向各自导出目录，`--bga-geometry` 指向独立来源JSON文件；六项均必填，并须来自同一精确素材库身份。不要混用旧282包库的配套导出与新283包库。中间文件、原字体和原图不进入公开仓库；已有同身份合格库可以复用，无需复制整个HDD。
 
 ```powershell
 . .\UseDevelopmentStorage.ps1
@@ -30,7 +34,7 @@ $taskImageTools = 'F:/zdamexy-workspace/oms/.dev-cache/tools/iidx-assets'
 $taskParserRoot = 'F:/zdamexy-workspace/oms/.dev-cache/temp/iidx-afp-research-20261018/sources/bemaniutils'
 $taskSourceFont = 'D:/LDJ-2019090200/contents/data/font/df-heiseigothic-w7.ttc'
 New-Item -ItemType Directory -Path $taskStandardRoot -ErrorAction Stop
-python -B tools/IidxSkinAssets/build_library.py --game-root D:/LDJ-2019090200 --output "$taskStandardRoot/library" --selection tools/IidxSkinAssets/selection-26-hdd.json --ifstools-path $taskImageTools
+python -B tools/IidxSkinAssets/build_library.py --game-root D:/LDJ-2019090200 --output "$taskStandardRoot/library" --selection tools/IidxSkinAssets/selection-26-hdd.json --ifstools-path $taskImageTools --preserve-raw-texture-names
 python -B tools/IidxSkinAssets/standard_reference.py --library "$taskStandardRoot/library" --bemani-root $taskParserRoot --image-tools $taskImageTools --output "$taskStandardRoot/research" --styles 3 8 12 14 16 17 19 21 25 26 --common-family 0 --recorded
 $taskMaps = [ordered]@{}
 3,8,12,14,16,17,19,21,25,26 | ForEach-Object { $taskMaps[('iidx{0:00}' -f $_)] = ('research/gmframe{0:00}/skin-reference-map.json' -f $_) }
@@ -40,19 +44,27 @@ python -B tools/IidxSkinAssets/standard_presentation_options.py --library "$task
 python -B tools/IidxSkinAssets/standard_reading.py --library "$taskStandardRoot/library" --bemani-root $taskParserRoot --image-tools $taskImageTools --output "$taskStandardRoot/reading"
 python -B tools/IidxSkinAssets/standard_gauge_effect.py --library "$taskStandardRoot/library" --bemani-root $taskParserRoot --image-tools $taskImageTools --output "$taskStandardRoot/gauge"
 python -B tools/IidxSkinAssets/standard_failure.py --library "$taskStandardRoot/library" --bemani-root $taskParserRoot --image-tools $taskImageTools --output "$taskStandardRoot/failure"
-python -B tools/IidxSkinAssets/build_standard_skin.py --library "$taskStandardRoot/library" --research "$taskStandardRoot/research" --components "$taskStandardRoot/components" --image-tools $taskImageTools --reading-assets "$taskStandardRoot/reading" --presentation-assets "$taskStandardRoot/presentation" --gauge-assets "$taskStandardRoot/gauge" --failure-assets "$taskStandardRoot/failure" --source-font $taskSourceFont --output "$taskStandardRoot/author"
+python -B tools/IidxSkinAssets/standard_graph_notifications.py --library "$taskStandardRoot/library" --bemani-root $taskParserRoot --image-tools $taskImageTools --output "$taskStandardRoot/graph-notifications"
+python -B tools/IidxSkinAssets/standard_bga.py --library "$taskStandardRoot/library" --bemani-root $taskParserRoot --image-tools $taskImageTools --output "$taskStandardRoot/bga/source-geometry.json"
+python -B tools/IidxSkinAssets/build_standard_skin.py --library "$taskStandardRoot/library" --research "$taskStandardRoot/research" --components "$taskStandardRoot/components" --image-tools $taskImageTools --reading-assets "$taskStandardRoot/reading" --presentation-assets "$taskStandardRoot/presentation" --gauge-assets "$taskStandardRoot/gauge" --failure-assets "$taskStandardRoot/failure" --graph-notifications "$taskStandardRoot/graph-notifications" --bga-geometry "$taskStandardRoot/bga/source-geometry.json" --source-font $taskSourceFont --output "$taskStandardRoot/author"
 python -B tools/IidxSkinAssets/standard_package_compaction.py --source "$taskStandardRoot/author" --output "$taskStandardRoot/author-compact" --receipt "$taskStandardRoot/receipts/package-compaction.json"
 dotnet run --project tools/SkinAuthoring -- check "$taskStandardRoot/author-compact"
 dotnet run --project tools/SkinAuthoring -- pack "$taskStandardRoot/author-compact" "$taskStandardRoot/Standard26.osk"
 ```
 
-`--common-family` 必须由实际源配置确定，不能从画布尺寸猜测。当前代码从零生成时包含现有组件修正；仅复用早期组件导出时才使用 `--component-overrides` 加载同一来源身份的修订目录。`standard_feedback.prepare_feedback_font()` 生成两张数字 atlas 和独立静态标签；字形区域放在 glyph 的 `rect`，资源声明不含 `region`，同一规范化路径只声明一个资源。Start、Graph 与挡板读数共用这些字体，不能为每处文字另建字库。
+`--preserve-raw-texture-names` 是当前283项选择必需的显式恢复参数。异常名按原始bytes寻找精确MD5条目，使用安全落盘名并保存 `texturelist.original.bin` 与 `texturelist.name-map.json`，不猜字符、不替换原IFS；正常名称沿原解码行为，其它错误仍明确失败。恢复名字不等于这些图已被作品采用。
+
+`--frame-maps` 必须是上面生成的JSON文件，不能传研究目录；它恰好映射十个Frame ID到各自 `skin-reference-map.json`，路径相对该JSON所在目录且位于其下。`--common-family 0` 取自已核26来源调用，不能从画布尺寸猜测。当前代码从零生成时包含现有组件修正；仅复用早期组件导出时才使用 `--component-overrides` 加载同一来源身份的修订目录。`standard_feedback.prepare_feedback_font()` 生成两张数字atlas和独立静态标签；字形区域放在glyph的 `rect`，资源声明不含 `region`，同一规范化路径只声明一个资源。Start、Graph与挡板读数共用这些字体。
+
+`standard_bga.py` 的准备入口输出全新私有JSON，`build_standard_skin.py --bga-geometry` 读取并复核其中原文件、几何与完整入场/循环状态。BMS模块 `bga-frame` 默认 `off`（完整画面），`on` 为Classic BGA Frame（旧式外框）；它是人工美术选择，因为OMS没有原IIDX旧曲版本或Camera状态，不自动猜旧曲或模拟Camera。SP保留原PNG/UV与四边形，并裁在现有框体的BGA开口内；DP没有对应源钩子，两项保持既有双窗口。这一OMS组合适配与原机逐像素等价分开验收。
+
+`standard_graph_notifications.py` 输出目录中的 `graph-notifications.json` 使用 `oms-standard-graph-notifications.v1`，含 `librarySHA256`、`files` 和 `families["0"/"1"].clips`；每族键为 `mybest/target/aaa/aa/a/update`。每片保留280×720、60fps、150源帧及终止空帧，非循环；A/AA仅替换原 `lv_pass` 命名子对象的原图，其余几何、状态、颜色和帧不变。整合器在现有PACEMAKER分支中声明 `scoreCrossing`：真实PB/目标正阈值用严格超过，A/AA/AAA用达到；每个阈值只消费一次，同一计分更新跨多线时共享update仅重启一次，等级只显示最高已达档。`graph-cutin` 默认开启，电影只用真实 `score.crossing` 起点，不用挂载或墙钟补造过线时间，也不延长Results等待；同包实际触发与画面验证见上方作品记录。
 
 全部 18 款 Full Combo 的 P1/P2/DP 源电影自动使用无损原像素 atlas：逐图核对 RGBA，保留 nearest/clamp 采样并重复边缘像素；不重采样、改色、裁图或旋转。只有纹理引用及 UV 重定位，反向 UV 误差须不超过 `1e-12`；还原后核对全部 GEO 的 XYZ、拓扑、层级、mask、滤镜、状态、相机、帧与终止空帧。原图库保留原 PNG；成品 atlas 的文件字节不同，不能声称“所有成品 PNG 都是原文件”。FC 的原时长和已取证的前后层级继续保留，真实 Player 仍须检查完整演出。
 
 压缩步骤读取已生成的作者目录，要求输出目录和收据路径全新、彼此独立，且都在输入目录之外。INI 字节、material marker、node/template/instance/animation ID 及选项身份保持；只缩短 texture/bitmap-font 引用、未被引用的 track/keyframe/binding/variant/case 声明 ID，以及不受 INI/material 保护的资源路径和录制路径。scene 反向映射须还原原结构；recorded 文件只改纹理引用，几何、UV、变换、颜色、帧和时间的数值文本保持。纹理文件在此步骤逐字节不变，私有收据记录映射与每文件校验，不进入 OSK。整包配置合计 **16 MiB** 与实际选中组合 **384 个资源**的上限都不放宽；压缩成功后仍对 `author-compact` 执行正式 `check`、`pack`，不能只检查压缩前目录。
 
-Gauge 导出提供原 one-shot 与 loop；整合器按真实增加历史和 Clear 状态组织初始挂载循环。JUDGE 与失败片段使用已有 Global `decoration` 全画布信息 marker，BMS/mania 各自按 `layout.ruleset` 显示；JUDGE 开关、开场隐藏与失败生命周期分别控制，Global `hud.text` 保持 Suppress。失败录制使用公开事件 `gameplay.fail`，不是 `gameplay.failed`；完整 180 帧与独立失败演出寿命分别负责素材和宿主行为。Normal 预览只读取唯一原生驱动的实际 phase；Source 16-note/开合与 OMS 2-note、首排脉冲、0～1000 白字等适配写入收据，不以原图身份暗示原机完整数学或时序。
+Gauge 导出提供原 one-shot 与 loop；整合器按真实增加历史和 Clear 状态组织初始挂载循环。JUDGE 使用 Global `decoration` 全画布信息 marker，BMS/mania 各自按 `layout.ruleset` 显示；失败片段独立挂在直接场景树的 Global `hud.text` 前景，显式 Global 子节点保持完整 SafeBounds，才能覆盖最后的判定。JUDGE 开关、开场隐藏与失败生命周期分别控制，不让窄 footer 的 material-selected 投影裁掉失败画面。失败录制使用公开事件 `gameplay.fail`，不是 `gameplay.failed`；完整 180 帧与独立失败演出寿命分别负责素材和宿主行为。Normal 预览只读取唯一原生驱动的实际 phase；Source 16-note/开合与 OMS 2-note、首排脉冲、0～1000 白字等适配写入收据，不以原图身份暗示原机完整数学或时序。
 
 来源收据写在作者目录外，不能随 OSK 打包。作者检查覆盖单选项加其余默认值及明确条件的代表组合，不展开所有选择的笛卡尔积，也不代替[真实 Player 取景](../StandardSkinCapture/README.md)。命令成功只证明各自阶段，最终交付仍须核对同包身份、闭包和实际演奏；原 v00 的检查与图片不可复用为新候选签收。
 
@@ -214,7 +226,7 @@ dotnet run --project tools/SkinAuthoring -- check 'Y:\IIDX31-Author-Candidate'
 
 27～29 还需 `--legacy-library 'Y:\IIDX-Legacy-Common-Library'`，指向经过独立副本核对的 `0/common` / `0/gameparts` 库；研究输入增加 `effective-bga-viewports.json` 和真实渲染的 `dp_frame_1p-static181.png` 固定符号层，29另需 `candidate-score-slots.json`。源图保持1280×720，生成器明确采用1.5倍作者投影，轨道438×726、白/黑/皿51/39/90、间隔及边距3、双侧间距132；未将当前共用HD音符和击打几何重复放大。小BPM保留28×18原PNG，在scene中按原19×16全UV几何显示。HS按各布局源位置取步进，并独立放置原始小数点；相同度量共用字体，保持最多8套字形预算。分数/BPM的多位排布是框内候选，单个源占位符不证明原版动态数字算法。
 
-27保留原SCORE/MAXCOMBO面板，最高连击读取公开 `combo.maximum`（本局实际已达最高连击）；源181帧没有曲名/作者hook，不在分数面板上叠文字。SD视频使用实际框体透明开口内的安全矩形，将黑底置于原框体下方；窗口候选不证明原版的视频裁切、复制或适配规则，负坐标裸movie矩形不能直接盖在轨道上。1～26已找到真实版本标识，但已查来源未覆盖对应原版游玩框体、几何、动画及默认绑定；待用户提供26 HDD后继续逐代核对，不用标识图冒充整代皮肤。
+27保留原SCORE/MAXCOMBO面板，最高连击读取公开 `combo.maximum`（本局实际已达最高连击）；源181帧没有曲名/作者hook，不在分数面板上叠文字。SD视频使用实际框体透明开口内的安全矩形，将黑底置于原框体下方；窗口候选不证明原版的视频裁切、复制或适配规则，负坐标裸movie矩形不能直接盖在轨道上。旧33来源中的1～26版本标识不足以证明对应原版框体、几何、动画及默认绑定。用户后续提供的26 HDD由独立Standard入口处理，实际来源范围取[作品记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#身份与来源)，不加入本段Lightning生成器，也不用标识图冒充整代皮肤。
 
 SD源红线按原GEO在scene显示，原生必需判定线槽用透明材质 `Provide` 避免重复；该槽不允许 `Suppress`，不能为作者包放宽合同。28/29双打曲名/作者限制在可见左列，长文本显示省略号；原文字占位图的宽度延到轨道下方，不能直接当成有效可见文字区。这些排布候选仍需当代实机对照。
 

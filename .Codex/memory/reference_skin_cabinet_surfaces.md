@@ -171,4 +171,8 @@ Global `hud.text` 的默认载体是原生信息区域；material-selected模板
 
 26 Normal预览的BPM条纹理高27px但调用方支点是30px，按图片底边缩放会错位。原预览计数器只在该分支运行，不能拿曲目beat代签其节奏；采用OMS唯一预览时钟时须明确周期适配，保留其实际暂停和激活状态。原16帧窗、16音符模式、首排脉冲资格与当前实现要分别记，不能仅因素材齐全就写完整原机时序。旧`5key_auto`图和历史成绩字符串也不证明26存在对应可选模式，更不等于BMS5K拓扑。来源界定只取[Standard原软件审计](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)，不用后代作品清单定义遗漏。
 
-原生Preview的active/phase不能证明音符实际可见。BmsAsyncNoteDrawable拿到专属scene后会隐藏fallback，但未进入SetPooledUsageActive就不会OnApply；Preview不是普通音符池，须由自己的可见生命周期成对启用/释放，异步加载前激活也要保留。复核两条真实纹理、窗口内位置、隐藏/复显与释放，不能只签父Alpha。取景证据须单张核对，尤其不要将多图输出的显示截断误判为游戏缺图。
+原生Preview的active/phase不能证明音符实际可见。BmsAsyncNoteDrawable拿到专属scene后会隐藏fallback，但未进入SetPooledUsageActive就不会OnApply；Preview不是普通音符池，须由自己的可见生命周期成对启用/释放，异步加载前激活也要保留。复核两条真实纹理、窗口内位置、隐藏/复显与释放，不能只签父Alpha。取景证据须单张核对，不将多图输出截断或缩略预览误显黑色BGA当作游戏缺图；疑点应以原分辨率图片、原PNG像素及未遮挡区域比较确认，再决定是否改实现。
+
+BGA原图可能同时包含中央透明窗和边缘装饰孔，alpha==0的全局bbox不能当作视频开口；应核中央完全透明矩形与原四角投影，保留其余孔的原像素。`anime_cover`命名存在也不代表每种布局实际有钩子；26 SP/宽框与DP分别核完整时序，25宽2P须保留负X镜像。Camera/曲目年代的原调用资格与OMS手选外框适配分开登记，见[Standard接入](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#查漏后的接入与适配)。
+
+静态框体与运动片段若只是同一原电影的不同采样，不必占两个program；复用前须核实际draw及全部祖先、mask、camera、颜色和层序，不能只比较纹理或局部矩阵。常量clock也占numericSources预算；NEXT等整数表达式精简须覆盖门槛前/等于/后、奇数半档和大整数边界，不能把“某个场景少了程序”当成整组合预算通过。PB实景取证则须让普通Player保存第一局再由第二局原生查询，转换后的临时beatmap wrapper ID不是working map或保存成绩的身份。复跑入口见[取景工具](../../tools/StandardSkinCapture/README.md)。

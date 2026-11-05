@@ -340,7 +340,15 @@ BMS可额外显式Provide Stage `playfield.lift.fill` 与 `playfield.lift.decora
 
 循环片段可在记录文件中指定 `loopStartFrame`，表示开头播放一次后，重复从该帧到终止空帧之前的区间。例如301帧（第300帧为空）与 `loopStartFrame:180` 会先播放0～299，再重复180～299。此值只接受 `loop:true` 且无 `heldLoop` 的片段，范围为0～倒数第二帧；省略时为0，保留整段循环。它不截断或延长源帧，也不增加逐帧资源或运行时脚本。
 
-trigger限gameplay.attach/gameplay.complete/gameplay.fail/judgement.hit/input.key.down/object.state/object.long-note-transition/gauge.increase。两个object触发只消费精确绑定的原生长条历史；gauge触发读取真实血槽增长起点，fail触发读取真实失败状态，见下节。按键光柱可另外声明heldLoop:[start,end]与releaseFrame，分别保留按下的开头、按住的循环和放开的尾段；它们只用于input.key.down且loop=false。除下述有界原生失败演出外，镜像、剪切、透视裁切、真实祖先多边形mask和源三角形由同一游玩时钟采样。滤镜处理顺序属于此数据合同的渲染定义，不能仅凭成功导出声称与某外部游戏逐像素一致。
+trigger限gameplay.attach/gameplay.complete/gameplay.fail/judgement.hit/input.key.down/object.state/object.long-note-transition/gauge.increase/score.crossing。两个object触发只消费精确绑定的原生长条历史；gauge触发读取真实血槽增长起点，fail触发读取真实失败状态，score.crossing消费下述有限分数过线，见下节。按键光柱可另外声明heldLoop:[start,end]与releaseFrame，分别保留按下的开头、按住的循环和放开的尾段；它们只用于input.key.down且loop=false。除下述有界原生失败演出外，镜像、剪切、透视裁切、真实祖先多边形mask和源三角形由同一游玩时钟采样。滤镜处理顺序属于此数据合同的渲染定义，不能仅凭成功导出声称与某外部游戏逐像素一致。
+
+`trigger:"score.crossing"`只用于非循环记录。引用它的recorded-animation节点必须声明`scoreCrossing:{"thresholds":[{"source":"score.personal-best","comparison":"greater"}]}`，不能同时指定clock或heldLoop；有scoreCrossing却引用其它trigger、缺少配对声明或循环记录都拒绝。thresholds必须有1..5项，每项source是稳定数值来源的字符串，comparison为`greater`或`at-least`，相同source/comparison不可重复。它比较真实`score.value`；目标须为有限正数，`greater`从小于等于目标跨到大于目标，`at-least`从小于目标跨到大于等于目标。单位由作者与当前计分规则保持一致。
+
+阈值可取`score.maximum`、`score.personal-best`、`score.pacemaker-next`、`score.rank-a/aa/aaa`及其已有progress来源、number配置，或只由这些来源和常数组成的`value.<id>`。验证会沿全部numericSources依赖拒绝当前score/progress/accuracy、combo、Gauge、判定计数、时钟、布尔与其它变化来源；不能用派生表达式绕过。数值计算与普通numericSources一致，包括缺失PB的数值0：直接PB0不会触发，显式计算出的正PACEMAKER目标仍可使用。缺少计算结果、非有限值或非正目标不触发。
+
+每项只在该场景消费者实际收到的`ScoreChanged`边沿首次过线时记下envelope的真实游玩时间；连击或Gauge先携带新分数不会抢占该边沿，同分数的统计/准确率通知也不会重播。一个节点可共用最多五个目标的同一段电影：任一尚未消耗的目标首次过线时重播，多项在同一envelope到达只产生一个起点。每项的消耗独立于节点显隐，重新打开配置门不会重置播放资格；同一模板的实例共享该声明的全局分数历史。这不会新增计分事实、普通tracks事件或脚本权限。
+
+完整快照只建立基线，不能把快照时刻当成过线时刻。首次挂载已过线但没有历史时保持隐藏，并把该目标标为已消耗；新消费者不补播过去的演出。已知起点在普通重同步后保留原相位，重试清空；seek/倒带只保留不晚于目标时刻且分数仍满足同一正阈值的已知起点，其余撤去，并按目标快照重新建立资格，等待实际新边沿。谱面最大分数或完整快照中的目标变化只重建基线，不制造过线。暂停沿同一游玩时钟停住；未声明此功能的记录保持原语义。
 
 每选中组合最多32记录，单条最多3600帧/4096节点，单文件编码16MiB、解压128MiB；总状态131072、节点32768、顶点262144、帧内应用200万均有界。记录资源继续占普通纹理预算；实际原生对象池会计入节点与三角形开销。用于原生HitExplosion的一次性记录最多1000ms，完整时长由对应效果池保留；全连仍须有gameplay.full-combo可见绑定及有界completionOutro/结束轨迹，不能延长音符或游戏判定。
 

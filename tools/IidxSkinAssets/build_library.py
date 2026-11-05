@@ -76,8 +76,158 @@ def save_json(path, value):
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def extract_copy(copied, output, image_class, ifs_class, cropped):
-    archive = ifs_class(str(copied), super_abort_if_bad=True)
+def byte_preserving_ifs(ifs_class):
+    """Opt-in reader for binary texture names that cannot be represented as text.
+
+    Only image names may use opaque storage identifiers. The original bytes,
+    rather than a replacement character or guessed encoding, select the MD5
+    payload. Other metadata and all pixel/AFP/GEO decoding remain ifstools'.
+    No installed module or source archive is patched.
+    """
+    from kbinxml import KBinXML
+    from kbinxml.bytebuffer import ByteBuffer
+    from ifstools.ifs import FileBlob, IFSFlags, SIGNATURE
+    from ifstools.handlers.generic_file import GenericFile
+    from ifstools.handlers.generic_folder import GenericFolder
+    from ifstools.handlers.tex_folder import TexFolder
+
+    class TextureNames(KBinXML):
+        def __init__(self, data):
+            self.raw_strings = {}
+            self.opaque_names = set()
+            super().__init__(data)
+
+        def data_grab_string(self):
+            encoded = bytes(self.data_grab_auto())
+            if not encoded or encoded[-1] != 0 or b"\0" in encoded[:-1]:
+                raise ValueError("Texture metadata string is not NUL terminated or contains embedded NUL")
+            raw = encoded[:-1]
+            try:
+                value = raw.decode(self.encoding)
+            except UnicodeDecodeError:
+                value = "raw_name_" + hashlib.sha256(raw).hexdigest()
+                self.opaque_names.add(value)
+            if value in self.raw_strings and self.raw_strings[value] != raw:
+                raise ValueError("Texture names have colliding text or opaque identifiers")
+            self.raw_strings[value] = raw
+            return value
+
+    class PreservedTextureList(GenericFile):
+        def _load_from_ifs(self, convert_kbin=True, **kwargs):
+            if convert_kbin:
+                return self.byte_names.to_text().encode("utf-8")
+            return super()._load_from_ifs(convert_kbin=False, **kwargs)
+
+    class TextureFolder(TexFolder):
+        def tree_complete(self):
+            info = next((f for n, f in self.files.items() if n.endswith(".xml")), None)
+            if info is None:
+                return super().tree_complete()
+            original = info.load(convert_kbin=False)
+            if not KBinXML.is_binary_xml(original):
+                return super().tree_complete()
+            names = TextureNames(original)
+            if not names.opaque_names:
+                return super().tree_complete()
+
+            # Reject malformed values elsewhere; an arbitrary damaged field is
+            # not made valid just because it can be assigned a safe filename.
+            image_names = set()
+            for element in names.xml_doc.iter():
+                for key, value in element.attrib.items():
+                    if value in names.opaque_names:
+                        if element.tag != "image" or key != "name":
+                            raise ValueError("Invalid encoded string outside a texture image name")
+                        image_names.add(value)
+                if element.text in names.opaque_names or element.tail in names.opaque_names:
+                    raise ValueError("Invalid encoded string outside a texture image name")
+            if image_names != names.opaque_names:
+                raise ValueError("Unaccounted invalid texture metadata string")
+
+            GenericFolder.tree_complete(self)
+            self.folders.pop("_cache", None)
+            self.info_file, self.info_kbin = info, names
+            self.encoding_override = None
+            self.original_texturelist = original
+            self.texture_name_map = []
+            hashed_files = {n for n in self.files if re.fullmatch(r"[0-9a-f]{32}", n)}
+            matched, storage_names = set(), set()
+            for element in names.xml_doc.findall(".//image"):
+                name = element.attrib["name"]
+                if (not name or re.search(r'[<>:"/\\|?*\x00-\x1f]', name)
+                        or name.endswith((".", " "))
+                        or re.match(r"(?i)^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)", name)):
+                    raise ValueError("Unsafe texture storage name")
+                if name.casefold() in storage_names:
+                    raise ValueError("Texture storage names collide on Windows")
+                storage_names.add(name.casefold())
+                raw = names.raw_strings[name]
+                key = hashlib.md5(raw).hexdigest()
+                if key not in hashed_files or key in matched:
+                    raise ValueError("Texture name bytes do not identify one original MD5 payload")
+                if name + ".png" in self.files:
+                    raise ValueError("Texture storage name collides with an archive entry")
+                matched.add(key)
+                record = {"encoding": names.encoding, "rawNameBytesHex": raw.hex(),
+                          "md5Entry": key, "decodedName": None if name in names.opaque_names else name,
+                          "storageIdentifier": name}
+                node = self.files.pop(key)
+                node.name = name + ".png"
+                node.texture_name_identity = record
+                self.files[node.name] = node
+                self.texture_name_map.append(record)
+            if matched != hashed_files:
+                raise ValueError("Unmapped original texture MD5 payloads")
+            info.__class__ = PreservedTextureList
+            info.byte_names = names
+            self.compress = names.xml_doc.attrib.get("compress")
+            self._create_images()
+
+    class RootFolder(GenericFolder):
+        def from_xml(self, element):
+            # GenericFolder initialises handlers before dispatching from_xml.
+            self.folder_handlers["tex"] = TextureFolder
+            return super().from_xml(element)
+
+    class PreservedIFS(ifs_class):
+        def load_ifs(self, path, super_disable=False, super_skip_bad=False, super_abort_if_bad=False):
+            self.is_file = True
+            self.ifs_out = Path(path).name
+            self.folder_out = Path(path).stem + "_ifs"
+            self.default_out = self.folder_out
+            self.file = open(path, "rb")
+            try:
+                header = ByteBuffer(self.file.read(36))
+                if header.get_u32() != SIGNATURE:
+                    raise ValueError("Given file was not an IFS file")
+                self.flags = IFSFlags(header.get_u16())
+                if header.get_u16() ^ self.flags != 0xFFFF:
+                    raise ValueError("Invalid IFS flags complement")
+                self.time = header.get_u32()
+                header.get_u32()  # tree allocation size, not reliable in repacked archives
+                manifest_end = header.get_u32()
+                self.manifest_md5 = header.get_bytes(16) if self.flags & IFSFlags.HasMD5 else None
+                if not header.offset <= manifest_end <= os.fstat(self.file.fileno()).st_size:
+                    raise ValueError("IFS manifest is outside the archive")
+                self.file.seek(header.offset)
+                manifest = self.file.read(manifest_end - header.offset)
+                if not KBinXML.is_binary_xml(manifest):
+                    manifest = manifest.rstrip(b"\0")
+                self.manifest = KBinXML(manifest)
+                self.data_blob = FileBlob(self.file, manifest_end)
+                self.tree = RootFolder(self.data_blob, self.manifest.xml_doc,
+                                       super_disable=super_disable, super_skip_bad=super_skip_bad,
+                                       super_abort_if_bad=super_abort_if_bad)
+            except Exception:
+                self.file.close()
+                raise
+
+    return PreservedIFS
+
+
+def extract_copy(copied, output, image_class, ifs_class, cropped, preserve_raw_texture_names=False):
+    reader = byte_preserving_ifs(ifs_class) if preserve_raw_texture_names else ifs_class
+    archive = reader(str(copied), super_abort_if_bad=True)
     try:
         for node in [*archive.tree.all_folders, *archive.tree.all_files]:
             if not (output / node.full_path).resolve().is_relative_to(output.resolve()):
@@ -85,9 +235,27 @@ def extract_copy(copied, output, image_class, ifs_class, cropped):
         archive.extract(path=str(output), progress=False, recurse=False,
                         extract_manifest=not cropped, rename_dupes=True,
                         tex_only=cropped, crop_to_uvrect=cropped)
-        return {node.name: {"rawPath": node.full_path.replace("\\", "/"),
-                            "imageRect": node.imgrect, "uvRect": node.uvrect}
-                for node in archive.tree.all_files if isinstance(node, image_class)}
+        if not cropped:
+            for folder in archive.tree.all_folders:
+                if not hasattr(folder, "texture_name_map"):
+                    continue
+                original = output / folder.full_path / "texturelist.original.bin"
+                mapping = output / folder.full_path / "texturelist.name-map.json"
+                if original.exists() or mapping.exists():
+                    raise ValueError("Texture name evidence would overwrite an archive entry")
+                original.write_bytes(folder.original_texturelist)
+                save_json(mapping, {"originalMetadataSha256": hashlib.sha256(folder.original_texturelist).hexdigest(),
+                                    "images": folder.texture_name_map})
+        metadata = {}
+        for node in archive.tree.all_files:
+            if not isinstance(node, image_class):
+                continue
+            info = {"rawPath": node.full_path.replace("\\", "/"),
+                    "imageRect": node.imgrect, "uvRect": node.uvrect}
+            if hasattr(node, "texture_name_identity"):
+                info["nameIdentity"] = node.texture_name_identity
+            metadata[node.name] = info
+        return metadata
     finally:
         archive.close()
 
@@ -144,8 +312,11 @@ def build(args, parser):
         package_root = output / "packages" / relative.with_suffix("")
         raw, sprites = package_root / "raw", package_root / "sprites"
         raw.parent.mkdir(parents=True, exist_ok=False)
-        metadata = extract_copy(copied, raw, ImageFile, IFS, cropped=False)
-        extract_copy(copied, sprites, ImageFile, IFS, cropped=True)
+        preserve_names = getattr(args, "preserve_raw_texture_names", False)
+        metadata = extract_copy(copied, raw, ImageFile, IFS, cropped=False,
+                                preserve_raw_texture_names=preserve_names)
+        extract_copy(copied, sprites, ImageFile, IFS, cropped=True,
+                     preserve_raw_texture_names=preserve_names)
         raw_files = sorted(p for p in raw.rglob("*") if p.is_file())
         sprite_files = sorted(sprites.glob("*.png"))
         for path in raw.rglob("*.png"):
@@ -159,13 +330,16 @@ def build(args, parser):
             image_rect, uv_rect = info["imageRect"], info["uvRect"]
             if (width, height) != (uv_rect[1] - uv_rect[0], uv_rect[3] - uv_rect[2]):
                 raise RuntimeError("Cropped sprite dimensions do not match texture UV metadata")
-            textures.append({"package": relative.as_posix(), "name": path.name,
+            texture = {"package": relative.as_posix(), "name": path.name,
                              "category": category(source), "candidateStyle": candidate_style(source),
                              "width": width, "height": height,
                              "imageRect": image_rect, "uvRect": uv_rect,
                              "sprite": quote(path.relative_to(output).as_posix(), safe="/"),
                              "raw": quote((raw / info["rawPath"]).relative_to(output).as_posix(), safe="/"),
-                             "sha256": digest(path)})
+                             "sha256": digest(path)}
+            if "nameIdentity" in info:
+                texture["nameIdentity"] = info["nameIdentity"]
+            textures.append(texture)
         after_hash = digest(source)
         if after_hash != before_hash:
             raise RuntimeError("Original archive changed while the library was being built")
@@ -174,6 +348,11 @@ def build(args, parser):
                    "sourceUnchanged": True, "spriteCount": len(sprite_files),
                    "rawFileCount": len(raw_files),
                    "rawExtensions": dict(Counter(p.suffix.lower() for p in raw_files))}
+        recovered_names = [info["nameIdentity"] for info in metadata.values()
+                           if "nameIdentity" in info and info["nameIdentity"]["decodedName"] is None]
+        if recovered_names:
+            package["bytePreservedTextureNames"] = recovered_names
+            print(f"{relative.as_posix()}: preserved {len(recovered_names)} undecodable texture names by original bytes", flush=True)
         packages.append(package)
         save_json(output / "packages.json", packages)
         print(f"{relative.as_posix()}: {len(sprite_files)} verified UV sprites", flush=True)
@@ -203,4 +382,6 @@ if __name__ == "__main__":
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--selection", type=Path, default=Path(__file__).with_name("selection-33-hdd.json"))
     parser.add_argument("--ifstools-path", type=Path)
+    parser.add_argument("--preserve-raw-texture-names", action="store_true",
+                        help="Explicitly preserve undecodable binary texture names by raw bytes and exact MD5 payload; retain original metadata and a name map")
     build(parser.parse_args(), parser)

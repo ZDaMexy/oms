@@ -361,6 +361,8 @@ public partial class TestSceneStandardSkinCapture
             // Use the native generator only as a plan of physical key transitions. The
             // live score and recorder are created by Player; no Replay input owner is attached.
             inputPlan = new BmsModAutoplay().CreateReplayData(beatmap, Mods.Value).Replay.Frames.Cast<BmsReplayFrame>().ToArray();
+            if (OmitFirstTwoChordsForPersonalBest)
+                OmitFirstTwoNativeChordsForPersonalBest(beatmap);
             return base.CreateScore(beatmap);
         }
 
@@ -424,7 +426,7 @@ public partial class TestSceneStandardSkinCapture
             }
         }
 
-        protected override Task ImportScore(Score score) => Task.CompletedTask;
+        protected override Task ImportScore(Score score) => IsPersonalBestCase ? base.ImportScore(score) : Task.CompletedTask;
 
         protected override void LoadComplete()
         {

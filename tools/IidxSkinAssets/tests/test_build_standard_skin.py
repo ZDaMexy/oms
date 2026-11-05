@@ -1,6 +1,7 @@
 """Source boundaries and numeric layout regressions, using synthetic art only."""
 import base64
 import contextlib
+import copy
 import hashlib
 import io
 import json
@@ -24,6 +25,7 @@ class SyntheticOwner:
     def __init__(self, gauge_size):
         self.gauge_size = gauge_size
         self.dimensions = {"std.empty": (1, 1)}
+        self.bga_contexts = []
 
     def asset(self, package, name):
         if name.startswith("playm_gg_"):
@@ -51,6 +53,43 @@ def descendants(nodes):
     for item in nodes:
         yield item
         yield from descendants(item.get('children', []))
+
+
+def recorded_fixture(directory, name, program, *, kind=None):
+    import brotli
+    path = directory / (name + '.json.br')
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(brotli.compress(json.dumps(program).encode()))
+    identifier = name.replace('_', '-')
+    result = {'node': {**builder.node(identifier + '.node', 'recorded-animation'), 'animation': identifier + '.clip'},
+              'animations': [{'id': identifier + '.clip', 'path': 'clips/' + path.name, 'resources': ['fixture.texture']}],
+              'resources': [{'id': 'fixture.texture', 'type': 'texture', 'path': 'fixture.png'}],
+              'files': [{'source': str(path), 'path': 'clips/' + path.name, 'sha256': builder.sha(path)}],
+              'bindings': [], 'receipt': {'loopStartFrame': 1}}
+    if kind is not None:
+        result['kind'] = kind
+    if kind == 'lane':
+        result['bindings'] = [{'id': identifier + '.brightness', 'target': result['node']['id'],
+                               'property': 'brightness', 'source': 'option.lane-brightness'}]
+    return result
+
+
+def source_program(*, steady=False, geometry=0):
+    state = {'matrix': [1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], 'origin': [0, 0, 0], 'projection': 'affine',
+             'multiply': [1, 1, 1, 1], 'add': [0, 0, 0, 0], 'hsl': [0, 0, 0], 'mask': None, 'colourMatrix': None}
+    moving = copy.deepcopy(state)
+    moving['matrix'][-3] = 7
+    geometries = [{'resource': 'fixture.texture', 'vertices': [[0, 0, 0, 0, 0], [20, 0, 0, 1, 0], [0, 20, 0, 0, 1]],
+                   'triangles': [0, 1, 2]},
+                  {'resource': 'fixture.texture', 'vertices': [[20, 0, 0, 0, 0], [40, 0, 0, 1, 0], [20, 20, 0, 0, 1]],
+                   'triangles': [0, 1, 2]}]
+    return {'contract': 'oms-gameplay-recorded-animation.v1', 'width': 1280, 'height': 720, 'fps': 60,
+            'trigger': 'gameplay.attach', 'loop': True, 'loopStartFrame': 0 if steady else 1,
+            'geometries': geometries, 'nodes': [{'parent': -1, 'geometry': geometry, 'blend': 'normal'}],
+            # The static export intentionally has a different state-table index.
+            'states': [moving, state] if steady else [state, moving],
+            'frames': ([{'nodes': [[0, 1]], 'camera': None}] if steady else
+                       [{'nodes': [[0, 1]], 'camera': None}, {'nodes': [[0, 0]], 'camera': None}]) + [{'nodes': [], 'camera': None}]}
 
 
 class StandardBuilderTests(unittest.TestCase):
@@ -89,6 +128,98 @@ class StandardBuilderTests(unittest.TestCase):
         (directory / "skin-reference-map.json").write_text(json.dumps(mapping), encoding="utf-8")
         frame = Frame(SyntheticOwner(gauge_size), directory, style, layout, wide=wide)
         return frame, score_left, anchors
+
+    def test_background_reuses_motion_at_the_original_static_time(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            frame, _, _ = self.frame(root)
+            frame.owner.presentation_assets = root / 'presentation'
+            frame.owner.copy = MagicMock()
+            for movie in (frame.centre, frame.side):
+                folder = root / 'recorded' / movie
+                original = {'source': {'movie': movie, 'fps': 60, 'steadyFrameZeroBased': 1},
+                            'motion': recorded_fixture(folder, movie + '.motion', source_program()),
+                            'steady': recorded_fixture(folder, movie + '.steady', source_program(steady=True))}
+                export_path = folder / 'export.json'
+                export_path.write_text(json.dumps(original), encoding='utf-8')
+                if movie == frame.side:
+                    (folder / 'source-root.json').write_text('{"synthetic":true}', encoding='utf-8')
+                    layered = {'contract': 'oms-standard-lane-layers.v1', 'source': original['source'],
+                               'receipt': {'sourceExportSHA256': builder.sha(export_path),
+                                           'sourceRootSHA256': builder.sha(folder / 'source-root.json')}}
+                    for mode in ('motion', 'steady'):
+                        layered[mode] = {'layers': [recorded_fixture(folder, movie + '.' + mode + '.' + kind,
+                            source_program(steady=mode == 'steady', geometry=i), kind=kind) for i, kind in enumerate(('frame', 'lane'))]}
+                    destination = frame.owner.presentation_assets / frame.key / movie / 'export.json'
+                    destination.parent.mkdir(parents=True)
+                    destination.write_text(json.dumps(layered), encoding='utf-8')
+            frame.template = lambda _, node, __: node
+            with patch('standard_reading.add_preview_background'):
+                background = frame.background()
+            animations = [item for item in descendants([background]) if item['type'] == 'recorded-animation']
+            self.assertEqual(6, len(animations))
+            self.assertEqual(3, len(frame.animations))
+            self.assertEqual(2, len(frame.scene['numericSources']))
+            constants = {'value.' + row['id']: row for row in frame.scene['numericSources']}
+            for item in animations:
+                self.assertIn('.motion.', item['animation'])
+                if '.motion.' in item['id']:
+                    self.assertEqual('presentation.elapsed', item['clock'])
+                else:
+                    self.assertEqual({'operation': 'add', 'left': 1000 / 60, 'right': 0},
+                                     {key: value for key, value in constants[item['clock']].items() if key != 'id'})
+            self.assertEqual(1000 / 60, frame.scene['preparationDuration'])
+            self.assertEqual(2, len(frame.scene['bindings']), 'Both lane instances retain real brightness binding')
+            for binding in frame.scene['bindings']:
+                self.assertEqual(('brightness', 'option.lane-brightness'), (binding['property'], binding['source']))
+            self.assertEqual(4, len(frame.scene['variants']))
+            for variant in frame.scene['variants']:
+                self.assertEqual('option.frame-opening', variant['source'])
+                expected = '.motion.' in variant['target']
+                self.assertEqual({'true': expected, 'false': not expected}, {case['key']: case['value'] for case in variant['cases']})
+            self.assertTrue(all('.steady.' not in str(call.args[0]) for call in frame.owner.copy.call_args_list))
+
+    def test_steady_reuse_rejects_changed_uv_or_layer_kind(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            original = {'source': {'movie': 'synthetic', 'fps': 60, 'steadyFrameZeroBased': 1}}
+            moving = recorded_fixture(root, 'motion', source_program(), kind='lane')
+            held_program = source_program(steady=True)
+            held_program['geometries'][0]['vertices'][1][3] = .5
+            held = recorded_fixture(root, 'steady', held_program, kind='lane')
+            exported = {'motion': {'layers': [moving]}, 'steady': {'layers': [held]}}
+            with self.assertRaisesRegex(ValueError, 'geometry, hierarchy or brightness'):
+                builder.steady_program_reuse(original, exported, True)
+            held['kind'] = 'frame'
+            with self.assertRaisesRegex(ValueError, 'layer order'):
+                builder.steady_program_reuse(original, exported, True)
+
+    def test_steady_reuse_compares_camera_and_original_ancestor_masks(self):
+        program = source_program()
+        program['nodes'].insert(0, {'parent': -1, 'geometry': -1, 'blend': 'normal'})
+        program['nodes'][1]['parent'] = 0
+        program['frames'][1]['nodes'] = [[0, 0], [1, 0]]
+        first = copy.deepcopy(builder.recorded_frame_draws(program, 1))
+        program['states'][0]['mask'] = [0, 20, 0, 20]
+        second = builder.recorded_frame_draws(program, 1)
+        self.assertNotEqual(first, second)
+        second = copy.deepcopy(second)
+        program['frames'][1]['camera'] = [640, 360, -100, 100]
+        self.assertNotEqual(second, builder.recorded_frame_draws(program, 1))
+
+    def test_frame_selects_its_failure_art_without_changing_the_outro(self):
+        for size, expected in (((28, 26), '1'), ((26, 24), '0')):
+            with self.subTest(family=expected), tempfile.TemporaryDirectory() as temporary:
+                frame, _, _ = self.frame(Path(temporary), gauge_size=size)
+                frame.owner.failure_families = {
+                    family: {'clip': {'resources': [], 'animations': [],
+                                      'node': builder.node('failure.source' + family)}, 'receipt': {}}
+                    for family in ('0', '1')}
+                frame.failure_feedback()
+                failure = frame.scene['root']['children'][-1]
+                self.assertEqual('failure.source' + expected, failure['children'][0]['id'])
+                self.assertEqual('hud.text', failure['slot'])
+                self.assertEqual(3000, frame.scene['failureOutro'])
 
     def test_source_paths_cannot_cross_the_declared_package_root(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -192,13 +323,10 @@ class StandardBuilderTests(unittest.TestCase):
                 frame.apertures = lambda: [box(aperture_left, 141, 640, 480)]
                 contribution = frame.build()
                 ini = (frame.owner.output / contribution["ini"]).read_text(encoding="utf-8")
-                viewports = [line.split(": ", 1)[1].split(",") for line in ini.splitlines()
-                             if line.startswith("BgaViewports")]
-                self.assertTrue(viewports)
-                for viewport in viewports:
-                    self.assertAlmostEqual(float(viewport[0]) * 1280, aperture_left)
-                    self.assertAlmostEqual(float(viewport[2]) * 1280, 640)
-                    self.assertEqual(viewport[4], "fit")
+                self.assertNotIn("BgaViewports", ini)
+                context, = frame.owner.bga_contexts
+                self.assertEqual(context['apertures'], [box(aperture_left, 141, 640, 480)])
+                self.assertEqual(context['layout'], layout)
 
     def test_dp_keeps_both_left_monitors_with_the_public_hud_clip_recorded(self):
         from PIL import Image
@@ -260,16 +388,21 @@ class StandardBuilderTests(unittest.TestCase):
                 'librarySHA256':builder.sha(library / 'library.json'), 'clips':{}, 'files':[]}), encoding='utf-8')
             (reading / 'gauge-feedback.json').write_text(json.dumps({'contract':'oms-standard-gauge-feedback.v1',
                 'librarySHA256':builder.sha(library / 'library.json'), 'frames':{}, 'files':[]}), encoding='utf-8')
-            (reading / 'failure.json').write_text(json.dumps({'contract':'oms-standard-failure.v1',
-                'librarySHA256':builder.sha(library / 'library.json'), 'clip':{}, 'receipt':{}, 'files':[]}), encoding='utf-8')
+            (reading / 'failure.json').write_text(json.dumps({'contract':'oms-standard-failure.v2',
+                'librarySHA256':builder.sha(library / 'library.json'),
+                'families':{family:{'clip':{}, 'receipt':{}} for family in ('0','1')}, 'files':[]}), encoding='utf-8')
+            (reading / 'graph-notifications.json').write_text(json.dumps({'contract':'oms-standard-graph-notifications.v1',
+                'librarySHA256':builder.sha(library / 'library.json'),
+                'families':{family:{'clips':{}, 'receipt':{}} for family in ('0','1')}, 'files':[]}), encoding='utf-8')
             args = SimpleNamespace(library=library, output=author, research=research,
                                    components=components, component_overrides=[], image_tools=root,
                                    source_font=source_font, reading_assets=reading, presentation_assets=research,
-                                   gauge_assets=reading, failure_assets=reading)
+                                   gauge_assets=reading, failure_assets=reading, graph_notifications=reading, bga_geometry=research)
             with patch.object(builder, "Package", return_value=owner), \
                     patch.dict(builder.FRAMES, {26: "Synthetic"}, clear=True), \
                     patch('standard_feedback.prepare_feedback_font', return_value={}), \
                     patch('standard_graph_targets.export_graph_target_module', return_value={'module':{'id':'graph-target'},'files':[],'receipts':[],'options':[]}), \
+                    patch('standard_bga.export_bga_module', return_value={'module':{'id':'bga-frame'},'files':[],'receipts':[],'sourceBoundary':'fixture'}), \
                     patch.object(Frame, "build", contribution), contextlib.redirect_stdout(io.StringIO()):
                 builder.build(args)
             catalog = json.loads((author / "gameplay/content.json").read_text(encoding="utf-8"))

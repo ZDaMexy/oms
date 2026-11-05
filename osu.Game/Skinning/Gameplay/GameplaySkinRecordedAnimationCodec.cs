@@ -15,6 +15,22 @@ namespace osu.Game.Skinning.Gameplay
     {
         public const string CONTRACT = "oms-gameplay-recorded-animation.v1";
 
+        internal static void ValidateScoreCrossings(IEnumerable<GameplaySkinSceneNode> nodes,
+                                                   IReadOnlyDictionary<string, GameplaySkinRecordedAnimationProgram> animations)
+        {
+            foreach (GameplaySkinSceneNode node in nodes)
+            {
+                GameplaySkinRecordedAnimationProgram? animation = node.AnimationId != null
+                    ? animations.GetValueOrDefault(node.AnimationId) : null;
+                bool crossing = node.ScoreCrossingThresholds.Count > 0;
+                if (crossing != (animation?.Trigger == "score.crossing")
+                    || crossing && (node.Type != GameplaySkinSceneNodeType.RecordedAnimation
+                                    || node.ScoreCrossingThresholds.Count > GameplaySkinScoreCrossingThreshold.MAX_THRESHOLDS
+                                    || node.ClockSource != GameplaySkinSceneBindingSource.Unspecified || animation!.Loop || animation.HeldLoop.HasValue))
+                    throw fail(GameplaySkinSceneDiagnosticCode.InvalidAnimation);
+            }
+        }
+
         internal static void ValidateFailureOutro(double duration, IEnumerable<GameplaySkinSceneNode> nodes,
                                                  IReadOnlyDictionary<string, GameplaySkinRecordedAnimationProgram> animations)
         {
@@ -118,7 +134,8 @@ namespace osu.Game.Skinning.Gameplay
                 double fps = number(root.GetProperty("fps"), 1, 240);
                 bool loop = boolean(root.GetProperty("loop"));
                 string trigger = text(root, "trigger");
-                if (trigger is not ("gameplay.attach" or "gameplay.complete" or "gameplay.fail" or "judgement.hit" or "input.key.down" or "object.state" or "object.long-note-transition" or "gauge.increase"))
+                if (trigger is not ("gameplay.attach" or "gameplay.complete" or "gameplay.fail" or "judgement.hit" or "input.key.down" or "object.state" or "object.long-note-transition" or "gauge.increase" or "score.crossing")
+                    || trigger == "score.crossing" && loop)
                     throw fail();
 
                 var allowed = definition.Resources.ToHashSet(StringComparer.Ordinal);

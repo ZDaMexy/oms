@@ -1,6 +1,6 @@
 # Standard 皮肤实际 Player 取景
 
-此工具只在隔离存储中通过普通 OSK 导入、模式选择、原生 Player 输入与计分和普通 Results / FailOverlay 获取证据，不读取正式玩家数据。常规取景使用 ReplayPlayer；读谱设置与失败专项使用真实 BmsSoloPlayer。合成谱证明此次包的实际绘制与计分路径，不代替原版游戏、完整真实歌曲或实体设备验收。工具不携带原版素材，也不使用 Lightning 成品。
+此工具只在隔离存储中通过普通 OSK 导入、模式选择、原生 Player 输入与计分和普通 Results / FailOverlay 获取证据，不读取正式玩家数据。常规取景使用 ReplayPlayer；读谱设置、Personal Best 与失败专项使用真实 BmsSoloPlayer。合成谱证明此次包的实际绘制与计分路径，不代替原版游戏、完整真实歌曲或实体设备验收。工具不携带原版素材，也不使用 Lightning 成品。
 
 先从当前源码准备合格的 OMS runtime。每次新 shell 先执行仓库根的 `UseDevelopmentStorage.ps1`；再构建本工具，`CaptureRuntimeDirectory` 指向该 runtime，`OutputPath`、`BaseIntermediateOutputPath` 明确指向非系统盘。宿主运行目录须包含其引用的程序集、`runtimes/win-x64/native` 中的原生依赖和 `Skins/Canonical`，不得从现有程序目录复制 `data`、`cache`、日志或玩家配置。宿主启动时检查当前架构的原生目录和 SDL2，仅将该目录加入自身进程的 PATH，不修改用户或系统 PATH。全部测试共用一份程序依赖即可，不为每个组合复制整套程序。
 
@@ -29,6 +29,10 @@ dotnet build tools/StandardSkinCapture/StandardSkinCapture.csproj -c Release `
 ```
 
 BMS 支持 5/7/14K，mania 支持 5/6/7/8/14/16K；单舞台使用 `p1/p2`，14/16K 使用 `dp`。BMS 长条为 `ln/cn/hcn`，缺省 `cn`。包实际未声明的选项不会被猜测或静默替代。
+
+`--chart graph-pb` 只允许 BMS。先经普通 `BmsFolderImporter` 导入合成谱，首局省略原生输入计划中最前两个完整短按和弦：各自从非空按下到随后全空释放必须恰为20ms，对应转换后对象须为普通可计分短音符，不得漏长条。每个动作和区间写入 `personal-best-warmup-omissions.json`，并要求真实Miss恰为7K SP的8个、14K DP的16个（5K为6个），其余输入照原计划投递。首局正常进入Results并由 `Player.ImportScore` 保存；随后通过普通Restart加载第二局，核对原生PB查询命中同一谱面、用户和Mod，再完整投递未删减的真实输入。两局实际投递误差仍须不超过50ms，不加NoFail或改判定标准。工具核对第二局实际超过已保存PB、原图标签可见、差分为正，最后确认两局分别自然保存。没有直接写入成绩库、PB、计分或皮肤事件；转换后的临时Beatmap wrapper ID与实际working map身份分别记录，不为测试改写。`personal-best-*.json` 保存导入、实际输入、原生成绩/查询与越过门槛证据；Results阶段的PB冻结核对读取第二局实际完成时已保留的原生快照。
+
+声明 Graph 通知的 BMS 包另自动记录 `graph-notification-declarations.json` 与 `graph-notification-observations.json`：只读观察真实 `ScoreChanged`、电影已应用帧和实际可见片段，在原电影可见阶段保存 `graph-cutin-*.png`。Graph 或通知关闭时要求没有通知图像；旧包没有这些声明时不假造证据。游玩快照也记录每个录制节点的实际帧号，可用于核对静态框体复用原动画指定帧。这些检查不注入分数、时钟或动画帧，不代签整款原机时序。
 
 `--chart` 缺省为 `standard`，沿用普通矩阵的原合成谱。四位 Combo 专项使用 `--ruleset mania --keys 16 --presentation dp --chart combo-stress`；其它模式、键数或布局不能使用 `combo-stress`。该谱从 2000 毫秒开始，以 125 毫秒行距、每轨 0.2 毫秒偏移生成 64×16 个原生对象：前 63 行为 Note，末行为 700 毫秒 HoldNote，同轨长条不重叠，末行头部位于 9875～9878 毫秒，最后结束于 10578 毫秒。10100 毫秒取景位于末行判定后的 500 毫秒内；该自然取景和完整计分时都要求实际 `ScoreProcessor.Combo` 至少达到 1000，回执保留真实当前 Combo，不向皮肤注入数字。最终计分、full combo 与自然 Results 继续由原生玩法判定，不硬写预期最终 Combo。`host-started.json`、`chart.json`、`player-chart.json`、游玩帧和完成回执均记录 `ChartVariant`，与普通矩阵分开取证。
 

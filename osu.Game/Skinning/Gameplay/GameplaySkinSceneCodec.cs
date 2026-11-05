@@ -820,7 +820,7 @@ namespace osu.Game.Skinning.Gameplay
             if (context.TotalNodeCount > GameplaySkinSceneBudgets.MAX_NODES || depth > GameplaySkinSceneBudgets.MAX_NODE_DEPTH)
                 context.Add(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
 
-            validateFields(node, context, new[] { "id", "type", "target", "blend", "properties", "effects", "children" }, new[] { "slot", "resource", "animation", "clock" });
+            validateFields(node, context, new[] { "id", "type", "target", "blend", "properties", "effects", "children" }, new[] { "slot", "resource", "animation", "clock", "scoreCrossing" });
             string? id = getStableId(node, "id", context);
 
             if (id != null && !context.AllStableIds.Add(id))
@@ -836,6 +836,9 @@ namespace osu.Game.Skinning.Gameplay
             string? resourceId = null;
             string? animationId = null;
             string? clockSourceId = node.TryGetValue("clock", out JToken? nodeClock) ? getString(nodeClock, context) : null;
+            IReadOnlyList<GameplaySkinScoreCrossingThreshold> scoreCrossing = parseScoreCrossing(node["scoreCrossing"], context);
+            if (node.ContainsKey("scoreCrossing") && (type != GameplaySkinSceneNodeType.RecordedAnimation || node.ContainsKey("clock")))
+                context.Add(GameplaySkinSceneDiagnosticCode.InvalidAnimation);
             if (clockSourceId != null)
             {
                 if (type != GameplaySkinSceneNodeType.RecordedAnimation)
@@ -911,7 +914,7 @@ namespace osu.Game.Skinning.Gameplay
 
             if (type == GameplaySkinSceneNodeType.RecordedAnimation && children.Count > 0)
                 context.Add(GameplaySkinSceneDiagnosticCode.InvalidReference);
-            return new GameplaySkinSceneNode(id, type, target, slotId, resourceId, blend.Value, properties, effects, children, animationId, clockSourceId);
+            return new GameplaySkinSceneNode(id, type, target, slotId, resourceId, blend.Value, properties, effects, children, animationId, clockSourceId, scoreCrossing);
         }
 
         private static IReadOnlyDictionary<string, GameplaySkinScenePropertyValue> parseNodeProperties(
@@ -2146,6 +2149,8 @@ namespace osu.Game.Skinning.Gameplay
                 result["animation"] = node.AnimationId;
             if (node.ClockSourceId != null)
                 result["clock"] = node.ClockSourceId;
+            if (node.ScoreCrossingThresholds.Count > 0)
+                result["scoreCrossing"] = encodeScoreCrossing(node.ScoreCrossingThresholds);
 
             result["blend"] = encodeBlend(node.Blend);
             result["properties"] = encodeProperties(node.Properties);

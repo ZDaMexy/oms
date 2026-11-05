@@ -55,7 +55,9 @@ internal static class Program
                 assemblies = new[] { "osu.Game.dll", "osu.Game.Rulesets.Bms.dll", "osu.Game.Rulesets.Mania.dll", "osu.Framework.dll" }
                     .Select(name => new { name, sha256 = CaptureSettings.Hash(Path.Combine(AppContext.BaseDirectory, name)) }).ToArray(),
                 isolation = "Portable host, current ExactVisualTestGame, fresh disposable inner storage, dummy offline API",
-                input = settings.ChartVariant == "failure-skip"
+                input = settings.ChartVariant == "graph-pb"
+                    ? "Two ordinary BmsSoloPlayer plays in one isolated store; the warmup omits the first two complete short-note chords, native Player/ScoreManager saves its completed result, and the second play reads the matching PB through the production query"
+                    : settings.ChartVariant == "failure-skip"
                     ? "Actual BmsSoloPlayer with Hazard and empty ordinary replay input; native misses cause failure, followed by ordinary InputManager Escape press/release to skip the outro"
                     : settings.ChartVariant == "failure"
                     ? "Actual BmsSoloPlayer with Hazard and empty ordinary replay input; native misses cause failure, without Autoplay/NoFail or injected failure events"
@@ -173,7 +175,7 @@ internal sealed record CaptureSettings(string Package, string PackageSha256, str
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
         string[] known = ["package", "sha256", "output", "temp-root", "ruleset", "keys", "presentation", "long-note-mode", "chart", "assist", "reading-mode", "options"];
         if (args.Length == 0 || args.Length % 2 != 0)
-            throw new ArgumentException("Usage: --package <osk> --sha256 <hash> --output <fresh directory> --ruleset bms|mania --keys <count> --presentation p1|p2|dp [--options <JSON object>] [--long-note-mode ln|cn|hcn] [--chart standard|combo-stress|long-note-transitions|reading|failure|failure-skip] [--assist none|scratch] [--reading-mode normal|floating|classic] [--temp-root <directory>]");
+            throw new ArgumentException("Usage: --package <osk> --sha256 <hash> --output <fresh directory> --ruleset bms|mania --keys <count> --presentation p1|p2|dp [--options <JSON object>] [--long-note-mode ln|cn|hcn] [--chart standard|combo-stress|long-note-transitions|reading|failure|failure-skip|graph-pb] [--assist none|scratch] [--reading-mode normal|floating|classic] [--temp-root <directory>]");
         for (int index = 0; index < args.Length; index += 2)
         {
             string key = args[index];
@@ -203,12 +205,14 @@ internal sealed record CaptureSettings(string Package, string PackageSha256, str
         if (longNoteMode is not ("ln" or "cn" or "hcn"))
             throw new ArgumentException("The BMS long-note mode must be ln, cn or hcn.");
         string chartVariant = values.GetValueOrDefault("chart", "standard");
-        if (chartVariant is not ("standard" or "combo-stress" or "long-note-transitions" or "reading" or "failure" or "failure-skip"))
-            throw new ArgumentException("The chart must be standard, combo-stress, long-note-transitions, reading, failure or failure-skip.");
+        if (chartVariant is not ("standard" or "combo-stress" or "long-note-transitions" or "reading" or "failure" or "failure-skip" or "graph-pb"))
+            throw new ArgumentException("The chart must be standard, combo-stress, long-note-transitions, reading, failure, failure-skip or graph-pb.");
         if (chartVariant == "combo-stress" && (ruleset != "mania" || keys != 16 || presentation != "dp"))
             throw new ArgumentException("The combo-stress chart requires mania 16K dp.");
         if (chartVariant is ("failure" or "failure-skip") && ruleset != "bms")
             throw new ArgumentException("The native Hazard failure chart requires BMS.");
+        if (chartVariant == "graph-pb" && ruleset != "bms")
+            throw new ArgumentException("The two-play native personal-best chart requires BMS.");
         string assist = values.GetValueOrDefault("assist", "none");
         if (assist is not ("none" or "scratch") || assist == "scratch" && (ruleset != "bms" || chartVariant != "standard"))
             throw new ArgumentException("--assist scratch requires BMS and the standard chart; other cases use none.");
@@ -225,6 +229,9 @@ internal sealed record CaptureSettings(string Package, string PackageSha256, str
                 throw new ArgumentException("Every option must have one unique string value.");
         if (options.ContainsKey("layout"))
             throw new ArgumentException("Set layout with --presentation, not a second competing option.");
+        if (chartVariant == "graph-pb" && (options.GetValueOrDefault("graph-visible") == "false"
+                                          || options.GetValueOrDefault("graph-difference") == "false"))
+            throw new ArgumentException("The personal-best capture requires the visible Graph and score difference.");
         AssertNonSystemPlainDirectory(output);
         AssertNonSystemPlainDirectory(temporary);
         AssertNonSystemPlainDirectory(AppContext.BaseDirectory);
