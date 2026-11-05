@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-11-05（Standard现有26来源范围完成；下一阶段待更早HDD）
+> 最后核对：2026-11-05（Standard补查已有HDD素材；更早缺失HDD仍属下一阶段）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -11,7 +11,7 @@
 
 ### Standard Model Skin Omni Until 26
 
-现有26来源范围已闭环。下一阶段待更早HDD，再按对应版本证据确认缺失框体；范围与独立作品边界取[Standard记录](../../other/STANDARD_MODEL_SKIN_20261105.md)。禁止computer use。
+v01保留原验收。[查漏](../../other/STANDARD_MODEL_SKIN_20261105.md#素材查漏与未采用范围)确认现有HDD仍有`1/gameparts`另一套失败演出及共用美术：先核消费关系、适配与实绘，另查未识别的`cm_system.ifs`。`1/common`已恢复但未接入作者链，不能因26当前不调用就排除旧主题残留。更早缺失框体待下一阶段HDD；与Lightning独立，禁止computer use。
 
 ### Lightning Model Skin Omni Until 33（停止自动推进）
 

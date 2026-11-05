@@ -1,18 +1,34 @@
 # Standard Model Skin Omni Until 26：独立作品记录
 
-2026-11-05。使用用户提供的 `D:\LDJ-2019090200`，现有 26 来源范围已完成，正式私下交付 **Standard Model Skin Omni Until 26.v26110501**。本版补齐初版遗漏，以 Standard 框体与 26 软件自身证据为准；更早缺失框体留待下一阶段 HDD。当前状态由 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)引用本记录，工具入口为 [IidxSkinAssets](../../tools/IidxSkinAssets/README.md)。
+2026-11-05。使用用户提供的 `D:\LDJ-2019090200`，已正式私下交付 **Standard Model Skin Omni Until 26.v26110501**。本版补齐下述普通演奏功能；随后素材查漏恢复了一个漏审包，并确认还有未采用的另一套共用演奏美术，撤回“现有 HDD 素材范围全部完成”的笼统结论。当前状态由 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)引用本记录，工具入口为 [IidxSkinAssets](../../tools/IidxSkinAssets/README.md)。
 
 ## 身份与来源
 
 作品命名为 **Standard Model Skin Omni Until 26**，默认 Rootage。它与 **Lightning Model Skin Omni Until 33** 的素材库、作者目录、配置、名称和 OSK 分开；后者只更正现行名称，历史 Lighting 成品不改名、不覆盖，原停止推进边界保留。新作品不读取旧作者包，也不以 27～33 图像补齐缺口。
 
-当前常规版本框体主题覆盖 **25 CANNON BALLERS 与 26 Rootage**，来源均为本次 26 HDD；共用软件表现以 26 为依据，不代表另外取得并复刻了 25 的软件。另有八款 **26 ARC SCORE 的旧作复刻主题**：3rd style、8th style、HAPPY SKY、GOLD、EMPRESS、SIRIUS、Lincle、SPADA。它们对应 `gmframe03/08/12/14/16/17/19/21`，与 `gmframe25/26` 合计十款，但不能合称“实际覆盖 3～26 代”或“十代原版框体”。
+成品提供 **25 CANNON BALLERS 与 26 Rootage** 的框体主题，来源均为本次 26 HDD；共用软件表现以 26 为依据，不代表另外取得并复刻了 25 的软件。另有八款 **26 ARC SCORE 的旧作复刻主题**：3rd style、8th style、HAPPY SKY、GOLD、EMPRESS、SIRIUS、Lincle、SPADA。它们对应 `gmframe03/08/12/14/16/17/19/21`，与 `gmframe25/26` 合计十款，但不能合称“实际覆盖 3～26 代”或“十代原版框体”。本次原程序调用复核进一步确认：26 的演奏主题索引只映射 Rootage 加八款 ARC SCORE；`gmframe25` 是本 HDD 保留并被本作品采用的旧主题资源，不是已确认的 26 原生可选框体。
 
 2026-11-05 用户指出代数口径错误后，重新核对 [Rootage 官方 ARC SCORE 活动](https://p.eagate.573.jp/game/2dx/26/event/arc_score/index.html)、[当年 3rd style 主题获取记录](https://purotora.com/log/20190601.html)与本地源包，撤回此前把最小资源编号 03 当作实际原版覆盖起点的结论。编号确实指向旧作主题，但这些是 Rootage 内的活动复刻，不能证明已取得相应旧版 HDD 或保全了该版完整框体及软件表现。24 及更早的常规版本来源仍属下一阶段；以后按对应 HDD 的实际内容确认，不把复刻主题当作已完成代数。已交付 v00/v01 的包字节与原测试身份保留，本次只更正来源分类和说明。
 
-原图按 XML/UV 解包，AFP/GEO 按真实父子变换、相机、遮罩和循环指令解析；不描摹、重画或从截图替代原始部件。来源选取 283 个小型 IFS，合计约 197.53 MiB；`1/common.ifs` 严格解码失败且不被成品引用，合格可复跑选择文件保留其余 282 个包、4373 张 UV 图。未复制完整游戏。当前共用部件取该 HDD 的 `0` 源族，不能把另一族的失败静默当作成功。
+原图按 XML/UV 解包，AFP/GEO 按真实父子变换、相机、遮罩和循环指令解析；不描摹、重画或从截图替代原始部件。v01 原构建选取 283 个小型 IFS，合计约 197.53 MiB；当时 `1/common.ifs` 被 ifstools 的名称文本解码拒绝，复跑选择文件保留其余 282 个包、4373 张 UV 图。该失败是历史事实，不能再写成整包纹理损坏或无法提取：本次已按原名称字节恢复全部 266 张图，单独保存在 `library-recovery-1-common-r1`。旧库、作者收据和成品不覆盖，当前成品的共用部件仍取 `0` 源族；恢复素材不等于已纳入皮肤。
 
 私有来源、PNG 摘要、展开指令及游戏截图分别保存在本机 `E:\OMS-Development\sources\OMS-Standard-Model-Until26-20261105` 与 `E:\OMS-Development\evidence\standard-model-20261105`。源码仓只维护提取算法、公开合同、无原图的测试和来源名称；原图及其私有摘要清单不入 Git。成品仍按 [IIDX 素材作品约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)独立私下使用，不内置或公开分发。
+
+## 素材查漏与未采用范围
+
+2026-11-05 用户追问素材是否漏找后，本轮从 HDD 文件、包内目录、原程序加载链和成品来源四处重新核对，不以已有十款列表证明没有第十一款。`contents/data` 共 6003 个文件、3289 个 IFS；旧清单的 2157 项覆盖 `graphic`，并不是全 HDD 清单。另补查 `_archive/optional-omnimix/rc9/data/graphic` 的全部 101 个 IFS：100 个歌曲编号/图片包及 `0/mdato`，后者的 373 张图均是带歌曲编号的素材，没有 AFP。未把歌曲音频、视频和 Qpro 部件计作新框体。
+
+`graphic` 全部 2157 包都已尝试读取目录及电影/纹理元数据，其中 2156 包的目录可读，唯一无法识别的是下述 `cm_system`；`1/common` 的名称异常另以无损恢复闭合。全量索引得到 4692 个不同电影名、16029 个电影与包的对应关系。十个 `gmframe` 的 46 个电影名在其它包没有匹配，四个歌曲包中含 frame/graph 等词的电影也已单列核对，不能仅凭文件名筛掉再声称查全。这是目录/元数据级检查，不是逐图、逐动画和逐运行分支穷尽验收。
+
+原程序的 65 项资源注册表、九项主题索引和实际演奏调用闭合到 `gmframe26/08/14/17/19/16/21/03/12`，失败回落到 Rootage；没有 `gmframe25` 索引。已追到的共用路径使用 `/0/`，不能把 `0`、`1` 目录凭数字解释为可切换的 HD/SD 两套。两族 `basic_frame` 都有 1280×720 电影，内容与动画不同；它们的菜单/页面外框不能直接算作新增演奏框体。`1/title` 原图明确印有 IIDX 25 CANNON BALLERS，`0/title` 则为 IIDX26 Rootage，证明 HDD 确有 25 主题残留，但不能因此把 `1` 目录每张共用图的最早来源都定为 25。
+
+`1/common` 的唯一异常名称按原始字节计算 MD5 后准确命中原 entry；266 张图全部解码，未猜名、替换字符或重封 HDD。异常名的像素与 `0/common` 的 `txt_arena_ready` 相同，原名仍按未知文本保留；这不表示整个包重复。两族同名 234 张图中有 58 张像素不同，`1/common` 共 88 张不能用 `0/common` 的相同像素代替。恢复源包含 266 张完整 imgrect PNG 与 266 张 UV PNG、原名称字节和映射，约 8.76 MiB，没有新复制 IFS。
+
+**已确认尚未采用的演奏美术**：已在原库中的 `1/gameparts` 含另一套 180 帧 `miss`，有 `x_font`、`x_noise_bg`、laser、noise 与 ENGINE BLOW-OUT 原图；此外两族的部分 Stage、effect、读谱文字和 Graph 图像不同。`1/gameparts` 同名图中 46 张不同，另有 21 张独有；`1/graph` 有 32 张同名图不同。当前 v01 使用 `0` 族，不能把这些未采用素材说成已覆盖，也不能只因当前 26 未调用就排除；`5key_auto` 在两族像素相同，不能重复计作新样式。后续先核对并处理这些已有 HDD 的演奏素材，再将真正缺少来源的更早框体交给下一阶段 HDD，不能把两种缺口混在一起。
+
+`graphic/cm_system.ifs` 是约 460 KiB 的未识别容器：标准 IFS 头不成立，已查原 DLL 没有同名字面引用；这两点均不能证明其内容无关或损坏。此项保留未识别状态。因此本轮可说“尚未找到额外完整演奏框体”，不能宣称“整份 HDD 每一项素材均已排尽”。
+
+完整私有证据在 `completion/source-reaudit-20261105/{inventory,native,common,integration}`，含可复跑只读脚本、来源对照及恢复收据。282 个原选中包重新核对与旧库一致，1830 个不同原图来源/摘要对无差异；v01 与冻结候选仍同字节。本轮没有启动原版或 OMS、重打包或新增游玩验收；未使用 computer use、完整 HDD 副本或 Lightning 素材。
 
 ## 当前完成范围
 
@@ -57,7 +73,7 @@ ASCR 两局专项使用没有读谱版本元数据的 legacy replay 输入，按
 
 本轮原版依据包括 HD Start 参照、普通失败/调速/Gauge 等实际调用方、CN/HCN 状态与 FC 宿主层序分析。原版游戏与本机游客服务已停止，17 个受保护文件恢复一致；未使用 computer use、真实卡片或完整 HDD 副本。attract 教学不代签实际交互；合成输入、回放和源码分析也不代签实体手感、正常工作区长期体验或整款原机完全等价。
 
-已验 OSK 原样复制为 `.v26110501.osk`，连同 11 张本版已审看实景、README、VALIDATION 与 SHA256 共 15 个文件，收存于本机 `deliverables/skins/Standard Model Skin Omni Until 26.v26110501`。详细回执为私有 `completion/player/final-r27-acceptance.json`、四份最终视觉报告及 `completion/delivery-r27-receipt.json`。本版需要包含新增公共能力的当前 OMS 源码构建；旧窗口先重新构建、重启，再导入。`.v26110500` 保留不覆盖。现有 26 来源范围制作闭环，更早缺失 HDD 留待用户指定的下一阶段；Lightning、静线及原产品/设备/发行门不因此提升。
+已验 OSK 原样复制为 `.v26110501.osk`，连同 11 张本版已审看实景、README、VALIDATION 与 SHA256 共 15 个文件，收存于本机 `deliverables/skins/Standard Model Skin Omni Until 26.v26110501`。详细回执为私有 `completion/player/final-r27-acceptance.json`、四份最终视觉报告及 `completion/delivery-r27-receipt.json`。本版需要包含新增公共能力的当前 OMS 源码构建；旧窗口先重新构建、重启，再导入。`.v26110500` 保留不覆盖。本节只签收该成品的已实现范围，未采用的 HDD 美术和未识别来源以上节查漏为准；更早缺失 HDD 仍属下一阶段。Lightning、静线及原产品/设备/发行门不因此提升。
 
 ## v00 已交付范围：历史
 

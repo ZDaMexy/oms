@@ -4,7 +4,7 @@
 
 ## 独立 Standard 时期作品
 
-`build_standard_skin.py` 只消费 26 HDD 的独立素材库、研究输出及组件目录，基础名称为 **Standard Model Skin Omni Until 26**。常规版本框体主题为25/26，另外八款是26 ARC SCORE的旧作复刻主题，资源编号03不能作为原版覆盖起点；分类、适配和验证集中记录在[作品记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)。`selection-26-hdd.json` 明列合格的 282 个 IFS，排除严格解码失败、当前 family 0 管线不消费的 `1/common.ifs`。
+`build_standard_skin.py` 只消费 26 HDD 的独立素材库、研究输出及组件目录，基础名称为 **Standard Model Skin Omni Until 26**。成品包含25残留主题、26 Rootage与26 ARC SCORE八款旧作复刻；原程序九项主题索引没有25，资源编号03也不能作为原版覆盖起点。分类、适配和验证集中记录在[作品记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)。`selection-26-hdd.json` 是复跑既有成品的282个IFS选择，不是素材穷尽清单；其中未含的 `1/common.ifs` 曾被ifstools名称解码拒绝，本次已按原字节完整恢复到独立来源目录，仍未由当前family 0制作链消费。未采用的另一套演奏美术和未识别容器取[查漏记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#素材查漏与未采用范围)，不把未消费等同无关或重复。
 
 v00 保留历史初版身份。当前管线以26自身普通演奏调用为依据，补齐原 Start/读数、实时反馈、轨底亮度、Gauge、真实长条与失败片段，已以同一最终包通过 CLI、原生 Player 和逐图复核，详见作品记录。工具只复用中立解析及公开合同，不读取 Lightning 作者包；后续重建仍须对自己的成品独立验证。
 
