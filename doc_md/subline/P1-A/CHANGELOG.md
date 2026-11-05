@@ -1,5 +1,15 @@
 # P1-A 变动日志
 
+## 2026-11-05Standard26当前来源范围完成
+
+独立交付 `Standard Model Skin Omni Until 26.v26110501`，补齐26实际来源可支持的读谱窗口/边缘读数/Normal预览、首排与READY、JUDGE/FAST-SLOW、Graph目标、Gauge显示和光效、EXP/HCN/ASCR选项、真实CN/HCN持续及退场效果和普通失败演出。来源分类、OMS适配及下一阶段更早HDD边界只在[作品记录](../../other/STANDARD_MODEL_SKIN_20261105.md)完整维护，不以Lightning功能或27～33素材定义完成。
+
+公共增量包括有界派生数值、真实绿数范围/预览phase/Gauge增长、可选长条对象效果与独立失败视觉时钟；保留原计分、输入资格、旧包缺省和原生菜单。实际审图修正判定顶边/37px间距/BAD-POOR资格、全屏JUDGE与失败层级；Normal两note预览修复专属材质未Apply，真实Esc保留输入父树并提前结束尾声。末轮发现Judgement OFF被同节点命中透明度覆盖，改由独立canvas关门，并以r27重取全部最终证据。源PNG、原几何和动画不重画；无损atlas与配置压缩保持原预算。
+
+106项Python、正式3521代表组合、4194成员逐字节/CRC闭包通过。同一最终OSK完成51局原生Player，326张PNG完整性检查、108张逐图审看；48局自然Results、3局真实失败含Esc跳过，压力谱1040 COMBO。BMS full3338/19跳过、mania相关262/2、core皮肤与时钟1707/3通过；这些宽测早于末段Esc/Preview，随后另跑focused并重建Release/取景宿主，以新运行时重做最终包矩阵，未复用修前通过记录冒充同包验收。五条既有ImageSharp告警保留。
+
+正式包不重打包复制到版本化deliverables，配11张本版实绘、README、VALIDATION与SHA256，旧v00不覆盖。原版游戏和游客服务已停止，17个受保护文件恢复一致；无computer use、完整HDD副本或原美术入Git。已停合成测试存储归整到E盘；非Windows测试runtime清理被自动批准审查拒绝，未换方法删除。正常工作区长期体验、实体设备及公开发行未代签，Lightning和静线停止边界保持。
+
 ## 2026-11-05Standard26初版私下交付
 
 独立交付 `Standard Model Skin Omni Until 26.v26110500`，默认Rootage，实际十框体与11类609款美术仅来自26 HDD。正式r12 OSK不重打包，连同七张原实景、README、VALIDATION和SHA256共11文件保存在本地deliverables；Lightning仅更正现行拼写，历史文件和停止推进边界保持。来源、作者适配和可见限制集中于[作品记录](../../other/STANDARD_MODEL_SKIN_20261105.md)。

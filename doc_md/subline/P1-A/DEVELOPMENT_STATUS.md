@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-11-05（Standard 26 初版私下交付；Lightning 自动推进仍停止）
+> 最后核对：2026-11-05（Standard 26 当前来源范围完成；Lightning 自动推进仍停止）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -11,7 +11,7 @@
 
 Lightning Model Skin Omni Until 33 自动推进仍停止，完整形态未完成。最新私下交付和运行要求取[.v26102902](CHANGELOG.md#2026-10-29omniv52私下交付)，历史 Lighting 文件名保留；范围与未验项取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。
 
-Standard Model Skin Omni Until 26 的 `.v26110500` 仅为初版，继续按26自身框体及软件证据补完遗漏；不能以可玩交付当作任务完成，也不以Lightning功能清单对齐。来源、适配和缺口取[作品记录](../../other/STANDARD_MODEL_SKIN_20261105.md)。
+Standard Model Skin Omni Until 26 的现有来源范围完成，独立私下交付 `.v26110501`。十款框体及本轮补齐内容、来源、适配与验证取[作品记录](../../other/STANDARD_MODEL_SKIN_20261105.md)；重建/重启后导入，更早HDD为下一阶段。
 
 两作品选曲与Results均保留OMS原界面及PageAPI。Lightning的Classic/Header等已有表现与27文字锚点缺口取上方作品记录，旧页面方案取消取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
 
@@ -40,7 +40,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-11-05：[Standard初版](CHANGELOG.md#2026-11-05standard26初版私下交付)的48项focused测试、2158代表组合及3621成员闭包通过。最终同包30局真实Player自然计分/FC/Results，180张PNG完整性检查、44张目视，压力谱1040 COMBO；已验OSK原样交付，原机、设备及可见限制取作品记录。运行时代码基线2a1f9a2a，未修改玩法或重跑未变产品门。
+2026-11-05：[Standard范围完成](CHANGELOG.md#2026-11-05standard26当前来源范围完成)：同包51局原生Player、326张PNG完整性及108张逐图审看通过；3521个作者代表组合、106项Python、必要产品回归与Release通过。宽测、末段补测的时间和适用范围取[作品记录](../../other/STANDARD_MODEL_SKIN_20261105.md#本轮验证与交付)，不代签设备或原机等价。
 
 2026-10-29：[Lightning候选收尾](CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)保留83e27770的BMS full 3323通过/19跳过，以及core、Python、BMS/mania相关回归、Release/格式与v52正式CLI、原生回放和实景证据。[.v26102902交付](CHANGELOG.md#2026-10-29omniv52私下交付)与原候选同字节；没有借Standard刷新旧作品验证日期。
 
