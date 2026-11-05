@@ -37,6 +37,10 @@ namespace osu.Game.Rulesets.Bms.UI
         private BmsLongNoteMode? longNoteModeOverrideForTesting;
         private BmsLongNoteBodyState lastPublishedBodyState;
         private bool holdingStateNeedsRestore;
+        private BmsLongNoteEffect? longNoteEffect;
+
+        [Resolved(CanBeNull = true)]
+        private BmsLane? lane { get; set; }
 
         private readonly Bindable<BmsLongNoteBodyState> bodyState = new Bindable<BmsLongNoteBodyState>();
 
@@ -93,6 +97,7 @@ namespace osu.Game.Rulesets.Bms.UI
             base.Update();
 
             bool rewinding = Clock is IGameplayClock { IsRewinding: true };
+            bool restoring = rewinding || holdingStateNeedsRestore;
             if (rewinding || holdingStateNeedsRestore)
             {
                 restoreHoldingStateFromInput();
@@ -101,19 +106,55 @@ namespace osu.Game.Rulesets.Bms.UI
                 holdingStateNeedsRestore = rewinding;
             }
 
+            publishLiveBodyState(restoring);
+
+            // The body may retain its activated appearance during its tail fade. A fixed-line effect instead
+            // belongs only to the live hold interval; neither that fade nor a reused pooled drawable extends it.
+            bool active = (Time.Current >= holdNote.StartTime || headDrawable?.Judged == true) && !AllJudged;
+            if (active && longNoteEffect == null && GameplaySkinObjectId is { } objectId)
+                longNoteEffect = lane?.AcquireLongNoteEffect(objectId);
+            else if (!active && longNoteEffect != null)
+            {
+                if (AllJudged && !rewinding)
+                    longNoteEffect.Finish();
+                else
+                    longNoteEffect.Release();
+                longNoteEffect = null;
+            }
+            longNoteEffect?.SetHolding(IsHoldingForTesting);
+        }
+
+        private void publishLiveBodyState(bool restoring = false)
+        {
             BmsLongNoteBodyState next = computeBodyState();
             bodyState.Value = next;
-
-            if (next != lastPublishedBodyState)
+            if (next == lastPublishedBodyState)
+                return;
+            lastPublishedBodyState = next;
+            drawableRuleset?.PublishGameplaySkinObjectState(HitObject, next switch
             {
-                lastPublishedBodyState = next;
-                drawableRuleset?.PublishGameplaySkinObjectState(HitObject, next switch
-                {
-                    BmsLongNoteBodyState.Holding => GameplaySkinObjectState.Holding,
-                    BmsLongNoteBodyState.Broken => GameplaySkinObjectState.Missed,
-                    _ => GameplaySkinObjectState.Visible,
-                });
+                BmsLongNoteBodyState.Holding => GameplaySkinObjectState.Holding,
+                BmsLongNoteBodyState.Broken => GameplaySkinObjectState.Missed,
+                _ => GameplaySkinObjectState.Visible,
+            }, restoring);
+        }
+
+        private void releaseLongNoteEffect()
+        {
+            longNoteEffect?.Release();
+            longNoteEffect = null;
+        }
+
+        protected override void OnFree()
+        {
+            if (AllJudged && Clock is not IGameplayClock { IsRewinding: true })
+            {
+                longNoteEffect?.Finish();
+                longNoteEffect = null;
             }
+            else
+                releaseLongNoteEffect();
+            base.OnFree();
         }
 
         private void restoreHoldingStateFromInput()
@@ -154,6 +195,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 {
                     IsHoldingForTesting = true;
                     headDrawable.HitForcefully();
+                    publishLiveBodyState();
                 }
 
                 resolveBodyTicksUpToCurrentTime();
@@ -248,6 +290,8 @@ namespace osu.Game.Rulesets.Bms.UI
             {
                 if (releaseResult.IsHit() || HasReachedHoldTail(holdNote, Time.Current))
                     resolveTail(releaseResult.IsHit() ? releaseResult : HitResult.Miss, userReleased: true);
+                else
+                    publishLiveBodyState();
 
                 return;
             }
@@ -268,6 +312,7 @@ namespace osu.Game.Rulesets.Bms.UI
             if (headResult.IsHit())
             {
                 IsHoldingForTesting = true;
+                publishLiveBodyState();
                 OnUserPressedSuccessfully?.Invoke(this);
             }
             else
@@ -276,6 +321,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 // silent. Sound it on key-down to match a regular note's pressed-POOR behaviour (see
                 // DrawableBmsHitObject.OnPressed). A hit head still plays through its own PlaySamples, so no double-up.
                 headDrawable.PlayKeysoundFromPress();
+                publishLiveBodyState();
             }
 
             return true;
@@ -290,6 +336,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 headDrawable.MissForcefully();
 
             IsHoldingForTesting = true;
+            publishLiveBodyState();
             return true;
         }
 
@@ -447,6 +494,9 @@ namespace osu.Game.Rulesets.Bms.UI
                 ApplyMaxResult();
             else
                 ApplyMinResult();
+
+            if (longNoteEffect == null && GameplaySkinObjectId is { } objectId)
+                longNoteEffect = lane?.AcquireLongNoteEffect(objectId);
         }
 
         private DrawableBmsHoldNoteBodyTick registerBodyTick(DrawableBmsHoldNoteBodyTick bodyTick)

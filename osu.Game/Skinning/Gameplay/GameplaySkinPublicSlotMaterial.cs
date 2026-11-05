@@ -248,7 +248,8 @@ namespace osu.Game.Skinning.Gameplay
                     if ((ReferenceEquals(descriptor, GameplaySkinSlotCatalog.AuxiliaryDisplay)
                          || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.AuxiliaryConcentrationDisplay)
                          || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LiftFill)
-                         || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LiftDecoration))
+                         || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LiftDecoration)
+                         || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LongNoteEffect))
                         && (selectedDocument == null
                             || selectedDocument.GetEntry(descriptor, target).Presence != GameplaySkinDocumentDeclarationPresence.Declared))
                         continue;

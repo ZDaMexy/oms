@@ -32,7 +32,7 @@ namespace osu.Game.Skinning.Gameplay
                     add(GameplaySkinSceneDiagnosticCode.InvalidValueType);
                     continue;
                 }
-                fields(profile, "id", "ruleset", "keymode", "presentation", "stages", "keyAreaHeight", "gaugeHeight", "hitPosition", "modsRect");
+                fields(profile, "id", "ruleset", "keymode", "presentation", "stages", "keyAreaHeight", "gaugeHeight", "hitPosition", "modsRect", "normalSpeedPreviewRect");
                 string? id = text(profile, "id"), ruleset = text(profile, "ruleset"), keymode = text(profile, "keymode"), presentation = text(profile, "presentation");
                 double keyAreaHeight = number(profile, "keyAreaHeight", 0), gaugeHeight = number(profile, "gaugeHeight", 0), hitPosition = number(profile, "hitPosition", 1);
                 var stages = new List<GameplaySkinAuthorLayoutStage>();
@@ -73,10 +73,14 @@ namespace osu.Game.Skinning.Gameplay
                 double[]? modsRect = profile["modsRect"] == null ? null : tuple(profile["modsRect"], 4);
                 if (profile["modsRect"] != null && modsRect == null)
                     continue;
+                double[]? previewRect = profile["normalSpeedPreviewRect"] == null ? null : tuple(profile["normalSpeedPreviewRect"], 4);
+                if (profile["normalSpeedPreviewRect"] != null && previewRect == null)
+                    continue;
                 try
                 {
                     result.Add(new GameplaySkinAuthorLayout(id, ruleset, keymode, presentation, stages, keyAreaHeight, gaugeHeight, hitPosition,
-                        modsRect == null ? null : GameplaySkinLayoutRect.Create((float)modsRect[0], (float)modsRect[1], (float)modsRect[2], (float)modsRect[3])));
+                        modsRect == null ? null : GameplaySkinLayoutRect.Create((float)modsRect[0], (float)modsRect[1], (float)modsRect[2], (float)modsRect[3]),
+                        previewRect == null ? null : GameplaySkinLayoutRect.Create((float)previewRect[0], (float)previewRect[1], (float)previewRect[2], (float)previewRect[3])));
                 }
                 catch (ArgumentException)
                 {
@@ -191,6 +195,8 @@ namespace osu.Game.Skinning.Gameplay
                 };
                 if (layout.ModsRect is { } mods)
                     profile["modsRect"] = new JArray(mods.X, mods.Y, mods.Width, mods.Height);
+                if (layout.NormalSpeedPreviewRect is { } preview)
+                    profile["normalSpeedPreviewRect"] = new JArray(preview.X, preview.Y, preview.Width, preview.Height);
                 return profile;
             }));
     }

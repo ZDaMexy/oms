@@ -46,6 +46,8 @@ internal static class Program
                 settings.Presentation,
                 settings.LongNoteMode,
                 settings.ChartVariant,
+                settings.Assist,
+                settings.ReadingMode,
                 settings.Options,
                 settings.TemporaryRoot,
                 runtime = AppContext.BaseDirectory,
@@ -53,7 +55,17 @@ internal static class Program
                 assemblies = new[] { "osu.Game.dll", "osu.Game.Rulesets.Bms.dll", "osu.Game.Rulesets.Mania.dll", "osu.Framework.dll" }
                     .Select(name => new { name, sha256 = CaptureSettings.Hash(Path.Combine(AppContext.BaseDirectory, name)) }).ToArray(),
                 isolation = "Portable host, current ExactVisualTestGame, fresh disposable inner storage, dummy offline API",
-                input = "Ruleset-generated Autoplay through the actual ReplayPlayer; no human/device qualification",
+                input = settings.ChartVariant == "failure-skip"
+                    ? "Actual BmsSoloPlayer with Hazard and empty ordinary replay input; native misses cause failure, followed by ordinary InputManager Escape press/release to skip the outro"
+                    : settings.ChartVariant == "failure"
+                    ? "Actual BmsSoloPlayer with Hazard and empty ordinary replay input; native misses cause failure, without Autoplay/NoFail or injected failure events"
+                    : settings.ChartVariant == "reading"
+                    ? "Ordinary BmsSoloPlayer with synthetic native Oms actions for Start and chart keys; no Autoplay, replay ownership, injected skin values or device qualification"
+                    : settings.Assist == "scratch"
+                    ? "Actual BmsModAutoScratch plus ordinary key replay input with all scratch inputs removed; no Autoplay/NoFail or injected roles"
+                    : settings.ChartVariant == "long-note-transitions"
+                    ? "Constructed real replay input through ReplayPlayer, including release/regrab/head miss/early tail; no injected skin events or human/device qualification"
+                    : "Ruleset-generated Autoplay through the actual ReplayPlayer; no human/device qualification",
                 evidence = "Synthetic chart and exact imported OSK; no original-game equivalence claim",
             });
             using var log = new StreamWriter(new FileStream(Path.Combine(settings.Output, "runtime.log"), FileMode.CreateNew, FileAccess.Write))
@@ -74,7 +86,7 @@ internal static class Program
                 host.Run(game);
                 exitCode = game.ExitCode;
                 if (exitCode == 0 && !File.Exists(Path.Combine(settings.Output, "completed.json")))
-                    throw new InvalidOperationException("The runner exited without the complete Player and Results receipt.");
+                    throw new InvalidOperationException("The runner exited without the complete native scenario receipt.");
                 settings.VerifyPackage();
             }
             finally
@@ -151,6 +163,7 @@ internal static class Program
 
 internal sealed record CaptureSettings(string Package, string PackageSha256, string Output, string TemporaryRoot,
                                        string Ruleset, int Keys, string Presentation, string LongNoteMode, string ChartVariant,
+                                       string Assist, string ReadingMode,
                                        IReadOnlyDictionary<string, string> Options)
 {
     public static CaptureSettings Current { get; set; } = null!;
@@ -158,9 +171,9 @@ internal sealed record CaptureSettings(string Package, string PackageSha256, str
     public static CaptureSettings Parse(string[] args)
     {
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
-        string[] known = ["package", "sha256", "output", "temp-root", "ruleset", "keys", "presentation", "long-note-mode", "chart", "options"];
+        string[] known = ["package", "sha256", "output", "temp-root", "ruleset", "keys", "presentation", "long-note-mode", "chart", "assist", "reading-mode", "options"];
         if (args.Length == 0 || args.Length % 2 != 0)
-            throw new ArgumentException("Usage: --package <osk> --sha256 <hash> --output <fresh directory> --ruleset bms|mania --keys <count> --presentation p1|p2|dp [--options <JSON object>] [--long-note-mode ln|cn|hcn] [--chart standard|combo-stress] [--temp-root <directory>]");
+            throw new ArgumentException("Usage: --package <osk> --sha256 <hash> --output <fresh directory> --ruleset bms|mania --keys <count> --presentation p1|p2|dp [--options <JSON object>] [--long-note-mode ln|cn|hcn] [--chart standard|combo-stress|long-note-transitions|reading|failure|failure-skip] [--assist none|scratch] [--reading-mode normal|floating|classic] [--temp-root <directory>]");
         for (int index = 0; index < args.Length; index += 2)
         {
             string key = args[index];
@@ -190,10 +203,19 @@ internal sealed record CaptureSettings(string Package, string PackageSha256, str
         if (longNoteMode is not ("ln" or "cn" or "hcn"))
             throw new ArgumentException("The BMS long-note mode must be ln, cn or hcn.");
         string chartVariant = values.GetValueOrDefault("chart", "standard");
-        if (chartVariant is not ("standard" or "combo-stress"))
-            throw new ArgumentException("The chart must be standard or combo-stress.");
+        if (chartVariant is not ("standard" or "combo-stress" or "long-note-transitions" or "reading" or "failure" or "failure-skip"))
+            throw new ArgumentException("The chart must be standard, combo-stress, long-note-transitions, reading, failure or failure-skip.");
         if (chartVariant == "combo-stress" && (ruleset != "mania" || keys != 16 || presentation != "dp"))
             throw new ArgumentException("The combo-stress chart requires mania 16K dp.");
+        if (chartVariant is ("failure" or "failure-skip") && ruleset != "bms")
+            throw new ArgumentException("The native Hazard failure chart requires BMS.");
+        string assist = values.GetValueOrDefault("assist", "none");
+        if (assist is not ("none" or "scratch") || assist == "scratch" && (ruleset != "bms" || chartVariant != "standard"))
+            throw new ArgumentException("--assist scratch requires BMS and the standard chart; other cases use none.");
+        string readingMode = values.GetValueOrDefault("reading-mode", "normal");
+        if (readingMode is not ("normal" or "floating" or "classic") || chartVariant == "reading" && ruleset != "bms"
+            || values.ContainsKey("reading-mode") && chartVariant != "reading")
+            throw new ArgumentException("--reading-mode requires the BMS reading chart and normal, floating or classic.");
         using JsonDocument optionJson = JsonDocument.Parse(values.GetValueOrDefault("options", "{}"));
         if (optionJson.RootElement.ValueKind != JsonValueKind.Object)
             throw new ArgumentException("--options must be a JSON object of canonical string values.");
@@ -206,7 +228,7 @@ internal sealed record CaptureSettings(string Package, string PackageSha256, str
         AssertNonSystemPlainDirectory(output);
         AssertNonSystemPlainDirectory(temporary);
         AssertNonSystemPlainDirectory(AppContext.BaseDirectory);
-        return new CaptureSettings(package, hash, output, temporary, ruleset, keys, presentation, longNoteMode, chartVariant, options);
+        return new CaptureSettings(package, hash, output, temporary, ruleset, keys, presentation, longNoteMode, chartVariant, assist, readingMode, options);
     }
 
     internal static void AssertNonSystemPlainDirectory(string path)

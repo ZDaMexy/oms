@@ -98,6 +98,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly double mostCommonBeatLength;
         private readonly double initialBeatLength;
         private readonly double initialProfileBeatLength;
+        private (double Minimum, double Maximum)? aggregateReadingMultiplierRange;
         private int readingCalculationVersion = BmsHiSpeedRuntimeCalculator.CURRENT_VERSION;
         private double normalHiSpeedMultiplier;
         private BmsGameplayAdjustmentTarget? currentGameplayAdjustmentTarget;
@@ -149,15 +150,27 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public float LiftUnits => Playfield.LiftUnits.Value;
 
-        public GameplaySkinAdjustmentState GameplaySkinAdjustmentState => new GameplaySkinAdjustmentState(
-            true, AdjustmentHeld, configHiSpeedMode.Value switch
+        public GameplaySkinAdjustmentState GameplaySkinAdjustmentState
+        {
+            get
             {
-                BmsHiSpeedMode.Normal => GameplaySkinHiSpeedMode.Normal,
-                BmsHiSpeedMode.Floating => GameplaySkinHiSpeedMode.Floating,
-                BmsHiSpeedMode.Classic => GameplaySkinHiSpeedMode.Classic,
-                _ => GameplaySkinHiSpeedMode.Unspecified,
-            }, speedMetrics.Value.GreenNumber, SuddenUnits, HiddenUnits, SuddenActive, HiddenActive,
-            readingCalculationVersion == 0 ? null : (float)getDisplayedHiSpeed());
+                (int Minimum, int Maximum)? range = null;
+                if (readingCalculationVersion != 0 && getReadingMultiplierRange() is { } multipliers)
+                {
+                    range = speedMetrics.Value.GreenNumberRangeAtMultiplier(sampleScrollSpeed().Multiplier,
+                        multipliers.Minimum, multipliers.Maximum, readingCalculationVersion);
+                }
+                return new GameplaySkinAdjustmentState(true, AdjustmentHeld, configHiSpeedMode.Value switch
+                {
+                    BmsHiSpeedMode.Normal => GameplaySkinHiSpeedMode.Normal,
+                    BmsHiSpeedMode.Floating => GameplaySkinHiSpeedMode.Floating,
+                    BmsHiSpeedMode.Classic => GameplaySkinHiSpeedMode.Classic,
+                    _ => GameplaySkinHiSpeedMode.Unspecified,
+                }, speedMetrics.Value.GreenNumber, SuddenUnits, HiddenUnits, SuddenActive, HiddenActive,
+                readingCalculationVersion == 0 ? null : (float)getDisplayedHiSpeed(), range?.Minimum, range?.Maximum,
+                readingCalculationVersion != 0 && preStartSpeedPreview?.IsPreviewVisible == true ? preStartSpeedPreview.PrimaryNoteProgress : null);
+            }
+        }
 
         public IBindable<BmsGameplayAdjustmentTarget?> ActiveAdjustmentTarget => activeAdjustmentTarget;
 
@@ -551,6 +564,11 @@ namespace osu.Game.Rulesets.Bms.UI
         protected override void LoadComplete()
         {
             base.LoadComplete();
+
+            // The base loader has now built its frozen aggregate, including clamps, STOP markers and
+            // post-chart trimming. Cache those actual multipliers once; live readouts never scan the chart.
+            aggregateReadingMultiplierRange = ControlPoints.Count == 0 ? (1, 1)
+                : (ControlPoints.Min(point => point.Multiplier), ControlPoints.Max(point => point.Multiplier));
 
             // Preload every distinct keysound at load (player mode included, not just autoplay): a fully-keysounded
             // chart otherwise cold-decodes hundreds of WAVs DURING gameplay, and on the converted-mania side the
@@ -1120,7 +1138,7 @@ namespace osu.Game.Rulesets.Bms.UI
             return getGameplaySkinObjectId(hitObject);
         }
 
-        internal void PublishGameplaySkinObjectState(HitObject hitObject, GameplaySkinObjectState state)
+        internal void PublishGameplaySkinObjectState(HitObject hitObject, GameplaySkinObjectState state, bool stateRestored = false)
         {
             ArgumentNullException.ThrowIfNull(hitObject);
             hitObject = getGameplaySkinObjectIdentityOwner(hitObject);
@@ -1144,7 +1162,7 @@ namespace osu.Game.Rulesets.Bms.UI
                 hitObject.GetEndTime(),
                 getGameplaySkinObjectProgress(hitObject),
                 getGameplaySkinLongNoteMode(hitObject),
-                getGameplaySkinObjectAutoAssist(hitObject));
+                getGameplaySkinObjectAutoAssist(hitObject), stateRestored);
         }
 
         private double getGameplaySkinObjectProgress(HitObject hitObject)
@@ -1276,7 +1294,7 @@ namespace osu.Game.Rulesets.Bms.UI
         }
 
         public void SetPreStartSpeedPreviewState(bool active, bool paused = false)
-            => preStartSpeedPreview?.UpdateState(active, paused);
+            => preStartSpeedPreview?.UpdateState(active && (!LayoutSnapshot.HasAuthoredNormalSpeedPreview || readingCalculationVersion != 0), paused);
 
         public void SetAdjustmentHeld(bool held)
         {
@@ -1520,17 +1538,26 @@ namespace osu.Game.Rulesets.Bms.UI
             if (preStartSpeedPreview != null)
                 return;
 
-            BmsLane? previewLane = Playfield.Lanes.FirstOrDefault(lane => !lane.IsScratch);
+            BmsGameplayLayoutSnapshot snapshot = Playfield.LayoutSnapshot;
+            BmsLane? previewLane = snapshot.HasAuthoredNormalSpeedPreview
+                ? Playfield.Lanes.Where(lane => !lane.IsScratch).MinBy(lane =>
+                    Math.Abs(lane.LayoutSnapshotLane!.NeutralLane.Rect.X + lane.LayoutSnapshotLane.NeutralLane.Rect.Width / 2
+                             - snapshot.PreStartPreviewRect.X - snapshot.PreStartPreviewRect.Width / 2))
+                : Playfield.Lanes.FirstOrDefault(lane => !lane.IsScratch);
 
             if (previewLane == null)
                 return;
 
-            previewLane.PreviewContainer.Add(preStartSpeedPreview = new BmsPreStartSpeedPreview(
+            preStartSpeedPreview = new BmsPreStartSpeedPreview(
                 previewLane.LayoutSnapshotLane ?? throw new InvalidOperationException("Pre-start preview requires the exact gameplay layout lane."),
                 Playfield.LayoutSnapshot.Keymode,
                 SpeedMetrics,
                 Playfield.LayoutSnapshot,
-                LayoutProvider.CurrentMaterialSet));
+                LayoutProvider.CurrentMaterialSet, snapshot.HasAuthoredNormalSpeedPreview ? previewLane.HitObjectArea : null);
+            if (snapshot.HasAuthoredNormalSpeedPreview)
+                Playfield.MountAuthoredSpeedPreview(preStartSpeedPreview);
+            else
+                previewLane.PreviewContainer.Add(preStartSpeedPreview);
         }
 
         private void updateTimeRange()
@@ -1691,6 +1718,19 @@ namespace osu.Game.Rulesets.Bms.UI
             double ratio = (playfieldScrollLengthRatio?.Value ?? 1) * Math.Max(0, 1000 - getLaneCoverUnits(BmsLaneCoverPosition.Sudden) - getLaneCoverUnits(BmsLaneCoverPosition.Hidden)) / 1000.0;
             // With no readable interval, selecting a preset uses its full-lane basis; its actual GN stays zero.
             return ratio > 0 ? ratio : 1;
+        }
+
+        private (double Minimum, double Maximum)? getReadingMultiplierRange()
+        {
+            IScrollAlgorithm algorithm = Playfield.ActiveScrollAlgorithm ?? ScrollingInfo.Algorithm.Value;
+            if (algorithm is BmsStopMotionScrollAlgorithm stopMotion)
+            {
+                BmsTimingProfile profile = ((BmsBeatmap)Beatmap).TimingProfile!;
+                double scale = stopMotion.ReferenceBeatLength / 60000;
+                return (profile.MinimumReadingRate * scale, profile.MaximumReadingRate * scale);
+            }
+
+            return algorithm is ConstantScrollAlgorithm ? (1, 1) : aggregateReadingMultiplierRange;
         }
 
         private (double Multiplier, bool SupportsRefloat) sampleScrollSpeed()

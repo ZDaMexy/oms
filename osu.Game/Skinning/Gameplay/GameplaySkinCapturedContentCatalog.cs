@@ -221,11 +221,13 @@ namespace osu.Game.Skinning.Gameplay
             {
                 JObject source = JObject.Parse(GameplaySkinSceneCodec.EncodeScene(fragment));
                 ((JArray)result["root"]!["children"]!).Add(source["root"]!.DeepClone());
-                foreach (string field in new[] { "tracks", "stateMachines", "bindings", "variants", "templates", "instances" })
+                foreach (string field in new[] { "numericSources", "tracks", "stateMachines", "bindings", "variants", "templates", "instances" })
                     foreach (JToken addition in (JArray)source[field]!)
                         ((JArray)result[field]!).Add(addition.DeepClone());
                 if (fragment.CompletionOutro > ((double?)result["completionOutro"] ?? 0))
                     result["completionOutro"] = fragment.CompletionOutro;
+                if (fragment.FailureOutro > ((double?)result["failureOutro"] ?? 0))
+                    result["failureOutro"] = fragment.FailureOutro;
                 if (fragment.PreparationDuration > ((double?)result["preparationDuration"] ?? 0))
                     result["preparationDuration"] = fragment.PreparationDuration;
             }

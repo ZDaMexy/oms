@@ -58,6 +58,7 @@ namespace osu.Game.Screens.Play
         public IAdjustableAudioComponent AdjustmentsFromMods { get; } = new AudioAdjustments();
 
         private readonly BindableBool isPaused = new BindableBool(true);
+        private long startRequestVersion;
 
         /// <summary>
         /// The adjustable source clock used for gameplay. Should be used for seeks and clock control.
@@ -92,6 +93,7 @@ namespace osu.Game.Screens.Play
             if (!isPaused.Value)
                 return;
 
+            long requestVersion = ++startRequestVersion;
             isPaused.Value = false;
 
             // The case which caused this to be added is FrameStabilityContainer, which manages its own current and elapsed time.
@@ -106,7 +108,7 @@ namespace osu.Game.Screens.Play
             // then to progress with a correct locally calculated elapsed time.
             SchedulerAfterChildren.Add(() =>
             {
-                if (isPaused.Value)
+                if (isPaused.Value || requestVersion != startRequestVersion)
                     return;
 
                 StartGameplayClock();
@@ -132,6 +134,9 @@ namespace osu.Game.Screens.Play
         /// </summary>
         public void Stop()
         {
+            // A subsequent SoftUnpause only resumes drawing. It must not revive a source-clock
+            // start queued before this Stop, including a failure during the first resumed frame.
+            startRequestVersion++;
             if (isPaused.Value)
                 return;
 

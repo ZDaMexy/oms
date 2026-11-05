@@ -57,6 +57,7 @@ namespace osu.Game.Skinning.Gameplay
         public const int MAX_TEXT_CHARACTERS = 64 * 1024;
         public const double MAX_TRACK_TIME = 86_400_000;
         public const double MAX_COMPLETION_OUTRO = 3500;
+        public const double MAX_FAILURE_OUTRO = 5000;
         public const double MAX_ABSOLUTE_POSITION = 4;
         public const double MAX_RELATIVE_SIZE = 4;
         public const double MAX_SCALE = 8;
@@ -541,6 +542,14 @@ namespace osu.Game.Skinning.Gameplay
         OffsetAutomaticAvailable = 105,
         ScrollActualHiSpeed = 106,
         ScrollActualHiSpeedAvailable = 107,
+        ObjectPreviousState = 108,
+        NumericValue = 109,
+        ScrollGreenNumberMinimum = 110,
+        ScrollGreenNumberMaximum = 111,
+        ScrollGreenNumberRangeAvailable = 112,
+        GaugeIncreaseAvailable = 113,
+        ScrollPreviewPhase = 114,
+        ScrollPreviewAvailable = 115,
     }
 
     public enum GameplaySkinSceneEvent
@@ -663,6 +672,8 @@ namespace osu.Game.Skinning.Gameplay
 
         internal string? ClockOptionId { get; }
 
+        internal string? ClockValueId { get; }
+
         public GameplaySkinSceneBlendMode Blend { get; }
 
         public IReadOnlyDictionary<string, GameplaySkinScenePropertyValue> Properties { get; }
@@ -692,6 +703,7 @@ namespace osu.Game.Skinning.Gameplay
             ClockSourceId = clockSourceId;
             ClockSource = clockSourceId == null ? GameplaySkinSceneBindingSource.Unspecified : GameplaySkinSceneVocabulary.ParseBindingSource(clockSourceId);
             ClockOptionId = clockSourceId?.StartsWith("option.", StringComparison.Ordinal) == true ? clockSourceId[7..] : null;
+            ClockValueId = clockSourceId?.StartsWith("value.", StringComparison.Ordinal) == true ? clockSourceId[6..] : null;
             Blend = blend;
             Properties = new ReadOnlyDictionary<string, GameplaySkinScenePropertyValue>(properties
                                                                                          .OrderBy(pair => pair.Key, StringComparer.Ordinal)
@@ -1077,6 +1089,7 @@ namespace osu.Game.Skinning.Gameplay
         public static GameplaySkinSceneBindingSource ParseBindingSource(string id) => id switch
         {
             _ when id.StartsWith("option.", StringComparison.Ordinal) => GameplaySkinSceneBindingSource.Option,
+            _ when id.StartsWith("value.", StringComparison.Ordinal) => GameplaySkinSceneBindingSource.NumericValue,
             "layout.ruleset" => GameplaySkinSceneBindingSource.LayoutRuleset,
             "layout.presentation" => GameplaySkinSceneBindingSource.LayoutPresentation,
             "layout.stage" => GameplaySkinSceneBindingSource.LayoutStage,
@@ -1131,6 +1144,7 @@ namespace osu.Game.Skinning.Gameplay
             "score.rank-available" => GameplaySkinSceneBindingSource.ScoreRankAvailable,
             "gameplay.full-combo" => GameplaySkinSceneBindingSource.GameplayFullCombo,
             "object.state" => GameplaySkinSceneBindingSource.ObjectState,
+            "object.previous-state" => GameplaySkinSceneBindingSource.ObjectPreviousState,
             "object.long-note-mode" => GameplaySkinSceneBindingSource.ObjectLongNoteMode,
             "object.long-note-appearance" => GameplaySkinSceneBindingSource.ObjectLongNoteAppearance,
             "object.auto-assist" => GameplaySkinSceneBindingSource.ObjectAutoAssist,
@@ -1148,6 +1162,11 @@ namespace osu.Game.Skinning.Gameplay
             "scroll.adjusting" => GameplaySkinSceneBindingSource.ScrollAdjusting,
             "scroll.mode" => GameplaySkinSceneBindingSource.ScrollMode,
             "scroll.green-number" => GameplaySkinSceneBindingSource.ScrollGreenNumber,
+            "scroll.green-number-min" => GameplaySkinSceneBindingSource.ScrollGreenNumberMinimum,
+            "scroll.green-number-max" => GameplaySkinSceneBindingSource.ScrollGreenNumberMaximum,
+            "scroll.green-number-range-available" => GameplaySkinSceneBindingSource.ScrollGreenNumberRangeAvailable,
+            "scroll.preview-phase" => GameplaySkinSceneBindingSource.ScrollPreviewPhase,
+            "scroll.preview-available" => GameplaySkinSceneBindingSource.ScrollPreviewAvailable,
             "cover.sudden-units" => GameplaySkinSceneBindingSource.CoverSuddenUnits,
             "cover.hidden-units" => GameplaySkinSceneBindingSource.CoverHiddenUnits,
             "cover.sudden-active" => GameplaySkinSceneBindingSource.CoverSuddenActive,
@@ -1161,6 +1180,7 @@ namespace osu.Game.Skinning.Gameplay
             "gauge.maximum" => GameplaySkinSceneBindingSource.GaugeMaximum,
             "gauge.clear-threshold" => GameplaySkinSceneBindingSource.GaugeClearThreshold,
             "gauge.clear-state" => GameplaySkinSceneBindingSource.GaugeClearState,
+            "gauge.increase-available" => GameplaySkinSceneBindingSource.GaugeIncreaseAvailable,
             "timing.beat" => GameplaySkinSceneBindingSource.TimingBeat,
             "timing.measure" => GameplaySkinSceneBindingSource.TimingMeasure,
             "timing.bpm" => GameplaySkinSceneBindingSource.TimingBpm,
@@ -1268,10 +1288,15 @@ namespace osu.Game.Skinning.Gameplay
 
         public IReadOnlyList<GameplaySkinSceneInstance> Instances { get; }
 
+        public IReadOnlyList<GameplaySkinNumericSource> NumericSources { get; }
+
         /// <summary>
         /// Optional bounded full-combo outro duration in gameplay milliseconds. Zero retains the Player default.
         /// </summary>
         public double CompletionOutro { get; }
+
+        /// <summary>Optional bounded native presentation after genuine gameplay failure.</summary>
+        public double FailureOutro { get; }
 
         /// <summary>Optional bounded presentation preparation before the gameplay clock begins.</summary>
         public double PreparationDuration { get; }
@@ -1295,7 +1320,7 @@ namespace osu.Game.Skinning.Gameplay
             IEnumerable<GameplaySkinSceneVariant> variants,
             IEnumerable<GameplaySkinSceneTemplate> templates,
             IEnumerable<GameplaySkinSceneInstance> instances,
-            double completionOutro = 0, double preparationDuration = 0)
+            double completionOutro = 0, double preparationDuration = 0, IEnumerable<GameplaySkinNumericSource>? numericSources = null, double failureOutro = 0)
         {
             Root = root;
             Contract = GameplaySkinSceneContracts.SCENE_CONTRACT_ID;
@@ -1305,7 +1330,9 @@ namespace osu.Game.Skinning.Gameplay
             Variants = Array.AsReadOnly(variants.ToArray());
             Templates = Array.AsReadOnly(templates.ToArray());
             Instances = Array.AsReadOnly(instances.ToArray());
+            NumericSources = Array.AsReadOnly((numericSources ?? Array.Empty<GameplaySkinNumericSource>()).ToArray());
             CompletionOutro = completionOutro;
+            FailureOutro = failureOutro;
             PreparationDuration = preparationDuration;
         }
 

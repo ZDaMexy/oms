@@ -10,7 +10,7 @@ C4的Stage Provide会继续匹配Group/Lane；`instances.material`精确匹配re
 
 RGB亮度不能写到容器的ContentDrawable.Colour后再期望作者色还在：container/mask的Content与Transform可能同一对象。独立倍率复用既有RootDrawable，作者颜色与显隐保持在内层。普通与specialised构造均须初始化elapsed轨迹默认值，否则无Start的专用池节点会缺恢复表；回归保留旧rotation轨迹以区分新属性问题，语法取[作者参考](../../skin-authoring/docs/REFERENCE.md#节点目标和属性)。
 
-`visible`和`opacity`都写Transform.Alpha，同一节点不能同时承担OFF开关与原判定/准备淡出。需要两者相乘时用独立父子门，保留原grade选择和生命周期；改RGB倍率也不能把这个相互覆盖问题当作已经解决。
+显隐与透明度合同见[作者参考](../../skin-authoring/docs/REFERENCE.md#节点目标和属性)。只断言OFF场景的root.visible=false会漏掉后续judgement.hit把同root.opacity写回1；应检查静态OFF祖先是否还被binding/track/variant/state赋值，并看真实命中后的图。独立canvas关门、root保留生命周期可解决该冲突，不能靠初始值或RGB倍率代签。
 
 判定根的`y`按其宿主高度取相对值，不能按1080直接除；同一原字形在SD/HD既有分支中可使用不同换算，不必复制字体或增加Frame分支。RootDrawable是未移动的外层RGB载体，实际位移在TransformDrawable及原子行，取景须同时记两者和子孙屏幕几何。原版菜单缩图的位移不能代签真实游玩；四个锚点与剩余插值边界取[Start复核](../../doc_md/other/OMNI_START_OPTIONS_20261024.md)。
 
@@ -101,7 +101,7 @@ Headless的每例存储与失败收尾统一见[测试宿主地雷](reference_bu
 
 - 独立大包同时受两道不同门约束：C2捕获结构64MiB，OSK导入全部配置仍16MiB，后者不能按前者放宽。相同几何可由不同选项清单声明自身纹理并共用scene；相同INI按完整字节去重。scene经codec将整数编码成double可能长出`.0`，不能只加原文件长度；缩短声明ID并给归一化留预算，保留全部原图/采样。详见[本轮记录](../../doc_md/other/LIGHTING_DETAILS_20261021.md)。
 
-- scene点分stable ID的每一段都须以字母开头；`td.0.keys`或`td.p0.0`即使无冲突、ZIP闭包正确，实际导入仍会以InvalidStableId拒绝。生成器应复用现有严格ID校验，并覆盖全部C2条件分支的声明及引用；不能只测默认树或放宽公共codec。诊断与本次原生拒绝见[增量记录](../../doc_md/other/OMNI_GAMEPLAY_COMPLETION_20261026.md#验证与保全)。
+- scene点分stable ID的每一段都须以字母开头，段内不使用下划线；`td.0.keys`、`td.p0.0`或原资源名直接拼入ID，即使无冲突、ZIP闭包正确，实际导入仍会以InvalidStableId拒绝。摘要段加`h`前缀，序号用`n0`等合法段；源文件名与公开ID应分别保留。生成器应复用严格ID校验，覆盖全部C2条件分支的声明和引用，不能只测默认树或放宽公共codec。诊断来源见[增量记录](../../doc_md/other/OMNI_GAMEPLAY_COMPLETION_20261026.md#验证与保全)与[Standard来源管线](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)。
 - 未引用排查先展开`.json.br`并追到atlas/字形/UV消费者；原图文件名未出现不是未使用证据。原白图经tint变绿必须逐RGBA核对及保存来源收据，不能仅靠视觉相似；剩余候选也不能由文件名直接升级为HCN/COMBO等玩法状态。范围与工具入口见[素材审计](../../doc_md/other/OMNI_GAMEPLAY_COMPLETION_20261026.md#素材是否已经完整分类)。
 - 用原图空区遮HDD专用快捷键前须核alpha；judge plate空区alpha204会留下0/9/3残影，应取已核实opaque像素而非继续叠半透明遮罩。AUTO灰字可能烘在整张plate内，只隐藏橙灯仍会让unknown看成OFF；先遮原灰字，再在实际known门内恢复原灰slice/橙灯，毫秒读数独立。原PNG字节保全不等于显示语义正确，准入取[P1-A合同](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)。
 - 原生Mod提示消失要比较HUD.LoadComplete、Player.OnEntering、IsSceneReady与实际start四个时点；只在Entering重给2秒仍会被C5/5秒准备耗完。可见期应落在`startGameplayImmediately`的真实`Reset(startClock:true)`后，不能只搬modsRect、加假Mod图或强开HUD父级；Replay guard保持。几何和可见生命周期分别核对，合同归[P1-A](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#皮肤配置项与显式舞台)。
@@ -150,3 +150,21 @@ spice2x 启动器可能重新启动管理员子进程；仅等待启动器 PID �
 BMS 作者 BGA 还受公共 solver 的全宽底部 8% HUD 保留区约束，即使那里不与轨道相交。DP 原下窗到 670px 并不意味着可以原样声明；越界会使整组窗口 unavailable。先保存完整原开口，再把 720px 画布的实际窗口裁至 662px 内，并用谱面真实加载的图片验证 viewport/content-state/纹理及 framebuffer；默认背景不能证明 BGA 成功。DP 上下窗应按真实 qpro hook 分区测量，不能全栏只取最大的透明矩形。
 
 原判定标签加 COMBO 的横排要按实际位数核总宽；计分/自然 Results 成功不能证明三位、四位字形仍在轨内。隐藏数字的 alpha 不会自动消除横排占位，无 COMBO 须独立居中。按数值驱动缩放还须遵守 C4 轨迹时间上限，超范围不能伪称精确分段。看似缺数字时先核原图 alpha bbox 与实心笔画，再映射 framebuffer；透明 padding 的 quad 越界不等于笔画被遮挡。实际资格取 [Standard 验证](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#验证与原版参照)。
+
+作者数字 atlas 的区域属于 glyph.`rect`，不是 resource.`region`；同一规范化路径不能换多个资源ID重复声明。资源只保留公开字段，原数字图集按一个资源共享，字体/字号复用而非每个读数另占字库。Python结构自洽不等于实际codec通过。`y-px`也不是公开节点属性；原像素位移需按实际父槽高度换成`y`，C3判定带、Global画布和482px clip不能混用分母。来源与复跑入口见[Standard记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)及[工具说明](../../tools/IidxSkinAssets/README.md)。
+
+Global `hud.text` 的默认载体是原生信息区域；material-selected模板的子树继承该窄区域，把1280×720坐标直接放入会压到底部。框体JUDGE可用完整画布的Global decoration信息owner，但decoration所在Overlay层低于判定的HudForeground，内部z不能跨层遮住POOR。全屏失败片应沿现有direct scene树，以Global hud.text拥有前景，显式Global子节点保留完整目标矩形；不使用强制继承窄载体的material-selected实例，也不把失败藏在JUDGE偏好下面。须分别核对原坐标、实际prepared rect和运行层级，见[Standard记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)。
+
+真实AT入口采用ReplayPlayer；取景工具自行拼出BmsSoloPlayer加Replay会制造不存在的输入归属。回放独占时，两条输入队列持续清理真实输入，可能出现Start仍held而AdjustmentHeld已复位；一次按键或反复写皮肤状态不能证明普通游玩可用。读谱交互应沿普通SoloPlayer和原生输入API取证，保留输入计划、真实投递时间与计分，见[取景工具](../../tools/StandardSkinCapture/README.md)。
+
+把测试游戏铺满framebuffer时，要保留其ManualInputManager父树；仅移走Game后向旧InputManager按Esc，会把键送进空树，不能据此认定产品退场失效。实际Esc由HoldForMenuButton进入PerformExitWithConfirmation，独立失败尾声须在该既有分支结束并打开FailOverlay，不改QuickExit或ScreenStack退出语义。
+
+原caller的坐标须连同sprite原点核对：26判定的y=342是完整PNG顶边，并非中心；横排容器还须显式设成74px原高，不能只改anchor而继承三倍判定带。数字advance37与55px完整光晕图不同，BAD/POOR原本无数字；原图尺寸不能替代排版表。FA/SL的font5固定8px字格和hook+13/y+150本来超出原底板，不能擅自收拢。Hidden+Lift不在26官方显示区域组合中；分别验LIFT&SUD+、SUD+&HID+，不把Hidden读数移离实际边界。证据与适配边界见[Standard记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)。
+
+素材名与调用语义分开核：26的`miss`是实际舞台失败电影，`failed_`另属boss流程；`turn_shutter_light`是入场闪光，不据名字绑定Scratch pressed。`gauge_up`取各框体源电影，重复条件是达到实际Clear门槛且片段结束，不是统一100%；Gauge B/C隐藏fill/百分比不等于隐藏该光。初始化Clear循环与真实增长历史是两件事，不能造一个初始增长事件填空。原图帧数也不证明原宿主会完整显示所有尾帧。对应边界见[Standard记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)。
+
+26读谱原型里的数字钩子会由程序隐藏并用原字体重画，不能让原型数字与活读数叠在一起。原白字999刻度、OMS实际1000单位、绿数当前/最大/最小端须区分；相同当前绿数不能重建BPM范围。原绿数对齐要追到字体renderer，原矩形不足以判断left/centre/right。配置的Sudden/Hidden值在关闭后仍保留，读数必须另看active；Lift位置取已应用offset。首排原图跟activeSudden顶边而不是Lift，原482px clip与484px轨高分别保留。见[Standard读谱来源](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)。
+
+26 Normal预览的BPM条纹理高27px但调用方支点是30px，按图片底边缩放会错位。原预览计数器只在该分支运行，不能拿曲目beat代签其节奏；采用OMS唯一预览时钟时须明确周期适配，保留其实际暂停和激活状态。原16帧窗、16音符模式、首排脉冲资格与当前实现要分别记，不能仅因素材齐全就写完整原机时序。旧`5key_auto`图和历史成绩字符串也不证明26存在对应可选模式，更不等于BMS5K拓扑。来源界定只取[Standard原软件审计](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)，不用后代作品清单定义遗漏。
+
+原生Preview的active/phase不能证明音符实际可见。BmsAsyncNoteDrawable拿到专属scene后会隐藏fallback，但未进入SetPooledUsageActive就不会OnApply；Preview不是普通音符池，须由自己的可见生命周期成对启用/释放，异步加载前激活也要保留。复核两条真实纹理、窗口内位置、隐藏/复显与释放，不能只签父Alpha。取景证据须单张核对，尤其不要将多图输出的显示截断误判为游戏缺图。

@@ -68,6 +68,7 @@ namespace osu.Game.Screens.Play
         protected override void Update()
         {
             base.Update();
+            updateGameplaySkinFailure();
 
             if (!GameplaySkinPreparationActive || !this.IsCurrentScreen())
                 return;

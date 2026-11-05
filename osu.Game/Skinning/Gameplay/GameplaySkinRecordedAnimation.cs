@@ -27,6 +27,7 @@ namespace osu.Game.Skinning.Gameplay
         public const int MAX_TOTAL_NODES = 32768;
         public const int MAX_RUNTIME_TRIANGLES = 131072;
         public const double MAX_JUDGEMENT_VISUAL_DURATION = 1000;
+        public const double MAX_LONG_NOTE_OUTRO_DURATION = 1000;
         public const double MAX_ABSOLUTE_COORDINATE = 100_000_000;
     }
 

@@ -584,11 +584,11 @@ namespace osu.Game.Rulesets.Bms.Tests
             });
         }
 
-        [TestCase(BmsKeymode.Key5K, BmsPlayfieldStyle.P1, 97)]
-        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P1, 121)]
-        [TestCase(BmsKeymode.Key9K_Bms, BmsPlayfieldStyle.Center, 131)]
-        [TestCase(BmsKeymode.Key9K_Pms, BmsPlayfieldStyle.Center, 131)]
-        [TestCase(BmsKeymode.Key14K, BmsPlayfieldStyle.Center, 235)]
+        [TestCase(BmsKeymode.Key5K, BmsPlayfieldStyle.P1, 103)]
+        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P1, 129)]
+        [TestCase(BmsKeymode.Key9K_Bms, BmsPlayfieldStyle.Center, 140)]
+        [TestCase(BmsKeymode.Key9K_Pms, BmsPlayfieldStyle.Center, 140)]
+        [TestCase(BmsKeymode.Key14K, BmsPlayfieldStyle.Center, 251)]
         public void TestEveryPublicSlotExpandsToExactApplicableBmsTargets(
             BmsKeymode keymode,
             BmsPlayfieldStyle style,
@@ -603,9 +603,12 @@ namespace osu.Game.Rulesets.Bms.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(BmsGameplayResolvedNoteMaterialPreparer.RuntimeCapabilities.Support, Has.Count.EqualTo(32));
+                Assert.That(BmsGameplayResolvedNoteMaterialPreparer.RuntimeCapabilities.Support, Has.Count.EqualTo(33));
                 Assert.That(keys, Has.Length.EqualTo(expectedEntryCount));
                 Assert.That(keys, Is.Unique);
+                Assert.That(keys.Where(key => ReferenceEquals(key.Slot, GameplaySkinSlotCatalog.LongNoteEffect))
+                                .Select(key => key.Target.LaneId),
+                    Is.EquivalentTo(layout.Neutral.Context.Topology.LanesInLogicalOrder.Select(lane => lane.Identity.Id)));
                 Assert.That(keys.Select(key => key.Slot).Distinct(), Is.EquivalentTo(
                     keymode is BmsKeymode.Key9K_Bms or BmsKeymode.Key9K_Pms
                         ? GameplaySkinSlotCatalog.All.Where(descriptor => !ReferenceEquals(descriptor, GameplaySkinSlotCatalog.Turntable)

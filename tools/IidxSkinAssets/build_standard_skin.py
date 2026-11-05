@@ -131,6 +131,7 @@ class Package:
         self.index = {(row['package'].removeprefix('contents/data/graphic/').removesuffix('.ifs'),
                        Path(row['name']).stem): row for row in data['textures']}
         self.files, self.sources, self.receipts = {}, {}, []
+        self.additional_options, self.reading_labels = {}, {}
         self.exclusions = data.get('excludedSources', [])
         self.empty_path = 'standard/empty.png'
         target = self.output / self.empty_path
@@ -193,6 +194,7 @@ class Frame:
         self.scene = document(self.prefix + '.root')
         self.resources, self.fonts, self.animations = {}, {}, {}
         self.ini, self.info, self.evidence = [], [], []
+        self.material_targets = {}
         self.empty = self.resource({'id': 'std.empty', 'type': 'texture', 'path': owner.empty_path})
 
     def resource(self, declaration):
@@ -304,40 +306,65 @@ class Frame:
                                                    (bounds['bottom']-bounds['top'])/720],
                                           'lanes': [[starts[i]/292, widths[i]/292] for i in slots],
                                           'keys': [[starts[i]/292, widths[i]/292] for i in slots]})
-                result.append({'id': self.prefix + f'.{ruleset}.k{mode}', 'ruleset': ruleset, 'keymode': keymode,
+                profile = {'id': self.prefix + f'.{ruleset}.k{mode}', 'ruleset': ruleset, 'keymode': keymode,
                                'presentation': 'any' if self.dp else self.layout, 'stages': output_stages,
                                'keyAreaHeight': 80/720, 'gaugeHeight': 74/720, 'hitPosition': 1,
-                               'modsRect': mods_rect})
+                               'modsRect': mods_rect}
+                if ruleset == 'bms':
+                    profile['normalSpeedPreviewRect'] = [{'p1':304, 'p2':942, 'dp':686}[self.layout]/1280, 0, 34/1280, 477/720]
+                result.append(profile)
         return result
 
     def background(self):
         children = []
         preparation = 0
         for movie, dx in ((self.centre, self.dx), (self.side, 0)):
-            exported = read(self.research / 'recorded' / movie / 'export.json')
-            preparation = max(preparation, exported['motion']['receipt']['loopStartFrame'] * 1000 / self.map['stage']['fps'])
+            source_export = self.research / 'recorded' / movie / 'export.json'
+            original = read(source_export)
+            preparation = max(preparation, original['motion']['receipt']['loopStartFrame'] * 1000 / self.map['stage']['fps'])
+            split = movie in ('1p_frame', '2p_frame', 'center_frame_dp_1p')
+            if split:
+                exported = read(self.owner.presentation_assets / self.key / movie / 'export.json')
+                if (exported['contract'] != 'oms-standard-lane-layers.v1'
+                        or exported['source'] != original['source']
+                        or exported['receipt']['sourceExportSHA256'] != sha(source_export)):
+                    raise ValueError('Lane layers differ from the selected original cabinet export')
+                self.evidence.append({'laneBrightness': exported['receipt']})
+            else:
+                exported = original
             variants = []
             for mode in ('motion', 'steady'):
-                branch = exported[mode]
-                for file in branch['files']:
-                    self.owner.copy(file['source'], file['path'], file['sha256'])
-                for resource in branch['resources']:
-                    self.resource(resource)
-                for animation in branch['animations']:
-                    if animation['id'] in self.animations and self.animations[animation['id']] != animation:
-                        raise ValueError('Animation ID collision')
-                    self.animations[animation['id']] = animation
-                animation_node = copy.deepcopy(branch['node'])
-                animation_node['id'] = self.prefix + '.m-' + movie.replace('_', '-') + '.' + mode + '.animation'
-                animation_node['properties'] = {'x': dx/1280, 'y': 0, 'width': 1, 'height': 1}
-                if mode == 'motion':
-                    animation_node['clock'] = 'presentation.elapsed'
-                parent = node(animation_node['id'] + '.gate', children=[animation_node])
+                layers = exported[mode]['layers'] if split else [exported[mode]]
+                layer_nodes = []
+                branch_id = self.prefix + '.m-' + movie.replace('_', '-') + '.' + mode
+                for index, branch in enumerate(layers):
+                    for file in branch['files']:
+                        self.owner.copy(file['source'], file['path'], file['sha256'])
+                    for resource in branch['resources']:
+                        self.resource(resource)
+                    for animation in branch['animations']:
+                        if animation['id'] in self.animations and self.animations[animation['id']] != animation:
+                            raise ValueError('Animation ID collision')
+                        self.animations[animation['id']] = animation
+                    animation_node = copy.deepcopy(branch['node'])
+                    source_id = animation_node['id']
+                    animation_node['id'] = branch_id + f'.animation{index}'
+                    animation_node['properties'] = {'x': dx/1280, 'y': 0, 'width': 1, 'height': 1}
+                    if mode == 'motion':
+                        animation_node['clock'] = 'presentation.elapsed'
+                    for binding in branch.get('bindings', []):
+                        if binding['target'] != source_id:
+                            raise ValueError('Lane brightness must bind its own original layer')
+                        self.bind(animation_node['id'], binding['property'], binding['source'])
+                    layer_nodes.append(animation_node)
+                parent = node(branch_id + '.gate', children=layer_nodes)
                 self.variant(parent['id'], 'visible', 'option.frame-opening', mode == 'steady',
                              {'true': mode == 'motion', 'false': mode == 'steady'})
                 variants.append(parent)
             children.extend(variants)
         self.scene['preparationDuration'] = preparation
+        from standard_reading import add_preview_background
+        add_preview_background(self, children)
         return self.template('background', node(self.prefix + '.background', children=children), 'stage.background')
 
     def apertures(self):
@@ -455,7 +482,7 @@ class Frame:
             fill['properties'].update({'x':1,'y':1,'rotation':180})
         self.bind(reveal['id'],'reveal-x','gauge.value')
         self.variant(fill['id'],'resource','gauge.type',resource,modes)
-        dark=node(prefix+'.dark','sprite',{'colour':'#404040ff'},resource)
+        dark=node(prefix+'.dark','sprite',{'opacity':.2},resource)
         self.variant(dark['id'],'resource','gauge.type',resource,modes)
         solid=self.resource({'id':'std.author-solid','type':'texture','path':self.owner.solid_path})
         threshold=node(prefix+'.threshold','sprite',{'x':0,'y':-.10,'width':2/300,'height':1.2,
@@ -470,7 +497,9 @@ class Frame:
             properties={'x':1,'y':1,'rotation':180} if self.p2 else {},children=[threshold,cleared])
         self.variant(threshold_direction['id'],'visible','gauge.type',False,
                      {'normal':True,'easy':True,'assist-easy':True})
-        self.info.append(node(prefix+'.body',properties=rect(bounds),children=[dark,reveal,threshold_direction]))
+        shown = node(prefix+'.shown', children=[reveal,threshold_direction])
+        self.variant(shown['id'], 'visible', 'option.gauge-display', False, {'a':True})
+        self.info.append(node(prefix+'.body',properties=rect(bounds),children=[dark,shown]))
         anchors=[self.draws(f'percent_{self.player}_{i}',self.side)[-1] for i in range(3)]
         advance=anchors[0]['bounds']['left']-anchors[1]['bounds']['left']
         font,height=self.font('gauge',self.key,{str(i):f'playm_gg_{i:02}' for i in range(10)},advance)
@@ -478,16 +507,24 @@ class Frame:
         percent={**union(anchors[:2]),'right':anchors[0]['bounds']['left']+advance+1}
         readout=self.number('gauge.percent','gauge.value',percent,font,height,fmt='percent')
         self.steps(readout['id'],'opacity','gauge.value',[(0,1),(.995,0)])
-        self.info.append(readout)
         hundred=[]
         for i,anchor in enumerate(anchors):
             resource,_=self.asset(self.key,f'playm_gg_{1 if i==2 else 0:02}')
             hundred.append(node(prefix+f'.hundred.n{i}','sprite',rect(anchor['bounds']),resource))
         group=node(prefix+'.hundred',children=hundred)
         self.steps(group['id'],'opacity','gauge.value',[(0,0),(.995,1)])
-        self.info.append(group)
+        percentages = node(prefix+'.percentages', children=[readout,group])
+        self.variant(percentages['id'], 'visible', 'option.gauge-display', True, {'c':False})
+        self.info.append(percentages)
+        for index, hyphen in enumerate(self.draws('percent_'+self.player+'_hypen', self.side)):
+            hyphen_resource, _ = self.asset(hyphen['asset']['package'], hyphen['texture'])
+            dash = node(prefix+f'.hyphen.n{index}', 'sprite', rect(hyphen['bounds']), hyphen_resource)
+            self.variant(dash['id'], 'visible', 'option.gauge-display', False, {'c':True})
+            self.info.append(dash)
         self.evidence.append({'gaugePercent':'Original ones/tens/hundreds hooks; native compressed hundred position retained.',
-                              'advance':advance,'roundedHundredThreshold':.995})
+                              'advance':advance,'roundedHundredThreshold':.995,
+                              'visibility':'26 original A=bar+percent, B=dark bar+percent, C=dark bar+source hyphen if present;25 has no hyphen hook.',
+                              'darkUnderlayOpacity':.2})
         hazard=node(prefix+'.hazard','text',{**rect(box(bounds['left'],bounds['bottom']+1,150,12)),
                     'text':'HAZARD / SURVIVAL','font-size':10*LOGICAL,'colour':'#ffffffff'})
         self.variant(hazard['id'],'visible','gauge.type',False,{'hazard':True})
@@ -511,7 +548,7 @@ class Frame:
 
     def graph(self):
         from standard_graph import build_graph
-        exported = build_graph(self.owner.library, self.layout)
+        exported = build_graph(self.owner.library, self.layout, self.owner.feedback_font)
         for file in exported['files']:
             self.owner.copy(file['source'], file['path'], file['sha256'])
         for declaration in exported['resources']:
@@ -520,9 +557,75 @@ class Frame:
             if declaration['id'] in self.fonts:
                 raise ValueError('Graph font ID collision')
             self.fonts[declaration['id']] = declaration
-        for field in ('templates', 'instances', 'bindings', 'variants', 'tracks'):
-            self.scene[field].extend(exported[field])
+        for field in ('templates', 'instances', 'bindings', 'variants', 'tracks', 'numericSources'):
+            self.scene.setdefault(field, []).extend(exported.get(field, []))
         self.evidence.append({'graph': exported['receipt']})
+
+    def feedback(self):
+        from customization_modules import material_contexts
+        from standard_feedback import build_feedback
+        exported = build_feedback(self.owner.library, self.research / 'skin-reference-map.json',
+            style=self.style, layout=self.layout, centre_movie=self.centre, centre_dx=self.dx,
+            contexts=[c for c in material_contexts() if c['layout'] == self.layout],
+            font_path=self.owner.source_font, output=self.owner.output,
+            judgement_position_option='judgement-position', prepared_font=self.owner.feedback_font)
+        for file in exported['files']:
+            self.owner.copy(file['source'], file['path'], file['sha256'])
+        for declaration in exported['resources']:
+            self.resource(declaration)
+        for declaration in exported['bitmapFonts']:
+            self.fonts[declaration['id']] = declaration
+        for field in ('templates', 'instances', 'bindings', 'variants', 'tracks', 'numericSources'):
+            self.scene.setdefault(field, []).extend(exported.get(field, []))
+        for target in exported['targets']:
+            key = target['scope'], target['target'], target['slot']
+            if key in self.material_targets:
+                raise ValueError('Competing feedback material ownership')
+            self.material_targets[key] = target['material']
+        for option in exported['options']:
+            old = self.owner.additional_options.setdefault(option['id'], option)
+            if old != option:
+                raise ValueError('Frame feedback option contracts differ')
+        self.evidence.append({'feedback': exported['receipt']})
+        self.failure_feedback()
+
+    def failure_feedback(self):
+        clip = self.owner.failure_clip
+        for resource in clip['resources']:
+            self.resource(resource)
+        for animation in clip['animations']:
+            self.animations[animation['id']] = animation
+        # A direct explicit Global child retains SafeBounds, while a material-selected
+        # template would project every child into hud.text's native footer surface.
+        # hud.text shares HudForeground with judgements; decoration's Overlay layer
+        # cannot cover them, regardless of its local z. Keep the failure independent
+        # of both ruleset JUDGE templates and their preference/preparation gates.
+        self.scene['root']['children'].append(node(self.prefix + '.failure',
+            properties={'z': -100}, slot='hud.text', children=[copy.deepcopy(clip['node'])]))
+        self.scene['failureOutro'] = 3000
+        self.evidence.append({'failure': {**self.owner.failure_receipt,
+            'mount': 'One direct Global hud.text foreground owner with an explicit slotless Global child using frozen SafeBounds; independent of JUDGE preferences and preparation. Original gameplay.fail clip and 3000 ms outro are unchanged.'}})
+
+    def gauge_feedback(self):
+        source = self.owner.gauge_feedback[f'f{self.style:02}'][self.layout]
+        for resource in source['resources']:
+            self.resource(resource)
+        for animation in source['animations']:
+            self.animations[animation['id']] = animation
+        once, loop, initial = [copy.deepcopy(source[key]) for key in ('oneShot', 'loop', 'initial')]
+        uncleared = node(self.prefix + '.gauge-feedback.uncleared', children=[once])
+        self.variant(uncleared['id'], 'visible', 'gauge.clear-state', False, {'uncleared': True})
+        after_increase = node(self.prefix + '.gauge-feedback.increased', children=[loop])
+        self.bind(after_increase['id'], 'visible', 'gauge.increase-available')
+        before_increase = node(self.prefix + '.gauge-feedback.initial', children=[initial])
+        self.variant(before_increase['id'], 'visible', 'gauge.increase-available', True, {'true': False})
+        cleared = node(self.prefix + '.gauge-feedback.clear', children=[before_increase, after_increase])
+        self.variant(cleared['id'], 'visible', 'gauge.clear-state', False, {'clear': True})
+        self.info.extend((uncleared, cleared))
+        self.evidence.append({'gaugeFeedback': {'source': source['source'],
+            'scope': 'Exact per-cabinet original canvas; independent of Gauge A/B/C and centre Graph displacement.',
+            'lifecycle': 'Real OMS health increases restart the one-shot below clear and the loop at/above clear. Initially clear with no observed increase uses gameplay.attach; it does not fabricate an increase event.',
+            'adaptation': 'OMS actual health increases replace the original displayed two-percent quantisation; actual OMS gauge clear-state supplies the threshold.'}})
 
     def controls(self):
         from customization_modules import material_contexts
@@ -551,8 +654,9 @@ class Frame:
                 continue
             if context['group']==0:
                 self.ini += [COMMON,'Target: Global '+context['suffix'],
-                    f'stage.background: resource Provide "{background}"',f'decoration: resource Provide "{information}"',
-                    'hud.text: resource Suppress']
+                    f'stage.background: resource Provide "{background}"',
+                    self.feedback_material('Global', context['suffix'], 'decoration', f'Provide "{information}"'),
+                    f'hud.text: resource Provide "{self.owner.empty_path[:-4]}"']
                 if context['ruleset']=='bms':
                     self.ini.append('bga.frame: resource Suppress')
             self.ini += [COMMON,'Target: Stage '+context['stage'],
@@ -560,7 +664,8 @@ class Frame:
                 'decoration: resource Suppress',
                 'hud.gauge: resource Suppress','hud.combo: resource Suppress','hud.text: resource Suppress']
             for slot in ('stage.foreground','playfield.backdrop','playfield.baseplate','playfield.judgement-line'):
-                self.ini.append(f'{slot}: resource Provide "{self.owner.empty_path[:-4]}"')
+                self.ini.append(self.feedback_material('Stage', context['stage'], slot,
+                    f'Provide "{self.owner.empty_path[:-4]}"'))
             for lane in context['lanes']:
                 self.ini += [COMMON,'Target: Lane '+lane['target']]
                 self.ini.append(f'playfield.key: resource Provide "{controls[lane["target"]]}"')
@@ -569,9 +674,16 @@ class Frame:
                 self.ini.append('effect.key-flash: resource Suppress')
         return profiles
 
+    def feedback_material(self, scope, target, slot, fallback):
+        resource = self.material_targets.get((scope, target, slot))
+        return f'{slot}: resource Provide "{resource}"' if resource else f'{slot}: resource {fallback}'
+
     def build(self):
         background=self.background()
         self.numbers();self.header();self.gauge();self.progress();self.graph()
+        self.gauge_feedback()
+        self.feedback()
+        self.reading()
         information=self.template('information',node(self.prefix+'.information',children=self.info),'decoration')
         controls=self.controls()
         profiles=self.material_ini(background,information,controls)
@@ -599,9 +711,56 @@ class Frame:
                                    'stage':self.map['stage'],'sourceLibraryOnly':True,'adaptations':self.evidence})
         return {field:relative+'/'+name for field,name in (('manifest','manifest.json'),('scene','scene.json'),('ini','materials.ini'))}
 
+    def reading(self):
+        from standard_reading import add_reading, add_arrival
+        from standard_cover_readout import add_cover_readouts
+        add_reading(self, self.owner.reading_ready, self.owner.feedback_font, self.owner.source_font)
+        add_cover_readouts(self, self.owner.feedback_font)
+        add_arrival(self)
+
 
 def build(args):
     owner=Package(args.library,args.output,args.image_tools)
+    from standard_feedback import prepare_feedback_font
+    from standard_reading import OPTIONS as READING_OPTIONS
+    from standard_presentation_options import BRIGHTNESS_OPTION
+    owner.presentation_assets = args.presentation_assets.resolve(strict=True)
+    owner.source_font = args.source_font.resolve(strict=True)
+    owner.feedback_font = prepare_feedback_font(owner.source_font, owner.output)
+    reading = read(args.reading_assets / 'reading.json')
+    if (reading.get('contract') != 'oms-standard-reading-assets.v1'
+            or reading.get('librarySHA256') != sha(owner.library / 'library.json')):
+        raise ValueError('READY export must belong to this exact independent26 library')
+    owner.reading_ready = reading['clips']
+    for row in reading['files']:
+        owner.copy(contained(args.reading_assets.resolve(), row['path']), row['path'], row['sha256'])
+    gauge = read(args.gauge_assets / 'gauge-feedback.json')
+    failure = read(args.failure_assets / 'failure.json')
+    for catalog, contract, directory in ((gauge, 'oms-standard-gauge-feedback.v1', args.gauge_assets),
+                                          (failure, 'oms-standard-failure.v1', args.failure_assets)):
+        if catalog.get('contract') != contract or catalog.get('librarySHA256') != sha(owner.library / 'library.json'):
+            raise ValueError('Stage feedback must belong to this exact independent26 library')
+        for row in catalog['files']:
+            owner.copy(contained(directory.resolve(), row['path']), row['path'], row['sha256'])
+    owner.gauge_feedback = gauge['frames']
+    owner.failure_clip, owner.failure_receipt = failure['clip'], failure['receipt']
+    import brotli
+    for layouts in owner.gauge_feedback.values():
+        for clip in layouts.values():
+            animation = copy.deepcopy(clip['animations'][1])
+            program = json.loads(brotli.decompress((owner.output / animation['path']).read_bytes()))
+            if program['trigger'] != 'gauge.increase' or not program['loop']:
+                raise ValueError('Initial clear-loop must derive from the exact increase loop')
+            program['trigger'] = 'gameplay.attach'
+            animation['id'] += '.initial'
+            animation['path'] = str(Path(animation['path']).with_name('initial.json.br')).replace('\\', '/')
+            path = owner.output / animation['path']
+            path.write_bytes(brotli.compress(json.dumps(program, separators=(',', ':'), allow_nan=False).encode(), quality=5))
+            owner.files[animation['path']] = sha(path)
+            clip['animations'].append(animation)
+            clip['initial'] = copy.deepcopy(clip['loop'])
+            clip['initial']['id'] += '.initial'
+            clip['initial']['animation'] = animation['id']
     choices=[]
     for style in FRAMES:
         parts={layout:Frame(owner,args.research/f'gmframe{style:02}',style,layout).build() for layout in ('p1','p2','dp')}
@@ -633,37 +792,55 @@ def build(args):
             raise ValueError('A component revision cannot change its source identity')
         positions={module['id']:i for i,module in enumerate(components['modules'])}
         for module in replacement['modules']:
-            components['modules'][positions[module['id']]]=module
+            if module['id'] in positions:
+                components['modules'][positions[module['id']]]=module
+            else:
+                components['modules'].append(module)
+        option_positions = {option['id']:i for i,option in enumerate(components['options'])}
         for option in replacement['options']:
-            if option not in components['options']:
-                raise ValueError('A component revision must retain its declared option contract')
+            if option['id'] in option_positions:
+                components['options'][option_positions[option['id']]] = option
+            else:
+                components['options'].append(option)
         for row in replacement['files']:
             files[row['path']]=(override.resolve(),row)
     for root,row in files.values():
         owner.copy(contained(root,row['path']),row['path'],row['sha256'])
+    from standard_graph_targets import export_graph_target_module
+    graph_targets = export_graph_target_module(owner.library, owner.output, owner.feedback_font)
+    for row in graph_targets['files']:
+        owner.copy(row['source'], row['path'], row['sha256'])
     root={'contract':MANIFEST,'scene':'gameplay-skin.scene.json','sceneContract':SCENE,'eventContract':EVENT,
           'resources':[],'contentCatalog':'gameplay/content.json','options':[
               {'id':'layout','type':'choice','label':'游玩区域样式','default':'p1','effect':'presentation',
                'keymodes':['5k','6k','7k','8k'],'choices':[{'value':'p1','label':'1P（左侧）'},{'value':'p2','label':'2P（右侧）'}]},
               {'id':'frame-opening','type':'toggle','label':'框体入场与持续动画','default':True},
-              {'id':'graph-visible','type':'toggle','label':'Graph Area 显示统计','default':True},*components['options']]}
+              {'id':'graph-visible','type':'toggle','label':'Graph Area 显示统计','default':True},
+              {'id':'gauge-display','type':'choice','label':'Gauge 显示','default':'a',
+               'choices':[{'value':'a','label':'Type A（血槽与百分比）'},
+                          {'value':'b','label':'Type B（百分比）'},
+                          {'value':'c','label':'Type C（隐藏数值）'}]},
+              BRIGHTNESS_OPTION, *READING_OPTIONS, *graph_targets['options'], *owner.additional_options.values(), *components['options']]}
+    if len({option['id'] for option in root['options']}) != len(root['options']):
+        raise ValueError('The final independent package has duplicate option ownership')
     write(owner.output/'gameplay-skin.json',root)
     write(owner.output/'gameplay-skin.scene.json',document('std.root'))
     write(owner.output/'gameplay/content.json',{'contract':'oms-gameplay-skin-content.v1','modules':[
-        {'id':'frame','label':'Game Frame','default':'iidx26','choices':choices},*components['modules']]})
+        {'id':'frame','label':'Game Frame','default':'iidx26','choices':choices}, graph_targets['module'], *components['modules']]})
     (owner.output/'skin.ini').write_text(f'[General]\nName: {NAME}\nAuthor: OMS local author\nVersion: 2.7\n',encoding='utf-8')
     write(owner.output.with_name(owner.output.name+'.source-receipt.json'),{'name':NAME,'status':'generated-pending-author-cli-and-player',
         'frames':[f'iidx{x:02}' for x in FRAMES],'sourceLibrary':str(owner.library),'sourceExclusions':owner.exclusions,
         'frameReceipts':owner.receipts,'frameSourceAssets':list(owner.sources.values()),
         'componentsSource':str(args.components),'componentOverrides':[str(p) for p in args.component_overrides],
+        'graphTargets':graph_targets['receipts'],
         'noLightningArtworkInputs':True,
         'scope':'Private independent gameplay skin; native OMS song selection and results; original runtime parity is a separate evidence boundary.'})
-    print(json.dumps({'author':str(owner.output),'frames':len(choices),'modules':len(components['modules'])+1}))
+    print(json.dumps({'author':str(owner.output),'frames':len(choices),'modules':len(components['modules'])+2}))
 
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser(description=__doc__)
-    for field in ('library','research','components','output','image-tools'):
+    for field in ('library','research','components','output','image-tools','reading-assets','source-font','presentation-assets','gauge-assets','failure-assets'):
         parser.add_argument('--'+field,type=Path,required=True)
     parser.add_argument('--component-overrides',type=Path,nargs='*',default=[])
     build(parser.parse_args())

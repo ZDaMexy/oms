@@ -61,6 +61,8 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public IBindable<double> ScrollLengthRatio => scrollLengthRatio;
 
+        internal void MountAuthoredSpeedPreview(BmsPreStartSpeedPreview preview) => AddInternal(preview);
+
         public BindableFloat LiftUnits { get; } = new BindableFloat();
 
         public GameplaySkinLiftState GameplaySkinLiftState

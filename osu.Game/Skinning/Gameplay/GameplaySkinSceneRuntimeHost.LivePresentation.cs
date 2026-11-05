@@ -38,6 +38,8 @@ namespace osu.Game.Skinning.Gameplay
             {
                 case GameplaySkinSceneBindingSource.ScrollAvailable: value = timingState.AdjustmentState.IsAvailable; return true;
                 case GameplaySkinSceneBindingSource.ScrollActualHiSpeedAvailable: value = timingState.AdjustmentState.ActualHiSpeed != null; return true;
+                case GameplaySkinSceneBindingSource.ScrollGreenNumberRangeAvailable: value = timingState.AdjustmentState.GreenNumberRangeAvailable; return true;
+                case GameplaySkinSceneBindingSource.ScrollPreviewAvailable: value = timingState.AdjustmentState.PreviewPhase.HasValue; return true;
                 case GameplaySkinSceneBindingSource.ScrollAdjusting: value = timingState.AdjustmentState.Adjusting; return true;
                 case GameplaySkinSceneBindingSource.CoverSuddenActive: value = timingState.AdjustmentState.SuddenActive; return true;
                 case GameplaySkinSceneBindingSource.CoverHiddenActive: value = timingState.AdjustmentState.HiddenActive; return true;
@@ -59,6 +61,7 @@ namespace osu.Game.Skinning.Gameplay
                 case GameplaySkinSceneBindingSource.ScorePacemakerNextAvailable: value = pacemakerNext.Available; return true;
                 case GameplaySkinSceneBindingSource.ScoreMaximumAvailable: value = scoreState.MaximumScore > 0; return true;
                 case GameplaySkinSceneBindingSource.ScoreRankAvailable: value = rankAvailable; return true;
+                case GameplaySkinSceneBindingSource.GaugeIncreaseAvailable: value = scoreState.LastGaugeIncreaseAt.HasValue; return true;
                 default: value = false; return false;
             }
         }
@@ -68,6 +71,9 @@ namespace osu.Game.Skinning.Gameplay
             switch (source)
             {
                 case GameplaySkinSceneBindingSource.ScrollGreenNumber: value = timingState.AdjustmentState.GreenNumber; return true;
+                case GameplaySkinSceneBindingSource.ScrollGreenNumberMinimum: value = timingState.AdjustmentState.GreenNumberMinimum ?? 0; return true;
+                case GameplaySkinSceneBindingSource.ScrollGreenNumberMaximum: value = timingState.AdjustmentState.GreenNumberMaximum ?? 0; return true;
+                case GameplaySkinSceneBindingSource.ScrollPreviewPhase: value = timingState.AdjustmentState.PreviewPhase ?? 0; return true;
                 case GameplaySkinSceneBindingSource.ScrollActualHiSpeed: value = timingState.AdjustmentState.ActualHiSpeed ?? 0; return true;
                 case GameplaySkinSceneBindingSource.CoverSuddenUnits: value = timingState.AdjustmentState.SuddenUnits; return true;
                 case GameplaySkinSceneBindingSource.CoverHiddenUnits: value = timingState.AdjustmentState.HiddenUnits; return true;
@@ -110,7 +116,7 @@ namespace osu.Game.Skinning.Gameplay
         }
 
         private double trackClock(GameplaySkinPreparedSceneTrack track, GameplaySkinSceneRuntimeNode node)
-            => presentationClock(track.ClockSource, track.ClockOptionId, node);
+            => presentationClock(track.ClockSource, track.ClockOptionId, node, track.ClockValueId);
 
         private static string adjustmentModeId(GameplaySkinHiSpeedMode mode)
             => mode switch
@@ -122,8 +128,10 @@ namespace osu.Game.Skinning.Gameplay
                 _ => throw new ArgumentOutOfRangeException(nameof(mode)),
             };
 
-        private double presentationClock(GameplaySkinSceneBindingSource source, string? optionId, GameplaySkinSceneRuntimeNode node)
+        private double presentationClock(GameplaySkinSceneBindingSource source, string? optionId, GameplaySkinSceneRuntimeNode node, string? valueId = null)
         {
+            if (source == GameplaySkinSceneBindingSource.NumericValue)
+                return tryNumericValue(valueId!, out double value) ? value : throw new InvalidOperationException("An unavailable derived clock must not be sampled.");
             if (tryPresentationNumber(source, node, out double presentation))
                 return presentation;
             return source switch

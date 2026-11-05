@@ -1,6 +1,6 @@
 # Standard Model Skin Omni Until 26：独立作品记录
 
-2026-11-05。使用用户提供的 `D:\LDJ-2019090200`，完成 Lightning 框体之前的独立作品初版 **Standard Model Skin Omni Until 26.v26110500**，本地私下交付。当前状态由 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)引用本记录，工具入口为 [IidxSkinAssets](../../tools/IidxSkinAssets/README.md)。以下明确区分已实现、作者适配与尚未签收的原机细节。
+2026-11-05。使用用户提供的 `D:\LDJ-2019090200`，已私下交付初版 **Standard Model Skin Omni Until 26.v26110500**；原任务尚未完成，继续按Standard框体与26软件自身证据补齐实际遗漏。初版可玩不代表制作闭环，也不以Lightning的功能清单定义完成范围。当前状态由 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)引用本记录，工具入口为 [IidxSkinAssets](../../tools/IidxSkinAssets/README.md)。
 
 ## 身份与来源
 
@@ -12,7 +12,36 @@
 
 私有来源、PNG 摘要、展开指令及游戏截图分别保存在本机 `E:\OMS-Development\sources\OMS-Standard-Model-Until26-20261105` 与 `E:\OMS-Development\evidence\standard-model-20261105`。源码仓只维护提取算法、公开合同、无原图的测试和来源名称；原图及其私有摘要清单不入 Git。成品仍按 [IIDX 素材作品约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)独立私下使用，不内置或公开分发。
 
-## 制作范围
+## 当前补齐实现：候选待验
+
+以下是对 26 原软件、原素材与 v00 的独立差异审计所得，不是 Lightning 功能对照。新的作者工具和客户端来源正在整合，尚未完成新候选的 CLI、真实 Player、同包审图与交付验收；不能用下文 v00 的历史数字代签，也没有在此宣布闭环或新的最终版本。
+
+| 26 普通演奏部件 | 当前实现与来源 | 明确的 OMS 适配 |
+| --- | --- | --- |
+| Start 调速窗口、当前绿数与范围 | `standard_reading.py` 使用 `0/gameparts` 的 Normal/Floating 原窗、原滑块锚点，以及 26 的 DF 平成 Gothic W7 字体；绿数范围取实际最大端到最小端 | 原 Normal 只有十行；OMS 20 档分两页显示真实档位，Classic 明确另标。保持 OMS 速度公式，不冒充原 26 数学；窗口使用原稳态画面 |
+| Sudden / Hidden / Lift 边缘读数 | `standard_cover_readout.py` 沿原固定软件锚点显示白字、当前绿数和范围，保留原字号、补零与居中；实际 Start、各自 active 和已应用 Lift 控制显隐、位置 | 原白字是原像素换算的 0～999；这里显示 OMS 实际 0～1000，满值可四位。原 482px 裁切保留，Lift 反向滚动另作实际几何映射；不受 Start 面板偏好开关影响 |
+| Normal 速度预览与首排提示 | 唯一原生预览投影到原小窗；原 BPM 条的 38×27 图、30px 支点和强度变化读取同一预览的实际 phase。首排原图沿 active Sudden 顶边，完整图在 482px 处裁切 | 预览采用 OMS 两音符与同一暂停/激活时钟，未复刻原十六音符、每四音符线和十六帧开合。首排采用实际全局第一排与原生 200ms 退场，未冒充原课程难度资格和脉冲时钟 |
+| GET READY、普通失败演出 | 三份原 90 帧 READY 由准备时钟驱动；`standard_failure.py` 导出共享 `miss` 的完整 180 帧，绑定真实 `gameplay.fail` | 失败后使用独立 3000ms 视觉退场，曲时和计分停止，再交回原生失败界面；保留完整素材不代表原程序全部 180 帧都可见 |
+| 实时 JUDGE、FAST/SLOW、判定位置 | `standard_feedback.py` 使用各框体真实 JUDGE 钩子与原字体；原 A/B/C/OFF 位置、normal/up100/up200/up300/off 与实际 Lift 共用。BMS PR 汇总真实 miss 与空 POOR | mania 六档统计单独映射；不以缺一项统计为由冒充原 PR，也不移动 CN 固定判定线 |
+| Graph 目标与差分 | `standard_graph.py` / `standard_graph_targets.py` 使用原 Graph 艺术与原目标调用证据，增加 AAA/AA/A/CUSTOM/NEXT/NEXT+ 和差分，读取实际得分、理论满分、已有 PB | BMS 目标计算和原图组合属于 OMS 计分映射；没有实际对手或 ghost 数据时不补造数据。v00 的固定 MAXIMUM 红柱只属下文历史 |
+| Gauge A/B/C、增加提示、轨道亮度 | 原调用方证实 A 全显、B 保留百分比与暗底、C 暗底及有资格的原横线；原 `gauge_up` 取每款框体的三个源电影。轨底按原层序拆分，六级 RGB 亮度只作用 `lane_1p/2p` | 增加提示读取实际 Gauge 正增；达到实际 Clear 条件则循环，初始已 Clear 而无增长历史时取真实挂载起点。B/C 不禁用该光效；没有捏造初始增长，也不改变血量规则 |
+| EXP 七档、HCN 显示、长条持续效果、ASCR 显示 | `standard_components.py` 按 26 自身的七档范围与 HCN 外观选项组织；CN/HCN 光效改由真实长条对象在判定线驱动。ASCR OFF 只隐藏实际辅助 Scratch 对象的普通音符及长条头/体/尾 | 不更改自动辅助资格、输入或计分；HCN 采用 CN 外观不改变 HCN 状态。FC 的原宿主层序另有来源证据，当前候选仍需实际 FC17 画面确认 |
+
+原部件和研究出口仍只来自 26：`standard_presentation_options.py` 导出有原层序的轨底片段，`standard_gauge_effect.py` 导出三十份原 Gauge 电影，`standard_failure.py` 导出普通失败片段；整合器从同一私有库核对来源。公开脚本不含原美术或私有摘要。字体使用原 TTC 字形，在 Windows 内存 GDI 中生成固定字格；这不等于原游戏 GPU 字库采样逐像素相同。
+
+判定位置按原完整 PNG 的顶边 `342-offset-lift`，不能当作中心。原数字使用 37px advance，55px 原图的尾部光晕相互重叠；不裁图来凑间距。OMS 保留完整实际 COMBO，超过轨道时才按完整字形外伸等比收拢，并整体居中；原程序五槽上限及宿主 1～3px 取整偏移不冒称完全等价。实时 JUDGE 的 `FA:%4d/SL:%4d` 原单行固定字格本来伸出底板，按原坐标保留；这与误把整块 JUDGE 挂入底部信息槽造成的裁切不同。
+
+26 官方显示区域组合为 SUDDEN+、HIDDEN+、SUD+&HID+、LIFT、LIFT&SUD+，没有 Hidden+Lift。取景分别验证 LIFT&SUD+ 与 SUD+&HID+；OMS 额外允许的 Hidden+Lift 同开会让相近底边的读数相叠，不移动读数去冒充实际边界，也不将该组合记为原26能力。组合来源取[26 官方选项说明](https://p.eagate.573.jp/game/2dx/26/howto/play/option.html)。
+
+来源审计将条目分为已有、26 确有而 v00 未接、仅有资源或外部数据边界、26 不适用；每项分别记录当前实现路径与适配。普通失败、Gauge、ASCR、读谱预览及挡板读数的实际调用方已经核明，不能再笼统记为“资源存在，待查”。原 HD Start 参照和只读调用分析属于本轮证据；attract 的 HCN/Gauge 教学画面不签实际长条交互。最终实机证据仍由新候选独立取得。
+
+资源清单不是整款原游戏重做清单。Qpro 账户装扮、e-amusement 对手/ghost 和摄像头在 26 确实存在，但没有对应的 OMS 实际数据；当前作品不伪造角色、对手或视频流。`5key_auto` 是 HDD 中保留的图，十框体钩子、软件字面引用与[26 Assist 清单](https://p.eagate.573.jp/game/2dx/26/howto/play/option.html)未提供可用的 26 普通演奏调用证据，不能把真实 BMS 5K 称作该辅助模式。Beginner 教学属于[STEP UP 模式流程](https://p.eagate.573.jp/game/2dx/26/howto/mode/game_mode.html)。独立 LIFT CUSTOM、光柱长度、音符厚度由[31 官方新功能页](https://p.eagate.573.jp/game/2dx/31/howto/new/05.html)明确列为新增，不能用后代功能倒推 26 缺项；v00 的独立 LIFT 艺术选择因此是 OMS 作者扩展。
+
+当前私有证据集中在 `completion/source-coverage-audit.json` 和对应的 `native-*.json`，其分类以 v00/r12 为历史基线，后续实现另记。此来源审计不签新包的预算、可见效果、失败时钟或最终交付；这些项目完成前，Standard 任务仍在推进。
+
+## v00 已交付范围：历史
+
+本节只描述 `.v26110500` / r12，后续候选以上节为准。历史数量、图像和限制保持原身份，不因新增实现而改写成新候选的验收结果。
 
 Game Frame 10 款与配套部件共 11 类、609 款选择，275 张小预览。配套范围为 notes 12、charge-notes 1、judgement 14、explosion 20、key-beam 11、lane-cover 167、lift-art 167、turntable 21、graph-area 168、full-combo 18。LIFT 仅对已有原生能力的 BMS 开放；不为 mania 伪造 Lift。
 
@@ -37,6 +66,8 @@ mania 当前未提供 `scroll.hi-speed` 时数值隐藏，原框体内的 HI-SPE
 FC17 的 DP 源电影内，COMBO 大字本来宽于轨道，瞬间运动还会继续越界；Graph 开启时会遮住右侧部分字形。当前保留原电影和 Graph 的数据层优先级，未擅自重缩或补一个会裁掉更多字的舞台遮罩。这是可见限制，原游戏宿主的额外变换/裁切尚未确认；其它 FC 选择与默认 FC00 不由这一项推断。
 
 ## 验证与原版参照
+
+以下是 v00/r12 的历史验收，不覆盖上节新增的客户端字段、长条挂载、Start/反馈、Gauge 或失败演出。新候选需独立填写验证与交付记录。
 
 离线复核十框体共 100 个源布局与 160 个运动/持续片段；输出无未知指令警告，逐层几何重投影最大误差约 1.14×10⁻¹³。普通键 60907 次源帧矩阵检查未发现该入场片段中键帽位置变化。部件审查逐项核对 2708 个初始文件、1212 次原图复制和 560 个字形像素区域；PG/FC 修订与 Turntable 运动增量另与原部件合并核对。以上均为来源与软件证据，不是游戏实绘验收。
 

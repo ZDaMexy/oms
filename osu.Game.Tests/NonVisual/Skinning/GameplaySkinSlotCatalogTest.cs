@@ -16,7 +16,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
     [TestFixture]
     public sealed class GameplaySkinSlotCatalogTest
     {
-        private const string canonical_contract_sha256 = "e2816b782ffb916c3745f898d7484385a1182ffbd17b6c49230069cd89814f01";
+        private const string canonical_contract_sha256 = "f404512a836c064f6256e419f823f02a068b3a9f7539a05010d1a46d3e9e5b0a";
 
         private const string catalog_block_begin = "<!-- GAMEPLAY-SKIN-CATALOG:BEGIN -->";
         private const string catalog_block_end = "<!-- GAMEPLAY-SKIN-CATALOG:END -->";

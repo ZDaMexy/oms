@@ -49,6 +49,7 @@ namespace osu.Game.Rulesets.Mania.UI
         internal readonly Container TopLevelContainer = new Container { RelativeSizeAxes = Axes.Both };
 
         private DrawablePool<PoolableHitExplosion> hitExplosionPool = null!;
+        private DrawablePool<ManiaLongNoteEffect>? longNoteEffectPool;
         private readonly OrderedHitPolicy hitPolicy;
         public Container UnderlayElements => HitObjectArea.UnderlayElements;
 
@@ -189,6 +190,15 @@ namespace osu.Game.Rulesets.Mania.UI
 
             BackgroundContainer.Add(columnBackground);
             TopLevelContainer.Add(HitObjectArea.Explosions.CreateProxy());
+
+            if (sceneRuntime != null && materialContext.UsesResolvedMaterial)
+            {
+                var key = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LongNoteEffect, materialContext.Target);
+                if (sceneRuntime.TryGetVisualGate(key, out GameplaySkinSceneHostedSlot? gate)
+                    && gate?.Route == GameplaySkinSceneHostRoute.Specialised
+                    && (gate.RoutedNodes.Count > 0 || gate.PreparedRoute.SpecialisedTexture != null))
+                    AddInternal(longNoteEffectPool = new ExactLongNoteEffectPool(sceneRuntime, key));
+            }
 
             if (sceneRuntime != null && materialContext.UsesResolvedMaterial)
             {
@@ -544,6 +554,37 @@ namespace osu.Game.Rulesets.Mania.UI
 
             protected override PoolableHitExplosion CreateNewDrawable()
                 => new PoolableHitExplosion(sceneRuntime, key);
+        }
+
+        internal long LongNoteEffectCapacityDropCount { get; private set; }
+
+        internal ManiaLongNoteEffect? AcquireLongNoteEffect(long objectId)
+        {
+            if (longNoteEffectPool == null)
+                return null;
+            if (longNoteEffectPool.CountInUse >= GameplaySkinPreparedSceneBudgets.MAX_LONG_NOTE_EFFECT_VISUALS_PER_KEY)
+            {
+                LongNoteEffectCapacityDropCount++;
+                return null;
+            }
+            ManiaLongNoteEffect effect = longNoteEffectPool.Get(candidate => candidate.Apply(objectId));
+            HitObjectArea.Explosions.Add(effect);
+            return effect;
+        }
+
+        private sealed partial class ExactLongNoteEffectPool : DrawablePool<ManiaLongNoteEffect>
+        {
+            private readonly GameplaySkinSceneRuntimeHost runtime;
+            private readonly GameplaySkinResolvedMaterialKey key;
+
+            public ExactLongNoteEffectPool(GameplaySkinSceneRuntimeHost runtime, GameplaySkinResolvedMaterialKey key)
+                : base(1, GameplaySkinPreparedSceneBudgets.MAX_LONG_NOTE_EFFECT_VISUALS_PER_KEY)
+            {
+                this.runtime = runtime;
+                this.key = key;
+            }
+
+            protected override ManiaLongNoteEffect CreateNewDrawable() => new(runtime, key);
         }
 
         private sealed partial class SharedKeysoundTriggerSource : GameplaySampleTriggerSource

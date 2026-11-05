@@ -98,6 +98,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
 
         public GameplaySkinLayoutRect PreStartPreviewRect => Neutral.GetSurface(BmsGameplayLayoutSurfaceIds.PreStartPreview).Rect;
 
+        public bool HasAuthoredNormalSpeedPreview { get; }
+
         public GameplaySkinLayoutRect GaugeRect => Neutral.GetSurface(BmsGameplayLayoutSurfaceIds.Gauge).Rect;
 
         public GameplaySkinLayoutRect ComboRect => Neutral.GetSurface(BmsGameplayLayoutSurfaceIds.Combo).Rect;
@@ -130,7 +132,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
             BmsPlayfieldLayoutProfile profile,
             BmsLaneLayout laneLayout,
             IEnumerable<BmsAction> laneActions,
-            IEnumerable<GameplaySkinBgaScaleMode> bgaViewportScaleModes)
+            IEnumerable<GameplaySkinBgaScaleMode> bgaViewportScaleModes,
+            bool hasAuthoredNormalSpeedPreview = false)
         {
             Neutral = neutral ?? throw new ArgumentNullException(nameof(neutral));
             Profile = profile ?? throw new ArgumentNullException(nameof(profile));
@@ -138,6 +141,7 @@ namespace osu.Game.Rulesets.Bms.Skinning
             KeymodeResolution = keymodeResolution ?? throw new ArgumentNullException(nameof(keymodeResolution));
             Keymode = keymodeResolution.Keymode;
             Style = style;
+            HasAuthoredNormalSpeedPreview = hasAuthoredNormalSpeedPreview;
 
             GameplaySkinBgaScaleMode[] copiedBgaModes = bgaViewportScaleModes.ToArray();
             if (copiedBgaModes.Length != neutral.BgaViewports.Count)

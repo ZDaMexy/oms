@@ -37,6 +37,37 @@ namespace osu.Game.Rulesets.Bms.Tests
         {
             Assert.That(beatmap.TimingProfile!.MinimumBpm, Is.EqualTo(120));
             Assert.That(beatmap.TimingProfile.MaximumBpm, Is.EqualTo(240));
+            Assert.That(beatmap.TimingProfile.MinimumReadingRate, Is.EqualTo(60));
+            Assert.That(beatmap.TimingProfile.MaximumReadingRate, Is.EqualTo(120));
+        }
+
+        [Test]
+        public void TestReadingRangeUsesPairedRatesAndKeepsTheMusicalReferenceDuringFreezeOrReverse()
+        {
+            var profile = new BmsTimingProfile(new[]
+            {
+                new BmsTimingSegment(0, 0, 120, false, .5),
+                new BmsTimingSegment(1000, 2, 240, false, .25),
+                new BmsTimingSegment(2000, 6, 150, false, 2),
+                new BmsTimingSegment(3000, 8.5, 180, false, 0),
+                new BmsTimingSegment(4000, 11.5, 210, false, -2),
+                new BmsTimingSegment(5000, 15, 60, true, 1),
+            }, new[] { 0d });
+            Assert.That(profile.MinimumReadingRate, Is.EqualTo(60));
+            Assert.That(profile.MaximumReadingRate, Is.EqualTo(300),
+                "BPM 240 never has SCROLL 2, and zero/reverse SCROLL must not invent a zero/absolute forward reading rate.");
+        }
+
+        [Test]
+        public void TestReadingRangeUsesTheSameMinimumEffectiveBpmAsNativeScrolling()
+        {
+            var profile = new BmsTimingProfile(new[]
+            {
+                new BmsTimingSegment(0, 0, .0001, false, 1),
+                new BmsTimingSegment(1000, 0, 120, false, 1),
+            }, new[] { 0d });
+            Assert.That(profile.MinimumReadingRate, Is.EqualTo(.001));
+            Assert.That(profile.MaximumReadingRate, Is.EqualTo(120));
         }
 
         [Test]

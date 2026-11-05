@@ -126,6 +126,9 @@ namespace osu.Game.Skinning.Gameplay
         public static GameplaySkinSlotDescriptor LiftDecoration { get; } = bmsOptional(
             "playfield.lift.decoration", "LiftDecoration", GameplaySkinSlotScope.Stage, bmsNonLane(), "OMS-SKIN-SLOT-032");
 
+        public static GameplaySkinSlotDescriptor LongNoteEffect { get; } = optional(
+            "effect.long-note", "LongNoteEffect", GameplaySkinSlotScope.Lane, commonLane(), "OMS-SKIN-SLOT-033");
+
         public static IReadOnlyList<GameplaySkinSlotDescriptor> All { get; } = Array.AsReadOnly(
         [
             LaneSurface,
@@ -160,6 +163,7 @@ namespace osu.Game.Skinning.Gameplay
             AuxiliaryConcentrationDisplay,
             LiftFill,
             LiftDecoration,
+            LongNoteEffect,
         ]);
 
         public static IReadOnlyList<GameplaySkinSlotDescriptor> Common { get; } = Array.AsReadOnly(All.Where(slot => slot.CatalogFamily == GameplaySkinSlotCatalogFamily.Common).ToArray());

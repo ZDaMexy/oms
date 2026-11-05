@@ -54,10 +54,12 @@ namespace osu.Game.Skinning.Gameplay
 
         public IReadOnlyList<Drawable> RootDrawables { get; }
         public double? RequestedJudgementDuration { get; }
+        public double? RequestedLongNoteOutroDuration { get; }
 
         public bool IsApplied { get; private set; }
 
         public long? BoundObjectId { get; private set; }
+        internal long? RetainedLongNoteObjectId { get; set; }
 
         internal GameplaySkinSpecialisedSceneVisual(
             GameplaySkinSceneRuntimeHost host,
@@ -77,6 +79,10 @@ namespace osu.Game.Skinning.Gameplay
             double duration = RuntimeNodes.Select(node => node.ContentDrawable).OfType<GameplaySkinRecordedAnimationDrawable>()
                 .Where(animation => animation.Program.Trigger == "judgement.hit").Select(animation => animation.Program.Duration).DefaultIfEmpty(0).Max();
             RequestedJudgementDuration = duration > 0 ? duration : null;
+            double longNoteDuration = RuntimeNodes.Select(node => node.ContentDrawable).OfType<GameplaySkinRecordedAnimationDrawable>()
+                .Where(animation => (animation.Program.Trigger is "object.state" or "object.long-note-transition") && !animation.Program.Loop)
+                .Select(animation => animation.Program.Duration).DefaultIfEmpty(0).Max();
+            RequestedLongNoteOutroDuration = longNoteDuration > 0 ? longNoteDuration : null;
             Drawable[] copiedRoots = [.. roots];
             RootDrawables = Array.AsReadOnly(copiedRoots);
             RelativeSizeAxes = Axes.Both;
@@ -136,6 +142,26 @@ namespace osu.Game.Skinning.Gameplay
             RefreshVisibility(false);
         }
 
+        /// <summary>
+        /// Ends a real native long-note lease's continuous effects while retaining its bounded one-shot outro.
+        /// This does not publish an object state or replace the original gameplay-time animation origin.
+        /// </summary>
+        public void FinishLongNoteEffect()
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (Key.Slot != GameplaySkinSlotCatalog.LongNoteEffect)
+                throw new InvalidOperationException("Only a native long-note effect lease has a long-note outro.");
+
+            foreach (GameplaySkinSceneRuntimeNode node in RuntimeNodes)
+            {
+                if (node.ContentDrawable is not GameplaySkinRecordedAnimationDrawable { Program.Loop: true } animation)
+                    continue;
+
+                node.IsAnimationActive = false;
+                animation.ApplyTime(-1);
+            }
+        }
+
         internal void RefreshVisibility(bool sceneReady)
             => Alpha = !failed && IsApplied && sceneReady ? 1 : 0;
 
@@ -179,6 +205,49 @@ namespace osu.Game.Skinning.Gameplay
             [];
 
         private long nextSpecialisedVisualId;
+
+        // Only exact native effect leases retain a terminal object after its normal event despawn. Storage is
+        // bounded by the same per-lane pools, and is discarded at every complete snapshot/epoch barrier.
+        private readonly Dictionary<long, (int Leases, GameplaySkinObjectStateSnapshot? State)> longNoteEffectObjects =
+            new(GameplaySkinEventBudgets.MAX_ACTIVE_OBJECTS);
+
+        private void bindLongNoteEffect(GameplaySkinSpecialisedSceneVisual visual, long? objectId)
+        {
+            if (visual.Key.Slot != GameplaySkinSlotCatalog.LongNoteEffect)
+                return;
+            long? previousId = visual.RetainedLongNoteObjectId;
+            if (previousId.HasValue && longNoteEffectObjects.TryGetValue(previousId.Value, out var previous))
+            {
+                if (previous.Leases == 1)
+                    longNoteEffectObjects.Remove(previousId.Value);
+                else
+                    longNoteEffectObjects[previousId.Value] = (previous.Leases - 1, previous.State);
+            }
+            if (objectId.HasValue)
+            {
+                var current = longNoteEffectObjects.GetValueOrDefault(objectId.Value);
+                GameplaySkinObjectStateSnapshot? state = objects.TryGetValue(objectId.Value, out var active) ? active : current.State;
+                longNoteEffectObjects[objectId.Value] = (current.Leases + 1, state);
+            }
+            visual.RetainedLongNoteObjectId = objectId;
+        }
+
+        private void retainLongNoteEffectObject(GameplaySkinObjectStateSnapshot state)
+        {
+            if (longNoteEffectObjects.TryGetValue(state.ObjectId, out var retained))
+                longNoteEffectObjects[state.ObjectId] = (retained.Leases, state);
+        }
+
+        private void resetLongNoteEffectObjects()
+        {
+            // Complete snapshots are infrequent control-plane operations; no per-edge collection is allocated.
+            foreach (long id in longNoteEffectObjects.Keys.ToArray())
+            {
+                var retained = longNoteEffectObjects[id];
+                GameplaySkinObjectStateSnapshot? state = objects.TryGetValue(id, out var active) ? active : null;
+                longNoteEffectObjects[id] = (retained.Leases, state);
+            }
+        }
 
         /// <summary>
         /// Prebuilds one reusable visual into an engine-owned local geometry container.
@@ -320,6 +389,7 @@ namespace osu.Game.Skinning.Gameplay
 
         internal void ReleaseSpecialisedVisual(GameplaySkinSpecialisedSceneVisual visual)
         {
+            bindLongNoteEffect(visual, null);
             if (!specialisedVisuals.Remove(visual))
                 return;
 
@@ -470,6 +540,7 @@ namespace osu.Game.Skinning.Gameplay
 
             foreach (GameplaySkinSpecialisedSceneVisual visual in failedVisuals)
             {
+                bindLongNoteEffect(visual, null);
                 specialisedVisuals.Remove(visual);
                 rollbackSpecialisedNodes(visual.RuntimeNodes);
                 int untrackedInstances = visual.RuntimeInstanceCost - visual.RuntimeNodes.Sum(node => runtimeInstanceCost(node.PreparedNode));
@@ -500,6 +571,8 @@ namespace osu.Game.Skinning.Gameplay
             if (!specialisedVisuals.Contains(visual))
                 return;
 
+            bindLongNoteEffect(visual, objectId);
+
             GameplaySkinCurrentJudgementStateSnapshot? judgement = null;
             long? epoch = null;
 
@@ -527,6 +600,8 @@ namespace osu.Game.Skinning.Gameplay
         {
             if (!specialisedVisuals.Contains(visual))
                 return;
+
+            bindLongNoteEffect(visual, null);
 
             for (int index = 0; index < visual.RuntimeNodes.Count; index++)
             {

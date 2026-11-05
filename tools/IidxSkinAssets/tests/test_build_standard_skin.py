@@ -47,6 +47,12 @@ def source_draw(hook, bounds, texture="synthetic", package="gmframe26"):
             "asset": {"package": package}}
 
 
+def descendants(nodes):
+    for item in nodes:
+        yield item
+        yield from descendants(item.get('children', []))
+
+
 class StandardBuilderTests(unittest.TestCase):
     def frame(self, directory, layout="p1", *, gauge_size=(26, 24), advance=26, wide=False):
         """A complete minimal map, deliberately unrelated to private source art."""
@@ -177,7 +183,7 @@ class StandardBuilderTests(unittest.TestCase):
                 frame, _, _ = self.frame(root, layout)
                 frame.owner.output, frame.owner.receipts = root / "author", []
                 frame.background = lambda: "synthetic/background"
-                for method in ("numbers", "header", "gauge", "progress", "graph"):
+                for method in ("numbers", "header", "gauge", "gauge_feedback", "progress", "graph", "feedback", "reading"):
                     setattr(frame, method, lambda: None)
                 frame.template = lambda *args: "synthetic/information"
                 frame.controls = lambda: {}
@@ -235,6 +241,7 @@ class StandardBuilderTests(unittest.TestCase):
             owner = SyntheticOwner((26, 24))
             owner.output, owner.library = author, library
             owner.exclusions, owner.receipts, owner.sources = [], [], {}
+            owner.additional_options = {}
             owner.Image = MagicMock()
             # Preview pixels are outside this catalog-selection regression.
             owner.Image.new.return_value.save.side_effect = lambda path, **_: path.write_bytes(b"synthetic-preview")
@@ -245,10 +252,24 @@ class StandardBuilderTests(unittest.TestCase):
                 suffix = frame.layout + ("-wide" if frame.wide else "")
                 return {name: f"synthetic/{suffix}/{name}" for name in ("manifest", "scene", "ini")}
 
+            source_font = root / 'fixture-font'
+            source_font.write_bytes(b'font-helper-mocked')
+            reading = root / 'reading'
+            reading.mkdir()
+            (reading / 'reading.json').write_text(json.dumps({'contract':'oms-standard-reading-assets.v1',
+                'librarySHA256':builder.sha(library / 'library.json'), 'clips':{}, 'files':[]}), encoding='utf-8')
+            (reading / 'gauge-feedback.json').write_text(json.dumps({'contract':'oms-standard-gauge-feedback.v1',
+                'librarySHA256':builder.sha(library / 'library.json'), 'frames':{}, 'files':[]}), encoding='utf-8')
+            (reading / 'failure.json').write_text(json.dumps({'contract':'oms-standard-failure.v1',
+                'librarySHA256':builder.sha(library / 'library.json'), 'clip':{}, 'receipt':{}, 'files':[]}), encoding='utf-8')
             args = SimpleNamespace(library=library, output=author, research=research,
-                                   components=components, component_overrides=[], image_tools=root)
+                                   components=components, component_overrides=[], image_tools=root,
+                                   source_font=source_font, reading_assets=reading, presentation_assets=research,
+                                   gauge_assets=reading, failure_assets=reading)
             with patch.object(builder, "Package", return_value=owner), \
                     patch.dict(builder.FRAMES, {26: "Synthetic"}, clear=True), \
+                    patch('standard_feedback.prepare_feedback_font', return_value={}), \
+                    patch('standard_graph_targets.export_graph_target_module', return_value={'module':{'id':'graph-target'},'files':[],'receipts':[],'options':[]}), \
                     patch.object(Frame, "build", contribution), contextlib.redirect_stdout(io.StringIO()):
                 builder.build(args)
             catalog = json.loads((author / "gameplay/content.json").read_text(encoding="utf-8"))
@@ -321,7 +342,7 @@ class StandardBuilderTests(unittest.TestCase):
                 with self.subTest(size=gauge_size, layout=layout), tempfile.TemporaryDirectory() as temporary:
                     frame, _, anchors = self.frame(Path(temporary), layout, gauge_size=gauge_size, advance=advance)
                     frame.gauge()
-                    readout = next(n for n in frame.info if n["id"].endswith(".gauge.percent"))
+                    readout = next(n for n in descendants(frame.info) if n["id"].endswith(".gauge.percent"))
                     props = readout["properties"]
                     font = frame.fonts[props["bitmap-font"]]
                     glyphs = {g["character"]: g for g in font["glyphs"]}
@@ -345,7 +366,7 @@ class StandardBuilderTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             frame, _, anchors = self.frame(Path(temporary), "p2", gauge_size=(28, 26), advance=30)
             frame.gauge()
-            hundred = next(n for n in frame.info if n["id"].endswith(".gauge.hundred"))
+            hundred = next(n for n in descendants(frame.info) if n["id"].endswith(".gauge.hundred"))
             for i, sprite in enumerate(hundred["children"]):
                 props = sprite["properties"]
                 self.assertAlmostEqual(props["x"] * 1280, anchors[i]["left"])

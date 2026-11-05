@@ -11,7 +11,7 @@
 
 Lightning Model Skin Omni Until 33 自动推进仍停止，完整形态未完成。最新私下交付和运行要求取[.v26102902](CHANGELOG.md#2026-10-29omniv52私下交付)，历史 Lighting 文件名保留；范围与未验项取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。
 
-Standard Model Skin Omni Until 26 已独立交付 `.v26110500`，默认Rootage；十款实际来源、适配和可见限制取[作品记录](../../other/STANDARD_MODEL_SKIN_20261105.md)。
+Standard Model Skin Omni Until 26 的 `.v26110500` 仅为初版，继续按26自身框体及软件证据补完遗漏；不能以可玩交付当作任务完成，也不以Lightning功能清单对齐。来源、适配和缺口取[作品记录](../../other/STANDARD_MODEL_SKIN_20261105.md)。
 
 两作品选曲与Results均保留OMS原界面及PageAPI。Lightning的Classic/Header等已有表现与27文字锚点缺口取上方作品记录，旧页面方案取消取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
 

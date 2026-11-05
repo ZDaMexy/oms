@@ -15,6 +15,27 @@ namespace osu.Game.Skinning.Gameplay
     {
         public const string CONTRACT = "oms-gameplay-recorded-animation.v1";
 
+        internal static void ValidateFailureOutro(double duration, IEnumerable<GameplaySkinSceneNode> nodes,
+                                                 IReadOnlyDictionary<string, GameplaySkinRecordedAnimationProgram> animations)
+        {
+            if (!double.IsFinite(duration) || duration < 0 || duration > GameplaySkinSceneBudgets.MAX_FAILURE_OUTRO)
+                throw fail(GameplaySkinSceneDiagnosticCode.InvalidAnimation);
+            if (duration == 0)
+                return;
+            bool complete = false;
+            foreach (GameplaySkinSceneNode node in nodes)
+            {
+                if (node.AnimationId == null || !animations.TryGetValue(node.AnimationId, out GameplaySkinRecordedAnimationProgram? animation)
+                    || animation.Trigger != "gameplay.fail")
+                    continue;
+                if (animation.Loop || node.ClockSource != GameplaySkinSceneBindingSource.Unspecified)
+                    throw fail(GameplaySkinSceneDiagnosticCode.InvalidAnimation);
+                complete |= animation.Duration >= duration;
+            }
+            if (!complete)
+                throw fail(GameplaySkinSceneDiagnosticCode.InvalidAnimation);
+        }
+
         internal static IReadOnlyDictionary<string, GameplaySkinRecordedAnimationProgram> PrepareAnimations(
             GameplaySkinSceneManifest manifest, Func<string, int, byte[]?> read, CancellationToken cancellationToken)
         {
@@ -97,7 +118,7 @@ namespace osu.Game.Skinning.Gameplay
                 double fps = number(root.GetProperty("fps"), 1, 240);
                 bool loop = boolean(root.GetProperty("loop"));
                 string trigger = text(root, "trigger");
-                if (trigger is not ("gameplay.attach" or "gameplay.complete" or "judgement.hit" or "input.key.down"))
+                if (trigger is not ("gameplay.attach" or "gameplay.complete" or "gameplay.fail" or "judgement.hit" or "input.key.down" or "object.state" or "object.long-note-transition" or "gauge.increase"))
                     throw fail();
 
                 var allowed = definition.Resources.ToHashSet(StringComparer.Ordinal);

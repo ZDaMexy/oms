@@ -10,6 +10,26 @@ namespace osu.Game.Rulesets.Bms.Tests
     public class BmsScrollSpeedMetricsTest
     {
         [Test]
+        public void TestMultiplierRangeUsesUnroundedRuntimeTimeAndKeepsCoverGeometry()
+        {
+            var metrics = BmsScrollSpeedMetrics.FromTimeRange(BmsHiSpeedMode.Floating, 2.5, 500.01, 1, 0, 0, 0, 1);
+            Assert.That(metrics.GreenNumber, Is.EqualTo(301));
+            Assert.That(metrics.GreenNumberRangeAtMultiplier(1.82, 1.8, 1.86, 1), Is.EqualTo((294, 304)),
+                "Scaling rounded 301 would incorrectly show 295 at multiplier 1.86.");
+            var covered = BmsScrollSpeedMetrics.FromTimeRange(BmsHiSpeedMode.Floating, 2.5, 500.01, .8, 250, 125, 200, 1);
+            Assert.That(covered.GreenNumberRangeAtMultiplier(1.82, 1.8, 1.86, 1), Is.EqualTo((147, 152)));
+            var fullLift = BmsScrollSpeedMetrics.FromTimeRange(BmsHiSpeedMode.Normal, 8, 500.01, 0, 0, 0, 1000, 1);
+            Assert.That(fullLift.GreenNumberRangeAtMultiplier(1.82, 1.8, 1.86, 1), Is.EqualTo((0, 0)));
+        }
+
+        [Test]
+        public void TestConstantMultiplierHasOnlyTheActualCurrentGreenNumber()
+        {
+            var metrics = BmsScrollSpeedMetrics.FromTimeRange(BmsHiSpeedMode.Normal, 8, 500.01, .92, 125, 75, 80, 1);
+            Assert.That(metrics.GreenNumberRangeAtMultiplier(1, 1, 1, 1), Is.EqualTo((metrics.GreenNumber, metrics.GreenNumber)));
+        }
+
+        [Test]
         public void TestRuntimeMetricsApplyScrollLengthAndCoverUnits()
         {
             var metrics = BmsScrollSpeedMetrics.FromRuntime(BmsHiSpeedMode.Normal, 8.0, 0.8, suddenUnits: 350, hiddenUnits: 200, liftUnits: 150);

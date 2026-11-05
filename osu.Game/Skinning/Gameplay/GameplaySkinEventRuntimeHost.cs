@@ -69,9 +69,11 @@ namespace osu.Game.Skinning.Gameplay
         private HealthProcessor? healthProcessor;
         private GameplayClockContainer? gameplayClockContainer;
         private GameplaySkinPreparationController? preparationController;
+        private GameplaySkinFailurePresentationController? failurePresentationController;
         private DrawableRuleset? drawableRuleset;
         private GameplaySkinLifecycleState lifecycle;
         private GameplaySkinCompletionStateSnapshot? completion;
+        private double? failedAt;
         private GameplaySkinCurrentJudgementStateSnapshot? globalJudgement;
         private GameplaySkinScoreStateSnapshot score;
         private GameplaySkinTimingStateSnapshot timing;
@@ -138,6 +140,7 @@ namespace osu.Game.Skinning.Gameplay
             bga = initial.BgaViewports.ToDictionary(viewport => viewport.ViewportIndex);
             lifecycle = initial.LifecycleState;
             completion = initial.Completion;
+            failedAt = initial.FailedAt;
             restoreJudgements(initial.CurrentJudgements);
             restoreJudgementTimingGroups(initial.JudgementTimingGroups);
             score = initial.Score;
@@ -152,13 +155,15 @@ namespace osu.Game.Skinning.Gameplay
 
         [BackgroundDependencyLoader(true)]
         private void load(ScoreProcessor? scoreProcessor, HealthProcessor? healthProcessor, GameplayClockContainer? gameplayClockContainer,
-                          DrawableRuleset? drawableRuleset, RealmAccess? realm, IAPIProvider? api, GameplaySkinPreparationController? preparationController)
+                          DrawableRuleset? drawableRuleset, RealmAccess? realm, IAPIProvider? api, GameplaySkinPreparationController? preparationController,
+                          GameplaySkinFailurePresentationController? failurePresentationController)
         {
             this.scoreProcessor = scoreProcessor;
             this.healthProcessor = healthProcessor;
             this.gameplayClockContainer = gameplayClockContainer;
             this.drawableRuleset = drawableRuleset;
             this.preparationController = preparationController;
+            this.failurePresentationController = failurePresentationController;
             prepareTimingCounts();
             preparePersonalBest(realm, api);
         }
@@ -169,6 +174,13 @@ namespace osu.Game.Skinning.Gameplay
             producer = EventStream.CreateProducer();
 
             synchroniseScoreState();
+            // A host attached after failure knows the committed state, not the time of its unseen edge.
+            observedFailure = healthProcessor?.HasFailed == true;
+            if (observedFailure)
+            {
+                lifecycle = GameplaySkinLifecycleState.Failed;
+                completion = null;
+            }
             timing = createTimingState(currentTime);
             timingStopped = timing.IsStopped;
             double announcementTime = currentTime;
@@ -301,10 +313,14 @@ namespace osu.Game.Skinning.Gameplay
             double endTime,
             double progress,
             GameplaySkinLongNoteMode? longNoteMode = null,
-            GameplaySkinObjectAutoAssist autoAssist = GameplaySkinObjectAutoAssist.None)
+            GameplaySkinObjectAutoAssist autoAssist = GameplaySkinObjectAutoAssist.None,
+            bool stateRestored = false)
         {
             validateExactTarget(groupId, laneId);
-            var state = new GameplaySkinObjectStateSnapshot(objectId, objectKind, objectState, groupId, laneId, startTime, endTime, progress, longNoteMode, autoAssist);
+            bool retainedObject = activeObjects.TryGetValue(objectId, out GameplaySkinObjectStateSnapshot retained);
+            var history = AdvanceObjectStateHistory(retainedObject ? retained : null, objectKind, objectState, AuthoritativeGameplayTime, stateRestored);
+            var state = new GameplaySkinObjectStateSnapshot(objectId, objectKind, objectState, groupId, laneId, startTime, endTime, progress,
+                longNoteMode, autoAssist, history.ChangedAt, history.Previous, history.LongNoteTransitionAt);
             GameplaySkinEventValue payload = GameplaySkinEventValue.Object(kind, state);
 
             if (kind == GameplaySkinEventKind.ObjectSpawned)
@@ -370,6 +386,26 @@ namespace osu.Game.Skinning.Gameplay
         {
             if (producer != null && pendingReset == GameplaySkinEventResetReason.Unspecified)
                 pendingReset = GameplaySkinEventResetReason.ConsumerRebuilt;
+        }
+
+        internal static (double? ChangedAt, GameplaySkinObjectState? Previous, double? LongNoteTransitionAt) AdvanceObjectStateHistory(
+            GameplaySkinObjectStateSnapshot? retained, GameplaySkinObjectKind kind, GameplaySkinObjectState state, double gameplayTime, bool restored)
+        {
+            bool sameState = retained?.State == state;
+            // Duplicate observations preserve unknown history. Restoration is not a new press/release;
+            // neither reception nor reset time becomes its origin.
+            double? changedAt = sameState ? retained?.StateChangedAt <= gameplayTime ? retained?.StateChangedAt : null
+                : restored ? null : gameplayTime;
+            GameplaySkinObjectState? previous = sameState ? retained?.PreviousState : !restored ? retained?.State : null;
+            if (!changedAt.HasValue)
+                previous = null;
+            double? transitionAt = retained?.LastLongNoteTransitionAt <= gameplayTime ? retained?.LastLongNoteTransitionAt : null;
+            if (restored && !sameState)
+                transitionAt = null;
+            else if (!sameState && kind == GameplaySkinObjectKind.LongNote
+                     && (state == GameplaySkinObjectState.Holding || previous == GameplaySkinObjectState.Holding))
+                transitionAt = changedAt;
+            return (changedAt, previous, transitionAt);
         }
 
         internal void PublishJudgement(
@@ -513,7 +549,7 @@ namespace osu.Game.Skinning.Gameplay
             {
                 clearInputOrigins();
                 clearJudgementTimingGroups();
-                restoreLifecycleAfterDiscontinuity(retainCompletion: reason != GameplaySkinEventResetReason.Retry);
+                restoreLifecycleAfterDiscontinuity(retainTerminalHistory: reason != GameplaySkinEventResetReason.Retry);
             }
         }
 
@@ -575,7 +611,7 @@ namespace osu.Game.Skinning.Gameplay
                 }
 
                 resetTimingCounts();
-                synchroniseScoreState();
+                synchroniseScoreState(reason == GameplaySkinEventResetReason.Retry ? null : score.LastGaugeIncreaseAt);
                 // A frame-stable rewind may traverse intermediate positions after its first callback.
                 // Retire against the final epoch time so the cue cannot reappear at the destination.
                 if (reason is GameplaySkinEventResetReason.Seek or GameplaySkinEventResetReason.Rewind)
@@ -672,7 +708,8 @@ namespace osu.Game.Skinning.Gameplay
             return new GameplaySkinTimingStateSnapshot(sample.Beat, sample.BarIndex, sample.Bpm, sample.IsStopped, sample.ScrollMultiplier, progress,
                 scrollSpeed?.Invoke() ?? 0, lift,
                 gameplayClockContainer is { } clock && double.IsFinite(clock.StartTime) && clock.StartTime != double.MinValue ? clock.StartTime : null,
-                preparationController?.State ?? default, updateArrivalCue(time), adjustment);
+                preparationController?.State ?? default, updateArrivalCue(time), adjustment,
+                lifecycle == GameplaySkinLifecycleState.Failed && failedAt.HasValue ? failurePresentationController?.Elapsed : null);
         }
 
         private void synchroniseActiveObjectsFromEngine(double gameplayTime)
@@ -691,6 +728,17 @@ namespace osu.Game.Skinning.Gameplay
 
                 validateExactTarget(candidate.GroupId, candidate.LaneId);
                 GameplaySkinObjectStateSnapshot normalised = SnapshotObjectAt(candidate, gameplayTime);
+                if (!normalised.StateChangedAt.HasValue
+                    && activeObjects.TryGetValue(candidate.ObjectId, out GameplaySkinObjectStateSnapshot retained)
+                    && retained.Kind == normalised.Kind && retained.State == normalised.State
+                    && retained.StartTime == normalised.StartTime && retained.EndTime == normalised.EndTime
+                    && retained.StateChangedAt <= gameplayTime)
+                {
+                    normalised = new GameplaySkinObjectStateSnapshot(normalised.ObjectId, normalised.Kind, normalised.State,
+                        normalised.GroupId, normalised.LaneId, normalised.StartTime, normalised.EndTime, normalised.Progress,
+                        normalised.LongNoteMode, normalised.AutoAssist, retained.StateChangedAt, retained.PreviousState,
+                        retained.LastLongNoteTransitionAt <= gameplayTime ? retained.LastLongNoteTransitionAt : null);
+                }
 
                 if (normalised.State == GameplaySkinObjectState.Despawned)
                     throw new InvalidOperationException("A despawned object cannot be returned by the active drawable snapshot source.");
@@ -790,6 +838,13 @@ namespace osu.Game.Skinning.Gameplay
             // decision through multicast return-value ordering. Observe the committed engine state instead.
             bool failed = healthProcessor?.HasFailed == true;
 
+            if (pendingReset is GameplaySkinEventResetReason.Seek or GameplaySkinEventResetReason.Rewind or GameplaySkinEventResetReason.Retry
+                || double.IsFinite(previousTime) && AuthoritativeGameplayTime < previousTime)
+            {
+                observedFailure = failed;
+                return;
+            }
+
             if (failed == observedFailure)
                 return;
 
@@ -816,6 +871,7 @@ namespace osu.Game.Skinning.Gameplay
                 : null;
             GameplaySkinEventValue payload = GameplaySkinEventValue.Lifecycle(kind, state, nextCompletion?.IsFullCombo == true);
             completion = nextCompletion;
+            failedAt = state == GameplaySkinLifecycleState.Failed ? failedAt ?? time : null;
             lifecycle = state;
             lastLifecycleEvent = kind;
             publish(time, payload);
@@ -823,6 +879,8 @@ namespace osu.Game.Skinning.Gameplay
 
         private void synchroniseCompletionAtReset(double gameplayTime)
         {
+            observedFailure = healthProcessor?.HasFailed == true;
+            failedAt = observedFailure ? SnapshotFailureAt(failedAt, gameplayTime) : null;
             if (healthProcessor?.HasFailed == true)
             {
                 lifecycle = GameplaySkinLifecycleState.Failed;
@@ -845,12 +903,15 @@ namespace osu.Game.Skinning.Gameplay
             }
         }
 
-        private void restoreLifecycleAfterDiscontinuity(bool retainCompletion = false)
+        private void restoreLifecycleAfterDiscontinuity(bool retainTerminalHistory = false)
         {
             bool paused = gameplayClockContainer?.IsPaused.Value != false;
             lifecycle = hasStarted ? paused ? GameplaySkinLifecycleState.Paused : GameplaySkinLifecycleState.Running : GameplaySkinLifecycleState.Loaded;
-            if (!retainCompletion)
+            if (!retainTerminalHistory)
+            {
                 completion = null;
+                failedAt = null;
+            }
             lastLifecycleEvent = null;
         }
 
@@ -860,7 +921,9 @@ namespace osu.Game.Skinning.Gameplay
                 pendingReset = GameplaySkinEventResetReason.ConsumerRebuilt;
         }
 
-        private void synchroniseScoreState()
+        private void synchroniseScoreState() => synchroniseScoreState(score.LastGaugeIncreaseAt);
+
+        private void synchroniseScoreState(double? lastGaugeIncreaseAt)
         {
             long total = scoreProcessor?.TotalScore.Value ?? score.Score;
             long maximumScore = scoreProcessor?.MaximumTotalScore ?? score.MaximumScore;
@@ -880,8 +943,24 @@ namespace osu.Game.Skinning.Gameplay
                     counts.GetValueOrDefault(HitResult.ComboBreak), fastCount, slowCount);
             }
             GameplaySkinGaugeStateSnapshot gaugeState = (healthProcessor as IGameplaySkinGaugeStateSource)?.GameplaySkinGaugeState ?? default;
-            score = new GameplaySkinScoreStateSnapshot(total, combo, maxCombo, accuracy, gauge, statistics, gaugeState, maximumScore, appliedOffset?.Invoke() ?? default);
+            score = new GameplaySkinScoreStateSnapshot(total, combo, maxCombo, accuracy, gauge, statistics, gaugeState, maximumScore,
+                appliedOffset?.Invoke() ?? default, lastGaugeIncreaseAt <= AuthoritativeGameplayTime ? lastGaugeIncreaseAt : null);
         }
+
+        internal static double? AdvanceGaugeIncreaseHistory(double? retained, double previousGauge, double gauge, double gameplayTime, bool restored)
+        {
+            // Initialisation, polling and replay reconstruction never manufacture a recovery edge.
+            double? previous = retained <= gameplayTime ? retained : null;
+            return !restored && gauge > previousGauge ? gameplayTime : previous;
+        }
+
+        internal static GameplaySkinScoreStateSnapshot SnapshotScoreAt(GameplaySkinScoreStateSnapshot state, double gameplayTime)
+            => state.LastGaugeIncreaseAt > gameplayTime
+                ? new GameplaySkinScoreStateSnapshot(state.Score, state.Combo, state.MaxCombo, state.Accuracy, state.Gauge,
+                    state.Statistics, state.GaugeState, state.MaximumScore, state.OffsetState)
+                : state;
+
+        internal static double? SnapshotFailureAt(double? origin, double gameplayTime) => origin <= gameplayTime ? origin : null;
 
         private GameplaySkinEventStateSnapshot buildSnapshot(double gameplayTime)
             => new(
@@ -889,11 +968,12 @@ namespace osu.Game.Skinning.Gameplay
                 inputs.Values.OrderBy(input => input.LaneId.Value, StringComparer.Ordinal),
                 activeObjects.Values.OrderBy(obj => obj.ObjectId).Select(obj => SnapshotObjectAt(obj, gameplayTime)),
                 currentJudgements(gameplayTime),
-                score,
+                SnapshotScoreAt(score, gameplayTime),
                 timing,
                 bga.Values.OrderBy(viewport => viewport.ViewportIndex),
                 songInformation,
-                completion, chartPresentation, currentJudgementTimingGroups());
+                completion, chartPresentation, currentJudgementTimingGroups(),
+                lifecycle == GameplaySkinLifecycleState.Failed ? SnapshotFailureAt(failedAt, gameplayTime) : null);
 
         private IEnumerable<GameplaySkinCurrentJudgementStateSnapshot> currentJudgements(double gameplayTime)
         {
@@ -988,7 +1068,10 @@ namespace osu.Game.Skinning.Gameplay
                 state.EndTime,
                 progress,
                 state.LongNoteMode,
-                state.AutoAssist);
+                state.AutoAssist,
+                state.StateChangedAt <= gameplayTime ? state.StateChangedAt : null,
+                state.StateChangedAt <= gameplayTime ? state.PreviousState : null,
+                state.LastLongNoteTransitionAt <= gameplayTime ? state.LastLongNoteTransitionAt : null);
         }
 
         private void publish(
@@ -1034,7 +1117,15 @@ namespace osu.Game.Skinning.Gameplay
 
         private void onAccuracyChanged(ValueChangedEvent<double> _) => refreshScore(GameplaySkinEventKind.ScoreChanged);
 
-        private void onHealthChanged(ValueChangedEvent<double> _) => refreshScore(GameplaySkinEventKind.GaugeChanged);
+        private void onHealthChanged(ValueChangedEvent<double> change)
+        {
+            double time = AuthoritativeGameplayTime;
+            bool restored = pendingReset is GameplaySkinEventResetReason.Seek or GameplaySkinEventResetReason.Rewind or GameplaySkinEventResetReason.Retry
+                            || double.IsFinite(previousTime) && time < previousTime;
+            double? previous = pendingReset == GameplaySkinEventResetReason.Retry ? null : score.LastGaugeIncreaseAt;
+            synchroniseScoreState(AdvanceGaugeIncreaseHistory(previous, change.OldValue, change.NewValue, time, restored));
+            publish(time, GameplaySkinEventValue.Score(GameplaySkinEventKind.GaugeChanged, score));
+        }
 
         private void onCompletedChanged(ValueChangedEvent<bool> _) => refreshCompletionLifecycle();
 
@@ -1053,7 +1144,7 @@ namespace osu.Game.Skinning.Gameplay
             pendingDiscontinuityGameplayTime = gameplayClockContainer?.LastSeekTarget;
             clearInputOrigins();
             clearJudgementTimingGroups();
-            restoreLifecycleAfterDiscontinuity(retainCompletion: seeking);
+            restoreLifecycleAfterDiscontinuity(retainTerminalHistory: seeking);
         }
 
         private void onSeek()
@@ -1072,7 +1163,7 @@ namespace osu.Game.Skinning.Gameplay
             retireArrivalCue(seekDestination);
             clearInputOrigins();
             clearJudgementTimingGroups();
-            restoreLifecycleAfterDiscontinuity(retainCompletion: true);
+            restoreLifecycleAfterDiscontinuity(retainTerminalHistory: true);
         }
 
         private void onRetry()

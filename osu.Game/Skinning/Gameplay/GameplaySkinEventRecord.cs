@@ -151,7 +151,10 @@ namespace osu.Game.Skinning.Gameplay
                 number1,
                 number2,
                 (GameplaySkinLongNoteMode)integral1,
-                (GameplaySkinObjectAutoAssist)scalar2);
+                (GameplaySkinObjectAutoAssist)(scalar2 & 0xff),
+                (scalar2 & 0x10000) != 0 ? number3 : null,
+                ((scalar2 >> 8) & 0xff) == 0 ? null : (GameplaySkinObjectState)(((scalar2 >> 8) & 0xff) - 1),
+                (scalar2 & 0x20000) != 0 ? number4 : null);
         }
 
         internal GameplaySkinJudgementStateSnapshot GetJudgement(GameplaySkinLaneGroupId? groupId, GameplaySkinLaneId? laneId)
@@ -190,7 +193,7 @@ namespace osu.Game.Skinning.Gameplay
         {
             requireFamily(GameplaySkinEventPayloadFamily.Score);
             return new GameplaySkinScoreStateSnapshot(integral0, scalar0, scalar1, number0, number1, statistics,
-                new GameplaySkinGaugeStateSnapshot((GameplaySkinGaugeType)scalar2, number2, number3, number4 != 0), integral1, offsetState);
+                new GameplaySkinGaugeStateSnapshot((GameplaySkinGaugeType)scalar2, number2, number3, number4 != 0), integral1, offsetState, timingStartTime);
         }
 
         internal GameplaySkinTimingStateSnapshot GetTiming()
@@ -203,9 +206,11 @@ namespace osu.Game.Skinning.Gameplay
                 BitConverter.Int64BitsToDouble(offsetBits), (scalar0 & 4) != 0);
             var adjustment = new GameplaySkinAdjustmentState((scalar0 & 8) != 0, (scalar0 & 16) != 0,
                 (GameplaySkinHiSpeedMode)((scalar0 >> 7) & 3), statistics.Perfect, rect.X, rect.Y, (scalar0 & 32) != 0, (scalar0 & 64) != 0,
-                (scalar0 & 512) != 0 ? rect.Width : null);
+                (scalar0 & 512) != 0 ? rect.Width : null,
+                (scalar0 & 1024) != 0 ? statistics.Great : null, (scalar0 & 1024) != 0 ? statistics.Good : null,
+                (scalar0 & 2048) != 0 ? BitConverter.Int32BitsToSingle((statistics.Ok << 16) | statistics.Meh) : null);
             return new GameplaySkinTimingStateSnapshot(number0, integral0, number1, (scalar0 & 1) != 0, number2, number3, number4, lift, timingStartTime,
-                preparation, arrivalCueFadeStartTime, adjustment);
+                preparation, arrivalCueFadeStartTime, adjustment, offsetState.IsAvailable ? offsetState.Milliseconds : null);
         }
 
         internal GameplaySkinBgaStateSnapshot GetBga()
@@ -382,7 +387,10 @@ namespace osu.Game.Skinning.Gameplay
                 state.EndTime,
                 state.Progress,
                 state.LongNoteMode,
-                state.AutoAssist);
+                state.AutoAssist,
+                state.StateChangedAt,
+                state.PreviousState,
+                state.LastLongNoteTransitionAt);
 
             if (eventKind is not GameplaySkinEventKind.ObjectSpawned
                 and not GameplaySkinEventKind.ObjectDespawned
@@ -401,10 +409,15 @@ namespace osu.Game.Skinning.Gameplay
                 integral1: (int)state.LongNoteMode,
                 scalar0: (int)state.Kind,
                 scalar1: (int)state.State,
-                scalar2: (int)state.AutoAssist,
+                // Both closed enums fit in one byte. Retain the optional predecessor inline without growing
+                // every event payload or allocating a separate long-note history object on each state edge.
+                scalar2: (int)state.AutoAssist | (state.PreviousState.HasValue ? ((int)state.PreviousState.Value + 1) << 8 : 0)
+                         | (state.StateChangedAt.HasValue ? 0x10000 : 0) | (state.LastLongNoteTransitionAt.HasValue ? 0x20000 : 0),
                 number0: state.StartTime,
                 number1: state.EndTime,
-                number2: state.Progress);
+                number2: state.Progress,
+                number3: state.StateChangedAt ?? 0,
+                number4: state.LastLongNoteTransitionAt ?? 0);
         }
 
         private static GameplaySkinEventValue judgementValue(GameplaySkinJudgementStateSnapshot state, GameplaySkinEventPayload? materialized)
@@ -443,7 +456,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinScoreStateSnapshot state,
             GameplaySkinEventPayload? materialized)
         {
-            _ = new GameplaySkinScoreStateSnapshot(state.Score, state.Combo, state.MaxCombo, state.Accuracy, state.Gauge, state.Statistics, state.GaugeState, state.MaximumScore, state.OffsetState);
+            _ = new GameplaySkinScoreStateSnapshot(state.Score, state.Combo, state.MaxCombo, state.Accuracy, state.Gauge, state.Statistics, state.GaugeState, state.MaximumScore, state.OffsetState, state.LastGaugeIncreaseAt);
 
             if (eventKind is not GameplaySkinEventKind.ScoreChanged
                 and not GameplaySkinEventKind.ComboChanged
@@ -465,7 +478,8 @@ namespace osu.Game.Skinning.Gameplay
                 number2: state.GaugeState.Maximum,
                 number3: state.GaugeState.ClearThreshold,
                 number4: state.GaugeState.IsClear ? 1 : 0,
-                statistics: state.Statistics, offsetState: state.OffsetState);
+                // The score family reuses the nullable timing slot; queued records do not grow.
+                statistics: state.Statistics, offsetState: state.OffsetState, timingStartTime: state.LastGaugeIncreaseAt);
         }
 
         private static GameplaySkinEventValue timingValue(
@@ -474,7 +488,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinEventPayload? materialized)
         {
             _ = new GameplaySkinTimingStateSnapshot(state.Beat, state.BarIndex, state.Bpm, state.IsStopped, state.ScrollMultiplier, state.Progress, state.ScrollSpeed,
-                state.LiftState, state.StartTime, state.Preparation, state.ArrivalCueFadeStartTime, state.AdjustmentState);
+                state.LiftState, state.StartTime, state.Preparation, state.ArrivalCueFadeStartTime, state.AdjustmentState, state.FailureElapsed);
 
             if (eventKind is not GameplaySkinEventKind.TimingBeat
                 and not GameplaySkinEventKind.TimingBar
@@ -490,6 +504,7 @@ namespace osu.Game.Skinning.Gameplay
 
             long offsetBits = BitConverter.DoubleToInt64Bits(state.LiftState.OffsetRatio);
             GameplaySkinAdjustmentState adjustment = state.AdjustmentState;
+            int previewBits = BitConverter.SingleToInt32Bits(adjustment.PreviewPhase ?? 0);
             // Timing reuses the score/rectangle union storage, retaining native float cover units and the
             // integral green number without adding fields to this value union or allocating a payload.
             return new GameplaySkinEventValue(
@@ -502,7 +517,8 @@ namespace osu.Game.Skinning.Gameplay
                 scalar0: (state.IsStopped ? 1 : 0) | (state.LiftState.IsAvailable ? 2 : 0) | (state.LiftState.Reversed ? 4 : 0)
                          | (adjustment.IsAvailable ? 8 : 0) | (adjustment.Adjusting ? 16 : 0)
                          | (adjustment.SuddenActive ? 32 : 0) | (adjustment.HiddenActive ? 64 : 0) | ((int)adjustment.Mode << 7)
-                         | (adjustment.ActualHiSpeed != null ? 512 : 0),
+                         | (adjustment.ActualHiSpeed != null ? 512 : 0) | (adjustment.GreenNumberMinimum != null ? 1024 : 0)
+                         | (adjustment.PreviewPhase != null ? 2048 : 0),
                 scalar1: unchecked((int)offsetBits),
                 scalar2: unchecked((int)(offsetBits >> 32)),
                 number0: state.Beat,
@@ -511,8 +527,12 @@ namespace osu.Game.Skinning.Gameplay
                 number3: state.Progress,
                 number4: state.ScrollSpeed,
                 rect: GameplaySkinLayoutRect.Create(adjustment.SuddenUnits, adjustment.HiddenUnits, adjustment.ActualHiSpeed ?? 1, 1),
-                statistics: new GameplaySkinJudgementStatistics(adjustment.GreenNumber, 0, 0, 0, 0, 0, 0),
-                timingStartTime: state.StartTime, preparation: state.Preparation, arrivalCueFadeStartTime: state.ArrivalCueFadeStartTime);
+                // Two unused non-negative statistic words retain every float bit, including a signed zero.
+                statistics: new GameplaySkinJudgementStatistics(adjustment.GreenNumber, adjustment.GreenNumberMinimum ?? 0, adjustment.GreenNumberMaximum ?? 0,
+                    (previewBits >> 16) & 0xffff, previewBits & 0xffff, 0, 0),
+                timingStartTime: state.StartTime, preparation: state.Preparation, arrivalCueFadeStartTime: state.ArrivalCueFadeStartTime,
+                // The timing family has no offset payload; reuse that storage for the native presentation number.
+                offsetState: state.FailureElapsed is { } elapsed ? new GameplaySkinOffsetStateSnapshot(true, elapsed, false, false) : default);
         }
 
         private static GameplaySkinEventValue bgaValue(
@@ -634,7 +654,8 @@ namespace osu.Game.Skinning.Gameplay
                 authoritativeTiming.StartTime,
                 authoritativeTiming.Preparation,
                 authoritativeTiming.ArrivalCueFadeStartTime,
-                authoritativeTiming.AdjustmentState);
+                authoritativeTiming.AdjustmentState,
+                authoritativeTiming.FailureElapsed);
 
             if (laneId != null && groupId == null)
                 throw new ArgumentException("A lane-targeted gameplay skin event must also carry its stable group ID.", nameof(groupId));

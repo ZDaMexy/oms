@@ -59,6 +59,9 @@ namespace osu.Game.Skinning.Gameplay
         /// <summary>Optional safe-screen region for the existing native mod display, retaining its data and interaction.</summary>
         public GameplaySkinLayoutRect? ModsRect { get; }
 
+        /// <summary>Optional BMS safe-screen region for its existing native speed preview.</summary>
+        public GameplaySkinLayoutRect? NormalSpeedPreviewRect { get; }
+
         public GameplaySkinAuthorLayout(
             string id,
             string rulesetId,
@@ -68,7 +71,8 @@ namespace osu.Game.Skinning.Gameplay
             double keyAreaHeight = 0,
             double gaugeHeight = 0,
             double hitPosition = 1,
-            GameplaySkinLayoutRect? modsRect = null)
+            GameplaySkinLayoutRect? modsRect = null,
+            GameplaySkinLayoutRect? normalSpeedPreviewRect = null)
         {
             ArgumentNullException.ThrowIfNull(stages);
             if (!IsToken(id) || rulesetId is not ("bms" or "mania") || !IsToken(keymodeId) || !IsToken(presentation)
@@ -89,6 +93,13 @@ namespace osu.Game.Skinning.Gameplay
             GaugeHeight = gaugeHeight;
             HitPosition = hitPosition;
             ModsRect = modsRect;
+            NormalSpeedPreviewRect = normalSpeedPreviewRect;
+
+            if (normalSpeedPreviewRect is { } preview && (rulesetId != "bms" || !float.IsFinite(preview.X) || !float.IsFinite(preview.Y)
+                                                   || !float.IsFinite(preview.Width) || !float.IsFinite(preview.Height)
+                                                   || preview.X < 0 || preview.Y < 0 || preview.Width <= 0 || preview.Height <= 0
+                                                   || preview.Right > 1 + epsilon || preview.Bottom > 1 + epsilon))
+                throw new ArgumentException("An authored speed preview must fit the BMS safe geometry.");
 
             if (modsRect is { } mods && (!float.IsFinite(mods.X) || !float.IsFinite(mods.Y)
                                         || !float.IsFinite(mods.Width) || !float.IsFinite(mods.Height)

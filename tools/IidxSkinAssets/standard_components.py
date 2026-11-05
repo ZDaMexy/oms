@@ -32,13 +32,17 @@ SOURCE_TO_LOGICAL = 768 / 720
 SOURCE_TO_REFERENCE = 1.5
 SOURCE_STAGE_HEIGHT = 484
 SOURCE_STAGE_WIDTH = 292
+JUDGEMENT_DIGIT_ADVANCE = 37
+JUDGEMENT_LABEL_WIDTHS = {"judge_p_great_blue": 170, "judge_p_great_white": 170,
+                          "judge_p_great_pink": 170, "judge_great_yellow": 170,
+                          "judge_good": 141, "judge_bad": 112, "judge_poor": 141}
 REFERENCE_STAGE_HEIGHT = SOURCE_STAGE_HEIGHT * SOURCE_TO_REFERENCE
 SOURCE_HIT_OFFSET = 10 / 3  # Explicit OMS alignment; original-game hit-point calibration is separate.
 SUPPORTED_MODULES = ("notes", "charge-notes", "judgement", "explosion", "key-beam", "lane-cover",
                      "lift-art", "turntable", "graph-area", "full-combo")
 
 
-def judgement_fit_steps(label_width, digit_advance):
+def judgement_fit_steps(label_width, digit_width, *, gap=-11):
     """Fit the complete source row, retaining full size while it fits.
 
     C4 clock keyframes stop at 86,400,000, so the final legal decimal boundary
@@ -46,7 +50,8 @@ def judgement_fit_steps(label_width, digit_advance):
     combos use their exact integer digit count, with no cropping or ellipsis.
     """
     def scale(digits):
-        width = max(label_width, label_width - 8 + digit_advance * digits)
+        # MeasureText includes the final image overhang beyond the37px advance.
+        width = max(label_width, label_width + gap + digit_width + JUDGEMENT_DIGIT_ADVANCE * (digits - 1))
         return min(1, SOURCE_STAGE_WIDTH / width)
 
     return [(0, scale(1))] + [(10 ** (digits - 1), scale(digits)) for digits in range(2, 8)] + [(10_000_000, scale(10))]
@@ -142,6 +147,7 @@ class StandardBranch(Branch):
                  "variants": self.variants, "templates": self.templates, "instances": self.instances}
         if self.completion_outro:
             scene["completionOutro"] = self.completion_outro
+        self.scene = scene
         if len(self.resources) > 256 or len(self.fonts) > 4:
             raise ValueError(f"Standard contribution exceeds its local resource/font budget: {self.prefix}")
         self.owner.json(self.base + "/manifest.json", manifest)
@@ -263,7 +269,7 @@ class StandardComponents(ModuleBuilder):
         source = self._package(package)
         selected = source["movies"][movie]
         controls, flow_tags = root_loop_control(selected)
-        repeat = terminal_repeat_control(selected) if package == "lnote00" and loop else None
+        repeat = terminal_repeat_control(selected) if package == "lnote00" and movie != "notes_break" else None
         if repeat:
             flow_tags.add(id(selected.tags[repeat["tagIndex"]]))
         if controls and (trigger != "input.key.down" or loop):
@@ -310,10 +316,30 @@ class StandardComponents(ModuleBuilder):
                     frame["nodes"] = [[0, index]] + [[n + 1, s] for n, s in frame["nodes"]]
         used = {g["resource"] for g in clip["geometries"] if g["resource"] is not None}
         declared = {}
+        atlas_sources = {}
+        use_atlas = (package == "lnote00" and trigger != "gameplay.attach") or re.fullmatch(r"fcombo\d{2}", package) is not None
         for i, row in enumerate(source["rows"]):
             if resources[i] in used:
-                declaration, _ = self.asset(category, package, Path(row["name"]).stem)
+                if use_atlas:
+                    sampler = row["sampler"]
+                    if sampler != {"mag": "nearest", "min": "nearest", "wrapS": "clamp", "wrapT": "clamp"}:
+                        raise ValueError("Original movie atlas requires its original nearest/clamp sampler")
+                    original = within(self.library, row["sprite"])
+                    if digest(original) != row["sha256"]:
+                        raise ValueError("Original movie atlas source changed")
+                    declaration = {"id": resources[i], "type": "texture", "path": row["sprite"], "filter": "nearest"}
+                    atlas_sources[row["sprite"]] = {"source": str(original), "path": row["sprite"], "sha256": row["sha256"]}
+                else:
+                    declaration, _ = self.asset(category, package, Path(row["name"]).stem)
                 declared[declaration["id"]] = declaration
+        atlas_receipt = None
+        if use_atlas:
+            atlas_dir = self.output / "research" / prefix
+            atlas_dir.mkdir(parents=True, exist_ok=True)
+            declared, atlas_files, atlas_receipt = self.original_pixel_atlas(clip, declared, atlas_sources, prefix, atlas_dir)
+            for item in atlas_files.values():
+                self.copy_file(Path(item["source"]), item["path"], item["sha256"])
+            used = {g["resource"] for g in clip["geometries"] if g["resource"] is not None}
         import brotli
         encoded = json.dumps(clip, separators=(",", ":"), allow_nan=False).encode()
         compressed = brotli.compress(encoded, quality=5)
@@ -333,7 +359,8 @@ class StandardComponents(ModuleBuilder):
                     "labels": selected.labels, "translatedRootControl": controls,
                     **({"translatedTerminalRepeat": repeat} if repeat else {})},
                   "receipt": {"sourceArchiveSHA256": self.packages[package]["sha256"], "rawSHA256": source["hashes"],
-                    "sourcePNGBytesPreserved": True, "runtimeInterpreter": False,
+                    "sourcePNGBytesPreserved": not use_atlas, "sourcePixelsPreserved": True,
+                    "losslessSourcePixelAtlas": atlas_receipt, "runtimeInterpreter": False,
                     "hierarchyMathChecks": recorder.math_checks, "maximumHierarchyMathError": recorder.math_max_error,
                     "framesIncludingEnd": len(clip["frames"]), "sourceNodeCount": len(clip["nodes"]), "warnings": warnings}}
         research = self.output / "research" / prefix
@@ -345,6 +372,35 @@ class StandardComponents(ModuleBuilder):
         self.receipts.append({"category": category, "kind": "original-recorded-movie", "source": result["source"],
                               "receipt": result["receipt"]})
         return result
+
+    def original_pixel_atlas(self, clip, resources, files, prefix, directory):
+        """Pack exact source pixels while checking every non-reference movie field."""
+        original = copy.deepcopy(clip)
+        packed, images, receipt = self.pack_large_lane_clip(clip, resources, files, prefix, directory)
+        restored = copy.deepcopy(clip)
+        maximum_uv_error = 0
+        mapping = {source["originalResource"]: (*source["rect"], *page["size"], page["resource"])
+                   for page in receipt["pages"] for source in page["sources"]}
+        for before, after, restore in zip(original["geometries"], clip["geometries"], restored["geometries"], strict=True):
+            if before["resource"] is None:
+                continue
+            left, top, iw, ih, width, height, atlas = mapping[before["resource"]]
+            if after["resource"] != atlas:
+                raise ValueError("Atlas geometry no longer refers to its original pixel rectangle")
+            restore["resource"] = before["resource"]
+            for source_vertex, mapped_vertex, restored_vertex in zip(before["vertices"], after["vertices"], restore["vertices"], strict=True):
+                error = max(abs((mapped_vertex[3] * width - left) / iw - source_vertex[3]),
+                            abs((mapped_vertex[4] * height - top) / ih - source_vertex[4]))
+                maximum_uv_error = max(maximum_uv_error, error)
+                if error > 1e-12:
+                    raise ValueError("Atlas UV rebasing changed the original texture coordinates")
+                restored_vertex[3:5] = source_vertex[3:5]
+        if restored != original:
+            raise ValueError("Lossless atlas changed original XYZ, topology, state or frame data")
+        receipt.update({"sourceResources": len(resources), "atlasResources": len(packed),
+                        "maximumInverseUVError": maximum_uv_error,
+                        "allXYZTopologyStatesFramesAndMetadataUnchanged": True})
+        return packed, images, receipt
 
     def preview(self, module, value, originals):
         from PIL import Image, ImageDraw
@@ -398,6 +454,7 @@ class StandardComponents(ModuleBuilder):
             yield ruleset, marker
 
     def notes(self):
+        self.auto_scratch_option()
         choices = []
         for style in exact_styles(self.packages, r"notes(\d+)", range(12)):
             package = f"notes{style:02}"
@@ -409,7 +466,10 @@ class StandardComponents(ModuleBuilder):
                     materials[ruleset][colour] = {"object.note": marker}
             for ruleset, material in materials.items():
                 branch.lane_ini(material, ruleset)
-            choices.append({"value": f"n{style:02}", "label": f"Notes {style:02}", **branch.finish(),
+            contribution = branch.finish()
+            hidden = self.auto_scratch_hidden(branch.scene, contribution)
+            choices.append({"value": f"n{style:02}", "label": f"Notes {style:02}", **contribution,
+                "variants": [{"when": {"auto-scratch-display": False}, **hidden}],
                 "preview": self.preview("notes", f"n{style:02}", [(package, "notes_" + c) for c in ("white", "black", "turn")])})
         self.add_module("notes", "Notes", choices, "n00")
         self.receipts.append({"category": "notes", "sourcePackages": 12, "sourcePixelToLogical": SOURCE_TO_LOGICAL,
@@ -417,35 +477,113 @@ class StandardComponents(ModuleBuilder):
             "sizeVariants": "Only the twelve actual normal archives exist; no imported Lightning sizes or synthetic design choices",
             "maniaCarrier": "48 * original marker height / width", "bmsCarrier": 22.5})
 
+    def auto_scratch_option(self):
+        if not any(option["id"] == "auto-scratch-display" for option in self.options):
+            self.options.append({"id": "auto-scratch-display", "type": "toggle", "label": "Auto-Scratch notes", "default": True})
+
+    def auto_scratch_hidden(self, scene, contribution):
+        scene = copy.deepcopy(scene)
+        slots = {"object.note", "object.long-note.head", "object.long-note.body", "object.long-note.tail"}
+        for template in scene["templates"]:
+            target = template["root"]
+            if target.get("slot") not in slots:
+                continue
+            identifier = target["id"] + ".ascr"
+            scene["variants"].append({"id": identifier, "target": target["id"], "property": "visible",
+                "source": "object.auto-assist", "default": True,
+                "cases": [{"id": identifier + ".scratch", "key": "scratch", "value": False}]})
+        path = contribution["scene"].removesuffix("scene.json") + "auto-scratch-off.scene.json"
+        self.json(path, scene)
+        return {**contribution, "scene": path}
+
     def charge_notes(self):
-        branch = StandardBranch(self, "sc", "c00")
-        materials = {r: {} for r in ("bms", "mania")}
-        for colour in COLOURS:
-            stem = "notes_bss" if colour == "scratch" else "notes_cn_" + colour
-            second = "notes_bss2" if colour == "scratch" else "notes_cn2_" + colour
-            for ruleset in materials:
-                materials[ruleset][colour] = {}
-            for part, suffix in (("head", "start"), ("body", "beam0"), ("tail", "end")):
-                texture = stem + "_" + suffix
-                if part == "body":
-                    appearance = ("object.long-note-appearance", {"ln": texture, "cn": texture,
-                        "ln-holding": stem + "_beam1", "cn-holding": stem + "_beam1",
-                        "ln-released": stem + "_beam2", "cn-released": stem + "_beam2",
-                        "hcn": second + "_beam0", "hcn-holding": second + "_beam1", "hcn-released": second + "_beam4"})
-                else:
-                    appearance = ("object.long-note-mode", {"ln": texture, "cn": texture, "hcn": second + "_" + suffix})
-                slot = "object.long-note." + part
-                for ruleset, marker in self._note(branch, colour, slot, texture, body=part == "body",
-                                                appearance=appearance, package="notes_cn00"):
-                    materials[ruleset][colour][slot] = marker
-        for ruleset, material in materials.items():
-            branch.lane_ini(material, ruleset)
-        self.add_module("charge-notes", "Charge Notes / HCN", [{"value": "c00", "label": "Original 00", **branch.finish(),
+        self.auto_scratch_option()
+        self.options.append({"id": "hcn-display", "type": "choice", "label": "HCN display type", "default": "hcn",
+                             "choices": [{"value": "hcn", "label": "HCN"}, {"value": "cn", "label": "Charge Note"}]})
+        contributions = {}
+        for display in ("hcn", "cn"):
+            branch = StandardBranch(self, "sc", "c00", display)
+            materials = {r: {} for r in ("bms", "mania")}
+            for colour in COLOURS:
+                stem = "notes_bss" if colour == "scratch" else "notes_cn_" + colour
+                second = ("notes_bss2" if colour == "scratch" else "notes_cn2_" + colour) if display == "hcn" else stem
+                for ruleset in materials:
+                    materials[ruleset][colour] = {}
+                for part, suffix in (("head", "start"), ("body", "beam0"), ("tail", "end")):
+                    texture = stem + "_" + suffix
+                    if part == "body":
+                        appearance = ("object.long-note-appearance", {"ln": texture, "cn": texture,
+                            "ln-holding": stem + "_beam1", "cn-holding": stem + "_beam1",
+                            "ln-released": stem + "_beam2", "cn-released": stem + "_beam2",
+                            "hcn": second + "_beam0", "hcn-holding": second + "_beam1",
+                            "hcn-released": second + ("_beam4" if display == "hcn" else "_beam2")})
+                    else:
+                        appearance = ("object.long-note-mode", {"ln": texture, "cn": texture, "hcn": second + "_" + suffix})
+                    slot = "object.long-note." + part
+                    for ruleset, marker in self._note(branch, colour, slot, texture, body=part == "body",
+                                                    appearance=appearance, package="notes_cn00"):
+                        materials[ruleset][colour][slot] = marker
+            self.long_note_effects(branch, materials)
+            for ruleset, material in materials.items():
+                branch.lane_ini(material, ruleset)
+            contributions[display] = branch.finish()
+            contributions[display + "-hidden"] = self.auto_scratch_hidden(branch.scene, contributions[display])
+        self.add_module("charge-notes", "Charge Notes / HCN", [{"value": "c00", "label": "Original 00", **contributions["hcn"],
+            "variants": [{"when": {"hcn-display": "cn", "auto-scratch-display": True}, **contributions["cn"]},
+                         {"when": {"hcn-display": "hcn", "auto-scratch-display": False}, **contributions["hcn-hidden"]},
+                         {"when": {"hcn-display": "cn", "auto-scratch-display": False}, **contributions["cn-hidden"]}],
             "preview": self.preview("charge-notes", "c00", [("notes_cn00", n) for n in ("notes_cn_white_start", "notes_cn2_white_start", "notes_bss_start")])}], "c00")
         self.receipts.append({"category": "charge-notes", "sourcePackage": "notes_cn00", "choices": 1,
             "mapping": "cn/bss = LN/CN; cn2/bss2 = HCN; body states use actual native appearance and original beam0/1/2/4",
-            "qualification": "Original source naming/state family; original-game HCN held/released palette requires runtime comparison",
+            "displayType": "26 official customization permits HCN/BSS appearance to use CN art; the real chart mode and held/released effects remain HCN",
+            "officialReference": "https://p.eagate.573.jp/game/2dx/26/howto/new/custom_new.html",
+            "autoScratchDisplay": "26 ASCR note visibility selects only exact native object.auto-assist=scratch. Ordinary notes, full Autoplay, LN effects and scoring eligibility are unchanged.",
             "bodyLength": "Native time/scroll geometry is unchanged; only original head/tail sprite geometry is normalized"})
+
+    def long_note_effects(self, branch, materials):
+        """The26 native caller layers, driven only by the exact native hold owner."""
+        for colour, family in (("white", "siro"), ("black", "ao"), ("scratch", "scr")):
+            movies = (("base", f"lnote00_lo_{family}", False, "object.long-note-transition", None),
+                      ("cn", f"lnote00_lo_{family}_push", True, "object.state", ["ln-holding", "cn-holding"]),
+                      ("hcn", f"lnote00_lo_{family}2_push", True, "object.state", ["hcn-holding"]),
+                      ("break", "notes_break", True, "object.state", ["hcn-released"]))
+            for ruleset in ("bms", "mania"):
+                identifier = branch.prefix + ".effect." + ruleset + "." + colour
+                props = {"width": 4, "height": 4} if ruleset == "bms" else {
+                    "width": 4, "height": 90 / (REFERENCE_STAGE_HEIGHT - 1),
+                    "y": (REFERENCE_STAGE_HEIGHT - 1 - 22.5) / (REFERENCE_STAGE_HEIGHT - 1)}
+                children = []
+                for role, movie, loop, trigger, appearances in movies:
+                    exported = self.clip("lnote00", movie, "sc.clip.effect." + ("break" if role == "break" else colour + "." + role),
+                                         loop=loop, trigger=trigger)
+                    art = branch.include_clip(exported)
+                    art["id"] = identifier + "." + role + ".art"
+                    stage = exported["source"]["stage"]
+                    sw, sh = (stage[2] - stage[0]) * SOURCE_TO_REFERENCE, (stage[3] - stage[1]) * SOURCE_TO_REFERENCE
+                    art["properties"] = {"x": .5, "y": .5, "origin": "centre",
+                        "width": sw / (SOURCE_WIDTHS[colour] * SOURCE_TO_REFERENCE * 4), "height": sh / 90}
+                    for dimension, scale in (("width", "scale-x"), ("height", "scale-y")):
+                        if art["properties"][dimension] > 4:
+                            art["properties"][scale], art["properties"][dimension] = art["properties"][dimension] / 4, 4
+                    positioned = node(identifier + "." + role, properties={"x": .125, "y": 17.5 / 90, "origin": "centre"}, children=[art])
+                    if role == "base":
+                        branch.bind(positioned["id"], "scale-x", "option.explosion-scale")
+                        branch.bind(positioned["id"], "scale-y", "option.explosion-scale")
+                    else:
+                        branch.show(positioned["id"], "object.long-note-appearance", appearances)
+                    children.append(positioned)
+                marker = self.fallback_marker("sc", "effect-" + ruleset + "-" + colour, "notes_cn00",
+                    "notes_bss_start" if colour == "scratch" else "notes_cn_" + colour + "_start")
+                branch.template("effect." + ruleset + "." + colour,
+                    node(identifier, properties=props, slot="effect.long-note", children=children), "effect.long-note", marker)
+                materials[ruleset][colour]["effect.long-note"] = marker
+        self.receipts.append({"category": "long-note-effect", "sourcePackage": "lnote00", "nativeCallerMovies": 10,
+            "sourceMovies": 13, "unusedTopLevelMovies": "The three base2 movies are source inventory, not dispatched by the26 executable",
+            "state": "base once on actual Holding entry/exit; original _push loops while LN/CN held,2_push while HCN held; notes_break loops only for HCN released. Direct head miss has no invented base burst.",
+            "origin": "All movies use their original canvas centre, proved by26 caller anchor(3,3). Source hit position480 maps to the existing native target at17.5/22.5; the one-reference-pixel field edge is retained.",
+            "scale": "Original seven explosion sizes affect base only, never continuous push/break",
+            "tail": "Real terminal object state stops continuous layers and retains the original bounded base outro; no ordinary key or judgement trigger",
+            "adaptation": "OMS Standard LN and mania use the original CN held family; HCN effects are selected only from actual native HCN mode"})
 
     def beams(self):
         choices = []
@@ -474,7 +612,7 @@ class StandardComponents(ModuleBuilder):
 
     def explosions(self):
         self.options.append({"id": "explosion-scale", "type": "number", "label": "Explosion size", "default": 1,
-                             "min": .5, "max": 1.5, "step": .05})
+                             "min": .7, "max": 1.3, "step": .1})
         choices = []
         for style in exact_styles(self.packages, r"exp(\d+)", range(20)):
             package = f"exp{style:02}"
@@ -581,6 +719,9 @@ class StandardComponents(ModuleBuilder):
 
     def judgements(self):
         self.options.append({"id": "judgement-display", "type": "toggle", "label": "Judgement", "default": True})
+        self.options.append({"id": "judgement-position", "type": "choice", "label": "Judgement position", "default": "normal",
+            "choices": [{"value": value, "label": label} for value, label in
+                        (("normal", "Normal"), ("up100", "+100"), ("up200", "+200"), ("up300", "+300"), ("off", "Off"))]})
         choices = []
         for style in exact_styles(self.packages, r"judge(\d+)", range(14)):
             package = f"judge{style:02}"
@@ -592,11 +733,14 @@ class StandardComponents(ModuleBuilder):
                 identifier = branch.prefix + ".font." + palette
                 branch.fonts.append({"id": identifier, "lineHeight": height,
                     "glyphs": [{"character": str(d), "resource": atlas["id"], "rect": glyphs[palette, d],
-                                "advance": glyphs[palette, d][2]} for d in range(10)]})
+                                "advance": JUDGEMENT_DIGIT_ADVANCE} for d in range(10)]})
                 fonts[palette] = identifier
-            # One source-size row, centred in the exact native group judgement slot.
+            # One source-size row, horizontally centred with its original canvas top at the native judgement position.
             # Source bitmap dimensions are not multiplied by an inherited 33 normalization.
             height_logical = height * SOURCE_TO_LOGICAL
+            # The horizontal runtime centres its leaf cells inside this carrier.
+            # Only relative height applies to the carrier; height-px belongs to leaves.
+            row_height = height / (SOURCE_STAGE_HEIGHT * .12 * 3)
             root_id = branch.prefix + ".group"
             children = []
             for name, palette, label_name, grades in (("b", "b", "judge_p_great_blue", ["perfect"]),
@@ -608,29 +752,40 @@ class StandardComponents(ModuleBuilder):
                                                       ("y-poor", "y", "judge_poor", ["miss", "ok"])):
                 pair_id = root_id + "." + name
                 label_resource = branch.asset(package, label_name)[0]
-                label = node(pair_id + ".label", "sprite", {"height-px": height_logical}, label_resource)
-                combo = node(pair_id + ".combo", "text", {"text": "", "font-size": height_logical,
-                             "bitmap-font": fonts[palette], "format": "integer"})
-                branch.bind(combo["id"], "text", "combo.value")
-                pair = node(pair_id, properties={"x": .5, "y": .5, "origin": "centre", "layout": "horizontal", "gap-px": -8 * SOURCE_TO_LOGICAL},
-                            children=[label, combo])
-                branch.bind(pair_id, "visible", "combo.active")
                 label_source = self.index[package, label_name]
                 label_width = label_source["width"] * height / label_source["height"]
-                digit_advance = max(glyphs[palette, digit][2] for digit in range(10))
-                steps = judgement_fit_steps(label_width, digit_advance)
-                for prop in ("scale-x", "scale-y"):
-                    identifier = pair_id + ".fit." + prop
-                    branch.tracks.append({"id": identifier, "type": "tween", "target": pair_id, "property": prop,
-                        "easing": "step", "loop": False, "clock": "combo.value",
-                        "keyframes": [{"id": identifier + ".n" + str(i), "time": time, "value": value}
-                                      for i, (time, value) in enumerate(steps)]})
+                native_label_width = JUDGEMENT_LABEL_WIDTHS[label_name]
+                gap = native_label_width - label_width - 11
+                digit_width = max(glyphs[palette, digit][2] for digit in range(10))
                 # A hidden horizontal cell still occupies its natural width.
-                # The inactive state therefore owns a label-only centred row.
-                no_combo = node(pair_id + ".no-combo", properties={"x": .5, "y": .5, "origin": "centre", "layout": "horizontal"},
+                # The inactive state therefore owns a label-only row at the same original top edge.
+                no_combo = node(pair_id + ".no-combo", properties={"x": .5, "y": .5, "height": row_height,
+                    "origin": "top-centre", "layout": "horizontal"},
                     children=[node(pair_id + ".no-combo.label", "sprite", {"height-px": height_logical}, label_resource)])
-                branch.show(no_combo["id"], "combo.active", ["false"])
-                phase_layer = node(pair_id + ".palette", children=[pair, no_combo])
+                rows, steps = [no_combo], []
+                # Native351510 rejects BAD/POOR before drawing digits. A ruleset may
+                # retain its actual combo on these mapped grades, but that does not
+                # qualify the original label for a COMBO visual.
+                combo_eligible = name not in ("y-bad", "y-poor")
+                if combo_eligible:
+                    label = node(pair_id + ".label", "sprite", {"height-px": height_logical}, label_resource)
+                    combo = node(pair_id + ".combo", "text", {"text": "", "font-size": height_logical,
+                                 "bitmap-font": fonts[palette], "format": "integer"})
+                    branch.bind(combo["id"], "text", "combo.value")
+                    pair = node(pair_id, properties={"x": .5, "y": .5, "height": row_height,
+                                "origin": "top-centre", "layout": "horizontal", "gap-px": gap * SOURCE_TO_LOGICAL},
+                                children=[label, combo])
+                    branch.bind(pair_id, "visible", "combo.active")
+                    steps = judgement_fit_steps(label_width, digit_width, gap=gap)
+                    for prop in ("scale-x", "scale-y"):
+                        identifier = pair_id + ".fit." + prop
+                        branch.tracks.append({"id": identifier, "type": "tween", "target": pair_id, "property": prop,
+                            "easing": "step", "loop": False, "clock": "combo.value",
+                            "keyframes": [{"id": identifier + ".n" + str(i), "time": time, "value": value}
+                                          for i, (time, value) in enumerate(steps)]})
+                    branch.show(no_combo["id"], "combo.active", ["false"])
+                    rows.insert(0, pair)
+                phase_layer = node(pair_id + ".palette", children=rows)
                 grade_gate = node(pair_id + ".grade", children=[phase_layer])
                 branch.show(grade_gate["id"], "judgement.result", grades)
                 if palette != "y":
@@ -640,11 +795,29 @@ class StandardComponents(ModuleBuilder):
                         "keyframes": [{"id": pair_id + ".phase.n" + str(i), "time": i * 100, "value": int(i % 3 == phase)} for i in range(4)]})
                 children.append(grade_gate)
                 self.receipts.append({"category": "judgement", "style": style, "grade": grades, "palette": palette,
-                    "sourceLabelWidth": label_width, "sourceDigitAdvance": digit_advance, "sourceStageWidth": SOURCE_STAGE_WIDTH,
-                    "fitSteps": steps, "noCombo": "Separate centred label-only row at original size"})
+                    "sourceLabelWidth": label_width, "nativeLabelLayoutWidth": native_label_width, "labelDigitGap": gap,
+                    "sourceDigitAdvance": JUDGEMENT_DIGIT_ADVANCE, "sourceDigitImageWidth": digit_width,
+                    "sourceStageWidth": SOURCE_STAGE_WIDTH,
+                    "fitSteps": steps, "comboEligible": combo_eligible,
+                    "noCombo": "Separate horizontally centred label-only row at original size and canvas top; always used for BAD/POOR"})
             gate = node(root_id + ".display", children=children)
             branch.bind(gate["id"], "visible", "option.judgement-display")
-            root = node(root_id, properties={"opacity": 0}, slot="hud.judgement", children=[gate])
+            lift = node(root_id + ".lift", children=[gate])
+            branch.tracks.append({"id": lift["id"] + ".offset", "type": "tween", "target": lift["id"],
+                "property": "y", "clock": "lift.offset", "easing": "linear", "loop": False,
+                "keyframes": [{"id": lift["id"] + ".zero", "time": 0, "value": 0},
+                              {"id": lift["id"] + ".full", "time": 1, "value": -1 / (.12 * 3)}]})
+            # Both existing authored rulesets place the C3 judgement band centre at81% of the484px field.
+            # The26 native caller places the complete label/number canvas TOP at342-offset-lift.
+            # Its original sprite has local bounds starting at(0,0), without a centre-origin override.
+            # Public x/y use the parent slot, whose C3 judgement height is12% of the source field.
+            judgement_height = SOURCE_STAGE_HEIGHT * .12
+            normal_y = (342 - SOURCE_STAGE_HEIGHT * .81) / judgement_height
+            # Centre a three-band canvas so full Lift and the300px setting each stay within
+            # the public relative-position bound, without changing the original glyph size.
+            position = node(root_id + ".position", children=[lift])
+            canvas = node(root_id + ".canvas", properties={"y": -1, "height": 3}, children=[position])
+            root = node(root_id, properties={"opacity": 0, "y": normal_y}, slot="hud.judgement", children=[canvas])
             marker = self.fallback_marker("sj", "judgement", "judge00", "judge_p_great_blue")
             branch.template("group", root, "hud.judgement", marker)
             branch.stage_ini("hud.judgement", marker)
@@ -652,14 +825,30 @@ class StandardComponents(ModuleBuilder):
                 "states": [{"id": root_id + ".empty", "set": [{"id": root_id + ".hide", "target": root_id, "property": "opacity", "value": 0}]},
                            {"id": root_id + ".active", "set": [{"id": root_id + ".show", "target": root_id, "property": "opacity", "value": 1}]}],
                 "transitions": [{"id": root_id + ".arrive", "from": root_id + ".empty", "to": root_id + ".active", "event": "judgement.hit"}]})
-            choices.append({"value": f"j{style:02}", "label": f"Judgment Characters {style:02}", **branch.finish(),
+            contribution = branch.finish()
+            positions = []
+            for value, offset in (("up100", 100), ("up200", 200), ("up300", 300), ("off", 0)):
+                variant_scene = copy.deepcopy(branch.scene)
+                variant_root = variant_scene["templates"][0]["root"]
+                variant_root["children"][0]["children"][0]["properties"]["y"] = -offset / (judgement_height * 3)
+                if value == "off":
+                    # The root's judgement.hit machine owns opacity. Keep OFF on a separate
+                    # ancestor so a real hit cannot reveal this branch again.
+                    variant_root["children"][0]["properties"]["visible"] = False
+                path = branch.base + "/position-" + value + ".scene.json"
+                self.json(path, variant_scene)
+                positions.append({"when": {"judgement-position": value}, **contribution, "scene": path})
+            choices.append({"value": f"j{style:02}", "label": f"Judgment Characters {style:02}", **contribution, "variants": positions,
                             "preview": self.preview("judgement", f"j{style:02}", [(package, "judge_p_great_blue")])})
         self.add_module("judgement", "Judgment Characters", choices, "j00")
         self.receipts.append({"category": "judgement", "choices": 14, "sourceSize": "Per-source complete74px label and digit canvas",
-            "position": "Native exact group judgement slot centre; original26 executable anchor is not yet asserted",
+            "position": "26 native canvas top y=342-offset-lift, not its centre: caller3516f3 positions the original sprite; native texture geometry starts at(0,0) and the judgement initializer does not change its origin. Original table0/100/200/300/-1 becomes normal/up100/up200/up300/off. Only the selected catalogue scene is instantiated, so four positions do not duplicate dynamic text reservations.",
+            "carrier": "Horizontal carriers have relative height74/(3*484*.12), so the runtime's vertically centred leaf is exactly at the original canvas top. height-px is used only by sprite leaves.",
+            "horizontal": "Native113730 registers37px digit advance;1133f0 draws full55px glyphs at that step. The first digit starts at native label-layout width minus11, preserving the18px full-image overlap without trimming. Actual label PNG width is retained, including judge11's164px art.",
+            "centringAdaptation": "OMS retains whole-row centring in its actual292px stage. The native caller uses labelX=C-floor((L+37*n-11)/2)-11 with C=195/1085 forSP and450/830 forDP; its complete canvas centre differs by1-3source pixels from this OMS centring. Native digits have five slots and clamp at99999; OMS keeps the actual longer integer value and fits it instead. No claim of exact native horizontal placement.",
             "widthFit": "Whole label-plus-digits uses equal X/Y scaling only when its source width exceeds292px; exact digit thresholds1-7, conservative10-digit fit from10,000,000 because C4 keyframe times are limited to86,400,000. Original PNG/atlas/number value unchanged; no crop or ellipsis.",
             "PGCycle": "Original blue/green/pink label-and-number pairs;100ms per phase is an explicit OMS author rhythm, not measured source timing",
-            "noCombo": "Real combo.active hides digits without replacing gameplay scores"})
+            "noCombo": "BAD/POOR never contain digits, following native351510. PG/GREAT/GOOD show label plus actual digits only while combo.active; otherwise they show label only. Gameplay combo and scores are never changed."})
 
     def turntables(self):
         if self.frame_maps is None:
@@ -809,7 +998,7 @@ class StandardComponents(ModuleBuilder):
                     raise ValueError("Original Full Combo movie exceeds the bounded completion outro contract")
                 branch.completion_outro = duration
                 retention = node(branch.prefix + ".retention", children=[art])
-                root = node(branch.prefix + ".eligibility", slot="decoration", children=[retention])
+                root = node(branch.prefix + ".eligibility", properties={"z": -40}, slot="decoration", children=[retention])
                 branch.bind(root["id"], "visible", "gameplay.full-combo")
                 branch.tracks.append({"id": branch.prefix + ".outro", "type": "tween", "target": retention["id"],
                     "property": "opacity", "easing": "step", "loop": False, "trigger": "gameplay.complete",
@@ -826,12 +1015,14 @@ class StandardComponents(ModuleBuilder):
                 "preview": self.preview("full-combo", f"fc{style:02}", [(package, n) for n in largest])})
         self.add_module("full-combo", "Full Combo", choices, "fc00")
         self.receipts.append({"category": "full-combo", "choices": 18, "layouts": ["p1", "p2", "dp"],
-            "sourceMovieScope": "All declared frames, hierarchy, geometry, UV, masks, filters, camera and sentinel preserved",
+            "sourceMovieScope": "All declared frames, hierarchy, XYZ, topology, masks, filters, camera and sentinel preserved; UV is losslessly rebased to original RGBA atlas rectangles with repeated clamp-edge padding",
+            "sourcePixelPacking": "Every Full Combo movie uses bounded nearest/clamp atlases; original pixels are not resampled, recoloured, trimmed or rotated",
             "completionOutro": "Each original duration is retained by an explicit non-loop completion track on a separate opacity wrapper",
+            "layerOrder": "Original26 common caller covers all18 styles: FC priority44 becomes156, Graph88/71 becomes112/129, and AFP draws ascending. Therefore FC is in front of Graph; C5 lower depth is front, so the full source movie root uses z=-40 before Graph -10/-20/-30. No stage crop or rescale.",
             "eligibility": "Actual gameplay.full-combo; no score/combo inference in the author package"})
 
     def long_note_research(self):
-        """Export source movies without declaring a nonexistent runtime owner."""
+        """Export all source movies for independent offline inspection."""
         source = self._package("lnote00")
         expected = {"notes_break"} | {f"lnote00_lo_{colour}{suffix}"
             for colour in ("siro", "ao", "scr") for suffix in ("", "2", "_push", "2_push")}
@@ -844,10 +1035,10 @@ class StandardComponents(ModuleBuilder):
             "runtimeAttachment": False,
             "limitations": [
                 "No runtime choice references these research movies. gameplay.attach is an offline playback clock, not a proposed gameplay event.",
-                "Current exact-object head/body/tail instances expose object.state and long-note-appearance but no active/holding elapsed clock.",
-                "The BMS head expires120ms after judgement. The scrolling body is not a fixed judgement-line effect owner.",
-                "Mounting requires a real fixed-line long-note effect owner, exact CN/BSS/HCN identity and native state time; ordinary key/judgement events are insufficient.",
-                "Source cn2/bss2 and lnote2 associations are evidence from source naming; exact original-game state switching remains unmeasured."]}
+                "This inventory includes three base2 movies that the26 executable does not dispatch.",
+                "The gameplay charge-notes component separately mounts the ten native-caller movies on the exact fixed-line long-note effect owner.",
+                "Native state and transition times drive gameplay effects; ordinary key/judgement events are insufficient.",
+                "This offline inventory alone does not prove native state switching or live rendering."]}
         (self.output / "export.json").write_text(json.dumps(result, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
         return result
 

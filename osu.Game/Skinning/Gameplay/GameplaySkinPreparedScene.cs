@@ -52,6 +52,7 @@ namespace osu.Game.Skinning.Gameplay
         public const int MAX_CREATIONS_PER_FRAME = 256;
         public const int MAX_SPECIALISED_VISUALS_PER_KEY = 256;
         public const int MAX_HIT_EXPLOSION_VISUALS_PER_KEY = 16;
+        public const int MAX_LONG_NOTE_EFFECT_VISUALS_PER_KEY = 16;
         public const int MAX_HUD_SOURCE_OWNERS = 64;
         public const int MAX_HUD_SOURCE_OWNERS_PER_SLOT = 32;
         public const int MAX_HUD_PARTITION_RECORDS = 1280;
@@ -97,7 +98,8 @@ namespace osu.Game.Skinning.Gameplay
                 return GameplaySkinSceneLayer.Object;
 
             if (ReferenceEquals(descriptor, GameplaySkinSlotCatalog.KeyFlash)
-                || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.HitExplosion))
+                || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.HitExplosion)
+                || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LongNoteEffect))
                 return GameplaySkinSceneLayer.GameplayEffects;
 
             if (ReferenceEquals(descriptor, GameplaySkinSlotCatalog.JudgementDisplay)
@@ -130,6 +132,7 @@ namespace osu.Game.Skinning.Gameplay
                || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LongNoteTail)
                || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.KeyVisual)
                || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.HitExplosion)
+               || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LongNoteEffect)
                || (ReferenceEquals(descriptor, GameplaySkinSlotCatalog.Mine)
                    && string.Equals(rulesetId, "bms", StringComparison.Ordinal))
                || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LaneCoverFill)
@@ -154,6 +157,9 @@ namespace osu.Game.Skinning.Gameplay
 
             if (ReferenceEquals(descriptor, GameplaySkinSlotCatalog.HitExplosion))
                 return GameplaySkinPreparedSceneBudgets.MAX_HIT_EXPLOSION_VISUALS_PER_KEY;
+
+            if (ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LongNoteEffect))
+                return GameplaySkinPreparedSceneBudgets.MAX_LONG_NOTE_EFFECT_VISUALS_PER_KEY;
 
             if (ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LaneCoverFill)
                 || ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LaneCoverDecoration))
@@ -235,7 +241,8 @@ namespace osu.Game.Skinning.Gameplay
             }
             else if (ReferenceEquals(slot, GameplaySkinSlotCatalog.HitTarget)
                      || ReferenceEquals(slot, GameplaySkinSlotCatalog.KeyFlash)
-                     || ReferenceEquals(slot, GameplaySkinSlotCatalog.HitExplosion))
+                     || ReferenceEquals(slot, GameplaySkinSlotCatalog.HitExplosion)
+                     || ReferenceEquals(slot, GameplaySkinSlotCatalog.LongNoteEffect))
             {
                 surfaceId = surface(ruleset, "hit-target");
                 intersectTarget = true;
@@ -432,6 +439,7 @@ namespace osu.Game.Skinning.Gameplay
     {
         public GameplaySkinSceneBindingSource ClockSource { get; }
         public string? ClockOptionId { get; }
+        public string? ClockValueId { get; }
         public string Id { get; }
 
         public GameplaySkinSceneTrackType Type { get; }
@@ -461,6 +469,7 @@ namespace osu.Game.Skinning.Gameplay
             Trigger = source.Trigger;
             ClockSource = source.ClockSource;
             ClockOptionId = source.ClockSource == GameplaySkinSceneBindingSource.Option ? source.ClockSourceId![7..] : null;
+            ClockValueId = source.ClockSource == GameplaySkinSceneBindingSource.NumericValue ? source.ClockSourceId![6..] : null;
             Keyframes = Array.AsReadOnly(source.Keyframes
                                                .Select(keyframe => new GameplaySkinPreparedSceneKeyframe(keyframe, Property, resources))
                                                .ToArray());
@@ -571,16 +580,19 @@ namespace osu.Game.Skinning.Gameplay
 
         public string? OptionId { get; }
 
+        public string? ValueId { get; }
+
         internal GameplaySkinSceneStateFamily StateFamily { get; }
 
-        internal GameplaySkinPreparedSceneBinding(GameplaySkinSceneBinding source)
+        internal GameplaySkinPreparedSceneBinding(GameplaySkinSceneBinding source, GameplaySkinPreparedNumericSources? numericSources = null)
         {
             Id = source.Id;
             TargetNodeId = source.TargetNodeId;
             Property = source.Property;
             Source = source.Source;
             OptionId = source.Source == GameplaySkinSceneBindingSource.Option ? source.SourceId[7..] : null;
-            StateFamily = GameplaySkinPreparedSceneProgram.StateFamilyFor(source.Source);
+            ValueId = source.Source == GameplaySkinSceneBindingSource.NumericValue ? source.SourceId[6..] : null;
+            StateFamily = ValueId == null ? GameplaySkinPreparedSceneProgram.StateFamilyFor(source.Source) : numericSources!.StateFamily(ValueId);
         }
     }
 
@@ -689,7 +701,11 @@ namespace osu.Game.Skinning.Gameplay
 
         public double CompletionOutro { get; }
 
+        public double FailureOutro { get; }
+
         public double PreparationDuration { get; }
+
+        internal GameplaySkinPreparedNumericSources NumericSources { get; }
 
         internal GameplaySkinPreparedSceneProgram(
             GameplaySkinSceneDocument? document,
@@ -697,7 +713,9 @@ namespace osu.Game.Skinning.Gameplay
         {
             HasAuthorScene = document != null;
             CompletionOutro = document?.CompletionOutro ?? 0;
+            FailureOutro = document?.FailureOutro ?? 0;
             PreparationDuration = document?.PreparationDuration ?? 0;
+            NumericSources = new GameplaySkinPreparedNumericSources(document?.NumericSources ?? Array.Empty<GameplaySkinNumericSource>());
             Tracks = Array.AsReadOnly((document?.Tracks ?? Array.Empty<GameplaySkinSceneTrack>())
                                       .Select(track => new GameplaySkinPreparedSceneTrack(track, resources))
                                       .ToArray());
@@ -705,13 +723,19 @@ namespace osu.Game.Skinning.Gameplay
                                              .Select(machine => new GameplaySkinPreparedSceneStateMachine(machine, resources))
                                              .ToArray());
             Bindings = Array.AsReadOnly((document?.Bindings ?? Array.Empty<GameplaySkinSceneBinding>())
-                                        .Select(binding => new GameplaySkinPreparedSceneBinding(binding))
+                                        .Select(binding => new GameplaySkinPreparedSceneBinding(binding, NumericSources))
                                         .ToArray());
             Variants = Array.AsReadOnly((document?.Variants ?? Array.Empty<GameplaySkinSceneVariant>())
                                         .Select(variant => new GameplaySkinPreparedSceneVariant(variant, resources))
                                         .ToArray());
             usedBindingSources = new HashSet<GameplaySkinSceneBindingSource>(
                 Bindings.Select(binding => binding.Source).Concat(Variants.Select(variant => variant.Source)).Concat(Tracks.Select(track => track.ClockSource)));
+            foreach (GameplaySkinPreparedSceneBinding binding in Bindings)
+                if (binding.ValueId != null)
+                    NumericSources.IncludeDependencies(binding.ValueId, usedBindingSources);
+            foreach (GameplaySkinPreparedSceneTrack track in Tracks)
+                if (track.ClockValueId != null)
+                    NumericSources.IncludeDependencies(track.ClockValueId, usedBindingSources);
             if (document != null)
             {
                 registerNodeClocks(document.Root);
@@ -726,6 +750,8 @@ namespace osu.Game.Skinning.Gameplay
         {
             if (node.ClockSource != GameplaySkinSceneBindingSource.Unspecified)
                 usedBindingSources.Add(node.ClockSource);
+            if (node.ClockValueId != null)
+                NumericSources.IncludeDependencies(node.ClockValueId, usedBindingSources);
             foreach (GameplaySkinSceneNode child in node.Children)
                 registerNodeClocks(child);
         }
@@ -789,6 +815,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBindingSource.ObjectState => GameplaySkinSceneStateFamily.Object,
             GameplaySkinSceneBindingSource.ObjectLongNoteMode => GameplaySkinSceneStateFamily.Object,
             GameplaySkinSceneBindingSource.ObjectLongNoteAppearance => GameplaySkinSceneStateFamily.Object,
+            GameplaySkinSceneBindingSource.ObjectPreviousState => GameplaySkinSceneStateFamily.Object,
             GameplaySkinSceneBindingSource.ObjectAutoAssist => GameplaySkinSceneStateFamily.Object,
             GameplaySkinSceneBindingSource.JudgementResult => GameplaySkinSceneStateFamily.Judgement,
             GameplaySkinSceneBindingSource.JudgementOffset => GameplaySkinSceneStateFamily.Judgement,
@@ -808,6 +835,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBindingSource.GaugeMaximum => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.GaugeClearThreshold => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.GaugeClearState => GameplaySkinSceneStateFamily.Score,
+            GameplaySkinSceneBindingSource.GaugeIncreaseAvailable => GameplaySkinSceneStateFamily.Score,
             GameplaySkinSceneBindingSource.TimingBeat => GameplaySkinSceneStateFamily.Timing,
             GameplaySkinSceneBindingSource.TimingMeasure => GameplaySkinSceneStateFamily.Timing,
             GameplaySkinSceneBindingSource.TimingBpm => GameplaySkinSceneStateFamily.Timing,
@@ -822,6 +850,9 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBindingSource.ScrollAvailable or GameplaySkinSceneBindingSource.ScrollAdjusting
                 or GameplaySkinSceneBindingSource.ScrollMode or GameplaySkinSceneBindingSource.ScrollGreenNumber
                 or GameplaySkinSceneBindingSource.ScrollActualHiSpeed or GameplaySkinSceneBindingSource.ScrollActualHiSpeedAvailable
+                or GameplaySkinSceneBindingSource.ScrollGreenNumberMinimum or GameplaySkinSceneBindingSource.ScrollGreenNumberMaximum
+                or GameplaySkinSceneBindingSource.ScrollGreenNumberRangeAvailable
+                or GameplaySkinSceneBindingSource.ScrollPreviewPhase or GameplaySkinSceneBindingSource.ScrollPreviewAvailable
                 or GameplaySkinSceneBindingSource.CoverSuddenUnits or GameplaySkinSceneBindingSource.CoverHiddenUnits
                 or GameplaySkinSceneBindingSource.CoverSuddenActive or GameplaySkinSceneBindingSource.CoverHiddenActive => GameplaySkinSceneStateFamily.Timing,
             GameplaySkinSceneBindingSource.JudgementCountPerfect => GameplaySkinSceneStateFamily.Score,
@@ -1101,6 +1132,8 @@ namespace osu.Game.Skinning.Gameplay
 
                 GameplaySkinPreparedSceneResource[] copiedResources = [.. resources];
                 GameplaySkinPreparedSceneNode[] copiedRoots = [.. roots];
+                GameplaySkinRecordedAnimationCodec.ValidateFailureOutro(document?.FailureOutro ?? 0,
+                    enumeratePreparedNodes(copiedRoots).Select(node => node.Source), RecordedAnimations);
                 Resources = Array.AsReadOnly(copiedResources);
                 Roots = Array.AsReadOnly(copiedRoots);
                 HostedSlots = createHostedSlots(snapshot, materialSet, copiedRoots);
@@ -1135,7 +1168,7 @@ namespace osu.Game.Skinning.Gameplay
                                 fanout[projected.Node.Source.Id]++;
                         }
                     }
-                    long frameApplications = document.Tracks.Sum(track => fanout.GetValueOrDefault(track.TargetNodeId))
+                    long frameApplications = document.NumericSources.Count + document.Tracks.Sum(track => fanout.GetValueOrDefault(track.TargetNodeId))
                                              + document.Bindings.Sum(binding => fanout.GetValueOrDefault(binding.TargetNodeId))
                                              + document.Variants.Sum(variant => fanout.GetValueOrDefault(variant.TargetNodeId));
                     long eventApplications = document.StateMachines.SelectMany(machine => machine.States)
@@ -1483,6 +1516,9 @@ namespace osu.Game.Skinning.Gameplay
                 throw fail(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
             if (animation != null && node.OwningSlotKey?.Slot == GameplaySkinSlotCatalog.HitExplosion
                 && (animation.Loop || animation.Duration > GameplaySkinRecordedAnimationBudgets.MAX_JUDGEMENT_VISUAL_DURATION))
+                throw fail(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
+            if (animation != null && node.OwningSlotKey?.Slot == GameplaySkinSlotCatalog.LongNoteEffect && !animation.Loop
+                && animation.Duration > GameplaySkinRecordedAnimationBudgets.MAX_LONG_NOTE_OUTRO_DURATION)
                 throw fail(GameplaySkinSceneDiagnosticCode.BudgetExceeded);
             return new RuntimeReservation(
                 1 + (animation?.MaximumFramePieces ?? 0),

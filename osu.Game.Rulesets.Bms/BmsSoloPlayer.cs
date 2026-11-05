@@ -272,8 +272,8 @@ namespace osu.Game.Rulesets.Bms
         private void updatePreStartSpeedPreviewState()
         {
             drawableBmsRuleset?.SetPreStartSpeedPreviewState(
-                gameplayStartPending && hiSpeedHoldPressed.Value,
-                gameplayStartPending && hiSpeedHoldPressed.Value && pauseOverlayVisibility.Value == Visibility.Visible);
+                (gameplayStartPending || drawableBmsRuleset.LayoutSnapshot.HasAuthoredNormalSpeedPreview) && hiSpeedHoldPressed.Value,
+                hiSpeedHoldPressed.Value && pauseOverlayVisibility.Value == Visibility.Visible);
         }
 
         private void handleGameplayClockPausedState()

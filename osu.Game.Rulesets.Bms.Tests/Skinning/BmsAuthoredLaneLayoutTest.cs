@@ -124,16 +124,21 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         {
             GameplaySkinLayoutRect? mods = declared ? GameplaySkinLayoutRect.Create(0.1f, 0.2f, 0.3f, 0.08f) : null;
             var author = new GameplaySkinAuthorLayout("mods", "bms", "5k", "p1",
-                profile(GameplaySkinLayoutRect.Create(0.1f, 0, 0.3f, 0.6f)).Stages, modsRect: mods);
+                profile(GameplaySkinLayoutRect.Create(0.1f, 0, 0.3f, 0.6f)).Stages, modsRect: mods, normalSpeedPreviewRect: mods);
             var environment = new BmsGameplayLayoutEnvironment(GameplaySkinLayoutRect.Create(0, 0, 1, 1),
                 GameplaySkinLayoutRect.Create(0.12f, 0.07f, 0.8f, 0.85f), 16f / 9f, 1);
             BmsGameplayLayoutSnapshot result = new BmsGameplayLayoutProvider(
                     new BmsBeatmap { BmsInfo = new BmsBeatmapInfo { Keymode = BmsKeymode.Key5K } })
                 .PublishForTesting(BmsPlayfieldStyle.P1, new BmsGameplayLayoutConfiguration { AuthorLayout = author }, environment);
             Assert.That(result.Neutral.Surfaces.Any(surface => surface.Id == GameplaySkinAuthorLayout.MODS_SURFACE), Is.EqualTo(declared));
+            Assert.That(result.HasAuthoredNormalSpeedPreview, Is.EqualTo(declared));
             if (!declared)
+            {
+                Assert.That(result.PreStartPreviewRect, Is.EqualTo(result.PlayfieldRect));
                 return;
+            }
             GameplaySkinLayoutSurface actual = result.Neutral.GetSurface(GameplaySkinAuthorLayout.MODS_SURFACE);
+            Assert.That(result.PreStartPreviewRect, Is.EqualTo(actual.Rect));
             Assert.Multiple(() =>
             {
                 Assert.That(actual.Rect.X, Is.EqualTo(0.2f).Within(0.000001));

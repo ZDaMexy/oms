@@ -17,6 +17,7 @@ using osu.Game.Rulesets.Judgements;
 using osu.Game.Rulesets.Mania.Judgements;
 using osu.Game.Rulesets.Mania.Skinning;
 using osu.Game.Rulesets.Mania.Skinning.Default;
+using osu.Game.Rulesets.Mania.UI;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.Scoring;
@@ -79,8 +80,13 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
         private IManiaGameplaySkinObjectIdentityProvider gameplaySkinObjectIdentityProvider { get; set; }
 
         private long? gameplaySkinObjectId;
-        private bool lastPublishedHolding;
+        private GameplaySkinObjectState lastPublishedLongNoteState;
         private bool completedPublished;
+        private ManiaLongNoteEffect longNoteEffect;
+        private double lastSkinStateTime = double.NaN;
+
+        [Resolved(canBeNull: true)]
+        private Column column { get; set; }
 
         public DrawableHoldNote()
             : this(null)
@@ -187,8 +193,9 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
 
             sizingContainer.Size = Vector2.One;
             gameplaySkinObjectId = gameplaySkinObjectIdentityProvider?.GetObjectId(HitObject);
-            lastPublishedHolding = false;
+            lastPublishedLongNoteState = GameplaySkinObjectState.Visible;
             completedPublished = false;
+            lastSkinStateTime = double.NaN;
 
             if (specialisedSceneVisual != null)
             {
@@ -281,27 +288,23 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
             base.Update();
 
             isHolding.Value = Result.IsHolding(Time.Current);
+            bool restoring = double.IsNaN(lastSkinStateTime) || Time.Current < lastSkinStateTime
+                             || Clock is IGameplayClock { IsRewinding: true };
+            publishLongNoteState(restoring);
+            lastSkinStateTime = Time.Current;
 
-            if (gameplaySkinObjectId.HasValue)
+            bool effectActive = (Time.Current >= HitObject.StartTime || Head.Judged) && !AllJudged;
+            if (effectActive && longNoteEffect == null && gameplaySkinObjectId is { } objectId)
+                longNoteEffect = column?.AcquireLongNoteEffect(objectId);
+            else if (!effectActive && longNoteEffect != null)
             {
-                if (AllJudged)
-                {
-                    if (!completedPublished)
-                    {
-                        completedPublished = true;
-                        gameplaySkinObjectIdentityProvider.PublishLongNoteState(
-                            gameplaySkinObjectId.Value,
-                            GameplaySkinObjectState.Completed);
-                    }
-                }
-                else if (lastPublishedHolding != isHolding.Value)
-                {
-                    lastPublishedHolding = isHolding.Value;
-                    gameplaySkinObjectIdentityProvider.PublishLongNoteState(
-                        gameplaySkinObjectId.Value,
-                        isHolding.Value ? GameplaySkinObjectState.Holding : GameplaySkinObjectState.Visible);
-                }
+                if (AllJudged && !restoring)
+                    longNoteEffect.Finish();
+                else
+                    longNoteEffect.Release();
+                longNoteEffect = null;
             }
+            longNoteEffect?.SetHolding(isHolding.Value);
 
             // Pad the full size container so its contents (i.e. the masking container) reach under the tail.
             // This is required for the tail to not be masked away, since it lies outside the bounds of the hold note.
@@ -372,6 +375,7 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
 
                 // Important that this is always called when a result is applied.
                 Result.ReportHoldState(Time.Current, false);
+                publishLongNoteState();
             }
         }
 
@@ -381,6 +385,7 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
 
             // Important that this is always called when a result is applied.
             Result.ReportHoldState(Time.Current, false);
+            publishLongNoteState();
         }
 
         public bool OnPressed(KeyBindingPressEvent<ManiaAction> e)
@@ -415,6 +420,7 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
                 return;
 
             Result.ReportHoldState(Time.Current, true);
+            publishLongNoteState();
         }
 
         public void OnReleased(KeyBindingReleaseEvent<ManiaAction> e)
@@ -440,6 +446,7 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
                 Body.TriggerResult(Tail.IsHit);
 
                 Result.ReportHoldState(Time.Current, false);
+                publishLongNoteState();
             }
         }
 
@@ -466,12 +473,42 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
 
         protected override void OnFree()
         {
+            if (AllJudged && Clock is not IGameplayClock { IsRewinding: true })
+            {
+                longNoteEffect?.Finish();
+                longNoteEffect = null;
+            }
+            else
+                releaseLongNoteEffect();
             specialisedSceneVisual?.OnFree();
             gameplaySkinObjectId = null;
-            lastPublishedHolding = false;
+            lastPublishedLongNoteState = GameplaySkinObjectState.Visible;
             completedPublished = false;
             slidingSample.ClearSamples();
             base.OnFree();
+        }
+
+        private void publishLongNoteState(bool restoring = false)
+        {
+            restoring |= Clock is IGameplayClock { IsRewinding: true };
+            if (!gameplaySkinObjectId.HasValue)
+                return;
+            GameplaySkinObjectState state = AllJudged ? GameplaySkinObjectState.Completed
+                : Result.IsHolding(Time.Current) ? GameplaySkinObjectState.Holding
+                : GameplaySkinObjectState.Visible;
+            if (state == lastPublishedLongNoteState && (state != GameplaySkinObjectState.Completed || completedPublished))
+                return;
+            lastPublishedLongNoteState = state;
+            completedPublished = state == GameplaySkinObjectState.Completed;
+            gameplaySkinObjectIdentityProvider.PublishLongNoteState(gameplaySkinObjectId.Value, state, restoring);
+            if (completedPublished && !restoring && longNoteEffect == null)
+                longNoteEffect = column?.AcquireLongNoteEffect(gameplaySkinObjectId.Value);
+        }
+
+        private void releaseLongNoteEffect()
+        {
+            longNoteEffect?.Release();
+            longNoteEffect = null;
         }
     }
 }

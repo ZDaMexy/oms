@@ -155,8 +155,18 @@ namespace osu.Game.Rulesets.UI
                 if (HasReplayLoaded.Value)
                     return;
 
-                KeyBindingInputManager.UseParentInput = !paused.NewValue;
+                KeyBindingInputManager.UseParentInput = !paused.NewValue && !gameplaySkinFailureInputSuspended;
             };
+        }
+
+        private bool gameplaySkinFailureInputSuspended;
+
+        internal override void SetGameplaySkinFailureInputSuspended(bool suspended)
+        {
+            gameplaySkinFailureInputSuspended = suspended;
+            KeyBindingInputManager.UseParentInput = !suspended && !IsPaused.Value && !HasReplayLoaded.Value;
+            if (suspended)
+                (KeyBindingInputManager as IFrameStableInputHandler)?.ResetInput();
         }
 
         protected override IReadOnlyDependencyContainer CreateChildDependencies(IReadOnlyDependencyContainer parent)
@@ -431,6 +441,8 @@ namespace osu.Game.Rulesets.UI
     [Cached(typeof(DrawableRuleset))]
     public abstract partial class DrawableRuleset : CompositeDrawable
     {
+        internal abstract void SetGameplaySkinFailureInputSuspended(bool suspended);
+
         /// <summary>
         /// Invoked when a <see cref="JudgementResult"/> has been applied by a <see cref="DrawableHitObject"/>.
         /// </summary>

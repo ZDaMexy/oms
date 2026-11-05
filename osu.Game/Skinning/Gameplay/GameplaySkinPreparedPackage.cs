@@ -180,6 +180,8 @@ namespace osu.Game.Skinning.Gameplay
             cancellationToken.ThrowIfCancellationRequested();
             IReadOnlyDictionary<string, GameplaySkinRecordedAnimationProgram> animations =
                 GameplaySkinRecordedAnimationCodec.PrepareAnimations(manifest, read, cancellationToken);
+            GameplaySkinRecordedAnimationCodec.ValidateFailureOutro(document.FailureOutro,
+                enumerateNodes(document.Root).Concat(document.Templates.SelectMany(template => enumerateNodes(template.Root))), animations);
             return new GameplaySkinPreparedPackage(packageRevision, manifest, document, resources, program, authorization,
                 recordedAnimations: animations, materialDocument: materialDocument, optionPreviews: optionPreviews);
         }

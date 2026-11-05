@@ -430,6 +430,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     GameplaySkinSlotCatalog.KeyVisual,
                     GameplaySkinSlotCatalog.BarLine,
                     GameplaySkinSlotCatalog.HitExplosion,
+                    GameplaySkinSlotCatalog.LongNoteEffect,
                     GameplaySkinSlotCatalog.LaneCoverFill,
                     GameplaySkinSlotCatalog.LaneCoverDecoration,
                 };
@@ -478,7 +479,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Assert.Multiple(() =>
                 {
                     Assert.That(document.HasFatalDiagnostics, Is.False);
-                    Assert.That(declarations, Has.Length.EqualTo(26));
+                    Assert.That(declarations, Has.Length.EqualTo(30));
                     Assert.That(declarations.Where(candidateEntry => candidateEntry.Operation == GameplaySkinDocumentOperation.Provide)
                                             .Select(candidateEntry => candidateEntry.Descriptor)
                                             .Distinct(), Is.EquivalentTo(supportedSlots),
@@ -495,8 +496,15 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                                                           && entry.Target.GlobalVisualIndex == 0
                                                           && entry.Target.GroupLocalLogicalIndex == 0
                                                           && entry.Target.GroupLocalVisualIndex == 0), Is.True);
-                    Assert.That(declarations.Where(entry => entry.Target.LaneId?.Value == "mania.lane.column-2")
+                    Assert.That(declarations.Where(entry => entry.Target.LaneId?.Value == "mania.lane.column-2"
+                                                             && (entry.Descriptor == GameplaySkinSlotCatalog.KeyVisual
+                                                                 || entry.Descriptor == GameplaySkinSlotCatalog.KeyFlash))
                                             .All(entry => entry.Operation == GameplaySkinDocumentOperation.Suppress), Is.True);
+                    Assert.That(declarations.Where(entry => entry.Descriptor == GameplaySkinSlotCatalog.LongNoteEffect)
+                                            .Select(entry => entry.Target.LaneId?.Value), Is.EquivalentTo(new[]
+                                            {
+                                                "mania.lane.column-1", "mania.lane.column-2", "mania.lane.column-3", "mania.lane.column-4",
+                                            }), "This all-public-slots fixture explicitly opts every lane into the optional long-note effect.");
                     Assert.That(declarations.Where(entry => entry.Target.Kind == GameplaySkinDocumentTargetKind.Stage)
                                             .All(entry => entry.Target.GroupId?.Value == "mania.group.stage-1"
                                                           && entry.Target.GroupLogicalIndex == 0
@@ -513,8 +521,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                         supportedSlots.Sum(descriptor =>
                             GameplaySkinPublicSlotMaterialTargets.Enumerate(descriptor, publication.Snapshot).Count)));
                     Assert.That(materialSet.Entries.Select(entry => entry.Slot).Distinct(), Is.EquivalentTo(supportedSlots));
-                    Assert.That(ManiaGameplaySkinMaterialResolver.RuntimeCapabilities.Support, Has.Count.EqualTo(25));
-                    Assert.That(GameplaySkinRuntimeSupportProfile.Mania.Decisions, Has.Count.EqualTo(32));
+                    Assert.That(ManiaGameplaySkinMaterialResolver.RuntimeCapabilities.Support, Has.Count.EqualTo(26));
+                    Assert.That(GameplaySkinRuntimeSupportProfile.Mania.Decisions, Has.Count.EqualTo(33));
                     Assert.That(notApplicableSlots.All(descriptor =>
                     {
                         Assert.That(GameplaySkinRuntimeSupportProfile.Mania.TryGetDecision(descriptor, out GameplaySkinRuntimeSupportDecision? decision), Is.True);
@@ -762,6 +770,38 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                                                           State.State: GameplaySkinObjectState.Holding,
                                                       }
                                                       && objectId == holdObjectId);
+            });
+            AddUntilStep("wait for real held long-note effect lease", () =>
+                renderer.FirstColumn.HitObjectArea.Explosions.ChildrenOfType<ManiaLongNoteEffect>()
+                        .Any(effect => effect.IsLoaded && effect.BoundObjectId == holdObjectId && effect.Alpha > 0));
+            AddStep("assert declared long-note artwork follows its actual native hold", () =>
+            {
+                GameplaySkinLayoutPublication publication = renderer.Drawable.LayoutRevisionOwner.CurrentPublication!;
+                GameplaySkinLaneTopologyGroup group = publication.Snapshot.Context.Topology.GroupsInLogicalOrder.Single();
+                var key = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LongNoteEffect,
+                    GameplaySkinResolvedMaterialTarget.ForLane(group, group.LanesInLogicalOrder[0]));
+                Assert.That(publication.MaterialSet.TryGet(key, out GameplaySkinResolvedMaterialEntry? entry), Is.True);
+                Assert.That(sceneHost.TryGetVisualGate(key, out GameplaySkinSceneHostedSlot? gate), Is.True);
+                ManiaLongNoteEffect effect = renderer.FirstColumn.HitObjectArea.Explosions.ChildrenOfType<ManiaLongNoteEffect>()
+                    .Single(candidateEffect => candidateEffect.BoundObjectId == holdObjectId && candidateEffect.Alpha > 0);
+                Assert.Multiple(() =>
+                {
+                    Assert.That(entry!.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Provide));
+                    Assert.That(entry.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.SelectedPackage));
+                    Assert.That(entry.GetMaterial<GameplaySkinPublicSlotMaterial>().ResourceName, Is.EqualTo("public/note"));
+                    Assert.That(gate!.SpecialisedPoolCapacity, Is.EqualTo(GameplaySkinPreparedSceneBudgets.MAX_LONG_NOTE_EFFECT_VISUALS_PER_KEY));
+                    Assert.That(gate.IsReplacementReady, Is.True);
+                    Assert.That(effect.BoundObjectId, Is.EqualTo(holdObjectId));
+                    Assert.That(effect.IsInUse, Is.True);
+                    Assert.That(getPrivateField<Container>(effect, "owner").Alpha, Is.EqualTo(1),
+                        "The selected texture must become visible from the real native holding state.");
+                    Assert.That(containsTexture(effect, entry.GetMaterial<GameplaySkinPublicSlotMaterial>().Texture!), Is.True);
+                    Assert.That(isDescendantOf(effect, renderer.FirstColumn.HitObjectArea.Explosions), Is.True);
+                    Assert.That(sceneHost.TryGetHostedDrawable(key, out _), Is.False,
+                        "The real hold's fixed-line lease must not have a second shared-root copy.");
+                    Assert.That(renderer.FirstColumn.LongNoteEffectCapacityDropCount, Is.Zero);
+                });
+                assertSpecialisedSceneConsumer(effect, publication.MaterialSet, key, gate!);
             });
             AddStep("assert long-note progress uses envelope gameplay time", () =>
             {
@@ -2959,6 +2999,15 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                  "playfield.lane-cover.decoration: resource Provide \"public/note\"\n" +
                  "Target: Global ruleset=mania keymode=4k stage-mode=single\n" +
                  "hud.text: resource Provide \"public/note\"\n");
+
+            // This fixture promises every supported public slot. New optional owners must be
+            // declared for each exact lane rather than silently appearing in older packages.
+            for (int column = 0; column < 4; column++)
+            {
+                File.AppendAllText(Path.Combine(packageRoot, "skin.ini"),
+                    $"Target: Lane ruleset=mania keymode=4k stage-mode=single group=mania.group.stage-1 lane=mania.lane.column-{column + 1} group-logical=0 group-visual=0 global-logical={column} global-visual={column} group-local-logical={column} group-local-visual={column}\n" +
+                    "effect.long-note: resource Provide \"public/note\"\n");
+            }
 
             File.WriteAllBytes(Path.Combine(publicResources, "note.png"), createPublicMaterialPng(11, 13, new Rgba32(230, 40, 90, 255)));
             File.WriteAllBytes(Path.Combine(publicResources, "head.png"), createPublicMaterialPng(12, 14, new Rgba32(40, 190, 235, 255)));

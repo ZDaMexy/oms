@@ -60,7 +60,10 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 ["stages"] = JArray.Parse("""[{"rect":[0.1,0,0.2,0.6],"lanes":[[0,1]]}]"""),
             };
             if (declared)
+            {
                 profile["modsRect"] = new JArray(0.05, 0.1, 0.25, 0.08);
+                profile["normalSpeedPreviewRect"] = new JArray(0.2, 0, 0.03, 0.6);
+            }
             var diagnostics = new List<GameplaySkinSceneDiagnostic>();
             GameplaySkinAuthorLayout decoded = GameplaySkinAuthorLayoutCodec.Decode(new JArray(profile), diagnostics).Single();
             JArray encoded = GameplaySkinAuthorLayoutCodec.Encode(new[] { decoded });
@@ -71,6 +74,8 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 Assert.That(roundtrip.ModsRect, Is.EqualTo(decoded.ModsRect));
                 Assert.That(encoded[0]!["modsRect"] != null, Is.EqualTo(declared));
                 Assert.That(roundtrip.ModsRect.HasValue, Is.EqualTo(declared));
+                Assert.That(roundtrip.NormalSpeedPreviewRect, Is.EqualTo(decoded.NormalSpeedPreviewRect));
+                Assert.That(encoded[0]!["normalSpeedPreviewRect"] != null, Is.EqualTo(declared));
             });
             if (declared)
                 Assert.That(roundtrip.ModsRect, Is.EqualTo(GameplaySkinLayoutRect.Create(0.05f, 0.1f, 0.25f, 0.08f)));
@@ -107,6 +112,21 @@ namespace osu.Game.Tests.NonVisual.Skinning
             var diagnostics = new List<GameplaySkinSceneDiagnostic>();
             Assert.That(GameplaySkinAuthorLayoutCodec.Decode(new JArray(profile), diagnostics), Is.Empty);
             Assert.That(diagnostics, Is.Not.Empty);
+            profile["ruleset"] = "bms";
+            profile["normalSpeedPreviewRect"] = profile["modsRect"];
+            profile.Remove("modsRect");
+            diagnostics.Clear();
+            Assert.That(GameplaySkinAuthorLayoutCodec.Decode(new JArray(profile), diagnostics), Is.Empty);
+            Assert.That(diagnostics, Is.Not.Empty);
+        }
+
+        [Test]
+        public void TestNormalSpeedPreviewCannotInventAManiaPreviewOwner()
+        {
+            var stage = new GameplaySkinAuthorLayoutStage(GameplaySkinLayoutRect.Create(0.1f, 0, 0.2f, 0.6f),
+                new[] { new GameplaySkinAuthorLaneSpan(0, 1) });
+            Assert.That(() => new GameplaySkinAuthorLayout("preview", "mania", "1k", "any", new[] { stage },
+                normalSpeedPreviewRect: GameplaySkinLayoutRect.Create(0.2f, 0, 0.03f, 0.6f)), Throws.ArgumentException);
         }
 
         [Test]

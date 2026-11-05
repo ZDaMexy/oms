@@ -67,6 +67,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private (bool Visible, bool TintEnabled, Color4 TintColour)? autoScratchVisuals;
         private (bool Visible, bool TintEnabled, Color4 TintColour)? autoNoteVisuals;
         private long? gameplaySkinObjectId;
+        protected long? GameplaySkinObjectId => gameplaySkinObjectId;
         private bool inheritsGameplaySkinObjectId;
 
         public override IEnumerable<HitSampleInfo> GetSamples()

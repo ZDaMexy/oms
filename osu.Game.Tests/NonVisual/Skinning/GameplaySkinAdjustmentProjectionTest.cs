@@ -2,6 +2,7 @@
 
 using System;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using NUnit.Framework;
 using osu.Framework.Graphics.Rendering.Dummy;
 using osu.Framework.Graphics.Sprites;
@@ -15,6 +16,30 @@ namespace osu.Game.Tests.NonVisual.Skinning
     public sealed class GameplaySkinAdjustmentProjectionTest
     {
         [Test]
+        public void TestNativePreviewPhaseRetainsEveryFloatBitWithoutGrowingTheAdjustmentSideband()
+        {
+            Assert.That(Unsafe.SizeOf<GameplaySkinAdjustmentState>(), Is.LessThanOrEqualTo(48),
+                "Preview reuses compact event storage and must not enlarge the previous 48-byte adjustment sideband.");
+            foreach (float? phase in new float?[] { null, 0, BitConverter.Int32BitsToSingle(int.MinValue), float.Epsilon, 0.625f, 1 })
+            {
+                var adjustment = new GameplaySkinAdjustmentState(true, true, GameplaySkinHiSpeedMode.Normal, 300, 350, 125, true, false,
+                    3.125f, 200, 600, phase);
+                GameplaySkinEventValue compact = GameplaySkinEventValue.Timing(GameplaySkinEventKind.TimingBeat, timing(adjustment));
+                GameplaySkinAdjustmentState restored = compact.GetTiming().AdjustmentState;
+                Assert.That(restored, Is.EqualTo(adjustment));
+                Assert.That(restored.PreviewPhase.HasValue, Is.EqualTo(phase.HasValue));
+                if (phase.HasValue)
+                    Assert.That(BitConverter.SingleToInt32Bits(restored.PreviewPhase!.Value), Is.EqualTo(BitConverter.SingleToInt32Bits(phase.Value)));
+                Assert.That(((GameplaySkinTimingEventPayload)compact.Materialize(null, null)).State.AdjustmentState, Is.EqualTo(adjustment));
+            }
+            foreach (float value in new[] { -0.01f, 1.01f, float.NaN, float.PositiveInfinity })
+                Assert.Throws<ArgumentOutOfRangeException>(() => new GameplaySkinAdjustmentState(true, true, GameplaySkinHiSpeedMode.Normal, 300,
+                    0, 0, false, false, previewPhase: value));
+            Assert.Throws<ArgumentException>(() => new GameplaySkinAdjustmentState(false, false, GameplaySkinHiSpeedMode.Unspecified, 0,
+                0, 0, false, false, previewPhase: 0));
+        }
+
+        [Test]
         public void TestUnavailableDoesNotInventAnAdjustmentOrLoseInactiveCoverValues()
         {
             Assert.That(default(GameplaySkinAdjustmentState).IsAvailable, Is.False);
@@ -23,6 +48,13 @@ namespace osu.Game.Tests.NonVisual.Skinning
             Assert.That(inactive.SuddenUnits, Is.EqualTo(350));
             Assert.That(inactive.HiddenUnits, Is.EqualTo(125));
             Assert.That(inactive.ActualHiSpeed, Is.Null);
+            Assert.That(inactive.GreenNumberRangeAvailable, Is.False);
+            Assert.Throws<ArgumentException>(() => new GameplaySkinAdjustmentState(true, false, GameplaySkinHiSpeedMode.Normal, 300, 0, 0, false, false,
+                greenNumberMinimum: 200));
+            Assert.Throws<ArgumentException>(() => new GameplaySkinAdjustmentState(true, false, GameplaySkinHiSpeedMode.Normal, 300, 0, 0, false, false,
+                greenNumberMinimum: 301, greenNumberMaximum: 299));
+            Assert.That(new GameplaySkinAdjustmentState(true, false, GameplaySkinHiSpeedMode.Normal, 300, 0, 0, false, false,
+                greenNumberMinimum: 300, greenNumberMaximum: 300).GreenNumberRangeAvailable, Is.False);
             foreach (float value in new[] { 0, -1, float.NaN, float.PositiveInfinity })
                 Assert.Throws<ArgumentOutOfRangeException>(() => new GameplaySkinAdjustmentState(true, false, GameplaySkinHiSpeedMode.Normal, 0, 0, 0, false, false, value));
             Assert.Throws<ArgumentException>(() => new GameplaySkinAdjustmentState(false, true, GameplaySkinHiSpeedMode.Unspecified, 0, 0, 0, false, false));
@@ -47,7 +79,8 @@ namespace osu.Game.Tests.NonVisual.Skinning
             {
                 foreach (bool active in new[] { false, true })
                 {
-                    var adjustment = new GameplaySkinAdjustmentState(true, active, mode, int.MaxValue, float.Epsilon, 999.1234f, active, !active, 1.7533334f);
+                    var adjustment = new GameplaySkinAdjustmentState(true, active, mode, int.MaxValue, float.Epsilon, 999.1234f, active, !active, 1.7533334f,
+                        0, int.MaxValue);
                     var lift = new GameplaySkinLiftState(true, 150.123456789, 0.12345678901234, true);
                     var timing = new GameplaySkinTimingStateSnapshot(3.5, 2, 150, kind == GameplaySkinEventKind.TimingStopStarted, -0.5, 0.625, 2.25,
                         lift, -500, adjustmentState: adjustment);
@@ -125,12 +158,54 @@ namespace osu.Game.Tests.NonVisual.Skinning
 
     public sealed partial class GameplaySkinSceneRuntimeHostTest
     {
+        [TestCase("scroll.preview-phase", "0.625", "0")]
+        [TestCase("scroll.preview-available", "true", "false")]
+        public void TestNativePreviewBindingsAdvanceAtStationaryChartTimeAndClearOnReset(string source, string expected, string unavailable)
+        {
+            using Texture texture = new DummyRenderer().CreateTexture(8, 8);
+            using GameplaySkinLayoutPublication publication = CreateEssentialInformationPublication(texture, true, bindingSource: source);
+            using GameplaySkinEventStream stream = createStream(publication);
+            GameplaySkinEventProducer producer = stream.CreateProducer();
+            using var host = new GameplaySkinSceneRuntimeHost(publication, stream);
+            try
+            {
+                host.ProcessFrame();
+                assertText(host, unavailable);
+                var adjustment = new GameplaySkinAdjustmentState(true, true, GameplaySkinHiSpeedMode.Normal, 300, 0, 0, false, false,
+                    previewPhase: 0.625f);
+                producer.SynchroniseTiming(0, new GameplaySkinTimingStateSnapshot(0, 0, 120, true, 1, adjustmentState: adjustment));
+                host.ProcessFrame();
+                assertText(host, expected);
+                using var late = new GameplaySkinSceneRuntimeHost(publication, stream);
+                late.ProcessFrame();
+                assertText(late, expected);
+                producer = producer.Reset(0, publication.PreparedScene.InitialEventState, GameplaySkinEventResetReason.Retry);
+                host.ProcessFrame();
+                late.ProcessFrame();
+                assertText(host, unavailable);
+                assertText(late, unavailable);
+            }
+            finally
+            {
+                producer.Dispose();
+            }
+
+            static void assertText(GameplaySkinSceneRuntimeHost targetHost, string value)
+            {
+                Assert.That(((SpriteText)runtime(targetHost, "accuracy").ContentDrawable).Text.ToString(), Is.EqualTo(value));
+                Assert.That(targetHost.RuntimeFaults, Is.Empty);
+            }
+        }
+
         [TestCase("scroll.available", "true", "false")]
         [TestCase("scroll.hi-speed-available", "true", "false")]
         [TestCase("scroll.hi-speed", "3.125", "0")]
         [TestCase("scroll.adjusting", "true", "false")]
         [TestCase("scroll.mode", "floating", "unavailable")]
         [TestCase("scroll.green-number", "300", "0")]
+        [TestCase("scroll.green-number-min", "200", "0")]
+        [TestCase("scroll.green-number-max", "600", "0")]
+        [TestCase("scroll.green-number-range-available", "true", "false")]
         [TestCase("cover.sudden-units", "350", "0")]
         [TestCase("cover.hidden-units", "125", "0")]
         [TestCase("cover.sudden-active", "true", "false")]
@@ -144,7 +219,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
             using var host = new GameplaySkinSceneRuntimeHost(publication, stream);
             host.ProcessFrame();
             Assert.That(((SpriteText)runtime(host, "accuracy").ContentDrawable).Text.ToString(), Is.EqualTo(unavailable));
-            var adjustment = new GameplaySkinAdjustmentState(true, true, GameplaySkinHiSpeedMode.Floating, 300, 350, 125, true, false, 3.125f);
+            var adjustment = new GameplaySkinAdjustmentState(true, true, GameplaySkinHiSpeedMode.Floating, 300, 350, 125, true, false, 3.125f, 200, 600);
             GameplaySkinTimingStateSnapshot initial = publication.PreparedScene.InitialEventState.Timing;
             producer.SynchroniseTiming(0, new GameplaySkinTimingStateSnapshot(initial.Beat, initial.BarIndex, initial.Bpm, initial.IsStopped,
                 initial.ScrollMultiplier, initial.Progress, initial.ScrollSpeed, initial.LiftState, initial.StartTime, initial.Preparation,

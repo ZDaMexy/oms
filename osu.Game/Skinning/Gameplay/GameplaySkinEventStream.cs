@@ -498,6 +498,7 @@ namespace osu.Game.Skinning.Gameplay
             {
                 lifecycleState = snapshot.LifecycleState;
                 Completion = snapshot.Completion;
+                FailedAt = snapshot.FailedAt;
                 inputs = snapshot.Inputs.ToDictionary(input => input.LaneId);
                 judgementTimingGroups = snapshot.Inputs.Select(input => input.GroupId).Distinct()
                                                 .ToDictionary(group => group, _ => default(GameplaySkinJudgementTimingStateSnapshot));
@@ -584,8 +585,12 @@ namespace osu.Game.Skinning.Gameplay
 
                         break;
 
-                    case GameplaySkinEventPayloadFamily.Lifecycle:
                     case GameplaySkinEventPayloadFamily.Score:
+                        if (payload.GetScore().LastGaugeIncreaseAt > gameplayTime)
+                            throw new ArgumentException("A score edge cannot contain a gauge increase from the future.", nameof(payload));
+                        break;
+
+                    case GameplaySkinEventPayloadFamily.Lifecycle:
                     case GameplaySkinEventPayloadFamily.Timing:
                         break;
 
@@ -607,6 +612,7 @@ namespace osu.Game.Skinning.Gameplay
                         Completion = lifecycleState == GameplaySkinLifecycleState.Completed
                             ? Completion ?? new GameplaySkinCompletionStateSnapshot(gameplayTime, payload.GetCompletionFullCombo())
                             : null;
+                        FailedAt = lifecycleState == GameplaySkinLifecycleState.Failed ? FailedAt ?? gameplayTime : null;
                         break;
 
                     case GameplaySkinEventPayloadFamily.Input:
@@ -691,12 +697,15 @@ namespace osu.Game.Skinning.Gameplay
                     bga.Values.OrderBy(viewport => viewport.ViewportIndex),
                     songInformation,
                     Completion, chartPresentation,
-                    judgementTimingGroups.Select(entry => new GameplaySkinJudgementTimingGroupStateSnapshot(entry.Key, entry.Value)));
+                    judgementTimingGroups.Select(entry => new GameplaySkinJudgementTimingGroupStateSnapshot(entry.Key, entry.Value)),
+                    GameplaySkinEventRuntimeHost.SnapshotFailureAt(FailedAt, gameplayTime));
 
             public GameplaySkinCurrentJudgementStateSnapshot? ObjectJudgement(long objectId)
                 => judgementsByObject.TryGetValue(objectId, out GameplaySkinCurrentJudgementStateSnapshot judgement) ? judgement : null;
 
             public GameplaySkinCompletionStateSnapshot? Completion { get; private set; }
+
+            private double? FailedAt { get; set; }
 
             private IEnumerable<GameplaySkinCurrentJudgementStateSnapshot> currentJudgements(double gameplayTime)
             {

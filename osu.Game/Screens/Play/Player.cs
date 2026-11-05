@@ -488,6 +488,8 @@ namespace osu.Game.Screens.Play
 
             DrawableRuleset.FrameStableClock.WaitingOnFrames.BindValueChanged(waiting =>
             {
+                if (gameplaySkinFailure.Elapsed.HasValue)
+                    return;
                 if (waiting.NewValue)
                     GameplayClockContainer.Stop();
                 else if (GameplaySkinPreparationActive)
@@ -761,10 +763,16 @@ namespace osu.Game.Screens.Play
 
             if (!pauseOrFailDialogVisible)
             {
-                // if the fail animation is currently in progress, accelerate it (it will show the pause dialog on completion).
+                // If the fail animation is currently in progress, finish it and show the fail dialog.
                 if (ValidForResume && GameplayState.HasFailed)
                 {
-                    failAnimationContainer.FinishTransforms(true);
+                    if (gameplaySkinFailure.IsActive)
+                    {
+                        gameplaySkinFailure.Finish();
+                        onFailComplete();
+                    }
+                    else
+                        failAnimationContainer.FinishTransforms(true);
                     return false;
                 }
 
@@ -1162,7 +1170,7 @@ namespace osu.Game.Screens.Play
                 PauseOverlay.Hide();
 
             bool restartOnFail = GameplayState.Mods.OfType<IApplicableFailOverride>().Any(m => m.RestartOnFail);
-            if (!restartOnFail)
+            if (!restartOnFail && !beginGameplaySkinFailure())
                 failAnimationContainer.Start();
 
             // Failures can be triggered either by a judgement, or by a mod.
@@ -1373,6 +1381,7 @@ namespace osu.Game.Screens.Play
         public override void OnSuspending(ScreenTransitionEvent e)
         {
             cancelGameplaySkinPreparation();
+            cancelGameplaySkinFailure();
             Debug.Assert(!ValidForResume);
 
             screenSuspension?.RemoveAndDisposeImmediately();
@@ -1388,6 +1397,7 @@ namespace osu.Game.Screens.Play
         public override bool OnExiting(ScreenExitEvent e)
         {
             cancelGameplaySkinPreparation();
+            cancelGameplaySkinFailure();
             screenSuspension?.RemoveAndDisposeImmediately();
 
             // Eagerly clean these up as disposal of child components is asynchronous and may leave sounds playing beyond user expectations.

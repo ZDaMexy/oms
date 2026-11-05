@@ -75,6 +75,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private readonly SkinnableDrawable laneSurfaceVisual;
         private readonly SkinnableDrawable laneDividerVisual;
         private readonly DrawablePool<BmsPoolableHitExplosion> hitExplosionPool;
+        private DrawablePool<BmsLongNoteEffect>? longNoteEffectPool;
         private readonly DrawablePool<DrawableBmsHitObject>? notePool;
         private readonly DrawablePool<DrawableBmsHoldNote>? holdNotePool;
         private readonly DrawablePool<DrawableBmsHoldNoteHead>? holdNoteHeadPool;
@@ -249,6 +250,37 @@ namespace osu.Game.Rulesets.Bms.UI
             HitTarget.HitExplosions.Add(hitExplosionPool.Get(explosion => explosion.Apply(result, objectId)));
         }
 
+        internal long LongNoteEffectCapacityDropCount { get; private set; }
+
+        internal BmsLongNoteEffect? AcquireLongNoteEffect(long objectId)
+        {
+            if (longNoteEffectPool == null)
+                return null;
+            if (longNoteEffectPool.CountInUse >= GameplaySkinPreparedSceneBudgets.MAX_LONG_NOTE_EFFECT_VISUALS_PER_KEY)
+            {
+                LongNoteEffectCapacityDropCount++;
+                return null;
+            }
+            BmsLongNoteEffect effect = longNoteEffectPool.Get(candidate => candidate.Apply(objectId));
+            HitTarget.LongNoteEffects.Add(effect);
+            return effect;
+        }
+
+        private sealed partial class ExactLongNoteEffectPool : DrawablePool<BmsLongNoteEffect>
+        {
+            private readonly GameplaySkinSceneRuntimeHost runtime;
+            private readonly GameplaySkinResolvedMaterialKey key;
+
+            public ExactLongNoteEffectPool(GameplaySkinSceneRuntimeHost runtime, GameplaySkinResolvedMaterialKey key)
+                : base(1, GameplaySkinPreparedSceneBudgets.MAX_LONG_NOTE_EFFECT_VISUALS_PER_KEY)
+            {
+                this.runtime = runtime;
+                this.key = key;
+            }
+
+            protected override BmsLongNoteEffect CreateNewDrawable() => new(runtime, key);
+        }
+
         private sealed partial class ExactHitExplosionPool : DrawablePool<BmsPoolableHitExplosion>
         {
             private readonly BmsGameplayLayoutSnapshot layout;
@@ -281,6 +313,11 @@ namespace osu.Game.Rulesets.Bms.UI
             GameplaySkinLaneTopologyGroup group = LayoutSnapshot.Neutral.Context.Topology.GroupsInLogicalOrder.Single(candidate =>
                 candidate.Identity.Id.Equals(lane.Identity.Group.Id));
             GameplaySkinResolvedMaterialTarget target = GameplaySkinResolvedMaterialTarget.ForLane(group, lane);
+            var longNoteEffectKey = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LongNoteEffect, target);
+            if (sceneRuntime.TryGetVisualGate(longNoteEffectKey, out GameplaySkinSceneHostedSlot? longNoteEffectGate)
+                && longNoteEffectGate?.Route == GameplaySkinSceneHostRoute.Specialised
+                && (longNoteEffectGate.RoutedNodes.Count > 0 || longNoteEffectGate.PreparedRoute.SpecialisedTexture != null))
+                AddInternal(longNoteEffectPool = new ExactLongNoteEffectPool(sceneRuntime, longNoteEffectKey));
 
             sceneRuntime.TryGetVisualGate(
                 new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LaneSurface, target),
@@ -441,6 +478,7 @@ namespace osu.Game.Rulesets.Bms.UI
         {
             var dependencies = new DependencyContainer(base.CreateChildDependencies(parent));
             dependencies.CacheAs<IBindable<BmsAction>>(Action);
+            dependencies.CacheAs(this);
             return dependencies;
         }
 

@@ -11,7 +11,7 @@
 
 ### Standard Model Skin Omni Until 26
 
-更早缺失框体待对应HDD；CN/HCN持续光效、FC17原宿主裁切等缺口取[Standard记录](../../other/STANDARD_MODEL_SKIN_20261105.md)。两作品保持独立，禁止computer use；原机、设备和发行门另验。
+继续按26自身来源补完：先核CN/HCN持续光效、FC17原宿主布局及原游玩部件，再实施源证据确认的遗漏并同包实绘验收，取[Standard记录](../../other/STANDARD_MODEL_SKIN_20261105.md)。不以Lightning功能清单定义完成；更早缺失框体待对应HDD，禁止computer use。
 
 ### Lightning Model Skin Omni Until 33（停止自动推进）
 

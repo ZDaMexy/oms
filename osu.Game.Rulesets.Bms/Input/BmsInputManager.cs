@@ -79,6 +79,9 @@ namespace osu.Game.Rulesets.Bms.Input
         [Resolved(canBeNull: true)]
         private GameHost? host { get; set; }
 
+        [Resolved(canBeNull: true)]
+        private GameplayState? gameplayState { get; set; }
+
         public BmsInputManager(RulesetInfo ruleset, int variant)
             : this(ruleset, variant, null)
         {
@@ -165,7 +168,7 @@ namespace osu.Game.Rulesets.Bms.Input
 
         private void observeAxisMotion(OmsAxisMotion motion)
         {
-            if (!UseParentInput || !liveInputEnabled)
+            if (gameplayState?.HasFailed == true || !UseParentInput || !liveInputEnabled)
                 return;
 
             if (PreStartHoldPressed.Value)
@@ -200,6 +203,11 @@ namespace osu.Game.Rulesets.Bms.Input
 
         public bool TriggerOmsActionPressed(OmsAction action)
         {
+            // Ordinary pause keeps its reading controls, but a committed failure must not
+            // publish new router edges through that parent-input bypass. Releases still drain.
+            if (gameplayState?.HasFailed == true)
+                return false;
+
             bool changed = Router.TriggerPressed(action);
 
             if (!changed || !UseParentInput || !OmsBmsActionMap.TryMapToBmsAction(variant, action, out var bmsAction))

@@ -643,7 +643,7 @@ namespace osu.Game.Rulesets.Mania.UI
             GameplaySkinObjectState state = drawable switch
             {
                 DrawableHoldNote hold when hold.AllJudged && gameplayTime >= hitObject.GetEndTime() => GameplaySkinObjectState.Completed,
-                DrawableHoldNote hold when hold.IsHolding.Value => GameplaySkinObjectState.Holding,
+                DrawableHoldNote hold when hold.Result.IsHolding(gameplayTime) => GameplaySkinObjectState.Holding,
                 DrawableHoldNote => gameplayTime < hitObject.StartTime ? GameplaySkinObjectState.Scheduled : GameplaySkinObjectState.Visible,
                 _ when drawable.Judged => drawable.IsHit ? GameplaySkinObjectState.Hit : GameplaySkinObjectState.Missed,
                 _ => gameplayTime < hitObject.StartTime ? GameplaySkinObjectState.Scheduled : GameplaySkinObjectState.Visible,
@@ -776,7 +776,7 @@ namespace osu.Game.Rulesets.Mania.UI
             return getGameplaySkinObjectId(new GameplaySkinObjectUsageKey(owner, groupId!));
         }
 
-        void IManiaGameplaySkinObjectIdentityProvider.PublishLongNoteState(long objectId, GameplaySkinObjectState state)
+        void IManiaGameplaySkinObjectIdentityProvider.PublishLongNoteState(long objectId, GameplaySkinObjectState state, bool stateRestored)
         {
             if (state is not (GameplaySkinObjectState.Visible or GameplaySkinObjectState.Holding or GameplaySkinObjectState.Completed))
                 throw new ArgumentOutOfRangeException(nameof(state), state, "A mania long-note owner may publish only visible, holding or completed state.");
@@ -789,6 +789,8 @@ namespace osu.Game.Rulesets.Mania.UI
 
             if (state == GameplaySkinObjectState.Completed && !gameplaySkinCompletedObjectIds.Add(objectId))
                 return;
+            if (state != GameplaySkinObjectState.Completed)
+                gameplaySkinCompletedObjectIds.Remove(objectId);
 
             GameplaySkinEventRuntime.PublishObject(
                 objectId,
@@ -799,7 +801,7 @@ namespace osu.Game.Rulesets.Mania.UI
                 usage.LaneId,
                 usage.HitObject.StartTime,
                 usage.HitObject.GetEndTime(),
-                state == GameplaySkinObjectState.Completed ? 1 : getGameplaySkinObjectProgress(usage.HitObject));
+                state == GameplaySkinObjectState.Completed ? 1 : getGameplaySkinObjectProgress(usage.HitObject), stateRestored: stateRestored);
         }
 
         private double getGameplaySkinObjectProgress(HitObject hitObject)

@@ -164,9 +164,13 @@ namespace osu.Game.Rulesets.Mania.Tests
             GameplaySkinLaneTopologyGroup group = snapshot.Context.Topology.GroupsInLogicalOrder[0];
             GameplaySkinLaneTopologyEntry lane = group.LanesInLogicalOrder[0];
             GameplaySkinResolvedMaterialTarget target = GameplaySkinResolvedMaterialTarget.ForLane(group, lane);
-            GameplaySkinSlotDescriptor[] supportedSlots = [.. GameplaySkinRuntimeSupportProfile.Mania.Capabilities.Support.Values
+            // This older package never declares the optional long-note effect owner. Runtime support
+            // does not author a new material or drawable on behalf of a legacy selected package.
+            GameplaySkinSlotDescriptor[] implicitSlots = [.. GameplaySkinRuntimeSupportProfile.Mania.Capabilities.Support.Values
                 .Select(support => support.Descriptor)
-                .Where(slot => slot != GameplaySkinSlotCatalog.AuxiliaryDisplay && slot != GameplaySkinSlotCatalog.AuxiliaryConcentrationDisplay)];
+                .Where(slot => slot != GameplaySkinSlotCatalog.AuxiliaryDisplay
+                               && slot != GameplaySkinSlotCatalog.AuxiliaryConcentrationDisplay
+                               && slot != GameplaySkinSlotCatalog.LongNoteEffect)];
 
             Assert.Multiple(() =>
             {
@@ -174,12 +178,15 @@ namespace osu.Game.Rulesets.Mania.Tests
                 Assert.That(materials.PackageRevision, Is.SameAs(package));
                 Assert.That(materials.ContractIdentity, Is.EqualTo(GameplaySkinMaterialContractIdentity.CurrentFor(materials.Snapshot)));
                 Assert.That(materials.RuntimeSupportProfile, Is.SameAs(GameplaySkinRuntimeSupportProfile.Mania));
-                Assert.That(materials.Entries, Has.Count.EqualTo(supportedSlots.Sum(descriptor =>
+                Assert.That(materials.Entries, Has.Count.EqualTo(implicitSlots.Sum(descriptor =>
                     GameplaySkinPublicSlotMaterialTargets.Enumerate(descriptor, snapshot).Count)));
                 Assert.That(materials.Entries.Select(entry => entry.Key), Is.Unique);
-                Assert.That(materials.Entries.Select(entry => entry.Slot).Distinct(), Is.EquivalentTo(supportedSlots));
-                Assert.That(GameplaySkinRuntimeSupportProfile.Mania.Decisions, Has.Count.EqualTo(32));
-                Assert.That(ManiaGameplaySkinMaterialResolver.RuntimeCapabilities.Support, Has.Count.EqualTo(25));
+                Assert.That(materials.Entries.Select(entry => entry.Slot).Distinct(), Is.EquivalentTo(implicitSlots));
+                Assert.That(ManiaGameplaySkinMaterialResolver.RuntimeCapabilities.TryGet(GameplaySkinSlotCatalog.LongNoteEffect, out _), Is.True);
+                Assert.That(materials.Entries.Any(entry => ReferenceEquals(entry.Slot, GameplaySkinSlotCatalog.LongNoteEffect)), Is.False,
+                    "An undeclared long-note effect must not be materialised from legacy or programmatic fallback.");
+                Assert.That(GameplaySkinRuntimeSupportProfile.Mania.Decisions, Has.Count.EqualTo(33));
+                Assert.That(ManiaGameplaySkinMaterialResolver.RuntimeCapabilities.Support, Has.Count.EqualTo(26));
                 Assert.That(ManiaGameplaySkinMaterialResolver.RuntimeCapabilities.TryGet(GameplaySkinSlotCatalog.Mine, out _), Is.False);
                 Assert.That(ManiaGameplaySkinMaterialResolver.RuntimeCapabilities.TryGet(GameplaySkinSlotCatalog.BgaViewport, out _), Is.False);
                 Assert.That(ManiaGameplaySkinMaterialResolver.RuntimeCapabilities.TryGet(GameplaySkinSlotCatalog.BgaFrame, out _), Is.False);
@@ -218,12 +225,25 @@ namespace osu.Game.Rulesets.Mania.Tests
             });
         }
 
-        [Test]
-        public void TestDualStageResolvesEveryCommonPublicSlotAgainstExactTargets()
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestDualStageResolvesCommonSlotsAndOnlyDeclaredLongNoteEffects(bool declareLongNoteEffects)
         {
             Guid selectedId = Guid.NewGuid();
             Texture texture = (Texture)RuntimeHelpers.GetUninitializedObject(typeof(Texture));
-            using var selected = new DocumentTestSkin(selectedId, "[GameplaySkin.Common:1]\n", texture);
+            var configuration = new StringBuilder("[GameplaySkin.Common:1]\n");
+            if (declareLongNoteEffects)
+            {
+                for (int column = 0; column < 10; column++)
+                {
+                    int stage = column / 5;
+                    int local = column % 5;
+                    configuration.AppendLine($"Target: Lane ruleset=mania keymode=5k-5k stage-mode=dual group=mania.group.stage-{stage + 1} lane=mania.lane.column-{column + 1} group-logical={stage} group-visual={stage} global-logical={column} global-visual={column} group-local-logical={local} group-local-visual={local}");
+                    configuration.AppendLine("effect.long-note: resource Provide \"selected-note\"");
+                }
+            }
+
+            using var selected = new DocumentTestSkin(selectedId, configuration.ToString(), texture);
             var source = new OrderedTestSkinSource(selected);
             var revision = new SkinCurrentRevision(
                 18,
@@ -247,7 +267,9 @@ namespace osu.Game.Rulesets.Mania.Tests
             GameplaySkinLaneTopologyEntry[] specialLanes = [.. snapshot.Context.Topology.LanesInLogicalOrder.Where(lane => lane.Identity.Role == GameplaySkinLaneRole.SpecialKey)];
             GameplaySkinSlotDescriptor[] supportedSlots = [.. GameplaySkinRuntimeSupportProfile.Mania.Capabilities.Support.Values
                 .Select(support => support.Descriptor)
-                .Where(slot => slot != GameplaySkinSlotCatalog.AuxiliaryDisplay && slot != GameplaySkinSlotCatalog.AuxiliaryConcentrationDisplay)];
+                .Where(slot => slot != GameplaySkinSlotCatalog.AuxiliaryDisplay
+                               && slot != GameplaySkinSlotCatalog.AuxiliaryConcentrationDisplay
+                               && (declareLongNoteEffects || slot != GameplaySkinSlotCatalog.LongNoteEffect))];
 
             Assert.Multiple(() =>
             {
@@ -263,6 +285,24 @@ namespace osu.Game.Rulesets.Mania.Tests
                 Assert.That(materials.Entries.Any(entry => ReferenceEquals(entry.Slot, GameplaySkinSlotCatalog.BgaFrame)), Is.False);
                 Assert.That(materials.Entries.Any(entry => ReferenceEquals(entry.Slot, GameplaySkinSlotCatalog.Turntable)), Is.False);
                 Assert.That(materials.Entries.Any(entry => ReferenceEquals(entry.Slot, GameplaySkinSlotCatalog.Laser)), Is.False);
+
+                foreach (GameplaySkinLaneTopologyGroup group in groups)
+                {
+                    foreach (GameplaySkinLaneTopologyEntry lane in group.LanesInLogicalOrder)
+                    {
+                        var key = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LongNoteEffect,
+                            GameplaySkinResolvedMaterialTarget.ForLane(group, lane));
+                        Assert.That(materials.TryGet(key, out GameplaySkinResolvedMaterialEntry? effect), Is.EqualTo(declareLongNoteEffects));
+                        if (declareLongNoteEffects)
+                        {
+                            Assert.That(effect!.State, Is.EqualTo(GameplaySkinResolvedMaterialState.Provide));
+                            Assert.That(effect.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.SelectedPackage));
+                            Assert.That(effect.Source.StableId, Is.EqualTo("selected-common"));
+                            Assert.That(effect.GetMaterial<GameplaySkinPublicSlotMaterial>().ResourceName, Is.EqualTo("selected-note"));
+                            Assert.That(effect.GetMaterial<GameplaySkinPublicSlotMaterial>().Texture, Is.SameAs(texture));
+                        }
+                    }
+                }
 
                 Assert.That(groups.All(group => materials.TryGet(
                     new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.StageBackground, GameplaySkinResolvedMaterialTarget.ForStage(group)),

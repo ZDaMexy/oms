@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -56,7 +57,7 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
     private Task<Live<SkinInfo>> import = null!;
     private Task<bool> selection = null!;
     private Ruleset ruleset = null!;
-    private ReplayPlayer player = null!;
+    private Player player = null!;
     private GameplaySkinLayoutRevisionOwner owner = null!;
     private GameplaySkinSceneRuntimeHost runtime = null!;
     private GameplaySkinEventRuntimeHost events = null!;
@@ -106,18 +107,25 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
         {
             ruleset = settings.Ruleset == "bms" ? new BmsRuleset() : new ManiaRuleset();
             Game.Ruleset.Value = ruleset.RulesetInfo;
+            if (IsReadingCase)
+                ConfigureReadingCase();
             IBeatmap beatmap = settings.Ruleset == "bms" ? CreateBmsChart((BmsRuleset)ruleset) : CreateManiaChart((ManiaRuleset)ruleset);
             Game.Beatmap.Value = settings.Ruleset == "bms"
                 ? bgaWorking = new BgaCaptureWorkingBeatmap(beatmap, Clock, Audio, bgaFixtureDirectory!)
                 : CreateWorkingBeatmap(beatmap);
             Mod autoplay = ruleset.GetAutoplayMod()!;
-            Game.SelectedMods.Value = settings.Ruleset == "bms" ? settings.LongNoteMode switch
+            Mod[] nativeMods = settings.Ruleset == "bms" ? settings.LongNoteMode switch
             {
-                "ln" => new[] { autoplay },
-                "cn" => new Mod[] { autoplay, new BmsModChargeNote() },
-                "hcn" => new Mod[] { autoplay, new BmsModHellChargeNote() },
+                "ln" => Array.Empty<Mod>(),
+                "cn" => new Mod[] { new BmsModChargeNote() },
+                "hcn" => new Mod[] { new BmsModHellChargeNote() },
                 _ => throw new InvalidOperationException("Unvalidated long-note mode."),
-            } : new[] { autoplay };
+            } : Array.Empty<Mod>();
+            Game.SelectedMods.Value = IsFailureCase
+                ? nativeMods.Append(new BmsModGaugeHazard()).ToArray()
+                : IsAutoScratchCase
+                ? nativeMods.Append(new BmsModAutoScratch { TintScratchNotes = { Value = false } }).ToArray()
+                : IsLongNoteTransitionCase || IsReadingCase ? nativeMods : nativeMods.Prepend(autoplay).ToArray();
             settings.Write("chart.json", new
             {
                 source = settings.Ruleset == "bms" ? "Synthetic BMS fixture file through BmsBeatmapDecoder" : "Synthetic ManiaBeatmap with explicit native StageDefinition",
@@ -127,6 +135,8 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
                 settings.Keys,
                 settings.LongNoteMode,
                 settings.ChartVariant,
+                settings.Assist,
+                settings.ReadingMode,
                 mods = Game.SelectedMods.Value.Select(mod => mod.Acronym).ToArray(),
                 physicalInput = false,
                 realSongAcceptance = false,
@@ -150,7 +160,11 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
             foreach (KeyValuePair<string, string> choice in settings.Options)
                 preferences.SetOverride(import.Result.ID, settings.Ruleset, choice.Key, choice.Value);
             settings.Write("skin-selection.json", new { importedId = import.Result.ID, selectedId = skins.CurrentSkinInfo.Value.ID, scope = skins.CurrentSkinScope.ToString() });
-            Game.ScreenStack.Push(new PlayerLoader(() => player = new ReplayPlayer(ruleset.GetAutoplayMod()!.CreateScoreFromReplayData)));
+            Game.ScreenStack.Push(new PlayerLoader(() => player = IsFailureCase ? new CaptureFailurePlayer()
+                : IsReadingCase ? new CaptureReadingPlayer()
+                : IsAutoScratchCase ? new ReplayPlayer(CreateAutoScratchReplay)
+                : IsLongNoteTransitionCase ? new ReplayPlayer(CreateTransitionReplay)
+                : new ReplayPlayer(ruleset.GetAutoplayMod()!.CreateScoreFromReplayData)));
         });
         AddUntilStep("the real Player and exact authored scene are ready", () =>
         {
@@ -170,6 +184,8 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
             eventStream = events.EventStream;
             score = renderer.Dependencies.Get<ScoreProcessor>();
             clock = player.ChildrenOfType<GameplayClockContainer>().Single();
+            if (IsLongNoteTransitionCase)
+                StartLongNoteObservations();
             return true;
         });
         AddStep("verify actual publication and expose its framebuffer", () =>
@@ -201,6 +217,8 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
                 settings.Ruleset,
                 settings.Keys,
                 settings.ChartVariant,
+                settings.Assist,
+                settings.ReadingMode,
                 requestedLongNoteMode = settings.LongNoteMode,
                 actualLongNoteMode,
                 nativeHoldModes,
@@ -237,7 +255,10 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
             foreach (KeyValuePair<string, string> requested in settings.Options)
             {
                 Assert.That(options.TryGetValue(requested.Key, out GameplaySkinOptionValue value), Is.True, requested.Key);
-                Assert.That(value.CanonicalValue, Is.EqualTo(requested.Value), requested.Key);
+                if (value.Kind == GameplaySkinOptionKind.Number)
+                    Assert.That(value.NumberValue, Is.EqualTo(double.Parse(requested.Value, CultureInfo.InvariantCulture)).Within(1e-12), requested.Key);
+                else
+                    Assert.That(value.CanonicalValue, Is.EqualTo(requested.Value), requested.Key);
             }
             if (options.TryGetValue("frame", out _))
             {
@@ -278,23 +299,39 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
                 tracks = runtime.PreparedScene.Program.Tracks.Select(track => new { track.Id, target = track.TargetNodeId, clock = track.ClockSource.ToString(), property = track.Property.ToString() }).ToArray(),
             });
             ExposeGameFramebuffer();
+            if (IsAutoScratchCase)
+                RecordAutoScratchPublication();
         });
-        foreach (int time in new[] { 2600, 3700, 6800, 10100 })
+        if (IsFailureCase)
         {
-            int sample = time;
-            AddUntilStep("natural play reaches " + sample + " ms", () => ReadProperty<double>(events, "AuthoritativeGameplayTime") >= sample);
-            AddStep("capture actual gameplay and bound data", () =>
+            AddFailureCaptures();
+            return;
+        }
+        if (IsReadingCase)
+            AddReadingCaptures();
+        if (IsLongNoteTransitionCase)
+            AddLongNoteTransitionCaptures();
+        else
+        {
+            foreach (int time in new[] { 2600, 3700, 6800, 10100 })
             {
-                Assert.That(runtime.RuntimeFaults, Is.Empty);
-                Assert.That(ReferenceEquals(Game.ScreenStack.CurrentScreen, player), Is.True);
-                if (settings.ChartVariant == "combo-stress" && sample == 10100)
-                    Assert.That(score.Combo.Value, Is.GreaterThanOrEqualTo(1000), "The actual scored Player must reach four-digit combo before this capture.");
-                string name = $"gameplay-{sample:00000}";
-                RecordGameplay(name, sample);
-                screenshot = Capture(name);
-            });
-            AddUntilStep("wait for framebuffer write", () => screenshot?.IsCompleted == true);
-            AddStep("propagate capture failures", () => screenshot!.GetAwaiter().GetResult());
+                int sample = time;
+                AddUntilStep("natural play reaches " + sample + " ms", () => ReadProperty<double>(events, "AuthoritativeGameplayTime") >= sample);
+                AddStep("capture actual gameplay and bound data", () =>
+                {
+                    Assert.That(runtime.RuntimeFaults, Is.Empty);
+                    Assert.That(ReferenceEquals(Game.ScreenStack.CurrentScreen, player), Is.True);
+                    if (settings.ChartVariant == "combo-stress" && sample == 10100)
+                        Assert.That(score.Combo.Value, Is.GreaterThanOrEqualTo(1000), "The actual scored Player must reach four-digit combo before this capture.");
+                    string name = $"gameplay-{sample:00000}";
+                    RecordGameplay(name, sample);
+                    if (IsAutoScratchCase)
+                        RecordAutoScratchVisibility(name);
+                    screenshot = Capture(name);
+                });
+                AddUntilStep("wait for framebuffer write", () => screenshot?.IsCompleted == true);
+                AddStep("propagate capture failures", () => screenshot!.GetAwaiter().GetResult());
+            }
         }
         AddUntilStep("finish scoring the complete chart", () => score.HasCompleted.Value);
         AddStep("retain real completion and score", () =>
@@ -306,10 +343,15 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
             Assert.That(score.HitEvents, Is.Not.Empty);
             Assert.That(player.Score.ScoreInfo.Passed, Is.True, "The replay must complete without a native failure.");
             Assert.That(player.GameplayState.HasFailed, Is.False);
-            Assert.That(score.IsFullCombo, Is.True, "The outro case requires an actual scored full combo.");
+            if (!IsAutoScratchCase)
+                Assert.That(score.IsFullCombo, Is.EqualTo(!IsLongNoteTransitionCase), "The input fixture, not the capture tool, determines full-combo eligibility.");
             Assert.That(runtime.RuntimeFaults, Is.Empty);
             completionState = ReadState();
-            Assert.That(completionState.Completion?.IsFullCombo, Is.True);
+            Assert.That(completionState.Completion?.IsFullCombo, Is.EqualTo(score.IsFullCombo));
+            if (IsLongNoteTransitionCase)
+                ValidateLongNoteTransitions();
+            if (IsReadingCase)
+                ValidateReadingChartInput();
             settings.Write("score-complete.json", new
             {
                 score = score.TotalScore.Value,
@@ -320,42 +362,53 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
                 state = completionState,
             });
         });
-        AddUntilStep("natural full-combo outro is visible after 300 ms", () =>
+        if (!IsLongNoteTransitionCase)
         {
-            Assert.That(ReferenceEquals(Game.ScreenStack.CurrentScreen, player), Is.True,
-                "Player exited before a naturally visible full-combo outro could be captured.");
-            GameplaySkinCompletionStateSnapshot? completion = ReadState().Completion;
-            return completion.HasValue && completion.Value.IsFullCombo
-                   && ReadProperty<double>(events, "AuthoritativeGameplayTime") - completion.Value.AppliedTime >= 300
-                   && ObserveCompletionAnimations().HasVisiblePieces;
-        });
-        AddStep("capture the actual full-combo outro without changing its clock", () =>
-        {
-            Assert.That(ReferenceEquals(Game.ScreenStack.CurrentScreen, player), Is.True);
-            Assert.That(score.IsFullCombo, Is.True);
-            GameplaySkinCompletionStateSnapshot completion = ReadState().Completion
-                ?? throw new InvalidOperationException("The native completion event was not retained.");
-            Assert.That(completion.IsFullCombo, Is.True);
-            var observation = ObserveCompletionAnimations();
-            Assert.That(observation.HasVisiblePieces, Is.True);
-            double gameplayTime = ReadProperty<double>(events, "AuthoritativeGameplayTime");
-            settings.Write("full-combo-observation.json", new
+            AddUntilStep("natural full-combo outro is visible after 300 ms", () =>
             {
-                completion.AppliedTime,
-                completion.IsFullCombo,
-                requestedElapsed = 300,
-                actualGameplayTime = gameplayTime,
-                actualElapsed = gameplayTime - completion.AppliedTime,
-                clock.IsRunning,
-                actualPlayerStillCurrent = true,
-                animations = observation.Animations,
-                clockChangedForCapture = false,
+                if (IsAutoScratchCase && !score.IsFullCombo)
+                    return true;
+                Assert.That(ReferenceEquals(Game.ScreenStack.CurrentScreen, player), Is.True,
+                    "Player exited before a naturally visible full-combo outro could be captured.");
+                GameplaySkinCompletionStateSnapshot? completion = ReadState().Completion;
+                return completion.HasValue && completion.Value.IsFullCombo
+                       && ReadProperty<double>(events, "AuthoritativeGameplayTime") - completion.Value.AppliedTime >= 300
+                       && ObserveCompletionAnimations().HasVisiblePieces;
             });
-            RecordGameplay("full-combo-outro", checked((int)Math.Round(completion.AppliedTime + 300)));
-            screenshot = Capture("full-combo-outro");
-        });
-        AddUntilStep("wait for full-combo framebuffer", () => screenshot?.IsCompleted == true);
-        AddStep("propagate full-combo capture failures", () => screenshot!.GetAwaiter().GetResult());
+            AddStep("capture the actual full-combo outro without changing its clock", () =>
+            {
+                if (IsAutoScratchCase && !score.IsFullCombo)
+                {
+                    screenshot = null;
+                    settings.Write("full-combo-not-eligible.json", new { actualNativeFullCombo = score.IsFullCombo, forcedEligibility = false });
+                    return;
+                }
+                Assert.That(ReferenceEquals(Game.ScreenStack.CurrentScreen, player), Is.True);
+                Assert.That(score.IsFullCombo, Is.True);
+                GameplaySkinCompletionStateSnapshot completion = ReadState().Completion
+                    ?? throw new InvalidOperationException("The native completion event was not retained.");
+                Assert.That(completion.IsFullCombo, Is.True);
+                var observation = ObserveCompletionAnimations();
+                Assert.That(observation.HasVisiblePieces, Is.True);
+                double gameplayTime = ReadProperty<double>(events, "AuthoritativeGameplayTime");
+                settings.Write("full-combo-observation.json", new
+                {
+                    completion.AppliedTime,
+                    completion.IsFullCombo,
+                    requestedElapsed = 300,
+                    actualGameplayTime = gameplayTime,
+                    actualElapsed = gameplayTime - completion.AppliedTime,
+                    clock.IsRunning,
+                    actualPlayerStillCurrent = true,
+                    animations = observation.Animations,
+                    clockChangedForCapture = false,
+                });
+                RecordGameplay("full-combo-outro", checked((int)Math.Round(completion.AppliedTime + 300)));
+                screenshot = Capture("full-combo-outro");
+            });
+            AddUntilStep("wait for full-combo framebuffer", () => IsAutoScratchCase && !score.IsFullCombo || screenshot?.IsCompleted == true);
+            AddStep("propagate full-combo capture failures", () => screenshot?.GetAwaiter().GetResult());
+        }
         AddUntilStep("natural transition reaches ordinary Results", () =>
         {
             results = Game.ScreenStack.CurrentScreen as ResultsScreen ?? null!;
@@ -393,12 +446,15 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
                 settings.Keys,
                 settings.Presentation,
                 settings.ChartVariant,
+                settings.Assist,
+                settings.ReadingMode,
                 screenshots = captured.ToArray(),
                 normalImport = true,
                 actualPlayer = player.GetType().FullName,
                 naturalResults = results.GetType().FullName,
                 completeScoredChart = true,
-                fullComboOutroCaptured = true,
+                fullComboOutroCaptured = captured.Contains("full-combo-outro.png"),
+                nativeLongNoteTransitions = IsLongNoteTransitionCase,
                 humanOrDeviceAcceptance = false,
                 originalGameEquivalence = false,
             });
@@ -414,9 +470,13 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
         Assert.That(outer, Is.Not.Null);
         var content = (Container<Drawable>)typeof(OsuGameBase).GetProperty("Content", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)!.GetValue(outer)!;
         AlwaysPresent = true;
-        Remove(Game, false);
+        // Keep the actual game beneath the manual input owner when exposing the
+        // framebuffer. Moving Game alone leaves keyboard input in an empty test tree.
+        var inputParent = (Container<Drawable>)InputManager.Parent!;
+        Assert.That(Game.IsAlive, Is.True);
+        inputParent.Remove(InputManager, false);
         foreach (Drawable chrome in content.Children) { chrome.Alpha = 0; chrome.AlwaysPresent = true; }
-        content.Add(Game);
+        content.Add(InputManager);
         Game.Notifications.Hide();
     }
 
@@ -435,7 +495,8 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
     private void RecordGameplay(string name, int requestedTime)
     {
         GameplaySkinEventStateSnapshot state = ReadState();
-        object? bga = settings.Ruleset == "bms" ? RecordBga(state) : null;
+        object? bga = settings.Ruleset == "bms" && (!(IsReadingCase || IsFailureCase) || state.BgaViewports.Any(viewport => viewport.ContentState == GameplaySkinBgaContentState.Playing))
+            ? RecordBga(state) : null;
         var nodes = new List<object>();
         MethodInfo lookup = typeof(GameplaySkinSceneRuntimeHost).GetMethod("TryGetRuntimeNode", BindingFlags.Instance | BindingFlags.NonPublic)!;
         foreach (GameplaySkinPreparedSceneNode prepared in runtime.PreparedScene.Roots.SelectMany(Walk))
@@ -453,6 +514,8 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
         settings.Write(name + ".json", new
         {
             settings.ChartVariant,
+            settings.Assist,
+            settings.ReadingMode,
             requestedTime,
             actualGameplayTime = ReadProperty<double>(events, "AuthoritativeGameplayTime"),
             runtime.LastGameplayTime,
@@ -517,8 +580,13 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
             contentState = ReadProperty<GameplaySkinBgaContentState>(bgaPlayer, "ContentState").ToString(),
             contentRevision = ReadProperty<long>(bgaPlayer, "ContentRevision"),
             texture = new { imageSprite.Texture.DisplayWidth, imageSprite.Texture.DisplayHeight, imageSprite.Alpha },
-            viewports = state.BgaViewports.Select(viewport => new { viewport.ViewportIndex, viewport.ContentRevision,
-                state = viewport.ContentState.ToString(), rect = Rect(viewport.Viewport) }).ToArray(),
+            viewports = state.BgaViewports.Select(viewport => new
+            {
+                viewport.ViewportIndex,
+                viewport.ContentRevision,
+                state = viewport.ContentState.ToString(),
+                rect = Rect(viewport.Viewport)
+            }).ToArray(),
             actualViews = views,
         };
     }
@@ -543,8 +611,14 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
                 float addAlpha = ReadProperty<osuTK.Vector4>(piece, "Add").W;
                 if (vertices < 3 || multiplyAlpha <= 0 && addAlpha <= 0)
                     continue;
-                visiblePieces.Add(new { resource = ReadProperty<string?>(piece, "Resource"), vertices, multiplyAlpha, addAlpha,
-                    effectiveAlpha = EffectiveAlpha(sprite) });
+                visiblePieces.Add(new
+                {
+                    resource = ReadProperty<string?>(piece, "Resource"),
+                    vertices,
+                    multiplyAlpha,
+                    addAlpha,
+                    effectiveAlpha = EffectiveAlpha(sprite)
+                });
             }
             hasVisiblePieces |= appliedFrame >= 0 && visiblePieces.Count > 0;
             observations.Add(new
@@ -632,15 +706,20 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
             14 => ["11", "12", "13", "14", "15", "18", "19", "16", "21", "22", "23", "24", "25", "28", "29", "26"],
             _ => throw new InvalidOperationException("Unvalidated BMS key count."),
         };
-        for (int measure = 1; measure <= 8; measure++)
-            for (int lane = 0; lane < channels.Length; lane++)
-            {
-                string channel = channels[lane];
-                if (measure % 2 == 0)
-                    channel = (channel[0] == '1' ? "5" : "6") + channel[1];
-                text.Append('#').Append(measure.ToString("000")).Append(channel).Append(':')
-                    .Append(measure % 2 == 0 ? "01000100" : lane % 2 == 0 ? "01000001" : "00010000").Append('\n');
-            }
+        if (IsLongNoteTransitionCase)
+            text = CreateTransitionBmsText(channels);
+        else
+        {
+            for (int measure = 1; measure <= 8; measure++)
+                for (int lane = 0; lane < channels.Length; lane++)
+                {
+                    string channel = channels[lane];
+                    if (measure % 2 == 0)
+                        channel = (channel[0] == '1' ? "5" : "6") + channel[1];
+                    text.Append('#').Append(measure.ToString("000")).Append(channel).Append(':')
+                        .Append(measure % 2 == 0 ? "01000100" : lane % 2 == 0 ? "01000001" : "00010000").Append('\n');
+                }
+        }
         string chartPath = Path.Combine(bgaFixtureDirectory, settings.Keys == 5 ? "standard-capture.bms" : "standard-capture.bme");
         using (var chartFile = new StreamWriter(new FileStream(chartPath, FileMode.CreateNew, FileAccess.Write), new UTF8Encoding(false)))
             chartFile.Write(text.ToString());
@@ -678,6 +757,11 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
         if (settings.Keys >= 14)
             beatmap.Stages.Add(new StageDefinition(columns));
         beatmap.Difficulty.CircleSize = settings.Keys;
+        if (IsLongNoteTransitionCase)
+        {
+            FillTransitionManiaChart(beatmap);
+            return beatmap;
+        }
         if (settings.ChartVariant == "combo-stress")
         {
             for (int row = 0; row < 64; row++)
@@ -707,7 +791,10 @@ public partial class TestSceneStandardSkinCapture : OsuGameTestScene
     protected override void Dispose(bool isDisposing)
     {
         if (isDisposing)
+        {
+            longNoteSubscription?.Dispose();
             RestoreHostActivity();
+        }
         base.Dispose(isDisposing);
     }
 

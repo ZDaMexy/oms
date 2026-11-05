@@ -8,6 +8,7 @@ using osu.Framework.Bindables;
 using osu.Framework.Extensions.ObjectExtensions;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Animations;
+using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
 using osu.Framework.Testing;
@@ -15,6 +16,7 @@ using osu.Game.Rulesets.Mania.Objects.Drawables;
 using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.UI.Scrolling;
 using osu.Game.Skinning;
+using osu.Game.Skinning.Gameplay;
 using osuTK;
 
 namespace osu.Game.Rulesets.Mania.Skinning.Legacy
@@ -41,6 +43,13 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
         private Drawable? lightContainer;
 
         private Drawable? light;
+        private IDisposable? lightVisualRegistration;
+
+        [Resolved(canBeNull: true)]
+        private GameplaySkinSceneRuntimeHost? sceneRuntime { get; set; }
+
+        [Resolved(canBeNull: true)]
+        private ManiaGameplaySkinMaterialContext? materialContext { get; set; }
         private LegacyNoteBodyStyle? bodyStyle;
 
         public LegacyBodyPiece()
@@ -95,11 +104,21 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
 
             if (light != null)
             {
+                var lightGate = new Container { RelativeSizeAxes = Axes.Both, Child = light };
                 lightContainer = new HitTargetInsetContainer
                 {
                     Alpha = 0,
-                    Child = light
+                    Child = lightGate
                 };
+                if (sceneRuntime != null && materialContext?.UsesResolvedMaterial == true)
+                {
+                    var key = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LongNoteEffect, materialContext.Target);
+                    if (sceneRuntime.TryGetVisualGate(key, out GameplaySkinSceneHostedSlot? gate)
+                        && (gate?.Route == GameplaySkinSceneHostRoute.Suppressed
+                            || gate?.Route == GameplaySkinSceneHostRoute.Specialised
+                            && (gate.RoutedNodes.Count > 0 || gate.PreparedRoute.SpecialisedTexture != null)))
+                        lightVisualRegistration = sceneRuntime.RegisterProgrammaticVisual(key, lightGate);
+                }
             }
 
             var wrapMode = bodyStyle == LegacyNoteBodyStyle.Stretch ? WrapMode.ClampToEdge : WrapMode.Repeat;
@@ -275,6 +294,8 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
 
         protected override void Dispose(bool isDisposing)
         {
+            if (isDisposing)
+                lightVisualRegistration?.Dispose();
             base.Dispose(isDisposing);
 
             if (holdNote.IsNotNull())

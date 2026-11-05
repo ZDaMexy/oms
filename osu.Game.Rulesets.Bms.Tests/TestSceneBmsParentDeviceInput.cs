@@ -40,12 +40,89 @@ namespace osu.Game.Rulesets.Bms.Tests
         private TimestampedClock? timestampedClock;
         private DeviceRuleset renderer = null!;
         private DeviceSource device = null!;
+        private GameplayState gameplayState = null!;
         private readonly List<(OmsAction Action, bool Pressed, double Time)> edges = new();
 
         [Cached(typeof(IOmsMouseAxisSource))]
         private readonly RelativeMouseSource mouse = new RelativeMouseSource();
 
         protected override bool UseFreshStoragePerRun => true;
+
+        [Test]
+        public void TestFailureBlocksPausedParentPressesButStillReleasesHeldControls()
+        {
+            arrange(provideGameplayState: true);
+            AddStep("pause the actual ruleset and frame-stable subtree", () =>
+            {
+                renderer.IsPaused.Value = true;
+                ((Bindable<bool>)renderer.FrameStableClock.IsPaused).Value = true;
+                clock.IsRunning = false;
+            });
+            AddWaitStep("let the input queue enter its paused epoch", 2);
+            AddStep("press real parent lane and reading-control keys while paused", () =>
+            {
+                InputManager.PressKey(Key.Z);
+                InputManager.PressKey(Key.W);
+            });
+            AddUntilStep("ordinary pause retains router and reading controls", () =>
+                renderer.Input.Router.IsPressed(OmsAction.Key1P_1) && renderer.Input.LaneCoverFocusPressed.Value);
+            AddAssert("paused input does not attack a lane", () => !renderer.Input.IsLaneHeld(BmsAction.Key1));
+            AddStep("commit failure while those controls are held", () =>
+            {
+                gameplayState.HasFailed = true;
+                edges.Clear();
+                InputManager.ReleaseKey(Key.Z);
+                InputManager.ReleaseKey(Key.W);
+            });
+            AddUntilStep("failure still drains the actual releases", () =>
+                !renderer.Input.Router.IsPressed(OmsAction.Key1P_1) && !renderer.Input.LaneCoverFocusPressed.Value);
+            AddStep("try new parent keyboard and joystick presses after failure", () =>
+            {
+                InputManager.PressKey(Key.Z);
+                InputManager.PressKey(Key.W);
+                InputManager.PressJoystickButton(JoystickButton.GamePadLeftShoulder);
+            });
+            AddWaitStep("deliver all failed-state parent events", 2);
+            AddAssert("failed input cannot republish skin or reading-control presses", () =>
+                edges.All(edge => !edge.Pressed)
+                && !renderer.Input.Router.IsPressed(OmsAction.Key1P_1)
+                && !renderer.Input.Router.IsPressed(OmsAction.Key1P_Scratch)
+                && !renderer.Input.LaneCoverFocusPressed.Value
+                && !renderer.Input.IsLaneHeld(BmsAction.Key1)
+                && !renderer.Input.IsLaneHeld(BmsAction.Scratch1));
+            AddStep("release the rejected physical presses", () =>
+            {
+                InputManager.ReleaseKey(Key.Z);
+                InputManager.ReleaseKey(Key.W);
+                InputManager.ReleaseJoystickButton(JoystickButton.GamePadLeftShoulder);
+            });
+        }
+
+        [Test]
+        public void TestFailureBlocksStartAxisAdjustmentEvenBeforeParentInputIsSuspended()
+        {
+            arrange(provideGameplayState: true);
+            var motions = new List<OmsAxisMotion>();
+            AddStep("hold Start and use the production axis adjustment route", () =>
+            {
+                renderer.Input.AdjustmentMotion += motions.Add;
+                Assert.That(renderer.Input.TriggerOmsActionPressed(OmsAction.UI_PreStartHold), Is.True);
+                renderer.Input.TriggerMouseAxisDelta(OmsMouseAxis.X, 4);
+            });
+            AddAssert("the normal adjustment is delivered", () => motions.Count == 1 && renderer.Input.PreStartHoldPressed.Value);
+            AddStep("commit failure before the parent-input flag changes", () =>
+            {
+                Assert.That(renderer.Input.UseParentInput, Is.True);
+                gameplayState.HasFailed = true;
+                edges.Clear();
+                renderer.Input.TriggerMouseAxisDelta(OmsMouseAxis.X, 4);
+                Assert.That(renderer.Input.TriggerOmsActionPressed(OmsAction.Key1P_1), Is.False);
+            });
+            AddAssert("failure blocks both axis adjustment and new router presses", () => motions.Count == 1
+                && edges.All(edge => !edge.Pressed) && !renderer.Input.IsScratchMotionHeld(BmsAction.Scratch1));
+            AddStep("release Start after failure", () => Assert.That(renderer.Input.TriggerOmsActionReleased(OmsAction.UI_PreStartHold), Is.True));
+            AddAssert("the old held modifier is cleared", () => !renderer.Input.PreStartHoldPressed.Value);
+        }
 
         [Test]
         public void TestRealParentKeyboardAndHidShareExactlyOneHeldAction()
@@ -258,8 +335,15 @@ namespace osu.Game.Rulesets.Bms.Tests
             AddAssert("the stopped stick no longer owns the scratch", () => !renderer.Input.IsLaneHeld(BmsAction.Scratch1));
         }
 
-        private void arrange(double rate = 1, bool timestamped = false, bool stick = false, GameplayInputTime? initialSample = null)
+        private void arrange(double rate = 1, bool timestamped = false, bool stick = false, GameplayInputTime? initialSample = null,
+                             bool provideGameplayState = false)
         {
+            AddStep("release parent input retained by an interrupted preceding case", () =>
+            {
+                InputManager.ReleaseKey(Key.Z);
+                InputManager.ReleaseKey(Key.W);
+                InputManager.ReleaseJoystickButton(JoystickButton.GamePadLeftShoulder);
+            });
             AddStep("load production parent input and a buffered physical device", () =>
             {
                 edges.Clear();
@@ -277,9 +361,12 @@ namespace osu.Game.Rulesets.Bms.Tests
                 clock = new ManualClock { IsRunning = true, Rate = rate, CurrentTime = initialSample?.Time ?? 0 };
                 timestampedClock = timestamped ? new TimestampedClock(clock) { Timestamp = initialSample?.Timestamp, Child = renderer } : null;
                 Drawable content = timestampedClock ?? (Drawable)renderer;
+                var dependencies = new List<(Type, object)> { (typeof(RealmAccess), Realm) };
+                if (provideGameplayState)
+                    dependencies.Add((typeof(GameplayState), gameplayState = new GameplayState(beatmap, new BmsRuleset())));
                 Child = new DependencyProvidingContainer
                 {
-                    CachedDependencies = new[] { (typeof(RealmAccess), (object)Realm) },
+                    CachedDependencies = dependencies.ToArray(),
                     RelativeSizeAxes = Axes.Both,
                     Clock = new FramedClock(clock),
                     Child = content,

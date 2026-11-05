@@ -103,11 +103,13 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Author.ps1 -Action imp
 | `stateMachines` | 状态机数组 | 是，可 `[]` |
 | `bindings` | 只读绑定数组 | 是，可 `[]` |
 | `variants` | 图片、显隐或横向x/width变体数组 | 否，建议明确 `[]` |
+| `numericSources` | 按声明顺序求值的有界数值数组，见[有界数值计算](#有界数值计算) | 否，可 `[]` |
 | `completionOutro` | 全连演出总时长，有限数值0..3500毫秒；缺省0保持Player原等待 | 否 |
+| `failureOutro` | 真实失败演出的原生等待，有限数值0..5000毫秒；须有实际挂载的非循环失败记录覆盖时长，缺省0保持原失败流程 | 否 |
 | `preparationDuration` | 开局准备总时长，有限数值0..10000毫秒；缺省0保持原启动流程 | 否 |
 | `templates`、`instances` | 模板、实例数组 | 是，可 `[]` |
 
-id 使用稳定 ASCII 名字，如 `my.hud.score`。场景中的节点、轨迹、帧、状态、赋值、转移、绑定、变体、分支、模板和实例共用唯一名字空间。JSON 不允许重复或未知字段。下面短例子是对应数组的一项；整份文件见上面的完整练习。
+id 使用稳定 ASCII 名字，如 `my.hud.score`。场景中的节点、轨迹、帧、状态、赋值、转移、绑定、变体、分支、模板、实例和数值声明共用唯一名字空间。JSON 不允许重复或未知字段。下面短例子是对应数组的一项；整份文件见上面的完整练习。
 
 ## 节点、目标和属性
 
@@ -168,6 +170,8 @@ id 与非负整数 index 必须同时匹配布局。BMS 舞台/组为 `bms.group
 普通container沿用比例属性。blend 必填，允许 inherit/alpha/additive/multiply/screen。零进度使用定宽容器里的子图片 width=0；零缩放在绘图矩阵中会夹到极小值，可能留下细线。实际字高需在最小窗口核对。
 
 `brightness`使节点及子树变暗，保留原`colour`、纹理、透明度和显隐状态；0表示黑色，1保留原色。它接受静态数值、数值绑定、数值轨迹及状态赋值，绑定结果夹到0..1；非有限数拒绝。父子分别声明时倍率叠乘，通常只在已有美术根声明一次。它复用现有节点载体，不增加图片、离屏效果或音符池实例；不能将`opacity`降低当作亮度降低。选项绑定仍在下次游玩/预览准备时冻结，不改活跃场景。
+
+`visible`与`opacity`都写同一节点的透明度，并非自动相乘的两道门。静态`visible:false`会被之后的`opacity:1`状态赋值覆盖；开关、档位选择和生命周期淡出需要同时生效时，分别放在父子节点，且开关层不得再接收其它透明度写入。验证OFF分支须包含实际触发事件后的画面，不能只检查初始场景值。
 
 effects 每项必填 id/type/properties。blur 允许 radius；glow 允许 radius/strength/colour；outline 允许 width/colour；shadow 允许 x/y/blur/colour。radius、blur 为0..64，strength为0..4，描边width为0..32，阴影偏移为-128..128，颜色沿用上表。效果会增加中间图片成本。
 
@@ -308,6 +312,8 @@ choice可选`preview`，引用包根相对路径的静态PNG；不允许绝对/�
 
 子清单的`scene`字段仍填写合同固定值`gameplay-skin.scene.json`；实际子场景路径取上方choice或variant的`scene`字段。这与根清单读取固定根场景的规则不同，不能把子场景的物理路径写进manifest合同头。
 
+子场景可自带`numericSources`，但每份场景都须独立通过引用检查，不能引用另一模块或根场景中的数值声明。选中后按内容顺序合并，最终组合仍最多64条、依赖深度16；不同模块应使用独立id前缀，不能依赖目录合并顺序绕过前置声明规则。
+
 choice可声明 `variants`，例如 `{"when":{"layout":"p2","note-size":"short"},"manifest":"…","scene":"…","ini":"…"}`。when只读取另一项已冻结的choice/toggle，不引用自身、数值选项或未知项；缺省或 `orderedVariants:false` 时，同choice各variant条件键集合须一致、值组合唯一。命中后使用该variant的整份贡献；没有命中使用choice基本贡献。它不重新选择其它选项、不产生循环求值，也不允许游玩中换文件。
 
 需要不同条件宽度时，可在该choice显式声明 `"orderedVariants":true`，并保留非空的 `variants`。此时各variant可使用不同的非空条件键集合，仍拒绝完全相同的条件组合；按数组顺序取第一项全部条件都满足的贡献，不合并后续分支。应将具体单舞台条件放在前面，较宽的双舞台或共用后备放在后面；例如先列 `{"layout":"p1","detail":true}`、`{"layout":"p2","detail":true}`，再列 `{"detail":true}`。最后一项不检查layout，可承接双舞台；这只是作者声明的顺序，不是引擎自动识别SP/DP。没有命中仍取choice基本贡献，旧包省略字段时保持原选择规则。
@@ -334,9 +340,37 @@ BMS可额外显式Provide Stage `playfield.lift.fill` 与 `playfield.lift.decora
 
 循环片段可在记录文件中指定 `loopStartFrame`，表示开头播放一次后，重复从该帧到终止空帧之前的区间。例如301帧（第300帧为空）与 `loopStartFrame:180` 会先播放0～299，再重复180～299。此值只接受 `loop:true` 且无 `heldLoop` 的片段，范围为0～倒数第二帧；省略时为0，保留整段循环。它不截断或延长源帧，也不增加逐帧资源或运行时脚本。
 
-trigger限gameplay.attach/gameplay.complete/judgement.hit/input.key.down。按键光柱可另外声明heldLoop:[start,end]与releaseFrame，分别保留按下的开头、按住的循环和放开的尾段；它们只用于input.key.down且loop=false。镜像、剪切、透视裁切、真实祖先多边形mask和源三角形由同一游玩时钟采样。滤镜处理顺序属于此数据合同的渲染定义，不能仅凭成功导出声称与某外部游戏逐像素一致。
+trigger限gameplay.attach/gameplay.complete/gameplay.fail/judgement.hit/input.key.down/object.state/object.long-note-transition/gauge.increase。两个object触发只消费精确绑定的原生长条历史；gauge触发读取真实血槽增长起点，fail触发读取真实失败状态，见下节。按键光柱可另外声明heldLoop:[start,end]与releaseFrame，分别保留按下的开头、按住的循环和放开的尾段；它们只用于input.key.down且loop=false。除下述有界原生失败演出外，镜像、剪切、透视裁切、真实祖先多边形mask和源三角形由同一游玩时钟采样。滤镜处理顺序属于此数据合同的渲染定义，不能仅凭成功导出声称与某外部游戏逐像素一致。
 
 每选中组合最多32记录，单条最多3600帧/4096节点，单文件编码16MiB、解压128MiB；总状态131072、节点32768、顶点262144、帧内应用200万均有界。记录资源继续占普通纹理预算；实际原生对象池会计入节点与三角形开销。用于原生HitExplosion的一次性记录最多1000ms，完整时长由对应效果池保留；全连仍须有gameplay.full-combo可见绑定及有界completionOutro/结束轨迹，不能延长音符或游戏判定。
+
+### 血槽增长效果
+
+记录文件可声明`trigger:"gauge.increase"`，从最近一次原生Health数值正增的真实游玩时刻开始采样。减血、持平及仅分数/连击变化不会重启；每次新的正增重新从第0帧播放，支持原有一次性或循环片段。它读取同一计分快照，不按显示血槽的整数百分比或2%格数再次量化，因此是OMS实际Gauge增量的表现映射，不构成对外部游戏量化时机的等价承诺。
+
+没有已知增长时隐藏，包括初始化即满血的情况；作者不能把加载、进入clear状态或收到快照的时刻当成回血。起点随完整快照保留，晚挂载继续原阶段，暂停不推进；重试清空，seek/倒带清除位于新时刻之后的起点，恢复数据本身不生成增长。
+
+`gauge.increase-available`只表示当前快照是否保有真实增长起点，支持普通text、visible及true/false变体，不接受数字、clock或numericSources operand。它不表示本帧正在回血，也不等于clear。作品可用独立父节点组合它和`gauge.clear-state`：初始已clear但尚无增长时显示`gameplay.attach`循环，首次真实增长后切到`gauge.increase`循环，未clear时显示同一素材的`gauge.increase`一次性记录。程序可共用帧与纹理；显隐不改变原生Gauge数值、通关条件或计分，也不新增普通tracks事件或脚本权限。
+
+### 真实失败演出
+
+`trigger:"gameplay.fail"`使用既有失败生命周期的同一拼写，只在原生引擎已确认失败后播放，不从血量0、Miss或作者条件推断失败。失败起点随完整快照保留，晚挂载不重新开始；未知历史保持隐藏，重试清空，seek/倒带不保留未来起点。
+
+需要完整播完时，在场景顶层声明`failureOutro`，单位毫秒，范围0..5000。正值必须由实际引用并挂载的`gameplay.fail`记录覆盖：记录须非循环，不能有覆盖trigger的节点clock，且至少一条记录时长不短于等待值。仅列在清单中、只放在未实例化模板中，或被当前素材/布局排除的片段不能取得等待资格。内容目录组合取选中贡献的最大等待值，组合后重新校验。
+
+健康、已准备好的场景提出正等待时，Player在真实失败后停止谱面时钟和玩法输入，使用原生失败演出进度采样该片段；计分、回放和音符不靠继续演奏推进。暂停演出或暂时离开当前画面时保留阶段，恢复后继续，终点保持有界终值并显示原生失败菜单。新进度随Timing完整快照提供，晚挂载读取同一阶段；重试、跳转和退出撤销旧演出。它不是作者可写时钟，不开放新的数值clock或脚本输入。
+
+缺省或0保留Player原失败流程；未请求等待的`gameplay.fail`短片可沿真实失败后的游玩时差采样，但原失败流程会减速、停止曲时并显示菜单，不能据此保证长片播完。正等待声明在没有原生演出提供者的宿主中保持隐藏，不用墙上时钟或继续判定补造进度。此等待由原生Player/SoloPlayer失败链承载；ReplayPlayer保留自己的ReplayFailIndicator与失败交互，不启动该演出控制器，不能用Replay截图签收完整失败动画。作品仍需实际检查原生失败菜单、输入关闭和完整动画，结构验证不代替Player验收。
+
+### 长条判定线效果
+
+可选Lane槽`effect.long-note`用于BMS和mania的原生长条判定线效果，沿普通Provide/Inherit/Suppress及精确material匹配规则声明。它由实际长条对象持有独立表现，头、身、尾的读谱素材仍使用各自的`object.long-note.*`槽。未提供此效果不会凭空增加素材；声明实例也不能生成长条、判定或输入。
+
+同一效果读取所绑定长条的`object.state`、`object.previous-state`、`object.long-note-mode`及`object.long-note-appearance`，不会借用同轨另一颗物件。作者可用状态变体控制持续、断持和尾段节点的显隐；`holding`来自原生长条状态，空按键不能启动它。`object.previous-state`是最近一次已知状态变化前的状态，未知为`unknown`；它不是每一显示帧的上一状态。
+
+记录文件的`trigger:"object.state"`从该长条最近一次真实状态变化起计，包含进入holding、断持、重新抓取和完成。`trigger:"object.long-note-transition"`仅在进入holding或离开holding时更新起点，后续无关状态变化不会再次启动。重复快照、晚挂载和恢复使用已知历史，不把接收时刻当成新变化。恢复后若只有当前状态、没有历史起点，`object.state`停在第0帧等待真实变化，`object.long-note-transition`保持隐藏；没有精确长条绑定时两者都不播放。
+
+实际长条所有者结束后，可为这两种trigger的非循环记录保留有界尾段；该槽的单条非循环记录最多1000ms。原生效果租约结束时立即停止该实例的循环记录，非循环尾段继续读取原有事件起点，不另造`completed`状态或100%物件进度。BMS提前断持仍投影真实`missed`与经过的谱面进度；mania断持保留原有`visible`语义，原有完成事件不因此改变。演奏中的持续光仍由实际状态显隐控制。重试、seek和对象回收撤去旧实例，不能由皮肤延长长条或计分资格。每个精确槽位目标最多16个并存效果，节点、三角形和效果仍计入全场景预算；容量不足时只跳过额外视觉，不改变玩法结果。这些记录trigger不增加普通tracks的事件类型或可选脚本权限。
 
 ## 显式舞台与留空位置
 
@@ -353,6 +387,12 @@ trigger限gameplay.attach/gameplay.complete/judgement.hit/input.key.down。按�
 keyAreaHeight / gaugeHeight 相对安全区高度，分别限0..0.18 / 0..0.25；hitPosition 相对舞台高度，mania限0..1，BMS须为1。舞台和轨道不得重叠，双舞台保持共同纵向跨度，预留键区、血条及间隙。声明必须与实际stage向量和轨道顺序一致；不能安全使用时记录稳定诊断并保留原有布局，不伪造轨道。`layout` 等名字没有隐藏的 IIDX 行为。
 
 可选`modsRect:[x,y,width,height]`为已有原生Mod提示指定安全区内的位置，坐标相对同一安全区、尺寸须为正且全矩形在0..1内。它随同一有效layout冻结为`hud.mods`表面，沿C5全画布投影定位现有图标；不足时等比缩小，不放大。真实Mods、回放淡入、悬停展开与HUD可见性仍由原生控件负责；不新增轨道、输入或作者自造Mod。省略时保持原右上布局；不匹配或失效的舞台配置也不会单独应用这个矩形。
+
+可选`normalSpeedPreviewRect:[x,y,width,height]`只允许BMS layout，为已有Normal Hi-Speed音符预览指定同一安全区内的归一化矩形。四项须有限，x/y非负，宽高为正，整个矩形位于0..1内；不能写在mania layout。它随有效layout一次冻结为`bms.pre-start-preview`表面，不改变真实轨道、输入位置或滚速设置。
+
+显式矩形中的预览沿原生Start调速状态，在准备阶段和游玩期间均可显示；仅Normal模式及当前读谱计算版本提供，Floating、Classic和legacy版本不补造此预览。音符取距离该矩形中心最近的真实非皿轨道素材，行进时间使用实际可见读谱时间；LIFT和反向沿该原生轨道已应用的几何投影，内容在预览区域内裁切，暂停保持原生预览时钟。省略此字段保持原有开局轨道内预览；作者不能借矩形创建第二套玩法或自行驱动示例音符。
+
+预览旁的周期标记可读取`scroll.preview-phase`，其0..1数值直接来自当前可见原生预览的主音符进度；用`scroll.preview-available`控制显隐，不从曲目BPM或beat自行造相位。它表示OMS现有双音符预览周期的适配，不声称等价于外部游戏独立的BPM counter。
 
 ## 真实车道布局与 INI
 
@@ -430,9 +470,66 @@ Target: Lane ruleset=bms keymode=7k stage-mode=single presentation=p2 group=bms.
 
 资源行是 `槽位ID: resource Provide "图片基名"`、`槽位ID: resource Inherit` 或 `槽位ID: resource Suppress`。精确玩法优先，再比较键数、舞台模式、精确 presentation、Lane/Group/Stage/Global和同等级后行；错误的精确声明不回头拼本包更宽声明。必备/推荐部分不能关闭，明确关闭的可选部分不会偷偷恢复。缺少必要部分由正式静线补齐。全部资源名和适用范围见 [CATALOG](CATALOG.md)。
 
+## 有界数值计算
+
+场景可选顶层`numericSources`声明只读算术，结果用`value.<id>`读取。它用于合计计分器已有统计、计算显示比例或差分，不执行作者代码，也不新增玩法数据。每项的`id`、`operation`、`left`必填；二元运算还必须有`right`，一元运算禁止`right`，包括写成null。
+
+| operation | 元数 | 结果 |
+| --- | --- | --- |
+| `add` | 二元 | left + right |
+| `subtract` | 二元 | left − right |
+| `multiply` | 二元 | left × right |
+| `divide` | 二元 | left ÷ right |
+| `min` | 二元 | 较小值 |
+| `max` | 二元 | 较大值 |
+| `floor` | 一元 | 向负无穷取整 |
+| `ceil` | 一元 | 向正无穷取整 |
+| `float32` | 一元 | 转换为IEEE 754单精度，再作为数值返回 |
+| `multiply32` | 二元 | 两个输入分别转换为单精度，以单精度相乘后返回 |
+| `divide32` | 二元 | 两个输入分别转换为单精度，以单精度相除后返回 |
+
+普通算术使用双精度；`multiply32`、`divide32`包含输入和运算结果的单精度舍入，不等价于只在双精度计算后追加一次`float32`。它们只适用于确需该数值规则的显示，不改变计分器。
+
+operand只能是有限JSON数值或下表的来源字符串，不能是嵌套表达式、布尔、null或任意文字：
+
+| operand来源 | 范围 |
+| --- | --- |
+| 计分 | `score.value`、`score.maximum`、`score.progress`、`score.accuracy` |
+| 既有目标数值 | `score.personal-best`、`score.personal-best-progress`、`score.pacemaker-next`、`score.pacemaker-next-progress`、`score.rank-aaa/aa/a`及其`-progress` |
+| 连击 | `combo.value`、`combo.maximum`、`combo.breaks` |
+| 血槽 | `gauge.value`、`gauge.maximum`、`gauge.clear-threshold` |
+| 统计 | `judgement.count.perfect/great/good/ok/meh/miss/fast/slow` |
+| 数字配置 | 已声明的`option.<id>`，只接受number；toggle的0/1绑定能力不适用于此处 |
+| 前置结果 | 同一场景`numericSources`数组中更早声明的`value.<id>` |
+
+所有计算共用当前全局快照，不按Lane或Stage重复改变含义。`judgement.offset`、对象状态、arrival、输入运动、滚速、时钟和其它未列来源不能作为operand；这些来源已有的直接binding/clock能力保持。不存在前向引用、自引用、循环、比较、条件选择或`value.*-available`隐式来源。
+
+例如，以下是已有场景中的一段声明，显示两档真实统计合计及当前分数的整数百分比：
+
+```json
+"numericSources": [
+  {"id":"my.hit-count","operation":"add","left":"judgement.count.perfect","right":"judgement.count.great"},
+  {"id":"my.score-ratio","operation":"divide","left":"score.value","right":"score.maximum"},
+  {"id":"my.percent","operation":"multiply","left":"value.my.score-ratio","right":100},
+  {"id":"my.whole-percent","operation":"floor","left":"value.my.percent"}
+]
+```
+
+已有文字节点可用`{"id":"my.count-binding","target":"my.count-text","property":"text","source":"value.my.hit-count"}`读取；节点和所属槽位仍须正常声明。`value.<id>`还可驱动原有受限数值属性，以及普通tracks或recorded-animation节点的`clock`。它不能直接驱动visible、资源变体、状态条件或脚本输入；需要可用性显隐时，另在父节点使用已有的`score.maximum-available`等布尔来源。
+
+每份场景及内容目录最终选中组合最多64条声明、依赖深度16；只读原生来源或常量的首层深度为1。每帧在真实事件合并后按声明顺序求值一次，读取同一帧结果；声明求值与实例属性应用共同受既有每帧16384预算限制，不增加原有节点、文字或动画预算。
+
+分母能在加载时确定为0时拒绝整个声明；通过更早常量运算得到的0也一样。`divide32`还拒绝转换到单精度后变成0的常量分母。常量运算产生非有限结果同样拒绝。运行时动态分母为0、单精度输入溢出或任何运算产生非有限结果时，该结果及依赖它的后续结果为不可用，不伪造0或保留上次结果。
+
+不可用结果的文字清空；数值绑定及使用该数值clock的普通轨迹恢复其捕获的作者初始属性，换图/四角轨迹恢复初始纹理/四角；记录动画隐藏。尚未成功应用过的属性保持初始值。下一帧恢复有效数值后正常重新采样。此规则不自动隐藏无关节点，作者仍应给初始几何与availability显隐合理配置，避免在未知时显示误导性的底图。
+
+原生来源保留原公开语义：例如缺少本地PB时`score.personal-best`为0且`score.personal-best-available`为false，派生算术读取的0仍是合法输入，不会自动变成不可用，也不能因此宣称已有0分PB。`score.pacemaker-next`等既有目标策略不被作者计算改写；作品如需不同阈值，可声明自己的结果和适用范围。只通过派生结果间接消费PB时，同样触发既有的一次匹配成绩读取，不新增查询权限。
+
+图片数字字体按声明推导的整数和符号范围校验：例如整数计数相加仍是整数，`floor/ceil`输出整数，可能为负的差分须提供`-`；不能证明整数的缺省格式还需`.`，或显式选已有整数格式。它不会扩充字形字符集、补出缺字或放宽64字符上限。
+
 ## 动画、状态机、绑定、变体、模板
 
-tracks 每项必填 id/type/target/property/easing/loop/keyframes，可选 `trigger` 或 `clock`，两者不能同时声明；target为节点id。帧必填id/time/value，time须有限、严格递增、绝对值不超过86400000，至少一帧。仅`loop:false`且显式`clock:"option.<id>"`引用min小于0的number配置时允许负time；其它轨迹仍只接受非负time。负关键帧没有扩大循环或事件轨迹的时间域。缺省time单位为游玩毫秒；显式clock时使用该数值来源的单位，number配置的原值直接采样，不转成毫秒或绑定到配置最小/最大值。
+tracks 每项必填 id/type/target/property/easing/loop/keyframes，可选 `trigger` 或 `clock`，两者不能同时声明；target为节点id。帧必填id/time/value，time须有限、严格递增、绝对值不超过86400000，至少一帧。允许负time须同时满足`loop:false`及显式clock；clock还须引用min小于0的number配置或可为负数的`value.<id>`。其它轨迹仍只接受非负time。负关键帧没有扩大循环或事件轨迹的时间域。缺省time单位为游玩毫秒；显式clock时使用该数值来源的单位，number配置或派生数值按原值直接采样，不转成毫秒或绑定到配置最小/最大值。
 
 ```json
 {
@@ -447,7 +544,7 @@ tracks 每项必填 id/type/target/property/easing/loop/keyframes，可选 `trig
 
 tween只改变数值属性；tween配step可逐帧保持数值，在关键帧的精确时刻切入新值。frame给sprite的resource换帧时，value必须是清单资源id；projective-sprite还接受下述projective-quad帧。easing为step/linear/in/out/in-out。循环周期来自最后帧，循环动画应给正周期；负的来源值也按正模取周期，因此反向运动能连续向回采样。非循环轨迹在首帧前、末帧后分别保持首帧、末帧。省略 `trigger` 和 `clock` 时仍按全局游玩时间采样，已有包不改变语义；暂停不推进，重试/跳转使用新位置。
 
-`clock` 是一个已有数值只读绑定来源字符串，适用于tween和frame，例如 `"clock":"timing.beat"`、`"clock":"timing.elapsed"` 或 `"clock":"arrival.remaining"`。普通数值来源、number配置及toggle的显式0/1数值投影均可；其它布尔、choice和状态文字来源不可以，也不接受表达式、私有时钟或外部输入。它只决定读取关键帧的位置，不改变游戏时钟、输入或判定。以下已有节点的轨迹每拍变亮一次，time单位为拍：
+`clock` 是一个已有数值只读绑定来源字符串，适用于tween和frame，例如 `"clock":"timing.beat"`、`"clock":"timing.elapsed"` 或 `"clock":"arrival.remaining"`。普通数值来源、number配置、toggle的显式0/1数值投影及已声明`value.<id>`均可；其它布尔、choice和状态文字来源不可以，也不接受内联表达式、私有时钟或外部输入。它只决定读取关键帧的位置，不改变游戏时钟、输入或判定。以下已有节点的轨迹每拍变亮一次，time单位为拍：
 
 ```json
 {"id":"my.beat-pulse","type":"tween","target":"ref.icon","property":"opacity",
@@ -531,6 +628,7 @@ bindings每项必填id/target/property/source，例如：
 | input.motion-available-1 / input.motion-available-2 | 对应逻辑组当前是否具有可用的真实运动投影 | visible或普通text |
 | gameplay.full-combo | 实际完成且达到引擎最大可达连击、未失败；未完成或空谱为false | visible或普通text |
 | object.state | scheduled/visible/holding/hit/missed/completed/despawned | text |
+| object.previous-state | 最近一次已知状态变化前的状态，取object.state同一闭集；未知为unknown | 普通text或resource/visible variants |
 | object.long-note-mode | none/ln/cn/hcn；实际对象的长条模式 | text |
 | object.long-note-appearance | none/ln/ln-holding/ln-released/cn/cn-holding/cn-released/hcn/hcn-holding/hcn-released | text |
 | object.auto-assist | 当前精确物件的自动辅助角色：none/scratch/note | 普通text或resource/visible variants |
@@ -554,6 +652,7 @@ bindings每项必填id/target/property/source，例如：
 | gauge.type | none/assist-easy/easy/normal/hard/ex-hard/hazard | text |
 | gauge.maximum / gauge.clear-threshold | 实际血槽最大值 / 通关阈值，与gauge.value使用相同0..1量纲；无此能力时都为0 | 数值或text |
 | gauge.clear-state | unavailable/uncleared/clear；引擎当前通关条件状态 | text |
+| gauge.increase-available | 是否保有最近一次真实血槽增长起点，与clear及当前是否增长分开 | visible或普通text、true/false variants |
 | timing.beat/timing.measure/timing.bpm | 拍、小节索引、BPM | 数值或text |
 | timing.time | 当前权威游玩时间，毫秒，可为负 | 数值或text |
 | timing.elapsed | 从真实Gameplay Start起的非负游玩毫秒；尚无Start时数值绑定为0 | 数值或text |
@@ -575,6 +674,10 @@ bindings每项必填id/target/property/source，例如：
 | scroll.available / scroll.adjusting | 原生调速快照是否可用 / 玩家是否正按住Start调速；当前由BMS提供，mania为false | visible或普通text |
 | scroll.mode | 原生模式normal/floating/classic；不可用为unavailable | text或variants |
 | scroll.green-number | 由当前BPM、真实滚速、挡板和LIFT几何计算的绿字；不可用为0 | 数值或text |
+| scroll.green-number-min / scroll.green-number-max | 同一原生读谱状态下，对当前滚动算法的实际倍率范围计算的最小 / 最大绿字；不提供时为0 | 数值或text |
+| scroll.green-number-range-available | 已提供两个端点且端点不相等；无范围来源或定速范围为false | visible或普通text |
+| scroll.preview-phase | 当前可见原生调速预览的主音符周期0..1；不可用为0 | 数值或text、数值clock |
+| scroll.preview-available | 原生预览当前可见且已提供相位；未提供时false | visible或普通text、true/false variants |
 | cover.sudden-units / cover.hidden-units | 上下挡板各自保留的0..1000长度；关闭不清值 | 数值或text |
 | cover.sudden-active / cover.hidden-active | 原生上下挡板当前是否生效 | visible或普通text |
 | judgement.count.perfect / great / good / ok / meh / miss | 计分器对应六档判定累计值 | 数值或text |
@@ -586,10 +689,13 @@ bindings每项必填id/target/property/source，例如：
 | offset.automatic | 仅在automatic-available为true时表示原生自动调整是否开启；状态未知时为false，不代表已知关闭 | visible或普通text |
 | timing.progress | 可玩起止间0..1；text为整数百分比 | 数值或text |
 | bga.content-state | empty/ready/playing/paused/failed | text |
+| `value.<id>` | 当前场景numericSources已声明的派生数值；不可用语义见[有界数值计算](#有界数值计算) | 数值或text，不接受visible或variants |
 
 字符串不能直接驱动数字或资源；换图用variants。数值限制在目标属性范围内，不修改玩法。首物件前进度0、末物件后1、零时长0；暂停保持、重试和跳转反映新位置。局部对象、轨道和组沿自身范围取值，不应由另一轨道的判定驱动。
 
 调速与挡板读数随同一Timing快照和静止时钟下的真实调整同步；作者不得累积按键或自行反推可见时间。BMS的新游玩由游戏“读谱设置”提供Sudden/Hidden/Lift，不再要求选中同名Mod；作者应读取实际值和active，而非用Mod列表猜开关。上下白字分别用`cover.sudden-units`、`cover.hidden-units`，LIFT读`lift.value`，不能把Hidden长度或LIFT写成Sudden白字。只在`scroll.available`及`scroll.adjusting`成立时显示调整面板/读数，挡板行另检查各自active；mania及没有原生来源的预览应隐藏。`lift.reversed`可用true/false显隐变体，位置仍按实际`lift.offset`。`score.maximum-available`、`score.personal-best-available`与`score.rank-available`可用布尔variants的true/false分支，使主目标没有数据时才显示备用目标；两者都缺数据时显示NO DATA，不补造对手或成绩。
+
+`scroll.green-number-min/max`由BMS当前读谱计算版本及所选滚动算法提供，沿同一模式、滚速和Sudden/Hidden/Lift状态计算实际倍率两端对应的绿字；最大倍率对应最小绿字。原生BMS轨迹使用每段实际配对的有效BPM和SCROLL，STOP、零或反向SCROLL沿原生采样的音乐参考；基础算法使用已冻结聚合中的倍率，包括实际钳制、STOP标记和谱尾裁剪；Constant算法两端均为1。不能把独立BPM与SCROLL极值相乘，也不能只用音乐BPM范围代替它。范围不预测全谱不同挡板操作；只有取整后两个结果不同时`scroll.green-number-range-available`为true，否则数值仍保留同一端点。mania、legacy计算及不提供该原生范围的算法保持不可用，不从`scroll.speed`反推。显示范围宜同时受`scroll.available`、`scroll.adjusting`与该range标记控制；当前绿字仍读`scroll.green-number`。三种绿字都是整数，可使用十个数字的位图字体。
 
 `arrival.*` 取应用Mod后的实际谱面和真实C3轨道，Lane为该轨首音，Stage/Group为该组最早首音，Global为全谱最早首音；空谱、空组及只作留白的作者槽没有entry，不借用别轨。BMS排除自动背景物件，mania取普通音符或长条的开始。`arrival.visible`只表示尚未到来，不限制提前多久；作者应另用非循环 `arrival.remaining` 轨迹定义预告窗，并将窗口两端透明度设为0，以免远处首音长期显示。剩余值可以为负，重试、seek和完整状态恢复直接使用新位置，不由皮肤累计倒计时。
 
@@ -671,7 +777,7 @@ variants必填id/target/property/source/default/cases，至少一条case，同�
 }
 ```
 
-除前述配置、准备布尔、`arrival.first-row`、`layout.group`和两项song literal来源外，source还允许`layout.ruleset`（bms/mania）、`offset.automatic`与`offset.automatic-available`（true/false）及 `object.state`、`object.long-note-mode`、`object.long-note-appearance`、`object.auto-assist`、`judgement.result`、`gauge.type`、`gauge.clear-state`、`bga.content-state`；这些闭集来源的key必须是上表对应字符串，未列case取default。AUTO的ON/OFF资源变体必须另受automatic-available门控，未知时automatic=false不能冒充OFF。长条模式和holding/released换图宜用单个 `object.long-note-appearance` 变体，避免两个变体同时改同一sprite资源。空态先按上一节投影，例如没有判定时也会命中作者的miss分支，不会越过该分支自动使用default。没有任意表达式、范围条件或外部资源路径。
+除前述配置、准备布尔、`arrival.first-row`、`layout.group`和两项song literal来源外，source还允许`layout.ruleset`（bms/mania）、`offset.automatic`与`offset.automatic-available`（true/false）及 `object.state`、`object.previous-state`、`object.long-note-mode`、`object.long-note-appearance`、`object.auto-assist`、`judgement.result`、`gauge.type`、`gauge.clear-state`、`bga.content-state`；这些闭集来源的key必须是上表对应字符串，未列case取default。AUTO的ON/OFF资源变体必须另受automatic-available门控，未知时automatic=false不能冒充OFF。长条模式和holding/released换图宜用单个 `object.long-note-appearance` 变体，避免两个变体同时改同一sprite资源。空态先按上一节投影，例如没有判定时也会命中作者的miss分支，不会越过该分支自动使用default。variants没有任意表达式、数值范围条件或外部资源路径；`value.<id>`不增加数值分支能力。
 
 `combo.active`的变体key只接受`true/false`，使用同一Score快照，不按当前判定等级推测连击。`layout.presentation`除既有x/width外可单独选择y，y与x同为有限的-4..4数值；值来自当前实际应用的布局上下文，保存但不适用的选项不参与。其它source的y、height/scale/rotation等几何变体仍不开放，也不能将`layout.presentation`用作数值binding或clock。共享一个template时，每个实际material/Group实例仍有独立判定起点和runtime状态。
 
@@ -769,22 +875,24 @@ event-value是单一数值：输入强度、对象进度、判定偏差毫秒、
 | 稳定id / 资源路径 | 128 / 240字符 |
 | 资源数 / 单资源 / 总资源 | 普通256、显式目录冻结选中组合384 / 16MiB / 64MiB |
 | 单图像素 / 总图像素 / 解码字节 | 16×1024² / 普通64×1024²、显式目录选中组合96×1024² / 普通256MiB、选中组合384MiB |
-| 位图字体 / 每字体字形 / 每节点字符 | 10 / 16 / 64 |
+| 位图字体 / 每字体字形 / 每节点字符 | 12 / 16 / 64 |
 | 位图字形图片 / lineHeight / advance | 每边1..512像素，图片高度不超过lineHeight；lineHeight与advance均1..512、有限 |
 | 源节点 / 树深 / 每节点孩子 | 2048 / 16 / 128 |
 | 每对象属性 / 单节点效果 / 总效果 | 32 / 8 / 512 |
 | 动画 / 每条帧 / 总帧 | 512 / 512 / 8192 |
 | 全连演出完成等待 | `completionOutro`为0..3500毫秒；缺省0保持原1000毫秒等待 |
+| 原生失败演出等待 | `failureOutro`为0..5000毫秒；正值须有实际挂载的非循环`gameplay.fail`记录覆盖；缺省0保持原失败流程 |
 | 状态机 / 状态 / 赋值 / 转移 | 128 / 1024 / 4096 / 2048 |
 | 绑定 / 变体 / 单变体分支 / 总分支 | 512 / 512 / 32 / 4096 |
+| 数值声明 / 依赖深度 | 64 / 16，适用于单场景及内容目录选中组合 |
 | 模板 / 实例 / 展开节点 | 128 / 1024 / 8192 |
-| 每帧属性 / 单事件状态属性应用 | 16384 / 8192 |
+| 每帧属性及数值声明求值 / 单事件状态属性应用 | 16384 / 8192 |
 | 源静态文字总字符 | 65536 |
 | 运行节点 / 效果实例 | 32768 / 8192 |
 | 效果表面像素 / 字节 | 128×1024² / 512MiB |
 | 文字字形 / 普通字形图集像素 / 图集字节 | 8192 / 64×1024² / 256MiB；位图像素只计普通scene纹理 |
 | 单动态文字字形预留 / 每帧创建 | 位图64；普通字体song元数据256、判定计数与断连10、其他384 / 256 |
-| 每目标专用表现 / 击打效果 | 256 / 16 |
+| 每目标专用表现 / 击打效果 / 长条效果 | 256 / 16 / 16 |
 | 信息原生所有者 / 单槽所有者 | 64 / 32 |
 | 信息分区 / 残余分区 / 工厂实例 | 1280 / 1344 / 512 |
 | 信息捕获表面 / 像素 | 5 / 64M |

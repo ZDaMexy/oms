@@ -510,7 +510,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 new(BmsGameplayLayoutSurfaceIds.JudgementLine, judgementLineRect, 510, false, false),
                 new(BmsGameplayLayoutSurfaceIds.Judgement, judgementRect, 520, false, false),
                 new(BmsGameplayLayoutSurfaceIds.LaneCover, playfieldRect, 600, true, false),
-                new(BmsGameplayLayoutSurfaceIds.PreStartPreview, playfieldRect, 550, true, false),
+                new(BmsGameplayLayoutSurfaceIds.PreStartPreview,
+                    authorLayout?.NormalSpeedPreviewRect is { } previewRect ? project(previewRect, safe) : playfieldRect, 550, true, false),
                 new(BmsGameplayLayoutSurfaceIds.Gauge, gaugeRect, 700, true, false),
                 new(BmsGameplayLayoutSurfaceIds.Combo, comboRect, 710, false, false),
                 new(BmsGameplayLayoutSurfaceIds.Hud, hudRect, 690, false, false),
@@ -586,7 +587,8 @@ namespace osu.Game.Rulesets.Bms.Skinning
                 bgaRects,
                 diagnostics);
 
-            return new BmsGameplayLayoutSnapshot(neutral, keymodeResolution, style, profile, laneLayout, laneLayout.Lanes.Select(lane => lane.Action), bgaScaleModes);
+            return new BmsGameplayLayoutSnapshot(neutral, keymodeResolution, style, profile, laneLayout, laneLayout.Lanes.Select(lane => lane.Action), bgaScaleModes,
+                authorLayout?.NormalSpeedPreviewRect.HasValue == true);
         }
 
         private static GameplaySkinLayoutRect[] solveAuthoredBgaViewports(

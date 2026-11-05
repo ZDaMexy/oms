@@ -13,6 +13,6 @@ namespace osu.Game.Rulesets.Mania.Skinning
     {
         long GetObjectId(HitObject hitObject, GameplaySkinLaneGroupId? usageGroupId = null);
 
-        void PublishLongNoteState(long objectId, GameplaySkinObjectState state);
+        void PublishLongNoteState(long objectId, GameplaySkinObjectState state, bool stateRestored = false);
     }
 }

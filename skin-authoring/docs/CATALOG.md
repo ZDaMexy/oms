@@ -28,6 +28,11 @@
 | `decoration` | `Decoration` | `Common:1` | Global/Stage/Group/Lane | Resource | Optional | InheritToLowerAuthorityThenCanonicalFallback | Allowed | Mania/Bms | Single/Dual | Key/SpecialKey/Scratch | Mania/Bms5K/Bms7K/Bms9K/Bms14K | 1-20 | `OMS-SKIN-SLOT-026` |
 | `playfield.hit-target` | `HitTarget` | `Common:1` | Lane | Resource | Recommended | InheritToLowerAuthorityThenCanonicalFallback | Forbidden | Mania/Bms | Single/Dual | Key/SpecialKey/Scratch | Mania/Bms5K/Bms7K/Bms9K/Bms14K | 1-20 | `OMS-SKIN-SLOT-027` |
 | `playfield.lane-divider` | `LaneDivider` | `Common:1` | Lane | Resource | Recommended | InheritToLowerAuthorityThenCanonicalFallback | Forbidden | Mania/Bms | Single/Dual | Key/SpecialKey/Scratch | Mania/Bms5K/Bms7K/Bms9K/Bms14K | 1-20 | `OMS-SKIN-SLOT-028` |
+| `hud.auxiliary` | `AuxiliaryDisplay` | `Common:1` | Global | Resource | Optional | InheritToLowerAuthorityThenCanonicalFallback | Allowed | Mania/Bms | Single/Dual | None | Mania/Bms5K/Bms7K/Bms9K/Bms14K | 1-20 | `OMS-SKIN-SLOT-029` |
+| `hud.auxiliary-concentration` | `AuxiliaryConcentrationDisplay` | `Common:1` | Global | Resource | Optional | InheritToLowerAuthorityThenCanonicalFallback | Allowed | Mania/Bms | Single/Dual | None | Mania/Bms5K/Bms7K/Bms9K/Bms14K | 1-20 | `OMS-SKIN-SLOT-030` |
+| `playfield.lift.fill` | `LiftFill` | `Bms:1` | Stage | Resource | Optional | InheritToLowerAuthorityThenCanonicalFallback | Allowed | Bms | Single/Dual | None | Bms5K/Bms7K/Bms9K/Bms14K | 5-14 | `OMS-SKIN-SLOT-031` |
+| `playfield.lift.decoration` | `LiftDecoration` | `Bms:1` | Stage | Resource | Optional | InheritToLowerAuthorityThenCanonicalFallback | Allowed | Bms | Single/Dual | None | Bms5K/Bms7K/Bms9K/Bms14K | 5-14 | `OMS-SKIN-SLOT-032` |
+| `effect.long-note` | `LongNoteEffect` | `Common:1` | Lane | Resource | Optional | InheritToLowerAuthorityThenCanonicalFallback | Allowed | Mania/Bms | Single/Dual | Key/SpecialKey/Scratch | Mania/Bms5K/Bms7K/Bms9K/Bms14K | 1-20 | `OMS-SKIN-SLOT-033` |
 ## 游玩信息绑定
 
 下列公开只读字段可在普通场景文件中绑定。数值绑定保持原值；绑定到 `text` 时使用表内显示方式。

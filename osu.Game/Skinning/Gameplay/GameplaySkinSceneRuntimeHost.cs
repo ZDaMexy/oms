@@ -208,6 +208,7 @@ namespace osu.Game.Skinning.Gameplay
         internal GameplaySkinSceneScriptBaseline? ScriptBaseline { get; set; }
 
         internal Dictionary<GameplaySkinSceneProperty, GameplaySkinElapsedTrackProperty>? ElapsedTrackProperties { get; set; }
+        internal Dictionary<GameplaySkinSceneProperty, GameplaySkinNumericPropertyDefault>? NumericPropertyDefaults { get; set; }
 
         internal GameplaySkinSceneRuntimeNode(
             GameplaySkinPreparedSceneNode preparedNode,
@@ -283,6 +284,7 @@ namespace osu.Game.Skinning.Gameplay
 
         private GameplaySkinLifecycleState lifecycleState;
         private GameplaySkinCompletionStateSnapshot? completion;
+        private double? failedAt;
         private GameplaySkinCurrentJudgementStateSnapshot? globalJudgement;
         private GameplaySkinScoreStateSnapshot scoreState;
         private GameplaySkinSongInformation? songInformation;
@@ -348,6 +350,9 @@ namespace osu.Game.Skinning.Gameplay
         internal double GetCompletionOutroDuration(bool fullCombo)
             => fullCombo && !disposed && IsSceneReady && runtimeFaults.Count == 0 ? PreparedScene.Program.CompletionOutro : 0;
 
+        internal double GetFailureOutroDuration(bool failed)
+            => failed && !disposed && IsSceneReady && runtimeFaults.Count == 0 ? PreparedScene.Program.FailureOutro : 0;
+
         internal double GetCompletionOutroEndTime(double gameplayTime, double duration)
             => (EventStream.CaptureCompletion()?.AppliedTime ?? gameplayTime) + duration;
 
@@ -375,6 +380,7 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinEventStateSnapshot initialState = PreparedScene.InitialEventState;
             lifecycleState = initialState.LifecycleState;
             completion = initialState.Completion;
+            failedAt = initialState.FailedAt;
             scoreState = initialState.Score;
             songInformation = initialState.SongInformation;
             timingState = initialState.Timing;
@@ -494,6 +500,7 @@ namespace osu.Game.Skinning.Gameplay
                 CreatedThisFrame += creationCost;
             }
 
+            evaluateNumericSources();
             sampleTracks(gameplayTime);
 
             GameplaySkinSceneStateFamily bindingFamilies = bindingStateFamiliesDirty;
@@ -811,6 +818,7 @@ namespace osu.Game.Skinning.Gameplay
 
                 runtime = new GameplaySkinSceneRuntimeNode(prepared, root, content, transform);
                 initialiseElapsedTrackDefaults(runtime);
+                initialiseNumericDefaults(runtime);
                 runtimeNodes.Add(runtime.InstanceId, runtime);
                 RuntimeInstanceCount += runtimeInstanceCost(prepared);
 
@@ -1310,6 +1318,7 @@ namespace osu.Game.Skinning.Gameplay
                     completion = lifecycleState == GameplaySkinLifecycleState.Completed
                         ? completion ?? new GameplaySkinCompletionStateSnapshot(envelope.GameplayTime, envelope.Payload.GetCompletionFullCombo())
                         : null;
+                    failedAt = lifecycleState == GameplaySkinLifecycleState.Failed ? failedAt ?? envelope.GameplayTime : null;
                     changedStateFamilies |= GameplaySkinSceneStateFamily.Score;
                     break;
 
@@ -1325,6 +1334,9 @@ namespace osu.Game.Skinning.Gameplay
 
                     if (envelope.EventKind == GameplaySkinEventKind.ObjectDespawned)
                     {
+                        if (longNoteEffectObjects.TryGetValue(obj.ObjectId, out var retained)
+                            && retained.State?.State != GameplaySkinObjectState.Completed)
+                            longNoteEffectObjects[obj.ObjectId] = (retained.Leases, null);
                         removeObjectFromIndex(obj);
                         if (judgementsByObject.ContainsKey(obj.ObjectId))
                         {
@@ -1431,6 +1443,7 @@ namespace osu.Game.Skinning.Gameplay
 
             lifecycleState = state.LifecycleState;
             completion = state.Completion;
+            failedAt = state.FailedAt;
             scoreState = state.Score;
             songInformation = state.SongInformation;
             chartPresentation = state.ChartPresentation;
@@ -1478,6 +1491,7 @@ namespace osu.Game.Skinning.Gameplay
 
             foreach (GameplaySkinObjectStateSnapshot obj in state.ActiveObjects)
                 objects.Add(obj.ObjectId, obj);
+            resetLongNoteEffectObjects();
 
             foreach (GameplaySkinBgaStateSnapshot viewport in state.BgaViewports)
                 bga.Add(viewport.ViewportIndex, viewport);
@@ -1547,6 +1561,7 @@ namespace osu.Game.Skinning.Gameplay
         private void updateObjectIndex(GameplaySkinObjectStateSnapshot obj, bool spawned)
         {
             objects[obj.ObjectId] = obj;
+            retainLongNoteEffectObject(obj);
 
             if (spawned)
             {
@@ -2005,6 +2020,8 @@ namespace osu.Game.Skinning.Gameplay
                         GameplaySkinSceneRuntimeNode target = targets[targetIndex];
                         if (!canSampleElapsedTrack(track, target))
                             continue;
+                        if (track.ClockValueId != null && !canApplyNumericValue(track.ClockValueId, target, track.Property, out _))
+                            continue;
                         double time = trackClock(track, target);
                         bool applied = track.Type == GameplaySkinSceneTrackType.Tween
                             ? tryApplyRuntimeNumberProperty(target, track.Property, sampleTweenTrack(track, time))
@@ -2077,9 +2094,10 @@ namespace osu.Game.Skinning.Gameplay
                         GameplaySkinSceneBindingSource.PresentationElapsed => timingState.Preparation.Available || timingState.StartTime.HasValue,
                         GameplaySkinSceneBindingSource.PreparationElapsed or GameplaySkinSceneBindingSource.PreparationRemaining => timingState.Preparation.Available,
                         GameplaySkinSceneBindingSource.PreparationReadyElapsed => timingState.Preparation.Ready,
+                        GameplaySkinSceneBindingSource.NumericValue => tryNumericValue(source.ClockValueId!, out _),
                         _ => true,
                     };
-                    animation.ApplyTime(available ? presentationClock(source.ClockSource, source.ClockOptionId, node) : -1);
+                    animation.ApplyTime(available ? presentationClock(source.ClockSource, source.ClockOptionId, node, source.ClockValueId) : -1);
                     continue;
                 }
                 if (animation.Program.HeldLoop.HasValue)
@@ -2095,8 +2113,13 @@ namespace osu.Game.Skinning.Gameplay
                 {
                     "gameplay.attach" => Math.Max(0, gameplayTime),
                     "gameplay.complete" => completion.HasValue ? gameplayTime - completion.Value.AppliedTime : -1,
+                    "gameplay.fail" => failedAt is { } failureTime && failureTime <= gameplayTime
+                        ? timingState.FailureElapsed ?? (PreparedScene.Program.FailureOutro > 0 ? -1 : gameplayTime - failureTime) : -1,
                     "judgement.hit" => judgementTrackTime(node, gameplayTime),
                     "input.key.down" => inputAnimationTime(node, gameplayTime),
+                    "object.state" => objectStateAnimationTime(node, gameplayTime),
+                    "object.long-note-transition" => longNoteTransitionAnimationTime(node, gameplayTime),
+                    "gauge.increase" => scoreState.LastGaugeIncreaseAt is { } increasedAt && increasedAt <= gameplayTime ? gameplayTime - increasedAt : -1,
                     _ => throw new InvalidOperationException(),
                 };
                 animation.ApplyTime(elapsed);
@@ -2114,6 +2137,28 @@ namespace osu.Game.Skinning.Gameplay
                 if ((target?.GroupId == null || input.GroupId == target.GroupId) && input.PressedAt is { } start)
                     latest = Math.Max(latest, start);
             return double.IsNegativeInfinity(latest) ? target != null && anyInputPressed(target) ? 0 : -1 : gameplayTime - latest;
+        }
+
+        private double objectStateAnimationTime(GameplaySkinSceneRuntimeNode node, double gameplayTime)
+        {
+            // Fixed-line long-note effects belong to one native pooled object. Never borrow a lane's first
+            // object, a key press, a judgement, or the time this renderer received an unknown snapshot.
+            if (!node.BoundObjectId.HasValue
+                || objectFor(node, null, null) is not { } state
+                || state.Kind != GameplaySkinObjectKind.LongNote)
+                return -1;
+
+            // A restored held state with no historical edge remains a stationary first frame. This is not an
+            // invented animation origin: advancing gameplay time cannot advance it until a real edge arrives.
+            return state.StateChangedAt is { } changedAt && changedAt <= gameplayTime ? gameplayTime - changedAt : 0;
+        }
+
+        private double longNoteTransitionAnimationTime(GameplaySkinSceneRuntimeNode node, double gameplayTime)
+        {
+            if (!node.BoundObjectId.HasValue)
+                return -1;
+            double? origin = objectFor(node, null, null)?.LastLongNoteTransitionAt;
+            return origin is { } time && time <= gameplayTime ? gameplayTime - time : -1;
         }
 
         private double judgementTrackTime(GameplaySkinSceneRuntimeNode node, double gameplayTime)
@@ -2296,6 +2341,7 @@ namespace osu.Game.Skinning.Gameplay
                 GameplaySkinSceneBindingSource.OffsetAutomaticAvailable => scoreState.OffsetState.AutomaticAvailable ? "true" : "false",
                 GameplaySkinSceneBindingSource.ComboActive => scoreState.Combo > 0 ? "true" : "false",
                 GameplaySkinSceneBindingSource.ObjectState => objectStateId(obj?.State ?? GameplaySkinObjectState.Scheduled),
+                GameplaySkinSceneBindingSource.ObjectPreviousState => obj?.PreviousState is { } previousState ? objectStateId(previousState) : "unknown",
                 GameplaySkinSceneBindingSource.ObjectLongNoteMode => longNoteModeId(obj?.LongNoteMode ?? GameplaySkinLongNoteMode.None),
                 GameplaySkinSceneBindingSource.ObjectLongNoteAppearance => longNoteAppearanceId(obj),
                 GameplaySkinSceneBindingSource.ObjectAutoAssist => objectAutoAssistId(target),
@@ -2423,6 +2469,12 @@ namespace osu.Game.Skinning.Gameplay
 
         private void applyBinding(GameplaySkinPreparedSceneBinding binding, GameplaySkinSceneRuntimeNode target)
         {
+            if (binding.ValueId != null)
+            {
+                if (canApplyNumericValue(binding.ValueId, target, binding.Property, out double value))
+                    applyRuntimeNumberProperty(target, binding.Property, value);
+                return;
+            }
             GameplaySkinResolvedMaterialTarget? materialTarget = target.PreparedNode.MaterialTarget;
             GameplaySkinLaneId? laneId = materialTarget?.LaneId;
             GameplaySkinLaneGroupId? groupId = materialTarget?.GroupId;
@@ -2504,6 +2556,10 @@ namespace osu.Game.Skinning.Gameplay
 
                 case GameplaySkinSceneBindingSource.ObjectLongNoteAppearance:
                     applyRuntimeStringProperty(target, binding.Property, longNoteAppearanceId(obj));
+                    return;
+
+                case GameplaySkinSceneBindingSource.ObjectPreviousState:
+                    applyRuntimeStringProperty(target, binding.Property, obj?.PreviousState is { } previousState ? objectStateId(previousState) : "unknown");
                     return;
 
                 case GameplaySkinSceneBindingSource.ObjectAutoAssist:
@@ -2710,7 +2766,13 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinLaneGroupId? groupId)
         {
             if (node.BoundObjectId.HasValue)
-                return objects.TryGetValue(node.BoundObjectId.Value, out GameplaySkinObjectStateSnapshot exact) ? exact : null;
+            {
+                if (objects.TryGetValue(node.BoundObjectId.Value, out GameplaySkinObjectStateSnapshot exact))
+                    return exact;
+                return node.PreparedNode.OwningSlotKey?.Slot == GameplaySkinSlotCatalog.LongNoteEffect
+                       && longNoteEffectObjects.TryGetValue(node.BoundObjectId.Value, out var retained)
+                    ? retained.State : null;
+            }
 
             if (laneId != null)
                 return firstObjectByLane.TryGetValue(laneId, out GameplaySkinObjectStateSnapshot lane) ? lane : null;
@@ -3383,6 +3445,7 @@ namespace osu.Game.Skinning.Gameplay
                && first.AdjustmentState.Equals(second.AdjustmentState)
                && first.StartTime == second.StartTime
                && first.Preparation == second.Preparation
+               && first.FailureElapsed == second.FailureElapsed
                && first.ArrivalCueFadeStartTime == second.ArrivalCueFadeStartTime;
 
         internal static GameplaySkinSceneLayer LayerFor(GameplaySkinSlotDescriptor descriptor)

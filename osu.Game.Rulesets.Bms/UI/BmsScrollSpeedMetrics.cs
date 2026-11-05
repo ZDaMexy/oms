@@ -31,6 +31,19 @@ namespace osu.Game.Rulesets.Bms.UI
 
         public int GreenNumber { get; }
 
+        /// <summary>Sample the selected algorithm's multiplier endpoints from the unrounded interval, retaining active covers and Lift.</summary>
+        public (int Minimum, int Maximum) GreenNumberRangeAtMultiplier(double currentMultiplier, double minimumMultiplier, double maximumMultiplier, int calculationVersion)
+        {
+            if (!double.IsFinite(currentMultiplier) || currentMultiplier <= 0 || !double.IsFinite(minimumMultiplier) || minimumMultiplier <= 0
+                || !double.IsFinite(maximumMultiplier) || maximumMultiplier < minimumMultiplier)
+                throw new ArgumentOutOfRangeException(nameof(minimumMultiplier));
+            int minimum = FromTimeRange(HiSpeedMode, ScrollSpeed, BaseTimeRange * currentMultiplier / maximumMultiplier,
+                ScrollLengthRatio, SuddenUnits, HiddenUnits, LiftUnits, calculationVersion).GreenNumber;
+            int maximum = FromTimeRange(HiSpeedMode, ScrollSpeed, BaseTimeRange * currentMultiplier / minimumMultiplier,
+                ScrollLengthRatio, SuddenUnits, HiddenUnits, LiftUnits, calculationVersion).GreenNumber;
+            return (minimum, maximum);
+        }
+
         private BmsScrollSpeedMetrics(BmsHiSpeedMode hiSpeedMode, double scrollSpeed, double baseTimeRange, double runtimeTimeRange, double scrollLengthRatio, int suddenUnits, int hiddenUnits, int liftUnits, int visibleLaneUnits, double visibleLaneTime, int calculationVersion)
         {
             HiSpeedMode = hiSpeedMode;

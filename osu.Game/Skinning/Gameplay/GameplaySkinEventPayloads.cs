@@ -198,6 +198,14 @@ namespace osu.Game.Skinning.Gameplay
 
         public double Progress { get; }
 
+        /// <summary>
+        /// The authoritative gameplay time of the latest published native state edge, if known.
+        /// A rebuilt snapshot must not manufacture this from its delivery time.
+        /// </summary>
+        public double? StateChangedAt { get; }
+        public GameplaySkinObjectState? PreviousState { get; }
+        public double? LastLongNoteTransitionAt { get; }
+
         internal GameplaySkinObjectStateSnapshot(
             long objectId,
             GameplaySkinObjectKind kind,
@@ -208,7 +216,10 @@ namespace osu.Game.Skinning.Gameplay
             double endTime,
             double progress,
             GameplaySkinLongNoteMode? longNoteMode = null,
-            GameplaySkinObjectAutoAssist autoAssist = GameplaySkinObjectAutoAssist.None)
+            GameplaySkinObjectAutoAssist autoAssist = GameplaySkinObjectAutoAssist.None,
+            double? stateChangedAt = null,
+            GameplaySkinObjectState? previousState = null,
+            double? lastLongNoteTransitionAt = null)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(objectId);
             ArgumentNullException.ThrowIfNull(groupId);
@@ -246,6 +257,13 @@ namespace osu.Game.Skinning.Gameplay
             if (!double.IsFinite(progress) || progress < 0 || progress > 1)
                 throw new ArgumentOutOfRangeException(nameof(progress), progress, "Object progress must be finite and between zero and one.");
 
+            if (stateChangedAt.HasValue && !double.IsFinite(stateChangedAt.Value))
+                throw new ArgumentOutOfRangeException(nameof(stateChangedAt), stateChangedAt, "Object state time must be finite when known.");
+            if (previousState.HasValue && (!Enum.IsDefined(previousState.Value) || previousState.Value == GameplaySkinObjectState.Unspecified))
+                throw new ArgumentOutOfRangeException(nameof(previousState), previousState, "The previous object state must be known or absent.");
+            if (lastLongNoteTransitionAt.HasValue && (!double.IsFinite(lastLongNoteTransitionAt.Value) || kind != GameplaySkinObjectKind.LongNote))
+                throw new ArgumentOutOfRangeException(nameof(lastLongNoteTransitionAt), lastLongNoteTransitionAt, "A known hold transition requires a finite native long-note time.");
+
             ObjectId = objectId;
             Kind = kind;
             State = state;
@@ -256,6 +274,9 @@ namespace osu.Game.Skinning.Gameplay
             StartTime = startTime;
             EndTime = endTime;
             Progress = progress;
+            StateChangedAt = stateChangedAt;
+            PreviousState = previousState;
+            LastLongNoteTransitionAt = lastLongNoteTransitionAt;
         }
     }
 
@@ -470,9 +491,12 @@ namespace osu.Game.Skinning.Gameplay
 
         public GameplaySkinOffsetStateSnapshot OffsetState { get; }
 
+        /// <summary>The authoritative time of the last observed native health increase, or null when no edge is known.</summary>
+        public double? LastGaugeIncreaseAt { get; }
+
         internal GameplaySkinScoreStateSnapshot(long score, int combo, int maxCombo, double accuracy, double gauge,
                                                GameplaySkinJudgementStatistics statistics = default, GameplaySkinGaugeStateSnapshot gaugeState = default,
-                                               long maximumScore = 0, GameplaySkinOffsetStateSnapshot offsetState = default)
+                                               long maximumScore = 0, GameplaySkinOffsetStateSnapshot offsetState = default, double? lastGaugeIncreaseAt = null)
         {
             ArgumentOutOfRangeException.ThrowIfNegative(score);
             ArgumentOutOfRangeException.ThrowIfNegative(maximumScore);
@@ -484,6 +508,8 @@ namespace osu.Game.Skinning.Gameplay
 
             validateUnitValue(accuracy, nameof(accuracy));
             validateUnitValue(gauge, nameof(gauge));
+            if (lastGaugeIncreaseAt.HasValue && !double.IsFinite(lastGaugeIncreaseAt.Value))
+                throw new ArgumentOutOfRangeException(nameof(lastGaugeIncreaseAt));
             Score = score;
             MaximumScore = maximumScore;
             Combo = combo;
@@ -493,6 +519,7 @@ namespace osu.Game.Skinning.Gameplay
             Statistics = statistics;
             GaugeState = gaugeState;
             OffsetState = offsetState;
+            LastGaugeIncreaseAt = lastGaugeIncreaseAt;
         }
 
         private static void validateUnitValue(double value, string name)
@@ -534,10 +561,13 @@ namespace osu.Game.Skinning.Gameplay
         /// <summary>Latched gameplay time at which the shared first-row cue starts its 200ms fade.</summary>
         public double? ArrivalCueFadeStartTime { get; }
 
+        /// <summary>Elapsed native Player failure presentation time, independent of the stopped gameplay clock.</summary>
+        public double? FailureElapsed { get; }
+
         internal GameplaySkinTimingStateSnapshot(double beat, long barIndex, double bpm, bool isStopped, double scrollMultiplier, double progress = 0,
                                                 double scrollSpeed = 0, GameplaySkinLiftState liftState = default, double? startTime = null,
                                                 GameplaySkinPreparationStateSnapshot preparation = default, double? arrivalCueFadeStartTime = null,
-                                                GameplaySkinAdjustmentState adjustmentState = default)
+                                                GameplaySkinAdjustmentState adjustmentState = default, double? failureElapsed = null)
         {
             if (!double.IsFinite(beat))
                 throw new ArgumentOutOfRangeException(nameof(beat), beat, "Beat must be finite.");
@@ -567,6 +597,9 @@ namespace osu.Game.Skinning.Gameplay
                 throw new ArgumentOutOfRangeException(nameof(arrivalCueFadeStartTime));
             Preparation = preparation;
             ArrivalCueFadeStartTime = arrivalCueFadeStartTime;
+            if (failureElapsed.HasValue && (!double.IsFinite(failureElapsed.Value) || failureElapsed.Value < 0 || failureElapsed.Value > GameplaySkinSceneBudgets.MAX_FAILURE_OUTRO))
+                throw new ArgumentOutOfRangeException(nameof(failureElapsed));
+            FailureElapsed = failureElapsed;
             Beat = beat;
             BarIndex = barIndex;
             Bpm = bpm;
@@ -632,6 +665,9 @@ namespace osu.Game.Skinning.Gameplay
 
         public GameplaySkinCompletionStateSnapshot? Completion { get; }
 
+        /// <summary>The known authoritative failure edge time. A restored failed state may have no historical origin.</summary>
+        public double? FailedAt { get; }
+
         public IReadOnlyList<GameplaySkinInputStateSnapshot> Inputs { get; }
 
         public IReadOnlyList<GameplaySkinObjectStateSnapshot> ActiveObjects { get; }
@@ -662,13 +698,16 @@ namespace osu.Game.Skinning.Gameplay
             IEnumerable<GameplaySkinBgaStateSnapshot> bgaViewports,
             GameplaySkinSongInformation? songInformation = null,
             GameplaySkinCompletionStateSnapshot? completion = null, GameplaySkinChartPresentation? chartPresentation = null,
-            IEnumerable<GameplaySkinJudgementTimingGroupStateSnapshot>? judgementTimingGroups = null)
+            IEnumerable<GameplaySkinJudgementTimingGroupStateSnapshot>? judgementTimingGroups = null, double? failedAt = null)
         {
             if (lifecycleState == GameplaySkinLifecycleState.Unspecified || !Enum.IsDefined(lifecycleState))
                 throw new ArgumentOutOfRangeException(nameof(lifecycleState), lifecycleState, "Lifecycle state must be specified.");
 
             if (completion.HasValue && lifecycleState != GameplaySkinLifecycleState.Completed)
                 throw new ArgumentException("Only completed gameplay can retain a completion origin.", nameof(completion));
+
+            if (failedAt.HasValue && (lifecycleState != GameplaySkinLifecycleState.Failed || !double.IsFinite(failedAt.Value)))
+                throw new ArgumentException("Only failed gameplay can retain a finite failure origin.", nameof(failedAt));
 
             ArgumentNullException.ThrowIfNull(inputs);
             ArgumentNullException.ThrowIfNull(activeObjects);
@@ -714,7 +753,10 @@ namespace osu.Game.Skinning.Gameplay
                     obj.EndTime,
                     obj.Progress,
                     obj.LongNoteMode,
-                    obj.AutoAssist);
+                    obj.AutoAssist,
+                    obj.StateChangedAt,
+                    obj.PreviousState,
+                    obj.LastLongNoteTransitionAt);
             }
 
             foreach (GameplaySkinCurrentJudgementStateSnapshot retained in copiedJudgements)
@@ -733,9 +775,9 @@ namespace osu.Game.Skinning.Gameplay
                 _ = new GameplaySkinCurrentJudgementStateSnapshot(retained.Scope, judgement, retained.AppliedTime, retained.DisplayUntil);
             }
 
-            _ = new GameplaySkinScoreStateSnapshot(score.Score, score.Combo, score.MaxCombo, score.Accuracy, score.Gauge, score.Statistics, score.GaugeState, score.MaximumScore, score.OffsetState);
+            _ = new GameplaySkinScoreStateSnapshot(score.Score, score.Combo, score.MaxCombo, score.Accuracy, score.Gauge, score.Statistics, score.GaugeState, score.MaximumScore, score.OffsetState, score.LastGaugeIncreaseAt);
             _ = new GameplaySkinTimingStateSnapshot(timing.Beat, timing.BarIndex, timing.Bpm, timing.IsStopped, timing.ScrollMultiplier, timing.Progress, timing.ScrollSpeed,
-                timing.LiftState, timing.StartTime, timing.Preparation, timing.ArrivalCueFadeStartTime, timing.AdjustmentState);
+                timing.LiftState, timing.StartTime, timing.Preparation, timing.ArrivalCueFadeStartTime, timing.AdjustmentState, timing.FailureElapsed);
 
             foreach (GameplaySkinBgaStateSnapshot viewport in copiedBga)
                 _ = new GameplaySkinBgaStateSnapshot(viewport.ViewportIndex, viewport.Viewport, viewport.ContentState, viewport.ContentRevision);
@@ -771,6 +813,7 @@ namespace osu.Game.Skinning.Gameplay
 
             LifecycleState = lifecycleState;
             Completion = completion;
+            FailedAt = failedAt;
             Inputs = Array.AsReadOnly(copiedInputs);
             ActiveObjects = Array.AsReadOnly(copiedObjects);
             CurrentJudgements = Array.AsReadOnly(copiedJudgements);
@@ -810,6 +853,8 @@ namespace osu.Game.Skinning.Gameplay
 
             if (Completion is { } completion && completion.AppliedTime > gameplayTime)
                 throw new ArgumentException("A complete snapshot cannot contain a completion from the future.", nameof(gameplayTime));
+            if (FailedAt > gameplayTime || Score.LastGaugeIncreaseAt > gameplayTime)
+                throw new ArgumentException("A complete snapshot cannot contain a failure or gauge increase from the future.", nameof(gameplayTime));
 
             foreach (GameplaySkinInputStateSnapshot input in Inputs)
                 input.ValidateForGameplayTime(gameplayTime);

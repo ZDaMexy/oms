@@ -41,11 +41,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                                  && !ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LiftDecoration))
             .ToArray();
 
-        [TestCase(BmsKeymode.Key5K, BmsPlayfieldStyle.P1, "c5-matrix-5k.bms", 28)]
-        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P2, "c5-matrix-7k.bme", 28)]
-        [TestCase(BmsKeymode.Key9K_Bms, BmsPlayfieldStyle.Center, "c5-matrix-9k.bms", 26)]
-        [TestCase(BmsKeymode.Key9K_Pms, BmsPlayfieldStyle.Center, "c5-matrix-9k.pms", 26)]
-        [TestCase(BmsKeymode.Key14K, BmsPlayfieldStyle.Center, "c5-matrix-14k.bms", 28)]
+        [TestCase(BmsKeymode.Key5K, BmsPlayfieldStyle.P1, "c5-matrix-5k.bms", 29)]
+        [TestCase(BmsKeymode.Key7K, BmsPlayfieldStyle.P2, "c5-matrix-7k.bme", 29)]
+        [TestCase(BmsKeymode.Key9K_Bms, BmsPlayfieldStyle.Center, "c5-matrix-9k.bms", 27)]
+        [TestCase(BmsKeymode.Key9K_Pms, BmsPlayfieldStyle.Center, "c5-matrix-9k.pms", 27)]
+        [TestCase(BmsKeymode.Key14K, BmsPlayfieldStyle.Center, "c5-matrix-14k.bms", 29)]
         public void TestCurrentPackageAuthorSceneReachesEveryApplicableBmsProductionSlot(
             BmsKeymode keymode,
             BmsPlayfieldStyle style,
@@ -56,6 +56,11 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             ExactLayoutJourneyHost renderer = null!;
             GameplaySkinSceneRuntimeHost sceneHost = null!;
             string? lastProductionOwnerIssue = null;
+            var holdActions = new Dictionary<DrawableBmsHoldNote, OmsAction>();
+            var heldEffects = new List<GameplaySkinSpecialisedSceneVisual>();
+            GameplaySkinEventSubscription releaseEvents = null!;
+            var observedRelease = new List<GameplaySkinEventEnvelope>();
+            long holdingEpoch = -1;
 
             addSelectC5Package(
                 selection,
@@ -97,7 +102,95 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             });
             AddStep("assert full applicable catalog reaches exact production owners", () =>
                 assertC5MatrixProduction(renderer, sceneHost, keymode, style, expectedApplicableSlots));
-            AddStep("detach exact keymode production tree", () => renderer.Expire());
+            AddStep("hold each declared long-note lane through production input", () =>
+            {
+                DrawableBmsHoldNote[] holds = [.. renderer.BmsDrawable.Playfield.AllHitObjects.OfType<DrawableBmsHoldNote>()];
+                Assert.That(holds, Has.Length.EqualTo(keymode == BmsKeymode.Key14K ? 2 : 1));
+                foreach (DrawableBmsHoldNote hold in holds)
+                {
+                    var hitObject = (BmsHoldNote)hold.HitObject;
+                    BmsGameplayLayoutLane lane = renderer.BmsDrawable.LayoutSnapshot.GetLaneByLogicalIndex(hitObject.LaneIndex);
+                    Assert.That(OmsBmsActionMap.TryMapToOmsAction(renderer.BmsDrawable.Variant, lane.Action, out OmsAction action), Is.True);
+                    holdActions.Add(hold, action);
+                    Assert.That(renderer.BmsDrawable.GameplayInputManager!.TriggerOmsActionPressed(action), Is.True);
+                    // This catalog fixture deliberately has a tap and an LN head at the same lane/time.
+                    // If the tap owns the first press, a second genuine edge reaches the remaining head.
+                    if (!hold.IsHoldingForTesting)
+                    {
+                        Assert.That(renderer.BmsDrawable.GameplayInputManager.TriggerOmsActionReleased(action), Is.True);
+                        Assert.That(renderer.BmsDrawable.GameplayInputManager.TriggerOmsActionPressed(action), Is.True);
+                    }
+                    Assert.That(hold.IsHoldingForTesting, Is.True);
+                }
+                renderer.AdvanceBmsTo(2_020);
+            });
+            AddUntilStep("real holding owners bind their exact long-note effect leases", () =>
+            {
+                GameplaySkinEventStateSnapshot state = authoredInformationSnapshot(sceneHost);
+                return renderer.BmsDrawable.FrameStableClock.CurrentTime == 2_020
+                       && holdActions.Keys.All(hold =>
+                       {
+                           long id = renderer.BmsDrawable.GetGameplaySkinObjectId(hold.HitObject);
+                           return state.ActiveObjects.Any(obj => obj.ObjectId == id && obj.State == GameplaySkinObjectState.Holding)
+                                  && renderer.BmsDrawable.ChildrenOfType<BmsLongNoteEffect>().Any(effect => effect.BoundObjectId == id
+                                      && effect.ChildrenOfType<GameplaySkinSpecialisedSceneVisual>().Any(visual => visual.IsApplied));
+                       });
+            });
+            AddStep("assert exact material lane object and publication for each active effect", () =>
+            {
+                foreach (DrawableBmsHoldNote hold in holdActions.Keys)
+                {
+                    long id = renderer.BmsDrawable.GetGameplaySkinObjectId(hold.HitObject);
+                    BmsGameplayLayoutSnapshot layout = renderer.BmsDrawable.LayoutSnapshot;
+                    BmsGameplayLayoutLane lane = layout.GetLaneByLogicalIndex(((BmsHoldNote)hold.HitObject).LaneIndex);
+                    var key = new GameplaySkinResolvedMaterialKey(GameplaySkinSlotCatalog.LongNoteEffect, BmsGameplayNoteMaterialTarget.Create(layout, lane));
+                    BmsLongNoteEffect effect = renderer.BmsDrawable.ChildrenOfType<BmsLongNoteEffect>().Single(candidate => candidate.BoundObjectId == id);
+                    GameplaySkinSpecialisedSceneVisual visual = effect.ChildrenOfType<GameplaySkinSpecialisedSceneVisual>().Single();
+                    heldEffects.Add(visual);
+                    Assert.That(effect.ResolvedMaterialSet, Is.SameAs(renderer.BmsLayoutProbe.Publication!.MaterialSet));
+                    Assert.That(effect.ResolvedMaterialKey, Is.EqualTo(key));
+                    Assert.That(visual.Key, Is.EqualTo(key));
+                    Assert.That(visual.BoundObjectId, Is.EqualTo(id));
+                    Assert.That(visual.IsApplied, Is.True);
+                    Assert.That(effect.AppliedSceneNodeIds, Is.Not.Empty);
+                    Assert.That(visual.RuntimeNodes.All(node => node.BoundObjectId == id), Is.True);
+                }
+                holdingEpoch = sceneHost.CurrentEpoch;
+                releaseEvents = sceneHost.EventStream.Subscribe();
+                releaseEvents.DrainFrame(_ => { });
+                foreach (OmsAction action in holdActions.Values)
+                    Assert.That(renderer.BmsDrawable.GameplayInputManager!.TriggerOmsActionReleased(action), Is.True);
+            });
+            AddUntilStep("early release retains missed body state and chart progress", () =>
+            {
+                releaseEvents.DrainFrame(observedRelease.Add);
+                return holdActions.Keys.All(hold => observedRelease.Count(envelope =>
+                    envelope.Payload is GameplaySkinObjectEventPayload obj
+                    && obj.State.ObjectId == renderer.BmsDrawable.GetGameplaySkinObjectId(hold.HitObject)
+                    && obj.State.State == GameplaySkinObjectState.Missed) >= 2);
+            });
+            AddStep("early release never manufactures completion or restarts the scene", () =>
+            {
+                GameplaySkinEventStateSnapshot state = authoredInformationSnapshot(sceneHost);
+                Assert.That(sceneHost.CurrentEpoch, Is.EqualTo(holdingEpoch));
+                foreach (DrawableBmsHoldNote hold in holdActions.Keys)
+                {
+                    long id = renderer.BmsDrawable.GetGameplaySkinObjectId(hold.HitObject);
+                    GameplaySkinObjectStateSnapshot current = state.ActiveObjects.Single(obj => obj.ObjectId == id);
+                    Assert.That(current.State, Is.EqualTo(GameplaySkinObjectState.Missed));
+                    Assert.That(current.Progress, Is.EqualTo(0.02).Within(0.000001));
+                    Assert.That(observedRelease.Any(envelope => envelope.Payload is GameplaySkinObjectEventPayload obj
+                        && obj.State.ObjectId == id && obj.State.State == GameplaySkinObjectState.Completed), Is.False);
+                }
+                Assert.That(sceneHost.RuntimeFaults, Is.Empty);
+                renderer.AdvanceBmsTo(2_021);
+            });
+            AddUntilStep("native terminal owners retire effect leases without declared outros", () => heldEffects.All(visual => !visual.IsApplied));
+            AddStep("detach exact keymode production tree", () =>
+            {
+                releaseEvents.Dispose();
+                renderer.Expire();
+            });
             AddUntilStep("wait for exact keymode tree detach", () => renderer.Parent == null);
         }
 

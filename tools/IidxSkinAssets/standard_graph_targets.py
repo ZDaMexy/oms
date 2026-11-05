@@ -1,0 +1,77 @@
+"""Export the six independent IIDX26 PACEMAKER content branches."""
+from __future__ import annotations
+
+import copy
+import json
+from pathlib import Path
+import shutil
+
+from standard_graph import GraphOPTIONS, TARGETS, build_graph_target, digest, node
+
+
+def export_graph_target_module(library, output, prepared_font):
+    """Write only this module's exact files and return its catalog contribution.
+
+    Existing identical files are shared with the frame/feedback source closure.
+    Conflicting author bytes are rejected, never silently replaced.
+    """
+    library, output = Path(library).resolve(strict=True), Path(output).resolve()
+    if output.drive.casefold() == "c:" or output.is_relative_to(library) or library.is_relative_to(output):
+        raise ValueError("Graph target output must be an independent non-system author directory")
+    files, receipts, choices = {}, [], []
+
+    def destination(relative):
+        target = (output / relative).resolve()
+        if not target.is_relative_to(output) or target == output:
+            raise ValueError("Graph target output escapes the author directory")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        return target
+
+    def record(relative, target):
+        row = {"path": relative, "source": str(target), "sha256": digest(target)}
+        if relative in files and files[relative] != row:
+            raise ValueError("Conflicting Graph target file identity")
+        files[relative] = row
+
+    def write(relative, value):
+        data = value.encode("utf-8") if isinstance(value, str) else (json.dumps(value, ensure_ascii=False, indent=2) + "\n").encode("utf-8")
+        target = destination(relative)
+        if target.exists():
+            if target.read_bytes() != data:
+                raise ValueError("Graph target output already contains different bytes: " + relative)
+        else:
+            with target.open("xb") as stream:
+                stream.write(data)
+        record(relative, target)
+
+    for target, label in TARGETS.items():
+        layouts = {}
+        for layout in ("p1", "p2", "dp"):
+            contribution = build_graph_target(library, layout, target, prepared_font)
+            base = f"standard/graph/targets/{target}/{layout}"
+            for row in contribution["files"]:
+                source = Path(row["source"]).resolve(strict=True)
+                if digest(source) != row["sha256"]:
+                    raise ValueError("Graph target source bytes changed")
+                copied = destination(row["path"])
+                if copied.exists():
+                    if digest(copied) != row["sha256"]:
+                        raise ValueError("Graph target source collides with existing author bytes")
+                else:
+                    shutil.copyfile(source, copied)
+                record(row["path"], copied)
+            manifest = {"contract": "oms-gameplay-skin-manifest.v1", "scene": "gameplay-skin.scene.json",
+                "sceneContract": "oms-gameplay-skin-scene.v1", "eventContract": "oms-gameplay-skin-event.v1",
+                "resources": contribution["resources"], "bitmapFonts": contribution["bitmapFonts"], "animations": []}
+            scene = {"contract": "oms-gameplay-skin-scene.v1", "root": node(f"standard.graph.target.{target}.{layout}.root")}
+            for field in ("tracks", "stateMachines", "bindings", "variants", "templates", "instances", "numericSources"):
+                scene[field] = contribution[field]
+            write(base + "/manifest.json", manifest)
+            write(base + "/scene.json", scene)
+            write(base + "/materials.ini", "\n")
+            layouts[layout] = {"manifest": base + "/manifest.json", "scene": base + "/scene.json", "ini": base + "/materials.ini"}
+            receipts.append(contribution["receipt"])
+        choices.append({"value": target, "label": label, **layouts["dp"],
+            "variants": [{"when": {"layout": layout}, **layouts[layout]} for layout in ("p1", "p2")]})
+    return {"module": {"id": "graph-target", "label": "PACEMAKER", "rulesets": ["bms"], "default": "aaa", "choices": choices},
+            "files": list(files.values()), "receipts": receipts, "options": copy.deepcopy(GraphOPTIONS)}

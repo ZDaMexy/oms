@@ -19,6 +19,12 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
         public double MaximumBpm { get; }
 
+        // These are the actual paired effective BPM/SCROLL rates, not the product of independent extrema.
+        // STOP and non-positive SCROLL keep the same musical reference as the native reading sampler.
+        internal double MinimumReadingRate { get; }
+
+        internal double MaximumReadingRate { get; }
+
         internal BmsTimingProfile(IEnumerable<BmsTimingSegment> segments, IEnumerable<double> measureStartTimes)
         {
             ArgumentNullException.ThrowIfNull(segments);
@@ -32,6 +38,8 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
             MinimumBpm = this.segments.Min(segment => segment.Bpm);
             MaximumBpm = this.segments.Max(segment => segment.Bpm);
+            MinimumReadingRate = this.segments.Min(segment => 60000 / BmsBeatmapConverter.GetBeatLength(segment.Bpm) * (segment.ScrollSpeed > 0 ? segment.ScrollSpeed : 1));
+            MaximumReadingRate = this.segments.Max(segment => 60000 / BmsBeatmapConverter.GetBeatLength(segment.Bpm) * (segment.ScrollSpeed > 0 ? segment.ScrollSpeed : 1));
 
             if (!this.segments.Select(segment => segment.StartTime).SequenceEqual(this.segments.Select(segment => segment.StartTime).Order()))
                 throw new ArgumentException("BMS timing profile segments must be ordered.", nameof(segments));

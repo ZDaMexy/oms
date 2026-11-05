@@ -771,7 +771,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(selectedEntries.Where(candidateEntry => !specialisedSlots.Contains(candidateEntry.Slot))
                                                .All(candidateEntry => sceneHost.TryGetHostedDrawable(candidateEntry.Key, out _)), Is.True,
                         "Every authored shared static/effect/HUD/root key must own a mounted production drawable.");
-                    Assert.That(BmsGameplayResolvedNoteMaterialPreparer.RuntimeCapabilities.Support, Has.Count.EqualTo(32));
+                    Assert.That(BmsGameplayResolvedNoteMaterialPreparer.RuntimeCapabilities.Support, Has.Count.EqualTo(33));
                     Assert.That(materialSet.PackageRevision.RecordId, Is.EqualTo(revision.RecordId));
                     Assert.That(materialSet.PackageRevision.ContentRevision, Is.EqualTo(revision.ContentRevision));
                     Assert.That(preparedScene.HasAuthorScene, Is.True);
@@ -2188,7 +2188,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     GameplaySkinSlotCatalog.All.Take(28).Sum(descriptor =>
                         GameplaySkinPublicSlotMaterialTargets.Enumerate(descriptor, publication.Snapshot).Count)));
                 Assert.That(materialSet.Entries.Select(entry => entry.Slot).Distinct(), Is.EquivalentTo(GameplaySkinSlotCatalog.All.Take(28)));
-                Assert.That(BmsGameplayResolvedNoteMaterialPreparer.RuntimeCapabilities.Support, Has.Count.EqualTo(32));
+                Assert.That(BmsGameplayResolvedNoteMaterialPreparer.RuntimeCapabilities.Support, Has.Count.EqualTo(33));
                 Assert.That(materialSet.Snapshot, Is.SameAs(snapshot.Neutral));
                 Assert.That(selectedSourceRevision, Is.Not.Null);
                 Assert.That(selectedSourceRevision!.SkinId, Is.EqualTo(revision.RecordId));
@@ -2218,7 +2218,8 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             GameplaySkinSlotDescriptor[] expectedSlots = [.. GameplaySkinSlotCatalog.Common
                 .Where(GameplaySkinRuntimeSupportProfile.Mania.IsSupported)
                 .Where(descriptor => !ReferenceEquals(descriptor, GameplaySkinSlotCatalog.AuxiliaryDisplay)
-                                     && !ReferenceEquals(descriptor, GameplaySkinSlotCatalog.AuxiliaryConcentrationDisplay))];
+                                     && !ReferenceEquals(descriptor, GameplaySkinSlotCatalog.AuxiliaryConcentrationDisplay)
+                                     && !ReferenceEquals(descriptor, GameplaySkinSlotCatalog.LongNoteEffect))];
 
             Assert.Multiple(() =>
             {
@@ -2226,7 +2227,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     expectedSlots.Sum(descriptor =>
                         GameplaySkinPublicSlotMaterialTargets.Enumerate(descriptor, snapshot).Count)));
                 Assert.That(publication.MaterialSet.Entries.Select(entry => entry.Slot).Distinct(),
-                    Is.EquivalentTo(expectedSlots), "This ordinary reload fixture does not declare either optional auxiliary display.");
+                    Is.EquivalentTo(expectedSlots), "This ordinary reload fixture declares neither optional auxiliary display nor a long-note effect.");
+                Assert.That(GameplaySkinRuntimeSupportProfile.Mania.IsSupported(GameplaySkinSlotCatalog.LongNoteEffect), Is.True);
+                Assert.That(publication.MaterialSet.Entries.Any(entry => ReferenceEquals(entry.Slot, GameplaySkinSlotCatalog.LongNoteEffect)), Is.False,
+                    "Reloading an older package must not author an undeclared long-note effect in either revision.");
+                Assert.That(publication.PreparedScene.HostedSlots.Any(slot => ReferenceEquals(slot.Key.Slot, GameplaySkinSlotCatalog.LongNoteEffect)), Is.False,
+                    "Late renderers must not receive a long-note effect owner absent from the selected package.");
                 Assert.That(publication.PreparedScene.Snapshot, Is.SameAs(snapshot));
                 Assert.That(publication.PreparedScene.MaterialSet, Is.SameAs(publication.MaterialSet));
                 Assert.That(renderer.ManiaDrawable.GameplaySkinEventStream.CurrentRevision, Is.EqualTo(publication.EventRevision));

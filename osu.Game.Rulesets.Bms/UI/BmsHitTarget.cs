@@ -45,6 +45,7 @@ namespace osu.Game.Rulesets.Bms.UI
         private IDisposable? keyFlashVisualRegistration;
 
         internal Container HitExplosions { get; }
+        internal Container LongNoteEffects { get; }
 
         public BmsGameplayLayoutSnapshot? LayoutSnapshot { get; }
 
@@ -109,6 +110,7 @@ namespace osu.Game.Rulesets.Bms.UI
                     },
                 },
                 HitExplosions = new Container { RelativeSizeAxes = Axes.Both, Depth = -1 },
+                LongNoteEffects = new Container { RelativeSizeAxes = Axes.Both, Depth = -2 },
             };
 
             IsPressed.BindValueChanged(_ => updateState(), true);

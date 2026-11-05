@@ -785,7 +785,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
 
             Assert.Multiple(() =>
             {
-                Assert.That(capabilities.Support, Has.Count.EqualTo(32));
+                Assert.That(capabilities.Support, Has.Count.EqualTo(33));
                 Assert.That(resolution.Entries, Has.Count.EqualTo(93));
                 Assert.That(resolution.Entries.Select(entry => entry.Key), Is.Unique);
                 Assert.That(resolution.Entries.Select(entry => entry.Slot).Distinct(), Is.EquivalentTo(GameplaySkinSlotCatalog.All.Take(28)),
@@ -950,8 +950,8 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 Assert.That(mania.Decisions.Select(decision => decision.Descriptor), Is.EqualTo(GameplaySkinSlotCatalog.All));
                 Assert.That(bms.Decisions.Select(decision => decision.Descriptor.Id), Is.Unique);
                 Assert.That(mania.Decisions.Select(decision => decision.Descriptor.Id), Is.Unique);
-                Assert.That(bms.Capabilities.Support, Has.Count.EqualTo(32));
-                Assert.That(mania.Capabilities.Support, Has.Count.EqualTo(25));
+                Assert.That(bms.Capabilities.Support, Has.Count.EqualTo(33));
+                Assert.That(mania.Capabilities.Support, Has.Count.EqualTo(26));
                 Assert.That(mania.Decisions
                                  .Where(decision => decision.Kind == GameplaySkinRuntimeSupportDecisionKind.NotApplicable)
                                  .Select(decision => decision.Descriptor),
