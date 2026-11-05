@@ -19,6 +19,9 @@ from urllib.parse import unquote
 sys.dont_write_bytecode = True
 
 NAME = 'Standard Model Skin Omni Until 26'
+# These are gmframe theme IDs inside Rootage, not independently sourced game versions.
+# 03/08/12/14/16/17/19/21 are Rootage ARC SCORE revivals; 25/26 are regular themes.
+# Keep IDs stable for existing author selections; source scope is documented separately.
 FRAMES = {3: '3rd style', 8: '8th style', 12: 'HAPPY SKY', 14: 'GOLD',
           16: 'EMPRESS', 17: 'SIRIUS', 19: 'Lincle', 21: 'SPADA',
           25: 'CANNON BALLERS', 26: 'Rootage'}

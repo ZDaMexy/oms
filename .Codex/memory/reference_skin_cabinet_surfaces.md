@@ -141,6 +141,8 @@ Time Freeze先核实际`-patchcfgpath`和最终日志，不能只看默认配置
 
 原字体先看SFNT签名，不按扩展名筛掉.bin：已核源有一个三face TTC采用.bin。原模块字族名用CP932，UTF-8/UTF-16或字体文件名搜索会漏；字族/路径出现、指针邻域、初始化与实际曲名/作者绑定是不同证据。字体字段还须核对所属资源，视频列表的artist字段不是gameplay文字槽。独立进程GDI/SFNT表比对可校准face识别，不能代签HDD实际绘制绑定或字体已应用；不得据此先选“相近字体”，边界取[P1-A收尾记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)。
 
+同一 HDD 内的旧代主题不等于该旧代原版来源：Rootage 的 `gmframe03/08/12/14/16/17/19/21` 属于 ARC SCORE 旧作复刻主题，不能由最小编号03推出覆盖3～26，也不能用“十款”替代“十代”。编号、主题名称、活动复刻归属、实际来源版本与原版还原资格须分别核对；当前来源分类只取 [Standard 记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#身份与来源)。
+
 26 原版单人画面不可只枚举 `center_frame_sp`：同源还存在 `center_frame_wide_1p/2p`，Graph 开关使用不同中心电影与数字锚点。源电影名不等于已观察到的游戏分支；先比较实际开口、SCORE/MAXCOMBO 位置和原动态实例，再决定选择与宿主平移。`apertures()`若已合成平移后的全局画布，写 BgaViewports 时不得再次加偏移。逐代来源与实际资格取 [Standard 26 记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)，不能借 Lightning 的宿主偏移填空。
 
 26 游客能进入标题但选模式回标题时，须分清基础 e-amusement 服务与游戏专用协议；只有 services/pcbtracker/facility 正常不证明 IIDX 配置已返回。Copula 以后还依赖服务发现的 `local2`，漏项会使游戏专用请求根本不发出。对未知请求只记录已校验的模块/方法，不打印账号、请求体或完整启动参数；空日志也不能证明无错误。该诊断不授予使用真实卡或存档的权限。

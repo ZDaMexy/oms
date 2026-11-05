@@ -1,5 +1,9 @@
 # P1-A 变动日志
 
+## 2026-11-05Standard框体主题与实际代数口径更正
+
+撤回“最早3代、共十代原版框体”的错误说明。26 HDD中的八个旧代编号属于ARC SCORE活动复刻主题；当前常规版本框体主题为25 CANNON BALLERS与26 Rootage，共用软件依据仍是26。来源分类与依据集中于[作品记录](../../other/STANDARD_MODEL_SKIN_20261105.md#身份与来源)，工具注释、当前状态和本地交付索引同步更正。v00/v01成品、图片和原验证字节保留，不借说明修改冒称获得了更早HDD或新增游玩验收；新说明随本地勘误提供。
+
 ## 2026-11-05Standard26当前来源范围完成
 
 独立交付 `Standard Model Skin Omni Until 26.v26110501`，补齐26实际来源可支持的读谱窗口/边缘读数/Normal预览、首排与READY、JUDGE/FAST-SLOW、Graph目标、Gauge显示和光效、EXP/HCN/ASCR选项、真实CN/HCN持续及退场效果和普通失败演出。来源分类、OMS适配及下一阶段更早HDD边界只在[作品记录](../../other/STANDARD_MODEL_SKIN_20261105.md)完整维护，不以Lightning功能或27～33素材定义完成。

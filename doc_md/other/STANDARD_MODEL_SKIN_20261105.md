@@ -6,7 +6,9 @@
 
 作品命名为 **Standard Model Skin Omni Until 26**，默认 Rootage。它与 **Lightning Model Skin Omni Until 33** 的素材库、作者目录、配置、名称和 OSK 分开；后者只更正现行名称，历史 Lighting 成品不改名、不覆盖，原停止推进边界保留。新作品不读取旧作者包，也不以 27～33 图像补齐缺口。
 
-该 HDD 实际包含十种 Game Frame：03 / 08 / 12 / 14 / 16 / 17 / 19 / 21 / 25 / 26。分别为 3rd style、8th style、HAPPY SKY、GOLD、EMPRESS、SIRIUS、Lincle、SPADA、CANNON BALLERS、Rootage。最早可用的样式是 03；这是 26 HDD 内保留的款式，不能表述为从初代到 26 连续齐全，也不能据此断言原发行 HDD 的每项美术完全一致。缺失框体待用户后续提供更早 HDD。
+当前常规版本框体主题覆盖 **25 CANNON BALLERS 与 26 Rootage**，来源均为本次 26 HDD；共用软件表现以 26 为依据，不代表另外取得并复刻了 25 的软件。另有八款 **26 ARC SCORE 的旧作复刻主题**：3rd style、8th style、HAPPY SKY、GOLD、EMPRESS、SIRIUS、Lincle、SPADA。它们对应 `gmframe03/08/12/14/16/17/19/21`，与 `gmframe25/26` 合计十款，但不能合称“实际覆盖 3～26 代”或“十代原版框体”。
+
+2026-11-05 用户指出代数口径错误后，重新核对 [Rootage 官方 ARC SCORE 活动](https://p.eagate.573.jp/game/2dx/26/event/arc_score/index.html)、[当年 3rd style 主题获取记录](https://purotora.com/log/20190601.html)与本地源包，撤回此前把最小资源编号 03 当作实际原版覆盖起点的结论。编号确实指向旧作主题，但这些是 Rootage 内的活动复刻，不能证明已取得相应旧版 HDD 或保全了该版完整框体及软件表现。24 及更早的常规版本来源仍属下一阶段；以后按对应 HDD 的实际内容确认，不把复刻主题当作已完成代数。已交付 v00/v01 的包字节与原测试身份保留，本次只更正来源分类和说明。
 
 原图按 XML/UV 解包，AFP/GEO 按真实父子变换、相机、遮罩和循环指令解析；不描摹、重画或从截图替代原始部件。来源选取 283 个小型 IFS，合计约 197.53 MiB；`1/common.ifs` 严格解码失败且不被成品引用，合格可复跑选择文件保留其余 282 个包、4373 张 UV 图。未复制完整游戏。当前共用部件取该 HDD 的 `0` 源族，不能把另一族的失败静默当作成功。
 
