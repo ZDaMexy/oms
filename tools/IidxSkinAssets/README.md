@@ -28,7 +28,7 @@
 | `build_standard_skin.py` | 校验所有贡献属于同一精确来源库或已验证组成库，合并作者闭包；来源收据留在作者目录外 |
 | `standard_package_compaction.py` | 在新目录按字段类型缩短身份与引用、复用相同配置文件，保持观察语义身份、素材及几何；输出独立私有校验收据 |
 
-以下是24/26组成库的复跑路径，从仓库根逐条执行，前一阶段成功后再继续；路径须替换为实际已核输入及全新输出。26库与研究必须互相匹配，且是已恢复异常名字的283包来源；不混用旧282包导出。`--source-font` 必填外部原DF平成Gothic W7 TTC，导出核对实际字体表，不静默换系统字体。24所供TTC与保留26来源字节一致，字号/字格仍属于OMS作者适配，不据此推定24 font ID。`--reading-assets`、`--presentation-assets`、`--gauge-assets`、`--failure-assets`、`--graph-notifications` 均为同一精确库的导出目录，`--bga-geometry` 为独立JSON，六项必填。中间文件、原字体与美术不入公开仓库；复用合格提取库，无需复制整个HDD。
+以下是24/26组成库的复跑路径，从仓库根逐条执行，前一阶段成功后再继续；路径须替换为实际已核输入及全新输出。示例的24本体及原下载包已退役，不能直接重跑提取；重新提取须先取得相应HDD，已有来源库与字体可按[来源现状](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#本地来源现状)复用。26库与研究必须互相匹配，且是已恢复异常名字的283包来源；不混用旧282包导出。`--source-font` 必填外部原DF平成Gothic W7 TTC，导出核对实际字体表，不静默换系统字体。24所供TTC与保留26来源字节一致，字号/字格仍属于OMS作者适配，不据此推定24 font ID。`--reading-assets`、`--presentation-assets`、`--gauge-assets`、`--failure-assets`、`--graph-notifications` 均为同一精确库的导出目录，`--bga-geometry` 为独立JSON，六项必填。中间文件、原字体与美术不入公开仓库；复用合格提取库，无需复制整个HDD。
 
 ```powershell
 . .\UseDevelopmentStorage.ps1
