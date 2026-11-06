@@ -15,7 +15,7 @@
 
 ## 皮肤恢复与存储
 
-- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage继承、组合预算、冻结ID与跨拓扑几何；原字形/字体、横排行宽和透明padding；原生Preview生命周期、挡板/LIFT、失败前景、Gauge与真实PB；Spice时钟、Time Freeze、教学页资格、实际子进程退出、Hi-Speed/Classic与Demo取景；0/1来源查漏、原名称字节、ARC SCORE复刻与残留美术资格；BGA透明孔/镜像、原静帧program复用、共像素双owner路径与state.set压缩引用。
+- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage继承、组合预算、冻结ID与跨拓扑几何；原字形/字体、横排行宽和透明padding；原生Preview生命周期、挡板/LIFT、失败前景、Gauge与真实PB；Spice时钟、Time Freeze历史范围、教学页资格、实际子进程退出、Hi-Speed/Classic与Demo取景；0/1来源查漏、原名称字节、ARC SCORE复刻/残留美术/组成别名的资格，旧源缺专用预览与原生能力的区别；BGA透明孔/镜像、原静帧program复用、共像素异动画/双owner路径与state.set压缩引用。
 
 - [2026-07-10 皮肤恢复](reference_skin_recovery_20260710.md) — 恢复锚点、归档与重新准入；**皮肤任务先读**。
 - [2026-07-13 schema 56 皮肤清点](reference_skin_schema56_inventory_20260713.md) — 只读取证、失效类型与 Realm mtime 误判。
@@ -35,7 +35,7 @@
 
 ## 构建、存储与产品面参考
 
-- [构建与测试](reference_build_and_test.md) — 开发磁盘、缓存空目录重建、占用句柄下的同卷目录归并、缓存清理后的源码/依赖重建、宿主deps/satellite所有权与空ENV、TRX跳过计数、音轨跳时/桌面GC、普通/回放Player取景及converted/stored身份、OSR录制收尾/零计数省略、步骤捕获与完整计分键、同一步准时输入、初始关闭内门与静态纹理、ruleset共享源码、formatter与输出锁、作者组合异常修正、品牌贴图、步骤注册期未赋值settings、退休fixture与混合谱包/Realm快照、内存峰值、许可/审计误判、公钥导入及MSBuild元数据。
+- [构建与测试](reference_build_and_test.md) — 开发磁盘、缓存空目录重建、占用句柄下的同卷目录归并、清理后历史运行时还原与当前源码重编、宿主deps/satellite所有权与空ENV、TRX跳过计数、音轨跳时/桌面GC、普通/回放Player取景及converted/stored身份、OSR录制收尾/零计数省略、步骤注册捕获与完整计分键、同一步准时输入、初始关闭内门与静态纹理、ruleset共享源码、formatter与输出锁、作者组合异常修正、品牌贴图、退休fixture与混合谱包/Realm快照、内存峰值、许可/审计误判、公钥导入及MSBuild元数据。
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱库路径身份与历史保全](reference_filesystem_library_identity.md) — 同内容不同目录、失效与物删分离、多文件改名、重复素材枚举与增量查询放大器。
 - [谱面构成过滤](reference_bms_composition_filter.md) — 单轨上限、共享额度、零宽入口及无解条件。
@@ -63,7 +63,7 @@
 
 ## 皮肤与视觉参考
 
-- [BMS 默认皮肤几何](reference_bms_default_skin_geometry.md)
+- [BMS 默认皮肤几何](reference_bms_default_skin_geometry.md) — 几何归一化、实际HUD/材质宿主，以及矩阵源码文件与真实partial fixture的区别。
 - [BMS 皮肤编辑器边界](reference_bms_skin_editor.md) — 原编辑器异步独立草稿、关闭保存/回收、只读集合观察的反向绑定互锁、预览资源与 CLR 反射构造地雷。
 - [gameplay skin slot 三态合同](reference_gameplay_skin_slot_contract.md) — 三态、provider 优先级与候选生命周期。
 - [gameplay skin shared codec/material](reference_gameplay_skin_codec_material.md) — 元素族/样式、typed Note/LN空匹配、变体重复key拒绝、scene数字ID段、必需槽透明Provide与字体复用预算。
@@ -72,6 +72,6 @@
 - [gameplay skin唯一layout snapshot](reference_gameplay_skin_layout_snapshot.md) — 唯一layout、准备失败与旧screen退役、显式空位/authorTop、mania键图mask、双stage判定、替换后AutoSize零高与跨玩法尺寸、光柱层级、图卡目标、AFP/SD、CUSTOM与开场短帧窗口。
 - [gameplay skin config presence](reference_gameplay_skin_config_presence.md) — accepted presence、synthetic default 与 per-index mask。
 - [gameplay skin lane-resource compatibility](reference_gameplay_skin_lane_resource_compatibility.md) — lane provenance、9K/14K 候选映射与资源退役。
-- [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — 事件顺序/Reset、Autoplay假SLOW、AUTO池占位/Hidden/Tint、PB查询与原Mod签名、读谱成组记忆/opacity恢复目标/System旧Mod/计算版本与GeneratedAutoplay身份、callback拷贝、真实显示、准备计时/首排退场及取景consumer sequence。
+- [gameplay skin event envelope](reference_gameplay_skin_event_envelope.md) — 事件顺序/Reset、Autoplay假SLOW、AUTO池占位/Hidden/Tint、PB查询与原Mod签名、读谱成组记忆/opacity恢复目标/System旧Mod/计算版本与GeneratedAutoplay身份、callback拷贝、主画面/辅助层挂载、准备计时/首排退场及取景consumer sequence。
 - [gameplay skin capability negotiation](reference_gameplay_skin_capability_negotiation.md) — closed allowlist、只读 token 与危险 handle。
 - [gameplay skin 脚本诊断](reference_gameplay_skin_scripts.md) — 授权撤销、暂停冻结、数值钳制、固定 tick 与纹理上传 ownership。

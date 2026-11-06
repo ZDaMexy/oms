@@ -14,7 +14,8 @@ metadata:
 
 - 清理后核对目标残留时，`UseDevelopmentStorage.ps1`会重新创建已配置的缓存空目录；路径存在不代表旧内容残留。按原清单条目、实际内容与执行回执核对，不能因此重删共享缓存。实例取[空间回收记录](../../doc_md/mainline/CHANGELOG.md#2026-10-29工作区空间清查与待执行回收)。
 
-- TestScene构建步骤时，把尚未由AddStep赋值的字段传给capture helper，捕获的是构建时旧值；之后执行赋值不会追溯更新预期。预期模式应取已固定scenario或执行期委托，保留真实模式断言。调速夹具只解析白/黑键还不足以演奏实际谱面，须按全部真实计分lane解析binding；不能为了通过删掉第7键音符。私有原失败与修后范围见[P1-A收尾记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)。
+- `AddStep`/`AddUntilStep`注册时就会求描述、参数和method group；后续步骤才赋值的字段仍是null或上一实例。`AddStep(..., overlay.Hide)`会捕获旧overlay，跨实例动作须用lambda在执行时读取。固定预期从scenario或Program已初始化的`CaptureSettings.Current`取得，需等执行才可观察的状态用委托；不能用空值回退或删除真实模式/publication断言掩盖时序。具体来源见[P1-A收尾记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)与[Standard取景工具](../../tools/StandardSkinCapture/README.md)。
+- 调速夹具只解析白/黑键还不足以演奏实际谱面，须按全部真实计分lane解析binding；不能为了通过删掉第7键音符。原失败与修后范围见上述P1-A收尾记录。
 
 - OSR往返的`Statistics`不能按字典键集合直接等同：生产`LegacyReplaySoloScoreInfo.FromScore`明确省略零计数。比较两侧所有key并集的实际次数，缺项按该格式的0计，同时保留EX/Combo/Clear/读谱及真实Replay核对；不能删除非零项或修改解码成绩迎合断言。私有整曲失败及修正取[P1-A实谱记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29omni实谱整曲与回放)。
 
@@ -37,7 +38,7 @@ metadata:
 - 选曲进入真实Player后，converted beatmap的`BeatmapInfo`可能是Converter新建对象；stored ID应核`Player.Score.ScoreInfo`，再分别核实际hash与converted title，不能把两种ID相等作为入曲证明。大作者包的正常异步加载也可能超过小fixture的deadline；保留原超时/ID失败证据，按实际加载和身份修取景，不将夹具预设直接记为产品bug或放松真实选曲断言。
 - BMS Start/EFFECT手势属于`BmsSoloPlayer`，普通`ReplayPlayer`与Autoplay回放保持独占输入；不能用直接Trigger绕过回放owner后把每帧空释放当作正常手势故障。游玩操作取景应使用普通Player/无Autoplay。后台host不活动也会释放输入；若无法实际取得焦点，可在隔离软件夹具里显式模拟活动并同时记录观察值与模拟标志，不能冒称真实前台/设备验收。合成谱手动正EX需在到达真实游玩时间的同一个predicate中按键；再加一个50ms step会额外迟到，不能删去正EX断言或改判定窗口来凑通过。过程取[游玩复核](../../doc_md/other/OMNI_GAMEPLAY_CONTROLS_20261025.md)。
 - UntilStepButton有固定10秒上限，调大TestScene.TimePerAction不会放宽大型作者包导入期限。opt-in取景可在有120秒外层watchdog的准备step完成导入，再展示设置；不能超时后Dispose尚在写入的Realm。普通ImportTask成功会消费来源归档，取景须先复制可删除输入，不能直接交付作者OSK原件。来源摘要及失败/成功证据见[键数设置记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-19按键数皮肤设置与素材预览)。
-- 临时目录日志和取景宿主输出会被清理；可回读的TRX/截图不代表原宿主仍可运行。复核时分清历史证据与新运行，重跑先从保全源码重建宿主、相应测试工程及依赖图；只保留Desktop输出不足以运行Core/BMS/mania测试或作者CLI。源码保全和清理边界见[清理记录](../../doc_md/mainline/CHANGELOG.md#2026-10-25工作区垃圾清查与手动清理准备)。比较既有失败须逐项核名称、错误和堆栈，不仅比较总数。
+- 可回读的TRX/截图不代表原宿主仍可运行。清理后先分清要复跑历史运行时还是当前源码：旧宿主按[清理回执的同版本保留映射](../../doc_md/mainline/CHANGELOG.md#2026-11-07工作区缓存与重复验收程序清理)还原依赖，或从对应冻结源码重建；不能塞入当前DLL冒充旧环境。当前源码则重编对应宿主、测试工程及依赖图，只保留Desktop输出不足以运行Core/BMS/mania测试或作者CLI。比较既有失败须逐项核名称、错误、堆栈与实际程序集，不仅比较总数。
 - 隔离取景宿主直接引用测试DLL时，重新build会覆盖手工合并的deps，原生SDL等依赖可能不可达；须从实际当前依赖图重新准备并校验，不按BMS→mania→Game复制顺序认定最新。同名生产DLL须取显式构建成功的拥有工程，核编译引用与最终运行的源/目标摘要；旧Core拒绝新variant018不能靠改包或放宽codec掩盖，来源见[游玩复核](../../doc_md/other/OMNI_GAMEPLAY_CONTROLS_20261025.md)。PowerShell 7.6用`Environment.SetEnvironmentVariable(name,null,Process)`可能留下空串；严格ENV缺省从Env提供器移除。其它具名失败取[Start复核](../../doc_md/other/OMNI_START_OPTIONS_20261024.md#验证与剩余验收)。
 - 拥有工程的主DLL和`locale/*.resources.dll`必须一起选取。只覆盖主DLL仍可能混入旧Core-test传递副本；`Current source differs from the private host's compiled reference`须核编译器实际复制的satellite与当前owner摘要，从声明的resources项选同一owner后重新准备，不能放宽一致性检查或盲合其它测试图。保留原deps、准备失败与来源证明；准备通过不等于已启动/验收，具名范围取[P1-A记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-28omniauto状态与最终候选续验)。
 - 临时替换旧源码做 before 时，Copy-Item 会保留备份 mtime；若早于已有 DLL，增量 build 可继续复用 after 程序集。替换与恢复都显式更新时间或强制重编译；关键红绿可读取实际输出 DLL 的 PE type/field metadata 验证版本。一次 build exit 0 不证明替换的旧源码已编译，具名误判见[游玩审查](../../doc_md/other/GAMEPLAY_REVIEW_20261019.md)。
@@ -77,5 +78,3 @@ metadata:
 - restore 成功或不再发告警不等于完整依赖审计清洁。还需按范围核 `dotnet list ... package --vulnerable --include-transitive`，保留具名例外和传递依赖实情；实际修复版本、边界与兼容检查见 [C7 启动反馈](../../doc_md/other/SKIN_SYSTEM_C7_VALIDATION_20260909.md#交付后默认皮肤提示与构建警告修复)。
 
 - 读谱重进夹具明确拥有完整dependency tree时，先用立即移除/释放结束其callbacks，再dispose manager；只等layout owner退役不能证明drawable已离开全局异步释放队列。每例prepare也须清理失败前例，不能依赖可能跳过的TearDownSteps。确定性后台保存/同帧重建红绿证据取[P1-A记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29读谱夹具快照与原字体来源)。
-
-- `AddStep`/`AddUntilStep` 的条件描述和参数在注册时就会求值；此时后续步骤才赋值的实例 `settings` 仍为空。注册期来源分支须读取 Program 已初始化的 `CaptureSettings.Current`，实际 Player 验证仍在执行步骤内核对 publication，不能用空值回退掩盖错误。复跑入口见[Standard 取景工具](../../tools/StandardSkinCapture/README.md)。

@@ -123,7 +123,7 @@ PowerShell7读取私有API输入锁时，`ConvertFrom-Json`可自动把ISO deadl
 
 原版Welcome与第二阶段选曲教学都有六点，但不是同一组六页；loop数量也不是逻辑页数，两个timer分支可占同一第4点。按实际白点、AFP/GEO/文字和host关联辨页，独立Start終了素材不能证明首组末页有该footer，正文白键决定曲目更不能当安全skip。旧来源取[R8审查](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29原版游客导航r8窄门)；[R11](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29原版教学退出与classic入口)才实证首组第六点/printed Start終了及其后无遮挡MusicSelect，不追溯补签每页控制。大图往返可能耗尽guest或整首歌，先用缩图辨页、保留原图核数字；开曲确认后需立即hold Start，专用CS-style延迟须单列，不能用菜单冻结代替歌曲开场暂停或签自然时序。
 
-Time Freeze先核实际`-patchcfgpath`和最终日志，不能只看默认配置。R9已有Standard/Menu ON；R10补Premium后两项ON，但20稳定只观测于Mode Select教学覆盖层，不能外推所有timer或补丁因果。R12结束帮助后显示00再进入Tutorial，尚不能区分超时/Start传递。游客提示仍倒计时；不延长host deadline，不另写guest导航。CS-style Song Start Delay需单列，并在实际白键确认开曲后同一Root调用立即hold Start，延后一次截图可能已失去整首歌。持有后才可在同一开场有限连续采速度档位，每条仍检查deadline/owned，实际数字逐原图核读，不推自然时序。资格取[R12](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29原版classic与floating190读数)。
+Time Freeze先核实际`-patchcfgpath`和最终日志，不能只看默认配置。10月29日Lightning参照的R9已有Standard/Menu ON；R10补Premium后两项ON，但20稳定只观测于Mode Select教学覆盖层，不能外推所有timer或补丁因果。R12结束帮助后显示00再进入Tutorial，尚不能区分超时/Start传递；该轮游客提示仍倒计时，既定host deadline与guest导航限制保持原历史范围。CS-style Song Start Delay需单列，并在实际白键确认开曲后同一Root调用立即hold Start，延后一次截图可能已失去整首歌。持有后才可在同一开场有限连续采速度档位，每条仍检查deadline/owned，实际数字逐原图核读，不推自然时序。资格取[R12](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29原版classic与floating190读数)，不把这些编号或补丁结论套到24/26来源。
 
 原版显示小数不等于内部精度，API轴位移也不是实体编码器单位。只读选定标量先核精确PID/启动身份、模块路径及DLL字节，仅VM_READ；地址/字节源留私下。R13证同显示1.75的两内部值会落到不同Classic档，实际最近档中点取低；相同API手势亦可能落在不同整数计数边界。完整数字只取[R13](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29原版独立bpm与内部速度核对)，R12的190表不补签未读过的速率字段。字段类型/数值不证明完整语义；不能固定K外推。OMS modeScale、内部精度、相邻选档与旧回放0需联动实际滚动，不能只修显示。
 
@@ -141,7 +141,13 @@ Time Freeze先核实际`-patchcfgpath`和最终日志，不能只看默认配置
 
 原字体先看SFNT签名，不按扩展名筛掉.bin：已核源有一个三face TTC采用.bin。原模块字族名用CP932，UTF-8/UTF-16或字体文件名搜索会漏；字族/路径出现、指针邻域、初始化与实际曲名/作者绑定是不同证据。字体字段还须核对所属资源，视频列表的artist字段不是gameplay文字槽。独立进程GDI/SFNT表比对可校准face识别，不能代签HDD实际绘制绑定或字体已应用；不得据此先选“相近字体”，边界取[P1-A收尾记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)。
 
-同一 HDD 内的旧代主题不等于该旧代原版来源：Rootage 的 `gmframe03/08/12/14/16/17/19/21` 属于 ARC SCORE 旧作复刻主题，不能由最小编号03推出覆盖3～26，也不能用“十款”替代“十代”。编号、主题名称、活动复刻归属、实际来源版本与原版还原资格须分别核对；当前来源分类只取 [Standard 记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#身份与来源)。
+## Standard 来源与能力诊断
+
+同一 HDD 内的旧代主题不等于该旧代原版来源：Rootage 的 `gmframe03/08/12/14/16/17/19/21` 属于 ARC SCORE 旧作复刻主题，不能由最小编号03推出覆盖3～26，也不能用主题款数替代原版代数。组成库的`s23/s24`与`gmframe23`又是[明确作者别名](../../tools/IidxSkinAssets/standard_source_catalog.py)，须沿`sourceComposition`、`origin`与保留的输入清单回到原路径，不能把组成库路径当作原HDD目录或已取得23程序的证据。当前来源分类只取 [Standard记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#身份与来源)。
+
+相同PNG不证明同一动画：24的`fcombo00`与26共像素，但AFP/GEO不同，须保留独立来源；不能按PNG摘要去掉旧FC。原文件逐字节保全、atlas解码像素一致、GEO/AFP调用资格各是不同证明。依据取[24来源接入](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#2026-11-07-24-来源接入)，不在记忆复制素材数量或成品版本。
+
+早期来源缺少专用Normal预览美术，不等于OMS没有原生预览。23/24分支不声明后来的小窗或首排cue；`HasAuthoredNormalSpeedPreview=false`时，Start前按原生资格显示轨内预览。诊断同时核选中的来源、真实publication、缺少对应作者节点及实际音符纹理/位置；不能把26的断言直接套到旧源，也不能用“旧源缺图”为其它来源跳过检查。真实取景条件见[Reading用例](../../tools/StandardSkinCapture/TestSceneStandardSkinCapture.Reading.cs)。同理，23沿24调用方的中心平移/Graph标尺只是保留美术适配，不证明23原软件相同；来源边界仍取上方作品记录。
 
 已选包和成品引用闭包不能证明整份HDD素材穷尽；还须查全目录、包内电影索引、原加载链与未选来源。26演奏主题表没有gmframe25，但其残留框体仍可作为作品来源；同理，当前程序不调用不能直接排除另一族的失败演出。`1/common`曾因一个非法文本名称整包解码失败，原名称字节的MD5却能精确定位纹理；无损恢复时保留bytes与存储标识，像素相同只能登记alias，不能猜名重写。`0/1`也不能凭目录数字当分辨率重复，原标题、实际像素、电影和调用资格应分别查。具体缺口与恢复材料取[Standard查漏](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#素材查漏与未采用范围)。
 

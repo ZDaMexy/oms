@@ -14,7 +14,7 @@ metadata:
 - MainMenu 比异步下载 overlay 更早注入；可选 overlay 参数可能永远缓存 null。三个入口通过游戏当前实例的 `waitForReady`，不能捕获早期空值。
 - `Button.Action` 赋值会更新 Enabled。不可下载按钮先赋 Action，最后设置 Enabled；顺序反过来会把缺包和 bmson/24K/48K 按钮重新启用。
 - 全屏 Loading 层只用于清空结果的初次查询。追加页保留卡片操作，只禁用加载更多；单测在下一页回应挂起时点击实际下载按钮，避免已有结果仍被等待层吞掉输入。
-- `OsuGameTestScene` 的步骤执行时才创建新 Game。`AddStep(..., overlay.Show)` 会在构造步骤时捕获上一实例；使用 `() => overlay.Show()`，否则看似依赖注入错误，实际访问旧 overlay。
+- `OsuGameTestScene`的步骤执行时才创建新Game；看似依赖注入错误也可能是注册步骤时捕获了旧overlay，统一按[步骤捕获诊断](reference_build_and_test.md#测试宿主与产物)核对实例。
 - 旧 Toolbar 在 Children 后用 Concat 追加下载按钮，曾把入口放到通知右侧；诊断应核实际子节点顺序及坐标。当前只核唯一谱面列表按钮在音乐、时钟、通知之前，不据旧修复再次新增下载入口。
 - BeatmapCardContent展开区超出主卡，父级masking / 后续卡片 / 末排空间会裁切并吞输入；大卡外层Height、BodyHeight和dropdown起点须同步。BMS末卡复现还来自两个overlay的initializer重设Margin，只保留Bottom而抹掉共享网格Top=15默认值；Update仅计算横向Padding。保留共同边距，并用跨行 / 末卡真实坐标核输入。BeatmapCardIconButton加载强制RelativeSizeAxes=Both，需固定动作槽；显示行为取[P1-A合同](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#谱面列表展示与来源能力)。
 - OsuAnimatedButton构造器在Content放入hover层，子类再用Children赋值会清除并dispose它；追加难度行用AddRange保留。图标Action不是设置式Button的同一个启用合同，从不支持难度切到local/活动任务时必须恢复Enabled=true，避免Open/Cancel继承禁用。

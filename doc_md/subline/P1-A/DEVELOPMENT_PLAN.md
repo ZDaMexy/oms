@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-11-07（24来源交付）
+> 最后核对：2026-11-07（来源退役后的接续边界）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -11,11 +11,11 @@
 
 ### Standard Model Skin Omni Until 26
 
-按[来源与交付记录](../../other/STANDARD_MODEL_SKIN_20261105.md)中的缺口、实际反馈或新增HDD推进。24可测查，23/25仅保留美术，26原机复测须重新取得本体；更早代数按真实来源确认。未知容器、触发资格与无OMS状态项分别维护，不以ARC SCORE编号扩代。两作品独立，禁止computer use。
+按[来源与交付记录](../../other/STANDARD_MODEL_SKIN_20261105.md)的缺口、反馈或新增HDD推进。24/26本体已退役，原机复测须重新取得；现存提取素材、作者源和证据可接续，23/25仅有保留美术。更早代数须有真实来源，未知容器与触发资格保留缺口，ARC SCORE不扩代。两作品独立，禁止computer use。
 
 ### Lightning Model Skin Omni Until 33（停止自动推进）
 
-2026-10-29用户已要求停止Lightning作品自动推进。本线保留现有代码、候选和证据；以下是该作品未完成范围，不是Standard的执行队列。仅在用户重新要求开发时恢复；名称拼写更正和Standard制作不恢复其调查、复测或出包。
+2026-10-29用户已停止Lightning自动推进。现有代码、候选和证据保留，下列未完成项不进入Standard队列。须用户明确恢复开发；更名和Standard制作不构成恢复授权。
 
 若恢复Lightning，只使用公开作者链，由实际组件不足驱动能力补齐；来源与界面边界取[素材作品约束](TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)，不恢复静线或重计既有campaign。
 
