@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-11-07（多作品与双平台准备；来源退役及停止边界保持）
+> 最后核对：2026-11-07（beatoraja双作品已启动；OMS来源退役及停止边界保持）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -11,7 +11,7 @@
 
 ### 多作品与双平台准备
 
-多作品与双平台的调度、远期分组和首个原型统一见[维护计划](IIDX_SKIN_MAINTENANCE.md)；现有作品的具体缺口继续沿下方接续。
+多作品调度、远期分组及beatoraja制作沿[维护计划](IIDX_SKIN_MAINTENANCE.md)。下方为OMS作品边界，不阻止已获准的beatoraja开发。
 
 ### Standard Model Skin Omni Until 26
 
@@ -19,7 +19,7 @@
 
 ### Lightning Model Skin Omni Until 33（停止自动推进）
 
-2026-10-29用户已停止Lightning自动推进。现有代码、候选和证据保留，下列未完成项不进入Standard队列。须用户明确恢复开发；更名和Standard制作不构成恢复授权。
+Lightning的OMS自动推进保持停止，下列缺口不进入Standard或beatoraja队列；恢复这些OMS功能仍需明确授权。
 
 若恢复Lightning，只使用公开作者链，由实际组件不足驱动能力补齐；来源与界面边界取[素材作品约束](TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)，不恢复静线或重计既有campaign。
 

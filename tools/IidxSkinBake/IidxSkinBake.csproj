@@ -1,0 +1,38 @@
+<Project>
+  <PropertyGroup>
+    <ImportDirectoryBuildProps>false</ImportDirectoryBuildProps>
+    <ImportDirectoryBuildTargets>false</ImportDirectoryBuildTargets>
+    <BaseIntermediateOutputPath>../../.dev-cache/temp/iidx-bake-dev/obj/</BaseIntermediateOutputPath>
+  </PropertyGroup>
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>12.0</LangVersion>
+    <OutputPath>../../.dev-cache/temp/iidx-bake-dev/bin/</OutputPath>
+    <BakeRuntimeDirectory Condition="'$(BakeRuntimeDirectory)' == ''">$(MSBuildThisFileDirectory)../../osu.Desktop/bin/Release/net8.0</BakeRuntimeDirectory>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="osu.Framework;osu.Game;osuTK;SixLabors.ImageSharp;Newtonsoft.Json;JetBrains.Annotations">
+      <HintPath>$(BakeRuntimeDirectory)/%(Identity).dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="System.Text.Json;System.Text.Encodings.Web;System.Diagnostics.DiagnosticSource;System.Threading.Channels">
+      <HintPath>$(BakeRuntimeDirectory)/%(Identity).dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+  <Target Name="RequireRuntime" BeforeTargets="ResolveReferences">
+    <Error Condition="!Exists('$(BakeRuntimeDirectory)/osu.Game.dll')" Text="Build OMS first and supply the matching BakeRuntimeDirectory." />
+  </Target>
+  <Target Name="CaptureBakeRuntimeIdentity" BeforeTargets="GetAssemblyAttributes">
+    <GetFileHash Files="$(BakeRuntimeDirectory)/osu.Game.dll;$(BakeRuntimeDirectory)/osu.Framework.dll;$(BakeRuntimeDirectory)/osuTK.dll;$(BakeRuntimeDirectory)/SixLabors.ImageSharp.dll" Algorithm="SHA256">
+      <Output TaskParameter="Items" ItemName="BakeRuntimeIdentity" />
+    </GetFileHash>
+    <ItemGroup>
+      <AssemblyMetadata Include="BakeRuntime.%(BakeRuntimeIdentity.Filename).Sha256" Value="%(BakeRuntimeIdentity.FileHash)" />
+    </ItemGroup>
+  </Target>
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+</Project>

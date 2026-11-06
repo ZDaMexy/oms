@@ -4,7 +4,7 @@
 
 ## 多作品维护入口
 
-先查[P1-A作品/宿主状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)，再按[接续计划](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md#多作品与双平台准备)确定本次目标。当前两套成品链面向OMS；beatoraja仅完成维护准备，尚无适配器、候选包或运行验收。下表说明现有工具职责，不代表已实现跨平台导出。
+先查[P1-A作品/宿主状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)，再按[接续计划](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md#多作品与双平台准备)确定本次目标。OMS两套已交付链与新beatoraja试产各自独立；beatoraja当前研究、安装与真实验证见[适配记录](../../doc_md/other/BEATORAJA_IIDX_SKINS_20261107.md)，未达到正式交付。下表区分来源、作者与宿主，不能互相代签。
 
 | 层次 | 现有入口 | 维护范围 |
 | --- | --- | --- |
@@ -13,6 +13,8 @@
 | Standard配方与整合 | `compose_standard_sources.py`、`compose_standard_research.py`、`standard_*.py`、`build_standard_skin.py` | 只消费Standard明确来源及组成库；各来源族的配方与缺口独立 |
 | Lightning配方与整合 | `build_omni_skin.py`、`build_lighting_*.py`、`lighting_*.py` | 使用Lightning独立来源、冻结作者及增量链；旧文件名保留，停止边界沿状态页 |
 | OMS检查与实际游玩 | [SkinAuthoring](../SkinAuthoring/)、[StandardSkinCapture](../StandardSkinCapture/README.md)及各作品既有验证入口 | CLI只证明对应作者合同；实际Player证据须匹配候选和宿主，Standard取景不代签Lightning或beatoraja |
+| beatoraja原生导出 | `beatoraja_author.py`、`beatoraja_native.py`、`beatoraja_materials.py`、`beatoraja_widgets.py`、`beatoraja_hud.py`、`beatoraja_graph.py`、`beatoraja_export.py` | 只读一族冻结作者，保留first-match/DP选择、原图尺寸、原生计时与明确gaps，输出新的原生包；不修改OMS作者或运行时 |
+| 动画烘焙与beatoraja实际取景 | [IidxSkinBake](../IidxSkinBake/README.md)、[BeatorajaSkinCapture](../BeatorajaSkinCapture/README.md) | 原生产渲染路径的GPU复合验证与实际官方播放器的独立验收分开；不把离线像素检查当作OpenGL性能/视觉通过 |
 
 ### 共用修改的回归范围
 
@@ -23,10 +25,10 @@
 | 单作品配方、来源别名或素材选择 | 该作品的相关来源族和选项；若同一来源已被两个宿主使用，两边分别验受影响组件 |
 | 共用来源解析或中立动画记录 | Standard与Lightning中实际调用该路径的输入；工具测试与代表导出，输出变化后验证对应宿主。未来beatoraja接入后纳入同一影响检查 |
 | 共用OMS作者生成或客户端皮肤接口 | 两作品的实际消费者；修改客户端时另沿[P1-A验收](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md#验证与兼容)覆盖普通包、canonical及相关BMS/mania路径，不只测试某套Omni |
-| beatoraja适配器或宿主版本 | 正式建立后按其实际皮肤加载、完整游玩、配置与重开矩阵验收；触及共用来源处理时再追加受影响OMS线 |
+| beatoraja适配器或宿主版本 | 按其实际皮肤加载、完整游玩、配置与重开矩阵验收；触及共用来源处理时再追加受影响OMS线 |
 | 仅维护文档 | 仓库文档检查与diff/语义复核，不重建皮肤或刷新产品证据 |
 
-现有Python工具测试入口为`python -B -m unittest discover -s tools/IidxSkinAssets/tests -p 'test_*.py'`；按改动先选相关测试，涉及共用路径时扩大到实际消费者。每个新shell先执行仓库根`UseDevelopmentStorage.ps1`，完整包与实际Player仍各自验收。冻结旧包只能证明旧包兼容，不能证明改后的生成器；原输入已不可用或没有匹配宿主时明确记为未验，不借另一个系列通过补签。beatoraja工具与运行命令待真实原型建立后登记，不提前提供不可执行的占位命令。
+现有Python工具测试入口为`python -B -m unittest discover -s tools/IidxSkinAssets/tests -p 'test_*.py'`；按改动先选相关测试，涉及共用路径时扩大到实际消费者。新适配器focused入口为`python -B -m unittest discover -s tools/IidxSkinAssets/tests -p 'test_beatoraja_*.py'`。每个新shell先执行仓库根`UseDevelopmentStorage.ps1`，完整包与实际Player仍各自验收。冻结旧包只能证明旧包兼容，不能证明改后的生成器；原输入已不可用或没有匹配宿主时明确记为未验，不借另一个系列通过补签。导出参数见`python tools/IidxSkinAssets/beatoraja_export.py --help`；实际运行命令取取景工具README，所有输出要求独立新目录。
 
 来源与派生物目录、身份及证据字段沿[多作品维护约束](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#多作品与双平台维护)。现存库原位保留；首个beatoraja输出使用独立宿主目录，与OMS作者输出及成品分开，原图与中立研究尽量只读复用。每次发布只引用自己的同包收据，详细组件缺口仍回写原作品记录。
 

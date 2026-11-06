@@ -155,6 +155,7 @@ Omni的Key beam是逐轨动态背景，使用现有`playfield.lane-surface`及Un
 2. 同一作品的两个宿主可引用同一份经核对的原始素材与中立研究结果；派生文件写独立新目录，不改原库、不复制完整HDD、不跨作品借美术补缺。来源/作者与长期证据仍按[开发磁盘约束](../../../AGENTS.md#开发磁盘约束)收存，新输出按作品、宿主和本次版本区分，目录用到时才建，历史产物不迁移或覆盖。原版精确清单继续仅存本地，公开代码不带私有素材。
 3. 共用解析算法、OMS作者生成器和宿主适配必须区分。每项组件分别记录原版依据、来源资格、宿主映射与实际验证；缺宿主数据、宿主不支持、尚未实现和缺原版证据不能合并成一个“已适配”状态。不用另一平台的截图、OMS Lua接口或同名选项证明beatoraja支持，反向亦然。原图与中立解析可复用，宿主表现结论不可转签。
 4. 共用工具或宿主能力改动须标明受影响作品/平台，沿[工具回归矩阵](../../../tools/IidxSkinAssets/README.md#共用修改的回归范围)验证实际消费者。暂停线的必要兼容回归不构成恢复开发、新功能或重发授权；未执行的格子保留待验，不刷新其产品日期。每次交付记录包身份、实际宿主版本、源码/工具版本、来源版本、配置组合、证据日期和未验项，具体收据仅保留一份，其它入口链接引用；各平台独立版本与私下分享，OMS发行门不被独立作品结果提升。
+5. beatoraja皮肤原生输出使用独立`.luaskin`/资源目录与`.zip`成品，不把OMS的`.osk`改扩展名充作可用皮肤。基础名称及Omni日期序号保持，宿主由成品目录区分。对用户实际安装的更新仅备份会变动的程序和关键数据，同卷改名、配置/数据库语义核对后再写；QA使用独立合成player，不操作真实成绩或IR。当前安装和本轮必要computer use例外取[适配记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md)，不推广到其它工作线。
 
 ## 非游玩皮肤页面
 
@@ -603,7 +604,7 @@ BMS选定包`BlackLaneWidth`是与NormalLaneWidth同单位的0.25..4横向权重
 5. V1 release 以普通 `oms-simple.osk` 覆盖 mania/BMS，并验证第三方公开作者路径；不得补出已显式 suppress 的可选件，不得使用私有作者接口。历史 complex 不再是 release gate。
 6. 每次记录本次实际运行的 BMS/mania/core/Release 与人工视觉/性能结果；按上条未要求重跑的套件也要明确写“未运行及原因”。已知失败必须稳定归因，不得把既有失败写成新回归。
 7. 文档不得把“代码 provider 可替换”“ini 可配置”“scene 可声明”“script 可编程”混成一个完成状态；能力矩阵必须分列。
-8. 不得宣称 LR2/beatoraja/IIDX 文件格式兼容；“接近 IIDX 表现上限”只描述公开接口表达力。
+8. OMS皮肤引擎不得宣称 LR2/beatoraja/IIDX 文件格式兼容；独立beatoraja导出以该宿主实际格式和同包验证为准。“接近 IIDX 表现上限”只描述公开接口表达力。
 9. 已导入 `.osk` 的BMS普通短键编号帧动画与长条head/body/tail静态图/编号帧动画必须分别进入集中用户视觉验收清单，并在Skin V1/release宣称完成前取得确认；2026-07-14的静态恢复验收只能证明`SV1-0`基线，不得复用。待签收本身不阻塞后续自动可验证切片，但未签收不得称产品交付、`SV1-1`完成或release gate通过。
 10. ordinary note 与 long-note head/body/tail 的首个产品纵切闭合后，剩余 optional slot 不再通过私有逐件 C# provider/display 扩张；C5 已由 shared scene/runtime 接管全部适用 slot，并继续服从对应 ABI、budget 与 fallback gate。后续新增能力只能进入 C6/C7 的版本化门。
 11. scene/event产品证据必须从ordinary/managed/external source、`SkinManager` current revision、shared codec/catalog/resolver/material、真实BMS/mania producer进入actual renderer；DTO、schema round-trip、graph mock、cursor alone、single drawable或test publisher注入最终snapshot不能替代该证据。beatmap-local public authoring继续不可达。

@@ -18,6 +18,7 @@
 ## 恢复与视觉验收
 
 - [Standard Model Until 26 独立作品](STANDARD_MODEL_SKIN_20261105.md)：24/26 来源、十二款主题的保留与复刻边界、制作适配及 API / Player 验证。
+- [beatoraja IIDX双作品适配](BEATORAJA_IIDX_SKINS_20261107.md)：官方0.8.9安装保全、独立原生导出、实际宿主证据及开发缺口；不转签OMS作品。
 - [静线 1P 外部参考凭据](references/simple-1p-20260912/README.md)：用户提供的五张原始对照图及来源标识，供布局打磨随时对照。
 - [静线布局调整与验证](SKIN_SIMPLE_LAYOUT_20260912.md)：底部信息、独立键区和 BGA 作者参数，以及当时包的实际检查记录。
 - [静线机台结构打磨](SKIN_SIMPLE_CABINET_20260912.md)：完整底板、原创材质、分立仪表与实际渲染证据；保留整体视觉未签收边界。

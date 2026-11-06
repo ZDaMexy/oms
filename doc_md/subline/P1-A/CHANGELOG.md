@@ -1,5 +1,11 @@
 # P1-A 变动日志
 
+## 2026-11-07beatoraja双作品开工与播放器更新
+
+用户明确授权Standard与Lightning的beatoraja制作，名称和独立来源保持；Lightning在OMS的停止边界不变。先固定官方0.8.9发行JAR和标签源码，再保全用户安装、同卷改名为`D:/beatoraja`并部署差分。关键备份、配置路径与数据库语义核对、旧Endless Dream/IR保留及快捷方式修复完成，实际用户player未用于QA。研究、安装及当前未闭合项集中于[适配记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md)。
+
+新增只读冻结作者解析、两族原生素材/判定/Gauge/HUD/Graph导出、调用生产记录动画渲染路径的分段烘焙，以及隔离配置/合成BMS/原生Replay的官方宿主取景。两套默认SP1已真实加载和自然Result，Standard继续接入三类挡板与演出。离线复合像素、native格式和真实画面分别验证；接入中修正SP2逻辑数组被误当空间排序的问题，尚未以此前SP1通过代签SP2/DP。当前为开发检查点，未交付beatoraja正式成品，也未改变OMS生产客户端或原软件事实。
+
 ## 2026-11-07多作品与双平台维护准备
 
 按用户确认的远期多皮肤维护方向，先核对干净且与本轮fetch后origin一致的`6c3c2f54`、两作品状态和现有工具调用。P1-A STATUS以作品×宿主登记两条OMS交付线与两条未开工的beatoraja线；[专项维护计划](IIDX_SKIN_MAINTENANCE.md)保存四个主要系列、可能细分五至六个作品的规划假设及历史依据，不把估计提升为实际覆盖。Standard Until26不被解释成传统框体历史终点，Lightning停止及现有Until33范围保持。
