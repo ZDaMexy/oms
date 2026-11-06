@@ -1,5 +1,17 @@
 # OMS 更新日志
 
+## 2026-11-06工作区与关联开发目录清理
+
+按用户要求深查总工作区及关联的 E 盘开发资料、登记工作副本和本机 WSL。八仓开工均干净；OMS 基线 `8a220432`，Shiro `e657587`，OMS Web `0c261889`。只按已核定清单处理可重建输出和已验证的重复副本；没有读取 private-data 内部、清理 Codex 聊天 / 工作副本、停止其他项目或操作服务器。D 盘实际安装、无明确关联的旧项目与共享依赖保留。
+
+Windows 侧删除 26 个项目 bin/obj、304 个仅含散列命名文件的字体图集 / shader 缓存目录，共 22,939 文件、19.285 GiB；另删除完成验收后的临时宿主中 777 个重复程序库文件、3.117 GiB，每个删除前均重新核对 SHA-256 与 Desktop/bin 的保留副本一致。共 22.402 GiB 逻辑文件量，不包含玩家 Desktop/bin、素材 / 作者源、截图、日志、报告、数据库或版本化交付物。后续复跑受影响的临时宿主和工具须重新准备依赖 / 编译，不能沿用旧 `--no-build`。
+
+Shiro 开发盘的旧展开包和重复归档按[本仓清理记录](../../../Shiro-Agent/doc_md/mainline/progress.md#2026-11-06-本地开发存储清理)退役；37 份完整归档均有保留件，当前与紧邻回退的两个展开包保留。两个专用 WSL 经空闲确认、sync / trim、单独停止并等待文件句柄释放后，调用 Windows 原生 [CompactVirtualDisk](https://learn.microsoft.com/en-us/windows/win32/api/virtdisk/nf-virtdisk-compactvirtualdisk) 回收空块；没有全局 shutdown、注销分发、NTFS 压缩或不安全 sparse 转换。Shiro VHD 从约 19.11 GiB 降至 8.73 GiB，OMS Web 从约 10.23 GiB 降至 6.38 GiB；后者没有删除内部文件，详见[本地记录](../../../websites/oms-web/doc_md/local-use-and-recovery.md#2026-11-06-本地虚拟磁盘回收)。Linux 内部删除量与 VHD 缩减量不重复相加。
+
+16:44 CST 的 Windows 可用空间实测：F 盘从 4.762 GiB 增至 38.267 GiB，增加 33.506 GiB；E 盘从 55.752 GiB 增至 58.698 GiB，增加 2.946 GiB，合计约 36.45 GiB。读数包含本轮证据开销与其他活动的同期变化，不等同于逻辑删除字节；C 盘未计回收，D 盘未变。完整清单、逐项回执、保留项指纹、归档清单及盘账位于本机 `E:\OMS-Development\evidence\workspace-cleanup-20261106\`，清单已执行关闭，不重复删除。
+
+清理后 1,107 个 Windows 目标和 63 个 Linux 目标均无残留，71 个保留程序库与 37 个完整归档 SHA-256 一致；两个保留展开包通过原 release manifest 检查。六个保护根的 975,943 文件、69,953,024,979 字节路径 / 大小 / 修改时间 / 属性指纹完全一致；两 WSL 的 /opt 与 /home 元数据指纹也一致，重开后 Node / PHP 与 Shiro 干净来源可读。八仓及登记工作副本仍干净，随后只回写本轮存储文档。客户端、Shiro 与跨工作区文档检查及 Git 差异检查通过，日志同存上述证据目录。没有重跑产品 / 原机 / 完整恢复或刷新真人验收，功能与来源可用性仍取原记录。
+
 ## 2026-11-05Standard独立皮肤初版交付
 
 使用26 HDD完成独立 `Standard Model Skin Omni Until 26.v26110500` 私下交付，实际来源、同包真实演奏验证和限制取[P1-A记录](../subline/P1-A/CHANGELOG.md#2026-11-05standard26初版私下交付)。公开仓维护可复跑制作/取景工具，原素材、作者包和证据留在本地；无玩法引擎改动。Lightning只修正现行名称，历史成品与停止边界保留；两作品不混合，也不提升原产品、原机、设备或公开发行门。
