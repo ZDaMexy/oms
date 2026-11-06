@@ -1,6 +1,6 @@
 # Standard Model Skin Omni Until 26：独立作品记录
 
-2026-11-05。使用用户提供的 `D:\LDJ-2019090200`，已正式私下交付 **Standard Model Skin Omni Until 26.v26110502**。本版接入查漏确认的另一族失败演出、Graph 美术与通知，并提供旧式 BGA 外框选项；同一最终包已完成作者与实际 Player 验收。`cm_system.ifs` 等未解决边界继续保留，未恢复“现有 HDD 素材范围全部完成”的笼统结论。当前状态由 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)引用本记录，工具入口为 [IidxSkinAssets](../../tools/IidxSkinAssets/README.md)。
+2026-11-05 制作时使用用户提供的 `D:\LDJ-2019090200`，已正式私下交付 **Standard Model Skin Omni Until 26.v26110502**；原 HDD 的后续可用性取[本地来源现状](#本地来源现状)。本版接入查漏确认的另一族失败演出、Graph 美术与通知，并提供旧式 BGA 外框选项；同一最终包已完成作者与实际 Player 验收。`cm_system.ifs` 等未解决边界继续保留，未恢复“现有 HDD 素材范围全部完成”的笼统结论。当前状态由 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)引用本记录，工具入口为 [IidxSkinAssets](../../tools/IidxSkinAssets/README.md)。
 
 ## 身份与来源
 
@@ -13,6 +13,12 @@
 原图按 XML/UV 解包，AFP/GEO 按真实父子变换、相机、遮罩和循环指令解析；不描摹、重画或从截图替代原始部件。v01 原构建选取 283 个小型 IFS，合计约 197.53 MiB；当时 `1/common.ifs` 被 ifstools 的名称文本解码拒绝，复跑选择文件保留其余 282 个包、4373 张 UV 图。该失败是历史事实，不能再写成整包纹理损坏或无法提取：查漏已按原名称字节恢复全部 266 张图，后续制作链通过显式 `--preserve-raw-texture-names` 形成新的 283 包、4639 张 UV 图完整选中库，保留原名称字节、XML 与实际 entry 对照。旧库、作者收据和成品不覆盖；恢复完整选中库不代表整份 HDD 每张图都被作品使用。
 
 私有来源、PNG 摘要、展开指令及游戏截图分别保存在本机 `E:\OMS-Development\sources\OMS-Standard-Model-Until26-20261105` 与 `E:\OMS-Development\evidence\standard-model-20261105`。源码仓只维护提取算法、公开合同、无原图的测试和来源名称；原图及其私有摘要清单不入 Git。成品仍按 [IIDX 素材作品约束](../subline/P1-A/TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)独立私下使用，不内置或公开分发。
+
+## 本地来源现状
+
+2026-11-06 用户告知已删除 D 盘的 26 HDD，当次实查 `D:\LDJ-2019090200` 不存在；该路径只作为历史来源，不再作为可运行或可重新扫描的本地输入。上述 E 盘来源目录及其 `family1-r1` 提取库、作者源，证据目录，以及 `deliverables/skins/Standard Model Skin Omni Until 26.v26110502` 的 OSK 和配套文件仍在原位置。本次只核目录及文件存在性，没有重跑完整性、构建或游戏验收。
+
+后续工作可使用已保留的提取素材、作者源和证据；如需重新进入 26 原游戏或读取未保留的原始文件，须重新取得该 HDD。已有来源缺口、25～26 加八款 ARC SCORE 的范围和 Lightning 独立边界保持，不因删除本体改写历史验证或宣称素材穷尽。
 
 ## 素材查漏与未采用范围
 

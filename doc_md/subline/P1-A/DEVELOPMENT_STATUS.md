@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-11-05（Standard v02私下交付；Lightning仍停止）
+> 最后核对：2026-11-06（26 HDD已删除，保留资料位置已核；既有产品验证日期保持）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -12,6 +12,8 @@
 Lightning Model Skin Omni Until 33 自动推进仍停止，完整形态未完成。最新私下交付和运行要求取[.v26102902](CHANGELOG.md#2026-10-29omniv52私下交付)，历史 Lighting 文件名保留；范围与未验项取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。
 
 Standard Model Skin Omni Until 26 已私下交付`.v26110502`，接入1族失败、Graph原图、PB标签与过线通知，另有默认关闭的Classic BGA Frame。范围仍为25残留、26及八款ARC SCORE复刻；来源边界与同包验收取[作品记录](../../other/STANDARD_MODEL_SKIN_20261105.md#本轮验证与交付)，不宣称HDD素材穷尽，更早HDD另属下一阶段。
+
+26 原 HDD 已由用户删除；已保留的素材、作者源、证据和成品位置及后续原机测查依赖取[本地来源现状](../../other/STANDARD_MODEL_SKIN_20261105.md#本地来源现状)。
 
 两作品选曲与Results均保留OMS原界面及PageAPI。Lightning的Classic/Header等已有表现与27文字锚点缺口取上方作品记录，旧页面方案取消取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
 
