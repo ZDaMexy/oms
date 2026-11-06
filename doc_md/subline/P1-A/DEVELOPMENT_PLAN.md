@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-11-07（来源退役后的接续边界）
+> 最后核对：2026-11-07（多作品与双平台准备；来源退役及停止边界保持）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -8,6 +8,10 @@
 交付mania/BMS共用公开作者路径的Windows-only、离线优先Skin V1；只读canonical `oms-simple.osk`同包支持两玩法，使用与第三方相同的文件、配置和公开演出能力。当前实现与已完成工程结果只在STATUS维护，不重复开发。
 
 ## IIDX 历代皮肤作品
+
+### 多作品与双平台准备
+
+多作品与双平台的调度、远期分组和首个原型统一见[维护计划](IIDX_SKIN_MAINTENANCE.md)；现有作品的具体缺口继续沿下方接续。
 
 ### Standard Model Skin Omni Until 26
 

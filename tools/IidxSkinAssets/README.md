@@ -2,6 +2,34 @@
 
 读取用户提供的现有 HDD 美术目录，建立来源清单，并在独立非系统盘目录中处理 IFS 副本。原始图、原始 XML / AFP / 几何数据和按 UV 裁切的 PNG 分别保留；`index.html` 可离线搜索、筛选和预览。
 
+## 多作品维护入口
+
+先查[P1-A作品/宿主状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)，再按[接续计划](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md#多作品与双平台准备)确定本次目标。当前两套成品链面向OMS；beatoraja仅完成维护准备，尚无适配器、候选包或运行验收。下表说明现有工具职责，不代表已实现跨平台导出。
+
+| 层次 | 现有入口 | 维护范围 |
+| --- | --- | --- |
+| 来源提取与研究 | `build_library.py`、`build_customization_catalog.py`、`build_fullcombo_catalog.py`、`export_customization_animations.py` | 按显式来源保留IFS/UV/AFP/GEO与中立记录；修改解析时追踪两作品实际消费者，资源身份与原软件行为仍分别核对 |
+| 共用OMS作者生成 | `build_skin.py`、`customization_modules.py` | 节点、模块和材料闭包有OMS合同；Standard通过`standard_components.py`复用其中函数，不能因共享Python代码就认作beatoraja格式 |
+| Standard配方与整合 | `compose_standard_sources.py`、`compose_standard_research.py`、`standard_*.py`、`build_standard_skin.py` | 只消费Standard明确来源及组成库；各来源族的配方与缺口独立 |
+| Lightning配方与整合 | `build_omni_skin.py`、`build_lighting_*.py`、`lighting_*.py` | 使用Lightning独立来源、冻结作者及增量链；旧文件名保留，停止边界沿状态页 |
+| OMS检查与实际游玩 | [SkinAuthoring](../SkinAuthoring/)、[StandardSkinCapture](../StandardSkinCapture/README.md)及各作品既有验证入口 | CLI只证明对应作者合同；实际Player证据须匹配候选和宿主，Standard取景不代签Lightning或beatoraja |
+
+### 共用修改的回归范围
+
+改动前列出实际导入/调用关系和受影响输出；以下为选择验证范围的依据，不是每轮无差别重跑清单。先在新目录生成代表输入的结果，确认来源身份、UV/几何、层序、遮罩和动画差异，再按影响进入宿主验证。
+
+| 改动位置 | 必须考虑的消费者与验证 |
+| --- | --- |
+| 单作品配方、来源别名或素材选择 | 该作品的相关来源族和选项；若同一来源已被两个宿主使用，两边分别验受影响组件 |
+| 共用来源解析或中立动画记录 | Standard与Lightning中实际调用该路径的输入；工具测试与代表导出，输出变化后验证对应宿主。未来beatoraja接入后纳入同一影响检查 |
+| 共用OMS作者生成或客户端皮肤接口 | 两作品的实际消费者；修改客户端时另沿[P1-A验收](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md#验证与兼容)覆盖普通包、canonical及相关BMS/mania路径，不只测试某套Omni |
+| beatoraja适配器或宿主版本 | 正式建立后按其实际皮肤加载、完整游玩、配置与重开矩阵验收；触及共用来源处理时再追加受影响OMS线 |
+| 仅维护文档 | 仓库文档检查与diff/语义复核，不重建皮肤或刷新产品证据 |
+
+现有Python工具测试入口为`python -B -m unittest discover -s tools/IidxSkinAssets/tests -p 'test_*.py'`；按改动先选相关测试，涉及共用路径时扩大到实际消费者。每个新shell先执行仓库根`UseDevelopmentStorage.ps1`，完整包与实际Player仍各自验收。冻结旧包只能证明旧包兼容，不能证明改后的生成器；原输入已不可用或没有匹配宿主时明确记为未验，不借另一个系列通过补签。beatoraja工具与运行命令待真实原型建立后登记，不提前提供不可执行的占位命令。
+
+来源与派生物目录、身份及证据字段沿[多作品维护约束](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#多作品与双平台维护)。现存库原位保留；首个beatoraja输出使用独立宿主目录，与OMS作者输出及成品分开，原图与中立研究尽量只读复用。每次发布只引用自己的同包收据，详细组件缺口仍回写原作品记录。
+
 ## 独立 Standard 时期作品
 
 `build_standard_skin.py` 消费来源明确的 Standard 素材库、研究输出及组件目录，基础名称为 **Standard Model Skin Omni Until 26**。现支持保留的26库，以及由该库与新24库组成的独立来源；后者包含23 copula保留美术、24 SINOBUZ、25 CANNON BALLERS保留美术、26 Rootage及八款26 ARC SCORE复刻，不能称3～26完整原版覆盖。23/25原程序未由这些保留图证明，编号03也不是原版覆盖起点。来源分类、实际程序身份与未识别边界只在[作品记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#2026-11-07-24-来源接入)维护，不以选中清单宣称HDD素材穷尽。
