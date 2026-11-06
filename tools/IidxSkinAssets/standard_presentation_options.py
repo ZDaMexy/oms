@@ -1,9 +1,10 @@
-"""Split qualified 26 cabinet clips at their original lane draw boundaries.
+"""Split qualified Standard cabinet clips at their original lane draw boundaries.
 
 No image is decoded or modified. Each output layer retains the original local
 ancestor states, masks, geometry, camera, frame count and loop. Concatenating
 its visible mesh order must reproduce the original mesh order in every frame.
-The caller applies the native six-step RGB brightness only to lane layers.
+The caller applies six-step RGB brightness only to lane layers. Its native
+26 caller evidence is not attributed to the separately supplied 23/24 art.
 """
 from __future__ import annotations
 
@@ -13,6 +14,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
+from standard_source_catalog import styles as source_styles, layout_family
 
 
 BRIGHTNESS_OPTION = {"id": "lane-brightness", "type": "number", "label": "轨道底纹亮度",
@@ -37,10 +39,71 @@ def stats(clip):
             "maximumLiveNodes": max((len(f["nodes"]) for f in clip["frames"]), default=0)}
 
 
-def lane_roots(source, layout):
+def earlier_lane_roots(source, layout, style):
+    """Resolve the two qualified older styles' unnamed lane GEO placements.
+
+    These movies have no lane game binding. Their package-local sp_lane GEO
+    is a leaf mesh, identified by its complete original placement path and
+    shape name. Do not brighten a neighbouring lane_bg shell or its ancestor.
+    """
+    movie = source["sourceMovie"]
+    if source["package"] != f"gmframe{style:02}" or layout["package"] != source["package"]:
+        raise ValueError("Earlier lane geometry belongs to a different source package")
+    expected = {
+        "1p_frame": {"lane_1p": "sp_lane_1p"},
+        "2p_frame": {"lane_2p": "sp_lane_1p" if style == 23 else "sp_lane_2p"},
+        "center_frame_dp_1p": {"lane_1p": "sp_lane_1p", "lane_2p": "sp_lane_2p"},
+    }
+    if movie not in expected:
+        raise ValueError("Earlier lane geometry is not qualified for this movie")
+    result = {}
+    nodes = {n["id"]: n for n in source["nodes"]}
+    vertices = [{"x": x, "y": y, "z": 0} for x, y in ((0, 0), (292, 0), (0, 484), (292, 484))]
+    for name, texture in expected[movie].items():
+        draws = [d for d in layout["draws"] if d["texture"] == texture]
+        if len(draws) != 1:
+            raise ValueError("Earlier lane requires one exact package-local GEO draw")
+        draw, = draws
+        asset = draw["asset"]
+        if (asset["package"] != source["package"] or asset["name"] != texture
+                or (asset["width"], asset["height"]) != (292, 484)
+                or draw["source_vertices"] != vertices or draw["game_bindings"]
+                or len(draw["draw_params"]) != 1
+                or draw["draw_params"][0]["region"] != texture
+                or draw["draw_params"][0]["vertexes"] != [0, 1, 2, 2, 1, 3]):
+            raise ValueError("Earlier lane GEO is not the qualified original lane surface")
+        shape = draw["geometry"].split(", ")[0]
+        candidates = []
+        for n in source["nodes"]:
+            if n["source"] != shape or n["geometry"] is None or n["kind"] != "mesh":
+                continue
+            ancestry, current = [], n
+            while True:
+                ancestry.append({"depth": current["depth"], "tag_id": current["sourceTag"]})
+                if current["parent"] < 0:
+                    break
+                if current["parent"] >= current["id"]:
+                    raise ValueError("Earlier lane source ancestry is not in traversal order")
+                current = nodes[current["parent"]]
+            path = [{"depth": item["depth"], "tag_id": item["tag_id"]} for item in draw["layer_path"]]
+            if ancestry[::-1] == path:
+                candidates.append(n["id"])
+        if len(candidates) != 1 or any(n["parent"] == candidates[0] for n in source["nodes"]):
+            raise ValueError("Earlier lane GEO must resolve to one original leaf mesh")
+        result[name] = candidates[0]
+    if len(set(result.values())) != len(result):
+        raise ValueError("Earlier lane placements must be distinct")
+    return result
+
+
+def lane_roots(source, layout, *, style=None):
     """Identify original named placements, never texture resemblance or bounds."""
     result = {}
     hooks = [h for h in layout["dynamic_instances"] if h["name"] in ("lane_1p", "lane_2p")]
+    if style in (23, 24):
+        if hooks:
+            raise ValueError("Earlier lane source unexpectedly contains named lane placements")
+        return earlier_lane_roots(source, layout, style)
     for hook in hooks:
         candidates = [n["id"] for n in source["nodes"] if
                       (n["sourceTag"], n["sourceObject"], n["depth"]) ==
@@ -178,31 +241,37 @@ def export_lane_layers(library, research, style, movie, output):
     library = Path(library).resolve(strict=True)
     research = Path(research).resolve(strict=True)
     output = Path(output).resolve()
-    if style not in FRAME_IDS or not re.fullmatch(r"[a-z0-9_]+", movie):
+    inventory = read(library / "library.json")
+    if style not in source_styles(inventory) or not re.fullmatch(r"[a-z0-9_]+", movie):
         raise ValueError("Use a qualified Standard movie/style")
     if output.is_relative_to(library) or output.is_relative_to(research):
         raise ValueError("Layer output must not modify existing source research")
-    inventory = read(library / "library.json")
     if inventory["status"] != "complete" or inventory["sourceMetadataUnchanged"] is not True:
-        raise ValueError("Use the independently verified 26 library")
+        raise ValueError("Use the independently verified Standard library")
     cabinet = research / f"gmframe{style:02}"
     reference = read(cabinet / "skin-reference-map.json")
     folder = cabinet / "recorded" / movie
     original = read(folder / "export.json")
-    if (reference["package"] != f"gmframe{style:02}" or reference["common_family"] != "0"
+    if (reference["package"] != f"gmframe{style:02}" or reference["common_family"] != layout_family(style)
             or original["source"]["package"] != reference["package"] or original["source"]["movie"] != movie):
-        raise ValueError("Frame export does not match the selected 26 source")
+        raise ValueError("Frame export does not match the selected Standard source")
     source = read(folder / "source-root.json")
-    roots = lane_roots(source, reference["layouts"][movie])
+    roots = lane_roots(source, reference["layouts"][movie], style=style)
     destination = output / f"gmframe{style:02}" / movie
     destination.mkdir(parents=True, exist_ok=False)
     result = {"contract": "oms-standard-lane-layers.v1", "source": original["source"],
               "options": [BRIGHTNESS_OPTION] if roots else [],
               "receipt": {"sourceExport": str(folder / "export.json"), "sourceExportSHA256": digest(folder / "export.json"),
                           "sourceRootSHA256": digest(folder / "source-root.json"), "laneRoots": roots,
-                          "nativeColourCallerRVA": "0x349fb0", "nativeMultiplierRVA": "0x16ada0",
                           "pngBytesPreserved": True, "perFrameDrawOrderPreserved": True,
                           "limits": "Source layers only; final public CLI and actual Player budgets/visuals are separate checks."}}
+    if style in (23, 24):
+        result["receipt"]["laneIdentification"] = "Exact package-local sp_lane GEO and full source placement path"
+        result["receipt"]["brightnessEvidence"] = (
+            "23/24 source mesh separation; existing OMS six-step brightness author option. "
+            "The 26 native colour caller and multiplier RVAs are not evidence for these earlier sources.")
+    else:
+        result["receipt"].update(nativeColourCallerRVA="0x349fb0", nativeMultiplierRVA="0x16ada0")
     for mode in ("motion", "steady"):
         branch = original[mode]
         clip_file = folder / f"{mode}.clip.json.br"
@@ -242,7 +311,7 @@ def export_lane_layers(library, research, style, movie, output):
                     continue
                 file = Path(item["source"]).resolve(strict=True)
                 if not file.is_relative_to(library) or digest(file) != item["sha256"]:
-                    raise ValueError("Original layer texture leaves verified 26 source or has changed")
+                    raise ValueError("Original layer texture leaves verified Standard source or has changed")
                 files.append(deepcopy(item))
             if {f["path"] for f in files} != paths:
                 raise ValueError("Source layer file closure is incomplete")

@@ -158,6 +158,7 @@ class StandardGraphNotificationTests(unittest.TestCase):
         class SyntheticExporter:
             def __init__(self, library, output, bemani_root, image_tools):
                 self.output, self.files, self.source_library_sha = output, {}, "synthetic-library"
+                self.source_families = ("0", "1")
                 self.tools = source_fixture()[2]
                 self.calls = []
 

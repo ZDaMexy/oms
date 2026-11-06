@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-11-06（26 HDD删除后的来源依赖；更早缺失HDD仍属下一阶段）
+> 最后核对：2026-11-07（24来源交付）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -11,7 +11,7 @@
 
 ### Standard Model Skin Omni Until 26
 
-后续以[来源与交付记录](../../other/STANDARD_MODEL_SKIN_20261105.md)为依据，针对实际反馈或新增来源复核`cm_system.ifs`未识别、`achieve_pass`触发未证及Stage/EQ/Camera等实际状态边界；不虚构行为或宣称HDD素材穷尽。26 原 HDD 已删除，继续使用保留资料；原机复测或未保留文件的读取须按[来源现状](../../other/STANDARD_MODEL_SKIN_20261105.md#本地来源现状)重新取得 HDD。更早常规框体等待对应HDD；与Lightning独立，禁止computer use。
+按[来源与交付记录](../../other/STANDARD_MODEL_SKIN_20261105.md)中的缺口、实际反馈或新增HDD推进。24可测查，23/25仅保留美术，26原机复测须重新取得本体；更早代数按真实来源确认。未知容器、触发资格与无OMS状态项分别维护，不以ARC SCORE编号扩代。两作品独立，禁止computer use。
 
 ### Lightning Model Skin Omni Until 33（停止自动推进）
 
@@ -22,7 +22,7 @@
 恢复后按[游玩Start复核](../../other/OMNI_GAMEPLAY_CONTROLS_20261025.md)及[设置复核](../../other/OMNI_START_OPTIONS_20261024.md)在正常窗口重编、重启并导入最新交付，复核读谱/挡板、Graph和真实判定时间。交互与原版资格沿原记录；静态素材、有限运动和隔离Player不代签原机、前台性能或设备。保留Reset、epoch单调、真人PG早晚及模式/键数的显式值和恢复语义。
 
 1. v52交付与核验状态只取[STATUS](DEVELOPMENT_STATUS.md)，原失败保留在[收尾记录](CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)。若恢复，先明确可见产出，没有新改动或失败时不重做已过门。已有[R13内部精度](CHANGELOG.md#2026-10-29原版独立bpm与内部速度核对)/[R15有限运动](CHANGELOG.md#2026-10-29原版demo自然运动标尺)不外推完整原版等价；模式切换/变速运动、整数挡板、DP字体/clip及27真实文字绑定仍缺可靠来源。原版复测直接使用现有本体HDD，必要修改按[素材约束](TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)只备份涉及文件，不重建完整副本；原timer/start配置与证据保留，[读谱合同](TECHNICAL_CONSTRAINTS.md#既有产品面硬约束未被-skin-v1-取代)保持。
-2. 26 HDD已由用户提供，归上方独立Standard作品；不得合并为Lightning的Game Frame选项。更早阶段仍只按实际框体来源推进，版本标识不能代替整代来源，不要求预先下载全套；27～33及BPL已有结果从STATUS读取，不重复登记为待开发。
+2. 26与更早来源归上方独立Standard作品，不合并为Lightning的Game Frame。来源资格及依赖取其作品记录；27～33及BPL已完成项从STATUS读取，不重复登记。
 3. 已核源结构及已接入组件只取STATUS。进一步原版校准须取得可实际操作的CUSTOM入口、同步游戏/渲染时钟与命中原点；新原机demo已证PGREAT内部blue/green/pink完整配对，现有截图接口仍无法确定精确周期与起相，当前100ms分相明确为OMS作者适配。lane345双循环来源已核，原机parent-loop仍待可靠运行证据。继续保留Hazard、中心平移、判定锚点、数字/视频布局、长条脉冲/松手色及完整FC资格的原机缺口；31背景底693px与红线/键灯716/728px的关系、32纵缩亦不能凭单个源占位升为运行事实。各代截图不互相代签；来源不足按“版本 / 组件 / 已查来源 / 缺口”登记。
 4. 通用PageAPI和内部数据/操作证据保留，不把它们当页面交付或用户认可。未来只有新的可靠拟真路线才重评Omni两页；当前方案取消不代表技术永久不可能，也不构成恢复gameplay自动推进或导入整个IIDX运行时的授权。
 

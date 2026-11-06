@@ -1,9 +1,9 @@
-"""Original IIDX26 feedback typography and public OMS display contributions.
+"""Source-font typography and public OMS feedback contributions.
 
-The external font is the 26 software's DF Heisei Gothic W7 collection. Glyphs
-are rasterised by a private, memory-only GDI font/DC; no application or game is
-controlled. The source renderer registers 22px font 2 and 16px font 5, then uses
-12x20 and 8x18 fixed cells. This exporter does not claim identical GPU sampling.
+Glyphs from the supplied DF Heisei Gothic W7 collection are rasterised by a
+private, memory-only GDI font/DC. The audited 26 renderer uses 22px font 2 and
+16px font 5 with 12x20 and 8x18 fixed cells. Earlier source fonts retain these
+OMS author metrics; their executable font IDs and GPU sampling are not inferred.
 
 ``build_feedback`` returns manifest/scene arrays, files and material targets.
 Use the caller's existing Global ``decoration`` information marker and replace
@@ -23,6 +23,7 @@ from urllib.parse import unquote
 
 FRAME_IDS = frozenset((3, 8, 12, 14, 16, 17, 19, 21, 25, 26))
 PACKAGE = "contents/data/graphic/0/gameparts.ifs"
+from standard_source_catalog import layout_family, styles as source_styles, centre_translation
 FONT_FAMILY = "ＤＦ平成ゴシック体W7"
 LOGICAL = 768 / 720
 DIGITS = "0123456789.+-x%"
@@ -186,7 +187,7 @@ def rasterize_source_text(font_path, text, *, cache_height=22, cell=(12, 20)):
 
 
 def prepare_feedback_font(font_path, output):
-    """Export the shared 26 digit cells and literal label sprites.
+    """Rasterize the supplied source font using the qualified author cell sizes.
 
     ``fonts['normal'/'small']`` are public bitmap-font IDs. ``labels`` maps
     ``(size, literal)`` to a texture resource plus its original fixed-cell size.
@@ -227,7 +228,8 @@ def prepare_feedback_font(font_path, output):
         result["fonts"][size] = identifier
         result["bitmapFonts"].append({"id": identifier, "lineHeight": cell[1], "glyphs": glyphs})
     result["receipt"] = {"sourceFont": str(font_path), "sourceFontSHA256": font_sha, "face": FONT_FAMILY,
-        "source": "IIDX26 native font IDs2/5, original TTC face0, caches22/16, fixed cells12x20/8x18",
+        "source": "Supplied original TTC face0; exact input path and digest above",
+        "metricsBasis": "IIDX26 audited native font IDs2/5, caches22/16, fixed cells12x20/8x18; retained as OMS author layout for earlier artwork, not an assertion about the24 executable font IDs or raster cache",
         "rasterizer": "Windows memory GDI GetGlyphOutlineW GGO_GRAY8_BITMAP; source outlines, fixed-cell metric projection",
         "limits": "No claim of byte-identical native GPU filtering, screen transform, or final executable glyph cache."}
     return result
@@ -240,7 +242,7 @@ def source_hook(reference, centre_movie, layout):
     if len(draws) != 1:
         raise ValueError("Selected 26 centre movie must have one original JUDGE hook")
     draw = draws[0]
-    if draw["asset"]["package"] != "0/gameparts" or (draw["asset"]["width"], draw["asset"]["height"]) != (111, 163):
+    if draw["asset"]["package"] != reference["common_family"] + "/gameparts" or (draw["asset"]["width"], draw["asset"]["height"]) != (111, 163):
         raise ValueError("JUDGE hook is not the independently qualified 26 source")
     if any(abs(draw["matrix"][k] - v) > 1e-9 for k, v in (("a", 1), ("b", 0), ("c", 0), ("d", 1))):
         raise ValueError("Original JUDGE hook needs a non-translational projection; do not flatten it to bounds")
@@ -251,16 +253,16 @@ def build_feedback(library, frame_map, *, style, layout, centre_movie, centre_dx
                    judgement_position_option="judgement-position", prepared_font=None):
     library, frame_map = Path(library).resolve(strict=True), Path(frame_map).resolve(strict=True)
     inventory, reference = read(library / "library.json"), read(frame_map)
-    if style not in FRAME_IDS or layout not in ("p1", "p2", "dp"):
+    if style not in source_styles(inventory) or layout not in ("p1", "p2", "dp"):
         raise ValueError("Feedback requires a qualified Standard cabinet/layout")
     if inventory["status"] != "complete" or inventory["sourceMetadataUnchanged"] is not True:
         raise ValueError("Feedback requires the complete verified 26 library")
-    if (reference["package"] != f"gmframe{style:02}" or reference["common_family"] != "0"
+    if (reference["package"] != f"gmframe{style:02}" or reference["common_family"] != layout_family(style)
             or reference["stage"] != {"width": 1280, "height": 720, "fps": 60.0}):
         raise ValueError("Feedback reference does not belong to this 26 cabinet")
     if centre_movie not in reference["layouts"]:
         raise ValueError("Missing selected original centre movie")
-    if centre_dx not in (-36, 0, 36):
+    if centre_dx != centre_translation(style, layout, centre_movie.startswith("center_frame_wide_")):
         raise ValueError("Unqualified caller centre translation")
     if not re.fullmatch(r"[a-z][a-z0-9-]*", judgement_position_option):
         raise ValueError("Judgement position must name the shared public choice option")
@@ -277,7 +279,8 @@ def build_feedback(library, frame_map, *, style, layout, centre_movie, centre_dx
     result["options"].extend(OPTIONS)
     prefix = f"standard.feedback.f{style:02}.{layout}." + centre_movie.replace("_", "-")
     hook = source_hook(reference, centre_movie, layout)
-    row = next(r for r in inventory["textures"] if r["package"] == PACKAGE and r["name"] == "judge_waku.png")
+    package = f"contents/data/graphic/{layout_family(style)}/gameparts.ifs"
+    row = next(r for r in inventory["textures"] if r["package"] == package and r["name"] == "judge_waku.png")
     path = contained(library, row["sprite"])
     if digest(path) != row["sha256"] or row["sha256"] != hook["asset"]["sha256"]:
         raise ValueError("JUDGE original PNG and source geometry inventory disagree")
@@ -379,12 +382,8 @@ def build_feedback(library, frame_map, *, style, layout, centre_movie, centre_dx
         if group not in ((0, 1) if layout == "dp" else (0,)):
             raise ValueError("Unexpected Stage group in feedback context")
         side = group if layout == "dp" else int(layout == "p2")
-        movie = "center_frame_dp_1p" if layout == "dp" else ("2p_frame" if side else "1p_frame")
-        field_draws = [d for d in reference["layouts"][movie]["draws"] if f"lane_{side + 1}p" in d["game_bindings"]]
-        if not field_draws:
-            raise ValueError("Missing native lane area for exact Stage timing projection")
-        field = {key: (min if key in ("left", "top") else max)(d["bounds"][key] for d in field_draws)
-                 for key in ("left", "top", "right", "bottom")}
+        from standard_lane_geometry import source_lane_regions
+        field = source_lane_regions(reference, style, layout)[group]
         fw, fh = field["right"] - field["left"], field["bottom"] - field["top"]
         identity = prefix + f".timing.g{group}"
         material = f"standard/markers/timing-f{style:02}-{layout}-g{group}"

@@ -50,8 +50,8 @@ def digest(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def inventory(game_root):
-    graphic = game_root / "contents/data/graphic"
+def inventory(game_root, graphic_root="contents/data/graphic"):
+    graphic = game_root / graphic_root
     roots = [graphic]
     mods = game_root / "contents/data_mods"
     if mods.is_dir():
@@ -271,9 +271,10 @@ def build(args, parser):
         parser.error("Output already exists; existing libraries are never overwritten.")
     if not output.parent.is_dir():
         parser.error("The output parent directory must already exist.")
-    graphic = game_root / "contents/data/graphic"
+    graphic_root = getattr(args, "graphic_root", "contents/data/graphic")
+    graphic = game_root / graphic_root
     if not graphic.is_dir():
-        parser.error("This selection requires a contents/data/graphic game layout.")
+        parser.error(f"The selected graphic root does not exist: {graphic_root}")
     if args.ifstools_path:
         sys.path.insert(0, str(args.ifstools_path.resolve(strict=True)))
     from ifstools import IFS
@@ -289,10 +290,10 @@ def build(args, parser):
     for relative in selection:
         source = (game_root / relative).resolve(strict=True)
         if not source.is_relative_to(graphic.resolve()) or source.suffix.lower() != ".ifs":
-            parser.error(f"Selected input must be an IFS inside contents/data/graphic: {relative}")
+            parser.error(f"Selected input must be an IFS inside {graphic_root}: {relative}")
         sources.append(source)
 
-    before = inventory(game_root)
+    before = inventory(game_root, graphic_root)
     selected_bytes = sum(p.stat().st_size for p in sources)
     # Copies, two image representations and decoder work need working headroom.
     if shutil.disk_usage(output.parent).free < selected_bytes * 4 + 256 * 1024 * 1024:
@@ -357,12 +358,12 @@ def build(args, parser):
         save_json(output / "packages.json", packages)
         print(f"{relative.as_posix()}: {len(sprite_files)} verified UV sprites", flush=True)
 
-    if inventory(game_root) != before:
+    if inventory(game_root, graphic_root) != before:
         raise RuntimeError("Graphic source file names, sizes or last-write times changed")
     hashes = Counter(t["sha256"] for t in textures)
     result = {"createdAt": datetime.now(timezone(timedelta(hours=8))).isoformat(),
               "tool": "ifstools", "toolVersion": importlib.metadata.version("ifstools"),
-              "status": "complete", "sourceMetadataUnchanged": True,
+              "status": "complete", "sourceMetadataUnchanged": True, "graphicRoot": graphic_root,
               "sourceFileCount": len(before), "packages": packages, "textures": textures,
               "uniqueSpriteContents": len(hashes),
               "note": "Filename-based version candidates; extraction does not establish complete skin coverage."}
@@ -379,6 +380,8 @@ def build(args, parser):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--game-root", type=Path, required=True)
+    parser.add_argument("--graphic-root", choices=("contents/data/graphic", "data/graphic"),
+                        default="contents/data/graphic", help="Actual source layout; does not rename archives or infer game versions")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--selection", type=Path, default=Path(__file__).with_name("selection-33-hdd.json"))
     parser.add_argument("--ifstools-path", type=Path)

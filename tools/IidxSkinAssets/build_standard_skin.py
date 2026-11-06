@@ -15,6 +15,8 @@ from pathlib import Path
 import shutil
 import sys
 from urllib.parse import unquote
+from standard_source_catalog import (styles as source_styles, families as source_families,
+                                     layout_family, presentation_family, art_identity, centre_translation)
 
 sys.dont_write_bytecode = True
 
@@ -26,6 +28,7 @@ NAME = 'Standard Model Skin Omni Until 26'
 FRAMES = {3: '3rd style', 8: '8th style', 12: 'HAPPY SKY', 14: 'GOLD',
           16: 'EMPRESS', 17: 'SIRIUS', 19: 'Lincle', 21: 'SPADA',
           25: 'CANNON BALLERS', 26: 'Rootage'}
+EARLIER_FRAME_LABELS = {23: 'copula', 24: 'SINOBUZ'}
 CANVAS = (1280, 720)
 LOGICAL = 768 / 720
 MANIFEST = 'oms-gameplay-skin-manifest.v1'
@@ -182,6 +185,8 @@ class Package:
     def __init__(self, library, output, image_tools):
         self.library, self.output = library.resolve(strict=True), output.resolve()
         data = read(self.library / 'library.json')
+        self.source_data = data
+        self.frame_styles = source_styles(data)
         if data['status'] != 'complete' or data['sourceMetadataUnchanged'] is not True:
             raise ValueError('Use the complete independently verified source library')
         if self.output.exists() or self.output.drive.casefold() == 'c:':
@@ -224,7 +229,10 @@ class Package:
 
     def asset(self, package, name):
         row = self.index[package, name]
-        relative = f"standard/art/{row['sha256']}.png"
+        # Direct sprite declarations and recorded frame exports own different IDs.
+        # copula shares one exact PNG between those owners; keep their file paths
+        # separate so a selected manifest never declares two IDs for one path.
+        relative = f"standard/direct-art/{row['sha256']}.png"
         self.copy(contained(self.library, row['sprite']), relative, row['sha256'])
         self.sources[package, name] = {'package': package, 'name': name, 'source': row['sprite'],
                                      'path': relative, 'sha256': row['sha256'],
@@ -237,7 +245,7 @@ class Package:
 class Frame:
     def __init__(self, owner, research, style, layout, *, wide=False):
         self.owner, self.research, self.style, self.layout = owner, research, style, layout
-        self.common_family = '1' if style == 25 else '0'
+        self.common_family = presentation_family(style)
         if wide and layout == 'dp':
             raise ValueError('The evidenced wide movies belong to single-player layouts')
         self.wide = wide
@@ -252,10 +260,11 @@ class Frame:
         self.side = 'dp_frame_1p' if self.dp else '2p_frame' if self.p2 else '1p_frame'
         self.centre = ('center_frame_dp_1p' if self.dp else
                        'center_frame_wide_' + self.player if wide else 'center_frame_sp')
-        # Rootage's official Graph screenshot aligns its narrow centre at +36
-        # original pixels; the right-side counterpart is an explicit mirror
-        # adaptation. The directly observed wide movies use zero translation.
-        self.dx = 0 if self.dp or wide else -36 if self.p2 else 36
+        # SINOBUZ's ordinary SP/Graph captures prove +35/-35 against independent
+        # centre and side-frame anchors. copula retained art uses that 24 caller
+        # as an explicit adaptation. Existing 26-based themes retain their +36
+        # placement and mirrored counterpart. Wide and DP use their source movies.
+        self.dx = centre_translation(style, layout, wide)
         self.scene = document(self.prefix + '.root')
         self.resources, self.fonts, self.animations = {}, {}, {}
         self.ini, self.info, self.evidence = [], [], []
@@ -329,13 +338,13 @@ class Frame:
         return result
 
     def field_rects(self):
-        movie = self.centre if self.dp else self.side
-        values = []
-        for player in (('1p', '2p') if self.dp else (self.player,)):
-            bounds = union(self.draws('lane_' + player, movie))
-            if abs(bounds['right'] - bounds['left'] - 292) > 0.01 or abs(bounds['bottom'] - 484) > 0.01:
-                raise ValueError('Unqualified source lane footprint')
-            values.append(bounds)
+        from standard_lane_geometry import source_lane_regions
+        values = source_lane_regions(self.map, self.style, self.layout)
+        if self.style in (23, 24):
+            self.evidence.append({'earlierLaneDomain': {
+                'sourceTextureSize': [292, 484],
+                'omsGameplayDomain': values,
+                'adaptation': 'The complete source-local lane height is anchored at the original bottom484. The24 art retains its original vertical compression. Its audited native note scissor is482px; the OMS author retains its existing484px component convention and hit offset. This is not historical native note-coordinate parity.'}})
         return values
 
     def profiles(self):
@@ -375,7 +384,7 @@ class Frame:
                                'presentation': 'any' if self.dp else self.layout, 'stages': output_stages,
                                'keyAreaHeight': 80/720, 'gaugeHeight': 74/720, 'hitPosition': 1,
                                'modsRect': mods_rect}
-                if ruleset == 'bms':
+                if ruleset == 'bms' and layout_family(self.style) == '0':
                     profile['normalSpeedPreviewRect'] = [{'p1':304, 'p2':942, 'dp':686}[self.layout]/1280, 0, 34/1280, 477/720]
                 result.append(profile)
         return result
@@ -441,7 +450,8 @@ class Frame:
             children.extend(variants)
         self.scene['preparationDuration'] = preparation
         from standard_reading import add_preview_background
-        add_preview_background(self, children)
+        if layout_family(self.style) == '0':
+            add_preview_background(self, children)
         return self.template('background', node(self.prefix + '.background', children=children), 'stage.background')
 
     def apertures(self):
@@ -480,7 +490,7 @@ class Frame:
     def numbers(self):
         digits, h = self.font('numbers', self.key, {str(i):f'playm_sco{i:02}' for i in range(10)}, 26)
         bpm, bh = self.font('bpm', self.key, {str(i):f'playm_bpm{i:02}' for i in range(10)}, 26)
-        small, sh = self.font('small-bpm', '0/gameparts', {str(i):f'playm_bpm_m{i:02}' for i in range(10)}, 17)
+        small, sh = self.font('small-bpm', layout_family(self.style) + '/gameparts', {str(i):f'playm_bpm_m{i:02}' for i in range(10)}, 17)
         for name, source, hook, font, height, width in (
                 ('score','score.value',f'score_{self.player}_0',digits,h,160),
                 ('combo','combo.maximum',f'maxcombo_{self.player}_0',digits,h,112),
@@ -548,7 +558,7 @@ class Frame:
     def gauge(self):
         d=self.draws('gg_bar_'+self.player,self.side)[-1]
         resource,_=self.asset(d['asset']['package'],d['texture'])
-        modes={key:self.asset('0/gameparts',name)[0] for key,name in
+        modes={key:self.asset(layout_family(self.style) + '/gameparts',name)[0] for key,name in
                (('hard','playm_gauge_hard'),('ex-hard','playm_gauge_exhard'),
                 ('assist-easy','playm_gauge_aeasy_'+self.player))}
         bounds=d['bounds'];prefix=self.prefix+'.gauge'
@@ -792,9 +802,15 @@ class Frame:
     def reading(self):
         from standard_reading import add_reading, add_arrival
         from standard_cover_readout import add_cover_readouts
-        add_reading(self, self.owner.reading_ready, self.owner.feedback_font, self.owner.source_font)
+        add_reading(self, self.owner.reading_families[layout_family(self.style)], self.owner.feedback_font, self.owner.source_font)
         add_cover_readouts(self, self.owner.feedback_font)
-        add_arrival(self)
+        if layout_family(self.style) == '0':
+            add_arrival(self)
+        else:
+            self.evidence.append({'readingSourceCapabilities': {
+                'dedicatedNormalSpeedPreviewArt': False, 'firstRowCueArt': False,
+                'nativePreStartLanePreview': 'Existing OMS fallback; not a source-game capability claim.',
+                'reason': 'No corresponding artwork or movies in the readable 24 HDD graphic archives; no 26 artwork substituted.'}})
 
 
 def build(args):
@@ -808,8 +824,8 @@ def build(args):
     reading = read(args.reading_assets / 'reading.json')
     if (reading.get('contract') != 'oms-standard-reading-assets.v1'
             or reading.get('librarySHA256') != sha(owner.library / 'library.json')):
-        raise ValueError('READY export must belong to this exact independent26 library')
-    owner.reading_ready = reading['clips']
+        raise ValueError('READY export must belong to this exact Standard source library')
+    owner.reading_families = reading.get('families', {'0': reading['clips']})
     for row in reading['files']:
         owner.copy(contained(args.reading_assets.resolve(), row['path']), row['path'], row['sha256'])
     gauge = read(args.gauge_assets / 'gauge-feedback.json')
@@ -819,12 +835,12 @@ def build(args):
                                         (failure, 'oms-standard-failure.v2', args.failure_assets),
                                         (notifications, 'oms-standard-graph-notifications.v1', args.graph_notifications)):
         if catalog.get('contract') != contract or catalog.get('librarySHA256') != sha(owner.library / 'library.json'):
-            raise ValueError('Stage feedback must belong to this exact independent26 library')
+            raise ValueError('Stage feedback must belong to this exact Standard source library')
         for row in catalog['files']:
             owner.copy(contained(directory.resolve(), row['path']), row['path'], row['sha256'])
     owner.gauge_feedback = gauge['frames']
-    if set(failure['families']) != {'0', '1'}:
-        raise ValueError('Failure export must retain both qualified source families')
+    if set(failure['families']) != set(source_families(owner.source_data)):
+        raise ValueError('Failure export must retain every qualified source family')
     owner.failure_families = failure['families']
     import brotli
     for layouts in owner.gauge_feedback.values():
@@ -845,10 +861,10 @@ def build(args):
             clip['initial']['animation'] = animation['id']
     choices=[]
     owner.bga_contexts=[]
-    for style in FRAMES:
+    for style in owner.frame_styles:
         parts={layout:Frame(owner,args.research/f'gmframe{style:02}',style,layout).build() for layout in ('p1','p2','dp')}
         wide={layout:Frame(owner,args.research/f'gmframe{style:02}',style,layout,wide=True).build() for layout in ('p1','p2')}
-        choice={'value':f'iidx{style:02}','label':f'{style:02} {FRAMES[style]}',**parts['dp'],
+        choice={'value':f'iidx{style:02}','label':f'{style:02} {FRAMES.get(style, EARLIER_FRAME_LABELS.get(style))}',**parts['dp'],
                 'variants':[{'when':{'layout':layout,'graph-visible':shown},**(parts if shown else wide)[layout]}
                             for layout in ('p1','p2') for shown in (True,False)]}
         reference=read(args.research/f'gmframe{style:02}'/'skin-reference-map.json')
@@ -866,8 +882,8 @@ def build(args):
         choice['preview']=relative
         choices.append(choice)
     components=read(args.components/'modules.json')
-    if components['source']['artIdentity']!='IIDX26-only' or components['source']['librarySHA256']!=sha(owner.library/'library.json'):
-        raise ValueError('Component exports must belong to this exact independent IIDX26 library')
+    if components['source']['artIdentity']!=art_identity(owner.source_data) or components['source']['librarySHA256']!=sha(owner.library/'library.json'):
+        raise ValueError('Component exports must belong to this exact Standard source library')
     files={row['path']:(args.components.resolve(),row) for row in components['files']}
     for override in args.component_overrides:
         replacement=read(override/'modules.json')
@@ -916,7 +932,7 @@ def build(args):
         {'id':'frame','label':'Game Frame','default':'iidx26','choices':choices}, graph_targets['module'], bga['module'], *components['modules']]})
     (owner.output/'skin.ini').write_text(f'[General]\nName: {NAME}\nAuthor: OMS local author\nVersion: 2.7\n',encoding='utf-8')
     write(owner.output.with_name(owner.output.name+'.source-receipt.json'),{'name':NAME,'status':'generated-pending-author-cli-and-player',
-        'frames':[f'iidx{x:02}' for x in FRAMES],'sourceLibrary':str(owner.library),'sourceExclusions':owner.exclusions,
+        'frames':[f'iidx{x:02}' for x in owner.frame_styles],'sourceLibrary':str(owner.library),'sourceExclusions':owner.exclusions,
         'frameReceipts':owner.receipts,'frameSourceAssets':list(owner.sources.values()),
         'componentsSource':str(args.components),'componentOverrides':[str(p) for p in args.component_overrides],
         'graphTargets':graph_targets['receipts'],

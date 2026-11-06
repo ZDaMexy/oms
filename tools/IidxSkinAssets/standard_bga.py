@@ -18,12 +18,19 @@ from urllib.parse import unquote
 import xml.etree.ElementTree as ET
 
 from standard_graph import FRAME_IDS, digest, node
+from standard_source_catalog import (styles as source_styles, families as source_families,
+                                     metadata, presentation_family, centre_translation)
 
 CONTRACT = "oms-standard-bga-source.v1"
 CANVAS = (1280, 720)
 CENTRES = ("center_frame_sp", "center_frame_wide_1p", "center_frame_wide_2p", "center_frame_2pp",
            "center_frame_dp_1p", "center_frame_dp_2p")
 COVERS = {"anime_cover": (800, 720), "anime_cover2": (932, 720)}
+COPULA_COVERS = {"anime_cover": (800, 586), "anime_cover2": (938, 720)}
+
+
+def cover_sizes(family):
+    return COPULA_COVERS if family == "s23" else COVERS
 
 
 def read(path):
@@ -44,10 +51,10 @@ def source_metadata(library):
     packages = {row["source"]: row for row in data["packages"]}
     selected_frames = {int(Path(source).stem[7:]) for source in packages
                        if Path(source).stem.startswith("gmframe") and Path(source).stem[7:].isdigit()}
-    if selected_frames != FRAME_IDS:
+    if selected_frames != set(source_styles(data)):
         raise ValueError("BGA requires the independent ten-frame IIDX26 selection")
-    required = [f"contents/data/graphic/gmframe{style:02}.ifs" for style in sorted(FRAME_IDS)]
-    required += [f"contents/data/graphic/{family}/gameparts.ifs" for family in ("0", "1")]
+    required = [f"contents/data/graphic/gmframe{style:02}.ifs" for style in source_styles(data)]
+    required += [f"contents/data/graphic/{family}/gameparts.ifs" for family in source_families(data)]
     for source in required:
         if source not in packages:
             raise ValueError("BGA source family is absent: " + source)
@@ -56,7 +63,7 @@ def source_metadata(library):
     return data, required
 
 
-def cover_frame_state(root, source):
+def cover_frame_state(root, source, *, sizes=COVERS):
     """Keep original vertices/UVs and all ancestor state in the comparison."""
     from build_fullcombo_catalog import world_matrix
 
@@ -80,7 +87,7 @@ def cover_frame_state(root, source):
             texture = draw.get("unresolvedTexture")
             if texture not in COVERS:
                 raise ValueError("BGA cover references an unqualified source texture")
-            width, height = COVERS[texture]
+            width, height = sizes[texture]
             if (geometry["vertices"] != [[0, 0, 0], [width, 0, 0], [0, height, 0], [width, height, 0]]
                     or geometry["atlasUV"] != [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0]]
                     or draw["indices"] != [0, 1, 2, 2, 1, 3] or not draw["flags"] & 0x40
@@ -168,7 +175,7 @@ def prepare_bga_geometry(library, bemani_root, image_tools):
     for name in required:
         source_files["source-copies/" + name] = digest(inside(library, "source-copies/" + name))
     rows = []
-    for style in sorted(FRAME_IDS):
+    for style in source_styles(data):
         package = f"gmframe{style:02}"
         source = source_reader._package(package)
         source_files.update(source["hashes"])
@@ -184,7 +191,8 @@ def prepare_bga_geometry(library, bemani_root, image_tools):
             if not cover_names:
                 rows.append(row)
                 continue
-            if len(cover_names) != 1 or len(movie.frames) != 420 or movie.fps != 60:
+            expected_frames = 300 if style in (23, 24) else 420
+            if len(cover_names) != 1 or len(movie.frames) != expected_frames or movie.fps != 60:
                 raise ValueError("Original BGA cover frame count or hook set changed")
             _, flow_tags = cabinet_loop_control(movie)
 
@@ -222,17 +230,17 @@ def prepare_bga_geometry(library, bemani_root, image_tools):
                     source["shapes"], source["mapping"], source["filters"])
             if log.getvalue().strip():
                 raise ValueError("BGA cover source evaluation produced unsupported diagnostics: " + log.getvalue())
-            row.update(cover_frame_state(root, source))
+            row.update(cover_frame_state(root, source, sizes=cover_sizes(presentation_family(style))))
             row["constantSourceFrames"] = len(movie.frames)
             rows.append(row)
     textures = []
-    for family in ("0", "1"):
+    for family in source_families(data):
         xml_path = f"packages/contents/data/graphic/{family}/gameparts/raw/tex/texturelist.xml"
         source_files[xml_path] = digest(inside(library, xml_path))
         samplers = {image.attrib["name"]: (atlas.attrib["mag_filter"], atlas.attrib["min_filter"],
                                           atlas.attrib["wrap_s"], atlas.attrib["wrap_t"])
                     for atlas in ET.parse(inside(library, xml_path)).getroot().findall("texture") for image in atlas.findall("image")}
-        for name, size in COVERS.items():
+        for name, size in cover_sizes(family).items():
             original = source_reader.index[family + "/gameparts", name]
             source = inside(library, original["sprite"])
             if digest(source) != original["sha256"] or (original["width"], original["height"]) != size:
@@ -269,7 +277,7 @@ def validated_geometry(library, source_geometry):
         if digest(inside(library, path)) != expected:
             raise ValueError("BGA geometry source bytes changed: " + path)
     rows = {(row["style"], row["movie"]): row for row in value["rows"]}
-    if len(rows) != len(value["rows"]) or len(rows) != 60 or set(rows) != {(style, movie) for style in FRAME_IDS for movie in CENTRES}:
+    if len(rows) != len(value["rows"]) or set(rows) != {(style, movie) for style in source_styles(data) for movie in CENTRES}:
         raise ValueError("BGA geometry requires all ten original cabinet hook sets")
     for (style, movie), row in rows.items():
         raw = f"packages/contents/data/graphic/gmframe{style:02}/raw"
@@ -281,7 +289,8 @@ def validated_geometry(library, source_geometry):
         if "_dp_" in movie:
             if row["covers"]:
                 raise ValueError("Original DP has no qualified BGA cover hook")
-        elif row.get("constantSourceFrames") != 420 or row["frames"] != 420 or row["fps"] != 60 or len(row["covers"]) != 1:
+        elif (row.get("constantSourceFrames") != (300 if style in (23, 24) else 420)
+              or row["frames"] != (300 if style in (23, 24) else 420) or row["fps"] != 60 or len(row["covers"]) != 1):
             raise ValueError("BGA cover entry/loop is not completely constant")
         else:
             texture = "anime_cover2" if "_wide_" in movie else "anime_cover"
@@ -289,8 +298,8 @@ def validated_geometry(library, source_geometry):
                     or raw + "/geo/" + row["geometry"] not in declared):
                 raise ValueError("BGA cover geometry is not in its original movie source closure")
     textures = {(row["family"], row["name"]): row for row in value["textures"]}
-    if (len(textures) != len(value["textures"]) or len(textures) != 4
-            or set(textures) != {(family, name) for family in ("0", "1") for name in COVERS}):
+    if (len(textures) != len(value["textures"])
+            or set(textures) != {(family, name) for family in source_families(data) for name in COVERS}):
         raise ValueError("BGA geometry requires both exact original cover families")
     for key, row in textures.items():
         originals = [original for original in data["textures"]
@@ -299,7 +308,7 @@ def validated_geometry(library, source_geometry):
         if len(originals) != 1:
             raise ValueError("BGA cover texture family is absent or ambiguous")
         original = originals[0]
-        if (declared.get(row["path"]) != row["sha256"] or row["size"] != list(COVERS[key[1]])
+        if (declared.get(row["path"]) != row["sha256"] or row["size"] != list(cover_sizes(key[0])[key[1]])
                 or row["path"] != original["sprite"] or row["sha256"] != original["sha256"]
                 or row["size"] != [original["width"], original["height"]]
                 or row["imageRect"] != original["imageRect"] or row["uvRect"] != original["uvRect"]
@@ -362,20 +371,21 @@ def export_bga_module(library, output, contexts, *, source_geometry):
     if output.drive.casefold() == "c:" or output.is_relative_to(library) or library.is_relative_to(output):
         raise ValueError("BGA output must be a separate non-system author directory")
     evidence, geometry, textures = validated_geometry(library, source_geometry)
+    frame_ids = source_styles(metadata(library))
     evidence_digest = hashlib.sha256(json.dumps(evidence, ensure_ascii=False, sort_keys=True,
         separators=(",", ":"), allow_nan=False).encode("utf-8")).hexdigest()
     indexed = {}
     for context in contexts:
         style, layout, wide = context["style"], context["layout"], context["wide"]
         key = style, layout, wide
-        if (style not in FRAME_IDS or layout not in ("p1", "p2", "dp") or type(wide) is not bool
+        if (style not in frame_ids or layout not in ("p1", "p2", "dp") or type(wide) is not bool
                 or layout == "dp" and wide or key in indexed):
             raise ValueError("Duplicate or unsupported BGA cabinet context")
         apertures = [rectangle(value) for value in context["apertures"]]
         if len(apertures) != (2 if layout == "dp" else 1):
             raise ValueError("BGA requires the real single/dual aperture count")
         indexed[key] = {**context, "apertures": apertures}
-    expected = {(style, layout, wide) for style in FRAME_IDS for layout, wide in
+    expected = {(style, layout, wide) for style in frame_ids for layout, wide in
                 (("p1", False), ("p2", False), ("p1", True), ("p2", True), ("dp", False))}
     if set(indexed) != expected:
         raise ValueError("BGA requires all ten cabinet/layout/Graph contexts")
@@ -412,9 +422,9 @@ def export_bga_module(library, output, contexts, *, source_geometry):
             if enabled and layout != "dp":
                 movie = "center_frame_wide_" + ("2p" if layout == "p2" else "1p") if wide else "center_frame_sp"
                 hook = geometry[style, movie]
-                family = "1" if style == 25 else "0"
+                family = presentation_family(style)
                 texture = textures[family, hook["texture"]]
-                dx = 0 if wide else -36 if layout == "p2" else 36
+                dx = centre_translation(style, layout, wide)
                 quad = [[x + dx, y] for x, y in hook["quad"]]
                 hole = project_hole(quad, texture["size"], texture["clearHole"])
                 apertures = [intersect(original[0], hole)]

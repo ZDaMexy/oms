@@ -14,6 +14,7 @@ from pathlib import Path
 from build_fullcombo_catalog import world_matrix
 from build_standard_skin import sha
 from standard_components import StandardComponents
+from standard_source_catalog import metadata, styles as source_styles
 
 
 STYLES = (3, 8, 12, 14, 16, 17, 19, 21, 25, 26)
@@ -55,9 +56,11 @@ def geometric_bounds(clip):
             max(p[0] for p in points), max(p[1] for p in points)]
 
 
-def export_gauge_feedback(library, output, bemani_root, image_tools, styles=STYLES):
+def export_gauge_feedback(library, output, bemani_root, image_tools, styles=None):
     import brotli
-    if any(type(style) is not int or style not in STYLES for style in styles) or len(set(styles)) != len(styles):
+    qualified = source_styles(metadata(library))
+    styles = qualified if styles is None else styles
+    if any(type(style) is not int or style not in qualified for style in styles) or len(set(styles)) != len(styles):
         raise ValueError("Use each qualified26 cabinet at most once")
     exporter = StandardComponents(library, output, bemani_root, image_tools)
     frames, summary = {}, []
@@ -91,9 +94,9 @@ def export_gauge_feedback(library, output, bemani_root, image_tools, styles=STYL
                 "sameOriginalGeometry": once["geometries"] == repeated["geometries"]})
     result = {"contract": "oms-standard-gauge-feedback.v1", "librarySHA256": exporter.source_library_sha,
         "frames": frames, "files": list(exporter.files.values()), "summary": summary,
-        "receipt": {"source": "Only26 gmframe03/08/12/14/16/17/19/21/25/26 gauge_up_1p/2p/dp",
-            "nativeCaller": "348423 loads selected cabinet clips;3493f0 restarts on original two-percent display increase or at/above native clear threshold after clip end.",
-            "displayModes": "34a800 unconditionally calls3493f0 independently of34a130/3494e0 display mode. A/B/C do not suppress this animation.",
+        "receipt": {"source": "Qualified selected Standard gmframe gauge_up_1p/2p/dp; exact styles and source archive identities are retained per clip",
+            "nativeCaller": "26 reference only:348423 loads selected cabinet clips;3493f0 restarts on original two-percent display increase or at/above native clear threshold after clip end. Earlier source movies use this OMS event adaptation; their executable call sites are not inferred.",
+            "displayModes": "26 reference only:34a800 unconditionally calls3493f0 independently of34a130/3494e0 display mode. The OMS author retains that A/B/C behaviour for its selected source art.",
             "originalGeometry": "Complete original1280x720 hierarchy, meshes, masks, colours and60 source frames retained. No guessed per-cabinet offsets.",
             "projectionLimit": "Geometric summary bounds ignore mask/alpha coverage; they are not a replacement crop.",
             "lifecycleAdaptation": "One-shot trigger uses the real OMS Gauge-increase snapshot. Clear-loop initial origin and clear-state gating belong to the host author; no synthetic increase is emitted by this export.",
@@ -106,7 +109,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     for field in ("library", "output", "bemani-root", "image-tools"):
         parser.add_argument("--" + field, type=Path, required=True)
-    parser.add_argument("--styles", type=int, nargs="+", default=STYLES)
+    parser.add_argument("--styles", type=int, nargs="+")
     args = parser.parse_args()
     result = export_gauge_feedback(args.library, args.output, args.bemani_root, args.image_tools, args.styles)
     print(json.dumps({"output": str(args.output), "movies": len(result["summary"]), "files": len(result["files"])}))

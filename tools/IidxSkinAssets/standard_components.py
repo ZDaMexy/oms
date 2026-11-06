@@ -24,6 +24,7 @@ from customization_modules import Branch, ModuleBuilder, material_contexts
 from build_fullcombo_catalog import (InternTable, LocalStateRecorder, all_tags, exporter_classes,
                                     load_tools, point_values, rgba_values, to_recorded_animation)
 from export_customization_animations import node_for_reference, root_loop_control
+from standard_source_catalog import styles as source_styles, families as source_families, art_identity
 
 FRAME_IDS = tuple(f"iidx{style:02}" for style in (3, 8, 12, 14, 16, 17, 19, 21, 25, 26))
 COLOURS = ("white", "black", "scratch")
@@ -174,9 +175,12 @@ class StandardComponents(ModuleBuilder):
         if data["status"] != "complete" or data["sourceMetadataUnchanged"] is not True:
             raise ValueError("Use a complete independently verified source selection")
         self.source_library_sha = digest(self.library / "library.json")
+        self.source_data = data
+        self.frame_ids = tuple(f"iidx{style:02}" for style in source_styles(data))
+        self.source_families = source_families(data)
         self.packages = {row["source"].removeprefix("contents/data/graphic/").removesuffix(".ifs"): row
                          for row in data["packages"]}
-        exact_styles(self.packages, r"gmframe(\d+)", (3, 8, 12, 14, 16, 17, 19, 21, 25, 26))
+        exact_styles(self.packages, r"gmframe(\d+)", source_styles(data))
         self.index = {}
         samplers = {}
         for row in data["textures"]:
@@ -281,6 +285,11 @@ class StandardComponents(ModuleBuilder):
                     return None, False
                 return super()._AFPRenderer__place(tag, clip, prefix)
 
+        script_mask = None
+        if package == "source24/fcombo00":
+            from standard_script_masks import masked_renderer
+            script_mask = {"adapter": "direct-child-solid-rectangle.v1", "rectangles": [], "evaluatedMaskFrames": 0}
+            TimelineRenderer = masked_renderer(TimelineRenderer, self.tools, source["geometry"], source["mapping"], script_mask)
         captured = io.StringIO()
         recorder = LocalStateRecorder(self.tools, TimelineRenderer)
         with contextlib.redirect_stdout(captured), contextlib.redirect_stderr(captured):
@@ -317,7 +326,7 @@ class StandardComponents(ModuleBuilder):
         used = {g["resource"] for g in clip["geometries"] if g["resource"] is not None}
         declared = {}
         atlas_sources = {}
-        use_atlas = (package == "lnote00" and trigger != "gameplay.attach") or re.fullmatch(r"fcombo\d{2}", package) is not None
+        use_atlas = (package == "lnote00" and trigger != "gameplay.attach") or re.fullmatch(r"(?:source24/)?fcombo\d{2}", package) is not None
         for i, row in enumerate(source["rows"]):
             if resources[i] in used:
                 if use_atlas:
@@ -357,7 +366,8 @@ class StandardComponents(ModuleBuilder):
                     "stage": stage, "fps": selected.fps, "sourceFrames": len(selected.frames),
                     "durationMs": (len(clip["frames"]) - 1) * 1000 / selected.fps,
                     "labels": selected.labels, "translatedRootControl": controls,
-                    **({"translatedTerminalRepeat": repeat} if repeat else {})},
+                    **({"translatedTerminalRepeat": repeat} if repeat else {}),
+                    **({"translatedScriptMask": script_mask} if script_mask else {})},
                   "receipt": {"sourceArchiveSHA256": self.packages[package]["sha256"], "rawSHA256": source["hashes"],
                     "sourcePNGBytesPreserved": not use_atlas, "sourcePixelsPreserved": True,
                     "losslessSourcePixelAtlas": atlas_receipt, "runtimeInterpreter": False,
@@ -854,7 +864,7 @@ class StandardComponents(ModuleBuilder):
         if self.frame_maps is None:
             raise ValueError("Turntables require all ten independently qualified source frame maps")
         mappings = read_json(self.frame_maps)
-        if set(mappings) != set(FRAME_IDS):
+        if set(mappings) != set(self.frame_ids):
             raise ValueError("Frame maps must contain exactly the ten Standard frame identities")
         maps = {key: read_json(within(self.frame_maps.parent, value)) for key, value in mappings.items()}
         choices, motion_sources = [], []
@@ -863,7 +873,7 @@ class StandardComponents(ModuleBuilder):
             resource = branch.asset(f"turn{style:02}", f"turn{style:02}")[0]
             for layout, movie in (("p1", "1p_frame"), ("p2", "2p_frame"), ("dp", "dp_frame_1p")):
                 frames = []
-                for frame in FRAME_IDS:
+                for frame in self.frame_ids:
                     source = maps[frame]
                     if (source["stage"]["width"], source["stage"]["height"]) != (1280, 720):
                         raise ValueError("Standard frame source canvas changed")
@@ -876,7 +886,27 @@ class StandardComponents(ModuleBuilder):
                         draw = candidates[0]
                         bounds = draw["bounds"]
                         source_vertices = draw["source_vertices"]
-                        width, height = draw["asset"]["width"], draw["asset"]["height"]
+                        hook_asset = draw.get("asset")
+                        if hook_asset is None:
+                            if frame != "iidx23" or draw["texture"] != "turn00":
+                                raise ValueError("Unqualified unresolved turntable hook")
+                            # copula's frame references its separately loaded default
+                            # Turntable. Its 24/26 PNG is byte-identical; verify the
+                            # exact 24 manifest before using this shared raster size.
+                            earlier_path = self.library / "source-imports/iidx24-library.json"
+                            expected = self.source_data['sourceComposition']['inputManifestSHA256']['iidx24']
+                            if digest(earlier_path) != expected:
+                                raise ValueError("Earlier source manifest changed")
+                            earlier = read_json(earlier_path)
+                            matches = [row for row in earlier['textures']
+                                       if row['package'] == 'data/graphic/turn00.ifs' and row['name'] == 'turn00.png']
+                            if len(matches) != 1:
+                                raise ValueError("Missing independently sourced copula Turntable")
+                            hook_asset = matches[0]
+                            shared = self.index['turn00', 'turn00']
+                            if any(hook_asset[key] != shared[key] for key in ('sha256', 'width', 'height', 'imageRect', 'uvRect')):
+                                raise ValueError("Earlier default Turntable differs from the shared source")
+                        width, height = hook_asset["width"], hook_asset["height"]
                         expected = [(0, 0), (width, 0), (0, height), (width, height)]
                         if [(p["x"], p["y"]) for p in source_vertices] != expected or any(p["z"] for p in source_vertices):
                             raise ValueError("Turntable source needs a non-rectangular mesh consumer")
@@ -985,12 +1015,15 @@ class StandardComponents(ModuleBuilder):
 
     def fullcombo(self):
         choices = []
-        for style in exact_styles(self.packages, r"fcombo(\d+)", range(18)):
-            package = f"fcombo{style:02}"
+        sources = [(f"fcombo{style:02}", f"fc{style:02}", f"n{style:02}", f"Full Combo {style:02}")
+                   for style in exact_styles(self.packages, r"fcombo(\d+)", range(18))]
+        if "source24/fcombo00" in self.packages:
+            sources.append(("source24/fcombo00", "fc00-iidx24", "source24-n00", "Full Combo 00 · copula / SINOBUZ"))
+        for package, value, clip_id, label in sources:
             contributions = {}
             for layout, movie in (("p1", "1p_fullcombo"), ("p2", "2p_fullcombo"), ("dp", "dp_fullcombo")):
-                branch = StandardBranch(self, "sf", f"fc{style:02}", layout)
-                exported = self.clip(package, movie, f"sf.clip.n{style:02}.{layout}", loop=False, trigger="gameplay.complete")
+                branch = StandardBranch(self, "sf", value, layout)
+                exported = self.clip(package, movie, f"sf.clip.{clip_id}.{layout}", loop=False, trigger="gameplay.complete")
                 art = branch.include_clip(exported)
                 art["id"] = branch.prefix + ".art"
                 duration = exported["source"]["durationMs"]
@@ -1010,11 +1043,11 @@ class StandardComponents(ModuleBuilder):
             # stages provide the p1/p2 option and select either override.
             names = [n for key, n in self.index if key == package]
             largest = sorted(names, key=lambda n: self.index[package, n]["width"] * self.index[package, n]["height"], reverse=True)[:2]
-            choices.append({"value": f"fc{style:02}", "label": f"Full Combo {style:02}", **contributions["dp"],
+            choices.append({"value": value, "label": label, **contributions["dp"],
                 "variants": [{"when": {"layout": layout}, **contributions[layout]} for layout in ("p1", "p2")],
-                "preview": self.preview("full-combo", f"fc{style:02}", [(package, n) for n in largest])})
+                "preview": self.preview("full-combo", value, [(package, n) for n in largest])})
         self.add_module("full-combo", "Full Combo", choices, "fc00")
-        self.receipts.append({"category": "full-combo", "choices": 18, "layouts": ["p1", "p2", "dp"],
+        self.receipts.append({"category": "full-combo", "choices": len(choices), "layouts": ["p1", "p2", "dp"],
             "sourceMovieScope": "All declared frames, hierarchy, XYZ, topology, masks, filters, camera and sentinel preserved; UV is losslessly rebased to original RGBA atlas rectangles with repeated clamp-edge padding",
             "sourcePixelPacking": "Every Full Combo movie uses bounded nearest/clamp atlases; original pixels are not resampled, recoloured, trimmed or rotated",
             "completionOutro": "Each original duration is retained by an explicit non-loop completion track on a separate opacity wrapper",
@@ -1054,7 +1087,7 @@ class StandardComponents(ModuleBuilder):
         if digest(self.library / "library.json") != self.source_library_sha:
             raise ValueError("Source library manifest changed during component export")
         result = {"contract": "oms-standard-components.v1", "source": {"library": str(self.library),
-                    "librarySHA256": self.source_library_sha, "artIdentity": "IIDX26-only", "frameIds": list(FRAME_IDS)},
+                    "librarySHA256": self.source_library_sha, "artIdentity": art_identity(self.source_data), "frameIds": list(self.frame_ids)},
                   "modules": self.modules, "options": self.options, "files": list(self.files.values()),
                   "receipts": {"sourceAssets": list(self.used_assets.values()), "branches": self.branch_counts,
                                "details": self.receipts, "previewSources": self.preview_sources,

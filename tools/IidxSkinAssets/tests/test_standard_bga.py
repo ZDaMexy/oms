@@ -15,7 +15,7 @@ import zlib
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from standard_bga import (CANVAS, CENTRES, CONTRACT, COVERS, FRAME_IDS, clear_hole,
-                          cover_frame_state, digest, export_bga_module, project_hole, validated_geometry)
+                          cover_frame_state, cover_sizes, digest, export_bga_module, project_hole, validated_geometry)
 
 
 def bounds(left, top, right, bottom):
@@ -299,6 +299,16 @@ class StandardBgaTests(unittest.TestCase):
 
 
 class CoverTimelineTests(unittest.TestCase):
+    def test_copula_cover_retains_its_actual_shorter_source_quad(self):
+        root, source = self.source()
+        for vertex in source['geometry'][0]['vertices']:
+            if vertex[1] == 720:
+                vertex[1] = 586
+        result = cover_frame_state(root, source, sizes=cover_sizes('s23'))
+        self.assertEqual([[240, 0], [1040, 0], [1040, 586], [240, 586]], result['quad'])
+        with self.assertRaises(ValueError):
+            cover_frame_state(root, source, sizes=cover_sizes('s24'))
+
     def source(self):
         state = {"matrix": [1, 0, 0, 0, 1, 0, 0, 0, 1, 240, 0, 0], "origin": [0, 0, 0], "projection": 1,
                  "mult": [1, 1, 1, 1], "add": [0, 0, 0, 0], "hsl": [0, 0, 0], "blend": 0, "mask": None, "filters": [], "visible": True}

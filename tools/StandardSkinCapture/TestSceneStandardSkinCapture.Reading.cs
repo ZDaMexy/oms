@@ -30,6 +30,7 @@ namespace osu.Tools.StandardSkinCapture;
 public partial class TestSceneStandardSkinCapture
 {
     private static bool IsReadingCase => CaptureSettings.Current.ChartVariant == "reading";
+    private bool UsesEarlierReadingSource => CaptureSettings.Current.Options.TryGetValue("frame", out string? frame) && frame is "iidx23" or "iidx24";
     private readonly Stopwatch readingWaitWatch = new();
     private object? initialReadingWaitObservation;
     private bool readingWaitDiagnosticWritten;
@@ -55,6 +56,10 @@ public partial class TestSceneStandardSkinCapture
         settings.Write("reading-input-contract.json", new
         {
             requestedMode = settings.ReadingMode,
+            requestedFrame = settings.Options.GetValueOrDefault("frame"),
+            expectedAuthoredNormalSpeedPreview = !UsesEarlierReadingSource,
+            expectedSourceFirstRowCue = !UsesEarlierReadingSource,
+            nativePreStartPreview = "Without an authored rectangle, OMS retains its real lane preview in all three speed modes while Start is held before play.",
             sourceCoverCombination = hiddenCombination ? "SUDDEN+HIDDEN" : "LIFT+SUDDEN",
             initialNativeSettings = config.CaptureReadingSettings(),
             inputOwner = "Real BmsSoloPlayer, using BmsInputManager.TriggerOmsActionPressed/Released with UI_PreStartHold and Key1P_2",
@@ -71,6 +76,7 @@ public partial class TestSceneStandardSkinCapture
         AddStep("hold Start through the real BMS input owner", () =>
         {
             var reading = (CaptureReadingPlayer)player;
+            AssertReadingSourceCapabilities(reading);
             Assert.That(reading.NativeRuleset.HasReplayLoaded.Value, Is.False);
             Assert.That(reading.Input.UseParentInput, Is.True);
             Assert.That(reading.NativeRuleset.Mods.Any(mod => mod is ModAutoplay or ModNoFail), Is.False);
@@ -104,9 +110,12 @@ public partial class TestSceneStandardSkinCapture
             return complete;
         });
         AddReadingScreenshot("reading-held", held: true);
-        AddUntilStep("the source first-row cue is actually visible", () => ReadingNodes().Any(node =>
-            ReadProperty<GameplaySkinPreparedSceneNode>(node, "PreparedNode").Source.Id.Contains(".arrival.", StringComparison.Ordinal)
-            && node.ContentDrawable is Sprite { Texture: not null } && EffectiveAlpha(node.ContentDrawable) > .01));
+        if (UsesEarlierReadingSource)
+            AddStep("the selected earlier source contributes no first-row cue", () => AssertReadingSourceCapabilities((CaptureReadingPlayer)player));
+        else
+            AddUntilStep("the source first-row cue is actually visible", () => ReadingNodes().Any(node =>
+                ReadProperty<GameplaySkinPreparedSceneNode>(node, "PreparedNode").Source.Id.Contains(".arrival.", StringComparison.Ordinal)
+                && node.ContentDrawable is Sprite { Texture: not null } && EffectiveAlpha(node.ContentDrawable) > .01));
         AddReadingScreenshot("reading-first-row", held: true);
         AddStep("change speed with the actual black-key Start gesture", () =>
         {
@@ -215,6 +224,9 @@ public partial class TestSceneStandardSkinCapture
         AddStep("capture native reading controls " + name, () =>
         {
             var reading = (CaptureReadingPlayer)player;
+            AssertReadingSourceCapabilities(reading);
+            bool hasAuthoredPreview = reading.NativeRuleset.LayoutSnapshot.HasAuthoredNormalSpeedPreview;
+            bool expectedPreviewVisible = held && (!hasAuthoredPreview || settings.ReadingMode == "normal");
             GameplaySkinEventStateSnapshot state = ReadState();
             GameplaySkinAdjustmentState adjustment = state.Timing.AdjustmentState;
             Assert.That(reading.Input.PreStartHoldPressed.Value, Is.EqualTo(held));
@@ -233,8 +245,9 @@ public partial class TestSceneStandardSkinCapture
             Assert.That(state.Timing.LiftState.Units, Is.EqualTo(settings.ReadingMode == "floating" ? 0 : 80));
             var previews = reading.ChildrenOfType<BmsPreStartSpeedPreview>().ToArray();
             Assert.That(previews, Is.Not.Empty);
-            Assert.That(previews.Any(preview => preview.IsPreviewVisible), Is.EqualTo(held && settings.ReadingMode == "normal"));
-            if (held && settings.ReadingMode == "normal")
+            Assert.That(previews.All(preview => preview.LayoutSnapshot.HasAuthoredNormalSpeedPreview == hasAuthoredPreview), Is.True);
+            Assert.That(previews.Any(preview => preview.IsPreviewVisible), Is.EqualTo(expectedPreviewVisible));
+            if (expectedPreviewVisible)
             {
                 foreach (BmsPreStartSpeedPreview preview in previews.Where(preview => preview.IsPreviewVisible))
                 {
@@ -275,6 +288,13 @@ public partial class TestSceneStandardSkinCapture
                 clock.CurrentTime,
                 state.Timing.Preparation,
                 adjustment,
+                requestedFrame = settings.Options.GetValueOrDefault("frame"),
+                hasAuthoredNormalSpeedPreview = hasAuthoredPreview,
+                previewPresentation = hasAuthoredPreview ? "author-normal-side-window" : "native-pre-start-lane",
+                expectedPreviewVisible,
+                expectedSourceFirstRowCue = !UsesEarlierReadingSource,
+                sourceFirstRowCuePreparedNodes = runtime.PreparedScene.Roots.SelectMany(Walk)
+                    .Count(node => node.Source.Id.Contains(".arrival.", StringComparison.Ordinal)),
                 nativeMode = reading.NativeRuleset.HiSpeedMode.Value.ToString(),
                 selectedNativeLevel = reading.NativeRuleset.SelectedHiSpeed.Value,
                 nativeMetrics = reading.NativeRuleset.SpeedMetrics.Value,
@@ -284,7 +304,16 @@ public partial class TestSceneStandardSkinCapture
                     preview.IsPreviewVisible,
                     preview.IsPreviewPaused,
                     preview.PrimaryNoteProgress,
+                    preview.LayoutSnapshot.HasAuthoredNormalSpeedPreview,
+                    parentType = preview.Parent?.GetType().FullName,
                     nativeRect = Rect(preview.LayoutSnapshot.PreStartPreviewRect),
+                    actualViewport = new
+                    {
+                        preview.ScreenSpaceDrawQuad.AABBFloat.X,
+                        preview.ScreenSpaceDrawQuad.AABBFloat.Y,
+                        preview.ScreenSpaceDrawQuad.AABBFloat.Width,
+                        preview.ScreenSpaceDrawQuad.AABBFloat.Height,
+                    },
                     effectiveAlpha = EffectiveAlpha(preview),
                     texturedNotes = ReadField<Array>(preview, "previewNotes").Cast<CompositeDrawable>().Select(note => new
                     {
@@ -306,6 +335,24 @@ public partial class TestSceneStandardSkinCapture
         });
         AddUntilStep("wait for native reading framebuffer", () => screenshot?.IsCompleted == true);
         AddStep("propagate native reading framebuffer errors", () => screenshot!.GetAwaiter().GetResult());
+    }
+
+    private void AssertReadingSourceCapabilities(CaptureReadingPlayer reading)
+    {
+        // Only the explicitly selected, source-qualified 23/24 contributions omit these
+        // later artworks. A missing rectangle on any other package remains a failure.
+        Assert.That(reading.NativeRuleset.LayoutSnapshot.HasAuthoredNormalSpeedPreview, Is.EqualTo(!UsesEarlierReadingSource),
+            "The exact selected source must agree with its authored Normal preview capability.");
+        if (!UsesEarlierReadingSource)
+            return;
+
+        Assert.That(runtime.Publication.Snapshot.Context.OptionValues.TryGetValue("frame", out GameplaySkinOptionValue selectedFrame), Is.True);
+        Assert.That(selectedFrame.CanonicalValue, Is.EqualTo(settings.Options["frame"]));
+        GameplaySkinPreparedSceneNode[] nodes = runtime.PreparedScene.Roots.SelectMany(Walk).ToArray();
+        Assert.That(nodes.Where(node => node.Source.Id.Contains(".arrival.", StringComparison.Ordinal)), Is.Empty,
+            "The 23/24 source must not acquire a first-row cue from the later source.");
+        Assert.That(nodes.Where(node => node.Source.Id.Contains(".reading.preview.", StringComparison.Ordinal)), Is.Empty,
+            "The 23/24 source must not acquire the later Normal side-window artwork; its native lane preview remains available.");
     }
 
     private IEnumerable<GameplaySkinSceneRuntimeNode> ReadingNodes()

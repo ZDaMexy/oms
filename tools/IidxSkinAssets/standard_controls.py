@@ -1,4 +1,4 @@
-"""Bind IIDX26 source key lights to actual OMS lane input.
+"""Bind qualified Standard source key lights to actual OMS lane input.
 
 ``build_controls(library, frame_map, style=26, layout="p1", contexts=...)``
 returns manifest resources/animations, scene templates/instances/bindings/
@@ -10,7 +10,7 @@ empty key declaration, rather than append contradictory duplicate declarations.
 Released caps already belong to the original cabinet movie. This contribution
 contains only input lights: it never gates or redraws those caps. The source has
 no per-key input hook or press/release clock. Raster anchors are identified in
-the supplied 26 cabinet artwork, and retain that artwork's AFP transform. Only
+the supplied cabinet artwork, and retain that artwork's AFP transform. Only
 the source frame's settled projection is used. All qualified panels have
 constant transforms throughout their source loop, including SPADA's retained
 small rotation. Preparation gates the separate input-light layer.
@@ -25,6 +25,8 @@ import xml.etree.ElementTree as ET
 import zlib
 
 STYLES = (3, 8, 12, 14, 16, 17, 19, 21, 25, 26)
+from standard_source_catalog import layout_family, styles as source_styles
+from standard_lane_geometry import source_lane_regions
 KEY_HEIGHT = 80  # The explicit OMS key-area host in build_standard_skin.py.
 WIDTHS = (60, 34, 26, 34, 26, 34, 26, 34)
 COLOURS = ("scratch", "white", "black", "white", "black", "white", "black", "white")
@@ -128,25 +130,27 @@ def only(rows, reason):
 def cabinet_keys(reference, style, layout, group):
     """Seven left-to-right caps with their own source draw, not a guessed key hook.
 
-    03..19 store the caps in their full original frame raster. 21 and 26 store
-    them in a panel raster. 25 supplies individual AFP key_w/key_b geometry.
-    The following pixel anchors were inspected in these 26-source rasters;
-    they are intentionally not a scale conversion from a Lightning canvas.
+    03..19 store the caps in their full original frame raster. 21, 23 and 26
+    store them in a panel raster. 24 and 25 supply independent AFP key_w/key_b
+    geometry. Raster anchors are inspected in each qualified source image;
+    they are not a scale conversion from another cabinet or source family.
     """
     movie = "center_frame_dp_1p" if layout == "dp" else "2p_frame" if layout == "p2" else "1p_frame"
     right = group == 1 if layout == "dp" else layout == "p2"
     draws = reference["layouts"][movie]["draws"]
-    lane = only([d for d in draws if f"lane_{'2p' if right else '1p'}" in d["game_bindings"]], "source lane")
-    field = lane["bounds"]
-    # SPADA's lane scales from its top while its key-area edge stays at 484;
-    # the actual projected bottom, not the unstretched texture height, owns y.
-    if field["right"] - field["left"] != 292 or lane["asset"]["height"] != 484 or field["bottom"] <= field["top"]:
-        raise ValueError("Source lane needs a separately qualified control topology")
-    if style == 25:
+    regions = source_lane_regions(reference, style, layout)
+    if not 0 <= group < len(regions):
+        raise ValueError("Control group does not belong to this source layout")
+    field = regions[group]
+    if style in (24, 25):
         candidates = [d for d in draws if d["texture"] in ("key_w", "key_b") and
                       field["left"] <= (d["bounds"]["left"] + d["bounds"]["right"]) / 2 < field["right"]]
         if len(candidates) != 7:
             raise ValueError("Source does not contain seven independent key-cap draws")
+        if style == 24 and any(d["asset"]["package"] != "gmframe24" or
+                               (d["asset"]["width"], d["asset"]["height"]) !=
+                               ((34, 54) if d["texture"] == "key_w" else (26, 46)) for d in candidates):
+            raise ValueError("SINOBUZ keys must retain their original local source geometry")
         keys = [{"colour": "white" if d["texture"] == "key_w" else "black", "draw": d,
                  "cap": [0, 0, d["asset"]["width"], d["asset"]["height"]], "anchorKind": "original-key-mesh"}
                 for d in sorted(candidates, key=lambda d: d["bounds"]["left"])]
@@ -163,6 +167,18 @@ def cabinet_keys(reference, style, layout, group):
             # 42 px light width is retained; it is centred, never stretched.
             white = (10 if right else 91, 12, 28, 47)
             black = (46, 7, 20, 40) if right else (128, 7, 18, 40)
+        elif style == 23:
+            panels = [d for d in draws if d["texture"] == "keyboard"]
+            panels.sort(key=lambda d: d["bounds"]["left"])
+            if len(panels) != (2 if layout == "dp" else 1):
+                raise ValueError("copula source keyboard panel count differs")
+            draw = panels[group] if layout == "dp" else panels[0]
+            if (draw["asset"]["package"] != "gmframe23" or
+                    (draw["asset"]["width"], draw["asset"]["height"]) != (234, 68)):
+                raise ValueError("copula keys require their original keyboard raster")
+            # Original painted caps inside the baked keyboard raster, measured
+            # against its dark surround. The black cap is genuinely 19px wide.
+            white, black = (7, 10, 28, 47), (44, 6, 19, 40)
         elif style == 26:
             panels = [d for d in draws if d["texture"] == "conpane_key"]
             panels.sort(key=lambda d: d["bounds"]["left"])
@@ -175,7 +191,10 @@ def cabinet_keys(reference, style, layout, group):
         keys = []
         for colour, (x, y, width, height), count in (("white", white, 4), ("black", black, 3)):
             for index in range(count):
-                cap = [x + 64 * index, y, width, height]
+                # copula's baked first black cap is one pixel farther right
+                # than a uniform 64px repetition; retain each measured anchor.
+                cap_x = (44, 107, 171)[index] if style == 23 and colour == "black" else x + 64 * index
+                cap = [cap_x, y, width, height]
                 if cap[0] < 0 or cap[1] < 0 or cap[0] + width > draw["asset"]["width"] or cap[1] + height > draw["asset"]["height"]:
                     raise ValueError("Measured source cap lies outside its original raster")
                 keys.append({"colour": colour, "draw": draw, "cap": cap, "anchorKind": "inspected-source-raster"})
@@ -209,18 +228,19 @@ def node(identifier, kind="container", **extra):
 def build_controls(library, frame_map, *, style, layout, contexts):
     library, frame_map = Path(library).resolve(strict=True), Path(frame_map).resolve(strict=True)
     reference, inventory = read(frame_map), read(library / "library.json")
-    if style not in STYLES or layout not in ("p1", "p2", "dp"):
+    if style not in source_styles(inventory) or layout not in ("p1", "p2", "dp"):
         raise ValueError("Unqualified Standard Model cabinet/layout")
     if inventory["status"] != "complete" or inventory["sourceMetadataUnchanged"] is not True:
-        raise ValueError("Controls require the verified complete 26 library")
-    if reference["package"] != f"gmframe{style:02}" or reference["common_family"] != "0" or reference["stage"] != {"width": 1280, "height": 720, "fps": 60.0}:
+        raise ValueError("Controls require the verified complete Standard library")
+    family = layout_family(style)
+    if reference["package"] != f"gmframe{style:02}" or reference["common_family"] != family or reference["stage"] != {"width": 1280, "height": 720, "fps": 60.0}:
         raise ValueError("Control reference is not the qualified cabinet and common source family")
     index = {(r["package"].removeprefix("contents/data/graphic/").removesuffix(".ifs"), Path(r["name"]).stem): r
              for r in inventory["textures"]}
     output = frame_map.parent / "controls-v1" / layout
     result = {key: [] for key in ("resources", "animations", "templates", "instances", "bindings", "variants", "tracks", "targets", "files")}
     sources, checked, lights, resources = [], set(), {}, {}
-    texturelist = source_path(library, "packages/contents/data/graphic/0/gameparts/raw/tex/texturelist.xml")
+    texturelist = source_path(library, f"packages/contents/data/graphic/{family}/gameparts/raw/tex/texturelist.xml")
     samplers = {image.attrib["name"]: texture.attrib for texture in ET.parse(texturelist).getroot().findall("texture")
                 for image in texture.findall("image")}
     sources.append({"path": texturelist.relative_to(library).as_posix(), "sha256": digest(texturelist), "role": "original light sampler"})
@@ -237,9 +257,9 @@ def build_controls(library, frame_map, *, style, layout, contexts):
         return row
 
     for colour, size in (("white", (50, 69)), ("black", (42, 62))):
-        row = verify_asset("0/gameparts", f"light_{colour}_key")
+        row = verify_asset(f"{family}/gameparts", f"light_{colour}_key")
         if (row["width"], row["height"]) != size:
-            raise ValueError("Native 26 key light dimensions differ; do not substitute HD art")
+            raise ValueError("Qualified source key light dimensions differ; do not substitute another source family")
         sampler = samplers[f"light_{colour}_key"]
         if (sampler["min_filter"] != sampler["mag_filter"] or sampler["min_filter"] not in ("nearest", "linear") or
                 sampler["wrap_s"] != "clamp" or sampler["wrap_t"] != "clamp"):
@@ -303,6 +323,7 @@ def build_controls(library, frame_map, *, style, layout, contexts):
     if not authored:
         raise ValueError("No actual material contexts were supplied")
     result["receipt"] = {"contract": "oms-standard-controls.v1", "style": style, "layout": layout,
+        "commonSourceFamily": family,
         "inputSource": "input.pressed", "separatePreparationGate": "preparation.active=false", "pngBytesPreserved": True,
         "releasedCapsOwner": "unmodified source cabinet movie",
         "pressReleaseSourceClock": None, "sourceFiles": sources, "controls": records,
@@ -313,4 +334,12 @@ def build_controls(library, frame_map, *, style, layout, contexts):
                    "The cabinet owns its full entry animation; input lights remain hidden during actual preparation and use the source reference-frame projection during gameplay.",
                    "Scratch has no rectangular source key light: its cabinet and Turntable module remain the visual owners; this module adds no invented scratch art.",
                    "Material target and source export checks do not sign public CLI budgets or real Player input/visual acceptance."]}
+    if style in (23, 24):
+        result["receipt"]["limits"].append(
+            "Earlier controls use their own s23/s24 gameparts lights and original cabinet cap transforms. "
+            "The shared OMS 484px lane-plane convention is an explicit mapping, not a claim that the 24 native note scissor is 484px.")
+    if style == 23:
+        result["receipt"]["limits"].append(
+            "copula kenban_light_big/mini are retained in the cabinet entry movie (before its loop); "
+            "they are not repurposed as input-triggered lights.")
     return result

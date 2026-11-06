@@ -176,3 +176,5 @@ Global `hud.text` 的默认载体是原生信息区域；material-selected模板
 BGA原图可能同时包含中央透明窗和边缘装饰孔，alpha==0的全局bbox不能当作视频开口；应核中央完全透明矩形与原四角投影，保留其余孔的原像素。`anime_cover`命名存在也不代表每种布局实际有钩子；26 SP/宽框与DP分别核完整时序，25宽2P须保留负X镜像。Camera/曲目年代的原调用资格与OMS手选外框适配分开登记，见[Standard接入](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#查漏后的接入与适配)。
 
 静态框体与运动片段若只是同一原电影的不同采样，不必占两个program；复用前须核实际draw及全部祖先、mask、camera、颜色和层序，不能只比较纹理或局部矩阵。常量clock也占numericSources预算；NEXT等整数表达式精简须覆盖门槛前/等于/后、奇数半档和大整数边界，不能把“某个场景少了程序”当成整组合预算通过。PB实景取证则须让普通Player保存第一局再由第二局原生查询，转换后的临时beatmap wrapper ID不是working map或保存成绩的身份。复跑入口见[取景工具](../../tools/StandardSkinCapture/README.md)。
+
+跨来源可能让直接 sprite 与录制电影引用同一张原 PNG，但不同资源声明共用路径仍会被作者 CLI 拒绝。直接图与录制图应保留独立命名空间，不能改像素或把两个 owner 合并来绕过重复路径检查。作者 ID 压缩须包含真实 `stateMachines[].states[].set[].target`，只改 `assignments` 会漏掉现行 schema；保留诊断语义 ID，并以逆向重写核对全部其它字段，再跑正式 CLI 与同包 Player。来源接入取[Standard 记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#2026-11-07-24-来源接入)。

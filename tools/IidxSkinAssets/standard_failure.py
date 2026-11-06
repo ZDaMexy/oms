@@ -18,7 +18,8 @@ def validate_failure_source(source):
 def export_failure(library, output, bemani_root, image_tools):
     exporter = StandardComponents(library, output, bemani_root, image_tools)
     families = {}
-    for family, identifier in (("0", "sf.failed"), ("1", "sf.failed.legacy")):
+    for family in exporter.source_families:
+        identifier = {"0": "sf.failed", "1": "sf.failed.legacy"}.get(family, "sf.failed." + family)
         clip = exporter.clip(f"{family}/gameparts", "miss", identifier, loop=False, trigger="gameplay.fail")
         validate_failure_source(clip["source"])
         receipt = {"source": f"26 HDD/{family}/gameparts/miss,180 frames at60Hz,1280x720",
@@ -29,11 +30,14 @@ def export_failure(library, output, bemani_root, image_tools):
             "nativeLoad": "35388f/353d96 load the shared gameplay miss movie, not the unrelated boss failed_ prefixes.",
             "nativeTrigger": "354190 first handles ordinary chart completion;353960 then checks both participating-side failure/retirement states. On this failure branch354247 starts the miss movie.",
             "nativeExit": "353f90 keeps the failure state for at least152 native ticks before353ee0 exit fading. The full180-frame asset is retained; all180 frames being visible in the original caller is not asserted."})
-        else:
+        elif family == "1":
             receipt.update({
                 "selection": "Retained family1 artwork accompanies the CANNON BALLERS frame in this author work.",
                 "sourceContent": "The independent miss movie includes its original x_font/x_noise_bg children, laser/noise and ENGINE BLOW-OUT artwork.",
                 "nativeBoundary": "This26 executable does not select family1. The25 executable/caller and its exit timing have not been supplied; the original asset is mapped to the established OMS failure event/outro, not asserted to reproduce25 software timing."})
+        else:
+            receipt.update(source=f"24 HDD/{'0/' if family == 's24' else ''}gameparts/miss,180 frames at60Hz,1280x720",
+                nativeBoundary="Original 24 HDD artwork and full source timeline; the OMS failure event/outro is an explicit host adaptation. This does not assert original 23 executable timing.")
         families[family] = {"clip": clip, "receipt": receipt}
     result = {"contract": "oms-standard-failure.v2", "librarySHA256": exporter.source_library_sha,
               "families": families, "files": list(exporter.files.values())}

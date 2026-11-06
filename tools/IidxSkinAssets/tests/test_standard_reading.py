@@ -21,6 +21,7 @@ def walk(nodes):
 
 class SyntheticFrame(Frame):
     def __init__(self, output, layout):
+        self.style = 26
         self.layout = layout
         self.dp, self.p2 = layout == "dp", layout == "p2"
         self.prefix = "synthetic." + layout

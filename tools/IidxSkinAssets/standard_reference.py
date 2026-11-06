@@ -565,7 +565,7 @@ def main():
         parser.add_argument(f"--{name}", type=Path, required=True)
     parser.add_argument("--styles", type=int, nargs="+", required=True)
     parser.add_argument("--recorded", action="store_true", help="Add original PNG/mesh/hierarchy clips to completed layout research")
-    parser.add_argument("--common-family", choices=("0", "1"), required=True,
+    parser.add_argument("--common-family", choices=("0", "1", "s23", "s24"), required=True,
                         help="Explicit common family from the observed source configuration, never inferred from canvas size")
     args = parser.parse_args()
     library, bemani, image_tools = (path.resolve(strict=True) for path in (args.library, args.bemani_root, args.image_tools))

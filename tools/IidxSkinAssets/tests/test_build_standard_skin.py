@@ -24,6 +24,8 @@ class SyntheticOwner:
 
     def __init__(self, gauge_size):
         self.gauge_size = gauge_size
+        self.source_data = {}
+        self.frame_styles = (26,)
         self.dimensions = {"std.empty": (1, 1)}
         self.bga_contexts = []
 

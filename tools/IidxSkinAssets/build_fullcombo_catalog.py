@@ -71,8 +71,8 @@ def load_tools(bemani_root, image_tools):
     from PIL import Image
     from bemani.format.afp.swf import SWF, AP2PlaceObjectTag, AP2DefineSpriteTag
     from bemani.format.afp.geo import Shape
-    from bemani.format.afp.render import AFPRenderer, PlacedClip, PlacedShape, PlacedImage, PlacedDummy
-    from bemani.format.afp.types import Color, Matrix, Point
+    from bemani.format.afp.render import AFPRenderer, PlacedClip, PlacedShape, PlacedImage, PlacedDummy, Mask
+    from bemani.format.afp.types import Color, Matrix, Point, Rectangle
     return types.SimpleNamespace(**locals())
 
 

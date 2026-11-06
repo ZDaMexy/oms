@@ -51,7 +51,11 @@ BMS 支持 5/7/14K，mania 支持 5/6/7/8/14/16K；单舞台使用 `p1/p2`，14/
 
 `--chart reading` 只允许 BMS，配合 `--reading-mode normal|floating|classic` 分别运行三局，缺省为 `normal`。该入口继承普通 `BmsSoloPlayer`，使用原生新成绩与录制器，不添加 Autoplay/NoFail，也不调用 `SetReplayScore`。真实产品的 Autoplay 使用 ReplayPlayer 并独占输入，因此读谱专项必须保持普通玩家输入归属。进入与初始时钟 Reset 完成后，工具经 `BmsInputManager.TriggerOmsActionPressed/Released` 合成 `UI_PreStartHold` 和 `Key1P_2`；不在 LoadComplete 提前持有 Start，不直接调用 `SetAdjustmentHeld`，不写入皮肤事件或 GN/Preview 数字。回执明确这是合成原生输入 API 验证，未代签实体键盘或控制器。
 
-读谱专项按 26 自身允许的组合取景：Normal/Classic 使用 LIFT+SUDDEN（80/125），Floating 使用 SUDDEN+HIDDEN（125/75）。关闭项保留配置值但不显示边缘读数；不以原版不存在的 Hidden+Lift 三开组合签原型。Normal 从 8 经十二次真实黑键输入升到 20，验证 1–10 与 11–20 分页，Floating 从 2.5、Classic 从 3.5 各调高一档。原标准谱实际含 150→180 BPM 变化，GN、实际 Hi-Speed、绿数范围和 Preview 均读取真实规则集状态。输出 `reading-held`、`reading-first-row`、`reading-adjusted`、`reading-ready` 四组图片、普通游玩快照及 `*-native.json`；要求实际源字形/首排 cue/READY 纹理已可见，Normal Preview 仅在 Start 保持时显示，另两模式隐藏它。保持 Start 直到真实准备倒计时耗尽，松开后等待自然 READY 与 chart clock 开始，再按原生生成器提供的动作计划，在 Player 更新中按 InputManager 实际谱面时钟投递到期 OmsAction 键/皿按松，并核对实际投递误差。计划从不挂载为 Replay；实际成绩、判定与录制内容来自普通玩家路径。`reading-native-chart-input-plan.json` 与 `reading-native-chart-input-complete.json` 保存计划时间、实际投递时间/动作和原生结果，继续四张游玩图、完整计分、Full Combo 尾声及 Results。Start 等待最多写一份初始/1.5 秒诊断快照与 12 条输入/reset 记录，不逐帧写文件。默认 `standard` 与 `combo-stress` 不启用此入口。
+读谱专项沿用已核对的 26 组合：Normal/Classic 使用 LIFT+SUDDEN（80/125），Floating 使用 SUDDEN+HIDDEN（125/75）。关闭项保留配置值但不显示边缘读数；不以原版不存在的 Hidden+Lift 三开组合签原型。Normal 从 8 经十二次真实黑键输入升到 20，验证 1–10 与 11–20 分页，Floating 从 2.5、Classic 从 3.5 各调高一档。原标准谱实际含 150→180 BPM 变化，GN、实际 Hi-Speed、绿数范围和 Preview 均读取真实规则集状态。输出 `reading-held`、`reading-first-row`、`reading-adjusted`、`reading-ready` 四组图片、普通游玩快照及 `*-native.json`。默认及 25/26 来源继续要求作者声明的 Normal 侧窗、实际可见的源首排 cue 和 READY 纹理；侧窗内的 Preview 仅在 Normal 模式保持 Start 时显示，Floating/Classic 隐藏它。
+
+23/24 例外仅在显式传入 `--options '{"frame":"iidx23"}'` 或 `iidx24` 时启用，并要求实际 publication 选中的 `frame` 与请求一致。这两套选中来源没有专用 Normal 侧窗和首排 cue 美术：工具要求实际 `LayoutSnapshot.HasAuthoredNormalSpeedPreview` 为假，且已准备场景中不存在侧窗与 arrival 节点。OMS 此时仍将原生开局两音符预览放在实际音轨内；Normal、Floating、Classic 三种模式在开局保持 Start 时都须可见，松开后隐藏。`reading-first-row` 在这两款中记录的是源 cue 缺席，不能作为首排提示已显示的证据。回执记录请求框体、实际布局能力、预览所属容器和视口、源 cue 节点数；其它来源仍走原有严格检查，不因缺少声明而静默跳过。这验证的是 OMS 对所选美术的实际适配，不证明 23/24 原版具有相同的预览、分页或首排提示能力。
+
+所有来源均保持 Start 直到真实准备倒计时耗尽，松开后等待自然源 READY 与 chart clock 开始，再按原生生成器提供的动作计划，在 Player 更新中按 InputManager 实际谱面时钟投递到期 OmsAction 键/皿按松，并核对实际投递误差不超过 50ms。计划从不挂载为 Replay；实际成绩、判定与录制内容来自普通玩家路径。`reading-native-chart-input-plan.json` 与 `reading-native-chart-input-complete.json` 保存计划时间、实际投递时间/动作和原生结果，继续四张游玩图、完整计分、Full Combo 尾声及 Results。Start 等待最多写一份初始/1.5 秒诊断快照与 12 条输入/reset 记录，不逐帧写文件。默认 `standard` 与 `combo-stress` 不启用此入口。
 
 `--chart failure` 只允许 BMS，使用标准谱和真实 Hazard Gauge。独立 `BmsSoloPlayer` 先让原生录制器初始化本局元数据，再加载只有 0/60000 毫秒空输入帧的普通 Replay；不携 Autoplay/NoFail，不调用 `PerformFail` 或注入皮肤失败事件，也不采用 ReplayPlayer 的末帧延迟失败逻辑。实际漏判触发原生失败后，在独立失败呈现时钟达到 300/1500/2800 毫秒且源动画已存在可见纹理时取景，要求 chart clock、成绩及已计分命中数不再变化，原生输入已关闭，源动画 AppliedFrame 持续推进。最后等待并拍摄普通 FailOverlay。此分支不经过 Results、不宣称 Passed 或完整计分；`completed.json` 的成功仅表示失败场景验收闭合。可再以 `--options '{"judgement-display":"false"}'` 运行，确认原 Stage Failed 独立于 Judgement 开关。
 
@@ -59,7 +63,7 @@ BMS 支持 5/7/14K，mania 支持 5/6/7/8/14/16K；单舞台使用 `p1/p2`，14/
 
 每局输出包身份及运行程序集 SHA256、选择与精确 publication、全部材料来源、选项/轨道几何/绑定/时钟声明，以及各专项所述的自然取景和真实状态。常规完成谱面局输出四张游玩图、普通 Results 与真实成绩；失败专项输出源失败尾声和普通 FailOverlay。最终均以 `completed.json` 和 `host-exit.json` 闭合。运行失败或缺少完成回执均返回非零；图片文件写出不等于目视验收。宿主使用真实渲染 API 取景，不使用 computer use。展示完整 framebuffer 时连同 ManualInputManager 一起移动，保持实际游戏的键盘输入父树；不能只移动 Game 后向原空输入树按 Esc。
 
-数值配置按实际数值核对，保留浮点档位归一化允许的舍入误差，不把`0.7`与其G17保存串不同误判为未应用。Normal读谱图还核对两条原生预览音符已有实际纹理、至少一条进入当前预览窗口，并记录各音符可见纹理数与屏幕矩形；仅有父对象active或phase变化不足以证明预览可见。
+数值配置按实际数值核对，保留浮点档位归一化允许的舍入误差，不把`0.7`与其G17保存串不同误判为未应用。预览预期可见的读谱图还核对两条原生预览音符已有实际纹理、至少一条进入当前实际视口，并记录各音符可见纹理数与屏幕矩形；侧窗和原生音轨预览都不能只凭父对象active或phase变化证明可见。
 
 完整计分后还会确认真实 full combo 与保留的 `gameplay.complete` 事件，沿自然时钟等待至少 300 毫秒及实际已应用动画帧中可见的纹理片段，然后输出 `full-combo-outro.png`、对应游玩状态与 `full-combo-observation.json`。取景不 seek、不暂停时钟、不修改 alpha；采图后继续自然进入 Results。
 

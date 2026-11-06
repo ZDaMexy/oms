@@ -1,4 +1,4 @@
-"""IIDX26 Graph art and read-only score presentation; original art remains external."""
+"""Source-qualified Standard Graph art and read-only OMS score presentation."""
 from __future__ import annotations
 import copy
 import hashlib
@@ -10,10 +10,19 @@ from urllib.parse import unquote
 import xml.etree.ElementTree as ET
 
 PACKAGE = "contents/data/graphic/0/graph.ifs"
+from standard_source_catalog import families as source_families, styles as source_styles, family_suffix
 FRAME_IDS = {3, 8, 12, 14, 16, 17, 19, 21, 25, 26}
 LOGICAL = 768 / 720
 BAR_TOP, BAR_BOTTOM, BAR_WIDTH = 94, 542, 66
 BAR_COLUMNS = {"current": 54, "best": 128, "target": 202}
+# The supplied IIDX24 graph_1p/2p movies retain different score/header anchors.
+# Its root-family panel (s23) already contains MAX and the baseline. Only the
+# 0-family panel (s24) adds those two separate draws. These aliases identify
+# art in the 24 HDD, not a supplied IIDX23 executable.
+EARLIER_GRAPH = {
+    "s23": {"maximum": None, "baseline": None, "rankSize": (270, 15)},
+    "s24": {"maximum": "gr_score_graph_max", "baseline": "gr_score_graph_line", "rankSize": (272, 18)},
+}
 TARGETS = {"aaa": "AAA", "aa": "AA", "a": "A", "custom": "CUSTOM %", "next": "NEXT", "next-plus": "NEXT+"}
 GraphOPTIONS = [
     {"id": "graph-difference", "type": "toggle", "label": "Graph score difference", "default": True},
@@ -47,21 +56,23 @@ class _Graph:
     def __init__(self, library, layout, prepared_font=None, *, target=None, common_family="0"):
         if layout not in ("p1", "p2", "dp"):
             raise ValueError("Graph layout must be p1, p2 or dp")
-        if common_family not in ("0", "1"):
-            raise ValueError("Graph common family must be 0 or 1")
         self.library = Path(library).resolve(strict=True)
         self.common_family = common_family
+        self.earlier = common_family in EARLIER_GRAPH
         self.package = f"contents/data/graphic/{common_family}/graph.ifs"
-        self.identity = "standard.graph" + (".f1" if common_family == "1" else "")
-        self.path_prefix = "standard/graph" + ("/f1" if common_family == "1" else "")
+        suffix = family_suffix(common_family)
+        self.identity = "standard.graph" + ("." + suffix if suffix else "")
+        self.path_prefix = "standard/graph" + ("/" + suffix if suffix else "")
         self.layout, self.left = layout, 0 if layout == "p2" else 1000
         self.prefix = self.identity + "." + (layout if target is None else f"target.{target}.{layout}")
         metadata = json.loads((self.library / "library.json").read_text(encoding="utf-8"))
+        if common_family not in source_families(metadata):
+            raise ValueError("Graph family is not in this verified source composition")
         if metadata["status"] != "complete" or metadata["sourceMetadataUnchanged"] is not True:
             raise ValueError("Graph requires the complete verified IIDX26 library")
         frames = {int(match[1]) for package in metadata["packages"]
                   if (match := re.fullmatch(r"contents/data/graphic/gmframe(\d+)\.ifs", package["source"]))}
-        if frames != FRAME_IDS:
+        if frames != set(source_styles(metadata)):
             raise ValueError("Graph requires the independent IIDX26 cabinet selection")
         packages = [package for package in metadata["packages"] if package["source"] == self.package]
         if len(packages) != 1:
@@ -209,7 +220,7 @@ class _Graph:
             "material": {"slot": "decoration", "resource": f"markers/frame-{self.layout}-information"}})
 
     def receipt(self):
-        return {"contract": "oms-standard-graph.v2", "sourcePackage": self.package, "sourcePackageSHA256": self.source_sha,
+        value = {"contract": "oms-standard-graph.v2", "sourcePackage": self.package, "sourcePackageSHA256": self.source_sha,
             "commonFamily": self.common_family,
             "familyScope": "Source-qualified retained art only. The live scores and PACEMAKER policy remain the existing OMS/26 software adaptation; no original25 software timing is asserted.",
             "layout": self.layout, "sourceMovie": "graph_2p" if self.layout == "p2" else "graph_1p", "originalCanvas": [1280, 720],
@@ -220,6 +231,31 @@ class _Graph:
             "dp": "Explicit reuse of source P1 right-side panel; no separate DP graph movie is asserted.",
             "numericDeclarations": len(self.value["numericSources"]), "numericDepth": max(self.depths.values(), default=0),
             "mount": "Existing Global frame information marker only; Stage decoration remains suppressed."}
+        if self.earlier:
+            geometry = EARLIER_GRAPH[self.common_family]
+            value.update({
+                "familyScope": ("Source art and movie geometry from the supplied IIDX24 HDD. "
+                    + ("s23 is its retained copula art; no IIDX23 executable or original23 runtime equivalence is asserted. "
+                       if self.common_family == "s23" else "s24 is its SINOBUZ 0-family art. ")
+                    + "The supplied24 caller places the gauge columns and rank lines and selects gr_score_tag_2. "
+                      "The existing OMS live/PB/PACEMAKER policies remain an explicit adaptation; no26 artwork fills absent old resources."),
+                "sourceGeometry": {"sourceMovies": ["graph_1p", "graph_2p"], "frames": 60,
+                    "currentScore": [178, 30], "targetScore": [178, 57],
+                    "pacemakerHeader": [1, 54, 162, 28], "targetTag": [5, 598, 135, 31],
+                    "targetTagTexture": "gr_score_tag_2", "rankSize": list(geometry["rankSize"]),
+                    "rankLineY": [527, 77], "rankNativeScale": 450, "maximumTexture": geometry["maximum"],
+                    "baselineTexture": geometry["baseline"]},
+                "callerBasis": {"software": "supplied IIDX24 x86 DLL, not the IIDX26 executable",
+                    "gaugePlacementRVA": "0x6bade", "gaugeColumnTableRVA": "0x137484",
+                    "rankPlacementRVA": "0x6b540", "scoreToYRVA": "0x6b4f0",
+                    "targetTagSetterRVA": "0x6bf86"},
+                "omissions": (["No separate MAX/baseline sprites: both lines are part of the original s23 panel PNG."]
+                              if self.common_family == "s23" else []),
+                "adaptations": ["The original gauge PNG is cropped from a fixed UV image by real OMS score; its600-frame source texture-scroll movie is not replayed.",
+                    "Rank position follows the existing continuous OMS progress track between the supplied24 caller's endpoints.",
+                    "Rank-line visibility retains the existing OMS rank-availability gate, not the supplied24 caller's reached-line alpha switch.",
+                    "PB total and signed differences use the existing OMS local-score readout, not an original per-note ghost."]})
+        return value
 
 
 def build_graph(library: Path, layout: str, prepared_font=None, *, common_family="0"):
@@ -229,15 +265,21 @@ def build_graph(library: Path, layout: str, prepared_font=None, *, common_family
         graph.sprite("panel", "gr_score_graph_panel", (280, 720), 0, 0)])
     bars = [graph.bar("current", "current", "score.progress"),
         graph.gate("bar.best.available", "score.personal-best-available", [graph.bar("best", "best", "score.personal-best-progress")]),
-        graph.gate("bar.best.missing", "score.personal-best-available", [graph.bar("best-fallback", "best", "score.progress")], when=False),
-        graph.sprite("line.maximum", "gr_line_max", (276, 20), 4, 90),
-        # The family1 movie uses the original graph-line name at exactly the
-        # same projected rectangle; it has no gr_line_under texture.
-        graph.sprite("line.baseline", "gr_score_graph_line" if common_family == "1" else "gr_line_under", (272, 6), 4, 540)]
+        graph.gate("bar.best.missing", "score.personal-best-available", [graph.bar("best-fallback", "best", "score.progress")], when=False)]
+    maximum, baseline = ((EARLIER_GRAPH[common_family]["maximum"], EARLIER_GRAPH[common_family]["baseline"])
+                         if graph.earlier else ("gr_line_max", "gr_score_graph_line" if common_family == "1" else "gr_line_under"))
+    if maximum is not None:
+        bars.append(graph.sprite("line.maximum", maximum, (276, 20), 4, 90))
+    if baseline is not None:
+        bars.append(graph.sprite("line.baseline", baseline, (272, 6), 4, 540))
     ranks = []
+    rank_size = EARLIER_GRAPH[common_family]["rankSize"] if graph.earlier else (272, 18)
+    # The supplied24 caller multiplies by450; its gauge PNG is only448px high.
+    # These are independent source facts, not interchangeable extents.
+    rank_bottom, rank_top = (527, 77) if graph.earlier else (BAR_BOTTOM - 14, BAR_TOP - 14)
     for rank in ("aaa", "aa", "a"):
-        line = graph.sprite("line." + rank, "gr_line_" + rank, (272, 18), 4, BAR_BOTTOM - 14)
-        graph.track(line["id"], "y", "score.rank-" + rank + "-progress", [(0, (BAR_BOTTOM - 14) / 720), (1, (BAR_TOP - 14) / 720)])
+        line = graph.sprite("line." + rank, "gr_line_" + rank, rank_size, 4, rank_bottom)
+        graph.track(line["id"], "y", "score.rank-" + rank + "-progress", [(0, rank_bottom / 720), (1, rank_top / 720)])
         ranks.append(line)
     bars.append(graph.gate("rank.available", "score.rank-available", ranks))
     # Original score_tag_1 is the135x31 right-hand tag at(140,567).
@@ -251,8 +293,9 @@ def build_graph(library: Path, layout: str, prepared_font=None, *, common_family
             graph.number("best.difference", difference, 143, 656, 128, small=True)]))
     mania = graph.caption("mania.pacemaker", "EX PACEMAKER: BMS ONLY", 5, 57, 270, size=13)
     graph.variant(mania["id"], "layout.ruleset", {"mania": True})
+    score_x, score_y = (178, 30) if graph.earlier else (183, 28)
     data = node(graph.prefix + ".data", properties={"z": -30}, slot="decoration", children=[
-        graph.number("current.value", "score.value", 183, 28, 92),
+        graph.number("current.value", "score.value", score_x, score_y, 92),
         graph.sprite("tag.current", "gr_p_nowsc", (135, 31), 5, 567),
         graph.gate("maximum.available", "score.maximum-available", bars),
         graph.gate("best.available", "score.personal-best-available", best), mania])
@@ -375,9 +418,10 @@ def build_graph_target(library: Path, layout: str, target: str, prepared_font, *
     pace = graph.numeric("pace", "ceil", pace_fraction)
     progress = graph.numeric("pace-progress", "divide", pace, "score.maximum")
     difference = graph.numeric("difference", "subtract", "score.value", pace)
-    content = [graph.sprite("header", "gr_gt_pacemaker", (160, 28), 5, 53),
-        graph.number("total", total, 183, 57, 92), graph.bar("target", "target", progress),
-        graph.sprite("tag", "gr_score_tag_red", (135, 31), 5, 598),
+    header_x, header_y = (1, 54) if graph.earlier else (5, 53)
+    content = [graph.sprite("header", "gr_gt_pacemaker", (162, 28) if graph.earlier else (160, 28), header_x, header_y),
+        graph.number("total", total, 178 if graph.earlier else 183, 57, 92), graph.bar("target", "target", progress),
+        graph.sprite("tag", "gr_score_tag_2" if graph.earlier else "gr_score_tag_red", (135, 31), 5, 598),
         graph.caption("label", TARGETS[target], 9, 604, 127, 19, 15, "centre"),
         graph.gate("difference.visible", "option.graph-difference", [
             graph.caption("difference.label", "TARGET DIFF", 9, 637, 127, size=11),
@@ -402,6 +446,10 @@ def build_graph_target(library: Path, layout: str, target: str, prepared_font, *
             "layers": "Native priority68 update maps to132, behind priority67 notifications at133. The source panel280x720 is unscaled within the original Graph rectangle; the original150-frame nonlooping movies retain their500ms transparent start.",
             "rank": "Only the highest currently reached A/AA/AAA is visible, matching the original lv_pass replacement. No achievement badge trigger is inferred.",
             "boundary": "This does not extend Results waiting or reconstruct events missed before the scene attached."}}
+    if graph.earlier:
+        graph.value["receipt"]["policy"] = "Existing OMS targets: AAA/AA/A EX thresholds; CUSTOM floor(maximum*percent/100); NEXT rounded rank midpoints; NEXT+ float32 arithmetic and A..MAX limits."
+        graph.value["receipt"]["policyBasis"] = "Existing OMS policies qualified against26 software; this retains the selected24-HDD original art without asserting a23/24 policy/timing reconstruction."
+        graph.value["receipt"]["cutins"]["layers"] = "Existing OMS cut-in composition: one update behind notifications in the original280x720 panel. The layer/once-gate contract was qualified against26; the selected24-HDD recorded source frames remain unchanged."
     return graph.value
 
 

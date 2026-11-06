@@ -1,8 +1,9 @@
-"""26 source Start/READY artwork, driven only by native OMS reading state.
+"""Qualified Standard Start/READY art driven by native OMS reading state.
 
-The source game has ten Normal rows. OMS has twenty Normal settings, so the
-same ten-row window pages between 1..10 and 11..20. Classic uses an explicitly
-labelled multiplier window. Neither adaptation changes native speed maths.
+The source window artwork hosts OMS-authored ten-row pages for Normal preset
+indices 1..20. This does not reproduce the eleven fixed multipliers observed
+in the supplied 24 executable. Classic uses an explicitly labelled multiplier
+window. Neither adaptation changes native OMS speed maths.
 """
 from __future__ import annotations
 
@@ -12,12 +13,13 @@ import json
 from pathlib import Path
 
 from build_standard_skin import LOGICAL, box, node, rect, sha
+from standard_source_catalog import layout_family, styles as source_styles
 
 
 OPTIONS = [
     {"id": "start-panel", "type": "toggle", "label": "Start 调速面板", "default": True},
     {"id": "ready-animation", "type": "toggle", "label": "GET READY", "default": True},
-    {"id": "arrival-cue", "type": "toggle", "label": "首排音符提示", "default": True},
+    {"id": "arrival-cue", "type": "toggle", "label": "首排音符提示（25–26 / ARC SCORE）", "default": True},
 ]
 
 # Stable frame16 geometry of the six original 0/gameparts movies. The numeric
@@ -42,15 +44,18 @@ def export_ready(library, output, bemani_root, image_tools):
     """Record all three source movies once; art stays in this private export."""
     from standard_components import StandardComponents
     exporter = StandardComponents(library, output, bemani_root, image_tools)
-    clips = {}
-    for layout, movie in (("p1", "1p_ready"), ("p2", "2p_ready"), ("dp", "dp_ready")):
-        clip = exporter.clip("0/gameparts", movie, "sr.ready." + layout,
-                             loop=False, trigger="gameplay.attach")
-        if clip["source"]["fps"] != 60 or clip["source"]["sourceFrames"] != 90:
-            raise ValueError("The qualified 26 READY is exactly 90 source frames at 60Hz")
-        clips[layout] = clip
+    families = {}
+    for family in sorted({layout_family(style) for style in source_styles(exporter.source_data)}):
+        clips = families[family] = {}
+        for layout, movie in (("p1", "1p_ready"), ("p2", "2p_ready"), ("dp", "dp_ready")):
+            prefix = "sr.ready." if family == "0" else "sr.ready." + family + "."
+            clip = exporter.clip(f"{family}/gameparts", movie, prefix + layout,
+                                 loop=False, trigger="gameplay.attach")
+            if clip["source"]["fps"] != 60 or clip["source"]["sourceFrames"] != 90:
+                raise ValueError("The qualified READY requires its original 90 frames at 60Hz")
+            clips[layout] = clip
     result = {"contract": "oms-standard-reading-assets.v1", "librarySHA256": sha(library / "library.json"),
-              "clips": clips, "files": list(exporter.files.values()), "source": exporter.receipts}
+              "clips": families['0'], "families": families, "files": list(exporter.files.values()), "source": exporter.receipts}
     (output / "reading.json").write_text(json.dumps(result, separators=(",", ":")) + "\n", encoding="utf-8")
     return result
 
@@ -62,7 +67,7 @@ def add_reading(frame, ready, prepared_font, font_path):
     geo = GEOMETRY[frame.layout]
 
     def image(name, texture, bounds):
-        resource, row = frame.asset("0/gameparts", texture)
+        resource, row = frame.asset(layout_family(frame.style) + "/gameparts", texture)
         if (row["width"], row["height"]) != (bounds[2], bounds[3]):
             raise ValueError(f"Source Start geometry changed: {texture}")
         return node(prefix + "." + name, "sprite", rect(box(*bounds)), resource)
@@ -134,7 +139,7 @@ def add_reading(frame, ready, prepared_font, font_path):
             # DP's Floating labels, ticks and CURRENT label are baked into the
             # window. Keep its upper300 source pixels; the lower generic
             # HI-SPEED CHANGE panel avoids falsely labelling Classic FLOATING.
-            original, row = frame.asset("0/gameparts", "playm_spd2_window_dp")
+            original, row = frame.asset(layout_family(frame.style) + "/gameparts", "playm_spd2_window_dp")
             if (row["width"], row["height"]) != (88, 376):
                 raise ValueError("Source DP Floating window dimensions changed")
             # The public texture declaration keeps the complete original PNG;
@@ -200,8 +205,10 @@ def add_reading(frame, ready, prepared_font, font_path):
     art["clock"] = "preparation.ready-elapsed"
     frame.info.append(gate("ready.enabled", "option.ready-animation", [art]))
     frame.scene["preparationDuration"] = max(1500, frame.scene.get("preparationDuration", 0))
-    frame.evidence.append({"reading": {"source": "26/0/gameparts spd/spd2 p1/p2/dp, stable frame16; native font2",
-        "normal": "Original ten-row layout, paged for native OMS levels1..20; no change to native maths.",
+    frame.evidence.append({"reading": {"source": layout_family(frame.style) + "/gameparts spd/spd2 p1/p2/dp, stable frame16",
+        "geometryBasis": "The six source movies in each of0/s23/s24 have identical frame16 texture bounds and named hooks; numeric rendering uses the separately identified source font and OMS author metrics.",
+        "nativeReferenceBoundary": "The caller addresses below refer only to the audited26 executable; matching earlier source geometry does not prove identical historical software behaviour.",
+        "normal": "Source window artwork with OMS-authored ten-row pages for native OMS preset indices1..20; not the supplied24 executable's eleven fixed multipliers. No change to OMS maths.",
         "classic": "Explicit CLASSIC label and actual multiplier using the source0.5..10 window.",
         "green": "Actual current value at notes_time with native %4d spacing; native max-min endpoints use font5, exact source offset and right alignment for2P. No inferred endpoint maths.",
         "greenExtremeWidth": "Eight-to-ten-digit endpoints reserve ten original cells to avoid overlap within the public numeric-track time bound; ordinary one-to-seven-digit values retain native spacing.",
@@ -222,7 +229,7 @@ def add_preview_background(frame, children):
     art = []
     for name, bounds in (("waku", (x, 0, 68, 520)), ("lane", (x + 15, 0, 38, 482)),
                          ("red_line", (x + 15, 477, 38, 5))):
-        resource, row = frame.asset("0/gameparts", "playm_spd_pv_" + name)
+        resource, row = frame.asset(layout_family(frame.style) + "/gameparts", "playm_spd_pv_" + name)
         if (row["width"], row["height"]) != bounds[2:]:
             raise ValueError("Qualified source speed preview geometry changed")
         sprite = node(prefix + "." + name.replace('_', '-'), "sprite", rect(box(*bounds)), resource)
@@ -238,7 +245,7 @@ def add_preview_background(frame, children):
     # pivot. The texture is27px tall, so using a bottom27px origin would move
     # the original art incorrectly. Public phase is the existing OMS preview
     # driver's live phase, intentionally not the original60Hz/BPM counter.
-    resource, row = frame.asset("0/gameparts", "playm_spd_pv_bpm_gra_bar")
+    resource, row = frame.asset(layout_family(frame.style) + "/gameparts", "playm_spd_pv_bpm_gra_bar")
     if (row["width"], row["height"]) != (38, 27):
         raise ValueError("Qualified source preview BPM bar dimensions changed")
     bar_back = node(prefix + ".bpm.back", "sprite",
@@ -284,7 +291,7 @@ def add_arrival(frame):
     the cover is inactive, so the two visibility branches must stay separate.
     """
     for colour, suffix, width in (("white", "w", 34), ("black", "b", 26), ("scratch", "s", 60)):
-        resource, row = frame.asset("0/gameparts", "start_notes_" + suffix)
+        resource, row = frame.asset(layout_family(frame.style) + "/gameparts", "start_notes_" + suffix)
         if (row["width"], row["height"]) != (width, 180):
             raise ValueError("Unqualified 26 first-row source dimensions")
         prefix = frame.prefix + ".arrival." + colour

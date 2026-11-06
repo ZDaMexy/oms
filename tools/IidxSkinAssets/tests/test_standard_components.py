@@ -502,6 +502,7 @@ class StandardComponentsTests(unittest.TestCase):
     def test_turntable_export_keeps_the_source_quad_and_uses_logical_motion_groups(self):
         owner = memory_owner()
         owner.frame_maps = Path("mapping.json")
+        owner.frame_ids = FRAME_IDS
         owner.packages = {f"turn{i:02}": {} for i in range(21)}
         owner.receipts = []
         owner.preview = lambda *args: "preview.png"

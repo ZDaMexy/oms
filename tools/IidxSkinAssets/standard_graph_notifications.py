@@ -160,7 +160,7 @@ def export_graph_notifications(library, output, bemani_root, image_tools):
     import brotli
     exporter = StandardComponents(library, output, bemani_root, image_tools)
     families = {}
-    for family in ("0", "1"):
+    for family in exporter.source_families:
         package = family + "/graph"
         clips, programs = {}, {}
         for movie in MOVIES:
@@ -206,7 +206,7 @@ def export_graph_notifications(library, output, bemani_root, image_tools):
                 "target": "Once: actual currentEX strictly exceeds an available positive frozen target.",
                 "rank": "A/AA/AAA use>=; when one score change reaches several levels, only the highest newly reached rank plays.",
                 "disabled": "Native preference suppresses drawing while its one-time crossing eligibility is still consumed."},
-            "sourceSelectionBoundary": "Family0 is loaded by the supplied26 executable. Family1 is retained older artwork; its separate historical executable timing is not asserted.",
+            "sourceSelectionBoundary": "0/1 identify the retained26 library; s23/s24 explicitly alias the24 HDD root/0 artwork. All native priority, anchor and eligibility references in this receipt were audited in26 and are OMS author adaptations for the earlier families, not claims about their historical executables.",
             "excluded": "achieve_pass has source art but no verified ordinary-play activation and is not exported."}
         families[family] = {"clips": clips, "receipt": receipt}
         research = exporter.output / f"research/sgn.f{family}"

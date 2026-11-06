@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 最后核对：2026-11-06（26 HDD已删除，保留资料位置已核；既有产品验证日期保持）
+> 最后核对：2026-11-07（24来源交付）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -11,9 +11,7 @@
 
 Lightning Model Skin Omni Until 33 自动推进仍停止，完整形态未完成。最新私下交付和运行要求取[.v26102902](CHANGELOG.md#2026-10-29omniv52私下交付)，历史 Lighting 文件名保留；范围与未验项取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md)。
 
-Standard Model Skin Omni Until 26 已私下交付`.v26110502`，接入1族失败、Graph原图、PB标签与过线通知，另有默认关闭的Classic BGA Frame。范围仍为25残留、26及八款ARC SCORE复刻；来源边界与同包验收取[作品记录](../../other/STANDARD_MODEL_SKIN_20261105.md#本轮验证与交付)，不宣称HDD素材穷尽，更早HDD另属下一阶段。
-
-26 原 HDD 已由用户删除；已保留的素材、作者源、证据和成品位置及后续原机测查依赖取[本地来源现状](../../other/STANDARD_MODEL_SKIN_20261105.md#本地来源现状)。
+Standard Model Skin Omni Until 26 已交付`.v26110700`。新增copula保留美术与SINOBUZ，范围、适配及来源可用性取[作品记录](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-07-24-来源接入)。24本体已安装并实测普通场景Time Freeze，26本体已删除；与Lightning独立，不称旧代完整软件或HDD穷尽。
 
 两作品选曲与Results均保留OMS原界面及PageAPI。Lightning的Classic/Header等已有表现与27文字锚点缺口取上方作品记录，旧页面方案取消取[日志](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
 
@@ -35,14 +33,14 @@ Standard Model Skin Omni Until 26 已私下交付`.v26110502`，接入1族失败
 | 皮肤布局与公共页面 | 作者声明stage/lane位置、留空槽和键区，不创建输入；BMS最多16个`BgaViewports`，逐窗fit/fill/stretch或none。通用选曲/Results接口共用真实数据及原操作，默认原界面 | 显式field不被旧BGA自适应挪动；冲突整组零窗并诊断，9K/PMS不套黑白比。BGA归[P1-L](../P1-L/DEVELOPMENT_STATUS.md)；Omni当前两页方案取消、保留OMS原界面 |
 | 作者制作与可选演出 | [完整套件](../../../skin-authoring/README.md)含制作、元素文件/尺寸/动画、INI/scene/script字段与预算、刷新打包；示例区分完整包与练习片段，手册/图片随套件发行 | 示例工具检查/打包和真实挂载已验证；历史实机图与素材示意分开。原编辑器可改既有组件并存独立副本，无完整scene/script可视化编辑器；不据手册代签视觉或旧三包演练 |
 | Lightning 与 BPL 第三方作品 | 默认33，27～33与八支BPL共15框体；1271款美术/539图，13模块/32项配置。BMS5/7/14、mania5/6/7/8/14/16与两侧/DP保持；当前行为和交付身份取上方作品记录 | 原机数学/变速谱、实体手感、转盘/Graph/外框时序、FAST/SLOW、PG、lane345、CUSTOM、默认/滤镜及DP末端仍有未验项，HCN不由教学代签。26属独立Standard，Until34不在范围；继续独立私下分享 |
-| Standard 第三方作品 | 独立26来源，状态取上方作品记录 | 更早缺失HDD待提供；原机和设备另验 |
+| Standard 第三方作品 | 独立24与保留26来源，新增两款及现有主题的交付状态取上方作品记录 | 更早缺失来源、未识别容器及无对应状态的资源分别维护；设备与原机全等价另验 |
 | 安装与发行 | 旧选择迁移证据保留；2026-10-03 候选已有便携/自定义根、恢复及同包覆盖启动证据，见 [P1-F](../P1-F/DEVELOPMENT_STATUS.md) | 生成物已按用户要求删除；实网下载、新作者独立演练、跨版本、独立账户非便携及设备/长期/公开发行门未新签收 |
 
 C2～C6共享同一 package/layout/material/scene publication、lease/detach 与脚本隔离合同；无游玩宿主的菜单也检查整包。授权撤销不扩大 reload 准入，具体合同只在[技术约束](TECHNICAL_CONSTRAINTS.md)维护。
 
 ## 最近一次验证
 
-2026-11-05：[Standard接入](CHANGELOG.md#2026-11-05standard保留美术与graph通知接入)同包通过3651代表组合、31场景（34局/30次Results/4次失败）、234张PNG完整性、38张逐图审看及交付核验。Python147/末段15、core皮肤738（含过线41）、BMS皮肤1226/15跳过、mania相关97/1跳过及Release通过。跳过原因、作者工具/宿主构建和精确身份取[作品记录](../../other/STANDARD_MODEL_SKIN_20261105.md#本轮验证与交付)，不复用v01旧验收。
+2026-11-07：Standard同包22场景/23局、186项制作工具测试及Desktop/作者CLI/取景宿主Release通过。代表组合、逐图审看、失败重试与交付身份取[作品验证](../../other/STANDARD_MODEL_SKIN_20261105.md#本轮验证与交付)。未改生产客户端，产品宽测沿[11月5日记录](CHANGELOG.md#2026-11-05standard保留美术与graph通知接入)。
 
 Lightning的10月29日候选、产品回归和Release保持[原记录](CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)；[.v26102902交付](CHANGELOG.md#2026-10-29omniv52私下交付)与候选同字节，Standard不刷新其验证日期。
 

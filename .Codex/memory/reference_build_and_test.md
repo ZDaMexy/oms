@@ -77,3 +77,5 @@ metadata:
 - restore 成功或不再发告警不等于完整依赖审计清洁。还需按范围核 `dotnet list ... package --vulnerable --include-transitive`，保留具名例外和传递依赖实情；实际修复版本、边界与兼容检查见 [C7 启动反馈](../../doc_md/other/SKIN_SYSTEM_C7_VALIDATION_20260909.md#交付后默认皮肤提示与构建警告修复)。
 
 - 读谱重进夹具明确拥有完整dependency tree时，先用立即移除/释放结束其callbacks，再dispose manager；只等layout owner退役不能证明drawable已离开全局异步释放队列。每例prepare也须清理失败前例，不能依赖可能跳过的TearDownSteps。确定性后台保存/同帧重建红绿证据取[P1-A记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29读谱夹具快照与原字体来源)。
+
+- `AddStep`/`AddUntilStep` 的条件描述和参数在注册时就会求值；此时后续步骤才赋值的实例 `settings` 仍为空。注册期来源分支须读取 Program 已初始化的 `CaptureSettings.Current`，实际 Player 验证仍在执行步骤内核对 publication，不能用空值回退掩盖错误。复跑入口见[Standard 取景工具](../../tools/StandardSkinCapture/README.md)。

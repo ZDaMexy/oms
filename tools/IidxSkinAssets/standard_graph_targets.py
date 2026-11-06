@@ -1,4 +1,4 @@
-"""Export the six independent IIDX26 PACEMAKER content branches."""
+"""Export the six OMS PACEMAKER branches with explicitly qualified source art."""
 from __future__ import annotations
 
 import copy
@@ -7,6 +7,7 @@ from pathlib import Path
 import shutil
 
 from standard_graph import GraphOPTIONS, TARGETS, build_graph_target, digest, node
+from standard_source_catalog import metadata, families as source_families, styles as source_styles, presentation_family, family_suffix
 
 
 def export_graph_target_module(library, output, prepared_font, *, notifications=None):
@@ -19,6 +20,7 @@ def export_graph_target_module(library, output, prepared_font, *, notifications=
     if output.drive.casefold() == "c:" or output.is_relative_to(library) or library.is_relative_to(output):
         raise ValueError("Graph target output must be an independent non-system author directory")
     files, receipts, choices = {}, [], []
+    source_data = metadata(library)
 
     def destination(relative):
         target = (output / relative).resolve()
@@ -46,11 +48,12 @@ def export_graph_target_module(library, output, prepared_font, *, notifications=
 
     for target, label in TARGETS.items():
         layouts = {}
-        for common_family, layout in ((family, layout) for family in ("0", "1") for layout in ("p1", "p2", "dp")):
+        for common_family, layout in ((family, layout) for family in source_families(source_data) for layout in ("p1", "p2", "dp")):
             contribution = build_graph_target(library, layout, target, prepared_font, common_family=common_family,
                 notifications=notifications[common_family]["clips"] if notifications is not None else None)
-            family_path = "/f1" if common_family == "1" else ""
-            family_id = ".f1" if common_family == "1" else ""
+            suffix = family_suffix(common_family)
+            family_path = "/" + suffix if suffix else ""
+            family_id = "." + suffix if suffix else ""
             base = f"standard/graph{family_path}/targets/{target}/{layout}"
             for row in contribution["files"]:
                 source = Path(row["source"]).resolve(strict=True)
@@ -75,12 +78,14 @@ def export_graph_target_module(library, output, prepared_font, *, notifications=
             layouts[common_family, layout] = {"manifest": base + "/manifest.json", "scene": base + "/scene.json", "ini": base + "/materials.ini"}
             receipts.append(contribution["receipt"])
         # Public ordered variants select the first matching contribution.
-        # A DP publication has no layout option, so its family1 fallback must
+        # A DP publication has no layout option, so each qualified family must
         # follow the two more specific single-player branches.
         choices.append({"value": target, "label": label, **layouts["0", "dp"], "orderedVariants": True,
             "variants": [
-                *[{"when": {"frame": "iidx25", "layout": layout}, **layouts["1", layout]} for layout in ("p1", "p2")],
-                {"when": {"frame": "iidx25"}, **layouts["1", "dp"]},
+                *[variant for style in source_styles(source_data) if presentation_family(style) != '0'
+                  for variant in ([{"when": {"frame": f"iidx{style:02}", "layout": layout},
+                                     **layouts[presentation_family(style), layout]} for layout in ("p1", "p2")]
+                                  + [{"when": {"frame": f"iidx{style:02}"}, **layouts[presentation_family(style), "dp"]}])],
                 *[{"when": {"layout": layout}, **layouts["0", layout]} for layout in ("p1", "p2")],
             ]})
     return {"module": {"id": "graph-target", "label": "PACEMAKER", "rulesets": ["bms"], "default": "aaa", "choices": choices},

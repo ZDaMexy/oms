@@ -30,7 +30,7 @@ class StandardFailureTests(unittest.TestCase):
                 validate_failure_source({**self.source(), **changed})
 
     def test_export_uses_the_actual_public_failure_event(self):
-        exporter = SimpleNamespace(source_library_sha="synthetic", files={}, clip=Mock(return_value={
+        exporter = SimpleNamespace(source_library_sha="synthetic", source_families=("0", "1"), files={}, clip=Mock(return_value={
             "source": self.source(), "resources": [], "animations": [], "node": {}}))
         with tempfile.TemporaryDirectory() as directory, patch("standard_failure.StandardComponents", return_value=exporter):
             output = Path(directory)
