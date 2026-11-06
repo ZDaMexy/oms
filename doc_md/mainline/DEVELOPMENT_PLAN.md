@@ -1,6 +1,6 @@
 # OMS 当前开发规划
 
-> 最后核对：2026-11-05（Standard v02交付后边界；Lightning停止及原产品/发行门保持）
+> 最后核对：2026-11-07（清理后复跑前提；Lightning停止及原产品/发行门保持）
 > 本页维护全局顺序、跨线依赖和改动验收；当前事实见[STATUS](DEVELOPMENT_STATUS.md)，专项动作从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 当前目标
@@ -9,7 +9,7 @@
 
 Autoplay跳转、统计及Omni血条/默认FC的既有修复与保留人工门取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，不把原窗口待验列为恢复Omni自动开发的队列。其它设备、长条/键音/BGA和长期门仍沿下方P1-B/P1-E/P1-J/P1-L与P1-G。[既有游玩审查](../other/GAMEPLAY_REVIEW_20261019.md)只作输入，正常窗口、隔离宿主与发行证据分开。
 
-独立Standard Model Skin Omni Until 26以v02验收与交付为输入，后续按实际反馈或新来源继续，未解来源和更早HDD边界取[P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。Lightning仍按10月29日要求停止，两作品不混合素材或交付；SongSelect/Results保留OMS原界面和通用PageAPI，静线暂停及原release门保持。
+独立Standard Model Skin Omni Until 26以[P1-A已交付状态](../subline/P1-A/DEVELOPMENT_STATUS.md)为输入，后续按实际反馈或新来源继续，未解来源和更早HDD边界取[P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。Lightning仍按10月29日要求停止，两作品不混合素材或交付；SongSelect/Results保留OMS原界面和通用PageAPI，静线暂停及原release门保持。
 
 先按[P3-IR 原生页面接续计划](../subline/P3-IR/CLIENT_NATIVE_SERVICES_PLAN.md)在用户正常OMS窗口对标lazer，验已交付模式→所属来源、BMS来源恢复、加载中关闭与阅读体验。按已授权的独立IR与完整玩家网站范围，沿[P3-IR真人接续](../subline/P3-IR/DEVELOPMENT_PLAN.md#原版官网部署后的接续)验收原账号、保存后的新局 / 断网补交、网站公开最佳可见记录及同谱同来源 / 条件，先完成OMS＋全量历史＋ED7K的P，再完成指定宿主与玩法的C；继续维护备份、增长和同库回退，不重复未变已过门。用户通过VS Code非调试启动当前工作区，发行构建自行执行，不生成额外Windows包或安装副本；旧 osu! API endpoint 与下方Phase 1.x门不变。
 
@@ -86,7 +86,7 @@ P1-F结合P1-G统一复核：
 
 ## 改动验收矩阵
 
-当前工作区已获非调试进入Autoplay的现场证据，完整谱库 / 旧待交 / IR账号仍待核实。10月29日及11月6日回收均已执行并复核，沿[当前工作区](DEVELOPMENT_STATUS.md#工作区与开发环境)关闭清单，不重复执行；后续只清理新产生且已确认闲置的可再生成内容，环境入口重建的空缓存目录不重删。每次新shell遵守[开发磁盘约束](../../AGENTS.md#开发磁盘约束)，先准备临时宿主依赖并重编相应工程、测试和作者工具，不直接使用`--no-build`。11月6日检查的C盘登记工作副本没有可清构建产物；Codex全局迁移未执行，仍须等待其它活动任务结束并核对聊天、数据库、工作副本与重启恢复。
+当前工作区已获非调试进入Autoplay的现场证据，完整谱库 / 旧待交 / IR账号仍待核实。已完成回收与保留项沿[当前工作区](DEVELOPMENT_STATUS.md#工作区与开发环境)登记，关闭清单不重复执行；后续只清理新产生且已确认闲置的可再生成内容。每次新shell遵守[开发磁盘约束](../../AGENTS.md#开发磁盘约束)，先重编相应工程、测试和作者工具，不直接使用`--no-build`；旧验收宿主须按清理回执的同版本保留件映射还原依赖，不能套用当前DLL冒充历史运行时。11月7日复核C盘登记副本未新增占用；Codex全局迁移未执行，仍须等待其它活动任务结束并核对聊天、数据库、工作副本与重启恢复。
 
 | 改动面 | 最低自动验证 | 额外人工验证 |
 | --- | --- | --- |
