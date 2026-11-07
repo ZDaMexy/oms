@@ -15,6 +15,7 @@ from beatoraja_package import (stable_option_ids, control_choices, control_combi
                                insert_selection, available_selections, local_controls,
                                CompositionCache, tool_file_hashes, verify_tool_files)
 from beatoraja_package import has_component_output
+from beatoraja_package import STAGES, TIMINGS, _options, compose_stage
 
 
 class PackageTests(unittest.TestCase):
@@ -119,6 +120,28 @@ class PackageTests(unittest.TestCase):
         self.assertEqual((["c"], {"hcn-display": ["hcn", "cn"], "explosion-scale": [1, .9]}),
                          available_selections(author, "charge-notes", records, ["p1"], ["f"]))
 
+    def test_parameterized_coverage_keeps_all_real_values_without_grid_rows(self):
+        author = SimpleNamespace(family="lightning", manifest={"options": [
+            {"id": "judgement-display", "type": "choice", "default": "full",
+             "choices": [{"value": "full"}, {"value": "off"}]},
+            {"id": "judgement-position", "type": "number", "default": 0, "min": -2, "max": 10, "step": 1},
+            {"id": "lane-objects-brightness", "type": "number", "default": 1, "min": .9, "max": 1, "step": .02}]},
+            modules={"judgement": {"choices": [{"value": "j"}]}})
+        domains = {"judgement-position": list(range(-2, 11)), "lane-objects-brightness": [.9, .92, .94, .96, .98, 1]}
+        rows = [{"mode": "p1", "frame": "f", "stage": "judgement", "choice": "j",
+                 "options": {"judgement-display": display, "judgement-position": 0, "lane-objects-brightness": 1},
+                 "parameterOptions": domains, "available": True, "gaps": []} for display in ("full", "off")]
+        complete, controls = available_selections(author, "judgement", rows, ["p1"], ["f"])
+        self.assertEqual(complete, ["j"])
+        self.assertEqual(set(controls["judgement-position"]), set(domains["judgement-position"]))
+        self.assertEqual(set(controls["lane-objects-brightness"]), set(domains["lane-objects-brightness"]))
+        # One ordinary fallback route can coexist without hiding values from
+        # the parameterized route or inventing the missing value.
+        rows[1].pop("parameterOptions")
+        complete, controls = available_selections(author, "judgement", rows, ["p1"], ["f"])
+        self.assertEqual(complete, ["j"])
+        self.assertEqual(controls["judgement-position"], [0])
+
     def test_graph_off_is_valid_absence_and_frame_is_already_an_outer_selector(self):
         author = SimpleNamespace(family="lightning", manifest={"options": [
             {"id": "graph-visible", "type": "toggle", "default": True},
@@ -134,6 +157,52 @@ class PackageTests(unittest.TestCase):
         self.assertTrue(has_component_output({}, "graph-target", "aaa", {"graph-visible": False}))
         self.assertFalse(has_component_output({}, "graph-target", "aaa", {"graph-visible": True}))
 
+    def test_source_opening_defaults_and_only_existing_family_controls_are_preserved(self):
+        author = SimpleNamespace(family="lightning", modules={}, manifest={"options": [
+            {"id": "entrance-animation", "type": "toggle", "default": True},
+            {"id": "lane-opening", "type": "toggle", "default": True}]},
+            options=lambda keymode, mode, values: {**values, "entrance-animation": True, "lane-opening": True})
+        self.assertTrue(_options(author, "p1", "f")["entrance-animation"])
+        self.assertEqual(set(local_controls(author, "frame", "7k")), {"entrance-animation"})
+        self.assertEqual(set(local_controls(author, "lane-opening", "7k")), {"lane-opening"})
+        author.family = "standard"
+        author.manifest["options"] = [{"id": "frame-opening", "type": "toggle", "default": True}]
+        self.assertEqual(set(local_controls(author, "frame", "14k")), {"frame-opening"})
+        self.assertEqual(local_controls(author, "lane-opening", "14k"), {})
+        self.assertEqual(STAGES[0], "preparation")
+        self.assertEqual(STAGES.index("lane-opening") + 1, STAGES.index("key-beam"))
+
+    def test_preparation_alone_owns_source_wait_even_zero_or_unchanged_duration(self):
+        class Host:
+            def __init__(self, duration):
+                self.skin = {**dict.fromkeys(TIMINGS, 0), "playstart": 1200}
+                self.duration = duration
+            def preparation(self, frame):
+                self.skin["playstart"] = self.duration
+            def event_clips(self, frame):
+                self.skin["playstart"] = 2000
+            def lane_opening(self, frame):
+                pass  # Standard has no source lane-opening material.
+            def finish(self):
+                return self.skin
+        for duration in (0, 1200, 1500, 3000, 5000):
+            self.assertEqual(compose_stage(Host(duration), "preparation", None, None, None), {"playstart": duration})
+        self.assertEqual(compose_stage(Host(3000), "lane-opening", None, None, None), {})
+        with self.assertRaisesRegex(ValueError, "Only the preparation stage"):
+            compose_stage(Host(3000), "events", None, None, None)
+
+    def test_missing_default_opening_bake_is_not_hidden_by_raster_adaptation(self):
+        missing = {"feature": "recorded animation needs bake", "animation": "original.opening"}
+        raster = {"code": "native-entrance-quad-rasterization"}
+        self.assertEqual(blocking_gaps([missing, raster], "frame"), [missing])
+        author = SimpleNamespace(family="standard", modules={}, manifest={"options": [
+            {"id": "frame-opening", "type": "toggle", "default": True}]})
+        records = [{"mode": "p1", "frame": "f", "stage": "frame", "choice": None,
+                    "options": {"frame-opening": value}, "available": not value,
+                    "gaps": [missing] if value else []} for value in (True, False)]
+        complete, _ = available_selections(author, "frame", records, ["p1"], ["f"])
+        self.assertEqual(complete, [])
+
     def test_fixed_control_gates_keep_known_omissions_but_reject_new_gaps(self):
         legacy = {"reason": "unmapped-visibility", "source": "scroll.mode"}
         unknown = {"reason": "unmapped-visibility", "source": "new.unimplemented"}
@@ -141,6 +210,13 @@ class PackageTests(unittest.TestCase):
         self.assertEqual([unknown, missing], blocking_gaps([legacy, unknown, missing], "hud"))
         self.assertEqual([legacy], blocking_gaps([legacy], "judgement"))
         self.assertEqual([], blocking_gaps([{"feature": "unmapped visibility", "sources": ["offset.available"]}], "decorations"))
+
+    def test_verified_gauge_boundaries_do_not_waive_unknown_informational_gaps(self):
+        known = [{"code": code, "informational": True} for code in (
+            "native-gauge-boundary-pulse-adaptation", "native-gauge-boundary-clip-adaptation")]
+        unknown = {"code": "new-unverified-gauge-difference", "informational": True}
+        missing = {"feature": "recorded animation needs bake"}
+        self.assertEqual(blocking_gaps([*known, unknown, missing], "gauge"), [unknown, missing])
 
     def test_source_catalog_reserves_ids_for_temporarily_unavailable_choices(self):
         author = SimpleNamespace(modules={"frame": {"choices": [{"value": "f1"}, {"value": "f2"}]},

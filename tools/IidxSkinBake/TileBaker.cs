@@ -29,7 +29,7 @@ internal static class TileBaker
             if (i + 1 == args.Length || !options.TryAdd(args[i], args[i + 1]))
                 throw new ArgumentException("Tile options must be unique --name value pairs.");
         }
-        if (options.Keys.Any(k => k is not ("--runtime" or "--tile-index" or "--tile-size" or "--tile-crop" or "--output" or "--page-size")))
+        if (options.Keys.Any(k => k is not ("--runtime" or "--tile-index" or "--tile-size" or "--tile-crop" or "--output" or "--output-root" or "--page-size")))
             throw new ArgumentException("Unknown tile option.");
         string indexPath = Path.GetFullPath(options["--tile-index"]);
         string sourceRoot = Path.GetDirectoryName(indexPath)!;
@@ -41,19 +41,13 @@ internal static class TileBaker
             throw new ArgumentException("Tile crop must be movie-union or aligned16.");
         if (tileSize is not (128 or 256) || pageSize is < 512 or > 8192 || (pageSize & (pageSize - 1)) != 0)
             throw new ArgumentException("Use tile size 128 or 256 and a power-of-two atlas page size in 512..8192.");
-        string repository = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../"));
-        if (Directory.Exists(output) || File.Exists(output)
-            || !BakeInput.IsBelow(output, Path.Combine(repository, ".dev-cache", "temp", "iidx-bake-dev")) && !BakeInput.IsBelow(output, Path.Combine(repository, "artifacts")))
-            throw new ArgumentException("Tile output must be a new directory under the checkout's bake temp or artifacts directory.");
-        for (string? parent = Path.GetDirectoryName(output); parent != null; parent = Path.GetDirectoryName(parent))
-            if (Directory.Exists(parent) && (File.GetAttributes(parent) & FileAttributes.ReparsePoint) != 0)
-                throw new ArgumentException("Tile output may not traverse reparse points.");
-
         byte[] indexBytes = await File.ReadAllBytesAsync(indexPath);
         JsonObject source = JsonNode.Parse(indexBytes)!.AsObject();
         if (source["contract"]!.GetValue<string>() != "oms-iidx-baked-animation.v1"
             || source["verification"]!["passed"]!.GetValue<bool>() != true || source["tiling"] != null)
             throw new InvalidDataException("Tiling requires an untiled, verified bake index.");
+        output = BakeOutputPath.Validate(output, options.GetValueOrDefault("--output-root"),
+            sourceRoot, source["source"]!["authorRoot"]!.GetValue<string>());
         string renderingVerification = BakeInput.Resolve(sourceRoot, source["verification"]!["file"]!.GetValue<string>());
         byte[] renderingVerificationBytes = await File.ReadAllBytesAsync(renderingVerification);
         if (JsonNode.Parse(renderingVerificationBytes)!["passed"]!.GetValue<bool>() != true)

@@ -19,7 +19,7 @@ dotnet .dev-cache\temp\iidx-bake-dev\bin\net8.0\IidxSkinBake.dll `
   --verification-images false
 ```
 
-`--frames all` 保留全部原帧。列表和闭区间表示**原 clip 的零基索引**，不会重新编号；FPS、触发类型、循环起点、held loop、release frame 与时长都取正式解码结果。`--page-size` 默认 2048，可用 64～8192 的二次幂，只控制装箱上限，不缩放图像。输出必须是本 checkout 的 `.dev-cache/temp/iidx-bake-dev/` 或 `artifacts/` 下的新目录。目录已存在、路径逃逸、源引用经过 reparse point、源文件在导出期间改变均拒绝；不覆盖失败试产目录。
+`--frames all` 保留全部原帧。列表和闭区间表示**原 clip 的零基索引**，不会重新编号；FPS、触发类型、循环起点、held loop、release frame 与时长都取正式解码结果。`--page-size` 默认 2048，可用 64～8192 的二次幂，只控制装箱上限，不缩放图像。输出默认仍限于本 checkout 的 `.dev-cache/temp/iidx-bake-dev/` 或 `artifacts/` 下的新目录。需要使用已授权的其他开发盘时，渲染器与无损分块命令都可显式传 `--output-root <已存在的专用父目录>`；实际输出必须严格位于该根内，不能用盘符根或系统盘，不能与原作者或输入 baked 目录重叠。目录已存在、路径逃逸、输出祖先或源引用经过 reparse point、源文件在导出期间改变均拒绝；不覆盖失败试产目录。
 
 较长 normal 段中逐图元 RGBA8 舍入与整体回存会累积差异；若完整导出因此未过像素门，可用 `--normal-run-pieces 4` 保持原顺序再细分连续 normal 段，增加少量目标绘制对象以降低量化误差，不提高验收门；细分后仍须通过验证。默认 4096 不额外细分；实际取值写入索引。additive 段保持原连续分组。
 
@@ -75,6 +75,8 @@ dotnet .dev-cache\temp\iidx-bake-dev\bin\net8.0\IidxSkinBake.dll `
 
 `batch_frames.py` 从内容目录和实际材料实例选取每个框体的稳态及完整 READY / Fail。稳态优先使用节点引用的纯 literal 数值时钟，保留它对应的原帧；不能把 loopStart 一律当作稳态。`plan_components.py` 枚举 Key Beam、Explosion、Full Combo 的实际挂载；`plan_feedback.py` 枚举实际 gauge / scoreCrossing 消费者；`plan_object_feedback.py` 核对 Long Note 与 Key Flash 的明确声明和贡献分支。不把 manifest 中未挂载的动画算成反馈，作者未声明也不证明原 HDD 没有相关美术。规划与执行分别进行：
 
+`plan_entrances.py` 仅规划开场录制：开启实际 `frame-opening` / `entrance-animation` / `lane-opening`，检查每个框体、P1/P2/DP、Graph 与 Judge Panel 分支中挂载的 `presentation.elapsed` / `preparation.elapsed` 原片。完整保留原 loop 与空终止帧；初始透明的淡入不能被当作永久隐藏。静态 HUD 的坐标轨道仍由目标宿主处理，不烘成整张 HUD；READY / Fail 不重复加入。用 `--existing-list` 或 `--existing-index` 明确提供已冻结候选，避免读取正在写出的队列目录；源字节相同的完整片才可复用，steady partial 仍列为需升级。画布帧 RGBA 统计只供比较，不能当作最终图集占用、PNG 大小或上界。清单须先审规模再单独排程，不会自动插入正在运行的队列，也不代签目标端准备期时钟。
+
 ```powershell
 . .\UseDevelopmentStorage.ps1
 python tools\IidxSkinBake\batch_frames.py `
@@ -84,7 +86,7 @@ python tools\IidxSkinBake\batch_frames.py `
   --execute .dev-cache\temp\iidx-bake-dev\<规划目录>\worklist.json
 ```
 
-Python 只组织原 C# 烘焙器，依赖仓库既有 IidxSkinAssets 与本地图片工具环境。复用必须在同一作品内证明原动画文件、资源声明（除存储路径）和全部资源字节一致；不同 manifest 的复用保留目标来源收据。partial 只能满足实际包含的原帧；完整录制才能供完整动画使用。页可在同卷 hardlink，共用的页保持只读。
+Python 只组织原 C# 烘焙器，依赖仓库既有 IidxSkinAssets 与本地图片工具环境。复用必须在同一作品内证明原动画文件、资源声明（除存储路径）和全部资源字节一致；不同 manifest 的复用保留目标来源收据。partial 只能满足实际包含的原帧；完整录制才能供完整动画使用。页可在同卷 hardlink，共用的页保持只读；跨卷仅复制已验证的 baked PNG 页，并重新核对目标 SHA，逐页记录传输方式，不复制原作者或 HDD。驱动器也接受 `--output-root`，保存到工作清单并同时传给渲染器和分块器；执行时不得换成另一个根。`--existing-list` / `--existing-index` 可明确指定其他盘上已冻结的索引，来源和运行库检查保持不变，不需要迁移既有结果或建立 junction。
 
 每项开始前重新核对源场景与资源；已有输出拒绝覆盖。工作目录出现 `pause-between-jobs` 文件时，当前项完成后暂停，移除后继续。Full Combo 必须先在私有清单中逐项记录规模审核；`programSizeReviewed` 不是效果验收。
 

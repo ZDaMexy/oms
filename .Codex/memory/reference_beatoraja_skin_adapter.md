@@ -10,6 +10,8 @@ Lua皮肤header与body分别执行；require缓存会保留返回表，被合并
 
 Gauge增长与分数越线只能从实际公开状态观察；首个高分快照不提供越线时间，零PB也不代表存在一次0分记录。custom timer是render采样缓存，不能代替不可见的游戏事件队列。Judge外观OFF仍须保留原生状态owner，否则FAST/SLOW的region资格也会消失。接口依据与边界回链适配记录。
 
+原图出现SUB/NO DATA不证明存在第二条比较柱，先核祖先门和同列锚点；来源实际可能是PB不可用时的替代。开场素材移动也不代表所有独立Gauge/转盘须延迟出现，先核作者可见门和源宿主准备期是否仍渲染稳态树，不能凭画面观感补全局隐藏规则。
+
 NoteSet外层destination颜色不会传给音符；Judge外层颜色也不会替内部label/Combo染色。亮度须核到实际carrier，不能只看recipe有值。原小节线归NoteSet.group；它的纹理、几何与到达后退场行为分别核对。条件动画要把已解释的真实KEYON门传到最终atlas destination，不能只让sprite分支通过；b04曾因此整支漏接。
 
 原生Replay可产生真实判定与Result，但不注册正常成绩；曲终后START/SELECT会触发结束而非调整挡板。取景工具应在曲中模拟公开输入并验证读数门、原自然结果与退出。framebuffer遥测在render后读取，判定线程仍可能变化；图片年龄和状态不是原子快照。工具入口取[原生取景](../../tools/BeatorajaSkinCapture/README.md)。

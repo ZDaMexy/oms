@@ -15,7 +15,9 @@
 | OMS检查与实际游玩 | [SkinAuthoring](../SkinAuthoring/)、[StandardSkinCapture](../StandardSkinCapture/README.md)及各作品既有验证入口 | CLI只证明对应作者合同；实际Player证据须匹配候选和宿主，Standard取景不代签Lightning或beatoraja |
 | beatoraja原生导出 | `beatoraja_author.py`、`beatoraja_native.py`、`beatoraja_materials.py`、`beatoraja_widgets.py`、`beatoraja_hud.py`、`beatoraja_graph.py`、`beatoraja_decoration.py`、`beatoraja_timing.py`、`beatoraja_covers.py`、`beatoraja_export.py` | 只读一族冻结作者，保留first-match/DP选择、原图尺寸、原生计时与明确gaps；独立导出器用于小切片验证，不修改OMS作者或运行时 |
 | beatoraja读数与反馈 | `beatoraja_reading.py`、`beatoraja_gauge.py`、`beatoraja_feedback.py`、`beatoraja_hold.py`、`beatoraja_affine.py`、`beatoraja_barline.py` | 原挡板边缘读数、血条边界与脉冲、真实Gauge/EX变化、长条状态反馈、仿射图与小节线；只使用公开宿主状态，保留时钟、整数几何及alpha量化边界 |
-| beatoraja组件包 | `beatoraja_package.py` | 同族共享资产、独立组件片段与稳定选项ID；按实际可用性列菜单，组件内部参数有限枚举，缺项留在收据。构建前后核工具SHA；CustomTimer同ID须同定义。`tests/BeatorajaPackageProbe.java`用官方JAR核header、片段、真实反序列化及引用闭包；该静态检查不代签游玩 |
+| beatoraja准备期与开场 | `beatoraja_preparation.py`、`beatoraja_entrance.py`、`beatoraja_entrance_art.py` | 原Frame时长、Ready最后1500ms、原位移/透明度/quad与完整录制；只观察公开时钟，不写宿主计时器。缺失READY历史不伪造epoch；整数采样和GPU边缘差异显式保留 |
+| beatoraja进度与节拍 | `beatoraja_progress.py`、`beatoraja_beat.py` | 原游标读取宿主歌曲进度；原轨道明暗读取公开节拍时钟。宿主完成余量、STOP与小节相位差异留在收据，不自行推算原谱音乐时钟 |
+| beatoraja组件包 | `beatoraja_package.py`、`beatoraja_control_params.py` | 同族共享资产、独立组件片段与稳定选项ID；实际来源逐轴证明可分离的控制生成原生字段值表，其余精确枚举，缺项留在收据。构建前后核工具SHA；CustomTimer同ID须同定义，准备期独占playstart。`tests/BeatorajaPackageProbe.java`用官方JAR核header、片段、真实反序列化及引用闭包；该静态检查不代签游玩 |
 | beatoraja证据完整性 | `beatoraja_verify.py` | `package`逐文件核entry/selection、shard与assets摘要、大小、PNG及脚本清单；`capture`复核真实回执的完成/退出门与PNG摘要、尺寸及清单。输出须全新，不改历史收据 |
 | beatoraja独立安装 | `Install-BeatorajaOmni.ps1` | 只复制经核验的包清单到新版本目录，复制前/后及最终安装逐文件复核；已有版本明确拒绝，同卷rename不合并目录。回执写`artifacts/beatoraja-capture/`，不写玩家设置、成绩或当前skin选择 |
 | 动画烘焙与beatoraja实际取景 | [IidxSkinBake](../IidxSkinBake/README.md)、[BeatorajaSkinCapture](../BeatorajaSkinCapture/README.md) | 原生产渲染路径的GPU复合验证与实际官方播放器的独立验收分开；不把离线像素检查当作OpenGL性能/视觉通过 |
@@ -35,6 +37,8 @@
 现有Python工具测试入口为`python -B -m unittest discover -s tools/IidxSkinAssets/tests -p 'test_*.py'`；按改动先选相关测试，涉及共用路径时扩大到实际消费者。新适配器focused入口为`python -B -m unittest discover -s tools/IidxSkinAssets/tests -p 'test_beatoraja_*.py'`。每个新shell先执行仓库根`UseDevelopmentStorage.ps1`，完整包与实际Player仍各自验收。冻结旧包只能证明旧包兼容，不能证明改后的生成器；原输入已不可用或没有匹配宿主时明确记为未验，不借另一个系列通过补签。导出参数见`python tools/IidxSkinAssets/beatoraja_export.py --help`；实际运行命令取取景工具README，所有输出要求独立新目录。
 
 来源与派生物目录、身份及证据字段沿[多作品维护约束](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#多作品与双平台维护)。现存库原位保留；首个beatoraja输出使用独立宿主目录，与OMS作者输出及成品分开，原图与中立研究尽量只读复用。每次发布只引用自己的同包收据，详细组件缺口仍回写原作品记录。
+
+开场quad栅格依赖`requirements.txt`固定的NumPy，与现有Pillow共同按原RGBA和两三角UV采样；运行时包只含原生Lua和图像，不要求玩家安装Python或NumPy。工具依赖仍安装或复用非系统盘开发环境，不塞进真实播放器。
 
 三种源亮度分开处理：Standard lane、Lightning column与lane objects；没有额外全皮肤总亮度。实际来源每个受影响分支只有一层白色brightness carrier。普通drawable用原生RGB，Judge标签和Combo分别放到内部destination；NoteSet不消费外层颜色，因此对选中的原图生成一次RGB衍生，保留alpha、尺寸及透明顶补，默认1保持原像素。Lightning小节线取自己的base原图，Standard没有该slot则保留明确的宿主新增线；几何取整和原arrival fade差异记录在收据。
 

@@ -11,6 +11,7 @@ import argparse
 import hashlib
 import json
 import math
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -20,10 +21,19 @@ from beatoraja_author import (AuthorPackage, Contribution, bms_sections,
                              layout_for, material_bindings, material_templates,
                              read_json, source_path, walk_nodes)
 from beatoraja_native import (AssetSink, Lua, all_of, colour, lua, native_colour,
-                             native_rect, node_rect, scene_properties, native_song_expression, tint_pixels)
+                             native_rect, node_rect, scene_properties, native_song_expression,
+                             native_offset_expression, tint_pixels)
+from beatoraja_preparation import (PREPARATION_TIMER, PRESENTATION_TIMER, READY_TIMER,
+                                  preparation_expression, preparation_plan)
 
 
 MODE = {"p1": ("7k", 0), "p2": ("7k", 0), "dp": ("14k", 2)}
+
+
+def native_art_expression(source):
+    song = native_song_expression(source)
+    return ((song, "string") if song is not None else
+            native_offset_expression(source) or preparation_expression(source))
 
 
 def constant_clock(scene, source, seen=()):
@@ -91,8 +101,7 @@ class Composer:
         self.handled_roots: set[str] = set()
         self.context = {"layout.ruleset": "bms", "layout.presentation": presentation,
                         **{"option." + k: v for k, v in options.items()},
-                        "preparation.available": False, "preparation.active": False,
-                        "preparation.ready": False, "scroll.available": True,
+                        "scroll.available": True,
                         "scroll.hi-speed-available": False, "scroll.adjusting": False,
                         "lift.reversed": False}
         self._id = 0
@@ -129,6 +138,11 @@ class Composer:
                     "slider", "hiddenCover", "liftCover", "customTimers", "destination"):
             self.skin.setdefault(key, []).extend(recipe.get(key, []))
         self.gaps.extend(recipe.get("gaps", []))
+
+    def preparation(self, frame: Contribution):
+        recipe = preparation_plan(frame)
+        self.merge(recipe)
+        self.skin["playstart"] = recipe["playstart"]
 
     def hud(self, frame: Contribution, native_font_path: str | None):
         from beatoraja_hud import export_hud
@@ -250,7 +264,28 @@ class Composer:
         if all(n["type"] in ("text", "container") for n in walk_nodes(root)):
             # The HUD pass owns these source text gates and their diagnostics.
             return
+        # READY is owned by event_clips; its original ancestor gate is now live
+        # in other passes and must not create a second copy of the same movie.
+        if root.get("clock") == "preparation.ready-elapsed":
+            return
         properties, dynamic = scene_properties(root, contribution.scene, self.context)
+        translations = [track for track in contribution.scene.get("tracks", [])
+                        if track["target"] == root["id"] and track.get("clock") == "preparation.elapsed"
+                        and self.context.get("preparation.available") is not False
+                        and track["property"] in ("x", "y")]
+        if translations:
+            from beatoraja_entrance import apply_preparation_translation
+            if len(translations) != 1 or clip is not None:
+                raise ValueError("Entrance translation requires one source track without an external fixed clip")
+            track = translations[0]
+            static = replace(contribution, scene={**contribution.scene,
+                "tracks": [t for t in contribution.scene["tracks"] if t is not track]})
+            first = len(self.skin["destination"])
+            self.draw_tree(static, root, parent, rgba, blend, timer, offsets, conditions, clip)
+            self.skin["destination"][first:] = apply_preparation_translation(
+                self.skin["destination"][first:], track, parent or self.canvas,
+                properties.get(track["property"], 0))
+            return
         visibility = [d for d in dynamic if d["property"] == "visible"]
         if properties.get("visible", True) is False and not visibility:
             return
@@ -262,23 +297,38 @@ class Composer:
                 # its beam. KeyInputProccessor switches it OFF on release.
                 conditions.append(f"main_state.timer({timer}) ~= main_state.timer_off_value")
                 continue
-            expression = native_song_expression(operation["source"])
+            expression = native_art_expression(operation["source"])
+            if expression is not None and operation["kind"] == "bindings" and expression[1] == "boolean":
+                conditions.append(expression[0])
+                continue
             if expression is None or operation["kind"] != "variants":
                 self.gap("unmapped visibility", node=root["id"], sources=[operation["source"]])
                 return
             cases = {case["key"]: case["value"] for case in operation["cases"]}
-            conditions.append("(function() local cases=" + lua(cases) + ";local value=cases[" + expression
-                              + "];if value == nil then return " + lua(operation["default"]) + " end;return value end)()")
+            conditions.append("(function() local cases=" + lua(cases) + ";local value=cases[tostring(" + expression[0]
+                              + ")];if value == nil then return " + lua(operation["default"]) + " end;return value end)()")
         resource_states = [d for d in dynamic if d["property"] == "resource"]
-        if root["type"] != "text" and any(native_song_expression(d["source"]) is None or d["kind"] != "variants" for d in resource_states):
+        if root["type"] != "text" and any(native_art_expression(d["source"]) is None or d["kind"] != "variants" for d in resource_states):
             self.gap("unmapped resource state", node=root["id"], sources=[d["source"] for d in dynamic if d["property"] == "resource"])
             return
+        from beatoraja_beat import beat_opacity_track, apply_beat_opacity, BEAT_ADAPTATION
+        beat = beat_opacity_track(root, contribution.scene)
+        if beat:
+            properties["opacity"] = 1
         for track in contribution.scene.get("tracks", []):
             if track["target"] != root["id"] or track["property"] == "projective-quad":
                 continue
+            if track is beat:
+                continue
+            if track.get("clock") == "preparation.elapsed" and self.context.get("preparation.available") is False:
+                continue
             keys = track.get("keyframes", [])
             clock = self.context.get(track.get("clock"))
-            if isinstance(clock, (int, float)) and all(isinstance(k["value"], (int, float)) for k in keys) and keys:
+            if track.get("clock") == "preparation.elapsed" and track["property"] == "opacity":
+                from beatoraja_entrance import preparation_opacity_condition
+                conditions.append(preparation_opacity_condition(track, properties.get("opacity", 1)))
+                properties["opacity"] = 1  # The source's binary track is the draw gate.
+            elif isinstance(clock, (int, float)) and all(isinstance(k["value"], (int, float)) for k in keys) and keys:
                 if track.get("loop") and keys[-1]["time"] > keys[0]["time"]:
                     clock = keys[0]["time"] + (clock - keys[0]["time"]) % (keys[-1]["time"] - keys[0]["time"])
                 value = keys[0]["value"]
@@ -309,6 +359,15 @@ class Composer:
             return
         kind = root["type"]
         if kind in ("sprite", "projective-sprite"):
+            if kind == "projective-sprite":
+                from beatoraja_entrance_art import entrance_quad_track
+                entrance = entrance_quad_track(root, contribution.scene)
+                if entrance:
+                    if resource_states:
+                        raise ValueError("Entrance quad has an unqualified changing texture")
+                    self.entrance_quad(contribution, root, properties, entrance, rect, rgba, blend,
+                                       timer=timer, offsets=offsets, conditions=conditions, clip=clip)
+                    return
             orientation = {"flip_x": False, "flip_y": False}
             raster_source = None
             if kind == "projective-sprite":
@@ -344,21 +403,28 @@ class Composer:
                 operation = resource_states[0]
                 resource_ids = list(dict.fromkeys([operation["default"], *[c["resource"] for c in operation["cases"]]]))
                 cases = {case["key"]: resource_ids.index(case["resource"]) for case in operation["cases"]}
-                identifier = self.identifier("song.art")
-                value = Lua("(function() local cases=" + lua(cases) + ";return function() local value=cases["
-                            + native_song_expression(operation["source"]) + "];return value == nil and 0 or value end end)()")
+                identifier = self.identifier("host.art")
+                value = Lua("(function() local cases=" + lua(cases) + ";return function() local value=cases[tostring("
+                            + native_art_expression(operation["source"])[0] + ")];return value == nil and 0 or value end end)()")
                 self.skin["imageset"].append({"id": identifier, "images": [add(r) for r in resource_ids], "value": value})
             else:
                 identifier = add(properties["resource"])
-            self.destination(identifier, rect, rgba=rgba, blend=blend,
+            destination = self.destination(identifier, rect, rgba=rgba, blend=blend,
                              draw=all_of(conditions), clip=clip, **({"timer": timer} if timer else {}), **({"offsets": offsets} if offsets else {}))
+            if beat:
+                self.skin["destination"][-1] = apply_beat_opacity(destination, beat, rgba[3])
+                self.gaps.append(BEAT_ADAPTATION)
         elif kind == "recorded-animation":
             fixed_time = constant_clock(contribution.scene, root.get("clock"))
+            clock_timer = {"preparation.elapsed": PREPARATION_TIMER,
+                           "presentation.elapsed": PRESENTATION_TIMER}.get(root.get("clock"))
             self.draw_baked(contribution.manifest_path, root["animation"], rect, rgba,
-                            timer=timer, offsets=offsets, static_time_ms=fixed_time, clip=clip, conditions=conditions)
+                            timer=clock_timer or timer, start_frame=0 if clock_timer else None,
+                            offsets=offsets, static_time_ms=fixed_time, clip=clip, conditions=conditions)
         elif kind in ("container", "clip"):
             if kind == "clip":
-                if (properties.get("clip-mode") != "bounds" or dynamic or offsets or min(rect[2:]) <= 0
+                if (properties.get("clip-mode") != "bounds"
+                        or any(d["property"] != "visible" for d in dynamic) or offsets or min(rect[2:]) <= 0
                         or not 0 <= properties.get("reveal-x", 1) <= 1 or not 0 <= properties.get("reveal-y", 1) <= 1):
                     self.gap("unmapped dynamic/offset clip", node=root["id"])
                     return
@@ -377,6 +443,40 @@ class Composer:
             return
         else:
             self.gap("unmapped scene primitive", node=root["id"], kind=kind)
+
+    def entrance_quad(self, contribution, root, properties, track, rect, rgba, blend, *, timer, offsets, conditions, clip):
+        from beatoraja_entrance_art import rasterize_canvas_quad
+        relative = contribution.resources[properties["resource"]]["path"]
+        available = preparation_expression("preparation.available")[0]
+        elapsed = preparation_expression("preparation.elapsed")[0]
+        samples = []
+        original = properties.get("projective-quad")
+        if original is not None:
+            samples.append((original, "not " + available))
+        keys = track["keyframes"]
+        for i, key in enumerate(keys):
+            phase = available + " and " + elapsed + " >= " + lua(key["time"])
+            if i + 1 < len(keys):
+                phase += " and " + elapsed + " < " + lua(keys[i+1]["time"])
+            samples.append((key["value"], phase))
+        with Image.open(source_path(self.author.root, relative)) as source:
+            pixels = source.convert("RGBA")
+        for quad, phase in samples:
+            key = (relative, rect, lua(quad))
+            cached = self.sink._entrance_quads.get(key)
+            if cached is None:
+                raster, geometry = rasterize_canvas_quad(pixels, quad, rect)
+                cached = (self.sink.add_raster(raster) if raster is not None else None, geometry)
+                self.sink._entrance_quads[key] = cached
+            src, geometry = cached
+            if src is None:
+                continue
+            identifier = self.image(src)
+            self.destination(identifier, geometry["rect"], rgba=(*rgba[:3], rgba[3]*geometry["opacity"]),
+                             blend=blend, draw=all_of([*conditions, phase]), clip=clip,
+                             **({"timer": timer} if timer else {}), **({"offsets": offsets} if offsets else {}))
+        self.gap("native-entrance-quad-rasterization", informational=True, node=root["id"],
+                 sourceFrames=len(keys), detail="Original unit-Q corners and original RGBA use the production TL--BR triangle diagonal, sampled at native canvas pixel centres. Original step timing and overhang remain; native integer sampling is not bitwise GPU edge-coverage equivalence.")
 
     def draw_baked(self, manifest: str, animation: str, rect, rgba=(1, 1, 1, 1), *, timer=0, start_frame=None, offsets=None, static_time_ms=None, conditions=(), clip=None):
         key = (manifest, animation)
@@ -463,14 +563,27 @@ class Composer:
                 for root in material_templates(contribution, binding["slot"], binding["resource"]):
                     self.draw_tree(contribution, root)
 
+    def lane_opening(self, frame: Contribution):
+        layout = layout_for(frame, self.keymode, self.presentation)
+        for binding in material_bindings(frame, self.keymode, self.presentation):
+            if (binding["target"]["kind"] != "stage" or binding["slot"] != "playfield.baseplate"
+                    or binding["mode"] != "Provide"):
+                continue
+            sx, sy, sw, sh = layout["stages"][int(binding["target"]["group-logical"])]["rect"]
+            for root in material_templates(frame, binding["slot"], binding["resource"]):
+                self.draw_tree(frame, root, (sx*self.w, sy*self.h, sw*self.w, sh*self.h))
+
     def decorations(self, frame: Contribution):
         from beatoraja_reading import reading_ownership
         from beatoraja_feedback import feedback_plan
+        from beatoraja_progress import export_progress
         reading = reading_ownership(self.author, self.options, self.keymode, self.presentation)
         feedback = feedback_plan(self.author, self.options, self.keymode, self.presentation, self.canvas, "gauge")
+        progress = export_progress(self.author, self.options, self.keymode, self.presentation, self.sink, self.canvas)
         self.handled_roots.update(reading["handled_root_ids"])
         self.handled_roots.update(reading["handled_node_ids"])
         self.handled_roots.update(feedback["handled_node_ids"])
+        self.handled_roots.update(progress["handled_node_ids"])
         # These subtrees have explicit native Gauge owners. Do not draw their
         # static source a second time or report their main bar as wholly absent.
         owned = {b["target"] for b in frame.scene.get("bindings", [])
@@ -492,6 +605,7 @@ class Composer:
                 if root["id"] in self.handled_roots or ".graph." in root["id"]:
                     continue
                 self.draw_tree(frame, root)
+        self.merge(progress)
 
     def bga(self, frame: Contribution):
         values = {}
@@ -672,9 +786,9 @@ class Composer:
                         return
                     seen.add(node["id"])
                     duration = (len(source["frames"]) - 1) * 1000 / source["fps"]
-                    field = "playstart" if is_ready else "close"
-                    self.skin[field] = max(self.skin[field], round(duration + 200))
-                    self.draw_baked(frame.manifest_path, animation, rect, rgba, timer=40 if is_ready else 3, start_frame=0)
+                    if not is_ready:
+                        self.skin["close"] = max(self.skin["close"], round(duration + 200))
+                    self.draw_baked(frame.manifest_path, animation, rect, rgba, timer=READY_TIMER if is_ready else 3, start_frame=0)
             for child in node.get("children", []):
                 visit(child, rect, rgba)
 
@@ -747,17 +861,16 @@ def export(author: AuthorPackage, output: Path, modes: list[str], frames: list[s
         for theme in frames:
             keymode, _ = MODE[mode]
             options = author.options(keymode, mode, {"frame": theme})
-            for name in ("frame-opening", "entrance-animation"):
-                if name in options:
-                    options[name] = False
             composer = Composer(author, sink, options, mode, baked)
             frame = author.contribution("frame", options)
+            composer.preparation(frame)
             composer.frame(frame)
             composer.bga(frame)
             composer.bga_frame(frame)
             composer.graph()
             composer.decorations(frame)
             composer.turntable(frame)
+            composer.lane_opening(frame)
             composer.key_beams(frame)
             composer.hit_line(frame)
             composer.notes(frame)

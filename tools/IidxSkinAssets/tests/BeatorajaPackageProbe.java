@@ -12,7 +12,7 @@ import bms.player.beatoraja.skin.lua.LuaSkinLoader;
 import bms.player.beatoraja.skin.lua.SkinLuaAccessor;
 
 public class BeatorajaPackageProbe {
-    static int loads, headers, shards, timerMergeFixtures;
+    static int loads, headers, shards, timerMergeFixtures, parameterCases, parameterClosures;
     static boolean checkedReuse;
     static boolean representative;
     static boolean smokeSelections;
@@ -23,6 +23,66 @@ public class BeatorajaPackageProbe {
 
     static void require(boolean condition, String reason) {
         if (!condition) throw new IllegalStateException(reason);
+    }
+    static String objectName(String value) {
+        return value.replaceFirst("^p[0-9a-f]{24}\\.", "");
+    }
+    static void prototypeEqual(Prototype a, Prototype b, String path) {
+        require(a.numparams == b.numparams && a.is_vararg == b.is_vararg && a.maxstacksize == b.maxstacksize,
+                "Different callback signature: " + path);
+        require(Arrays.equals(a.code, b.code), "Different callback bytecode: " + path);
+        require(a.k.length == b.k.length && a.p.length == b.p.length, "Different callback constants: " + path);
+        for (int i = 0; i < a.k.length; i++) require(a.k[i].eq_b(b.k[i]), "Different callback constant: " + path + "/" + i);
+        for (int i = 0; i < a.p.length; i++) prototypeEqual(a.p[i], b.p[i], path + "/prototype" + i);
+        // Chunk filename, source line and enclosing-register locations are
+        // debug/closure-binding metadata. Captured values are compared below.
+    }
+    static void equivalent(LuaValue a, LuaValue b, String path,
+                           IdentityHashMap<LuaValue, Set<LuaValue>> seen) {
+        if (a == b) return;
+        Set<LuaValue> partners = seen.computeIfAbsent(a, key -> Collections.newSetFromMap(new IdentityHashMap<>()));
+        if (!partners.add(b)) return;
+        if (a.istable() && b.istable()) {
+            LuaValue[] keys = a.checktable().keys();
+            require(keys.length == b.checktable().keys().length, "Different table fields: " + path);
+            for (LuaValue key : keys) equivalent(a.get(key), b.get(key), path + "/" + key.tojstring(), seen);
+        } else if (a.isclosure() && b.isclosure()) {
+            LuaClosure first = a.checkclosure(), second = b.checkclosure();
+            prototypeEqual(first.p, second.p, path);
+            require(first.upValues.length == second.upValues.length, "Different callback captures: " + path);
+            for (int i = 0; i < first.upValues.length; i++)
+                equivalent(first.upValues[i].getValue(), second.upValues[i].getValue(), path + "/upvalue" + i, seen);
+            parameterClosures++;
+        } else if (a.isstring() && !a.isnumber() && b.isstring() && !b.isnumber()) {
+            require(objectName(a.tojstring()).equals(objectName(b.tojstring())), "Different string: " + path);
+        } else require(a.eq_b(b), "Different native value: " + path + " [" + a + " != " + b + "]");
+    }
+    static void parameterFixtures(Path root, Method deserialize) throws Exception {
+        SkinLuaAccessor accessor = new SkinLuaAccessor(false);
+        accessor.setDirectory(root);
+        LuaValue cases = accessor.execFile(root.resolve("parameter-cases.lua"));
+        Map<Path, LuaValue> factories = new HashMap<>();
+        for (LuaValue index : cases.checktable().keys()) {
+            LuaValue item = cases.get(index);
+            Path direct = Path.of(item.get("direct").checkjstring());
+            Path factored = root.resolve(item.get("factored").checkjstring());
+            LuaValue expectedFactory = factories.get(direct);
+            if (expectedFactory == null) { expectedFactory = accessor.execFile(direct); factories.put(direct, expectedFactory); }
+            LuaValue actualFactory = factories.get(factored);
+            if (actualFactory == null) { actualFactory = accessor.execFile(factored); factories.put(factored, actualFactory); }
+            LuaValue expected = expectedFactory.call(), actual = actualFactory.call(item.get("options"));
+            equivalent(expected, actual, item.get("name").checkjstring(), new IdentityHashMap<>());
+            validate(root, actual, false);
+            deserialize.invoke(new LuaSkinLoader(), JsonSkin.Skin.class, actual);
+            // A second call after another selection must recreate the table;
+            // closures and destination tables cannot retain a prior mutation.
+            LuaValue again = actualFactory.call(item.get("options"));
+            require(again != actual, "Parameterized factory reused a mutable fragment");
+            equivalent(expected, again, "repeat", new IdentityHashMap<>());
+            parameterCases++;
+            if (parameterCases % 500 == 0) System.out.println("Exact parameter selections checked: " + parameterCases);
+        }
+        accessor.dispose();
     }
     static void references(LuaValue value, Set<String> ids, Set<String> sources, Set<String> fonts, String key) {
         if (value.istable()) {
@@ -100,6 +160,10 @@ public class BeatorajaPackageProbe {
         for (String argument : args) {
             if (argument.equals("--representative")) { representative = true; continue; }
             if (argument.equals("--smoke")) { smokeSelections = true; continue; }
+            if (argument.startsWith("--parameter-fixtures=")) {
+                parameterFixtures(Path.of(argument.substring("--parameter-fixtures=".length())).toAbsolutePath().normalize(), deserialize);
+                continue;
+            }
             if (argument.startsWith("--timer-merge-fixtures=")) {
                 Path root = Path.of(argument.substring("--timer-merge-fixtures=".length())).toAbsolutePath().normalize();
                 SkinLuaAccessor accessor = new SkinLuaAccessor(false);
@@ -176,7 +240,7 @@ public class BeatorajaPackageProbe {
             load(path, header, mixture, deserialize);
             System.out.println("Native header + independent selections PASS: " + path);
         }
-        System.out.printf("PASS headers=%d nativeLoads=%d shards=%d representativeModuleChoices=%s smokeSelections=%s timerMergeFixtures=%d; static only, chart-size fixture=84, no rendering%n",
-            headers, loads, shards, representative, smokeSelections, timerMergeFixtures);
+        System.out.printf("PASS headers=%d nativeLoads=%d shards=%d representativeModuleChoices=%s smokeSelections=%s timerMergeFixtures=%d parameterCases=%d callbackComparisons=%d; static only, chart-size fixture=84, no rendering%n",
+            headers, loads, shards, representative, smokeSelections, timerMergeFixtures, parameterCases, parameterClosures);
     }
 }

@@ -33,22 +33,11 @@ internal sealed class BakeInput
                 throw new ArgumentException("Options must be unique --name value pairs.");
         }
         foreach (string key in options.Keys)
-            if (!new[] { "--runtime", "--author", "--manifest", "--animation", "--frames", "--output", "--page-size", "--verification-images", "--normal-run-pieces" }.Contains(key))
+            if (!new[] { "--runtime", "--author", "--manifest", "--animation", "--frames", "--output", "--output-root", "--page-size", "--verification-images", "--normal-run-pieces" }.Contains(key))
                 throw new ArgumentException("Unknown option: " + key);
         string required(string key) => options.TryGetValue(key, out string? value) ? value : throw new ArgumentException("Missing " + key);
         AuthorRoot = Path.GetFullPath(required("--author"));
-        Output = Path.GetFullPath(required("--output"));
-        if (Directory.Exists(Output) || File.Exists(Output))
-            throw new IOException("Output must be a new directory.");
-        string repository = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../"));
-        if (!IsBelow(Output, Path.Combine(repository, ".dev-cache", "temp", "iidx-bake-dev"))
-            && !IsBelow(Output, Path.Combine(repository, "artifacts")))
-            throw new ArgumentException("Output must be beneath this checkout's .dev-cache/temp/iidx-bake-dev or artifacts.");
-        if (IsBelow(Output, AuthorRoot) || IsBelow(AuthorRoot, Output))
-            throw new ArgumentException("Output and source may not overlap.");
-        for (string? current = Path.GetDirectoryName(Output); current != null; current = Path.GetDirectoryName(current))
-            if (Directory.Exists(current) && (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
-                throw new ArgumentException("Output ancestors may not contain reparse points.");
+        Output = BakeOutputPath.Validate(required("--output"), options.GetValueOrDefault("--output-root"), AuthorRoot);
         ManifestPath = required("--manifest").Replace('\\', '/');
         AnimationId = required("--animation");
         PageSize = int.Parse(options.GetValueOrDefault("--page-size", "2048"), System.Globalization.CultureInfo.InvariantCulture);

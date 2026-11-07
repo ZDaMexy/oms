@@ -19,11 +19,14 @@ import copy
 import hashlib
 import itertools
 import json
+import math
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 from beatoraja_author import AuthorPackage, applies, layout_for, source_path, walk_nodes
+from beatoraja_control_params import (UnqualifiedParameters, factor_fragment, factory_script,
+                                     parameter_names, qualify_cap_rgb, qualify_source)
 from beatoraja_export import ANIMATION_RUNTIME, MODE, Composer, read_bakes
 from beatoraja_materials import CAP_FIELDS, NOTE_FIELDS, collect_note_materials
 from beatoraja_native import AssetSink, Lua, lua
@@ -45,7 +48,7 @@ LABELS = {"notes": "Notes", "charge-notes": "Charge Notes", "judgement": "Judgem
           "explosion": "Explosion", "full-combo": "Full Combo", "bga-frame": "BGA Frame",
           "graph-target": "Graph Target Artwork", "turntable": "Turntable", "graph-area": "Graph Area",
           "timing-display": "Timing Display"}
-STAGES = ("frame", "bga-frame", "graph-background", "graph-area", "graph-target", "decorations", "turntable", "key-beam",
+STAGES = ("preparation", "frame", "bga-frame", "graph-background", "graph-area", "graph-target", "decorations", "turntable", "lane-opening", "key-beam",
           "hit-line", "note-geometry", "notes", "charge-notes", "explosion", "long-note-effects", "key-lights",
           "lane-cover", "lift-art", "reading", "judgement", "timing-display", "gauge", "hud", "full-combo", "events")
 CONTROL_GROUPS = {"notes": ("note-size", "lane-objects-brightness"),
@@ -55,7 +58,8 @@ CONTROL_GROUPS = {"notes": ("note-size", "lane-objects-brightness"),
                   "key-beam": ("beam-length", "lane-objects-brightness"),
                   "timing-display": ("timing-position", "judgement-position", "lane-objects-brightness"),
                   "events": ("ready-animation", "get-ready"), "reading": ("lift-readout",),
-                  "frame": ("graph-visible", "lane-brightness", "column-brightness"),
+                  "frame": ("graph-visible", "lane-brightness", "column-brightness", "frame-opening", "entrance-animation"),
+                  "lane-opening": ("lane-opening",),
                   "note-geometry": ("lane-objects-brightness",), "graph-background": ("graph-visible",),
                   "graph-area": ("graph-visible",),
                   "graph-target": ("graph-visible", "graph-cutin", "graph-difference"),
@@ -71,7 +75,9 @@ CONTROL_LABELS = {"note-size": "Note Size", "charge-size": "Charge Size", "hcn-c
                   "gauge-display": "Gauge Display", "realtime-judge": "Realtime Judge", "judge-panel-visible": "Judge Panel",
                   "explosion-scale": "Explosion Size", "graph-visible": "Graph Display",
                   "lane-brightness": "Lane Background Brightness", "column-brightness": "Column Brightness",
-                  "lane-objects-brightness": "Lane Objects Brightness"}
+                  "lane-objects-brightness": "Lane Objects Brightness",
+                  "frame-opening": "Frame Opening", "entrance-animation": "Entrance Animation",
+                  "lane-opening": "Lane Opening"}
 NONBLOCKING = {"mine-art-unavailable", "ln-cn-released-body-not-separate",
                "shared-note-height-needs-padding", "auto-assist-material-condition",
                "native BMS mine addition", "judge-combo-fit-track", "native-font-spacing-rounded",
@@ -83,7 +89,12 @@ NONBLOCKING = {"mine-art-unavailable", "ln-cn-released-body-not-separate",
                "native-feedback-target-ownership", "native-numeric-advance-quantization",
                "native-hold-lane-state-adaptation", "native-hold-render-edge-adaptation",
                "native-course-gauge-palette-adaptation", "native-note-brightness-raster",
-               "native-barline-adaptation", "native BMS barline addition"}
+               "native-barline-adaptation", "native BMS barline addition",
+               "native-offset-display-adaptation", "native-preparation-clock-adaptation",
+               "native-preparation-unobserved-epoch", "native-entrance-quad-rasterization",
+               "native-gauge-boundary-pulse-adaptation", "native-gauge-boundary-clip-adaptation",
+               "native-progress-duration-adaptation", "native-progress-integer-travel",
+               "native-beat-opacity-adaptation"}
 
 
 def stage_module(stage):
@@ -200,9 +211,10 @@ class Shards:
         self.root.mkdir()
         self.records = {}
 
-    def add(self, fragment: dict) -> str:
+    def add(self, fragment: dict, parameters: list[dict] | None = None) -> str:
         canonical = _canonical(fragment)
-        digest = hashlib.sha256(lua(canonical).encode("utf-8")).hexdigest()
+        identity = {"fragment": canonical, "parameters": parameters} if parameters is not None else canonical
+        digest = hashlib.sha256(lua(_canonical(identity)).encode("utf-8")).hexdigest()
         module = "shards/" + digest
         if digest not in self.records:
             payload = namespace_fragment(canonical, "p" + digest[:24])
@@ -219,12 +231,15 @@ class Shards:
                     timers.setdefault(identifier, timer)
                 payload["customTimers"] = list(timers.values())
                 payload["_customTimerSignatures"] = signatures
-            text = ANIMATION_RUNTIME + "\nreturn function() return " + lua(payload) + " end\n"
+            text = ANIMATION_RUNTIME + "\n" + (factory_script(payload, parameters) if parameters is not None
+                    else "return function() return " + lua(payload) + " end\n")
             data = text.encode("utf-8")
             (self.root / (digest + ".lua")).write_bytes(data)
             self.records[digest] = {"path": module + ".lua", "bytes": len(data),
                                     "sha256": hashlib.sha256(data).hexdigest(),
                                     "destinations": len(fragment.get("destination", []))}
+            if parameters is not None:
+                self.records[digest]["parameterOptions"] = {axis["option"]: list(axis["values"]) for axis in parameters}
         return module
 
 
@@ -277,7 +292,7 @@ def control_combinations(definitions: dict[str, list[dict]]) -> list[dict]:
         *([item["value"] for item in choices] for choices in definitions.values()))]
 
 
-def insert_selection(paths: dict, values: list, path: str):
+def insert_selection(paths: dict, values: list, path):
     current = paths
     for value in values[:-1]:
         current = current.setdefault(value, {})
@@ -299,14 +314,24 @@ def available_selections(author, stage, coverage, modes, frames):
     defaults = tuple(definition["default"] for definition in controls.values())
     grids = {part: {} for part in stages}
     for record in records:
+        part = record["stage"]
+        parameters = record.get("parameterOptions", {})
+        fixed_axes = tuple(name for name in axes[part] if name not in parameters)
         identity = (record["mode"], record["frame"], record["choice"],
-                    tuple(record["options"].get(name, definitions[name]["default"]) for name in axes[record["stage"]]))
-        grids[record["stage"]][identity] = record["available"] and not blocking_gaps(record["gaps"], record["stage"])
+                    tuple(record["options"].get(name, definitions[name]["default"]) for name in fixed_axes))
+        grids[part].setdefault(fixed_axes, {})[identity] = (
+            record["available"] and not blocking_gaps(record["gaps"], part),
+            {name: frozenset(values) for name, values in parameters.items()})
 
     def supported(mode, frame, choice, values):
         selected = dict(zip(controls, values))
-        return all(grids[part].get((mode, frame, choice, tuple(selected[name] for name in axes[part])), False)
-                   for part in stages)
+        def part_supported(part):
+            for fixed_axes, grid in grids[part].items():
+                entry = grid.get((mode, frame, choice, tuple(selected[name] for name in fixed_axes)))
+                if entry and entry[0] and all(selected[name] in allowed for name, allowed in entry[1].items()):
+                    return True
+            return False
+        return all(part_supported(part) for part in stages)
 
     module = stage_module(stage)
     options = ([c["value"] for c in author.modules[module]["choices"]]
@@ -339,21 +364,22 @@ def _options(author, mode, frame, module=None, choice=None):
     options = author.options(MODE[mode][0], mode, {"frame": frame})
     if module:
         options[module] = choice
-    for name in ("frame-opening", "entrance-animation"):
-        if name in options:
-            options[name] = False
     return options
 
 
-def scan_cap_height(author: AuthorPackage, modes: list[str], frames: list[str]) -> int:
+def scan_cap_height(author: AuthorPackage, modes: list[str], frames: list[str], *, audit=None) -> int:
     """Linear scan, including real mode/frame variants; no paired selection grid."""
     height, seen = 0, set()
+    rgb = qualify_cap_rgb(author)
     for mode in modes:
         for frame in frames:
             base = _options(author, mode, frame)
             for module in ("notes", "charge-notes"):
                 for choice in _choices(author, module, MODE[mode][0]):
-                    for controls in control_combinations(local_controls(author, module, MODE[mode][0])):
+                    definitions = local_controls(author, module, MODE[mode][0])
+                    if rgb["qualified"]:
+                        definitions.pop(rgb["control"], None)
+                    for controls in control_combinations(definitions):
                         options = {**base, module: choice["value"], **controls}
                         parts = [author.contribution(name, options) for name in ("notes", "charge-notes")]
                         signature = (mode, *(p.manifest_path for p in parts), *(p.scene_path for p in parts), *controls.items())
@@ -365,6 +391,8 @@ def scan_cap_height(author: AuthorPackage, modes: list[str], frames: list[str]) 
                         height = max(height, *(images[i]["h"] for field in CAP_FIELDS for i in recipe["note"][field]))
     if height <= 0:
         raise ValueError("No source note cap height was found")
+    if audit is not None:
+        audit.update({"rgbAxisQualification": rgb, "uniqueRecipes": len(seen), "height": height})
     return height
 
 
@@ -466,7 +494,8 @@ class CompositionCache:
 def compose_stage(c: Composer, stage: str, frame, cap_height, font):
     """One native pass, kept identical for direct composition and cache misses."""
     initial = copy.copy(c.skin)
-    if stage == "frame": c.frame(frame)
+    if stage == "preparation": c.preparation(frame)
+    elif stage == "frame": c.frame(frame)
     elif stage == "bga-frame":
         c.bga(frame)
         if stage in c.author.modules: c.bga_frame(frame)
@@ -475,6 +504,7 @@ def compose_stage(c: Composer, stage: str, frame, cap_height, font):
     elif stage == "graph-target": c.graph(layer="foreground")
     elif stage == "decorations": c.decorations(frame)
     elif stage == "turntable": c.turntable(frame)
+    elif stage == "lane-opening": c.lane_opening(frame)
     elif stage == "key-beam": c.key_beams(frame)
     elif stage == "hit-line": c.hit_line(frame)
     elif stage in ("notes", "charge-notes", "note-geometry"): c.notes(frame, cap_height=cap_height)
@@ -494,7 +524,14 @@ def compose_stage(c: Composer, stage: str, frame, cap_height, font):
     skin = c.finish()
     if stage in ("notes", "charge-notes", "note-geometry"):
         skin = note_fragment(skin, stage)
-    return extract_fragment(skin, initial)
+    fragment = extract_fragment(skin, initial)
+    if stage == "preparation":
+        # The source owns the complete wait, including a real zero duration.
+        # It must override the generic host baseline even when numerically equal.
+        fragment["playstart"] = skin["playstart"]
+    elif "playstart" in fragment:
+        raise ValueError("Only the preparation stage may own native playstart: " + stage)
+    return fragment
 
 
 MERGE_RUNTIME = r'''
@@ -530,7 +567,8 @@ local function append(skin, fragment)
             end
         end
     end
-    for _, field in ipairs({'loadend','playstart','close','fadeout','finishmargin'}) do
+    if fragment.playstart ~= nil then skin.playstart = fragment.playstart end
+    for _, field in ipairs({'loadend','close','fadeout','finishmargin'}) do
         if fragment[field] then skin[field] = math.max(skin[field] or 0, fragment[field]) end
     end
     for _, destination in ipairs(fragment.destination or {}) do
@@ -575,7 +613,7 @@ def entry_script(header: dict, modes: list[str], frames: list[str], plan: dict,
     text += MERGE_RUNTIME
     text += "local skin=" + lua(baseline) + "\nskin.property=header.property\nskin.destination={}\nskin._seen={}\nskin._customTimerSignatures={}\n"
     text += "local selected=assert(assert(plan[mode], 'Missing mode')[choices.frame], 'Missing frame')\n"
-    text += "for _, stage in ipairs(stages) do\n local spec=selected[stage]\n local path=spec\n if type(spec)=='table' then\n  path=spec.paths\n  for _,selector in ipairs(spec.selectors) do\n   local key=choices[selector]\n   if key == nil then key=spec.defaults[selector] end\n   if key == nil then path=nil; break end\n   path=assert(path[key], 'Missing native shard for '..stage..'/'..selector)\n  end\n end\n if path then append(skin,require(path)()) end\nend\n"
+    text += "for _, stage in ipairs(stages) do\n local path=selected[stage]\n while type(path)=='table' do\n  local spec=path; path=spec.paths\n  for _,selector in ipairs(spec.selectors) do\n   local key=choices[selector]\n   if key == nil then key=spec.defaults[selector] end\n   if key == nil then path=nil; break end\n   path=assert(path[key], 'Missing native shard for '..stage..'/'..selector)\n  end\n end\n if path then append(skin,require(path)(choices)) end\nend\n"
     text += "skin._seen=nil\nskin._customTimerSignatures=nil\nreturn skin\n"
     return text
 
@@ -605,8 +643,10 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
     baked = read_bakes(list(bake_roots), author, list(bake_overrides))
     shards = Shards(output)
     cache = CompositionCache(author)
-    cap_height = scan_cap_height(author, modes, frames)
+    cap_scan = {}
+    cap_height = scan_cap_height(author, modes, frames, audit=cap_scan)
     plan, coverage, baseline = {}, [], None
+    parameter_report = {"qualifiedRoutes": 0, "sourceAxisCompositions": 0, "fallbackRoutes": []}
     shared_font = {"id": "native.fallback", "path": font} if font else None
     for mode in modes:
         plan[mode] = {}
@@ -628,50 +668,101 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
                 if is_module and module_choices and module in module_choices:
                     entries = [c for c in entries if c["value"] in module_choices[module]]
                 controls_definition = local_controls(author, stage, MODE[mode][0])
-                combinations = control_combinations(controls_definition)
-                selectors = ([module] if is_module else []) + list(controls_definition)
+                parameter_definitions = {name: controls_definition[name] for name in parameter_names(author, stage)
+                                         if name in controls_definition}
+                outer_controls = {name: choices for name, choices in controls_definition.items()
+                                  if name not in parameter_definitions}
+                combinations = control_combinations(outer_controls)
+                selectors = ([module] if is_module else []) + list(outer_controls)
                 stage_choices = {}
-                for choice, controls in itertools.product(entries, combinations):
-                    opts = {**options, **({module: choice["value"]} if choice else {}), **controls}
-                    stage_frame = author.contribution("frame", opts)
+
+                def compose_options(opts):
                     c = Composer(author, sink, opts, mode, baked)
                     c.handled_roots.update(roots)
-                    cache_key = cache.key(stage, mode, stage_frame, opts, cap_height, c.handled_roots)
-                    cached = cache.values.get(cache_key) if cache_key is not None else None
-                    if cached:
-                        cache.hits += 1
-                        fragment, c.gaps, path = cached
-                    else:
-                        if cache_key is not None: cache.misses += 1
-                        fragment = compose_stage(c, stage, stage_frame, cap_height, font)
-                        if any(t.get("font") == "native.fallback" for t in fragment.get("text", [])):
-                            if not shared_font:
-                                raise ValueError("An explicit --native-font is required for this source's native host labels")
-                            fragment.setdefault("font", []).append(shared_font)
-                        if (is_module or stage == "timing-display" and controls_definition) and not has_component_output(
-                                fragment, stage, choice["value"] if choice else None, opts):
-                            c.gap("selected component emitted no native output", module=stage, choice=choice["value"] if choice else None)
-                        path = None
-                    blockers = blocking_gaps(c.gaps, stage) if is_module or controls_definition else []
-                    identity = {"mode": mode, "frame": theme, "stage": stage,
-                                "choice": choice["value"] if choice else None, "options": controls}
-                    record = {**identity, "available": not blockers,
-                              "status": "unavailable" if blockers else "available-with-gaps" if c.gaps else "mapped",
-                              "gaps": c.gaps,
-                              "destinations": len(fragment.get("destination", []))}
-                    if choice:
-                        part = author.contribution(module, opts)
+                    stage_frame = author.contribution("frame", opts)
+                    fragment = compose_stage(c, stage, stage_frame, cap_height, font)
+                    if any(t.get("font") == "native.fallback" for t in fragment.get("text", [])):
+                        if not shared_font:
+                            raise ValueError("An explicit --native-font is required for this source's native host labels")
+                        fragment.setdefault("font", []).append(shared_font)
+                    if (is_module or stage == "timing-display" and controls_definition) and not has_component_output(
+                            fragment, stage, opts.get(module) if is_module else None, opts):
+                        c.gap("selected component emitted no native output", module=stage, choice=opts.get(module) if is_module else None)
+                    return fragment, c.gaps
+
+                def record_candidate(opts, controls, gaps, destinations, path, *, parameter_options=None, proof=None):
+                    blockers = blocking_gaps(gaps, stage) if is_module or controls_definition else []
+                    record = {"mode": mode, "frame": theme, "stage": stage,
+                              "choice": opts[module] if is_module else None, "options": controls,
+                              "available": not blockers,
+                              "status": "unavailable" if blockers else "available-with-gaps" if gaps else "mapped",
+                              "gaps": gaps, "destinations": destinations}
+                    if is_module or controls_definition:
+                        part = author.contribution(module if is_module else "frame", opts)
                         record["source"] = {"manifest": part.manifest_path, "scene": part.scene_path, "ini": part.ini_path}
-                    elif controls_definition:
-                        record["source"] = {"manifest": stage_frame.manifest_path, "scene": stage_frame.scene_path, "ini": stage_frame.ini_path}
+                    if parameter_options is not None:
+                        record["parameterOptions"] = parameter_options
+                        record["parameterSourceQualification"] = proof
                     if not blockers:
-                        path = path or shards.add(fragment)
                         record["shard"] = path
-                        if selectors: insert_selection(stage_choices, [opts[name] for name in selectors], path)
-                        else: selected[stage] = path
                     coverage.append(record)
-                    if cache_key is not None and not cached:
-                        cache.values[cache_key] = (fragment, c.gaps, path)
+                    return not blockers
+
+                for choice, controls in itertools.product(entries, combinations):
+                    opts = {**options, **({module: choice["value"]} if choice else {}), **controls}
+                    outer_values = [opts[name] for name in selectors]
+                    direct_controls = [{}]
+                    direct_paths, direct_selectors = stage_choices, selectors
+                    if parameter_definitions:
+                        try:
+                            proof = qualify_source(author, stage, opts)
+                            fragment, gaps, parameters, calls = factor_fragment(
+                                stage, opts, parameter_definitions, compose_options)
+                        except UnqualifiedParameters as error:
+                            # A new source difference stays fully enumerated;
+                            # it is never converted into a missing menu choice.
+                            parameter_report["fallbackRoutes"].append({"mode": mode, "frame": theme,
+                                "stage": stage, "choice": opts[module], "options": controls, "reason": str(error)})
+                            direct_paths = {}
+                            direct_selectors = list(parameter_definitions)
+                            insert_selection(stage_choices, outer_values,
+                                {"selectors": direct_selectors, "paths": direct_paths,
+                                 "defaults": {name: opts[name] for name in direct_selectors}})
+                            direct_controls = control_combinations(parameter_definitions)
+                        else:
+                            parameter_report["qualifiedRoutes"] += 1
+                            parameter_report["sourceAxisCompositions"] += calls
+                            path = None if blocking_gaps(gaps, stage) else shards.add(fragment, parameters)
+                            domains = {axis["option"]: list(axis["values"]) for axis in parameters}
+                            recorded_controls = {**controls, **{name: opts[name] for name in parameter_definitions}}
+                            if record_candidate(opts, recorded_controls, gaps, len(fragment.get("destination", [])),
+                                                path, parameter_options=domains, proof=proof):
+                                insert_selection(stage_choices, outer_values, path)
+                            continue
+                    for axis_controls in direct_controls:
+                        selected_options = {**opts, **axis_controls}
+                        stage_frame = author.contribution("frame", selected_options)
+                        cache_key = cache.key(stage, mode, stage_frame, selected_options, cap_height, roots)
+                        cached = cache.values.get(cache_key) if cache_key is not None else None
+                        if cached:
+                            cache.hits += 1
+                            gaps, destinations, path = cached["gaps"], cached["destinations"], cached["path"]
+                        else:
+                            if cache_key is not None: cache.misses += 1
+                            fragment, gaps = compose_options(selected_options)
+                            destinations = len(fragment.get("destination", []))
+                            blockers = blocking_gaps(gaps, stage) if is_module or controls_definition else []
+                            path = None if blockers else shards.add(fragment)
+                            if cache_key is not None:
+                                # The factory path is sufficient on a hit. Do
+                                # not retain hundreds of thousands of native
+                                # image/animation dictionaries until build end.
+                                cache.values[cache_key] = {"gaps": gaps, "destinations": destinations, "path": path}
+                        if record_candidate(selected_options, {**controls, **axis_controls}, gaps, destinations, path):
+                            if direct_selectors:
+                                insert_selection(direct_paths, [selected_options[name] for name in direct_selectors], path)
+                            else:
+                                selected[stage] = path
                 if selectors:
                     selected[stage] = {"selectors": selectors, "paths": stage_choices,
                                        "defaults": {name: options[name] for name in controls_definition}}
@@ -744,9 +835,13 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
     receipt = {"contract": "oms-beatoraja-modular-package.v1", "family": author.family, "name": author.name,
                "toolFilesSha256": tool_files,
                "constructionCache": {"stages": list(CACHE_STAGES), "hits": cache.hits, "misses": cache.misses},
+               "controlParameterization": parameter_report,
+               "logicalCoverageCombinations": sum(math.prod(len(v) for v in r.get("parameterOptions", {}).values())
+                                                   for r in coverage),
                "sourceManifestSha256": hashlib.sha256((author.root / "gameplay-skin.json").read_bytes()).hexdigest(),
                "sourceCatalogSha256": hashlib.sha256(source_path(author.root, author.manifest["contentCatalog"]).read_bytes()).hexdigest(),
                "modes": modes, "frames": frames, "capHeight": cap_height, "modules": selection_report,
+               "capHeightScan": cap_scan,
                "nativeOptionIds": stable_option_ids(author),
                "entryFilesSha256": entry_files,
                "fixedAuthorControls": {m: {k: v for k, v in _options(author, m, defaults["frame"]).items()

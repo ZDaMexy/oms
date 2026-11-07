@@ -49,6 +49,7 @@ class AssetSink:
         self._loaded_sources: dict[str, str] = {}
         self._loaded_bakes: dict[tuple[Path, str], str] = {}
         self._gauge_pulse_palettes: dict[tuple, tuple[str, int, int]] = {}
+        self._entrance_quads: dict[tuple, tuple[str | None, dict]] = {}
 
     def _add(self, data: bytes, suffix: str, origin: str | None = None) -> str:
         digest = hashlib.sha256(data).hexdigest()
@@ -176,6 +177,18 @@ def native_song_expression(source: str) -> str | None:
         return ('(function() local n=main_state.number(96); if n == -2147483648 or n == 2147483647 '
                 'then return "" end; return string.format("%d",n) end)()')
     return None
+
+
+def native_offset_expression(source: str) -> tuple[str, str] | None:
+    """Official visual judge offset and AUTO setting, not OMS replay history."""
+    return {
+        "offset.value": ("main_state.number(12)", "number"),
+        "offset.available": (
+            "(main_state.number(12) ~= -2147483648 and main_state.number(12) ~= 2147483647)", "boolean"),
+        "offset.automatic": ("(main_state.event_index(75) == 1)", "boolean"),
+        "offset.automatic-available": (
+            "(main_state.event_index(75) == 0 or main_state.event_index(75) == 1)", "boolean"),
+    }.get(source)
 
 
 def scene_properties(node: dict[str, Any], scene: dict[str, Any], context: dict[str, Any]):

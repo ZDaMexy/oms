@@ -11,8 +11,9 @@ Transparent right/bottom padding preserves OMS's max(advance, ink) measurement
 and full line height without changing any visible source pixels.
 The host's bitmap renderer uses bilinear filtering. Author numeric step tracks
 for font size, opacity and x become mutually exclusive native draw branches;
-unmapped continuous tracks remain explicit gaps. A caller-selected unavailable
-preparation clock restores source properties, as the OMS elapsed-track host does.
+unmapped continuous tracks remain explicit gaps. Qualified preparation Out
+translations retain an original-static branch when the live clock is OFF.
+A caller-selected unavailable preparation preview also restores source properties.
 """
 
 from __future__ import annotations
@@ -25,10 +26,12 @@ from typing import Any, Iterable
 from PIL import Image
 
 from beatoraja_author import Contribution, source_path, walk_nodes
+from beatoraja_entrance import apply_preparation_translation, preparation_opacity_condition
 from beatoraja_native import (
     AssetSink, Lua, all_of, colour, lua, native_colour, native_rect,
-    node_rect, scene_properties, native_song_expression,
+    node_rect, scene_properties, native_song_expression, native_offset_expression,
 )
+from beatoraja_preparation import preparation_expression
 
 
 # Official tag 0.8.9: SkinProperty, IntegerPropertyFactory, SkinLuaAccessor.
@@ -64,6 +67,11 @@ _EXPRESSIONS = {
     "gauge.type": (
         '(({[0]="assist-easy",[1]="easy",[2]="normal",[3]="hard",'
         '[4]="ex-hard",[5]="hazard",[6]="hard",[7]="hard",[8]="ex-hard"})[main_state.gauge_type()] or "")', "string"),
+    **{source: native_offset_expression(source) for source in (
+        "offset.value", "offset.available", "offset.automatic", "offset.automatic-available")},
+    **{source: preparation_expression(source) for source in (
+        "preparation.available", "preparation.active", "preparation.ready", "preparation.elapsed",
+        "preparation.remaining", "preparation.ready-elapsed", "presentation.elapsed")},
 }
 
 
@@ -313,7 +321,7 @@ def export_hud(
     def visit(node: dict[str, Any], parent_rect: tuple[float, float, float, float],
               parent_colour: tuple[float, float, float, float], conditions: list[str],
               parent_scale: tuple[float, float], track_override: dict[str, Any] | None = None,
-              instance_suffix: str = ""):
+              instance_suffix: str = "", preparation_translation=None):
         if node["id"] in skipped:
             return
         if not any(n["type"] == "text" for n in walk_nodes(node)):
@@ -333,12 +341,32 @@ def export_hud(
                 gap(node, "unmapped-visibility", source=visible["source"])
                 return
             conditions.append(condition)
-        if track_override is None and node["id"] in tracks_by_node:
+        local_tracks = tracks_by_node.get(node["id"], []) if track_override is None else []
+        step_tracks, preparation_override = [], {}
+        for track in local_tracks:
+            if track.get("clock") == "preparation.elapsed" and track["property"] in ("x", "y", "opacity"):
+                try:
+                    if track["property"] == "opacity":
+                        conditions.append(preparation_opacity_condition(track, properties.get("opacity", 1)))
+                        properties["opacity"] = preparation_override["opacity"] = 1
+                    else:
+                        if preparation_translation is not None:
+                            raise ValueError("A text route has more than one preparation translation")
+                        translation = (track, parent_rect, properties.get(track["property"], 0))
+                        apply_preparation_translation([], *translation)  # Qualify before creating font assets.
+                        preparation_translation = translation
+                except ValueError as error:
+                    gap(node, "unmapped-text-track", track=track["id"], property=track["property"],
+                        clock=track.get("clock"), detail=str(error))
+                    return
+            else:
+                step_tracks.append(track)
+        if step_tracks:
             # A property callback cannot change native destination geometry or
             # bitmap text size. Author step tracks become disjoint native draw
             # branches, retaining their exact thresholds and pixel sizes.
-            branches: list[tuple[dict[str, Any], list[str]]] = [({}, conditions)]
-            for track in tracks_by_node[node["id"]]:
+            branches: list[tuple[dict[str, Any], list[str]]] = [(preparation_override, conditions)]
+            for track in step_tracks:
                 clock = sources.expression(track.get("clock"))
                 keys = track.get("keyframes", [])
                 if (track["type"] != "tween" or track.get("easing") != "step" or track.get("loop", False)
@@ -357,7 +385,7 @@ def export_hud(
                 branches = expanded
             for i, (override, branch_conditions) in enumerate(branches):
                 visit(node, parent_rect, parent_colour, branch_conditions, parent_scale,
-                      override, instance_suffix + ".step." + str(i))
+                      override, instance_suffix + ".step." + str(i), preparation_translation)
             return
         geometry = {"x", "y", "width", "height", "scale-x", "scale-y", "rotation", "anchor", "origin",
                     "opacity", "colour", "font-size", "alignment", "bitmap-font", "reveal-x"}
@@ -393,6 +421,12 @@ def export_hud(
                     return
                 text["value"] = Lua("function() return " + formatted + " end")
                 mapping = {"node": node["id"], "source": binding["source"], "native": expression[0]}
+                if binding["source"] == "offset.value":
+                    output["gaps"].append({"code": "native-offset-display-adaptation", "informational": True,
+                        "detail": "The original signed field displays actual native whole-millisecond visual timing "
+                                  "offset 12; AUTO follows public image index 75, not maximum-combo number 75. "
+                                  "The host keeps its own automatic-adjustment and replay behavior; an OMS "
+                                  "per-time replay offset history is not reconstructed."})
                 # SkinNumber suppresses these host sentinels. Keep that native
                 # availability behavior when rendering numbers through a font.
                 for native_id in sorted(set(re.findall(r"main_state\.number\((\d+)\)", expression[0]))):
@@ -414,7 +448,8 @@ def export_hud(
                 if draw is not None:
                     entry["draw"] = draw
                 output["value"].append(value)
-                output["destination"].append(entry)
+                output["destination"].extend(apply_preparation_translation([entry], *preparation_translation)
+                                             if preparation_translation is not None else [entry])
                 if mapping not in output["mappings"]:
                     output["mappings"].append(mapping)
                 return
@@ -449,7 +484,8 @@ def export_hud(
             if draw is not None:
                 entry["draw"] = draw
             output["text"].append(text)
-            output["destination"].append(entry)
+            output["destination"].extend(apply_preparation_translation([entry], *preparation_translation)
+                                         if preparation_translation is not None else [entry])
             if mapping is not None:
                 if mapping not in output["mappings"]:
                     output["mappings"].append(mapping)
@@ -458,7 +494,8 @@ def export_hud(
                         detail="Native 423/424 count judges 1..5, excluding PGREAT; OMS uses successful timed hits. This port displays the native count.")
         children = node.get("children", [])
         for child in sorted(children, key=lambda n: -n.get("properties", {}).get("z", 0)):
-            visit(child, rect, rgba, conditions, scale, instance_suffix=instance_suffix)
+            visit(child, rect, rgba, conditions, scale, instance_suffix=instance_suffix,
+                  preparation_translation=preparation_translation)
 
     visit(template_root, rect_top_left_px, (1, 1, 1, 1), [], (1, 1))
     return output

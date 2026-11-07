@@ -10,6 +10,8 @@
 
 原始素材留在`E:/OMS-Development/sources/`各作品原位，新的原生试产在`OMS-Beatoraja-20261107/<family>/`区分；后续临时构建、逐帧烘焙在本仓`.dev-cache/temp/`，真实运行证据在`artifacts/beatoraja-capture/`。只有候选闭合后才复制版本化交付，历史OMS包不迁移或覆盖。精确私有清单、素材、玩家信息和截图不进Git。优先CLI/API与程序内真实framebuffer；本轮用户仅允许必要时以computer use解决操作阻塞，目前未使用。
 
+完整动画后续队列按[开发磁盘约束](../../AGENTS.md#开发磁盘约束)的本轮例外写`D:/OMS-Development/sources/OMS-Beatoraja-Bakes-20261107/`，保留空间门和独立输出验证；原E盘作者与已完成F盘证据不迁移，不为此复制HDD或玩家安装。
+
 ## 官方0.8.9更新与数据保全
 
 官方版本取[0.8.9发布](https://github.com/exch-bms2/beatoraja/releases/tag/0.8.9)及[官方分发页](https://www.mocha-repository.info/download.php)。研究源码固定标签提交`83574048ba489082eb46df7fe9806b464bf1f526`；执行验证使用实际官方发行JAR。源码标签与发行包的默认skin路径有差异，不能假定两者完全同一打包布局。
@@ -65,6 +67,14 @@ Lightning默认FC24做过实际官方JAR的两种无损分块比较。固定联�
 
 `controls-r8`保留同工具SHA的两族候选，官方CPU通过Standard 364片/92次装配与Lightning 3098片/136次装配。六场实绘覆盖Graph关闭、Gauge B/C、Realtime Judge关闭、Judge Panel分支、亮度/爆炸大小端点、b04光柱长度、Judge关闭下FAST/SLOW及CN/HCN；Standard和Lightning各有Full HD DP。全部自然结果、PNG与退出门通过，七张选图已目视，证据在`artifacts/beatoraja-capture/controls-r8/`。Standard DP Timing此前三次失败均保留；精确同谱、同Replay字节、同选项复测在合并同render取景并加快无损PNG后达到88 Combo、0 BP。队列满时GL线程编码跨过短按是工具干扰，未改原输入或放宽结算门；62个共享画面的尺寸和SHA另核。
 
-完整目录的控制组合估算暴露了构建体积问题：Lightning约52万候选，其中Judge位置/亮度与爆炸大小/亮度占七成，不能直接全量生成并长期缓存完整对象。下一步以原路径推导的装配参数收敛重复，并逐项与现有枚举输出核等价。另有原来源可继续适配的Lightning偏移值/AUTO、副目标比较柱，以及两族框体开场和Lightning轨道开启；这些是尚未实现，不能称缺素材或宿主必然不支持。
+完整目录的控制组合估算暴露了构建体积问题：Lightning约52万候选，其中Judge位置/亮度与爆炸大小/亮度占七成。现从实际来源路径提取Judge、爆炸、光柱和Timing的独立参数，只把已逐轴核对的原生字段做运行时赋值，源分支与所有选项保留；未获资格的路径仍精确枚举。4320个真实组合、226920次原生字段及回调比较通过；候选记录收敛至115830，缓存只留片段路径和诊断。cap height扫描也只消去已证明无几何影响的RGB轴。偏移值/AUTO接真实number12与event_index75，45个源分支的符号、可见门及AUTO原图经官方CPU检查；尚待新同包实绘。
+
+两族准备期已按原Frame时长接公开READY/PLAY/Failed时钟，Ready仅使用最后1500ms，不延长源等待；CustomTimer每render缓存一次，准备期在首次PLAY冻结，presentation继续随实际PLAY，失败后冻结。Practice/加载/取消与缺少先前READY的晚观察明确拒绝旧epoch，不假造起点。80个官方CPU时钟场景通过。Lightning原Judge Panel位移和原0/1透明度轨道已接入，45个源分支在HD/FULLHD检查；原生整毫秒采样引入的移动误差单独登记，不能以稳态坐标相同宣称动态像素全等。
+
+开场quad按原step帧和unit-Q四角使用生产框架的TL–BR两三角纹理映射，保留116个轻微非仿射四边形，不近似成平行四边形；目标PNG按原画布像素中心采样，整数边缘覆盖仍有宿主差异。独立有理数UV测试覆盖非仿射、反射、退化与共享对角线。两族默认SP1的六支完整录制已通过原渲染和atlas逆向核验；`entrance-default-r2`两场官方JAR均44 Combo、88 EX、0 BP，自然Result和退出。136张PNG完整性、18个准备期检查点与8张原图目视通过，Ready确实只在各自最后1500ms出现，首次PLAY在源3000/5000ms后冻结准备时钟。证据为`artifacts/beatoraja-capture/entrance-default-r2/`。其余主题完整开场继续排队，不把可用源误称缺素材。
+
+后续查漏修复两项原来未报错的静态替代：两族歌曲进度游标接实际宿主rate6，81来源/108游标经整合核对没有静态残留或重复绘制，原PNG/RGBA保留；宿主playtime包含完成余量，不能称与OMS首末物件区间完全同义。Lightning轨道原明暗曲线接公开140节拍时钟，保留原四个alpha点，不自行积分BPM；该宿主在STOP中继续脉冲、每小节重置，失败冻结已观测相位，与OMS连续音乐拍数的区别明示。进度和节拍官方CPU通过，尚待下一同包GPU。这两个Gameplay作者目录没有选曲/Results场景合同，不能据此声称还原这些页面，也不反推原HDD没有对应素材。
+
+对Graph SUB的初步“第二比较柱”判断经祖先门复核撤回：原PB分支在PB不可用时才以SUB替换同一列，NO DATA也属于最大值不可用的后备显示。宿主公开值不能区分无PB与合法零分，故维持真实宿主主target与已记存在性边界，不开放假想副柱。此次更正来自源可见门和相同锚点，未改源或发布错误选项。
 
 各主题稳态、Ready/已有Fail、全部普通光柱/爆炸与Lightning四档光柱长度、默认FC三模式、Standard全Gauge/Graph反馈均已获得完整或声明的固定clock烘焙；其它FC与剩余动画挡板仍在串行完成。完整菜单与最终同包验收尚未结束。真实物理输入、长期手感、视频BGA、真实玩家保存/IR、所有配置排列与选曲/Results皮肤未签收；尚无beatoraja正式成品版本或部署验收。

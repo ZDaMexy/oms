@@ -377,6 +377,7 @@ public final class Capture implements ApplicationListener {
                 for (int i = 0; i < 6; i++) lastJudges[i] = play.getJudgeManager().getJudgeCount(i);
                 captureFirstEffects(state);
                 captureFeedback(state);
+                capturePreparation(play);
                 if (args.containsKey("show-readouts")) captureReading(state);
                 if (scenario.equals("hcn-recovery")) captureHcnRecovery(state);
                 if (scenario.equals("timing")) captureTimingFeedback(state);
@@ -421,6 +422,26 @@ public final class Capture implements ApplicationListener {
             }
         } catch (Throwable e) { fail(e); }
         finally { flushCaptureBatch(); }
+    }
+
+    private void capturePreparation(BMSPlayer state) throws IOException {
+        if (!state.timer.isTimerOn(10020)) return;
+        int duration = ((bms.player.beatoraja.play.PlaySkin) state.getSkin()).getPlaystart();
+        long elapsedUs = state.timer.getNowMicroTime(10020);
+        if (!state.timer.isTimerOn(41)) {
+            SortedSet<Integer> checkpoints = new TreeSet<>(List.of(0, 100, 350, 500, 1000,
+                    Math.max(0, duration - 1500), Math.max(0, duration - 1000), Math.max(0, duration - 500)));
+            for (int point : checkpoints) {
+                if (elapsedUs < point * 1000L) continue;
+                Map<String, Object> frame = capture("preparation-" + point + "ms", state);
+                if (frame != null) frame.put("preparationCheckpoint", Map.of("targetMs", point,
+                        "actualMs", elapsedUs / 1000.0, "sourceDurationMs", duration));
+            }
+        } else {
+            Map<String, Object> frame = capture("preparation-first-play", state);
+            if (frame != null) frame.put("preparationCheckpoint", Map.of("targetMs", duration,
+                    "actualMs", elapsedUs / 1000.0, "sourceDurationMs", duration));
+        }
     }
 
     private void captureFeedback(MainState state) throws IOException {
@@ -567,6 +588,10 @@ public final class Capture implements ApplicationListener {
             for (int number : new int[]{14, 313, 314, 315, 1313, 1321, 1323, 1325, 1327})
                 reads.put(Integer.toString(number), IntegerPropertyFactory.getIntegerProperty(number).get(state));
             value.put("readingNativeValues", reads);
+            Map<String, Long> preparationClocks = new LinkedHashMap<>();
+            for (int timer : new int[]{10020, 10021, 10022, 10023})
+                if (state.timer.isTimerOn(timer)) preparationClocks.put(Integer.toString(timer), state.timer.getNowMicroTime(timer));
+            value.put("preparationClockAgeUs", preparationClocks);
         }
         return value;
     }

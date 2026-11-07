@@ -15,6 +15,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import stat
 import subprocess
 import sys
 import time
@@ -37,6 +38,66 @@ def digest(data: bytes) -> str:
 
 def canonical(value) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+
+
+def checked_output(output, explicit_root=None, source_roots=()):
+    """Apply the CLI's output policy to Python-only alias writes as well."""
+    output = Path(os.path.abspath(output))
+    if output.exists():
+        raise ValueError("Output must be a new directory")
+    system_drive = Path(os.environ.get("SystemRoot", "C:/Windows")).drive.lower()
+    if output.drive.lower() in {"c:", system_drive}:
+        raise ValueError("Bake output may not use the system drive")
+    if explicit_root is not None:
+        root = Path(explicit_root)
+        if not root.is_absolute():
+            raise ValueError("An explicit output root must be absolute")
+        root = Path(os.path.abspath(root))
+        if not root.is_dir() or root == Path(root.anchor):
+            raise ValueError("An explicit output root must be an existing dedicated directory")
+        allowed = [root]
+    else:
+        allowed = [DEV, REPOSITORY / "artifacts"]
+    if not any(output != root and output.is_relative_to(root) for root in allowed):
+        raise ValueError("Output escapes its permitted output root")
+    for ancestor in (output, *output.parents):
+        try:
+            attributes = ancestor.lstat()
+        except FileNotFoundError:
+            continue
+        if stat.S_ISLNK(attributes.st_mode) or getattr(attributes, "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT:
+            raise ValueError("Output ancestors may not contain reparse points")
+    for source_root in source_roots:
+        source = Path(os.path.abspath(source_root))
+        if output.is_relative_to(source) or source.is_relative_to(output):
+            raise ValueError("Output and source may not overlap")
+    return output
+
+
+def supplied_indices(lists=(), paths=()):
+    result = set(Path(p).resolve(strict=True) for p in paths)
+    for path in lists:
+        entries = json.loads(Path(path).read_text(encoding="utf-8"))
+        if not isinstance(entries, list) or not all(isinstance(p, str) for p in entries):
+            raise ValueError("An existing bake list must contain index paths")
+        result.update(Path(p).resolve(strict=True) for p in entries)
+    return sorted(result)
+
+
+def transfer_page(source, destination, expected_sha):
+    """Only baked pages cross volumes; original author resources never do."""
+    if digest(source.read_bytes()) != expected_sha:
+        raise ValueError("Reused page differs from its verified bake")
+    if destination.exists():
+        raise ValueError("A reused baked page may not overwrite an existing file")
+    if source.stat().st_dev == destination.parent.stat().st_dev:
+        os.link(source, destination)
+        return "hardlink"
+    with source.open("rb") as reader, destination.open("xb") as writer:
+        shutil.copyfileobj(reader, writer)
+    if digest(destination.read_bytes()) != expected_sha:
+        raise ValueError("Copied baked page differs from its verified source")
+    return "verified-copy"
 
 
 class Sources:
@@ -190,13 +251,13 @@ def collect_jobs(authors, sources):
                                       j["family"], not j["defaultTheme"], j["theme"], j["mode"], j["name"])), unavailable
 
 
-def available_indices(root, authors, sources, runtime=None):
+def available_indices(root, authors, sources, runtime=None, paths=None):
     result = []
     roots = {str(Path(p).resolve()): family for family, p in authors.items()}
     renderer = ({"productionAssembly": digest((runtime / "osu.Game.dll").read_bytes()),
                  "frameworkAssembly": digest((runtime / "osu.Framework.dll").read_bytes())}
                 if runtime is not None else None)
-    for path in sorted(root.rglob("index.json")):
+    for path in sorted(root.rglob("index.json") if paths is None else paths):
         index = read_json(path)
         if index.get("contract") != "oms-iidx-baked-animation.v1" or not index.get("verification", {}).get("passed"):
             continue
@@ -249,8 +310,9 @@ def statistics(jobs, indices):
             "scope": "All frame choices at default graph visibility, P1/P2/DP; steady partials and complete READY/fail events"}
 
 
-def reuse(job, existing, output, sources):
+def reuse(job, existing, output, sources, output_root=None):
     original_path, original = existing
+    output = checked_output(output, output_root, [job["author"], original_path.parent])
     output.mkdir()
     index = deepcopy(original)
     if job["frames"] != "all":
@@ -260,12 +322,11 @@ def reuse(job, existing, output, sources):
         index["selectionComplete"] = len(wanted) == index["sourceFrameCount"]
     pages = {r["page"] for f in index["frames"] for r in f["runs"]}
     index["pages"] = [p for p in index["pages"] if p["id"] in pages]
+    page_transfers = []
     for page in index["pages"]:
         source_page = source_path(original_path.parent, page["file"])
-        if digest(source_page.read_bytes()) != page["sha256"]:
-            raise ValueError("Reused page differs from its verified bake")
-        # One physical PNG allocation on the same F: volume; no author copying.
-        os.link(source_page, output / page["file"])
+        transfer = transfer_page(source_page, output / page["file"], page["sha256"])
+        page_transfers.append({"file": page["file"], "sha256": page["sha256"], "method": transfer})
     desc = sources.describe(job["family"], Path(job["author"]), job["manifest"], job["animation"])
     index["source"].update({"authorRoot": job["author"], "manifest": job["manifest"],
                             "animation": job["animation"], "animationFile": desc["animationFile"],
@@ -274,7 +335,9 @@ def reuse(job, existing, output, sources):
              "originalIndexSha256": digest(original_path.read_bytes()),
              "sourceSignature": desc["signature"], "sameFamily": True,
              "selection": job["selection"], "sceneSha256": job["sceneSha256"],
-             "renderingPerformed": False, "verifiedPixelPagesHardLinked": True}
+             "renderingPerformed": False,
+             "verifiedPixelPagesHardLinked": all(p["method"] == "hardlink" for p in page_transfers),
+             "pageTransfers": page_transfers}
     index["reuse"] = proof
     index["optimization"] = {"kind": "source-qualified-reuse", "decodedPixels": sum(p["width"] * p["height"] for p in index["pages"])}
     original_verification = read_json(source_path(original_path.parent, original["verification"]["file"]))
@@ -285,11 +348,16 @@ def reuse(job, existing, output, sources):
     return index
 
 
-def execute(plan_path, runtime, dll):
+def execute(plan_path, runtime, dll, output_root=None, existing_lists=(), existing_paths=()):
     plan = read_json(plan_path)
     root = plan_path.parent
+    planned_root = plan.get("outputRoot")
+    if output_root is not None and planned_root is not None and Path(os.path.abspath(output_root)) != Path(os.path.abspath(planned_root)):
+        raise ValueError("The supplied output root differs from the reviewed worklist")
+    output_root = output_root if output_root is not None else planned_root
+    supplied = supplied_indices(existing_lists, [*plan.get("existingIndices", []), *existing_paths])
     sources = Sources()
-    indices = available_indices(DEV, plan["authors"], sources, runtime)
+    indices = available_indices(DEV, plan["authors"], sources, runtime, supplied or None)
     results = []
     for ordinal, job in enumerate(plan["jobs"], 1):
         pause = root / "pause-between-jobs"
@@ -302,6 +370,7 @@ def execute(plan_path, runtime, dll):
         if shutil.disk_usage(root).free < minimum_free:
             raise OSError("The reviewed worklist's minimum free storage reserve has been reached")
         author = Path(job["author"])
+        output = checked_output(root / job["name"], output_root, plan["authors"].values())
         if digest(source_path(author, job["scene"]).read_bytes()) != job["sceneSha256"]:
             raise ValueError("Scene changed after worklist selection")
         for relative, expected in job["sourceFiles"].items():
@@ -310,12 +379,9 @@ def execute(plan_path, runtime, dll):
         actual = sources.describe(job["family"], author, job["manifest"], job["animation"])
         if actual["files"] != job["sourceFiles"] or actual["signature"] != job["sourceSignature"]:
             raise ValueError("Recorded sources changed after planning")
-        output = root / job["name"]
-        if output.exists():
-            raise ValueError("Batch refuses to overwrite an earlier job: " + str(output))
         existing = matching(job, indices)
         if existing:
-            index = reuse(job, existing, output, sources)
+            index = reuse(job, existing, output, sources, output_root)
             action = "source-qualified-reuse"
         else:
             if job["kind"] == "full-combo" and not job.get("programSizeReviewed", False):
@@ -324,6 +390,8 @@ def execute(plan_path, runtime, dll):
                        "--manifest", job["manifest"], "--animation", job["animation"],
                        "--frames", "all" if job["frames"] == "all" else ",".join(map(str, job["frames"])),
                        "--output", str(output), "--verification-images", "false"]
+            if output_root is not None:
+                command.extend(("--output-root", str(output_root)))
             for key, value in job.get("bakerOptions", {}).items():
                 if key not in ("--normal-run-pieces", "--page-size"):
                     raise ValueError("Unsupported per-program baker option")
@@ -345,11 +413,13 @@ def execute(plan_path, runtime, dll):
         tile_candidate = None
         tile_candidate_metrics = None
         if tile_threshold is not None and raw_decoded > tile_threshold and not index.get("tiling"):
-            tile_output = root / (job["name"] + "-tiles128")
+            tile_output = checked_output(root / (job["name"] + "-tiles128"), output_root, [*plan["authors"].values(), output])
             tile_log = root / (job["name"] + "-tiles128.log")
             print(f"[{ordinal}/{len(plan['jobs'])}] Lossless 128px movie-union; {raw_decoded/1048576:.2f} MiB raw", flush=True)
             command = ["dotnet", str(dll), "--runtime", str(runtime),
                        "--tile-index", str(index_path), "--tile-size", "128", "--output", str(tile_output)]
+            if output_root is not None:
+                command.extend(("--output-root", str(output_root)))
             with tile_log.open("w", encoding="utf-8") as stream:
                 result = subprocess.run(command, cwd=REPOSITORY, stdout=stream, stderr=subprocess.STDOUT)
             if result.returncode:
@@ -385,6 +455,7 @@ def execute(plan_path, runtime, dll):
                         "decodedBytes": sum(p["width"] * p["height"] * 4 for p in index["pages"]),
                         "pngBytes": sum(p["bytes"] for p in index["pages"])})
         (root / "results.json").write_text(json.dumps({"completed": len(results), "expected": len(plan["jobs"]),
+            "outputRoot": str(Path(output_root).absolute()) if output_root is not None else None,
             "allPassed": len(results) == len(plan["jobs"]), "jobs": results}, indent=2), encoding="utf-8")
         print(f"[{ordinal}/{len(plan['jobs'])}] {action}; {job['name']}; {results[-1]['decodedBytes']/1048576:.2f} MiB decoded", flush=True)
 
@@ -394,26 +465,31 @@ def main():
     parser.add_argument("--standard", type=Path)
     parser.add_argument("--lightning", type=Path)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--output-root", type=Path)
+    parser.add_argument("--existing-list", type=Path, action="append", default=[])
+    parser.add_argument("--existing-index", type=Path, action="append", default=[])
     parser.add_argument("--execute", type=Path)
     parser.add_argument("--runtime", type=Path, default=REPOSITORY / "osu.Desktop/bin/Release/net8.0")
     parser.add_argument("--baker", type=Path, default=DEV / "bin/net8.0/IidxSkinBake.dll")
     args = parser.parse_args()
     if args.execute:
-        execute(args.execute.resolve(strict=True), args.runtime.resolve(strict=True), args.baker.resolve(strict=True))
+        execute(args.execute.resolve(strict=True), args.runtime.resolve(strict=True), args.baker.resolve(strict=True),
+                args.output_root, args.existing_list, args.existing_index)
         return
     if not args.output or not args.standard or not args.lightning:
         parser.error("Planning requires both --standard and --lightning and a fresh --output")
-    output = args.output.resolve()
-    if not output.is_relative_to(DEV.resolve()):
-        parser.error("Batch output must stay in this checkout's dedicated bake development directory")
     authors = {"standard": str(args.standard.resolve(strict=True)), "lightning": str(args.lightning.resolve(strict=True))}
+    output = checked_output(args.output, args.output_root, authors.values())
     sources = Sources()
     jobs, unavailable = collect_jobs(authors, sources)
-    indices = available_indices(DEV, authors, sources, args.runtime.resolve(strict=True))
+    supplied = supplied_indices(args.existing_list, args.existing_index)
+    indices = available_indices(DEV, authors, sources, args.runtime.resolve(strict=True), supplied or None)
     summary = statistics(jobs, indices)
     output.mkdir()
     (output / "worklist.json").write_text(json.dumps({"contract": "oms-iidx-bake-worklist.v1", "authors": authors,
-        "summary": summary, "jobs": jobs, "unavailable": unavailable}, indent=2), encoding="utf-8")
+        "summary": summary, "jobs": jobs, "unavailable": unavailable,
+        "outputRoot": str(Path(args.output_root).absolute()) if args.output_root is not None else None,
+        "existingIndices": [str(p) for p in supplied]}, indent=2), encoding="utf-8")
     print(json.dumps(summary, indent=2))
     print("Worklist:", output / "worklist.json")
 

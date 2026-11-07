@@ -45,7 +45,7 @@ IR 配置为空，IPFS、Discord、请求服务和自动扫描关闭。官方选
 产物：
 
 - `capture-workspace.json`：官方 JAR、工具源文件、皮肤入口及存在时的组件包收据SHA256、runtime、只读资源位置和用例；结束再核入口与收据未变。完整资产闭包仍由`beatoraja_verify.py package`检查。
-- `receipt.json`：目标与实际 skin 身份、实际 option、自然状态转移、看到的 timer、判定/Gauge、PNG 的尺寸和 hash、警告与 `normalDispose`。
+- `receipt.json`：目标与实际 skin 身份、实际 option、自然状态转移、看到的 timer、判定/Gauge、PNG 的尺寸和 hash、警告与 `normalDispose`。适配器准备期10020有效时，追加0/100/350/500/1000ms、最后1500/1000/500ms及首次PLAY取景；记录实际年龄、源playstart及四个准备时钟，不写计时器，也不把目标检查点当作精确采样帧。
 - `frames/*.png`：真实 backbuffer，在状态变化、Play每秒、Ready/Failed/FC/曲终及Result取帧；Ready/Failed增加1000/2000/3000ms观察，实际仍开放该timer时才捕获。另围绕51（爆炸）/71（长按）/101（按键）/10101和10111（两侧长条持续）首次触发取目标0/50/100/250ms，最多新增20张；关闭或重触发不会重开这组取景。`firstEffect`记录真实render-clock age与lateness，不把延迟帧冒充精确相位。HCN恢复场景按真实251/271状态顺序另外取每阶段0/50/200ms。单曲AUTOPLAY返回选曲时，原生`changeState`立即退出，因此终态只取首帧。
 - `engine.log`、`stdout.log`、`stderr.log`：原始日志；`host-receipt.json` 保存已退出的 PID、退出码、超时与结束时间。
 
