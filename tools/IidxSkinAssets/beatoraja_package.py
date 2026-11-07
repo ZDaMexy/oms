@@ -23,15 +23,15 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from beatoraja_author import AuthorPackage, applies, material_bindings, material_templates, source_path
+from beatoraja_author import AuthorPackage, applies, layout_for, source_path
 from beatoraja_export import ANIMATION_RUNTIME, MODE, Composer, read_bakes
 from beatoraja_materials import CAP_FIELDS, NOTE_FIELDS, collect_note_materials
-from beatoraja_native import AssetSink, Lua, lua, scene_properties
+from beatoraja_native import AssetSink, Lua, lua
 
 
 ARRAYS = ("source", "font", "image", "imageset", "value", "floatvalue", "text",
           "slider", "graph", "gaugegraph", "judgegraph", "bpmgraph", "judge",
-          "hiddenCover", "liftCover")
+          "hiddenCover", "liftCover", "customTimers")
 SINGLETONS = ("note", "gauge", "bga")
 TIMINGS = ("loadend", "playstart", "close", "fadeout", "finishmargin")
 NOTE_IMAGE_FIELDS = (*NOTE_FIELDS, "mine", "hidden", "processed", "lnactive",
@@ -45,22 +45,51 @@ LABELS = {"notes": "Notes", "charge-notes": "Charge Notes", "judgement": "Judgem
           "graph-target": "Graph Target Artwork", "turntable": "Turntable", "graph-area": "Graph Area",
           "timing-display": "Timing Display"}
 STAGES = ("frame", "bga-frame", "graph-background", "graph-area", "graph-target", "decorations", "turntable", "key-beam",
-          "hit-line", "note-geometry", "notes", "charge-notes", "explosion", "key-lights",
-          "lane-cover", "lift-art", "judgement", "timing-display", "gauge", "hud", "full-combo", "events")
+          "hit-line", "note-geometry", "notes", "charge-notes", "explosion", "long-note-effects", "key-lights",
+          "lane-cover", "lift-art", "reading", "judgement", "timing-display", "gauge", "hud", "full-combo", "events")
 CONTROL_GROUPS = {"notes": ("note-size",),
                   "charge-notes": ("charge-size", "hcn-color", "hcn-display"),
+                  "long-note-effects": ("charge-size", "hcn-color", "hcn-display"),
                   "judgement": ("judgement-display", "judgement-position"),
-                  "key-beam": ("beam-length",), "timing-display": ("judgement-position",),
-                  "events": ("ready-animation", "get-ready")}
+                  "key-beam": ("beam-length",), "timing-display": ("timing-position", "judgement-position"),
+                  "events": ("ready-animation", "get-ready"), "reading": ("lift-readout",)}
 CONTROL_LABELS = {"note-size": "Note Size", "charge-size": "Charge Size", "hcn-color": "HCN Colour",
                   "hcn-display": "HCN Display", "judgement-display": "Judgement Display",
                   "judgement-position": "Judgement Position", "beam-length": "Beam Length",
-                  "ready-animation": "Ready Animation", "get-ready": "Get Ready"}
+                  "ready-animation": "Ready Animation", "get-ready": "Get Ready", "timing-position": "Timing Position",
+                  "lift-readout": "Lift Readout"}
 NONBLOCKING = {"mine-art-unavailable", "ln-cn-released-body-not-separate",
                "shared-note-height-needs-padding", "auto-assist-material-condition",
                "native BMS mine addition", "judge-combo-fit-track", "native-font-spacing-rounded",
                "native-judge-state-ownership", "native-timing-feedback-adaptation",
-               "native-scratch-motion", "native-decoration-integer-geometry", "fixed-decoration-quad-rasterized"}
+               "native-scratch-motion", "native-decoration-integer-geometry", "fixed-decoration-quad-rasterized",
+               "fixed-affine-quad-rasterized", "native-cover-animation-objects", "native-graph-area-animation-objects",
+               "native-reading-cabinet-edge-adaptation", "native-reading-value-adaptation",
+               "native-reading-fixed-clip-quantisation", "native-feedback-render-edge-adaptation",
+               "native-feedback-target-ownership", "native-numeric-advance-quantization",
+               "native-hold-lane-state-adaptation", "native-hold-render-edge-adaptation"}
+
+
+def stage_module(stage):
+    # Long-note lighting is selected by the same real charge-note contribution.
+    return "charge-notes" if stage == "long-note-effects" else stage
+
+
+def tool_file_hashes(root: Path | None = None) -> dict[str, str]:
+    """Pin the local adapter set, including newly added wrapper dependencies."""
+    root = root or Path(__file__).resolve().parent
+    return {path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in sorted(root.glob("beatoraja_*.py"))}
+
+
+_IMPORTED_TOOL_FILES = tool_file_hashes()
+
+
+def verify_tool_files(expected: dict[str, str], root: Path | None = None):
+    actual = tool_file_hashes(root)
+    changed = sorted(name for name in expected.keys() | actual.keys() if expected.get(name) != actual.get(name))
+    if changed:
+        raise ValueError("Adapter source changed during this process; restart the build: " + ", ".join(changed))
 
 
 def _canonical(value):
@@ -153,6 +182,19 @@ class Shards:
         module = "shards/" + digest
         if digest not in self.records:
             payload = namespace_fragment(canonical, "p" + digest[:24])
+            if payload.get("customTimers"):
+                signatures, timers = {}, {}
+                for timer in payload["customTimers"]:
+                    identifier = timer["id"]
+                    if not isinstance(identifier, int) or isinstance(identifier, bool) or not 10000 <= identifier <= 19999:
+                        raise ValueError("Custom timers require an official numeric custom-timer ID")
+                    signature = hashlib.sha256(lua(_canonical(timer)).encode("utf-8")).hexdigest()
+                    if identifier in signatures and signatures[identifier] != signature:
+                        raise ValueError("Conflicting custom timer definition in a fragment: " + str(identifier))
+                    signatures[identifier] = signature
+                    timers.setdefault(identifier, timer)
+                payload["customTimers"] = list(timers.values())
+                payload["_customTimerSignatures"] = signatures
             text = ANIMATION_RUNTIME + "\nreturn function() return " + lua(payload) + " end\n"
             data = text.encode("utf-8")
             (self.root / (digest + ".lua")).write_bytes(data)
@@ -198,7 +240,8 @@ def control_choices(definition: dict) -> list[dict]:
 
 
 def local_controls(author: AuthorPackage, stage: str, keymode: str) -> dict[str, list[dict]]:
-    if stage in MODULES and stage not in author.modules:
+    module = stage_module(stage)
+    if module in MODULES and module not in author.modules and stage != "timing-display":
         return {}
     definitions = {item["id"]: item for item in author.manifest.get("options", [])}
     return {name: control_choices(definitions[name]) for name in CONTROL_GROUPS.get(stage, ())
@@ -224,13 +267,19 @@ def available_selections(author, stage, coverage, modes, frames):
     remains supported across the advertised module choices, frames and modes.
     No component loses its working default just because a new control is partial.
     """
-    records = [r for r in coverage if r["stage"] == stage]
+    stages = ("charge-notes", "long-note-effects") if stage_module(stage) == "charge-notes" else (stage,)
+    records = [r for r in coverage if r["stage"] in stages]
     definitions = {item["id"]: item for item in author.manifest.get("options", [])}
     controls = {name: definitions[name] for name in CONTROL_GROUPS.get(stage, ()) if name in definitions}
     defaults = tuple(definition["default"] for definition in controls.values())
-    grid = {(r["mode"], r["frame"], r["choice"], tuple(r["options"].get(name, definitions[name]["default"]) for name in controls)):
-            r["available"] and (stage in MODULES or not blocking_gaps(r["gaps"], stage)) for r in records}
-    options = ([c["value"] for c in author.modules[stage]["choices"]] if stage in author.modules else [None])
+    parts = {}
+    for record in records:
+        identity = (record["mode"], record["frame"], record["choice"],
+                    tuple(record["options"].get(name, definitions[name]["default"]) for name in controls))
+        parts.setdefault(identity, {})[record["stage"]] = record["available"] and not blocking_gaps(record["gaps"], record["stage"])
+    grid = {identity: all(values.get(part, False) for part in stages) for identity, values in parts.items()}
+    module = stage_module(stage)
+    options = ([c["value"] for c in author.modules[module]["choices"]] if module in author.modules else [None])
     complete = [choice for choice in options if all(grid.get((mode, frame, choice, defaults), False)
                                                     for mode, frame in itertools.product(modes, frames))]
     allowed = {name: [definition["default"]] for name, definition in controls.items()}
@@ -296,40 +345,20 @@ def blocking_gaps(gaps: list[dict], module: str) -> list[dict]:
                                                 "recorded-graph-cutins-require-bake"))]
 
 
-def covers_supported(composer: Composer, module: str) -> bool:
-    """Native Slider/HiddenCover/LiftCover currently accept static source crops."""
-    contribution = composer.author.contribution(module, composer.options)
-    slot = "playfield.lift.fill" if module == "lift-art" else "playfield.lane-cover.fill"
-    supported = True
-
-    def visit(node):
-        nonlocal supported
-        properties, _ = scene_properties(node, contribution.scene, composer.context)
-        if properties.get("visible", True) is False:
-            return
-        if node["type"] not in ("sprite", "container"):
-            composer.gap("cover source needs native animation/primitive adapter", module=module,
-                         manifest=contribution.manifest_path, node=node["id"], kind=node["type"])
-            supported = False
-        for child in node.get("children", []):
-            visit(child)
-
-    for binding in material_bindings(contribution, composer.keymode, composer.presentation):
-        if binding["slot"] == slot and binding["mode"] == "Provide":
-            for root in material_templates(contribution, slot, binding["resource"]):
-                visit(root)
-    return supported
-
-
 def has_component_output(fragment: dict, module: str, choice: str | None = None, options=None) -> bool:
     if module == "graph-area" and choice == "blank":
         return True  # This is the author's explicit absence of Graph Area art.
-    if module == "timing-display" and choice == "off":
-        return True
+    if module == "timing-display":
+        if choice == "off" or options and (options.get("timing-position") == "off" or options.get("judgement-position") == "off"):
+            return True
     if module == "notes":
         return bool(fragment.get("note", {}).get("note"))
     if module == "charge-notes":
         return bool(fragment.get("note", {}).get("lnstart"))
+    if module == "long-note-effects":
+        # Absence is valid only because the adapter rejects an empty Provide.
+        # Lightning's source has no provided effect.long-note materials.
+        return True
     if module == "judgement":
         if options and (options.get("judgement-display") in (False, "off") or options.get("judgement-position") == "off"):
             return True
@@ -341,6 +370,73 @@ def has_component_output(fragment: dict, module: str, choice: str | None = None,
     return bool(fragment.get("destination"))
 
 
+class CompositionCache:
+    """Reuse only qualified frame-independent material or equal-host Judge output.
+
+    The cache belongs to this one author/sink/build. Actual contribution paths,
+    all non-frame option values and referenced option.frame values are retained.
+    Judge additionally keys the actual stage rectangles. Frame, Gauge, Graph,
+    covers and event effects are deliberately composed normally.
+    """
+    def __init__(self, author: AuthorPackage):
+        self.author = author
+        self.values = {}
+        self.dependencies = {}
+        self.hits = 0
+        self.misses = 0
+
+    def key(self, stage, mode, frame, options, cap_height):
+        if stage not in ("notes", "charge-notes", "judgement"):
+            return None
+        modules = ("judgement",) if stage == "judgement" else ("notes", "charge-notes")
+        parts, depends_on_frame = [], False
+        for module in modules:
+            contribution = self.author.contribution(module, options)
+            identity = (contribution.module, contribution.choice, contribution.manifest_path,
+                        contribution.scene_path, contribution.ini_path)
+            if identity not in self.dependencies:
+                self.dependencies[identity] = '"option.frame"' in json.dumps(contribution.scene)
+            depends_on_frame |= self.dependencies[identity]
+            parts.append(identity)
+        context = tuple(sorted((key, value) for key, value in options.items() if key != "frame" or depends_on_frame))
+        geometry = tuple(tuple(stage["rect"]) for stage in layout_for(frame, MODE[mode][0], mode)["stages"]) if stage == "judgement" else ()
+        return (stage, mode, cap_height, tuple(parts), context, geometry)
+
+
+def compose_stage(c: Composer, stage: str, frame, cap_height, font):
+    """One native pass, kept identical for direct composition and cache misses."""
+    initial = copy.copy(c.skin)
+    if stage == "frame": c.frame(frame)
+    elif stage == "bga-frame":
+        c.bga(frame)
+        if stage in c.author.modules: c.bga_frame(frame)
+    elif stage == "graph-background": c.graph(layer="background")
+    elif stage == "graph-area": c.graph(layer="art")
+    elif stage == "graph-target": c.graph(layer="foreground")
+    elif stage == "decorations": c.decorations(frame)
+    elif stage == "turntable": c.turntable(frame)
+    elif stage == "key-beam": c.key_beams(frame)
+    elif stage == "hit-line": c.hit_line(frame)
+    elif stage in ("notes", "charge-notes", "note-geometry"): c.notes(frame, cap_height=cap_height)
+    elif stage == "explosion": c.explosions(frame)
+    elif stage == "long-note-effects": c.long_note_effects(frame)
+    elif stage == "key-lights": c.key_lights(frame)
+    elif stage == "lane-cover": c.covers(frame, kinds=("sudden", "hidden"))
+    elif stage == "lift-art": c.covers(frame, kinds=("lift",))
+    elif stage == "reading": c.reading(frame)
+    elif stage == "judgement": c.widgets(frame, include_gauge=False)
+    elif stage == "timing-display": c.timing_display(frame)
+    elif stage == "gauge": c.widgets(frame, include_judge=False)
+    elif stage == "hud": c.hud(frame, font)
+    elif stage == "full-combo": c.full_combo(frame)
+    elif stage == "events": c.event_clips(frame)
+    else: raise ValueError("Unknown native stage: " + stage)
+    skin = c.finish()
+    if stage in ("notes", "charge-notes", "note-geometry"):
+        skin = note_fragment(skin, stage)
+    return extract_fragment(skin, initial)
+
+
 MERGE_RUNTIME = r'''
 local function append(skin, fragment)
     for _, field in ipairs(ARRAY_FIELDS) do
@@ -350,6 +446,12 @@ local function append(skin, fragment)
             local known = skin._seen[field] or {}
             skin._seen[field] = known
             for _, value in ipairs(values) do
+                if field == 'customTimers' then
+                    local signature=assert(fragment._customTimerSignatures[value.id], 'Missing custom timer identity')
+                    local previous=skin._customTimerSignatures[value.id]
+                    if previous and previous ~= signature then error('Conflicting custom timer: '..value.id) end
+                    skin._customTimerSignatures[value.id]=signature
+                end
                 if not known[value.id] then
                     table.insert(skin[field], value)
                     known[value.id] = value
@@ -411,16 +513,18 @@ def entry_script(header: dict, modes: list[str], frames: list[str], plan: dict,
         text += "local side=(skin_config.option or {})['Play Side']\nlocal mode=side == nil and " + lua(modes[0]) + " or sides[side]\nif not mode then error('Unknown Play Side') end\n"
     text += "local plan=" + lua(plan) + "\nlocal stages=" + lua(STAGES) + "\nlocal ARRAY_FIELDS=" + lua(ARRAYS) + "\n"
     text += MERGE_RUNTIME
-    text += "local skin=" + lua(baseline) + "\nskin.property=header.property\nskin.destination={}\nskin._seen={}\n"
+    text += "local skin=" + lua(baseline) + "\nskin.property=header.property\nskin.destination={}\nskin._seen={}\nskin._customTimerSignatures={}\n"
     text += "local selected=assert(assert(plan[mode], 'Missing mode')[choices.frame], 'Missing frame')\n"
     text += "for _, stage in ipairs(stages) do\n local spec=selected[stage]\n local path=spec\n if type(spec)=='table' then\n  path=spec.paths\n  for _,selector in ipairs(spec.selectors) do\n   local key=choices[selector]\n   if key == nil then key=spec.defaults[selector] end\n   if key == nil then path=nil; break end\n   path=assert(path[key], 'Missing native shard for '..stage..'/'..selector)\n  end\n end\n if path then append(skin,require(path)()) end\nend\n"
-    text += "skin._seen=nil\nreturn skin\n"
+    text += "skin._seen=nil\nskin._customTimerSignatures=nil\nreturn skin\n"
     return text
 
 
 def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=None,
                    bake_roots=(), bake_overrides=(), native_font: Path | None = None,
                    module_choices: dict[str, list[str]] | None = None) -> dict:
+    verify_tool_files(_IMPORTED_TOOL_FILES)
+    tool_files = tool_file_hashes()
     modes = list(modes or MODE)
     frames = list(frames or [c["value"] for c in author.modules["frame"]["choices"]])
     if len(set(modes)) != len(modes) or any(mode not in MODE for mode in modes):
@@ -440,6 +544,7 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
     font = sink.add_native_font(native_font) if native_font else None
     baked = read_bakes(list(bake_roots), author, list(bake_overrides))
     shards = Shards(output)
+    cache = CompositionCache(author)
     cap_height = scan_cap_height(author, modes, frames)
     plan, coverage, baseline = {}, [], None
     shared_font = {"id": "native.fallback", "path": font} if font else None
@@ -457,58 +562,36 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
                 baseline = {key: value for key, value in graph.skin.items()
                             if key not in (*ARRAYS, *SINGLETONS, "destination")}
             for stage in STAGES:
-                is_module = stage in MODULES and stage in author.modules
-                entries = _choices(author, stage, MODE[mode][0]) if is_module else [None]
-                if is_module and module_choices and stage in module_choices:
-                    entries = [c for c in entries if c["value"] in module_choices[stage]]
+                module = stage_module(stage)
+                is_module = module in MODULES and module in author.modules
+                entries = _choices(author, module, MODE[mode][0]) if is_module else [None]
+                if is_module and module_choices and module in module_choices:
+                    entries = [c for c in entries if c["value"] in module_choices[module]]
                 controls_definition = local_controls(author, stage, MODE[mode][0])
                 combinations = control_combinations(controls_definition)
-                selectors = ([stage] if is_module else []) + list(controls_definition)
+                selectors = ([module] if is_module else []) + list(controls_definition)
                 stage_choices = {}
                 for choice, controls in itertools.product(entries, combinations):
-                    opts = {**options, **({stage: choice["value"]} if choice else {}), **controls}
+                    opts = {**options, **({module: choice["value"]} if choice else {}), **controls}
                     c = Composer(author, sink, opts, mode, baked)
                     c.handled_roots.update(roots)
-                    initial = copy.copy(c.skin)
-                    if stage in ("lane-cover", "lift-art") and not covers_supported(c, stage): pass
-                    elif stage == "frame": c.frame(frame)
-                    elif stage == "bga-frame":
-                        c.bga(frame)
-                        if is_module:
-                            if hasattr(c, "bga_frame"): c.bga_frame(frame)
-                            elif choice["value"] != "off": c.gap("BGA frame artwork adapter unavailable")
-                    elif stage == "graph-background": c.graph(layer="background")
-                    elif stage == "graph-area": c.graph(layer="art")
-                    elif stage == "graph-target": c.graph(layer="foreground")
-                    elif stage == "decorations": c.decorations(frame)
-                    elif stage == "turntable":
-                        if hasattr(c, "turntable"): c.turntable(frame)
-                        else: c.gap("turntable adapter unavailable")
-                    elif stage == "key-beam": c.key_beams(frame)
-                    elif stage == "hit-line": c.hit_line(frame)
-                    elif stage in ("notes", "charge-notes", "note-geometry"): c.notes(frame, cap_height=cap_height)
-                    elif stage == "explosion": c.explosions(frame)
-                    elif stage == "key-lights": c.key_lights(frame)
-                    elif stage == "lane-cover": c.covers(frame, kinds=("sudden", "hidden"))
-                    elif stage == "lift-art": c.covers(frame, kinds=("lift",))
-                    elif stage == "judgement": c.widgets(frame, include_gauge=False)
-                    elif stage == "timing-display": c.timing_display(frame)
-                    elif stage == "gauge": c.widgets(frame, include_judge=False)
-                    elif stage == "hud": c.hud(frame, font)
-                    elif stage == "full-combo": c.full_combo(frame)
-                    elif stage == "events": c.event_clips(frame)
-                    else: raise ValueError("Unknown native stage: " + stage)
-                    skin = c.finish()
-                    if stage in ("notes", "charge-notes", "note-geometry"):
-                        skin = note_fragment(skin, stage)
-                    fragment = extract_fragment(skin, initial)
-                    if any(t.get("font") == "native.fallback" for t in fragment.get("text", [])):
-                        if not shared_font:
-                            raise ValueError("An explicit --native-font is required for this source's native host labels")
-                        fragment.setdefault("font", []).append(shared_font)
-                    if is_module and not has_component_output(fragment, stage, choice["value"], opts):
-                        c.gap("selected component emitted no native output", module=stage, choice=choice["value"])
-                    blockers = blocking_gaps(c.gaps, stage) if is_module else []
+                    cache_key = cache.key(stage, mode, frame, opts, cap_height)
+                    cached = cache.values.get(cache_key) if cache_key is not None else None
+                    if cached:
+                        cache.hits += 1
+                        fragment, c.gaps, path = cached
+                    else:
+                        if cache_key is not None: cache.misses += 1
+                        fragment = compose_stage(c, stage, frame, cap_height, font)
+                        if any(t.get("font") == "native.fallback" for t in fragment.get("text", [])):
+                            if not shared_font:
+                                raise ValueError("An explicit --native-font is required for this source's native host labels")
+                            fragment.setdefault("font", []).append(shared_font)
+                        if (is_module or stage == "timing-display" and controls_definition) and not has_component_output(
+                                fragment, stage, choice["value"] if choice else None, opts):
+                            c.gap("selected component emitted no native output", module=stage, choice=choice["value"] if choice else None)
+                        path = None
+                    blockers = blocking_gaps(c.gaps, stage) if is_module or stage == "timing-display" and controls_definition else []
                     identity = {"mode": mode, "frame": theme, "stage": stage,
                                 "choice": choice["value"] if choice else None, "options": controls}
                     record = {**identity, "available": not blockers,
@@ -516,14 +599,18 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
                               "gaps": c.gaps,
                               "destinations": len(fragment.get("destination", []))}
                     if choice:
-                        part = author.contribution(stage, opts)
+                        part = author.contribution(module, opts)
                         record["source"] = {"manifest": part.manifest_path, "scene": part.scene_path, "ini": part.ini_path}
+                    elif stage == "timing-display" and controls_definition:
+                        record["source"] = {"manifest": frame.manifest_path, "scene": frame.scene_path, "ini": frame.ini_path}
                     if not blockers:
-                        path = shards.add(fragment)
+                        path = path or shards.add(fragment)
                         record["shard"] = path
                         if selectors: insert_selection(stage_choices, [opts[name] for name in selectors], path)
                         else: selected[stage] = path
                     coverage.append(record)
+                    if cache_key is not None and not cached:
+                        cache.values[cache_key] = (fragment, c.gaps, path)
                 if selectors:
                     selected[stage] = {"selectors": selectors, "paths": stage_choices,
                                        "defaults": {name: options[name] for name in controls_definition}}
@@ -547,15 +634,15 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
     control_report = {}
     source_controls = {item["id"]: item for item in author.manifest.get("options", [])}
     for stage, names in CONTROL_GROUPS.items():
-        if stage in MODULES and stage not in author.modules:
+        module = stage_module(stage)
+        if module in MODULES and module not in author.modules and stage != "timing-display":
             continue
         for name in names:
             if name not in source_controls:
                 continue
-            records = [c for c in coverage if c["stage"] == stage and name in c["options"]]
-            if stage in MODULES:
-                exposed = bool(catalog.get(stage))
-                supported_values = allowed_controls.get(stage, {}).get(name, []) if exposed else []
+            if module in author.modules:
+                exposed = bool(catalog.get(module))
+                supported_values = allowed_controls.get(module, {}).get(name, []) if exposed else []
             else:
                 complete, allowed = available_selections(author, stage, coverage, modes, frames)
                 supported_values = allowed.get(name, []) if complete else []
@@ -593,6 +680,8 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
         for name in (filename, selection_file):
             entry_files[name] = hashlib.sha256((output / name).read_bytes()).hexdigest()
     receipt = {"contract": "oms-beatoraja-modular-package.v1", "family": author.family, "name": author.name,
+               "toolFilesSha256": tool_files,
+               "constructionCache": {"stages": ["notes", "charge-notes", "judgement"], "hits": cache.hits, "misses": cache.misses},
                "sourceManifestSha256": hashlib.sha256((author.root / "gameplay-skin.json").read_bytes()).hexdigest(),
                "sourceCatalogSha256": hashlib.sha256(source_path(author.root, author.manifest["contentCatalog"]).read_bytes()).hexdigest(),
                "modes": modes, "frames": frames, "capHeight": cap_height, "modules": selection_report,
@@ -607,6 +696,7 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
                                           "definition": item} for item in author.manifest.get("options", [])],
                "coverage": coverage, "shards": shards.records, "assets": sink.provenance,
                "boundary": "Native loader structure only; no visual, GPU, input, timing or product acceptance implied."}
+    verify_tool_files(tool_files)
     (output / "package-receipt.json").write_text(json.dumps(receipt, indent=2, ensure_ascii=False), encoding="utf-8")
     return receipt
 

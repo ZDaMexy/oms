@@ -113,21 +113,28 @@ class Composer:
         self.skin["image"].append({"id": identifier, "src": src, "x": x, "y": y, "w": w, "h": h})
         return identifier
 
-    def destination(self, identifier: str, rect, *, rgba=(1, 1, 1, 1), blend="alpha", draw=None, **extra):
+    def destination(self, identifier: str, rect, *, rgba=(1, 1, 1, 1), blend="alpha", draw=None, clip=None, **extra):
+        point = {**native_rect(rect, self.h), **native_colour(rgba)}
+        if clip is not None:
+            point.update({"clip_" + key: value for key, value in native_rect(clip, self.h).items()})
         destination = {"id": identifier, "filter": 0, "blend": 2 if blend == "additive" else 1,
-                       "dst": [{**native_rect(rect, self.h), **native_colour(rgba)}], **extra}
+                       "dst": [point], **extra}
         if draw:
             destination["draw"] = draw
         self.skin["destination"].append(destination)
         return destination
 
     def merge(self, recipe: dict[str, Any]):
-        for key in ("font", "image", "imageset", "value", "floatvalue", "text", "graph", "judge", "destination"):
+        for key in ("font", "image", "imageset", "value", "floatvalue", "text", "graph", "judge",
+                    "slider", "hiddenCover", "liftCover", "customTimers", "destination"):
             self.skin.setdefault(key, []).extend(recipe.get(key, []))
         self.gaps.extend(recipe.get("gaps", []))
 
     def hud(self, frame: Contribution, native_font_path: str | None):
         from beatoraja_hud import export_hud
+        from beatoraja_reading import reading_ownership
+        reading = reading_ownership(self.author, self.options, self.keymode, self.presentation)
+        self.handled_roots.update(reading["handled_root_ids"])
         if native_font_path:
             self.skin["font"].append({"id": "native.fallback", "path": native_font_path})
         for contribution in (self.author.base(), frame):
@@ -151,14 +158,49 @@ class Composer:
                 self.merge(export_hud(contribution, root, rect, self.sink,
                                       canvas_height=self.h, options=self.options, context=hud_context,
                                       id_prefix=self.identifier("hud"), native_font_id="native.fallback" if native_font_path else None,
-                                      fallback_contributions=(self.author.base(),)))
+                                      fallback_contributions=(self.author.base(),),
+                                      skip_node_ids=reading["handled_node_ids"]))
         self.skin["font"] = list({item["id"]: item for item in self.skin["font"]}.values())
 
     def graph(self, layer="all"):
         from beatoraja_graph import export_graph
+        if layer == "all":
+            for phase in ("background", "art", "foreground"):
+                self.graph(phase)
+            return
         result = export_graph(self.author, self.options, self.keymode, self.presentation, self.sink, self.canvas, layer=layer)
+        animated = None
+        feedback = None
+        if layer == "art":
+            from beatoraja_covers import export_animated_graph_area
+            animated = export_animated_graph_area(self.author, self.options, self.keymode, self.presentation,
+                                                  self.sink, self.canvas, self.baked)
+            result["gaps"] = [g for g in result["gaps"] if g.get("template") not in animated["handled_template_ids"]]
+            self.handled_roots.update(animated["handled_root_ids"])
+        elif layer == "foreground":
+            from beatoraja_feedback import feedback_plan
+            feedback = feedback_plan(self.author, self.options, self.keymode, self.presentation, self.canvas, "graph")
+            result["gaps"] = [g for g in result["gaps"] if g.get("template") not in feedback["handled_template_ids"]]
+            self.handled_roots.update(feedback["handled_root_ids"])
         self.handled_roots.update(result["handled_root_ids"])
         self.merge({**result["arrays"], "destination": result["destination"], "gaps": result["gaps"]})
+        if animated:
+            self.merge(animated)
+        if feedback:
+            self.feedback(feedback)
+
+    def feedback(self, plan):
+        self.merge(plan)
+        for draw in plan["draws"]:
+            self.draw_baked(draw["manifest"], draw["animation"], draw["rect"], draw["rgba"],
+                            timer=draw["timer"], start_frame=0, conditions=draw["conditions"], offsets=draw.get("offsets"))
+
+    def reading(self, frame: Contribution):
+        from beatoraja_reading import export_reading
+        result = export_reading(self.author, self.options, self.keymode, self.presentation, self.sink, self.canvas)
+        self.handled_roots.update(result["handled_root_ids"])
+        self.handled_roots.update(result["handled_node_ids"])
+        self.merge(result)
 
     def turntable(self, frame: Contribution):
         from beatoraja_decoration import export_turntable
@@ -191,11 +233,23 @@ class Composer:
             judge = collect_judge_materials(self.author, self.options, self.keymode, self.presentation, self.sink.add_source)
             self.merge(compose_judges(judge, self.sink, stages, self.h))
         if include_gauge:
+            from beatoraja_gauge import compose_gauge_markers, compose_gauge_shade
             gauge = collect_gauge_materials(self.author, self.options, self.keymode, self.presentation, self.sink.add_source)
-            self.merge(compose_gauges(gauge, self.sink, gauges, self.h))
+            core = compose_gauges(gauge, self.sink, gauges, self.h)
+            core["gaps"] = [g for g in core["gaps"] if g["code"] != "gauge-extra-widgets"]
+            self.merge(core)
+            self.merge(compose_gauge_shade(gauge, frame, gauges, self.h, self.sink))
+            self.merge(compose_gauge_markers(gauge, frame, gauges, self.h))
+            from beatoraja_feedback import feedback_plan
+            self.feedback(feedback_plan(self.author, self.options, self.keymode, self.presentation, self.canvas, "gauge"))
 
     def draw_tree(self, contribution: Contribution, root: dict[str, Any], parent=None,
-                  rgba=(1, 1, 1, 1), blend="alpha", timer=0, offsets=None, conditions=()):
+                  rgba=(1, 1, 1, 1), blend="alpha", timer=0, offsets=None, conditions=(), clip=None):
+        if root["id"] in self.handled_roots:
+            return
+        if all(n["type"] in ("text", "container") for n in walk_nodes(root)):
+            # The HUD pass owns these source text gates and their diagnostics.
+            return
         properties, dynamic = scene_properties(root, contribution.scene, self.context)
         visibility = [d for d in dynamic if d["property"] == "visible"]
         if properties.get("visible", True) is False and not visibility:
@@ -250,17 +304,29 @@ class Composer:
         kind = root["type"]
         if kind in ("sprite", "projective-sprite"):
             orientation = {"flip_x": False, "flip_y": False}
+            raster_source = None
             if kind == "projective-sprite":
                 from beatoraja_decoration import fixed_projective_quad
                 try:
                     projected = fixed_projective_quad(root, contribution.scene, rect)
                 except ValueError as error:
-                    self.gap("unsupported projective source", node=root["id"], detail=str(error))
-                    return
+                    from beatoraja_affine import fixed_affine_quad, rasterize_canvas_affine
+                    try:
+                        quad = fixed_affine_quad(root, contribution.scene)
+                    except ValueError:
+                        self.gap("unsupported projective source", node=root["id"], detail=str(error))
+                        return
+                    with Image.open(source_path(self.author.root, contribution.resources[properties["resource"]]["path"])) as source:
+                        raster, projected = rasterize_canvas_affine(source.convert("RGBA"), quad, rect)
+                    raster_source = self.sink.add_raster(raster)
+                    self.gap("fixed-affine-quad-rasterized", node=root["id"], detail=projected)
+                else:
+                    orientation = {k: projected[k] for k in ("flip_x", "flip_y")}
                 rect = projected["rect"]
                 rgba = (*rgba[:3], rgba[3] * projected["opacity"])
-                orientation = {k: projected[k] for k in ("flip_x", "flip_y")}
             def add(resource_id):
+                if raster_source:
+                    return self.image(raster_source)
                 relative = contribution.resources[resource_id]["path"]
                 if any(orientation.values()):
                     from beatoraja_decoration import add_oriented_source
@@ -279,31 +345,44 @@ class Composer:
             else:
                 identifier = add(properties["resource"])
             self.destination(identifier, rect, rgba=rgba, blend=blend,
-                             draw=all_of(conditions), **({"timer": timer} if timer else {}), **({"offsets": offsets} if offsets else {}))
+                             draw=all_of(conditions), clip=clip, **({"timer": timer} if timer else {}), **({"offsets": offsets} if offsets else {}))
         elif kind == "recorded-animation":
             if conditions:
                 self.gap("conditional recorded animation", node=root["id"])
                 return
             fixed_time = constant_clock(contribution.scene, root.get("clock"))
             self.draw_baked(contribution.manifest_path, root["animation"], rect, rgba,
-                            timer=timer, offsets=offsets, static_time_ms=fixed_time)
-        elif kind == "container":
+                            timer=timer, offsets=offsets, static_time_ms=fixed_time, clip=clip)
+        elif kind in ("container", "clip"):
+            if kind == "clip":
+                if (properties.get("clip-mode") != "bounds" or dynamic or offsets or min(rect[2:]) <= 0
+                        or not 0 <= properties.get("reveal-x", 1) <= 1 or not 0 <= properties.get("reveal-y", 1) <= 1):
+                    self.gap("unmapped dynamic/offset clip", node=root["id"])
+                    return
+                own = (rect[0], rect[1], rect[2] * properties.get("reveal-x", 1), rect[3] * properties.get("reveal-y", 1))
+                if clip is not None:
+                    left, top = max(clip[0], own[0]), max(clip[1], own[1])
+                    own = (left, top, min(clip[0]+clip[2], own[0]+own[2])-left,
+                           min(clip[1]+clip[3], own[1]+own[3])-top)
+                if min(own[2:]) <= 0 or min(native_rect(own, self.h)[k] for k in ("w", "h")) <= 0:
+                    return  # A native zero-size clip disables clipping, rather than hiding art.
+                clip = own
             for child in sorted(root.get("children", []), key=lambda n: -n.get("properties", {}).get("z", 0)):
-                self.draw_tree(contribution, child, rect, rgba, blend, timer, offsets, conditions)
+                self.draw_tree(contribution, child, rect, rgba, blend, timer, offsets, conditions, clip)
         elif kind == "text":
             # Text is emitted separately by the native HUD adapter.
             return
         else:
             self.gap("unmapped scene primitive", node=root["id"], kind=kind)
 
-    def draw_baked(self, manifest: str, animation: str, rect, rgba=(1, 1, 1, 1), *, timer=0, start_frame=None, offsets=None, static_time_ms=None):
+    def draw_baked(self, manifest: str, animation: str, rect, rgba=(1, 1, 1, 1), *, timer=0, start_frame=None, offsets=None, static_time_ms=None, conditions=(), clip=None):
         key = (manifest, animation)
         if key not in self.baked:
             self.gap("recorded animation needs bake", manifest=manifest, animation=animation)
             return
         path, index = self.baked[key]
         if index.get("selectionComplete") and static_time_ms is None:
-            self.draw_baked_sequence(path, index, rect, rgba, timer=timer, start_frame=start_frame, offsets=offsets)
+            self.draw_baked_sequence(path, index, rect, rgba, timer=timer, start_frame=start_frame, offsets=offsets, conditions=conditions, clip=clip)
             return
         if timer:
             self.gap("event animation needs complete bake", manifest=manifest, animation=animation)
@@ -329,11 +408,16 @@ class Composer:
             ox, oy = run["offset"]
             rw, rh = run["rect"][2:]
             self.destination(identifier, (x + ox * w / cw, y + oy * h / ch, rw * w / cw, rh * h / ch),
-                             rgba=rgba, blend=run["blend"], **({"offsets": offsets} if offsets else {}))
+                             rgba=rgba, blend=run["blend"], draw=all_of(conditions), clip=clip, **({"offsets": offsets} if offsets else {}))
         if static_time_ms is None:
-            self.gap("steady animation snapshot", animation=animation, sourceFrame=frame["sourceFrame"])
+            declaration = next(a for a in self.author.json(manifest)["animations"] if a["id"] == animation)
+            program = self.author.json(declaration["path"])
+            single_frame_loop = (program["loop"] and len(program["frames"]) == 2
+                                 and not program["frames"][-1]["nodes"] and frame["sourceFrame"] == 0)
+            if not single_frame_loop:
+                self.gap("steady animation snapshot", animation=animation, sourceFrame=frame["sourceFrame"])
 
-    def draw_baked_sequence(self, path, index, rect, rgba, *, timer, start_frame, offsets=None):
+    def draw_baked_sequence(self, path, index, rect, rgba, *, timer, start_frame, offsets=None, conditions=(), clip=None):
         pages = {p["id"]: self.sink.add_baked_page(path, p) for p in index["pages"]}
         images, groups = {}, {}
         count = index["sourceFrameCount"]
@@ -368,7 +452,7 @@ class Composer:
             value = Lua("(function() local frames=" + lua(group["frames"]) + ";return function() local v=frames[" + clock + "];return v == nil and -1 or v end end)()")
             self.skin["imageset"].append({"id": identifier, "images": group["images"], "value": value})
             self.destination(identifier, (x + ox * w / cw, y + oy * h / ch, rw * w / cw, rh * h / ch),
-                             rgba=rgba, blend=blend, **({"offsets": offsets} if offsets else {}))
+                             rgba=rgba, blend=blend, draw=all_of(conditions), clip=clip, **({"offsets": offsets} if offsets else {}))
 
     def frame(self, contribution: Contribution):
         for binding in material_bindings(contribution, self.keymode, self.presentation):
@@ -377,6 +461,27 @@ class Composer:
                     self.draw_tree(contribution, root)
 
     def decorations(self, frame: Contribution):
+        from beatoraja_reading import reading_ownership
+        from beatoraja_feedback import feedback_plan
+        reading = reading_ownership(self.author, self.options, self.keymode, self.presentation)
+        feedback = feedback_plan(self.author, self.options, self.keymode, self.presentation, self.canvas, "gauge")
+        self.handled_roots.update(reading["handled_root_ids"])
+        self.handled_roots.update(reading["handled_node_ids"])
+        self.handled_roots.update(feedback["handled_node_ids"])
+        # These subtrees have explicit native Gauge owners. Do not draw their
+        # static source a second time or report their main bar as wholly absent.
+        owned = {b["target"] for b in frame.scene.get("bindings", [])
+                 if (b["source"], b["property"]) in (("gauge.value", "reveal-x"), ("gauge.clear-threshold", "x"))}
+        owned.update(v["target"] for v in frame.scene.get("variants", [])
+                     if v["source"] == "gauge.type" and v["property"] == "resource")
+        def mark(node):
+            for child in node.get("children", []):
+                mark(child)
+            if node["type"] == "container" and node.get("children") and all(c["id"] in owned for c in node["children"]):
+                owned.add(node["id"])
+        for root in frame.templates.values():
+            mark(root)
+        self.handled_roots.update(owned)
         for binding in material_bindings(frame, self.keymode, self.presentation):
             if binding["target"]["kind"] != "global" or binding["slot"] != "decoration" or binding["mode"] != "Provide":
                 continue
@@ -417,7 +522,7 @@ class Composer:
     def notes(self, frame: Contribution, cap_height=None):
         from beatoraja_materials import collect_note_materials
         recipe = collect_note_materials(self.author, self.options, self.keymode, self.presentation, self.sink.add_source)
-        self.gaps.extend(recipe.get("gaps", []))
+        self.gaps.extend(g for g in recipe.get("gaps", []) if g.get("code") != "shared-note-height-needs-padding")
         images = {item["id"]: item for item in recipe["images"]}
         note = recipe["note"]
         # Transparent top padding preserves the family's original note pixels.
@@ -462,41 +567,9 @@ class Composer:
         return layout
 
     def covers(self, frame: Contribution, kinds=("sudden", "hidden", "lift")):
-        layout = layout_for(frame, self.keymode, self.presentation)
-        for kind in kinds:
-            contribution = self.author.contribution("lift-art" if kind == "lift" else "lane-cover", self.options)
-            slot = "playfield.lift.fill" if kind == "lift" else "playfield.lane-cover.fill"
-            for binding in material_bindings(contribution, self.keymode, self.presentation):
-                if binding["slot"] != slot or binding["mode"] != "Provide":
-                    continue
-                stage = layout["stages"][int(binding["target"]["group-logical"])]["rect"]
-                x, y, w, h = (stage[i] * (self.w if i % 2 == 0 else self.h) for i in range(4))
-                baseline = self.h - y - h
-
-                def visit(node, parent, inherited):
-                    properties, dynamic = scene_properties(node, contribution.scene, self.context)
-                    if properties.get("visible", True) is False:
-                        return
-                    if dynamic or node.get("effects"):
-                        raise ValueError("Cover requires an explicit dynamic/effect adapter")
-                    rect, rgba = node_rect(properties, parent), colour(properties, inherited)
-                    if node["type"] == "sprite":
-                        src = self.sink.add_source(contribution.resources[properties["resource"]]["path"])
-                        width, height = self.sink.dimensions[src]
-                        identifier = self.identifier(kind)
-                        image = {"id": identifier, "src": src, "x": 0, "y": 0, "w": width, "h": height}
-                        if kind == "sudden":
-                            self.skin.setdefault("slider", []).append({**image, "angle": 2, "range": round(h), "type": 4, "changeable": False})
-                        else:
-                            self.skin.setdefault(kind + "Cover", []).append({**image, "disapearLine": round(baseline), "isDisapearLineLinkLift": kind == "hidden"})
-                        self.destination(identifier, rect, rgba=rgba, op=[{"sudden": 271, "hidden": 273, "lift": 272}[kind]])
-                    elif node["type"] != "container":
-                        raise ValueError("Cover needs a declared sprite/container source")
-                    for child in node.get("children", []):
-                        visit(child, rect, rgba)
-
-                for root in material_templates(contribution, slot, binding["resource"]):
-                    visit(root, (x, y - h if kind == "sudden" else y + h, w, h), (1, 1, 1, 1))
+        from beatoraja_covers import export_covers
+        self.merge(export_covers(self.author, self.options, self.keymode, self.presentation,
+                                 self.sink, self.canvas, self.baked, kinds))
 
     def full_combo(self, frame: Contribution):
         contribution = self.author.contribution("full-combo", self.options)
@@ -545,6 +618,12 @@ class Composer:
         for binding, group, lane_number, _, _, hit in self.lane_materials(contribution, frame, "effect.hit-explosion"):
             for root in material_templates(contribution, binding["slot"], binding["resource"]):
                 self.draw_tree(contribution, root, hit, timer=50 + group * 10 + lane_number, offsets=[3])
+
+    def long_note_effects(self, frame: Contribution):
+        from beatoraja_hold import hold_plan
+        contribution = self.author.contribution("charge-notes", self.options)
+        self.feedback(hold_plan(self.author, contribution, self.options, self.presentation,
+                                self.lane_materials(contribution, frame, "effect.long-note")))
 
     def hit_line(self, frame: Contribution):
         layout = layout_for(frame, self.keymode, self.presentation)
@@ -667,8 +746,10 @@ def export(author: AuthorPackage, output: Path, modes: list[str], frames: list[s
             composer.hit_line(frame)
             composer.notes(frame)
             composer.explosions(frame)
+            composer.long_note_effects(frame)
             composer.key_lights(frame)
             composer.covers(frame)
+            composer.reading(frame)
             composer.widgets(frame)
             composer.timing_display(frame)
             composer.hud(frame, native_font_path)

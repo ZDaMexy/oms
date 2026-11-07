@@ -1,5 +1,11 @@
 # P1-A 变动日志
 
+## 2026-11-07beatoraja原生读数与动态反馈
+
+两族小组件包完成八场官方0.8.9实机：Lightning 27/33三布局、完整FC24和动画挡板，Standard 21/26、FAST/SLOW A/C与Judge OFF、真实Gauge和Graph反馈及失败均正常结算；曲中START实际开关白/绿读数，Standard 21 DP另验Full HD。修复Lightning P2双clip血条、极低Gauge零裁切泄露和Standard 21仿射键灯，来源适配精度与历史失败保留在[集中记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md)。
+
+进一步查出Standard原长条持续光曾只收集未消费，补独立pass及20个完整烘焙身份；不能用此前HCN头身尾恢复代签新效果。最低BPM字形负advance、静态clip与只含文字容器的职责也已修正。121项beatoraja与4项烘焙focused通过，官方CPU探针分别覆盖原生反馈、Gauge、数字与长条状态；新长条/字体同包实绘和剩余FC/动画挡板仍在推进，尚未正式安装或交付。播放器22项关键文件、8库和路径保全复核通过，现有skin新建本轮安装前基线，未倒推为升级前全量指纹。
+
 ## 2026-11-07beatoraja三布局与组件包推进
 
 默认两族SP1/SP2/DP已在官方0.8.9真实通关，补Standard失败与两族HCN断持恢复；三挡板使用真实PlayConfig，原输入和判定计时不注入。逐图审查修正Standard低血量叠百位，修后组件包复验90正确；Lightning FAST/SLOW用提前/延后50ms的原生Replay验证，关闭Judgement外观仍保留实际region所有权。Standard frame内原FAST/SLOW另接入，当前尚待同包实绘。完整证据和边界取[适配记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md)。

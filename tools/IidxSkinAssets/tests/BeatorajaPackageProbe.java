@@ -12,9 +12,10 @@ import bms.player.beatoraja.skin.lua.LuaSkinLoader;
 import bms.player.beatoraja.skin.lua.SkinLuaAccessor;
 
 public class BeatorajaPackageProbe {
-    static int loads, headers, shards;
+    static int loads, headers, shards, timerMergeFixtures;
     static boolean checkedReuse;
     static boolean representative;
+    static boolean smokeSelections;
     static final Set<String> arrays = Set.of("image", "imageset", "value", "floatvalue", "text",
         "slider", "graph", "gaugegraph", "judgegraph", "bpmgraph", "judge", "hiddenCover", "liftCover");
     static final Set<String> notes = Set.of("note", "lnstart", "lnend", "lnbody", "lnbodyActive",
@@ -36,6 +37,15 @@ public class BeatorajaPackageProbe {
     }
     static void validate(Path root, LuaValue skin, boolean full) throws Exception {
         Set<String> ids = new HashSet<>(), sources = new HashSet<>(), fonts = new HashSet<>();
+        Set<Integer> customTimers = new HashSet<>();
+        LuaValue timers = skin.get("customTimers");
+        for (LuaValue i : timers.isnil() ? new LuaValue[0] : timers.checktable().keys()) {
+            LuaValue timer = timers.get(i);
+            int id = timer.get("id").checkint();
+            require(id >= 10000 && id <= 19999 && customTimers.add(id), "Invalid/duplicate custom timer: " + id);
+            require(timer.get("timer").isfunction(), "Custom timer is not an actual TimerProperty function");
+        }
+        if (full) require(skin.get("_customTimerSignatures").isnil(), "Internal timer identity escaped the package merge");
         for (String field : arrays) for (LuaValue i : skin.get(field).isnil() ? new LuaValue[0] : skin.get(field).checktable().keys()) {
             String id = skin.get(field).get(i).get("id").checkjstring();
             require(ids.add(id), "Duplicate object ID: " + id);
@@ -89,6 +99,25 @@ public class BeatorajaPackageProbe {
         deserialize.setAccessible(true);
         for (String argument : args) {
             if (argument.equals("--representative")) { representative = true; continue; }
+            if (argument.equals("--smoke")) { smokeSelections = true; continue; }
+            if (argument.startsWith("--timer-merge-fixtures=")) {
+                Path root = Path.of(argument.substring("--timer-merge-fixtures=".length())).toAbsolutePath().normalize();
+                SkinLuaAccessor accessor = new SkinLuaAccessor(false);
+                accessor.setDirectory(root);
+                accessor.exec("skin_config={option={}}");
+                LuaValue same = accessor.execFile(root.resolve("same.luaskin"));
+                validate(root, same, false);
+                require(same.get("customTimers").length() == 1, "Equivalent custom timers were not deduplicated");
+                require(same.get("_customTimerSignatures").isnil(), "Internal custom timer identity escaped");
+                deserialize.invoke(new LuaSkinLoader(), JsonSkin.Skin.class, same);
+                boolean rejected = false;
+                try { accessor.execFile(root.resolve("conflict.luaskin")); }
+                catch (LuaError expected) { rejected = expected.getMessage().contains("Conflicting custom timer: 10000"); }
+                require(rejected, "Different definitions of one custom timer silently merged");
+                accessor.dispose();
+                timerMergeFixtures += 2;
+                continue;
+            }
             Path path = Path.of(argument).toAbsolutePath().normalize();
             if (Files.isDirectory(path)) {
                 SkinLuaAccessor accessor = new SkinLuaAccessor(false);
@@ -129,8 +158,9 @@ public class BeatorajaPackageProbe {
             // Each choice once, with all other choices at explicit header defaults.
             // This is linear coverage, not a hidden Cartesian matrix.
             Set<String> allControlValues = Set.of("Frame", "Play Side", "Note Size", "Charge Size", "HCN Colour", "HCN Display",
-                "Judgement Display", "Judgement Position", "Beam Length", "Ready Animation", "Get Ready", "Timing Display");
+                "Judgement Display", "Judgement Position", "Beam Length", "Ready Animation", "Get Ready", "Timing Display", "Timing Position", "Lift Readout");
             for (SkinHeader.CustomOption option : header.getCustomOptions()) for (int selected : option.option) {
+                if (smokeSelections && !Set.of("Frame", "Play Side").contains(option.name)) continue;
                 if (representative && !allControlValues.contains(option.name) && selected != option.option[0]
                     && selected != option.option[option.option.length - 1]) continue;
                 SkinConfig.Option value = new SkinConfig.Option(); value.name = option.name; value.value = selected;
@@ -146,7 +176,7 @@ public class BeatorajaPackageProbe {
             load(path, header, mixture, deserialize);
             System.out.println("Native header + independent selections PASS: " + path);
         }
-        System.out.printf("PASS headers=%d nativeLoads=%d shards=%d representativeModuleChoices=%s; static only, chart-size fixture=84, no rendering%n",
-            headers, loads, shards, representative);
+        System.out.printf("PASS headers=%d nativeLoads=%d shards=%d representativeModuleChoices=%s smokeSelections=%s timerMergeFixtures=%d; static only, chart-size fixture=84, no rendering%n",
+            headers, loads, shards, representative, smokeSelections, timerMergeFixtures);
     }
 }

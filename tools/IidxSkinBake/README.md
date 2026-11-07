@@ -70,3 +70,22 @@ dotnet .dev-cache\temp\iidx-bake-dev\bin\net8.0\IidxSkinBake.dll `
 **目标 imageset 分组必须包含 blend**，同一 order 在不同帧可能采用不同混合；建议键为 `(order, blend, offset, width, height)`，只显示当前帧存在的组。新的 `runs` 仍兼容原 page/rect/offset 接口；`sourceFrame`、时长及循环字段原样保留。原运行库的背景对照另存 `render-verification.json`，分块 `verification.json` 逐帧重建每个原 run 并要求 RGBA 摘要完全相同，再核对每个新 PNG rect。这一更强的分段逐像素等价连同未改变的 per-pixel 层序，证明整个帧的混合结果不变。
 
 `tiling-summary.json` 记录原/新解码字节、PNG 字节、最大每帧 draw 数及真实 imageset 分组数，索引 `optimization.decodedPixels` 提供相同统计供目标导出器挑选完整、verified 的候选；选择网格时同时看占用与绘制对象数量。透明裁边和图集去重只改变存储，不能据压缩文件大小声称低显存，也不能由离线等价代签目标端性能。
+
+## 冻结作者的串行工作清单
+
+`batch_frames.py` 从内容目录和实际材料实例选取每个框体的稳态及完整 READY / Fail。稳态优先使用节点引用的纯 literal 数值时钟，保留它对应的原帧；不能把 loopStart 一律当作稳态。`plan_components.py` 枚举 Key Beam、Explosion、Full Combo 的实际挂载；`plan_feedback.py` 枚举实际 gauge / scoreCrossing 消费者；`plan_object_feedback.py` 核对 Long Note 与 Key Flash 的明确声明和贡献分支。不把 manifest 中未挂载的动画算成反馈，作者未声明也不证明原 HDD 没有相关美术。规划与执行分别进行：
+
+```powershell
+. .\UseDevelopmentStorage.ps1
+python tools\IidxSkinBake\batch_frames.py `
+  --standard <Standard冻结作者目录> --lightning <Lightning冻结作者目录> `
+  --output .dev-cache\temp\iidx-bake-dev\<全新规划目录>
+python tools\IidxSkinBake\batch_frames.py `
+  --execute .dev-cache\temp\iidx-bake-dev\<规划目录>\worklist.json
+```
+
+Python 只组织原 C# 烘焙器，依赖仓库既有 IidxSkinAssets 与本地图片工具环境。复用必须在同一作品内证明原动画文件、资源声明（除存储路径）和全部资源字节一致；不同 manifest 的复用保留目标来源收据。partial 只能满足实际包含的原帧；完整录制才能供完整动画使用。页可在同卷 hardlink，共用的页保持只读。
+
+每项开始前重新核对源场景与资源；已有输出拒绝覆盖。工作目录出现 `pause-between-jobs` 文件时，当前项完成后暂停，移除后继续。Full Combo 必须先在私有清单中逐项记录规模审核；`programSizeReviewed` 不是效果验收。
+
+工作清单可设 `minimumFreeBytes` 保留空间，并以 `losslessTilesAboveBytes` 对超过实际解码量的结果生成 128 像素 movie-union 候选。默认仅在候选解码量更低时选择它；`selectLosslessTiles=false` 保留原结果，供目标适配器比较后再选。记录同时区分 imageset 键 `(order, blend, offset, size)` 和静态裁片键 `(order, page, rect, offset, blend)`；两者对象数量不能混用。`results.json` 保留每项原/选中索引、显存像素估算、对象组和可用空间；它仍不代替目标宿主的真实性能与画面验收。

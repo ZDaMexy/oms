@@ -40,6 +40,7 @@ public final class Capture implements ApplicationListener {
     private final Map<String, Float> requestedReading = new LinkedHashMap<>();
     private final Map<Integer, Long> firstEffectTimers = new LinkedHashMap<>();
     private final Map<String, Long> firstTimingJudges = new LinkedHashMap<>();
+    private final Map<Integer, Long> firstFeedbackTimers = new LinkedHashMap<>();
     private final List<Long> playRenderNs = new ArrayList<>(), afterFcRenderNs = new ArrayList<>();
     private final List<Long> pngWriteNs = Collections.synchronizedList(new ArrayList<>());
     private final List<Long> captureNs = Collections.synchronizedList(new ArrayList<>());
@@ -62,6 +63,8 @@ public final class Capture implements ApplicationListener {
     private long completedAt = -1;
     private int recoveryPhase;
     private long recoveryPhaseOriginUs;
+    private boolean readoutButtonDown, readoutHeldObserved, readoutReleasedObserved;
+    private final List<Object> readoutActions = new ArrayList<>();
     private final List<Object> recoveryTransitions = new ArrayList<>();
     private final AtomicInteger blockedNetworkRequests = new AtomicInteger();
     private static final int[] EFFECT_TIMERS = {51, 71, 101};
@@ -70,7 +73,8 @@ public final class Capture implements ApplicationListener {
         60, 61, 62, 63, 64, 65, 66, 67, 70, 71, 72, 73, 74, 75, 76, 77, 80, 81, 82, 83, 84, 85, 86, 87,
         100, 101, 102, 103, 104, 105, 106, 107, 110, 111, 112, 113, 114, 115, 116, 117,
         143, 144, 250, 251, 252, 253, 254, 255, 256, 257, 260, 261, 262, 263, 264, 265, 266, 267,
-        270, 271, 272, 273, 274, 275, 276, 277, 280, 281, 282, 283, 284, 285, 286, 287, 348, 349, 350, 351, 352, 908 };
+        270, 271, 272, 273, 274, 275, 276, 277, 280, 281, 282, 283, 284, 285, 286, 287, 348, 349, 350, 351, 352, 908,
+        10000, 10010, 10011, 10012, 10013, 10014, 10015 };
 
     private Capture(String[] argv) throws IOException {
         args = parse(argv);
@@ -321,6 +325,15 @@ public final class Capture implements ApplicationListener {
         if (exiting) return;
         try {
             if (elapsed() > Long.parseLong(one("timeout")) * 1000) throw new IllegalStateException("Timed out before natural completion");
+            if (args.containsKey("show-readouts") && main.getCurrentState() instanceof BMSPlayer before && before.timer.isTimerOn(41)) {
+                long playMs = before.timer.getNowTime(41);
+                boolean wanted = playMs >= 4500 && playMs < 5250;
+                if (wanted != readoutButtonDown) {
+                    main.getInputProcessor().startChanged(wanted);
+                    readoutButtonDown = wanted;
+                    readoutActions.add(Map.of("button", "START", "pressed", wanted, "playMs", playMs));
+                }
+            }
             long renderStart = System.nanoTime();
             main.render();
             long renderDuration = System.nanoTime() - renderStart;
@@ -343,6 +356,8 @@ public final class Capture implements ApplicationListener {
                 minimumGauge = Math.min(minimumGauge, Math.round(play.getGauge().getValue()));
                 for (int i = 0; i < 6; i++) lastJudges[i] = play.getJudgeManager().getJudgeCount(i);
                 captureFirstEffects(state);
+                captureFeedback(state);
+                if (args.containsKey("show-readouts")) captureReading(state);
                 if (scenario.equals("hcn-recovery")) captureHcnRecovery(state);
                 if (scenario.equals("timing")) captureTimingFeedback(state);
                 if (transition) capture("state-" + label.replace(':', '-'), state);
@@ -353,7 +368,8 @@ public final class Capture implements ApplicationListener {
                 for (int timer : new int[]{3, 40, 48, 49, 143, 908}) {
                     if (state.timer.isTimerOn(timer)) {
                         long age = state.timer.getNowTime(timer);
-                        for (int threshold : timer == 3 || timer == 40 ? new int[]{0, 250, 500, 1000, 2000, 3000} : new int[]{0, 250, 500})
+                        for (int threshold : timer == 3 || timer == 40 ? new int[]{0, 250, 500, 1000, 2000, 3000} :
+                                timer == 48 ? new int[]{0, 250, 500, 1000, 2000, 3000, 4000} : new int[]{0, 250, 500})
                             if (age >= threshold && age < threshold + 250) capture("timer-" + timer + "-" + threshold, state);
                     }
                 }
@@ -378,9 +394,41 @@ public final class Capture implements ApplicationListener {
                     : !failed && fullCombo && maxPastNotes == expectedNotes && maxExscore == expectedNotes * 2
                       && (scenario.equals("autoplay") ? state instanceof MusicSelector : state instanceof MusicResult && score != null && score.getClear() >= ClearType.FullCombo.id);
                 if (!outcome) error = "Natural outcome did not satisfy scenario assertions";
+                if (args.containsKey("show-readouts") && (!readoutHeldObserved || !readoutReleasedObserved)) {
+                    outcome = false; error = "Native START readout gate did not open and close";
+                }
                 if (completionAge >= 1000) { exiting = true; writeReceipt(); main.exit(); }
             }
         } catch (Throwable e) { fail(e); }
+    }
+
+    private void captureFeedback(MainState state) throws IOException {
+        for (int timer : new int[]{10000, 10010, 10011, 10012, 10013, 10014, 10015}) {
+            if (state.timer.isTimerOn(timer)) firstFeedbackTimers.putIfAbsent(timer, state.timer.getMicroTimer(timer));
+            Long origin = firstFeedbackTimers.get(timer);
+            if (origin == null) continue;
+            long age = state.timer.getNowMicroTime() - origin;
+            for (int offset : new int[]{0, 100, 250}) {
+                if (age < offset * 1000L) continue;
+                Map<String, Object> frame = capture("feedback-" + timer + "-" + offset + "ms", state);
+                if (frame != null) frame.put("nativeFeedback", Map.of("timer", timer, "firstObservedOriginUs", origin,
+                    "targetOffsetMs", offset, "renderClockAgeMs", age/1000.0,
+                    "timerStillOnFirstTrigger", state.timer.isTimerOn(timer) && state.timer.getMicroTimer(timer)==origin));
+            }
+        }
+    }
+
+    private void captureReading(MainState state) throws IOException {
+        if (!state.timer.isTimerOn(41)) return;
+        long playMs = state.timer.getNowTime(41);
+        boolean gate = BooleanPropertyFactory.getBooleanProperty(270).get(state);
+        if (playMs >= 4500 && playMs < 5250 && gate) readoutHeldObserved = true;
+        if (playMs >= 5250 && !gate && readoutHeldObserved) readoutReleasedObserved = true;
+        for (int offset : new int[]{4500, 4750, 5000, 5500}) {
+            if (playMs < offset || playMs >= offset + 200 || (offset < 5250 ? !gate : gate)) continue;
+            Map<String, Object> frame = capture("reading-play-" + offset, state);
+            if (frame != null) frame.put("nativeReadingGate", Map.of("pressed", readoutButtonDown, "gate", gate, "playMs", playMs));
+        }
     }
 
     private void captureTimingFeedback(MainState state) throws IOException {
@@ -494,6 +542,10 @@ public final class Capture implements ApplicationListener {
             value.put("gaugeType", play.getGauge().getType()); value.put("gaugeQualified", play.getGauge().isQualified());
             value.put("judgeCounts", Arrays.stream(lastJudges).boxed().toList());
             value.put("reading", readingConfiguration(play.getLanerender().getPlayConfig()));
+            Map<String, Integer> reads = new LinkedHashMap<>();
+            for (int number : new int[]{14, 313, 314, 315, 1313, 1321, 1323, 1325, 1327})
+                reads.put(Integer.toString(number), IntegerPropertyFactory.getIntegerProperty(number).get(state));
+            value.put("readingNativeValues", reads);
         }
         return value;
     }
@@ -570,6 +622,9 @@ public final class Capture implements ApplicationListener {
         receipt.put("blockedNetworkRequests", blockedNetworkRequests.get());
         receipt.put("firstEffectTimerOriginsUs", firstEffectTimers);
         receipt.put("firstTimingJudgeOriginsUs", firstTimingJudges);
+        receipt.put("firstFeedbackTimerOriginsUs", firstFeedbackTimers);
+        receipt.put("readoutInputActions", readoutActions);
+        receipt.put("readoutGate", Map.of("requested", args.containsKey("show-readouts"), "heldObserved", readoutHeldObserved, "releasedObserved", readoutReleasedObserved));
         receipt.put("hcnRecoveryTransitions", recoveryTransitions);
         receipt.put("performance", Map.of(
                 "measurement", "System.nanoTime wall duration of MainController.render(); readback/PNG/hash excluded. Includes any engine CPU/GPU waits; not pure CPU time, FPS, latency or play-feel acceptance.",

@@ -14,7 +14,8 @@
 | Lightning配方与整合 | `build_omni_skin.py`、`build_lighting_*.py`、`lighting_*.py` | 使用Lightning独立来源、冻结作者及增量链；旧文件名保留，停止边界沿状态页 |
 | OMS检查与实际游玩 | [SkinAuthoring](../SkinAuthoring/)、[StandardSkinCapture](../StandardSkinCapture/README.md)及各作品既有验证入口 | CLI只证明对应作者合同；实际Player证据须匹配候选和宿主，Standard取景不代签Lightning或beatoraja |
 | beatoraja原生导出 | `beatoraja_author.py`、`beatoraja_native.py`、`beatoraja_materials.py`、`beatoraja_widgets.py`、`beatoraja_hud.py`、`beatoraja_graph.py`、`beatoraja_decoration.py`、`beatoraja_timing.py`、`beatoraja_covers.py`、`beatoraja_export.py` | 只读一族冻结作者，保留first-match/DP选择、原图尺寸、原生计时与明确gaps；独立导出器用于小切片验证，不修改OMS作者或运行时 |
-| beatoraja组件包 | `beatoraja_package.py` | 同族共享资产、独立组件片段与稳定选项ID；按实际可用性列菜单，组件内部参数有限枚举，缺项留在收据。`tests/BeatorajaPackageProbe.java`用官方JAR核header、片段、真实反序列化及引用闭包；该静态检查不代签游玩 |
+| beatoraja读数与反馈 | `beatoraja_reading.py`、`beatoraja_gauge.py`、`beatoraja_feedback.py`、`beatoraja_affine.py` | 原挡板边缘读数、血条边界与脉冲、真实Gauge/EX变化反馈和已资格化仿射图；只使用公开宿主状态，保留时钟、整数几何及alpha量化边界 |
+| beatoraja组件包 | `beatoraja_package.py` | 同族共享资产、独立组件片段与稳定选项ID；按实际可用性列菜单，组件内部参数有限枚举，缺项留在收据。构建前后核工具SHA；CustomTimer同ID须同定义。`tests/BeatorajaPackageProbe.java`用官方JAR核header、片段、真实反序列化及引用闭包；该静态检查不代签游玩 |
 | beatoraja证据完整性 | `beatoraja_verify.py` | `package`逐文件核entry/selection、shard与assets摘要、大小、PNG及脚本清单；`capture`复核真实回执的完成/退出门与PNG摘要、尺寸及清单。输出须全新，不改历史收据 |
 | 动画烘焙与beatoraja实际取景 | [IidxSkinBake](../IidxSkinBake/README.md)、[BeatorajaSkinCapture](../BeatorajaSkinCapture/README.md) | 原生产渲染路径的GPU复合验证与实际官方播放器的独立验收分开；不把离线像素检查当作OpenGL性能/视觉通过 |
 

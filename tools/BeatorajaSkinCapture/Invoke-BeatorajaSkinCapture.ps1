@@ -14,6 +14,7 @@ param(
     [ValidateRange(0.0,1.0)][double]$LaneCover,
     [ValidateRange(0.0,1.0)][double]$Lift,
     [ValidateRange(0.0,1.0)][double]$Hidden,
+    [switch]$ShowReadouts,
     [ValidateRange(20,180)][int]$TimeoutSeconds = 60,
     [string]$Jar,
     [string]$Java,
@@ -77,6 +78,7 @@ $lnIndex = @{ LN=0; CN=1; HCN=2 }[$LongNoteMode]
 $gaugeIndex = @{ AssistEasy=0; Easy=1; Normal=2; Hard=3; ExHard=4; Hazard=5 }[$Gauge]
 $arguments = @('-Xms256m','-Xmx2g', '-Dfile.encoding=UTF-8', '-Dsun.stdout.encoding=UTF-8', '-Dsun.stderr.encoding=UTF-8', ('-Djava.io.tmpdir=' + $tempPath), ('-Djava.library.path=' + $NativeRoot), '-cp', ($classes + [IO.Path]::PathSeparator + $Jar), 'Capture', '--work', $caseRoot, '--skin', $Skin, '--resources', $ResourceRoot, '--scenario', $Scenario, '--mode', $Mode, '--side-option', $SideOptionName, '--lnmode', "$lnIndex", '--resolution', $Resolution, '--hispeed', $HiSpeed.ToString([Globalization.CultureInfo]::InvariantCulture), '--timeout', "$TimeoutSeconds")
 $arguments += @('--gauge', "$gaugeIndex")
+if ($ShowReadouts) { $arguments += @('--show-readouts', 'true') }
 foreach ($option in $SkinOption) { $arguments += @('--option', $option) }
 foreach ($file in $SkinFile) { $arguments += @('--file', $file) }
 foreach ($readingName in @('LaneCover','Lift','Hidden')) {

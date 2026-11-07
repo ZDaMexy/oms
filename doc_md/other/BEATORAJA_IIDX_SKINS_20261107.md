@@ -18,6 +18,8 @@
 
 升级前22项关键文件已逐个备份并核SHA256。路径迁移只改3个JSON中的7个值及`songdata.db`的一条根目录路径；8个数据库13张表逐表核对类型/行内容与schema，其它数据保持一致，原59974条谱面相对路径与成绩不改。3个开始菜单快捷方式已修复。失败回滚在合成目录验证后才执行实际迁移；备份和完整回执位于`E:/OMS-Development/evidence/beatoraja-upgrade-20261107/`，其中`upgrade-complete.json`是更新完成入口。下载SHA为本地完整性证据，不能冒充发布者签名。
 
+后续只读复核的22项当前文件及22份原备份、8个DB、11个有效谱库根和10个官方文件均通过，未出现额外DB或journal。新皮肤安装前另建立现有skin的11449文件基线，用于本轮安装后逐字节比较；没有升级前全量skin摘要，不能倒推该范围。回执为`artifacts/beatoraja-capture/player-preservation-check-20261107.json`。
+
 ## 宿主研究与实现边界
 
 原生格式取官方[JsonSkin](https://github.com/exch-bms2/beatoraja/blob/0.8.9/src/bms/player/beatoraja/skin/json/JsonSkin.java)、[Lua状态API](https://github.com/exch-bms2/beatoraja/blob/0.8.9/docs/lua-main-state-api.md)与同标签loader/render源码。
@@ -28,6 +30,9 @@
 - Gauge原作是整条图与裁切，不能猜成50格。Graph采用beatoraja当前Target与实际EX/PB；无法区分无PB与真实零分时保留原生零值，不伪造镜像成绩。宿主Fast/Slow统计与OMS语义不同，分别记录。
 - 原生Judge始终保留每stage的实际状态所有权，外观OFF不删除owner。Lightning的A/B/C使用原FAST/SLOW图和实际region的提前/延后资格，显示500ms；源没有毫秒数字美术，键/皿独立历史也不能由525/526/527三个Judge region伪造。Course Gauge暂取同族HARD/EX-HARD外观并保留真实值；原1000+ Combo宽度适配缺少公开的命中时course-combo，不能用未实现的104或最大Combo顶替。
 - 原转盘按beatoraja实际scratch offset运动，含宿主自动转动和输入加速；静态几何按各自来源。Standard 25极小仿射偏斜在原纹理像素中心反向采样，其它分代不套用该修正；整数destination带来的小数几何差异另记，不称GPU像素全等价。
+- Standard 21的28个键灯另有真实固定仿射quad，按各自源顶点在目标像素中心反采样并保留越界部分。读数也沿该框体实际473高/top11轨道，不能误套26软件表的484跨度。两族白/绿读数使用公开Sudden/Lift/Hidden和duration；Standard固定clip下的Lift/Hidden位置有公开千分位量化，Lightning沿原生offset；不造Normal/Floating/Classic模式映射。
+- Standard的原Gauge增长和Graph越线影片由只读CustomTimer观察实际Gauge/EX变化。正PB/Target严格超过，A/AA/AAA取ceil阈值且至少达到；初始快照、重试、回退及阈值变化只设基线。这里记录render观察时刻，不等同OMS事件时间；零PB不能伪造一次历史越线。Lightning冻结作者没有这两类挂载，不跨族补入。
+- Lightning原血条边界的双clip、P2两次180°和独立透明度脉冲分别适配。官方SkinObject将零面积clip视作无裁切，故极低正Gauge必须按实际signed毫秒截断阻止elapsed-zero露整图。HD/FULLHD原生CPU探针测得边缘误差不超过0.5源像素，脉冲alpha不超过1字节差；这不是GPU逐像素等价。
 - 字体按原glyph矩形和advance转换；原生字号、裁切及采样差异逐项登记。bitmap字体强制线性过滤、原生truncate与OMS ellipsis等不宣称像素等价。
 - AFP记录动画包含UV网格、camera、mask及colourMatrix，不能当普通PNG帧直接读。专用GPU宿主调用现有生产解码/evaluator/drawable/shader，按原层序保留normal与additive段，并在黑/白/彩底验证复合。该宿主实际后端是Veldrid/D3D11；beatoraja的OpenGL显示仍需独立取景。
 - 烘焙atlas保留源帧索引、fps、loopStart、heldLoop/release及空终止帧，裁边/精确去重/分块不降帧、不缩图。选中结果逐个核来源文件摘要；事件类不接受partial静止采样，框体固定clock使用源声明的准确帧。PNG压缩大小不代表显存。
@@ -40,12 +45,18 @@
 
 两套默认SP1/SP2/DP已使用r10开发包真实加载并自然结算。七个用例包括Standard SP2失败、双方SP1 HCN断持后恢复、SP2 CN/LN与DP HCN；全部满足实际身份、配置、判定状态、退出和诊断门。HCN恢复由真实Replay松开550ms后重新按下，原生active→damage→active成立；三类挡板组合实际使用0.3/0.1/0.05。证据在`artifacts/beatoraja-capture/standard-r10/`与`lightning-r10/`，不是最终全组件包验收。
 
-逐图审看确认SP2逻辑键与视觉位置、DP两侧、Lift下爆炸和Standard判定位置，以及原Stage Failed演出。审看同时发现Standard低于满血时百位图没有退出，90被叠成190；导出器已按源父容器的Gauge opacity track修正，在`standard-package-r1/`的HCN恢复实绘复验正确显示90。P2/DP当前未烘焙的FC美术不因原生FC timer通过而获签。
+逐图审看确认SP2逻辑键与视觉位置、DP两侧、Lift下爆炸和Standard判定位置，以及原Stage Failed演出。审看同时发现Standard低于满血时百位图没有退出，90被叠成190；导出器已按源父容器的Gauge opacity track修正，在`standard-package-r1/`的HCN恢复实绘复验正确显示90。r10当时未烘焙的P2/DP FC美术不因该轮原生FC timer通过而获签，后续完整片取下方同包验证。
 
-补充真实提前/延后50ms Replay：官方default DP确认每个Judge region都出现两方向后，Lightning当前SP1组件切片完成A、C加Judgement OFF及上移位置两场，均有原生正负50ms、非满EX的FC与MusicResult；已目视原FAST/SLOW图及OFF后提示仍有状态所有权。证据在`timing-selftest/`和`lightning-timing-r2/`。Standard的原提示实际位于frame stage.foreground，不因缺独立Timing模块而视为没有来源；其720个来源组合和Lightning315个组合已静态核对，Standard仍待同包实绘。
+补充真实提前/延后50ms Replay：官方default DP确认每个Judge region都出现两方向后，Lightning当前SP1组件切片完成A、C加Judgement OFF及上移位置两场，均有原生正负50ms、非满EX的FC与MusicResult；已目视原FAST/SLOW图及OFF后提示仍有状态所有权。证据在`timing-selftest/`和`lightning-timing-r2/`。Standard的原提示实际位于frame stage.foreground，不因缺独立Timing模块而视为没有来源；其720个来源组合和Lightning315个组合已静态核对，Standard同包实绘取下方r4记录。
 
-原生包按同族共享资源和独立组件Lua片段组合，选择项保留稳定ID；只有在所有纳入主题/模式中成立的选项才列入菜单。缺烘焙或不支持的选择留在收据，不改成其它素材。Notes/Charge Notes用同族最大首尾高度透明顶补，控制组合只枚举组件内部实际相关参数，不展开所有模块的笛卡尔积。Graph背景、Graph Area美术和前景按原层序拼接，六个模式/家族的拼接结果已与整体配方逐项一致。Standard首个全主题开发包3941片段通过官方LuaJ/JsonSkin和引用闭包，92次代表装配通过；包资产与上述11个实际场景的PNG摘要/尺寸/完成门另经`beatoraja_verify.py`复核。当前工具focused 73项通过，未据此签收全部选项视觉。
+原生包按同族共享资源和独立组件Lua片段组合，选择项保留稳定ID；只有在所有纳入主题/模式中成立的选项才列入菜单。缺烘焙或不支持的选择留在收据，不改成其它素材。Notes/Charge Notes用同族最大首尾高度透明顶补，控制组合只枚举组件内部实际相关参数，不展开所有模块的笛卡尔积。Graph背景、Graph Area美术和前景按原层序拼接，六个模式/家族的拼接结果已与整体配方逐项一致。首个全主题开发包中，Standard 3941片段/92次代表装配、Lightning 10424片段/140次代表装配通过官方LuaJ/JsonSkin和引用闭包；它们属于旧工具快照，不能代签后续增加的动画与读数。包资产与早期11个实际场景另经`beatoraja_verify.py`核摘要、尺寸及完成门。
+
+`integrated-r4`为每族两个真实Frame、三种模式的小包：Standard 21/26共194片，Lightning 27/33共460片，构建前后工具SHA一致；全部片段及20次装配通过原生静态检查。八个官方播放器用例全部正常dispose：Lightning SP1/SP2/DP真实使用l344或完整双clip l345的动画挡板、Lift和Graph Area，三模式FC24全段取景；Standard SP1 A提示、DP C加Judge OFF、SP2 CN、21主题DP/Full HD以及SP2失败均自然结算。Standard真实Gauge增长、A/AA/AAA及Target越线均有起点和原片取景；无PB场景没有造出MYBEST事件。
+
+上述七个非失败用例均经公开输入接口在曲中按住START并松开，原生270门实际开/关，目视白/绿数与真实边缘；FC追加取景至4000ms，未据timer本身补签缺片。官方default的同工具自测另通过Normal Gauge、读数开关和自然Result。九个通过用例的全部PNG、入口/包身份与退出门由`integrated-r4/capture-integrity.json`复核。首次把START放到曲终尾段的工具试跑触发宿主正常提前结束，未通过读数门；该失败证据保留，已改为曲中输入，未改宿主规则。
+
+继续逐项核配方时确认Standard的`effect.long-note`原持续光曾被收集但未消费；此前HCN恢复仅证明头身尾和原生active/damage状态，不能扩称持续光已经实现。20个消费身份/10支原影片已补齐烘焙并合入独立pass；144个真实来源组合和官方CPU状态探针通过，GPU待下一候选。原transition只观察进入/离开Holding，不把未持有的HCN DAMAGE结束误作释放；保留原break循环与退出尾，逐物件同时存在的尾部及render间多次变化保持宿主边界。Lightning 7920个现有Charge/布局/控制组合未声明此slot，所有已查Frame的key-flash显式Suppress。另修复Lightning 27/28/29最低BPM的28px字形/25px advance：保留原图，以原生负space表达重叠和末字外伸；官方数字排版探针通过，整包GPU待下一候选。
 
 Lightning默认FC24做过实际官方JAR的两种无损分块比较。固定联合框方案为467个imageset组、约1041.6MiB解码；16像素对齐方案为6448组、733.42MiB。前者Play/FC后的render调用median为0.544/0.685ms、p95为0.776/0.941ms；后者对应3.684/5.176ms、4.389/5.988ms，故选择前者。实测为本机HD、合成HCN Replay、限120FPS；含宿主等待，不是纯CPU、实际FPS或手感。两次取景在`artifacts/beatoraja-capture/lightning-r7/`与`lightning-r8-union/`，完整FC原始未分块约1478.22MiB；未据此宣称全部组件或低显存设备通过。
 
-当前仍在整合各主题Ready/失败、各模式完整FC、动画挡板与可选组件，随后验证同一最终包。透明留边、原生format与工具测试已做focused核对；输出中的`export-receipt.json`或`package-receipt.json`保留未映射项，不能把格式加载成功当作视觉完整。真实物理输入、长期手感、视频BGA、真实玩家保存/IR、所有配置排列与选曲/Results皮肤未签收。尚无beatoraja正式成品版本或部署验收。
+各主题稳态、Ready/已有Fail、全部普通光柱/爆炸与Lightning四档光柱长度、默认FC三模式、Standard全Gauge/Graph反馈均已获得完整或声明的固定clock烘焙；其它FC与剩余动画挡板仍在串行完成。完整菜单与最终同包验收尚未结束。真实物理输入、长期手感、视频BGA、真实玩家保存/IR、所有配置排列与选曲/Results皮肤未签收；尚无beatoraja正式成品版本或部署验收。

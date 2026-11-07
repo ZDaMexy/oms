@@ -468,6 +468,6 @@ def export_graph(author: AuthorPackage, options: dict[str, Any], keymode: str,
             {"feature": "graph", "reason": "native-pb-existence-unavailable",
              "detail": "Official playback APIs merge missing and zero PB. Native PB=0 is retained; no current-score mirror is fabricated."},
             {"feature": "graph", "reason": "native-target-selection",
-             "detail": "Source target art follows the host target name/ref 3 and total score/rate 151/115. Source AAA/MAXIMUM selectors and pace/crossing semantics are not exported."},
+             "detail": "Source target art follows the host target name/ref 3 and total score/rate 151/115. Artwork choices do not replace host target policy or reproduce the source pace algorithm. Available original crossing movies are handled by the separate public-state feedback adapter."},
         ])
     return output

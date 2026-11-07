@@ -48,6 +48,7 @@ class AssetSink:
         self.dimensions: dict[str, tuple[int, int]] = {}
         self._loaded_sources: dict[str, str] = {}
         self._loaded_bakes: dict[tuple[Path, str], str] = {}
+        self._gauge_pulse_palettes: dict[tuple, tuple[str, int, int]] = {}
 
     def _add(self, data: bytes, suffix: str, origin: str | None = None) -> str:
         digest = hashlib.sha256(data).hexdigest()

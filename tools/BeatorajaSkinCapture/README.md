@@ -30,6 +30,7 @@
 | `-Scenario timing` | 开头每侧8颗音符交替提前/延后50ms，其余按原时刻输入；要求真实每个Judge region都出现FAST/SLOW、非满EX的FC与MusicResult。保存首次两方向0/50/100ms取景及原生判定时差，不注入判定。 |
 | `-LongNoteMode LN/CN/HCN` | 为合成谱面的未指定类型长条设置原生 LN mode。包含普通键和 Scratch 长条。 |
 | `-Gauge AssistEasy/Easy/Normal/Hard/ExHard/Hazard` | 真实单曲Gauge，默认Hard、关闭自动换Gauge，并核对实际加载类型；failure及hcn-recovery固定要求Hard。Course Gauge不由这个参数冒充。 |
+| `-ShowReadouts` | 在真实Replay的Play 4500–5250ms经公开输入接口按住START并松开，要求原生270读数门实际开/关；保存三张按住与一张退出帧。Replay不执行普通PLAY的按键调速。谱面结束后START会直接退出，故不在结束尾段按住来冒充读数。 |
 | `-Resolution HD/FULLHD/WQHD/ULTRAHD`、`-HiSpeed` | 原生显示分辨率和 Hi-Speed；默认 HD、2.0。 |
 | `-LaneCover`、`-Lift`、`-Hidden` | 可选原生比例 0–1，只写独立测试玩家的 PlayConfig；大于 0 启用该项，0 关闭。不传时保持工具原有关闭设置；支持组合，用于检查遮挡与判定线。 |
 | `-TimeoutSeconds` | 内部超时 20–180 秒，默认 60；外层再留 20 秒退出时间。超时只结束本次启动的进程树，记失败。 |
@@ -61,6 +62,7 @@ IR 配置为空，IPFS、Discord、请求服务和自动扫描关闭。官方选
 实现针对 [官方 0.8.9 发布](https://github.com/exch-bms2/beatoraja/releases/tag/0.8.9)，研究源码固定标签提交 `83574048ba489082eb46df7fe9806b464bf1f526`。发行 JAR 的默认皮肤路径指向 ModernChic，与 tag 中 `skin/default/` 不同，因此 QA 显式指定配套默认皮肤。源码 ZIP 的 default skin 缺少旁置 `VL-Gothic-Regular.ttf`，直接使用会得到字体警告；应引用安装中的完整资源，不能把带缺字警告的截图签收。
 
 - Lua header/body 各执行一次；运行时用 `require('main_state')`。表形状见 [JsonSkin](https://github.com/exch-bms2/beatoraja/blob/0.8.9/src/bms/player/beatoraja/skin/json/JsonSkin.java)，运行时 API 见 [官方 Lua 文档](https://github.com/exch-bms2/beatoraja/blob/0.8.9/docs/lua-main-state-api.md)。几何关键帧为整数；Lua callback 仅支持 property 类型字段。
+- 原生CustomTimer由皮肤每个render缓存一次。本工具只观察10000与10010–10015首次真实起点并保存0/100/250ms帧，不写这些时钟；FC另取1000/2000/3000/4000ms，检查完整原片后段。回执区分目标取景时间与实际年龄。
 - 图片裁切、格动画、矩形 clip、层序、旋转与加算/乘算可直接表达。公开格式没有任意纹理遮罩或自由 UV 网格；`blend=3` 的减算实现需专门实测，不能据字段存在签收。
 - 新长条字段使用 `lnbodyActive`、`hcnbodyActive/Reactive/Miss`；旧 `lnactive/hcnactive/hcndamage/hcnreactive` 的对应不直观。Gauge nodes 使用 4/8/12/36 个。
 - `note.id` 必须进入 destination；`close/loadend/playstart/judgetimer/finishmargin` 在该分支设置。Ready/Play/Failed/FC/EndOfNote/MusicEnd timer 分别为 40/41/3/48/143/908，destination 时间为毫秒，Lua timer 与 Replay 为微秒。

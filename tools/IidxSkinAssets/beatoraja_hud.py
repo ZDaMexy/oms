@@ -196,39 +196,57 @@ def _bitmap_font(font: dict[str, Any], resources: dict[str, Any], sink: AssetSin
 
 def _scaled_integer(font: dict[str, Any], resources: dict[str, Any], sink: AssetSink,
                     properties: dict[str, Any], rect: tuple[float, float, float, float],
-                    scale: tuple[float, float], canvas_height: int, object_id: str, expression: str):
+                    scale: tuple[float, float], canvas_height: int, object_id: str, expression: str,
+                    *, gaps: list[dict[str, Any]] | None = None):
     """Native SkinNumber for an authored anisotropic, uniform-advance integer.
 
     The base graph intentionally scales its digits horizontally. SkinTextBitmap
     has uniform font scaling; SkinNumber's individual cell destination supports
-    this exact author intent. It is never stretched to the whole node width.
+    this author intent. Negative native space retains overlapping source glyphs;
+    alignment includes the last glyph's overhang, as OMS MeasureText does.
+    Integer cell/advance rounding is reported when it changes that source font.
+    The digits are never stretched to the whole node width.
     """
     line_height, glyphs = _glyph_images(font, resources, sink)
     digits = {chr(codepoint): (advance, image) for codepoint, advance, image in glyphs if 48 <= codepoint <= 57}
     if len(digits) != 10 or len({(a, im.size) for a, im in digits.values()}) != 1:
         return None
     advance, cell = digits["0"]
-    if advance != cell.width:
-        return None  # Overhang needs fractional spacing; do not change it.
     atlas = Image.new("RGBA", (cell.width * 10, line_height))
     for i in range(10):
         atlas.paste(digits[str(i)][1], (i * cell.width, 0))
     src = sink.add_raster(atlas)
     font_scale = properties.get("font-size", 16) * canvas_height / 768 / line_height
-    cell_width = round(cell.width * font_scale * scale[0])
+    source_cell_width = cell.width * font_scale * scale[0]
+    source_advance = advance * font_scale * scale[0]
+    cell_width = round(source_cell_width)
+    native_advance = round(source_advance)
+    spacing = native_advance - cell_width
     cell_height = round(line_height * font_scale * scale[1])
     if min(cell_width, cell_height) <= 0:
         raise ValueError("Author integer has nonpositive display size")
     alignment = properties.get("alignment", "left")
     x, y, width, height = rect
     digits_count = 10  # Full nonnegative native int range, without truncation.
-    start = {"left": x, "centre": x + (width - digits_count * cell_width) / 2,
-             "right": x + width - digits_count * cell_width}[alignment]
+    # SkinNumber shifts missing leading cells by (cell + space), but draws
+    # the final glyph at its full cell width. Its getLength() omits this final
+    # overhang, so reserve the actual image span rather than K advances.
+    reserved_width = (digits_count - 1) * native_advance + cell_width
+    start = {"left": x, "centre": x + (width - reserved_width) / 2,
+             "right": x + width - reserved_width}[alignment]
     value = {"id": object_id, "src": src, "x": 0, "y": 0, "w": atlas.width, "h": atlas.height,
-             "divx": 10, "divy": 1, "digit": digits_count, "padding": 0, "space": 0,
+             "divx": 10, "divy": 1, "digit": digits_count, "padding": 0, "space": spacing,
              "align": {"left": 1, "centre": 2, "right": 0}[alignment],
              "value": Lua("function() return " + expression + " end")}
     destination = native_rect((start, y + (height - cell_height) / 2, cell_width, cell_height), canvas_height)
+    if (advance != cell.width and gaps is not None
+            and (not math.isclose(cell_width, source_cell_width, abs_tol=1e-6)
+                 or not math.isclose(native_advance, source_advance, abs_tol=1e-6))):
+        gaps.append({"code": "native-numeric-advance-quantization", "informational": True, "node": object_id,
+            "sourceCellWidth": source_cell_width, "sourceAdvance": source_advance,
+            "nativeCellWidth": cell_width, "nativeAdvance": native_advance, "nativeSpace": spacing,
+            "maxTenDigitSpanErrorPx": abs(cell_width-source_cell_width) + 9*abs(native_advance-source_advance),
+            "detail": "Original glyph pixels and overhang are retained. Native integer cell width and advance use their nearest source-canvas pixels; spacing follows the host's resolution scale. Alignment reserves the final full glyph. The span bound excludes at most 0.5 source-pixel destination-origin rounding."})
     return value, destination
 
 
@@ -244,6 +262,7 @@ def export_hud(
     context: dict[str, Any] | None = None,
     native_font_id: str | None = "native.fallback",
     fallback_contributions: Iterable[Contribution] = (),
+    skip_node_ids: Iterable[str] = (),
 ) -> dict[str, Any]:
     """Export only text; append native arrays and keep gaps/mappings as evidence.
 
@@ -261,6 +280,7 @@ def export_hud(
     output: dict[str, Any] = {key: [] for key in ("font", "image", "value", "text", "destination", "gaps", "mappings")}
     resolved_context = {**{"option." + k: v for k, v in (options or {}).items()}, **(context or {})}
     contributions = [*fallback_contributions, contribution]
+    skipped = set(skip_node_ids)
     sources = _Sources(contributions, resolved_context)
     resources: dict[str, Any] = {}
     fonts: dict[str, Any] = {}
@@ -294,6 +314,8 @@ def export_hud(
               parent_colour: tuple[float, float, float, float], conditions: list[str],
               parent_scale: tuple[float, float], track_override: dict[str, Any] | None = None,
               instance_suffix: str = ""):
+        if node["id"] in skipped:
+            return
         if not any(n["type"] == "text" for n in walk_nodes(node)):
             return
         properties, operations = scene_properties(node, contribution.scene, resolved_context)
@@ -381,7 +403,7 @@ def export_hud(
                 if (font_id in fonts and mapping is not None and binding["source"] in _NUMBERS
                         and properties.get("format") == "integer"):
                     scaled = _scaled_integer(fonts[font_id], resources, sink, properties, rect,
-                                             scale, canvas_height, text["id"], mapping["native"])
+                                             scale, canvas_height, text["id"], mapping["native"], gaps=output["gaps"])
                 if scaled is None:
                     gap(node, "unsupported-anisotropic-text-scale", scale=list(scale))
                     return
