@@ -39,6 +39,7 @@
 - 字体按原glyph矩形和advance转换；原生字号、裁切及采样差异逐项登记。bitmap字体强制线性过滤、原生truncate与OMS ellipsis等不宣称像素等价。
 - AFP记录动画包含UV网格、camera、mask及colourMatrix，不能当普通PNG帧直接读。专用GPU宿主调用现有生产解码/evaluator/drawable/shader，按原层序保留normal与additive段，并在黑/白/彩底验证复合。该宿主实际后端是Veldrid/D3D11；beatoraja的OpenGL显示仍需独立取景。
 - 烘焙atlas保留源帧索引、fps、loopStart、heldLoop/release及空终止帧，裁边/精确去重/分块不降帧、不缩图。选中结果逐个核来源文件摘要；事件类不接受partial静止采样，框体固定clock使用源声明的准确帧。PNG压缩大小不代表显存。
+- 动画挡板使用单texture规则grid及只读TimerProperty选格，保留原生Slider/HiddenCover/LiftCover的移动和裁切；Graph Area共享同族像素。组合成本按该载体另算，不能沿用ImageSet或旧静态裁片排序。部分Lift+Hidden组合会把边缘读数放入原静态Judge区域并被短暂遮挡；保留宿主真实边缘和原判定层级，不宣称同白数时位置与OMS相同。
 
 实现入口为[素材工具](../../tools/IidxSkinAssets/README.md)、[GPU烘焙工具](../../tools/IidxSkinBake/README.md)和[原生取景工具](../../tools/BeatorajaSkinCapture/README.md)。没有移植OMS运行时，也不改beatoraja判定、计分或用户的客户端JAR。
 
@@ -53,6 +54,10 @@ Standard全部12款Frame、5KEYS/7KEYS两侧与14KEYS DP已生成；实际菜单
 证据在`artifacts/beatoraja-capture/final-matrix-r1/`的`standard-plan.json`、`standard-integrity.json`与`standard-visual-review.json`；联系图索引保留其生成时“待审看”状态，实际审看以独立回执为准。计划限定Standard范围，完整性与视觉回执均为`globalComplete=false`。后续两族验收必须重新绑定完整矩阵，复用Standard时逐项确认包与场景身份不变。
 
 Standard实际安装目录为`D:/beatoraja/skin/Standard Model Skin Omni Until 26.v26110700`，原选择不变。源包、安装暂存和安装结果三次全清单核对一致；安装后22项关键文件、8个DB、10个官方文件及原11449个skin文件通过保全检查。安装证据为`artifacts/beatoraja-capture/final-install-r1/standard.v26110700.json`，后保全回执为同父证据区的`player-preservation-check-20261107-105736673390.json`。版本化ZIP位于`deliverables/skins/beatoraja/`的同名版本目录，9997个成员逐个核长度与摘要，附使用说明、许可、校验和独立Standard验证记录；不将Lightning未完成范围标成通过。
+
+Lightning已通过新挡板载体的代表候选，最终全菜单仍待完整来源。`l341`原tile128素材重排为167页，实际解码约1806.51MiB；36493格RGBA、268个透明填充、481帧与41047个有序run逐项一致，严格Lift别名不新增资产。生成/核验的Windows已观测内存高水位188.61MiB，不称瞬态绝对峰值或GPU占用。官方CPU选格/显示门、包回归及真实DP开场路由通过；来源资格在D盘专用父目录的`l341-cover-grid-qualified-r1/`。
+
+该Lightning候选修正BPL tradz DP按各自舞台选择轨道开场；同包SP1/SP2/DP三场官方Replay、183张PNG完整性通过，DP含完整大FC22及三类挡板/Graph。已目视3张联系图的42个缩略图和5张不同原图，未确认grid选格/裁切或开场分组缺陷。SP2的Lift=.1、Hidden=.15读数与活跃Judge交叠已另核源层级和宿主offset，作为上方已知限制保留。证据为`artifacts/beatoraja-capture/cover-grid-native-r1/`的`integrity.json`、`visual-review.json`与`readout-overlap-review.json`；不代签其余动画挡板、最终完整包、持续帧率或物理输入。
 
 ## 开发阶段验证（历史）
 

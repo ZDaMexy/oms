@@ -90,4 +90,6 @@ Python 只组织原 C# 烘焙器，依赖仓库既有 IidxSkinAssets 与本地�
 
 每项开始前重新核对源场景与资源；已有输出拒绝覆盖。工作目录出现 `pause-between-jobs` 文件时，当前项完成后暂停，移除后继续。Full Combo 必须先在私有清单中逐项记录规模审核；`programSizeReviewed` 不是效果验收。
 
+单次取景保留30秒等待门；超时日志记录原帧、原片/重组、warmup/readback、调度/上传/绘制阶段及最近未就绪纹理摘要，原异常栈继续向外保留。诊断不放宽像素门，也不自动重试同一采样或扩大时限。旧日志如果只有Program重新抛出的位置，不能倒推具体阶段；相邻帧单独通过仍属partial，完整重跑须使用新目录并保留原失败证据。
+
 工作清单可设 `minimumFreeBytes` 保留空间，并以 `losslessTilesAboveBytes` 对超过实际解码量的结果生成 128 像素 movie-union 候选。默认仅在候选解码量更低时选择它；`selectLosslessTiles=false` 保留原结果，供目标适配器比较后再选。记录同时区分 imageset 键 `(order, blend, offset, size)` 和静态裁片键 `(order, page, rect, offset, blend)`；两者对象数量不能混用。`results.json` 保留每项原/选中索引、显存像素估算、对象组和可用空间；它仍不代替目标宿主的真实性能与画面验收。

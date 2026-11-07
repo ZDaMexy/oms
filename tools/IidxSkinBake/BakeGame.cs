@@ -1,6 +1,7 @@
 // Copyright (c) OMS contributors. Licensed under the MIT Licence.
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -111,9 +112,9 @@ internal sealed partial class BakeGame : osu.Framework.Game
             production.Drawable.Alpha = 1;
             production.Show(frame, run);
             this.background.Colour = background;
-        });
+        }, $"original frame={frame},run={run},background={background}");
 
-    public Task<Image<Rgba32>> CaptureBaked(IReadOnlyList<BakedRun> runs, Color4 background)
+    public Task<Image<Rgba32>> CaptureBaked(int frame, IReadOnlyList<BakedRun> runs, Color4 background)
         => Capture(() =>
         {
             production.Drawable.Alpha = 0;
@@ -141,25 +142,28 @@ internal sealed partial class BakeGame : osu.Framework.Game
                     Blending = run.Additive ? BlendingParameters.Additive : BlendingParameters.Mixture,
                 });
             }
-        });
+        }, $"baked frame={frame},runs={runs.Count},background={background}");
 
-    private async Task<Image<Rgba32>> Capture(Action prepare)
+    private async Task<Image<Rgba32>> Capture(Action prepare, string context)
     {
         // Texture upload completion alone precedes the first drawable-lifetime draw-node publication.
         // Discard one acknowledged GPU draw, then read the next draw of the same fixed source state.
         // This is a render barrier, not an animation-time advance or a retry accepting different pixels.
-        using Image<Rgba32> warmup = await CaptureDraw(prepare, true);
-        return await CaptureDraw(() => { }, false);
+        using Image<Rgba32> warmup = await CaptureDraw(prepare, true, context + ",warmup");
+        return await CaptureDraw(() => { }, false, context + ",readback");
     }
 
-    private async Task<Image<Rgba32>> CaptureDraw(Action prepare, bool waitForUpdate)
+    private async Task<Image<Rgba32>> CaptureDraw(Action prepare, bool waitForUpdate, string context)
     {
         var request = new CaptureRequest();
+        long started = Stopwatch.GetTimestamp();
         Schedule(() =>
         {
             try
             {
+                request.Stage = CaptureStage.Preparing;
                 prepare();
+                request.Stage = CaptureStage.Prepared;
                 // Visibility changes participate in the next child lifetime/update pass. Arm only after
                 // a complete update interval, while the explicitly sampled source frame remains fixed.
                 if (waitForUpdate)
@@ -174,7 +178,16 @@ internal sealed partial class BakeGame : osu.Framework.Game
                 request.Completion.TrySetException(exception);
             }
         });
-        Image<Rgba32> image = await request.Completion.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        Image<Rgba32> image;
+        try
+        {
+            image = await request.Completion.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        }
+        catch (TimeoutException exception)
+        {
+            throw new TimeoutException($"Capture timed out after {Stopwatch.GetElapsedTime(started).TotalSeconds:F3}s: {context}; "
+                                       + $"stage={request.Stage},claimed={Volatile.Read(ref request.Claimed)},uploadChecks={request.UploadChecks},lastUnready={request.LastUnready}", exception);
+        }
         if (image.Width != input.Animation.Width || image.Height != input.Animation.Height)
         {
             image.Dispose();
@@ -185,20 +198,41 @@ internal sealed partial class BakeGame : osu.Framework.Game
 
     private void ArmWhenUploaded(CaptureRequest request)
     {
+        request.UploadChecks++;
         bool uploaded = production.Drawable.Alpha > 0 ? production.VisibleTexturesReady : bakedTextures.All(t => t.UploadComplete);
         if (!uploaded)
         {
+            request.Stage = CaptureStage.WaitingForUpload;
+            if (request.UploadChecks % 100 == 1)
+                request.LastUnready = production.Drawable.Alpha > 0 ? production.VisibleTextureDiagnostic
+                    : "baked textures=" + bakedTextures.Count + ",unready=" + string.Join(",", bakedTextures.Select((texture, index) => (texture, index))
+                        .Where(item => !item.texture.UploadComplete).Take(16).Select(item => item.index));
             Scheduler.AddDelayed(() => ArmWhenUploaded(request), 10);
             return;
         }
+        request.Stage = CaptureStage.Armed;
         readback.Request = request;
         canvas.ForceRedraw();
+    }
+
+    private enum CaptureStage
+    {
+        Scheduled,
+        Preparing,
+        Prepared,
+        WaitingForUpload,
+        Armed,
+        Drawing,
+        Completed,
     }
 
     private sealed class CaptureRequest
     {
         public readonly TaskCompletionSource<Image<Rgba32>> Completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public int Claimed;
+        public volatile CaptureStage Stage;
+        public volatile int UploadChecks;
+        public string? LastUnready;
     }
 
     private sealed partial class ReadbackMarker : Drawable
@@ -234,11 +268,14 @@ internal sealed partial class BakeGame : osu.Framework.Game
                 base.Draw(renderer);
                 if (request == null || Interlocked.Exchange(ref request.Claimed, 1) != 0)
                     return;
+                request.Stage = CaptureStage.Drawing;
                 try
                 {
                     flush.Invoke(renderer, new object?[] { null });
                     IFrameBuffer buffer = (IFrameBuffer?)currentBuffer.GetValue(renderer) ?? throw new InvalidOperationException("Readback marker is not inside a framebuffer.");
-                    request.Completion.TrySetResult(renderer.ExtractFrameBufferData(buffer) ?? throw new InvalidOperationException("The renderer does not support framebuffer readback."));
+                    Image<Rgba32> image = renderer.ExtractFrameBufferData(buffer) ?? throw new InvalidOperationException("The renderer does not support framebuffer readback.");
+                    request.Stage = CaptureStage.Completed;
+                    request.Completion.TrySetResult(image);
                 }
                 catch (Exception exception)
                 {

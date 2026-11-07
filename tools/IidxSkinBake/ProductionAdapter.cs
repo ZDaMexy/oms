@@ -31,6 +31,10 @@ internal sealed class ProductionAdapter : IDisposable
     public Drawable Drawable { get; }
     public bool VisibleTexturesReady => sprites.Where(s => s.Alpha > 0).All(s => s.IsLoaded && ((Sprite)s).Texture is { UploadComplete: true });
 
+    public string VisibleTextureDiagnostic => string.Join("; ", sprites.Select((sprite, index) => (sprite, index))
+        .Where(item => item.sprite.Alpha > 0 && (!item.sprite.IsLoaded || ((Sprite)item.sprite).Texture is not { UploadComplete: true }))
+        .Take(16).Select(item => $"sprite={item.index},loaded={item.sprite.IsLoaded},texture={(((Sprite)item.sprite).Texture == null ? "null" : "present")},uploaded={((Sprite)item.sprite).Texture?.UploadComplete}"));
+
     public ProductionAdapter(BakeInput input, IRenderer renderer)
     {
         program = input.Animation;

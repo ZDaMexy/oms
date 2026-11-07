@@ -580,8 +580,15 @@ class Composer:
                     or binding["mode"] != "Provide"):
                 continue
             sx, sy, sw, sh = layout["stages"][int(binding["target"]["group-logical"])]["rect"]
-            for root in material_templates(frame, binding["slot"], binding["resource"]):
-                self.draw_tree(frame, root, (sx*self.w, sy*self.h, sw*self.w, sh*self.h))
+            previous = self.context
+            self.context = {**previous, "layout.group": binding["target"]["group"]}
+            try:
+                # A DP material can reuse one template with a different
+                # layout.group branch for each exact stage binding.
+                for root in material_templates(frame, binding["slot"], binding["resource"]):
+                    self.draw_tree(frame, root, (sx*self.w, sy*self.h, sw*self.w, sh*self.h))
+            finally:
+                self.context = previous
 
     def decorations(self, frame: Contribution):
         from beatoraja_reading import reading_ownership

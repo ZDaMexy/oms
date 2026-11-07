@@ -16,10 +16,14 @@ Gauge增长与分数越线只能从实际公开状态观察；首个高分快照
 
 原图出现SUB/NO DATA不证明存在第二条比较柱，先核祖先门和同列锚点；来源实际可能是PB不可用时的替代。开场素材移动也不代表所有独立Gauge/转盘须延迟出现，先核作者可见门和源宿主准备期是否仍渲染稳态树，不能凭画面观感补全局隐藏规则。
 
+DP同一开场模板可按`layout.group`选择左右动画；选了stage矩形并不等于已经提供舞台上下文。每个material binding须使用自己的`target.group`，随后恢复原上下文，不能全局固定deck-1或同时放行两支。BPL tradz的真实三模式来源回归见[轨道开场测试](../../tools/IidxSkinAssets/tests/test_beatoraja_lane_opening.py)。
+
 NoteSet外层destination颜色不会传给音符；Judge外层颜色也不会替内部label/Combo染色。亮度须核到实际carrier，不能只看recipe有值。原小节线归NoteSet.group；它的纹理、几何与到达后退场行为分别核对。条件动画要把已解释的真实KEYON门传到最终atlas destination，不能只让sprite分支通过；b04曾因此整支漏接。
 
 原生Replay可产生真实判定与Result，但不注册正常成绩；曲终后START/SELECT会触发结束而非调整挡板。取景工具应在曲中模拟公开输入并验证读数门、原自然结果与退出。framebuffer遥测在render后读取，判定线程仍可能变化；图片年龄和状态不是原子快照。工具入口取[原生取景](../../tools/BeatorajaSkinCapture/README.md)。
 
 同一render的多个取景标签须合并readback与PNG编码。官方Replay的JudgeThread读render更新的timer，一次时间跳跃会把短按press/release一并处理；后台编码队列满后重复PNG在GL线程执行，仍可能造成真实MISS。修工具后保持原Replay和零失误门复验，不能把取景干扰签作皮肤失败或放宽结算门。
 
-动画同名ID只有连同作品和manifest才是资源身份。完整原帧、原loopStart和终止帧与压缩方式分开核对；PNG小不代表解码占用小，图片组数也不等于挡板静态裁片对象数。最终选择需要目标播放器实绘及耗时证据，不能由烘焙器的像素等价直接签收。
+动画同名ID只有连同作品和manifest才是资源身份。完整原帧、原loopStart和终止帧与压缩方式分开核对；PNG小不代表解码占用小。静态裁片、ImageSet和规则grid的对象数/解码占用须分别计算，不能沿前一种载体的排序选后一种。最终选择需要目标播放器实绘及耗时证据，不能由烘焙器的像素等价直接签收。
+
+原生Slider/HiddenCover/LiftCover只接单texture规则grid，不能把ImageSet/value直接塞入。保留这些原生载体才能保持挡板移动/裁切；普通Image加offset会连clip一起移动。规则grid按行排格、`cycle=全部格数×100`（包含padding）；只读TimerProperty返回`(floor(nowMicro/1000)-(cell*100+50))*1000`，整千微秒避免负origin向零截断。页中缺少当前帧时还必须`draw=false`，仅timer OFF仍会选第0格。用文件映射生成PNG后须显式`Image.close()`释放PIL引用，否则mmap仍被导出指针占用。诊断取[原生选格探针](../../tools/IidxSkinAssets/tests/CoverGridTimerProbe.java)及[重排测试](../../tools/IidxSkinAssets/tests/test_beatoraja_cover_atlas.py)，它们不代签GPU裁切或显存。

@@ -50,6 +50,9 @@ class AssetSink:
         self._loaded_bakes: dict[tuple[Path, str], str] = {}
         self._gauge_pulse_palettes: dict[tuple, tuple[str, int, int]] = {}
         self._entrance_quads: dict[tuple, tuple[str | None, dict]] = {}
+        self._cover_atlas_inputs: dict[tuple, tuple] = {}
+        self._cover_atlases: dict[str, tuple] = {}
+        self._cover_verified_pages: set[tuple] = set()
 
     def _add(self, data: bytes, suffix: str, origin: str | None = None) -> str:
         digest = hashlib.sha256(data).hexdigest()

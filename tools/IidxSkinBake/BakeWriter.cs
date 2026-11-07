@@ -72,7 +72,7 @@ internal sealed class BakeWriter
             foreach (var (name, colour) in backgrounds)
             {
                 using Image<Rgba32> original = await game.CaptureOriginal(frame, null, colour);
-                using Image<Rgba32> recomposed = await game.CaptureBaked(runs, colour);
+                using Image<Rgba32> recomposed = await game.CaptureBaked(frame, runs, colour);
                 var difference = Compare(original, recomposed);
                 passed &= difference.MaxChannelDifference <= 4 && difference.MeanChannelExcessAboveOne <= 0.05;
                 worst = Math.Max(worst, difference.MaxChannelDifference);

@@ -4,7 +4,7 @@
 
 ## 多作品维护入口
 
-先查[P1-A作品/宿主状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)，再按[接续计划](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md#多作品与双平台准备)确定本次目标。OMS两套已交付链与新beatoraja试产各自独立；beatoraja当前研究、安装与真实验证见[适配记录](../../doc_md/other/BEATORAJA_IIDX_SKINS_20261107.md)，未达到正式交付。下表区分来源、作者与宿主，不能互相代签。
+先查[P1-A作品/宿主状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)，再按[接续计划](../../doc_md/subline/P1-A/DEVELOPMENT_PLAN.md#多作品与双平台准备)确定本次目标。OMS与beatoraja的作品各自维护；beatoraja研究、安装、交付与真实验证取[适配记录](../../doc_md/other/BEATORAJA_IIDX_SKINS_20261107.md)。下表区分来源、作者与宿主，不能互相代签。
 
 | 层次 | 现有入口 | 维护范围 |
 | --- | --- | --- |
@@ -14,6 +14,7 @@
 | Lightning配方与整合 | `build_omni_skin.py`、`build_lighting_*.py`、`lighting_*.py` | 使用Lightning独立来源、冻结作者及增量链；旧文件名保留，停止边界沿状态页 |
 | OMS检查与实际游玩 | [SkinAuthoring](../SkinAuthoring/)、[StandardSkinCapture](../StandardSkinCapture/README.md)及各作品既有验证入口 | CLI只证明对应作者合同；实际Player证据须匹配候选和宿主，Standard取景不代签Lightning或beatoraja |
 | beatoraja原生导出 | `beatoraja_author.py`、`beatoraja_native.py`、`beatoraja_materials.py`、`beatoraja_widgets.py`、`beatoraja_hud.py`、`beatoraja_graph.py`、`beatoraja_decoration.py`、`beatoraja_timing.py`、`beatoraja_covers.py`、`beatoraja_export.py` | 只读一族冻结作者，保留first-match/DP选择、原图尺寸、原生计时与明确gaps；独立导出器用于小切片验证，不修改OMS作者或运行时 |
+| beatoraja动画挡板 | `beatoraja_cover_atlas.py`、`beatoraja_covers.py` | 把完整验证帧无损排列为最大2048边长的规则grid；同族Cover/Lift/Graph共享资产，仍使用原生Slider/Hidden/Lift移动与裁切。只读timer精确选格，另按原帧范围控制显示；保留原fps、loopStart、空终止帧、层序与blend。重排逐源PNG和逐目标页处理，缓存只在一个AssetSink内复用；不跨作者共享 |
 | beatoraja读数与反馈 | `beatoraja_reading.py`、`beatoraja_gauge.py`、`beatoraja_feedback.py`、`beatoraja_hold.py`、`beatoraja_affine.py`、`beatoraja_barline.py` | 原挡板边缘读数、血条边界与脉冲、真实Gauge/EX变化、长条状态反馈、仿射图与小节线；只使用公开宿主状态，保留时钟、整数几何及alpha量化边界 |
 | beatoraja准备期与开场 | `beatoraja_preparation.py`、`beatoraja_entrance.py`、`beatoraja_entrance_art.py` | 原Frame时长、Ready最后1500ms、原位移/透明度/quad与完整录制；只观察公开时钟，不写宿主计时器。缺失READY历史不伪造epoch；整数采样和GPU边缘差异显式保留 |
 | beatoraja进度与节拍 | `beatoraja_progress.py`、`beatoraja_beat.py` | 原游标读取宿主歌曲进度；原轨道明暗读取公开节拍时钟。宿主完成余量、STOP与小节相位差异留在收据，不自行推算原谱音乐时钟 |

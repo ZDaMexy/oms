@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Loader;
 using System.Security.Cryptography;
@@ -90,7 +91,7 @@ internal static class Program
         using var timeout = new System.Threading.Timer(_ => host.Exit(), null, TimeSpan.FromSeconds(60 + input.Frames.Length * 8), System.Threading.Timeout.InfiniteTimeSpan);
         host.Run(game);
         if (game.Failure != null)
-            throw game.Failure;
+            ExceptionDispatchInfo.Capture(game.Failure).Throw();
         if (!game.Completed)
             throw new InvalidOperationException("The rendering host exited before baking completed.");
         return 0;

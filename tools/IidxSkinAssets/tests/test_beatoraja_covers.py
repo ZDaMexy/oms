@@ -23,7 +23,7 @@ def node(identifier, kind="container", properties=None, children=(), **extra):
 
 class CoverTests(unittest.TestCase):
     def setUp(self):
-        parent = Path(__file__).resolve().parents[3] / ".dev-cache/temp/beatoraja-covers"
+        parent = Path(__file__).resolve().parents[3] / "artifacts/beatoraja-capture/cover-grid-r1/covers"
         parent.mkdir(parents=True, exist_ok=True)
         self.temporary = tempfile.TemporaryDirectory(dir=parent)
         self.addCleanup(self.temporary.cleanup)
@@ -158,6 +158,18 @@ class CoverTests(unittest.TestCase):
                          {"x": 116, "y": 100, "w": 48, "h": 60, "clip_x": 100, "clip_y": 80, "clip_w": 80, "clip_h": 100})
         self.assertEqual([d["blend"] for d in result["destination"]], [1, 2, 1, 1])
         self.assertTrue(all("offsets" not in d and "op" not in d for d in result["destination"]))
+
+    def test_graph_cover_and_lift_reuse_pixels_without_sharing_destinations(self):
+        self.add_graph_area()
+        covers = self.export()
+        sources = copy.deepcopy(self.sink.source)
+        graph = export_animated_graph_area(self.author, {"graph-visible": True}, "7k", "p1", self.sink,
+                                           (0, 0, 200, 200), self.baked)
+        self.assertEqual(sources, self.sink.source)
+        self.assertEqual(1, len(self.sink._cover_atlases))
+        self.assertEqual({item["src"] for item in covers["slider"]}, {item["src"] for item in graph["image"]})
+        self.assertTrue(all(item["cycle"] == item["divx"] * item["divy"] * 100 for item in graph["image"]))
+        self.assertTrue({d["id"] for d in covers["destination"]}.isdisjoint(d["id"] for d in graph["destination"]))
 
     def test_graph_area_off_and_unmatched_marker_copy_no_atlas(self):
         self.add_graph_area()

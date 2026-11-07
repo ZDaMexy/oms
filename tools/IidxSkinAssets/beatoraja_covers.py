@@ -1,8 +1,8 @@
 """Original cover/Lift surfaces on native position and clipping primitives.
 
-Complete verified animations use immutable atlas crops with exact source-frame
-membership, not a giant horizontal frame strip. Each crop remains a real native
-Slider/HiddenCover/LiftCover, so the host still owns cover movement and clipping.
+Complete verified animations use lossless regular grids with exact source-frame
+membership. Each stable group remains a real native Slider/HiddenCover/LiftCover,
+so the host still owns cover movement and clipping.
 """
 
 from __future__ import annotations
@@ -11,13 +11,15 @@ import math
 from pathlib import Path
 
 from beatoraja_author import layout_for, material_bindings, material_templates, walk_nodes
+from beatoraja_cover_atlas import cover_atlas
 from beatoraja_native import Lua, colour, native_colour, native_rect, node_rect, scene_properties
 
 
 def group_baked_runs(index):
     """Group a complete bake without losing run order, blend, crop or offset.
 
-    Shared with future fixed Graph Area composition. The returned draw callbacks
+    Retained for the bake pipeline's static-crop organization metrics. Runtime
+    cover/Graph exporters use cover_atlas instead. The returned draw callbacks
     depend on the caller's existing ANIMATION_RUNTIME ``animation_frame`` helper.
     Source identity/hashes are verified by read_bakes; atlas hashes are checked
     only by AssetSink.add_baked_page when the consumer copies a used page.
@@ -130,23 +132,21 @@ def export_animated_graph_area(author, options, keymode, presentation, sink, can
                     or (index["source"]["manifest"], index["source"]["animation"]) != key):
                 raise ValueError("Graph Area bake identity does not match the selected author/material")
             if key not in grouped:
-                grouped[key] = group_baked_runs(index)
+                grouped[key] = cover_atlas(sink, path, index)
             groups = grouped[key]
-            used_pages = {group["page"] for group in groups}
-            pages = {page["id"]: sink.add_baked_page(path, page) for page in index["pages"] if page["id"] in used_pages}
+            used_pages = {group.source for group in groups}
             cw, ch = index["canvas"]
             x, y, w, h = rect
             for number, group in enumerate(groups):
                 identifier = f"{author.family}.graph-area.{node['id']}.run{number}"
-                result["image"].append({"id": identifier, "src": pages[group["page"]],
-                                        **dict(zip(("x", "y", "w", "h"), group["rect"]))})
-                ox, oy = group["offset"]
-                rw, rh = group["rect"][2:]
+                result["image"].append({"id": identifier, **group.image()})
+                ox, oy = group.offset
+                rw, rh = group.size
                 geometry = native_rect((x + ox * w / cw, y + oy * h / ch, rw * w / cw, rh * h / ch), height)
                 if clip is not None:
                     geometry.update({"clip_" + key: value for key, value in native_rect(clip, height).items()})
-                result["destination"].append({"id": identifier, "filter": 0, "blend": 2 if group["blend"] == "additive" else 1,
-                                               "draw": group["draw"], "dst": [{**geometry, **native_colour(rgba)}]})
+                result["destination"].append({"id": identifier, "filter": 0, "blend": 2 if group.blend == "additive" else 1,
+                                               "draw": group.draw, "dst": [{**geometry, **native_colour(rgba)}]})
             result["gaps"].append({"code": "native-graph-area-animation-objects", "informational": True,
                                    "objects": len(groups), "pages": len(used_pages), "sourceFrames": index["sourceFrameCount"],
                                    "maximumActiveRuns": max(len(frame["runs"]) for frame in index["frames"]), **details})
@@ -200,9 +200,8 @@ def export_covers(author, options, keymode, presentation, sink, canvas, baked,
             baseline = canvas_height - sy - sh
             context = {**base_context, "layout.group": target["group"]}
 
-            def emit(identifier, src, crop, rect, rgba, blend, draw=None):
-                image = dict(zip(("x", "y", "w", "h"), crop))
-                image.update({"id": identifier, "src": src})
+            def emit(identifier, image, rect, rgba, blend, draw=None):
+                image = {**image, "id": identifier}
                 if kind == "sudden":
                     result["slider"].append({**image, "angle": 2, "range": round(sh), "type": 4, "changeable": False})
                 else:
@@ -230,7 +229,8 @@ def export_covers(author, options, keymode, presentation, sink, canvas, baked,
                     if resource["type"] != "texture":
                         raise ValueError("Cover sprite requires its declared texture")
                     src = sink.add_source(resource["path"])
-                    emit(prefix, src, (0, 0, *sink.dimensions[src]), rect, rgba, "normal")
+                    emit(prefix, {"src": src, "x": 0, "y": 0, "w": sink.dimensions[src][0], "h": sink.dimensions[src][1]},
+                         rect, rgba, "normal")
                 elif node["type"] == "recorded-animation":
                     key = (contribution.manifest_path, node["animation"])
                     details = {"kind": kind, "stage": stage, "manifest": key[0], "animation": key[1]}
@@ -245,18 +245,17 @@ def export_covers(author, options, keymode, presentation, sink, canvas, baked,
                             or (index["source"]["manifest"], index["source"]["animation"]) != key):
                         raise ValueError("Cover bake identity does not match the selected author/material")
                     if key not in grouped:
-                        grouped[key] = group_baked_runs(index)
+                        grouped[key] = cover_atlas(sink, path, index)
                     groups = grouped[key]
-                    used_pages = {group["page"] for group in groups}
-                    pages = {page["id"]: sink.add_baked_page(path, page) for page in index["pages"] if page["id"] in used_pages}
+                    used_pages = {group.source for group in groups}
                     cw, ch = index["canvas"]
                     x, y, width, height = rect
                     for number, group in enumerate(groups):
-                        ox, oy = group["offset"]
-                        rw, rh = group["rect"][2:]
-                        emit(prefix + ".run" + str(number), pages[group["page"]], group["rect"],
+                        ox, oy = group.offset
+                        rw, rh = group.size
+                        emit(prefix + ".run" + str(number), group.image(),
                              (x + ox * width / cw, y + oy * height / ch, rw * width / cw, rh * height / ch),
-                             rgba, group["blend"], group["draw"])
+                             rgba, group.blend, group.draw)
                     result["gaps"].append({"code": "native-cover-animation-objects", "informational": True,
                                            "objects": len(groups), "pages": len(used_pages), "sourceFrames": index["sourceFrameCount"],
                                            "maximumActiveRuns": max(len(frame["runs"]) for frame in index["frames"]), **details})
