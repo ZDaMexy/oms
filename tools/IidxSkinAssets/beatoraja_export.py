@@ -8,18 +8,20 @@ appearance. The local receipt distinguishes implemented features from gaps.
 from __future__ import annotations
 
 import argparse
+from collections.abc import Mapping
 import hashlib
 import json
 import math
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
 
+import brotli
 from PIL import Image
 
 from beatoraja_author import (AuthorPackage, Contribution, bms_sections,
                              layout_for, material_bindings, material_templates,
-                             read_json, source_path, walk_nodes)
+                             source_path, walk_nodes)
 from beatoraja_native import (AssetSink, Lua, all_of, colour, lua, native_colour,
                              native_rect, node_rect, scene_properties, native_song_expression,
                              native_offset_expression, tint_pixels)
@@ -91,7 +93,7 @@ end
 
 class Composer:
     def __init__(self, author: AuthorPackage, sink: AssetSink, options: dict[str, Any],
-                 presentation: str, baked: dict[str, tuple[Path, dict[str, Any]]], *, keymode: str | None = None):
+                 presentation: str, baked: Mapping[tuple[str, str], tuple[Path, dict[str, Any]]], *, keymode: str | None = None):
         self.author, self.sink, self.options = author, sink, options
         self.presentation = presentation
         self.keymode = keymode or ("14k" if presentation == "dp" else "7k")
@@ -831,38 +833,95 @@ class Composer:
         return self.skin
 
 
+def _read_bake_index(path: Path, expected_sha256: str | None = None):
+    data = path.read_bytes()
+    digest, size = hashlib.sha256(data).hexdigest(), len(data)
+    if expected_sha256 is not None and digest != expected_sha256:
+        raise ValueError("Bake index changed after selection: " + str(path))
+    if path.suffix == ".br":
+        data = brotli.decompress(data)
+    index = json.loads(data.decode("utf-8-sig"))
+    if not isinstance(index, dict):
+        raise ValueError("Expected an author JSON object")
+    return index, digest, size
+
+
+@dataclass(frozen=True)
+class _BakeSelection:
+    path: Path
+    sha256: str
+    bytes: int
+    rank: tuple | None
+    files: dict[str, str]
+
+
+class _BakeIndexes(Mapping):
+    """Selected identities stay small; only the current index is cached."""
+
+    def __init__(self, entries):
+        self._entries = entries
+        self._cached_key = None
+        self._cached = None
+
+    def __len__(self):
+        return len(self._entries)
+
+    def __iter__(self):
+        return iter(self._entries)
+
+    def __contains__(self, key):
+        return key in self._entries
+
+    def __getitem__(self, key):
+        selected = self._entries[key]
+        if key != self._cached_key:
+            # Release before reading: a second large JSON must not overlap
+            # merely because the cache still owns the previous one.
+            self._cached = None
+            self._cached_key = None
+            index, _, _ = _read_bake_index(selected.path, selected.sha256)
+            self._cached = selected.path, index
+            self._cached_key = key
+        return self._cached
+
+
+def _inspect_bake(path: Path, author: AuthorPackage, *, override=False):
+    index, digest, size = _read_bake_index(path)
+    if (index.get("contract") != "oms-iidx-baked-animation.v1"
+            or Path(index["source"]["authorRoot"]).resolve() != author.root):
+        if override:
+            raise ValueError("Bake override must be verified and belong to the selected author")
+        return None
+    if not index.get("verification", {}).get("passed"):
+        raise ValueError("Bake override must be verified and belong to the selected author" if override else "Unverified bake index")
+    key = (index["source"]["manifest"], index["source"]["animation"])
+    rank = None if override else (bool(index["selectionComplete"]),
+        -index.get("optimization", {}).get("decodedPixels", sum(p["width"] * p["height"] for p in index["pages"])))
+    return key, _BakeSelection(path, digest, size, rank, index["source"]["files"])
+
+
 def read_bakes(paths: list[Path], author: AuthorPackage, overrides: list[Path] = ()):
     result = {}
     for root in paths:
         for path in root.rglob("index.json"):
-            index = read_json(path)
-            if index.get("contract") != "oms-iidx-baked-animation.v1":
+            inspected = _inspect_bake(path, author)
+            if inspected is None:
                 continue
-            if Path(index["source"]["authorRoot"]).resolve() != author.root:
-                continue
-            if not index.get("verification", {}).get("passed"):
-                raise ValueError("Unverified bake index")
-            key = (index["source"]["manifest"], index["source"]["animation"])
+            key, selected = inspected
             # A completed sequence supersedes an exploratory single frame.
-            def rank(item):
-                return (bool(item["selectionComplete"]), -item.get("optimization", {}).get("decodedPixels", sum(p["width"] * p["height"] for p in item["pages"])))
-            if key not in result or rank(index) > rank(result[key][1]):
-                result[key] = path, index
+            if key not in result or selected.rank > result[key].rank:
+                result[key] = selected
     for path in overrides:
-        index = read_json(path)
-        if (index.get("contract") != "oms-iidx-baked-animation.v1"
-                or Path(index["source"]["authorRoot"]).resolve() != author.root
-                or not index.get("verification", {}).get("passed")):
-            raise ValueError("Bake override must be verified and belong to the selected author")
-        result[(index["source"]["manifest"], index["source"]["animation"])] = path, index
+        key, selected = _inspect_bake(path, author, override=True)
+        result[key] = selected
     digests = {}
-    for _, index in result.values():
-        for relative, expected in index["source"]["files"].items():
+    for selected in result.values():
+        for relative, expected in selected.files.items():
             if relative not in digests:
                 digests[relative] = hashlib.sha256(source_path(author.root, relative).read_bytes()).hexdigest()
             if digests[relative].lower() != expected.lower():
                 raise ValueError("Stale bake source: " + relative)
-    return result
+    return _BakeIndexes(result)
 
 
 def export(author: AuthorPackage, output: Path, modes: list[str], frames: list[str], bake_roots: list[Path], native_font: Path | None = None, bake_overrides: list[Path] = ()):

@@ -55,7 +55,7 @@ Standard全部12款Frame、5KEYS/7KEYS两侧与14KEYS DP已生成；实际菜单
 
 Standard实际安装目录为`D:/beatoraja/skin/Standard Model Skin Omni Until 26.v26110700`，原选择不变。源包、安装暂存和安装结果三次全清单核对一致；安装后22项关键文件、8个DB、10个官方文件及原11449个skin文件通过保全检查。安装证据为`artifacts/beatoraja-capture/final-install-r1/standard.v26110700.json`，后保全回执为同父证据区的`player-preservation-check-20261107-105736673390.json`。版本化ZIP位于`deliverables/skins/beatoraja/`的同名版本目录，9997个成员逐个核长度与摘要，附使用说明、许可、校验和独立Standard验证记录；不将Lightning未完成范围标成通过。
 
-Lightning已通过新挡板载体的代表候选，最终全菜单仍待完整来源。`l341`原tile128素材重排为167页，实际解码约1806.51MiB；36493格RGBA、268个透明填充、481帧与41047个有序run逐项一致，严格Lift别名不新增资产。生成/核验的Windows已观测内存高水位188.61MiB，不称瞬态绝对峰值或GPU占用。官方CPU选格/显示门、包回归及真实DP开场路由通过；来源资格在D盘专用父目录的`l341-cover-grid-qualified-r1/`。
+Lightning已通过新挡板载体的代表候选，完整来源已齐备，最终全菜单构建与实绘待验。`l341`原tile128素材重排为167页，实际解码约1806.51MiB；36493格RGBA、268个透明填充、481帧与41047个有序run逐项一致，严格Lift别名不新增资产。生成/核验的Windows已观测内存高水位188.61MiB，不称瞬态绝对峰值或GPU占用。官方CPU选格/显示门、包回归及真实DP开场路由通过；来源资格在D盘专用父目录的`l341-cover-grid-qualified-r1/`。
 
 该Lightning候选修正BPL tradz DP按各自舞台选择轨道开场；同包SP1/SP2/DP三场官方Replay、183张PNG完整性通过，DP含完整大FC22及三类挡板/Graph。已目视3张联系图的42个缩略图和5张不同原图，未确认grid选格/裁切或开场分组缺陷。SP2的Lift=.1、Hidden=.15读数与活跃Judge交叠已另核源层级和宿主offset，作为上方已知限制保留。证据为`artifacts/beatoraja-capture/cover-grid-native-r1/`的`integrity.json`、`visual-review.json`与`readout-overlap-review.json`；不代签其余动画挡板、最终完整包、持续帧率或物理输入。
 

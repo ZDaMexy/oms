@@ -27,3 +27,5 @@ NoteSet外层destination颜色不会传给音符；Judge外层颜色也不会替
 动画同名ID只有连同作品和manifest才是资源身份。完整原帧、原loopStart和终止帧与压缩方式分开核对；PNG小不代表解码占用小。静态裁片、ImageSet和规则grid的对象数/解码占用须分别计算，不能沿前一种载体的排序选后一种。最终选择需要目标播放器实绘及耗时证据，不能由烘焙器的像素等价直接签收。
 
 原生Slider/HiddenCover/LiftCover只接单texture规则grid，不能把ImageSet/value直接塞入。保留这些原生载体才能保持挡板移动/裁切；普通Image加offset会连clip一起移动。规则grid按行排格、`cycle=全部格数×100`（包含padding）；只读TimerProperty返回`(floor(nowMicro/1000)-(cell*100+50))*1000`，整千微秒避免负origin向零截断。页中缺少当前帧时还必须`draw=false`，仅timer OFF仍会选第0格。用文件映射生成PNG后须显式`Image.close()`释放PIL引用，否则mmap仍被导出指针占用。诊断取[原生选格探针](../../tools/IidxSkinAssets/tests/CoverGridTimerProbe.java)及[重排测试](../../tools/IidxSkinAssets/tests/test_beatoraja_cover_atlas.py)，它们不代签GPU裁切或显存。
+
+大动画索引的JSON字节数不是进程占用：解析树还受缓存持有链影响。`read_bakes`须在逐项选定身份后释放大树，保留小元数据和文件摘要，使用时只缓存当前项；切换前先释放，重读校验冻结字节。只给读取器限缓存还不够，Cover的对象缓存若强引用index仍会让全部树常驻。保留像素/帧结果缓存即可复用重排；membership、选择优先级、覆盖顺序、源校验与换项重载取[索引测试](../../tools/IidxSkinAssets/tests/test_beatoraja_bakes.py)。只读选择的峰值不代签完整导出或原生宿主。

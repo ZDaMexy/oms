@@ -23,6 +23,8 @@
 | beatoraja独立安装 | `Install-BeatorajaOmni.ps1` | 只接受新收据名，复制经核验的包清单到新版本目录，复制前/后及最终安装逐文件复核；已有版本拒绝，同卷rename不合并。回执写`artifacts/beatoraja-capture/`，不写玩家设置、成绩或当前skin选择 |
 | 动画烘焙与beatoraja实际取景 | [IidxSkinBake](../IidxSkinBake/README.md)、[BeatorajaSkinCapture](../BeatorajaSkinCapture/README.md) | 原生产渲染路径的GPU复合验证与实际官方播放器的独立验收分开；不把离线像素检查当作OpenGL性能/视觉通过 |
 
+完整动画导出按需读取选中的烘焙索引，只缓存当前一项；初选规则、显式覆盖顺序、源文件校验及重读时的索引摘要检查分别保留。挡板缓存只保存可复用的像素和帧映射结果，不持有完整输入索引。此边界限制索引缓存，不代表整个导出进程、Java或GPU占用上限；验证入口为`tests/test_beatoraja_bakes.py`与`tests/test_beatoraja_cover_atlas.py`。
+
 ### 共用修改的回归范围
 
 改动前列出实际导入/调用关系和受影响输出；以下为选择验证范围的依据，不是每轮无差别重跑清单。先在新目录生成代表输入的结果，确认来源身份、UV/几何、层序、遮罩和动画差异，再按影响进入宿主验证。

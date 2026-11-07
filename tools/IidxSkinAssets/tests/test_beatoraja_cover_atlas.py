@@ -2,6 +2,7 @@
 
 import copy
 from dataclasses import FrozenInstanceError
+import gc
 import hashlib
 import json
 import os
@@ -11,6 +12,7 @@ import sys
 import tempfile
 import unittest
 from unittest.mock import patch
+import weakref
 
 from PIL import Image
 
@@ -134,6 +136,24 @@ class CoverAtlasTests(unittest.TestCase):
         failures = list(self.sink.output.glob(".cover-grid-*/failure.json.txt"))
         self.assertEqual(2, len(failures))
         self.assertTrue(all(not json.loads(path.read_text())["complete"] for path in failures))
+
+    def test_pixel_cache_does_not_retain_the_input_tree_and_accepts_identical_reload(self):
+        class TrackedIndex(dict):
+            pass
+
+        first = TrackedIndex(copy.deepcopy(self.index))
+        reference = weakref.ref(first)
+        grids = atlas.cover_atlas(self.sink, self.source / "index.json", first, 4)
+        assets = copy.deepcopy(self.sink.source)
+        del first
+        gc.collect()
+        self.assertIsNone(reference(), "Grid cache retained the complete source index")
+        reloaded = copy.deepcopy(self.index)
+        with patch.object(atlas, "_page_bytes", side_effect=AssertionError("Qualified pixels were reread")), \
+             patch.object(self.sink, "add_raster", side_effect=AssertionError("Cached grids were encoded again")):
+            again = atlas.cover_atlas(self.sink, self.source / "index.json", reloaded, 4)
+        self.assertIs(grids, again)
+        self.assertEqual(assets, self.sink.source)
 
     def test_page_limit_prefix_loop_and_padding_count_are_explicit(self):
         grids = atlas.plan_cover_atlas(self.index, 4)

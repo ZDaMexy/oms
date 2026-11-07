@@ -169,16 +169,11 @@ def _owned(path, root):
 def cover_atlas(sink, index_path, index, page_limit=2048):
     """Return immutable grid assets shared by cover, Lift and Graph Area aliases.
 
-    read_bakes supplies frozen input objects for the lifetime of one sink. The
-    first input qualification hashes actual source pages; a new identity must
-    qualify its own paths before using an equal pixel/frame-map cache entry.
+    Every input qualifies its own paths before using an equal pixel/frame-map
+    cache entry. The cache retains grid assets, never the full input index, so
+    read_bakes can release an index before loading another selection.
     """
     index_path = Path(index_path).resolve()
-    input_key = (index_path, id(index), page_limit)
-    if input_key in sink._cover_atlas_inputs:
-        original, result = sink._cover_atlas_inputs[input_key]
-        assert original is index  # The retained object prevents Python ID reuse.
-        return result
     grids = plan_cover_atlas(index, page_limit)
     pages = {page["id"]: page for page in index["pages"]}
     used_ids = {crop[0] for grid in grids for crop in grid.crops}
@@ -198,11 +193,9 @@ def cover_atlas(sink, index_path, index, page_limit=2048):
                 _page_bytes(key)
                 sink._cover_verified_pages.add(key)
         result = sink._cover_atlases[identity]
-        sink._cover_atlas_inputs[input_key] = (index, result)
         return result
     if not grids:
         sink._cover_atlases[identity] = grids
-        sink._cover_atlas_inputs[input_key] = (index, grids)
         return grids
 
     work = Path(tempfile.mkdtemp(prefix=".cover-grid-", dir=sink.output))
@@ -262,5 +255,4 @@ def cover_atlas(sink, index_path, index, page_limit=2048):
         raise
     result = tuple(result)
     sink._cover_atlases[identity] = result
-    sink._cover_atlas_inputs[input_key] = (index, result)
     return result
