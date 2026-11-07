@@ -4,6 +4,7 @@ from __future__ import annotations
 import copy
 import json
 from pathlib import Path
+from standard_source_catalog import frame_token, frame_id, package_key, source_style, SOURCE22_STYLES
 import shutil
 
 from standard_graph import GraphOPTIONS, TARGETS, build_graph_target, digest, node
@@ -83,9 +84,9 @@ def export_graph_target_module(library, output, prepared_font, *, notifications=
         choices.append({"value": target, "label": label, **layouts["0", "dp"], "orderedVariants": True,
             "variants": [
                 *[variant for style in source_styles(source_data) if presentation_family(style) != '0'
-                  for variant in ([{"when": {"frame": f"iidx{style:02}", "layout": layout},
+                  for variant in ([{"when": {"frame": frame_id(style), "layout": layout},
                                      **layouts[presentation_family(style), layout]} for layout in ("p1", "p2")]
-                                  + [{"when": {"frame": f"iidx{style:02}"}, **layouts[presentation_family(style), "dp"]}])],
+                                  + [{"when": {"frame": frame_id(style)}, **layouts[presentation_family(style), "dp"]}])],
                 *[{"when": {"layout": layout}, **layouts["0", layout]} for layout in ("p1", "p2")],
             ]})
     return {"module": {"id": "graph-target", "label": "PACEMAKER", "rulesets": ["bms"], "default": "aaa", "choices": choices},

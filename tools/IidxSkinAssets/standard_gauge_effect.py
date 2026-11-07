@@ -10,6 +10,7 @@ import argparse
 import copy
 import json
 from pathlib import Path
+from standard_source_catalog import frame_token, frame_id, package_key, source_style, SOURCE22_STYLES
 
 from build_fullcombo_catalog import world_matrix
 from build_standard_skin import sha
@@ -60,15 +61,15 @@ def export_gauge_feedback(library, output, bemani_root, image_tools, styles=None
     import brotli
     qualified = source_styles(metadata(library))
     styles = qualified if styles is None else styles
-    if any(type(style) is not int or style not in qualified for style in styles) or len(set(styles)) != len(styles):
+    if any(style not in qualified for style in styles) or len(set(styles)) != len(styles):
         raise ValueError("Use each qualified26 cabinet at most once")
     exporter = StandardComponents(library, output, bemani_root, image_tools)
     frames, summary = {}, []
     for style in styles:
-        layouts = frames[f"f{style:02}"] = {}
+        layouts = frames[f"f{frame_token(style)}"] = {}
         for layout, movie in MOVIES.items():
-            prefix = f"sg.f{style:02}.{layout}"
-            original = exporter.clip(f"gmframe{style:02}", movie, prefix, loop=False, trigger="gauge.increase")
+            prefix = f"sg.f{frame_token(style)}.{layout}"
+            original = exporter.clip(package_key(style), movie, prefix, loop=False, trigger="gauge.increase")
             if original["source"]["stage"] != [0, 0, 1280, 720] or original["source"]["fps"] != 60 or original["source"]["sourceFrames"] != 60:
                 raise ValueError("Gauge source differs from its independently qualified canvas/timing")
             path = output / original["animations"][0]["path"]
@@ -109,7 +110,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     for field in ("library", "output", "bemani-root", "image-tools"):
         parser.add_argument("--" + field, type=Path, required=True)
-    parser.add_argument("--styles", type=int, nargs="+")
+    parser.add_argument("--styles", type=source_style, nargs="+")
     args = parser.parse_args()
     result = export_gauge_feedback(args.library, args.output, args.bemani_root, args.image_tools, args.styles)
     print(json.dumps({"output": str(args.output), "movies": len(result["summary"]), "files": len(result["files"])}))

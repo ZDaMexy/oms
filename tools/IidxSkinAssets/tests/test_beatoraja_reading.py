@@ -49,7 +49,7 @@ class ReadingTests(unittest.TestCase):
         self.author = SimpleNamespace(family="standard", contribution=lambda name, options: self.parts[name])
         self.standard()
 
-    def standard(self, side="p1"):
+    def standard(self, side="p1", source_family="0"):
         mode = "14k" if side == "dp" else "7k"
         frame = SimpleNamespace(prefix="std.test." + side, layout=side, info=[], evidence=[],
                                 scene={"tracks": [], "bindings": [], "variants": []})
@@ -62,7 +62,7 @@ class ReadingTests(unittest.TestCase):
             frame.scene["variants"].append({"id": target + "." + prop, "target": target, "property": prop, "source": source,
                                            "default": default, "cases": [{"key": k, "value": v} for k, v in cases.items()]})
         frame.bind, frame.steps, frame.variant = bind, steps, variant
-        add_cover_readouts(frame, {"fonts": {"normal": "normal", "small": "small"}})
+        add_cover_readouts(frame, {"fonts": {"normal": "normal", "small": "small"}}, source_family=source_family)
         roots = [node("unrelated.information"), *frame.info]
         frame.scene.update({"templates": [{"id": "information", "root": node("information.root", roots)}],
                             "instances": [{"template": "information", "material": {"slot": "decoration", "resource": "marker"}}]})
@@ -162,6 +162,62 @@ class ReadingTests(unittest.TestCase):
         self.assertEqual(len(result["text"]), 18)
         self.assertEqual([result["destination"][i]["dst"][0]["x"] for i in (0, 9)], [397, 767])
         self.assertEqual(result["destination"][0]["timer"], result["destination"][9]["timer"])
+
+    def test_earlier_current_green_uses_two_actual_left_anchors_without_range(self):
+        self.standard(source_family="s22")
+        result = self.export()
+        self.assertEqual(len(result["text"]), 9)  # Three white values and two exclusive green anchors per cover.
+        self.assertEqual(len(result["font"]), 1)
+        self.assertFalse(any(".range" in text["id"] for text in result["text"]))
+        self.assertNotIn("1321", str(result))
+        self.assertIn("no endpoint range is added", str(result["gaps"]))
+        for offset in (0, 3, 6):
+            white, below, above = result["destination"][offset:offset + 3]
+            self.assertEqual([d["dst"][0]["x"] for d in (white, below, above)], [129, 219, 217])
+            self.assertIn("main_state.number(313) < 1000", below["draw"])
+            self.assertIn("main_state.number(313) >= 1000", above["draw"])
+            self.assertIn("main_state.option(270)", below["draw"])
+            self.assertEqual(below["timer"], above["timer"])
+            self.assertEqual([{key: d["dst"][0][key] for key in ("clip_x", "clip_y", "clip_w", "clip_h")}
+                              for d in (below, above)], [{"clip_x": 0, "clip_y": 238, "clip_w": 1280, "clip_h": 482}] * 2)
+        greens = [t for t in result["text"] if ".green." in t["id"]]
+        self.assertTrue(all(t["align"] == 0 and t["value"] == 'function() return string.format("%03d", main_state.number(313)) end'
+                            for t in greens))
+        descriptor = (self.sink.output / result["font"][0]["path"]).read_text()
+        self.assertNotIn("char id=32 ", descriptor)
+
+    def test_earlier_reading_scales_both_dp_anchors_and_retains_each_fixed_clip(self):
+        self.standard("dp", source_family="s22")
+        result = self.export("dp", (0, 0, 1920, 1080))
+        self.assertEqual(len(result["text"]), 18)
+        for start, white in ((0, 397), (9, 767)):
+            for offset in (0, 3, 6):
+                destinations = result["destination"][start + offset:start + offset + 3]
+                self.assertEqual([d["dst"][0]["x"] for d in destinations],
+                                 [round(x * 1.5) for x in (white, white + 90, white + 88)])
+                self.assertTrue(all(d["dst"][0]["clip_h"] == 723 for d in destinations))
+        self.assertEqual(len({t["id"] for t in result["text"]}), 18)
+
+    def test_earlier_anchor_positions_are_read_from_scene_without_version_id_inference(self):
+        self.standard("p2", source_family="s22")
+        for track in self.parts["frame"].scene["tracks"]:
+            if track["target"].endswith(".green") and track["property"] == "x":
+                for keyframe in track["keyframes"]:
+                    keyframe["value"] += 7 / 1280
+        result = self.export("p2")
+        self.assertEqual([d["dst"][0]["x"] for d in result["destination"][:3]], [1021, 1118, 1116])
+
+    def test_earlier_anchor_rejects_unqualified_threshold_and_changed_digit_geometry(self):
+        self.standard(source_family="s22")
+        track = next(t for t in self.parts["frame"].scene["tracks"] if t["target"].endswith(".green") and t["property"] == "x")
+        track["keyframes"][-1]["time"] = 999
+        with self.assertRaisesRegex(ValueError, "left-anchor track"):
+            self.export()
+        self.standard(source_family="s22")
+        track = next(t for t in self.parts["frame"].scene["tracks"] if t["target"].endswith(".green.value") and t["property"] == "x")
+        track["keyframes"][-1]["value"] += 1 / 1280
+        with self.assertRaisesRegex(ValueError, "glyph positions"):
+            self.export()
 
     def test_source_canvas_scaling_does_not_read_window_height_or_guess_config_resolution(self):
         result = self.export(canvas=(0, 0, 1920, 1080))

@@ -22,7 +22,9 @@ OPTIONS = [
     {"id": "arrival-cue", "type": "toggle", "label": "首排音符提示（25–26 / ARC SCORE）", "default": True},
 ]
 
-# Stable frame16 geometry of the six original 0/gameparts movies. The numeric
+# Stable frame16 geometry of the six original 0/s22/s23/s24 gameparts movies.
+# Each family keeps its own PNGs and UVs; only the observed bounds/hooks agree.
+# The numeric
 # prototype is hidden by the executable and replaced with font2 fixed cells.
 GEOMETRY = {
     "p1": {"window": (350, 180, 101, 304), "row": (360, 195), "select": (353, 443),
@@ -53,6 +55,9 @@ def export_ready(library, output, bemani_root, image_tools):
                                  loop=False, trigger="gameplay.attach")
             if clip["source"]["fps"] != 60 or clip["source"]["sourceFrames"] != 90:
                 raise ValueError("The qualified READY requires its original 90 frames at 60Hz")
+            if family == "s22" and (clip["source"]["stage"] != [0, 0, 1280, 720]
+                    or clip["source"]["labels"] or clip["source"]["translatedRootControl"]):
+                raise ValueError("The qualified22 READY requires its complete canvas and original nonlooping timeline")
             clips[layout] = clip
     result = {"contract": "oms-standard-reading-assets.v1", "librarySHA256": sha(library / "library.json"),
               "clips": families['0'], "families": families, "files": list(exporter.files.values()), "source": exporter.receipts}
@@ -166,31 +171,35 @@ def add_reading(frame, ready, prepared_font, font_path):
     frame.steps(green["id"], "x", "scroll.green-number",
                 [(0, (gx + 36) / 1280), (10, (gx + 24) / 1280), (100, (gx + 12) / 1280), (1000, gx / 1280)])
 
-    # 26 prints "%d-%d" in font5 at the original notes_time-relative anchor.
-    # Native providers supply the extrema; a rounded current green number is
-    # never used to reconstruct them. Larger end (minimum BPM) comes first.
-    rx, ry = ((gx + 54, gy + 4) if frame.dp else (gx + 60, gy - 16) if frame.p2 else (gx, gy - 16))
-    ranges = node(prefix + ".green.range", properties={"x": rx / 1280, "y": ry / 720})
-    large = text("green.max", "", 0, 0, 80, colour="#00ff00ff", source="scroll.green-number-max", size="small")
-    small = text("green.min", "", 0, 0, 80, colour="#00ff00ff", source="scroll.green-number-min", size="small")
-    hyphen = text("green.hyphen", "-", 0, 0, 8, colour="#00ff00ff", size="small")
-    widths = [(0, 8), (10, 16), (100, 24), (1000, 32), (10000, 40), (100000, 48),
-              (1000000, 56), (10000000, 80)]
-    if frame.p2:
-        tail = node(prefix + ".green.tail", children=[small, hyphen])
-        hyphen["properties"]["x"] = -8 / 1280
-        head = node(prefix + ".green.head", children=[large])
-        tail["children"].append(head)
-        ranges["children"].append(tail)
-        frame.steps(tail["id"], "x", "scroll.green-number-min", [(value, -width / 1280) for value, width in widths])
-        frame.steps(head["id"], "x", "scroll.green-number-max", [(value, -(width + 8) / 1280) for value, width in widths])
-    else:
-        tail = node(prefix + ".green.tail", children=[hyphen, small])
-        small["properties"]["x"] = 8 / 1280
-        ranges["children"].extend([large, tail])
-        frame.steps(tail["id"], "x", "scroll.green-number-max", [(value, width / 1280) for value, width in widths])
-    frame.bind(ranges["id"], "visible", "scroll.green-number-range-available")
-    body = gate("adjusting", "scroll.adjusting", [*modes, green, ranges])
+    readouts = [green]
+    # 22's audited Start renderer draws only the current %4d value. The later
+    # font5 max-min branch is not a source22 capability.
+    if layout_family(frame.style) != "s22":
+        # 26 prints "%d-%d" in font5 at the notes_time-relative anchor.
+        # Providers supply the extrema; never reconstruct them from current.
+        rx, ry = ((gx + 54, gy + 4) if frame.dp else (gx + 60, gy - 16) if frame.p2 else (gx, gy - 16))
+        ranges = node(prefix + ".green.range", properties={"x": rx / 1280, "y": ry / 720})
+        large = text("green.max", "", 0, 0, 80, colour="#00ff00ff", source="scroll.green-number-max", size="small")
+        small = text("green.min", "", 0, 0, 80, colour="#00ff00ff", source="scroll.green-number-min", size="small")
+        hyphen = text("green.hyphen", "-", 0, 0, 8, colour="#00ff00ff", size="small")
+        widths = [(0, 8), (10, 16), (100, 24), (1000, 32), (10000, 40), (100000, 48),
+                  (1000000, 56), (10000000, 80)]
+        if frame.p2:
+            tail = node(prefix + ".green.tail", children=[small, hyphen])
+            hyphen["properties"]["x"] = -8 / 1280
+            head = node(prefix + ".green.head", children=[large])
+            tail["children"].append(head)
+            ranges["children"].append(tail)
+            frame.steps(tail["id"], "x", "scroll.green-number-min", [(value, -width / 1280) for value, width in widths])
+            frame.steps(head["id"], "x", "scroll.green-number-max", [(value, -(width + 8) / 1280) for value, width in widths])
+        else:
+            tail = node(prefix + ".green.tail", children=[hyphen, small])
+            small["properties"]["x"] = 8 / 1280
+            ranges["children"].extend([large, tail])
+            frame.steps(tail["id"], "x", "scroll.green-number-max", [(value, width / 1280) for value, width in widths])
+        frame.bind(ranges["id"], "visible", "scroll.green-number-range-available")
+        readouts.append(ranges)
+    body = gate("adjusting", "scroll.adjusting", [*modes, *readouts])
     body = gate("available", "scroll.available", [body])
     body = gate("version", "scroll.hi-speed-available", [body])
     frame.info.append(gate("enabled", "option.start-panel", [body]))
@@ -216,6 +225,17 @@ def add_reading(frame, ready, prepared_font, font_path):
         "floatingCurrent": "26 caller350957 draws font2 at spd2_0+(10,0); DP original limit/CURRENT labels are baked and not redrawn.",
         "classicWindow": "Explicit OMS CLASSIC label; DP keeps Floating upper300 source pixels over the original generic lower HI-SPEED CHANGE panel.",
         "ready": clip["source"], "clock": "preparation.ready-elapsed"}})
+    if layout_family(frame.style) == "s22":
+        frame.evidence[-1]["reading"].update({
+            "geometryBasis": "The original22 six speed movies independently retain the frame16 bounds and named hooks used here. Own22 PNGs and complete90-frame READY programs are used; matching geometry does not replace source pixels.",
+            "nativeReferenceBoundary": "The supplied22 Start renderer independently qualifies current green, Floating slider travel and current multiplier placement. Numeric glyphs and OMS reading state remain explicit host adapters.",
+            "normal": "OMS-authored ten-row pages for preset indices1..20 in the original22 window. The22 caller instead draws eleven fixed multipliers with25px row spacing; those source preset semantics are not reproduced.",
+            "green": "Actual current green at the original notes_time anchor, retaining minimum four-cell spacing. No later max-min range is added to22.",
+            "greenExtremeWidth": "Not applicable: the22 Start renderer has no qualified endpoint-range branch.",
+            "floatingSlider": "The22 caller independently uses (speed-.5)*174/9.5. The original source anchors and174px travel are driven by the actual OMS multiplier.",
+            "floatingCurrent": "The22 caller uses font2 at spd2_0+(10,0); source DP labels stay baked. The source font in this author remains the separately qualified shared OMS numeric adapter.",
+            "sourceCapabilities": {"currentGreen": True, "greenRange": False,
+                "dedicatedNormalSpeedPreviewArt": False, "firstRowCueArt": False}})
 
 
 def add_preview_background(frame, children):

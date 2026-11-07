@@ -4,7 +4,9 @@ No image is decoded or modified. Each output layer retains the original local
 ancestor states, masks, geometry, camera, frame count and loop. Concatenating
 its visible mesh order must reproduce the original mesh order in every frame.
 The caller applies six-step RGB brightness only to lane layers. Its native
-26 caller evidence is not attributed to the separately supplied 23/24 art.
+26 caller evidence is not attributed to the separately supplied 22/23/24 art.
+The two 22 sources with a baked lane use disjoint subdivisions of that original
+mesh, with interpolated original UVs; they never tint the complete cabinet.
 """
 from __future__ import annotations
 
@@ -12,7 +14,9 @@ import argparse
 from copy import deepcopy
 import hashlib
 import json
+import math
 from pathlib import Path
+from standard_source_catalog import frame_token, frame_id, package_key, source_style, SOURCE22_STYLES
 import re
 from standard_source_catalog import styles as source_styles, layout_family
 
@@ -47,7 +51,7 @@ def earlier_lane_roots(source, layout, style):
     shape name. Do not brighten a neighbouring lane_bg shell or its ancestor.
     """
     movie = source["sourceMovie"]
-    if source["package"] != f"gmframe{style:02}" or layout["package"] != source["package"]:
+    if source["package"] != package_key(style) or layout["package"] != source["package"]:
         raise ValueError("Earlier lane geometry belongs to a different source package")
     expected = {
         "1p_frame": {"lane_1p": "sp_lane_1p"},
@@ -104,6 +108,15 @@ def lane_roots(source, layout, *, style=None):
         if hooks:
             raise ValueError("Earlier lane source unexpectedly contains named lane placements")
         return earlier_lane_roots(source, layout, style)
+    if style in SOURCE22_STYLES:
+        if hooks:
+            raise ValueError("22 source unexpectedly contains named lane placements")
+        if source["sourceMovie"] not in ("1p_frame", "2p_frame", "center_frame_dp_1p"):
+            return {}
+        if pendual_baked_surfaces(source, layout, style):
+            raise ValueError("Baked 22 lane requires geometry partition, not whole-panel brightness")
+        _pendual_lane_domains(source, layout, style)
+        return earlier_lane_roots(source, layout, style)
     for hook in hooks:
         candidates = [n["id"] for n in source["nodes"] if
                       (n["sourceTag"], n["sourceObject"], n["depth"]) ==
@@ -112,6 +125,240 @@ def lane_roots(source, layout, *, style=None):
             raise ValueError("Lane source placement must resolve to one original node")
         result[hook["name"]] = candidates[0]
     return result
+
+
+def _pendual_lane_domains(source, layout, style):
+    from standard_lane_geometry import source_lane_regions
+    if source["package"] != package_key(style) or layout["package"] != source["package"]:
+        raise ValueError("22 lane belongs to a different source package")
+    mode = {"1p_frame": "p1", "2p_frame": "p2", "center_frame_dp_1p": "dp"}[source["sourceMovie"]]
+    return source_lane_regions({"package": source["package"], "common_family": "s22",
+                                "layouts": {source["sourceMovie"]: layout}}, style, mode)
+
+
+def pendual_baked_surfaces(source, layout, style):
+    """Identify only the qualified 22 panel placements with embedded lanes.
+
+    The local rectangle is the measured 292x484 source-plane convention also
+    used by standard_lane_geometry. The native note scissor is a separate 482px
+    contract. A name or a similar-looking raster alone cannot select a mesh.
+    """
+    movie = source["sourceMovie"]
+    if style not in SOURCE22_STYLES or movie not in ("1p_frame", "2p_frame", "center_frame_dp_1p"):
+        return {}
+    if style != "source22-gmframe9" and not (style == "source22-gmframe8" and movie != "center_frame_dp_1p"):
+        return {}
+    if any(h["name"] in ("lane_1p", "lane_2p") for h in layout["dynamic_instances"]):
+        raise ValueError("22 baked panel unexpectedly contains named lane placements")
+    domains = _pendual_lane_domains(source, layout, style)
+    result = {}
+    for group, _ in enumerate(domains):
+        right = group == 1 if movie == "center_frame_dp_1p" else movie == "2p_frame"
+        player = "2p" if right else "1p"
+        if style == "source22-gmframe8":
+            texture, left = "sp_frame_" + player, 16 if right else 48
+        else:
+            texture, left = "frame_lane_" + player, 5 if right else 57
+        draw, = (d for d in layout["draws"] if d["texture"] == texture)
+        if (draw["asset"]["name"] != texture or draw["game_bindings"]
+                or len(draw["draw_params"]) != 1
+                or draw["draw_params"][0]["region"] != texture
+                or draw["draw_params"][0]["vertexes"] != [0, 1, 2, 2, 1, 3]):
+            raise ValueError("22 baked lane is not the qualified original textured quad")
+        shape = draw["geometry"].split(", ")[0]
+        matches = []
+        for node in source["nodes"]:
+            if node["source"] != shape or node["kind"] != "mesh" or node["geometry"] is None:
+                continue
+            chain, current = [], node
+            while True:
+                chain.append({"depth": current["depth"], "tag_id": current["sourceTag"]})
+                if current["parent"] < 0:
+                    break
+                if current["parent"] >= current["id"]:
+                    raise ValueError("22 panel ancestry is not in original traversal order")
+                current = source["nodes"][current["parent"]]
+            path = [{"depth": item["depth"], "tag_id": item["tag_id"]} for item in draw["layer_path"]]
+            if chain[::-1] == path:
+                matches.append(node)
+        if len(matches) != 1 or any(n["parent"] == matches[0]["id"] for n in source["nodes"]):
+            raise ValueError("22 baked lane must resolve to one original leaf mesh")
+        node = matches[0]
+        result["lane_" + player] = {"node": node["id"], "geometry": node["geometry"], "texture": texture,
+                                  "rectangle": [left, 0, left + 292, 484],
+                                  "sourceVertices": [[v["x"], v["y"], v["z"]] for v in draw["source_vertices"]]}
+    return result
+
+
+def split_geometry_rectangle(geometry, rectangle):
+    """Partition every original triangle, interpolating all XYZ/UV components.
+
+    Each half-plane intersection is calculated once for both sides. The outside
+    pieces are disjoint; together with the inside they exactly cover the source
+    triangle. Parent transforms, perspective, filters and masks remain upstream
+    of these meshes, as in the existing recorded-animation evaluator.
+    """
+    points, indices = geometry["vertices"], geometry["triangles"]
+    left, top, right, bottom = rectangle
+    if (not left < right or not top < bottom or not indices or len(indices) % 3
+            or geometry["resource"] is None or "colour" in geometry
+            or any(len(v) != 5 or not all(math.isfinite(c) for c in v) for v in points)):
+        raise ValueError("Baked panel partition requires finite textured triangles and a positive rectangle")
+    pieces = {"frame": {"resource": geometry["resource"], "vertices": [], "triangles": []},
+              "lane": {"resource": geometry["resource"], "vertices": [], "triangles": []}}
+    tables = {kind: {} for kind in pieces}
+
+    def area(a, b, c):
+        return ((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])) / 2
+
+    def append(kind, polygon):
+        target, table = pieces[kind], tables[kind]
+        for index in range(1, len(polygon) - 1):
+            triangle = (polygon[0], polygon[index], polygon[index + 1])
+            if abs(area(*triangle)) <= 1e-12:
+                continue
+            for point in triangle:
+                key = tuple(point)
+                if key not in table:
+                    table[key] = len(target["vertices"])
+                    target["vertices"].append(list(point))
+                target["triangles"].append(table[key])
+
+    def cut(polygon, axis, boundary, sign):
+        inside, outside = [], []
+        if not polygon:
+            return inside, outside
+        previous = polygon[-1]
+        previous_inside = sign * (previous[axis] - boundary) >= 0
+        for point in polygon:
+            point_inside = sign * (point[axis] - boundary) >= 0
+            if point_inside != previous_inside:
+                factor = (boundary - previous[axis]) / (point[axis] - previous[axis])
+                intersection = [a + factor * (b - a) for a, b in zip(previous, point)]
+                intersection[axis] = boundary
+                inside.append(intersection)
+                outside.append(intersection)
+            (inside if point_inside else outside).append(point)
+            previous, previous_inside = point, point_inside
+        return inside, outside
+
+    original_area = 0
+    for offset in range(0, len(indices), 3):
+        polygon = [points[index] for index in indices[offset:offset + 3]]
+        original_area += abs(area(*polygon))
+        for axis, boundary, sign in ((0, left, 1), (0, right, -1), (1, top, 1), (1, bottom, -1)):
+            polygon, outside = cut(polygon, axis, boundary, sign)
+            append("frame", outside)
+        append("lane", polygon)
+    areas = {kind: sum(abs(area(*(value["vertices"][index] for index in value["triangles"][offset:offset + 3])))
+                       for offset in range(0, len(value["triangles"]), 3)) for kind, value in pieces.items()}
+    if min(areas.values()) <= 0 or not math.isclose(sum(areas.values()), original_area, rel_tol=1e-12, abs_tol=1e-8):
+        raise ValueError("Baked lane subdivision does not preserve the original surface area")
+    return pieces, {"originalArea": original_area, "insideArea": areas["lane"], "outsideArea": areas["frame"],
+                    "triangles": {kind: len(value["triangles"]) // 3 for kind, value in pieces.items()}}
+
+
+def partition_baked_lane_clip(source, clip, surfaces, source_geometry, source_frame_indices):
+    """Replace each qualified original leaf by adjacent outside/inside leaves.
+
+    All source and public identities are paired before expansion. The derived
+    nodes share their original parent and every original per-frame state; no
+    new transform, colour, mask, timing or resource is introduced. The ordinary
+    layer partitioner then verifies the full expanded draw order in every frame.
+    """
+    if len(source_frame_indices) != len(clip["frames"]):
+        raise ValueError("Source/public frame cardinality differs")
+    source_nodes = source["nodes"]
+    if [n["id"] for n in source_nodes] != list(range(len(source_nodes))):
+        raise ValueError("Source node IDs are not a contiguous identity table")
+    if any(n["parent"] >= n["id"] or n["parent"] < -1 for n in source_nodes):
+        raise ValueError("Source parent tree is not in its original traversal order")
+    public_source = {}
+    for original_index, frame in zip(source_frame_indices, clip["frames"]):
+        hidden, visible = set(), []
+        for n, s in source["frames"][original_index]["nodes"]:
+            if not source["states"][s]["visible"] or source_nodes[n]["parent"] in hidden:
+                hidden.add(n)
+            else:
+                visible.append(n)
+        if len(visible) != len(frame["nodes"]):
+            raise ValueError("Source/public visible-node cardinality differs")
+        for n, (public, _) in zip(visible, frame["nodes"]):
+            if public in public_source and public_source[public] != n:
+                raise ValueError("Public recorded node has ambiguous source identity")
+            public_source[public] = n
+    if set(public_source) != set(range(len(clip["nodes"]))):
+        raise ValueError("Recorded clip has nodes without a source-frame identity")
+    targets = {entry["node"]: entry for entry in surfaces.values()}
+    if len(targets) != len(surfaces):
+        raise ValueError("Baked lane placements must be distinct")
+    expanded_source_nodes, source_map, source_origins = [], {}, []
+    for n in source_nodes:
+        source_map[n["id"]] = []
+        for _ in range(2 if n["id"] in targets else 1):
+            identifier = len(expanded_source_nodes)
+            source_map[n["id"]].append(identifier)
+            expanded_source_nodes.append({**n, "id": identifier,
+                                          "parent": source_map[n["parent"]][0] if n["parent"] >= 0 else -1})
+            source_origins.append(n["id"])
+    expanded_source = {**source, "nodes": expanded_source_nodes,
+                       "frames": [{**f, "nodes": [[derived, s] for n, s in f["nodes"] for derived in source_map[n]]}
+                                  for f in source["frames"]]}
+    geometries, public_nodes, public_map, public_origins, geometry_origins = [], [], {}, [], []
+    geometry_map, proofs = {}, []
+    for public, node in enumerate(clip["nodes"]):
+        target = targets.get(public_source[public])
+        original_geometry = node["geometry"]
+        kinds = ("frame", "lane") if target else (None,)
+        for kind in kinds:
+            geometry_index = -1
+            if original_geometry >= 0:
+                key = (original_geometry, tuple(target["rectangle"]) if target else None, kind)
+                if key not in geometry_map:
+                    geometry = clip["geometries"][original_geometry]
+                    if target:
+                        original = source_geometry["geometries"][target["geometry"]]
+                        if (original["source"] != source_nodes[public_source[public]]["source"]
+                                or original["vertices"] != target["sourceVertices"] or original["colours"]
+                                or len(original["draws"]) != 1):
+                            raise ValueError("Baked panel source geometry no longer matches its qualified leaf")
+                        draw, = original["draws"]
+                        if (draw["texture"] is None or draw["sourceColour"] is not None
+                                or not draw["flags"] & 1 or draw["indices"] != [0, 1, 2, 2, 1, 3]
+                                or geometry["triangles"] != draw["indices"]
+                                or geometry["vertices"] != [[*v, *uv] for v, uv in zip(original["vertices"], draw["uv"])]):
+                            raise ValueError("Baked panel recorded XYZ/UV/triangles differ from the source geometry")
+                        pieces, proof = split_geometry_rectangle(geometry, target["rectangle"])
+                        geometry = pieces[kind]
+                        if kind == "lane":
+                            proofs.append({"sourceNode": public_source[public], "publicNode": public,
+                                           "sourceGeometry": target["geometry"], "publicGeometry": original_geometry,
+                                           "rectangle": target["rectangle"], **proof})
+                    geometry_map[key] = len(geometries)
+                    geometries.append(deepcopy(geometry))
+                    geometry_origins.append(original_geometry)
+                geometry_index = geometry_map[key]
+            elif target:
+                raise ValueError("Baked lane unexpectedly became a public container")
+            public_map.setdefault(public, []).append(len(public_nodes))
+            public_nodes.append({**node, "parent": public_map[node["parent"]][0] if node["parent"] >= 0 else -1,
+                                 "geometry": geometry_index})
+            public_origins.append(public)
+    expanded = {**clip, "nodes": public_nodes, "geometries": geometries,
+                "frames": [{**frame, "nodes": [[derived, s] for n, s in frame["nodes"] for derived in public_map[n]]}
+                           for frame in clip["frames"]]}
+    roots = {name: source_map[item["node"]][1] for name, item in surfaces.items()}
+    layers = partition_clip(expanded_source, expanded, roots, source_frame_indices)
+    for layer in layers:
+        layer["subdivisionNodeIds"] = layer["originalNodeIds"]
+        layer["originalNodeIds"] = [public_origins[n] for n in layer["subdivisionNodeIds"]]
+        layer["sourceNodeIds"] = [source_origins[n] for n in layer["sourceNodeIds"]]
+        layer["originalGeometryIds"] = [geometry_origins[g] for g in layer["originalGeometryIds"]]
+    return layers, {"method": "Disjoint original-triangle half-plane subdivision; original XYZ/UV interpolation",
+                    "rectangles": surfaces, "partitions": proofs,
+                    "originalParentsStatesMasksCamerasAndTimingPreserved": True,
+                    "originalLeafOrderPreservedWithAdjacentPieces": True,
+                    "noPngDecodeOrPixelModification": True}
 
 
 def partition_clip(source, clip, roots, source_frame_indices):
@@ -238,6 +485,7 @@ def partition_clip(source, clip, roots, source_frame_indices):
 def export_lane_layers(library, research, style, movie, output):
     """Export an ordered layer list compatible with existing frame branches."""
     import brotli
+    style = source_style(style)
     library = Path(library).resolve(strict=True)
     research = Path(research).resolve(strict=True)
     output = Path(output).resolve()
@@ -248,16 +496,20 @@ def export_lane_layers(library, research, style, movie, output):
         raise ValueError("Layer output must not modify existing source research")
     if inventory["status"] != "complete" or inventory["sourceMetadataUnchanged"] is not True:
         raise ValueError("Use the independently verified Standard library")
-    cabinet = research / f"gmframe{style:02}"
+    cabinet = research / package_key(style)
     reference = read(cabinet / "skin-reference-map.json")
     folder = cabinet / "recorded" / movie
     original = read(folder / "export.json")
-    if (reference["package"] != f"gmframe{style:02}" or reference["common_family"] != layout_family(style)
+    if (reference["package"] != package_key(style) or reference["common_family"] != layout_family(style)
             or original["source"]["package"] != reference["package"] or original["source"]["movie"] != movie):
         raise ValueError("Frame export does not match the selected Standard source")
     source = read(folder / "source-root.json")
-    roots = lane_roots(source, reference["layouts"][movie], style=style)
-    destination = output / f"gmframe{style:02}" / movie
+    layout = reference["layouts"][movie]
+    baked = pendual_baked_surfaces(source, layout, style)
+    roots = ({name: entry["node"] for name, entry in baked.items()} if baked
+             else lane_roots(source, layout, style=style))
+    source_geometry = read(folder / "source-geometry.json") if baked else None
+    destination = output / package_key(style) / movie
     destination.mkdir(parents=True, exist_ok=False)
     result = {"contract": "oms-standard-lane-layers.v1", "source": original["source"],
               "options": [BRIGHTNESS_OPTION] if roots else [],
@@ -265,7 +517,16 @@ def export_lane_layers(library, research, style, movie, output):
                           "sourceRootSHA256": digest(folder / "source-root.json"), "laneRoots": roots,
                           "pngBytesPreserved": True, "perFrameDrawOrderPreserved": True,
                           "limits": "Source layers only; final public CLI and actual Player budgets/visuals are separate checks."}}
-    if style in (23, 24):
+    if style in SOURCE22_STYLES:
+        result["receipt"]["laneIdentification"] = ("Exact package-local baked panel GEO and complete placement path; disjoint lane subdivision"
+                                                   if baked else "Exact package-local unnamed sp_lane GEO and complete placement path")
+        result["receipt"]["brightnessEvidence"] = (
+            "22 original meshes; existing OMS six-step brightness author option. "
+            "The 26 native colour caller and multiplier RVAs are not evidence for this source. "
+            "The source-plane domain remains 292x484; the independently audited 22 native note scissor is 482px.")
+        if baked:
+            result["receipt"]["sourceGeometrySHA256"] = digest(folder / "source-geometry.json")
+    elif style in (23, 24):
         result["receipt"]["laneIdentification"] = "Exact package-local sp_lane GEO and full source placement path"
         result["receipt"]["brightnessEvidence"] = (
             "23/24 source mesh separation; existing OMS six-step brightness author option. "
@@ -284,7 +545,11 @@ def export_lane_layers(library, research, style, movie, output):
             result[mode] = {"layers": [{"kind": "frame", **deepcopy(branch), "bindings": []}],
                             "receipt": {"before": stats(clip), "after": stats(clip), "delta": {k: 0 for k in stats(clip)}}}
             continue
-        layers = partition_clip(source, clip, roots, frame_indices)
+        subdivision = None
+        if baked:
+            layers, subdivision = partition_baked_lane_clip(source, clip, baked, source_geometry, frame_indices)
+        else:
+            layers = partition_clip(source, clip, roots, frame_indices)
         result[mode] = {"layers": []}
         totals = {key: 0 for key in stats(clip)}
         for i, layer in enumerate(layers):
@@ -296,7 +561,7 @@ def export_lane_layers(library, research, style, movie, output):
             name = f"{mode}.layer{i:02}.clip.json.br"
             path = destination / name
             path.write_bytes(compressed)
-            archive = f"standard/lane-layers/iidx{style:02}/{movie}/{name}"
+            archive = f"standard/lane-layers/{frame_id(style)}/{movie}/{name}"
             prefix = branch["node"]["id"].removesuffix(".node") + f".layer{i:02}"
             node = deepcopy(branch["node"])
             node["id"], node["animation"] = prefix + ".node", prefix + ".clip"
@@ -333,6 +598,8 @@ def export_lane_layers(library, research, style, movie, output):
                                   "delta": {k: totals[k] - before[k] for k in before},
                                   "uniqueResources": len({r["id"] for layer in result[mode]["layers"] for r in layer["resources"]}),
                                   "sourceFramesUnchanged": True}
+        if subdivision:
+            result[mode]["receipt"]["geometrySubdivision"] = subdivision
     (destination / "export.json").write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return result
 
@@ -341,7 +608,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("library", "research", "output"):
         parser.add_argument("--" + name, type=Path, required=True)
-    parser.add_argument("--styles", type=int, nargs="+", required=True)
+    parser.add_argument("--styles", type=source_style, nargs="+", required=True)
     parser.add_argument("--movies", nargs="+", default=["1p_frame", "2p_frame", "center_frame_dp_1p"])
     args = parser.parse_args()
     for style in args.styles:

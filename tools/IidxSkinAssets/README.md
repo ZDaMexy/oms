@@ -53,17 +53,17 @@
 
 ## 独立 Standard 时期作品
 
-`build_standard_skin.py` 消费来源明确的 Standard 素材库、研究输出及组件目录，基础名称为 **Standard Model Skin Omni Until 26**。现支持保留的26库，以及由该库与新24库组成的独立来源；后者包含23 copula保留美术、24 SINOBUZ、25 CANNON BALLERS保留美术、26 Rootage及八款26 ARC SCORE复刻，不能称3～26完整原版覆盖。23/25原程序未由这些保留图证明，编号03也不是原版覆盖起点。来源分类、实际程序身份与未识别边界只在[作品记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#2026-11-07-24-来源接入)维护，不以选中清单宣称HDD素材穷尽。
+`build_standard_skin.py` 消费来源明确的 Standard 素材库、研究输出及组件目录，基础名称为 **Standard Model Skin Omni Until 26**。现支持26、24/26和22/24/26三种明确组成库。22来源保留六份框体档案，只有PRESENT、FUTURE及LINCLE/tricoro/SPADA三个CUSTOM主题具备可生成的闭包；裸`gmframe0`缺必要字形且没有已证原生加载入口，只留作研究。与既有23 copula保留美术、24 SINOBUZ、25 CANNON BALLERS保留美术、26 Rootage及八款26 ARC SCORE复刻合计17个可生成主题，不能称3～26完整原版覆盖。来源分类、实际程序身份与未识别边界只在[作品记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)维护，不以生成清单代替成品验收或HDD素材穷尽。
 
 既有v00/v01/v02保留各自历史身份和验证边界；已交付v02取[历史验收](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#v02-验证与交付历史)。24来源候选的作者生成不代表CLI、OSK或Player验收完成，当前状态取[本轮验证](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#本轮验证与交付)。复跑须重新核对同包身份，不能沿用旧包结论。工具只复用中立解析及公开合同，不读取Lightning作者包或以其素材补缺。
 
-25框体配对26 HDD的family1 Graph、失败和Classic BGA外框，原十框体中的其余九款使用family0；23/24分别使用24 HDD根族/0族的`s23`/`s24`别名。`compose_standard_sources.py`只追加固定13个别名，保留两份精确输入清单及原始路径，不改原IFS/AFP/GEO/PNG字节。相同画布不证明两族是HD/SD副本；保留主题的作者配方和原程序可选性、调用、时序分别记证。
+25框体配对26 HDD的family1 Graph、失败和Classic BGA外框，原十框体中的其余九款使用family0；23/24分别使用24 HDD根族/0族的`s23`/`s24`别名。22独立使用`source22/`框体与组件以及`s22/`公共素材，不与相同年代的ARC SCORE选择共用身份。`compose_standard_sources.py`原24/26接口保留，22扩展另收固定24个别名及原组成库清单；原IFS/AFP/GEO/PNG字节不改。`retained_styles()`枚举18份来源档案，`styles()`只枚举17个可生成主题，两者不能混用。相同画布不证明来源相同；作者配方和原程序可选性、调用、时序分别记证。
 
 | 入口 | 责任 |
 | --- | --- |
 | `build_library.py` | 按明确选择提取IFS；显式保留异常纹理名字节，保存原件、XML/UV、AFP/GEO及名称映射 |
-| `compose_standard_sources.py` / `standard_source_catalog.py` | 核对独立24/26输入，组成固定别名库并提供每框体的明确来源族 |
-| `compose_standard_research.py` | 复核原研究闭包后合并十二款布局；只重绑相同来源文件的路径 |
+| `compose_standard_sources.py` / `standard_source_catalog.py` | 核对独立22/24/26输入，组成固定别名库并区分保留档案与可生成主题 |
+| `compose_standard_research.py` | 复核各来源完整研究闭包；22扩展保留18份档案，只重绑相同来源文件的路径 |
 | `standard_reference.py` | 每款框体完整 narrow/wide/DP 源电影、静态核对图、原几何和 recorded 片段 |
 | `standard_components.py` | 原 CUSTOM 图与动画贡献、真实对象状态及共享判定位置；保留源能力与OMS选项适配的区别 |
 | `standard_script_masks.py` / `standard_lane_geometry.py` | 离线求值旧FC已核实的矩形脚本遮罩；区分原轨底动画与OMS游玩区域 |
@@ -121,7 +121,7 @@ dotnet run --project tools/SkinAuthoring -- pack "$taskStandardRoot/author-compa
 
 压缩步骤读取已生成的作者目录，要求输出目录和收据路径全新、彼此独立，且都在输入目录之外。按字段类型缩短 texture/bitmap-font 引用、track/keyframe/binding/variant/case 声明 ID，以及 node/template/instance ID 与对应的 target/template 引用，不批量替换文字或条件值。取景观察使用的 `.reading.`、`.arrival.`、`.best.`、`.cutin.` 节点及以 `.current.value` 结尾的节点保留完整 ID；animation、machine/state、数值来源、选项及 C3 布局目标身份保持。INI 字节、material marker、PNG 文件字节保持；仅重命名不受 INI/material 保护的资源与录制路径，不因图片同字节合并不同来源的资源。
 
-catalog 实际引用且输出字节完全相同的 manifest/scene/INI 文件可共用字典序第一个原路径，同步改写 catalog 引用；固定的 manifest.scene 合同值不变。scene 身份与引用须通过逆向映射恢复原结构，catalog 改动按路径逐项还原；recorded 文件只改纹理引用，几何、UV、变换、颜色、帧和时间的数值文本保持。私有收据保存完整映射、配置别名、引用改动及逐文件校验，不进入 OSK。按唯一输出文件计算的整包配置 **16 MiB** 与实际选中组合 **384 个资源**上限均不放宽。压缩后必须对 `author-compact` 执行正式 `check`、`pack`，并以同一包完成真实 Player 验收，不能用压缩前目录或逆向校验代替。
+catalog 实际引用且输出字节完全相同的 manifest/scene/INI 文件可共用字典序第一个原路径，同步改写 catalog 引用；固定的 manifest.scene 合同值不变。scene 身份与引用须通过逆向映射恢复原结构，catalog 改动按路径逐项还原；recorded 文件只改纹理引用，几何、UV、变换、颜色、帧和时间的数值文本保持。私有收据保存完整映射、配置别名、引用改动及逐文件校验，不进入 OSK。按唯一输出文件计算的整包配置按现行归档总限 **32 MiB** 检查，实际选中组合仍限 **384 个资源**。22扩展的配置超过旧16MiB门，需使用本轮更新后的OMS；单条目、总包、压缩比和其它运行预算保持。压缩后必须对 `author-compact` 执行正式 `check`、`pack`，并以同一包完成真实 Player 验收，不能用压缩前目录或逆向校验代替。
 
 Gauge 导出提供原 one-shot 与 loop；整合器按真实增加历史和 Clear 状态组织初始挂载循环。JUDGE 使用 Global `decoration` 全画布信息 marker，BMS/mania 各自按 `layout.ruleset` 显示；失败片段独立挂在直接场景树的 Global `hud.text` 前景，显式 Global 子节点保持完整 SafeBounds，才能覆盖最后的判定。JUDGE 开关、开场隐藏与失败生命周期分别控制，不让窄 footer 的 material-selected 投影裁掉失败画面。失败录制使用公开事件 `gameplay.fail`，不是 `gameplay.failed`；源帧与独立失败演出寿命分别负责素材和宿主行为。Normal 预览只读取唯一原生驱动的实际 phase；26来源的16-note/开合与OMS两音符、首排脉冲、0～1000白字等适配写入收据。23/24没有专用Normal预览窗和首排cue原图，不输出这些作者装饰与声明，仍保留OMS原生轨道内预览回退；没有专用艺术不等于关闭原生调速能力，也不从26补图冒充旧版。
 
@@ -214,7 +214,7 @@ python -B tools/IidxSkinAssets/build_lighting_native_hud.py --source 'Y:\ColumnO
 
 原版新采样已直接证明默认j00的蓝/绿/粉三套标签和数字同步变化，但当前采图速度会影响观测驻留，尚未唯一校准源周期和命中原点。未标定的PG迁移原型只留本地诊断，不参与本入口或发布，不给所有21套套用猜定周期。
 
-各款转盘只在加载期选择当前框体贡献，游玩不计算其它14框体的马达。设备相对counts与校准revolutions分开叠加；数字键/Auto/旧回放没有可证明的带符号运动时仅显示常转。新增纹理使用短内容标识、原PNG字节和原采样；入场声明仅缩短ID，保留全部时间与几何采样。46种转盘按所选清单共用15份相同几何，原图/滤波各自保留；相同INI按原字节去重。scene大小为数字归一化预留空间；整包配置仍守导入16MiB，C2捕获的64MiB结构预算不替代它。实际选中资源/像素/scene/manifest预算均需检查，普通包不声明这些能力时保持原流程。
+各款转盘只在加载期选择当前框体贡献，游玩不计算其它14框体的马达。设备相对counts与校准revolutions分开叠加；数字键/Auto/旧回放没有可证明的带符号运动时仅显示常转。新增纹理使用短内容标识、原PNG字节和原采样；入场声明仅缩短ID，保留全部时间与几何采样。46种转盘按所选清单共用15份相同几何，原图/滤波各自保留；相同INI按原字节去重。scene大小为数字归一化预留空间；整包配置沿现行导入32MiB上限，C2捕获的64MiB结构预算不替代它；本段旧Lightning包的原16MiB验收事实保持。实际选中资源/像素/scene/manifest预算均需检查，普通包不声明这些能力时保持原流程。
 
 ```powershell
 . .\UseDevelopmentStorage.ps1

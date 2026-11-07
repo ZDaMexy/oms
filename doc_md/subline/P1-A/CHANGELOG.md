@@ -1,5 +1,15 @@
 # P1-A 变动日志
 
+## 2026-11-08PENDUAL来源与归档容量接入
+
+按用户22 HDD直接部署并完成原版游客参照与来源查漏，未建完整HDD副本。六份框体来源保留，裸gmframe0缺必要闭包只归档；新增五可用主题、八款独有Lane图和22六支CN电影，与既有组成共17可生成主题。原始身份、CUSTOM/ARC区别、实际原版截图及Time Freeze边界取[作品来源](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-08-22-来源接入进行中)。
+
+完整作者及逆向可核压缩目录已生成。新22的cover当前绿数两档左锚、Start无范围、Graph rank几何、Assist Easy宿主适配及Tricoro SP缺游标分别保留来源事实；beatoraja只按实际作者glyph布局转换，旧族样本输出相同。235项Standard制作测试、16项beatoraja读数focused与11项压缩focused通过；源组成和旧输出独立对照保留各自证据，不外推成品实绘。
+
+合法完整配置21,399,108字节超过旧ZIP16MiB门，现有格式不能简单合并y位置选项。仅将INI/JSON归档展开总量调整为32MiB，所有其它独立门保持；新隔离Desktop、作者CLI及取景宿主Release通过，42项归档读取与16项canonical回归通过。真实32MiB读取成功，多1字节由冻结声明在payload前拒绝。目录成功不代表旧OMS可导入；本轮未生成客户端发行安装包。
+
+本阶段正式OSK打包、两宿主同包实绘、beatoraja新版本安装与ZIP交付仍在继续；旧Standard/Lightning交付及玩家数据保持原身份。新当前玩家保全基线已经建立，不能拿旧升级前用户摘要要求用户期间未游玩。私有证据归本机`artifacts/standard-model-22-20261108/`，素材和用户信息不入库。
+
 ## 2026-11-08beatoraja Lightning首版与双族交付闭合
 
 Lightning完整15主题、5KEYS/7KEYS两侧与14KEYS DP完成最终构建，官方3入口、11978片段、305次装配和75布局通过。导出约100.7分钟，实际Python OS PeakWS为1.821GiB；不沿用此前小样本读取峰值。原132个FC身份、330个开场身份和全部动画挡板来源完成证据分别保留，Standard仍使用已交付工具快照及原字节。

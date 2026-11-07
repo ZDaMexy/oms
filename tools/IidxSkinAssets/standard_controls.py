@@ -25,7 +25,7 @@ import xml.etree.ElementTree as ET
 import zlib
 
 STYLES = (3, 8, 12, 14, 16, 17, 19, 21, 25, 26)
-from standard_source_catalog import layout_family, styles as source_styles
+from standard_source_catalog import frame_token, layout_family, package_key, source_style, styles as source_styles
 from standard_lane_geometry import source_lane_regions
 KEY_HEIGHT = 80  # The explicit OMS key-area host in build_standard_skin.py.
 WIDTHS = (60, 34, 26, 34, 26, 34, 26, 34)
@@ -127,6 +127,59 @@ def only(rows, reason):
     return rows[0]
 
 
+def _raster_keys(draw, white, black, *, black_positions=None):
+    keys = []
+    for colour, (x, y, width, height), count in (("white", white, 4), ("black", black, 3)):
+        for index in range(count):
+            cap_x = black_positions[index] if colour == "black" and black_positions else x + 64 * index
+            cap = [cap_x, y, width, height]
+            if cap_x < 0 or y < 0 or cap_x + width > draw["asset"]["width"] or y + height > draw["asset"]["height"]:
+                raise ValueError("Measured source cap lies outside its original raster")
+            keys.append({"colour": colour, "draw": draw, "cap": cap, "anchorKind": "inspected-source-raster"})
+    keys.sort(key=lambda key: project(key["draw"]["matrix"], key["cap"][0] + key["cap"][2] / 2, key["cap"][1])[0])
+    return keys
+
+
+def _source22_keys(draws, style, layout, group, right):
+    """Measured caps in each retained 22 source, with its actual AFP projection.
+
+    PRESENT/FUTURE use a mirrored 1P panel on the right. Its black painted cap
+    differs from the retained SPADA panel by one pixel and must not inherit the
+    ARC SCORE/other-source cap rectangle merely because its dimensions match.
+    """
+    package = package_key(style)
+    if style in ("source22-gmframe0-00", "source22-gmframe0-01"):
+        panels = sorted((d for d in draws if d["texture"] == "sp_key_1p"), key=lambda d: d["bounds"]["left"])
+        if len(panels) != (2 if layout == "dp" else 1):
+            raise ValueError("22 PRESENT/FUTURE must retain its original mirrored key panels")
+        draw, size = panels[group] if layout == "dp" else panels[0], (322, 86)
+        white, black = (91, 12, 28, 47), (127, 8, 20, 40)
+    elif style in ("source22-gmframe0", "source22-gmframe10"):
+        name = "sp_key_" + ("2p" if right else "1p")
+        draw, size = only([d for d in draws if d["texture"] == name], "22 retained SPADA key panel"), (322, 86)
+        white = (10 if right else 91, 12, 28, 47)
+        black = (46, 7, 20, 40) if right else (128, 7, 18, 40)
+    elif style == "source22-gmframe8":
+        name = "dp_frame" if layout == "dp" else "sp_frame_" + ("2p" if right else "1p")
+        draw = only([d for d in draws if d["texture"] == name], "22 LINCLE frame raster")
+        size = (1280, 720) if layout == "dp" else (356, 720)
+        x = (689 if right else 371) if layout == "dp" else (21 if right else 115)
+        white, black = (x, 494, 28, 47), (x + 36, 489, 20, 40)
+    elif style == "source22-gmframe9":
+        name = "frame_lane_" + ("2p" if right else "1p")
+        draw, size = only([d for d in draws if d["texture"] == name], "22 TRICORO lane panel"), (354, 609)
+        x = 10 if right else 124
+        white, black = (x, 494, 28, 47), (x + 36, 489, 20, 40)
+    else:
+        raise ValueError("Unqualified 22 key source")
+    vertices = [{"x": x, "y": y, "z": 0} for x, y in
+                ((0, 0), (size[0], 0), (0, size[1]), size)]
+    if (draw["asset"]["package"] != package or (draw["asset"]["width"], draw["asset"]["height"]) != size
+            or draw["source_vertices"] != vertices):
+        raise ValueError("22 key panel identity, dimensions or original GEO changed")
+    return _raster_keys(draw, white, black)
+
+
 def cabinet_keys(reference, style, layout, group):
     """Seven left-to-right caps with their own source draw, not a guessed key hook.
 
@@ -135,6 +188,7 @@ def cabinet_keys(reference, style, layout, group):
     geometry. Raster anchors are inspected in each qualified source image;
     they are not a scale conversion from another cabinet or source family.
     """
+    style = source_style(style)
     movie = "center_frame_dp_1p" if layout == "dp" else "2p_frame" if layout == "p2" else "1p_frame"
     right = group == 1 if layout == "dp" else layout == "p2"
     draws = reference["layouts"][movie]["draws"]
@@ -142,7 +196,9 @@ def cabinet_keys(reference, style, layout, group):
     if not 0 <= group < len(regions):
         raise ValueError("Control group does not belong to this source layout")
     field = regions[group]
-    if style in (24, 25):
+    if isinstance(style, str):
+        keys = _source22_keys(draws, style, layout, group, right)
+    elif style in (24, 25):
         candidates = [d for d in draws if d["texture"] in ("key_w", "key_b") and
                       field["left"] <= (d["bounds"]["left"] + d["bounds"]["right"]) / 2 < field["right"]]
         if len(candidates) != 7:
@@ -188,17 +244,9 @@ def cabinet_keys(reference, style, layout, group):
             white, black = (6, 19, 28, 47), (42, 14, 20, 40)
         else:
             raise ValueError("Unqualified source style")
-        keys = []
-        for colour, (x, y, width, height), count in (("white", white, 4), ("black", black, 3)):
-            for index in range(count):
-                # copula's baked first black cap is one pixel farther right
-                # than a uniform 64px repetition; retain each measured anchor.
-                cap_x = (44, 107, 171)[index] if style == 23 and colour == "black" else x + 64 * index
-                cap = [cap_x, y, width, height]
-                if cap[0] < 0 or cap[1] < 0 or cap[0] + width > draw["asset"]["width"] or cap[1] + height > draw["asset"]["height"]:
-                    raise ValueError("Measured source cap lies outside its original raster")
-                keys.append({"colour": colour, "draw": draw, "cap": cap, "anchorKind": "inspected-source-raster"})
-        keys.sort(key=lambda key: project(key["draw"]["matrix"], key["cap"][0] + key["cap"][2] / 2, key["cap"][1])[0])
+        # copula's first black cap is one pixel farther right than a uniform
+        # 64px repetition; retain each measured anchor.
+        keys = _raster_keys(draw, white, black, black_positions=(44, 107, 171) if style == 23 else None)
     if [key["colour"] for key in keys] != ["white", "black", "white", "black", "white", "black", "white"]:
         raise ValueError("Source left-to-right key order differs")
     return movie, field, keys
@@ -226,6 +274,7 @@ def node(identifier, kind="container", **extra):
 
 
 def build_controls(library, frame_map, *, style, layout, contexts):
+    style = source_style(style)
     library, frame_map = Path(library).resolve(strict=True), Path(frame_map).resolve(strict=True)
     reference, inventory = read(frame_map), read(library / "library.json")
     if style not in source_styles(inventory) or layout not in ("p1", "p2", "dp"):
@@ -233,7 +282,7 @@ def build_controls(library, frame_map, *, style, layout, contexts):
     if inventory["status"] != "complete" or inventory["sourceMetadataUnchanged"] is not True:
         raise ValueError("Controls require the verified complete Standard library")
     family = layout_family(style)
-    if reference["package"] != f"gmframe{style:02}" or reference["common_family"] != family or reference["stage"] != {"width": 1280, "height": 720, "fps": 60.0}:
+    if reference["package"] != package_key(style) or reference["common_family"] != family or reference["stage"] != {"width": 1280, "height": 720, "fps": 60.0}:
         raise ValueError("Control reference is not the qualified cabinet and common source family")
     index = {(r["package"].removeprefix("contents/data/graphic/").removesuffix(".ifs"), Path(r["name"]).stem): r
              for r in inventory["textures"]}
@@ -281,8 +330,8 @@ def build_controls(library, frame_map, *, style, layout, contexts):
             slot, right = source_slot(context, lane)
             identity = group, slot
             if identity not in authored:
-                prefix = f"standard.controls.f{style:02}.{layout}.g{group}.k{slot}"
-                material = f"standard/markers/controls-f{style:02}-{layout}-g{group}-k{slot}"
+                prefix = f"standard.controls.f{frame_token(style)}.{layout}.g{group}.k{slot}"
+                material = f"standard/markers/controls-f{frame_token(style)}-{layout}-g{group}-k{slot}"
                 authored[identity] = material
                 root = node(prefix + ".root", slot="playfield.key")
                 result["templates"].append({"id": prefix + ".template", "root": root})
@@ -338,6 +387,11 @@ def build_controls(library, frame_map, *, style, layout, contexts):
         result["receipt"]["limits"].append(
             "Earlier controls use their own s23/s24 gameparts lights and original cabinet cap transforms. "
             "The shared OMS 484px lane-plane convention is an explicit mapping, not a claim that the 24 native note scissor is 484px.")
+    if isinstance(style, str):
+        result["receipt"]["limits"].append(
+            "22 controls consume only s22/gameparts and their selected source22 cabinet. PRESENT/FUTURE's right panel uses its original mirrored 1P raster. "
+            "The fixed 484px OMS component plane is an explicit adaptation; the evidenced 22 native note scissor is 482px. "
+            "Baked LINCLE/TRICORO lane art remains in its original cabinet raster, independently of the logical note plane.")
     if style == 23:
         result["receipt"]["limits"].append(
             "copula kenban_light_big/mini are retained in the cabinet entry movie (before its loop); "

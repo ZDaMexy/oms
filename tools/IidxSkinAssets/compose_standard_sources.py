@@ -1,8 +1,10 @@
-"""Compose verified 24/26 art libraries without overwriting either source.
+"""Compose verified Standard libraries without overwriting any source.
 
 Only explicit logical package aliases change. PNG, AFP, GEO, archive and other
 payload bytes are copied unchanged. Original game paths/hashes remain in each
-package's origin and the two exact input manifests. No Lightning input exists.
+package's origin and exact input manifests. The 22 extension retains the whole
+24/26 manifest so existing AFP research keeps its original identity. No
+Lightning input exists.
 """
 from __future__ import annotations
 import argparse
@@ -13,7 +15,8 @@ from pathlib import Path, PurePosixPath
 import shutil
 from urllib.parse import quote, unquote
 
-from standard_source_catalog import BASE_STYLES, COMPOSITION, EARLIER_ALIASES
+from standard_source_catalog import (BASE_STYLES, COMPOSITION, COMPOSITION22,
+                                     EARLIER_ALIASES, SOURCE22_ALIASES, expanded)
 
 
 def digest(path):
@@ -33,6 +36,64 @@ def load(root):
     if data['status'] != 'complete' or data['sourceMetadataUnchanged'] is not True or 'sourceComposition' in data:
         raise ValueError('Use two complete, original independently extracted libraries')
     return data
+
+
+def import_packages(output, library, textures, data, imports, identity):
+    """Copy explicit aliases while retaining original archive and sprite bytes."""
+    copied_files = []
+    for original, alias, package in imports:
+        source, logical = package['source'], 'contents/data/graphic/' + alias + '.ifs'
+        if any(p['source'] == logical for p in data['packages']):
+            raise ValueError('Earlier package alias collides with an existing source')
+        target = output / 'source-copies' / logical
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(inside(library, 'source-copies/' + source), target)
+        if digest(target) != package['sha256']:
+            raise ValueError('Imported archive changed')
+        old_prefix = 'packages/data/graphic/' + original
+        new_prefix = 'packages/contents/data/graphic/' + alias
+        for file in sorted((library / old_prefix).rglob('*')):
+            if not file.is_file(): continue
+            checked = inside(library, file.relative_to(library).as_posix())
+            relative = new_prefix + '/' + file.relative_to(library / old_prefix).as_posix()
+            dest = output / relative
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(checked, dest)
+            checksum = digest(checked)
+            if digest(dest) != checksum: raise ValueError('Imported source payload changed')
+            row = {'path': relative, 'origin': file.relative_to(library).as_posix(), 'sha256': checksum}
+            if identity != 'iidx24':
+                row['library'] = identity
+            copied_files.append(row)
+        row = copy.deepcopy(package)
+        row.update(source=logical, candidateStyle=None,
+                   origin={'library': identity, 'path': source, 'archiveSHA256': package['sha256']})
+        data['packages'].append(row)
+        for texture in textures:
+            if texture['package'] != source: continue
+            row = copy.deepcopy(texture)
+            row['originPackage'] = source
+            row['package'], row['candidateStyle'] = logical, None
+            for field in ('sprite', 'raw'):
+                original_path = unquote(row[field])
+                if not original_path.startswith(old_prefix + '/'):
+                    raise ValueError('Texture does not belong to its declared source package')
+                row[field] = quote(new_prefix + original_path[len(old_prefix):], safe='/')
+            if digest(inside(output, row['sprite'])) != row['sha256']:
+                raise ValueError('Imported sprite changed')
+            data['textures'].append(row)
+    return copied_files
+
+
+def publish(output, result, input_hashes, contract):
+    result['uniqueSpriteContents'] = len({t['sha256'] for t in result['textures']})
+    result['note'] = 'Logical package aliases; original source paths and hashes are preserved in origin and source-imports.'
+    template = Path(__file__).with_name('browser.html').read_text(encoding='utf-8')
+    embedded = json.dumps(result, ensure_ascii=False).replace('<', '\\u003c').replace('>', '\\u003e')
+    (output / 'packages.json').write_text(json.dumps(result['packages'], ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    (output / 'index.html').write_text(template.replace('__LIBRARY_DATA__', embedded), encoding='utf-8')
+    (output / 'library.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    (output / 'run.json').write_text(json.dumps({'status': 'complete', 'contract': contract, 'inputManifestSHA256': input_hashes}, indent=2) + '\n')
 
 
 def compose(library26, library24, output):
@@ -92,43 +153,7 @@ def compose(library26, library24, output):
         if digest(archive) != package['sha256'] or not package['sourceUnchanged']:
             raise ValueError('Base archive differs from its verified source manifest')
         package['origin'] = {'library': 'iidx26', 'path': package['source'], 'archiveSHA256': package['sha256']}
-    copied_files = []
-    for original, alias, package in imports:
-        source, logical = package['source'], 'contents/data/graphic/' + alias + '.ifs'
-        if any(p['source'] == logical for p in result['packages']):
-            raise ValueError('Earlier package alias collides with an existing source')
-        target = output / 'source-copies' / logical
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(inside(library24, 'source-copies/' + source), target)
-        old_prefix = 'packages/data/graphic/' + original
-        new_prefix = 'packages/contents/data/graphic/' + alias
-        for file in sorted((library24 / old_prefix).rglob('*')):
-            if not file.is_file(): continue
-            checked = inside(library24, file.relative_to(library24).as_posix())
-            relative = new_prefix + '/' + file.relative_to(library24 / old_prefix).as_posix()
-            dest = output / relative
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(checked, dest)
-            checksum = digest(checked)
-            if digest(dest) != checksum: raise ValueError('Imported source payload changed')
-            copied_files.append({'path': relative, 'origin': file.relative_to(library24).as_posix(), 'sha256': checksum})
-        row = copy.deepcopy(package)
-        row.update(source=logical, candidateStyle=None,
-                   origin={'library': 'iidx24', 'path': source, 'archiveSHA256': package['sha256']})
-        result['packages'].append(row)
-        for texture in earlier['textures']:
-            if texture['package'] != source: continue
-            row = copy.deepcopy(texture)
-            row['originPackage'] = source
-            row['package'], row['candidateStyle'] = logical, None
-            for field in ('sprite', 'raw'):
-                original_path = unquote(row[field])
-                if not original_path.startswith(old_prefix + '/'):
-                    raise ValueError('Texture does not belong to its declared source package')
-                row[field] = quote(new_prefix + original_path[len(old_prefix):], safe='/')
-            if digest(inside(output, row['sprite'])) != row['sha256']:
-                raise ValueError('Imported sprite changed')
-            result['textures'].append(row)
+    copied_files = import_packages(output, library24, earlier['textures'], result, imports, 'iidx24')
     for label, library in (('iidx26', library26), ('iidx24', library24)):
         target = output / 'source-imports' / (label + '-library.json')
         target.parent.mkdir(exist_ok=True)
@@ -137,21 +162,128 @@ def compose(library26, library24, output):
     result['sourceComposition'] = {'contract': COMPOSITION, 'aliases24': EARLIER_ALIASES, 'inputManifestSHA256': input_hashes,
         'scope': '23 copula retained artwork and 24 SINOBUZ from the 24 HDD; 25/26 and eight ARC SCORE revivals from the 26 HDD. Aliases are author identities, not original paths or complete executable coverage.',
         'importedFiles': copied_files}
-    result['uniqueSpriteContents'] = len({t['sha256'] for t in result['textures']})
     result['sourceFileCount'] = base['sourceFileCount'] + earlier['sourceFileCount']
-    result['note'] = 'Logical package aliases; original source paths and hashes are preserved in origin and source-imports.'
-    template = Path(__file__).with_name('browser.html').read_text(encoding='utf-8')
-    embedded = json.dumps(result, ensure_ascii=False).replace('<', '\\u003c').replace('>', '\\u003e')
-    (output / 'packages.json').write_text(json.dumps(result['packages'], ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    (output / 'index.html').write_text(template.replace('__LIBRARY_DATA__', embedded), encoding='utf-8')
-    (output / 'library.json').write_text(json.dumps(result, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    (output / 'run.json').write_text(json.dumps({'status': 'complete', 'contract': COMPOSITION, 'inputManifestSHA256': input_hashes}, indent=2) + '\n')
+    publish(output, result, input_hashes, COMPOSITION)
     return {'packages': len(result['packages']), 'textures': len(result['textures']), 'importedPackages': len(imports), 'payloadBytesChanged': False}
+
+
+def retained_base(library, data):
+    """Verify the exact predecessor manifest before accepting its research ID."""
+    composition = data['sourceComposition']
+    receipt = composition['previousComposition']
+    if receipt['path'] != 'source-imports/standard24-26-library.json':
+        raise ValueError('Unexpected retained Standard composition path')
+    manifest = inside(library, receipt['path'])
+    if digest(manifest) != receipt['sha256']:
+        raise ValueError('Retained Standard composition manifest changed')
+    base = json.loads(manifest.read_text(encoding='utf-8-sig'))
+    if not expanded(base) or base['sourceComposition']['contract'] != COMPOSITION:
+        raise ValueError('Retained Standard composition is not the original 24/26 library')
+    original = base['sourceComposition']
+    if (base['status'] != 'complete' or base['sourceMetadataUnchanged'] is not True or
+            original['inputManifestSHA256'] != {key: composition['inputManifestSHA256'][key] for key in ('iidx26', 'iidx24')} or
+            data['packages'][:len(base['packages'])] != base['packages'] or
+            data['textures'][:len(base['textures'])] != base['textures'] or
+            composition['importedFiles'][:len(original['importedFiles'])] != original['importedFiles']):
+        raise ValueError('Retained Standard composition does not match the unchanged base')
+    return base
+
+
+def extend(base_library, library22, output):
+    """Append the exact bounded 22 selection to an existing 24/26 composition."""
+    base_library, library22 = (Path(p).resolve(strict=True) for p in (base_library, library22))
+    output = Path(output).resolve()
+    if output.exists() or output.drive.lower() == 'c:' or not output.parent.is_dir():
+        raise ValueError('Use a new library under an existing dedicated non-system parent')
+    if any(output.is_relative_to(p) or p.is_relative_to(output) for p in (base_library, library22)):
+        raise ValueError('Composed library must not overlap either source')
+    base = json.loads((base_library / 'library.json').read_text(encoding='utf-8-sig'))
+    if (not expanded(base) or base['sourceComposition']['contract'] != COMPOSITION or
+            base['status'] != 'complete' or base['sourceMetadataUnchanged'] is not True or
+            base.get('graphicRoot', 'contents/data/graphic') != 'contents/data/graphic'):
+        raise ValueError('Extend the complete existing 24/26 Standard composition exactly once')
+    earlier = load(library22)
+    if earlier.get('graphicRoot') != 'data/graphic':
+        raise ValueError('Expected the independently verified 22 source layout')
+    expected = {'data/graphic/' + key + '.ifs' for key in SOURCE22_ALIASES}
+    packages = {p['source']: p for p in earlier['packages']}
+    if set(packages) != expected or len(packages) != len(earlier['packages']):
+        raise ValueError('Use exactly the qualified 22 package selection; unsupported or missing source package')
+    if any(t['package'] not in expected for t in earlier['textures']):
+        raise ValueError('Source22 texture refers to an unsupported package')
+    for library in (base_library, library22):
+        for file in library.rglob('*'):
+            if file.is_symlink() or (hasattr(file, 'is_junction') and file.is_junction()):
+                raise ValueError('Source libraries must not contain reparse paths')
+    input_hashes = dict(base['sourceComposition']['inputManifestSHA256'])
+    for identity in ('iidx26', 'iidx24'):
+        if digest(inside(base_library, 'source-imports/' + identity + '-library.json')) != input_hashes[identity]:
+            raise ValueError('Retained original source manifest changed')
+    for package in base['packages']:
+        if not package['sourceUnchanged'] or digest(inside(base_library, 'source-copies/' + package['source'])) != package['sha256']:
+            raise ValueError('Base archive differs from its verified source manifest')
+    for texture in base['textures']:
+        if digest(inside(base_library, texture['sprite'])) != texture['sha256']:
+            raise ValueError('Base sprite differs from its verified source manifest')
+    for row in base['sourceComposition']['importedFiles']:
+        if digest(inside(base_library, row['path'])) != row['sha256']:
+            raise ValueError('Existing imported source payload changed')
+    imports = []
+    for original, alias in SOURCE22_ALIASES.items():
+        package = packages['data/graphic/' + original + '.ifs']
+        if not package['sourceUnchanged'] or digest(inside(library22, 'source-copies/' + package['source'])) != package['sha256']:
+            raise ValueError('Source22 archive differs from its verified source manifest')
+        imports.append((original, alias, package))
+    retained_path = 'source-imports/standard24-26-library.json'
+    if (base_library / retained_path).exists() or (base_library / 'source-imports/iidx22-library.json').exists():
+        raise ValueError('New source manifest identity already exists in the base')
+    required = sum(p.stat().st_size for library in (base_library, library22) for p in library.rglob('*') if p.is_file())
+    if shutil.disk_usage(output.parent).free < required + 256 * 1024 * 1024:
+        raise ValueError('Insufficient working space for the bounded library composition')
+    base_hash = digest(base_library / 'library.json')
+    input_hashes['iidx22'] = digest(library22 / 'library.json')
+    metadata_entries = {'library.json', 'packages.json', 'index.html', 'run.json'}
+
+    def ignore_base_metadata(directory, names):
+        return metadata_entries.intersection(names) if Path(directory) == base_library else ()
+
+    shutil.copytree(base_library, output, ignore=ignore_base_metadata)
+    result = copy.deepcopy(base)
+    copied_files = import_packages(output, library22, earlier['textures'], result, imports, 'iidx22')
+    for source, relative, checksum in ((base_library / 'library.json', retained_path, base_hash),
+                                       (library22 / 'library.json', 'source-imports/iidx22-library.json', input_hashes['iidx22'])):
+        target = output / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+        if digest(target) != checksum:
+            raise ValueError('Input manifest changed')
+    composition = result['sourceComposition']
+    composition.update(contract=COMPOSITION22, aliases22=SOURCE22_ALIASES,
+                       inputManifestSHA256=input_hashes,
+                       previousComposition={'path': retained_path, 'sha256': base_hash})
+    composition['importedFiles'].extend(copied_files)
+    composition['scope'] += (' Source22 keys preserve six supplied frame archives independently; they are not six native menu choices. '
+                             'Bare gmframe0 is retained artwork without a proved native menu route. All eight original common packages '
+                             'are retained separately; their aliases alone do not select an era or region. Only the eight selected '
+                             'lane archives and lnote00/notes_cn00 are added as source22 materials.')
+    retained_base(output, result)
+    result['sourceFileCount'] = base['sourceFileCount'] + earlier['sourceFileCount']
+    publish(output, result, input_hashes, COMPOSITION22)
+    return {'packages': len(result['packages']), 'textures': len(result['textures']),
+            'importedPackages': len(imports), 'payloadBytesChanged': False}
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    for name in ('library26', 'library24', 'output'):
-        parser.add_argument('--' + name, type=Path, required=True)
+    for name in ('library26', 'library24', 'base-library', 'library22'):
+        parser.add_argument('--' + name, type=Path)
+    parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
-    print(json.dumps(compose(args.library26, args.library24, args.output)))
+    if args.base_library is not None or args.library22 is not None:
+        if args.base_library is None or args.library22 is None or args.library26 is not None or args.library24 is not None:
+            parser.error('Use --base-library with --library22, or --library26 with --library24')
+        print(json.dumps(extend(args.base_library, args.library22, args.output)))
+    else:
+        if args.library26 is None or args.library24 is None:
+            parser.error('Both --library26 and --library24 are required for the original composition')
+        print(json.dumps(compose(args.library26, args.library24, args.output)))

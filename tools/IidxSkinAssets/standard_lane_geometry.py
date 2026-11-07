@@ -2,24 +2,85 @@
 
 The earlier cabinet art has unnamed lane meshes. SINOBUZ compresses these
 decorative meshes vertically; that animation is preserved independently of the
-host's gameplay coordinates. Its native note scissor is 482px, while this
-author retains the existing Standard 484px source-plane component convention.
+host's gameplay coordinates. The audited 22/24 native note scissor is 482px,
+while this author retains the existing 484px source-plane component convention.
 """
-from standard_source_catalog import BASE_STYLES, EARLIER_STYLES
+from standard_source_catalog import EARLIER_STYLES, package_key, source_style
+
+
+def _domains(layout):
+    return ((304, 596), (684, 976)) if layout == 'dp' else (((940, 1232),) if layout == 'p2' else ((48, 340),))
+
+
+def _vertices(width, height):
+    return [{'x': x, 'y': y, 'z': 0} for x, y in ((0, 0), (width, 0), (0, height), (width, height))]
+
+
+def _source22_regions(reference, style, layout, draws):
+    """Retain the original fixed plane, separately from its painted surround.
+
+    Four PENDUAL source packages and LINCLE DP contain their own 292x484
+    meshes. LINCLE SP and TRICORO bake the plane into a larger original raster;
+    their measured local rectangles are projected through that raster's GEO.
+    No frame from the later ARC SCORE set supplies these coordinates or pixels.
+    """
+    package = package_key(style)
+    if reference['package'] != package or reference['common_family'] != 's22':
+        raise ValueError('22 lane reference belongs to a different source package/family')
+    expected = _domains(layout)
+    baked = style == 'source22-gmframe9' or style == 'source22-gmframe8' and layout != 'dp'
+    if not baked:
+        lanes = sorted((d for d in draws if d['texture'] in ('sp_lane_1p', 'sp_lane_2p')),
+                       key=lambda d: d['bounds']['left'])
+        if len(lanes) != len(expected):
+            raise ValueError('22 source must retain each original lane mesh')
+        for draw, (left, right) in zip(lanes, expected):
+            asset, matrix, bounds = draw['asset'], draw['matrix'], draw['bounds']
+            if (asset['package'] != package or (asset['width'], asset['height']) != (292, 484)
+                    or draw['source_vertices'] != _vertices(292, 484)
+                    or any(abs(matrix[k] - v) > 1e-9 for k, v in (('a', 1), ('b', 0), ('c', 0), ('tx', left)))
+                    or not 0 < matrix['d'] <= 1
+                    or abs(matrix['ty'] + 484 * matrix['d'] - 484) > .01
+                    or any(abs(bounds[k] - v) > .01 for k, v in (('left', left), ('right', right), ('bottom', 484)))):
+                raise ValueError('22 source lane geometry or fixed bottom anchor changed')
+    else:
+        for group, (left, right) in enumerate(expected):
+            is_right = group == 1 if layout == 'dp' else layout == 'p2'
+            if style == 'source22-gmframe8':
+                name, size, local_left = 'sp_frame_' + ('2p' if is_right else '1p'), (356, 720), 16 if is_right else 48
+            else:
+                name, size, local_left = 'frame_lane_' + ('2p' if is_right else '1p'), (354, 609), 5 if is_right else 57
+            matches = [d for d in draws if d['texture'] == name]
+            if len(matches) != 1:
+                raise ValueError('22 baked lane requires its exact original panel draw')
+            draw = matches[0]
+            asset, matrix, bounds = draw['asset'], draw['matrix'], draw['bounds']
+            translation = left - local_left
+            if (asset['package'] != package or (asset['width'], asset['height']) != size
+                    or draw['source_vertices'] != _vertices(*size)
+                    or any(abs(matrix[k] - v) > 1e-9 for k, v in
+                           (('a', 1), ('b', 0), ('c', 0), ('d', 1), ('tx', translation), ('ty', 0)))
+                    or any(abs(bounds[k] - v) > .01 for k, v in
+                           (('left', translation), ('right', translation + size[0]), ('top', 0), ('bottom', size[1])))):
+                raise ValueError('22 baked lane panel identity or original GEO projection changed')
+    return [{'left': left, 'right': right, 'top': 0, 'bottom': 484} for left, right in expected]
 
 
 def source_lane_regions(reference, style, layout):
-    if style not in (*BASE_STYLES, *EARLIER_STYLES) or layout not in ('p1', 'p2', 'dp'):
+    style = source_style(style)
+    if layout not in ('p1', 'p2', 'dp'):
         raise ValueError('Unqualified Standard lane context')
     movie = 'center_frame_dp_1p' if layout == 'dp' else ('2p_frame' if layout == 'p2' else '1p_frame')
     draws = reference['layouts'][movie]['draws']
+    if isinstance(style, str):
+        return _source22_regions(reference, style, layout, draws)
     if style in EARLIER_STYLES:
         lanes = sorted((d for d in draws if d['texture'] in ('sp_lane_1p', 'sp_lane_2p')),
                        key=lambda d: d['bounds']['left'])
-        expected = ((304, 596), (684, 976)) if layout == 'dp' else (((940, 1232),) if layout == 'p2' else ((48, 340),))
+        expected = _domains(layout)
         if len(lanes) != len(expected):
             raise ValueError('Earlier frame must contain its exact source lane planes')
-        vertices = [{'x': x, 'y': y, 'z': 0} for x, y in ((0, 0), (292, 0), (0, 484), (292, 484))]
+        vertices = _vertices(292, 484)
         result = []
         for draw, (left, right) in zip(lanes, expected):
             bounds, asset = draw['bounds'], draw['asset']

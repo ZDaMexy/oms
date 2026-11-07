@@ -158,6 +158,7 @@ def export_reading(author, options, keymode, presentation, sink, canvas):
         tracks.setdefault(track["target"], []).append(track)
     edge_ids = {t["id"] for ts in tracks.values() for t in ts if t.get("clock") in _EDGE and t["property"] == "y"}
     native_fonts = {}
+    reading_roles = set()
 
     def resolved(node, values):
         properties, dynamic = scene_properties(node, frame.scene, values)
@@ -247,6 +248,7 @@ def export_reading(author, options, keymode, presentation, sink, canvas):
         ids = {n["id"] for n in walk_nodes(group)}
         sources = {v["source"] for v in frame.scene.get("bindings", []) if v["target"] in ids and v["property"] == "text"}
         white_source, white_ref, _ = _WHITE[kind]
+        left_green = False
         if sources == {white_source}:
             role, expression, alignment, anchor_count = "white", f"main_state.number({white_ref})", 0, 0
             display = lambda values: f"{int(values[white_source]):03d}"
@@ -255,6 +257,19 @@ def export_reading(author, options, keymode, presentation, sink, canvas):
             role, expression, alignment, anchor_count = "green", "main_state.number(313)", 1, 3
             display = lambda values: f'{int(values["scroll.green-number"]):03d}'.ljust(10 if values["scroll.green-number"] >= 10000000 else 3)
             code = f'local n = {expression}; local s = string.format("%03d", n); if n >= 10000000 then s = s .. string.rep(" ", 10 - #s) end; return s'
+            anchors = [t for t in tracks.get(group["id"], []) if t["property"] == "x"]
+            if anchors:
+                # The earlier source keeps a left anchor, changing it at the
+                # fourth digit. Read both positions from the actual scene;
+                # neither cabinet IDs nor later centred geometry identify it.
+                if (len(anchors) != 1 or anchors[0].get("clock") != "scroll.green-number"
+                        or anchors[0].get("type") != "tween" or anchors[0].get("easing") != "step"
+                        or anchors[0].get("loop") or anchors[0].get("trigger")
+                        or [k["time"] for k in anchors[0]["keyframes"]] != [0, 1000]):
+                    raise ValueError("Unqualified current-green left-anchor track")
+                left_green, alignment, anchor_count = True, 0, 0
+                display = lambda values: f'{int(values["scroll.green-number"]):03d}'
+                code = f'return string.format("%03d", {expression})'
         elif sources == {"scroll.green-number-min", "scroll.green-number-max"}:
             role, expression, alignment, anchor_count = "range", None, 1, 7
             def display(values):
@@ -267,21 +282,25 @@ def export_reading(author, options, keymode, presentation, sink, canvas):
                           _valid_number(_RANGE_HIGH), _valid_number(_RANGE_LOW)]
         else:
             raise ValueError("Unqualified Standard cover-reading group")
+        reading_roles.add(role)
         sample = glyph_layout(group, route, host, context)
         if not sample:
             raise ValueError("Standard reading has no original glyph layout")
         first = sample[0]
         anchor = first["x"] + anchor_count * first["advance"] / 2
+        upper_anchor = (glyph_layout(group, route, host, {**context, "scroll.green-number": 1000})[0]["x"]
+                        if left_green else anchor)
         # Independently evaluate the retained source tracks at every digit-width
         # transition, including the author's 8/9-digit reserved ten-cell case.
-        probes = [0, 9, 10, 99, 100, 999, 1000, 9999999, 10000000, 999999999, 1000000000]
+        probes = [0, 9, 10, 99, 100, 999, 1000, 9999, 10000, 9999999, 10000000, 999999999, 1000000000]
         pairs = [(v, w) for v in probes for w in probes] if role == "range" else [(v, v) for v in probes]
         for high, low in pairs:
             values = {**context, white_source: high, "scroll.green-number": high,
                       "scroll.green-number-max": high, "scroll.green-number-min": low}
             actual = glyph_layout(group, route, host, values)
             string = display(values)
-            start = anchor - len(string) * first["advance"] / 2 if alignment else anchor
+            current_anchor = upper_anchor if left_green and high >= 1000 else anchor
+            start = current_anchor - len(string) * first["advance"] / 2 if alignment else current_anchor
             expected = [(char, start + i * first["advance"]) for i, char in enumerate(string) if char != " "]
             if (len(actual) != len(expected) or any(g["char"] != char or not math.isclose(g["x"], x, abs_tol=1e-4)
                     or not math.isclose(g["y"], first["y"], abs_tol=1e-4) or g["font"] != first["font"]
@@ -289,14 +308,19 @@ def export_reading(author, options, keymode, presentation, sink, canvas):
                     for g, (char, x) in zip(actual, expected))):
                 raise ValueError("Combined reading text would change the original glyph positions")
         identifier = author.family + ".reading." + group["id"]
-        output["text"].append({"id": identifier, "font": font_for(first["font"], spacing=role != "white"),
-                               "size": round(first["size"]), "align": alignment, "overflow": 0,
-                               "value": Lua("function() " + code + " end")})
         state = route_state((*route, group), host, context)
         if state[2] is None:
             raise ValueError("Standard reading lost its original fixed clip")
-        destination(identifier, (anchor, first["y"] + origin_shift, 0, first["size"]), first["rgba"], kind, stage_height,
-                    [*conditions, *([_valid_number(expression)] if expression else [])], state[2])
+        placements = [(identifier, anchor, [])]
+        if left_green:
+            placements = [(identifier + ".below1000", anchor, [expression + " < 1000"]),
+                          (identifier + ".atleast1000", upper_anchor, [expression + " >= 1000"])]
+        for text_id, text_anchor, digit_conditions in placements:
+            output["text"].append({"id": text_id, "font": font_for(first["font"], spacing=role != "white" and not left_green),
+                                   "size": round(first["size"]), "align": alignment, "overflow": 0,
+                                   "value": Lua("function() " + code + " end")})
+            destination(text_id, (text_anchor, first["y"] + origin_shift, 0, first["size"]), first["rgba"], kind, stage_height,
+                        [*conditions, *([_valid_number(expression)] if expression else []), *digit_conditions], state[2])
 
     def lightning_row(root, route, host, kind, stage_height, conditions, stage):
         state = route_state((*route, root), host, context)
@@ -390,5 +414,7 @@ def export_reading(author, options, keymode, presentation, sink, canvas):
                 "liftSourcePixelsExclusiveBound": source_height / 1000,
                 "hiddenSourcePixelsExclusiveBound": source_height / 500,
                 "timerSourcePixelsBound": 1 / 1024,
-                "detail": "Fixed source clip is retained. Sudden uses exact effective float property 4; Lift/Hidden geometry uses public integer thousandths, not window size or unexposed Config resolution. Range uses native min/max BPM duration refs 1321/1325 (1323/1327 with Sudden disabled); these BPM-only endpoints do not include current SCROLL/CONSTANT effects as 313 does."})
+                "detail": "Fixed source clip is retained. Sudden uses exact effective float property 4; Lift/Hidden geometry uses public integer thousandths, not window size or unexposed Config resolution."
+                    + (" Range uses native min/max BPM duration refs 1321/1325 (1323/1327 with Sudden disabled); these BPM-only endpoints do not include current SCROLL/CONSTANT effects as 313 does."
+                       if "range" in reading_roles else " The selected source has current green only; no endpoint range is added.")})
     return output

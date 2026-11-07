@@ -68,6 +68,7 @@ def judgement_owner():
 
 def charge_owner():
     owner = memory_owner()
+    owner.source_data = {}
     owner.options, owner.receipts, owner.contexts, owner.calls = [], [], [], []
     owner.preview = lambda *args: "preview.png"
     owner.fallback_marker = lambda category, name, *args: "markers/" + category + "/" + name
@@ -501,6 +502,7 @@ class StandardComponentsTests(unittest.TestCase):
 
     def test_turntable_export_keeps_the_source_quad_and_uses_logical_motion_groups(self):
         owner = memory_owner()
+        owner.source_data = {}
         owner.frame_maps = Path("mapping.json")
         owner.frame_ids = FRAME_IDS
         owner.packages = {f"turn{i:02}": {} for i in range(21)}

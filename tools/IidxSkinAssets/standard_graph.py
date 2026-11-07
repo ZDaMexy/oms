@@ -4,13 +4,14 @@ import copy
 import hashlib
 import json
 from pathlib import Path
+from standard_source_catalog import frame_token, frame_id, package_key, source_style, SOURCE22_STYLES
 import re
 import struct
 from urllib.parse import unquote
 import xml.etree.ElementTree as ET
 
 PACKAGE = "contents/data/graphic/0/graph.ifs"
-from standard_source_catalog import families as source_families, styles as source_styles, family_suffix
+from standard_source_catalog import families as source_families, retained_styles, family_suffix
 FRAME_IDS = {3, 8, 12, 14, 16, 17, 19, 21, 25, 26}
 LOGICAL = 768 / 720
 BAR_TOP, BAR_BOTTOM, BAR_WIDTH = 94, 542, 66
@@ -20,6 +21,8 @@ BAR_COLUMNS = {"current": 54, "best": 128, "target": 202}
 # 0-family panel (s24) adds those two separate draws. These aliases identify
 # art in the 24 HDD, not a supplied IIDX23 executable.
 EARLIER_GRAPH = {
+    "s22": {"maximum": None, "baseline": None, "rankSize": (270, 15),
+            "rankX": 5, "rankLineY": (529, 79)},
     "s23": {"maximum": None, "baseline": None, "rankSize": (270, 15)},
     "s24": {"maximum": "gr_score_graph_max", "baseline": "gr_score_graph_line", "rankSize": (272, 18)},
 }
@@ -70,10 +73,11 @@ class _Graph:
             raise ValueError("Graph family is not in this verified source composition")
         if metadata["status"] != "complete" or metadata["sourceMetadataUnchanged"] is not True:
             raise ValueError("Graph requires the complete verified IIDX26 library")
-        frames = {int(match[1]) for package in metadata["packages"]
-                  if (match := re.fullmatch(r"contents/data/graphic/gmframe(\d+)\.ifs", package["source"]))}
-        if frames != set(source_styles(metadata)):
-            raise ValueError("Graph requires the independent IIDX26 cabinet selection")
+        frames = {package["source"] for package in metadata["packages"]
+                  if Path(package["source"]).stem.startswith("gmframe")}
+        required_frames = {f"contents/data/graphic/{package_key(style)}.ifs" for style in retained_styles(metadata)}
+        if frames != required_frames:
+            raise ValueError("Graph requires exactly the source-qualified Standard frame selection")
         packages = [package for package in metadata["packages"] if package["source"] == self.package]
         if len(packages) != 1:
             raise ValueError(f"Graph requires exactly one source-qualified {common_family}/graph package")
@@ -255,6 +259,16 @@ class _Graph:
                     "Rank position follows the existing continuous OMS progress track between the supplied24 caller's endpoints.",
                     "Rank-line visibility retains the existing OMS rank-availability gate, not the supplied24 caller's reached-line alpha switch.",
                     "PB total and signed differences use the existing OMS local-score readout, not an original per-note ghost."]})
+            if self.common_family == "s22":
+                value.update({
+                    "familyScope": "Original supplied IIDX22 Graph art, with its own PNGs and named movie geometry. The22 caller separately qualifies the column placement, rank-line endpoints and target tag. Existing OMS live/PB/PACEMAKER policies remain an explicit host adaptation.",
+                    "callerBasis": {"software": "supplied IIDX22 x86 DLL",
+                        "geometry": "Source rank sprites are placed at panel-local x5 and y79 plus a450px score span; gauge columns start at y94 independently of that span.",
+                        "targetTag": "The original score_tag_2 child is assigned gr_score_tag_2."},
+                    "omissions": ["No separate MAX/baseline sprites: both lines are part of the original s22 panel PNG."]})
+                value["sourceGeometry"].update(rankLineX=5, rankLineY=[529, 79])
+                value["adaptations"][1] = "Rank position follows the existing continuous OMS progress track between the supplied22 caller's endpoints, without claiming its integer-step rounding."
+                value["adaptations"][2] = "Rank-line visibility retains the existing OMS rank-availability gate, not the supplied22 caller's reached-line alpha switch."
         return value
 
 
@@ -276,9 +290,11 @@ def build_graph(library: Path, layout: str, prepared_font=None, *, common_family
     rank_size = EARLIER_GRAPH[common_family]["rankSize"] if graph.earlier else (272, 18)
     # The supplied24 caller multiplies by450; its gauge PNG is only448px high.
     # These are independent source facts, not interchangeable extents.
-    rank_bottom, rank_top = (527, 77) if graph.earlier else (BAR_BOTTOM - 14, BAR_TOP - 14)
+    rank_bottom, rank_top = (EARLIER_GRAPH[common_family].get("rankLineY", (527, 77))
+                            if graph.earlier else (BAR_BOTTOM - 14, BAR_TOP - 14))
+    rank_x = EARLIER_GRAPH[common_family].get("rankX", 4) if graph.earlier else 4
     for rank in ("aaa", "aa", "a"):
-        line = graph.sprite("line." + rank, "gr_line_" + rank, rank_size, 4, rank_bottom)
+        line = graph.sprite("line." + rank, "gr_line_" + rank, rank_size, rank_x, rank_bottom)
         graph.track(line["id"], "y", "score.rank-" + rank + "-progress", [(0, rank_bottom / 720), (1, rank_top / 720)])
         ranks.append(line)
     bars.append(graph.gate("rank.available", "score.rank-available", ranks))
@@ -450,6 +466,9 @@ def build_graph_target(library: Path, layout: str, target: str, prepared_font, *
         graph.value["receipt"]["policy"] = "Existing OMS targets: AAA/AA/A EX thresholds; CUSTOM floor(maximum*percent/100); NEXT rounded rank midpoints; NEXT+ float32 arithmetic and A..MAX limits."
         graph.value["receipt"]["policyBasis"] = "Existing OMS policies qualified against26 software; this retains the selected24-HDD original art without asserting a23/24 policy/timing reconstruction."
         graph.value["receipt"]["cutins"]["layers"] = "Existing OMS cut-in composition: one update behind notifications in the original280x720 panel. The layer/once-gate contract was qualified against26; the selected24-HDD recorded source frames remain unchanged."
+        if common_family == "s22":
+            graph.value["receipt"]["policyBasis"] = "Existing OMS policies qualified against26 software; the supplied22 artwork does not assert a reconstruction of22 target policy or per-note ghosts."
+            graph.value["receipt"]["cutins"]["layers"] = "The supplied22 caller places one update movie behind mybest/target/lv_pass at native priorities58/57. The existing OMS layers preserve that relative order and the original280x720,150-frame programs; no26 image is substituted."
     return graph.value
 
 

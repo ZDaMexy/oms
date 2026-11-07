@@ -23,7 +23,8 @@ from urllib.parse import unquote
 
 FRAME_IDS = frozenset((3, 8, 12, 14, 16, 17, 19, 21, 25, 26))
 PACKAGE = "contents/data/graphic/0/gameparts.ifs"
-from standard_source_catalog import layout_family, styles as source_styles, centre_translation
+from standard_source_catalog import (centre_translation, frame_token, layout_family,
+                                     package_key, source_style, styles as source_styles)
 FONT_FAMILY = "ＤＦ平成ゴシック体W7"
 LOGICAL = 768 / 720
 DIGITS = "0123456789.+-x%"
@@ -229,7 +230,7 @@ def prepare_feedback_font(font_path, output):
         result["bitmapFonts"].append({"id": identifier, "lineHeight": cell[1], "glyphs": glyphs})
     result["receipt"] = {"sourceFont": str(font_path), "sourceFontSHA256": font_sha, "face": FONT_FAMILY,
         "source": "Supplied original TTC face0; exact input path and digest above",
-        "metricsBasis": "IIDX26 audited native font IDs2/5, caches22/16, fixed cells12x20/8x18; retained as OMS author layout for earlier artwork, not an assertion about the24 executable font IDs or raster cache",
+        "metricsBasis": "IIDX26 audited native font IDs2/5, caches22/16, fixed cells12x20/8x18; retained as OMS author layout for earlier artwork, not an assertion about the22/24 executable font IDs or raster cache",
         "rasterizer": "Windows memory GDI GetGlyphOutlineW GGO_GRAY8_BITMAP; source outlines, fixed-cell metric projection",
         "limits": "No claim of byte-identical native GPU filtering, screen transform, or final executable glyph cache."}
     return result
@@ -240,10 +241,10 @@ def source_hook(reference, centre_movie, layout):
     draws = [d for d in reference["layouts"][centre_movie]["draws"]
              if "judge_" + player in d["game_bindings"] and d["texture"] == "judge_waku"]
     if len(draws) != 1:
-        raise ValueError("Selected 26 centre movie must have one original JUDGE hook")
+        raise ValueError("Selected source centre movie must have one original JUDGE hook")
     draw = draws[0]
     if draw["asset"]["package"] != reference["common_family"] + "/gameparts" or (draw["asset"]["width"], draw["asset"]["height"]) != (111, 163):
-        raise ValueError("JUDGE hook is not the independently qualified 26 source")
+        raise ValueError("JUDGE hook is not the independently qualified source family")
     if any(abs(draw["matrix"][k] - v) > 1e-9 for k, v in (("a", 1), ("b", 0), ("c", 0), ("d", 1))):
         raise ValueError("Original JUDGE hook needs a non-translational projection; do not flatten it to bounds")
     return draw
@@ -251,15 +252,16 @@ def source_hook(reference, centre_movie, layout):
 
 def build_feedback(library, frame_map, *, style, layout, centre_movie, centre_dx, contexts, font_path, output,
                    judgement_position_option="judgement-position", prepared_font=None):
+    style = source_style(style)
     library, frame_map = Path(library).resolve(strict=True), Path(frame_map).resolve(strict=True)
     inventory, reference = read(library / "library.json"), read(frame_map)
     if style not in source_styles(inventory) or layout not in ("p1", "p2", "dp"):
         raise ValueError("Feedback requires a qualified Standard cabinet/layout")
     if inventory["status"] != "complete" or inventory["sourceMetadataUnchanged"] is not True:
-        raise ValueError("Feedback requires the complete verified 26 library")
-    if (reference["package"] != f"gmframe{style:02}" or reference["common_family"] != layout_family(style)
+        raise ValueError("Feedback requires the complete verified Standard library")
+    if (reference["package"] != package_key(style) or reference["common_family"] != layout_family(style)
             or reference["stage"] != {"width": 1280, "height": 720, "fps": 60.0}):
-        raise ValueError("Feedback reference does not belong to this 26 cabinet")
+        raise ValueError("Feedback reference does not belong to this source cabinet")
     if centre_movie not in reference["layouts"]:
         raise ValueError("Missing selected original centre movie")
     if centre_dx != centre_translation(style, layout, centre_movie.startswith("center_frame_wide_")):
@@ -277,7 +279,7 @@ def build_feedback(library, frame_map, *, style, layout, centre_movie, centre_dx
     for key in ("resources", "bitmapFonts", "files"):
         result[key].extend(font[key])
     result["options"].extend(OPTIONS)
-    prefix = f"standard.feedback.f{style:02}.{layout}." + centre_movie.replace("_", "-")
+    prefix = f"standard.feedback.f{frame_token(style)}.{layout}." + centre_movie.replace("_", "-")
     hook = source_hook(reference, centre_movie, layout)
     package = f"contents/data/graphic/{layout_family(style)}/gameparts.ifs"
     row = next(r for r in inventory["textures"] if r["package"] == package and r["name"] == "judge_waku.png")
@@ -386,7 +388,7 @@ def build_feedback(library, frame_map, *, style, layout, centre_movie, centre_dx
         field = source_lane_regions(reference, style, layout)[group]
         fw, fh = field["right"] - field["left"], field["bottom"] - field["top"]
         identity = prefix + f".timing.g{group}"
-        material = f"standard/markers/timing-f{style:02}-{layout}-g{group}"
+        material = f"standard/markers/timing-f{frame_token(style)}-{layout}-g{group}"
         timing_materials[group] = material
         root = node(identity + ".root", slot="stage.foreground")
         lift = node(identity + ".lift")
@@ -424,11 +426,20 @@ def build_feedback(library, frame_map, *, style, layout, centre_movie, centre_dx
         "bmsRows": "PG/GR/GD/BD/PR + CB; original PR includes miss+empty-POOR, declared as the caller-integrated value.standard-poor sum.",
         "maniaRows": "Explicit OMS six-grade + CB compact adaptation with original smaller font; no IIDX judgement semantics substituted.",
         "fastSlow": "Original A/B/C coordinates, source blue FAST/red SLOW; DP-C uses original FA/SL; exact Stage timing-direction.",
-        "nativeEvidence": {"fontRegistrationRVA": "0x146f0", "fontCellRVA": "0x114ee0", "judgeRVA": "0x347900",
+        "nativeEvidence": {"softwareVersion": 26, "fontRegistrationRVA": "0x146f0", "fontCellRVA": "0x114ee0", "judgeRVA": "0x347900",
                            "timingRVA": "0x351800", "timingPositionRVA": "0x52a610", "colourRVA": ["0xafa20", "0xafa50"]},
         "limits": ["Public real timing and counting semantics are OMS truth; this author does not reproduce native judgement math.",
                    "Timing direction lifetime follows the public exact-group retained state; native complete timing calibration remains unverified.",
                    "JUDGE native fixed-cell FA/SL line can extend beyond its original backplate; the native source coordinates are retained.",
                    "Source opening remains the cabinet's responsibility; feedback enters after preparation, without invented slide timing.",
                    "Original source fonts are rasterised locally, not copied from another skin; final Player sampling still needs visual verification."]}
+    if isinstance(style, str):
+        result["receipt"]["fastSlow"] = (
+            "Explicit OMS feedback adaptation: existing A/B/C coordinates and font cells from the audited26 author model, "
+            "with real exact-Stage timing direction. These coordinates/font IDs are not asserted as22 executable behavior.")
+        result["receipt"]["limits"].append(
+            "The JUDGE backplate and its affine hook are from the selected22 source and s22/gameparts. "
+            "The source22 caller supplies the separately audited35px SP centre translation; normal/wide/DP do not borrow26's36px offset. "
+            "The 484px OMS timing plane is an author convention, independent of22's482px native note scissor. "
+            "Earlier-source counters, font-cell layout, timing placement and FA/SL overflow remain explicit OMS adaptations unless separately qualified by that executable.")
     return result

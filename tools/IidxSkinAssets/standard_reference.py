@@ -23,6 +23,7 @@ import sys
 import types
 from urllib.parse import unquote
 import xml.etree.ElementTree as ET
+from standard_source_catalog import frame_token, frame_id, package_key, source_style, retained_styles as source_styles
 
 
 CONTRACT = "oms-iidx-standard-reference.v1"
@@ -253,7 +254,7 @@ class Research:
 
     def run_style(self, style: int, output: Path):
         self.used = {}
-        package = f"gmframe{style:02d}"
+        package = package_key(style)
         base = f"packages/contents/data/graphic/{package}/raw"
         # A complete layout export must include the separately authored single
         # player wide movies. The shared SP movie cannot stand in for them.
@@ -261,7 +262,7 @@ class Research:
             self.source(f"{base}/afp/{movie_name}")
             self.source(f"{base}/afp/bsi/{movie_name}")
         folder = output / package
-        folder.mkdir(exist_ok=False)
+        folder.mkdir(parents=True, exist_ok=False)
         write_json(folder / "run.json", {"status": "running", "contract": CONTRACT, "package": package,
                                          "expectedLayouts": list(LAYOUTS)})
         shapes, geometry = {}, []
@@ -388,7 +389,7 @@ def export_recorded(research, style, output, bemani, image_tools):
 
     tools = load_tools(bemani, image_tools)
     source_swf, state_renderer = exporter_classes(tools)
-    package = f"gmframe{style:02d}"
+    package = package_key(style)
     folder = output / package
     reference = read_json(folder / "skin-reference-map.json")
     if read_json(folder / "run.json")["status"] != "complete":
@@ -447,7 +448,7 @@ def export_recorded(research, style, output, bemani, image_tools):
         geometries.append({"source": name, "vertices": [point_values(point) for point in shape.vertex_points],
                            "atlasUV": [point_values(point) for point in shape.tex_points],
                            "colours": [rgba_values(colour, (1, 1, 1, 1)) for colour in shape.tex_colors], "draws": draws})
-    resource_ids = {index: f"standard.iidx{style:02d}.t.t" + row["sha256"][:24] for index, row in enumerate(texture_rows)}
+    resource_ids = {index: f"standard.{frame_id(style)}.t.t" + row["sha256"][:24] for index, row in enumerate(texture_rows)}
     source_table = {}
     for index, row in enumerate(texture_rows):
         identity = resource_ids[index]
@@ -527,8 +528,8 @@ def export_recorded(research, style, output, bemani, image_tools):
                 raise ValueError("Source frame graph exceeds the public encoded/decoded clip byte budget")
             clip_file = movie_target / f"{kind}.clip.json.br"
             clip_file.write_bytes(compressed)
-            prefix = f"standard.iidx{style:02d}.frame.{MOVIE_IDS[movie_name]}.{kind}"
-            archive_path = f"standard/frames/iidx{style:02d}/{movie_name}/{kind}.clip.json.br"
+            prefix = f"standard.{frame_id(style)}.frame.{MOVIE_IDS[movie_name]}.{kind}"
+            archive_path = f"standard/frames/{frame_id(style)}/{movie_name}/{kind}.clip.json.br"
             used = {geometry["resource"] for geometry in clip["geometries"] if geometry["resource"] is not None}
             resources, files = [], []
             for identity in sorted(used):
@@ -563,15 +564,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("library", "bemani-root", "image-tools", "output"):
         parser.add_argument(f"--{name}", type=Path, required=True)
-    parser.add_argument("--styles", type=int, nargs="+", required=True)
+    parser.add_argument("--styles", type=source_style, nargs="+", required=True)
     parser.add_argument("--recorded", action="store_true", help="Add original PNG/mesh/hierarchy clips to completed layout research")
-    parser.add_argument("--common-family", choices=("0", "1", "s23", "s24"), required=True,
+    parser.add_argument("--common-family", choices=("0", "1", "s22", "s23", "s24"), required=True,
                         help="Explicit common family from the observed source configuration, never inferred from canvas size")
     args = parser.parse_args()
     library, bemani, image_tools = (path.resolve(strict=True) for path in (args.library, args.bemani_root, args.image_tools))
     output = args.output.resolve()
-    if not args.styles or len(set(args.styles)) != len(args.styles) or any(not 1 <= value <= 26 for value in args.styles):
-        parser.error("Choose unique Standard Model styles in 1..26; each must exist in the supplied library")
+    if not args.styles or len(set(args.styles)) != len(args.styles) or any(value not in source_styles(read_json(library / "library.json")) for value in args.styles):
+        parser.error("Choose unique qualified Standard sources present in the supplied library")
     if any(output.is_relative_to(path) or path.is_relative_to(output) for path in (library, bemani, image_tools)):
         parser.error("Output must not overlap any input")
     if output.drive.lower() == os.environ.get("SystemDrive", "C:").lower():
@@ -590,14 +591,14 @@ def main():
         output.mkdir()
         write_json(output / "source.json", identity)
     for style in args.styles:
-        if (output / f"gmframe{style:02d}").exists() and not args.recorded:
+        if (output / package_key(style)).exists() and not args.recorded:
             parser.error("Existing style evidence is immutable; use a new output directory")
     api = load_api(bemani, image_tools)
     research = Research(library, api, args.common_family)
     for style in args.styles:
-        if not (output / f"gmframe{style:02d}").exists():
+        if not (output / package_key(style)).exists():
             research.run_style(style, output)
-            write_json(output / f"sources-{style:02d}.json", {"contract": CONTRACT, "excludedSources": research.exclusions,
+            write_json(output / f"sources-{frame_token(style)}.json", {"contract": CONTRACT, "excludedSources": research.exclusions,
                                                             "files": list(research.used.values())})
         if args.recorded:
             export_recorded(research, style, output, bemani, image_tools)

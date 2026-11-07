@@ -208,6 +208,11 @@ def export_graph_notifications(library, output, bemani_root, image_tools):
                 "disabled": "Native preference suppresses drawing while its one-time crossing eligibility is still consumed."},
             "sourceSelectionBoundary": "0/1 identify the retained26 library; s23/s24 explicitly alias the24 HDD root/0 artwork. All native priority, anchor and eligibility references in this receipt were audited in26 and are OMS author adaptations for the earlier families, not claims about their historical executables.",
             "excluded": "achieve_pass has source art but no verified ordinary-play activation and is not exported."}
+        if family == "s22":
+            receipt.update({
+                "sourcePriorities": {"mybest": 57, "target": 57, "lv_pass": 57, "update": 58},
+                "sourceSelectionBoundary": "s22 identifies the original supplied22 graph package, including its own PNGs. Its caller loads these four movies, replaces the named lv_pass child with pass_aaa/pass_aa/pass_a, and places one shared update behind the notifications. Source shape qualification and rank replacement are checked from this package, never borrowed from a later family.",
+                "hostEligibilityBoundary": "Actual OMS score-crossing events drive the retained programs. The22 caller independently has one-time PB/target crossings and a highest-rank selector; this author retains the existing OMS positive/available threshold gates and does not reconstruct22 per-note ghosts, preference storage or events missed before attach."})
         families[family] = {"clips": clips, "receipt": receipt}
         research = exporter.output / f"research/sgn.f{family}"
         research.mkdir(parents=True, exist_ok=True)

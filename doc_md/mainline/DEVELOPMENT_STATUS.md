@@ -15,7 +15,7 @@ Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，具
 
 游玩判定/结果及性能取[10月19日深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)；设备入口、输入时间、轴用途、长皿与校准接续取[10月21日输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)。前台帧时间与实体设备仍待验收。
 
-Standard Model Skin Omni Until 26 已私下交付`.v26110700`，新增24 HDD中的copula保留美术与SINOBUZ，实际范围及同包验收取[作品记录](../other/STANDARD_MODEL_SKIN_20261105.md#本轮验证与交付)。本轮只更新制作和取景工具，未改生产玩法、计分或皮肤预算；Lightning仍停止，两作品独立，原产品、设备及发行门不提升。
+Standard已交付`.v26110700`保持原证据；2026-11-08按用户新22来源推进两宿主增量，当前作者已生成，正式包及实绘仍在验收。新增完整配置超过旧导入门，归档配置总限经独立评估改为32MiB，单场景、资源、总包与压缩比门保持；对应构建与边界回归取[作品记录](../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-08-22-来源接入进行中)。Lightning的OMS推进仍停止，两作品独立，原产品、设备及发行门不提升。
 
 玩家直接登录固定OMSIR，保存后新局上传；新闻 / 帮助 / 排行 / 玩家沿原生页面。谱面列表先选模式：BMS 仅 Ginger Rush / 616，osu!mania 仅 Sayobot，恢复上次 BMS 来源；紧凑筛选、原生卡片和各来源阅读状态保持。正常OMS窗口的lazer体验仍待签收，隔离内容宽度检查不代签；源码 / 软件及剩余门取[P3-IR状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。社交后续，旧ppy关闭；Phase1.x原门保持。
 

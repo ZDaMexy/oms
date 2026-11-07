@@ -12,11 +12,12 @@ import copy
 import hashlib
 import json
 from pathlib import Path
+from standard_source_catalog import frame_token, frame_id, package_key, source_style, SOURCE22_STYLES
 import shutil
 import sys
 from urllib.parse import unquote
 from standard_source_catalog import (styles as source_styles, families as source_families,
-                                     layout_family, presentation_family, art_identity, centre_translation)
+                                     retained_styles, layout_family, presentation_family, art_identity, centre_translation)
 
 sys.dont_write_bytecode = True
 
@@ -29,6 +30,21 @@ FRAMES = {3: '3rd style', 8: '8th style', 12: 'HAPPY SKY', 14: 'GOLD',
           16: 'EMPRESS', 17: 'SIRIUS', 19: 'Lincle', 21: 'SPADA',
           25: 'CANNON BALLERS', 26: 'Rootage'}
 EARLIER_FRAME_LABELS = {23: 'copula', 24: 'SINOBUZ'}
+SOURCE22_FRAME_LABELS = {
+    'source22-gmframe0': 'SPADA (22 HDD retained)',
+    'source22-gmframe0-00': '22 PENDUAL PRESENT',
+    'source22-gmframe0-01': '22 PENDUAL FUTURE',
+    'source22-gmframe8': 'LINCLE (22 CUSTOM)',
+    'source22-gmframe9': 'tricoro (22 CUSTOM)',
+    'source22-gmframe10': 'SPADA (22 CUSTOM)',
+}
+
+
+def frame_label(style):
+    if style in SOURCE22_FRAME_LABELS:
+        return SOURCE22_FRAME_LABELS[style]
+    return f'{style:02} {FRAMES.get(style, EARLIER_FRAME_LABELS.get(style))}'
+
 CANVAS = (1280, 720)
 LOGICAL = 768 / 720
 MANIFEST = 'oms-gameplay-skin-manifest.v1'
@@ -181,6 +197,21 @@ def steady_program_reuse(original, exported, split):
                     'equivalence': 'Exact source-frame camera, geometry/UV, ordered ancestor transforms, masks, colours and blends; lane brightness bindings retained. No PNG or motion-phase changes.'}
 
 
+def select_gauge_assets(gauge, source_data):
+    """Keep retained archive evidence outside the usable frame's runtime closure."""
+    available = {f'f{frame_token(style)}' for style in source_styles(source_data)}
+    retained = {f'f{frame_token(style)}' for style in retained_styles(source_data)}
+    if not available <= gauge['frames'].keys() <= retained:
+        raise ValueError('Gauge exports must cover every usable frame and only qualified retained sources')
+    frames = {key: value for key, value in gauge['frames'].items() if key in available}
+    required = {item['path'] for layouts in frames.values() for clip in layouts.values()
+                for field in ('resources', 'animations') for item in clip[field]}
+    files = [row for row in gauge['files'] if row['path'] in required]
+    if {row['path'] for row in files} != required:
+        raise ValueError('Selected Gauge animation/resource file closure is incomplete')
+    return frames, files
+
+
 class Package:
     def __init__(self, library, output, image_tools):
         self.library, self.output = library.resolve(strict=True), output.resolve()
@@ -249,7 +280,7 @@ class Frame:
         if wide and layout == 'dp':
             raise ValueError('The evidenced wide movies belong to single-player layouts')
         self.wide = wide
-        self.key, self.prefix = f'gmframe{style:02}', f'std.f{style:02}.{layout}'
+        self.key, self.prefix = package_key(style), f'std.f{frame_token(style)}.{layout}'
         if wide:
             self.prefix += '.wide'
         self.map = read(research / 'skin-reference-map.json')
@@ -303,7 +334,7 @@ class Frame:
     def template(self, name, root, slot):
         identifier = self.prefix + '.t.' + name
         material = (f'markers/frame-{self.layout}-information' if name in ('information', 'graph')
-                    else f'standard/markers/f{self.style:02}-{self.layout}-{name}')
+                    else f'standard/markers/f{frame_token(self.style)}-{self.layout}-{name}')
         self.owner.copy(self.owner.output / self.owner.empty_path, material + '.png')
         root['slot'] = slot
         self.scene['templates'].append({'id': identifier, 'root': root})
@@ -315,15 +346,16 @@ class Frame:
         movies = [movie] if movie else [self.side, self.centre]
         return [d for m in movies for d in self.map['layouts'][m]['draws'] if name in d['game_bindings']]
 
-    def font(self, suffix, package, names, advance=None):
-        identifier = f'std.font.f{self.style:02}.{suffix}'
+    def font(self, suffix, package, names, advance=None, *, uniform_height=True):
+        identifier = f'std.font.f{frame_token(self.style)}.{suffix}'
         glyphs = []
         height = None
         for character, name in names.items():
             resource, row = self.asset(package, name)
             height = height or row['height']
-            if height != row['height']:
+            if uniform_height and height != row['height']:
                 raise ValueError(f'Font glyph height differs in {package}/{suffix}')
+            height = max(height, row['height'])
             glyphs.append({'character': character, 'resource': resource,
                            'advance': advance if advance is not None else row['width']})
         self.fonts[identifier] = {'id': identifier, 'lineHeight': height, 'glyphs': glyphs}
@@ -345,6 +377,10 @@ class Frame:
                 'sourceTextureSize': [292, 484],
                 'omsGameplayDomain': values,
                 'adaptation': 'The complete source-local lane height is anchored at the original bottom484. The24 art retains its original vertical compression. Its audited native note scissor is482px; the OMS author retains its existing484px component convention and hit offset. This is not historical native note-coordinate parity.'}})
+        if self.style in SOURCE22_STYLES:
+            self.evidence.append({'source22LaneDomain': {'sourcePackage': self.key,
+                'omsGameplayDomain': values, 'nativeNoteClipHeight': 482,
+                'adaptation': 'Own original lane GEO or the qualified lane region of a combined cabinet mesh. OMS retains its484px component domain and hit offset, without claiming native note-coordinate parity.'}})
         return values
 
     def profiles(self):
@@ -558,9 +594,10 @@ class Frame:
     def gauge(self):
         d=self.draws('gg_bar_'+self.player,self.side)[-1]
         resource,_=self.asset(d['asset']['package'],d['texture'])
-        modes={key:self.asset(layout_family(self.style) + '/gameparts',name)[0] for key,name in
-               (('hard','playm_gauge_hard'),('ex-hard','playm_gauge_exhard'),
-                ('assist-easy','playm_gauge_aeasy_'+self.player))}
+        mode_names = [('hard','playm_gauge_hard'),('ex-hard','playm_gauge_exhard')]
+        if self.style not in SOURCE22_STYLES:
+            mode_names.append(('assist-easy','playm_gauge_aeasy_'+self.player))
+        modes={key:self.asset(layout_family(self.style) + '/gameparts',name)[0] for key,name in mode_names}
         bounds=d['bounds'];prefix=self.prefix+'.gauge'
         fill=node(prefix+'.fill','sprite',{},resource)
         reveal=node(prefix+'.reveal','clip',{'clip-mode':'bounds','reveal-x':0},children=[fill])
@@ -589,7 +626,8 @@ class Frame:
         self.info.append(node(prefix+'.body',properties=rect(bounds),children=[dark,shown]))
         anchors=[self.draws(f'percent_{self.player}_{i}',self.side)[-1] for i in range(3)]
         advance=anchors[0]['bounds']['left']-anchors[1]['bounds']['left']
-        font,height=self.font('gauge',self.key,{str(i):f'playm_gg_{i:02}' for i in range(10)},advance)
+        font,height=self.font('gauge',self.key,{str(i):f'playm_gg_{i:02}' for i in range(10)},advance,
+                              uniform_height=self.style not in SOURCE22_STYLES)
         self.fonts[font]['glyphs'].append({'character':'%','resource':self.empty,'advance':1})
         percent={**union(anchors[:2]),'right':anchors[0]['bounds']['left']+advance+1}
         readout=self.number('gauge.percent','gauge.value',percent,font,height,fmt='percent')
@@ -608,10 +646,18 @@ class Frame:
             dash = node(prefix+f'.hyphen.n{index}', 'sprite', rect(hyphen['bounds']), hyphen_resource)
             self.variant(dash['id'], 'visible', 'option.gauge-display', False, {'c':True})
             self.info.append(dash)
-        self.evidence.append({'gaugePercent':'Original ones/tens/hundreds hooks; native compressed hundred position retained.',
-                              'advance':advance,'roundedHundredThreshold':.995,
-                              'visibility':'26 original A=bar+percent, B=dark bar+percent, C=dark bar+source hyphen if present;25 has no hyphen hook.',
-                              'darkUnderlayOpacity':.2})
+        gauge_evidence = {'gaugePercent':'Original ones/tens/hundreds hooks; native compressed hundred position retained.',
+                          'advance':advance,'roundedHundredThreshold':.995,
+                          'visibility':'26 original A=bar+percent, B=dark bar+percent, C=dark bar+source hyphen if present;25 has no hyphen hook.',
+                          'darkUnderlayOpacity':.2}
+        if self.style in SOURCE22_STYLES:
+            gauge_evidence.update(
+                gaugePercent='Own22 ones/tens/hundreds artwork and original source-hook positions.',
+                visibility='Existing OMS A/B/C display policy, dark underlay and rounded100 threshold are author adaptations on22 art; this does not assert the22 executable gauge-option table.',
+                assistEasyArtwork='The22 source has no Assist Easy gauge sprite. The OMS mode retains the original normal gauge artwork with its actual host value/60% threshold; no later-source artwork is substituted.',
+                glyphHeightPolicy='Original glyph PNG sizes are retained, top-aligned in a line whose height is the largest source glyph. This represents Lincle digit2 at its original28px inside the30px line without rescaling its pixels; original movie-cell parity is not claimed.',
+                sourceFamily='s22')
+        self.evidence.append(gauge_evidence)
         hazard=node(prefix+'.hazard','text',{**rect(box(bounds['left'],bounds['bottom']+1,150,12)),
                     'text':'HAZARD / SURVIVAL','font-size':10*LOGICAL,'colour':'#ffffffff'})
         self.variant(hazard['id'],'visible','gauge.type',False,{'hazard':True})
@@ -619,7 +665,12 @@ class Frame:
 
     def progress(self):
         for player in (('1p','2p') if self.dp else (self.player,)):
-            d=self.draws('music_point_'+player,self.side)[-1]
+            draws=self.draws('music_point_'+player,self.side)
+            if not draws and self.style == 'source22-gmframe9' and not self.dp:
+                self.evidence.append({'musicProgressUnavailable':
+                    'The retained22 Tricoro SP source has no music_point placement in either side or any centre movie. No cursor or travel geometry is borrowed; its DP source retains both original hooks.'})
+                continue
+            d=draws[-1]
             resource,_=self.asset(d['asset']['package'],d['texture'])
             prefix=self.prefix+'.progress.p'+player[0]
             bounds=d['bounds']
@@ -631,7 +682,8 @@ class Frame:
                        bounds['right']-bounds['left'],travel)),children=[cursor])
             self.bind(cursor['id'],'y','timing.progress')
             self.info.append(track)
-        self.evidence.append({'musicProgress':'Original cursor and initial anchor; endpoint aligned to source lower E area is an author adaptation, not the original progress formula.'})
+        if self.dp or draws:
+            self.evidence.append({'musicProgress':'Original cursor and initial anchor; endpoint aligned to source lower E area is an author adaptation, not the original progress formula.'})
 
     def graph(self):
         from standard_graph import build_graph
@@ -696,7 +748,7 @@ class Frame:
             'mount': 'One direct Global hud.text foreground owner with an explicit slotless Global child using frozen SafeBounds; independent of JUDGE preferences and preparation. Original gameplay.fail clip and 3000 ms outro are unchanged.'}})
 
     def gauge_feedback(self):
-        source = self.owner.gauge_feedback[f'f{self.style:02}'][self.layout]
+        source = self.owner.gauge_feedback[f'f{frame_token(self.style)}'][self.layout]
         for resource in source['resources']:
             self.resource(resource)
         for animation in source['animations']:
@@ -787,14 +839,14 @@ class Frame:
                 'GaugeHeight':74/720,'BgaInformationHeight':0,'BarLineHeight':1,'HitTargetLineHeight':5*LOGICAL}
             if self.dp:fields['DualStageGap']=88/672
             self.ini += ['[Bms]',f'Keymode: {mode}K',*[f'{k}: {v:.12g}' for k,v in fields.items()],'']
-        relative=f'standard/frames/f{self.style:02}/{self.layout}'+('-wide' if self.wide else '')
+        relative=f'standard/frames/f{frame_token(self.style)}/{self.layout}'+('-wide' if self.wide else '')
         manifest={'contract':MANIFEST,'scene':'gameplay-skin.scene.json','sceneContract':SCENE,'eventContract':EVENT,
                   'resources':list(self.resources.values()),'bitmapFonts':list(self.fonts.values()),
                   'animations':list(self.animations.values()),'layouts':profiles}
         write(self.owner.output/(relative+'/manifest.json'),manifest)
         write(self.owner.output/(relative+'/scene.json'),self.scene)
         (self.owner.output/(relative+'/materials.ini')).write_text('\n'.join(self.ini)+'\n',encoding='utf-8')
-        self.owner.receipts.append({'frame':f'iidx{self.style:02}','layout':self.layout,'wide':self.wide,
+        self.owner.receipts.append({'frame':frame_id(self.style),'layout':self.layout,'wide':self.wide,
                                    'centreMovie':self.centre,'research':str(self.research),
                                    'stage':self.map['stage'],'sourceLibraryOnly':True,'adaptations':self.evidence})
         return {field:relative+'/'+name for field,name in (('manifest','manifest.json'),('scene','scene.json'),('ini','materials.ini'))}
@@ -803,14 +855,14 @@ class Frame:
         from standard_reading import add_reading, add_arrival
         from standard_cover_readout import add_cover_readouts
         add_reading(self, self.owner.reading_families[layout_family(self.style)], self.owner.feedback_font, self.owner.source_font)
-        add_cover_readouts(self, self.owner.feedback_font)
+        add_cover_readouts(self, self.owner.feedback_font, source_family=layout_family(self.style))
         if layout_family(self.style) == '0':
             add_arrival(self)
         else:
             self.evidence.append({'readingSourceCapabilities': {
                 'dedicatedNormalSpeedPreviewArt': False, 'firstRowCueArt': False,
                 'nativePreStartLanePreview': 'Existing OMS fallback; not a source-game capability claim.',
-                'reason': 'No corresponding artwork or movies in the readable 24 HDD graphic archives; no 26 artwork substituted.'}})
+                'reason': ('No corresponding artwork or movies in the qualified22 gameparts; no26 artwork substituted.' if self.style in SOURCE22_STYLES else 'No corresponding artwork or movies in the readable 24 HDD graphic archives; no 26 artwork substituted.')}})
 
 
 def build(args):
@@ -836,9 +888,11 @@ def build(args):
                                         (notifications, 'oms-standard-graph-notifications.v1', args.graph_notifications)):
         if catalog.get('contract') != contract or catalog.get('librarySHA256') != sha(owner.library / 'library.json'):
             raise ValueError('Stage feedback must belong to this exact Standard source library')
-        for row in catalog['files']:
+        selected_files = catalog['files']
+        if catalog is gauge:
+            owner.gauge_feedback, selected_files = select_gauge_assets(gauge, owner.source_data)
+        for row in selected_files:
             owner.copy(contained(directory.resolve(), row['path']), row['path'], row['sha256'])
-    owner.gauge_feedback = gauge['frames']
     if set(failure['families']) != set(source_families(owner.source_data)):
         raise ValueError('Failure export must retain every qualified source family')
     owner.failure_families = failure['families']
@@ -862,18 +916,18 @@ def build(args):
     choices=[]
     owner.bga_contexts=[]
     for style in owner.frame_styles:
-        parts={layout:Frame(owner,args.research/f'gmframe{style:02}',style,layout).build() for layout in ('p1','p2','dp')}
-        wide={layout:Frame(owner,args.research/f'gmframe{style:02}',style,layout,wide=True).build() for layout in ('p1','p2')}
-        choice={'value':f'iidx{style:02}','label':f'{style:02} {FRAMES.get(style, EARLIER_FRAME_LABELS.get(style))}',**parts['dp'],
+        parts={layout:Frame(owner,args.research/package_key(style),style,layout).build() for layout in ('p1','p2','dp')}
+        wide={layout:Frame(owner,args.research/package_key(style),style,layout,wide=True).build() for layout in ('p1','p2')}
+        choice={'value':frame_id(style),'label':frame_label(style),**parts['dp'],
                 'variants':[{'when':{'layout':layout,'graph-visible':shown},**(parts if shown else wide)[layout]}
                             for layout in ('p1','p2') for shown in (True,False)]}
-        reference=read(args.research/f'gmframe{style:02}'/'skin-reference-map.json')
+        reference=read(args.research/package_key(style)/'skin-reference-map.json')
         preview=owner.Image.new('RGBA',CANVAS,(5,7,12,255))
-        for movie,dx in (('center_frame_sp',36),('1p_frame',0)):
-            art=owner.Image.open(args.research/f'gmframe{style:02}'/reference['layouts'][movie]['static_frame']).convert('RGBA')
+        for movie,dx in (('center_frame_sp',centre_translation(style, 'p1')),('1p_frame',0)):
+            art=owner.Image.open(args.research/package_key(style)/reference['layouts'][movie]['static_frame']).convert('RGBA')
             preview.alpha_composite(art,(dx,0))
         preview.thumbnail((512,288),owner.Image.Resampling.LANCZOS)
-        relative=f'standard/previews/frame{style:02}.png'
+        relative=f'standard/previews/frame{frame_token(style)}.png'
         target=owner.output/relative
         target.parent.mkdir(parents=True,exist_ok=True)
         preview.save(target,optimize=True)
@@ -932,7 +986,7 @@ def build(args):
         {'id':'frame','label':'Game Frame','default':'iidx26','choices':choices}, graph_targets['module'], bga['module'], *components['modules']]})
     (owner.output/'skin.ini').write_text(f'[General]\nName: {NAME}\nAuthor: OMS local author\nVersion: 2.7\n',encoding='utf-8')
     write(owner.output.with_name(owner.output.name+'.source-receipt.json'),{'name':NAME,'status':'generated-pending-author-cli-and-player',
-        'frames':[f'iidx{x:02}' for x in owner.frame_styles],'sourceLibrary':str(owner.library),'sourceExclusions':owner.exclusions,
+        'frames':[frame_id(x) for x in owner.frame_styles],'sourceLibrary':str(owner.library),'sourceExclusions':owner.exclusions,
         'frameReceipts':owner.receipts,'frameSourceAssets':list(owner.sources.values()),
         'componentsSource':str(args.components),'componentOverrides':[str(p) for p in args.component_overrides],
         'graphTargets':graph_targets['receipts'],

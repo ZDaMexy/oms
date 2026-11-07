@@ -270,7 +270,7 @@ class StandardBgaTests(unittest.TestCase):
     def test_other_frame_generation_cannot_qualify_as_this_library(self):
         self.metadata["packages"].append({"source": "contents/data/graphic/gmframe33.ifs"})
         (self.library / "library.json").write_text(json.dumps(self.metadata), encoding="utf-8")
-        with self.assertRaisesRegex(ValueError, "independent ten-frame"):
+        with self.assertRaisesRegex(ValueError, "source-qualified Standard frame selection"):
             validated_geometry(self.library, self.evidence)
 
     def test_preparation_uses_exact_alpha_hole(self):

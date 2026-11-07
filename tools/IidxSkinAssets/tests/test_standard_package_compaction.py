@@ -171,7 +171,7 @@ class PackageCompactionTest(unittest.TestCase):
             self.assertEqual(files["skin.ini"], (root / "output/skin.ini").read_bytes())
             configuration = [p for p in (root / "output").rglob("*") if p.is_file() and p.suffix.lower() in (".ini", ".json")]
             self.assertEqual(sum(p.stat().st_size for p in configuration), result["configurationBytes"]["output"])
-            self.assertEqual(16 * 1024 * 1024, result["configurationBytes"]["limit"])
+            self.assertEqual(32 * 1024 * 1024, result["configurationBytes"]["limit"])
             self.assertGreater(result["configurationBytes"]["remaining"], 0)
             self.assertTrue(result["allOtherSceneFieldsVerifiedByInverseRewrite"])
 

@@ -14,12 +14,13 @@ import io
 import json
 import math
 from pathlib import Path
+from standard_source_catalog import frame_token, frame_id, package_key, source_style, SOURCE22_STYLES
 from urllib.parse import unquote
 import xml.etree.ElementTree as ET
 
 from standard_graph import FRAME_IDS, digest, node
 from standard_source_catalog import (styles as source_styles, families as source_families,
-                                     metadata, presentation_family, centre_translation)
+                                     retained_styles, metadata, presentation_family, centre_translation)
 
 CONTRACT = "oms-standard-bga-source.v1"
 CANVAS = (1280, 720)
@@ -30,7 +31,11 @@ COPULA_COVERS = {"anime_cover": (800, 586), "anime_cover2": (938, 720)}
 
 
 def cover_sizes(family):
-    return COPULA_COVERS if family == "s23" else COVERS
+    return COPULA_COVERS if family in ("s22", "s23") else COVERS
+
+
+def cover_source_frames(style):
+    return 300 if style in (23, 24) or style in SOURCE22_STYLES else 420
 
 
 def read(path):
@@ -49,11 +54,10 @@ def source_metadata(library):
     if data["status"] != "complete" or data["sourceMetadataUnchanged"] is not True:
         raise ValueError("BGA requires a complete verified source library")
     packages = {row["source"]: row for row in data["packages"]}
-    selected_frames = {int(Path(source).stem[7:]) for source in packages
-                       if Path(source).stem.startswith("gmframe") and Path(source).stem[7:].isdigit()}
-    if selected_frames != set(source_styles(data)):
-        raise ValueError("BGA requires the independent ten-frame IIDX26 selection")
-    required = [f"contents/data/graphic/gmframe{style:02}.ifs" for style in source_styles(data)]
+    required = [f"contents/data/graphic/{package_key(style)}.ifs" for style in retained_styles(data)]
+    selected_frames = {source for source in packages if Path(source).stem.startswith("gmframe")}
+    if selected_frames != set(required):
+        raise ValueError("BGA requires exactly the source-qualified Standard frame selection")
     required += [f"contents/data/graphic/{family}/gameparts.ifs" for family in source_families(data)]
     for source in required:
         if source not in packages:
@@ -175,8 +179,8 @@ def prepare_bga_geometry(library, bemani_root, image_tools):
     for name in required:
         source_files["source-copies/" + name] = digest(inside(library, "source-copies/" + name))
     rows = []
-    for style in source_styles(data):
-        package = f"gmframe{style:02}"
+    for style in retained_styles(data):
+        package = package_key(style)
         source = source_reader._package(package)
         source_files.update(source["hashes"])
         texture_list = f"packages/contents/data/graphic/{package}/raw/tex/texturelist.xml"
@@ -191,7 +195,7 @@ def prepare_bga_geometry(library, bemani_root, image_tools):
             if not cover_names:
                 rows.append(row)
                 continue
-            expected_frames = 300 if style in (23, 24) else 420
+            expected_frames = cover_source_frames(style)
             if len(cover_names) != 1 or len(movie.frames) != expected_frames or movie.fps != 60:
                 raise ValueError("Original BGA cover frame count or hook set changed")
             _, flow_tags = cabinet_loop_control(movie)
@@ -277,10 +281,10 @@ def validated_geometry(library, source_geometry):
         if digest(inside(library, path)) != expected:
             raise ValueError("BGA geometry source bytes changed: " + path)
     rows = {(row["style"], row["movie"]): row for row in value["rows"]}
-    if len(rows) != len(value["rows"]) or set(rows) != {(style, movie) for style in source_styles(data) for movie in CENTRES}:
-        raise ValueError("BGA geometry requires all ten original cabinet hook sets")
+    if len(rows) != len(value["rows"]) or set(rows) != {(style, movie) for style in retained_styles(data) for movie in CENTRES}:
+        raise ValueError("BGA geometry requires all retained original cabinet hook sets")
     for (style, movie), row in rows.items():
-        raw = f"packages/contents/data/graphic/gmframe{style:02}/raw"
+        raw = f"packages/contents/data/graphic/{package_key(style)}/raw"
         required_movie_files = {raw + "/afp/" + movie}
         if (library / raw / "afp/bsi" / movie).is_file():
             required_movie_files.add(raw + "/afp/bsi/" + movie)
@@ -289,8 +293,8 @@ def validated_geometry(library, source_geometry):
         if "_dp_" in movie:
             if row["covers"]:
                 raise ValueError("Original DP has no qualified BGA cover hook")
-        elif (row.get("constantSourceFrames") != (300 if style in (23, 24) else 420)
-              or row["frames"] != (300 if style in (23, 24) else 420) or row["fps"] != 60 or len(row["covers"]) != 1):
+        elif (row.get("constantSourceFrames") != cover_source_frames(style)
+              or row["frames"] != cover_source_frames(style) or row["fps"] != 60 or len(row["covers"]) != 1):
             raise ValueError("BGA cover entry/loop is not completely constant")
         else:
             texture = "anime_cover2" if "_wide_" in movie else "anime_cover"
@@ -359,6 +363,85 @@ def viewport_ini(layout, apertures):
     return "".join(f"[Bms]\nKeymode: {mode}K\n{field}: {viewports}\n\n" for mode in ((14,) if layout == "dp" else (5, 7)))
 
 
+def contribution_semantics(manifest, scene, ini, files):
+    """Compare this static module after local ID renaming, with exact PNG bytes.
+
+    External material owners, geometry, sampler, draw order and viewport INI
+    remain literal. Only declarations and references owned by this contribution
+    can change names; no source family or aperture is assumed interchangeable.
+    """
+    identities = {}
+
+    def collect(value):
+        if isinstance(value, dict):
+            if "id" in value:
+                identity = value["id"]
+                if identity in identities:
+                    raise ValueError("BGA contribution contains a duplicate local identity")
+                identities[identity] = "local." + str(len(identities))
+            for child in value.values():
+                collect(child)
+        elif isinstance(value, list):
+            for child in value:
+                collect(child)
+
+    def rename(value):
+        if isinstance(value, dict):
+            return {key: rename(child) for key, child in value.items()}
+        if isinstance(value, list):
+            return [rename(child) for child in value]
+        return identities.get(value, value) if isinstance(value, str) else value
+
+    collect(manifest)
+    collect(scene)
+    canonical_manifest = rename(manifest)
+    for resource in canonical_manifest["resources"]:
+        resource["path"] = {"exactFileSHA256": files[resource["path"]]["sha256"]}
+    value = {"manifest": canonical_manifest, "scene": rename(scene), "ini": ini}
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":"),
+                                    allow_nan=False).encode("utf-8")).hexdigest()
+
+
+def bounded_variants(branches, signatures, default):
+    """Keep legacy catalog bytes; compact only the expanded finite frame domain."""
+    if len(branches) <= 64:
+        return branches, default, None
+    groups = {}
+    for branch in branches:
+        dp, when, contribution = branch
+        context = tuple((key, value) for key, value in when.items() if key != "frame")
+        groups.setdefault(context, {}).setdefault(signatures[contribution["manifest"]], []).append(branch)
+    compact = []
+    for context, equivalents in groups.items():
+        # The most common exact output makes the fewest frame exceptions.
+        # Stable source order resolves ties without changing the input domain.
+        representative = max(equivalents.values(), key=len)[0]
+        signature = signatures[representative[2]["manifest"]]
+        for value, members in equivalents.items():
+            if value != signature:
+                compact.extend(members)
+        if representative[0]:
+            default = representative[2]
+        else:
+            compact.append((False, dict(context), representative[2]))
+    if len(compact) > 64:
+        raise ValueError("Distinct source-qualified BGA contributions exceed the 64-variant budget")
+    checked = 0
+    for dp, when, contribution in branches:
+        # DP has no layout option; check both Graph values rather than relying
+        # on their absence from the authored DP fallback conditions.
+        cases = [{**when, "graph-visible": value} for value in (False, True)] if dp else [when]
+        for options in cases:
+            selected = next((part for _, conditions, part in compact
+                             if all(key in options and options[key] == value for key, value in conditions.items())), default)
+            if signatures[selected["manifest"]] != signatures[contribution["manifest"]]:
+                raise ValueError("BGA compact routing changed a qualified frame/layout contribution")
+            checked += 1
+    return compact, default, {"originalVariants": len(branches), "variants": len(compact),
+        "verifiedContextsIncludingBothDpGraphValues": checked,
+        "equivalence": "Exact manifest/scene/INI after local ID renaming and exact PNG SHA substitution; external material owners and all geometry/sampler/order values remain literal."}
+
+
 def export_bga_module(library, output, contexts, *, source_geometry):
     """Own only BgaViewports INI and a clipped Global decoration contribution.
 
@@ -389,7 +472,7 @@ def export_bga_module(library, output, contexts, *, source_geometry):
                 (("p1", False), ("p2", False), ("p1", True), ("p2", True), ("dp", False))}
     if set(indexed) != expected:
         raise ValueError("BGA requires all ten cabinet/layout/Graph contexts")
-    files, receipts, choices = {}, [], []
+    files, receipts, choices, routing = {}, [], [], []
 
     def write(relative, data):
         path = (output / relative).resolve()
@@ -408,15 +491,15 @@ def export_bga_module(library, output, contexts, *, source_geometry):
 
     for enabled in (False, True):
         choice = "on" if enabled else "off"
-        branches = []
-        for (style, layout, wide), context in sorted(indexed.items()):
+        branches, signatures = [], {}
+        for (style, layout, wide), context in sorted(indexed.items(), key=lambda item: (frame_token(item[0][0]), *item[0][1:])):
             suffix = "wide" if wide else "base"
-            prefix = f"standard.bga.{choice}.f{style:02}.{layout}.{suffix}"
-            base = f"standard/bga/{choice}/f{style:02}/{layout}/{suffix}"
+            prefix = f"standard.bga.{choice}.f{frame_token(style)}.{layout}.{suffix}"
+            base = f"standard/bga/{choice}/f{frame_token(style)}/{layout}/{suffix}"
             resources, templates, instances, tracks = [], [], [], []
             original = context["apertures"]
             apertures = copy.deepcopy(original)
-            receipt = {"frame": f"iidx{style:02}", "layout": layout, "wide": wide, "choice": choice,
+            receipt = {"frame": frame_id(style), "layout": layout, "wide": wide, "choice": choice,
                        "originalApertures": original, "sourceLibrarySHA256": evidence["librarySHA256"],
                        "sourceGeometryContentSHA256": evidence_digest}
             if enabled and layout != "dp":
@@ -465,9 +548,11 @@ def export_bga_module(library, output, contexts, *, source_geometry):
                 "stateMachines": [], "bindings": [], "variants": [], "templates": templates, "instances": instances}
             write_json(base + "/manifest.json", manifest)
             write_json(base + "/scene.json", scene)
-            write(base + "/viewports.ini", viewport_ini(layout, apertures).encode("utf-8"))
+            ini = viewport_ini(layout, apertures)
+            write(base + "/viewports.ini", ini.encode("utf-8"))
             contribution = {"manifest": base + "/manifest.json", "scene": base + "/scene.json", "ini": base + "/viewports.ini"}
-            conditions = {"frame": f"iidx{style:02}"}
+            signatures[contribution["manifest"]] = contribution_semantics(manifest, scene, ini, files)
+            conditions = {"frame": frame_id(style)}
             if layout != "dp":
                 conditions.update(layout=layout, **{"graph-visible": not wide})
             branches.append((layout == "dp", conditions, contribution))
@@ -475,12 +560,18 @@ def export_bga_module(library, output, contexts, *, source_geometry):
         # More-specific SP conditions precede each frame's DP fallback.
         branches.sort(key=lambda branch: branch[0])
         default = next(contribution for dp, when, contribution in branches if dp and when["frame"] == "iidx26")
+        branches, default, proof = bounded_variants(branches, signatures, default)
+        if proof is not None:
+            routing.append({"choice": choice, **proof})
         choices.append({"value": choice, "label": "Classic BGA Frame（旧式外框）" if enabled else "完整画面",
                         **default, "orderedVariants": True,
                         "variants": [{"when": when, **contribution} for _, when, contribution in branches]})
-    return {"module": {"id": "bga-frame", "label": "BGA 外框", "rulesets": ["bms"], "default": "off", "choices": choices},
+    result = {"module": {"id": "bga-frame", "label": "BGA 外框", "rulesets": ["bms"], "default": "off", "choices": choices},
             "files": list(files.values()), "receipts": receipts,
             "sourceBoundary": "Manual author choice. OMS has no original IIDX song-version or Camera state; no format detection or Camera3..6 is claimed."}
+    if routing:
+        result["variantRouting"] = routing
+    return result
 
 
 def main():

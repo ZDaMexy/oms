@@ -21,7 +21,7 @@ MANIFEST = "gameplay-skin.json"
 SCENE = "gameplay-skin.scene.json"
 STABLE_ID = re.compile(r"^[a-z][a-z0-9.-]{0,127}$")
 RESOURCE_LITERAL = re.compile(r'(?<!\\)("resource"\s*:\s*)("(?:[^"\\]|\\.)*")')
-MAX_CONFIGURATION_BYTES = 16 * 1024 * 1024
+MAX_CONFIGURATION_BYTES = 32 * 1024 * 1024
 
 
 def encoded(value):
@@ -472,7 +472,7 @@ def compact_package(source: Path, output: Path, receipt: Path) -> dict:
             raise ValueError("Configuration aliases disagree about output bytes")
     configuration_bytes = sum(item["outputBytes"] for item in unique_configuration.values())
     if configuration_bytes > MAX_CONFIGURATION_BYTES:
-        raise ValueError(f"Compacted configuration exceeds the unchanged16MiB import budget: {configuration_bytes}")
+        raise ValueError(f"Compacted configuration exceeds the32MiB import budget: {configuration_bytes}")
     result = {"contract": "oms-private-package-compaction-receipt.v1", "source": str(source), "output": str(output),
               "resources": resources, "bitmapFonts": fonts, "animationIdsPreserved": animations, "paths": path_map,
               "sceneDeclarationIds": declarations,

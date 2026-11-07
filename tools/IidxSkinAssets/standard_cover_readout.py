@@ -20,7 +20,7 @@ NUMERIC_WIDTHS = ((0, 1), (10, 2), (100, 3), (1000, 4), (10000, 5),
                   (100000, 6), (1000000, 7), (10000000, 10))
 
 
-def add_cover_readouts(frame, prepared_font):
+def add_cover_readouts(frame, prepared_font, *, source_family="0"):
     """Append one full-canvas contribution to the existing Global owner.
 
     The caller has already declared ``prepared_font['fonts']`` and its atlases.
@@ -28,6 +28,7 @@ def add_cover_readouts(frame, prepared_font):
     Relative children of the source482px clip use that height, not720px.
     """
     prefix = frame.prefix + ".cover-readout"
+    source22 = source_family == "s22"
 
     def text(identifier, value, *, x=0, y=0, size="normal", source=None, colour="#ffffffff"):
         height = 20 if size == "normal" else 18
@@ -97,10 +98,16 @@ def add_cover_readouts(frame, prepared_font):
                 root_id = identifier + (".reversed" if reversed_lift else ".normal")
                 top = kind == "sudden" or reversed_lift
                 white = padded(root_id + ".white", source)
-                green = padded(root_id + ".green", "scroll.green-number", centre=True, colour="#00ff00ff")
-                green["properties"]["x"] = 104 / CANVAS_WIDTH
-                row = node(root_id, properties={"x": x / CANVAS_WIDTH},
-                           children=[white, green, green_range(root_id + ".range", -16 if top else 22)])
+                green = padded(root_id + ".green", "scroll.green-number", centre=not source22, colour="#00ff00ff")
+                if source22:
+                    #22 draws one current value at these two left anchors;
+                    # its complete caller has no later font5 endpoint range.
+                    frame.steps(green["id"], "x", "scroll.green-number", [(0, 90 / CANVAS_WIDTH), (1000, 88 / CANVAS_WIDTH)])
+                    children = [white, green]
+                else:
+                    green["properties"]["x"] = 104 / CANVAS_WIDTH
+                    children = [white, green, green_range(root_id + ".range", -16 if top else 22)]
+                row = node(root_id, properties={"x": x / CANVAS_WIDTH}, children=children)
                 if kind == "lift":
                     linear(root_id, "lift.offset", -26 if top else SOURCE_HEIGHT,
                            SOURCE_HEIGHT - 26 if top else 0, 1)
@@ -119,7 +126,7 @@ def add_cover_readouts(frame, prepared_font):
         root = node(prefix + "." + name, children=[root])
         frame.bind(root["id"], "visible", source)
     frame.info.append(root)
-    frame.evidence.append({"coverReadouts": {
+    receipt = {
         "sourceCallerRVA": "3520f7/3523f0; source font2/5; original fixed software table535060",
         "whiteAnchors": list(WHITE_ANCHORS[frame.layout]), "greenOffset": 104,
         "sourceGeometry": {"laneHeight": SOURCE_HEIGHT, "bottomClip": SOURCE_CLIP,
@@ -130,4 +137,16 @@ def add_cover_readouts(frame, prepared_font):
         "visibility": "Actual Start adjusting plus available hi-speed state; each actual cover-active or Lift-available gate. Independent from Start panel preference. Inactive configured cover values cannot reveal readouts; zero Lift lies beyond the original482px clip.",
         "reversedLiftAdaptation": "Actual reversed Lift uses its top edge and the evidenced top-edge text offsets; native26 downscroll layout does not claim this reversed mode.",
         "largeEndpointAdaptation": "Beyond seven digits, reserve ten original cells within the public numeric-track time ceiling, as the Start panel does.",
-        "scope": "Fixed source software coordinates are independent of historical frame and centre Graph translation. No new image, font, recorded-animation, scoring or input state."}})
+        "scope": "Fixed source software coordinates are independent of historical frame and centre Graph translation. No new image, font, recorded-animation, scoring or input state."}
+    if source22:
+        del receipt["sourceCallerRVA"]
+        receipt.update(sourceCaller="Supplied22 x86 cover-number renderer and its three cover callers; original font2 only.",
+            greenOffset={"below1000": 90, "atLeast1000": 88},
+            sourceGeometry={"laneHeight": SOURCE_HEIGHT, "bottomClip": SOURCE_CLIP,
+                "sudden": "pixels-26", "hiddenAndLift": "484-pixels"},
+            sourceFormat="White %03d left; current green %03d below1000 and %04d atLeast1000 at distinct original left anchors. No endpoint range in the complete22 renderer.",
+            actualUnitsAdaptation="Actual OMS0..1000 units are retained instead of original22 clamped floor(pixels*999/482). Cover edges use the authored484px lane; Lift uses the actual applied offset. The shared source-font atlas and OMS integer formatting are explicit host adaptations.",
+            reversedLiftAdaptation="Actual reversed Lift uses its top edge and the shared top-edge text projection; the original22 downscroll caller does not establish reversed Lift.",
+            largeEndpointAdaptation="Values exceeding the native minimum digit width retain the full actual OMS number; no source overflow or cap is inferred.",
+            scope="22 source anchors/clip and current-only green capability, applied to real OMS reading state. No26 range, scoring, input or original runtime pixel-parity claim.")
+    frame.evidence.append({"coverReadouts": receipt})

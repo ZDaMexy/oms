@@ -30,7 +30,9 @@ namespace osu.Tools.StandardSkinCapture;
 public partial class TestSceneStandardSkinCapture
 {
     private static bool IsReadingCase => CaptureSettings.Current.ChartVariant == "reading";
-    private bool UsesEarlierReadingSource => CaptureSettings.Current.Options.TryGetValue("frame", out string? frame) && frame is "iidx23" or "iidx24";
+    private bool UsesEarlierReadingSource => CaptureSettings.Current.Options.TryGetValue("frame", out string? frame) && frame is
+        "iidx23" or "iidx24" or "source22-gmframe0-00" or "source22-gmframe0-01" or
+        "source22-gmframe8" or "source22-gmframe9" or "source22-gmframe10";
     private readonly Stopwatch readingWaitWatch = new();
     private object? initialReadingWaitObservation;
     private bool readingWaitDiagnosticWritten;
@@ -339,7 +341,7 @@ public partial class TestSceneStandardSkinCapture
 
     private void AssertReadingSourceCapabilities(CaptureReadingPlayer reading)
     {
-        // Only the explicitly selected, source-qualified 23/24 contributions omit these
+        // Only the explicitly selected, source-qualified 22/23/24 contributions omit these
         // later artworks. A missing rectangle on any other package remains a failure.
         Assert.That(reading.NativeRuleset.LayoutSnapshot.HasAuthoredNormalSpeedPreview, Is.EqualTo(!UsesEarlierReadingSource),
             "The exact selected source must agree with its authored Normal preview capability.");
@@ -350,9 +352,9 @@ public partial class TestSceneStandardSkinCapture
         Assert.That(selectedFrame.CanonicalValue, Is.EqualTo(settings.Options["frame"]));
         GameplaySkinPreparedSceneNode[] nodes = runtime.PreparedScene.Roots.SelectMany(Walk).ToArray();
         Assert.That(nodes.Where(node => node.Source.Id.Contains(".arrival.", StringComparison.Ordinal)), Is.Empty,
-            "The 23/24 source must not acquire a first-row cue from the later source.");
+            "The selected 22/23/24 source must not acquire a first-row cue from the later source.");
         Assert.That(nodes.Where(node => node.Source.Id.Contains(".reading.preview.", StringComparison.Ordinal)), Is.Empty,
-            "The 23/24 source must not acquire the later Normal side-window artwork; its native lane preview remains available.");
+            "The selected 22/23/24 source must not acquire the later Normal side-window artwork; its native lane preview remains available.");
     }
 
     private IEnumerable<GameplaySkinSceneRuntimeNode> ReadingNodes()

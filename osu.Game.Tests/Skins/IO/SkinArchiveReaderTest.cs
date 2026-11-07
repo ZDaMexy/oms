@@ -216,16 +216,36 @@ namespace osu.Game.Tests.Skins.IO
             SkinArchiveRejectionReason.CompressionRatioExceeded);
 
         [Test]
+        public async Task TestConfigurationAggregateAtLimitReadsRealPayload()
+        {
+            byte[] content = Enumerable.Repeat((byte)' ', 16 * 1024 * 1024).ToArray();
+            content[0] = (byte)'{';
+            content[1] = (byte)'}';
+            using var archive = BuildZip(new ZipEntry("config-a.json", content), new ZipEntry("config-b.JSON", content));
+            using var reader = await open(archive);
+
+            foreach (string name in new[] { "config-a.json", "config-b.JSON" })
+            {
+                using Stream stream = reader.GetStream(name);
+                Assert.That(stream.Length, Is.EqualTo(content.Length));
+                Assert.That(stream.ReadByte(), Is.EqualTo((byte)'{'));
+                Assert.That(stream.ReadByte(), Is.EqualTo((byte)'}'));
+            }
+        }
+
+        [Test]
         public Task TestConfigurationAggregateBudgetUsesFrozenDeclaration()
         {
-            var entries = Enumerable.Range(0, 17)
+            var entries = Enumerable.Range(0, 2)
                                     .Select(i => new ZipEntry($"config-{i}.json", Array.Empty<byte>())
                                     {
-                                        DeclaredCompressedSize = 1024 * 1024,
-                                        DeclaredExpandedSize = 1024 * 1024,
+                                        DeclaredCompressedSize = checked((uint)(SkinArchiveImportLimits.MAX_CONFIGURATION_BYTES / 2 + i)),
+                                        DeclaredExpandedSize = checked((uint)(SkinArchiveImportLimits.MAX_CONFIGURATION_BYTES / 2 + i)),
                                     })
                                     .ToArray();
 
+            // The total is exactly the limit plus one. No payload exists, so the
+            // metadata budget must reject before local-header/entry materialisation.
             return assertRejected(BuildZip(entries), SkinArchiveRejectionReason.ConfigurationByteBudgetExceeded);
         }
 

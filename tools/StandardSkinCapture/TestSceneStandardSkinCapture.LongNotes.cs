@@ -242,6 +242,22 @@ public partial class TestSceneStandardSkinCapture
 
     private void AddLongNoteTransitionCaptures()
     {
+        bool pendualChargeNotes = CaptureSettings.Current.Options.TryGetValue("charge-notes", out string? chargeNotes) && chargeNotes == "c22";
+        if (pendualChargeNotes)
+        {
+            AddStep("qualify selected PENDUAL CN artwork independently of native note mode", () =>
+            {
+                Assert.That(runtime.Publication.Snapshot.Context.OptionValues.TryGetValue("charge-notes", out GameplaySkinOptionValue selected), Is.True);
+                Assert.That(selected.CanonicalValue, Is.EqualTo("c22"));
+                string[] expected = (from colour in new[] { "white", "black", "scratch" }
+                                     from role in new[] { "base", "cn" }
+                                     select $"sc22.clip.effect.{colour}.{role}.clip").ToArray();
+                Assert.That(runtime.PreparedScene.RecordedAnimations.Keys.Where(key => key.StartsWith("sc22.clip.effect.", StringComparison.Ordinal)),
+                    Is.EquivalentTo(expected), "PENDUAL contributes six source films, with no invented HCN/break film.");
+                Assert.That(runtime.PreparedScene.RecordedAnimations.Keys.Any(key => key.StartsWith("sc.clip.effect.", StringComparison.Ordinal)), Is.False,
+                    "The selected source must not acquire the later long-note films.");
+            });
+        }
         foreach ((int time, string label) in new[] { (4600, "holding"), (5400, "released"), (6600, "regrab"),
                      (8100, "tail"), (10600, "head-miss"), (11800, "head-miss-regrab"),
                      (20050, "early-tail"), (22300, "pooled-reuse"), (24600, "terminal-cleanup") })
@@ -257,19 +273,20 @@ public partial class TestSceneStandardSkinCapture
                 RecordGameplay(name, sample);
                 var visuals = player.ChildrenOfType<GameplaySkinSpecialisedSceneVisual>()
                     .Where(visual => visual.IsApplied && visual.Key.Slot == GameplaySkinSlotCatalog.LongNoteEffect).ToArray();
-                string heldRole = settings.Ruleset == "bms" && settings.LongNoteMode == "hcn" ? "hcn" : "cn";
                 bool hellCharge = settings.Ruleset == "bms" && settings.LongNoteMode == "hcn";
+                string heldRole = hellCharge && !pendualChargeNotes ? "hcn" : "cn";
+                bool hasBreakArtwork = hellCharge && !pendualChargeNotes;
                 if (label is "holding" or "pooled-reuse")
                     Assert.That(visuals.Any(visual => HasVisibleLongNotePieces(visual, heldRole)), Is.True,
                         "The original sustained effect must have real textured pieces on a native hold owner.");
                 if (label == "released")
-                    Assert.That(visuals.Any(visual => HasVisibleLongNotePieces(visual, "break")), Is.EqualTo(hellCharge));
+                    Assert.That(visuals.Any(visual => HasVisibleLongNotePieces(visual, "break")), Is.EqualTo(hasBreakArtwork));
                 if (label == "regrab")
                     Assert.That(visuals.Any(visual => HasVisibleLongNotePieces(visual, heldRole)),
                         Is.EqualTo(hellCharge || settings.Ruleset == "mania"));
                 if (label == "head-miss")
                 {
-                    Assert.That(visuals.Any(visual => HasVisibleLongNotePieces(visual, "break")), Is.EqualTo(hellCharge));
+                    Assert.That(visuals.Any(visual => HasVisibleLongNotePieces(visual, "break")), Is.EqualTo(hasBreakArtwork));
                     Assert.That(visuals.Any(visual => HasVisibleLongNotePieces(visual, "base")), Is.False,
                         "A direct head miss must not invent a base transition burst.");
                 }
@@ -282,6 +299,9 @@ public partial class TestSceneStandardSkinCapture
                 {
                     actualGameplayTime = ReadProperty<double>(events, "AuthoritativeGameplayTime"),
                     publicStateSemantics = LongNotePublicStateSemantics(),
+                    selectedChargeNotes = pendualChargeNotes ? "c22" : chargeNotes,
+                    heldArtworkRole = heldRole,
+                    hasBreakArtwork,
                     states = ReadState().ActiveObjects.Where(state => state.Kind == GameplaySkinObjectKind.LongNote).ToArray(),
                     edges = longNoteEdges.ToArray(),
                     leases = longNoteLeases.ToArray(),

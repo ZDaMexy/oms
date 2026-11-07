@@ -13,6 +13,7 @@ import io
 import json
 import math
 from pathlib import Path
+from standard_source_catalog import frame_id, package_key, includes22, SOURCE22_STYLES
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -24,7 +25,7 @@ from customization_modules import Branch, ModuleBuilder, material_contexts
 from build_fullcombo_catalog import (InternTable, LocalStateRecorder, all_tags, exporter_classes,
                                     load_tools, point_values, rgba_values, to_recorded_animation)
 from export_customization_animations import node_for_reference, root_loop_control
-from standard_source_catalog import styles as source_styles, families as source_families, art_identity
+from standard_source_catalog import styles as source_styles, retained_styles, families as source_families, art_identity
 
 FRAME_IDS = tuple(f"iidx{style:02}" for style in (3, 8, 12, 14, 16, 17, 19, 21, 25, 26))
 COLOURS = ("white", "black", "scratch")
@@ -89,6 +90,30 @@ def turntable_motion(identifier, draw, layout, group):
                                "sourceCentre": centre, "clock": track["clock"]}
 
 
+def source22_turntable_size(frame, source, draw):
+    """Read the dynamic turntable carrier from its own 22 GEO, not a fallback PNG.
+
+    The original named turn00 hook addresses the whole externally loaded image
+    with normalized UVs. Its package-local four vertices therefore establish
+    the carrier size even when the separately loaded image is unresolved in a
+    cabinet/common reference export.
+    """
+    if (frame not in SOURCE22_STYLES or source["package"] != package_key(frame)
+            or source["common_family"] != "s22" or draw["texture"] != "turn00"):
+        raise ValueError("22 Turntable hook belongs to a different source family")
+    vertices, uv, draws = draw["source_vertices"], draw["uv"], draw["draw_params"]
+    if len(vertices) != 4:
+        raise ValueError("22 Turntable carrier is not its complete original quad")
+    width, height = vertices[1]["x"], vertices[2]["y"]
+    if (not 0 < width <= 1280 or not 0 < height <= 720
+            or [(p["x"], p["y"], p["z"]) for p in vertices] != [(0, 0, 0), (width, 0, 0), (0, height, 0), (width, height, 0)]
+            or [(p["x"], p["y"], p["z"]) for p in uv] != [(0, 0, 0), (1, 0, 0), (0, 1, 0), (1, 1, 0)]
+            or len(draws) != 1 or draws[0]["region"] != "turn00" or draws[0]["flags"] != 67
+            or draws[0]["vertexes"] != [0, 1, 2, 2, 1, 3] or draws[0]["blend"] is not None):
+        raise ValueError("22 Turntable carrier XYZ/UV/draw differs from the qualified source")
+    return width, height
+
+
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -129,6 +154,40 @@ def terminal_repeat_control(movie):
         raise ValueError("Repeating long-note source does not call the literal original loop")
     return {"tagIndex": tag_index, "sourceFrame": frame_index, "playbackFrames": frame_index,
             "sourceBytecode": tag.bytecode.as_dict(), "sourceBoundary": [t.as_dict() for t in boundary]}
+
+
+def source22_root_repeat_control(movie):
+    """Bound only the six original22 global self-jumps, without shortening them.
+
+    Unlike26's aeplib method call, these movies invoke the current clip's global
+    deepGotoAndPlay('loop'). The native22 caller counts all27/25 source frames.
+    Keep the final removal frame; the public loop/one-shot declaration owns the
+    next iteration. Initial sizing/visibility scripts still run in the evaluator.
+    """
+    match = re.fullmatch(r"lnote00_lo_(?:siro|ao|scr)(_push)?", movie.name)
+    expected_frames = 25 if match and match[1] else 27
+    if (not match or len(movie.frames) != expected_frames or movie.fps != 60
+            or movie.labels != {"loop": 0}):
+        raise ValueError("22 long-note root differs from its qualified six-movie timeline")
+    actions = [(fi, ti, movie.tags[ti]) for fi, frame in enumerate(movie.frames)
+               for ti in range(frame.start_tag_offset, frame.start_tag_offset + frame.num_tags)
+               if type(movie.tags[ti]).__name__ == "AP2DoActionTag"]
+    if [fi for fi, _, _ in actions] != [0, 0, expected_frames - 1]:
+        raise ValueError("22 long-note root must retain its two initial actions and one terminal self-jump")
+    frame_index, tag_index, tag = actions[-1]
+    boundary = movie.tags[movie.frames[-1].start_tag_offset:
+                          movie.frames[-1].start_tag_offset + movie.frames[-1].num_tags]
+    bytecode = tag.bytecode.as_dict()
+    operations = bytecode["actions"]
+    if (len(boundary) != 2 or type(boundary[0]).__name__ != "AP2RemoveObjectTag" or boundary[-1] is not tag
+            or boundary[0].object_id != 0 or boundary[0].depth != (2 if match[1] else 14)
+            or [a["action"] for a in operations] != ["PUSH", "CALL_FUNCTION", "END", "END"]
+            or operations[0]["objects"] != ["'loop'", "1", "StringConstant(0x815: deepGotoAndPlay)"]):
+        raise ValueError("22 long-note root has an unqualified terminal global self-jump")
+    return {"tagIndex": tag_index, "sourceFrame": frame_index, "loopStartFrame": 0,
+            "playbackFrames": expected_frames, "method": "global.deepGotoAndPlay",
+            "sourceBytecode": bytecode, "sourceBoundary": [t.as_dict() for t in boundary],
+            "timing": "Retain every declared source frame, including the final removal; no26 terminal-frame shrink"}
 
 
 class StandardBranch(Branch):
@@ -176,11 +235,13 @@ class StandardComponents(ModuleBuilder):
             raise ValueError("Use a complete independently verified source selection")
         self.source_library_sha = digest(self.library / "library.json")
         self.source_data = data
-        self.frame_ids = tuple(f"iidx{style:02}" for style in source_styles(data))
+        self.frame_ids = tuple(frame_id(style) for style in source_styles(data))
         self.source_families = source_families(data)
         self.packages = {row["source"].removeprefix("contents/data/graphic/").removesuffix(".ifs"): row
                          for row in data["packages"]}
-        exact_styles(self.packages, r"gmframe(\d+)", source_styles(data))
+        actual_frames = {key for key in self.packages if Path(key).name.startswith("gmframe")}
+        if actual_frames != {package_key(style) for style in retained_styles(data)}:
+            raise ValueError("Component library differs from its qualified Standard frame selection")
         self.index = {}
         samplers = {}
         for row in data["textures"]:
@@ -276,6 +337,9 @@ class StandardComponents(ModuleBuilder):
         repeat = terminal_repeat_control(selected) if package == "lnote00" and movie != "notes_break" else None
         if repeat:
             flow_tags.add(id(selected.tags[repeat["tagIndex"]]))
+        source22_repeat = source22_root_repeat_control(selected) if package == "source22/lnote00" else None
+        if source22_repeat:
+            flow_tags.add(id(selected.tags[source22_repeat["tagIndex"]]))
         if controls and (trigger != "input.key.down" or loop):
             raise ValueError("Original held loop requires the native input trigger")
 
@@ -326,7 +390,7 @@ class StandardComponents(ModuleBuilder):
         used = {g["resource"] for g in clip["geometries"] if g["resource"] is not None}
         declared = {}
         atlas_sources = {}
-        use_atlas = (package == "lnote00" and trigger != "gameplay.attach") or re.fullmatch(r"(?:source24/)?fcombo\d{2}", package) is not None
+        use_atlas = (package in ("lnote00", "source22/lnote00") and trigger != "gameplay.attach") or re.fullmatch(r"(?:source24/)?fcombo\d{2}", package) is not None
         for i, row in enumerate(source["rows"]):
             if resources[i] in used:
                 if use_atlas:
@@ -367,6 +431,7 @@ class StandardComponents(ModuleBuilder):
                     "durationMs": (len(clip["frames"]) - 1) * 1000 / selected.fps,
                     "labels": selected.labels, "translatedRootControl": controls,
                     **({"translatedTerminalRepeat": repeat} if repeat else {}),
+                     **({"translatedSource22RootRepeat": source22_repeat} if source22_repeat else {}),
                     **({"translatedScriptMask": script_mask} if script_mask else {})},
                   "receipt": {"sourceArchiveSHA256": self.packages[package]["sha256"], "rawSHA256": source["hashes"],
                     "sourcePNGBytesPreserved": not use_atlas, "sourcePixelsPreserved": True,
@@ -448,7 +513,7 @@ class StandardComponents(ModuleBuilder):
         part = slot.rsplit(".", 1)[1]
         for ruleset in ("bms", "mania"):
             suffix = colour + "." + part + "." + ruleset
-            marker_package = "notes00" if slot == "object.note" else "notes_cn00"
+            marker_package = package if package == "source22/notes_cn00" else "notes00" if slot == "object.note" else "notes_cn00"
             marker = self.fallback_marker(branch.prefix.split(".")[0], suffix, marker_package, texture)
             # Mania native notes use a 48-unit width-derived marker carrier;
             # BMS uses a 22.5-unit carrier. Bodies keep native time geometry.
@@ -549,14 +614,60 @@ class StandardComponents(ModuleBuilder):
             "officialReference": "https://p.eagate.573.jp/game/2dx/26/howto/new/custom_new.html",
             "autoScratchDisplay": "26 ASCR note visibility selects only exact native object.auto-assist=scratch. Ordinary notes, full Autoplay, LN effects and scoring eligibility are unchanged.",
             "bodyLength": "Native time/scroll geometry is unchanged; only original head/tail sprite geometry is normalized"})
+        if includes22(self.source_data):
+            self.charge_notes22()
 
-    def long_note_effects(self, branch, materials):
-        """The26 native caller layers, driven only by the exact native hold owner."""
+    def charge_notes22(self):
+        """Original22 CN sprites and six movies, with host HCN using CN art."""
+        branch = StandardBranch(self, "sc22", "c22")
+        materials = {r: {} for r in ("bms", "mania")}
+        for colour in COLOURS:
+            stem = "notes_bss" if colour == "scratch" else "notes_cn_" + colour
+            for ruleset in materials:
+                materials[ruleset][colour] = {}
+            for part, suffix in (("head", "start"), ("body", "beam0"), ("tail", "end")):
+                texture = stem + "_" + suffix
+                appearance = ("object.long-note-appearance", {
+                    state: stem + "_" + value for states, value in (
+                        (("ln", "cn", "hcn"), "beam0"),
+                        (("ln-holding", "cn-holding", "hcn-holding"), "beam1"),
+                        (("ln-released", "cn-released", "hcn-released"), "beam2"))
+                    for state in states}) if part == "body" else (
+                        "object.long-note-mode", {mode: texture for mode in ("ln", "cn", "hcn")})
+                slot = "object.long-note." + part
+                for ruleset, marker in self._note(branch, colour, slot, texture, body=part == "body",
+                                                  appearance=appearance, package="source22/notes_cn00"):
+                    materials[ruleset][colour][slot] = marker
+        self.long_note_effects(branch, materials, source22=True)
+        for ruleset, material in materials.items():
+            branch.lane_ini(material, ruleset)
+        contribution = branch.finish()
+        hidden = self.auto_scratch_hidden(branch.scene, contribution)
+        module = next(m for m in self.modules if m["id"] == "charge-notes")
+        module["choices"].append({"value": "c22", "label": "Charge Notes (PENDUAL)", **contribution,
+            "variants": [{"when": {"auto-scratch-display": False}, **hidden}],
+            "preview": self.preview("charge-notes", "c22", [("source22/notes_cn00", n) for n in
+                ("notes_cn_white_start", "notes_cn_black_start", "notes_bss_start")])})
+        self.receipts.append({"category": "charge-notes22", "sourcePackage": "source22/notes_cn00",
+            "effectPackage": "source22/lnote00", "sourceMovies": 6,
+            "state": "Original base27 frames once on actual hold entry/exit; push25 frames loops only while held. The22 source has no HCN push/break movies.",
+            "hostAdaptation": "Host LN, CN and HCN all use22 CN appearance and its held effect; real note mode/scoring is unchanged. The26 HCN display choice does not replace this source.",
+            "size": "Original22 movie scale retained; the26 explosion-size control is not applied to22 CN effects."})
+
+    def long_note_effects(self, branch, materials, *, source22=False):
+        """Source-specific caller layers driven by the exact native hold owner."""
+        effect_package = "source22/lnote00" if source22 else "lnote00"
+        note_package = "source22/notes_cn00" if source22 else "notes_cn00"
+        effect_prefix = "sc22" if source22 else "sc"
         for colour, family in (("white", "siro"), ("black", "ao"), ("scratch", "scr")):
             movies = (("base", f"lnote00_lo_{family}", False, "object.long-note-transition", None),
                       ("cn", f"lnote00_lo_{family}_push", True, "object.state", ["ln-holding", "cn-holding"]),
                       ("hcn", f"lnote00_lo_{family}2_push", True, "object.state", ["hcn-holding"]),
                       ("break", "notes_break", True, "object.state", ["hcn-released"]))
+            if source22:
+                movies = (("base", f"lnote00_lo_{family}", False, "object.long-note-transition", None),
+                          ("cn", f"lnote00_lo_{family}_push", True, "object.state",
+                           ["ln-holding", "cn-holding", "hcn-holding"]))
             for ruleset in ("bms", "mania"):
                 identifier = branch.prefix + ".effect." + ruleset + "." + colour
                 props = {"width": 4, "height": 4} if ruleset == "bms" else {
@@ -564,7 +675,7 @@ class StandardComponents(ModuleBuilder):
                     "y": (REFERENCE_STAGE_HEIGHT - 1 - 22.5) / (REFERENCE_STAGE_HEIGHT - 1)}
                 children = []
                 for role, movie, loop, trigger, appearances in movies:
-                    exported = self.clip("lnote00", movie, "sc.clip.effect." + ("break" if role == "break" else colour + "." + role),
+                    exported = self.clip(effect_package, movie, effect_prefix + ".clip.effect." + ("break" if role == "break" else colour + "." + role),
                                          loop=loop, trigger=trigger)
                     art = branch.include_clip(exported)
                     art["id"] = identifier + "." + role + ".art"
@@ -576,17 +687,19 @@ class StandardComponents(ModuleBuilder):
                         if art["properties"][dimension] > 4:
                             art["properties"][scale], art["properties"][dimension] = art["properties"][dimension] / 4, 4
                     positioned = node(identifier + "." + role, properties={"x": .125, "y": 17.5 / 90, "origin": "centre"}, children=[art])
-                    if role == "base":
+                    if role == "base" and not source22:
                         branch.bind(positioned["id"], "scale-x", "option.explosion-scale")
                         branch.bind(positioned["id"], "scale-y", "option.explosion-scale")
-                    else:
+                    elif role != "base":
                         branch.show(positioned["id"], "object.long-note-appearance", appearances)
                     children.append(positioned)
-                marker = self.fallback_marker("sc", "effect-" + ruleset + "-" + colour, "notes_cn00",
+                marker = self.fallback_marker(effect_prefix, "effect-" + ruleset + "-" + colour, note_package,
                     "notes_bss_start" if colour == "scratch" else "notes_cn_" + colour + "_start")
                 branch.template("effect." + ruleset + "." + colour,
                     node(identifier, properties=props, slot="effect.long-note", children=children), "effect.long-note", marker)
                 materials[ruleset][colour]["effect.long-note"] = marker
+        if source22:
+            return
         self.receipts.append({"category": "long-note-effect", "sourcePackage": "lnote00", "nativeCallerMovies": 10,
             "sourceMovies": 13, "unusedTopLevelMovies": "The three base2 movies are source inventory, not dispatched by the26 executable",
             "state": "base once on actual Holding entry/exit; original _push loops while LN/CN held,2_push while HCN held; notes_break loops only for HCN released. Direct head miss has no invented base burst.",
@@ -660,27 +773,32 @@ class StandardComponents(ModuleBuilder):
                             "preview": self.preview("explosion", f"e{style:02}", [(package, names[len(names)//2])])})
         self.add_module("explosion", "Explosion", choices, "e00")
 
+    def lane_sources(self):
+        for index in exact_styles(self.packages, r"lane(\d+)", range(167)):
+            yield f"lane{index:03}", f"lane{index:03}", f"l{index:03}", f"{index:03}"
+        if includes22(self.source_data):
+            for index in (27, 40, 58, 68, 86, 87, 88, 89):
+                yield f"source22/lane{index:03}", f"lane{index:03}", f"l22-{index:03}", f"PENDUAL {index:03}"
+
     def static_lanes(self):
         choices = []
-        for style in exact_styles(self.packages, r"lane(\d+)", range(167)):
-            branch = StandardBranch(self, "sl", f"l{style:03}")
-            package = f"lane{style:03}"
-            resource = branch.asset(package, package, "sl")[0]
+        for package, texture, value, label in self.lane_sources():
+            branch = StandardBranch(self, "sl", value)
+            resource = branch.asset(package, texture, "sl")[0]
             marker = self.fallback_marker("sl", "cover", "lane000", "lane000")
             branch.template("art", node(branch.prefix + ".art", "sprite", resource=resource, slot="playfield.lane-cover.fill"),
                             "playfield.lane-cover.fill", marker)
             branch.stage_ini("playfield.lane-cover.fill", marker)
-            choices.append({"value": f"l{style:03}", "label": f"Lane Cover {style:03}", **branch.finish(),
-                            "preview": self.preview("lane-cover", f"l{style:03}", [(package, package)])})
+            choices.append({"value": value, "label": "Lane Cover " + label, **branch.finish(),
+                            "preview": self.preview("lane-cover", value, [(package, texture)])})
         self.add_module("lane-cover", "Lane Cover", choices, "l000")
 
     def lift_art(self):
         choices = []
-        for style in exact_styles(self.packages, r"lane(\d+)", range(167)):
-            branch = StandardBranch(self, "sv", f"l{style:03}")
+        for package, texture, value, label in self.lane_sources():
+            branch = StandardBranch(self, "sv", value)
             black, marker = self.control_black(branch)
-            package = f"lane{style:03}"
-            resource = branch.asset(package, package, "sl")[0]
+            resource = branch.asset(package, texture, "sl")[0]
             root = node(branch.prefix + ".fill", slot="playfield.lift.fill", children=[
                 node(branch.prefix + ".black", "sprite", resource=black),
                 node(branch.prefix + ".art", "sprite", {"x": 2 / 292, "width": 288 / 292}, resource)])
@@ -689,11 +807,11 @@ class StandardComponents(ModuleBuilder):
                 if context["ruleset"] == "bms":
                     branch.ini.extend(("[GameplaySkin.Bms:1]", "Target: Stage " + context["stage"],
                                        f'playfield.lift.fill: resource Provide "{marker}"'))
-            choices.append({"value": f"l{style:03}", "label": f"LIFT art {style:03}", **branch.finish(),
-                            "preview": self.preview("lift-art", f"l{style:03}", [(package, package)])})
+            choices.append({"value": value, "label": "LIFT art " + label, **branch.finish(),
+                            "preview": self.preview("lift-art", value, [(package, texture)])})
         self.add_module("lift-art", "LIFT", choices, "l000")
         self.modules[-1].update(rulesets=["bms"], keymodes=["5k", "7k", "14k"])
-        self.receipts.append({"category": "lift-art", "choices": 167,
+        self.receipts.append({"category": "lift-art", "choices": len(choices),
             "geometry": "Native BMS full stage fill clipped by actual LIFT; source288px art occupies292px stage with2px gutters",
             "adaptation": "Source cover design reused as LIFT art; no extra black choice and no fake mania Lift"})
 
@@ -862,10 +980,10 @@ class StandardComponents(ModuleBuilder):
 
     def turntables(self):
         if self.frame_maps is None:
-            raise ValueError("Turntables require all ten independently qualified source frame maps")
+            raise ValueError("Turntables require all independently qualified source frame maps")
         mappings = read_json(self.frame_maps)
-        if set(mappings) != set(self.frame_ids):
-            raise ValueError("Frame maps must contain exactly the ten Standard frame identities")
+        if set(mappings) != {frame_id(style) for style in retained_styles(self.source_data)}:
+            raise ValueError("Frame maps must contain exactly the retained Standard source identities")
         maps = {key: read_json(within(self.frame_maps.parent, value)) for key, value in mappings.items()}
         choices, motion_sources = [], []
         for style in exact_styles(self.packages, r"turn(\d+)", range(21)):
@@ -887,7 +1005,10 @@ class StandardComponents(ModuleBuilder):
                         bounds = draw["bounds"]
                         source_vertices = draw["source_vertices"]
                         hook_asset = draw.get("asset")
-                        if hook_asset is None:
+                        if frame in SOURCE22_STYLES:
+                            width, height = source22_turntable_size(frame, source, draw)
+                            hook_asset = {"width": width, "height": height}
+                        elif hook_asset is None:
                             if frame != "iidx23" or draw["texture"] != "turn00":
                                 raise ValueError("Unqualified unresolved turntable hook")
                             # copula's frame references its separately loaded default
@@ -924,7 +1045,9 @@ class StandardComponents(ModuleBuilder):
                         branch.tracks.append(motion)
                         if style == 0:
                             motion_sources.append({"frame": frame, "layout": layout, "group": group,
-                                                   "sourceHook": binding, **motion_source})
+                                                   "sourceHook": binding, **motion_source,
+                                                   **({"carrierGeometry": "Original22 normalized-UV GEO; no fallback PNG dimensions"}
+                                                      if frame in SOURCE22_STYLES else {})})
                         children.append(art)
                     ident = branch.prefix + "." + layout + "." + frame
                     frames.append(node(ident, children=children))
@@ -988,15 +1111,14 @@ class StandardComponents(ModuleBuilder):
             (research / (movie + ".json")).write_text(json.dumps(root, separators=(",", ":")), encoding="utf-8")
         choices = [{"value": "blank", "label": "Original blank", **StandardBranch(self, "sg", "blank").finish(),
                     "preview": self.preview("graph-area", "blank", [])}]
-        for style in exact_styles(self.packages, r"lane(\d+)", range(167)):
-            branch = StandardBranch(self, "sg", f"l{style:03}")
-            package = f"lane{style:03}"
-            resource = branch.asset(package, package, "sl")[0]
+        for package, texture, value, label in self.lane_sources():
+            branch = StandardBranch(self, "sg", value)
+            resource = branch.asset(package, texture, "sl")[0]
             for layout in ("p1", "p2", "dp"):
                 reference = references["p1" if layout == "dp" else layout]
                 l, t, r, b = reference["clip"]
                 x, y = reference["artOrigin"]
-                row = self.index[package, package]
+                row = self.index[package, texture]
                 identifier = branch.prefix + "." + layout
                 art = node(identifier + ".art", "sprite", {"x": (x - l) / (r - l), "y": (y - t) / (b - t),
                     "width": row["width"] / (r - l), "height": row["height"] / (b - t)}, resource)
@@ -1005,10 +1127,10 @@ class StandardComponents(ModuleBuilder):
                 root = node(identifier, properties={"z": -20}, slot="decoration", children=[clipped])
                 branch.bind(root["id"], "visible", "option.graph-visible")
                 branch.template(layout, root, "decoration", f"markers/frame-{layout}-information")
-            choices.append({"value": f"l{style:03}", "label": f"Graph Area art {style:03}", **branch.finish(),
-                            "preview": self.preview("graph-area", f"l{style:03}", [(package, package)])})
+            choices.append({"value": value, "label": "Graph Area art " + label, **branch.finish(),
+                            "preview": self.preview("graph-area", value, [(package, texture)])})
         self.add_module("graph-area", "Graph Area", choices, "blank")
-        self.receipts.append({"category": "graph-area", "choices": 168, "sourcePackage": "0/graph",
+        self.receipts.append({"category": "graph-area", "choices": len(choices), "sourcePackage": "0/graph",
             "references": references, "DP": "Explicit author reuse of the original right-side P1 graph hook",
             "sourceComposition": "Original lane art at actual customize hook with intersected ancestor masks",
             "dataConsumer": "Caller must supply real graph scores and option.graph-visible; this module provides only art"})

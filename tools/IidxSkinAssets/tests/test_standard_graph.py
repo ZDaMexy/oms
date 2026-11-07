@@ -413,7 +413,7 @@ class StandardGraphTests(unittest.TestCase):
     def test_other_hdd_identity_changed_sprite_and_wrong_font_are_rejected(self):
         self.metadata["packages"].append({"source": "contents/data/graphic/gmframe33.ifs"})
         self.write_metadata()
-        with self.assertRaisesRegex(ValueError, "independent IIDX26"):
+        with self.assertRaisesRegex(ValueError, "source-qualified Standard frame selection"):
             build_graph(self.library, "p1")
         self.metadata["packages"].pop()
         self.metadata["packages"][0]["sha256"] = "0" * 64

@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-11-08（beatoraja两族首版转维护；OMS来源退役及停止边界保持）
+> 最后核对：2026-11-08（Standard双宿主22来源增量）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -15,7 +15,7 @@
 
 ### Standard Model Skin Omni Until 26
 
-按[来源与交付记录](../../other/STANDARD_MODEL_SKIN_20261105.md)的缺口、反馈或新增HDD推进。24/26本体已退役，原机复测须重新取得；现存提取素材、作者源和证据可接续，23/25仅有保留美术。更早代数须有真实来源，未知容器与触发资格保留缺口，ARC SCORE不扩代。两作品独立，禁止computer use。
+完成22来源的Standard双宿主增量：验证正式OMS包与Player、beatoraja完整动画与原生加载实绘，保全旧版和玩家数据后安装交付。新OMS包须32MiB归档配置门，目录检查不代签导入。来源资格及现状取[作品记录](../../other/STANDARD_MODEL_SKIN_20261105.md)。24/26原机复测须重新取得本体；更早代数须有真实来源，未知容器保留缺口，ARC SCORE不扩代。两作品独立，禁止computer use。
 
 ### Lightning Model Skin Omni Until 33（停止自动推进）
 

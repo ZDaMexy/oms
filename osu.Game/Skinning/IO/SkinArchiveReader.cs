@@ -32,7 +32,7 @@ namespace osu.Game.Skinning.IO
         public const long MAX_TOTAL_COMPRESSED_BYTES = 512L * 1024 * 1024;
         public const long MAX_TOTAL_EXPANDED_BYTES = 512L * 1024 * 1024;
         public const long MAX_SKIN_INFO_BYTES = 1024 * 1024;
-        public const long MAX_CONFIGURATION_BYTES = 16L * 1024 * 1024;
+        public const long MAX_CONFIGURATION_BYTES = 32L * 1024 * 1024;
         public const int MAX_COMPRESSION_RATIO = 100;
         public const long COMPRESSION_RATIO_SLACK_BYTES = 1024 * 1024;
     }
