@@ -95,6 +95,6 @@ IR 配置为空，IPFS、Discord、请求服务和自动扫描关闭。官方选
 
 HCN恢复自测使用同一官方安装、SP1/default skin/HARD，真实44 notes、EX86、BP1、最低Gauge85，active→damage→active三阶段顺序成立、自然MusicResult、50张PNG完整、正常dispose。证据在`artifacts/beatoraja-capture/hcn-recovery-selftest/`；谱面与Replay仅在QA目录，未改原生判定或计时器。
 
-Timing自测使用官方default DP/HCN，开头两侧各8颗交替提前/延后50ms；两个原生Judge region均观察到FAST/SLOW，真实非满EX FC和MusicResult，56张PNG完整且正常dispose。证据在`artifacts/beatoraja-capture/timing-selftest/`；`firstTimingJudgeOriginsUs`与每帧`timingFeedback`记录资格、符号和首个判定年龄，不把目标50ms截图当作精确50ms。后续增加的单曲Gauge选择参数已编译，尚待非Hard运行验证。
+Timing自测使用官方default DP/HCN，开头两侧各8颗交替提前/延后50ms；两个原生Judge region均观察到FAST/SLOW，真实非满EX FC和MusicResult，56张PNG完整且正常dispose。证据在`artifacts/beatoraja-capture/timing-selftest/`；`firstTimingJudgeOriginsUs`与每帧`timingFeedback`记录资格、符号和首个判定年龄，不把目标50ms截图当作精确50ms。单曲Gauge选择后来已在官方default的Normal Gauge运行中通过，沿[开发阶段记录](../../doc_md/other/BEATORAJA_IIDX_SKINS_20261107.md#开发阶段验证历史)取证。
 
-尚未覆盖：最终作品包矩阵、重开、PB/Target历史数据、其它挡板组合与交互调整、视频BGA、物理设备与正常PLAY存分。P1-A的产品进度由主线统一维护。
+工具自测不代签作品成品；各包实际矩阵取[本轮同包验收](../../doc_md/other/BEATORAJA_IIDX_SKINS_20261107.md#本轮同包验收)，产品状态取[P1-A](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)。重开、PB/Target历史数据、未覆盖的挡板交互、视频BGA、物理设备与正常PLAY存分仍须各自验证。

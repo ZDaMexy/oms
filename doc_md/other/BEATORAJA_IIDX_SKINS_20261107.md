@@ -42,7 +42,19 @@
 
 实现入口为[素材工具](../../tools/IidxSkinAssets/README.md)、[GPU烘焙工具](../../tools/IidxSkinBake/README.md)和[原生取景工具](../../tools/BeatorajaSkinCapture/README.md)。没有移植OMS运行时，也不改beatoraja判定、计分或用户的客户端JAR。
 
-## 当前验证与未闭合项
+## 本轮同包验收
+
+当前只完成Standard全族候选，Lightning仍在处理完整动画与最终包；两族尚未安装或形成正式ZIP。来源解析与导出工具冻结于`36c90ab`，后续文档整理不更换该构建身份。当前候选位于D盘约定父目录的`packages-r1/standard`，不是早期组件切片。
+
+Standard全部12款Frame、5KEYS/7KEYS两侧与14KEYS DP已生成；实际菜单保留各族来源支持的组件和13项局部控制，没有临时缺烘焙项。官方发现只识别三个Lua入口，全部6707片段、230次装配及60个Frame×布局解析通过。文件清单、组件数量与构建原日志保全于`artifacts/beatoraja-capture/final-build-r1/standard/`。构建监测脚本曾把UTC时间解析成本地时间，旧内存记录只有启动采样，不能宣称整次峰值；限制说明与修正前后脚本均保留。
+
+同一完整Standard包的21场官方Replay覆盖12主题P1、P2/DP、5KEYS两侧、HCN断持恢复、Timing与Judge OFF、FAILED、控制端点及最大默认DP开场/FC负载；1645张PNG与身份、状态、原生读数和正常退出均通过。人工审看21张联系图的282个缩略图，另独立打开31张不同原图（两位审看者合计32次），未确认缺图、持续遮挡或FC/失败退场残留。完整性不等于逐张目视；原生Replay也不代签物理输入、完整歌曲、持续帧率、视频BGA或真实玩家存分/IR。
+
+证据在`artifacts/beatoraja-capture/final-matrix-r1/`的`standard-plan.json`、`standard-integrity.json`与`standard-visual-review.json`；联系图索引保留其生成时“待审看”状态，实际审看以独立回执为准。计划限定Standard范围，完整性与视觉回执均为`globalComplete=false`。后续两族验收必须重新绑定完整矩阵，复用Standard时逐项确认包与场景身份不变。
+
+## 开发阶段验证（历史）
+
+下列记录按各候选当时的覆盖与缺口保留，不能把早期未验项或小包通过直接套用为当前状态；当前同包范围取上节。
 
 实际安装的官方JAR/natives/JRE已在独立QA工作目录通过SP1正常REPLAY、SP2自然失败、DP HCN及SP2 CN AUTOPLAY；配置、合成谱、Replay、player和DB全在QA目录。工具核对实际skin路径/选项，捕捉fallback，要求自然状态与正常dispose，阻止HTTP/HTTPS及真实IR。AUTOPLAY只证明自然返回选曲，正常Result由原生Replay获得；不注入成绩、Gauge或判定计时器。
 
@@ -90,4 +102,4 @@ Graph Target Artwork进一步按实际叶子角色补齐Standard custom/NEXT/NEX
 
 安装签收还要求目标精确属于实际`D:/beatoraja/skin/<版本名>`，保全必须在安装结束后开始；排除的新目录须真实存在，且不是初始皮肤清单中的目录。后回执固定初始清单SHA及原tree摘要，14项隔离合成检查通过，旧11449文件基线与新校验合同相符。新侧车名下的私有脚本复验和精确快照在`artifacts/beatoraja-capture/release-safety-r2/`；这些准备检查不代表真实播放器已经安装或打包。
 
-各主题稳态、Ready/已有Fail、全部普通光柱/爆炸与Lightning四档光柱长度、默认FC三模式、Standard全Gauge/Graph反馈均已获得完整或声明的固定clock烘焙；其它FC与剩余动画挡板仍在串行完成。完整菜单与最终同包验收尚未结束。真实物理输入、长期手感、视频BGA、真实玩家保存/IR、所有配置排列与选曲/Results皮肤未签收；尚无beatoraja正式成品版本或部署验收。
+安装准备阶段已完成各主题稳态、Ready/已有Fail、全部普通光柱/爆炸、Lightning四档光柱长度、默认FC三模式与Standard全Gauge/Graph反馈的完整或声明固定clock烘焙；当时其它FC、开场及动画挡板仍在队列中。此处仅保留当时范围，后续完成情况取上方同包验收。真实物理输入、长期手感、视频BGA、真实玩家保存/IR、所有配置排列与选曲/Results皮肤不由这些烘焙证明代签。

@@ -18,7 +18,7 @@
 | Lightning Model Skin Omni Until 33 | OMS | 自动推进停止，完整形态未完成；最新[.v26102902](CHANGELOG.md#2026-10-29omniv52私下交付)，历史Lighting文件名保留；缺口取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md) |
 | Standard Model Skin Omni Until 26 | OMS | 已交付，按反馈/新来源维护；[.v26110700及来源现状](../../other/STANDARD_MODEL_SKIN_20261105.md#本地来源现状)，24/26本体退役、提取素材保留，23/25仅保留美术 |
 | Lightning Until33 | beatoraja | 开发中，27/33组件及5KEYS两侧实绘通过 |
-| Standard Until26 | beatoraja | 开发中，21/26组件及5KEYS两侧实绘通过 |
+| Standard Until26 | beatoraja | 完整12主题包已通过五布局解析与同包实绘；安装/ZIP待完成，取[本轮同包验收](../../other/BEATORAJA_IIDX_SKINS_20261107.md#本轮同包验收) |
 
 beatoraja安装、证据与缺口取[适配记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md)，未正式交付。OMS选曲/Results沿[原界面决定](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
 
@@ -46,11 +46,13 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
+2026-11-07：beatoraja Standard完整包的60个Frame×布局、21场Replay及1645张PNG完整性通过；人工审看282个缩略图和31张独立原图。仅签当前Standard候选，尚未安装；证据取上方作品记录。
+
 2026-11-07：Standard同包22场景/23局、186项制作工具测试及Desktop/作者CLI/取景宿主Release通过。代表组合、逐图审看、失败重试与交付身份取[作品验证](../../other/STANDARD_MODEL_SKIN_20261105.md#本轮验证与交付)。未改生产客户端，产品宽测沿[11月5日记录](CHANGELOG.md#2026-11-05standard保留美术与graph通知接入)。
 
 Lightning的10月29日候选、产品回归和Release保持[原记录](CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)；[.v26102902交付](CHANGELOG.md#2026-10-29omniv52私下交付)与候选同字节，Standard不刷新其验证日期。
 
-原版依据沿[R12/R13静态与内部精度](CHANGELOG.md#2026-10-29原版独立bpm与内部速度核对)及[R15有限Demo运动](CHANGELOG.md#2026-10-29原版demo自然运动标尺)。R14正常退出回执缺失、独立保全通过；R15退出0及保全通过。timer/start保留原回执，完整副本已退役，不签全部计时冻结。旧包Start/挡板/Lift原生证据取[实施记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md#2026-10-27bms读谱设置与统一记忆实施)，不代签新候选。
+原版参照的精度、有限运动与退出/保全边界沿[10月29日原记录](CHANGELOG.md#2026-10-29原版demo自然运动标尺)；不代签新候选或完整原机行为。
 
 五条已解释ImageSharp旧索引警告不抑制，版本与正规许可取[原记录](CHANGELOG.md#2026-10-22客户端依赖安全修复接入)。正常工作区、图库前台FPS/长期内存、原机精确时序和原生最终配方从零重编未由软件或隔离结果代签；媒体剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)。
 
