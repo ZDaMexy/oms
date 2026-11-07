@@ -156,6 +156,57 @@ def _font_sizes(track):
     return result
 
 
+def _target_art_roles(family, contribution):
+    """Identify the selected source's readouts, not its original target policy.
+
+    Standard's frame-specific prefixes differ, and NEXT's selected total is an
+    arithmetic source rather than a name ending in ``.total``. These roles are
+    intentionally mapped together to the same native target as its bar.
+    """
+    values, names = {}, set()
+    nodes = {n["id"]: n for root in contribution.templates.values() for n in walk_nodes(root)}
+    bindings = {b["target"]: b for b in contribution.scene.get("bindings", []) if b["property"] == "text"}
+    if family == "standard" and contribution.choice in ("custom", "next", "next-plus"):
+        totals = [identifier for identifier in bindings if identifier.endswith(".total")]
+        if len(totals) != 1:
+            raise ValueError("Standard target artwork requires one authored total role")
+        prefix = totals[0][:-len(".total")]
+        suffix = "selected.l2.n0" if contribution.choice == "next" else "target"
+        expected = {prefix + ".total": "value." + prefix + ".value." + suffix,
+                    prefix + ".difference": "value." + prefix + ".value.difference"}
+        label = prefix + ".label"
+        label_text = {"custom": "CUSTOM %", "next": "NEXT", "next-plus": "NEXT+"}[contribution.choice]
+        if (any(identifier not in nodes or nodes[identifier]["type"] != "text"
+                or bindings.get(identifier, {}).get("source") != source
+                for identifier, source in expected.items())
+                or nodes.get(label, {}).get("properties", {}).get("text") != label_text):
+            raise ValueError("Unrecognised Standard target artwork roles")
+        values[prefix + ".total"] = "main_state.exscore_rival()"
+        values[prefix + ".difference"] = "(main_state.exscore() - main_state.exscore_rival())"
+        names.add(label)
+        if contribution.choice == "custom":
+            percent = prefix + ".custom-percent"
+            if bindings.get(percent, {}).get("source") != "option.graph-custom-percent":
+                raise ValueError("Standard custom artwork has no authored percentage readout")
+            values[percent] = "main_state.number(135)"
+    elif family == "lightning" and contribution.choice == "percentage":
+        percentages = [identifier for identifier, binding in bindings.items()
+                       if binding["source"] == "option.pacemaker-percent"]
+        if len(percentages) != 1:
+            raise ValueError("Lightning percentage artwork requires one authored percentage role")
+        percent = percentages[0]
+        parents = [n for n in nodes.values() if any(c["id"] == percent for c in n.get("children", []))]
+        if len(parents) != 1:
+            raise ValueError("Lightning percentage artwork has an ambiguous source container")
+        labels = [n for n in parents[0]["children"] if n["type"] == "text"
+                  and n.get("properties", {}).get("text") == "PACEMAKER" and n["id"] not in bindings]
+        if len(labels) != 1:
+            raise ValueError("Lightning percentage artwork has no unique target name role")
+        values[percent] = "main_state.number(135)"
+        names.add(labels[0]["id"])
+    return values, names
+
+
 def export_graph(author: AuthorPackage, options: dict[str, Any], keymode: str,
                  presentation: str, sink: AssetSink,
                  canvas: tuple[float, float, float, float], *, layer="all") -> dict[str, Any]:
@@ -186,6 +237,8 @@ def export_graph(author: AuthorPackage, options: dict[str, Any], keymode: str,
     context = {"layout.ruleset": "bms", "layout.presentation": presentation,
                **{"option." + key: value for key, value in options.items()}}
     resources, fonts, numeric = {}, {}, {}
+    target = next(c for c in contributions if c.module == "graph-target")
+    target_values, target_names = _target_art_roles(author.family, target)
     for contribution in contributions:
         resources.update(contribution.resources)
         fonts.update({f["id"]: f for f in contribution.manifest.get("bitmapFonts", [])})
@@ -239,13 +292,16 @@ def export_graph(author: AuthorPackage, options: dict[str, Any], keymode: str,
     def export_text(contribution, node, properties, rect, rgba, conditions, scale, font_track):
         binding = next((o for o in contribution.scene.get("bindings", [])
                         if o["target"] == node["id"] and o["property"] == "text"), None)
-        value = number_expression(binding["source"], contribution) if binding else None
+        value = target_values.get(node["id"]) if contribution.module == "graph-target" else None
+        if value is None and binding:
+            value = number_expression(binding["source"], contribution)
         if binding and value is None:
             gap(contribution, node["id"], "unmapped-text-source", source=binding["source"])
             return
         label = properties.get("text", "")
-        is_target_name = contribution.module == "graph-target" and not binding and label in (
-            contribution.choice.upper(), "MAXIMUM", "CUSTOM %", "PERSONAL BEST", "MYBEST")
+        is_target_name = contribution.module == "graph-target" and not binding and (
+            node["id"] in target_names or label in (
+                contribution.choice.upper(), "MAXIMUM", "CUSTOM %", "PERSONAL BEST", "MYBEST"))
         if not value and not label:
             return
         for index, (font_size, interval) in enumerate(_font_sizes(font_track)):
@@ -468,6 +524,6 @@ def export_graph(author: AuthorPackage, options: dict[str, Any], keymode: str,
             {"feature": "graph", "reason": "native-pb-existence-unavailable",
              "detail": "Official playback APIs merge missing and zero PB. Native PB=0 is retained; no current-score mirror is fabricated."},
             {"feature": "graph", "reason": "native-target-selection",
-             "detail": "Source target art follows the host target name/ref 3 and total score/rate 151/115. Artwork choices do not replace host target policy or reproduce the source pace algorithm. Available original crossing movies are handled by the separate public-state feedback adapter."},
+             "detail": "Source target art follows the host target name/ref 3 and total score/rate 151/115. Percentage readouts use the host's integer percentage/ref 135, not an independent author percentage control. Artwork choices do not replace host target policy or reproduce the source pace algorithm. Standard NEXT/NEXT+ retain their catalog identities as AAA artwork aliases under this host-target contract. Available original crossing movies are handled by the separate public-state feedback adapter."},
         ])
     return output

@@ -1,5 +1,11 @@
 # P1-A 变动日志
 
+## 2026-11-07beatoraja目标美术与完整包预检
+
+Graph Target Artwork补齐Standard custom/NEXT/NEXT+及Lightning percentage的来源角色，全部显示实际宿主Target；NEXT/NEXT+是AAA美术别名，原算法与原百分比控件未开放。153条真实来源及官方LuaJ数值/字体门/柱高检查通过，Lightning NEXT的PB存在性缺口仍保持。181项适配器focused通过；原生探针增加Frame×Play Side线性布局覆盖，现有小包14布局通过，最终完整包与新增样式实绘仍待验。
+
+新增构建包与动画使用D盘专用父目录，F盘仅保留最终ZIP与配套说明校验，避免重复解包副本。官方Lua入口7/14不自动兼容5/10，未借LR2规则扩称键数。来源、验证和后续门取[适配记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md)。
+
 ## 2026-11-07beatoraja准备期与控制参数收敛
 
 保留两族各自控制目录，按真实来源独立轴缩减Lightning重复装配；Judge、爆炸、光柱与Timing逐字段/回调核对，未获资格的来源继续枚举。偏移值及AUTO接入真实公开状态；Graph SUB经祖先门复核为PB不可用时的同列替代，撤回“第二比较柱”推测，没有生成错误选项。

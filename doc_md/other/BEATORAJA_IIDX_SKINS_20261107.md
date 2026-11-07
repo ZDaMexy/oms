@@ -10,7 +10,7 @@
 
 原始素材留在`E:/OMS-Development/sources/`各作品原位，新的原生试产在`OMS-Beatoraja-20261107/<family>/`区分；后续临时构建、逐帧烘焙在本仓`.dev-cache/temp/`，真实运行证据在`artifacts/beatoraja-capture/`。只有候选闭合后才复制版本化交付，历史OMS包不迁移或覆盖。精确私有清单、素材、玩家信息和截图不进Git。优先CLI/API与程序内真实framebuffer；本轮用户仅允许必要时以computer use解决操作阻塞，目前未使用。
 
-完整动画后续队列按[开发磁盘约束](../../AGENTS.md#开发磁盘约束)的本轮例外写`D:/OMS-Development/sources/OMS-Beatoraja-Bakes-20261107/`，保留空间门和独立输出验证；原E盘作者与已完成F盘证据不迁移，不为此复制HDD或玩家安装。
+完整动画后续队列与最终原生构建包按[开发磁盘约束](../../AGENTS.md#开发磁盘约束)的本轮例外写`D:/OMS-Development/sources/OMS-Beatoraja-Bakes-20261107/`，保留空间门和独立输出验证；原E盘作者与已完成F盘证据不迁移，不为此复制HDD或玩家安装。交付只在F盘保存版本化ZIP、说明与校验，避免再存一份解包目录。
 
 ## 官方0.8.9更新与数据保全
 
@@ -27,6 +27,7 @@
 原生格式取官方[JsonSkin](https://github.com/exch-bms2/beatoraja/blob/0.8.9/src/bms/player/beatoraja/skin/json/JsonSkin.java)、[Lua状态API](https://github.com/exch-bms2/beatoraja/blob/0.8.9/docs/lua-main-state-api.md)与同标签loader/render源码。
 
 - `.luaskin`的header和body分别执行；读取原生option并只加载本次所选模式/主题的资源。作者catalog的variant使用第一个匹配分支，DP不携带SP专用layout选项；不得把同名animation ID当跨manifest资源身份。
+- 当前原生入口是7KEYS与14KEYS。官方按精确SkinType选择JSON/Lua皮肤；将7/14皮肤加入5/10菜单的兼容逻辑只属于LR2分支，不能据此称本包支持5/10。冻结作者的5K需按实际六路布局和材料另核，不能只改header或裁两列；没有10K作者声明。
 - notes、LN/CN/HCN、判定、Combo、Gauge、BGA与失败/FC时机由beatoraja实际状态驱动。SP2仍是第一玩家；DP才使用第二组timer。新长条字段明确映射，不沿用易混淆的旧active/damage命名。
 - 两族普通note和长条首尾高度不同；原生共享lane高度，导出用同族透明顶补、底对齐保留原像素。IIDX没有mine素材，BMS补显眼的红白危险条并登记为宿主新增，不谎称街机原图。
 - Gauge原作是整条图与裁切，不能猜成50格。Graph采用beatoraja当前Target与实际EX/PB；无法区分无PB与真实零分时保留原生零值，不伪造镜像成绩。宿主Fast/Slow统计与OMS语义不同，分别记录。
@@ -69,7 +70,7 @@ Lightning默认FC24做过实际官方JAR的两种无损分块比较。固定联�
 
 完整目录的控制组合估算暴露了构建体积问题：Lightning约52万候选，其中Judge位置/亮度与爆炸大小/亮度占七成。现从实际来源路径提取Judge、爆炸、光柱和Timing的独立参数，只把已逐轴核对的原生字段做运行时赋值，源分支与所有选项保留；未获资格的路径仍精确枚举。4320个真实组合、226920次原生字段及回调比较通过；候选记录收敛至115830，缓存只留片段路径和诊断。cap height扫描也只消去已证明无几何影响的RGB轴。偏移值/AUTO接真实number12与event_index75，45个源分支的符号、可见门及AUTO原图经官方CPU检查；尚待新同包实绘。
 
-后续参数工厂只在实际选中贡献、消费几何、控制范围和默认值相同时跨Frame复用，Timing另保留Judge材料所有权；未选中的catalog分支不再强迫重复生成，真实`option.frame`依赖仍入键。7065条真实来源资格路径、30/33三模式942条对照和2106个边界组合通过；其中原有54个不可用Separate Timing组合继续阻断。其余2052个组合经官方LuaJ/JsonSkin核220268次回调，重复加载没有共享可变表。四类所需原始组合计算由104490降至13932，菜单与候选覆盖不减；不是GPU或完整包验收。证据在`.dev-cache/temp/beatoraja-parameter-cache-r1/`，正式交付时归整保留。
+后续参数工厂只在实际选中贡献、消费几何、控制范围和默认值相同时跨Frame复用，Timing另保留Judge材料所有权；未选中的catalog分支不再强迫重复生成，真实`option.frame`依赖仍入键。7065条真实来源资格路径、30/33三模式942条对照和2106个边界组合通过；其中原有54个不可用Separate Timing组合继续阻断。其余2052个组合经官方LuaJ/JsonSkin核220268次回调，重复加载没有共享可变表。四类所需原始组合计算由104490降至13932，菜单与候选覆盖不减；不是GPU或完整包验收。原`.dev-cache/temp/beatoraja-parameter-cache-r1/`的证明、日志和复跑脚本已按摘要保留到`artifacts/beatoraja-capture/research-graph-cache-r1/parameter-cache/`。
 
 两族准备期已按原Frame时长接公开READY/PLAY/Failed时钟，Ready仅使用最后1500ms，不延长源等待；CustomTimer每render缓存一次，准备期在首次PLAY冻结，presentation继续随实际PLAY，失败后冻结。Practice/加载/取消与缺少先前READY的晚观察明确拒绝旧epoch，不假造起点。80个官方CPU时钟场景通过。Lightning原Judge Panel位移和原0/1透明度轨道已接入，45个源分支在HD/FULLHD检查；原生整毫秒采样引入的移动误差单独登记，不能以稳态坐标相同宣称动态像素全等。
 
@@ -78,5 +79,7 @@ Lightning默认FC24做过实际官方JAR的两种无损分块比较。固定联�
 后续查漏修复两项原来未报错的静态替代：两族歌曲进度游标接实际宿主rate6，81来源/108游标经整合核对没有静态残留或重复绘制，原PNG/RGBA保留；宿主playtime包含完成余量，不能称与OMS首末物件区间完全同义。Lightning轨道原明暗曲线接公开140节拍时钟，保留原四个alpha点，不自行积分BPM；该宿主在STOP中继续脉冲、每小节重置，失败冻结已观测相位，与OMS连续音乐拍数的区别明示。两项官方CPU通过；`entrance-default-r3`再以Standard默认SP1正常Replay与Lightning默认SP1 Timing完成自然FC/Result，143张PNG完整性和6张原图目视通过，确认两族游标实际移动及Lightning轨道明暗变化。证据在`artifacts/beatoraja-capture/entrance-default-r3/`，没有代签所有主题/配置或精确节拍相位。这两个Gameplay作者目录没有选曲/Results场景合同，不能据此声称还原这些页面，也不反推原HDD没有对应素材。
 
 对Graph SUB的初步“第二比较柱”判断经祖先门复核撤回：原PB分支在PB不可用时才以SUB替换同一列，NO DATA也属于最大值不可用的后备显示。宿主公开值不能区分无PB与合法零分，故维持真实宿主主target与已记存在性边界，不开放假想副柱。此次更正来自源可见门和相同锚点，未改源或发布错误选项。
+
+Graph Target Artwork进一步按实际叶子角色补齐Standard custom/NEXT/NEXT+和Lightning percentage，数值、差分、柱与名称统一读取宿主Target，百分比只显示number135的整数部分；没有开放原作百分比控制或NEXT算法。Standard NEXT/NEXT+在此合同下与AAA同美术，只保留来源选值身份；Lightning NEXT仍因PB存在性门未开放。153条实际来源分支的原图/RGBA、原柱高及最大值字体门通过，官方LuaJ检查57618次数值、67716次门和1620次HD/FULLHD柱高，动态柱误差不超过0.000207源像素。181项适配器focused通过；Frame×Play Side静态探针已补缺失的组合，现有小包14布局通过，最终81布局仍待完整包。证明、实际配方和原日志已按摘要保留到`artifacts/beatoraja-capture/research-graph-cache-r1/`的`graph/`和`frame-side/`，均不代签新增样式的GPU表现。
 
 各主题稳态、Ready/已有Fail、全部普通光柱/爆炸与Lightning四档光柱长度、默认FC三模式、Standard全Gauge/Graph反馈均已获得完整或声明的固定clock烘焙；其它FC与剩余动画挡板仍在串行完成。完整菜单与最终同包验收尚未结束。真实物理输入、长期手感、视频BGA、真实玩家保存/IR、所有配置排列与选曲/Results皮肤未签收；尚无beatoraja正式成品版本或部署验收。

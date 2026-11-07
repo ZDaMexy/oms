@@ -17,7 +17,7 @@
 | beatoraja读数与反馈 | `beatoraja_reading.py`、`beatoraja_gauge.py`、`beatoraja_feedback.py`、`beatoraja_hold.py`、`beatoraja_affine.py`、`beatoraja_barline.py` | 原挡板边缘读数、血条边界与脉冲、真实Gauge/EX变化、长条状态反馈、仿射图与小节线；只使用公开宿主状态，保留时钟、整数几何及alpha量化边界 |
 | beatoraja准备期与开场 | `beatoraja_preparation.py`、`beatoraja_entrance.py`、`beatoraja_entrance_art.py` | 原Frame时长、Ready最后1500ms、原位移/透明度/quad与完整录制；只观察公开时钟，不写宿主计时器。缺失READY历史不伪造epoch；整数采样和GPU边缘差异显式保留 |
 | beatoraja进度与节拍 | `beatoraja_progress.py`、`beatoraja_beat.py` | 原游标读取宿主歌曲进度；原轨道明暗读取公开节拍时钟。宿主完成余量、STOP与小节相位差异留在收据，不自行推算原谱音乐时钟 |
-| beatoraja组件包 | `beatoraja_package.py`、`beatoraja_control_params.py` | 同族共享资产、独立组件片段与稳定选项ID；实际来源逐轴证明可分离的控制生成原生字段值表，其余精确枚举，缺项留在收据。构建前后核工具SHA；CustomTimer同ID须同定义，准备期独占playstart。`tests/BeatorajaPackageProbe.java`用官方JAR核header、片段、真实反序列化及引用闭包；该静态检查不代签游玩 |
+| beatoraja组件包 | `beatoraja_package.py`、`beatoraja_control_params.py` | 同族共享资产、独立组件片段与稳定选项ID；实际来源逐轴证明可分离的控制生成原生字段值表，其余精确枚举，缺项留在收据。构建前后核工具SHA；CustomTimer同ID须同定义，准备期独占playstart。`tests/BeatorajaPackageProbe.java`用官方JAR核header、片段、完整Frame×Side布局、反序列化及引用闭包；`tests/GraphLuaProbe.java`核宿主Target美术的数值/字体门/原柱高。静态检查不代签游玩 |
 | beatoraja证据完整性 | `beatoraja_verify.py` | `package`逐文件核entry/selection、shard与assets摘要、大小、PNG及脚本清单；`capture`复核真实回执的完成/退出门与PNG摘要、尺寸及清单。输出须全新，不改历史收据 |
 | beatoraja独立安装 | `Install-BeatorajaOmni.ps1` | 只复制经核验的包清单到新版本目录，复制前/后及最终安装逐文件复核；已有版本明确拒绝，同卷rename不合并目录。回执写`artifacts/beatoraja-capture/`，不写玩家设置、成绩或当前skin选择 |
 | 动画烘焙与beatoraja实际取景 | [IidxSkinBake](../IidxSkinBake/README.md)、[BeatorajaSkinCapture](../BeatorajaSkinCapture/README.md) | 原生产渲染路径的GPU复合验证与实际官方播放器的独立验收分开；不把离线像素检查当作OpenGL性能/视觉通过 |

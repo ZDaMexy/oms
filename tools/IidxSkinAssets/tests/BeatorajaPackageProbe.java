@@ -13,6 +13,7 @@ import bms.player.beatoraja.skin.lua.SkinLuaAccessor;
 
 public class BeatorajaPackageProbe {
     static int loads, headers, shards, timerMergeFixtures, parameterCases, parameterClosures;
+    static int frameSideLayouts, additionalSideLoads;
     static boolean checkedReuse;
     static boolean representative;
     static boolean smokeSelections;
@@ -154,6 +155,31 @@ public class BeatorajaPackageProbe {
         accessor.dispose();
         return value;
     }
+    static void completeFrameSides(Path path, SkinHeader header, Method deserialize) throws Exception {
+        SkinHeader.CustomOption frames = null, sides = null;
+        for (SkinHeader.CustomOption option : header.getCustomOptions()) {
+            if (option.name.equals("Frame")) frames = option;
+            if (option.name.equals("Play Side")) sides = option;
+        }
+        require(frames != null, "Omni header has no Frame selection");
+        // The independent Frame loop already checked every default-side
+        // layout (or DP). The Play Side loop checked each side's default
+        // frame. Add only the missing frame/side pairs, without multiplying
+        // any module or local-control choices into this layout matrix.
+        frameSideLayouts += frames.option.length * (sides == null ? 1 : sides.option.length);
+        if (sides == null) return;
+        for (int side : sides.option) for (int frame : frames.option) {
+            if (side == sides.getDefaultOption() || frame == frames.getDefaultOption()) continue;
+            SkinConfig.Option frameOption = new SkinConfig.Option();
+            frameOption.name = frames.name; frameOption.value = frame;
+            SkinConfig.Option sideOption = new SkinConfig.Option();
+            sideOption.name = sides.name; sideOption.value = side;
+            SkinConfig.Property property = new SkinConfig.Property();
+            property.setOption(new SkinConfig.Option[]{frameOption, sideOption});
+            load(path, header, property, deserialize);
+            additionalSideLoads++;
+        }
+    }
     public static void main(String[] args) throws Exception {
         Method deserialize = LuaSkinLoader.class.getDeclaredMethod("fromLuaValue", Class.class, LuaValue.class);
         deserialize.setAccessible(true);
@@ -231,6 +257,7 @@ public class BeatorajaPackageProbe {
                 SkinConfig.Property property = new SkinConfig.Property(); property.setOption(new SkinConfig.Option[]{value});
                 load(path, header, property, deserialize);
             }
+            completeFrameSides(path, header, deserialize);
             List<SkinConfig.Option> mixed = new ArrayList<>();
             for (SkinHeader.CustomOption option : header.getCustomOptions()) {
                 SkinConfig.Option value = new SkinConfig.Option(); value.name = option.name;
@@ -240,7 +267,8 @@ public class BeatorajaPackageProbe {
             load(path, header, mixture, deserialize);
             System.out.println("Native header + independent selections PASS: " + path);
         }
-        System.out.printf("PASS headers=%d nativeLoads=%d shards=%d representativeModuleChoices=%s smokeSelections=%s timerMergeFixtures=%d parameterCases=%d callbackComparisons=%d; static only, chart-size fixture=84, no rendering%n",
-            headers, loads, shards, representative, smokeSelections, timerMergeFixtures, parameterCases, parameterClosures);
+        System.out.printf("PASS headers=%d nativeLoads=%d shards=%d representativeModuleChoices=%s smokeSelections=%s frameSideLayouts=%d additionalSideLoads=%d timerMergeFixtures=%d parameterCases=%d callbackComparisons=%d; static only, chart-size fixture=84, no rendering%n",
+            headers, loads, shards, representative, smokeSelections, frameSideLayouts, additionalSideLoads,
+            timerMergeFixtures, parameterCases, parameterClosures);
     }
 }

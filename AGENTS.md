@@ -65,7 +65,7 @@ OMS 是基于 osu!lazer 的 Windows-only 音游客户端：只保留 osu!mania�
 
 - OMS 开发使用非系统盘现有 checkout；本机主目录为 `F:\zdamexy-workspace\oms`。不在 C 盘新建 OMS 工作副本或生成构建、测试产物。确需隔离时先确认非系统盘位置，不使用默认落到 C 盘的工作副本进行编译。
 - 不在任何盘符根目录散建 OMS 工作副本、素材、下载、验收或临时目录。本机外置开发资料统一收在 `E:\OMS-Development\`：`sources/` 放素材/作者源及小范围参照输入，`evidence/` 放需长期保留的验收资料；普通临时文件、缓存和日志仍按下方仓库内约定存放。已有目录迁移及历史路径换算见[归并记录](doc_md/mainline/CHANGELOG.md#2026-10-27oms外置开发目录归并)，不要为旧路径在盘符根目录补 junction 或重复副本。
-- 本次beatoraja完整动画因E盘余量不足，新增烘焙允许写入既有`D:\OMS-Development\sources\OMS-Beatoraja-Bakes-20261107\`专用父目录；输出和跨卷复用逐项核路径与摘要。此例外只承接生成的动画与证明文件，不搬原作者、玩家安装或已有F盘证据，不建junction；后续路径与来源引用取实际清单。
+- 本次beatoraja完整动画因E盘余量不足，新增烘焙和原生皮肤构建允许写入既有`D:\OMS-Development\sources\OMS-Beatoraja-Bakes-20261107\`专用父目录；输出和跨卷复用逐项核路径与摘要。此例外只承接生成的动画、构建包与证明文件，不搬原作者、玩家安装或已有F盘证据，不建junction；后续路径与来源引用取实际清单。版本化ZIP仍放`deliverables/`，安装只向实际播放器添加新版本skin子目录。
 - HDD研究默认直接使用用户现有本体，不创建或常驻完整游戏副本；必要修改只备份涉及的文件。具体素材、运行与改动范围见[P1-A素材约束](doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md#iidx-素材作品约束)，不再把“本体只读、必须完整副本”当作开发前提。
 - 历史文档中的 `F:\oms\...` / `F:/oms/...` 按本仓相同相对路径查找；原快照、命令、来源日期和验收结论保留。日常客户端开发以当前本仓目录打开 VS Code / Codex，跨项目任务从总工作区开展。
 - **每次新 shell 执行 restore/build/test/format、打包或开发检查脚本前**，先执行 `. .\UseDevelopmentStorage.ps1`；环境只在该进程及子进程生效，不能把前一次工具调用的设置当作仍有效。临时探针也放 `.dev-cache/temp/`，日志和 TRX 放仓库 `artifacts/`。
