@@ -200,6 +200,14 @@ def compose_judges(recipe, sink, stages, canvas_height):
             row_rect, _, visible = _route(row["ancestors"], host, recipe, context, ignore_opacity=True)
             if not visible:
                 raise ValueError("Selected Judge row disagrees with source visibility")
+            def row_colour(candidate, leaf):
+                return _route([*candidate["ancestors"], candidate[leaf]], host, recipe, context,
+                              ignore_opacity=True)[1]
+            label_colour = row_colour(row, "label_node")
+            number_colour = row_colour(row, "number_node") if row["font"] else None
+            if any(row_colour(other, "label_node") != label_colour or
+                   (other["font"] and row_colour(other, "number_node") != number_colour) for other in rows[1:]):
+                raise ValueError("Judge palette rows require different per-frame colours")
             offsets = _judge_lift_offsets(row, recipe, context, host, sh)
             if any(_judge_lift_offsets(other, recipe, context, host, sh) != offsets for other in rows[1:]):
                 raise ValueError("Judge palette rows disagree on Lift tracking")
@@ -253,13 +261,15 @@ def compose_judges(recipe, sink, stages, canvas_height):
                 number_destination = {"id": number_id, "timer": timer, "loop": -1,
                                       "dst": [{"time": 0, "x": label_width + gap - space * digits / 2,
                                                "y": (label_height - number_height) / 2,
-                                               "w": glyph_width, "h": number_height}, {"time": 500}]}
+                                               "w": glyph_width, "h": number_height,
+                                               **native_colour(number_colour)}, {"time": 500}]}
                 label_x = centre_x - (label_width + gap + glyph_width - (glyph_width + space)) / 2
             else:
                 label_x = centre_x - label_width / 2
             judge["images"].append({"id": label_id, "timer": timer, "loop": -1, "filter": 0,
                                     **({"offsets": offsets} if offsets else {}),
-                                    "dst": [{"time": 0, **native_rect((label_x, label_y, label_width, label_height), canvas_height)}, {"time": 500}]})
+                                    "dst": [{"time": 0, **native_rect((label_x, label_y, label_width, label_height), canvas_height),
+                                             **native_colour(label_colour)}, {"time": 500}]})
             judge["numbers"].append(number_destination)
         result["judge"].append(judge)
         result["destination"].append({"id": prefix})

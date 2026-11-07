@@ -14,9 +14,14 @@ import com.badlogic.gdx.backends.lwjgl.*;
 import com.badlogic.gdx.utils.ScreenUtils;
 
 import javax.imageio.ImageIO;
+import javax.imageio.IIOImage;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.MemoryCacheImageOutputStream;
 import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferInt;
 import java.io.*;
 import java.net.*;
 import java.nio.*;
@@ -50,6 +55,19 @@ public final class Capture implements ApplicationListener {
             new ArrayBlockingQueue<>(4), task -> new Thread(task, "capture-png-writer"),
             new ThreadPoolExecutor.CallerRunsPolicy());
     private boolean pngWritesFinished;
+    private CaptureBatch pendingCapture;
+    private record CaptureRequest(Path output, Map<String, Object> info, long startedNs) { }
+    private static final class CaptureBatch {
+        final BufferedImage image;
+        final long readbackDuration;
+        final String firstFile;
+        final List<CaptureRequest> requests = new ArrayList<>();
+        CaptureBatch(BufferedImage image, long readbackDuration, String firstFile) {
+            this.image = image;
+            this.readbackDuration = readbackDuration;
+            this.firstFile = firstFile;
+        }
+    }
     private final Set<String> captured = new HashSet<>();
     private final long started = System.nanoTime();
     private MainController main;
@@ -67,14 +85,16 @@ public final class Capture implements ApplicationListener {
     private final List<Object> readoutActions = new ArrayList<>();
     private final List<Object> recoveryTransitions = new ArrayList<>();
     private final AtomicInteger blockedNetworkRequests = new AtomicInteger();
-    private static final int[] EFFECT_TIMERS = {51, 71, 101};
+    private static final int[] EFFECT_TIMERS = {51, 71, 101, 10101, 10111};
     private static final int[] EFFECT_OFFSETS_MS = {0, 50, 100, 250};
     private static final int[] TIMERS = { 2, 3, 40, 41, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57,
         60, 61, 62, 63, 64, 65, 66, 67, 70, 71, 72, 73, 74, 75, 76, 77, 80, 81, 82, 83, 84, 85, 86, 87,
         100, 101, 102, 103, 104, 105, 106, 107, 110, 111, 112, 113, 114, 115, 116, 117,
         143, 144, 250, 251, 252, 253, 254, 255, 256, 257, 260, 261, 262, 263, 264, 265, 266, 267,
         270, 271, 272, 273, 274, 275, 276, 277, 280, 281, 282, 283, 284, 285, 286, 287, 348, 349, 350, 351, 352, 908,
-        10000, 10010, 10011, 10012, 10013, 10014, 10015 };
+        10000, 10010, 10011, 10012, 10013, 10014, 10015,
+        10100, 10101, 10102, 10103, 10104, 10105, 10106, 10107,
+        10110, 10111, 10112, 10113, 10114, 10115, 10116, 10117 };
 
     private Capture(String[] argv) throws IOException {
         args = parse(argv);
@@ -400,6 +420,7 @@ public final class Capture implements ApplicationListener {
                 if (completionAge >= 1000) { exiting = true; writeReceipt(); main.exit(); }
             }
         } catch (Throwable e) { fail(e); }
+        finally { flushCaptureBatch(); }
     }
 
     private void captureFeedback(MainState state) throws IOException {
@@ -555,40 +576,68 @@ public final class Capture implements ApplicationListener {
         long captureStart = System.nanoTime();
         Map<String, Object> info = Collections.synchronizedMap(snapshot(state));
         int w = Gdx.graphics.getBackBufferWidth(), h = Gdx.graphics.getBackBufferHeight();
-        long readbackStart = System.nanoTime();
-        byte[] pixels = ScreenUtils.getFrameBufferPixels(0, 0, w, h, true);
-        long readbackDuration = System.nanoTime() - readbackStart;
-        readbackNs.add(readbackDuration);
-        BufferedImage image = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
-        int[] argb = new int[w * h];
-        for (int i = 0; i < argb.length; i++) argb[i] = 0xff000000 | (pixels[i * 4] & 255) << 16 | (pixels[i * 4 + 1] & 255) << 8 | (pixels[i * 4 + 2] & 255);
-        image.setRGB(0, 0, w, h, argb, 0, w);
         String filename = String.format(Locale.ROOT, "%03d-%s.png", frames.size(), label);
         Path output = root.resolve("frames").resolve(filename);
         info.put("file", "frames/" + filename); info.put("width", w); info.put("height", h);
+        // Several timer checkpoints can refer to this exact rendered frame.
+        // Read and encode it once, retaining separate telemetry and files for
+        // each checkpoint. Rendering never occurs between these calls.
+        if (pendingCapture == null) {
+            long readbackStart = System.nanoTime();
+            byte[] pixels = ScreenUtils.getFrameBufferPixels(0, 0, w, h, true);
+            long readbackDuration = System.nanoTime() - readbackStart;
+            readbackNs.add(readbackDuration);
+            // The captured backbuffer has always been stored as opaque RGB.
+            // Write its native int raster directly, without a second full copy.
+            BufferedImage image = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+            int[] argb = ((DataBufferInt)image.getRaster().getDataBuffer()).getData();
+            for (int i = 0; i < argb.length; i++) argb[i] = 0xff000000 | (pixels[i * 4] & 255) << 16 | (pixels[i * 4 + 1] & 255) << 8 | (pixels[i * 4 + 2] & 255);
+            pendingCapture = new CaptureBatch(image, readbackDuration, "frames/" + filename);
+        } else {
+            info.put("sharedFramebufferWith", pendingCapture.firstFile);
+        }
         frames.add(info);
+        pendingCapture.requests.add(new CaptureRequest(output, info, captureStart));
+        return info;
+    }
+
+    private void flushCaptureBatch() {
+        if (pendingCapture == null) return;
+        CaptureBatch batch = pendingCapture;
+        pendingCapture = null;
         long enqueueTime = System.nanoTime();
-        // Only readback and pixel conversion run on the GL thread. The bounded
-        // queue avoids retaining a run's worth of UHD images; when full it
-        // applies backpressure on this thread, visible in sampling lateness.
+        // Bound memory by unique framebuffers, not by checkpoint labels.
+        // Backpressure is still explicit if four complete frames are pending.
         pngWriter.execute(() -> {
             try {
                 long pngStart = System.nanoTime();
-                if (!ImageIO.write(image, "png", output.toFile())) throw new IOException("No PNG writer available");
+                ByteArrayOutputStream encoded = new ByteArrayOutputStream();
+                ImageWriter writer = ImageIO.getImageWritersByFormatName("png").next();
+                ImageWriteParam parameters = writer.getDefaultWriteParam();
+                parameters.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+                parameters.setCompressionQuality(.9f); // Faster lossless DEFLATE, unchanged pixels.
+                try (MemoryCacheImageOutputStream stream = new MemoryCacheImageOutputStream(encoded)) {
+                    writer.setOutput(stream);
+                    writer.write(null, new IIOImage(batch.image, null, null), parameters);
+                } finally { writer.dispose(); }
+                byte[] png = encoded.toByteArray();
+                String sha256 = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(png));
+                for (CaptureRequest request : batch.requests) Files.write(request.output(), png);
                 long pngDuration = System.nanoTime() - pngStart;
                 pngWriteNs.add(pngDuration);
-                info.put("sha256", HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(output))));
-                long completionDuration = System.nanoTime() - captureStart;
-                captureNs.add(completionDuration);
-                info.put("captureTimingMs", Map.of("framebufferReadback", readbackDuration / 1_000_000.0,
-                        "pngEncodeAndWrite", pngDuration / 1_000_000.0,
-                        "queueWait", (pngStart - enqueueTime) / 1_000_000.0,
-                        "completionIncludingQueueAndHash", completionDuration / 1_000_000.0));
+                for (CaptureRequest request : batch.requests) {
+                    request.info().put("sha256", sha256);
+                    long completionDuration = System.nanoTime() - request.startedNs();
+                    captureNs.add(completionDuration);
+                    request.info().put("captureTimingMs", Map.of("framebufferReadback", batch.readbackDuration / 1_000_000.0,
+                            "pngEncodeAndWrite", pngDuration / 1_000_000.0,
+                            "queueWait", (pngStart - enqueueTime) / 1_000_000.0,
+                            "completionIncludingQueueAndHash", completionDuration / 1_000_000.0));
+                }
             } catch (Exception e) {
-                e.printStackTrace(); pngFailures.add(filename + ": " + e);
+                e.printStackTrace(); pngFailures.add(batch.firstFile + ": " + e);
             }
         });
-        return info;
     }
 
     private void fail(Throwable e) {
@@ -607,6 +656,7 @@ public final class Capture implements ApplicationListener {
         }
     }
     private void writeReceipt() {
+        flushCaptureBatch();
         finishPngWrites();
         boolean diagnosticsClean;
         synchronized (warnings) {
@@ -629,6 +679,7 @@ public final class Capture implements ApplicationListener {
         receipt.put("performance", Map.of(
                 "measurement", "System.nanoTime wall duration of MainController.render(); readback/PNG/hash excluded. Includes any engine CPU/GPU waits; not pure CPU time, FPS, latency or play-feel acceptance.",
                 "classification", "State sampled after render: BMSPlayer STATE_PLAY without timer48 versus BMSPlayer with timer48 on, including its finished/outro state.",
+                "captureSampling", "One framebuffer readback and PNG encoding per rendered frame. Multiple checkpoint labels retain separate telemetry/files and identify sharedFramebufferWith. Readback/PNG counts are unique rendered frames; capture completion counts are checkpoint labels.",
                 "percentile", "Median averages the two middle samples; p95 is nearest rank ceil(0.95*count). Empty groups use null values.",
                 "playBeforeFc", timingSummary(playRenderNs), "afterFc", timingSummary(afterFcRenderNs),
                 "pngEncodeAndWrite", timingSummary(pngWriteNs), "framebufferReadback", timingSummary(readbackNs),

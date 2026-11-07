@@ -23,7 +23,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
-from beatoraja_author import AuthorPackage, applies, layout_for, source_path
+from beatoraja_author import AuthorPackage, applies, layout_for, source_path, walk_nodes
 from beatoraja_export import ANIMATION_RUNTIME, MODE, Composer, read_bakes
 from beatoraja_materials import CAP_FIELDS, NOTE_FIELDS, collect_note_materials
 from beatoraja_native import AssetSink, Lua, lua
@@ -34,6 +34,7 @@ ARRAYS = ("source", "font", "image", "imageset", "value", "floatvalue", "text",
           "hiddenCover", "liftCover", "customTimers")
 SINGLETONS = ("note", "gauge", "bga")
 TIMINGS = ("loadend", "playstart", "close", "fadeout", "finishmargin")
+CACHE_STAGES = ("notes", "charge-notes", "judgement", "key-beam", "explosion", "long-note-effects")
 NOTE_IMAGE_FIELDS = (*NOTE_FIELDS, "mine", "hidden", "processed", "lnactive",
                      "hcnactive", "hcndamage", "hcnreactive")
 MODULES = ("notes", "charge-notes", "judgement", "lane-cover", "lift-art",
@@ -47,17 +48,30 @@ LABELS = {"notes": "Notes", "charge-notes": "Charge Notes", "judgement": "Judgem
 STAGES = ("frame", "bga-frame", "graph-background", "graph-area", "graph-target", "decorations", "turntable", "key-beam",
           "hit-line", "note-geometry", "notes", "charge-notes", "explosion", "long-note-effects", "key-lights",
           "lane-cover", "lift-art", "reading", "judgement", "timing-display", "gauge", "hud", "full-combo", "events")
-CONTROL_GROUPS = {"notes": ("note-size",),
-                  "charge-notes": ("charge-size", "hcn-color", "hcn-display"),
-                  "long-note-effects": ("charge-size", "hcn-color", "hcn-display"),
-                  "judgement": ("judgement-display", "judgement-position"),
-                  "key-beam": ("beam-length",), "timing-display": ("timing-position", "judgement-position"),
-                  "events": ("ready-animation", "get-ready"), "reading": ("lift-readout",)}
+CONTROL_GROUPS = {"notes": ("note-size", "lane-objects-brightness"),
+                  "charge-notes": ("charge-size", "hcn-color", "hcn-display", "lane-objects-brightness"),
+                  "long-note-effects": ("hcn-display", "explosion-scale"),
+                  "judgement": ("judgement-display", "judgement-position", "lane-objects-brightness"),
+                  "key-beam": ("beam-length", "lane-objects-brightness"),
+                  "timing-display": ("timing-position", "judgement-position", "lane-objects-brightness"),
+                  "events": ("ready-animation", "get-ready"), "reading": ("lift-readout",),
+                  "frame": ("graph-visible", "lane-brightness", "column-brightness"),
+                  "note-geometry": ("lane-objects-brightness",), "graph-background": ("graph-visible",),
+                  "graph-area": ("graph-visible",),
+                  "graph-target": ("graph-visible", "graph-cutin", "graph-difference"),
+                  "gauge": ("gauge-display",), "explosion": ("explosion-scale", "lane-objects-brightness"),
+                  "decorations": ("graph-visible", "gauge-display", "realtime-judge", "judge-panel-visible"),
+                  "hud": ("graph-visible", "gauge-display", "realtime-judge", "judge-panel-visible"),
+                  "bga-frame": ("graph-visible", "judge-panel-visible",)}
 CONTROL_LABELS = {"note-size": "Note Size", "charge-size": "Charge Size", "hcn-color": "HCN Colour",
                   "hcn-display": "HCN Display", "judgement-display": "Judgement Display",
                   "judgement-position": "Judgement Position", "beam-length": "Beam Length",
                   "ready-animation": "Ready Animation", "get-ready": "Get Ready", "timing-position": "Timing Position",
-                  "lift-readout": "Lift Readout"}
+                  "lift-readout": "Lift Readout", "graph-cutin": "Graph Cut-in", "graph-difference": "Graph Score Difference",
+                  "gauge-display": "Gauge Display", "realtime-judge": "Realtime Judge", "judge-panel-visible": "Judge Panel",
+                  "explosion-scale": "Explosion Size", "graph-visible": "Graph Display",
+                  "lane-brightness": "Lane Background Brightness", "column-brightness": "Column Brightness",
+                  "lane-objects-brightness": "Lane Objects Brightness"}
 NONBLOCKING = {"mine-art-unavailable", "ln-cn-released-body-not-separate",
                "shared-note-height-needs-padding", "auto-assist-material-condition",
                "native BMS mine addition", "judge-combo-fit-track", "native-font-spacing-rounded",
@@ -67,12 +81,22 @@ NONBLOCKING = {"mine-art-unavailable", "ln-cn-released-body-not-separate",
                "native-reading-cabinet-edge-adaptation", "native-reading-value-adaptation",
                "native-reading-fixed-clip-quantisation", "native-feedback-render-edge-adaptation",
                "native-feedback-target-ownership", "native-numeric-advance-quantization",
-               "native-hold-lane-state-adaptation", "native-hold-render-edge-adaptation"}
+               "native-hold-lane-state-adaptation", "native-hold-render-edge-adaptation",
+               "native-course-gauge-palette-adaptation", "native-note-brightness-raster",
+               "native-barline-adaptation", "native BMS barline addition"}
 
 
 def stage_module(stage):
     # Long-note lighting is selected by the same real charge-note contribution.
     return "charge-notes" if stage == "long-note-effects" else stage
+
+
+def stage_controls(author, stage):
+    # The frozen Lightning charge modules provide no long-note light material.
+    # Do not multiply empty fragments by unrelated size/colour/Explosion axes.
+    if stage == "long-note-effects" and author.family == "lightning":
+        return ()
+    return CONTROL_GROUPS.get(stage, ())
 
 
 def tool_file_hashes(root: Path | None = None) -> dict[str, str]:
@@ -241,10 +265,10 @@ def control_choices(definition: dict) -> list[dict]:
 
 def local_controls(author: AuthorPackage, stage: str, keymode: str) -> dict[str, list[dict]]:
     module = stage_module(stage)
-    if module in MODULES and module not in author.modules and stage != "timing-display":
+    if module in MODULES and module not in author.modules and stage not in ("timing-display", "bga-frame"):
         return {}
     definitions = {item["id"]: item for item in author.manifest.get("options", [])}
-    return {name: control_choices(definitions[name]) for name in CONTROL_GROUPS.get(stage, ())
+    return {name: control_choices(definitions[name]) for name in stage_controls(author, stage)
             if name in definitions and applies(definitions[name], keymode)}
 
 
@@ -270,17 +294,24 @@ def available_selections(author, stage, coverage, modes, frames):
     stages = ("charge-notes", "long-note-effects") if stage_module(stage) == "charge-notes" else (stage,)
     records = [r for r in coverage if r["stage"] in stages]
     definitions = {item["id"]: item for item in author.manifest.get("options", [])}
-    controls = {name: definitions[name] for name in CONTROL_GROUPS.get(stage, ()) if name in definitions}
+    axes = {part: [name for name in stage_controls(author, part) if name in definitions] for part in stages}
+    controls = {name: definitions[name] for part in stages for name in axes[part]}
     defaults = tuple(definition["default"] for definition in controls.values())
-    parts = {}
+    grids = {part: {} for part in stages}
     for record in records:
         identity = (record["mode"], record["frame"], record["choice"],
-                    tuple(record["options"].get(name, definitions[name]["default"]) for name in controls))
-        parts.setdefault(identity, {})[record["stage"]] = record["available"] and not blocking_gaps(record["gaps"], record["stage"])
-    grid = {identity: all(values.get(part, False) for part in stages) for identity, values in parts.items()}
+                    tuple(record["options"].get(name, definitions[name]["default"]) for name in axes[record["stage"]]))
+        grids[record["stage"]][identity] = record["available"] and not blocking_gaps(record["gaps"], record["stage"])
+
+    def supported(mode, frame, choice, values):
+        selected = dict(zip(controls, values))
+        return all(grids[part].get((mode, frame, choice, tuple(selected[name] for name in axes[part])), False)
+                   for part in stages)
+
     module = stage_module(stage)
-    options = ([c["value"] for c in author.modules[module]["choices"]] if module in author.modules else [None])
-    complete = [choice for choice in options if all(grid.get((mode, frame, choice, defaults), False)
+    options = ([c["value"] for c in author.modules[module]["choices"]]
+               if module in MODULES and module in author.modules else [None])
+    complete = [choice for choice in options if all(supported(mode, frame, choice, defaults)
                                                     for mode, frame in itertools.product(modes, frames))]
     allowed = {name: [definition["default"]] for name, definition in controls.items()}
     if complete:
@@ -291,7 +322,7 @@ def available_selections(author, stage, coverage, modes, frames):
                     continue
                 trial = {**allowed, name: [*allowed[name], value]}
                 combinations = list(itertools.product(*trial.values()))
-                if all(grid.get((mode, frame, module_choice, controls_value), False)
+                if all(supported(mode, frame, module_choice, controls_value)
                        for mode, frame, module_choice, controls_value in itertools.product(modes, frames, complete, combinations)):
                     allowed = trial
     return complete, allowed
@@ -339,13 +370,28 @@ def scan_cap_height(author: AuthorPackage, modes: list[str], frames: list[str]) 
 
 def blocking_gaps(gaps: list[dict], module: str) -> list[dict]:
     """Known host semantic limits stay visible; absent artwork is not advertised."""
-    return [gap for gap in gaps if gap.get("code", gap.get("feature")) not in NONBLOCKING
-            and not (module == "graph-target" and gap.get("feature") == "graph"
-                     and gap.get("reason") in ("native-target-selection", "native-pb-existence-unavailable",
-                                                "recorded-graph-cutins-require-bake"))]
+    def retained(gap):
+        if gap.get("code", gap.get("feature")) in NONBLOCKING:
+            return True
+        if module == "graph-target" and gap.get("feature") == "graph":
+            return gap.get("reason") in ("native-target-selection", "native-pb-existence-unavailable",
+                                         "recorded-graph-cutins-require-bake")
+        # These exact r6 baseline omissions remain visible in the receipt. They
+        # do not prevent hiding/showing the actual Gauge/Judge/Graph source trees.
+        # No missing atlas, recorded animation or new unknown binding is waived.
+        if module == "hud":
+            return (gap.get("reason") in ("native-timing-count-semantics", "native-truncate-overflow")
+                    or gap.get("reason") == "unmapped-visibility" and gap.get("source") in (
+                        "scroll.mode", "scroll.green-number-range-available", "offset.available")
+                    or gap.get("reason") == "unmapped-text-binding" and gap.get("source") == "scroll.speed")
+        return (module == "decorations" and gap.get("feature") == "unmapped visibility"
+                and gap.get("sources") == ["offset.available"])
+    return [gap for gap in gaps if not retained(gap)]
 
 
 def has_component_output(fragment: dict, module: str, choice: str | None = None, options=None) -> bool:
+    if module in ("graph-area", "graph-target") and options and options.get("graph-visible") is False:
+        return True  # The source explicitly hides both art and live Graph data.
     if module == "graph-area" and choice == "blank":
         return True  # This is the author's explicit absence of Graph Area art.
     if module == "timing-display":
@@ -371,36 +417,50 @@ def has_component_output(fragment: dict, module: str, choice: str | None = None,
 
 
 class CompositionCache:
-    """Reuse only qualified frame-independent material or equal-host Judge output.
+    """Reuse source-independent materials and effects with equal native hosts.
 
     The cache belongs to this one author/sink/build. Actual contribution paths,
     all non-frame option values and referenced option.frame values are retained.
-    Judge additionally keys the actual stage rectangles. Frame, Gauge, Graph,
-    covers and event effects are deliberately composed normally.
+    Judge keys actual stage rectangles; lane effects key stage rectangles and
+    lane positions/widths. Frame-dependent source branches never cross frames.
+    Frame, Gauge, Graph, covers and global events are composed normally.
     """
     def __init__(self, author: AuthorPackage):
         self.author = author
         self.values = {}
         self.dependencies = {}
+        self.node_ids = {}
         self.hits = 0
         self.misses = 0
 
-    def key(self, stage, mode, frame, options, cap_height):
-        if stage not in ("notes", "charge-notes", "judgement"):
+    def key(self, stage, mode, frame, options, cap_height, handled_roots=()):
+        if stage not in CACHE_STAGES:
             return None
-        modules = ("judgement",) if stage == "judgement" else ("notes", "charge-notes")
-        parts, depends_on_frame = [], False
+        modules = (("notes", "charge-notes") if stage in ("notes", "charge-notes") else
+                   ("charge-notes",) if stage == "long-note-effects" else (stage,))
+        parts, depends_on_frame, ids = [], False, set()
         for module in modules:
             contribution = self.author.contribution(module, options)
             identity = (contribution.module, contribution.choice, contribution.manifest_path,
                         contribution.scene_path, contribution.ini_path)
             if identity not in self.dependencies:
-                self.dependencies[identity] = '"option.frame"' in json.dumps(contribution.scene)
+                choice = next(c for c in self.author.modules[module]["choices"] if c["value"] == options[module])
+                self.dependencies[identity] = ('"option.frame"' in json.dumps(contribution.scene)
+                                               or any("frame" in variant["when"] for variant in choice.get("variants", [])))
+                self.node_ids[identity] = {node["id"] for template in contribution.scene.get("templates", [])
+                                          for node in walk_nodes(template["root"])}
             depends_on_frame |= self.dependencies[identity]
+            ids.update(self.node_ids[identity])
             parts.append(identity)
         context = tuple(sorted((key, value) for key, value in options.items() if key != "frame" or depends_on_frame))
-        geometry = tuple(tuple(stage["rect"]) for stage in layout_for(frame, MODE[mode][0], mode)["stages"]) if stage == "judgement" else ()
-        return (stage, mode, cap_height, tuple(parts), context, geometry)
+        geometry = ()
+        if stage == "judgement":
+            geometry = tuple(tuple(part["rect"]) for part in layout_for(frame, MODE[mode][0], mode)["stages"])
+        elif stage in ("key-beam", "explosion", "long-note-effects"):
+            geometry = tuple((tuple(part["rect"]), tuple(tuple(lane) for lane in part["lanes"]))
+                             for part in layout_for(frame, MODE[mode][0], mode)["stages"])
+        skipped = tuple(sorted(set(handled_roots) & ids)) if stage in ("key-beam", "explosion") else ()
+        return (stage, mode, cap_height, tuple(parts), context, geometry, skipped)
 
 
 def compose_stage(c: Composer, stage: str, frame, cap_height, font):
@@ -573,16 +633,17 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
                 stage_choices = {}
                 for choice, controls in itertools.product(entries, combinations):
                     opts = {**options, **({module: choice["value"]} if choice else {}), **controls}
+                    stage_frame = author.contribution("frame", opts)
                     c = Composer(author, sink, opts, mode, baked)
                     c.handled_roots.update(roots)
-                    cache_key = cache.key(stage, mode, frame, opts, cap_height)
+                    cache_key = cache.key(stage, mode, stage_frame, opts, cap_height, c.handled_roots)
                     cached = cache.values.get(cache_key) if cache_key is not None else None
                     if cached:
                         cache.hits += 1
                         fragment, c.gaps, path = cached
                     else:
                         if cache_key is not None: cache.misses += 1
-                        fragment = compose_stage(c, stage, frame, cap_height, font)
+                        fragment = compose_stage(c, stage, stage_frame, cap_height, font)
                         if any(t.get("font") == "native.fallback" for t in fragment.get("text", [])):
                             if not shared_font:
                                 raise ValueError("An explicit --native-font is required for this source's native host labels")
@@ -591,7 +652,7 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
                                 fragment, stage, choice["value"] if choice else None, opts):
                             c.gap("selected component emitted no native output", module=stage, choice=choice["value"] if choice else None)
                         path = None
-                    blockers = blocking_gaps(c.gaps, stage) if is_module or stage == "timing-display" and controls_definition else []
+                    blockers = blocking_gaps(c.gaps, stage) if is_module or controls_definition else []
                     identity = {"mode": mode, "frame": theme, "stage": stage,
                                 "choice": choice["value"] if choice else None, "options": controls}
                     record = {**identity, "available": not blockers,
@@ -601,8 +662,8 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
                     if choice:
                         part = author.contribution(module, opts)
                         record["source"] = {"manifest": part.manifest_path, "scene": part.scene_path, "ini": part.ini_path}
-                    elif stage == "timing-display" and controls_definition:
-                        record["source"] = {"manifest": frame.manifest_path, "scene": frame.scene_path, "ini": frame.ini_path}
+                    elif controls_definition:
+                        record["source"] = {"manifest": stage_frame.manifest_path, "scene": stage_frame.scene_path, "ini": stage_frame.ini_path}
                     if not blockers:
                         path = path or shards.add(fragment)
                         record["shard"] = path
@@ -633,14 +694,15 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
                                                     if c["value"] in candidates and c["value"] not in complete]}
     control_report = {}
     source_controls = {item["id"]: item for item in author.manifest.get("options", [])}
-    for stage, names in CONTROL_GROUPS.items():
+    for stage in CONTROL_GROUPS:
+        names = stage_controls(author, stage)
         module = stage_module(stage)
-        if module in MODULES and module not in author.modules and stage != "timing-display":
+        if module in MODULES and module not in author.modules and stage not in ("timing-display", "bga-frame"):
             continue
         for name in names:
             if name not in source_controls:
                 continue
-            if module in author.modules:
+            if module in MODULES and module in author.modules:
                 exposed = bool(catalog.get(module))
                 supported_values = allowed_controls.get(module, {}).get(name, []) if exposed else []
             else:
@@ -681,7 +743,7 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
             entry_files[name] = hashlib.sha256((output / name).read_bytes()).hexdigest()
     receipt = {"contract": "oms-beatoraja-modular-package.v1", "family": author.family, "name": author.name,
                "toolFilesSha256": tool_files,
-               "constructionCache": {"stages": ["notes", "charge-notes", "judgement"], "hits": cache.hits, "misses": cache.misses},
+               "constructionCache": {"stages": list(CACHE_STAGES), "hits": cache.hits, "misses": cache.misses},
                "sourceManifestSha256": hashlib.sha256((author.root / "gameplay-skin.json").read_bytes()).hexdigest(),
                "sourceCatalogSha256": hashlib.sha256(source_path(author.root, author.manifest["contentCatalog"]).read_bytes()).hexdigest(),
                "modes": modes, "frames": frames, "capHeight": cap_height, "modules": selection_report,

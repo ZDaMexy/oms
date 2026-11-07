@@ -46,16 +46,16 @@ IR 配置为空，IPFS、Discord、请求服务和自动扫描关闭。官方选
 
 - `capture-workspace.json`：官方 JAR、工具源文件、皮肤入口及存在时的组件包收据SHA256、runtime、只读资源位置和用例；结束再核入口与收据未变。完整资产闭包仍由`beatoraja_verify.py package`检查。
 - `receipt.json`：目标与实际 skin 身份、实际 option、自然状态转移、看到的 timer、判定/Gauge、PNG 的尺寸和 hash、警告与 `normalDispose`。
-- `frames/*.png`：真实 backbuffer，在状态变化、Play每秒、Ready/Failed/FC/曲终及Result取帧；Ready/Failed增加1000/2000/3000ms观察，实际仍开放该timer时才捕获。另围绕51（爆炸）/71（长按）/101（按键）首次触发取目标0/50/100/250ms，最多新增12张；关闭或重触发不会重开这组取景。`firstEffect`记录真实render-clock age与lateness，不把延迟帧冒充精确相位。HCN恢复场景按真实251/271状态顺序另外取每阶段0/50/200ms。单曲AUTOPLAY返回选曲时，原生`changeState`立即退出，因此终态只取首帧。
+- `frames/*.png`：真实 backbuffer，在状态变化、Play每秒、Ready/Failed/FC/曲终及Result取帧；Ready/Failed增加1000/2000/3000ms观察，实际仍开放该timer时才捕获。另围绕51（爆炸）/71（长按）/101（按键）/10101和10111（两侧长条持续）首次触发取目标0/50/100/250ms，最多新增20张；关闭或重触发不会重开这组取景。`firstEffect`记录真实render-clock age与lateness，不把延迟帧冒充精确相位。HCN恢复场景按真实251/271状态顺序另外取每阶段0/50/200ms。单曲AUTOPLAY返回选曲时，原生`changeState`立即退出，因此终态只取首帧。
 - `engine.log`、`stdout.log`、`stderr.log`：原始日志；`host-receipt.json` 保存已退出的 PID、退出码、超时与结束时间。
 
 官方 LWJGL 2 后端在正常资源释放后执行 `System.exit(-1)`；脚本仅在正常 dispose、身份与行为断言全部通过时接受该退出码，不把所有 `-1` 当成功。宿主调用 `main.exit()`，通过原生生命周期释放资源；不依赖强杀结束正常用例。
 
 挡板参数使用 0.8.9 `PlayConfig.setLanecover/setLift/setHidden(float)` 及各自 enable setter，在生成 Replay 前设置，Replay 同时保存该配置。回执的 `readingRequested`、`readingConfigured`、`readingLoaded` 及每帧 `reading` 记录请求与真正 LaneRenderer 配置；若宿主忽略指定比例或启用状态，用例失败。这只验证固定配置加载，不等于实键调整操作或全部挡板组合验收。
 
-截图读回发生在 `MainController.render()` 之后的 GL 线程；PNG 编码/写入和 hash 使用单后台线程、最多 4 项队列，队列满时由调用线程完成以限制内存。退出前等待写入完成，写入失败或超时使回执失败，不留下未检查的后台工作。原生判定线程独立运行，状态采样不保证与每个像素原子一致；精确动画相位须结合实际采样年龄继续分析。本工具不能验硬件延迟、持续帧率或手感。
+截图读回发生在 `MainController.render()` 之后的 GL 线程。同一 render 的多个检查点只读回、转换和编码一次画面，各自仍保存遥测与 PNG；`sharedFramebufferWith` 指向共享画面的首个检查点。PNG采用较快的无损DEFLATE，保留原不透明像素；编码/写入和 hash 使用单后台线程、最多 4 个独立画面的队列，队列满时由调用线程完成以限制内存。退出前先提交当帧再等待写入完成，写入失败或超时使回执失败，不留下未检查的后台工作。原生判定线程独立运行，状态采样不保证与每个像素原子一致；精确动画相位须结合实际采样年龄继续分析。本工具不能验硬件延迟、持续帧率或手感。
 
-`performance` 单独统计 `MainController.render()` 调用的墙钟耗时：`playBeforeFc` 是 render 后仍为 BMSPlayer/STATE_PLAY 且 timer 48 未开启，`afterFc` 是 BMSPlayer 的 timer 48 已开启（包括其曲终/退场状态）。两组均给 count、median、p95、max 毫秒；p95 使用 nearest-rank，空组为 null。PNG 编码/写入、framebuffer 读回、含队列等待及 hash 的取景完成耗时另列，每帧 `captureTimingMs` 还保存 queueWait。这些操作不计入 render 调用区间，但仍可能改变后续调度/GC；调用耗时也可能包含引擎内部 GPU 等待，不能表述为纯 CPU 时间或硬件帧率验收。
+`performance` 单独统计 `MainController.render()` 调用的墙钟耗时：`playBeforeFc` 是 render 后仍为 BMSPlayer/STATE_PLAY 且 timer 48 未开启，`afterFc` 是 BMSPlayer 的 timer 48 已开启（包括其曲终/退场状态）。两组均给 count、median、p95、max 毫秒；p95 使用 nearest-rank，空组为 null。PNG 编码/写入和 framebuffer 读回按独立画面计数，含队列等待及 hash 的完成耗时按检查点计数；每张 `captureTimingMs` 还保存 queueWait，共享画面的编码耗时包含该批全部文件写入。这些操作不计入 render 调用区间，但仍可能改变后续调度/GC；调用耗时也可能包含引擎内部 GPU 等待，不能表述为纯 CPU 时间或硬件帧率验收。
 
 ## 已核接口与限制
 

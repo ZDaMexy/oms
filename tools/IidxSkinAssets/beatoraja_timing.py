@@ -66,11 +66,6 @@ def export_timing(author, options, keymode, presentation, sink, canvas):
             raise ValueError("Timing transform requires a separately qualified bake")
         return properties
 
-    def rgba_for(properties, parent):
-        rgba = colour(properties, parent)
-        brightness = properties.get("brightness", 1)
-        return (*(value * brightness for value in rgba[:3]), rgba[3])
-
     def emit(child, props, cell, stage, direction, rgba, offsets=(), source=None):
         resource = contribution.resources[props["resource"]]
         if resource["type"] != "texture":
@@ -117,7 +112,7 @@ def export_timing(author, options, keymode, presentation, sink, canvas):
         properties = resolved(node, context)
         if properties.get("visible", True) is False:
             return
-        rgba = rgba_for(properties, inherited)
+        rgba = colour(properties, inherited)
         if rgba[3] <= 0:
             return
         rect = node_rect(properties, parent)
@@ -154,7 +149,7 @@ def export_timing(author, options, keymode, presentation, sink, canvas):
                 continue
             cell = (rect[0] + rect[2] / 2 + cursor - (left + right) / 2,
                     rect[1] + (rect[3] - cell_height) / 2, cell_width, cell_height)
-            emit(child, props, cell, stage, direction, rgba_for(props, rgba), source=src)
+            emit(child, props, cell, stage, direction, colour(props, rgba), source=src)
 
     for binding in bindings:
         target = binding["target"]

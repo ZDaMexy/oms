@@ -139,8 +139,24 @@ def colour(properties: dict[str, Any], parent: tuple[float, float, float, float]
     if len(raw) != 8:
         raise ValueError("Expected author RGBA colour")
     c = [int(raw[i:i + 2], 16) / 255 * parent[i // 2] for i in range(0, 8, 2)]
+    # These frozen authors put brightness on one white carrier per affected
+    # branch. It changes RGB only; fading alpha would expose the lane below.
+    brightness = max(0, min(1, properties.get("brightness", 1)))
+    c[:3] = [value * brightness for value in c[:3]]
     c[3] *= properties.get("opacity", 1)
     return tuple(c)
+
+
+def tint_pixels(image: Image.Image, rgba: tuple[float, float, float, float]) -> Image.Image:
+    """NoteSet ignores destination colour; tint selected pixels once at export.
+
+    Dimensions and factor-one channels remain exact. The frozen note sources
+    only bind RGB brightness, so their original alpha is unchanged.
+    """
+    image = image.convert("RGBA")
+    channels = [channel.point([round(value * max(0, min(1, factor))) for value in range(256)])
+                if factor != 1 else channel for channel, factor in zip(image.split(), rgba)]
+    return Image.merge("RGBA", channels)
 
 
 def native_colour(rgba: tuple[float, float, float, float]) -> dict[str, int]:

@@ -20,7 +20,7 @@ from beatoraja_author import (AuthorPackage, Contribution, bms_sections,
                              layout_for, material_bindings, material_templates,
                              read_json, source_path, walk_nodes)
 from beatoraja_native import (AssetSink, Lua, all_of, colour, lua, native_colour,
-                             native_rect, node_rect, scene_properties, native_song_expression)
+                             native_rect, node_rect, scene_properties, native_song_expression, tint_pixels)
 
 
 MODE = {"p1": ("7k", 0), "p2": ("7k", 0), "dp": ("14k", 2)}
@@ -256,6 +256,12 @@ class Composer:
             return
         conditions = list(conditions)
         for operation in visibility:
+            if (operation["source"] == "input.pressed" and operation["kind"] == "bindings"
+                    and 100 <= timer <= 117 and timer % 10 < 8):
+                # This source gate belongs to the same native KEYON clock as
+                # its beam. KeyInputProccessor switches it OFF on release.
+                conditions.append(f"main_state.timer({timer}) ~= main_state.timer_off_value")
+                continue
             expression = native_song_expression(operation["source"])
             if expression is None or operation["kind"] != "variants":
                 self.gap("unmapped visibility", node=root["id"], sources=[operation["source"]])
@@ -347,12 +353,9 @@ class Composer:
             self.destination(identifier, rect, rgba=rgba, blend=blend,
                              draw=all_of(conditions), clip=clip, **({"timer": timer} if timer else {}), **({"offsets": offsets} if offsets else {}))
         elif kind == "recorded-animation":
-            if conditions:
-                self.gap("conditional recorded animation", node=root["id"])
-                return
             fixed_time = constant_clock(contribution.scene, root.get("clock"))
             self.draw_baked(contribution.manifest_path, root["animation"], rect, rgba,
-                            timer=timer, offsets=offsets, static_time_ms=fixed_time, clip=clip)
+                            timer=timer, offsets=offsets, static_time_ms=fixed_time, clip=clip, conditions=conditions)
         elif kind in ("container", "clip"):
             if kind == "clip":
                 if (properties.get("clip-mode") != "bounds" or dynamic or offsets or min(rect[2:]) <= 0
@@ -534,18 +537,31 @@ class Composer:
                 raise ValueError("Shared cap height must contain every original cap")
             height = cap_height
         padded: dict[str, str] = {}
+        def pixels(image):
+            with Image.open(source_path(self.author.root, image["source"])) as png:
+                crop = png.convert("RGBA").crop((image["x"], image["y"], image["x"] + image["w"], image["y"] + image["h"]))
+            return tint_pixels(crop, image.get("rgba", (1, 1, 1, 1)))
         for key in cap_fields:
             for i, old in enumerate(note[key]):
                 if old not in padded:
                     image = images[old]
-                    with Image.open(source_path(self.author.root, image["source"])) as png:
-                        crop = png.convert("RGBA").crop((image["x"], image["y"], image["x"] + image["w"], image["y"] + image["h"]))
+                    crop = pixels(image)
                     carrier = Image.new("RGBA", (crop.width, height))
                     carrier.paste(crop, (0, height - crop.height))
                     padded[old] = self.image(self.sink.add_raster(carrier))
                 note[key][i] = padded[old]
         used_body = {i for key, values in note.items() if key not in cap_fields and isinstance(values, list) for i in values if isinstance(i, str)}
-        self.skin["image"].extend({k: v for k, v in images[i].items() if k != "source"} for i in used_body)
+        for old in used_body:
+            image = images[old]
+            if image.get("rgba", (1, 1, 1, 1)) != (1, 1, 1, 1):
+                identifier = self.image(self.sink.add_raster(pixels(image)))
+                for key in note:
+                    if key not in cap_fields and isinstance(note[key], list):
+                        note[key] = [identifier if value == old else value for value in note[key]]
+            else:
+                self.skin["image"].append({k: v for k, v in image.items() if k not in ("source", "rgba")})
+        if any("rgba" in image for image in images.values()):
+            self.gap("native-note-brightness-raster", detail="Original note pixels receive the selected source RGB brightness once in an 8-bit derivative because native NoteSet ignores destination colour; source alpha, dimensions and transparent cap padding remain unchanged. This is not a GPU pixel-equivalence claim.")
         layout, lanes = self.lanes(frame)
         note.update({"id": "native.notes", "dst": lanes, "size": [height] * len(lanes), "expansionrate": [100, 100]})
         # IIDX has no mines. Add an explicit, conspicuous BMS hazard carrier;
@@ -557,11 +573,11 @@ class Composer:
         mine_id = self.image(self.sink.add_raster(mine))
         note["mine"] = [mine_id] * len(lanes)
         self.gap("native BMS mine addition", detail="Red/white hazard stripe, outside the retained IIDX source art")
-        line_id = self.image(self.sink.add_raster(Image.new("RGBA", (1, 1), (255, 255, 255, 80))))
-        note["group"] = []
-        for stage in layout["stages"]:
-            sx, sy, sw, sh = stage["rect"]
-            note["group"].append({"id": line_id, "dst": [{"x": round(sx * self.w), "y": round(self.h * (1 - sy - sh)), "w": round(sw * self.w), "h": 1}]})
+        from beatoraja_barline import export_barline
+        barline = export_barline(self.author, self.options, self.keymode, self.presentation, frame, self.sink, self.canvas)
+        self.skin["image"].extend(barline["image"])
+        self.gaps.extend(barline["gaps"])
+        note["group"] = barline["group"]
         self.skin["note"] = note
         self.skin["destination"].append({"id": "native.notes"})
         return layout

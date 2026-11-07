@@ -17,6 +17,7 @@ from typing import Any, Callable
 
 from beatoraja_author import (AuthorPackage, Contribution, material_bindings,
                              material_templates, source_path, walk_nodes)
+from beatoraja_native import colour
 
 SourceSink = Callable[[str], str]
 NOTE_FIELDS = {
@@ -87,7 +88,7 @@ class _Images:
         self.images: dict[tuple, dict] = {}
         self.sources: dict[str, str] = {}
 
-    def add(self, contribution: Contribution, resource: str, crop=None) -> str:
+    def add(self, contribution: Contribution, resource: str, crop=None, rgba=(1, 1, 1, 1)) -> str:
         item = contribution.resources[resource]
         if item["type"] != "texture":
             raise ValueError("A native image requires an actual texture")
@@ -98,13 +99,15 @@ class _Images:
                 or min(rect[:2]) < 0 or min(rect[2:]) <= 0
                 or rect[0] + rect[2] > width or rect[1] + rect[3] > height):
             raise ValueError("Texture crop is outside its own source PNG")
-        key = (relative, rect)
+        key = (relative, rect) if rgba == (1, 1, 1, 1) else (relative, rect, rgba)
         if key not in self.images:
             if relative not in self.sources:
                 self.sources[relative] = self.sink(relative)
             identifier = self.author.family + ".material." + hashlib.sha256(repr(key).encode()).hexdigest()[:20]
             self.images[key] = {"id": identifier, "src": self.sources[relative], "source": relative,
                                 "x": rect[0], "y": rect[1], "w": rect[2], "h": rect[3], "divx": 1, "divy": 1}
+            if rgba != (1, 1, 1, 1):
+                self.images[key]["rgba"] = rgba
         return self.images[key]["id"]
 
     def by_id(self, identifier: str) -> dict:
@@ -150,8 +153,12 @@ def _material(contribution: Contribution, item: dict) -> dict:
     return matches[0]
 
 
-def _sprite(contribution: Contribution, item: dict, context: dict) -> tuple[dict, str]:
+def _sprite(contribution: Contribution, item: dict, context: dict) -> tuple[dict, str, tuple]:
     root = _material(contribution, item)
+    rgba = (1, 1, 1, 1)
+    def node_colour(node, inherited):
+        return colour({prop: _property(contribution, node, prop, context, default)
+                       for prop, default in (("colour", "#ffffffff"), ("opacity", 1), ("brightness", 1))}, inherited)
     while root["type"] == "container":
         # Lightning's scratch-assist replacement is an identity container with
         # mutually exclusive real sprites. Resolve its actual visible branch.
@@ -161,10 +168,11 @@ def _sprite(contribution: Contribution, item: dict, context: dict) -> tuple[dict
         visible = [n for n in root.get("children", []) if _property(contribution, n, "visible", context, True)]
         if len(visible) != 1:
             raise ValueError("Note material does not resolve to one actual sprite")
+        rgba = node_colour(root, rgba)
         root = visible[0]
     if root["type"] != "sprite" or root.get("children") or root.get("effects"):
         raise ValueError("This note material requires an explicit bake, not a guessed texture")
-    return root, _property(contribution, root, "resource", context)
+    return root, _property(contribution, root, "resource", context), node_colour(root, rgba)
 
 
 def _bake(contribution: Contribution, root: dict, slot: str, lane_indices: list[int]) -> dict:
@@ -202,20 +210,20 @@ def collect_note_materials(author: AuthorPackage, options: dict[str, Any], keymo
             item = bindings[module][logical]["slots"][slot]
             mode = "hcn" if state and state.startswith("hcn") else "cn"
             states = {**context, "object.long-note-mode": mode, "object.long-note-appearance": state}
-            root, resource = _sprite(c, item, states)
+            root, resource, rgba = _sprite(c, item, states)
             if mode == "cn" and field != "note":
                 ln = {**states, "object.long-note-mode": "ln", "object.long-note-appearance": state.replace("cn", "ln", 1)}
-                if _sprite(c, item, ln)[1] != resource:
+                if _sprite(c, item, ln)[1:] != (resource, rgba):
                     raise ValueError("The selected LN and CN art cannot share a native NoteSet slot")
-            image = images.add(c, resource)
+            image = images.add(c, resource, rgba=rgba)
             note[field].append(image)
             slots[field] = {"image": image, "resource": resource, "node": root["id"],
                             "properties": copy.deepcopy(root.get("properties", {})),
                             "source_size": [images.by_id(image)["w"], images.by_id(image)["h"]]}
         c = contributions["charge-notes"]
         item = bindings["charge-notes"][logical]["slots"]["object.long-note.body"]
-        _, resource = _sprite(c, item, {**context, "object.long-note-mode": "cn", "object.long-note-appearance": "cn-released"})
-        released.append(images.add(c, resource))
+        _, resource, rgba = _sprite(c, item, {**context, "object.long-note-mode": "cn", "object.long-note-appearance": "cn-released"})
+        released.append(images.add(c, resource, rgba=rgba))
         geometry.append({"native_index": index, "source_target": copy.deepcopy(lane["target"]), "slots": slots})
         effect = bindings["charge-notes"][logical]["slots"].get("effect.long-note")
         if effect:

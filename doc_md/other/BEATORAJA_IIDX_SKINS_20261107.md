@@ -55,8 +55,16 @@
 
 上述七个非失败用例均经公开输入接口在曲中按住START并松开，原生270门实际开/关，目视白/绿数与真实边缘；FC追加取景至4000ms，未据timer本身补签缺片。官方default的同工具自测另通过Normal Gauge、读数开关和自然Result。九个通过用例的全部PNG、入口/包身份与退出门由`integrated-r4/capture-integrity.json`复核。首次把START放到曲终尾段的工具试跑触发宿主正常提前结束，未通过读数门；该失败证据保留，已改为曲中输入，未改宿主规则。
 
-继续逐项核配方时确认Standard的`effect.long-note`原持续光曾被收集但未消费；此前HCN恢复仅证明头身尾和原生active/damage状态，不能扩称持续光已经实现。20个消费身份/10支原影片已补齐烘焙并合入独立pass；144个真实来源组合和官方CPU状态探针通过，GPU待下一候选。原transition只观察进入/离开Holding，不把未持有的HCN DAMAGE结束误作释放；保留原break循环与退出尾，逐物件同时存在的尾部及render间多次变化保持宿主边界。Lightning 7920个现有Charge/布局/控制组合未声明此slot，所有已查Frame的key-flash显式Suppress。另修复Lightning 27/28/29最低BPM的28px字形/25px advance：保留原图，以原生负space表达重叠和末字外伸；官方数字排版探针通过，整包GPU待下一候选。
+继续逐项核配方时确认Standard的`effect.long-note`原持续光曾被收集但未消费；此前HCN恢复仅证明头身尾和原生active/damage状态，不能扩称持续光已经实现。20个消费身份/10支原影片已补齐烘焙并合入独立pass；144个真实来源组合和官方CPU状态探针通过。原transition只观察进入/离开Holding，不把未持有的HCN DAMAGE结束误作释放；保留原break循环与退出尾，逐物件同时存在的尾部及render间多次变化保持宿主边界。Lightning 7920个现有Charge/布局/控制组合未声明此slot，所有已查Frame的key-flash显式Suppress。另修复Lightning 27/28/29最低BPM的28px字形/25px advance：保留原图，以原生负space表达重叠和末字外伸。
+
+`integrated-r6`同包四局又通过Standard 26 SP1 HCN断持恢复、SP2 CN，21 DP Full HD HCN恢复及Lightning 27 SP2；全部正常结算，PNG/身份门通过，六张选图已目视原持续/红break/恢复光及原最低BPM。回执和逐图说明在`artifacts/beatoraja-capture/integrated-r6/`。高清密集截图会造成下一render采样延迟，所记50/200ms是请求点，真实age另载，不冒充精确帧时序。小节线、更多局部控制和亮度修正发生于该包之后，须由下一候选另验。
+
+继续核对发现原亮度只在部分carrier生效、Lightning原小节线未被采用。现已分别接Standard lane、Lightning column/lane objects；408对真实notes/charge设置直接核29696个输出部件像素，原尺寸、alpha、透明padding保持；Judge的内部label/Combo destination分别消费亮度。小节线取Lightning本族原PNG与BMS deck marker，Standard保持明确宿主新增；81真实frame-mode经官方CPU检查108个group引用及2592次几何/颜色，取整和原arrival fade差异留在收据。b04光柱的input.pressed绑定还曾被误判为未映射，已接真实KEYON开关并透传到recorded-animation；12个实际分支经官方LuaJ检查258048次可见门、258048次选帧及1728次整帧集合，松开、按住、释放和再次按下均符合本族原17帧片。Graph、Gauge/Judge显示、爆炸大小等源控制已生成controls-r8候选，未以CPU检查代签实绘。
 
 Lightning默认FC24做过实际官方JAR的两种无损分块比较。固定联合框方案为467个imageset组、约1041.6MiB解码；16像素对齐方案为6448组、733.42MiB。前者Play/FC后的render调用median为0.544/0.685ms、p95为0.776/0.941ms；后者对应3.684/5.176ms、4.389/5.988ms，故选择前者。实测为本机HD、合成HCN Replay、限120FPS；含宿主等待，不是纯CPU、实际FPS或手感。两次取景在`artifacts/beatoraja-capture/lightning-r7/`与`lightning-r8-union/`，完整FC原始未分块约1478.22MiB；未据此宣称全部组件或低显存设备通过。
+
+`controls-r8`保留同工具SHA的两族候选，官方CPU通过Standard 364片/92次装配与Lightning 3098片/136次装配。六场实绘覆盖Graph关闭、Gauge B/C、Realtime Judge关闭、Judge Panel分支、亮度/爆炸大小端点、b04光柱长度、Judge关闭下FAST/SLOW及CN/HCN；Standard和Lightning各有Full HD DP。全部自然结果、PNG与退出门通过，七张选图已目视，证据在`artifacts/beatoraja-capture/controls-r8/`。Standard DP Timing此前三次失败均保留；精确同谱、同Replay字节、同选项复测在合并同render取景并加快无损PNG后达到88 Combo、0 BP。队列满时GL线程编码跨过短按是工具干扰，未改原输入或放宽结算门；62个共享画面的尺寸和SHA另核。
+
+完整目录的控制组合估算暴露了构建体积问题：Lightning约52万候选，其中Judge位置/亮度与爆炸大小/亮度占七成，不能直接全量生成并长期缓存完整对象。下一步以原路径推导的装配参数收敛重复，并逐项与现有枚举输出核等价。另有原来源可继续适配的Lightning偏移值/AUTO、副目标比较柱，以及两族框体开场和Lightning轨道开启；这些是尚未实现，不能称缺素材或宿主必然不支持。
 
 各主题稳态、Ready/已有Fail、全部普通光柱/爆炸与Lightning四档光柱长度、默认FC三模式、Standard全Gauge/Graph反馈均已获得完整或声明的固定clock烘焙；其它FC与剩余动画挡板仍在串行完成。完整菜单与最终同包验收尚未结束。真实物理输入、长期手感、视频BGA、真实玩家保存/IR、所有配置排列与选曲/Results皮肤未签收；尚无beatoraja正式成品版本或部署验收。

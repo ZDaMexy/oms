@@ -105,8 +105,6 @@ def export_animated_graph_area(author, options, keymode, presentation, sink, can
                 or properties.get("scale-y", 1) != 1 or node.get("blend", "inherit") not in ("inherit", "alpha")):
             raise ValueError("Animated Graph Area transform or whole-animation blend requires a bake")
         rect, rgba = node_rect(properties, parent), colour(properties, inherited)
-        brightness = properties.get("brightness", 1)
-        rgba = (*(c * brightness for c in rgba[:3]), rgba[3])
         if node["type"] == "clip":
             if properties.get("clip-mode", "bounds") != "bounds":
                 raise ValueError("Animated Graph Area requires its original bounds clip")
@@ -226,8 +224,6 @@ def export_covers(author, options, keymode, presentation, sink, canvas, baked,
                         or properties.get("scale-y", 1) != 1 or node.get("blend", "inherit") not in ("inherit", "alpha")):
                     raise ValueError("Cover source transform or whole-animation blend needs a qualified bake")
                 rect, rgba = node_rect(properties, parent), colour(properties, inherited)
-                brightness = properties.get("brightness", 1)
-                rgba = (*(c * brightness for c in rgba[:3]), rgba[3])
                 prefix = f"{author.family}.cover.{kind}.{stage}.{node['id']}"
                 if node["type"] == "sprite":
                     resource = contribution.resources[properties["resource"]]

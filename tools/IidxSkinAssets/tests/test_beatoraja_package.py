@@ -14,6 +14,7 @@ from beatoraja_package import (Shards, blocking_gaps, entry_script, extract_frag
 from beatoraja_package import (stable_option_ids, control_choices, control_combinations,
                                insert_selection, available_selections, local_controls,
                                CompositionCache, tool_file_hashes, verify_tool_files)
+from beatoraja_package import has_component_output
 
 
 class PackageTests(unittest.TestCase):
@@ -88,7 +89,7 @@ class PackageTests(unittest.TestCase):
         self.assertEqual(blocking_gaps([{"feature": "graph", "reason": "native-target-selection"}], "graph-target"), [])
 
     def test_charge_selection_requires_both_caps_and_original_hold_effects(self):
-        author = SimpleNamespace(manifest={"options": [{"id": "hcn-display", "type": "choice", "default": "hcn",
+        author = SimpleNamespace(family="standard", manifest={"options": [{"id": "hcn-display", "type": "choice", "default": "hcn",
                     "choices": [{"value": "hcn"}, {"value": "cn"}]}]}, modules={"charge-notes": {
                     "choices": [{"value": "c0"}, {"value": "c1"}]}})
         coverage = [{"mode": "p1", "frame": "f", "stage": stage, "choice": choice,
@@ -103,6 +104,43 @@ class PackageTests(unittest.TestCase):
                          available_selections(author, "charge-notes", coverage, ["p1"], ["f"]))
         self.assertEqual(([], {"hcn-display": ["hcn"]}), available_selections(author, "charge-notes",
                          [r for r in coverage if r["stage"] == "charge-notes"], ["p1"], ["f"]))
+
+    def test_shared_hold_scale_does_not_require_unrelated_cap_fragments(self):
+        author = SimpleNamespace(family="standard", manifest={"options": [
+            {"id": "hcn-display", "type": "choice", "default": "hcn", "choices": [{"value": "hcn"}, {"value": "cn"}]},
+            {"id": "explosion-scale", "type": "number", "default": 1, "min": .9, "max": 1.1, "step": .1}]},
+            modules={"charge-notes": {"choices": [{"value": "c"}]}})
+        def record(stage, options, ok=True):
+            return {"mode": "p1", "frame": "f", "choice": "c", "stage": stage, "options": options,
+                    "available": ok, "gaps": [] if ok else [{"feature": "event animation needs complete bake"}]}
+        records = [record("charge-notes", {"hcn-display": value}) for value in ("hcn", "cn")]
+        records += [record("long-note-effects", {"hcn-display": value, "explosion-scale": scale}, scale != 1.1)
+                    for value in ("hcn", "cn") for scale in (.9, 1, 1.1)]
+        self.assertEqual((["c"], {"hcn-display": ["hcn", "cn"], "explosion-scale": [1, .9]}),
+                         available_selections(author, "charge-notes", records, ["p1"], ["f"]))
+
+    def test_graph_off_is_valid_absence_and_frame_is_already_an_outer_selector(self):
+        author = SimpleNamespace(family="lightning", manifest={"options": [
+            {"id": "graph-visible", "type": "toggle", "default": True},
+            {"id": "judge-panel-visible", "type": "toggle", "default": True},
+            {"id": "explosion-scale", "type": "number", "default": 1, "min": .5, "max": 1.5, "step": .05}]},
+            modules={"frame": {"choices": [{"value": "f"}]}, "charge-notes": {"choices": [{"value": "c"}]}})
+        self.assertEqual({"graph-visible", "judge-panel-visible"}, set(local_controls(author, "bga-frame", "14k")))
+        self.assertEqual({}, local_controls(author, "long-note-effects", "14k"))
+        records = [{"mode": "dp", "frame": "f", "choice": None, "stage": "frame", "options": {"graph-visible": v},
+                    "available": True, "gaps": []} for v in (True, False)]
+        self.assertEqual(([None], {"graph-visible": [True, False]}),
+                         available_selections(author, "frame", records, ["dp"], ["f"]))
+        self.assertTrue(has_component_output({}, "graph-target", "aaa", {"graph-visible": False}))
+        self.assertFalse(has_component_output({}, "graph-target", "aaa", {"graph-visible": True}))
+
+    def test_fixed_control_gates_keep_known_omissions_but_reject_new_gaps(self):
+        legacy = {"reason": "unmapped-visibility", "source": "scroll.mode"}
+        unknown = {"reason": "unmapped-visibility", "source": "new.unimplemented"}
+        missing = {"feature": "event animation needs complete bake"}
+        self.assertEqual([unknown, missing], blocking_gaps([legacy, unknown, missing], "hud"))
+        self.assertEqual([legacy], blocking_gaps([legacy], "judgement"))
+        self.assertEqual([], blocking_gaps([{"feature": "unmapped visibility", "sources": ["offset.available"]}], "decorations"))
 
     def test_source_catalog_reserves_ids_for_temporarily_unavailable_choices(self):
         author = SimpleNamespace(modules={"frame": {"choices": [{"value": "f1"}, {"value": "f2"}]},
@@ -159,7 +197,9 @@ class PackageTests(unittest.TestCase):
         def contribution(module, options):
             return SimpleNamespace(module=module, choice=options[module], manifest_path=module + ".json",
                                    scene_path=module + ".scene", ini_path=None, scene=scene)
-        author = SimpleNamespace(contribution=contribution)
+        author = SimpleNamespace(contribution=contribution, modules={
+            "notes": {"choices": [{"value": "n"}]}, "charge-notes": {"choices": [{"value": "c"}, {"value": "other"}]},
+            "judgement": {"choices": [{"value": "j"}]}, "key-beam": {"choices": [{"value": "b"}]}})
         cache = CompositionCache(author)
         options = {"frame": "f1", "notes": "n", "charge-notes": "c", "judgement": "j", "judgement-position": 0}
         frame = SimpleNamespace(manifest={"layouts": [{"ruleset": "bms", "keymode": "7k", "presentation": "p1",
@@ -176,6 +216,21 @@ class PackageTests(unittest.TestCase):
         dependent = CompositionCache(author)
         self.assertNotEqual(dependent.key("notes", "p1", frame, options, 27), dependent.key("notes", "p1", frame, alternate, 27))
         self.assertIsNone(cache.key("graph-area", "p1", frame, options, 27))
+        scene.clear()
+        frame.manifest["layouts"][0]["stages"][0]["lanes"] = [[0, .1], [.1, .1]]
+        options["key-beam"] = alternate["key-beam"] = "b"
+        effect = CompositionCache(author)
+        self.assertEqual(effect.key("key-beam", "p1", frame, options, 27), effect.key("key-beam", "p1", frame, alternate, 27))
+        wider = copy.deepcopy(frame)
+        wider.manifest["layouts"][0]["stages"][0]["lanes"][0][1] = .2
+        self.assertNotEqual(effect.key("key-beam", "p1", frame, options, 27), effect.key("key-beam", "p1", wider, options, 27))
+        author.modules["key-beam"]["choices"][0]["variants"] = [{"when": {"frame": "f2"}}]
+        branch = CompositionCache(author)
+        self.assertNotEqual(branch.key("key-beam", "p1", frame, options, 27), branch.key("key-beam", "p1", frame, alternate, 27))
+        scene["templates"] = [{"root": {"id": "effect.root", "children": [{"id": "effect.child"}]}}]
+        qualified = CompositionCache(author)
+        self.assertNotEqual(qualified.key("key-beam", "p1", frame, options, 27),
+                            qualified.key("key-beam", "p1", frame, options, 27, {"effect.child"}))
 
     def test_tool_identity_rejects_modified_or_new_adapter_files(self):
         parent = Path(__file__).resolve().parents[3] / ".dev-cache/temp/beatoraja-package-tests"

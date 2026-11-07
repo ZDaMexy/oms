@@ -44,8 +44,8 @@ class WidgetTests(unittest.TestCase):
             font = {"font": "font" + str(index), "line_height": 3, "glyph_size": [2, 3], "advance": 1,
                     "digit_count": 10, "grid_image": digits["id"], "value_grid": {**digits, "divx": 10}}
             alternatives.append({"image": label["id"], "font": font, "ancestors": ancestors,
-                                 "label_node": {"properties": {"height-px": 3.2}},
-                                 "number_node": {"properties": {"font-size": 3.2}}})
+                                 "label_node": {"id": "label-node" + str(index), "properties": {"height-px": 3.2}},
+                                 "number_node": {"id": "number-node" + str(index), "properties": {"font-size": 3.2}}})
             tracks.append({"target": "palette" + str(index), "property": "opacity", "trigger": "judgement.hit", "loop": True, "easing": "step",
                            "keyframes": [{"time": t * 100, "value": int(t % 3 == index)} for t in range(4)]})
         grades = ["perfect", "great", "good", "meh", "miss", "ok"]

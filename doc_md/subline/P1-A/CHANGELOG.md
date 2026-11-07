@@ -1,5 +1,11 @@
 # P1-A 变动日志
 
+## 2026-11-07beatoraja长条实绘与控制查漏
+
+新r6同包四局完成Standard持续光、HCN断持/恢复、CN与21 DP Full HD，以及Lightning 27最低BPM复验；六张原生截图目视、全部PNG和退出门通过。随后补回原小节线、分支亮度与b04光柱的真实KEYON门，Graph关闭按12主题实际宽版中心补24个准确稳态帧，READY/Fail不借普通宽度替代。完整范围和原失败身份取[适配记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md)。
+
+Graph、Gauge/Judge显示、爆炸大小及各族自身亮度按实际pass同步，缓存仅复用贡献和几何等价结果；源组件与几何组合逐项对照。134项适配器focused及官方CPU原生探针通过，controls-r8六局实绘、PNG/身份门和七张目视通过。修正密集高清取景造成的原生Replay漏键，精确同输入复测零BP；失败身份和剩余源控制遗漏见适配记录。独立安装器以清单SHA逐项复制到新版本目录，同卷rename拒绝已有目录；合成成功、篡改拒绝、同名拒绝及4项原文件保全通过。尚未把新Omni安装进真实播放器，完整控制的体积收敛、剩余FC/动画挡板与最终成品仍待完成。
+
 ## 2026-11-07beatoraja原生读数与动态反馈
 
 两族小组件包完成八场官方0.8.9实机：Lightning 27/33三布局、完整FC24和动画挡板，Standard 21/26、FAST/SLOW A/C与Judge OFF、真实Gauge和Graph反馈及失败均正常结算；曲中START实际开关白/绿读数，Standard 21 DP另验Full HD。修复Lightning P2双clip血条、极低Gauge零裁切泄露和Standard 21仿射键灯，来源适配精度与历史失败保留在[集中记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md)。

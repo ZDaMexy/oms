@@ -38,6 +38,43 @@ class NativeStaticClipTests(unittest.TestCase):
         composer.draw_tree(source, {'id': 'text-gate', 'type': 'container', 'children': [{'id': 'text', 'type': 'text'}]})
         self.assertFalse(composer.gaps)
 
+    def test_input_visibility_uses_the_real_lane_keyon_clock(self):
+        composer, source = self.make()
+        source.scene = {'bindings': [{'target': 'beam', 'property': 'visible', 'source': 'input.pressed'}]}
+        node = {'id': 'beam', 'type': 'sprite', 'resource': 'art', 'properties': {}}
+        for timer in (100, 101, 107, 110, 111, 117):
+            composer.draw_tree(source, node, (0, 0, 20, 100), timer=timer)
+            gate = composer.skin['destination'][-1]['draw']
+            self.assertIn(f'main_state.timer({timer}) ~= main_state.timer_off_value', gate)
+        self.assertFalse(composer.gaps)
+        for timer in (0, 71, 108, 118):
+            before = len(composer.skin['destination'])
+            composer.draw_tree(source, node, (0, 0, 20, 100), timer=timer)
+            self.assertEqual(len(composer.skin['destination']), before)
+        self.assertTrue(any(g.get('feature') == 'unmapped visibility' for g in composer.gaps))
+
+    def test_recorded_beam_keeps_its_native_key_gate_through_atlas_composition(self):
+        composer, source = self.make()
+        source.scene = {'bindings': [{'target': 'beam', 'property': 'visible', 'source': 'input.pressed'}]}
+        source.manifest_path = 'fixture-manifest.json'
+        index = {'framesPerSecond': 60, 'sourceFrameCount': 3, 'loop': True, 'loopStartFrame': 0,
+                 'canvas': [4, 4], 'pages': [{'id': 'page'}],
+                 'frames': [{'sourceFrame': 0, 'runs': [{'page': 'page', 'order': 0, 'blend': 'normal', 'offset': [0, 0], 'rect': [0, 0, 4, 4]}]},
+                            {'sourceFrame': 1, 'runs': [{'page': 'page', 'order': 0, 'blend': 'normal', 'offset': [0, 0], 'rect': [0, 0, 4, 4]}]},
+                            {'sourceFrame': 2, 'terminal': True, 'runs': []}]}
+        composer.sink.add_baked_page = lambda path, page: 'source'
+        # Exercise the actual atlas destination creation; replace only lookup
+        # of a private source file with this two-frame synthetic input.
+        composer.draw_baked = lambda manifest, animation, rect, rgba, **kw: composer.draw_baked_sequence(
+            Path('fixture-index.json'), index, rect, rgba, timer=kw['timer'], start_frame=None,
+            conditions=kw['conditions'], clip=kw['clip'])
+        composer.draw_tree(source, {'id': 'beam', 'type': 'recorded-animation', 'animation': 'beam'},
+                           (0, 0, 20, 100), timer=111)
+        self.assertEqual(len(composer.skin['destination']), 1)
+        self.assertIn('main_state.timer(111) ~= main_state.timer_off_value', composer.skin['destination'][0]['draw'])
+        self.assertIn('animation_frame(111,60,2,0,0)', composer.skin['imageset'][0]['value'])
+        self.assertFalse(composer.gaps)
+
 
 if __name__ == '__main__':
     unittest.main()
