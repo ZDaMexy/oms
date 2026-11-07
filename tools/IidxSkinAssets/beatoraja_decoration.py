@@ -154,7 +154,7 @@ def _export(author, options, keymode, presentation, sink, canvas, module):
     x, y, width, height = canvas
     if x != 0 or y != 0 or min(width, height) <= 0:
         raise ValueError("Decoration export requires the full positive zero-origin canvas")
-    if (keymode, presentation) not in (("7k", "p1"), ("7k", "p2"), ("14k", "dp")):
+    if (keymode, presentation) not in (("5k", "p1"), ("5k", "p2"), ("7k", "p1"), ("7k", "p2"), ("14k", "dp")):
         raise ValueError("Decoration export requires a matching SP or DP presentation")
     result = {"image": [], "destination": [], "gaps": [], "handled_root_ids": []}
     if module not in author.modules:

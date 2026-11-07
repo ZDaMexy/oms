@@ -17,8 +17,8 @@
 | --- | --- | --- |
 | Lightning Model Skin Omni Until 33 | OMS | 自动推进停止，完整形态未完成；最新[.v26102902](CHANGELOG.md#2026-10-29omniv52私下交付)，历史Lighting文件名保留；缺口取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md) |
 | Standard Model Skin Omni Until 26 | OMS | 已交付，按反馈/新来源维护；[.v26110700及来源现状](../../other/STANDARD_MODEL_SKIN_20261105.md#本地来源现状)，24/26本体退役、提取素材保留，23/25仅保留美术 |
-| Lightning Until33 | beatoraja | 开发中，27/33组件、三布局FC及读数实绘通过 |
-| Standard Until26 | beatoraja | 开发中，21/26组件、Graph反馈及提示实绘通过 |
+| Lightning Until33 | beatoraja | 开发中，27/33组件及5KEYS两侧实绘通过 |
+| Standard Until26 | beatoraja | 开发中，21/26组件及5KEYS两侧实绘通过 |
 
 beatoraja安装、证据与缺口取[适配记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md)，未正式交付。OMS选曲/Results沿[原界面决定](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
 

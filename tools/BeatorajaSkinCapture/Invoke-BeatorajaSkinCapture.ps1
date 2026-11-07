@@ -3,6 +3,7 @@
 param(
     [Parameter(Mandatory)][string]$Skin,
     [ValidateSet('sp1','sp2','dp')][string]$Mode = 'sp1',
+    [ValidateSet('5k','7k','14k')][string]$KeyMode,
     [ValidateSet('autoplay','success','failure','hcn-recovery','timing')][string]$Scenario = 'autoplay',
     [ValidateSet('LN','CN','HCN')][string]$LongNoteMode = 'LN',
     [ValidateSet('AssistEasy','Easy','Normal','Hard','ExHard','Hazard')][string]$Gauge = 'Hard',
@@ -26,6 +27,8 @@ param(
 $ErrorActionPreference = 'Stop'
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
 . (Join-Path $repo 'UseDevelopmentStorage.ps1')
+if (-not $KeyMode) { $KeyMode = if ($Mode -eq 'dp') { '14k' } else { '7k' } }
+if (($Mode -eq 'dp') -ne ($KeyMode -eq '14k')) { throw '5k/7k require sp1/sp2; 14k requires dp.' }
 if (-not $OutputRoot) { $OutputRoot = Join-Path $repo '.dev-cache\temp\beatoraja-capture-dev' }
 if (-not $Java) {
     $Java = @('D:\beatoraja\jre\bin\java.exe', 'D:\beatoraja0.8.8-jre-win64\jre\bin\java.exe') | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf } | Select-Object -First 1
@@ -58,14 +61,14 @@ while ($ancestor) {
     $ancestor = Split-Path -Parent $ancestor
 }
 [IO.Directory]::CreateDirectory($OutputRoot) | Out-Null
-$caseName = '{0}-{1}-{2}-{3}' -f (Get-Date -Format 'yyyyMMdd-HHmmss'), $Mode, $Scenario, ([Guid]::NewGuid().ToString('N').Substring(0,8))
+$caseName = '{0}-{1}-{2}-{3}-{4}' -f (Get-Date -Format 'yyyyMMdd-HHmmss'), $KeyMode, $Mode, $Scenario, ([Guid]::NewGuid().ToString('N').Substring(0,8))
 $caseRoot = Join-Path $OutputRoot $caseName
 [IO.Directory]::CreateDirectory($caseRoot) | Out-Null
 $classes = Join-Path $caseRoot 'classes'
 $tempPath = Join-Path $caseRoot 'temp'
 [IO.Directory]::CreateDirectory($classes) | Out-Null
 [IO.Directory]::CreateDirectory($tempPath) | Out-Null
-$manifest = [ordered]@{ schema=1; purpose='Disposable beatoraja skin capture'; engineJar=$Jar; engineSha256=(Get-FileHash -LiteralPath $Jar -Algorithm SHA256).Hash; harnessSourceSha256=(Get-FileHash -LiteralPath (Join-Path $PSScriptRoot 'Capture.java') -Algorithm SHA256).Hash; launcherSourceSha256=(Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash; java=$Java; skin=$Skin; skinEntrySha256=(Get-FileHash -LiteralPath $Skin -Algorithm SHA256).Hash; resourceRoot=$ResourceRoot; nativeRoot=$NativeRoot; scenario=$Scenario; mode=$Mode; createdUtc=[DateTime]::UtcNow.ToString('O') }
+$manifest = [ordered]@{ schema=1; purpose='Disposable beatoraja skin capture'; engineJar=$Jar; engineSha256=(Get-FileHash -LiteralPath $Jar -Algorithm SHA256).Hash; harnessSourceSha256=(Get-FileHash -LiteralPath (Join-Path $PSScriptRoot 'Capture.java') -Algorithm SHA256).Hash; launcherSourceSha256=(Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash; java=$Java; skin=$Skin; skinEntrySha256=(Get-FileHash -LiteralPath $Skin -Algorithm SHA256).Hash; resourceRoot=$ResourceRoot; nativeRoot=$NativeRoot; scenario=$Scenario; mode=$Mode; keyMode=$KeyMode; createdUtc=[DateTime]::UtcNow.ToString('O') }
 $packageReceipt = Join-Path (Split-Path -Parent $Skin) 'package-receipt.json'
 if (Test-Path -LiteralPath $packageReceipt -PathType Leaf) {
     $manifest.packageReceipt = $packageReceipt
@@ -76,7 +79,7 @@ $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $caseR
 if ($LASTEXITCODE -ne 0) { throw "Capture compilation failed. Evidence: $caseRoot" }
 $lnIndex = @{ LN=0; CN=1; HCN=2 }[$LongNoteMode]
 $gaugeIndex = @{ AssistEasy=0; Easy=1; Normal=2; Hard=3; ExHard=4; Hazard=5 }[$Gauge]
-$arguments = @('-Xms256m','-Xmx2g', '-Dfile.encoding=UTF-8', '-Dsun.stdout.encoding=UTF-8', '-Dsun.stderr.encoding=UTF-8', ('-Djava.io.tmpdir=' + $tempPath), ('-Djava.library.path=' + $NativeRoot), '-cp', ($classes + [IO.Path]::PathSeparator + $Jar), 'Capture', '--work', $caseRoot, '--skin', $Skin, '--resources', $ResourceRoot, '--scenario', $Scenario, '--mode', $Mode, '--side-option', $SideOptionName, '--lnmode', "$lnIndex", '--resolution', $Resolution, '--hispeed', $HiSpeed.ToString([Globalization.CultureInfo]::InvariantCulture), '--timeout', "$TimeoutSeconds")
+$arguments = @('-Xms256m','-Xmx2g', '-Dfile.encoding=UTF-8', '-Dsun.stdout.encoding=UTF-8', '-Dsun.stderr.encoding=UTF-8', ('-Djava.io.tmpdir=' + $tempPath), ('-Djava.library.path=' + $NativeRoot), '-cp', ($classes + [IO.Path]::PathSeparator + $Jar), 'Capture', '--work', $caseRoot, '--skin', $Skin, '--resources', $ResourceRoot, '--scenario', $Scenario, '--mode', $Mode, '--keymode', $KeyMode, '--side-option', $SideOptionName, '--lnmode', "$lnIndex", '--resolution', $Resolution, '--hispeed', $HiSpeed.ToString([Globalization.CultureInfo]::InvariantCulture), '--timeout', "$TimeoutSeconds")
 $arguments += @('--gauge', "$gaugeIndex")
 if ($ShowReadouts) { $arguments += @('--show-readouts', 'true') }
 foreach ($option in $SkinOption) { $arguments += @('--option', $option) }
@@ -117,4 +120,4 @@ if ((Get-FileHash -LiteralPath $Skin -Algorithm SHA256).Hash -ne $manifest.skinE
     ($manifest.Contains('packageReceiptSha256') -and (Get-FileHash -LiteralPath $packageReceipt -Algorithm SHA256).Hash -ne $manifest.packageReceiptSha256)) {
     throw "Skin entry or package receipt changed during capture. Evidence: $caseRoot"
 }
-[pscustomobject]@{ Success=$true; Scenario=$Scenario; Mode=$Mode; Frames=$receipt.frames.Count; Skin=$receipt.skinLoaded.name; Receipt=$receiptPath; ExitCode=$exitCode }
+[pscustomobject]@{ Success=$true; Scenario=$Scenario; Mode=$Mode; KeyMode=$KeyMode; Frames=$receipt.frames.Count; Skin=$receipt.skinLoaded.name; Receipt=$receiptPath; ExitCode=$exitCode }

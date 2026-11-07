@@ -73,7 +73,9 @@ public final class Capture implements ApplicationListener {
     private final long started = System.nanoTime();
     private MainController main;
     private Path skin, chart;
-    private String scenario, mode, lastState = "";
+    private String scenario, mode, keyMode, lastState = "";
+    private Mode chartMode;
+    private int skinType;
     private boolean created, disposed, exiting, outcome, identityVerified;
     private String error;
     private int expectedNotes, maxPastNotes, maxCombo, maxExscore, requestedGauge, minimumGauge = 100;
@@ -108,8 +110,20 @@ public final class Capture implements ApplicationListener {
         scenario = one("scenario"); mode = one("mode");
         if (!Set.of("autoplay", "success", "failure", "hcn-recovery", "timing").contains(scenario) || !Set.of("sp1", "sp2", "dp").contains(mode))
             throw new IllegalArgumentException("Invalid scenario or mode");
+        keyMode = args.containsKey("keymode") ? one("keymode") : mode.equals("dp") ? "14k" : "7k";
+        chartMode = switch (keyMode) {
+            case "5k" -> Mode.BEAT_5K;
+            case "7k" -> Mode.BEAT_7K;
+            case "14k" -> Mode.BEAT_14K;
+            default -> throw new IllegalArgumentException("Key mode must be 5k, 7k or 14k");
+        };
+        if ((chartMode.player == 2) != mode.equals("dp"))
+            throw new IllegalArgumentException("5k/7k require sp1/sp2; 14k requires dp");
+        skinType = keyMode.equals("5k") ? 1 : keyMode.equals("14k") ? 2 : 0;
         receipt.put("schema", 1); receipt.put("startedUtc", Instant.now().toString());
         receipt.put("scenario", scenario); receipt.put("mode", mode); receipt.put("skinRequested", skin.toString());
+        receipt.put("keyMode", keyMode); receipt.put("chartMode", chartMode.toString());
+        receipt.put("skinSlot", skinType); receipt.put("expectedLaneCount", chartMode.key);
         receipt.put("javaVersion", System.getProperty("java.version"));
         receipt.put("engineVersion", MainController.getVersion());
         receipt.put("workingDirectory", root.toString());
@@ -214,9 +228,9 @@ public final class Capture implements ApplicationListener {
             String[] parts = pair(value); SkinConfig.FilePath f = new SkinConfig.FilePath(); f.name = parts[0]; f.path = parts[1]; files.add(f);
         }
         properties.setFile(files.toArray(SkinConfig.FilePath[]::new)); selected.setProperties(properties);
-        player.getSkin()[mode.equals("dp") ? 2 : 0] = selected;
+        player.getSkin()[skinType] = selected;
         receipt.put("skinOptionsRequested", options); receipt.put("longNoteMode", lnmode);
-        PlayConfig play = player.getPlayConfig(mode.equals("dp") ? Mode.BEAT_14K : Mode.BEAT_7K).getPlayconfig();
+        PlayConfig play = player.getPlayConfig(chartMode).getPlayconfig();
         play.setFixhispeed(PlayConfig.FIX_HISPEED_OFF); play.setHispeed(Float.parseFloat(one("hispeed")));
         play.setEnablelanecover(false); play.setEnablelift(false); play.setEnablehidden(false);
         for (String name : new String[]{"lanecover", "lift", "hidden"}) if (args.containsKey(name)) {
@@ -237,7 +251,7 @@ public final class Capture implements ApplicationListener {
         }
         chart = fixture();
         BMSModel model = new BMSDecoder(lnmode).decode(chart);
-        if (model == null || model.getMode() != (mode.equals("dp") ? Mode.BEAT_14K : Mode.BEAT_7K))
+        if (model == null || model.getMode() != chartMode)
             throw new IllegalStateException("Synthetic chart has the wrong mode");
         expectedNotes = model.getTotalNotes();
         receipt.put("chart", chart.toString()); receipt.put("chartSha256", model.getSHA256()); receipt.put("expectedNotes", expectedNotes);
@@ -266,7 +280,8 @@ public final class Capture implements ApplicationListener {
         g.setColor(Color.WHITE); g.drawString("SYNTHETIC BGA / beatoraja skin capture", 36, 36); g.dispose();
         ImageIO.write(image, "png", dir.resolve("bga.png").toFile());
         StringBuilder bms = new StringBuilder("#PLAYER " + (mode.equals("dp") ? "2" : "1") + "\n#TITLE Synthetic Skin Capture\n#ARTIST OMS QA\n#BPM 120\n#PLAYLEVEL 1\n#RANK 2\n#TOTAL 300\n#WAV01 silence.wav\n#BMP01 bga.png\n#00104:01\n");
-        int[] channels = {11, 12, 13, 14, 15, 18, 19, 16};
+        int[] channels = keyMode.equals("5k") ? new int[]{11, 12, 13, 14, 15, 16}
+                                             : new int[]{11, 12, 13, 14, 15, 18, 19, 16};
         for (int side = 0; side < (mode.equals("dp") ? 2 : 1); side++) {
             for (int lane = 0; lane < channels.length; lane++) {
                 String[] row = new String[16]; Arrays.fill(row, "00"); row[lane * 2] = "01";
@@ -323,7 +338,7 @@ public final class Capture implements ApplicationListener {
         if (scenario.equals("hcn-recovery") && !recoveryInserted)
             throw new IllegalStateException("No first key HCN for recovery fixture");
         if (scenario.equals("timing")) {
-            if (timingInputs.size() != (mode.equals("dp") ? 16 : 8))
+            if (timingInputs.size() != chartMode.key)
                 throw new IllegalStateException("Timing fixture requires the complete opening sweep");
             receipt.put("timingInputs", timingInputs);
         }
@@ -549,7 +564,10 @@ public final class Capture implements ApplicationListener {
         Skin loaded = state.getSkin();
         if (loaded == null || loaded.header == null || !loaded.header.getPath().toRealPath().equals(skin))
             throw new IllegalStateException("Target skin did not load; default fallback is not accepted");
-        if (loaded.header.getSkinType().getId() != (mode.equals("dp") ? 2 : 0)) throw new IllegalStateException("Skin type does not match chart mode");
+        if (loaded.header.getSkinType().getId() != skinType) throw new IllegalStateException("Skin type does not match chart mode");
+        PlaySkin playSkin = (PlaySkin) loaded;
+        if (playSkin.getLaneRegion().length != chartMode.key || playSkin.getLaneGroupRegion().length != chartMode.player)
+            throw new IllegalStateException("Skin lane or stage count does not match the actual chart mode");
         Map<String, Integer> selectedOptions = new LinkedHashMap<>();
         for (SkinHeader.CustomOption option : loaded.header.getCustomOptions()) selectedOptions.put(option.name, option.getSelectedOption());
         for (Map.Entry<String, Integer> requested : requestedOptions.entrySet())
@@ -559,7 +577,9 @@ public final class Capture implements ApplicationListener {
         Map<String, Integer> objects = new TreeMap<>();
         for (SkinObject object : loaded.getAllSkinObjects()) objects.merge(object.getClass().getSimpleName(), 1, Integer::sum);
         if (!objects.containsKey("SkinNote")) throw new IllegalStateException("Loaded play skin has no native note object");
-        receipt.put("skinLoaded", Map.of("path", loaded.header.getPath().toString(), "name", loaded.header.getName(), "type", loaded.header.getSkinType().toString(), "objects", objects));
+        receipt.put("skinLoaded", Map.of("path", loaded.header.getPath().toString(), "name", loaded.header.getName(),
+                "type", loaded.header.getSkinType().toString(), "objects", objects,
+                "lanes", playSkin.getLaneRegion().length, "stages", playSkin.getLaneGroupRegion().length));
         PlayConfig actual = ((BMSPlayer) state).getLanerender().getPlayConfig();
         for (Map.Entry<String, Float> requested : requestedReading.entrySet()) {
             float value = switch (requested.getKey()) { case "lanecover" -> actual.getLanecover(); case "lift" -> actual.getLift(); default -> actual.getHidden(); };

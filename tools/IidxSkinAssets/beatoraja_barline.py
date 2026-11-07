@@ -56,7 +56,7 @@ def export_barline(author, options, keymode, presentation, frame, sink, canvas):
     positive integer is retained through the host's own HD/FULLHD scaling.
     This does not reproduce OMS's per-object 150-ms arrival fade.
     """
-    if (keymode, presentation) not in (("7k", "p1"), ("7k", "p2"), ("14k", "dp")):
+    if (keymode, presentation) not in (("5k", "p1"), ("5k", "p2"), ("7k", "p1"), ("7k", "p2"), ("14k", "dp")):
         raise ValueError("Bar-line export requires a matching SP or DP presentation")
     x, y, width, height = canvas
     if x != 0 or y != 0 or min(width, height) <= 0:

@@ -99,13 +99,13 @@ class AuthorPackage:
 
     def options(self, keymode: str = "7k", presentation: str = "p1",
                 overrides: dict[str, Any] | None = None) -> dict[str, Any]:
-        if keymode not in ("7k", "14k") or presentation not in ("p1", "p2", "dp"):
-            raise ValueError("The first beatoraja export supports 7K SP and 14K DP")
+        if keymode not in ("5k", "7k", "14k") or presentation not in ("p1", "p2", "dp"):
+            raise ValueError("The beatoraja export supports 5K/7K SP and 14K DP")
         if (keymode == "14k") != (presentation == "dp"):
             raise ValueError("Keymode and presentation do not agree")
         definitions = [*self.manifest.get("options", []), *self.modules.values()]
         options = {item["id"]: item["default"] for item in definitions if applies(item, keymode)}
-        if keymode == "7k":
+        if keymode in ("5k", "7k"):
             options["layout"] = presentation
         else:
             # OMS omits this SP-only selector for DP. Retaining p1 would select

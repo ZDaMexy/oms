@@ -27,7 +27,14 @@ from beatoraja_preparation import (PREPARATION_TIMER, PRESENTATION_TIMER, READY_
                                   preparation_expression, preparation_plan)
 
 
-MODE = {"p1": ("7k", 0), "p2": ("7k", 0), "dp": ("14k", 2)}
+MODE = {"p1": ("7k", 0), "p2": ("7k", 0), "dp": ("14k", 2),
+        "5p1": ("5k", 1), "5p2": ("5k", 1)}
+DEFAULT_MODES = ("p1", "p2", "dp")
+
+
+def source_presentation(mode: str) -> str:
+    """Package identity includes key count; author presentation never does."""
+    return {"5p1": "p1", "5p2": "p2"}.get(mode, mode)
 
 
 def native_art_expression(source):
@@ -84,10 +91,13 @@ end
 
 class Composer:
     def __init__(self, author: AuthorPackage, sink: AssetSink, options: dict[str, Any],
-                 presentation: str, baked: dict[str, tuple[Path, dict[str, Any]]]):
+                 presentation: str, baked: dict[str, tuple[Path, dict[str, Any]]], *, keymode: str | None = None):
         self.author, self.sink, self.options = author, sink, options
         self.presentation = presentation
-        self.keymode, skin_type = MODE[presentation]
+        self.keymode = keymode or ("14k" if presentation == "dp" else "7k")
+        if (self.keymode, presentation) not in (("5k", "p1"), ("5k", "p2"), ("7k", "p1"), ("7k", "p2"), ("14k", "dp")):
+            raise ValueError("Composer requires a matching keymode and source presentation")
+        skin_type = {"5k": 1, "7k": 0, "14k": 2}[self.keymode]
         self.w, self.h = (1280, 720) if author.family == "standard" else (1920, 1080)
         self.canvas = (0, 0, self.w, self.h)
         self.baked = baked
@@ -630,7 +640,10 @@ class Composer:
             # Author lane arrays are logical, not sorted by on-screen X. Both
             # SP sides put scratch at index 0; only DP's second deck uses 7.
             scratch_first = self.presentation != "dp" or group == 0
-            order = [*range(1, 8), 0] if scratch_first else list(range(8))
+            count = 6 if self.keymode == "5k" else 8
+            if len(stage["lanes"]) != count:
+                raise ValueError("Source layout must declare every lane for this keymode")
+            order = [*range(1, count), 0] if scratch_first else list(range(count))
             for i in order:
                 lx, lw = stage["lanes"][i]
                 lanes.append({**native_rect(((sx + lx * sw) * self.w, sy * self.h, lw * sw * self.w, sh * self.h), self.h)})
@@ -728,7 +741,7 @@ class Composer:
                 key = ((sx + kx * sw) * self.w, (sy + sh) * self.h, kw * sw * self.w, layout["keyAreaHeight"] * self.h)
                 hit_height = 16 * self.h / 768
                 hit = (lane[0], lane[1] + lane[3] - hit_height, lane[2], hit_height)
-                yield binding, group, (0 if index == 7 else index + 1), lane, key, hit
+                yield binding, group, (0 if binding in scratch else index + 1), lane, key, hit
 
     def key_beams(self, frame: Contribution):
         contribution = self.author.contribution("key-beam", self.options)
@@ -860,8 +873,9 @@ def export(author: AuthorPackage, output: Path, modes: list[str], frames: list[s
     for mode in modes:
         for theme in frames:
             keymode, _ = MODE[mode]
-            options = author.options(keymode, mode, {"frame": theme})
-            composer = Composer(author, sink, options, mode, baked)
+            presentation = source_presentation(mode)
+            options = author.options(keymode, presentation, {"frame": theme})
+            composer = Composer(author, sink, options, presentation, baked, keymode=keymode)
             frame = author.contribution("frame", options)
             composer.preparation(frame)
             composer.frame(frame)
@@ -889,17 +903,22 @@ def export(author: AuthorPackage, output: Path, modes: list[str], frames: list[s
             (variants / (filename + ".lua")).write_text(ANIMATION_RUNTIME + "\nreturn " + lua(skin) + "\n", encoding="utf-8")
             receipt["variants"].append({"frame": theme, "mode": mode, "gaps": composer.gaps,
                                         "images": len(skin["image"]), "sources": len(skin["source"])})
-    for keymode, file, relevant in (("7k", "play7.luaskin", [m for m in modes if m != "dp"]), ("14k", "play14.luaskin", [m for m in modes if m == "dp"])):
+    for keymode, file in (("7k", "play7.luaskin"), ("14k", "play14.luaskin"), ("5k", "play5.luaskin")):
+        relevant = [m for m in modes if MODE[m][0] == keymode]
         if not relevant:
             continue
         properties = []
-        if keymode == "7k":
-            properties.append({"name": "Play Side", "item": [{"name": m.upper(), "op": 920 if m == "p1" else 921} for m in relevant], "def": relevant[0].upper()})
+        if keymode != "14k":
+            properties.append({"name": "Play Side", "item": [{"name": source_presentation(m).upper(), "op": 920 if source_presentation(m) == "p1" else 921} for m in relevant], "def": source_presentation(relevant[0]).upper()})
         properties.append({"name": "Frame", "item": [{"name": next(c["label"] for c in author.modules["frame"]["choices"] if c["value"] == f), "op": 1000 + i} for i, f in enumerate(frames)]})
-        header = {"type": 0 if keymode == "7k" else 2, "name": author.name, "author": "ZDaMexy", "w": 1280 if author.family == "standard" else 1920, "h": 720 if author.family == "standard" else 1080, "property": properties}
+        header = {"type": {"5k": 1, "7k": 0, "14k": 2}[keymode], "name": author.name, "author": "ZDaMexy", "w": 1280 if author.family == "standard" else 1920, "h": 720 if author.family == "standard" else 1080, "property": properties}
         script = "local header = " + lua(header) + "\nif not skin_config then return header end\n"
         script += "local frames = " + lua(frames) + "\nlocal frame = frames[(skin_config.option['Frame'] or 1000) - 999]\n"
-        script += "local side = " + ("'dp'" if keymode == "14k" else "(skin_config.option['Play Side'] == 921 and 'p2' or 'p1')") + "\n"
+        if keymode == "5k":
+            script += "local sides=" + lua({920 if source_presentation(m) == "p1" else 921: m for m in relevant}) + "\n"
+            script += "local side=sides[skin_config.option['Play Side'] or " + str(920 if source_presentation(relevant[0]) == "p1" else 921) + "]\n"
+        else:
+            script += "local side = " + ("'dp'" if keymode == "14k" else "(skin_config.option['Play Side'] == 921 and 'p2' or 'p1')") + "\n"
         script += "local skin = require('variants.' .. frame .. '_' .. side)\nskin.property = header.property\nreturn skin\n"
         (output / file).write_text(script, encoding="utf-8")
     receipt["assets"] = sink.provenance

@@ -40,6 +40,8 @@
 
 开场quad栅格依赖`requirements.txt`固定的NumPy，与现有Pillow共同按原RGBA和两三角UV采样；运行时包只含原生Lua和图像，不要求玩家安装Python或NumPy。工具依赖仍安装或复用非系统盘开发环境，不塞进真实播放器。
 
+原生包默认仍生成`p1,p2,dp`（7/14KEYS）；显式`--modes p1,p2,dp,5p1,5p2`同时生成独立`play5.luaskin`及5KEYS两侧。5K采用源声明的六路，P2位置靠皿；模式和显示侧分别参与缓存、材料和几何选择，不借LR2兼容或截取七键数据。没有10KEYS来源声明。最终包的全主题/模式与实绘验收仍须匹配实际输出。
+
 三种源亮度分开处理：Standard lane、Lightning column与lane objects；没有额外全皮肤总亮度。实际来源每个受影响分支只有一层白色brightness carrier。普通drawable用原生RGB，Judge标签和Combo分别放到内部destination；NoteSet不消费外层颜色，因此对选中的原图生成一次RGB衍生，保留alpha、尺寸及透明顶补，默认1保持原像素。Lightning小节线取自己的base原图，Standard没有该slot则保留明确的宿主新增线；几何取整和原arrival fade差异记录在收据。
 
 正式候选的安装示例为`./tools/IidxSkinAssets/Install-BeatorajaOmni.ps1 -Package <已验收组件包目录> -Version v26110700 -Receipt artifacts/beatoraja-capture/install-standard-v26110700.json`，默认目标为实际`D:/beatoraja`。版本号按当日作品/宿主序号选择，不能照例覆盖已有版本。失败保留暂存与回执供诊断；安装后仍须核对本轮建立的个人数据和旧skin保全基线。工具的合成包成功、已有版本拒绝和篡改拒绝测试不代签真实玩家部署。

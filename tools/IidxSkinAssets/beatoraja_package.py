@@ -27,7 +27,7 @@ from typing import Any
 from beatoraja_author import AuthorPackage, applies, layout_for, source_path, walk_nodes
 from beatoraja_control_params import (UnqualifiedParameters, factor_fragment, factory_script,
                                      parameter_names, qualify_cap_rgb, qualify_source)
-from beatoraja_export import ANIMATION_RUNTIME, MODE, Composer, read_bakes
+from beatoraja_export import ANIMATION_RUNTIME, DEFAULT_MODES, MODE, Composer, read_bakes, source_presentation
 from beatoraja_materials import CAP_FIELDS, NOTE_FIELDS, collect_note_materials
 from beatoraja_native import AssetSink, Lua, lua
 
@@ -361,7 +361,7 @@ def _choices(author: AuthorPackage, module: str, keymode: str):
 
 
 def _options(author, mode, frame, module=None, choice=None):
-    options = author.options(MODE[mode][0], mode, {"frame": frame})
+    options = author.options(MODE[mode][0], source_presentation(mode), {"frame": frame})
     if module:
         options[module] = choice
     return options
@@ -386,7 +386,7 @@ def scan_cap_height(author: AuthorPackage, modes: list[str], frames: list[str], 
                         if signature in seen:
                             continue
                         seen.add(signature)
-                        recipe = collect_note_materials(author, options, MODE[mode][0], mode, lambda relative: relative)
+                        recipe = collect_note_materials(author, options, MODE[mode][0], source_presentation(mode), lambda relative: relative)
                         images = {item["id"]: item for item in recipe["images"]}
                         height = max(height, *(images[i]["h"] for field in CAP_FIELDS for i in recipe["note"][field]))
     if height <= 0:
@@ -486,12 +486,12 @@ class CompositionCache:
         context = tuple(sorted((key, value) for key, value in options.items() if key != "frame" or depends_on_frame))
         geometry = ()
         if stage in ("judgement", "timing-display"):
-            geometry = tuple(tuple(part["rect"]) for part in layout_for(frame, MODE[mode][0], mode)["stages"])
+            geometry = tuple(tuple(part["rect"]) for part in layout_for(frame, MODE[mode][0], source_presentation(mode))["stages"])
         elif stage in ("key-beam", "explosion", "long-note-effects"):
             geometry = tuple((tuple(part["rect"]), tuple(tuple(lane) for lane in part["lanes"]))
-                             for part in layout_for(frame, MODE[mode][0], mode)["stages"])
+                             for part in layout_for(frame, MODE[mode][0], source_presentation(mode))["stages"])
         skipped = tuple(sorted(set(handled_roots) & ids)) if stage in ("key-beam", "explosion") else ()
-        return (stage, mode, cap_height, tuple(parts), context, geometry, skipped)
+        return (stage, MODE[mode][0], source_presentation(mode), cap_height, tuple(parts), context, geometry, skipped)
 
     def factored(self, stage, mode, frame, options, cap_height, handled_roots, definitions, compose, shards):
         """Reuse a qualified factory, retaining no native fragment in memory.
@@ -619,8 +619,8 @@ def entry_script(header: dict, modes: list[str], frames: list[str], plan: dict,
     maps, properties, next_op = {}, [], 1000
     if modes != ["dp"]:
         properties.append({"name": "Play Side", "item": [
-            {"name": mode.upper(), "op": 920 if mode == "p1" else 921} for mode in modes],
-            "def": modes[0].upper()})
+            {"name": source_presentation(mode).upper(), "op": 920 if source_presentation(mode) == "p1" else 921} for mode in modes],
+            "def": source_presentation(modes[0]).upper()})
     for module in ("frame", *MODULES, *CONTROL_LABELS):
         entries = choices.get(module, [])
         if not entries:
@@ -642,7 +642,7 @@ def entry_script(header: dict, modes: list[str], frames: list[str], plan: dict,
     if modes == ["dp"]:
         text += "local mode='dp'\n"
     else:
-        text += "local sides=" + lua({920 if m == "p1" else 921: m for m in modes}) + "\n"
+        text += "local sides=" + lua({920 if source_presentation(m) == "p1" else 921: m for m in modes}) + "\n"
         text += "local side=(skin_config.option or {})['Play Side']\nlocal mode=side == nil and " + lua(modes[0]) + " or sides[side]\nif not mode then error('Unknown Play Side') end\n"
     text += "local plan=" + lua(plan) + "\nlocal stages=" + lua(STAGES) + "\nlocal ARRAY_FIELDS=" + lua(ARRAYS) + "\n"
     text += MERGE_RUNTIME
@@ -658,10 +658,10 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
                    module_choices: dict[str, list[str]] | None = None) -> dict:
     verify_tool_files(_IMPORTED_TOOL_FILES)
     tool_files = tool_file_hashes()
-    modes = list(modes or MODE)
+    modes = list(modes or DEFAULT_MODES)
     frames = list(frames or [c["value"] for c in author.modules["frame"]["choices"]])
     if len(set(modes)) != len(modes) or any(mode not in MODE for mode in modes):
-        raise ValueError("Modes must be distinct p1/p2/dp values")
+        raise ValueError("Modes must be distinct p1/p2/dp/5p1/5p2 values")
     actual_frames = {c["value"] for c in author.modules["frame"]["choices"]}
     if not frames or len(set(frames)) != len(frames) or not set(frames) <= actual_frames:
         raise ValueError("Frames must be distinct choices from this frozen author")
@@ -690,7 +690,7 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
             frame = author.contribution("frame", options)
             plan[mode][theme] = selected = {}
             # Graph roots must be excluded from both generic frame art and HUD.
-            graph = Composer(author, sink, options, mode, baked)
+            graph = Composer(author, sink, options, source_presentation(mode), baked, keymode=MODE[mode][0])
             graph.graph()
             roots = graph.handled_roots
             if baseline is None or mode == "dp":
@@ -712,7 +712,7 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
                 stage_choices = {}
 
                 def compose_options(opts):
-                    c = Composer(author, sink, opts, mode, baked)
+                    c = Composer(author, sink, opts, source_presentation(mode), baked, keymode=MODE[mode][0])
                     c.handled_roots.update(roots)
                     stage_frame = author.contribution("frame", opts)
                     fragment = compose_stage(c, stage, stage_frame, cap_height, font)
@@ -852,13 +852,13 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
                               else "partially-exposed") if exposed else "fixed-not-exposed")
         report["unavailable"] = [c["value"] for c in control_choices(definition) if c["value"] not in supported_values]
     entry_files = {}
-    for keymode, filename, relevant in (("7k", "play7.luaskin", [m for m in modes if m != "dp"]),
-                                        ("14k", "play14.luaskin", [m for m in modes if m == "dp"])):
+    for keymode, filename in (("7k", "play7.luaskin"), ("14k", "play14.luaskin"), ("5k", "play5.luaskin")):
+        relevant = [m for m in modes if MODE[m][0] == keymode]
         if not relevant:
             continue
         current = {mode: plan[mode] for mode in relevant}
         header = {key: baseline[key] for key in ("name", "author", "w", "h")}
-        header["type"] = 0 if keymode == "7k" else 2
+        header["type"] = {"5k": 1, "7k": 0, "14k": 2}[keymode]
         base = {**baseline, "type": header["type"]}
         selection_file = "selection" + keymode[:-1] + ".lua"
         (output / selection_file).write_text("return " + lua(current) + "\n", encoding="utf-8")

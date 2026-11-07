@@ -141,7 +141,7 @@ def export_reading(author, options, keymode, presentation, sink, canvas):
     """
     output = {"font": [], "image": [], "value": [], "text": [], "destination": [], "gaps": [],
               "handled_root_ids": [], "handled_node_ids": []}
-    if (keymode, presentation) not in (("7k", "p1"), ("7k", "p2"), ("14k", "dp")):
+    if (keymode, presentation) not in (("5k", "p1"), ("5k", "p2"), ("7k", "p1"), ("7k", "p2"), ("14k", "dp")):
         raise ValueError("Reading export requires a matching SP or DP presentation")
     if canvas[:2] != (0, 0) or min(canvas[2:]) <= 0:
         raise ValueError("Reading export requires the full positive zero-origin canvas")

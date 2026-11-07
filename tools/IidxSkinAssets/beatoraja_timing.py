@@ -32,7 +32,7 @@ def export_timing(author, options, keymode, presentation, sink, canvas):
     standard = author.family == "standard" and "timing-display" not in author.modules
     if not standard and "timing-display" not in author.modules:
         return result
-    if (keymode, presentation) not in (("7k", "p1"), ("7k", "p2"), ("14k", "dp")):
+    if (keymode, presentation) not in (("5k", "p1"), ("5k", "p2"), ("7k", "p1"), ("7k", "p2"), ("14k", "dp")):
         raise ValueError("Timing export requires a matching SP or DP presentation")
     x, y, width, height = canvas
     if x != 0 or y != 0 or min(width, height) <= 0:

@@ -173,7 +173,7 @@ def export_covers(author, options, keymode, presentation, sink, canvas, baked,
     Object counts are recorded per animation/kind/stage for native load review.
     """
     result = {"slider": [], "hiddenCover": [], "liftCover": [], "destination": [], "gaps": []}
-    if (keymode, presentation) not in (("7k", "p1"), ("7k", "p2"), ("14k", "dp")):
+    if (keymode, presentation) not in (("5k", "p1"), ("5k", "p2"), ("7k", "p1"), ("7k", "p2"), ("14k", "dp")):
         raise ValueError("Cover export requires a matching SP or DP presentation")
     if len(set(kinds)) != len(kinds) or any(kind not in ("sudden", "hidden", "lift") for kind in kinds):
         raise ValueError("Cover export needs distinct native cover kinds")

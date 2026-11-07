@@ -127,9 +127,15 @@ public class BeatorajaPackageProbe {
         references(skin.get("note"), ids, sources, fonts, "");
         references(skin.get("destination"), ids, sources, fonts, "");
         if (full) {
-            int lanes = skin.get("type").toint() == 2 ? 16 : 8;
+            int lanes = switch (skin.get("type").checkint()) {
+                case 0 -> 8;
+                case 1 -> 6;
+                case 2 -> 16;
+                default -> throw new IllegalStateException("Unqualified native play skin type");
+            };
             for (String field : notes) require(skin.get("note").get(field).length() == lanes, "Incomplete NoteSet: " + field);
             require(skin.get("note").get("size").length() == lanes, "Incomplete lane size");
+            require(skin.get("note").get("dst").length() == lanes, "Incorrect lane geometry count");
             require(skin.get("judge").length() > 0, "No native judgement");
         }
     }
@@ -140,6 +146,7 @@ public class BeatorajaPackageProbe {
         accessor.exec("local state=require('main_state'); state.number=function(id) assert(id==106, 'Unexpected build-time number '..id); return 84 end");
         accessor.exportSkinProperty(header, property, p -> path.getParent().resolve(p).toString());
         LuaValue value = accessor.execFile(path);
+        require(value.get("type").checkint() == header.getSkinType().getId(), "Header/body play type differs");
         validate(path.getParent(), value, true);
         if (!checkedReuse) {
             LuaValue second = accessor.execFile(path);

@@ -38,7 +38,7 @@ JUDGE_GRADES = ("perfect", "great", "good", "meh", "miss", "ok")
 
 
 def _mode(keymode: str, presentation: str) -> int:
-    if (keymode, presentation) not in (("7k", "p1"), ("7k", "p2"), ("14k", "dp")):
+    if (keymode, presentation) not in (("5k", "p1"), ("5k", "p2"), ("7k", "p1"), ("7k", "p2"), ("14k", "dp")):
         raise ValueError("Material export requires SP1, SP2 or DP")
     return 2 if keymode == "14k" else 1
 
@@ -130,16 +130,16 @@ def _lane_bindings(contribution: Contribution, keymode: str, presentation: str) 
     return lanes
 
 
-def _native_lanes(lanes: dict[int, dict], groups: int) -> list[dict]:
+def _native_lanes(lanes: dict[int, dict], groups: int, keys_per_group: int = 7) -> list[dict]:
     result = []
-    if len(lanes) != groups * 8:
+    if len(lanes) != groups * (keys_per_group + 1):
         raise ValueError("Expected all explicit source lanes")
     for group in range(groups):
         members = [l for l in lanes.values() if int(l["target"]["group-logical"]) == group]
         scratch = [l for l in members if l["target"]["lane"].startswith("bms.lane.scratch-")]
         keys = sorted((l for l in members if l not in scratch), key=lambda l: int(l["target"]["group-local-logical"]))
-        if len(scratch) != 1 or len(keys) != 7:
-            raise ValueError("Expected seven keys and one scratch per deck")
+        if len(scratch) != 1 or len(keys) != keys_per_group:
+            raise ValueError("Expected all source keys and one scratch per deck")
         result.extend([*keys, scratch[0]])
     return result
 
@@ -185,7 +185,7 @@ def _bake(contribution: Contribution, root: dict, slot: str, lane_indices: list[
 
 def collect_note_materials(author: AuthorPackage, options: dict[str, Any], keymode: str,
                            presentation: str, sink: SourceSink) -> dict[str, Any]:
-    """Return modern NoteSet arrays in key1..key7,scratch order on each deck.
+    """Return modern NoteSet arrays in key1..key5/7,scratch order on each deck.
 
     HCN reactive means re-held after losing the head: the author's actual holding
     material applies. The released material maps to native hcnbodyMiss. These are
@@ -196,7 +196,7 @@ def collect_note_materials(author: AuthorPackage, options: dict[str, Any], keymo
     groups = _mode(keymode, presentation)
     contributions = {m: author.contribution(m, options) for m in ("notes", "charge-notes")}
     bindings = {m: _lane_bindings(c, keymode, presentation) for m, c in contributions.items()}
-    lanes = _native_lanes(bindings["notes"], groups)
+    lanes = _native_lanes(bindings["notes"], groups, 5 if keymode == "5k" else 7)
     images = _Images(author, sink)
     note = {"id": author.family + ".notes", **{field: [] for field in NOTE_FIELDS}}
     geometry, released, bakes = [], [], {}
@@ -431,7 +431,7 @@ def collect_explosion_materials(author: AuthorPackage, options: dict[str, Any], 
     """Hand actual explosion template closures to IidxSkinBake, without raster guesses."""
     groups = _mode(keymode, presentation)
     c = author.contribution("explosion", options)
-    lanes = _native_lanes(_lane_bindings(c, keymode, presentation), groups)
+    lanes = _native_lanes(_lane_bindings(c, keymode, presentation), groups, 5 if keymode == "5k" else 7)
     requests = {}
     for index, lane in enumerate(lanes):
         item = lane["slots"]["effect.hit-explosion"]

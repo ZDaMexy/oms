@@ -27,7 +27,7 @@
 原生格式取官方[JsonSkin](https://github.com/exch-bms2/beatoraja/blob/0.8.9/src/bms/player/beatoraja/skin/json/JsonSkin.java)、[Lua状态API](https://github.com/exch-bms2/beatoraja/blob/0.8.9/docs/lua-main-state-api.md)与同标签loader/render源码。
 
 - `.luaskin`的header和body分别执行；读取原生option并只加载本次所选模式/主题的资源。作者catalog的variant使用第一个匹配分支，DP不携带SP专用layout选项；不得把同名animation ID当跨manifest资源身份。
-- 当前原生入口是7KEYS与14KEYS。官方按精确SkinType选择JSON/Lua皮肤；将7/14皮肤加入5/10菜单的兼容逻辑只属于LR2分支，不能据此称本包支持5/10。冻结作者的5K需按实际六路布局和材料另核，不能只改header或裁两列；没有10K作者声明。
+- 当前适配器提供独立5KEYS、7KEYS与14KEYS入口，5KEYS沿冻结作者实际六路布局与材料另验；P2使用靠近皿的五键位置，保留原框体美术。官方按精确SkinType选择JSON/Lua皮肤，将7/14加入5/10菜单的兼容逻辑只属于LR2分支；没有10KEYS作者声明或本包入口。
 - notes、LN/CN/HCN、判定、Combo、Gauge、BGA与失败/FC时机由beatoraja实际状态驱动。SP2仍是第一玩家；DP才使用第二组timer。新长条字段明确映射，不沿用易混淆的旧active/damage命名。
 - 两族普通note和长条首尾高度不同；原生共享lane高度，导出用同族透明顶补、底对齐保留原像素。IIDX没有mine素材，BMS补显眼的红白危险条并登记为宿主新增，不谎称街机原图。
 - Gauge原作是整条图与裁切，不能猜成50格。Graph采用beatoraja当前Target与实际EX/PB；无法区分无PB与真实零分时保留原生零值，不伪造镜像成绩。宿主Fast/Slow统计与OMS语义不同，分别记录。
@@ -80,6 +80,10 @@ Lightning默认FC24做过实际官方JAR的两种无损分块比较。固定联�
 
 对Graph SUB的初步“第二比较柱”判断经祖先门复核撤回：原PB分支在PB不可用时才以SUB替换同一列，NO DATA也属于最大值不可用的后备显示。宿主公开值不能区分无PB与合法零分，故维持真实宿主主target与已记存在性边界，不开放假想副柱。此次更正来自源可见门和相同锚点，未改源或发布错误选项。
 
-Graph Target Artwork进一步按实际叶子角色补齐Standard custom/NEXT/NEXT+和Lightning percentage，数值、差分、柱与名称统一读取宿主Target，百分比只显示number135的整数部分；没有开放原作百分比控制或NEXT算法。Standard NEXT/NEXT+在此合同下与AAA同美术，只保留来源选值身份；Lightning NEXT仍因PB存在性门未开放。153条实际来源分支的原图/RGBA、原柱高及最大值字体门通过，官方LuaJ检查57618次数值、67716次门和1620次HD/FULLHD柱高，动态柱误差不超过0.000207源像素。181项适配器focused通过；Frame×Play Side静态探针已补缺失的组合，现有小包14布局通过，最终81布局仍待完整包。证明、实际配方和原日志已按摘要保留到`artifacts/beatoraja-capture/research-graph-cache-r1/`的`graph/`和`frame-side/`，均不代签新增样式的GPU表现。
+Graph Target Artwork进一步按实际叶子角色补齐Standard custom/NEXT/NEXT+和Lightning percentage，数值、差分、柱与名称统一读取宿主Target，百分比只显示number135的整数部分；没有开放原作百分比控制或NEXT算法。Standard NEXT/NEXT+在此合同下与AAA同美术，只保留来源选值身份；Lightning NEXT仍因PB存在性门未开放。153条实际来源分支的原图/RGBA、原柱高及最大值字体门通过，官方LuaJ检查57618次数值、67716次门和1620次HD/FULLHD柱高，动态柱误差不超过0.000207源像素。181项适配器focused通过；Frame×Play Side静态探针已补缺失的组合，现有小包14布局通过，完整包仍待验。证明、实际配方和原日志已按摘要保留到`artifacts/beatoraja-capture/research-graph-cache-r1/`的`graph/`和`frame-side/`，均不代签新增样式的GPU表现。
+
+冻结作者的5KEYS已按实际声明补入独立type1、`play5.luaskin`及P1/P2选择；谱面模式与显示侧分别入缓存，不借7KEYS header或前六列截取。27个Frame的135条五/七键两侧及DP来源路由、300个实际Notes/Charge选择对照和187项适配器focused通过。四个默认5KEYS候选各25片，经官方LuaJ加载与完整性检查；17项合成谱/Replay/非法组合检查保持六路输入和SP2第一玩家身份。两族完整默认P2开场另按原帧烘焙，不用P1取景替代。
+
+`five-key-r1`实际完成Standard P1 HCN断持恢复、P2 CN，Lightning P1 HCN与P2 Full HD提前/延后50ms四局，均自然MusicResult并正常退出；独立官方default5自测也通过。五局343张PNG、入口/包/源码身份、真实6路1stage与共享framebuffer完整性通过，9张原图目视确认靠皿布局、挡板读数、持续光恢复和FAST/SLOW。证据为`artifacts/beatoraja-capture/five-key-r1/capture-integrity-and-visual-review.json`，CPU原日志与回执保留在同目录`static/`。这是同一工具快照的默认主题资格，最终全菜单135布局与同包实绘仍待完成；不宣称10KEYS或物理输入验收。
 
 各主题稳态、Ready/已有Fail、全部普通光柱/爆炸与Lightning四档光柱长度、默认FC三模式、Standard全Gauge/Graph反馈均已获得完整或声明的固定clock烘焙；其它FC与剩余动画挡板仍在串行完成。完整菜单与最终同包验收尚未结束。真实物理输入、长期手感、视频BGA、真实玩家保存/IR、所有配置排列与选曲/Results皮肤未签收；尚无beatoraja正式成品版本或部署验收。

@@ -1,5 +1,11 @@
 # P1-A 变动日志
 
+## 2026-11-07beatoraja独立5KEYS入口
+
+沿两族冻结作者实际六路材料和靠皿布局，增加独立5KEYS P1/P2入口、真实皿timer和按键数隔离的组件缓存；没有10KEYS推断。27框体135条来源布局及300个Notes/Charge选择对照通过，187项适配器focused通过；四个默认候选各25片经官方解析与包完整性验证。
+
+四局原生5KEYS Replay分别验证Standard HCN断持恢复/P2 CN及Lightning HCN/P2 Full HD提前延后，全部自然结算。含官方default5自测的343张PNG完整性与9张原图审看通过，真实6路1stage和实际入口身份一致。完整菜单、全主题装配与最终安装仍待后续门，来源、边界和证据取[适配记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md)。
+
 ## 2026-11-07beatoraja目标美术与完整包预检
 
 Graph Target Artwork补齐Standard custom/NEXT/NEXT+及Lightning percentage的来源角色，全部显示实际宿主Target；NEXT/NEXT+是AAA美术别名，原算法与原百分比控件未开放。153条真实来源及官方LuaJ数值/字体门/柱高检查通过，Lightning NEXT的PB存在性缺口仍保持。181项适配器focused通过；原生探针增加Frame×Play Side线性布局覆盖，现有小包14布局通过，最终完整包与新增样式实绘仍待验。
