@@ -11,6 +11,7 @@ import bms.player.beatoraja.song.SQLiteSongDatabaseAccessor;
 import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.backends.lwjgl.*;
+import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.utils.ScreenUtils;
 
 import javax.imageio.ImageIO;
@@ -87,7 +88,7 @@ public final class Capture implements ApplicationListener {
     private final AtomicInteger blockedNetworkRequests = new AtomicInteger();
     private static final int[] EFFECT_TIMERS = {51, 71, 101, 10101, 10111};
     private static final int[] EFFECT_OFFSETS_MS = {0, 50, 100, 250};
-    private static final int[] TIMERS = { 2, 3, 40, 41, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57,
+    private static final int[] TIMERS = { 2, 3, 40, 41, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 140,
         60, 61, 62, 63, 64, 65, 66, 67, 70, 71, 72, 73, 74, 75, 76, 77, 80, 81, 82, 83, 84, 85, 86, 87,
         100, 101, 102, 103, 104, 105, 106, 107, 110, 111, 112, 113, 114, 115, 116, 117,
         143, 144, 250, 251, 252, 253, 254, 255, 256, 257, 260, 261, 262, 263, 264, 265, 266, 267,
@@ -338,7 +339,13 @@ public final class Capture implements ApplicationListener {
     }
 
     public void create() {
-        try { main.create(); created = true; }
+        try {
+            main.create(); created = true;
+            receipt.put("graphics", Map.of(
+                "vendor", Gdx.gl.glGetString(GL20.GL_VENDOR),
+                "renderer", Gdx.gl.glGetString(GL20.GL_RENDERER),
+                "version", Gdx.gl.glGetString(GL20.GL_VERSION)));
+        }
         catch (Throwable e) { fail(e); }
     }
     public void render() {

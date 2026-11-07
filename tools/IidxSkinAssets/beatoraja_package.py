@@ -37,7 +37,7 @@ ARRAYS = ("source", "font", "image", "imageset", "value", "floatvalue", "text",
           "hiddenCover", "liftCover", "customTimers")
 SINGLETONS = ("note", "gauge", "bga")
 TIMINGS = ("loadend", "playstart", "close", "fadeout", "finishmargin")
-CACHE_STAGES = ("notes", "charge-notes", "judgement", "key-beam", "explosion", "long-note-effects")
+CACHE_STAGES = ("notes", "charge-notes", "judgement", "key-beam", "explosion", "long-note-effects", "timing-display")
 NOTE_IMAGE_FIELDS = (*NOTE_FIELDS, "mine", "hidden", "processed", "lnactive",
                      "hcnactive", "hcndamage", "hcnreactive")
 MODULES = ("notes", "charge-notes", "judgement", "lane-cover", "lift-art",
@@ -449,8 +449,10 @@ class CompositionCache:
 
     The cache belongs to this one author/sink/build. Actual contribution paths,
     all non-frame option values and referenced option.frame values are retained.
-    Judge keys actual stage rectangles; lane effects key stage rectangles and
-    lane positions/widths. Frame-dependent source branches never cross frames.
+    Judge/Lightning Timing key actual stage rectangles; Timing also keys the
+    selected Judge material owner. Lane effects key stage rectangles and lane
+    positions/widths. Resolved catalog paths preserve actual source branches;
+    an unselected variant does not make equal selected inputs frame-dependent.
     Frame, Gauge, Graph, covers and global events are composed normally.
     """
     def __init__(self, author: AuthorPackage):
@@ -460,21 +462,22 @@ class CompositionCache:
         self.node_ids = {}
         self.hits = 0
         self.misses = 0
+        self.parameter_hits = 0
+        self.parameter_misses = 0
 
     def key(self, stage, mode, frame, options, cap_height, handled_roots=()):
-        if stage not in CACHE_STAGES:
+        if stage not in CACHE_STAGES or stage == "timing-display" and self.author.family != "lightning":
             return None
         modules = (("notes", "charge-notes") if stage in ("notes", "charge-notes") else
-                   ("charge-notes",) if stage == "long-note-effects" else (stage,))
+                   ("charge-notes",) if stage == "long-note-effects" else
+                   ("timing-display", "judgement") if stage == "timing-display" else (stage,))
         parts, depends_on_frame, ids = [], False, set()
         for module in modules:
             contribution = self.author.contribution(module, options)
             identity = (contribution.module, contribution.choice, contribution.manifest_path,
                         contribution.scene_path, contribution.ini_path)
             if identity not in self.dependencies:
-                choice = next(c for c in self.author.modules[module]["choices"] if c["value"] == options[module])
-                self.dependencies[identity] = ('"option.frame"' in json.dumps(contribution.scene)
-                                               or any("frame" in variant["when"] for variant in choice.get("variants", [])))
+                self.dependencies[identity] = '"option.frame"' in json.dumps(contribution.scene)
                 self.node_ids[identity] = {node["id"] for template in contribution.scene.get("templates", [])
                                           for node in walk_nodes(template["root"])}
             depends_on_frame |= self.dependencies[identity]
@@ -482,13 +485,45 @@ class CompositionCache:
             parts.append(identity)
         context = tuple(sorted((key, value) for key, value in options.items() if key != "frame" or depends_on_frame))
         geometry = ()
-        if stage == "judgement":
+        if stage in ("judgement", "timing-display"):
             geometry = tuple(tuple(part["rect"]) for part in layout_for(frame, MODE[mode][0], mode)["stages"])
         elif stage in ("key-beam", "explosion", "long-note-effects"):
             geometry = tuple((tuple(part["rect"]), tuple(tuple(lane) for lane in part["lanes"]))
                              for part in layout_for(frame, MODE[mode][0], mode)["stages"])
         skipped = tuple(sorted(set(handled_roots) & ids)) if stage in ("key-beam", "explosion") else ()
         return (stage, mode, cap_height, tuple(parts), context, geometry, skipped)
+
+    def factored(self, stage, mode, frame, options, cap_height, handled_roots, definitions, compose, shards):
+        """Reuse a qualified factory, retaining no native fragment in memory.
+
+        The actual finite domains and baseline values are part of the key. A
+        hit keeps the prior source/field proof, diagnostics and factory path;
+        each Lua call still creates fresh tables and original timer closures.
+        Only successful qualification is cached. New owners, source branches,
+        domains or host geometry are qualified and composed independently.
+        """
+        resolved = self.key(stage, mode, frame, options, cap_height, handled_roots)
+        if resolved is None or not parameter_names(self.author, stage):
+            raise ValueError("No qualified parameter cache owner: " + stage)
+        domains = tuple((name, tuple(choice["value"] for choice in choices))
+                        for name, choices in definitions.items())
+        key = ("parameters", resolved, domains)
+        if key in self.values:
+            self.parameter_hits += 1
+            return self.values[key], 0
+        proof = qualify_source(self.author, stage, options)
+        if stage == "timing-display":
+            # Timing mounts into the selected Judge's INI material slot. Its
+            # parameter axes must not switch that owner behind the cache key.
+            proof["owners"] = {"judgement": qualify_source(self.author, "judgement", options)}
+        fragment, gaps, axes, calls = factor_fragment(stage, options, definitions, compose)
+        result = {"gaps": gaps, "destinations": len(fragment.get("destination", [])),
+                  "path": None if blocking_gaps(gaps, stage) else shards.add(fragment, axes),
+                  "parameterOptions": {axis["option"]: list(axis["values"]) for axis in axes},
+                  "parameterSourceQualification": proof}
+        self.values[key] = result
+        self.parameter_misses += 1
+        return result, calls
 
 
 def compose_stage(c: Composer, stage: str, frame, cap_height, font):
@@ -715,9 +750,9 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
                     direct_paths, direct_selectors = stage_choices, selectors
                     if parameter_definitions:
                         try:
-                            proof = qualify_source(author, stage, opts)
-                            fragment, gaps, parameters, calls = factor_fragment(
-                                stage, opts, parameter_definitions, compose_options)
+                            stage_frame = author.contribution("frame", opts)
+                            factored, calls = cache.factored(stage, mode, stage_frame, opts, cap_height, roots,
+                                                            parameter_definitions, compose_options, shards)
                         except UnqualifiedParameters as error:
                             # A new source difference stays fully enumerated;
                             # it is never converted into a missing menu choice.
@@ -732,11 +767,11 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
                         else:
                             parameter_report["qualifiedRoutes"] += 1
                             parameter_report["sourceAxisCompositions"] += calls
-                            path = None if blocking_gaps(gaps, stage) else shards.add(fragment, parameters)
-                            domains = {axis["option"]: list(axis["values"]) for axis in parameters}
+                            path, gaps = factored["path"], factored["gaps"]
                             recorded_controls = {**controls, **{name: opts[name] for name in parameter_definitions}}
-                            if record_candidate(opts, recorded_controls, gaps, len(fragment.get("destination", [])),
-                                                path, parameter_options=domains, proof=proof):
+                            if record_candidate(opts, recorded_controls, gaps, factored["destinations"], path,
+                                                parameter_options=factored["parameterOptions"],
+                                                proof=factored["parameterSourceQualification"]):
                                 insert_selection(stage_choices, outer_values, path)
                             continue
                     for axis_controls in direct_controls:
@@ -834,7 +869,9 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
             entry_files[name] = hashlib.sha256((output / name).read_bytes()).hexdigest()
     receipt = {"contract": "oms-beatoraja-modular-package.v1", "family": author.family, "name": author.name,
                "toolFilesSha256": tool_files,
-               "constructionCache": {"stages": list(CACHE_STAGES), "hits": cache.hits, "misses": cache.misses},
+               "constructionCache": {"stages": list(CACHE_STAGES), "hits": cache.hits, "misses": cache.misses,
+                                     "parameterStages": [stage for stage in CACHE_STAGES if parameter_names(author, stage)],
+                                     "parameterHits": cache.parameter_hits, "parameterMisses": cache.parameter_misses},
                "controlParameterization": parameter_report,
                "logicalCoverageCombinations": sum(math.prod(len(v) for v in r.get("parameterOptions", {}).values())
                                                    for r in coverage),

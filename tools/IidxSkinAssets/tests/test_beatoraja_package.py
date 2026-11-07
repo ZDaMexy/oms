@@ -9,6 +9,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from beatoraja_native import Lua
+from beatoraja_control_params import UnqualifiedParameters
 from beatoraja_package import (Shards, blocking_gaps, entry_script, extract_fragment,
                                namespace_fragment, note_fragment)
 from beatoraja_package import (stable_option_ids, control_choices, control_combinations,
@@ -302,11 +303,89 @@ class PackageTests(unittest.TestCase):
         self.assertNotEqual(effect.key("key-beam", "p1", frame, options, 27), effect.key("key-beam", "p1", wider, options, 27))
         author.modules["key-beam"]["choices"][0]["variants"] = [{"when": {"frame": "f2"}}]
         branch = CompositionCache(author)
+        # The selected contribution is still identical. An unselected catalog
+        # branch must not force another expensive composition per frame.
+        self.assertEqual(branch.key("key-beam", "p1", frame, options, 27), branch.key("key-beam", "p1", frame, alternate, 27))
+        def selected_branch(module, values):
+            part = contribution(module, values)
+            if values["frame"] == "f2": part.ini_path = "actually-selected-other.ini"
+            return part
+        author.contribution = selected_branch
         self.assertNotEqual(branch.key("key-beam", "p1", frame, options, 27), branch.key("key-beam", "p1", frame, alternate, 27))
+        author.contribution = contribution
         scene["templates"] = [{"root": {"id": "effect.root", "children": [{"id": "effect.child"}]}}]
         qualified = CompositionCache(author)
         self.assertNotEqual(qualified.key("key-beam", "p1", frame, options, 27),
                             qualified.key("key-beam", "p1", frame, options, 27, {"effect.child"}))
+
+    def test_timing_cache_retains_actual_judge_material_owner_and_host_geometry(self):
+        def contribution(module, options):
+            ini = module + ("-other" if module == "judgement" and options["frame"] == "f2" else "")
+            return SimpleNamespace(module=module, choice=options[module], manifest_path=module + ".json",
+                                   scene_path=module + ".scene", ini_path=ini, scene={})
+        author = SimpleNamespace(family="lightning", contribution=contribution)
+        options = {"frame": "f1", "judgement": "j", "timing-display": "a"}
+        frame = SimpleNamespace(manifest={"layouts": [{"ruleset": "bms", "keymode": "7k", "presentation": "p1",
+                                                       "stages": [{"rect": [0, 0, .3, .8]}]}]})
+        cache = CompositionCache(author)
+        self.assertNotEqual(cache.key("timing-display", "p1", frame, options, 27),
+                            cache.key("timing-display", "p1", frame, {**options, "frame": "f2"}, 27))
+        moved = copy.deepcopy(frame)
+        moved.manifest["layouts"][0]["stages"][0]["rect"][1] = .1
+        self.assertNotEqual(cache.key("timing-display", "p1", frame, options, 27),
+                            cache.key("timing-display", "p1", moved, options, 27))
+        author.modules = {"timing-display": {"choices": [{"value": "a"}]},
+                          "judgement": {"choices": [{"value": "j", "variants": [
+                              {"when": {"judgement-position": 10}}]}]}}
+        # An axis changing the Judge owner keeps ordinary enumeration; it
+        # cannot reuse Timing's baseline mount through a different source.
+        with self.assertRaisesRegex(UnqualifiedParameters, "catalog"):
+            cache.factored("timing-display", "p1", frame, options, 27, (), {}, None, None)
+        self.assertEqual(cache.values, {})
+        author.family = "standard"
+        self.assertIsNone(cache.key("timing-display", "p1", frame, options, 27))
+
+    def test_factored_cache_reuses_only_resolved_inputs_and_keeps_domains_defaults(self):
+        scene = {"bindings": [{"target": "carrier", "property": "brightness", "source": "option.lane-objects-brightness"}],
+                 "tracks": [{"target": "carrier", "property": "y", "clock": "option.judgement-position",
+                             "easing": "linear", "loop": False,
+                             "keyframes": [{"time": -2, "value": .4}, {"time": 10, "value": -2.8}]}]}
+        part = SimpleNamespace(module="judgement", choice="j", manifest_path="judge.json",
+                               scene_path="judge.scene", ini_path="judge.ini", scene=scene)
+        author = SimpleNamespace(family="lightning", contribution=lambda module, options: part,
+                                 modules={"judgement": {"choices": [{"value": "j"}]}})
+        frame = SimpleNamespace(manifest={"layouts": [{"ruleset": "bms", "keymode": "7k", "presentation": "p1",
+                                                       "stages": [{"rect": [0, 0, .3, .8]}]}]})
+        options = {"frame": "f1", "judgement": "j", "judgement-position": 0, "lane-objects-brightness": 1}
+        definitions = {"judgement-position": [{"value": v} for v in (-2, 0, 10)],
+                       "lane-objects-brightness": [{"value": v} for v in (.9, 1)]}
+        calls = []
+        def compose(values):
+            calls.append(values)
+            rgb = round(255 * values["lane-objects-brightness"])
+            return {"judge": [{"id": "judge", "index": 0, "shift": True,
+                               "images": [{"id": "label", "timer": 46, "offsets": [3],
+                                           "dst": [{"y": round(399.5 + values["judgement-position"] * 18.25),
+                                                    "r": rgb, "g": rgb, "b": rgb}]}]}],
+                    "destination": [{"id": "judge", "draw": Lua("function() return main_state.timer(46) end")}]}, []
+        parent = Path(__file__).resolve().parents[3] / ".dev-cache/temp/beatoraja-package-tests"
+        parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=parent) as folder:
+            shards, cache = Shards(Path(folder)), CompositionCache(author)
+            first, count = cache.factored("judgement", "p1", frame, options, 27, (), definitions, compose, shards)
+            self.assertEqual((count, len(calls)), (4, 4))
+            second, count = cache.factored("judgement", "p1", frame, {**options, "frame": "f2"}, 27,
+                                          (), definitions, compose, shards)
+            self.assertEqual((second, count, len(calls)), (first, 0, 4))
+            self.assertEqual(set(first), {"path", "gaps", "destinations", "parameterOptions", "parameterSourceQualification"})
+            changed = {**definitions, "judgement-position": [{"value": v} for v in (-2, 0, 5, 10)]}
+            third, count = cache.factored("judgement", "p1", frame, options, 27, (), changed, compose, shards)
+            self.assertEqual((count, len(calls)), (5, 9))
+            self.assertNotEqual(first["path"], third["path"])
+            self.assertEqual(third["parameterOptions"]["judgement-position"], [0, -2, 5, 10])
+            _, count = cache.factored("judgement", "p1", frame, {**options, "lane-objects-brightness": .9},
+                                      27, (), definitions, compose, shards)
+            self.assertEqual((count, len(calls), cache.parameter_hits, cache.parameter_misses), (4, 13, 1, 3))
 
     def test_tool_identity_rejects_modified_or_new_adapter_files(self):
         parent = Path(__file__).resolve().parents[3] / ".dev-cache/temp/beatoraja-package-tests"

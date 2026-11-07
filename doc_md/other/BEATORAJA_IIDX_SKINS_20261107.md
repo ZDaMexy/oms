@@ -69,11 +69,13 @@ Lightning默认FC24做过实际官方JAR的两种无损分块比较。固定联�
 
 完整目录的控制组合估算暴露了构建体积问题：Lightning约52万候选，其中Judge位置/亮度与爆炸大小/亮度占七成。现从实际来源路径提取Judge、爆炸、光柱和Timing的独立参数，只把已逐轴核对的原生字段做运行时赋值，源分支与所有选项保留；未获资格的路径仍精确枚举。4320个真实组合、226920次原生字段及回调比较通过；候选记录收敛至115830，缓存只留片段路径和诊断。cap height扫描也只消去已证明无几何影响的RGB轴。偏移值/AUTO接真实number12与event_index75，45个源分支的符号、可见门及AUTO原图经官方CPU检查；尚待新同包实绘。
 
+后续参数工厂只在实际选中贡献、消费几何、控制范围和默认值相同时跨Frame复用，Timing另保留Judge材料所有权；未选中的catalog分支不再强迫重复生成，真实`option.frame`依赖仍入键。7065条真实来源资格路径、30/33三模式942条对照和2106个边界组合通过；其中原有54个不可用Separate Timing组合继续阻断。其余2052个组合经官方LuaJ/JsonSkin核220268次回调，重复加载没有共享可变表。四类所需原始组合计算由104490降至13932，菜单与候选覆盖不减；不是GPU或完整包验收。证据在`.dev-cache/temp/beatoraja-parameter-cache-r1/`，正式交付时归整保留。
+
 两族准备期已按原Frame时长接公开READY/PLAY/Failed时钟，Ready仅使用最后1500ms，不延长源等待；CustomTimer每render缓存一次，准备期在首次PLAY冻结，presentation继续随实际PLAY，失败后冻结。Practice/加载/取消与缺少先前READY的晚观察明确拒绝旧epoch，不假造起点。80个官方CPU时钟场景通过。Lightning原Judge Panel位移和原0/1透明度轨道已接入，45个源分支在HD/FULLHD检查；原生整毫秒采样引入的移动误差单独登记，不能以稳态坐标相同宣称动态像素全等。
 
 开场quad按原step帧和unit-Q四角使用生产框架的TL–BR两三角纹理映射，保留116个轻微非仿射四边形，不近似成平行四边形；目标PNG按原画布像素中心采样，整数边缘覆盖仍有宿主差异。独立有理数UV测试覆盖非仿射、反射、退化与共享对角线。两族默认SP1的六支完整录制已通过原渲染和atlas逆向核验；`entrance-default-r2`两场官方JAR均44 Combo、88 EX、0 BP，自然Result和退出。136张PNG完整性、18个准备期检查点与8张原图目视通过，Ready确实只在各自最后1500ms出现，首次PLAY在源3000/5000ms后冻结准备时钟。证据为`artifacts/beatoraja-capture/entrance-default-r2/`。其余主题完整开场继续排队，不把可用源误称缺素材。
 
-后续查漏修复两项原来未报错的静态替代：两族歌曲进度游标接实际宿主rate6，81来源/108游标经整合核对没有静态残留或重复绘制，原PNG/RGBA保留；宿主playtime包含完成余量，不能称与OMS首末物件区间完全同义。Lightning轨道原明暗曲线接公开140节拍时钟，保留原四个alpha点，不自行积分BPM；该宿主在STOP中继续脉冲、每小节重置，失败冻结已观测相位，与OMS连续音乐拍数的区别明示。进度和节拍官方CPU通过，尚待下一同包GPU。这两个Gameplay作者目录没有选曲/Results场景合同，不能据此声称还原这些页面，也不反推原HDD没有对应素材。
+后续查漏修复两项原来未报错的静态替代：两族歌曲进度游标接实际宿主rate6，81来源/108游标经整合核对没有静态残留或重复绘制，原PNG/RGBA保留；宿主playtime包含完成余量，不能称与OMS首末物件区间完全同义。Lightning轨道原明暗曲线接公开140节拍时钟，保留原四个alpha点，不自行积分BPM；该宿主在STOP中继续脉冲、每小节重置，失败冻结已观测相位，与OMS连续音乐拍数的区别明示。两项官方CPU通过；`entrance-default-r3`再以Standard默认SP1正常Replay与Lightning默认SP1 Timing完成自然FC/Result，143张PNG完整性和6张原图目视通过，确认两族游标实际移动及Lightning轨道明暗变化。证据在`artifacts/beatoraja-capture/entrance-default-r3/`，没有代签所有主题/配置或精确节拍相位。这两个Gameplay作者目录没有选曲/Results场景合同，不能据此声称还原这些页面，也不反推原HDD没有对应素材。
 
 对Graph SUB的初步“第二比较柱”判断经祖先门复核撤回：原PB分支在PB不可用时才以SUB替换同一列，NO DATA也属于最大值不可用的后备显示。宿主公开值不能区分无PB与合法零分，故维持真实宿主主target与已记存在性边界，不开放假想副柱。此次更正来自源可见门和相同锚点，未改源或发布错误选项。
 
