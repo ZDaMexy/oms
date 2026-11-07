@@ -160,6 +160,17 @@ class MaterialTests(unittest.TestCase):
         self.assertTrue(all(len(grade["alternatives"]) == 1 for grade in recipe["results"]))
         self.assertTrue(all(grade["alternatives"][0]["font"] is None for grade in recipe["results"]))
 
+    def test_source_judgement_position_off_allows_hidden_rows(self):
+        root = {"id": "hidden", "type": "container", "properties": {"visible": False}, "children": []}
+        scene = {"templates": [{"id": "judge", "root": root}],
+                 "instances": [{"template": "judge", "material": {"slot": "hud.judgement", "resource": "judge-marker"}}]}
+        ini = '[GameplaySkin.Common:1]\nTarget: Stage ruleset=bms keymode=7k presentation=p1 group-logical=0\nhud.judgement: resource Provide "judge-marker"'
+        self.parts["judgement"] = Contribution("judgement", "test", None, None, None, {}, scene, ini)
+        recipe = collect_judge_materials(self.author, {"judgement-display": True, "judgement-position": "off"}, "7k", "p1", self.sink)
+        self.assertTrue(all(not row["alternatives"] for row in recipe["results"]))
+        with self.assertRaisesRegex(ValueError, "No qualified judgement row"):
+            collect_judge_materials(self.author, {"judgement-display": True, "judgement-position": "default"}, "7k", "p1", self.sink)
+
 
 if __name__ == "__main__":
     unittest.main()

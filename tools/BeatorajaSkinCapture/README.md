@@ -26,7 +26,10 @@
 | `-Scenario autoplay` | 官方 AUTOPLAY 自然完成，要求全部 notes、满 EX SCORE、FC 和返回选曲。 |
 | `-Scenario success` | 由谱面实际微秒时间和 LaneProperty 生成原生 Replay，经引擎判定后要求全部 notes、满 EX SCORE、FC 和 MusicResult。 |
 | `-Scenario failure` | Replay 只击中第一颗 note，其余自然 miss；固定 HARD / 不自动切 Gauge，要求 Gauge 归零、Failed timer 和失败 MusicResult。 |
+| `-Scenario hcn-recovery` | 必须配 HCN；首个键长条在头后550ms松开、1100ms重按，经真实输入产生active→damage→active，要求自然MusicResult、掉Gauge及实际失误。 |
+| `-Scenario timing` | 开头每侧8颗音符交替提前/延后50ms，其余按原时刻输入；要求真实每个Judge region都出现FAST/SLOW、非满EX的FC与MusicResult。保存首次两方向0/50/100ms取景及原生判定时差，不注入判定。 |
 | `-LongNoteMode LN/CN/HCN` | 为合成谱面的未指定类型长条设置原生 LN mode。包含普通键和 Scratch 长条。 |
+| `-Gauge AssistEasy/Easy/Normal/Hard/ExHard/Hazard` | 真实单曲Gauge，默认Hard、关闭自动换Gauge，并核对实际加载类型；failure及hcn-recovery固定要求Hard。Course Gauge不由这个参数冒充。 |
 | `-Resolution HD/FULLHD/WQHD/ULTRAHD`、`-HiSpeed` | 原生显示分辨率和 Hi-Speed；默认 HD、2.0。 |
 | `-LaneCover`、`-Lift`、`-Hidden` | 可选原生比例 0–1，只写独立测试玩家的 PlayConfig；大于 0 启用该项，0 关闭。不传时保持工具原有关闭设置；支持组合，用于检查遮挡与判定线。 |
 | `-TimeoutSeconds` | 内部超时 20–180 秒，默认 60；外层再留 20 秒退出时间。超时只结束本次启动的进程树，记失败。 |
@@ -40,9 +43,9 @@ IR 配置为空，IPFS、Discord、请求服务和自动扫描关闭。官方选
 
 产物：
 
-- `capture-workspace.json`：官方 JAR 与工具源文件的实际 SHA256、runtime、只读资源位置和用例。
+- `capture-workspace.json`：官方 JAR、工具源文件、皮肤入口及存在时的组件包收据SHA256、runtime、只读资源位置和用例；结束再核入口与收据未变。完整资产闭包仍由`beatoraja_verify.py package`检查。
 - `receipt.json`：目标与实际 skin 身份、实际 option、自然状态转移、看到的 timer、判定/Gauge、PNG 的尺寸和 hash、警告与 `normalDispose`。
-- `frames/*.png`：真实 backbuffer，在状态变化、Play 每秒、Failed/FC/曲终事件及 Result 后 0/250/1000 毫秒取帧。另围绕 51（爆炸）/71（长按）/101（按键）各自首次原生触发，取目标 0/50/100/250 毫秒帧，最多新增 12 张；关闭或重触发不会重新开始这组取景。每张 `firstEffect` 记录真实 render-clock age 和 lateness，不把错过的采样点冒充精确相位。单曲 AUTOPLAY 返回选曲时，原生 `changeState` 立即请求退出，因此该终态只取首帧。
+- `frames/*.png`：真实 backbuffer，在状态变化、Play每秒、Ready/Failed/FC/曲终及Result取帧；Ready/Failed增加1000/2000/3000ms观察，实际仍开放该timer时才捕获。另围绕51（爆炸）/71（长按）/101（按键）首次触发取目标0/50/100/250ms，最多新增12张；关闭或重触发不会重开这组取景。`firstEffect`记录真实render-clock age与lateness，不把延迟帧冒充精确相位。HCN恢复场景按真实251/271状态顺序另外取每阶段0/50/200ms。单曲AUTOPLAY返回选曲时，原生`changeState`立即退出，因此终态只取首帧。
 - `engine.log`、`stdout.log`、`stderr.log`：原始日志；`host-receipt.json` 保存已退出的 PID、退出码、超时与结束时间。
 
 官方 LWJGL 2 后端在正常资源释放后执行 `System.exit(-1)`；脚本仅在正常 dispose、身份与行为断言全部通过时接受该退出码，不把所有 `-1` 当成功。宿主调用 `main.exit()`，通过原生生命周期释放资源；不依赖强杀结束正常用例。
@@ -82,4 +85,8 @@ IR 配置为空，IPFS、Discord、请求服务和自动扫描关闭。官方选
 
 首次效果取景与耗时诊断补测使用官方 default SP1 / LN / success。证据 `.dev-cache/temp/beatoraja-capture-dev/effect-performance-selftest-20261107/20261107-072542-sp1-success-fcc730c9/`：39 帧中恰好 12 张首次效果帧，51/101 的目标 50/100 毫秒实际为 56.36/105.48 毫秒，71 的对应帧为 53.59/103.60 毫秒；39 张 PNG 的 hash、写入完成数量、线程 join、诊断门和进程退出均通过。该次普通 Play / FC 后 render 样本数为 1078/723，median 为 0.1072/0.0870 毫秒、p95 为 0.2524/0.1767 毫秒，仅作为工具能分别记录两组调用耗时的证据，不能用于签收新作品性能。更早同目录的同步写入试跑暴露了 50 毫秒采样延后到约 106 毫秒的问题，由本轮有界后台编码修正，保留原回执作诊断历史。
 
-尚未覆盖：作品包矩阵、重开、HCN 断持/复归、PB/Target 历史数据、其它挡板组合与交互调整、视频 BGA、物理设备与正常 PLAY 的存分。P1-A 的产品进度由主线统一维护。
+HCN恢复自测使用同一官方安装、SP1/default skin/HARD，真实44 notes、EX86、BP1、最低Gauge85，active→damage→active三阶段顺序成立、自然MusicResult、50张PNG完整、正常dispose。证据在`artifacts/beatoraja-capture/hcn-recovery-selftest/`；谱面与Replay仅在QA目录，未改原生判定或计时器。
+
+Timing自测使用官方default DP/HCN，开头两侧各8颗交替提前/延后50ms；两个原生Judge region均观察到FAST/SLOW，真实非满EX FC和MusicResult，56张PNG完整且正常dispose。证据在`artifacts/beatoraja-capture/timing-selftest/`；`firstTimingJudgeOriginsUs`与每帧`timingFeedback`记录资格、符号和首个判定年龄，不把目标50ms截图当作精确50ms。后续增加的单曲Gauge选择参数已编译，尚待非Hard运行验证。
+
+尚未覆盖：最终作品包矩阵、重开、PB/Target历史数据、其它挡板组合与交互调整、视频BGA、物理设备与正常PLAY存分。P1-A的产品进度由主线统一维护。

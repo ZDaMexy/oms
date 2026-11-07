@@ -15,7 +15,10 @@ from beatoraja_author import source_path
 from beatoraja_native import (Lua, anchor, colour, native_colour, native_rect,
                              node_rect, scene_properties)
 
-GAUGE_TYPES = {"assist-easy": 0, "easy": 1, "normal": 2, "hard": 3, "ex-hard": 4, "hazard": 5}
+# Index is the real GrooveGauge type. Course CLASS/EXCLASS/EXHARDCLASS are
+# survival gauges (100 maximum, zero border), with their own host rules. Their
+# last three entries select only a same-family appearance, never those rules.
+GAUGE_PALETTES = ("assist-easy", "easy", "normal", "hard", "ex-hard", "hazard", "hard", "hard", "ex-hard")
 IMAGE_FIELDS = ("id", "src", "x", "y", "w", "h", "divx", "divy", "cycle", "timer")
 
 
@@ -167,6 +170,15 @@ def compose_judges(recipe, sink, stages, canvas_height):
     images = {image["id"]: image for image in recipe["images"]}
     result = {"image": [], "value": [], "judge": [], "destination": [], "gaps": []}
     if not any(r["alternatives"] for r in recipe["results"]):
+        # The official loader establishes JudgeManager's regions from SkinJudge
+        # objects, not from lanes. Empty image arrays keep the source's OFF
+        # appearance while allowing real stage timing/fast state to update.
+        for index in range(len(stages)):
+            identifier = recipe["judge"]["id"] + ".stage" + str(index)
+            result["judge"].append({"id": identifier, "index": index, "shift": False, "images": [], "numbers": []})
+            result["destination"].append({"id": identifier})
+        result["gaps"].append({"code": "native-judge-state-ownership", "stages": len(stages),
+                               "detail": "Invisible native Judge owners preserve real per-stage timing while source judgement art is OFF. No image, number or synthetic judgement is emitted."})
         return result
     logical_scale = canvas_height / 768
     active_nodes = set()
@@ -291,7 +303,7 @@ def compose_gauges(recipe, sink, gauge_stages, canvas_height):
     for bar_index, bar in enumerate(recipe["bars"]):
         host = _gauge_host(bar, stages, canvas)
         root_id = bar["ancestors"][0]["id"]
-        for kind, gauge_type in GAUGE_TYPES.items():
+        for gauge_type, kind in enumerate(GAUGE_PALETTES):
             context = {**recipe.get("context", {}), "gauge.type": kind}
             draw = Lua("function() return main_state.gauge_type() == " + str(gauge_type) + " end")
             # Draw declared full dark bars, excluding the dynamic boundary stripe
@@ -337,6 +349,7 @@ def compose_gauges(recipe, sink, gauge_stages, canvas_height):
                                            "dst": [{**native_rect(rect, canvas_height), **native_colour(rgba)}]})
     result["gaps"].extend([
         {"code": "gauge-extra-widgets", "detail": "Percent, clear threshold, dynamic boundary shade and recorded feedback remain separate HUD/bake work; original dependencies are retained in the materials recipe."},
-        {"code": "native-course-gauge-types", "types": [6, 7, 8], "detail": "No source gauge.type mapping was established for native course-only gauge categories."},
+        {"code": "native-course-gauge-palette-adaptation", "palettes": {"6": "hard", "7": "hard", "8": "ex-hard"},
+         "detail": "Native CLASS/EXCLASS/EXHARDCLASS use same-family survival-bar art. The fill reads the actual host gauge value; these are visual selections, not claims of equivalent source gauge rules."},
     ])
     return result

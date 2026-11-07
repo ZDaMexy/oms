@@ -5,6 +5,8 @@ import bms.player.beatoraja.play.*;
 import bms.player.beatoraja.result.MusicResult;
 import bms.player.beatoraja.select.MusicSelector;
 import bms.player.beatoraja.skin.*;
+import bms.player.beatoraja.skin.property.BooleanPropertyFactory;
+import bms.player.beatoraja.skin.property.IntegerPropertyFactory;
 import bms.player.beatoraja.song.SQLiteSongDatabaseAccessor;
 import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
@@ -37,6 +39,7 @@ public final class Capture implements ApplicationListener {
     private final Map<String, Integer> requestedOptions = new LinkedHashMap<>();
     private final Map<String, Float> requestedReading = new LinkedHashMap<>();
     private final Map<Integer, Long> firstEffectTimers = new LinkedHashMap<>();
+    private final Map<String, Long> firstTimingJudges = new LinkedHashMap<>();
     private final List<Long> playRenderNs = new ArrayList<>(), afterFcRenderNs = new ArrayList<>();
     private final List<Long> pngWriteNs = Collections.synchronizedList(new ArrayList<>());
     private final List<Long> captureNs = Collections.synchronizedList(new ArrayList<>());
@@ -53,10 +56,13 @@ public final class Capture implements ApplicationListener {
     private String scenario, mode, lastState = "";
     private boolean created, disposed, exiting, outcome, identityVerified;
     private String error;
-    private int expectedNotes, maxPastNotes, maxCombo, maxExscore, minimumGauge = 100;
+    private int expectedNotes, maxPastNotes, maxCombo, maxExscore, requestedGauge, minimumGauge = 100;
     private int[] lastJudges = new int[6];
     private long lastPeriodic = -1;
     private long completedAt = -1;
+    private int recoveryPhase;
+    private long recoveryPhaseOriginUs;
+    private final List<Object> recoveryTransitions = new ArrayList<>();
     private final AtomicInteger blockedNetworkRequests = new AtomicInteger();
     private static final int[] EFFECT_TIMERS = {51, 71, 101};
     private static final int[] EFFECT_OFFSETS_MS = {0, 50, 100, 250};
@@ -75,7 +81,7 @@ public final class Capture implements ApplicationListener {
         if (!(skin.toString().endsWith(".luaskin") || skin.toString().endsWith(".json")))
             throw new IllegalArgumentException("Expected .luaskin or .json");
         scenario = one("scenario"); mode = one("mode");
-        if (!Set.of("autoplay", "success", "failure").contains(scenario) || !Set.of("sp1", "sp2", "dp").contains(mode))
+        if (!Set.of("autoplay", "success", "failure", "hcn-recovery", "timing").contains(scenario) || !Set.of("sp1", "sp2", "dp").contains(mode))
             throw new IllegalArgumentException("Invalid scenario or mode");
         receipt.put("schema", 1); receipt.put("startedUtc", Instant.now().toString());
         receipt.put("scenario", scenario); receipt.put("mode", mode); receipt.put("skinRequested", skin.toString());
@@ -126,7 +132,15 @@ public final class Capture implements ApplicationListener {
     private void launch() throws Exception {
         Path resources = Path.of(one("resources")).toRealPath();
         int lnmode = Integer.parseInt(one("lnmode"));
+        requestedGauge = Integer.parseInt(one("gauge"));
+        if (requestedGauge < 0 || requestedGauge > 5)
+            throw new IllegalArgumentException("Single-song gauge must be 0..5");
+        if ((scenario.equals("failure") || scenario.equals("hcn-recovery")) && requestedGauge != GrooveGauge.HARD)
+            throw new IllegalArgumentException("Failure and HCN recovery fixtures require HARD");
+        receipt.put("gaugeRequested", requestedGauge);
         if (lnmode < 0 || lnmode > 2) throw new IllegalArgumentException("lnmode must be 0, 1 or 2");
+        if (scenario.equals("hcn-recovery") && lnmode != 2)
+            throw new IllegalArgumentException("hcn-recovery requires HCN mode");
         Config config = new Config();
         config.setPlayername("capture"); config.setPlayerpath(root.resolve("player").toString());
         config.setSongpath(root.resolve("songdata.db").toString()); config.setSonginfopath(root.resolve("songinfo.db").toString());
@@ -145,7 +159,7 @@ public final class Capture implements ApplicationListener {
         config.validate();
         PlayerConfig player = new PlayerConfig(); player.setId("capture"); player.setName("Synthetic capture");
         player.setIrconfig(new IRConfig[0]); player.setRequestEnable(false); player.setRandom(0); player.setRandom2(0);
-        player.setDoubleoption(0); player.setGauge(GrooveGauge.HARD); player.setGaugeAutoShift(PlayerConfig.GAUGEAUTOSHIFT_NONE);
+        player.setDoubleoption(0); player.setGauge(requestedGauge); player.setGaugeAutoShift(PlayerConfig.GAUGEAUTOSHIFT_NONE);
         player.setLnmode(lnmode); player.setTargetid("RATE_AAA"); player.setTargetlist(new String[] {"RATE_AAA"});
         player.setJudgetiming(0); player.setNotesDisplayTimingAutoAdjust(false);
         // The official distribution changes Default paths to ModernChic; use explicit source resources.
@@ -244,14 +258,26 @@ public final class Capture implements ApplicationListener {
 
     private void prepareReplay(BMSModel model, Config config, PlayConfig play, int lnmode) throws IOException {
         List<KeyInputLog> keys = new ArrayList<>(); LaneProperty lanes = new LaneProperty(model.getMode());
-        boolean first = true;
+        List<Object> timingInputs = new ArrayList<>();
+        boolean first = true, recoveryInserted = false;
         for (TimeLine time : model.getAllTimeLines()) {
             for (int lane = 0; lane < model.getMode().key; lane++) {
                 Note note = time.getNote(lane); if (note == null) continue;
                 if (scenario.equals("failure") && !first) continue;
                 long us = time.getMicroTime(); int[] key = lanes.getLaneKeyAssign()[lane];
                 if (note instanceof LongNote ln) {
-                    if (!ln.isEnd()) keys.add(new KeyInputLog(us, key[0], true));
+                    if (!ln.isEnd()) {
+                        keys.add(new KeyInputLog(us, key[0], true));
+                        if (scenario.equals("hcn-recovery") && !recoveryInserted && key.length == 1) {
+                            if (ln.getPair().getMicroTime() - us < 1500000)
+                                throw new IllegalStateException("Recovery fixture needs a long enough first key HCN");
+                            keys.add(new KeyInputLog(us + 550000, key[0], false));
+                            keys.add(new KeyInputLog(us + 1100000, key[0], true));
+                            receipt.put("hcnRecoveryInput", Map.of("lane", lane, "key", key[0],
+                                    "releaseUs", us + 550000, "repressUs", us + 1100000));
+                            recoveryInserted = true;
+                        }
+                    }
                     else {
                         keys.add(new KeyInputLog(us, key[0], false));
                         if (key.length == 2 && (ln.getType() >= LongNote.TYPE_CHARGENOTE || (ln.getType() == 0 && lnmode > 0))) {
@@ -259,14 +285,26 @@ public final class Capture implements ApplicationListener {
                         }
                     }
                 } else if (note instanceof NormalNote) {
+                    if (scenario.equals("timing") && us < 4000000) {
+                        long offset = ((us - 2000000) / 250000) % 2 == 0 ? -50000 : 50000;
+                        timingInputs.add(Map.of("lane", lane, "noteUs", us, "inputOffsetUs", offset));
+                        us += offset;
+                    }
                     keys.add(new KeyInputLog(us, key[0], true)); keys.add(new KeyInputLog(us + 50000, key[0], false));
                 }
                 first = false;
             }
         }
+        if (scenario.equals("hcn-recovery") && !recoveryInserted)
+            throw new IllegalStateException("No first key HCN for recovery fixture");
+        if (scenario.equals("timing")) {
+            if (timingInputs.size() != (mode.equals("dp") ? 16 : 8))
+                throw new IllegalStateException("Timing fixture requires the complete opening sweep");
+            receipt.put("timingInputs", timingInputs);
+        }
         keys.sort(Comparator.comparingLong(KeyInputLog::getTime));
         ReplayData replay = new ReplayData(); replay.player = "Synthetic capture"; replay.sha256 = model.getSHA256();
-        replay.mode = lnmode; replay.gauge = GrooveGauge.HARD; replay.config = play.clone(); replay.keylog = keys.toArray(KeyInputLog[]::new);
+        replay.mode = lnmode; replay.gauge = requestedGauge; replay.config = play.clone(); replay.keylog = keys.toArray(KeyInputLog[]::new);
         receipt.put("replayInputCount", keys.size()); receipt.put("replayFirstInputUs", keys.get(0).getTime());
         PlayDataAccessor data = new PlayDataAccessor(config);
         data.wrireReplayData(replay, model, lnmode, 0);
@@ -305,15 +343,17 @@ public final class Capture implements ApplicationListener {
                 minimumGauge = Math.min(minimumGauge, Math.round(play.getGauge().getValue()));
                 for (int i = 0; i < 6; i++) lastJudges[i] = play.getJudgeManager().getJudgeCount(i);
                 captureFirstEffects(state);
+                if (scenario.equals("hcn-recovery")) captureHcnRecovery(state);
+                if (scenario.equals("timing")) captureTimingFeedback(state);
                 if (transition) capture("state-" + label.replace(':', '-'), state);
                 long playMs = state.timer.isTimerOn(41) ? state.timer.getNowTime(41) : -1;
                 if (playMs >= 0 && playMs / 1000 > lastPeriodic && playMs <= 10000) {
                     lastPeriodic = playMs / 1000; capture("play-" + lastPeriodic + "s", state);
                 }
-                for (int timer : new int[]{3, 48, 49, 143, 908}) {
+                for (int timer : new int[]{3, 40, 48, 49, 143, 908}) {
                     if (state.timer.isTimerOn(timer)) {
                         long age = state.timer.getNowTime(timer);
-                        for (int threshold : new int[]{0, 250, 500})
+                        for (int threshold : timer == 3 || timer == 40 ? new int[]{0, 250, 500, 1000, 2000, 3000} : new int[]{0, 250, 500})
                             if (age >= threshold && age < threshold + 250) capture("timer-" + timer + "-" + threshold, state);
                     }
                 }
@@ -328,12 +368,64 @@ public final class Capture implements ApplicationListener {
                 receipt.put("completionState", state.getClass().getSimpleName());
                 outcome = scenario.equals("failure")
                     ? failed && minimumGauge == 0 && state instanceof MusicResult && score != null && score.getClear() == ClearType.Failed.id
+                    : scenario.equals("hcn-recovery")
+                    ? !failed && recoveryPhase == 3 && minimumGauge < 100 && maxPastNotes == expectedNotes
+                      && state instanceof MusicResult && score != null && score.getExscore() < expectedNotes * 2 && score.getMinbp() > 0
+                    : scenario.equals("timing")
+                    ? !failed && fullCombo && maxPastNotes == expectedNotes && firstTimingJudges.size() == (mode.equals("dp") ? 4 : 2)
+                      && state instanceof MusicResult && score != null && score.getMinbp() == 0
+                      && score.getExscore() < expectedNotes * 2 && score.getExscore() >= expectedNotes
                     : !failed && fullCombo && maxPastNotes == expectedNotes && maxExscore == expectedNotes * 2
                       && (scenario.equals("autoplay") ? state instanceof MusicSelector : state instanceof MusicResult && score != null && score.getClear() >= ClearType.FullCombo.id);
                 if (!outcome) error = "Natural outcome did not satisfy scenario assertions";
                 if (completionAge >= 1000) { exiting = true; writeReceipt(); main.exit(); }
             }
         } catch (Throwable e) { fail(e); }
+    }
+
+    private void captureTimingFeedback(MainState state) throws IOException {
+        for (int region = 0; region < (mode.equals("dp") ? 2 : 1); region++) {
+            int duration = IntegerPropertyFactory.getIntegerProperty(525 + region).get(state);
+            for (int direction = 0; direction < 2; direction++) {
+                boolean qualified = BooleanPropertyFactory.getBooleanProperty(1242 + region * 20 + direction).get(state)
+                        && (direction == 0 ? duration > 0 : duration < 0);
+                String identity = region + (direction == 0 ? "-fast" : "-slow");
+                int timer = 46 + region;
+                if (qualified && state.timer.isTimerOn(timer))
+                    firstTimingJudges.putIfAbsent(identity, state.timer.getMicroTimer(timer));
+                Long origin = firstTimingJudges.get(identity);
+                if (origin == null) continue;
+                long age = state.timer.getNowMicroTime() - origin;
+                for (int offset : new int[]{0, 50, 100}) {
+                    if (age < offset * 1000L) continue;
+                    Map<String, Object> frame = capture("timing-" + identity + "-" + offset + "ms", state);
+                    if (frame != null) frame.put("timingFeedback", Map.of("region", region,
+                            "direction", direction == 0 ? "fast" : "slow", "qualifiedNow", qualified,
+                            "durationMs", duration, "targetOffsetMs", offset, "renderClockAgeMs", age / 1000.0,
+                            "timerStillOnFirstJudge", state.timer.isTimerOn(timer) && state.timer.getMicroTimer(timer) == origin));
+                }
+            }
+        }
+    }
+
+    private void captureHcnRecovery(MainState state) throws IOException {
+        boolean active = state.timer.isTimerOn(251), damage = state.timer.isTimerOn(271);
+        if ((recoveryPhase == 0 && active) || (recoveryPhase == 1 && damage)
+                || (recoveryPhase == 2 && active && !damage)) {
+            recoveryPhase++;
+            recoveryPhaseOriginUs = state.timer.getNowMicroTime();
+            recoveryTransitions.add(Map.of("phase", recoveryPhase, "elapsedMs", elapsed(),
+                    "active", active, "damage", damage, "renderClockUs", recoveryPhaseOriginUs));
+        }
+        if (recoveryPhase > 0) {
+            long age = state.timer.getNowMicroTime() - recoveryPhaseOriginUs;
+            for (int offset : new int[]{0, 50, 200}) {
+                if (age < offset * 1000L) continue;
+                Map<String, Object> frame = capture("hcn-phase-" + recoveryPhase + "-" + offset + "ms", state);
+                if (frame != null) frame.put("hcnRecovery", Map.of("phase", recoveryPhase,
+                        "active", active, "damage", damage, "targetOffsetMs", offset, "renderClockAgeMs", age / 1000.0));
+            }
+        }
     }
 
     private void captureFirstEffects(MainState state) throws IOException {
@@ -379,6 +471,9 @@ public final class Capture implements ApplicationListener {
                 throw new IllegalStateException("Native play config ignored reading setting: " + requested.getKey());
         }
         receipt.put("readingLoaded", readingConfiguration(actual));
+        int actualGauge = ((BMSPlayer) state).getGauge().getType();
+        if (actualGauge != requestedGauge) throw new IllegalStateException("Native gameplay ignored requested Gauge");
+        receipt.put("gaugeLoaded", actualGauge);
         identityVerified = true;
     }
 
@@ -396,6 +491,7 @@ public final class Capture implements ApplicationListener {
         if (state instanceof BMSPlayer play) {
             value.put("pastNotes", play.getPastNotes()); value.put("combo", play.getJudgeManager().getCombo());
             value.put("exscore", play.getJudgeManager().getScoreData().getExscore()); value.put("gauge", play.getGauge().getValue());
+            value.put("gaugeType", play.getGauge().getType()); value.put("gaugeQualified", play.getGauge().isQualified());
             value.put("judgeCounts", Arrays.stream(lastJudges).boxed().toList());
             value.put("reading", readingConfiguration(play.getLanerender().getPlayConfig()));
         }
@@ -473,6 +569,8 @@ public final class Capture implements ApplicationListener {
         receipt.put("finalJudgeCounts", Arrays.stream(lastJudges).boxed().toList());
         receipt.put("blockedNetworkRequests", blockedNetworkRequests.get());
         receipt.put("firstEffectTimerOriginsUs", firstEffectTimers);
+        receipt.put("firstTimingJudgeOriginsUs", firstTimingJudges);
+        receipt.put("hcnRecoveryTransitions", recoveryTransitions);
         receipt.put("performance", Map.of(
                 "measurement", "System.nanoTime wall duration of MainController.render(); readback/PNG/hash excluded. Includes any engine CPU/GPU waits; not pure CPU time, FPS, latency or play-feel acceptance.",
                 "classification", "State sampled after render: BMSPlayer STATE_PLAY without timer48 versus BMSPlayer with timer48 on, including its finished/outro state.",

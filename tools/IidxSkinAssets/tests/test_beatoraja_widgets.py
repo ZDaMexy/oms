@@ -67,6 +67,18 @@ class WidgetTests(unittest.TestCase):
                 self.assertEqual([atlas.getpixel((0, y)) for y in (0, 3, 6)], [(255, 0, 0, 255), (0, 255, 0, 255), (0, 0, 255, 255)])
         self.assertTrue(all(d["dst"][-1]["time"] == 500 for j in result["judge"] for d in j["images"]))
 
+    def test_off_judgement_retains_only_invisible_real_stage_owners(self):
+        recipe = self.judge_recipe()
+        for grade in recipe["results"]:
+            grade["alternatives"] = []
+        for count in (1, 2):
+            result = compose_judges(recipe, self.sink, [(10 + i * 100, 0, 80, 100) for i in range(count)], 720)
+            self.assertEqual(result["image"], [])
+            self.assertEqual(result["value"], [])
+            self.assertEqual([j["index"] for j in result["judge"]], list(range(count)))
+            self.assertTrue(all(j["images"] == [] and j["numbers"] == [] for j in result["judge"]))
+            self.assertEqual(result["destination"], [{"id": j["id"]} for j in result["judge"]])
+
     def test_unqualified_palette_timing_is_not_silently_replaced(self):
         recipe = self.judge_recipe()
         recipe["tracks"][1]["keyframes"][1]["time"] = 125
@@ -161,6 +173,36 @@ class WidgetTests(unittest.TestCase):
         with Image.open(self.output / self.sink.source[result["graph"][0]["src"]]["path"]) as mirrored:
             self.assertEqual(mirrored.size, (4, 1))
             self.assertEqual([mirrored.getpixel((x, 0)) for x in range(4)], list(reversed(pattern)))
+
+    def test_course_survival_types_draw_real_values_with_same_family_palettes(self):
+        kinds = ("assist-easy", "easy", "normal", "hard", "ex-hard", "hazard")
+        images = [self.image(kind, 4, 1, (i * 40, 0, 0, 255)) for i, kind in enumerate(kinds)]
+        root = {"id": "root", "type": "container", "properties": {}}
+        clip = {"id": "clip", "type": "clip", "properties": {}}
+        sprite = {"id": "fill", "type": "sprite", "properties": {}, "resource": "normal"}
+        dark = {"id": "dark", "type": "sprite", "properties": {}, "resource": "normal"}
+        recipe = {"family": "standard", "images": images, "bindings": [], "context": {},
+                  "variants": [{"target": "dark", "property": "resource", "source": "gauge.type", "default": "normal",
+                                "cases": [{"key": kind, "resource": kind} for kind in kinds]}],
+                  "destinations": [{"node": dark, "ancestors": [root, dark]}], "resource_images": {k: k for k in kinds},
+                  "bars": [{"ancestors": [root, clip], "sprite_node": sprite, "states": {k: k for k in kinds},
+                            "hosts": [{"slot": "hud.gauge", "target": {"kind": "stage", "group-logical": "0"}}]}]}
+        for family in ("standard", "lightning"):
+            recipe["family"] = family
+            before = copy.deepcopy(recipe)
+            result = compose_gauges(recipe, self.sink, [(10, 20, 40, 10)], 720)
+            self.assertEqual(recipe, before)
+            self.assertEqual(len(result["graph"]), 9)
+            for native_type, palette in enumerate((*kinds, "hard", "hard", "ex-hard")):
+                draw = f"function() return main_state.gauge_type() == {native_type} end"
+                destinations = [dst for dst in result["destination"] if dst["draw"] == draw]
+                self.assertEqual(len(destinations), 2)
+                graph = next(item for item in result["graph"] if item["id"] == destinations[1]["id"])
+                dark_image = next(item for item in result["image"] if item["id"] == destinations[0]["id"])
+                expected = next(image["src"] for image in images if image["id"] == palette)
+                self.assertEqual((graph["src"], dark_image["src"]), (expected, expected))
+                self.assertIn("main_state.gauge() / 100", graph["value"])
+            self.assertNotIn("native-course-gauge-types", [g["code"] for g in result["gaps"]])
 
 
 if __name__ == "__main__":

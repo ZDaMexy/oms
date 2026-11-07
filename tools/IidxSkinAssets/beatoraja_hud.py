@@ -27,7 +27,7 @@ from PIL import Image
 from beatoraja_author import Contribution, source_path, walk_nodes
 from beatoraja_native import (
     AssetSink, Lua, all_of, colour, lua, native_colour, native_rect,
-    node_rect, scene_properties,
+    node_rect, scene_properties, native_song_expression,
 )
 
 
@@ -35,7 +35,7 @@ from beatoraja_native import (
 # BMS POOR (missed note) is judge index 4; empty POOR is index 5. The host's
 # NUMBER_MISS name means the latter and must not be assigned to OMS Miss.
 _NUMBERS = {
-    "score.value": 101, "combo.current": 104, "combo.maximum": 105,
+    "score.value": 101, "combo.maximum": 105,
     "timing.bpm": 160, "timing.bpm-min": 91, "timing.bpm-max": 90,
     "judgement.count.perfect": 110, "judgement.count.great": 111,
     "judgement.count.good": 112, "judgement.count.meh": 113,
@@ -51,7 +51,8 @@ _EXPRESSIONS = {
     "gauge.value": ("(main_state.gauge() / 100)", "number"),
     "song.title": ("main_state.text(10)", "string"),
     "song.artist": ("main_state.text(14)", "string"),
-    "song.level": ('string.format("%d", main_state.number(96))', "string"),
+    "song.level": (native_song_expression("song.level"), "string"),
+    "song.difficulty": (native_song_expression("song.difficulty"), "string"),
     "scroll.adjusting": ("main_state.option(270)", "boolean"),
     "cover.sudden-active": ("main_state.option(271)", "boolean"),
     "cover.hidden-active": ("main_state.option(273)", "boolean"),
@@ -62,7 +63,7 @@ _EXPRESSIONS = {
     "gauge.clear-state": ('(main_state.option(1240) and "clear" or "uncleared")', "string"),
     "gauge.type": (
         '(({[0]="assist-easy",[1]="easy",[2]="normal",[3]="hard",'
-        '[4]="ex-hard",[5]="hazard"})[main_state.gauge_type()] or "")', "string"),
+        '[4]="ex-hard",[5]="hazard",[6]="hard",[7]="hard",[8]="ex-hard"})[main_state.gauge_type()] or "")', "string"),
 }
 
 

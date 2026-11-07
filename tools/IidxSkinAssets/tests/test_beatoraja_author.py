@@ -125,6 +125,24 @@ object.note: resource Provide "mania"
             with self.assertRaisesRegex(ValueError, "Stale bake source"):
                 read_bakes([bake], author)
 
+    def test_fixed_source_clock_requires_its_actual_frame(self):
+        from types import SimpleNamespace
+        from beatoraja_export import Composer, constant_clock
+        scene = {"numericSources": [{"id": "steady", "operation": "add", "left": 50, "right": 0}]}
+        self.assertEqual(constant_clock(scene, "value.steady"), 50)
+        self.assertIsNone(constant_clock(scene, "presentation.elapsed"))
+        author = SimpleNamespace(family="standard", name="Standard Model Skin Omni Until 26")
+        index = {"selectionComplete": False, "framesPerSecond": 60, "sourceFrameCount": 6,
+                 "loop": True, "loopStartFrame": 1, "canvas": [100, 100], "pages": [],
+                 "frames": [{"sourceFrame": 1, "runs": []}]}
+        composer = Composer(author, None, {}, "p1", {("frame.json", "frame"): (None, index)})
+        composer.draw_baked("frame.json", "frame", (0, 0, 100, 100), static_time_ms=50)
+        self.assertEqual(composer.gaps[0]["sourceFrame"], 3)
+        composer.gaps.clear()
+        index["frames"].append({"sourceFrame": 3, "runs": []})
+        composer.draw_baked("frame.json", "frame", (0, 0, 100, 100), static_time_ms=50)
+        self.assertEqual(composer.gaps, [])
+
 
 if __name__ == "__main__":
     unittest.main()

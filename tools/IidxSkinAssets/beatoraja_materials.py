@@ -324,7 +324,7 @@ def collect_judge_materials(author: AuthorPackage, options: dict[str, Any], keym
                 rows.append({"image": image, "value": values[font]["id"] if font and values[font] else None,
                              "label_node": copy.deepcopy(label), "number_node": copy.deepcopy(numbers[0]) if numbers else None,
                              "ancestors": list(route), "font": fonts[font] if font else None})
-        if not rows and options.get("judgement-display") not in (False, "off"):
+        if not rows and options.get("judgement-display") not in (False, "off") and options.get("judgement-position") != "off":
             raise ValueError(f"No qualified judgement row for {grade}")
         results.append({"native_index": native_index, "grade": grade, "alternatives": rows})
         if len(rows) > 1:

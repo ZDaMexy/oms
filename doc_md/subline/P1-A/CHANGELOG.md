@@ -1,5 +1,11 @@
 # P1-A 变动日志
 
+## 2026-11-07beatoraja三布局与组件包推进
+
+默认两族SP1/SP2/DP已在官方0.8.9真实通关，补Standard失败与两族HCN断持恢复；三挡板使用真实PlayConfig，原输入和判定计时不注入。逐图审查修正Standard低血量叠百位，修后组件包复验90正确；Lightning FAST/SLOW用提前/延后50ms的原生Replay验证，关闭Judgement外观仍保留实际region所有权。Standard frame内原FAST/SLOW另接入，当前尚待同包实绘。完整证据和边界取[适配记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md)。
+
+增加同族共享资产/组件片段/稳定选项ID、原转盘/BGA框、Graph Area层序、Timing和完整动画挡板适配；未烘焙项不伪列可选。73项focused通过，Standard首个全主题开发包的3941片段、92次原生代表装配及实际包闭包通过，11个实机场景PNG重新核对。后续完整FC/动画组件与同包矩阵仍推进中，尚未交付正式beatoraja包；OMS旧包、用户当前skin和生产客户端不变。
+
 ## 2026-11-07beatoraja双作品开工与播放器更新
 
 用户明确授权Standard与Lightning的beatoraja制作，名称和独立来源保持；Lightning在OMS的停止边界不变。先固定官方0.8.9发行JAR和标签源码，再保全用户安装、同卷改名为`D:/beatoraja`并部署差分。关键备份、配置路径与数据库语义核对、旧Endless Dream/IR保留及快捷方式修复完成，实际用户player未用于QA。研究、安装及当前未闭合项集中于[适配记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md)。

@@ -46,12 +46,21 @@ class AssetSink:
         self.source: dict[str, dict[str, str]] = {}
         self.provenance: dict[str, dict[str, Any]] = {}
         self.dimensions: dict[str, tuple[int, int]] = {}
+        self._loaded_sources: dict[str, str] = {}
+        self._loaded_bakes: dict[tuple[Path, str], str] = {}
 
     def _add(self, data: bytes, suffix: str, origin: str | None = None) -> str:
         digest = hashlib.sha256(data).hexdigest()
         source_id = "s" + digest[:24]
         relative = "assets/" + digest + suffix
         path = self.output / relative
+        if digest in self.provenance:
+            # This sink owns a fresh output and consumes frozen inputs. A hash
+            # already written by this instance need not reread the same PNG for
+            # every independent frame/component fragment.
+            if origin and origin not in self.provenance[digest]["sources"]:
+                self.provenance[digest]["sources"].append(origin)
+            return source_id
         if path.exists():
             if path.read_bytes() != data:
                 raise ValueError("Asset content identity collision")
@@ -67,10 +76,13 @@ class AssetSink:
         return source_id
 
     def add_source(self, relative: str) -> str:
+        if relative in self._loaded_sources:
+            return self._loaded_sources[relative]
         path = source_path(self.author_root, relative)
         if path.suffix.lower() not in (".png", ".ttf", ".otf"):
             raise ValueError("Only declared image/font assets are copied")
-        return self._add(path.read_bytes(), path.suffix.lower(), relative)
+        self._loaded_sources[relative] = self._add(path.read_bytes(), path.suffix.lower(), relative)
+        return self._loaded_sources[relative]
 
     def add_raster(self, image: Image.Image) -> str:
         stream = io.BytesIO()
@@ -79,10 +91,14 @@ class AssetSink:
 
     def add_baked_page(self, index_path: Path, page: dict[str, Any]) -> str:
         path = source_path(index_path.parent, page["file"])
+        key = (path, page["sha256"])
+        if key in self._loaded_bakes:
+            return self._loaded_bakes[key]
         data = path.read_bytes()
         if hashlib.sha256(data).hexdigest() != page["sha256"]:
             raise ValueError("Baked atlas hash does not match verified index")
-        return self._add(data, ".png", "baked:" + page["sha256"])
+        self._loaded_bakes[key] = self._add(data, ".png", "baked:" + page["sha256"])
+        return self._loaded_bakes[key]
 
     def add_font_descriptor(self, text: str) -> str:
         source_id = self._add(text.encode("utf-8"), ".fnt")
@@ -132,6 +148,17 @@ def native_colour(rgba: tuple[float, float, float, float]) -> dict[str, int]:
 
 def all_of(expressions: list[str]) -> Lua | None:
     return Lua("function() return " + " and ".join("(" + e + ")" for e in expressions) + " end") if expressions else None
+
+
+def native_song_expression(source: str) -> str | None:
+    """Use actual BMS metadata; difficulty 5 remains INSANE, not LEGGENDARIA."""
+    if source == "song.difficulty":
+        return ('(function() local labels={"BEGINNER","NORMAL","HYPER","ANOTHER","INSANE"}; '
+                'for i=1,5 do if main_state.option(150+i) then return labels[i] end end; return "" end)()')
+    if source == "song.level":
+        return ('(function() local n=main_state.number(96); if n == -2147483648 or n == 2147483647 '
+                'then return "" end; return string.format("%d",n) end)()')
+    return None
 
 
 def scene_properties(node: dict[str, Any], scene: dict[str, Any], context: dict[str, Any]):

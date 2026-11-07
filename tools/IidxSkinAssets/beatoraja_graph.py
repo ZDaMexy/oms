@@ -95,6 +95,8 @@ def _select_templates(author, options, keymode, presentation):
                if b["target"]["kind"] == "global" and b["slot"] == "decoration"
                and b["mode"] == "Provide"}
     contributions = [author.base(), frame, author.contribution("graph-target", options)]
+    if "graph-area" in options:
+        contributions.append(author.contribution("graph-area", options))
     selected = []
     for contribution in contributions:
         seen = set()
@@ -156,7 +158,7 @@ def _font_sizes(track):
 
 def export_graph(author: AuthorPackage, options: dict[str, Any], keymode: str,
                  presentation: str, sink: AssetSink,
-                 canvas: tuple[float, float, float, float]) -> dict[str, Any]:
+                 canvas: tuple[float, float, float, float], *, layer="all") -> dict[str, Any]:
     """Return native arrays, ordered destinations and explicitly handled roots.
 
     ``canvas`` is a full, top-left pixel rectangle (0, 0, width, height).
@@ -170,6 +172,14 @@ def export_graph(author: AuthorPackage, options: dict[str, Any], keymode: str,
     if x != 0 or y != 0 or width <= 0 or height <= 0:
         raise ValueError("Graph requires the full positive, zero-origin canvas")
     contributions, selected = _select_templates(author, options, keymode, presentation)
+    if layer not in ("all", "background", "art", "foreground"):
+        raise ValueError("Unknown Graph layer")
+    if layer != "all":
+        selected = [(c, t, r) for c, t, r in selected
+                    if (c.module == "graph-area" if layer == "art" else
+                        c.module != "graph-area" and
+                        (r.get("properties", {}).get("z", 0) > -20 if layer == "background"
+                         else r.get("properties", {}).get("z", 0) <= -20))]
     arrays = {key: [] for key in ("image", "graph", "font", "value", "text")}
     output = {"arrays": arrays, "destination": [], "gaps": [],
               "handled_template_ids": [], "handled_root_ids": []}
@@ -303,7 +313,7 @@ def export_graph(author: AuthorPackage, options: dict[str, Any], keymode: str,
         last = {(o["target"], o["property"]): o["id"] for kind in ("bindings", "variants")
                 for o in contribution.scene.get(kind, [])}
 
-        def visit(node, matrix, size, rgba, conditions, scale, reveal=None, blend="alpha"):
+        def visit(node, matrix, size, rgba, conditions, scale, reveal=None, blend="alpha", clip=None):
             prop, operations = scene_properties(node, contribution.scene, context)
             operations = [o for o in operations if last[o["target"], o["property"]] == o["id"]]
             visible = next((o for o in operations if o["property"] == "visible"), None)
@@ -408,6 +418,8 @@ def export_graph(author: AuthorPackage, options: dict[str, Any], keymode: str,
                     base_y = height - rect[1] - rect[3]
                     y_expression = f"math.floor({lua(base_y)} - {lua(size[1] * (end - start))} * {rate} + 0.5)"
                 entry = destination(identifier, rect, own_rgba, own_blend, own_conditions, y_expression)
+                if clip is not None:
+                    entry["dst"][0].update({"clip_" + k: v for k, v in native_rect(clip, height).items()})
                 if stretch:
                     full = entry["dst"][0]
                     entry["dst"] = [{**full, "h": 0}, {**full, "time": _SCALE_CLOCK}]
@@ -420,25 +432,38 @@ def export_graph(author: AuthorPackage, options: dict[str, Any], keymode: str,
                         + str(ref) + "))); return (math.floor(main_state.time() / 1000) - "
                         + f"math.floor(rate * {_SCALE_CLOCK} + 0.5)) * 1000 end")
             elif node["type"] == "clip":
-                if own_reveal is None or prop.get("clip-mode") != "bounds":
+                if prop.get("clip-mode") != "bounds":
                     gap(contribution, node["id"], "unmapped-graph-clip")
                     return
-                # The Standard source rotates its horizontal clipping carrier
-                # -90 degrees, then rotates the full source image +90 degrees.
-                # Its transformed reveal axis must grow from bottom to top.
-                if not (math.isclose(node_matrix[0], 0, abs_tol=1e-8)
-                        and math.isclose(node_matrix[1], -1, abs_tol=1e-8)):
-                    gap(contribution, node["id"], "unsupported-graph-reveal-direction")
-                    return
+                if own_reveal is None:
+                    if not _upright(node_matrix):
+                        gap(contribution, node["id"], "unsupported-static-clip-direction")
+                        return
+                    if clip is None:
+                        clip = rect
+                    else:
+                        left, top = max(clip[0], rect[0]), max(clip[1], rect[1])
+                        right, bottom = min(clip[0] + clip[2], rect[0] + rect[2]), min(clip[1] + clip[3], rect[1] + rect[3])
+                        if right <= left or bottom <= top:
+                            return
+                        clip = (left, top, right - left, bottom - top)
+                else:
+                    # The Standard source rotates its horizontal clipping carrier
+                    # -90 degrees, then rotates the full source image +90 degrees.
+                    # Its transformed reveal axis must grow from bottom to top.
+                    if not (math.isclose(node_matrix[0], 0, abs_tol=1e-8)
+                            and math.isclose(node_matrix[1], -1, abs_tol=1e-8)):
+                        gap(contribution, node["id"], "unsupported-graph-reveal-direction")
+                        return
             elif node["type"] != "container":
                 gap(contribution, node["id"], "unsupported-graph-node", type=node["type"])
                 return
             for child in sorted(node.get("children", []), key=lambda n: -n.get("properties", {}).get("z", 0)):
-                visit(child, node_matrix, node_size, own_rgba, own_conditions, own_scale, own_reveal, own_blend)
+                visit(child, node_matrix, node_size, own_rgba, own_conditions, own_scale, own_reveal, own_blend, clip)
 
         visit(root, _IDENTITY, (width, height), (1, 1, 1, 1), [], (1, 1))
 
-    if options.get("graph-visible", True):
+    if layer in ("all", "foreground") and options.get("graph-visible", True):
         output["gaps"].extend([
             {"feature": "graph", "reason": "native-pb-existence-unavailable",
              "detail": "Official playback APIs merge missing and zero PB. Native PB=0 is retained; no current-score mirror is fabricated."},

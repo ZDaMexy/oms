@@ -3,8 +3,9 @@
 param(
     [Parameter(Mandatory)][string]$Skin,
     [ValidateSet('sp1','sp2','dp')][string]$Mode = 'sp1',
-    [ValidateSet('autoplay','success','failure')][string]$Scenario = 'autoplay',
+    [ValidateSet('autoplay','success','failure','hcn-recovery','timing')][string]$Scenario = 'autoplay',
     [ValidateSet('LN','CN','HCN')][string]$LongNoteMode = 'LN',
+    [ValidateSet('AssistEasy','Easy','Normal','Hard','ExHard','Hazard')][string]$Gauge = 'Hard',
     [string[]]$SkinOption = @(),
     [string[]]$SkinFile = @(),
     [AllowEmptyString()][string]$SideOptionName = 'Play Side',
@@ -63,12 +64,19 @@ $classes = Join-Path $caseRoot 'classes'
 $tempPath = Join-Path $caseRoot 'temp'
 [IO.Directory]::CreateDirectory($classes) | Out-Null
 [IO.Directory]::CreateDirectory($tempPath) | Out-Null
-$manifest = [ordered]@{ schema=1; purpose='Disposable beatoraja skin capture'; engineJar=$Jar; engineSha256=(Get-FileHash -LiteralPath $Jar -Algorithm SHA256).Hash; harnessSourceSha256=(Get-FileHash -LiteralPath (Join-Path $PSScriptRoot 'Capture.java') -Algorithm SHA256).Hash; launcherSourceSha256=(Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash; java=$Java; skin=$Skin; resourceRoot=$ResourceRoot; nativeRoot=$NativeRoot; scenario=$Scenario; mode=$Mode; createdUtc=[DateTime]::UtcNow.ToString('O') }
+$manifest = [ordered]@{ schema=1; purpose='Disposable beatoraja skin capture'; engineJar=$Jar; engineSha256=(Get-FileHash -LiteralPath $Jar -Algorithm SHA256).Hash; harnessSourceSha256=(Get-FileHash -LiteralPath (Join-Path $PSScriptRoot 'Capture.java') -Algorithm SHA256).Hash; launcherSourceSha256=(Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash; java=$Java; skin=$Skin; skinEntrySha256=(Get-FileHash -LiteralPath $Skin -Algorithm SHA256).Hash; resourceRoot=$ResourceRoot; nativeRoot=$NativeRoot; scenario=$Scenario; mode=$Mode; createdUtc=[DateTime]::UtcNow.ToString('O') }
+$packageReceipt = Join-Path (Split-Path -Parent $Skin) 'package-receipt.json'
+if (Test-Path -LiteralPath $packageReceipt -PathType Leaf) {
+    $manifest.packageReceipt = $packageReceipt
+    $manifest.packageReceiptSha256 = (Get-FileHash -LiteralPath $packageReceipt -Algorithm SHA256).Hash
+}
 $manifest | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $caseRoot 'capture-workspace.json') -Encoding utf8
 & $Javac '-J-Duser.language=en' '-J-Dfile.encoding=UTF-8' --release 17 -encoding UTF-8 -cp $Jar -d $classes (Join-Path $PSScriptRoot 'Capture.java') 2>&1 | Tee-Object -FilePath (Join-Path $caseRoot 'compile.log')
 if ($LASTEXITCODE -ne 0) { throw "Capture compilation failed. Evidence: $caseRoot" }
 $lnIndex = @{ LN=0; CN=1; HCN=2 }[$LongNoteMode]
+$gaugeIndex = @{ AssistEasy=0; Easy=1; Normal=2; Hard=3; ExHard=4; Hazard=5 }[$Gauge]
 $arguments = @('-Xms256m','-Xmx2g', '-Dfile.encoding=UTF-8', '-Dsun.stdout.encoding=UTF-8', '-Dsun.stderr.encoding=UTF-8', ('-Djava.io.tmpdir=' + $tempPath), ('-Djava.library.path=' + $NativeRoot), '-cp', ($classes + [IO.Path]::PathSeparator + $Jar), 'Capture', '--work', $caseRoot, '--skin', $Skin, '--resources', $ResourceRoot, '--scenario', $Scenario, '--mode', $Mode, '--side-option', $SideOptionName, '--lnmode', "$lnIndex", '--resolution', $Resolution, '--hispeed', $HiSpeed.ToString([Globalization.CultureInfo]::InvariantCulture), '--timeout', "$TimeoutSeconds")
+$arguments += @('--gauge', "$gaugeIndex")
 foreach ($option in $SkinOption) { $arguments += @('--option', $option) }
 foreach ($file in $SkinFile) { $arguments += @('--file', $file) }
 foreach ($readingName in @('LaneCover','Lift','Hidden')) {
@@ -102,5 +110,9 @@ $receipt = Get-Content -Raw -LiteralPath $receiptPath | ConvertFrom-Json
 if (-not $receipt.success -or -not $receipt.normalDispose) {
     $reason = if ($receipt.error) { $receipt.error } elseif (-not $receipt.diagnosticsClean) { 'Unexpected WARNING/SEVERE; inspect receipt warnings' } else { 'Incomplete outcome or disposal' }
     throw "Capture assertions failed: $reason. Evidence: $caseRoot"
+}
+if ((Get-FileHash -LiteralPath $Skin -Algorithm SHA256).Hash -ne $manifest.skinEntrySha256 -or
+    ($manifest.Contains('packageReceiptSha256') -and (Get-FileHash -LiteralPath $packageReceipt -Algorithm SHA256).Hash -ne $manifest.packageReceiptSha256)) {
+    throw "Skin entry or package receipt changed during capture. Evidence: $caseRoot"
 }
 [pscustomobject]@{ Success=$true; Scenario=$Scenario; Mode=$Mode; Frames=$receipt.frames.Count; Skin=$receipt.skinLoaded.name; Receipt=$receiptPath; ExitCode=$exitCode }

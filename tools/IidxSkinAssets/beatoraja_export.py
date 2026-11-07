@@ -20,7 +20,7 @@ from beatoraja_author import (AuthorPackage, Contribution, bms_sections,
                              layout_for, material_bindings, material_templates,
                              read_json, source_path, walk_nodes)
 from beatoraja_native import (AssetSink, Lua, all_of, colour, lua, native_colour,
-                             native_rect, node_rect, scene_properties)
+                             native_rect, node_rect, scene_properties, native_song_expression)
 
 
 MODE = {"p1": ("7k", 0), "p2": ("7k", 0), "dp": ("14k", 2)}
@@ -154,11 +154,29 @@ class Composer:
                                       fallback_contributions=(self.author.base(),)))
         self.skin["font"] = list({item["id"]: item for item in self.skin["font"]}.values())
 
-    def graph(self):
+    def graph(self, layer="all"):
         from beatoraja_graph import export_graph
-        result = export_graph(self.author, self.options, self.keymode, self.presentation, self.sink, self.canvas)
+        result = export_graph(self.author, self.options, self.keymode, self.presentation, self.sink, self.canvas, layer=layer)
         self.handled_roots.update(result["handled_root_ids"])
         self.merge({**result["arrays"], "destination": result["destination"], "gaps": result["gaps"]})
+
+    def turntable(self, frame: Contribution):
+        from beatoraja_decoration import export_turntable
+        result = export_turntable(self.author, self.options, self.keymode, self.presentation, self.sink, self.canvas)
+        self.handled_roots.update(result["handled_root_ids"])
+        self.merge(result)
+
+    def bga_frame(self, frame: Contribution):
+        from beatoraja_decoration import export_bga_frame
+        result = export_bga_frame(self.author, self.options, self.keymode, self.presentation, self.sink, self.canvas)
+        self.handled_roots.update(result["handled_root_ids"])
+        self.merge(result)
+
+    def timing_display(self, frame: Contribution):
+        from beatoraja_timing import export_timing
+        result = export_timing(self.author, self.options, self.keymode, self.presentation, self.sink, self.canvas)
+        self.handled_roots.update(result["handled_root_ids"])
+        self.merge(result)
 
     def widgets(self, frame: Contribution, *, include_judge=True, include_gauge=True):
         from beatoraja_materials import collect_gauge_materials, collect_judge_materials
@@ -177,16 +195,50 @@ class Composer:
             self.merge(compose_gauges(gauge, self.sink, gauges, self.h))
 
     def draw_tree(self, contribution: Contribution, root: dict[str, Any], parent=None,
-                  rgba=(1, 1, 1, 1), blend="alpha", timer=0, offsets=None):
+                  rgba=(1, 1, 1, 1), blend="alpha", timer=0, offsets=None, conditions=()):
         properties, dynamic = scene_properties(root, contribution.scene, self.context)
-        if properties.get("visible", True) is False:
+        visibility = [d for d in dynamic if d["property"] == "visible"]
+        if properties.get("visible", True) is False and not visibility:
             return
-        if any(d["property"] == "visible" for d in dynamic):
-            self.gap("unmapped visibility", node=root["id"], sources=[d["source"] for d in dynamic if d["property"] == "visible"])
-            return
-        if root["type"] != "text" and any(d["property"] == "resource" for d in dynamic):
+        conditions = list(conditions)
+        for operation in visibility:
+            expression = native_song_expression(operation["source"])
+            if expression is None or operation["kind"] != "variants":
+                self.gap("unmapped visibility", node=root["id"], sources=[operation["source"]])
+                return
+            cases = {case["key"]: case["value"] for case in operation["cases"]}
+            conditions.append("(function() local cases=" + lua(cases) + ";local value=cases[" + expression
+                              + "];if value == nil then return " + lua(operation["default"]) + " end;return value end)()")
+        resource_states = [d for d in dynamic if d["property"] == "resource"]
+        if root["type"] != "text" and any(native_song_expression(d["source"]) is None or d["kind"] != "variants" for d in resource_states):
             self.gap("unmapped resource state", node=root["id"], sources=[d["source"] for d in dynamic if d["property"] == "resource"])
             return
+        for track in contribution.scene.get("tracks", []):
+            if track["target"] != root["id"] or track["property"] == "projective-quad":
+                continue
+            keys = track.get("keyframes", [])
+            clock = self.context.get(track.get("clock"))
+            if isinstance(clock, (int, float)) and all(isinstance(k["value"], (int, float)) for k in keys) and keys:
+                if track.get("loop") and keys[-1]["time"] > keys[0]["time"]:
+                    clock = keys[0]["time"] + (clock - keys[0]["time"]) % (keys[-1]["time"] - keys[0]["time"])
+                value = keys[0]["value"]
+                for first, last in zip(keys, keys[1:]):
+                    if clock < last["time"]:
+                        value = first["value"]
+                        if track.get("easing", "linear") == "linear":
+                            ratio = max(0, min(1, (clock - first["time"]) / (last["time"] - first["time"])))
+                            value += (last["value"] - first["value"]) * ratio
+                        break
+                    value = last["value"]
+                properties[track["property"]] = value
+            elif (track.get("clock") == "gauge.value" and track["property"] == "opacity"
+                  and track.get("easing") == "step" and not track.get("loop")
+                  and keys and all(k["value"] in (0, 1) for k in keys)):
+                branches = " ".join("if value < " + lua(b["time"]) + " then return " + lua(bool(a["value"])) + " end"
+                                    for a, b in zip(keys, keys[1:]))
+                conditions.append("(function() local value=main_state.gauge()/100; " + branches
+                                  + " return " + lua(bool(keys[-1]["value"])) + " end)()")
+                properties["opacity"] = 1
         rect = node_rect(properties, parent or self.canvas)
         rgba = colour(properties, rgba)
         if rgba[3] <= 0:
@@ -196,18 +248,48 @@ class Composer:
             self.gap("node transform/effects", node=root["id"])
             return
         kind = root["type"]
-        if kind == "sprite":
-            resource = contribution.resources[properties["resource"]]
-            identifier = self.image(self.sink.add_source(resource["path"]))
+        if kind in ("sprite", "projective-sprite"):
+            orientation = {"flip_x": False, "flip_y": False}
+            if kind == "projective-sprite":
+                from beatoraja_decoration import fixed_projective_quad
+                try:
+                    projected = fixed_projective_quad(root, contribution.scene, rect)
+                except ValueError as error:
+                    self.gap("unsupported projective source", node=root["id"], detail=str(error))
+                    return
+                rect = projected["rect"]
+                rgba = (*rgba[:3], rgba[3] * projected["opacity"])
+                orientation = {k: projected[k] for k in ("flip_x", "flip_y")}
+            def add(resource_id):
+                relative = contribution.resources[resource_id]["path"]
+                if any(orientation.values()):
+                    from beatoraja_decoration import add_oriented_source
+                    return self.image(add_oriented_source(self.sink, relative, **orientation))
+                return self.image(self.sink.add_source(relative))
+            if resource_states:
+                if len(resource_states) != 1:
+                    raise ValueError("Sprite has multiple unresolved resource selectors")
+                operation = resource_states[0]
+                resource_ids = list(dict.fromkeys([operation["default"], *[c["resource"] for c in operation["cases"]]]))
+                cases = {case["key"]: resource_ids.index(case["resource"]) for case in operation["cases"]}
+                identifier = self.identifier("song.art")
+                value = Lua("(function() local cases=" + lua(cases) + ";return function() local value=cases["
+                            + native_song_expression(operation["source"]) + "];return value == nil and 0 or value end end)()")
+                self.skin["imageset"].append({"id": identifier, "images": [add(r) for r in resource_ids], "value": value})
+            else:
+                identifier = add(properties["resource"])
             self.destination(identifier, rect, rgba=rgba, blend=blend,
-                             **({"timer": timer} if timer else {}), **({"offsets": offsets} if offsets else {}))
+                             draw=all_of(conditions), **({"timer": timer} if timer else {}), **({"offsets": offsets} if offsets else {}))
         elif kind == "recorded-animation":
+            if conditions:
+                self.gap("conditional recorded animation", node=root["id"])
+                return
             fixed_time = constant_clock(contribution.scene, root.get("clock"))
             self.draw_baked(contribution.manifest_path, root["animation"], rect, rgba,
                             timer=timer, offsets=offsets, static_time_ms=fixed_time)
         elif kind == "container":
             for child in sorted(root.get("children", []), key=lambda n: -n.get("properties", {}).get("z", 0)):
-                self.draw_tree(contribution, child, rect, rgba, blend, timer, offsets)
+                self.draw_tree(contribution, child, rect, rgba, blend, timer, offsets, conditions)
         elif kind == "text":
             # Text is emitted separately by the native HUD adapter.
             return
@@ -577,8 +659,10 @@ def export(author: AuthorPackage, output: Path, modes: list[str], frames: list[s
             frame = author.contribution("frame", options)
             composer.frame(frame)
             composer.bga(frame)
+            composer.bga_frame(frame)
             composer.graph()
             composer.decorations(frame)
+            composer.turntable(frame)
             composer.key_beams(frame)
             composer.hit_line(frame)
             composer.notes(frame)
@@ -586,6 +670,7 @@ def export(author: AuthorPackage, output: Path, modes: list[str], frames: list[s
             composer.key_lights(frame)
             composer.covers(frame)
             composer.widgets(frame)
+            composer.timing_display(frame)
             composer.hud(frame, native_font_path)
             composer.full_combo(frame)
             composer.event_clips(frame)
