@@ -15,7 +15,7 @@
 
 ## 皮肤恢复与存储
 
-- [beatoraja原生适配](reference_beatoraja_skin_adapter.md) — Lua缓存与菜单JSON扫描、5KEYS/P2靠皿布局、零clip/负时钟/P2镜像、原生offset、DP开场分组、Judge owner与Replay读数、动画挡板grid选格、文件映射释放及索引持有链。
+- [beatoraja原生适配](reference_beatoraja_skin_adapter.md) — Lua缓存与菜单JSON扫描、5KEYS/P2靠皿布局、零clip/负时钟/P2镜像、原生offset、DP开场分组、Judge owner与Replay读数、动画挡板grid选格、文件映射释放、索引持有链及安装身份读取。
 
 - [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage继承、组合预算、冻结ID与跨拓扑几何；原字形/字体、横排行宽和透明padding；原生Preview生命周期、挡板/LIFT、失败前景、Gauge与真实PB；Spice时钟、Time Freeze历史范围、教学页资格、实际子进程退出、Hi-Speed/Classic与Demo取景；0/1来源查漏、原名称字节、ARC SCORE复刻/残留美术/组成别名的资格，旧源缺专用预览与原生能力的区别；BGA透明孔/镜像、原静帧program复用、共像素异动画/双owner路径与state.set压缩引用。
 

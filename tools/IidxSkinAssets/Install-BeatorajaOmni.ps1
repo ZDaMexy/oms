@@ -50,7 +50,18 @@ Assert-PlainAncestors $packageRoot
 Assert-PlainAncestors $skinRoot
 Assert-PlainAncestors $receiptPath
 $sourceReceiptPath = Get-InstallPackageReceipt $packageRoot
-$sourceReceipt = Get-Content -LiteralPath $sourceReceiptPath -Raw | ConvertFrom-Json
+# The full audit sidecar can be hundreds of MiB. Read only the identity into
+# PowerShell; the short-lived Python process releases its full JSON tree before
+# the separate, unchanged package verification starts.
+$identityReader = @'
+import json, sys
+with open(sys.argv[1], encoding='utf-8-sig') as stream:
+    receipt = json.load(stream)
+print(json.dumps({'family': receipt['family'], 'name': receipt['name']}, ensure_ascii=True))
+'@
+$identityJson = & $Python -B -c $identityReader $sourceReceiptPath
+if ($LASTEXITCODE -ne 0) { throw 'Cannot read the package identity.' }
+$sourceReceipt = $identityJson | ConvertFrom-Json
 $names = @{
     standard = 'Standard Model Skin Omni Until 26'
     lightning = 'Lightning Model Skin Omni Until 33'

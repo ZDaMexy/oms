@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 核对：2026-11-07（beatoraja分族交付中）
+> 核对：2026-11-08（beatoraja两族首版交付；OMS状态保持）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -17,8 +17,8 @@
 | --- | --- | --- |
 | Lightning Model Skin Omni Until 33 | OMS | 自动推进停止，完整形态未完成；最新[.v26102902](CHANGELOG.md#2026-10-29omniv52私下交付)，历史Lighting文件名保留；缺口取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md) |
 | Standard Model Skin Omni Until 26 | OMS | 已交付，按反馈/新来源维护；[.v26110700及来源现状](../../other/STANDARD_MODEL_SKIN_20261105.md#本地来源现状)，24/26本体退役、提取素材保留，23/25仅保留美术 |
-| Lightning Until33 | beatoraja | 动画挡板与DP开场代表实绘通过，完整菜单制作中 |
-| Standard Until26 | beatoraja | v26110700已安装、保全并交付ZIP；取[本轮同包验收](../../other/BEATORAJA_IIDX_SKINS_20261107.md#本轮同包验收) |
+| Lightning Until33 | beatoraja | v26110800已安装、保全并交付ZIP |
+| Standard Until26 | beatoraja | v26110700已安装、保全并交付ZIP，原版保持 |
 
 安装与缺口取[适配记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md)。OMS选曲/Results沿[原界面决定](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
 
@@ -46,7 +46,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-11-07：beatoraja Standard 60布局/21场Replay/1645张PNG及282缩略图/31原图审看通过，v26110700已安装、保全与逐文件交付。Lightning l341三布局代表包的183张PNG及42缩略图/5原图审看通过，完整包待验。各族范围与证据取上方记录。
+2026-11-08：beatoraja Lightning 75布局/23场Replay/1340张PNG完整性及289缩略帧/45原图审看通过，v26110800安装、保全与ZIP核验完成。Standard复用11月7日原包及21场证据。合并44场、资源与未验范围取[适配记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md#本轮同包验收)。
 
 2026-11-07：Standard同包22场景/23局、186项制作工具测试及Desktop/作者CLI/取景宿主Release通过。代表组合、逐图审看、失败重试与交付身份取[作品验证](../../other/STANDARD_MODEL_SKIN_20261105.md#本轮验证与交付)。未改生产客户端，产品宽测沿[11月5日记录](CHANGELOG.md#2026-11-05standard保留美术与graph通知接入)。
 

@@ -1,6 +1,6 @@
 # beatoraja IIDX 双作品适配记录
 
-本页记录2026-11-07开始的独立宿主工作，Standard首版已交付，Lightning继续制作；不提升OMS旧包、来源原软件或发行验收。调度取[P1-A维护计划](../subline/P1-A/IIDX_SKIN_MAINTENANCE.md)，状态取[STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)。
+本页记录2026-11-07开始的独立宿主工作；截至11月8日，Standard与Lightning首版均已安装、保全并交付ZIP。不提升OMS旧包、来源原软件或发行验收。调度取[P1-A维护计划](../subline/P1-A/IIDX_SKIN_MAINTENANCE.md)，状态取[STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)。
 
 ## 授权、名称与来源
 
@@ -45,23 +45,43 @@
 
 ## 本轮同包验收
 
-Standard首版`v26110700`已安装并形成ZIP，Lightning仍在处理动画挡板与最终包。Standard来源解析与导出工具冻结于`36c90ab`，精确源码快照另保存在其构建证据中；后续Lightning优化和文档整理不更换该包身份。Standard构建源位于D盘约定父目录的`packages-r1/standard`，不是早期组件切片。
+两族独立交付：Standard为`v26110700`，Lightning为`v26110800`。Standard来源解析与导出工具冻结于`36c90ab`，Lightning冻结于`ded2df3c`，各自精确源码快照保存在构建证据中；后续安装器优化和文档整理不更换包身份。构建源分别位于D盘约定父目录的`packages-r1/standard`与`packages-r2/lightning`，不是早期组件切片。
 
 Standard全部12款Frame、5KEYS/7KEYS两侧与14KEYS DP已生成；实际菜单保留各族来源支持的组件和13项局部控制，没有临时缺烘焙项。官方发现只识别三个Lua入口，全部6707片段、230次装配及60个Frame×布局解析通过。文件清单、组件数量与构建原日志保全于`artifacts/beatoraja-capture/final-build-r1/standard/`。构建监测脚本曾把UTC时间解析成本地时间，旧内存记录只有启动采样，不能宣称整次峰值；限制说明与修正前后脚本均保留。
 
 同一完整Standard包的21场官方Replay覆盖12主题P1、P2/DP、5KEYS两侧、HCN断持恢复、Timing与Judge OFF、FAILED、控制端点及最大默认DP开场/FC负载；1645张PNG与身份、状态、原生读数和正常退出均通过。人工审看21张联系图的282个缩略图，另独立打开31张不同原图（两位审看者合计32次），未确认缺图、持续遮挡或FC/失败退场残留。完整性不等于逐张目视；原生Replay也不代签物理输入、完整歌曲、持续帧率、视频BGA或真实玩家存分/IR。
 
-证据在`artifacts/beatoraja-capture/final-matrix-r1/`的`standard-plan.json`、`standard-integrity.json`与`standard-visual-review.json`；联系图索引保留其生成时“待审看”状态，实际审看以独立回执为准。计划限定Standard范围，完整性与视觉回执均为`globalComplete=false`。后续两族验收必须重新绑定完整矩阵，复用Standard时逐项确认包与场景身份不变。
+Standard证据在`artifacts/beatoraja-capture/final-matrix-r1/`的`standard-plan.json`、`standard-integrity.json`与`standard-visual-review.json`；它们仍限定单族、保留`globalComplete=false`。11月8日合并矩阵逐项核对Standard包及21场定义未变，才复用其原证据，未重跑或刷新其日期。联系图索引保留生成时“待审看”状态，实际审看以独立回执为准。
 
-Standard实际安装目录为`D:/beatoraja/skin/Standard Model Skin Omni Until 26.v26110700`，原选择不变。源包、安装暂存和安装结果三次全清单核对一致；安装后22项关键文件、8个DB、10个官方文件及原11449个skin文件通过保全检查。安装证据为`artifacts/beatoraja-capture/final-install-r1/standard.v26110700.json`，后保全回执为同父证据区的`player-preservation-check-20261107-105736673390.json`。版本化ZIP位于`deliverables/skins/beatoraja/`的同名版本目录，9997个成员逐个核长度与摘要，附使用说明、许可、校验和独立Standard验证记录；不将Lightning未完成范围标成通过。
+Standard实际安装目录为`D:/beatoraja/skin/Standard Model Skin Omni Until 26.v26110700`，原选择不变。源包、安装暂存和安装结果三次全清单核对一致；安装后22项关键文件、8个DB、10个官方文件及原11449个skin文件通过保全检查。安装证据为`artifacts/beatoraja-capture/final-install-r1/standard.v26110700.json`，后保全回执为同父证据区的`player-preservation-check-20261107-105736673390.json`。版本化ZIP位于`deliverables/skins/beatoraja/`的同名版本目录，9997个成员逐个核长度与摘要，附使用说明、许可、校验和独立Standard验证记录；这份历史交付保持原字节及单族范围。
 
-Lightning已通过新挡板载体的代表候选，完整来源已齐备，最终全菜单构建与实绘待验。`l341`原tile128素材重排为167页，实际解码约1806.51MiB；36493格RGBA、268个透明填充、481帧与41047个有序run逐项一致，严格Lift别名不新增资产。生成/核验的Windows已观测内存高水位188.61MiB，不称瞬态绝对峰值或GPU占用。官方CPU选格/显示门、包回归及真实DP开场路由通过；来源资格在D盘专用父目录的`l341-cover-grid-qualified-r1/`。
+Lightning完整包包含15款Frame及15项局部控制，官方三入口发现、11978片段、305次装配和75个Frame×布局通过，未有临时缺烘焙项。实际发现加header约852ms，只是扫描探针，不是完整设置页打开时间。两族132个FC身份、330个开场身份以及Lightning全部21支动画挡板程序（20选择、42个Cover/Lift身份）的完整来源门闭合；新grid资格与原像素、帧及选择保持一致。构建和25个适配器原字节保全于`artifacts/beatoraja-capture/final-build-r2/lightning/`，不重新生成已交付Standard。
 
-该Lightning候选修正BPL tradz DP按各自舞台选择轨道开场；同包SP1/SP2/DP三场官方Replay、183张PNG完整性通过，DP含完整大FC22及三类挡板/Graph。已目视3张联系图的42个缩略图和5张不同原图，未确认grid选格/裁切或开场分组缺陷。SP2的Lift=.1、Hidden=.15读数与活跃Judge交叠已另核源层级和宿主offset，作为上方已知限制保留。证据为`artifacts/beatoraja-capture/cover-grid-native-r1/`的`integrity.json`、`visual-review.json`与`readout-overlap-review.json`；不代签其余动画挡板、最终完整包、持续帧率或物理输入。
+完整Lightning导出约100.7分钟，Python的OS PeakWS为1.821GiB，Java为477.4MiB；10秒采样树高水位约909.5MiB，最低采样可用物理内存约812.4MiB。采样不能覆盖所有瞬间，不能用此前只读索引资格的274.52MiB代称完整构建峰值。最终包25053文件、13049 PNG，约6.854GiB；安装侧车254.62MiB，故安装器改为短命Python读取名称/族别后退出，再做原三次全清单验证。Python仍完整解析JSON，不宣称流式或内存上限；5项身份读取、实际大侧车、12项安装边界及独立审查取`install-metadata-r1/`。
+
+同一完整Lightning包的23场官方Replay覆盖15主题P1、P2/DP、5KEYS两侧、Hard HCN断持恢复、提前/延后Timing、Judge OFF、百分比目标与控制端点、自然FAILED及较大动画负载。1340张PNG的身份、状态、读数及正常退出门通过；实际审看23张联系图的289个缩略帧，另打开45张不同原图，没有确认未接受的视觉缺陷。短时命中画面中HUD/Graph/判定统计曾有不同步读数，后续稳态收敛；它们读取宿主实时值，不能把截图当作原子计分快照。失败用例证明宿主FAILED流程，冻结Lightning作者未声明`gameplay.fail`，不冒称原Stage Failed影片。
+
+最终合并`matrix.json`、`integrity.json`和`visual-review.json`位于`final-matrix-r1/`；完整性与目视回执为双族`globalComplete=true`，共44场、2985张PNG完整性、44联系图/571缩略帧/76张不同原图（77次打开）。Lightning单族回执为`lightning-visual-review.json`，独立身份审查为`final-evidence-review.json`。这些“完整”只针对声明的矩阵；不表示全部配置排列、物理输入、持续性能、真实歌曲/视频BGA或真实玩家保存/IR已验。
+
+Lightning安装为`D:/beatoraja/skin/Lightning Model Skin Omni Until 33.v26110800`；源、暂存、安装三次逐文件核验一致，原选择不改。安装后保全同样通过22项关键文件、8个DB、10个官方文件及原11449个skin文件；回执为`final-install-r2/lightning.v26110800.json`与`player-preservation-check-20261107-182643223393.json`（文件名沿UTC，实际本地日期11月8日）。ZIP为6652403960字节，25053个原生包成员加1份同级运行说明，全部25054成员逐项核长度和SHA；使用说明、许可、校验及验证记录齐全。执行脚本、三次清单和证据引用保全于`final-install-r2/lightning-proof/`。
+
+安装用三份临时验包清单已逐字节保全，但随后删除原临时副本的PowerShell命令被自动审批以`blocked by policy`拒绝，未执行或换方式重试；约16.90MiB临时文件仍保留。具体目标与只读复核取`final-install-r2/install-temp-cleanup.json`，不能将其记为已回收，不影响已完成的安装与交付。
+
+### Lightning资源用量与验收边界
+
+固定BPL tradz DP/fc22，对全部20款动画挡板及基线做官方CPU实装，同款同时用于Lane Cover/Lift Art/Graph Area；21个组合无重复路径source ID。最大为l312，625 PNG、逻辑RGBA8共6756511704字节（约6.292GiB）。四个原生载体共用314张grid图，不重复加载同路径；这是包含其它包内图片的逻辑成本，不含字体、BGA、驱动等，不等于实际显存峰值。21组由同一个`-Xmx1G` Java进程依次执行，各组重建Globals/accessor/Skin，不能称逐组新JVM。
+
+同一固定其它条件的1540种三选择集合投影，最大l312+l335+l336为949 PNG、11469041016字节（约10.681GiB）；没有实际混选装配或GPU验收。原生实装与集合投影分别保存在`cover-grid-r1/footprint-r1/full-lightning-dp-r1/`和`full-lightning-dp-set-analysis-r1/`，不能用旧l341或静态载体的排序代替。
+
+最终Lightning 23场的一秒GPU采样共821行，本机RTX 4060 Laptop GPU（报告8188MiB）总适配器已用高水位7602MiB，包含桌面和其它应用。较大负载场明确绑定bpl-tradz DP/fc22及l312三处同选，并有实绘/退场审看；观测取`final-matrix-r1/gpu-memory-r1/`，不是整44场采样、单皮肤占用、瞬态绝对峰值或FPS结论。运行说明随ZIP在原生目录之外单列，提醒不同动画混选会增加资源、同选可以共享；低显存设备、全部混选和长时体验未签收。
 
 ## 开发阶段验证（历史）
 
 下列记录按各候选当时的覆盖与缺口保留，不能把早期未验项或小包通过直接套用为当前状态；当前同包范围取上节。
+
+Lightning新挡板载体的早期代表候选使用`l341`，当时最终全菜单与实绘待验。原tile128素材重排为167页，实际解码约1806.51MiB；36493格RGBA、268个透明填充、481帧与41047个有序run逐项一致，严格Lift别名不新增资产。生成/核验的Windows已观测内存高水位188.61MiB，不称瞬态绝对峰值或GPU占用。官方CPU选格/显示门、包回归及真实DP开场路由通过；来源资格在D盘专用父目录的`l341-cover-grid-qualified-r1/`。
+
+该Lightning候选修正BPL tradz DP按各自舞台选择轨道开场；同包SP1/SP2/DP三场官方Replay、183张PNG完整性通过，DP含完整大FC22及三类挡板/Graph。已目视3张联系图的42个缩略图和5张不同原图，未确认grid选格/裁切或开场分组缺陷。SP2的Lift=.1、Hidden=.15读数与活跃Judge交叠已另核源层级和宿主offset，作为上方已知限制保留。证据为`artifacts/beatoraja-capture/cover-grid-native-r1/`的`integrity.json`、`visual-review.json`与`readout-overlap-review.json`；不代签其余动画挡板、最终完整包、持续帧率或物理输入。
 
 实际安装的官方JAR/natives/JRE已在独立QA工作目录通过SP1正常REPLAY、SP2自然失败、DP HCN及SP2 CN AUTOPLAY；配置、合成谱、Replay、player和DB全在QA目录。工具核对实际skin路径/选项，捕捉fallback，要求自然状态与正常dispose，阻止HTTP/HTTPS及真实IR。AUTOPLAY只证明自然返回选曲，正常Result由原生Replay获得；不注入成绩、Gauge或判定计时器。
 

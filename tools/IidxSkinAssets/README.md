@@ -20,7 +20,7 @@
 | beatoraja进度与节拍 | `beatoraja_progress.py`、`beatoraja_beat.py` | 原游标读取宿主歌曲进度；原轨道明暗读取公开节拍时钟。宿主完成余量、STOP与小节相位差异留在收据，不自行推算原谱音乐时钟 |
 | beatoraja组件包 | `beatoraja_package.py`、`beatoraja_control_params.py` | 同族共享资产、独立组件片段与稳定选项ID；实际来源逐轴证明可分离的控制生成原生字段值表，其余精确枚举，缺项留在收据。构建前后核工具SHA；CustomTimer同ID须同定义，准备期独占playstart。`tests/BeatorajaPackageProbe.java`用官方JAR核header、片段、完整Frame×Side布局、反序列化及引用闭包；`tests/GraphLuaProbe.java`核宿主Target美术的数值/字体门/原柱高。静态检查不代签游玩 |
 | beatoraja证据完整性 | `beatoraja_verify.py` | `package`逐文件核entry/selection、shard与assets摘要、大小、PNG及脚本清单；新收据为`package-receipt.json.txt`，历史`.json`仅在唯一存在时读取，双份拒绝。`capture`核真实完成/退出门与PNG；输出须全新，不改历史收据 |
-| beatoraja独立安装 | `Install-BeatorajaOmni.ps1` | 只接受新收据名，复制经核验的包清单到新版本目录，复制前/后及最终安装逐文件复核；已有版本拒绝，同卷rename不合并。回执写`artifacts/beatoraja-capture/`，不写玩家设置、成绩或当前skin选择 |
+| beatoraja独立安装 | `Install-BeatorajaOmni.ps1` | 只接受新收据名，短命Python向PowerShell返回名称/族别后退出，再核验源目录、暂存和最终安装的完整清单；不将大侧车树常驻PowerShell。已有版本拒绝，同卷rename不合并。回执写`artifacts/beatoraja-capture/`，不写玩家设置、成绩或当前skin选择 |
 | 动画烘焙与beatoraja实际取景 | [IidxSkinBake](../IidxSkinBake/README.md)、[BeatorajaSkinCapture](../BeatorajaSkinCapture/README.md) | 原生产渲染路径的GPU复合验证与实际官方播放器的独立验收分开；不把离线像素检查当作OpenGL性能/视觉通过 |
 
 完整动画导出按需读取选中的烘焙索引，只缓存当前一项；初选规则、显式覆盖顺序、源文件校验及重读时的索引摘要检查分别保留。挡板缓存只保存可复用的像素和帧映射结果，不持有完整输入索引。此边界限制索引缓存，不代表整个导出进程、Java或GPU占用上限；验证入口为`tests/test_beatoraja_bakes.py`与`tests/test_beatoraja_cover_atlas.py`。

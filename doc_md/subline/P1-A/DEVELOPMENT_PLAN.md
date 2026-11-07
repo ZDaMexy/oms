@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-11-07（beatoraja双作品已启动；OMS来源退役及停止边界保持）
+> 最后核对：2026-11-08（beatoraja两族首版转维护；OMS来源退役及停止边界保持）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -11,7 +11,7 @@
 
 ### 多作品与双平台准备
 
-多作品调度、远期分组及beatoraja制作沿[维护计划](IIDX_SKIN_MAINTENANCE.md)。下方为OMS作品边界，不阻止已获准的beatoraja开发。
+多作品调度、远期分组及beatoraja首版后的维护沿[维护计划](IIDX_SKIN_MAINTENANCE.md)。下方为OMS作品边界，不阻止已获准的beatoraja维护。
 
 ### Standard Model Skin Omni Until 26
 
