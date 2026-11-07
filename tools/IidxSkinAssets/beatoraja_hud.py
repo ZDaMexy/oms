@@ -155,8 +155,12 @@ def _glyph_images(font: dict[str, Any], resources: dict[str, Any], sink: AssetSi
     glyphs = []
     for glyph in font["glyphs"]:
         character, advance = glyph["character"], glyph["advance"]
-        if len(character) != 1 or advance != int(advance) or advance < 0:
+        # Original coordinate transforms can leave an integral advance a few
+        # ULPs below/above its pixel value. BMFont itself requires an integer.
+        integer_advance = round(advance)
+        if len(character) != 1 or abs(advance - integer_advance) > 1e-9 or advance < 0:
             raise ValueError("BMFont export requires one character and an integral nonnegative advance")
+        advance = integer_advance
         path = resources[glyph["resource"]]["path"]
         sink.add_source(path)  # Retain exact author provenance through the common sink.
         with Image.open(source_path(sink.author_root, path)) as source:

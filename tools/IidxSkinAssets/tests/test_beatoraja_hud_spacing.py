@@ -14,7 +14,7 @@ from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from beatoraja_author import Contribution
-from beatoraja_hud import _scaled_integer, export_hud
+from beatoraja_hud import _bitmap_font, _scaled_integer, export_hud
 from beatoraja_native import AssetSink, lua
 
 
@@ -83,6 +83,28 @@ class HudSpacingTests(unittest.TestCase):
         font["glyphs"][0]["advance"] = 31
         result, gaps = self.scaled(font=font)
         self.assertIsNone(result)
+
+    def test_near_integral_advance_keeps_exact_integer_font_bytes(self):
+        font = deepcopy(self.font)
+        for glyph in font["glyphs"]:
+            glyph["advance"] = 29
+        expected = _bitmap_font(font, self.resources, self.sink)
+        files = {p.name: p.read_bytes() for p in (self.output / "assets").iterdir()}
+        for advance in (28.99999999999997, 29 - 5e-10, 29 + 5e-10):
+            with self.subTest(advance=advance):
+                for glyph in font["glyphs"]:
+                    glyph["advance"] = advance
+                self.assertEqual(expected, _bitmap_font(font, self.resources, self.sink))
+                self.assertEqual(files, {p.name: p.read_bytes() for p in (self.output / "assets").iterdir()})
+                self.assertEqual(advance, font["glyphs"][0]["advance"])
+
+    def test_fractional_or_negative_advance_is_still_rejected(self):
+        for advance in (29.25, 29 - 2e-9, 29 + 2e-9, -5e-10):
+            with self.subTest(advance=advance):
+                font = deepcopy(self.font)
+                font["glyphs"][0]["advance"] = advance
+                with self.assertRaisesRegex(ValueError, "integral nonnegative advance"):
+                    _bitmap_font(font, self.resources, self.sink)
 
     def test_minimum_bpm_binding_is_emitted_and_reading_ownership_skip_survives(self):
         text = {"id": "min-bpm", "type": "text", "properties": {

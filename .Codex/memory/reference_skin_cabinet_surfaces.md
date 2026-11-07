@@ -143,6 +143,8 @@ Time Freeze先核实际`-patchcfgpath`和最终日志，不能只看默认配置
 
 ## Standard 来源与能力诊断
 
+原电影的 named instance 不全是待替换数字：剔除 game-controlled 节点后，应逐名核原调用方、父容器变换、图层及显隐状态。22 的 `sco_waku_1p/2p` 是各侧原成绩底板，`bpm_waku` 是 `pm_bpm2` 的 MIN/BPM/MAX 标签；数字正常不代表这些底板已经恢复。恢复时须保留自身源图与完整 UV，并在真实读数下面绘制。原型、动态重绘和缺少宿主状态的节点不能按静态图一概补回；例如 BPM 范围恒显与原版相等时隐藏、DP 最终位置与原入场父层运动应分别记为适配。来源及实际范围仍取 [Standard记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)，不能从 named 数量直接推出原机机能完整。
+
 同一 HDD 内的旧代主题不等于该旧代原版来源：Rootage 的 `gmframe03/08/12/14/16/17/19/21` 属于 ARC SCORE 旧作复刻主题，不能由最小编号03推出覆盖3～26，也不能用主题款数替代原版代数。组成库的`s23/s24`与`gmframe23`又是[明确作者别名](../../tools/IidxSkinAssets/standard_source_catalog.py)，须沿`sourceComposition`、`origin`与保留的输入清单回到原路径，不能把组成库路径当作原HDD目录或已取得23程序的证据。当前来源分类只取 [Standard记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#身份与来源)。
 
 相同PNG不证明同一动画：24的`fcombo00`与26共像素，但AFP/GEO不同，须保留独立来源；不能按PNG摘要去掉旧FC。原文件逐字节保全、atlas解码像素一致、GEO/AFP调用资格各是不同证明。依据取[24来源接入](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#2026-11-07-24-来源接入)，不在记忆复制素材数量或成品版本。

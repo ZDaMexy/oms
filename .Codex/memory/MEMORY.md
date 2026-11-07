@@ -15,9 +15,9 @@
 
 ## 皮肤恢复与存储
 
-- [beatoraja原生适配](reference_beatoraja_skin_adapter.md) — Lua缓存与菜单JSON扫描、5KEYS/P2靠皿布局、零clip/负时钟/P2镜像、原生offset、DP开场分组、Judge owner与Replay读数、动画挡板grid选格、文件映射释放、索引持有链及安装身份读取。
+- [beatoraja原生适配](reference_beatoraja_skin_adapter.md) — Lua缓存与菜单JSON扫描、5KEYS/P2靠皿布局、零clip/负时钟/P2镜像、字体整数余差、原生offset、DP开场分组、Judge owner与Replay读数、动画挡板grid选格、文件映射释放、索引持有链及安装身份读取。
 
-- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage继承、目录结构与归档配置的独立预算、冻结ID与跨拓扑几何；原字形/字体、横排行宽和透明padding；原生Preview生命周期、挡板/LIFT、失败前景、Gauge与真实PB；Spice时钟、Time Freeze历史范围、教学页资格、实际子进程退出、Hi-Speed/Classic与Demo取景；0/1来源查漏、原名称字节、ARC SCORE复刻/残留美术/组成别名的资格，旧源缺专用预览与原生能力的区别；BGA透明孔/镜像、原静帧program复用、共像素异动画/双owner路径与state.set压缩引用。
+- [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage继承、目录结构与归档配置的独立预算、冻结ID与跨拓扑几何；原字形/字体、横排行宽和透明padding；原生Preview生命周期、挡板/LIFT、失败前景、Gauge与真实PB；Spice时钟、Time Freeze历史范围、教学页资格、实际子进程退出、Hi-Speed/Classic与Demo取景；0/1来源查漏、原名称字节、ARC SCORE复刻/残留美术/组成别名的资格，旧源缺专用预览与原生能力的区别；named底板遗漏与动态实例资格、BGA透明孔/镜像、原静帧program复用、共像素异动画/双owner路径与state.set压缩引用。
 
 - [2026-07-10 皮肤恢复](reference_skin_recovery_20260710.md) — 恢复锚点、归档与重新准入；**皮肤任务先读**。
 - [2026-07-13 schema 56 皮肤清点](reference_skin_schema56_inventory_20260713.md) — 只读取证、失效类型与 Realm mtime 误判。

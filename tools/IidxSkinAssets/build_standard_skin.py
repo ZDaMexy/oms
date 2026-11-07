@@ -12,7 +12,8 @@ import copy
 import hashlib
 import json
 from pathlib import Path
-from standard_source_catalog import frame_token, frame_id, package_key, source_style, SOURCE22_STYLES
+from standard_source_catalog import (frame_token, frame_id, package_key, source_style,
+                                     SOURCE22_STYLES, SOURCE22_AVAILABLE_STYLES)
 import shutil
 import sys
 from urllib.parse import unquote
@@ -523,7 +524,67 @@ class Frame:
                                         'Verified fully transparent opening after composing both original movies; OMS fit and lower-HUD clipping are author adaptations.')})
         return rectangles
 
+    def score_panel(self):
+        if self.style not in SOURCE22_AVAILABLE_STYLES or self.dp or self.wide:
+            return
+        # These named, one-frame source panels are removed from recorded art
+        # together with game-controlled placeholders. The original caller keeps
+        # only the participating side; restore that side before its live digits.
+        hook = 'sco_waku_' + self.player
+        draws = self.draws(hook, self.centre)
+        if len(draws) != 1:
+            raise ValueError(f'{self.key}/{self.layout} requires one original {hook}')
+        draw = draws[0]
+        asset, bounds = draw['asset'], draw['bounds']
+        width, height = asset['width'], asset['height']
+        vertices = [{'x': x, 'y': y, 'z': 0} for x, y in
+                    ((0, 0), (width, 0), (0, height), (width, height))]
+        projected = [{**v, 'x': v['x'] + bounds['left'], 'y': v['y'] + bounds['top']} for v in vertices]
+        if (asset['package'] != self.key or draw['texture'] != hook or draw['game_bindings'] != [hook]
+                or draw['source_vertices'] != vertices or draw['projected_vertices'] != projected
+                or bounds['right'] - bounds['left'] != width or bounds['bottom'] - bounds['top'] != height
+                or draw['mask_present'] or draw['blend'] != 0
+                or draw['mult_color'] != dict.fromkeys(('r', 'g', 'b', 'a'), 1)
+                or draw['add_color'] != dict.fromkeys(('r', 'g', 'b', 'a'), 0)
+                or draw['draw_params'] != [{'flags': 3, 'region': hook, 'vertexes': [0, 1, 2, 2, 1, 3], 'blend': None}]):
+            raise ValueError(f'{self.key}/{self.layout} score panel is not the qualified original rectangle')
+        resource, _ = self.asset(self.key, hook)
+        self.info.append(node(self.prefix + '.score-panel', 'sprite', rect(bounds, dx=self.dx), resource))
+        self.evidence.append({'scorePanel': {'sourceHook': hook, 'sourcePackage': self.key,
+            'sourceBounds': bounds, 'centreTranslation': self.dx,
+            'scope': 'Own original single-frame panel and source rectangle; only the participating SP side is restored below its live digits. Wide/DP use their separate original cabinet art.'}})
+
+    def bpm_range_panel(self):
+        if self.style not in SOURCE22_AVAILABLE_STYLES:
+            return
+        # Native22 hides this named layer and both extrema when min == max.
+        # This author already displays the actual extrema continuously; restore
+        # their own labels with that host behavior, below the live readouts.
+        draws = self.draws('bpm_waku', self.centre)
+        if len(draws) != 1:
+            raise ValueError(f'{self.key}/{self.layout} requires one original bpm_waku')
+        draw = draws[0]
+        asset, bounds = draw['asset'], draw['bounds']
+        vertices = [{'x': x, 'y': y, 'z': 0} for x, y in ((0, 0), (280, 0), (0, 64), (280, 64))]
+        projected = [{**v, 'x': v['x'] + bounds['left'], 'y': v['y'] + bounds['top']} for v in vertices]
+        if (asset['package'] != self.key or asset['width'] != 280 or asset['height'] != 64
+                or draw['texture'] != 'pm_bpm2' or draw['game_bindings'] != ['bpm_waku']
+                or draw['source_vertices'] != vertices or draw['projected_vertices'] != projected
+                or bounds['right'] - bounds['left'] != 280 or bounds['bottom'] - bounds['top'] != 64
+                or draw['mask_present'] or draw['blend'] != 0
+                or draw['mult_color'] != dict.fromkeys(('r', 'g', 'b', 'a'), 1)
+                or draw['add_color'] != dict.fromkeys(('r', 'g', 'b', 'a'), 0)
+                or draw['draw_params'] != [{'flags': 3, 'region': 'pm_bpm2', 'vertexes': [0, 1, 2, 2, 1, 3], 'blend': None}]):
+            raise ValueError(f'{self.key}/{self.layout} BPM range panel is not the qualified original rectangle')
+        resource, _ = self.asset(self.key, 'pm_bpm2')
+        self.info.append(node(self.prefix + '.bpm-range-panel', 'sprite', rect(bounds, dx=self.dx), resource))
+        self.evidence.append({'bpmRangePanel': {'sourceHook': 'bpm_waku', 'sourcePackage': self.key,
+            'sourceTexture': 'pm_bpm2', 'sourceBounds': bounds, 'centreTranslation': self.dx,
+            'scope': 'Own full-size MIN/BPM/MAX art at the final source rectangle, below the existing actual extrema. The host continuously displays both extrema and their labels; native22 hides these when min equals max. Original DP ancestor entry motion is not restored by this direct HUD layer.'}})
+
     def numbers(self):
+        self.score_panel()
+        self.bpm_range_panel()
         digits, h = self.font('numbers', self.key, {str(i):f'playm_sco{i:02}' for i in range(10)}, 26)
         bpm, bh = self.font('bpm', self.key, {str(i):f'playm_bpm{i:02}' for i in range(10)}, 26)
         small, sh = self.font('small-bpm', layout_family(self.style) + '/gameparts', {str(i):f'playm_bpm_m{i:02}' for i in range(10)}, 17)

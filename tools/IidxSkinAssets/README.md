@@ -111,7 +111,7 @@ dotnet run --project tools/SkinAuthoring -- pack "$taskStandardRoot/author-compa
 
 纯26复跑仍可使用合格283包库及匹配研究，不经过组成步骤；需重提取时，先重新取得26 HDD，再以 `--graphic-root contents/data/graphic --selection tools/IidxSkinAssets/selection-26-hdd.json --preserve-raw-texture-names` 生成新库。异常名恢复按原始bytes寻找精确MD5条目，使用安全落盘名并保存 `texturelist.original.bin` 与 `texturelist.name-map.json`，不猜字符、不替换原IFS；正常名称沿原解码行为，其它错误仍明确失败。恢复名字不等于这些图已被作品采用。
 
-`--frame-maps` 必须是JSON文件，不能传研究目录；组成工具输出十二个Frame ID到各自 `skin-reference-map.json`，纯26输入则为十个，所有路径须位于该JSON目录下。来源族显式传入，不能从画布尺寸猜测。组成研究只在重新核对全部原输入字节后复用旧导出，不修改旧研究。当前代码从零生成时包含现有组件修正；仅复用早期组件导出时才使用 `--component-overrides` 加载同一来源身份的修订目录。`standard_feedback.prepare_feedback_font()` 生成两张数字atlas和独立静态标签；字形区域放在glyph的 `rect`，资源声明不含 `region`，同一规范化路径只声明一个资源。Start、Graph与挡板读数共用这些字体。
+`--frame-maps` 必须是JSON文件，不能传研究目录；纯26输入保留十份来源映射，24/26为十二份，22/24/26为十八份，其中十七份具有主题生成资格。每项指向各自 `skin-reference-map.json`，所有路径须位于该JSON目录下。来源族显式传入，不能从画布尺寸猜测。组成研究只在重新核对全部原输入字节后复用旧导出，不修改旧研究。当前代码从零生成时包含现有组件修正；仅复用早期组件导出时才使用 `--component-overrides` 加载同一来源身份的修订目录。`standard_feedback.prepare_feedback_font()` 生成两张数字atlas和独立静态标签；字形区域放在glyph的 `rect`，资源声明不含 `region`，同一规范化路径只声明一个资源。Start、Graph与挡板读数共用这些字体。
 
 `standard_bga.py` 的准备入口输出全新私有JSON，`build_standard_skin.py --bga-geometry` 读取并复核其中原文件、几何与完整入场/循环状态。BMS模块 `bga-frame` 默认 `off`（完整画面），`on` 为Classic BGA Frame（旧式外框）；它是人工美术选择，因为OMS没有原IIDX旧曲版本或Camera状态，不自动猜旧曲或模拟Camera。SP保留原PNG/UV与四边形，并裁在现有框体的BGA开口内；DP没有对应源钩子，两项保持既有双窗口。这一OMS组合适配与原机逐像素等价分开验收。
 
