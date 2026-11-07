@@ -4,6 +4,8 @@
 
 Lua皮肤header与body分别执行；require缓存会保留返回表，被合并过的片段必须由factory每次返回新表。字符串对象ID需要整体命名空间，数值timer/ref/offset不能顺带改名。相同custom timer ID只能复用相同定义，否则后者会覆盖前者；参考[组件包](../../tools/IidxSkinAssets/beatoraja_package.py)。
 
+官方Skin配置会递归扫描全部`.json`，未知字段被忽略不代表文件不会完整解析。大型审计清单应使用`package-receipt.json.txt`，不能把仅直接加载`.luaskin`成功当成菜单扫描通过；独立发现门见[官方扫描探针](../../tools/IidxSkinAssets/tests/SkinDiscoveryProbe.java)。历史旧名只读保留，正式安装不能继续投放旧JSON侧车。
+
 5KEYS必须使用独立type1和六路NoteSet，不能套用LR2的7转5菜单兼容。作者P2五键位于原七键靠皿侧，按实际5K layout读取，不能取前六列；逻辑scratch的timer身份也不能硬写第八路。缓存同时保留keymode与presentation，避免相同框体/素材误用八路片段；诊断取[六路来源测试](../../tools/IidxSkinAssets/tests/test_beatoraja_five_keys.py)。
 
 原生clip宽或高为0代表无clip，不能靠零面积隐藏整图。TimerProperty微秒origin转换毫秒时对负数向零截断，合成几何时钟必须与实际SkinObject规则核对；极低正值可被截成elapsed=0。P2的两次180°旋转必须沿祖先保留signed rect，看到叶子最终正向不能删掉中间镜像。回归取[Gauge原生探针](../../tools/IidxSkinAssets/tests/GaugeClipProbe.java)。

@@ -41,6 +41,8 @@
 
 每次工作目录独立保存 `config_sys.json`、合成 `player/capture/`、song/review DB、`folder/`、`random/`、table、日志、JVM 解包目录与编译 class。源皮肤和安装资源通过绝对路径读取；不复制全程序或完整 skin 库。皮肤图像缓存关闭，避免 `.cim` 写回资产旁。
 
+组件包收据使用 `package-receipt.json.txt`，避免官方 Skin 菜单把审计数据当作 JSON 皮肤完整解析。Capture 仍可核验历史唯一的 `package-receipt.json`；两份同时存在时拒绝，回执记录实际文件路径。正式安装只接受新名称。官方默认皮肤没有组件包收据时仍可单独取景。
+
 IR 配置为空，IPFS、Discord、请求服务和自动扫描关闭。官方选曲仍会无条件启动 BMS Search；宿主显式拒绝 Java HTTP/HTTPS 连接，回执记录被阻止的请求数。预期的 `Network disabled by skin capture host` 日志不算皮肤警告，其余 WARNING/SEVERE 使 `diagnosticsClean=false`，本轮判失败。SLF4J 的无绑定提示和 parser 的 INFO 消息保留在 stderr；不把未登记到 Logger 的输出概括成“无警告”。本工具不是不可信 Lua 的文件系统 sandbox，只用于本任务审查过的皮肤。
 
 产物：

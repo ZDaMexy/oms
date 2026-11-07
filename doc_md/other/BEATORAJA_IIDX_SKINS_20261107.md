@@ -86,4 +86,8 @@ Graph Target Artwork进一步按实际叶子角色补齐Standard custom/NEXT/NEX
 
 `five-key-r1`实际完成Standard P1 HCN断持恢复、P2 CN，Lightning P1 HCN与P2 Full HD提前/延后50ms四局，均自然MusicResult并正常退出；独立官方default5自测也通过。五局343张PNG、入口/包/源码身份、真实6路1stage与共享framebuffer完整性通过，9张原图目视确认靠皿布局、挡板读数、持续光恢复和FAST/SLOW。证据为`artifacts/beatoraja-capture/five-key-r1/capture-integrity-and-visual-review.json`，CPU原日志与回执保留在同目录`static/`。这是同一工具快照的默认主题资格，最终全菜单135布局与同包实绘仍待完成；不宣称10KEYS或物理输入验收。
 
+安装前复核官方`SkinConfiguration.scanSkins`发现其递归收集所有`.json`，`JSONSkinLoader`会完整读取审计侧车后才因缺少skin type忽略它。新包因此改用`package-receipt.json.txt`；原生绘制与Lua不变，历史旧名只作唯一文件的只读验收，同时存在两份时拒绝，正式安装只接新名。官方JAR实际扫描已复现旧候选多读一份收据，三入口合成目录改名后只发现5/7/14三个入口；31项生成/完整性focused及12项PowerShell边界检查通过。新名合成包的实际复制、三次完整性及4份原文件保全也通过；证据在`artifacts/beatoraja-capture/package-sidecar-r1/`。最终完整包还须通过独立发现与header门，扫描耗时不等于打开设置页的整体体验。
+
+安装签收还要求目标精确属于实际`D:/beatoraja/skin/<版本名>`，保全必须在安装结束后开始；排除的新目录须真实存在，且不是初始皮肤清单中的目录。后回执固定初始清单SHA及原tree摘要，14项隔离合成检查通过，旧11449文件基线与新校验合同相符。新侧车名下的私有脚本复验和精确快照在`artifacts/beatoraja-capture/release-safety-r2/`；这些准备检查不代表真实播放器已经安装或打包。
+
 各主题稳态、Ready/已有Fail、全部普通光柱/爆炸与Lightning四档光柱长度、默认FC三模式、Standard全Gauge/Graph反馈均已获得完整或声明的固定clock烘焙；其它FC与剩余动画挡板仍在串行完成。完整菜单与最终同包验收尚未结束。真实物理输入、长期手感、视频BGA、真实玩家保存/IR、所有配置排列与选曲/Results皮肤未签收；尚无beatoraja正式成品版本或部署验收。

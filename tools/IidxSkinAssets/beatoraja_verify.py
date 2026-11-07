@@ -25,9 +25,19 @@ def read(path):
     return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
+def package_receipt_path(root: Path) -> Path:
+    """Select one sidecar, retaining historical packages without ambiguity."""
+    candidates = [name for name in ("package-receipt.json.txt", "package-receipt.json")
+                  if (root / name).exists()]
+    if len(candidates) != 1:
+        raise ValueError("Expected exactly one package receipt: package-receipt.json.txt or package-receipt.json")
+    source_path(root, candidates[0])
+    return root / candidates[0]
+
+
 def verify_package(root: Path):
     root = root.resolve(strict=True)
-    receipt_path = source_path(root, "package-receipt.json")
+    receipt_path = package_receipt_path(root)
     receipt = read(receipt_path)
     if receipt.get("contract") != "oms-beatoraja-modular-package.v1":
         raise ValueError("Expected the modular-package receipt")
@@ -51,7 +61,7 @@ def verify_package(root: Path):
         relative = assets[sha].relative_to(root).as_posix()
         declared[relative] = sha
         sizes[relative] = asset["bytes"]
-    declared["package-receipt.json"] = digest(receipt_path)
+    declared[receipt_path.name] = digest(receipt_path)
     rows, png_count = [], 0
     for relative, expected in sorted(declared.items()):
         path = source_path(root, relative)
@@ -70,7 +80,7 @@ def verify_package(root: Path):
         raise ValueError("Runtime script inventory differs from the package receipt")
     identity = hashlib.sha256(json.dumps(rows, separators=(",", ":")).encode("utf-8")).hexdigest()
     return {"root": str(root), "family": receipt["family"], "payloadSha256": identity,
-            "receiptSha256": declared["package-receipt.json"], "files": len(rows),
+            "receiptSha256": declared[receipt_path.name], "files": len(rows),
             "bytes": sum(row["bytes"] for row in rows), "pngs": png_count, "inventory": rows}
 
 

@@ -46,6 +46,19 @@ foreach ($name in @('Skin','Jar','Java','Javac','ResourceRoot','NativeRoot')) {
     $value = Get-Variable -Name $name -ValueOnly
     Set-Variable -Name $name -Value (Resolve-Path -LiteralPath $value).Path
 }
+function Get-CapturePackageReceipt([string]$SkinPath) {
+    $parent = Split-Path -Parent $SkinPath
+    $candidates = @('package-receipt.json.txt', 'package-receipt.json' | ForEach-Object {
+        $candidate = Join-Path $parent $_
+        if (Test-Path -LiteralPath $candidate) { $candidate }
+    })
+    if ($candidates.Count -gt 1) { throw 'Ambiguous package receipts: keep exactly one sidecar.' }
+    if ($candidates.Count -eq 1) {
+        if (-not (Test-Path -LiteralPath $candidates[0] -PathType Leaf)) { throw 'The package receipt must be a file.' }
+        return $candidates[0]
+    }
+}
+$packageReceipt = Get-CapturePackageReceipt $Skin
 $OutputRoot = [IO.Path]::GetFullPath($OutputRoot)
 $allowed = @((Join-Path $repo '.dev-cache\temp\beatoraja-capture-dev'), (Join-Path $repo 'artifacts\beatoraja-capture'))
 if (-not ($allowed | Where-Object { $OutputRoot.Equals($_, [StringComparison]::OrdinalIgnoreCase) -or $OutputRoot.StartsWith($_ + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) })) {
@@ -69,8 +82,7 @@ $tempPath = Join-Path $caseRoot 'temp'
 [IO.Directory]::CreateDirectory($classes) | Out-Null
 [IO.Directory]::CreateDirectory($tempPath) | Out-Null
 $manifest = [ordered]@{ schema=1; purpose='Disposable beatoraja skin capture'; engineJar=$Jar; engineSha256=(Get-FileHash -LiteralPath $Jar -Algorithm SHA256).Hash; harnessSourceSha256=(Get-FileHash -LiteralPath (Join-Path $PSScriptRoot 'Capture.java') -Algorithm SHA256).Hash; launcherSourceSha256=(Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash; java=$Java; skin=$Skin; skinEntrySha256=(Get-FileHash -LiteralPath $Skin -Algorithm SHA256).Hash; resourceRoot=$ResourceRoot; nativeRoot=$NativeRoot; scenario=$Scenario; mode=$Mode; keyMode=$KeyMode; createdUtc=[DateTime]::UtcNow.ToString('O') }
-$packageReceipt = Join-Path (Split-Path -Parent $Skin) 'package-receipt.json'
-if (Test-Path -LiteralPath $packageReceipt -PathType Leaf) {
+if ($packageReceipt) {
     $manifest.packageReceipt = $packageReceipt
     $manifest.packageReceiptSha256 = (Get-FileHash -LiteralPath $packageReceipt -Algorithm SHA256).Hash
 }
@@ -115,6 +127,9 @@ $receipt = Get-Content -Raw -LiteralPath $receiptPath | ConvertFrom-Json
 if (-not $receipt.success -or -not $receipt.normalDispose) {
     $reason = if ($receipt.error) { $receipt.error } elseif (-not $receipt.diagnosticsClean) { 'Unexpected WARNING/SEVERE; inspect receipt warnings' } else { 'Incomplete outcome or disposal' }
     throw "Capture assertions failed: $reason. Evidence: $caseRoot"
+}
+if ((Get-CapturePackageReceipt $Skin) -cne $packageReceipt) {
+    throw "Package receipt identity changed during capture. Evidence: $caseRoot"
 }
 if ((Get-FileHash -LiteralPath $Skin -Algorithm SHA256).Hash -ne $manifest.skinEntrySha256 -or
     ($manifest.Contains('packageReceiptSha256') -and (Get-FileHash -LiteralPath $packageReceipt -Algorithm SHA256).Hash -ne $manifest.packageReceiptSha256)) {

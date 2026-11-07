@@ -1,13 +1,16 @@
 """Portable checks for actual modular selection and object-reference hazards."""
 
 import copy
+import json
 from pathlib import Path
 import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import beatoraja_package as package
 from beatoraja_native import Lua
 from beatoraja_control_params import UnqualifiedParameters
 from beatoraja_package import (Shards, blocking_gaps, entry_script, extract_fragment,
@@ -17,9 +20,42 @@ from beatoraja_package import (stable_option_ids, control_choices, control_combi
                                CompositionCache, tool_file_hashes, verify_tool_files)
 from beatoraja_package import has_component_output
 from beatoraja_package import STAGES, TIMINGS, _options, compose_stage
+from beatoraja_verify import verify_package
 
 
 class PackageTests(unittest.TestCase):
+    def test_export_keeps_receipt_out_of_skin_json_scan(self):
+        parent = Path(__file__).resolve().parents[3] / ".dev-cache/temp/beatoraja-package-tests"
+        parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(dir=parent) as folder:
+            root = Path(folder)
+            source = root / "author"
+            source.mkdir()
+            manifest = {"contentCatalog": "catalog.json", "options": []}
+            (source / "gameplay-skin.json").write_text(json.dumps(manifest), encoding="utf-8")
+            (source / "catalog.json").write_text("{}", encoding="utf-8")
+            author = SimpleNamespace(root=source, family="standard", name="Synthetic package",
+                                     manifest=manifest, modules={"frame": {"default": "f",
+                                         "choices": [{"value": "f", "label": "Fixture"}]}},
+                                     options=lambda keymode, side, values: dict(values),
+                                     contribution=lambda module, options: SimpleNamespace(scene={}))
+            output = root / "package"
+            # Exercise the real package writer and three entry identities;
+            # source-art composition is unrelated to the sidecar filename.
+            with patch.object(package, "STAGES", ("frame",)), \
+                    patch.object(package, "scan_cap_height", return_value=24), \
+                    patch.object(package.Composer, "graph", return_value=None), \
+                    patch.object(package, "compose_stage", return_value={"destination": []}):
+                receipt = package.export_package(author, output, modes=["p1", "dp", "5p1"])
+            self.assertEqual(receipt, json.loads((output / "package-receipt.json.txt").read_text(encoding="utf-8")))
+            self.assertEqual([], list(output.rglob("*.json")))
+            for mode in (5, 7, 14):
+                self.assertTrue((output / f"play{mode}.luaskin").is_file())
+                self.assertTrue((output / f"selection{mode}.lua").is_file())
+            inventory = {row["path"] for row in verify_package(output)["inventory"]}
+            self.assertIn("package-receipt.json.txt", inventory)
+            self.assertNotIn("package-receipt.json", inventory)
+
     def test_namespace_updates_note_judge_imageset_and_font_references_only(self):
         draw = Lua("function() return main_state.number(101)>0 end")
         original = {"source": [{"id": "source", "path": "assets/source.png"}],

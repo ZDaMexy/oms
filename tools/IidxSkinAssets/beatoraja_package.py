@@ -2,7 +2,7 @@
 
 The header contains only real author choices. A choice is advertised only when
 its adapter is available in every included frame/mode. Missing bakes and other
-unmapped choices remain in package-receipt.json; they never silently substitute
+unmapped choices remain in package-receipt.json.txt; they never silently substitute
 another author's choice. Frame decoration/HUD limitations are also retained.
 
 The build is additive in module choices, not their Cartesian product. Notes and
@@ -891,7 +891,7 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
                "coverage": coverage, "shards": shards.records, "assets": sink.provenance,
                "boundary": "Native loader structure only; no visual, GPU, input, timing or product acceptance implied."}
     verify_tool_files(tool_files)
-    (output / "package-receipt.json").write_text(json.dumps(receipt, indent=2, ensure_ascii=False), encoding="utf-8")
+    (output / "package-receipt.json.txt").write_text(json.dumps(receipt, indent=2, ensure_ascii=False), encoding="utf-8")
     return receipt
 
 

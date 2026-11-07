@@ -38,10 +38,19 @@ function Assert-PlainAncestors([string]$Path) {
         $current = Split-Path -Parent $current
     }
 }
+function Get-InstallPackageReceipt([string]$Root) {
+    if (Test-Path -LiteralPath (Join-Path $Root 'package-receipt.json')) {
+        throw 'Installation requires package-receipt.json.txt only; legacy or dual sidecars remain historical verification inputs.'
+    }
+    $path = Join-Path $Root 'package-receipt.json.txt'
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw 'Missing new-format package-receipt.json.txt.' }
+    return $path
+}
 Assert-PlainAncestors $packageRoot
 Assert-PlainAncestors $skinRoot
 Assert-PlainAncestors $receiptPath
-$sourceReceipt = Get-Content -LiteralPath (Join-Path $packageRoot 'package-receipt.json') -Raw | ConvertFrom-Json
+$sourceReceiptPath = Get-InstallPackageReceipt $packageRoot
+$sourceReceipt = Get-Content -LiteralPath $sourceReceiptPath -Raw | ConvertFrom-Json
 $names = @{
     standard = 'Standard Model Skin Omni Until 26'
     lightning = 'Lightning Model Skin Omni Until 33'
@@ -66,6 +75,9 @@ function Verify-Package([string]$Path, [string]$Name) {
 }
 $source = Verify-Package $packageRoot 'source'
 if (-not $source.payloadSha256 -or $source.files -lt 3) { throw 'No complete package inventory was verified.' }
+if (@($source.inventory | Where-Object { $_.path.EndsWith('.json', [StringComparison]::OrdinalIgnoreCase) }).Count) {
+    throw 'This Lua Omni package must not install JSON metadata into the player skin scan.'
+}
 $drive = [IO.DriveInfo]::new([IO.Path]::GetPathRoot($skinRoot))
 if ($drive.AvailableFreeSpace -lt ($source.bytes + 16MB)) { throw 'Insufficient space for the verified skin payload.' }
 $staging = [IO.Path]::GetFullPath((Join-Path $skinRoot ('.oms-install-' + [Guid]::NewGuid().ToString('N'))))

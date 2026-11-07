@@ -18,8 +18,8 @@
 | beatoraja准备期与开场 | `beatoraja_preparation.py`、`beatoraja_entrance.py`、`beatoraja_entrance_art.py` | 原Frame时长、Ready最后1500ms、原位移/透明度/quad与完整录制；只观察公开时钟，不写宿主计时器。缺失READY历史不伪造epoch；整数采样和GPU边缘差异显式保留 |
 | beatoraja进度与节拍 | `beatoraja_progress.py`、`beatoraja_beat.py` | 原游标读取宿主歌曲进度；原轨道明暗读取公开节拍时钟。宿主完成余量、STOP与小节相位差异留在收据，不自行推算原谱音乐时钟 |
 | beatoraja组件包 | `beatoraja_package.py`、`beatoraja_control_params.py` | 同族共享资产、独立组件片段与稳定选项ID；实际来源逐轴证明可分离的控制生成原生字段值表，其余精确枚举，缺项留在收据。构建前后核工具SHA；CustomTimer同ID须同定义，准备期独占playstart。`tests/BeatorajaPackageProbe.java`用官方JAR核header、片段、完整Frame×Side布局、反序列化及引用闭包；`tests/GraphLuaProbe.java`核宿主Target美术的数值/字体门/原柱高。静态检查不代签游玩 |
-| beatoraja证据完整性 | `beatoraja_verify.py` | `package`逐文件核entry/selection、shard与assets摘要、大小、PNG及脚本清单；`capture`复核真实回执的完成/退出门与PNG摘要、尺寸及清单。输出须全新，不改历史收据 |
-| beatoraja独立安装 | `Install-BeatorajaOmni.ps1` | 只复制经核验的包清单到新版本目录，复制前/后及最终安装逐文件复核；已有版本明确拒绝，同卷rename不合并目录。回执写`artifacts/beatoraja-capture/`，不写玩家设置、成绩或当前skin选择 |
+| beatoraja证据完整性 | `beatoraja_verify.py` | `package`逐文件核entry/selection、shard与assets摘要、大小、PNG及脚本清单；新收据为`package-receipt.json.txt`，历史`.json`仅在唯一存在时读取，双份拒绝。`capture`核真实完成/退出门与PNG；输出须全新，不改历史收据 |
+| beatoraja独立安装 | `Install-BeatorajaOmni.ps1` | 只接受新收据名，复制经核验的包清单到新版本目录，复制前/后及最终安装逐文件复核；已有版本拒绝，同卷rename不合并。回执写`artifacts/beatoraja-capture/`，不写玩家设置、成绩或当前skin选择 |
 | 动画烘焙与beatoraja实际取景 | [IidxSkinBake](../IidxSkinBake/README.md)、[BeatorajaSkinCapture](../BeatorajaSkinCapture/README.md) | 原生产渲染路径的GPU复合验证与实际官方播放器的独立验收分开；不把离线像素检查当作OpenGL性能/视觉通过 |
 
 ### 共用修改的回归范围
@@ -41,6 +41,8 @@
 开场quad栅格依赖`requirements.txt`固定的NumPy，与现有Pillow共同按原RGBA和两三角UV采样；运行时包只含原生Lua和图像，不要求玩家安装Python或NumPy。工具依赖仍安装或复用非系统盘开发环境，不塞进真实播放器。
 
 原生包默认仍生成`p1,p2,dp`（7/14KEYS）；显式`--modes p1,p2,dp,5p1,5p2`同时生成独立`play5.luaskin`及5KEYS两侧。5K采用源声明的六路，P2位置靠皿；模式和显示侧分别参与缓存、材料和几何选择，不借LR2兼容或截取七键数据。没有10KEYS来源声明。最终包的全主题/模式与实绘验收仍须匹配实际输出。
+
+官方Skin配置递归扫描`.json`，因此审计收据使用`.json.txt`避免菜单完整解析它。`tests/SkinDiscoveryProbe.java`直接调用官方发现逻辑并加载真实header，正式完整包应仅发现`play5/play7/play14.luaskin`；与片段解析、GPU实绘分别验收，不通过移动或省略审计文件降低完整性。
 
 三种源亮度分开处理：Standard lane、Lightning column与lane objects；没有额外全皮肤总亮度。实际来源每个受影响分支只有一层白色brightness carrier。普通drawable用原生RGB，Judge标签和Combo分别放到内部destination；NoteSet不消费外层颜色，因此对选中的原图生成一次RGB衍生，保留alpha、尺寸及透明顶补，默认1保持原像素。Lightning小节线取自己的base原图，Standard没有该slot则保留明确的宿主新增线；几何取整和原arrival fade差异记录在收据。
 
