@@ -1,6 +1,6 @@
 # beatoraja IIDX 双作品适配记录
 
-本页记录2026-11-07开始的独立宿主工作，当前为开发中；不提升OMS旧包、来源原软件或发行验收。调度取[P1-A维护计划](../subline/P1-A/IIDX_SKIN_MAINTENANCE.md)，状态取[STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)。
+本页记录2026-11-07开始的独立宿主工作，Standard首版已交付，Lightning继续制作；不提升OMS旧包、来源原软件或发行验收。调度取[P1-A维护计划](../subline/P1-A/IIDX_SKIN_MAINTENANCE.md)，状态取[STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)。
 
 ## 授权、名称与来源
 
@@ -44,13 +44,15 @@
 
 ## 本轮同包验收
 
-当前只完成Standard全族候选，Lightning仍在处理完整动画与最终包；两族尚未安装或形成正式ZIP。来源解析与导出工具冻结于`36c90ab`，后续文档整理不更换该构建身份。当前候选位于D盘约定父目录的`packages-r1/standard`，不是早期组件切片。
+Standard首版`v26110700`已安装并形成ZIP，Lightning仍在处理动画挡板与最终包。Standard来源解析与导出工具冻结于`36c90ab`，精确源码快照另保存在其构建证据中；后续Lightning优化和文档整理不更换该包身份。Standard构建源位于D盘约定父目录的`packages-r1/standard`，不是早期组件切片。
 
 Standard全部12款Frame、5KEYS/7KEYS两侧与14KEYS DP已生成；实际菜单保留各族来源支持的组件和13项局部控制，没有临时缺烘焙项。官方发现只识别三个Lua入口，全部6707片段、230次装配及60个Frame×布局解析通过。文件清单、组件数量与构建原日志保全于`artifacts/beatoraja-capture/final-build-r1/standard/`。构建监测脚本曾把UTC时间解析成本地时间，旧内存记录只有启动采样，不能宣称整次峰值；限制说明与修正前后脚本均保留。
 
 同一完整Standard包的21场官方Replay覆盖12主题P1、P2/DP、5KEYS两侧、HCN断持恢复、Timing与Judge OFF、FAILED、控制端点及最大默认DP开场/FC负载；1645张PNG与身份、状态、原生读数和正常退出均通过。人工审看21张联系图的282个缩略图，另独立打开31张不同原图（两位审看者合计32次），未确认缺图、持续遮挡或FC/失败退场残留。完整性不等于逐张目视；原生Replay也不代签物理输入、完整歌曲、持续帧率、视频BGA或真实玩家存分/IR。
 
 证据在`artifacts/beatoraja-capture/final-matrix-r1/`的`standard-plan.json`、`standard-integrity.json`与`standard-visual-review.json`；联系图索引保留其生成时“待审看”状态，实际审看以独立回执为准。计划限定Standard范围，完整性与视觉回执均为`globalComplete=false`。后续两族验收必须重新绑定完整矩阵，复用Standard时逐项确认包与场景身份不变。
+
+Standard实际安装目录为`D:/beatoraja/skin/Standard Model Skin Omni Until 26.v26110700`，原选择不变。源包、安装暂存和安装结果三次全清单核对一致；安装后22项关键文件、8个DB、10个官方文件及原11449个skin文件通过保全检查。安装证据为`artifacts/beatoraja-capture/final-install-r1/standard.v26110700.json`，后保全回执为同父证据区的`player-preservation-check-20261107-105736673390.json`。版本化ZIP位于`deliverables/skins/beatoraja/`的同名版本目录，9997个成员逐个核长度与摘要，附使用说明、许可、校验和独立Standard验证记录；不将Lightning未完成范围标成通过。
 
 ## 开发阶段验证（历史）
 
