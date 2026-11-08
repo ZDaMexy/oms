@@ -1,5 +1,9 @@
 # OMS 更新日志
 
+## 2026-11-08Standard双宿主22增量交付
+
+Standard的22来源增量已独立完成OMS实际Player与beatoraja原生同包验收，两个宿主各交付`v26110800`；beatoraja已安装并核对旧玩家数据与皮肤保全。来源、实际范围、原图抽样审看及限制取[P1-A记录](../subline/P1-A/CHANGELOG.md#2026-11-08pendual双宿主增量交付)。新OSK仍要求包含32MiB归档门的当前OMS重编重启，不发布新客户端安装包，不提升原设备、完整产品或发行状态。
+
 ## 2026-11-08Standard新来源与有界归档容量
 
 Standard接入用户22来源，两个宿主的新包与实绘继续独立验收。完整作者配置约20.4MiB导致旧16MiB ZIP总门拒绝；针对这一实际载荷把归档INI/JSON总限改为32MiB，其它包、资源和场景预算保持。新隔离Release、42项reader与16项canonical回归通过；来源、测试与未完成门取[P1-A本阶段记录](../subline/P1-A/CHANGELOG.md#2026-11-08pendual来源与归档容量接入)。旧交付不刷新，未签发行、设备或完整产品验收。

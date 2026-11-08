@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 核对：2026-11-08（Standard双宿主22来源增量验收中）
+> 核对：2026-11-08（Standard双宿主22来源交付）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -16,9 +16,9 @@
 | 作品 | 宿主 | 推进状态与证据 |
 | --- | --- | --- |
 | Lightning Model Skin Omni Until 33 | OMS | 自动推进停止，完整形态未完成；最新[.v26102902](CHANGELOG.md#2026-10-29omniv52私下交付)，历史Lighting文件名保留；缺口取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md) |
-| Standard Model Skin Omni Until 26 | OMS | .v26110700保留；[22来源增量](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-08-22-来源接入进行中)已生成17主题作者，正式包与Player验收进行中，新包需32MiB配置门更新 |
+| Standard Model Skin Omni Until 26 | OMS | [v26110800](../../other/STANDARD_MODEL_SKIN_20261105.md#22-来源-oms-交付)同包验收并交付，17主题；须重编/重启含32MiB配置门的当前OMS再导入，旧版保留 |
 | Lightning Until33 | beatoraja | v26110800已安装、保全并交付ZIP |
-| Standard Until26 | beatoraja | v26110700已安装并保留；22增量正在完整动画生成及新包验收，未签安装或ZIP |
+| Standard Until26 | beatoraja | [v26110800](../../other/BEATORAJA_IIDX_SKINS_20261107.md#22-来源-standard-增量交付)已安装、保全并交付ZIP；原选择和旧版保持 |
 
 安装与缺口取[适配记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md)。OMS选曲/Results沿[原界面决定](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
 
@@ -46,9 +46,9 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-11-08：beatoraja Lightning 75布局/23场Replay/1340张PNG完整性及289缩略帧/45原图审看通过，v26110800安装、保全与ZIP核验完成。Standard复用11月7日原包及21场证据。合并44场、资源与未验范围取[适配记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md#本轮同包验收)。
+2026-11-08：Standard的22增量完成OMS同包24场与beatoraja原生22场、原图抽样审看、交付及保全；范围分别取[OMS](../../other/STANDARD_MODEL_SKIN_20261105.md#22-来源-oms-交付)与[beatoraja](../../other/BEATORAJA_IIDX_SKINS_20261107.md#22-来源-standard-增量交付)。Lightning首版、资源和未验门保持[原记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md#本轮同包验收)。
 
-2026-11-07：Standard同包22场景/23局、186项制作工具测试及Desktop/作者CLI/取景宿主Release通过。代表组合、逐图审看、失败重试与交付身份取[作品验证](../../other/STANDARD_MODEL_SKIN_20261105.md#本轮验证与交付)。未改生产客户端，产品宽测沿[11月5日记录](CHANGELOG.md#2026-11-05standard保留美术与graph通知接入)。
+旧Standard与产品宽测仅保留[历史证据](CHANGELOG.md#2026-11-05standard保留美术与graph通知接入)，不计入新包。
 
 Lightning的10月29日候选、产品回归和Release保持[原记录](CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)；[.v26102902交付](CHANGELOG.md#2026-10-29omniv52私下交付)与候选同字节，Standard不刷新其验证日期。
 

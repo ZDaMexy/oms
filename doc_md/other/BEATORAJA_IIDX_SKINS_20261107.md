@@ -1,16 +1,16 @@
 # beatoraja IIDX 双作品适配记录
 
-本页记录2026-11-07开始的独立宿主工作；截至11月8日，Standard与Lightning首版均已安装、保全并交付ZIP。不提升OMS旧包、来源原软件或发行验收。调度取[P1-A维护计划](../subline/P1-A/IIDX_SKIN_MAINTENANCE.md)，状态取[STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)。
+本页记录2026-11-07开始的独立宿主工作；截至11月8日，Standard的22来源增量与Lightning首版均已安装、保全并交付ZIP，当前两者各为`v26110800`。不提升OMS旧包、来源原软件或发行验收。调度取[P1-A维护计划](../subline/P1-A/IIDX_SKIN_MAINTENANCE.md)，状态取[STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)。
 
 ## 授权、名称与来源
 
 用户本轮明确要求调研并制作Standard与Lightning的beatoraja皮肤，更新其实际播放器，保全玩家数据，推进可验证产物。基础名称仍为`Standard Model Skin Omni Until 26`与`Lightning Model Skin Omni Until 33`。Lightning在OMS的停止自动推进不变；本轮授权是新的beatoraja消费者，不能据此恢复OMS旧缺口队列。
 
-两族各自只读消费冻结作者：Standard使用2026-11-07的`author-r8`；Lightning使用2026-10-29交付对应的`omni-full-v52-current-hispeed-padding-r1`，不是较早的`delivery`目录。同名素材不跨族替换，尺寸、框体和软件机能不强求相等。Standard来源范围沿[来源现状](STANDARD_MODEL_SKIN_20261105.md#本地来源现状)，Lightning沿[作品记录](OMNI_GAMEPLAY_COMPLETION_20261026.md)。
+首版两族各自只读消费冻结作者：Standard使用2026-11-07的`author-r8`；Lightning使用2026-10-29交付对应的`omni-full-v52-current-hispeed-padding-r1`，不是较早的`delivery`目录。同名素材不跨族替换，尺寸、框体和软件机能不强求相等。Standard来源范围沿[来源现状](STANDARD_MODEL_SKIN_20261105.md#本地来源现状)，Lightning沿[作品记录](OMNI_GAMEPLAY_COMPLETION_20261026.md)。
 
-原始素材留在`E:/OMS-Development/sources/`各作品原位，新的原生试产在`OMS-Beatoraja-20261107/<family>/`区分；后续临时构建、逐帧烘焙在本仓`.dev-cache/temp/`，真实运行证据在`artifacts/beatoraja-capture/`。只有候选闭合后才复制版本化交付，历史OMS包不迁移或覆盖。精确私有清单、素材、玩家信息和截图不进Git。优先CLI/API与程序内真实framebuffer；本轮用户仅允许必要时以computer use解决操作阻塞，目前未使用。
+首版原始素材留在`E:/OMS-Development/sources/`各作品原位，新的原生试产在`OMS-Beatoraja-20261107/<family>/`区分；后续临时构建、逐帧烘焙在本仓`.dev-cache/temp/`，真实运行证据在`artifacts/beatoraja-capture/`。只有候选闭合后才复制版本化交付，历史OMS包不迁移或覆盖。精确私有清单、素材、玩家信息和截图不进Git。优先CLI/API与程序内真实framebuffer；本轮用户仅允许必要时以computer use解决操作阻塞，目前未使用。
 
-完整动画后续队列与最终原生构建包按[开发磁盘约束](../../AGENTS.md#开发磁盘约束)的本轮例外写`D:/OMS-Development/sources/OMS-Beatoraja-Bakes-20261107/`，保留空间门和独立输出验证；原E盘作者与已完成F盘证据不迁移，不为此复制HDD或玩家安装。交付只在F盘保存版本化ZIP、说明与校验，避免再存一份解包目录。
+首版完整动画队列与最终原生构建包按[开发磁盘约束](../../AGENTS.md#开发磁盘约束)的本轮例外写`D:/OMS-Development/sources/OMS-Beatoraja-Bakes-20261107/`，保留空间门和独立输出验证；原E盘作者与已完成F盘证据不迁移，不为此复制HDD或玩家安装。交付只在F盘保存版本化ZIP、说明与校验，避免再存一份解包目录。
 
 ## 官方0.8.9更新与数据保全
 
@@ -43,7 +43,23 @@
 
 实现入口为[素材工具](../../tools/IidxSkinAssets/README.md)、[GPU烘焙工具](../../tools/IidxSkinBake/README.md)和[原生取景工具](../../tools/BeatorajaSkinCapture/README.md)。没有移植OMS运行时，也不改beatoraja判定、计分或用户的客户端JAR。
 
+## 22 来源 Standard 增量交付
+
+2026-11-08 Standard已交付并安装`v26110800`。源作者为D盘22来源专用父目录的`author-r5`，生成与适配源码冻结于`9fd03c8e`；新原生包为`beatoraja-packages-r4/standard`。新增PENDUAL PRESENT/FUTURE和三款22 CUSTOM，与旧十二款合计17主题；完整来源与非连续代数边界取[Standard记录](STANDARD_MODEL_SKIN_20261105.md#2026-11-08-22-来源接入)。Lightning及旧Standard保持原包、原验收日期，未借新增主题刷新结论。
+
+完整包11863文件、3874 PNG、2,319,662,722字节；17主题×5布局共85，官方发现只识别3个Lua入口，258次CPU加载、7947片段通过。1443条完整源动画资格全部闭合，无待烘焙项；最终构建严格复用已核完整帧，不把静态抽样当完整电影。CPU与冻结清单取专用父目录`beatoraja-work-r3/native-build-r4/`。
+
+同一最终包完成22场官方原生Replay：新五主题各SP1/SP2/DP、5KEYS两侧、HCN真实松开550ms后的active→damage→active恢复、自然HARD失败、DP FAST/SLOW及旧26/23回归。1646张PNG完整性与正常dispose门通过，直接审看72张不同原图，未确认尚待修复的视觉缺陷。原22失败影片已实际播放并退场，随后进入宿主默认MusicResult；未制作IIDX选曲/Results。记录在`artifacts/beatoraja-capture/standard22-r1/runs/native-r1/completed.json`与`delivery-r1/visual-review.json`，保持单族`globalComplete=false`；不把代码中的范围完成标记推广到所有主题配置、物理输入、真实整曲/视频BGA、持续性能或真实玩家存分/IR。
+
+本包保留明确适配：c22的原CN图/电影供宿主HCN状态使用，不伪称原22具备HCN；BPM范围底板恒显，未复刻原版恒定BPM时隐藏及DP父容器入场。`l22-058/068`原文字和`l22-087`浅色图降低Lift白读数对比，仍保留原图、颜色与锚点；原DP MAXCOMBO标签与Graph边缘交叠已有原版参照。命中边界的HUD/Graph可能暂时不同步，已在后续稳定样本收敛，不能把单帧当原子计分快照。完整Start面板和其它宿主差异见[实现边界](#宿主研究与实现边界)。
+
+实际安装到`D:/beatoraja/skin/Standard Model Skin Omni Until 26.v26110800`，未改变当前选择。源包、暂存和安装结果三次完整清单相同；另以本次新基线核对38项受保护文件、10个DB、10个官方文件和46499个原有skin文件及1673个目录，字节、路径保持，唯一新增为本版11863文件。未读取SQL行或改玩家数据，不能用旧升级前22文件/8DB基线代签用户期间的活动。安装回执在`delivery-r1/installation.v26110800.json`，保全在`artifacts/standard-model-22-20261108/player-preservation-r1/after-install-r1.json`。
+
+版本化ZIP与外部说明、校验和验证记录位于总工作区`deliverables/skins/beatoraja/Standard Model Skin Omni Until 26.v26110800/`，全部11863原生成员逐项核长度及SHA，保留VL Gothic许可和`.json.txt`侧车；私有原始素材、生成包、运行证据和玩家信息不入Git。外部README另附本次实绘发现，冻结的包内README及安装字节不改。
+
 ## 本轮同包验收
+
+以下保留两族首版及其合并验收历史；Standard当前增量取[新交付](#22-来源-standard-增量交付)，Lightning仍沿本节首版结果。
 
 两族独立交付：Standard为`v26110700`，Lightning为`v26110800`。Standard来源解析与导出工具冻结于`36c90ab`，Lightning冻结于`ded2df3c`，各自精确源码快照保存在构建证据中；后续安装器优化和文档整理不更换包身份。构建源分别位于D盘约定父目录的`packages-r1/standard`与`packages-r2/lightning`，不是早期组件切片。
 
