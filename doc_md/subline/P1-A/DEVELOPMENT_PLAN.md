@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-11-08（Standard双宿主22来源增量）
+> 最后核对：2026-11-08（Standard原21增量暂停）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -15,7 +15,7 @@
 
 ### Standard Model Skin Omni Until 26
 
-先完成21原版增量的双宿主同包运行、画面审查、版本化交付与beatoraja保全安装；来源已核、完整作者已生成不代替这几道门。随后按真实游玩反馈维护Standard，针对受影响的主题、读数与实际宿主行为补同包回归，不重复已过门。来源资格、当前包及已知限制取[作品记录](../../other/STANDARD_MODEL_SKIN_20261105.md)。22/24/26原机复测须重新取得本体；更早代数须有真实来源，未知容器保留缺口，ARC SCORE不扩代。两作品独立，禁止computer use。
+按用户要求暂停，等明确继续后从[冻结检查点](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-08-暂停与续接)完成21增量的双宿主新包、同包实绘、审图和保全交付，不重做已闭合研究。后续仅按真实反馈维护；22/24/26原机复测须重取本体，更早代须真实来源，ARC SCORE不扩代。两作品独立，优先CLI/API。
 
 ### Lightning Model Skin Omni Until 33（停止自动推进）
 

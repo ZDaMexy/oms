@@ -2,6 +2,8 @@
 
 本页记录2026-11-07开始的独立宿主工作；截至11月8日，Standard的22来源增量与Lightning首版均已安装、保全并交付ZIP，当前两者各为`v26110800`。不提升OMS旧包、来源原软件或发行验收。调度取[P1-A维护计划](../subline/P1-A/IIDX_SKIN_MAINTENANCE.md)，状态取[STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)。
 
+21原版增量已按用户要求暂停，尚未安装或交付新版本；冻结来源、被替代候选、重新建立玩家基线及后续验收取[唯一续接记录](STANDARD_MODEL_SKIN_20261105.md#2026-11-08-暂停与续接)。
+
 ## 授权、名称与来源
 
 用户本轮明确要求调研并制作Standard与Lightning的beatoraja皮肤，更新其实际播放器，保全玩家数据，推进可验证产物。基础名称仍为`Standard Model Skin Omni Until 26`与`Lightning Model Skin Omni Until 33`。Lightning在OMS的停止自动推进不变；本轮授权是新的beatoraja消费者，不能据此恢复OMS旧缺口队列。
