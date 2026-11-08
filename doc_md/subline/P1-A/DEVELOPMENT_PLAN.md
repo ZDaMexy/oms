@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-11-08（Standard原21增量暂停）
+> 最后核对：2026-11-09（Standard原21增量恢复）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -15,7 +15,7 @@
 
 ### Standard Model Skin Omni Until 26
 
-按用户要求暂停，等明确继续后从[冻结检查点](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-08-暂停与续接)完成21增量的双宿主新包、同包实绘、审图和保全交付，不重做已闭合研究。后续仅按真实反馈维护；22/24/26原机复测须重取本体，更早代须真实来源，ARC SCORE不扩代。两作品独立，优先CLI/API。
+用户已恢复goal，从[冻结检查点](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-08-暂停与续接)完成21增量的双宿主新包、同包实绘、审图和保全交付，不重做已闭合研究。后续仅按真实反馈维护；22/24/26原机复测须重取本体，更早代须真实来源，ARC SCORE不扩代。两作品独立，优先CLI/API。
 
 ### Lightning Model Skin Omni Until 33（停止自动推进）
 

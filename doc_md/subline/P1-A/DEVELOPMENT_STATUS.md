@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 核对：2026-11-08（Standard原21增量按用户要求暂停）
+> 核对：2026-11-09（Standard原21增量恢复验证）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -16,9 +16,9 @@
 | 作品 | 宿主 | 推进状态与证据 |
 | --- | --- | --- |
 | Lightning Model Skin Omni Until 33 | OMS | 自动推进停止，完整形态未完成；最新[.v26102902](CHANGELOG.md#2026-10-29omniv52私下交付)，历史Lighting文件名保留；缺口取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md) |
-| Standard Model Skin Omni Until 26 | OMS | 正式版仍为v26110800；21的18主题作者及四窗修正已冻结，按用户要求[暂停](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-08-暂停与续接)，未交付 |
+| Standard Model Skin Omni Until 26 | OMS | 正式版仍为v26110800；21的18主题作者及四窗修正已冻结，已从[检查点](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-08-暂停与续接)恢复同包验证，未交付 |
 | Lightning Until33 | beatoraja | v26110800已安装、保全并交付ZIP |
-| Standard Until26 | beatoraja | 正式版仍为v26110800；21增量暂停于动画闭包与新包准备，尚未安装；续接取上方暂停记录 |
+| Standard Until26 | beatoraja | 正式版仍为v26110800；21动画闭包完成，现恢复完整构建与验证，尚未安装；来源和检查点取上方记录 |
 
 安装与缺口取[适配记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md)。OMS选曲/Results沿[原界面决定](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
 

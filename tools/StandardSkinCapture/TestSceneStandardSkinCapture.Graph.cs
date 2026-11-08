@@ -9,6 +9,8 @@ using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Testing;
+using osu.Game.Rulesets.Bms.UI;
+using osu.Game.Rulesets.Objects;
 using osu.Game.Skinning.Gameplay;
 
 namespace osu.Tools.StandardSkinCapture;
@@ -18,6 +20,8 @@ public partial class TestSceneStandardSkinCapture
     private GameplaySkinEventSubscription? graphSubscription;
     private GameplaySkinSceneRuntimeNode[] graphMovies = [];
     private readonly List<object> graphScoreEdges = [];
+    private readonly List<object> graphScoreBudgets = [];
+    private int graphScoreEdgeLimit;
     private readonly List<object> graphFrames = [];
     private readonly Dictionary<string, (int Frame, bool Visible)> graphLastFrames = new();
     private readonly Dictionary<string, Task> graphScreenshots = new();
@@ -31,7 +35,9 @@ public partial class TestSceneStandardSkinCapture
         if (graphMovies.Length == 0)
             return; // Older author packages do not declare these consumers.
         Assert.That(graphMovies, Has.Length.EqualTo(6));
+        AddGraphScoreBudget(player.ChildrenOfType<DrawableBmsRuleset>().Single().Objects);
         graphSubscription = eventStream.Subscribe();
+        settings.Write("graph-score-history-budget.json", graphScoreBudgets);
         settings.Write("graph-notification-declarations.json", graphMovies.Select(node => new
         {
             id = SourceId(node),
@@ -39,6 +45,32 @@ public partial class TestSceneStandardSkinCapture
             animation = ReadProperty<GameplaySkinPreparedSceneNode>(node, "PreparedNode").Source.AnimationId,
             crossing = ReadProperty<object>(ReadProperty<GameplaySkinPreparedSceneNode>(node, "PreparedNode").Source, "ScoreCrossingThresholds"),
         }).ToArray());
+    }
+
+    private void AddGraphScoreBudget(IEnumerable<HitObject> objects)
+    {
+        int rootObjects = 0;
+        int judgementNodes = 0;
+        foreach (HitObject hitObject in objects)
+        {
+            rootObjects = checked(rootObjects + 1);
+            count(hitObject);
+        }
+
+        // One forward play can publish Accuracy and TotalScore changes per judgement,
+        // then a frame-level statistics change. Include every native nested node (also
+        // gauge-only hold ticks), plus one initial state synchronisation. Keep history
+        // and add each observed play's budget if this scene observes another Player.
+        int playLimit = checked(3 * judgementNodes + 1);
+        graphScoreEdgeLimit = checked(graphScoreEdgeLimit + playLimit);
+        graphScoreBudgets.Add(new { rootObjects, judgementNodes, playLimit, totalLimit = graphScoreEdgeLimit });
+
+        void count(HitObject hitObject)
+        {
+            judgementNodes = checked(judgementNodes + 1);
+            foreach (HitObject nested in hitObject.NestedHitObjects)
+                count(nested);
+        }
     }
 
     private void ObserveGraphNotifications()
@@ -49,8 +81,8 @@ public partial class TestSceneStandardSkinCapture
         {
             if (envelope.Payload is GameplaySkinScoreEventPayload payload && envelope.EventKind == GameplaySkinEventKind.ScoreChanged)
             {
-                if (graphScoreEdges.Count >= 2048)
-                    throw new InvalidOperationException("Synthetic Graph fixture exceeded its bounded real-score history.");
+                if (graphScoreEdges.Count >= graphScoreEdgeLimit)
+                    throw new InvalidOperationException($"Synthetic Graph fixture exceeded its bounded real-score history ({graphScoreEdgeLimit} edges).");
                 graphScoreEdges.Add(new { envelope.Epoch, envelope.Sequence, envelope.GameplayTime, score = payload.State.Score,
                     maximum = payload.State.MaximumScore, delivery = envelope.DeliveryKind.ToString() });
             }
@@ -109,6 +141,7 @@ public partial class TestSceneStandardSkinCapture
             nativePersonalBest = completionState!.ChartPresentation?.PersonalBestScore,
             finalScore = score.TotalScore.Value,
             maximum = completionState!.Score.MaximumScore,
+            scoreHistoryBudgets = graphScoreBudgets,
             scoreEdges = graphScoreEdges,
             frames = graphFrames,
             screenshots = graphScreenshots.Keys.ToArray(),
