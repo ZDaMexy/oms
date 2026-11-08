@@ -468,6 +468,13 @@ def export_bga_module(library, output, contexts, *, source_geometry):
         if len(apertures) != (2 if layout == "dp" else 1):
             raise ValueError("BGA requires the real single/dual aperture count")
         indexed[key] = {**context, "apertures": apertures}
+        if style in SOURCE21_STYLES and layout == "dp":
+            four = [rectangle(value) for value in context["dpGraphOffApertures"]]
+            if len(four) != 4 or four[:2] != apertures:
+                raise ValueError("Original21 DP Graph-OFF requires its two left and two right openings")
+            indexed[key]["dpGraphOffApertures"] = four
+        elif "dpGraphOffApertures" in context:
+            raise ValueError("Four Graph-OFF openings are qualified only for original21 DP")
     expected = {(style, layout, wide) for style in frame_ids for layout, wide in
                 (("p1", False), ("p2", False), ("p1", True), ("p2", True), ("dp", False))}
     if set(indexed) != expected:
@@ -491,7 +498,7 @@ def export_bga_module(library, output, contexts, *, source_geometry):
 
     for enabled in (False, True):
         choice = "on" if enabled else "off"
-        branches, signatures = [], {}
+        branches, signatures, graph_off_dp = [], {}, []
         for (style, layout, wide), context in sorted(indexed.items(), key=lambda item: (frame_token(item[0][0]), *item[0][1:])):
             suffix = "wide" if wide else "base"
             prefix = f"standard.bga.{choice}.f{frame_token(style)}.{layout}.{suffix}"
@@ -557,12 +564,44 @@ def export_bga_module(library, output, contexts, *, source_geometry):
                 conditions.update(layout=layout, **{"graph-visible": not wide})
             branches.append((layout == "dp", conditions, contribution))
             receipts.append(receipt)
+            if "dpGraphOffApertures" in context:
+                four = context["dpGraphOffApertures"]
+                relative = base + "/viewports-graph-off.ini"
+                write(relative, viewport_ini(layout, four).encode("utf-8"))
+                graph_off_dp.append((True, {"frame": frame_id(style), "graph-visible": False},
+                                     {**contribution, "ini": relative}))
+                receipts.append({**receipt, "graphVisible": False, "viewports": four,
+                    "originalApertures": four,
+                    "dp": "Original21 Graph-OFF routes both sides' four clear source openings. Graph-ON retains the two left openings; both BGA frame choices reuse the unchanged empty scene and source art."})
         # More-specific SP conditions precede each frame's DP fallback.
         branches.sort(key=lambda branch: branch[0])
         default = next(contribution for dp, when, contribution in branches if dp and when["frame"] == "iidx26")
         branches, default, proof = bounded_variants(branches, signatures, default)
         if proof is not None:
             routing.append({"choice": choice, **proof})
+        if graph_off_dp:
+            previous = branches[:]
+            first_dp = next((i for i, branch in enumerate(branches) if branch[0]), len(branches))
+            branches[first_dp:first_dp] = graph_off_dp
+            if len(branches) > 64:
+                raise ValueError("Original21 DP Graph-OFF exceeds the 64-variant budget")
+            checked = 0
+            for style in frame_ids:
+                for layout in ("p1", "p2", "dp"):
+                    for shown in (False, True):
+                        options = {"frame": frame_id(style), "graph-visible": shown}
+                        if layout != "dp":
+                            options["layout"] = layout
+                        select = lambda candidates: next((part for _, when, part in candidates
+                            if all(options.get(key) == value for key, value in when.items())), default)
+                        expected = (select(graph_off_dp) if style in SOURCE21_STYLES and layout == "dp" and not shown
+                                    else select(previous))
+                        if select(branches) != expected:
+                            raise ValueError("Original21 Graph-OFF routing changed another frame/layout")
+                        checked += 1
+            routing.append({"choice": choice, "original21DpGraphOff": True,
+                "verifiedFrameLayoutGraphContexts": checked,
+                "equivalence": "Only original21 DP Graph-OFF selects a new four-viewport INI; every other frame/layout/Graph selection retains its exact prior contribution paths."})
         choices.append({"value": choice, "label": "Classic BGA Frame（旧式外框）" if enabled else "完整画面",
                         **default, "orderedVariants": True,
                         "variants": [{"when": when, **contribution} for _, when, contribution in branches]})

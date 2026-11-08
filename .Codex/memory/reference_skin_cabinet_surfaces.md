@@ -145,6 +145,8 @@ Time Freeze先核实际`-patchcfgpath`和最终日志，不能只看默认配置
 
 新来源身份接入catalog并不自动覆盖每个组件路由。原21曾在完整作者生成到Graph时因遗漏s21分支，错误查找26的gr_line_max；应沿同一次完整作者消费检查HUD、Graph、读谱与分层的实际资源名，并核新源自己的GEO。相同框体IFS或相同AFP不证明共享gameparts、字形、锚点或调用时序相同；原21、22 CUSTOM SPADA与26 ARC SCORE SPADA必须使用独立身份。资格取[来源记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)，失败作者保留，修复后使用新作者身份验收。
 
+BGA外框完整不等于所有窗口实际收到视频。原21 DP Graph OFF曾沿旧双窗口适配，仅左两窗有视频而右两框仍为底纹；来源的四孔必须各自测透明区，不能镜像猜界。作者路由只对source21的DP/Graph OFF增加四窗，保持SP优先匹配、Graph ON两窗与旧主题原贡献；随后核真实运行中的viewport、drawn surface和各窗测试图，不能只凭CLI成功、目录声明或外框截图签收。修复与验证范围取[Standard记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)。
+
 Time Freeze的补丁名称不证明所有页面都停表。按实际DLL版本和原字节核目标分支，再分别观察guest入口、选模式与选曲；一个场景的计数停止不能外推另一计时器，更不能当作歌曲暂停。小文件备份和补丁前后边界保留，不能在补丁后重跑部署前CRC清单并把预期差异误报损坏。
 
 原电影的 named instance 不全是待替换数字：剔除 game-controlled 节点后，应逐名核原调用方、父容器变换、图层及显隐状态。22 的 `sco_waku_1p/2p` 是各侧原成绩底板，`bpm_waku` 是 `pm_bpm2` 的 MIN/BPM/MAX 标签；数字正常不代表这些底板已经恢复。恢复时须保留自身源图与完整 UV，并在真实读数下面绘制。原型、动态重绘和缺少宿主状态的节点不能按静态图一概补回；例如 BPM 范围恒显与原版相等时隐藏、DP 最终位置与原入场父层运动应分别记为适配。来源及实际范围仍取 [Standard记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)，不能从 named 数量直接推出原机机能完整。

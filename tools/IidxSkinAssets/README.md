@@ -139,7 +139,7 @@ python -B tools/IidxSkinAssets/compose_standard_research.py --library $taskLibra
 
 21的`effect/playm_ef_rev3`是原程序按名称动态重绑的占位，`s21/common`与`s21/gameparts`存在不同原图，当前尚未确认最终资源owner。`standard_reference.py`只对这一精确身份保留两候选和未决原因；命名占位不作为静态美术选图，真正静态可见引用仍须有唯一来源，其它冲突继续报错。`txt_tutorial`属于未提取的原教程包，不能借普通演奏闭包宣称教程已支持。原字体、HUD hook和当前绿数已分别取证，但完整Start策略、Graph调用时序和原软件机能不由相同AFP字节代签；这些限制与新作者、各宿主实际验收分开。
 
-`standard_bga.py` 的准备入口输出全新私有JSON，`build_standard_skin.py --bga-geometry` 读取并复核其中原文件、几何与完整入场/循环状态。BMS模块 `bga-frame` 默认 `off`（完整画面），`on` 为Classic BGA Frame（旧式外框）；它是人工美术选择，因为OMS没有原IIDX旧曲版本或Camera状态，不自动猜旧曲或模拟Camera。SP保留原PNG/UV与四边形，并裁在现有框体的BGA开口内；DP没有对应源钩子，两项保持既有双窗口。这一OMS组合适配与原机逐像素等价分开验收。
+`standard_bga.py` 的准备入口输出全新私有JSON，`build_standard_skin.py --bga-geometry` 读取并复核其中原文件、几何与完整入场/循环状态。BMS模块 `bga-frame` 默认 `off`（完整画面），`on` 为Classic BGA Frame（旧式外框）；它是人工美术选择，因为OMS没有原IIDX旧曲版本或Camera状态，不自动猜旧曲或模拟Camera。SP保留原PNG/UV与四边形，并裁在现有框体的BGA开口内；DP没有对应Classic源钩子，两项均使用普通开口；既有主题保留双窗口。独立原21的DP在Graph开启时使用左侧两窗，关闭时按自身四个透明孔分别声明四窗，两个BGA Frame选项均适用；原17主题的路由保持。这一OMS组合适配与原机逐像素等价分开验收。
 
 `standard_graph_notifications.py` 输出目录中的 `graph-notifications.json` 使用 `oms-standard-graph-notifications.v1`，含 `librarySHA256`、`files` 和按输入确定的 `families["0"/"1"/"s23"/"s24"/"s22"/"s21"].clips`；每族键为 `mybest/target/aaa/aa/a/update`。每片保留280×720、60fps、150源帧及终止空帧，非循环；A/AA仅替换原 `lv_pass` 命名子对象的原图，其余几何、状态、颜色和帧不变。整合器在现有PACEMAKER分支中声明 `scoreCrossing`：真实PB/目标正阈值用严格超过，A/AA/AAA用达到；每个阈值只消费一次，同一计分更新跨多线时共享update仅重启一次，等级只显示最高已达档。早期来源的通知层序和目标政策属于已明确的OMS适配，不把26调用证据套成其它版本程序事实；s22另有自身层序证据，s21仍明确保留该调用边界。`graph-cutin` 默认开启，电影只用真实 `score.crossing` 起点，不用挂载或墙钟补造过线时间，也不延长Results等待；各版实测范围见作品记录。
 

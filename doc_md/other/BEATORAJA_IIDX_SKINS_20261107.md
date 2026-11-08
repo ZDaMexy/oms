@@ -109,13 +109,13 @@ Lightning新挡板载体的早期代表候选使用`l341`，当时最终全菜�
 
 原生包按同族共享资源和独立组件Lua片段组合，选择项保留稳定ID；只有在所有纳入主题/模式中成立的选项才列入菜单。缺烘焙或不支持的选择留在收据，不改成其它素材。Notes/Charge Notes用同族最大首尾高度透明顶补，控制组合只枚举组件内部实际相关参数，不展开所有模块的笛卡尔积。Graph背景、Graph Area美术和前景按原层序拼接，六个模式/家族的拼接结果已与整体配方逐项一致。首个全主题开发包中，Standard 3941片段/92次代表装配、Lightning 10424片段/140次代表装配通过官方LuaJ/JsonSkin和引用闭包；它们属于旧工具快照，不能代签后续增加的动画与读数。包资产与早期11个实际场景另经`beatoraja_verify.py`核摘要、尺寸及完成门。
 
-`integrated-r4`为每族两个真实Frame、三种模式的小包：Standard 21/26共194片，Lightning 27/33共460片，构建前后工具SHA一致；全部片段及20次装配通过原生静态检查。八个官方播放器用例全部正常dispose：Lightning SP1/SP2/DP真实使用l344或完整双clip l345的动画挡板、Lift和Graph Area，三模式FC24全段取景；Standard SP1 A提示、DP C加Judge OFF、SP2 CN、21主题DP/Full HD以及SP2失败均自然结算。Standard真实Gauge增长、A/AA/AAA及Target越线均有起点和原片取景；无PB场景没有造出MYBEST事件。
+`integrated-r4`为每族两个真实Frame、三种模式的小包：Standard的26 ARC SCORE SPADA（iidx21）与Rootage共194片，Lightning 27/33共460片，构建前后工具SHA一致；全部片段及20次装配通过原生静态检查。八个官方播放器用例全部正常dispose：Lightning SP1/SP2/DP真实使用l344或完整双clip l345的动画挡板、Lift和Graph Area，三模式FC24全段取景；Standard SP1 A提示、DP C加Judge OFF、SP2 CN、该ARC SCORE SPADA主题DP/Full HD以及SP2失败均自然结算。Standard真实Gauge增长、A/AA/AAA及Target越线均有起点和原片取景；无PB场景没有造出MYBEST事件。
 
 上述七个非失败用例均经公开输入接口在曲中按住START并松开，原生270门实际开/关，目视白/绿数与真实边缘；FC追加取景至4000ms，未据timer本身补签缺片。官方default的同工具自测另通过Normal Gauge、读数开关和自然Result。九个通过用例的全部PNG、入口/包身份与退出门由`integrated-r4/capture-integrity.json`复核。首次把START放到曲终尾段的工具试跑触发宿主正常提前结束，未通过读数门；该失败证据保留，已改为曲中输入，未改宿主规则。
 
 继续逐项核配方时确认Standard的`effect.long-note`原持续光曾被收集但未消费；此前HCN恢复仅证明头身尾和原生active/damage状态，不能扩称持续光已经实现。20个消费身份/10支原影片已补齐烘焙并合入独立pass；144个真实来源组合和官方CPU状态探针通过。原transition只观察进入/离开Holding，不把未持有的HCN DAMAGE结束误作释放；保留原break循环与退出尾，逐物件同时存在的尾部及render间多次变化保持宿主边界。Lightning 7920个现有Charge/布局/控制组合未声明此slot，所有已查Frame的key-flash显式Suppress。另修复Lightning 27/28/29最低BPM的28px字形/25px advance：保留原图，以原生负space表达重叠和末字外伸。
 
-`integrated-r6`同包四局又通过Standard 26 SP1 HCN断持恢复、SP2 CN，21 DP Full HD HCN恢复及Lightning 27 SP2；全部正常结算，PNG/身份门通过，六张选图已目视原持续/红break/恢复光及原最低BPM。回执和逐图说明在`artifacts/beatoraja-capture/integrated-r6/`。高清密集截图会造成下一render采样延迟，所记50/200ms是请求点，真实age另载，不冒充精确帧时序。小节线、更多局部控制和亮度修正发生于该包之后，须由下一候选另验。
+`integrated-r6`同包四局又通过Standard 26 SP1 HCN断持恢复、SP2 CN，26 ARC SCORE SPADA（iidx21）DP Full HD HCN恢复及Lightning 27 SP2；全部正常结算，PNG/身份门通过，六张选图已目视原持续/红break/恢复光及原最低BPM。回执和逐图说明在`artifacts/beatoraja-capture/integrated-r6/`。高清密集截图会造成下一render采样延迟，所记50/200ms是请求点，真实age另载，不冒充精确帧时序。小节线、更多局部控制和亮度修正发生于该包之后，须由下一候选另验。
 
 继续核对发现原亮度只在部分carrier生效、Lightning原小节线未被采用。现已分别接Standard lane、Lightning column/lane objects；408对真实notes/charge设置直接核29696个输出部件像素，原尺寸、alpha、透明padding保持；Judge的内部label/Combo destination分别消费亮度。小节线取Lightning本族原PNG与BMS deck marker，Standard保持明确宿主新增；81真实frame-mode经官方CPU检查108个group引用及2592次几何/颜色，取整和原arrival fade差异留在收据。b04光柱的input.pressed绑定还曾被误判为未映射，已接真实KEYON开关并透传到recorded-animation；12个实际分支经官方LuaJ检查258048次可见门、258048次选帧及1728次整帧集合，松开、按住、释放和再次按下均符合本族原17帧片。Graph、Gauge/Judge显示、爆炸大小等源控制已生成controls-r8候选，未以CPU检查代签实绘。
 

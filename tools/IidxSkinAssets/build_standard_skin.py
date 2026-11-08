@@ -497,7 +497,9 @@ class Frame:
             add_preview_background(self, children)
         return self.template('background', node(self.prefix + '.background', children=children), 'stage.background')
 
-    def apertures(self):
+    def apertures(self, *, graph_visible=True):
+        if not graph_visible and (self.style not in SOURCE21_STYLES or not self.dp):
+            raise ValueError('Four Graph-OFF openings are qualified only for original21 DP')
         image = self.owner.Image.open(self.research / self.map['layouts'][self.centre]['static_frame']).convert('RGBA')
         if self.dx:
             shifted = self.owner.Image.new('RGBA', CANVAS)
@@ -513,6 +515,9 @@ class Frame:
             split = round(monitor[0]['bounds']['top'])
             rectangles = [largest_clear_rectangle(image, 0, 300, 0, split),
                           largest_clear_rectangle(image, 0, 300, split)]
+            if not graph_visible:
+                rectangles.extend([largest_clear_rectangle(image, 980, 1280, 0, split),
+                                   largest_clear_rectangle(image, 980, 1280, split)])
             original_openings = copy.deepcopy(rectangles)
             # The public BMS layout reserves its bottom 8% for the HUD even
             # outside the lanes. Stay below that contract's 662.4px boundary.
@@ -526,7 +531,9 @@ class Frame:
             for bounds in rectangles:
                 bounds['bottom'] = min(bounds['bottom'], 640)
         self.evidence.append({'bga': rectangles, 'centreTranslation': self.dx,
-                              'scope': ('Original DP left upper/lower openings, clipped at the public HUD boundary; mirroring the BGA into the Qpro opening and retaining both when Graph is hidden are OMS adaptations.' if self.dp else
+                              'scope': ('Original21 DP Graph-OFF uses all four independently measured clear openings; fit and the public lower-HUD clip remain OMS adaptations.' if not graph_visible else
+                                        'Original21 DP Graph-ON uses the two left clear openings; the separate Graph-OFF BGA contribution uses all four. Fit and the public lower-HUD clip remain OMS adaptations.' if self.dp and self.style in SOURCE21_STYLES else
+                                        'Original DP left upper/lower openings, clipped at the public HUD boundary; mirroring the BGA into the Qpro opening and retaining both when Graph is hidden are OMS adaptations.' if self.dp else
                                         'Verified fully transparent opening after composing both original movies; OMS fit and lower-HUD clipping are author adaptations.')})
         return rectangles
 
@@ -943,8 +950,10 @@ class Frame:
         controls=self.controls()
         profiles=self.material_ini(background,information,controls)
         apertures=self.apertures()
-        self.owner.bga_contexts.append({'style':self.style,'layout':self.layout,'wide':self.wide,
-                                       'apertures':apertures})
+        bga_context = {'style':self.style,'layout':self.layout,'wide':self.wide,'apertures':apertures}
+        if self.style in SOURCE21_STYLES and self.dp:
+            bga_context['dpGraphOffApertures'] = self.apertures(graph_visible=False)
+        self.owner.bga_contexts.append(bga_context)
         for mode in (14,) if self.dp else (5,7):
             fields={'PlayfieldWidth':672/1280 if self.dp else 292/1280,'PlayfieldHeight':484/720,
                 'PlayfieldSideInset':48/1280,'LaneSidePadding':2/292,'NormalLaneWidth':1,
