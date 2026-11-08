@@ -25,7 +25,8 @@ import xml.etree.ElementTree as ET
 import zlib
 
 STYLES = (3, 8, 12, 14, 16, 17, 19, 21, 25, 26)
-from standard_source_catalog import frame_token, layout_family, package_key, source_style, styles as source_styles
+from standard_source_catalog import (frame_token, layout_family, package_key, source_style,
+                                     styles as source_styles, SOURCE21_STYLES, SOURCE22_STYLES)
 from standard_lane_geometry import source_lane_regions
 KEY_HEIGHT = 80  # The explicit OMS key-area host in build_standard_skin.py.
 WIDTHS = (60, 34, 26, 34, 26, 34, 26, 34)
@@ -180,6 +181,19 @@ def _source22_keys(draws, style, layout, group, right):
     return _raster_keys(draw, white, black)
 
 
+def _source21_keys(draws, style, right):
+    """Own SPADA21 panel and GEO, including its retained small rotation."""
+    name = "sp_key_" + ("2p" if right else "1p")
+    draw = only([d for d in draws if d["texture"] == name], "21 original SPADA key panel")
+    vertices = [{"x": x, "y": y, "z": 0} for x, y in ((0, 0), (322, 0), (0, 86), (322, 86))]
+    if (draw["asset"]["package"] != package_key(style)
+            or (draw["asset"]["width"], draw["asset"]["height"]) != (322, 86)
+            or draw["source_vertices"] != vertices):
+        raise ValueError("21 key panel identity, dimensions or original GEO changed")
+    return _raster_keys(draw, (10 if right else 91, 12, 28, 47),
+                        (46, 7, 20, 40) if right else (128, 7, 18, 40))
+
+
 def cabinet_keys(reference, style, layout, group):
     """Seven left-to-right caps with their own source draw, not a guessed key hook.
 
@@ -196,7 +210,9 @@ def cabinet_keys(reference, style, layout, group):
     if not 0 <= group < len(regions):
         raise ValueError("Control group does not belong to this source layout")
     field = regions[group]
-    if isinstance(style, str):
+    if style in SOURCE21_STYLES:
+        keys = _source21_keys(draws, style, right)
+    elif style in SOURCE22_STYLES:
         keys = _source22_keys(draws, style, layout, group, right)
     elif style in (24, 25):
         candidates = [d for d in draws if d["texture"] in ("key_w", "key_b") and
@@ -387,11 +403,16 @@ def build_controls(library, frame_map, *, style, layout, contexts):
         result["receipt"]["limits"].append(
             "Earlier controls use their own s23/s24 gameparts lights and original cabinet cap transforms. "
             "The shared OMS 484px lane-plane convention is an explicit mapping, not a claim that the 24 native note scissor is 484px.")
-    if isinstance(style, str):
+    if style in SOURCE22_STYLES:
         result["receipt"]["limits"].append(
             "22 controls consume only s22/gameparts and their selected source22 cabinet. PRESENT/FUTURE's right panel uses its original mirrored 1P raster. "
             "The fixed 484px OMS component plane is an explicit adaptation; the evidenced 22 native note scissor is 482px. "
             "Baked LINCLE/TRICORO lane art remains in its original cabinet raster, independently of the logical note plane.")
+    if style in SOURCE21_STYLES:
+        result["receipt"]["limits"].append(
+            "21 controls consume only s21/gameparts and the source21/gmframe0 panel, preserving its measured caps and original affine rotation. "
+            "The 484px OMS component plane follows its own original lane GEO; the separately evidenced482px cover clip does not establish native note-coordinate parity. "
+            "Input-gated additive glows remain an explicit OMS adaptation, not a native21 press/release timeline.")
     if style == 23:
         result["receipt"]["limits"].append(
             "copula kenban_light_big/mini are retained in the cabinet entry movie (before its loop); "

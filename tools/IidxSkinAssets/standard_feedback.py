@@ -433,7 +433,7 @@ def build_feedback(library, frame_map, *, style, layout, centre_movie, centre_dx
                    "JUDGE native fixed-cell FA/SL line can extend beyond its original backplate; the native source coordinates are retained.",
                    "Source opening remains the cabinet's responsibility; feedback enters after preparation, without invented slide timing.",
                    "Original source fonts are rasterised locally, not copied from another skin; final Player sampling still needs visual verification."]}
-    if isinstance(style, str):
+    if layout_family(style) == "s22":
         result["receipt"]["fastSlow"] = (
             "Explicit OMS feedback adaptation: existing A/B/C coordinates and font cells from the audited26 author model, "
             "with real exact-Stage timing direction. These coordinates/font IDs are not asserted as22 executable behavior.")
@@ -442,4 +442,14 @@ def build_feedback(library, frame_map, *, style, layout, centre_movie, centre_dx
             "The source22 caller supplies the separately audited35px SP centre translation; normal/wide/DP do not borrow26's36px offset. "
             "The 484px OMS timing plane is an author convention, independent of22's482px native note scissor. "
             "Earlier-source counters, font-cell layout, timing placement and FA/SL overflow remain explicit OMS adaptations unless separately qualified by that executable.")
+    if layout_family(style) == "s21":
+        result["receipt"]["hostFeedbackModelEvidence"] = result["receipt"].pop("nativeEvidence")
+        result["receipt"]["fastSlow"] = (
+            "Explicit OMS feedback adaptation: the established26 A/B/C positions and fixed cells use actual exact-Stage timing direction. "
+            "The21 DLL independently registers the supplied DF Heisei W7 text font2 at22px, but these timing positions and cells are not claimed as21 executable behavior.")
+        result["receipt"]["limits"].append(
+            "JUDGE artwork and its source hook belong to s21/gameparts and source21/gmframe0. "
+            "The independently checked21 centre caller supplies35px narrow-SP translation; wide/DP retain their own movie coordinates. "
+            "The484px OMS timing plane, counters, timing lifetime and FA/SL overflow remain explicit host adaptations. "
+            "The hostFeedbackModelEvidence26 addresses describe the retained author model only, never the21 executable.")
     return result

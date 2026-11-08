@@ -33,7 +33,7 @@
 - Gauge原作是整条图与裁切，不能猜成50格。Graph采用beatoraja当前Target与实际EX/PB；无法区分无PB与真实零分时保留原生零值，不伪造镜像成绩。宿主Fast/Slow统计与OMS语义不同，分别记录。
 - 原生Judge始终保留每stage的实际状态所有权，外观OFF不删除owner。Lightning的A/B/C使用原FAST/SLOW图和实际region的提前/延后资格，显示500ms；源没有毫秒数字美术，键/皿独立历史也不能由525/526/527三个Judge region伪造。Course Gauge暂取同族HARD/EX-HARD外观并保留真实值；原1000+ Combo宽度适配缺少公开的命中时course-combo，不能用未实现的104或最大Combo顶替。
 - 原转盘按beatoraja实际scratch offset运动，含宿主自动转动和输入加速；静态几何按各自来源。Standard 25极小仿射偏斜在原纹理像素中心反向采样，其它分代不套用该修正；整数destination带来的小数几何差异另记，不称GPU像素全等价。
-- Standard 21的28个键灯另有真实固定仿射quad，按各自源顶点在目标像素中心反采样并保留越界部分。读数也沿该框体实际473高/top11轨道，不能误套26软件表的484跨度。两族白/绿读数使用公开Sudden/Lift/Hidden和duration；Standard固定clip下的Lift/Hidden位置有公开千分位量化，Lightning沿原生offset；不造Normal/Floating/Classic模式映射。
+- Standard中的26 ARC SCORE SPADA（iidx21）的28个键灯另有真实固定仿射quad，按各自源顶点在目标像素中心反采样并保留越界部分。读数也沿该复刻框体实际473高/top11作者轨道，不能误套26软件表的484跨度，也不能将此身份误认作21原程序的source21-gmframe0。两族白/绿读数使用公开Sudden/Lift/Hidden和duration；Standard固定clip下的Lift/Hidden位置有公开千分位量化，Lightning沿原生offset；不造Normal/Floating/Classic模式映射。
 - Standard的原Gauge增长和Graph越线影片由只读CustomTimer观察实际Gauge/EX变化。正PB/Target严格超过，A/AA/AAA取ceil阈值且至少达到；初始快照、重试、回退及阈值变化只设基线。这里记录render观察时刻，不等同OMS事件时间；零PB不能伪造一次历史越线。Lightning冻结作者没有这两类挂载，不跨族补入。
 - Lightning原血条边界的双clip、P2两次180°和独立透明度脉冲分别适配。官方SkinObject将零面积clip视作无裁切，故极低正Gauge必须按实际signed毫秒截断阻止elapsed-zero露整图。HD/FULLHD原生CPU探针测得边缘误差不超过0.5源像素，脉冲alpha不超过1字节差；这不是GPU逐像素等价。
 - 字体按原glyph矩形和advance转换；原生字号、裁切及采样差异逐项登记。bitmap字体强制线性过滤、原生truncate与OMS ellipsis等不宣称像素等价。

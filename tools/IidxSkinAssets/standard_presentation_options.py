@@ -16,7 +16,7 @@ import hashlib
 import json
 import math
 from pathlib import Path
-from standard_source_catalog import frame_token, frame_id, package_key, source_style, SOURCE22_STYLES
+from standard_source_catalog import frame_token, frame_id, package_key, source_style, SOURCE22_STYLES, SOURCE21_STYLES
 import re
 from standard_source_catalog import styles as source_styles, layout_family
 
@@ -108,7 +108,7 @@ def lane_roots(source, layout, *, style=None):
         if hooks:
             raise ValueError("Earlier lane source unexpectedly contains named lane placements")
         return earlier_lane_roots(source, layout, style)
-    if style in SOURCE22_STYLES:
+    if style in SOURCE22_STYLES or style in SOURCE21_STYLES:
         if hooks:
             raise ValueError("22 source unexpectedly contains named lane placements")
         if source["sourceMovie"] not in ("1p_frame", "2p_frame", "center_frame_dp_1p"):
@@ -132,7 +132,7 @@ def _pendual_lane_domains(source, layout, style):
     if source["package"] != package_key(style) or layout["package"] != source["package"]:
         raise ValueError("22 lane belongs to a different source package")
     mode = {"1p_frame": "p1", "2p_frame": "p2", "center_frame_dp_1p": "dp"}[source["sourceMovie"]]
-    return source_lane_regions({"package": source["package"], "common_family": "s22",
+    return source_lane_regions({"package": source["package"], "common_family": layout_family(style),
                                 "layouts": {source["sourceMovie"]: layout}}, style, mode)
 
 
@@ -517,7 +517,14 @@ def export_lane_layers(library, research, style, movie, output):
                           "sourceRootSHA256": digest(folder / "source-root.json"), "laneRoots": roots,
                           "pngBytesPreserved": True, "perFrameDrawOrderPreserved": True,
                           "limits": "Source layers only; final public CLI and actual Player budgets/visuals are separate checks."}}
-    if style in SOURCE22_STYLES:
+    if style in SOURCE21_STYLES:
+        result["receipt"]["laneIdentification"] = "Exact original21 package-local unnamed sp_lane GEO and complete placement path"
+        result["receipt"]["brightnessEvidence"] = (
+            "Original21 meshes and source pixels; existing OMS six-step brightness author option. "
+            "The 26 colour caller and multiplier RVAs are not evidence for21. "
+            "The original source-plane domain remains292x484; only the separate21 cover-number clip is qualified at482px. "
+            "Native21 note-coordinate parity is not asserted.")
+    elif style in SOURCE22_STYLES:
         result["receipt"]["laneIdentification"] = ("Exact package-local baked panel GEO and complete placement path; disjoint lane subdivision"
                                                    if baked else "Exact package-local unnamed sp_lane GEO and complete placement path")
         result["receipt"]["brightnessEvidence"] = (

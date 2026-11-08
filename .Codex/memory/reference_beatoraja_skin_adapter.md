@@ -12,7 +12,7 @@ Lua皮肤header与body分别执行；require缓存会保留返回表，被合并
 
 原坐标变换可能把整数glyph advance算成`28.99999999999997`；直接与`int()`比较会拒绝合法BMFont。仅在与最近整数的绝对差不超过`1e-9`时整化，负值和真实分数仍拒绝；不要改源字形或作者数据来迁就导出器。正负余差、原图字节及真实分数反例见[字体间距测试](../../tools/IidxSkinAssets/tests/test_beatoraja_hud_spacing.py)。
 
-原生offset已按目标逻辑分辨率缩放；Gdx窗口高度不一定是Config逻辑高度，不能据窗口比例反推offset。offset同时移动clip，固定窗口内的读数需要保持clip独立。Standard旧框体可复用26软件的484读数跨度，但21的实际轨道高度473/top11不能被该常数覆盖；诊断取[读数适配器](../../tools/IidxSkinAssets/beatoraja_reading.py)。
+原生offset已按目标逻辑分辨率缩放；Gdx窗口高度不一定是Config逻辑高度，不能据窗口比例反推offset。offset同时移动clip，固定窗口内的读数需要保持clip独立。Standard旧框体可复用26软件的484读数跨度，但26 ARC SCORE SPADA（iidx21）的作者轨道高度473/top11不能被该常数覆盖；这里的iidx21不是21原程序或source21-gmframe0；诊断取[读数适配器](../../tools/IidxSkinAssets/beatoraja_reading.py)。
 
 Gauge增长与分数越线只能从实际公开状态观察；首个高分快照不提供越线时间，零PB也不代表存在一次0分记录。custom timer是render采样缓存，不能代替不可见的游戏事件队列。Judge外观OFF仍须保留原生状态owner，否则FAST/SLOW的region资格也会消失。接口依据与边界回链适配记录。
 

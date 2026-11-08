@@ -57,6 +57,8 @@ BMS 支持 5/7/14K，mania 支持 5/6/7/8/14/16K；单舞台使用 `p1/p2`，14/
 
 22/23/24 例外仅在显式选中 `iidx23`、`iidx24`，或22来源的 `source22-gmframe0-00`、`source22-gmframe0-01`、`source22-gmframe8`、`source22-gmframe9`、`source22-gmframe10` 时启用，并要求实际 publication 选中的 `frame` 与请求一致。这些来源没有专用 Normal 侧窗和首排 cue 美术：工具要求实际 `LayoutSnapshot.HasAuthoredNormalSpeedPreview` 为假，且已准备场景中不存在侧窗与 arrival 节点。OMS 此时仍将原生开局两音符预览放在实际音轨内；Normal、Floating、Classic 三种模式在开局保持 Start 时都须可见，松开后隐藏。`reading-first-row` 记录的是源 cue 缺席，不能作为首排提示已显示的证据。回执记录请求框体、实际布局能力、预览所属容器和视口、源 cue 节点数；其它来源仍走原有严格检查，不因缺少声明而静默跳过。这验证的是 OMS 对所选美术的实际适配，不证明原版具有相同的预览、分页或首排提示能力。裸`source22-gmframe0`是研究档案，不在该例外或可生成主题内。
 
+21 原版的 `source21-gmframe0` 也采用上述缺席检查：已提供 HDD 的全部 IFS 元数据中未发现专用 Normal 侧窗与首排 cue 图，而本代调速及 READY 电影存在。此资格只适用于该独立来源，不影响 26 ARC SCORE 的 `iidx21` 或 22 CUSTOM 的 `source22-gmframe10`，也不按年份推广。原版素材依据与本次实际宿主验收分别记录。
+
 所有来源均保持 Start 直到真实准备倒计时耗尽，松开后等待自然源 READY 与 chart clock 开始，再按原生生成器提供的动作计划，在 Player 更新中按 InputManager 实际谱面时钟投递到期 OmsAction 键/皿按松，并核对实际投递误差不超过 50ms。计划从不挂载为 Replay；实际成绩、判定与录制内容来自普通玩家路径。`reading-native-chart-input-plan.json` 与 `reading-native-chart-input-complete.json` 保存计划时间、实际投递时间/动作和原生结果，继续四张游玩图、完整计分、Full Combo 尾声及 Results。Start 等待最多写一份初始/1.5 秒诊断快照与 12 条输入/reset 记录，不逐帧写文件。默认 `standard` 与 `combo-stress` 不启用此入口。
 
 `--chart failure` 只允许 BMS，使用标准谱和真实 Hazard Gauge。独立 `BmsSoloPlayer` 先让原生录制器初始化本局元数据，再加载只有 0/60000 毫秒空输入帧的普通 Replay；不携 Autoplay/NoFail，不调用 `PerformFail` 或注入皮肤失败事件，也不采用 ReplayPlayer 的末帧延迟失败逻辑。实际漏判触发原生失败后，在独立失败呈现时钟达到 300/1500/2800 毫秒且源动画已存在可见纹理时取景，要求 chart clock、成绩及已计分命中数不再变化，原生输入已关闭，源动画 AppliedFrame 持续推进。最后等待并拍摄普通 FailOverlay。此分支不经过 Results、不宣称 Passed 或完整计分；`completed.json` 的成功仅表示失败场景验收闭合。可再以 `--options '{"judgement-display":"false"}'` 运行，确认原 Stage Failed 独立于 Judgement 开关。

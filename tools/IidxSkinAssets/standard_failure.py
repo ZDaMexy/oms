@@ -39,6 +39,9 @@ def export_failure(library, output, bemani_root, image_tools):
             receipt.update(source="22 HDD/gameparts/miss,180 frames at60Hz,1280x720",
                 nativeLoad="The supplied22 executable loads the shared gameparts miss movie for its play scene. The original22 clock/shield failure artwork and full source program are retained.",
                 nativeBoundary="Only actual OMS gameplay.fail starts this source movie. The OMS3000ms failure presentation is an explicit host adaptation; the original22 scene exit duration and all180 frames being visible in its caller are not asserted.")
+        elif family == "s21":
+            receipt.update(source="21 HDD/gameparts/miss,180 frames at60Hz,1280x720",
+                nativeBoundary="Original21 failure artwork and complete source hierarchy. Only actual OMS gameplay.fail triggers it; the OMS3000ms failure presentation is a host adaptation. Native21 exit duration and visibility of all180 frames are not inferred from the asset.")
         else:
             receipt.update(source=f"24 HDD/{'0/' if family == 's24' else ''}gameparts/miss,180 frames at60Hz,1280x720",
                 nativeBoundary="Original 24 HDD artwork and full source timeline; the OMS failure event/outro is an explicit host adaptation. This does not assert original 23 executable timing.")

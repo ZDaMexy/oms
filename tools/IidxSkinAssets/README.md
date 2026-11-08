@@ -53,17 +53,17 @@
 
 ## 独立 Standard 时期作品
 
-`build_standard_skin.py` 消费来源明确的 Standard 素材库、研究输出及组件目录，基础名称为 **Standard Model Skin Omni Until 26**。现支持26、24/26和22/24/26三种明确组成库。22来源保留六份框体档案，只有PRESENT、FUTURE及LINCLE/tricoro/SPADA三个CUSTOM主题具备可生成的闭包；裸`gmframe0`缺必要字形且没有已证原生加载入口，只留作研究。与既有23 copula保留美术、24 SINOBUZ、25 CANNON BALLERS保留美术、26 Rootage及八款26 ARC SCORE复刻合计17个可生成主题，不能称3～26完整原版覆盖。来源分类、实际程序身份与未识别边界只在[作品记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)维护，不以生成清单代替成品验收或HDD素材穷尽。
+`build_standard_skin.py` 消费来源明确的 Standard 素材库、研究输出及组件目录，基础名称为 **Standard Model Skin Omni Until 26**。来源链区分26、24/26、22/24/26及新增21/22/24/26组成库。22来源保留六份框体档案，只有PRESENT、FUTURE及LINCLE/tricoro/SPADA三个CUSTOM主题具备可生成的闭包；22的裸`gmframe0`缺必要字形且没有已证原生加载入口，只留作研究。新增原21使用独立`source21-gmframe0`及`s21`共用素材，制作清单由17增至18个可用主题、来源档案由18增至19份；新作者整合、打包与各宿主验收仍须分别通过，不据此刷新正式成品。23 copula与25 CANNON BALLERS仍是后代HDD保留美术，八款26 ARC SCORE仍是活动复刻，不能称3～26连续原版覆盖。来源分类、实际程序身份与未识别边界只在[作品记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)维护，不以生成清单代替成品验收或HDD素材穷尽。
 
 既有v00/v01/v02保留各自历史身份和验证边界；已交付v02取[历史验收](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#v02-验证与交付历史)。24来源候选的作者生成不代表CLI、OSK或Player验收完成，当前状态取[本轮验证](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#本轮验证与交付)。复跑须重新核对同包身份，不能沿用旧包结论。工具只复用中立解析及公开合同，不读取Lightning作者包或以其素材补缺。
 
-25框体配对26 HDD的family1 Graph、失败和Classic BGA外框，原十框体中的其余九款使用family0；23/24分别使用24 HDD根族/0族的`s23`/`s24`别名。22独立使用`source22/`框体与组件以及`s22/`公共素材，不与相同年代的ARC SCORE选择共用身份。`compose_standard_sources.py`原24/26接口保留，22扩展另收固定24个别名及原组成库清单；原IFS/AFP/GEO/PNG字节不改。`retained_styles()`枚举18份来源档案，`styles()`只枚举17个可生成主题，两者不能混用。相同画布不证明来源相同；作者配方和原程序可选性、调用、时序分别记证。
+25框体配对26 HDD的family1 Graph、失败和Classic BGA外框，原十框体中的其余九款使用family0；23/24分别使用24 HDD根族/0族的`s23`/`s24`别名。22独立使用`source22/`框体与组件以及`s22/`公共素材；21使用`source21/gmframe0`和`s21/`五个共用包。`compose_standard_sources.py`保留原24/26接口，22扩展收固定24个别名，21扩展只追加六个core包并保存149个CUSTOM原包与既有来源的严格相等证明，不为21另加第二份CUSTOM包或新增选项。原IFS/AFP/GEO/PNG字节不改，旧组成清单逐层保留。`retained_styles()`与`styles()`按实际输入分别枚举档案和可生成身份；完整21组成库为19/18，旧22组成库仍为18/17。数字`21`始终指既有26 ARC SCORE，不是原21；同名、同图或相同画布不合并来源，也不证明原调用、默认组合或时序一致。
 
 | 入口 | 责任 |
 | --- | --- |
 | `build_library.py` | 按明确选择提取IFS；显式保留异常纹理名字节，保存原件、XML/UV、AFP/GEO及名称映射 |
-| `compose_standard_sources.py` / `standard_source_catalog.py` | 核对独立22/24/26输入，组成固定别名库并区分保留档案与可生成主题 |
-| `compose_standard_research.py` | 复核各来源完整研究闭包；22扩展保留18份档案，只重绑相同来源文件的路径 |
+| `compose_standard_sources.py` / `standard_source_catalog.py` | 核对独立21/22/24/26输入，组成固定别名库并区分保留档案与可生成主题；CUSTOM重复必须以完整原包证明 |
+| `compose_standard_research.py` | 复核各来源完整研究闭包；22扩展保留18份档案、21扩展保留19份，只重绑相同来源文件的路径 |
 | `standard_reference.py` | 每款框体完整 narrow/wide/DP 源电影、静态核对图、原几何和 recorded 片段 |
 | `standard_components.py` | 原 CUSTOM 图与动画贡献、真实对象状态及共享判定位置；保留源能力与OMS选项适配的区别 |
 | `standard_script_masks.py` / `standard_lane_geometry.py` | 离线求值旧FC已核实的矩形脚本遮罩；区分原轨底动画与OMS游玩区域 |
@@ -111,11 +111,37 @@ dotnet run --project tools/SkinAuthoring -- pack "$taskStandardRoot/author-compa
 
 纯26复跑仍可使用合格283包库及匹配研究，不经过组成步骤；需重提取时，先重新取得26 HDD，再以 `--graphic-root contents/data/graphic --selection tools/IidxSkinAssets/selection-26-hdd.json --preserve-raw-texture-names` 生成新库。异常名恢复按原始bytes寻找精确MD5条目，使用安全落盘名并保存 `texturelist.original.bin` 与 `texturelist.name-map.json`，不猜字符、不替换原IFS；正常名称沿原解码行为，其它错误仍明确失败。恢复名字不等于这些图已被作品采用。
 
-`--frame-maps` 必须是JSON文件，不能传研究目录；纯26输入保留十份来源映射，24/26为十二份，22/24/26为十八份，其中十七份具有主题生成资格。每项指向各自 `skin-reference-map.json`，所有路径须位于该JSON目录下。来源族显式传入，不能从画布尺寸猜测。组成研究只在重新核对全部原输入字节后复用旧导出，不修改旧研究。当前代码从零生成时包含现有组件修正；仅复用早期组件导出时才使用 `--component-overrides` 加载同一来源身份的修订目录。`standard_feedback.prepare_feedback_font()` 生成两张数字atlas和独立静态标签；字形区域放在glyph的 `rect`，资源声明不含 `region`，同一规范化路径只声明一个资源。Start、Graph与挡板读数共用这些字体。
+21追加从已完整核验的155包`library21-r1`和旧22组成库开始；本轮选择文件与`audit_ifs.py`属于本地来源审计，公仓没有可直接套用的`selection-21-hdd.json`。需要重新提取时，先对实际21 HDD重新确认选择、原包身份及解析结果，不能把22选单或脚本参数当作21资格。存储边界取[AGENTS](../../AGENTS.md#开发磁盘约束)：本体和原机参照在`D:/OMS-Development/sources/SPADA-20261108/`，提取、研究、作者与宿主候选在独立的`OMS-Standard-Model-21-20261108/`父目录，旧22/24/26来源和Lightning保持原位。
+
+以下仅追加来源及研究；变量指向本机已保留的输入，输出必须全新。完成后，用新的`$taskLibrary`、`$taskStandardRoot/research/frame-maps.json`及下列18个`$taskStyles`继续上方从`standard_components.py`开始的组件、分层、Ready、Gauge、Failure、通知、BGA及作者流程。所有贡献必须重新绑定新组成库，不能直接把旧目录当作新库导出；Source21新增只使用自己的图片与几何，既有17主题输出另做等价核对。
+
+```powershell
+. .\UseDevelopmentStorage.ps1
+$taskStandardRoot = 'D:/OMS-Development/sources/OMS-Standard-Model-21-20261108/rebuild-new'
+$taskLibrary21 = 'D:/OMS-Development/sources/OMS-Standard-Model-21-20261108/library21-r1'
+$taskBase22 = 'D:/OMS-Development/sources/OMS-Standard-Model-22-20261108/composed-library-r1'
+$taskResearch26 = 'E:/OMS-Development/sources/OMS-Standard-Model-Until26-20261105/family1-r1/research'
+$taskResearch23 = 'E:/OMS-Development/sources/OMS-Standard-Model-24-20261107/research23'
+$taskResearch24 = 'E:/OMS-Development/sources/OMS-Standard-Model-24-20261107/research24'
+$taskResearch22 = 'D:/OMS-Development/sources/OMS-Standard-Model-22-20261108/research22-r1'
+$taskSourceFont = 'D:/OMS-Development/sources/OMS-Standard-Model-21-20261108/source-fonts-r1/df-heiseigothic-w7.ttc'
+$taskImageTools = 'F:/zdamexy-workspace/oms/.dev-cache/tools/iidx-assets'
+$taskParserRoot = 'F:/zdamexy-workspace/oms/.dev-cache/temp/iidx-afp-research-20261018/sources/bemaniutils'
+$taskLibrary = "$taskStandardRoot/composed-library"
+$taskStyles = 3,8,12,14,16,17,19,21,23,24,25,26,'source22-gmframe0-00','source22-gmframe0-01','source22-gmframe8','source22-gmframe9','source22-gmframe10','source21-gmframe0'
+New-Item -ItemType Directory -Path $taskStandardRoot -ErrorAction Stop
+python -B tools/IidxSkinAssets/compose_standard_sources.py --base-library $taskBase22 --library21 $taskLibrary21 --output $taskLibrary
+python -B tools/IidxSkinAssets/standard_reference.py --library $taskLibrary --bemani-root $taskParserRoot --image-tools $taskImageTools --output "$taskStandardRoot/research21" --styles source21-gmframe0 --common-family s21 --recorded
+python -B tools/IidxSkinAssets/compose_standard_research.py --library $taskLibrary --base-research $taskResearch26 --research23 $taskResearch23 --research24 $taskResearch24 --research22 $taskResearch22 --research21 "$taskStandardRoot/research21" --output "$taskStandardRoot/research"
+```
+
+`--frame-maps` 必须是JSON文件，不能传研究目录；纯26输入保留十份来源映射，24/26为十二份，22/24/26为十八份，21/22/24/26为十九份。后两种输入分别有十七、十八份具有主题生成资格，22裸包始终仅归档。每项指向各自 `skin-reference-map.json`，所有路径须位于该JSON目录下。来源族显式传入，不能从画布尺寸猜测。组成研究只在重新核对全部原输入字节后复用旧导出，不修改旧研究。当前代码从零生成时包含现有组件修正；仅复用早期组件导出时才使用 `--component-overrides` 加载同一来源身份的修订目录。`standard_feedback.prepare_feedback_font()` 生成两张数字atlas和独立静态标签；字形区域放在glyph的 `rect`，资源声明不含 `region`，同一规范化路径只声明一个资源。Start、Graph与挡板读数共用这些字体。
+
+21的`effect/playm_ef_rev3`是原程序按名称动态重绑的占位，`s21/common`与`s21/gameparts`存在不同原图，当前尚未确认最终资源owner。`standard_reference.py`只对这一精确身份保留两候选和未决原因；命名占位不作为静态美术选图，真正静态可见引用仍须有唯一来源，其它冲突继续报错。`txt_tutorial`属于未提取的原教程包，不能借普通演奏闭包宣称教程已支持。原字体、HUD hook和当前绿数已分别取证，但完整Start策略、Graph调用时序和原软件机能不由相同AFP字节代签；这些限制与新作者、各宿主实际验收分开。
 
 `standard_bga.py` 的准备入口输出全新私有JSON，`build_standard_skin.py --bga-geometry` 读取并复核其中原文件、几何与完整入场/循环状态。BMS模块 `bga-frame` 默认 `off`（完整画面），`on` 为Classic BGA Frame（旧式外框）；它是人工美术选择，因为OMS没有原IIDX旧曲版本或Camera状态，不自动猜旧曲或模拟Camera。SP保留原PNG/UV与四边形，并裁在现有框体的BGA开口内；DP没有对应源钩子，两项保持既有双窗口。这一OMS组合适配与原机逐像素等价分开验收。
 
-`standard_graph_notifications.py` 输出目录中的 `graph-notifications.json` 使用 `oms-standard-graph-notifications.v1`，含 `librarySHA256`、`files` 和按输入确定的 `families["0"/"1"/"s23"/"s24"].clips`；每族键为 `mybest/target/aaa/aa/a/update`。每片保留280×720、60fps、150源帧及终止空帧，非循环；A/AA仅替换原 `lv_pass` 命名子对象的原图，其余几何、状态、颜色和帧不变。整合器在现有PACEMAKER分支中声明 `scoreCrossing`：真实PB/目标正阈值用严格超过，A/AA/AAA用达到；每个阈值只消费一次，同一计分更新跨多线时共享update仅重启一次，等级只显示最高已达档。早期来源的通知层序和目标政策属于已明确的OMS适配，不把26调用证据套成23/24程序事实。`graph-cutin` 默认开启，电影只用真实 `score.crossing` 起点，不用挂载或墙钟补造过线时间，也不延长Results等待；各版实测范围见作品记录。
+`standard_graph_notifications.py` 输出目录中的 `graph-notifications.json` 使用 `oms-standard-graph-notifications.v1`，含 `librarySHA256`、`files` 和按输入确定的 `families["0"/"1"/"s23"/"s24"/"s22"/"s21"].clips`；每族键为 `mybest/target/aaa/aa/a/update`。每片保留280×720、60fps、150源帧及终止空帧，非循环；A/AA仅替换原 `lv_pass` 命名子对象的原图，其余几何、状态、颜色和帧不变。整合器在现有PACEMAKER分支中声明 `scoreCrossing`：真实PB/目标正阈值用严格超过，A/AA/AAA用达到；每个阈值只消费一次，同一计分更新跨多线时共享update仅重启一次，等级只显示最高已达档。早期来源的通知层序和目标政策属于已明确的OMS适配，不把26调用证据套成其它版本程序事实；s22另有自身层序证据，s21仍明确保留该调用边界。`graph-cutin` 默认开启，电影只用真实 `score.crossing` 起点，不用挂载或墙钟补造过线时间，也不延长Results等待；各版实测范围见作品记录。
 
 原26的18款Full Combo与组成库新增的24旧`fcombo00`分开保留；后者的矩形脚本遮罩由离线窄适配器求值，未经核实的形状明确失败，不引入运行时脚本。各P1/P2/DP源电影自动使用无损原像素atlas：逐图核对RGBA，保留nearest/clamp采样并重复边缘像素；不重采样、改色、裁图或旋转。只有纹理引用及UV重定位，反向UV误差须不超过`1e-12`；还原后核对GEO的XYZ、拓扑、层级、mask、滤镜、状态、相机、帧与终止空帧。原图库保留原PNG；成品atlas文件字节不同，不能声称所有成品PNG都是原文件。原时长及已核层序继续保留，真实Player仍须检查完整演出。
 
@@ -123,7 +149,7 @@ dotnet run --project tools/SkinAuthoring -- pack "$taskStandardRoot/author-compa
 
 catalog 实际引用且输出字节完全相同的 manifest/scene/INI 文件可共用字典序第一个原路径，同步改写 catalog 引用；固定的 manifest.scene 合同值不变。scene 身份与引用须通过逆向映射恢复原结构，catalog 改动按路径逐项还原；recorded 文件只改纹理引用，几何、UV、变换、颜色、帧和时间的数值文本保持。私有收据保存完整映射、配置别名、引用改动及逐文件校验，不进入 OSK。按唯一输出文件计算的整包配置按现行归档总限 **32 MiB** 检查，实际选中组合仍限 **384 个资源**。22扩展的配置超过旧16MiB门，需使用本轮更新后的OMS；单条目、总包、压缩比和其它运行预算保持。压缩后必须对 `author-compact` 执行正式 `check`、`pack`，并以同一包完成真实 Player 验收，不能用压缩前目录或逆向校验代替。
 
-Gauge 导出提供原 one-shot 与 loop；整合器按真实增加历史和 Clear 状态组织初始挂载循环。JUDGE 使用 Global `decoration` 全画布信息 marker，BMS/mania 各自按 `layout.ruleset` 显示；失败片段独立挂在直接场景树的 Global `hud.text` 前景，显式 Global 子节点保持完整 SafeBounds，才能覆盖最后的判定。JUDGE 开关、开场隐藏与失败生命周期分别控制，不让窄 footer 的 material-selected 投影裁掉失败画面。失败录制使用公开事件 `gameplay.fail`，不是 `gameplay.failed`；源帧与独立失败演出寿命分别负责素材和宿主行为。Normal 预览只读取唯一原生驱动的实际 phase；26来源的16-note/开合与OMS两音符、首排脉冲、0～1000白字等适配写入收据。23/24没有专用Normal预览窗和首排cue原图，不输出这些作者装饰与声明，仍保留OMS原生轨道内预览回退；没有专用艺术不等于关闭原生调速能力，也不从26补图冒充旧版。
+Gauge 导出提供原 one-shot 与 loop；整合器按真实增加历史和 Clear 状态组织初始挂载循环。JUDGE 使用 Global `decoration` 全画布信息 marker，BMS/mania 各自按 `layout.ruleset` 显示；失败片段独立挂在直接场景树的 Global `hud.text` 前景，显式 Global 子节点保持完整 SafeBounds，才能覆盖最后的判定。JUDGE 开关、开场隐藏与失败生命周期分别控制，不让窄 footer 的 material-selected 投影裁掉失败画面。失败录制使用公开事件 `gameplay.fail`，不是 `gameplay.failed`；源帧与独立失败演出寿命分别负责素材和宿主行为。Normal 预览只读取唯一原生驱动的实际 phase；26来源的16-note/开合与OMS两音符、首排脉冲、0～1000白字等适配写入收据。21、22及23/24保留分支没有专用Normal预览窗和首排cue原图，不输出这些作者装饰与声明，仍保留OMS原生轨道内预览回退；21/22也不加入后代绿数端点范围。没有专用艺术不等于关闭原生调速能力，不从26补图冒充旧版。
 
 来源收据写在作者目录外，不能随 OSK 打包。作者检查覆盖单选项加其余默认值及明确条件的代表组合，不展开所有选择的笛卡尔积，也不代替[真实 Player 取景](../StandardSkinCapture/README.md)。命令成功只证明各自阶段，最终交付仍须核对同包身份、闭包和实际演奏；原 v00 的检查与图片不可复用为新候选签收。
 

@@ -28,7 +28,7 @@ def add_cover_readouts(frame, prepared_font, *, source_family="0"):
     Relative children of the source482px clip use that height, not720px.
     """
     prefix = frame.prefix + ".cover-readout"
-    source22 = source_family == "s22"
+    current_only = source_family in ("s21", "s22")
 
     def text(identifier, value, *, x=0, y=0, size="normal", source=None, colour="#ffffffff"):
         height = 20 if size == "normal" else 18
@@ -98,10 +98,10 @@ def add_cover_readouts(frame, prepared_font, *, source_family="0"):
                 root_id = identifier + (".reversed" if reversed_lift else ".normal")
                 top = kind == "sudden" or reversed_lift
                 white = padded(root_id + ".white", source)
-                green = padded(root_id + ".green", "scroll.green-number", centre=not source22, colour="#00ff00ff")
-                if source22:
-                    #22 draws one current value at these two left anchors;
-                    # its complete caller has no later font5 endpoint range.
+                green = padded(root_id + ".green", "scroll.green-number", centre=not current_only, colour="#00ff00ff")
+                if current_only:
+                    # Independently checked21/22 callers draw one current
+                    # value at these anchors, without a font5 endpoint range.
                     frame.steps(green["id"], "x", "scroll.green-number", [(0, 90 / CANVAS_WIDTH), (1000, 88 / CANVAS_WIDTH)])
                     children = [white, green]
                 else:
@@ -138,15 +138,16 @@ def add_cover_readouts(frame, prepared_font, *, source_family="0"):
         "reversedLiftAdaptation": "Actual reversed Lift uses its top edge and the evidenced top-edge text offsets; native26 downscroll layout does not claim this reversed mode.",
         "largeEndpointAdaptation": "Beyond seven digits, reserve ten original cells within the public numeric-track time ceiling, as the Start panel does.",
         "scope": "Fixed source software coordinates are independent of historical frame and centre Graph translation. No new image, font, recorded-animation, scoring or input state."}
-    if source22:
+    if current_only:
         del receipt["sourceCallerRVA"]
-        receipt.update(sourceCaller="Supplied22 x86 cover-number renderer and its three cover callers; original font2 only.",
+        version = 21 if source_family == "s21" else 22
+        receipt.update(sourceCaller=f"Supplied{version} x86 cover-number renderer and its three cover callers; original font2 only.",
             greenOffset={"below1000": 90, "atLeast1000": 88},
             sourceGeometry={"laneHeight": SOURCE_HEIGHT, "bottomClip": SOURCE_CLIP,
                 "sudden": "pixels-26", "hiddenAndLift": "484-pixels"},
-            sourceFormat="White %03d left; current green %03d below1000 and %04d atLeast1000 at distinct original left anchors. No endpoint range in the complete22 renderer.",
-            actualUnitsAdaptation="Actual OMS0..1000 units are retained instead of original22 clamped floor(pixels*999/482). Cover edges use the authored484px lane; Lift uses the actual applied offset. The shared source-font atlas and OMS integer formatting are explicit host adaptations.",
-            reversedLiftAdaptation="Actual reversed Lift uses its top edge and the shared top-edge text projection; the original22 downscroll caller does not establish reversed Lift.",
+            sourceFormat=f"White %03d left; current green %03d below1000 and %04d atLeast1000 at distinct original left anchors. No endpoint range in the complete{version} renderer.",
+            actualUnitsAdaptation=f"Actual OMS0..1000 units are retained instead of original{version} clamped floor(pixels*999/482). Cover edges use the authored484px lane; Lift uses the actual applied offset. The shared source-font atlas and OMS integer formatting are explicit host adaptations.",
+            reversedLiftAdaptation=f"Actual reversed Lift uses its top edge and the shared top-edge text projection; the original{version} downscroll caller does not establish reversed Lift.",
             largeEndpointAdaptation="Values exceeding the native minimum digit width retain the full actual OMS number; no source overflow or cap is inferred.",
-            scope="22 source anchors/clip and current-only green capability, applied to real OMS reading state. No26 range, scoring, input or original runtime pixel-parity claim.")
+            scope=f"{version} source anchors/clip and current-only green capability, applied to real OMS reading state. No26 range, scoring, input or original runtime pixel-parity claim.")
     frame.evidence.append({"coverReadouts": receipt})

@@ -13,7 +13,7 @@ import hashlib
 import json
 from pathlib import Path
 from standard_source_catalog import (frame_token, frame_id, package_key, source_style,
-                                     SOURCE22_STYLES, SOURCE22_AVAILABLE_STYLES)
+                                     SOURCE21_STYLES, SOURCE22_STYLES, SOURCE22_AVAILABLE_STYLES)
 import shutil
 import sys
 from urllib.parse import unquote
@@ -42,6 +42,8 @@ SOURCE22_FRAME_LABELS = {
 
 
 def frame_label(style):
+    if style in SOURCE21_STYLES:
+        return '21 SPADA (Original)'
     if style in SOURCE22_FRAME_LABELS:
         return SOURCE22_FRAME_LABELS[style]
     return f'{style:02} {FRAMES.get(style, EARLIER_FRAME_LABELS.get(style))}'
@@ -382,6 +384,10 @@ class Frame:
             self.evidence.append({'source22LaneDomain': {'sourcePackage': self.key,
                 'omsGameplayDomain': values, 'nativeNoteClipHeight': 482,
                 'adaptation': 'Own original lane GEO or the qualified lane region of a combined cabinet mesh. OMS retains its484px component domain and hit offset, without claiming native note-coordinate parity.'}})
+        if self.style in SOURCE21_STYLES:
+            self.evidence.append({'source21LaneDomain': {'sourcePackage': self.key,
+                'omsGameplayDomain': values, 'nativeCoverClipHeight': 482,
+                'adaptation': 'Own original484px lane GEO. The independently checked21 cover renderer clips at482px; OMS retains its484px component domain and hit offset, without claiming native note-coordinate parity.'}})
         return values
 
     def profiles(self):
@@ -525,7 +531,7 @@ class Frame:
         return rectangles
 
     def score_panel(self):
-        if self.style not in SOURCE22_AVAILABLE_STYLES or self.dp or self.wide:
+        if self.style not in (*SOURCE21_STYLES, *SOURCE22_AVAILABLE_STYLES) or self.dp or self.wide:
             return
         # These named, one-frame source panels are removed from recorded art
         # together with game-controlled placeholders. The original caller keeps
@@ -555,9 +561,9 @@ class Frame:
             'scope': 'Own original single-frame panel and source rectangle; only the participating SP side is restored below its live digits. Wide/DP use their separate original cabinet art.'}})
 
     def bpm_range_panel(self):
-        if self.style not in SOURCE22_AVAILABLE_STYLES:
+        if self.style not in (*SOURCE21_STYLES, *SOURCE22_AVAILABLE_STYLES):
             return
-        # Native22 hides this named layer and both extrema when min == max.
+        # Both qualified21/22 callers hide this layer and extrema at min == max.
         # This author already displays the actual extrema continuously; restore
         # their own labels with that host behavior, below the live readouts.
         draws = self.draws('bpm_waku', self.centre)
@@ -565,12 +571,14 @@ class Frame:
             raise ValueError(f'{self.key}/{self.layout} requires one original bpm_waku')
         draw = draws[0]
         asset, bounds = draw['asset'], draw['bounds']
-        vertices = [{'x': x, 'y': y, 'z': 0} for x, y in ((0, 0), (280, 0), (0, 64), (280, 64))]
+        source21 = self.style in SOURCE21_STYLES
+        width, height = (266, 54) if source21 else (280, 64)
+        vertices = [{'x': x, 'y': y, 'z': 0} for x, y in ((0, 0), (width, 0), (0, height), (width, height))]
         projected = [{**v, 'x': v['x'] + bounds['left'], 'y': v['y'] + bounds['top']} for v in vertices]
-        if (asset['package'] != self.key or asset['width'] != 280 or asset['height'] != 64
+        if (asset['package'] != self.key or asset['width'] != width or asset['height'] != height
                 or draw['texture'] != 'pm_bpm2' or draw['game_bindings'] != ['bpm_waku']
                 or draw['source_vertices'] != vertices or draw['projected_vertices'] != projected
-                or bounds['right'] - bounds['left'] != 280 or bounds['bottom'] - bounds['top'] != 64
+                or bounds['right'] - bounds['left'] != width or bounds['bottom'] - bounds['top'] != height
                 or draw['mask_present'] or draw['blend'] != 0
                 or draw['mult_color'] != dict.fromkeys(('r', 'g', 'b', 'a'), 1)
                 or draw['add_color'] != dict.fromkeys(('r', 'g', 'b', 'a'), 0)
@@ -578,22 +586,29 @@ class Frame:
             raise ValueError(f'{self.key}/{self.layout} BPM range panel is not the qualified original rectangle')
         resource, _ = self.asset(self.key, 'pm_bpm2')
         self.info.append(node(self.prefix + '.bpm-range-panel', 'sprite', rect(bounds, dx=self.dx), resource))
+        scope = 'Own full-size MIN/BPM/MAX art at the final source rectangle, below the existing actual extrema. The host continuously displays both extrema and their labels; native22 hides these when min equals max. Original DP ancestor entry motion is not restored by this direct HUD layer.'
+        if source21:
+            scope = scope.replace('native22', 'native21')
         self.evidence.append({'bpmRangePanel': {'sourceHook': 'bpm_waku', 'sourcePackage': self.key,
             'sourceTexture': 'pm_bpm2', 'sourceBounds': bounds, 'centreTranslation': self.dx,
-            'scope': 'Own full-size MIN/BPM/MAX art at the final source rectangle, below the existing actual extrema. The host continuously displays both extrema and their labels; native22 hides these when min equals max. Original DP ancestor entry motion is not restored by this direct HUD layer.'}})
+            'scope': scope}})
 
     def numbers(self):
+        self.wide_score_labels()
         self.score_panel()
         self.bpm_range_panel()
-        digits, h = self.font('numbers', self.key, {str(i):f'playm_sco{i:02}' for i in range(10)}, 26)
-        bpm, bh = self.font('bpm', self.key, {str(i):f'playm_bpm{i:02}' for i in range(10)}, 26)
-        small, sh = self.font('small-bpm', layout_family(self.style) + '/gameparts', {str(i):f'playm_bpm_m{i:02}' for i in range(10)}, 17)
+        source21 = self.style in SOURCE21_STYLES
+        hud_package = 's21/gameparts' if source21 else self.key
+        digits, h = self.font('numbers', hud_package, {str(i):f'playm_sco{i:02}' for i in range(10)}, 27 if source21 else 26)
+        bpm, bh = self.font('bpm', hud_package, {str(i):f'playm_bpm{i:02}' for i in range(10)}, 27 if source21 else 26)
+        small, sh = self.font('small-bpm', layout_family(self.style) + '/gameparts', {str(i):f'playm_bpm_m{i:02}' for i in range(10)}, 18 if source21 else 17)
+        score_width, combo_width, small_width = (163, 109, 55) if source21 else (160, 112, 53)
         for name, source, hook, font, height, width in (
-                ('score','score.value',f'score_{self.player}_0',digits,h,160),
-                ('combo','combo.maximum',f'maxcombo_{self.player}_0',digits,h,112),
+                ('score','score.value',f'score_{self.player}_0',digits,h,score_width),
+                ('combo','combo.maximum',f'maxcombo_{self.player}_0',digits,h,combo_width),
                 ('bpm','timing.bpm','bpm_0',bpm,bh,82),
-                ('min-bpm','timing.bpm-min','bpm_min_0',small,sh,53),
-                ('max-bpm','timing.bpm-max','bpm_max_0',small,sh,53)):
+                ('min-bpm','timing.bpm-min','bpm_min_0',small,sh,small_width),
+                ('max-bpm','timing.bpm-max','bpm_max_0',small,sh,small_width)):
             draws = self.draws(hook)
             if not draws:
                 raise ValueError(f'{self.key}/{self.layout} is missing real {hook}')
@@ -605,7 +620,7 @@ class Frame:
                 # OMS can reach seven digits. Keep the native six-digit field
                 # inside its source bezel and shrink only that additional digit.
                 self.steps(readout['id'], 'font-size', source,
-                           [(0, height * LOGICAL), (1_000_000, height * LOGICAL * 160 / 186)])
+                           [(0, height * LOGICAL), (1_000_000, height * LOGICAL * score_width / (190 if source21 else 186))])
             self.info.append(readout)
             self.evidence.append({'readout':name,'sourceHook':hook,'sourceBounds':d['bounds'],'bounds':bounds,
                                   'advance':self.fonts[font]['glyphs'][0]['advance'],'scope':'Original glyph and hook; multi-digit width is an OMS adaptation.'})
@@ -613,7 +628,7 @@ class Frame:
         bounds = union(hsdraws)
         anchors = sorted(d['bounds']['left'] for d in hsdraws)
         advance = anchors[1]-anchors[0]
-        hs, hh = self.font('hispeed-'+self.layout,self.key,{str(i):f'playm_hs_{i:02}' for i in range(10)},advance)
+        hs, hh = self.font('hispeed-'+self.layout,hud_package,{str(i):f'playm_hs_{i:02}' for i in range(10)},advance)
         self.fonts[hs]['glyphs'].append({'character':'.','resource':self.empty,'advance':anchors[2]-anchors[1]-advance})
         hi_speed = self.number('hispeed','scroll.hi-speed',bounds,hs,hh,fmt='fixed-2')
         self.bind(hi_speed['id'], 'visible', 'scroll.hi-speed-available')
@@ -623,6 +638,34 @@ class Frame:
                 resource,_=self.asset(d['asset']['package'],d['texture'])
                 self.info.append(node(self.prefix+f'.fixed.n{i}','sprite',rect(d['bounds']),resource))
         return digits,h
+
+    def wide_score_labels(self):
+        if self.style not in SOURCE21_STYLES or not self.wide:
+            return
+        # Original21 wide movies carry separate named labels; filtering all
+        # named placeholders removes these along with the live digit anchors.
+        for name, texture, width in (('score', 'playm_score', 52), ('maxcombo', 'playm_maxcombo', 90)):
+            hook = name + '_' + self.player
+            draws = self.draws(hook, self.centre)
+            if len(draws) != 1:
+                raise ValueError(f'{self.key}/{self.layout} requires one original wide {hook}')
+            draw = draws[0]
+            bounds, asset = draw['bounds'], draw['asset']
+            vertices = [{'x': x, 'y': y, 'z': 0} for x, y in ((0, 0), (width, 0), (0, 15), (width, 15))]
+            projected = [{**v, 'x': v['x'] + bounds['left'], 'y': v['y'] + bounds['top']} for v in vertices]
+            if (asset['package'] != self.key or (asset['width'], asset['height']) != (width, 15)
+                    or draw['texture'] != texture or draw['game_bindings'] != [hook]
+                    or draw['source_vertices'] != vertices or draw['projected_vertices'] != projected
+                    or bounds['right'] - bounds['left'] != width or bounds['bottom'] - bounds['top'] != 15
+                    or draw['mask_present'] or draw['blend'] != 0
+                    or draw['mult_color'] != dict.fromkeys(('r', 'g', 'b', 'a'), 1)
+                    or draw['add_color'] != dict.fromkeys(('r', 'g', 'b', 'a'), 0)
+                    or draw['draw_params'] != [{'flags': 3, 'region': texture, 'vertexes': [0, 1, 2, 2, 1, 3], 'blend': None}]):
+                raise ValueError(f'{self.key}/{self.layout} wide score label is not the qualified original rectangle')
+            resource, _ = self.asset(self.key, texture)
+            self.info.append(node(self.prefix + '.label.' + name, 'sprite', rect(bounds), resource))
+            self.evidence.append({'wideScoreLabel': {'sourceHook': hook, 'sourcePackage': self.key,
+                'sourceBounds': bounds, 'scope': 'Own original wide-SP named label, restored below live digits without moving or replacing its artwork.'}})
 
     def header(self):
         difficulty = self.draws('diff_'+self.player,self.side)
@@ -635,9 +678,12 @@ class Frame:
                                      'ANOTHER':'playm_another','LEGGENDARIA':'playm_leggendaria'}),
             ('level',level,{str(i):f'lvlnum_{i:02}' for i in range(1,13)})):
             draw=draws[-1];bounds=draw['bounds'];values={}
+            hud_package = 's21/gameparts' if self.style in SOURCE21_STYLES else self.key
             for key,name in mapping.items():
-                if (self.key,name) in self.owner.index:
-                    values[key]=self.asset(self.key,name)[0]
+                if self.style in SOURCE21_STYLES and self.dp and field == 'difficulty':
+                    name += '_dp'
+                if (hud_package,name) in self.owner.index:
+                    values[key]=self.asset(hud_package,name)[0]
             identifier=self.prefix+'.header.'+field
             image=node(identifier,'sprite',rect(bounds),self.empty)
             self.variant(identifier,'resource','song.'+field,self.empty,values)
@@ -656,7 +702,7 @@ class Frame:
         d=self.draws('gg_bar_'+self.player,self.side)[-1]
         resource,_=self.asset(d['asset']['package'],d['texture'])
         mode_names = [('hard','playm_gauge_hard'),('ex-hard','playm_gauge_exhard')]
-        if self.style not in SOURCE22_STYLES:
+        if self.style not in (*SOURCE21_STYLES, *SOURCE22_STYLES):
             mode_names.append(('assist-easy','playm_gauge_aeasy_'+self.player))
         modes={key:self.asset(layout_family(self.style) + '/gameparts',name)[0] for key,name in mode_names}
         bounds=d['bounds'];prefix=self.prefix+'.gauge'
@@ -687,7 +733,8 @@ class Frame:
         self.info.append(node(prefix+'.body',properties=rect(bounds),children=[dark,shown]))
         anchors=[self.draws(f'percent_{self.player}_{i}',self.side)[-1] for i in range(3)]
         advance=anchors[0]['bounds']['left']-anchors[1]['bounds']['left']
-        font,height=self.font('gauge',self.key,{str(i):f'playm_gg_{i:02}' for i in range(10)},advance,
+        hud_package = 's21/gameparts' if self.style in SOURCE21_STYLES else self.key
+        font,height=self.font('gauge',hud_package,{str(i):f'playm_gg_{i:02}' for i in range(10)},advance,
                               uniform_height=self.style not in SOURCE22_STYLES)
         self.fonts[font]['glyphs'].append({'character':'%','resource':self.empty,'advance':1})
         percent={**union(anchors[:2]),'right':anchors[0]['bounds']['left']+advance+1}
@@ -695,7 +742,7 @@ class Frame:
         self.steps(readout['id'],'opacity','gauge.value',[(0,1),(.995,0)])
         hundred=[]
         for i,anchor in enumerate(anchors):
-            resource,_=self.asset(self.key,f'playm_gg_{1 if i==2 else 0:02}')
+            resource,_=self.asset(hud_package,f'playm_gg_{1 if i==2 else 0:02}')
             hundred.append(node(prefix+f'.hundred.n{i}','sprite',rect(anchor['bounds']),resource))
         group=node(prefix+'.hundred',children=hundred)
         self.steps(group['id'],'opacity','gauge.value',[(0,0),(.995,1)])
@@ -718,6 +765,12 @@ class Frame:
                 assistEasyArtwork='The22 source has no Assist Easy gauge sprite. The OMS mode retains the original normal gauge artwork with its actual host value/60% threshold; no later-source artwork is substituted.',
                 glyphHeightPolicy='Original glyph PNG sizes are retained, top-aligned in a line whose height is the largest source glyph. This represents Lincle digit2 at its original28px inside the30px line without rescaling its pixels; original movie-cell parity is not claimed.',
                 sourceFamily='s22')
+        if self.style in SOURCE21_STYLES:
+            gauge_evidence.update(
+                gaugePercent='Own21 gameparts ones/tens/hundreds artwork and original source-hook positions.',
+                visibility='Existing OMS A/B/C display policy, dark underlay and rounded100 threshold are author adaptations on21 art; this does not assert the21 executable gauge-option table.',
+                assistEasyArtwork='The21 source has no Assist Easy gauge sprite. The OMS mode retains its own original normal gauge artwork with its actual host value/60% threshold; no later-source artwork is substituted.',
+                sourceFamily='s21')
         self.evidence.append(gauge_evidence)
         hazard=node(prefix+'.hazard','text',{**rect(box(bounds['left'],bounds['bottom']+1,150,12)),
                     'text':'HAZARD / SURVIVAL','font-size':10*LOGICAL,'colour':'#ffffffff'})
@@ -923,7 +976,7 @@ class Frame:
             self.evidence.append({'readingSourceCapabilities': {
                 'dedicatedNormalSpeedPreviewArt': False, 'firstRowCueArt': False,
                 'nativePreStartLanePreview': 'Existing OMS fallback; not a source-game capability claim.',
-                'reason': ('No corresponding artwork or movies in the qualified22 gameparts; no26 artwork substituted.' if self.style in SOURCE22_STYLES else 'No corresponding artwork or movies in the readable 24 HDD graphic archives; no 26 artwork substituted.')}})
+                'reason': ('No corresponding artwork or movies in the qualified21 gameparts; no26 artwork substituted.' if self.style in SOURCE21_STYLES else 'No corresponding artwork or movies in the qualified22 gameparts; no26 artwork substituted.' if self.style in SOURCE22_STYLES else 'No corresponding artwork or movies in the readable 24 HDD graphic archives; no 26 artwork substituted.')}})
 
 
 def build(args):

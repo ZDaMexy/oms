@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 核对：2026-11-08（Standard双宿主22来源交付）
+> 核对：2026-11-08（Standard原21来源接入；新双宿主候选验证中）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -16,9 +16,9 @@
 | 作品 | 宿主 | 推进状态与证据 |
 | --- | --- | --- |
 | Lightning Model Skin Omni Until 33 | OMS | 自动推进停止，完整形态未完成；最新[.v26102902](CHANGELOG.md#2026-10-29omniv52私下交付)，历史Lighting文件名保留；缺口取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md) |
-| Standard Model Skin Omni Until 26 | OMS | [v26110800](../../other/STANDARD_MODEL_SKIN_20261105.md#22-来源-oms-交付)同包验收并交付，17主题；须重编/重启含32MiB配置门的当前OMS再导入，旧版保留 |
+| Standard Model Skin Omni Until 26 | OMS | 正式版仍为[v26110800](../../other/STANDARD_MODEL_SKIN_20261105.md#22-来源-oms-交付)；新增21原版的18主题作者已生成，正式打包与新同包验收进行中，尚未交付 |
 | Lightning Until33 | beatoraja | v26110800已安装、保全并交付ZIP |
-| Standard Until26 | beatoraja | [v26110800](../../other/BEATORAJA_IIDX_SKINS_20261107.md#22-来源-standard-增量交付)已安装、保全并交付ZIP；原选择和旧版保持 |
+| Standard Until26 | beatoraja | 正式版仍为[v26110800](../../other/BEATORAJA_IIDX_SKINS_20261107.md#22-来源-standard-增量交付)；21来源增量在动画资格与新包制作中，尚未安装；原选择和旧版保持 |
 
 安装与缺口取[适配记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md)。OMS选曲/Results沿[原界面决定](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
 
@@ -45,6 +45,8 @@
 C2～C6共享同一 package/layout/material/scene publication、lease/detach 与脚本隔离合同；无游玩宿主的菜单也检查整包。授权撤销不扩大 reload 准入，具体合同只在[技术约束](TECHNICAL_CONSTRAINTS.md)维护。
 
 ## 最近一次验证
+
+2026-11-08：21原版来源完成部署校验、提取与组件资格，原机P1/P2/DP和Stage Failed取得限定范围参照；完整18主题作者及压缩前后等价检查通过，OMS/beatoraja新包尚未完成运行验收。具体范围与同名来源隔离取[21接入](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-08-21-原版来源接入)。
 
 2026-11-08：Standard的22增量完成OMS同包24场与beatoraja原生22场、原图抽样审看、交付及保全；范围分别取[OMS](../../other/STANDARD_MODEL_SKIN_20261105.md#22-来源-oms-交付)与[beatoraja](../../other/BEATORAJA_IIDX_SKINS_20261107.md#22-来源-standard-增量交付)。Lightning首版、资源和未验门保持[原记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md#本轮同包验收)。
 

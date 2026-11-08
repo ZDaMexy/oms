@@ -14,7 +14,7 @@ import io
 import json
 import math
 from pathlib import Path
-from standard_source_catalog import frame_token, frame_id, package_key, source_style, SOURCE22_STYLES
+from standard_source_catalog import frame_token, frame_id, package_key, source_style, SOURCE22_STYLES, SOURCE21_STYLES
 from urllib.parse import unquote
 import xml.etree.ElementTree as ET
 
@@ -31,11 +31,11 @@ COPULA_COVERS = {"anime_cover": (800, 586), "anime_cover2": (938, 720)}
 
 
 def cover_sizes(family):
-    return COPULA_COVERS if family in ("s22", "s23") else COVERS
+    return COPULA_COVERS if family in ("s21", "s22", "s23") else COVERS
 
 
 def cover_source_frames(style):
-    return 300 if style in (23, 24) or style in SOURCE22_STYLES else 420
+    return 300 if style in (23, 24) or style in SOURCE22_STYLES or style in SOURCE21_STYLES else 420
 
 
 def read(path):

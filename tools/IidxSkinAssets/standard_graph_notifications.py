@@ -213,6 +213,10 @@ def export_graph_notifications(library, output, bemani_root, image_tools):
                 "sourcePriorities": {"mybest": 57, "target": 57, "lv_pass": 57, "update": 58},
                 "sourceSelectionBoundary": "s22 identifies the original supplied22 graph package, including its own PNGs. Its caller loads these four movies, replaces the named lv_pass child with pass_aaa/pass_aa/pass_a, and places one shared update behind the notifications. Source shape qualification and rank replacement are checked from this package, never borrowed from a later family.",
                 "hostEligibilityBoundary": "Actual OMS score-crossing events drive the retained programs. The22 caller independently has one-time PB/target crossings and a highest-rank selector; this author retains the existing OMS positive/available threshold gates and does not reconstruct22 per-note ghosts, preference storage or events missed before attach."})
+        elif family == "s21":
+            receipt.update({
+                "sourceSelectionBoundary": "s21 selects the supplied original21 graph package and its own PNG/GEO resources. The four complete AFP programs and named rank-child replacement are qualified from that package. Matching22 AFP bytes do not establish matching native callers.",
+                "hostEligibilityBoundary": "Actual OMS score-crossing events use the existing positive/available gates and highest-rank rule. The67/68 ordering and1000+Graph-offset placement recorded here are retained OMS author adaptations from the26 reference, not independently qualified21 native priority/anchor/threshold rules."})
         families[family] = {"clips": clips, "receipt": receipt}
         research = exporter.output / f"research/sgn.f{family}"
         research.mkdir(parents=True, exist_ok=True)

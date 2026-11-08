@@ -2,10 +2,13 @@
 
 The earlier cabinet art has unnamed lane meshes. SINOBUZ compresses these
 decorative meshes vertically; that animation is preserved independently of the
-host's gameplay coordinates. The audited 22/24 native note scissor is 482px,
-while this author retains the existing 484px source-plane component convention.
+host's gameplay coordinates. The audited 22/24 native note scissor is 482px;
+for21, only the separate cover-number clip has been independently qualified at
+482px. This author retains its484px source-plane component convention without
+claiming native21 note-coordinate parity.
 """
-from standard_source_catalog import EARLIER_STYLES, package_key, source_style
+from standard_source_catalog import (EARLIER_STYLES, SOURCE21_STYLES, SOURCE22_STYLES,
+                                     layout_family, package_key, source_style)
 
 
 def _domains(layout):
@@ -19,13 +22,13 @@ def _vertices(width, height):
 def _source22_regions(reference, style, layout, draws):
     """Retain the original fixed plane, separately from its painted surround.
 
-    Four PENDUAL source packages and LINCLE DP contain their own 292x484
+    Original21, four PENDUAL source packages and LINCLE DP have their own 292x484
     meshes. LINCLE SP and TRICORO bake the plane into a larger original raster;
     their measured local rectangles are projected through that raster's GEO.
     No frame from the later ARC SCORE set supplies these coordinates or pixels.
     """
     package = package_key(style)
-    if reference['package'] != package or reference['common_family'] != 's22':
+    if reference['package'] != package or reference['common_family'] != layout_family(style):
         raise ValueError('22 lane reference belongs to a different source package/family')
     expected = _domains(layout)
     baked = style == 'source22-gmframe9' or style == 'source22-gmframe8' and layout != 'dp'
@@ -72,7 +75,7 @@ def source_lane_regions(reference, style, layout):
         raise ValueError('Unqualified Standard lane context')
     movie = 'center_frame_dp_1p' if layout == 'dp' else ('2p_frame' if layout == 'p2' else '1p_frame')
     draws = reference['layouts'][movie]['draws']
-    if isinstance(style, str):
+    if style in SOURCE21_STYLES or style in SOURCE22_STYLES:
         return _source22_regions(reference, style, layout, draws)
     if style in EARLIER_STYLES:
         lanes = sorted((d for d in draws if d['texture'] in ('sp_lane_1p', 'sp_lane_2p')),

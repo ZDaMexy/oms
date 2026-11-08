@@ -15,7 +15,7 @@
 
 ### Standard Model Skin Omni Until 26
 
-按真实游玩反馈维护Standard双宿主版本，针对受影响的主题、读数与实际宿主行为复现后补同包回归；不重复已过的制作和交付门。来源资格、当前包及已知限制取[作品记录](../../other/STANDARD_MODEL_SKIN_20261105.md)。22/24/26原机复测须重新取得本体；更早代数须有真实来源，未知容器保留缺口，ARC SCORE不扩代。两作品独立，禁止computer use。
+先完成21原版增量的双宿主同包运行、画面审查、版本化交付与beatoraja保全安装；来源已核、完整作者已生成不代替这几道门。随后按真实游玩反馈维护Standard，针对受影响的主题、读数与实际宿主行为补同包回归，不重复已过门。来源资格、当前包及已知限制取[作品记录](../../other/STANDARD_MODEL_SKIN_20261105.md)。22/24/26原机复测须重新取得本体；更早代数须有真实来源，未知容器保留缺口，ARC SCORE不扩代。两作品独立，禁止computer use。
 
 ### Lightning Model Skin Omni Until 33（停止自动推进）
 

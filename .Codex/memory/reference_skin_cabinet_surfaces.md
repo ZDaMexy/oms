@@ -143,13 +143,17 @@ Time Freeze先核实际`-patchcfgpath`和最终日志，不能只看默认配置
 
 ## Standard 来源与能力诊断
 
+新来源身份接入catalog并不自动覆盖每个组件路由。原21曾在完整作者生成到Graph时因遗漏s21分支，错误查找26的gr_line_max；应沿同一次完整作者消费检查HUD、Graph、读谱与分层的实际资源名，并核新源自己的GEO。相同框体IFS或相同AFP不证明共享gameparts、字形、锚点或调用时序相同；原21、22 CUSTOM SPADA与26 ARC SCORE SPADA必须使用独立身份。资格取[来源记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)，失败作者保留，修复后使用新作者身份验收。
+
+Time Freeze的补丁名称不证明所有页面都停表。按实际DLL版本和原字节核目标分支，再分别观察guest入口、选模式与选曲；一个场景的计数停止不能外推另一计时器，更不能当作歌曲暂停。小文件备份和补丁前后边界保留，不能在补丁后重跑部署前CRC清单并把预期差异误报损坏。
+
 原电影的 named instance 不全是待替换数字：剔除 game-controlled 节点后，应逐名核原调用方、父容器变换、图层及显隐状态。22 的 `sco_waku_1p/2p` 是各侧原成绩底板，`bpm_waku` 是 `pm_bpm2` 的 MIN/BPM/MAX 标签；数字正常不代表这些底板已经恢复。恢复时须保留自身源图与完整 UV，并在真实读数下面绘制。原型、动态重绘和缺少宿主状态的节点不能按静态图一概补回；例如 BPM 范围恒显与原版相等时隐藏、DP 最终位置与原入场父层运动应分别记为适配。来源及实际范围仍取 [Standard记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)，不能从 named 数量直接推出原机机能完整。
 
 同一 HDD 内的旧代主题不等于该旧代原版来源：Rootage 的 `gmframe03/08/12/14/16/17/19/21` 属于 ARC SCORE 旧作复刻主题，不能由最小编号03推出覆盖3～26，也不能用主题款数替代原版代数。组成库的`s23/s24`与`gmframe23`又是[明确作者别名](../../tools/IidxSkinAssets/standard_source_catalog.py)，须沿`sourceComposition`、`origin`与保留的输入清单回到原路径，不能把组成库路径当作原HDD目录或已取得23程序的证据。当前来源分类只取 [Standard记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#身份与来源)。
 
 相同PNG不证明同一动画：24的`fcombo00`与26共像素，但AFP/GEO不同，须保留独立来源；不能按PNG摘要去掉旧FC。原文件逐字节保全、atlas解码像素一致、GEO/AFP调用资格各是不同证明。依据取[24来源接入](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#2026-11-07-24-来源接入)，不在记忆复制素材数量或成品版本。
 
-早期来源缺少专用Normal预览美术，不等于OMS没有原生预览。23/24分支不声明后来的小窗或首排cue；`HasAuthoredNormalSpeedPreview=false`时，Start前按原生资格显示轨内预览。诊断同时核选中的来源、真实publication、缺少对应作者节点及实际音符纹理/位置；不能把26的断言直接套到旧源，也不能用“旧源缺图”为其它来源跳过检查。真实取景条件见[Reading用例](../../tools/StandardSkinCapture/TestSceneStandardSkinCapture.Reading.cs)。同理，23沿24调用方的中心平移/Graph标尺只是保留美术适配，不证明23原软件相同；来源边界仍取上方作品记录。
+早期来源缺少专用Normal预览美术，不等于OMS没有原生预览。21/22/23/24分支不声明后来的小窗或首排cue；`HasAuthoredNormalSpeedPreview=false`时，Start前按原生资格显示轨内预览。诊断同时核选中的来源、真实publication、缺少对应作者节点及实际音符纹理/位置；不能把26的断言直接套到旧源，也不能用“旧源缺图”为其它来源跳过检查。真实取景条件见[Reading用例](../../tools/StandardSkinCapture/TestSceneStandardSkinCapture.Reading.cs)。同理，23沿24调用方的中心平移/Graph标尺只是保留美术适配，不证明23原软件相同；来源边界仍取上方作品记录。
 
 已选包和成品引用闭包不能证明整份HDD素材穷尽；还须查全目录、包内电影索引、原加载链与未选来源。26演奏主题表没有gmframe25，但其残留框体仍可作为作品来源；同理，当前程序不调用不能直接排除另一族的失败演出。`1/common`曾因一个非法文本名称整包解码失败，原名称字节的MD5却能精确定位纹理；无损恢复时保留bytes与存储标识，像素相同只能登记alias，不能猜名重写。`0/1`也不能凭目录数字当分辨率重复，原标题、实际像素、电影和调用资格应分别查。具体缺口与恢复材料取[Standard查漏](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#素材查漏与未采用范围)。
 

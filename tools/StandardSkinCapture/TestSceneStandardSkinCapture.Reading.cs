@@ -32,7 +32,7 @@ public partial class TestSceneStandardSkinCapture
     private static bool IsReadingCase => CaptureSettings.Current.ChartVariant == "reading";
     private bool UsesEarlierReadingSource => CaptureSettings.Current.Options.TryGetValue("frame", out string? frame) && frame is
         "iidx23" or "iidx24" or "source22-gmframe0-00" or "source22-gmframe0-01" or
-        "source22-gmframe8" or "source22-gmframe9" or "source22-gmframe10";
+        "source22-gmframe8" or "source22-gmframe9" or "source22-gmframe10" or "source21-gmframe0";
     private readonly Stopwatch readingWaitWatch = new();
     private object? initialReadingWaitObservation;
     private bool readingWaitDiagnosticWritten;

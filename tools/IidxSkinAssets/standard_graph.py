@@ -21,6 +21,10 @@ BAR_COLUMNS = {"current": 54, "best": 128, "target": 202}
 # 0-family panel (s24) adds those two separate draws. These aliases identify
 # art in the 24 HDD, not a supplied IIDX23 executable.
 EARLIER_GRAPH = {
+    # Original21 has its own Graph archive and independently qualified caller
+    # geometry. Matching coordinates do not alias its pixels to the22 family.
+    "s21": {"maximum": None, "baseline": None, "rankSize": (270, 15),
+            "rankX": 5, "rankLineY": (529, 79)},
     "s22": {"maximum": None, "baseline": None, "rankSize": (270, 15),
             "rankX": 5, "rankLineY": (529, 79)},
     "s23": {"maximum": None, "baseline": None, "rankSize": (270, 15)},
@@ -269,6 +273,16 @@ class _Graph:
                 value["sourceGeometry"].update(rankLineX=5, rankLineY=[529, 79])
                 value["adaptations"][1] = "Rank position follows the existing continuous OMS progress track between the supplied22 caller's endpoints, without claiming its integer-step rounding."
                 value["adaptations"][2] = "Rank-line visibility retains the existing OMS rank-availability gate, not the supplied22 caller's reached-line alpha switch."
+            if self.common_family == "s21":
+                value.update({
+                    "familyScope": "Original supplied IIDX21 Graph art, with its own PNGs, GEO and named movie geometry. The independently examined21 caller qualifies the column placement, rank-line endpoints and target tag. Existing OMS live/PB/PACEMAKER policies remain an explicit host adaptation.",
+                    "callerBasis": {"software": "supplied IIDX21 x86 DLL",
+                        "geometry": "Source rank sprites are placed at panel-local x5 and y79 plus a450px score span; the separate gauge column table places their origins at y94.",
+                        "targetTag": "The original score_tag_2 child is assigned gr_score_tag_2."},
+                    "omissions": ["No separate MAX/baseline sprites: both lines are part of the original s21 panel PNG."]})
+                value["sourceGeometry"].update(rankLineX=5, rankLineY=[529, 79])
+                value["adaptations"][1] = "Rank position follows the existing continuous OMS progress track between the supplied21 caller's endpoints, without claiming its integer-step rounding."
+                value["adaptations"][2] = "Rank-line visibility retains the existing OMS rank-availability gate, not the supplied21 caller's reached-line alpha switch."
         return value
 
 
@@ -469,6 +483,9 @@ def build_graph_target(library: Path, layout: str, target: str, prepared_font, *
         if common_family == "s22":
             graph.value["receipt"]["policyBasis"] = "Existing OMS policies qualified against26 software; the supplied22 artwork does not assert a reconstruction of22 target policy or per-note ghosts."
             graph.value["receipt"]["cutins"]["layers"] = "The supplied22 caller places one update movie behind mybest/target/lv_pass at native priorities58/57. The existing OMS layers preserve that relative order and the original280x720,150-frame programs; no26 image is substituted."
+        if common_family == "s21":
+            graph.value["receipt"]["policyBasis"] = "Existing OMS policies qualified against26 software; the supplied21 artwork does not assert a reconstruction of21 target policy or per-note ghosts."
+            graph.value["receipt"]["cutins"]["layers"] = "The independently examined21 caller uses native priorities58/57 for update versus mybest/target/lv_pass. The existing OMS composition was derived from the26 priorities68/67 and preserves only their relative order, with the selected original21 recorded programs. Its layer numbers, eligibility gates and score-crossing clocks remain a host adaptation."
     return graph.value
 
 

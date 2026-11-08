@@ -8,9 +8,9 @@ import json
 from pathlib import Path
 import shutil
 
-from compose_standard_sources import digest, inside, retained_base
-from standard_source_catalog import (BASE_STYLES, SOURCE22_STYLES, expanded,
-                                     frame_id, frame_token, includes22,
+from compose_standard_sources import digest, inside, retained_base, retained_base22
+from standard_source_catalog import (BASE_STYLES, SOURCE22_STYLES, SOURCE21_STYLES, expanded,
+                                     frame_id, frame_token, includes22, includes21,
                                      layout_family, metadata, package_key)
 
 
@@ -18,7 +18,7 @@ def read(path):
     return json.loads(path.read_text(encoding='utf-8-sig'))
 
 
-def compose(library, base_research, research23, research24, output, research22=None):
+def compose(library, base_research, research23, research24, output, research22=None, research21=None):
     library = library.resolve(strict=True)
     data = metadata(library)
     if not expanded(data): raise ValueError('Use the qualified 24/26 composition')
@@ -28,11 +28,19 @@ def compose(library, base_research, research23, research24, output, research22=N
     source22 = includes22(data)
     if source22 != (research22 is not None):
         raise ValueError('The 22 source composition requires its own separate research22 input')
+    source21 = includes21(data)
+    if source21 != (research21 is not None):
+        raise ValueError('The original21 composition requires its own separate research21 input')
     previous_identity = None
+    previous22_identity = None
     if source22:
         retained_base(library, data)
         previous_identity = data['sourceComposition']['previousComposition']['sha256']
         inputs.append((research22.resolve(strict=True), SOURCE22_STYLES))
+    if source21:
+        retained_base22(library, data)
+        previous22_identity = data['sourceComposition']['previousComposition22']['sha256']
+        inputs.append((research21.resolve(strict=True), SOURCE21_STYLES))
     if output.exists() or output.drive.lower() == 'c:' or not output.parent.is_dir():
         raise ValueError('Use a new research directory under an existing non-system parent')
     if any(output.is_relative_to(p) or p.is_relative_to(output) for p in (library, *(p for p, _ in inputs))):
@@ -46,10 +54,16 @@ def compose(library, base_research, research23, research24, output, research22=N
             expected = {expected_base}
         elif styles == SOURCE22_STYLES:
             expected = {current_identity}
+            if previous22_identity is not None:
+                expected.add(previous22_identity)
+        elif styles == SOURCE21_STYLES:
+            expected = {current_identity}
         else:
             expected = {current_identity}
             if previous_identity is not None:
                 expected.add(previous_identity)
+            if previous22_identity is not None:
+                expected.add(previous22_identity)
         if source_identity['librarySha256'] not in expected:
             raise ValueError('Research source manifest does not match its original verified library')
         for style in styles:
@@ -112,5 +126,7 @@ if __name__ == '__main__':
     for field in ('library', 'base-research', 'research23', 'research24', 'output'):
         parser.add_argument('--' + field, type=Path, required=True)
     parser.add_argument('--research22', type=Path)
+    parser.add_argument('--research21', type=Path)
     args = parser.parse_args()
-    print(json.dumps(compose(args.library, args.base_research, args.research23, args.research24, args.output, args.research22)))
+    print(json.dumps(compose(args.library, args.base_research, args.research23, args.research24, args.output,
+                             args.research22, args.research21)))

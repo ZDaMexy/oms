@@ -13,7 +13,7 @@ import io
 import json
 import math
 from pathlib import Path
-from standard_source_catalog import frame_id, package_key, includes22, SOURCE22_STYLES
+from standard_source_catalog import frame_id, package_key, includes22, SOURCE22_STYLES, SOURCE21_STYLES, layout_family
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -91,15 +91,15 @@ def turntable_motion(identifier, draw, layout, group):
 
 
 def source22_turntable_size(frame, source, draw):
-    """Read the dynamic turntable carrier from its own 22 GEO, not a fallback PNG.
+    """Read the dynamic 21/22 turntable carrier from its own normalized GEO.
 
     The original named turn00 hook addresses the whole externally loaded image
     with normalized UVs. Its package-local four vertices therefore establish
     the carrier size even when the separately loaded image is unresolved in a
     cabinet/common reference export.
     """
-    if (frame not in SOURCE22_STYLES or source["package"] != package_key(frame)
-            or source["common_family"] != "s22" or draw["texture"] != "turn00"):
+    if (frame not in (*SOURCE22_STYLES, *SOURCE21_STYLES) or source["package"] != package_key(frame)
+            or source["common_family"] != layout_family(frame) or draw["texture"] != "turn00"):
         raise ValueError("22 Turntable hook belongs to a different source family")
     vertices, uv, draws = draw["source_vertices"], draw["uv"], draw["draw_params"]
     if len(vertices) != 4:
@@ -1005,7 +1005,7 @@ class StandardComponents(ModuleBuilder):
                         bounds = draw["bounds"]
                         source_vertices = draw["source_vertices"]
                         hook_asset = draw.get("asset")
-                        if frame in SOURCE22_STYLES:
+                        if frame in SOURCE22_STYLES or frame in SOURCE21_STYLES:
                             width, height = source22_turntable_size(frame, source, draw)
                             hook_asset = {"width": width, "height": height}
                         elif hook_asset is None:
@@ -1047,7 +1047,9 @@ class StandardComponents(ModuleBuilder):
                             motion_sources.append({"frame": frame, "layout": layout, "group": group,
                                                    "sourceHook": binding, **motion_source,
                                                    **({"carrierGeometry": "Original22 normalized-UV GEO; no fallback PNG dimensions"}
-                                                      if frame in SOURCE22_STYLES else {})})
+                                                      if frame in SOURCE22_STYLES else
+                                                      {"carrierGeometry": "Original21 normalized-UV GEO; no fallback PNG dimensions"}
+                                                      if frame in SOURCE21_STYLES else {})})
                         children.append(art)
                     ident = branch.prefix + "." + layout + "." + frame
                     frames.append(node(ident, children=children))

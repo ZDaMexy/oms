@@ -22,7 +22,7 @@ OPTIONS = [
     {"id": "arrival-cue", "type": "toggle", "label": "首排音符提示（25–26 / ARC SCORE）", "default": True},
 ]
 
-# Stable frame16 geometry of the six original 0/s22/s23/s24 gameparts movies.
+# Stable frame16 geometry of the six original 0/s21/s22/s23/s24 gameparts movies.
 # Each family keeps its own PNGs and UVs; only the observed bounds/hooks agree.
 # The numeric
 # prototype is hidden by the executable and replaced with font2 fixed cells.
@@ -55,7 +55,7 @@ def export_ready(library, output, bemani_root, image_tools):
                                  loop=False, trigger="gameplay.attach")
             if clip["source"]["fps"] != 60 or clip["source"]["sourceFrames"] != 90:
                 raise ValueError("The qualified READY requires its original 90 frames at 60Hz")
-            if family == "s22" and (clip["source"]["stage"] != [0, 0, 1280, 720]
+            if family in ("s21", "s22") and (clip["source"]["stage"] != [0, 0, 1280, 720]
                     or clip["source"]["labels"] or clip["source"]["translatedRootControl"]):
                 raise ValueError("The qualified22 READY requires its complete canvas and original nonlooping timeline")
             clips[layout] = clip
@@ -174,7 +174,7 @@ def add_reading(frame, ready, prepared_font, font_path):
     readouts = [green]
     # 22's audited Start renderer draws only the current %4d value. The later
     # font5 max-min branch is not a source22 capability.
-    if layout_family(frame.style) != "s22":
+    if layout_family(frame.style) not in ("s21", "s22"):
         # 26 prints "%d-%d" in font5 at the notes_time-relative anchor.
         # Providers supply the extrema; never reconstruct them from current.
         rx, ry = ((gx + 54, gy + 4) if frame.dp else (gx + 60, gy - 16) if frame.p2 else (gx, gy - 16))
@@ -234,6 +234,17 @@ def add_reading(frame, ready, prepared_font, font_path):
             "greenExtremeWidth": "Not applicable: the22 Start renderer has no qualified endpoint-range branch.",
             "floatingSlider": "The22 caller independently uses (speed-.5)*174/9.5. The original source anchors and174px travel are driven by the actual OMS multiplier.",
             "floatingCurrent": "The22 caller uses font2 at spd2_0+(10,0); source DP labels stay baked. The source font in this author remains the separately qualified shared OMS numeric adapter.",
+            "sourceCapabilities": {"currentGreen": True, "greenRange": False,
+                "dedicatedNormalSpeedPreviewArt": False, "firstRowCueArt": False}})
+    elif layout_family(frame.style) == "s21":
+        frame.evidence[-1]["reading"].update({
+            "geometryBasis": "The six original21 speed movies independently preserve the frame16 bounds, vertices and affine hooks used here. Own21 PNGs/UVs and complete90-frame READY programs are retained.",
+            "nativeReferenceBoundary": "Original21 font2 is independently registered from its supplied DF-HeiseiGothic-W7. The numeric cell metrics, preset pages, state providers and slider/number placement in this panel remain explicit OMS author adapters; complete21 Start caller parity is not asserted.",
+            "normal": "OMS-authored ten-row pages for preset indices1..20 inside the original21 window; no historical source multiplier table is invented.",
+            "green": "Actual current green at the original notes_time hook with the existing OMS four-cell numeric adapter. No later endpoint range is added to21.",
+            "greenExtremeWidth": "Not applicable: no qualified21 endpoint-range branch is supplied.",
+            "floatingSlider": "Original21 frame16 slider endpoints with actual OMS multiplier. Existing174px travel is an OMS author adaptation, not an assertion of an unverified21 caller formula.",
+            "floatingCurrent": "The original21 spd2_0 hook is retained with the established OMS +(10,0) adapter; source DP labels remain baked. Native21 full-panel offset/caching semantics are not asserted.",
             "sourceCapabilities": {"currentGreen": True, "greenRange": False,
                 "dedicatedNormalSpeedPreviewArt": False, "firstRowCueArt": False}})
 

@@ -243,6 +243,12 @@ class Research:
             if not candidates:
                 return {"missing": True, "candidates": [], "assetResolution": "unresolved in the selected library and explicit common family"}
             if len({item["sha256"] for _, item in candidates}) != 1:
+                if package == "source21/gmframe0" and self.common_family == "s21" and name == "playm_ef_rev3":
+                    return {"missing": True, "ambiguous": True,
+                            "candidates": [{"package": p, "sprite": item["sprite"], "sha256": item["sha256"],
+                                            "width": item["width"], "height": item["height"]}
+                                           for p, item in candidates],
+                            "assetResolution": "Original21 effect is dynamically rebound by the native caller; its shared owner is unresolved. The named placeholder stays recorded and is excluded from static art. Any visible static use remains an error."}
                 raise ValueError(f"Conflicting shared texture bytes for {package}/{name}")
             package, selected = candidates[0]
             reason = "explicit common-family source; historical default binding not inferred"
@@ -566,7 +572,7 @@ def main():
         parser.add_argument(f"--{name}", type=Path, required=True)
     parser.add_argument("--styles", type=source_style, nargs="+", required=True)
     parser.add_argument("--recorded", action="store_true", help="Add original PNG/mesh/hierarchy clips to completed layout research")
-    parser.add_argument("--common-family", choices=("0", "1", "s22", "s23", "s24"), required=True,
+    parser.add_argument("--common-family", choices=("0", "1", "s21", "s22", "s23", "s24"), required=True,
                         help="Explicit common family from the observed source configuration, never inferred from canvas size")
     args = parser.parse_args()
     library, bemani, image_tools = (path.resolve(strict=True) for path in (args.library, args.bemani_root, args.image_tools))
