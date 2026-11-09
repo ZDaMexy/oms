@@ -524,7 +524,7 @@ operand只能是有限JSON数值或下表的来源字符串，不能是嵌套表
 ]
 ```
 
-已有文字节点可用`{"id":"my.count-binding","target":"my.count-text","property":"text","source":"value.my.hit-count"}`读取；节点和所属槽位仍须正常声明。`value.<id>`还可驱动原有受限数值属性，以及普通tracks或recorded-animation节点的`clock`。它不能直接驱动visible、资源变体、状态条件或脚本输入；需要可用性显隐时，另在父节点使用已有的`score.maximum-available`等布尔来源。
+已有文字节点可用`{"id":"my.count-binding","target":"my.count-text","property":"text","source":"value.my.hit-count"}`读取；节点和所属槽位仍须正常声明。`value.<id>`还可驱动原有受限数值属性，以及普通tracks或recorded-animation节点的`clock`。用作clock不扩张目标属性的默认恢复范围，派生数值clock不支持`colour`；需要按数值切换颜色时，可使用原图的两个静态着色sprite及互斥`opacity`轨迹。它不能直接驱动visible、资源变体、状态条件或脚本输入；需要可用性显隐时，另在父节点使用已有的`score.maximum-available`等布尔来源。
 
 每份场景及内容目录最终选中组合最多64条声明、依赖深度16；只读原生来源或常量的首层深度为1。每帧在真实事件合并后按声明顺序求值一次，读取同一帧结果；声明求值与实例属性应用共同受既有每帧16384预算限制，不增加原有节点、文字或动画预算。
 

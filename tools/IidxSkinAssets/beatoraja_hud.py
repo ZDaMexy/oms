@@ -30,6 +30,7 @@ from beatoraja_entrance import apply_preparation_translation, preparation_opacit
 from beatoraja_native import (
     AssetSink, Lua, all_of, colour, lua, native_colour, native_rect,
     node_rect, scene_properties, native_song_expression, native_offset_expression,
+    BPM_EXTREMA_INTEGER_ADAPTATION,
 )
 from beatoraja_preparation import preparation_expression
 
@@ -99,12 +100,18 @@ class _Sources:
         if key in visited:
             raise ValueError("Cyclic author numeric source")
         definition = self.numeric.get(key)
-        if definition is None or definition["operation"] not in ("add", "subtract", "multiply"):
+        if definition is None or definition["operation"] not in ("add", "subtract", "multiply", "ceil", "min"):
             return None
         left = self.expression(definition["left"], (*visited, key))
-        right = self.expression(definition["right"], (*visited, key))
-        if left is None or right is None or left[1] != "number" or right[1] != "number":
+        if left is None or left[1] != "number":
             return None
+        if definition["operation"] == "ceil":
+            return f"math.ceil({left[0]})", "number"
+        right = self.expression(definition["right"], (*visited, key))
+        if right is None or right[1] != "number":
+            return None
+        if definition["operation"] == "min":
+            return f"math.min({left[0]}, {right[0]})", "number"
         operator = {"add": "+", "subtract": "-", "multiply": "*"}[definition["operation"]]
         return f"({left[0]} {operator} {right[0]})", "number"
 
@@ -379,6 +386,12 @@ def export_hud(
                         or any(keys[i]["time"] >= keys[i + 1]["time"] for i in range(len(keys) - 1))):
                     gap(node, "unmapped-text-track", track=track["id"], property=track["property"], clock=track.get("clock"))
                     return
+                if (track["property"] == "opacity" and str(track.get("clock", "")).startswith("value.")
+                        and "main_state.number(90)" in clock[0] and "main_state.number(91)" in clock[0]):
+                    item = {"code": "native-bpm-extrema-integer-adaptation", "informational": True,
+                            "node": node["id"], "detail": BPM_EXTREMA_INTEGER_ADAPTATION}
+                    if item not in output["gaps"]:
+                        output["gaps"].append(item)
                 expanded = []
                 for properties_so_far, conditions_so_far in branches:
                     for i, key in enumerate(keys):

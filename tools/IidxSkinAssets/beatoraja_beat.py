@@ -25,11 +25,20 @@ BEAT_ADAPTATION = {
 }
 
 
+STEP_BEAT_ADAPTATION = {
+    **BEAT_ADAPTATION,
+    "detail": BEAT_ADAPTATION["detail"].replace("Original linear opacity keys", "Original step opacity keys")
+        + " Source20 uses50 equal host-phase alpha steps on native acc3. Its original beat period is "
+          "trunc(3600/BPM) ticks, so its tick positions and available alpha levels differ; the50-step "
+          "host rhythm curve is an explicit adaptation, not original-program timing parity.",
+}
+
+
 def _keys(track):
     keys = track.get("keyframes", [])
     if (track.get("type") != "tween" or track.get("clock") != "timing.beat"
             or track.get("property") != "opacity" or track.get("loop") is not True
-            or track.get("easing", "linear") != "linear" or len(keys) < 2):
+            or track.get("easing", "linear") not in ("linear", "step") or len(keys) < 2):
         raise ValueError("Unqualified native beat opacity track")
     for key in keys:
         if (any(isinstance(key.get(field), bool) or not isinstance(key.get(field), (int, float))
@@ -128,6 +137,7 @@ it must not multiply the already-rounded .35 initial destination a again.
         raise ValueError("Beat opacity cannot replace another clock or a pre-multiplied alpha")
     result = deepcopy(destination)
     result.update(timer=rhythm_timer(), loop=0, dst=[
-        {**deepcopy(points[0]), "time": round(key["time"] * 1000), "acc": 0,
+        {**deepcopy(points[0]), "time": round(key["time"] * 1000),
+         "acc": 3 if track.get("easing") == "step" else 0,
          "a": round(carrier_alpha * key["value"] * 255)} for key in keys])
     return result

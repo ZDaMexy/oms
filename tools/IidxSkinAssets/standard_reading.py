@@ -22,7 +22,7 @@ OPTIONS = [
     {"id": "arrival-cue", "type": "toggle", "label": "首排音符提示（25–26 / ARC SCORE）", "default": True},
 ]
 
-# Stable frame16 geometry of the six original 0/s21/s22/s23/s24 gameparts movies.
+# Stable frame16 geometry of the six original 0/s20/s21/s22/s23/s24 gameparts movies.
 # Each family keeps its own PNGs and UVs; only the observed bounds/hooks agree.
 # The numeric
 # prototype is hidden by the executable and replaced with font2 fixed cells.
@@ -55,9 +55,9 @@ def export_ready(library, output, bemani_root, image_tools):
                                  loop=False, trigger="gameplay.attach")
             if clip["source"]["fps"] != 60 or clip["source"]["sourceFrames"] != 90:
                 raise ValueError("The qualified READY requires its original 90 frames at 60Hz")
-            if family in ("s21", "s22") and (clip["source"]["stage"] != [0, 0, 1280, 720]
+            if family in ("s20", "s21", "s22") and (clip["source"]["stage"] != [0, 0, 1280, 720]
                     or clip["source"]["labels"] or clip["source"]["translatedRootControl"]):
-                raise ValueError("The qualified22 READY requires its complete canvas and original nonlooping timeline")
+                raise ValueError("The qualified earlier READY requires its complete canvas and original nonlooping timeline")
             clips[layout] = clip
     result = {"contract": "oms-standard-reading-assets.v1", "librarySHA256": sha(library / "library.json"),
               "clips": families['0'], "families": families, "files": list(exporter.files.values()), "source": exporter.receipts}
@@ -174,7 +174,7 @@ def add_reading(frame, ready, prepared_font, font_path):
     readouts = [green]
     # 22's audited Start renderer draws only the current %4d value. The later
     # font5 max-min branch is not a source22 capability.
-    if layout_family(frame.style) not in ("s21", "s22"):
+    if layout_family(frame.style) not in ("s20", "s21", "s22"):
         # 26 prints "%d-%d" in font5 at the notes_time-relative anchor.
         # Providers supply the extrema; never reconstruct them from current.
         rx, ry = ((gx + 54, gy + 4) if frame.dp else (gx + 60, gy - 16) if frame.p2 else (gx, gy - 16))
@@ -225,7 +225,25 @@ def add_reading(frame, ready, prepared_font, font_path):
         "floatingCurrent": "26 caller350957 draws font2 at spd2_0+(10,0); DP original limit/CURRENT labels are baked and not redrawn.",
         "classicWindow": "Explicit OMS CLASSIC label; DP keeps Floating upper300 source pixels over the original generic lower HI-SPEED CHANGE panel.",
         "ready": clip["source"], "clock": "preparation.ready-elapsed"}})
-    if layout_family(frame.style) == "s22":
+    if layout_family(frame.style) == "s20":
+        frame.evidence[-1]["reading"].update({
+            "geometryBasis": "All six original20 speed movies independently retain these frame16 bounds, vertices and affine hooks. Own20 PNGs/UVs and full1280x720,90-frame READY programs are used.",
+            "nativeReferenceBoundary": "The supplied original20 program independently registers font2 from DF-HeiseiGothic-W7 and qualifies the current green, Floating slider and multiplier anchors. The shared12x20 atlas, actual values and preset pages are explicit OMS state adapters; Start does not automatically inherit the HUD fixed-cell style.",
+            "callerBasis": {"software": "supplied IIDX20 original2013 x86 DLL",
+                "greenVA": "0x10064aec/0x10064b74", "sliderVA": "0x10064b9b",
+                "multiplierVA": "0x10064c4d", "fontRegistrationVA": "0x100f39ee",
+                "greenFormat": "%4d", "multiplierFormat": "%02.2f", "priority": 52},
+            "fontLayout": {"hosts": ["OMS", "beatoraja"], "sourceFace": "DF-HeiseiGothic-W7",
+                "cell": [12, 20], "advance": 12, "nativeNaturalPenQualified": False,
+                "boundary": "Fixed cells and four-cell padding are explicit host adapters from the supplied20 TTF. The independently proved HUD HS fixed-cell style is not promoted to native Start pen behavior."},
+            "normal": "OMS-authored ten-row pages for preset indices1..20 inside the original20 window. These pages do not assert the historical source multiplier table or preset-row behavior.",
+            "green": "Actual current value at the original notes_time hook, retaining the20 green colour, font2 face and %4d minimum field. Four12px author cells adapt the field to OMS/beatoraja; native natural pen spacing is not asserted. The complete20 renderer has no endpoint-range branch.",
+            "greenExtremeWidth": "Not applicable: the20 Start renderer has no max-min range or font5 registration.",
+            "floatingSlider": "The supplied20 caller independently uses (speed-.5)*174/9.5. Original frame16 slider endpoints and174px travel are driven by the actual OMS multiplier.",
+            "floatingCurrent": "The supplied20 caller draws white font2 %02.2f at spd2_0+(10,0), priority52. The OMS fixed-2 formatter retains actual multiplier values; original DP labels remain baked.",
+            "sourceCapabilities": {"currentGreen": True, "greenRange": False,
+                "dedicatedNormalSpeedPreviewArt": False, "firstRowCueArt": False}})
+    elif layout_family(frame.style) == "s22":
         frame.evidence[-1]["reading"].update({
             "geometryBasis": "The original22 six speed movies independently retain the frame16 bounds and named hooks used here. Own22 PNGs and complete90-frame READY programs are used; matching geometry does not replace source pixels.",
             "nativeReferenceBoundary": "The supplied22 Start renderer independently qualifies current green, Floating slider travel and current multiplier placement. Numeric glyphs and OMS reading state remain explicit host adapters.",
@@ -255,6 +273,8 @@ def add_preview_background(frame, children):
     The caller projects its existing native two-note preview into the declared
     Normal preview rectangle. This author does not create another note clock.
     """
+    if layout_family(frame.style) == "s20":
+        raise ValueError("Original20 has no qualified dedicated Normal speed-preview artwork")
     prefix = frame.prefix + ".reading.preview"
     x = {"p1": 287, "p2": 925, "dp": 669}[frame.layout]
     art = []
@@ -321,6 +341,8 @@ def add_arrival(frame):
     OMS0..1000 scale, not source pixels; configured units remain populated when
     the cover is inactive, so the two visibility branches must stay separate.
     """
+    if layout_family(frame.style) == "s20":
+        raise ValueError("Original20 has no qualified first-row cue artwork")
     for colour, suffix, width in (("white", "w", 34), ("black", "b", 26), ("scratch", "s", 60)):
         resource, row = frame.asset(layout_family(frame.style) + "/gameparts", "start_notes_" + suffix)
         if (row["width"], row["height"]) != (width, 180):

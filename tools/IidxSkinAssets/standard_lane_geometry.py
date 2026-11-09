@@ -7,8 +7,17 @@ for21, only the separate cover-number clip has been independently qualified at
 482px. This author retains its484px source-plane component convention without
 claiming native21 note-coordinate parity.
 """
-from standard_source_catalog import (EARLIER_STYLES, SOURCE21_STYLES, SOURCE22_STYLES,
+from standard_source_catalog import (EARLIER_STYLES, SOURCE20_STYLES, SOURCE21_STYLES, SOURCE22_STYLES,
                                      layout_family, package_key, source_style)
+
+
+def lane_movie(style, layout):
+    style = source_style(style)
+    if layout not in ('p1', 'p2', 'dp'):
+        raise ValueError('Unqualified Standard lane context')
+    if layout == 'dp':
+        return 'center_frame_dp' if style in SOURCE20_STYLES else 'center_frame_dp_1p'
+    return '2p_frame' if layout == 'p2' else '1p_frame'
 
 
 def _domains(layout):
@@ -19,19 +28,21 @@ def _vertices(width, height):
     return [{'x': x, 'y': y, 'z': 0} for x, y in ((0, 0), (width, 0), (0, height), (width, height))]
 
 
-def _source22_regions(reference, style, layout, draws):
+def _earlier_regions(reference, style, layout, draws):
     """Retain the original fixed plane, separately from its painted surround.
 
     Original21, four PENDUAL source packages and LINCLE DP have their own 292x484
     meshes. LINCLE SP and TRICORO bake the plane into a larger original raster;
     their measured local rectangles are projected through that raster's GEO.
+    Original20 retains its own TRICORO panel and single DP-centre movie. Its
+    local 292x484 component plane is an OMS convention, not a native scissor.
     No frame from the later ARC SCORE set supplies these coordinates or pixels.
     """
     package = package_key(style)
     if reference['package'] != package or reference['common_family'] != layout_family(style):
         raise ValueError('22 lane reference belongs to a different source package/family')
     expected = _domains(layout)
-    baked = style == 'source22-gmframe9' or style == 'source22-gmframe8' and layout != 'dp'
+    baked = style in SOURCE20_STYLES or style == 'source22-gmframe9' or style == 'source22-gmframe8' and layout != 'dp'
     if not baked:
         lanes = sorted((d for d in draws if d['texture'] in ('sp_lane_1p', 'sp_lane_2p')),
                        key=lambda d: d['bounds']['left'])
@@ -73,10 +84,10 @@ def source_lane_regions(reference, style, layout):
     style = source_style(style)
     if layout not in ('p1', 'p2', 'dp'):
         raise ValueError('Unqualified Standard lane context')
-    movie = 'center_frame_dp_1p' if layout == 'dp' else ('2p_frame' if layout == 'p2' else '1p_frame')
+    movie = lane_movie(style, layout)
     draws = reference['layouts'][movie]['draws']
-    if style in SOURCE21_STYLES or style in SOURCE22_STYLES:
-        return _source22_regions(reference, style, layout, draws)
+    if style in SOURCE20_STYLES or style in SOURCE21_STYLES or style in SOURCE22_STYLES:
+        return _earlier_regions(reference, style, layout, draws)
     if style in EARLIER_STYLES:
         lanes = sorted((d for d in draws if d['texture'] in ('sp_lane_1p', 'sp_lane_2p')),
                        key=lambda d: d['bounds']['left'])

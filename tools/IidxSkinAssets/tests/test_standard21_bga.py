@@ -42,7 +42,7 @@ class Standard21ApertureTests(unittest.TestCase):
             self.assertEqual(expected[:2], frame.apertures())
             self.assertEqual(expected, frame.apertures(graph_visible=False))
             frame.style = 21
-            with self.assertRaisesRegex(ValueError, 'only for original21 DP'):
+            with self.assertRaisesRegex(ValueError, 'independently qualified original20/21 DP'):
                 frame.apertures(graph_visible=False)
 
 

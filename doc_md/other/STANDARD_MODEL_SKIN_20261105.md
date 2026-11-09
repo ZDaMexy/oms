@@ -4,6 +4,18 @@
 
 六个22框体来源完整保留，其中五个进入可生成主题，裸 `gmframe0` 仅供归档研究。新增[21原版来源](#2026-11-08-21-原版来源接入)使用独立身份及本代共用素材；菜单的“21 SPADA (Original)”、“SPADA (22 CUSTOM)”和“21 SPADA”（26 ARC SCORE）分别保留，不因同名合并。两宿主分别完成同包运行与原图审查，OMS取[下述交付](#21-来源-oms-交付)，beatoraja的安装、保全与ZIP取[宿主交付](BEATORAJA_IIDX_SKINS_20261107.md#21-来源-standard-增量交付)，不互相代签。
 
+## 2026-11-09 20 原版来源接入
+
+用户提供20 tricoro并授权装到D盘、继续利用本代来源。主包已单次解包到`D:/OMS-Development/sources/TRICORO-20261109/Beatmania iidx 20 tricoro`，2772文件、约34.02GiB全部通过归档CRC复核；没有建立完整HDD副本。独立提取、研究、作者与候选使用`D:/OMS-Development/sources/OMS-Standard-Model-20-20261109/`。Omnimix歌曲与修改DLL、解锁DLL和ffdshow均未叠加或安装；附加包只定向保全另一份提供者标为`orig`的程序及启动批处理，程序身份另行记录。
+
+1612个IFS均完成元数据读取，选定110包、2149个UV sprite进入20专属素材库。六个本代核心包独立保全；104个CUSTOM中101个原包与既有来源相同，beam00的33个实际源帧像素相同，notes00仅为已有默认素材子集，turn00则保留本代25×25蓝色内盘。研究接入独立`source20-gmframe0`，与`source22-gmframe9`的22 CUSTOM TRICORO分开；19主题作者已生成并保全旧18，其两宿主验收尚在推进，不能据研究完成签收成品。
+
+原版测查使用附加包提供的2013-08-30程序变体，经核对该程序自身指令后仅启用普通Time Freeze与音量修复；主包的2012程序及两份未补丁原件均保留。游客R3已取得P1宽框、PACEMAKER AAA窄框、P2演奏与Start、DP Graph OFF四视频窗及ON左二视频窗/右Graph和中央Start读数，并取得四首STANDARD曲目的自然FAILED Results。选曲倒计时无输入20秒后仍为45，捕获时间戳相差20034ms。R2曾在原2012程序中发生ACCESS_VIOLATION，其退出不记为正常API关闭。所有过程使用spice2x API，没有使用computer use或真实卡账号。R3最后请求官方API `control.exit`，等待回执时收到Win10054；随后独立确认PID及两API监听均退出，没有强制结束。当前证据不代表实体机、原机刷新率或全布局矩阵验收。
+
+原版DP取景揭示早期19作者只输出两视频窗的遗漏，已据20自身四孔修正为Graph OFF四窗、ON两窗，早期候选及未执行准备均标为被替代。阶段候选`author-r3-compact-r1`含5763文件，已通过4233组完整作者代表组合、普通OSK导入/CRC及全部成员摘要比较；旧18的6077文件无缺失、6054字节同一，其余为受限新增路由，216个旧BGA上下文语义保全。其实际Player已有13场通过，但原图审查确认20 Graph当前分数与目标总分漏补四位全亮前导零，故该候选、矩阵及早期准备保留为被替代记录；正在据本代ID15与原调用链修复后生成新作者，不以这些中间通过签收新包。20自己的Graph没有后代`customize`挂点，Graph Area固定原面板。beatoraja导出已补精确blank别名资格，19主题实际投影保留176款共用菜单并在20选项提示固定面板；该投影不代替整包验收。OMS共用菜单的此限制写在交付说明中；Start/Cover字体单格12×20为宿主适配，原GDI自然字距未签。进度采用本代66×72源图、原位置/路径和additive，时相仍须按宿主边界验收。OMS数值读取谱面BPM范围的引擎要求自`b40ee0ce`起；beatoraja官方0.8.9把MIN/MAX存为整数，小数变化落在同一整数内时不能据其API恢复精确范围。
+
+当前交付仍取上方21增量两宿主`v26110900`；20阶段未交付新包。逐项部署与研究证据保存在本仓忽略目录`artifacts/standard-model-20-20261109/`，后续来源门须保持旧18主题及两个作品的隔离边界。
+
 ## 2026-11-08 暂停与续接
 
 本节保留两次历史暂停：11月8日停止于候选准备，11月9日停止于OMS已交付、beatoraja同包运行通过但审图未闭合。检查点分别为本机`artifacts/standard-model-21-20261108/pause-r1/checkpoint.json`与`pause-r2/checkpoint.json`，不再代表当前待办。用户随后恢复，已沿最终author-r4与既有18/15场结果完成余下审查、安全安装和交付；当前两宿主结果分别取[OMS](#21-来源-oms-交付)与[beatoraja](BEATORAJA_IIDX_SKINS_20261107.md#21-来源-standard-增量交付)。

@@ -28,7 +28,7 @@ def add_cover_readouts(frame, prepared_font, *, source_family="0"):
     Relative children of the source482px clip use that height, not720px.
     """
     prefix = frame.prefix + ".cover-readout"
-    current_only = source_family in ("s21", "s22")
+    current_only = source_family in ("s20", "s21", "s22")
 
     def text(identifier, value, *, x=0, y=0, size="normal", source=None, colour="#ffffffff"):
         height = 20 if size == "normal" else 18
@@ -100,7 +100,7 @@ def add_cover_readouts(frame, prepared_font, *, source_family="0"):
                 white = padded(root_id + ".white", source)
                 green = padded(root_id + ".green", "scroll.green-number", centre=not current_only, colour="#00ff00ff")
                 if current_only:
-                    # Independently checked21/22 callers draw one current
+                    # Independently checked20/21/22 callers draw one current
                     # value at these anchors, without a font5 endpoint range.
                     frame.steps(green["id"], "x", "scroll.green-number", [(0, 90 / CANVAS_WIDTH), (1000, 88 / CANVAS_WIDTH)])
                     children = [white, green]
@@ -140,7 +140,7 @@ def add_cover_readouts(frame, prepared_font, *, source_family="0"):
         "scope": "Fixed source software coordinates are independent of historical frame and centre Graph translation. No new image, font, recorded-animation, scoring or input state."}
     if current_only:
         del receipt["sourceCallerRVA"]
-        version = 21 if source_family == "s21" else 22
+        version = {"s20": 20, "s21": 21, "s22": 22}[source_family]
         receipt.update(sourceCaller=f"Supplied{version} x86 cover-number renderer and its three cover callers; original font2 only.",
             greenOffset={"below1000": 90, "atLeast1000": 88},
             sourceGeometry={"laneHeight": SOURCE_HEIGHT, "bottomClip": SOURCE_CLIP,
@@ -150,4 +150,17 @@ def add_cover_readouts(frame, prepared_font, *, source_family="0"):
             reversedLiftAdaptation=f"Actual reversed Lift uses its top edge and the shared top-edge text projection; the original{version} downscroll caller does not establish reversed Lift.",
             largeEndpointAdaptation="Values exceeding the native minimum digit width retain the full actual OMS number; no source overflow or cap is inferred.",
             scope=f"{version} source anchors/clip and current-only green capability, applied to real OMS reading state. No26 range, scoring, input or original runtime pixel-parity claim.")
+        if source_family == "s20":
+            receipt.update({
+                "sourceCaller": "Supplied IIDX20 original2013 x86 cover-number renderer10066e60 and callers100670aa/100670dc/1006710a; independently registered font2 only.",
+                "callerBasis": {"software": "supplied IIDX20 original2013 x86 DLL",
+                    "rendererVA": "0x10066e60", "anchorTableVA": "0x10168d8c",
+                    "fontRegistrationVA": "0x100f39ee", "fontId": 2, "priority": 45,
+                    "clipStyleVA": "0x10066ef5/0x10066f3e/0x10066f43/0x10066f4b",
+                    "clipConsumerVA": "0x100c4042", "clipRect": [0, 0, 1280, 482]},
+                "fontLayout": {"hosts": ["OMS", "beatoraja"], "sourceFace": "DF-HeiseiGothic-W7",
+                    "cell": [12, 20], "advance": 12, "nativeNaturalPenQualified": False,
+                    "boundary": "Fixed cells and %03d/%04d padding are explicit host adapters from the supplied20 TTF. The independently proved HUD HS fixed-cell style is not promoted to native Cover pen behavior."},
+                "actualUnitsAdaptation": "Actual OMS0..1000 units are displayed instead of the independently qualified20 clamp(trunc(pixels*999/482),0,999). The source20 font2 outline uses the shared OMS12x20 atlas adapter; native Cover does not automatically inherit the HUD fixed-cell style. The484px authored lane fraction and the actual Lift offset drive the cover edge.",
+                "scope": "Independently qualified20 anchors, colours, font2 face,1280x482 text clip and current-only green capability, applied to actual OMS reading state. Fixed-cell text, Lift reversal and the mapping from actual OMS units remain explicit host projections. No26 range or runtime pixel-parity claim."})
     frame.evidence.append({"coverReadouts": receipt})

@@ -389,7 +389,11 @@ class StandardBuilderTests(unittest.TestCase):
             (reading / 'reading.json').write_text(json.dumps({'contract':'oms-standard-reading-assets.v1',
                 'librarySHA256':builder.sha(library / 'library.json'), 'clips':{}, 'files':[]}), encoding='utf-8')
             (reading / 'gauge-feedback.json').write_text(json.dumps({'contract':'oms-standard-gauge-feedback.v1',
-                'librarySHA256':builder.sha(library / 'library.json'), 'frames':{}, 'files':[]}), encoding='utf-8')
+                'librarySHA256':builder.sha(library / 'library.json'),
+                # This source catalogue still declares all base frames even
+                # though this test replaces their actual Frame.build work.
+                'frames':{f'f{builder.frame_token(style)}':{} for style in builder.source_styles(owner.source_data)},
+                'files':[]}), encoding='utf-8')
             (reading / 'failure.json').write_text(json.dumps({'contract':'oms-standard-failure.v2',
                 'librarySHA256':builder.sha(library / 'library.json'),
                 'families':{family:{'clip':{}, 'receipt':{}} for family in ('0','1')}, 'files':[]}), encoding='utf-8')

@@ -452,4 +452,14 @@ def build_feedback(library, frame_map, *, style, layout, centre_movie, centre_dx
             "The independently checked21 centre caller supplies35px narrow-SP translation; wide/DP retain their own movie coordinates. "
             "The484px OMS timing plane, counters, timing lifetime and FA/SL overflow remain explicit host adaptations. "
             "The hostFeedbackModelEvidence26 addresses describe the retained author model only, never the21 executable.")
+    if layout_family(style) == "s20":
+        result["receipt"]["hostFeedbackModelEvidence"] = result["receipt"].pop("nativeEvidence")
+        result["receipt"]["fastSlow"] = (
+            "Explicit OMS feedback adaptation: the established A/B/C positions and fixed author cells use real exact-Stage timing direction. "
+            "These cells, counters, multi-digit advance and timing positions are not claimed as20 executable behavior.")
+        result["receipt"]["limits"].append(
+            "JUDGE panel PNG and its affine hook come only from s20/gameparts and source20/gmframe0. "
+            "The actual supplied source-font path/digest is verified; its rasterisation uses the existing OMS fixed-cell author model, never borrowed later-frame label art. "
+            "Centre movement must pass its separate original20 qualification before this contribution is generated. "
+            "The hostFeedbackModelEvidence26 addresses describe the retained host model only, not the20 executable.")
     return result

@@ -24,7 +24,8 @@ from beatoraja_author import (AuthorPackage, Contribution, bms_sections,
                              source_path, walk_nodes)
 from beatoraja_native import (AssetSink, Lua, all_of, colour, lua, native_colour,
                              native_rect, node_rect, scene_properties, native_song_expression,
-                             native_offset_expression, tint_pixels)
+                             native_offset_expression, tint_pixels,
+                             binary_numeric_opacity_condition, BPM_EXTREMA_INTEGER_ADAPTATION)
 from beatoraja_preparation import (PREPARATION_TIMER, PRESENTATION_TIMER, READY_TIMER,
                                   preparation_expression, preparation_plan)
 
@@ -340,6 +341,21 @@ class Composer:
                 from beatoraja_entrance import preparation_opacity_condition
                 conditions.append(preparation_opacity_condition(track, properties.get("opacity", 1)))
                 properties["opacity"] = 1  # The source's binary track is the draw gate.
+            elif str(track.get("clock", "")).startswith("value.") and track["property"] == "opacity":
+                from beatoraja_hud import _Sources
+                expression = _Sources([contribution], self.context).expression(track["clock"])
+                try:
+                    if root["type"] != "container":
+                        raise ValueError("Numeric art opacity requires its source container")
+                    condition = binary_numeric_opacity_condition(track, expression)
+                except ValueError as error:
+                    self.gap("unmapped numeric opacity", node=root["id"], clock=track["clock"], detail=str(error))
+                    return
+                conditions.append(condition)
+                properties["opacity"] = 1
+                if "main_state.number(90)" in expression[0] and "main_state.number(91)" in expression[0]:
+                    self.gap("native-bpm-extrema-integer-adaptation", informational=True, node=root["id"],
+                             detail=BPM_EXTREMA_INTEGER_ADAPTATION)
             elif isinstance(clock, (int, float)) and all(isinstance(k["value"], (int, float)) for k in keys) and keys:
                 if track.get("loop") and keys[-1]["time"] > keys[0]["time"]:
                     clock = keys[0]["time"] + (clock - keys[0]["time"]) % (keys[-1]["time"] - keys[0]["time"])

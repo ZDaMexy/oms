@@ -444,6 +444,16 @@ def has_component_output(fragment: dict, module: str, choice: str | None = None,
     return bool(fragment.get("destination"))
 
 
+def fixed_original20_graph_area(author: AuthorPackage, options: dict) -> bool:
+    """Accept only the original20 author's explicit alias of its blank branch."""
+    if author.family != "standard" or options.get("frame") != "source20-gmframe0":
+        return False
+    selected = author.contribution("graph-area", options)
+    blank = author.contribution("graph-area", {**options, "graph-area": "blank"})
+    paths = ("manifest_path", "scene_path", "ini_path")
+    return all(getattr(blank, key) and getattr(selected, key) == getattr(blank, key) for key in paths)
+
+
 class CompositionCache:
     """Reuse source-independent materials and effects with equal native hosts.
 
@@ -625,6 +635,9 @@ def entry_script(header: dict, modes: list[str], frames: list[str], plan: dict,
         entries = choices.get(module, [])
         if not entries:
             continue
+        if module == "frame":
+            entries = [{**choice, "label": choice["label"] + " (Graph Area: fixed original panel)"}
+                       if choice["value"] == "source20-gmframe0" else choice for choice in entries]
         label = "Frame" if module == "frame" else LABELS.get(module, CONTROL_LABELS.get(module))
         item, mapping = [], {}
         for choice in entries:
@@ -722,7 +735,8 @@ def export_package(author: AuthorPackage, output: Path, *, modes=None, frames=No
                         fragment.setdefault("font", []).append(shared_font)
                     if (is_module or stage == "timing-display" and controls_definition) and not has_component_output(
                             fragment, stage, opts.get(module) if is_module else None, opts):
-                        c.gap("selected component emitted no native output", module=stage, choice=opts.get(module) if is_module else None)
+                        if stage != "graph-area" or not fixed_original20_graph_area(author, opts):
+                            c.gap("selected component emitted no native output", module=stage, choice=opts.get(module) if is_module else None)
                     return fragment, c.gaps
 
                 def record_candidate(opts, controls, gaps, destinations, path, *, parameter_options=None, proof=None):

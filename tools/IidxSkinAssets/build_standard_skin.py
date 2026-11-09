@@ -11,12 +11,14 @@ import argparse
 import copy
 import hashlib
 import json
+import math
 from pathlib import Path
 from standard_source_catalog import (frame_token, frame_id, package_key, source_style,
-                                     SOURCE21_STYLES, SOURCE22_STYLES, SOURCE22_AVAILABLE_STYLES)
+                                     SOURCE20_STYLES, SOURCE21_STYLES, SOURCE22_STYLES, SOURCE22_AVAILABLE_STYLES)
 import shutil
 import sys
 from urllib.parse import unquote
+import xml.etree.ElementTree as ET
 from standard_source_catalog import (styles as source_styles, families as source_families,
                                      retained_styles, layout_family, presentation_family, art_identity, centre_translation)
 
@@ -42,6 +44,8 @@ SOURCE22_FRAME_LABELS = {
 
 
 def frame_label(style):
+    if style in SOURCE20_STYLES:
+        return '20 tricoro (Original)'
     if style in SOURCE21_STYLES:
         return '21 SPADA (Original)'
     if style in SOURCE22_FRAME_LABELS:
@@ -291,13 +295,16 @@ class Frame:
             raise ValueError('This source needs a different explicit canvas projection')
         self.dp, self.p2 = layout == 'dp', layout == 'p2'
         self.player = '2p' if self.p2 else '1p'
-        self.side = 'dp_frame_1p' if self.dp else '2p_frame' if self.p2 else '1p_frame'
-        self.centre = ('center_frame_dp_1p' if self.dp else
+        self.side = ('dp_frame' if style in SOURCE20_STYLES else 'dp_frame_1p') if self.dp else '2p_frame' if self.p2 else '1p_frame'
+        self.centre = (('center_frame_dp' if style in SOURCE20_STYLES else 'center_frame_dp_1p') if self.dp else
                        'center_frame_wide_' + self.player if wide else 'center_frame_sp')
+        if style in SOURCE20_STYLES and (self.map['package'] != self.key or self.map['common_family'] != 's20'):
+            raise ValueError('Original20 frame research must retain its own source20/s20 identity')
         # SINOBUZ's ordinary SP/Graph captures prove +35/-35 against independent
         # centre and side-frame anchors. copula retained art uses that 24 caller
         # as an explicit adaptation. Existing 26-based themes retain their +36
-        # placement and mirrored counterpart. Wide and DP use their source movies.
+        # placement and mirrored counterpart. Original20 independently selects
+        # +35/-35 through its own movie-position setter. Wide/DP use their source movies.
         self.dx = centre_translation(style, layout, wide)
         self.scene = document(self.prefix + '.root')
         self.resources, self.fonts, self.animations = {}, {}, {}
@@ -388,6 +395,10 @@ class Frame:
             self.evidence.append({'source21LaneDomain': {'sourcePackage': self.key,
                 'omsGameplayDomain': values, 'nativeCoverClipHeight': 482,
                 'adaptation': 'Own original484px lane GEO. The independently checked21 cover renderer clips at482px; OMS retains its484px component domain and hit offset, without claiming native note-coordinate parity.'}})
+        if self.style in SOURCE20_STYLES:
+            self.evidence.append({'source20LaneDomain': {'sourcePackage': self.key,
+                'sourceMovie': self.centre if self.dp else self.side, 'omsGameplayDomain': values,
+                'adaptation': 'Own original20 combined panel and GEO; the two DP lane domains come from one original centre movie. Host lanes and hit coordinates remain an explicit OMS projection, not a21/26 caller qualification.'}})
         return values
 
     def profiles(self):
@@ -439,7 +450,7 @@ class Frame:
             source_export = self.research / 'recorded' / movie / 'export.json'
             original = read(source_export)
             preparation = max(preparation, original['motion']['receipt']['loopStartFrame'] * 1000 / self.map['stage']['fps'])
-            split = movie in ('1p_frame', '2p_frame', 'center_frame_dp_1p')
+            split = movie in ('1p_frame', '2p_frame', 'center_frame_dp_1p', 'center_frame_dp')
             if split:
                 exported = read(self.owner.presentation_assets / self.key / movie / 'export.json')
                 if (exported['contract'] != 'oms-standard-lane-layers.v1'
@@ -498,8 +509,8 @@ class Frame:
         return self.template('background', node(self.prefix + '.background', children=children), 'stage.background')
 
     def apertures(self, *, graph_visible=True):
-        if not graph_visible and (self.style not in SOURCE21_STYLES or not self.dp):
-            raise ValueError('Four Graph-OFF openings are qualified only for original21 DP')
+        if not graph_visible and (self.style not in (*SOURCE20_STYLES, *SOURCE21_STYLES) or not self.dp):
+            raise ValueError('Four Graph-OFF openings require independently qualified original20/21 DP')
         image = self.owner.Image.open(self.research / self.map['layouts'][self.centre]['static_frame']).convert('RGBA')
         if self.dx:
             shifted = self.owner.Image.new('RGBA', CANVAS)
@@ -525,6 +536,11 @@ class Frame:
                 bounds['bottom'] = min(bounds['bottom'], 662)
             self.evidence.append({'dpOriginalMonitorOpenings': original_openings,
                                   'publicHudBottomLimit': 662})
+            if self.style in SOURCE20_STYLES:
+                self.evidence[-1]['source20DpMonitorGeometry'] = {
+                    'sourcePackage': self.key, 'sourceMovies': [self.centre, self.side],
+                    'graphVisible': graph_visible, 'sourceLowerMonitorHook': 'qpro_bg',
+                    'qualification': 'Own20 source alpha openings; the supplied20 native STANDARD Graph-OFF capture independently shows both left and both right video windows. No21 geometry or caller qualification is substituted.'}
         else:
             rectangles = ([largest_clear_rectangle(image, 0, int(stage['left']))] if self.p2
                           else [largest_clear_rectangle(image, int(stage['right']), 1280)])
@@ -535,6 +551,10 @@ class Frame:
                                         'Original21 DP Graph-ON uses the two left clear openings; the separate Graph-OFF BGA contribution uses all four. Fit and the public lower-HUD clip remain OMS adaptations.' if self.dp and self.style in SOURCE21_STYLES else
                                         'Original DP left upper/lower openings, clipped at the public HUD boundary; mirroring the BGA into the Qpro opening and retaining both when Graph is hidden are OMS adaptations.' if self.dp else
                                         'Verified fully transparent opening after composing both original movies; OMS fit and lower-HUD clipping are author adaptations.')})
+        if self.style in SOURCE20_STYLES and self.dp:
+            self.evidence[-1]['scope'] = (
+                'Original20 DP Graph-OFF uses its own two left and two right measured windows, independently observed in the supplied20 native STANDARD program. Fit and the public lower-HUD clip remain host adaptations.' if not graph_visible else
+                'Own20 DP left upper/lower openings. Repeating host BGA in the lower Qpro opening is an author adaptation; the separately qualified Graph-OFF contribution uses all four original20 windows.')
         return rectangles
 
     def score_panel(self):
@@ -601,6 +621,8 @@ class Frame:
             'scope': scope}})
 
     def numbers(self):
+        if self.style in SOURCE20_STYLES:
+            return self.source20_numbers()
         self.wide_score_labels()
         self.score_panel()
         self.bpm_range_panel()
@@ -646,6 +668,202 @@ class Frame:
                 self.info.append(node(self.prefix+f'.fixed.n{i}','sprite',rect(d['bounds']),resource))
         return digits,h
 
+    def source20_numbers(self):
+        # Original20's own integer table and live HUD caller select these
+        # counts/advances. They are not inferred from the PNG dimensions.
+        package = 's20/gameparts'
+        digits, height = self.font('numbers', package, {str(i): f'playm_sco{i:02}' for i in range(10)}, 34)
+        bpm, bpm_height = self.font('bpm', package, {str(i): f'playm_bpm{i:02}' for i in range(10)}, 34)
+        small, small_height = self.font('small-bpm', package, {str(i): f'playm_bpm_m{i:02}' for i in range(10)}, 21)
+        if not self.dp:
+            for hook in ('score_' + self.player, 'maxcombo_' + self.player):
+                self.source20_label(hook, self.centre)
+        self.source20_integer('score', 'score.value', 'score_' + self.player + '_0', digits, height, 6, 34)
+        self.source20_integer('combo', 'combo.maximum', 'maxcombo_' + self.player + '_0', digits, height, 4, 34)
+        self.source20_integer('bpm', 'timing.bpm', 'bpm_0', bpm, bpm_height, 3, 34)
+        start = len(self.info)
+        self.source20_integer('min-bpm', 'timing.bpm-min', 'bpm_min_0', small, small_height, 3, 21)
+        self.source20_integer('max-bpm', 'timing.bpm-max', 'bpm_max_0', small, small_height, 3, 21)
+        for hook in ('bpm_min_t', 'bpm_max_t'):
+            self.source20_label(hook, self.centre)
+        extrema = self.info[start:]
+        del self.info[start:]
+        group = node(self.prefix + '.bpm-range', properties={'opacity': 0}, children=extrema)
+        span = self.prefix + '.bpm-range.span'
+        nonzero = self.prefix + '.bpm-range.nonzero'
+        visible = self.prefix + '.bpm-range.visible'
+        self.scene.setdefault('numericSources', []).extend([
+            {'id': span, 'operation': 'subtract', 'left': 'timing.bpm-max', 'right': 'timing.bpm-min'},
+            {'id': nonzero, 'operation': 'ceil', 'left': 'value.' + span},
+            {'id': visible, 'operation': 'min', 'left': 'value.' + nonzero, 'right': 1},
+        ])
+        self.steps(group['id'], 'opacity', 'value.' + visible, [(0, 0), (1, 1)])
+        self.info.append(group)
+        self.evidence.append({'source20BpmRange': {
+            'sourceHooks': ['bpm_min_0', 'bpm_max_0', 'bpm_min_t', 'bpm_max_t'],
+            'condition': 'Show both extrema values and labels only when the actual global BPM maximum exceeds its minimum.',
+            'scope': 'Own20 caller condition; does not change the existing21/22 author policy or guess values from the current BPM.'}})
+        self.source20_hi_speed()
+        return digits, height
+
+    def source20_integer(self, name, source, hook, font, height, count, advance):
+        draws = self.draws(hook, self.centre)
+        if len(draws) != 1 or draws[0]['asset']['package'] != 's20/gameparts':
+            raise ValueError('Original20 numeric field must retain its own single gameparts anchor')
+        draw = draws[0]
+        bounds = {**draw['bounds'], 'right': draw['bounds']['left'] + count * advance}
+        readout = self.number(name, source, bounds, font, height, dx=self.dx, alignment='right')
+        if name == 'score':
+            self.steps(readout['id'], 'font-size', source,
+                       [(0, height * LOGICAL), (10 ** count, height * LOGICAL * count / (count + 1))])
+        for column in range(count - 1):
+            power = count - column - 1
+            zero = node(self.prefix + f'.{name}.leading-zero.n{column}', 'text',
+                        {**rect(box(bounds['left'] + column * advance, bounds['top'], advance, height),
+                                dx=self.dx), 'opacity': .3, 'text': '0', 'bitmap-font': font,
+                         'font-size': height * LOGICAL, 'alignment': 'left', 'format': 'integer',
+                         'colour': '#ffffffff'})
+            # The existing integer formatter rounds, including non-integer BPM.
+            # Each power-of-ten upper endpoint is even, so n-.5 matches the
+            # formatted digit-count boundary; score/combo sources are integers.
+            self.steps(zero['id'], 'opacity', source, [(0, .3), (10 ** power - .5, 0)])
+            self.info.append(zero)
+        self.info.append(readout)
+        self.evidence.append({'source20Readout': {'field': name, 'sourceHook': hook,
+            'sourcePackage': 's20/gameparts', 'sourceBounds': draw['bounds'], 'bounds': bounds,
+            'count': count, 'advance': advance, 'alignment': 'right', 'leadingZeroOpacity': .3,
+            'scope': 'Fixed original20 digit slots and dim unused high zeros use the actual host value. The integer source supplies the bright significant digits. Seven-digit OMS score fit remains a bounded author adaptation.'}})
+        return readout
+
+    def source20_hi_speed(self):
+        hook = 'hs_' + self.player + '_1'
+        draws = self.draws(hook, self.side)
+        if len(draws) != 1 or draws[0]['asset']['package'] != 's20/gameparts':
+            raise ValueError('Original20 Hi-Speed must retain its own single named anchor')
+        draw = draws[0]
+        # The source clip origin is zero. Its own2013 caller reads X/Y and
+        # renders font2 at scale1, left/top, cache22 and fixed12x20 cells.
+        # The playm_hs_* bitmap is only a source placeholder for that text.
+        prepared = self.owner.feedback_font
+        source_font_id = prepared['fonts']['normal']
+        font = next(value for value in prepared['bitmapFonts'] if value['id'] == source_font_id)
+        if font['lineHeight'] != 20 or any(glyph['advance'] != 12 for glyph in font['glyphs']):
+            raise ValueError('Original20 HUD Hi-Speed requires its independently qualified font2 cells')
+        # Graph owns its prepared auxiliary-font declaration. Keep this HUD
+        # declaration independent while sharing the exact source font2 atlas.
+        font_id = f'std.font.f{frame_token(self.style)}.hispeed'
+        self.fonts[font_id] = {**copy.deepcopy(font), 'id': font_id}
+        resource_ids = {glyph['resource'] for glyph in font['glyphs']}
+        declarations = [value for value in prepared['resources'] if value['id'] in resource_ids]
+        for declaration in declarations:
+            self.resource(declaration)
+        paths = {declaration['path'] for declaration in declarations}
+        for file in prepared['files']:
+            if file['path'] in paths:
+                self.owner.copy(file['source'], file['path'], file['sha256'])
+        bounds = box(draw['bounds']['left'], draw['bounds']['top'], 120, 20)
+        readout = self.number('hispeed', 'scroll.hi-speed', bounds, font_id, 20, fmt='fixed-2', alignment='left')
+        readout['properties']['colour'] = '#00ffffff'
+        self.bind(readout['id'], 'visible', 'scroll.hi-speed-available')
+        self.info.append(readout)
+        self.evidence.append({'source20HiSpeed': {'sourceMovie': self.side, 'sourceHook': hook,
+            'sourceBounds': draw['bounds'], 'sourceTtf': str(self.owner.source_font),
+            'fontId': 2, 'cacheHeight': 22, 'cell': [12, 20], 'format': '%1.2f',
+            'alignment': 'left/top', 'colour': '#00ffffff',
+            'scope': 'Own20 font2 caller at its unchanged original named X/Y, using the supplied TTC outlines. The120px host text capacity is transparent layout space, not a stretched21x28 placeholder or a native maximum-value claim. GPU cache/filter byte parity remains separate.'}})
+
+    @staticmethod
+    def source20_rectangle(draw, atlas_size=None):
+        bounds, asset = draw['bounds'], draw['asset']
+        width, height = asset['width'], asset['height']
+        vertices = [{'x': x, 'y': y, 'z': 0} for x, y in
+                    ((0, 0), (width, 0), (0, height), (width, height))]
+        projected = [{**v, 'x': v['x'] + bounds['left'], 'y': v['y'] + bounds['top']} for v in vertices]
+        uv = [{'x': x, 'y': y, 'z': 0} for x, y in ((0, 0), (1, 0), (0, 1), (1, 1))]
+        params = draw['draw_params']
+        if len(params) == 1 and params[0]['flags'] == 3 and atlas_size is not None:
+            left, right, top, bottom = asset['uvRect']
+            atlas_width, atlas_height = atlas_size
+            uv = [{'x': x / atlas_width, 'y': y / atlas_height, 'z': 0}
+                  for x, y in ((left, top), (right, top), (left, bottom), (right, bottom))]
+        # Original20 contains both ordinary and normalized-texture GEO flags.
+        # A direct PNG is equivalent only when the independently exported UV
+        # rectangle is exactly the whole source image in either representation.
+        valid_params = (len(params) == 1 and params[0]['flags'] in (3, 0x43) and
+                        {key: value for key, value in params[0].items() if key != 'flags'} ==
+                        {'region': draw['texture'], 'vertexes': [0, 1, 2, 2, 1, 3], 'blend': None})
+        if (abs(bounds['right'] - bounds['left'] - width) > 1e-9 or
+                abs(bounds['bottom'] - bounds['top'] - height) > 1e-9 or
+                draw['source_vertices'] != vertices or draw['projected_vertices'] != projected or draw['uv'] != uv or
+                draw['mask_present'] or draw['blend'] != 0 or
+                not valid_params or
+                draw['mult_color'] != dict.fromkeys(('r', 'g', 'b', 'a'), 1) or
+                draw['add_color'] != dict.fromkeys(('r', 'g', 'b', 'a'), 0) or
+                any(abs(draw['matrix'][key] - value) > 1e-9 for key, value in
+                    (('a', 1), ('b', 0), ('c', 0), ('d', 1), ('tx', bounds['left']), ('ty', bounds['top'])))):
+            raise ValueError('Original20 controlled label is not its unscaled source rectangle')
+        return bounds
+
+    def source20_label(self, hook, movie):
+        draws = self.draws(hook, movie)
+        if len(draws) != 1:
+            raise ValueError(f'{self.key}/{self.layout} requires one original20 {hook}')
+        draw = draws[0]
+        package, name = draw['asset']['package'], draw['texture']
+        if package not in (self.key, 's20/gameparts') or draw['game_bindings'] != [hook]:
+            raise ValueError('Original20 controlled label must retain its own source owner')
+        resource, row = self.asset(package, name)
+        normalized = [{'x': x, 'y': y, 'z': 0} for x, y in ((0, 0), (1, 0), (0, 1), (1, 1))]
+        atlas_size = None
+        if draw['draw_params'][0]['flags'] == 3 and draw['uv'] != normalized:
+            texturelist = contained(self.owner.library, str(Path(row['raw']).with_name('texturelist.xml')))
+            matches = [(texture, image) for texture in ET.parse(texturelist).getroot().findall('texture')
+                       for image in texture.findall('image') if image.attrib['name'] == name]
+            if len(matches) != 1:
+                raise ValueError('Original20 named label must have one declared source atlas region')
+            texture, image = matches[0]
+            atlas_size = tuple(int(value) for value in texture.findtext('size').split())
+            if (len(atlas_size) != 2 or min(atlas_size) <= 0 or
+                    [int(value) / 2 for value in image.findtext('uvrect').split()] != row['uvRect']):
+                raise ValueError('Original20 label atlas declaration differs from its source sprite')
+        bounds = self.source20_rectangle(draw, atlas_size)
+        self.info.append(node(self.prefix + '.label.' + hook, 'sprite',
+                              rect(bounds, dx=self.dx if movie == self.centre else 0), resource))
+        self.evidence.append({'source20ControlledLabel': {'sourceMovie': movie, 'sourceHook': hook,
+            'sourcePackage': package, 'sourceTexture': name, 'sourceBounds': bounds,
+            'sourceGEOFlags': draw['draw_params'][0]['flags'],
+            'scope': 'Own original named label restored after game-controlled placeholders are removed; normalized or original atlas UV must resolve to the complete unchanged source PNG. No later-source artwork or geometry.'}})
+
+    def source20_header(self):
+        draws = self.draws('diff_' + self.player, self.side)
+        if len(draws) != 1:
+            raise ValueError('Original20 requires its own difficulty anchor')
+        draw = draws[0]
+        if draw['asset']['package'] != 's20/gameparts':
+            raise ValueError('Original20 difficulty must use its own gameparts')
+        bounds = self.source20_rectangle(draw)
+        cases = {'BEGINNER': 'playm_beginner', 'NORMAL': 'playm_normal',
+                 'HYPER': 'playm_hyper', 'ANOTHER': 'playm_another'}
+        children = []
+        for difficulty, name in cases.items():
+            resource, row = self.asset('s20/gameparts', name)
+            identifier = self.prefix + '.header.difficulty.' + difficulty.lower()
+            label = node(identifier, 'sprite', rect(box(bounds['left'], bounds['top'],
+                         row['width'], row['height'])), resource)
+            self.variant(identifier, 'visible', 'song.difficulty', False, {difficulty: True})
+            children.append(label)
+        identifier = self.prefix + '.header.difficulty.text'
+        fallback = node(identifier, 'text', {**rect(bounds), 'text': '', 'font-size': 12 * LOGICAL,
+            'colour': '#ffffffff', 'alignment': 'centre', 'text-overflow': 'ellipsis'})
+        self.bind(identifier, 'text', 'song.difficulty')
+        self.variant(identifier, 'visible', 'song.difficulty', True, {key: False for key in cases})
+        children.append(fallback)
+        self.info.extend(children)
+        self.evidence.append({'source20Header': {'sourceMovie': self.side, 'sourceHook': 'diff_' + self.player,
+            'sourcePackage': 's20/gameparts', 'sourceBounds': bounds,
+            'difficultyPolicy': 'Own label PNGs retain their individual pixel sizes at the source anchor. Host-only difficulty values use the existing text fallback; native replacement alignment remains separately qualified.',
+            'level': 'No level/lvlnum hook or matching level bitmap was found in the original20 source movies/gameparts. No later-source numeric label or guessed position is substituted.'}})
+
     def wide_score_labels(self):
         if self.style not in SOURCE21_STYLES or not self.wide:
             return
@@ -675,6 +893,8 @@ class Frame:
                 'sourceBounds': bounds, 'scope': 'Own original wide-SP named label, restored below live digits without moving or replacing its artwork.'}})
 
     def header(self):
+        if self.style in SOURCE20_STYLES:
+            return self.source20_header()
         difficulty = self.draws('diff_'+self.player,self.side)
         level = self.draws('lvlnum_'+self.player,self.side)
         if not difficulty or not level:
@@ -707,9 +927,11 @@ class Frame:
 
     def gauge(self):
         d=self.draws('gg_bar_'+self.player,self.side)[-1]
+        if self.style in SOURCE20_STYLES and d['asset']['package'] != 's20/gameparts':
+            raise ValueError('Original20 Gauge must retain its own gameparts owner')
         resource,_=self.asset(d['asset']['package'],d['texture'])
         mode_names = [('hard','playm_gauge_hard'),('ex-hard','playm_gauge_exhard')]
-        if self.style not in (*SOURCE21_STYLES, *SOURCE22_STYLES):
+        if self.style not in (*SOURCE20_STYLES, *SOURCE21_STYLES, *SOURCE22_STYLES):
             mode_names.append(('assist-easy','playm_gauge_aeasy_'+self.player))
         modes={key:self.asset(layout_family(self.style) + '/gameparts',name)[0] for key,name in mode_names}
         bounds=d['bounds'];prefix=self.prefix+'.gauge'
@@ -740,8 +962,10 @@ class Frame:
         self.info.append(node(prefix+'.body',properties=rect(bounds),children=[dark,shown]))
         anchors=[self.draws(f'percent_{self.player}_{i}',self.side)[-1] for i in range(3)]
         advance=anchors[0]['bounds']['left']-anchors[1]['bounds']['left']
-        hud_package = 's21/gameparts' if self.style in SOURCE21_STYLES else self.key
-        font,height=self.font('gauge',hud_package,{str(i):f'playm_gg_{i:02}' for i in range(10)},advance,
+        hud_package = ('s20/gameparts' if self.style in SOURCE20_STYLES else
+                       's21/gameparts' if self.style in SOURCE21_STYLES else self.key)
+        glyph_prefix = 'playm_gg_dp_' if self.style in SOURCE20_STYLES and self.dp else 'playm_gg_'
+        font,height=self.font('gauge',hud_package,{str(i):f'{glyph_prefix}{i:02}' for i in range(10)},advance,
                               uniform_height=self.style not in SOURCE22_STYLES)
         self.fonts[font]['glyphs'].append({'character':'%','resource':self.empty,'advance':1})
         percent={**union(anchors[:2]),'right':anchors[0]['bounds']['left']+advance+1}
@@ -749,7 +973,7 @@ class Frame:
         self.steps(readout['id'],'opacity','gauge.value',[(0,1),(.995,0)])
         hundred=[]
         for i,anchor in enumerate(anchors):
-            resource,_=self.asset(hud_package,f'playm_gg_{1 if i==2 else 0:02}')
+            resource,_=self.asset(hud_package,f'{glyph_prefix}{1 if i==2 else 0:02}')
             hundred.append(node(prefix+f'.hundred.n{i}','sprite',rect(anchor['bounds']),resource))
         group=node(prefix+'.hundred',children=hundred)
         self.steps(group['id'],'opacity','gauge.value',[(0,0),(.995,1)])
@@ -778,6 +1002,12 @@ class Frame:
                 visibility='Existing OMS A/B/C display policy, dark underlay and rounded100 threshold are author adaptations on21 art; this does not assert the21 executable gauge-option table.',
                 assistEasyArtwork='The21 source has no Assist Easy gauge sprite. The OMS mode retains its own original normal gauge artwork with its actual host value/60% threshold; no later-source artwork is substituted.',
                 sourceFamily='s21')
+        if self.style in SOURCE20_STYLES:
+            gauge_evidence.update(
+                gaugePercent='Own20 named ones/tens/hundreds anchors and independent SP/DP bitmap sets; no21/26 gauge glyphs substituted.',
+                visibility='Existing OMS A/B/C display policy, dark underlay and rounded100 threshold are author adaptations on20 art, not a native20 option-table claim.',
+                assistEasyArtwork='The20 source has no Assist Easy gauge sprite. The OMS mode uses its own original normal artwork with the actual host value/threshold.',
+                sourceFamily='s20', sourceMovie=self.side)
         self.evidence.append(gauge_evidence)
         hazard=node(prefix+'.hazard','text',{**rect(box(bounds['left'],bounds['bottom']+1,150,12)),
                     'text':'HAZARD / SURVIVAL','font-size':10*LOGICAL,'colour':'#ffffffff'})
@@ -785,6 +1015,8 @@ class Frame:
         self.info.append(hazard)
 
     def progress(self):
+        if self.style in SOURCE20_STYLES:
+            return self.source20_progress()
         for player in (('1p','2p') if self.dp else (self.player,)):
             draws=self.draws('music_point_'+player,self.side)
             if not draws and self.style == 'source22-gmframe9' and not self.dp:
@@ -805,6 +1037,46 @@ class Frame:
             self.info.append(track)
         if self.dp or draws:
             self.evidence.append({'musicProgress':'Original cursor and initial anchor; endpoint aligned to source lower E area is an author adaptation, not the original progress formula.'})
+
+    def source20_progress(self):
+        # Original20 draws this sprite independently of its AFP movies. The
+        # native caller supplies these positions and the 10..415 travel range;
+        # absence of a named movie hook does not make the feature unavailable.
+        resource, row = self.asset('s20/gameparts', 'playm_music_point')
+        if (row['width'], row['height']) != (66, 72):
+            raise ValueError('Original20 music point must retain its complete own-source sprite')
+        players = (('1p', 258), ('2p', 956)) if self.dp else ((self.player, 1212 if self.p2 else 2),)
+        self.scene['preparationDuration'] = max(self.scene.get('preparationDuration', 0), 2000)
+        for player, left in players:
+            prefix = self.prefix + '.progress.p' + player[0]
+            cursor = node(prefix + '.cursor', 'sprite',
+                          {'x': 0, 'y': 0, 'width': 1, 'height': 72 / 405, 'opacity': 1}, resource)
+            cursor['blend'] = 'additive'  # Own20 lastFlag1 -> sprite setter -> AFP blend8.
+            travel = node(prefix + '.travel', properties=rect(box(left, 415, 66, 405)), children=[cursor])
+            self.bind(cursor['id'], 'y', 'timing.progress')
+            # Native converts the negative interpolated delta toward zero,
+            # then adds415. Truncating the final positive Y loses one pixel.
+            intro = [(frame * 1000 / 60,
+                      (415 - math.trunc(405 * math.sin(frame * math.pi / 240))) / 720)
+                     for frame in range(121)]
+            intro[0], intro[-1] = (0, 415 / 720), (2000, 10 / 720)
+            self.steps(travel['id'], 'y', 'presentation.elapsed', intro)
+            identifier = cursor['id'] + '.beat-opacity'
+            self.scene['tracks'].append({'id': identifier, 'type': 'tween', 'target': cursor['id'],
+                'property': 'opacity', 'clock': 'timing.beat', 'loop': True, 'easing': 'step',
+                'keyframes': [{'id': identifier + f'.n{n}', 'time': n / 50, 'value': 1 - n / 100}
+                              for n in range(50)] + [{'id': identifier + '.n50', 'time': 1, 'value': 1}]})
+            self.info.append(travel)
+        self.evidence.append({'source20MusicProgress': {
+            'sourcePackage': 's20/gameparts', 'sourceSprite': 'playm_music_point',
+            'sourceSize': [66, 72], 'sourcePriority': 72, 'sourceOrigin': [0, 0],
+            'sourceBlend': 'additive (own20 sprite setter maps lastFlag1 to AFP blend8)',
+            'sourceX': {player: left for player, left in players}, 'sourceYRange': [10, 415],
+            'nativeFormula': 'After the intro, Y=10+trunc(current chart tick*405/terminal type6 event tick).',
+            'intro': 'Own120-tick sine415→10, sampled once per60Hz source tick as a presentation.elapsed step track; preparation lasts at least2000ms so host song progress remains0 during entry.',
+            'beatAlpha': 'The native normalized alpha formula100−floor(phase*50) is retained in50 phase bins, with its source reset at the next beat. Host timing.beat supplies phase; the original variable integer beatPeriod=trunc(3600/BPM) and native counter cadence are not reconstructed.',
+            'hostAdaptation': 'The existing host timing.progress source owns elapsed/duration and clamping; destination quantization follows the host. Native integer tick truncation and terminal-event duration are not reproduced by this binding. It does not count hit objects. Intro epoch and beat phase follow the host presentation/timing clocks.',
+            'scope': 'Independent own20 draw with its separately qualified additive blend; no later-source movie hook, artwork or travel endpoint is borrowed.'}})
 
     def graph(self):
         from standard_graph import build_graph
@@ -951,7 +1223,7 @@ class Frame:
         profiles=self.material_ini(background,information,controls)
         apertures=self.apertures()
         bga_context = {'style':self.style,'layout':self.layout,'wide':self.wide,'apertures':apertures}
-        if self.style in SOURCE21_STYLES and self.dp:
+        if self.style in (*SOURCE20_STYLES, *SOURCE21_STYLES) and self.dp:
             bga_context['dpGraphOffApertures'] = self.apertures(graph_visible=False)
         self.owner.bga_contexts.append(bga_context)
         for mode in (14,) if self.dp else (5,7):
@@ -985,7 +1257,7 @@ class Frame:
             self.evidence.append({'readingSourceCapabilities': {
                 'dedicatedNormalSpeedPreviewArt': False, 'firstRowCueArt': False,
                 'nativePreStartLanePreview': 'Existing OMS fallback; not a source-game capability claim.',
-                'reason': ('No corresponding artwork or movies in the qualified21 gameparts; no26 artwork substituted.' if self.style in SOURCE21_STYLES else 'No corresponding artwork or movies in the qualified22 gameparts; no26 artwork substituted.' if self.style in SOURCE22_STYLES else 'No corresponding artwork or movies in the readable 24 HDD graphic archives; no 26 artwork substituted.')}})
+                'reason': ('No corresponding artwork or movies in the independently exported20 gameparts; no later-source artwork substituted.' if self.style in SOURCE20_STYLES else 'No corresponding artwork or movies in the qualified21 gameparts; no26 artwork substituted.' if self.style in SOURCE21_STYLES else 'No corresponding artwork or movies in the qualified22 gameparts; no26 artwork substituted.' if self.style in SOURCE22_STYLES else 'No corresponding artwork or movies in the readable 24 HDD graphic archives; no 26 artwork substituted.')}})
 
 
 def build(args):

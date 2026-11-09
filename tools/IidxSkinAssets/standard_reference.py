@@ -23,7 +23,8 @@ import sys
 import types
 from urllib.parse import unquote
 import xml.etree.ElementTree as ET
-from standard_source_catalog import frame_token, frame_id, package_key, source_style, retained_styles as source_styles
+from standard_source_catalog import (frame_token, frame_id, package_key, source_style,
+                                     retained_styles as source_styles, SOURCE20_STYLES)
 
 
 CONTRACT = "oms-iidx-standard-reference.v1"
@@ -40,6 +41,13 @@ MOVIE_IDS = {"1p_frame": "p1", "2p_frame": "p2", "dp_frame_1p": "dp-gauge",
              "center_frame_sp": "sp-center", "center_frame_dp_1p": "dp-center",
              "center_frame_wide_1p": "wide-p1-center", "center_frame_wide_2p": "wide-p2-center",
              "center_frame_2pp": "two-player-center"}
+SOURCE20_LAYOUTS = ("1p_frame", "2p_frame", "dp_frame", "center_frame_sp", "center_frame_dp",
+                    "center_frame_wide_1p", "center_frame_wide_2p", "center_frame_2pp")
+SOURCE20_RECORDED_LAYOUTS = SOURCE20_LAYOUTS
+SOURCE20_MOVIE_IDS = {"1p_frame": "p1", "2p_frame": "p2", "dp_frame": "dp-frame",
+                      "center_frame_sp": "sp-center", "center_frame_dp": "dp-center",
+                      "center_frame_wide_1p": "wide-p1-center", "center_frame_wide_2p": "wide-p2-center",
+                      "center_frame_2pp": "two-player-center"}
 LIMITS = [
     "Original affine matrices and GEO mesh/UV are retained. Recorded geometric bounds do not apply masks or perspective.",
     "The external AFP renderer omits some original filters and script behavior; unknown flags and parser messages are recorded.",
@@ -47,6 +55,18 @@ LIMITS = [
     "The snapshot is sampled from each movie's own loop, not a claim about runtime defaults, native timing, or a complete historical version.",
     "Common texture family is an explicit caller selection. No cross-family or cross-library fallback is used.",
 ]
+
+
+def layout_movies(style):
+    return SOURCE20_LAYOUTS if source_style(style) in SOURCE20_STYLES else LAYOUTS
+
+
+def recorded_movies(style):
+    return SOURCE20_RECORDED_LAYOUTS if source_style(style) in SOURCE20_STYLES else RECORDED_LAYOUTS
+
+
+def movie_identifier(style, movie_name):
+    return (SOURCE20_MOVIE_IDS if source_style(style) in SOURCE20_STYLES else MOVIE_IDS)[movie_name]
 
 
 def digest(path: Path) -> str:
@@ -259,18 +279,20 @@ class Research:
                 "assetResolution": reason}
 
     def run_style(self, style: int, output: Path):
+        if style in SOURCE20_STYLES and self.common_family != "s20":
+            raise ValueError("Original20 research requires its own explicit s20 common family")
         self.used = {}
         package = package_key(style)
         base = f"packages/contents/data/graphic/{package}/raw"
         # A complete layout export must include the separately authored single
         # player wide movies. The shared SP movie cannot stand in for them.
-        for movie_name in LAYOUTS:
+        for movie_name in layout_movies(style):
             self.source(f"{base}/afp/{movie_name}")
             self.source(f"{base}/afp/bsi/{movie_name}")
         folder = output / package
         folder.mkdir(parents=True, exist_ok=False)
         write_json(folder / "run.json", {"status": "running", "contract": CONTRACT, "package": package,
-                                         "expectedLayouts": list(LAYOUTS)})
+                                         "expectedLayouts": list(layout_movies(style))})
         shapes, geometry = {}, []
         for path in sorted((self.root / base / "geo").iterdir()):
             if not path.is_file():
@@ -302,7 +324,7 @@ class Research:
         static_receipt = {"rules": {"keep_named_instances": sorted(KEEP_NAMED), "drop_other_named_instances": True,
                                     "drop_textures": sorted(DROP_TEXTURES)}, "limitations": LIMITS, "frames": []}
         (folder / "static-frames").mkdir()
-        for movie_name in LAYOUTS:
+        for movie_name in layout_movies(style):
             log = io.StringIO()
             with contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
                 movie = self.api.SWF(movie_name, self.source(f"{base}/afp/{movie_name}").read_bytes(),
@@ -389,6 +411,8 @@ class Research:
 
 def export_recorded(research, style, output, bemani, image_tools):
     """Record original source trees; PNGs remain byte-preserving copy instructions."""
+    if style in SOURCE20_STYLES and research.common_family != "s20":
+        raise ValueError("Original20 recording requires its own explicit s20 common family")
     from build_fullcombo_catalog import (InternTable, LocalStateRecorder, all_tags, exporter_classes,
                                         load_tools, point_values, rgba_values, to_recorded_animation)
     import brotli
@@ -462,7 +486,7 @@ def export_recorded(research, style, output, bemani, image_tools):
             raise ValueError("Source texture identity collides or has conflicting sampler state")
         source_table[identity] = row
     exported = []
-    for movie_name in RECORDED_LAYOUTS:
+    for movie_name in recorded_movies(style):
         movie_target = target / movie_name
         movie_target.mkdir()
         log = io.StringIO()
@@ -534,7 +558,7 @@ def export_recorded(research, style, output, bemani, image_tools):
                 raise ValueError("Source frame graph exceeds the public encoded/decoded clip byte budget")
             clip_file = movie_target / f"{kind}.clip.json.br"
             clip_file.write_bytes(compressed)
-            prefix = f"standard.{frame_id(style)}.frame.{MOVIE_IDS[movie_name]}.{kind}"
+            prefix = f"standard.{frame_id(style)}.frame.{movie_identifier(style, movie_name)}.{kind}"
             archive_path = f"standard/frames/{frame_id(style)}/{movie_name}/{kind}.clip.json.br"
             used = {geometry["resource"] for geometry in clip["geometries"] if geometry["resource"] is not None}
             resources, files = [], []
@@ -572,13 +596,18 @@ def main():
         parser.add_argument(f"--{name}", type=Path, required=True)
     parser.add_argument("--styles", type=source_style, nargs="+", required=True)
     parser.add_argument("--recorded", action="store_true", help="Add original PNG/mesh/hierarchy clips to completed layout research")
-    parser.add_argument("--common-family", choices=("0", "1", "s21", "s22", "s23", "s24"), required=True,
+    parser.add_argument("--common-family", choices=("0", "1", "s20", "s21", "s22", "s23", "s24"), required=True,
                         help="Explicit common family from the observed source configuration, never inferred from canvas size")
     args = parser.parse_args()
     library, bemani, image_tools = (path.resolve(strict=True) for path in (args.library, args.bemani_root, args.image_tools))
     output = args.output.resolve()
     if not args.styles or len(set(args.styles)) != len(args.styles) or any(value not in source_styles(read_json(library / "library.json")) for value in args.styles):
         parser.error("Choose unique qualified Standard sources present in the supplied library")
+    if any(style in SOURCE20_STYLES for style in args.styles):
+        if args.common_family != "s20" or any(style not in SOURCE20_STYLES for style in args.styles):
+            parser.error("Original20 research must use only its own styles and explicit s20 family")
+    elif args.common_family == "s20":
+        parser.error("The s20 common family belongs only to Original20 styles")
     if any(output.is_relative_to(path) or path.is_relative_to(output) for path in (library, bemani, image_tools)):
         parser.error("Output must not overlap any input")
     if output.drive.lower() == os.environ.get("SystemDrive", "C:").lower():
@@ -587,7 +616,7 @@ def main():
         parser.error("Create the dedicated research parent first")
     identity = {"contract": CONTRACT, "librarySha256": digest(library / "library.json"),
                 "commonFamily": args.common_family,
-                "layoutMovies": list(LAYOUTS), "recordedMovies": list(RECORDED_LAYOUTS),
+                "layoutMovies": list(layout_movies(args.styles[0])), "recordedMovies": list(recorded_movies(args.styles[0])),
                 "parser": [{"path": str(path.relative_to(bemani)).replace("\\", "/"), "sha256": digest(path)}
                            for path in sorted((bemani / "bemani/format/afp").rglob("*.py"))]}
     if output.exists():

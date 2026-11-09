@@ -13,7 +13,8 @@ import io
 import json
 import math
 from pathlib import Path
-from standard_source_catalog import frame_id, package_key, includes22, SOURCE22_STYLES, SOURCE21_STYLES, layout_family
+from standard_source_catalog import (frame_id, package_key, includes20, includes22,
+                                     SOURCE20_STYLES, SOURCE22_STYLES, SOURCE21_STYLES, layout_family)
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -112,6 +113,22 @@ def source22_turntable_size(frame, source, draw):
             or draws[0]["vertexes"] != [0, 1, 2, 2, 1, 3] or draws[0]["blend"] is not None):
         raise ValueError("22 Turntable carrier XYZ/UV/draw differs from the qualified source")
     return width, height
+
+
+def source20_turntable_size(frame, source, draw):
+    """Qualify the original20 default25px carrier, without a dynamic-size claim."""
+    if (frame not in SOURCE20_STYLES or source["package"] != package_key(frame)
+            or source["common_family"] != "s20" or draw["texture"] != "turn_00"
+            or draw.get("asset", {}).get("package") != "s20/gameparts"
+            or (draw["asset"]["width"], draw["asset"]["height"]) != (25, 25)):
+        raise ValueError("Original20 Turntable hook differs from its own default source")
+    vertices, uv, draws = draw["source_vertices"], draw["uv"], draw["draw_params"]
+    if ([(p["x"], p["y"], p["z"]) for p in vertices] != [(0, 0, 0), (25, 0, 0), (0, 25, 0), (25, 25, 0)]
+            or [(p["x"], p["y"], p["z"]) for p in uv] != [(0, 0, 0), (1, 0, 0), (0, 1, 0), (1, 1, 0)]
+            or len(draws) != 1 or draws[0]["region"] != "turn_00" or draws[0]["flags"] != 67
+            or draws[0]["vertexes"] != [0, 1, 2, 2, 1, 3] or draws[0]["blend"] is not None):
+        raise ValueError("Original20 Turntable carrier XYZ/UV/draw differs from the qualified source")
+    return 25, 25
 
 
 def digest(path):
@@ -985,10 +1002,20 @@ class StandardComponents(ModuleBuilder):
         if set(mappings) != {frame_id(style) for style in retained_styles(self.source_data)}:
             raise ValueError("Frame maps must contain exactly the retained Standard source identities")
         maps = {key: read_json(within(self.frame_maps.parent, value)) for key, value in mappings.items()}
+        if includes20(self.source_data):
+            original = self.index["s20/gameparts", "turn_00"]
+            custom = self.index["source20/turn00", "turn00"]
+            if any(original[key] != custom[key] for key in ("sha256", "width", "height")) or (custom["width"], custom["height"]) != (25, 25):
+                raise ValueError("Original20 default Turntable differs from its supplied CUSTOM image")
         choices, motion_sources = [], []
-        for style in exact_styles(self.packages, r"turn(\d+)", range(21)):
-            branch = StandardBranch(self, "st", f"t{style:02}")
-            resource = branch.asset(f"turn{style:02}", f"turn{style:02}")[0]
+        sources = [(style, f"turn{style:02}", f"turn{style:02}", f"t{style:02}", f"Turntable {style:02}")
+                   for style in exact_styles(self.packages, r"turn(\d+)", range(21))]
+        if includes20(self.source_data):
+            sources.append((None, "source20/turn00", "turn00", "source20-turn00", "Turntable 00 (20 tricoro)"))
+        for style, package, texture, choice, label in sources:
+            branch = StandardBranch(self, "st", choice)
+            resource = branch.asset(package, texture)[0]
+            default20 = branch.asset("source20/turn00", "turn00")[0] if style == 0 and includes20(self.source_data) else None
             for layout, movie in (("p1", "1p_frame"), ("p2", "2p_frame"), ("dp", "dp_frame_1p")):
                 frames = []
                 for frame in self.frame_ids:
@@ -998,14 +1025,18 @@ class StandardComponents(ModuleBuilder):
                     children = []
                     for group in range(2 if layout == "dp" else 1):
                         binding = "turn_2p" if group == 1 or layout == "p2" else "turn_1p"
-                        candidates = [draw for draw in source["layouts"][movie]["draws"] if binding in draw["game_bindings"]]
+                        source_movie = "dp_frame" if frame in SOURCE20_STYLES and layout == "dp" else movie
+                        candidates = [draw for draw in source["layouts"][source_movie]["draws"] if binding in draw["game_bindings"]]
                         if len(candidates) != 1:
                             raise ValueError(f"Expected one real turntable source hook: {frame}/{layout}/{binding}")
                         draw = candidates[0]
                         bounds = draw["bounds"]
                         source_vertices = draw["source_vertices"]
                         hook_asset = draw.get("asset")
-                        if frame in SOURCE22_STYLES or frame in SOURCE21_STYLES:
+                        if frame in SOURCE20_STYLES:
+                            width, height = source20_turntable_size(frame, source, draw)
+                            hook_asset = {"width": width, "height": height}
+                        elif frame in SOURCE22_STYLES or frame in SOURCE21_STYLES:
                             width, height = source22_turntable_size(frame, source, draw)
                             hook_asset = {"width": width, "height": height}
                         elif hook_asset is None:
@@ -1033,7 +1064,7 @@ class StandardComponents(ModuleBuilder):
                             raise ValueError("Turntable source needs a non-rectangular mesh consumer")
                         ident = branch.prefix + "." + layout + "." + frame + ".n" + str(group)
                         props, motion, motion_source = turntable_motion(ident, draw, layout, group)
-                        art = node(ident, "projective-sprite", props, resource)
+                        art = node(ident, "projective-sprite", props, default20 if frame in SOURCE20_STYLES and default20 else resource)
                         vertices = draw["projected_vertices"]
                         quad = [[(vertices[i]["x"] - bounds["left"]) / (bounds["right"] - bounds["left"]),
                                  (vertices[i]["y"] - bounds["top"]) / (bounds["bottom"] - bounds["top"]), 1]
@@ -1049,22 +1080,30 @@ class StandardComponents(ModuleBuilder):
                                                    **({"carrierGeometry": "Original22 normalized-UV GEO; no fallback PNG dimensions"}
                                                       if frame in SOURCE22_STYLES else
                                                       {"carrierGeometry": "Original21 normalized-UV GEO; no fallback PNG dimensions"}
-                                                      if frame in SOURCE21_STYLES else {})})
+                                                      if frame in SOURCE21_STYLES else
+                                                      {"carrierGeometry": "Original20 turn_00 default25x25 GEO; independent of21/22 dynamic carriers"}
+                                                      if frame in SOURCE20_STYLES else {})})
                         children.append(art)
                     ident = branch.prefix + "." + layout + "." + frame
                     frames.append(node(ident, children=children))
                     branch.show(ident, "option.frame", [frame])
                 branch.template(layout, node(branch.prefix + "." + layout, slot="decoration", children=frames),
                                 "decoration", f"markers/frame-{layout}-information")
-            choices.append({"value": f"t{style:02}", "label": f"Turntable {style:02}", **branch.finish(),
-                            "preview": self.preview("turntable", f"t{style:02}", [(f"turn{style:02}", f"turn{style:02}")])})
+            choices.append({"value": choice, "label": label, **branch.finish(),
+                            "preview": self.preview("turntable", choice, [(package, texture)])})
         self.add_module("turntable", "Turntable", choices, "t00")
-        self.receipts.append({"category": "turntable", "choices": 21, "sourceMaps": str(self.frame_maps),
+        self.receipts.append({"category": "turntable", "choices": len(choices), "sourceMaps": str(self.frame_maps),
             "placement": "Original per-frame bounds and projected vertices, including the25 tiny rotation and negative-X orientation; all texture-only source archives",
             "motion": "Preserved source projective quad rotates about its original centre from real signed input.motion-revolutions-1/2. P2 single-player is logical group0; only DP right uses group1. Negative source determinant reverses the angle.",
             "motionSources": motion_sources,
             "unavailableMotion": "The public unavailable source is zero; digital keys and old replays retain static art. No invented timer, key trigger or scratch press-light.",
             "motionLimits": "Rigid post-projection rotation is emitted only for the verified source uniform similarities; it is not a claim about original executable turntable response timing."})
+        if includes20(self.source_data):
+            self.receipts[-1]["source20"] = {
+                "default": "The unchanged module default t00 selects the supplied20 source20/turn00 image only for frame source20-gmframe0. It is byte-identical to that frame's own s20/gameparts turn_00, whose named placeholder is removed from recorded background art.",
+                "additionalChoice": "source20-turn00 retains that distinct original25x25 design as an explicit choice; exact CUSTOM duplicates do not add choices.",
+                "geometry": "Own20 original1p_frame/2p_frame and single dp_frame carriers. Each retains its25x25 normalized-UV quad and actual affine position; DP has two independently driven scratch groups.",
+                "customProjection": "Other Turntable choices reuse this25x25 host carrier when frame20 is selected. Native20 dynamic CUSTOM carrier resizing is not qualified, and the21/22 carrier rule is not promoted to20. Selecting the new20 image on older frames uses their existing carriers as an explicit host adaptation."}
 
     def graph_art(self):
         source = self._package("0/graph")
@@ -1111,6 +1150,18 @@ class StandardComponents(ModuleBuilder):
             research = self.output / "research/graph"
             research.mkdir(parents=True, exist_ok=True)
             (research / (movie + ".json")).write_text(json.dumps(root, separators=(",", ":")), encoding="utf-8")
+        source20 = None
+        if includes20(self.source_data):
+            original20 = self._package("s20/graph")
+            source20 = {"sourcePackage": "s20/graph", "movies": [], "customizeHookPresent": False,
+                "selectedContribution": "Original blank; retain the complete original20 panel",
+                "boundary": "No customize hook exists in the supplied20 Graph movies. MAX and baseline are baked into its panel. This host keeps Graph Area fixed for20 instead of overlaying the26 customization rectangle; native dynamically created objects are not inferred from absent AFP names."}
+            for movie, selected in sorted(original20["movies"].items()):
+                hooks = [tag for tag in all_tags(selected.tags, self.tools.AP2DefineSpriteTag)
+                         if isinstance(tag, self.tools.AP2PlaceObjectTag) and tag.movie_name == "customize"]
+                if hooks:
+                    raise ValueError("Original20 Graph Area source gained an unqualified customization hook")
+                source20["movies"].append({"name": movie, "frames": len(selected.frames), "customizeHooks": len(hooks)})
         choices = [{"value": "blank", "label": "Original blank", **StandardBranch(self, "sg", "blank").finish(),
                     "preview": self.preview("graph-area", "blank", [])}]
         for package, texture, value, label in self.lane_sources():
@@ -1131,11 +1182,16 @@ class StandardComponents(ModuleBuilder):
                 branch.template(layout, root, "decoration", f"markers/frame-{layout}-information")
             choices.append({"value": value, "label": "Graph Area art " + label, **branch.finish(),
                             "preview": self.preview("graph-area", value, [(package, texture)])})
+            if source20 is not None:
+                choices[-1]["variants"] = [{"when": {"frame": frame_id(SOURCE20_STYLES[0])},
+                    **{key: choices[0][key] for key in ("manifest", "scene", "ini")}}]
         self.add_module("graph-area", "Graph Area", choices, "blank")
         self.receipts.append({"category": "graph-area", "choices": len(choices), "sourcePackage": "0/graph",
             "references": references, "DP": "Explicit author reuse of the original right-side P1 graph hook",
             "sourceComposition": "Original lane art at actual customize hook with intersected ancestor masks",
             "dataConsumer": "Caller must supply real graph scores and option.graph-visible; this module provides only art"})
+        if source20 is not None:
+            self.receipts[-1]["source20"] = source20
 
     def fullcombo(self):
         choices = []

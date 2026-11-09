@@ -53,17 +53,17 @@
 
 ## 独立 Standard 时期作品
 
-`build_standard_skin.py` 消费来源明确的 Standard 素材库、研究输出及组件目录，基础名称为 **Standard Model Skin Omni Until 26**。来源链区分26、24/26、22/24/26及新增21/22/24/26组成库。22来源保留六份框体档案，只有PRESENT、FUTURE及LINCLE/tricoro/SPADA三个CUSTOM主题具备可生成的闭包；22的裸`gmframe0`缺必要字形且没有已证原生加载入口，只留作研究。新增原21使用独立`source21-gmframe0`及`s21`共用素材，制作清单由17增至18个可用主题、来源档案由18增至19份；新作者整合、打包与各宿主验收仍须分别通过，不据此刷新正式成品。23 copula与25 CANNON BALLERS仍是后代HDD保留美术，八款26 ARC SCORE仍是活动复刻，不能称3～26连续原版覆盖。来源分类、实际程序身份与未识别边界只在[作品记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)维护，不以生成清单代替成品验收或HDD素材穷尽。
+`build_standard_skin.py` 消费来源明确的 Standard 素材库、研究输出及组件目录，基础名称为 **Standard Model Skin Omni Until 26**。来源链区分26、24/26、22/24/26、21/22/24/26及20/21/22/24/26组成库。22来源保留六份框体档案，只有PRESENT、FUTURE及LINCLE/tricoro/SPADA三个CUSTOM主题具备可生成的闭包；22的裸`gmframe0`缺必要字形且没有已证原生加载入口，只留作研究。原21和原20分别使用`source21-gmframe0`/`s21`与`source20-gmframe0`/`s20`独立身份；20组成库的工具枚举为19个可生成主题、20份来源档案，作者生成、打包与各宿主验收仍须分别通过。23 copula与25 CANNON BALLERS仍是后代HDD保留美术，八款26 ARC SCORE仍是活动复刻，不能称3～26连续原版覆盖。来源分类、实际程序身份与未识别边界只在[作品记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)维护，不以生成清单代替成品验收或HDD素材穷尽。
 
 既有v00/v01/v02保留各自历史身份和验证边界；已交付v02取[历史验收](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#v02-验证与交付历史)。24来源候选的作者生成不代表CLI、OSK或Player验收完成，当前状态取[本轮验证](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#本轮验证与交付)。复跑须重新核对同包身份，不能沿用旧包结论。工具只复用中立解析及公开合同，不读取Lightning作者包或以其素材补缺。
 
-25框体配对26 HDD的family1 Graph、失败和Classic BGA外框，原十框体中的其余九款使用family0；23/24分别使用24 HDD根族/0族的`s23`/`s24`别名。22独立使用`source22/`框体与组件以及`s22/`公共素材；21使用`source21/gmframe0`和`s21/`五个共用包。`compose_standard_sources.py`保留原24/26接口，22扩展收固定24个别名，21扩展只追加六个core包并保存149个CUSTOM原包与既有来源的严格相等证明，不为21另加第二份CUSTOM包或新增选项。原IFS/AFP/GEO/PNG字节不改，旧组成清单逐层保留。`retained_styles()`与`styles()`按实际输入分别枚举档案和可生成身份；完整21组成库为19/18，旧22组成库仍为18/17。数字`21`始终指既有26 ARC SCORE，不是原21；同名、同图或相同画布不合并来源，也不证明原调用、默认组合或时序一致。
+25框体配对26 HDD的family1 Graph、失败和Classic BGA外框，原十框体中的其余九款使用family0；23/24分别使用24 HDD根族/0族的`s23`/`s24`别名。22独立使用`source22/`框体与组件以及`s22/`公共素材；21使用`source21/gmframe0`和`s21/`五个共用包，20使用`source20/gmframe0`和`s20/`五个共用包。`compose_standard_sources.py`保留原24/26接口，22扩展收固定24个别名，21扩展追加六个core包并保存149个CUSTOM原包与既有来源的严格相等证明。20扩展保留自己的core及三个独立CUSTOM输入；相同像素、素材子集和不同原图分别判定，不因原包不同便复制选项。`source20-turn00`保留本代蓝色内盘，既有Turntable默认`t00`只在20框体中读取该原图，旧主题默认不变。原IFS/AFP/GEO/PNG字节不改，旧组成清单逐层保留。`retained_styles()`与`styles()`按实际输入枚举档案和可生成身份：完整20组成库为20/19，21为19/18，22为18/17。数字`21`始终指既有26 ARC SCORE，不是原21；同名、同图或相同画布不合并来源，也不证明原调用、默认组合或时序一致。
 
 | 入口 | 责任 |
 | --- | --- |
 | `build_library.py` | 按明确选择提取IFS；显式保留异常纹理名字节，保存原件、XML/UV、AFP/GEO及名称映射 |
-| `compose_standard_sources.py` / `standard_source_catalog.py` | 核对独立21/22/24/26输入，组成固定别名库并区分保留档案与可生成主题；CUSTOM重复必须以完整原包证明 |
-| `compose_standard_research.py` | 复核各来源完整研究闭包；22扩展保留18份档案、21扩展保留19份，只重绑相同来源文件的路径 |
+| `compose_standard_sources.py` / `standard_source_catalog.py` | 核对独立20/21/22/24/26输入，组成固定别名库并区分保留档案与可生成主题；CUSTOM重复必须以完整原包证明 |
+| `compose_standard_research.py` | 复核各来源完整研究闭包；22/21/20扩展分别保留18/19/20份档案，只重绑相同来源文件的路径 |
 | `standard_reference.py` | 每款框体完整 narrow/wide/DP 源电影、静态核对图、原几何和 recorded 片段 |
 | `standard_components.py` | 原 CUSTOM 图与动画贡献、真实对象状态及共享判定位置；保留源能力与OMS选项适配的区别 |
 | `standard_script_masks.py` / `standard_lane_geometry.py` | 离线求值旧FC已核实的矩形脚本遮罩；区分原轨底动画与OMS游玩区域 |
@@ -135,13 +135,23 @@ python -B tools/IidxSkinAssets/standard_reference.py --library $taskLibrary --be
 python -B tools/IidxSkinAssets/compose_standard_research.py --library $taskLibrary --base-research $taskResearch26 --research23 $taskResearch23 --research24 $taskResearch24 --research22 $taskResearch22 --research21 "$taskStandardRoot/research21" --output "$taskStandardRoot/research"
 ```
 
-`--frame-maps` 必须是JSON文件，不能传研究目录；纯26输入保留十份来源映射，24/26为十二份，22/24/26为十八份，21/22/24/26为十九份。后两种输入分别有十七、十八份具有主题生成资格，22裸包始终仅归档。每项指向各自 `skin-reference-map.json`，所有路径须位于该JSON目录下。来源族显式传入，不能从画布尺寸猜测。组成研究只在重新核对全部原输入字节后复用旧导出，不修改旧研究。当前代码从零生成时包含现有组件修正；仅复用早期组件导出时才使用 `--component-overrides` 加载同一来源身份的修订目录。`standard_feedback.prepare_feedback_font()` 生成两张数字atlas和独立静态标签；字形区域放在glyph的 `rect`，资源声明不含 `region`，同一规范化路径只声明一个资源。Start、Graph与挡板读数共用这些字体。
+20追加使用已核验的21组成库和独立20库，通过`compose_standard_sources.py --library20`接入；`standard_reference.py --styles source20-gmframe0 --common-family s20 --recorded`只生成本代研究，再以`compose_standard_research.py --research20`连同既有输入重新组成研究闭包。20的选择清单和全IFS盘点是本地审计输入，不是可直接套用其它HDD的公有选择文件。组件、分层、READY、Gauge、Failure、通知、BGA及作者都须绑定新的组成库摘要；不能只换主清单而复用未经复核的旧导出。存储边界取[AGENTS](../../AGENTS.md#开发磁盘约束)，独立来源与资格取[20记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#2026-11-09-20-原版来源接入)。
+
+`--frame-maps` 必须是JSON文件，不能传研究目录；纯26输入保留十份来源映射，24/26为十二份，22/24/26为十八份，21/22/24/26为十九份，20/21/22/24/26为二十份。后三种输入分别有十七、十八、十九份具有主题生成资格，22裸包始终仅归档。每项指向各自 `skin-reference-map.json`，所有路径须位于该JSON目录下。来源族显式传入，不能从画布尺寸猜测。组成研究只在重新核对全部原输入字节后复用旧导出，不修改旧研究。当前代码从零生成时包含现有组件修正；仅复用早期组件导出时才使用 `--component-overrides` 加载同一来源身份的修订目录。`standard_feedback.prepare_feedback_font()` 生成两张数字atlas和独立静态标签；字形区域放在glyph的 `rect`，资源声明不含 `region`，同一规范化路径只声明一个资源。Start、Graph与挡板读数按各自资格复用这些字体。
 
 21的`effect/playm_ef_rev3`是原程序按名称动态重绑的占位，`s21/common`与`s21/gameparts`存在不同原图，当前尚未确认最终资源owner。`standard_reference.py`只对这一精确身份保留两候选和未决原因；命名占位不作为静态美术选图，真正静态可见引用仍须有唯一来源，其它冲突继续报错。`txt_tutorial`属于未提取的原教程包，不能借普通演奏闭包宣称教程已支持。原字体、HUD hook和当前绿数已分别取证，但完整Start策略、Graph调用时序和原软件机能不由相同AFP字节代签；这些限制与新作者、各宿主实际验收分开。
 
-`standard_bga.py` 的准备入口输出全新私有JSON，`build_standard_skin.py --bga-geometry` 读取并复核其中原文件、几何与完整入场/循环状态。BMS模块 `bga-frame` 默认 `off`（完整画面），`on` 为Classic BGA Frame（旧式外框）；它是人工美术选择，因为OMS没有原IIDX旧曲版本或Camera状态，不自动猜旧曲或模拟Camera。SP保留原PNG/UV与四边形，并裁在现有框体的BGA开口内；DP没有对应Classic源钩子，两项均使用普通开口；既有主题保留双窗口。独立原21的DP在Graph开启时使用左侧两窗，关闭时按自身四个透明孔分别声明四窗，两个BGA Frame选项均适用；原17主题的路由保持。这一OMS组合适配与原机逐像素等价分开验收。
+20研究保留自己的八个电影：`1p_frame`、`2p_frame`、`dp_frame`、`center_frame_sp`、`center_frame_dp`、`center_frame_wide_1p`、`center_frame_wide_2p`及`center_frame_2pp`。实际DP作者只绘一次`dp_frame`与一次`center_frame_dp`，后者包含两个读谱Stage；不能套21的左右DP电影名或重复绘制。第八个电影保留为来源研究，不凭名字推定已支持的软件模式。框体轨底、按键、HUD、BGA外框及默认转盘沿本代原图与GEO，其它CUSTOM图按来源相等证明和宿主投影分别说明；中心位移由本代程序setter单独资格，窄框1P/2P为+35/−35，wide/DP为0。
 
-`standard_graph_notifications.py` 输出目录中的 `graph-notifications.json` 使用 `oms-standard-graph-notifications.v1`，含 `librarySHA256`、`files` 和按输入确定的 `families["0"/"1"/"s23"/"s24"/"s22"/"s21"].clips`；每族键为 `mybest/target/aaa/aa/a/update`。每片保留280×720、60fps、150源帧及终止空帧，非循环；A/AA仅替换原 `lv_pass` 命名子对象的原图，其余几何、状态、颜色和帧不变。整合器在现有PACEMAKER分支中声明 `scoreCrossing`：真实PB/目标正阈值用严格超过，A/AA/AAA用达到；每个阈值只消费一次，同一计分更新跨多线时共享update仅重启一次，等级只显示最高已达档。早期来源的通知层序和目标政策属于已明确的OMS适配，不把26调用证据套成其它版本程序事实；s22另有自身层序证据，s21仍明确保留该调用边界。`graph-cutin` 默认开启，电影只用真实 `score.crossing` 起点，不用挂载或墙钟补造过线时间，也不延长Results等待；各版实测范围见作品记录。
+20的HUD数字取自身表与原锚点链：Score六位、Maxcombo四位及当前BPM三位使用34px advance，小BPM三位使用21px advance，高位空槽为0.3透明度的原0字形；Graph主数字另按本代表使用四位/22px advance，图片宽度不是advance的证据。七位OMS Score缩入原六位字段仍是有界作者适配。Hi-Speed由本代font2重画，自己的TTC、cache22、12×20固定格、左上原点及青色`%1.2f`均有本代调用资格，使用独立HUD字体声明并共享原atlas。Start/Cover的天然GDI多字advance尚未完整资格，其12×20固定格明确是宿主适配；额外Graph差值也保留该适配边界，不能借Hi-Speed资格或26的font5签收。
+
+20的MIN/MAX数值和标签在极值相等时共同隐藏。OMS以已有`timing.bpm-min/max`的非整数极值，经subtract→ceil→min构造显隐门；此作者要求含`b40ee0ce`或更新代码的OMS，并需重启到该运行时，单独更新工具不能补齐core。beatoraja官方0.8.9的`SongData`及公开90/91号只提供整数极值，没有对应浮点极值API，因此128.01→128.99会同为128并隐藏；这是已记录的宿主精度限制，不改官方JAR，也不冒称与OMS小数极值一致。
+
+20的十个Graph电影均无`customize` hook，MAX/baseline属于原panel。`graph-area`对20保留原版固定panel，已有艺术选项不向该框体叠26的层。beatoraja保持Graph Area属性及旧主题菜单，只在20的Frame条目提示`Graph Area: fixed original panel`；该分支的空贡献须逐项确认manifest/scene/INI三条路径确为其blank别名，不放宽其它空输出检查。该提示与导出路径资格不代签最终构建或实绘。20的`playm_music_point`则由独立程序caller绘制，不需要AFP命名hook；自身原图、加色、行程10～415及120tick正弦入场分别取证。作者以2000ms准备期和逐源帧step轨迹表达入场，以宿主`timing.progress`移动游标、`timing.beat`驱动50档相位alpha；原终止事件时长及可变整数beatPeriod未被重建，宿主相位和量化边界留在适配收据。
+
+`standard_bga.py` 的准备入口输出全新私有JSON，`build_standard_skin.py --bga-geometry` 读取并复核其中原文件、几何与完整入场/循环状态。BMS模块 `bga-frame` 默认 `off`（完整画面），`on` 为Classic BGA Frame（旧式外框）；它是人工美术选择，因为OMS没有原IIDX旧曲版本或Camera状态，不自动猜旧曲或模拟Camera。SP保留原PNG/UV与四边形，并裁在现有框体的BGA开口内；DP没有对应Classic源钩子，两项均使用普通开口。原20、原21的DP各自保留Graph开启时的左两窗作者政策，关闭时各按自身透明孔及独立原机证据声明左右四窗，两个BGA Frame选项均适用；不能用21的观察为20补签。其它来源保留既有路由。20的cover原尺寸单独核对；窗口fit、Qpro区域复制和662px公共HUD裁切仍是宿主适配，原机逐像素等价另验。
+
+`standard_graph_notifications.py` 输出目录中的 `graph-notifications.json` 使用 `oms-standard-graph-notifications.v1`，含 `librarySHA256`、`files` 和按输入确定的 `families["0"/"1"/"s23"/"s24"/"s22"/"s21"/"s20"].clips`；每族键为 `mybest/target/aaa/aa/a/update`。每片保留280×720、60fps、150源帧及终止空帧，非循环；A/AA仅替换原 `lv_pass` 命名子对象的原图，其余几何、状态、颜色和帧不变。整合器在现有PACEMAKER分支中声明 `scoreCrossing`：真实PB/目标正阈值用严格超过，A/AA/AAA用达到；每个阈值只消费一次，同一计分更新跨多线时共享update仅重启一次，等级只显示最高已达档。早期来源的通知层序和目标政策属于已明确的OMS适配，不把26调用证据套成其它版本程序事实；s22另有自身层序证据，s21/s20仍各保留该调用边界。`graph-cutin` 默认开启，电影只用真实 `score.crossing` 起点，不用挂载或墙钟补造过线时间，也不延长Results等待；各版实测范围见作品记录。
 
 原26的18款Full Combo与组成库新增的24旧`fcombo00`分开保留；后者的矩形脚本遮罩由离线窄适配器求值，未经核实的形状明确失败，不引入运行时脚本。各P1/P2/DP源电影自动使用无损原像素atlas：逐图核对RGBA，保留nearest/clamp采样并重复边缘像素；不重采样、改色、裁图或旋转。只有纹理引用及UV重定位，反向UV误差须不超过`1e-12`；还原后核对GEO的XYZ、拓扑、层级、mask、滤镜、状态、相机、帧与终止空帧。原图库保留原PNG；成品atlas文件字节不同，不能声称所有成品PNG都是原文件。原时长及已核层序继续保留，真实Player仍须检查完整演出。
 

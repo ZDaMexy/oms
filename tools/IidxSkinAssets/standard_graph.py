@@ -21,6 +21,10 @@ BAR_COLUMNS = {"current": 54, "best": 128, "target": 202}
 # 0-family panel (s24) adds those two separate draws. These aliases identify
 # art in the 24 HDD, not a supplied IIDX23 executable.
 EARLIER_GRAPH = {
+    # Original20 has a separate archive and caller. Its ID15 digits advance
+    # by22px even though each raster is23px wide.
+    "s20": {"maximum": None, "baseline": None, "rankSize": (270, 15),
+            "rankX": 5, "rankLineY": (529, 79)},
     # Original21 has its own Graph archive and independently qualified caller
     # geometry. Matching coordinates do not alias its pixels to the22 family.
     "s21": {"maximum": None, "baseline": None, "rankSize": (270, 15),
@@ -98,10 +102,15 @@ class _Graph:
         self.used, self.depths = {}, {}
         self.small_font = None
         if prepared_font is not None:
-            self.small_font = prepared_font["fonts"]["small"]
+            # Original20 defines font2, but has no font5 registration. The
+            # auxiliary OMS differences project its outline into12x20 cells.
+            self.small_font = prepared_font["fonts"]["normal" if common_family == "s20" else "small"]
             fonts = [font for font in prepared_font["bitmapFonts"] if font["id"] == self.small_font]
             if len(fonts) != 1 or not set("0123456789-").issubset({glyph["character"] for glyph in fonts[0]["glyphs"]}):
-                raise ValueError("Graph differences need the prepared source small numeric font")
+                raise ValueError("Graph differences need the prepared source numeric font")
+            if common_family == "s20" and (fonts[0]["lineHeight"] != 20 or any(
+                    glyph["advance"] != 12 for glyph in fonts[0]["glyphs"] if glyph["character"] in "0123456789-")):
+                raise ValueError("Original20 auxiliary Graph readouts require its qualified12x20 font2 cells")
             resources = {glyph["resource"] for glyph in fonts[0]["glyphs"]}
             rows = [row for row in prepared_font["resources"] if row["id"] in resources]
             if len(rows) != len(resources):
@@ -121,8 +130,12 @@ class _Graph:
             self.value["resources"].extend(rows)
             self.value["files"].extend(files)
         self.score_font = self.identity + ".font.score"
+        # Original20 registers ID15 as four fixed cells with22px advance;
+        # its23px raster width is not the cell advance.
+        self.score_advance = 22 if common_family == 's20' else 23
+        self.score_field_width = 89 if common_family == 's20' else 92
         self.value["bitmapFonts"].append({"id": self.score_font, "lineHeight": 22,
-            "glyphs": [{"character": str(i), "resource": self.asset(f"gr_sco_{i:02}", (23, 22)), "advance": 23} for i in range(10)]})
+            "glyphs": [{"character": str(i), "resource": self.asset(f"gr_sco_{i:02}", (23, 22)), "advance": self.score_advance} for i in range(10)]})
 
     def asset(self, name, size):
         if name in self.used:
@@ -168,7 +181,7 @@ class _Graph:
         return node(self.prefix + "." + name, "sprite", self.rect(x, y, *size), self.asset(source, size))
 
     def number(self, name, source, x, y, width, *, small=False):
-        height, advance = (18, 8) if small else (22, 23)
+        height, advance = ((20, 12) if self.common_family == "s20" else (18, 8)) if small else (22, self.score_advance)
         if small and self.small_font is None:
             raise ValueError("Graph differences require the prepared source font")
         text = node(self.prefix + "." + name, "text", {**self.rect(x, y, width, height), "text": "",
@@ -176,10 +189,40 @@ class _Graph:
             "format": "integer", "alignment": "right", "colour": "#ffffffff"})
         self.bind(text["id"], "text", source)
         # The real maximum bounds signed differences too; never fit by a fake clock.
+        def row_width(digits):
+            return advance * (digits - 1) + 23 if self.common_family == 's20' and not small else advance * (digits + int(small))
         self.track(text["id"], "font-size", "score.maximum", [(0, height * LOGICAL)] +
-            [(10 ** (digits - 1), height * LOGICAL * min(1, width / (advance * (digits + int(small))))) for digits in (5, 6, 7)] +
-            [(10_000_000, height * LOGICAL * min(1, width / (advance * (10 + int(small)))))], "step")
+            [(10 ** (digits - 1), height * LOGICAL * min(1, width / row_width(digits))) for digits in (5, 6, 7)] +
+            [(10_000_000, height * LOGICAL * min(1, width / row_width(10)))], "step")
         return text
+
+    def score_total(self, name, source, x, y, width):
+        text = self.number(name, source, x, y, width)
+        if self.common_family != "s20":
+            return text
+        # Original20 ID15 draws all four slots at full alpha. Only its YOU
+        # and PACEMAKER totals use these cells; OMS's added PB/differences do
+        # not inherit this native formatting. Keep the existing total text
+        # and its large-score fit, with the zero grid following that same fit.
+        grid_id = text["id"] + ".leading-zeros"
+        zeros = []
+        for column in reversed(range(3)):
+            zero = node(text["id"] + f".leading-zero.n{column}", "sprite",
+                {"x": column * self.score_advance / width, "width": 23 / width, "height": 1},
+                self.asset("gr_sco_00", (23, 22)))
+            self.track(zero["id"], "opacity", source, [(0, 1), (10 ** (3 - column), 0)], "step")
+            zeros.append(zero)
+        # The existing right-aligned text is vertically centred by the host.
+        grid = node(grid_id, properties={**self.rect(x + width, y + 11, width, 22), "origin": "centre-right"},
+                    children=zeros)
+        fit = next(track for track in self.value["tracks"]
+                   if track["target"] == text["id"] and track["property"] == "font-size")
+        scale = [(point["time"], point["value"] / (22 * LOGICAL)) for point in fit["keyframes"]]
+        for axis in ("x", "y"):
+            self.track(grid_id, "scale-" + axis, fit["clock"], scale, "step")
+        # High slots follow the significant digits in the source renderer's
+        # right-to-left draw order, including the one-pixel glyph overlap.
+        return node(text["id"] + ".fixed-cells", children=[text, grid])
 
     def caption(self, name, text, x, y, width, height=20, size=13, alignment="left"):
         return node(self.prefix + "." + name, "text", {**self.rect(x, y, width, height), "text": text,
@@ -283,6 +326,36 @@ class _Graph:
                 value["sourceGeometry"].update(rankLineX=5, rankLineY=[529, 79])
                 value["adaptations"][1] = "Rank position follows the existing continuous OMS progress track between the supplied21 caller's endpoints, without claiming its integer-step rounding."
                 value["adaptations"][2] = "Rank-line visibility retains the existing OMS rank-availability gate, not the supplied21 caller's reached-line alpha switch."
+            if self.common_family == "s20":
+                value.update({
+                    "familyScope": "Original supplied IIDX20 Graph art, PNGs, GEO and named movie geometry. The supplied original2013 program independently qualifies the columns, rank endpoints, target tag and numeric cells. Existing OMS live/PB/PACEMAKER policies remain an explicit host adaptation.",
+                    "callerBasis": {"software": "supplied IIDX20 original2013 x86 DLL",
+                        "columnPlacementVA": "0x10063a34/0x10063a54/0x10063a74",
+                        "columnTableVA": "0x1016839c",
+                        "rankPlacementVA": "0x10063560", "scoreToYVA": "0x10063510",
+                        "targetTagSetterVA": "0x10063dbc",
+                        "numberTableVA": "0x101356bc", "numberRendererVA": "0x10016590",
+                        "geometry": "P1/P2 columns have local X54/128/202 and202/128/54, with independent Y94 gauge origins. Rank lines have local X5 and Y79 plus a450px score span; native integer rounding is not asserted.",
+                        "targetTag": "The original score_tag_2 child is assigned gr_score_tag_2."},
+                    "scoreFont": {"nativeId": 15, "slots": 4, "advance": 22,
+                        "glyphSize": [23, 22], "fieldWidth": 89,
+                        "unusedHighDigitAlphaFactor": 1,
+                        "fixedCellFields": ["YOU", "PACEMAKER"],
+                        "leadingZeroBasis": "Original20 number renderer10016590 draws all four ID15 cells;10016719..10016729 applies table+0x2c factor1 to unused high digits.",
+                        "largeScoreAdaptation": "The native renderer clamps to9999. OMS retains its existing score.maximum-driven large-score fit; the added high-zero grid follows that same fit without extending native20 numeric qualification."},
+                    "rankColour": {"callerVA": "0x10063560", "thresholdVA": "0x10025b40",
+                        "setterVA": "0x100c8b70", "colourConstantVA": "0x10168450",
+                        "sourceRGBA": {"before": [.53, .53, 1, 1], "reached": [1, 1, 0, 1]},
+                        "authorRGBA8": {"before": "#8787ffff", "reached": "#ffff00ff"},
+                        "condition": "Current EX reaches ceil(2*source notes*(8-rankIndex)/9), for AAA/AA/A indices0/1/2.",
+                        "hostDraws": "Two same-source, same-Y sprites use complementary supported numeric opacity tracks. The original blue line ID is retained, with a yellow .reached sibling; no numeric-clock colour property is required.",
+                        "hostMapping": "The three original line textures use actual public score.value and score.rank-aaa/aa/a. The existing rank-availability gate and the host's ruleset score/rank semantics remain; no native notification or overall eligibility behavior is added."},
+                    "differenceFontBasis": "OMS auxiliary differences project the registered original20 font2 outline into shared12x20 author cells. These added readouts do not assert a native20 fixed-cell caller. No font5 registration or26 small-font layout is asserted.",
+                    "omissions": ["No separate MAX/baseline sprites: both lines are part of the original s20 panel PNG."]})
+                value["sourceGeometry"].update(rankLineX=5, rankLineY=[529, 79])
+                value["adaptations"][0] = "The original20 gauge PNG is cropped from a fixed UV image by actual OMS score; its original texture-scroll program is not replayed."
+                value["adaptations"][1] = "Rank position follows the continuous OMS progress track between the supplied20 caller's endpoints, without claiming its integer-step rounding."
+                value["adaptations"][2] = "Rank-line visibility retains the existing OMS rank-availability gate. Original20's separately qualified blue/purple-to-yellow colour switch follows the actual host score and rank thresholds; its notification state is not reconstructed."
         return value
 
 
@@ -310,6 +383,18 @@ def build_graph(library: Path, layout: str, prepared_font=None, *, common_family
     for rank in ("aaa", "aa", "a"):
         line = graph.sprite("line." + rank, "gr_line_" + rank, rank_size, rank_x, rank_bottom)
         graph.track(line["id"], "y", "score.rank-" + rank + "-progress", [(0, rank_bottom / 720), (1, rank_top / 720)])
+        if common_family == "s20":
+            # The20 caller's setter takes alpha first: unreached is
+            # ARGB(1,.53,.53,1), reached is ARGB(1,1,1,0), not alpha0.
+            line["properties"].update(colour="#8787ffff", opacity=1)
+            remaining = graph.numeric("rank-colour-" + rank, "subtract", "score.rank-" + rank, "score.value")
+            graph.track(line["id"], "opacity", remaining, [(0, 0), (1, 1)], "step")
+            reached = graph.sprite("line." + rank + ".reached", "gr_line_" + rank, rank_size, rank_x, rank_bottom)
+            reached["properties"].update(colour="#ffff00ff", opacity=0)
+            graph.track(reached["id"], "y", "score.rank-" + rank + "-progress", [(0, rank_bottom / 720), (1, rank_top / 720)])
+            graph.track(reached["id"], "opacity", remaining, [(0, 1), (1, 0)], "step")
+            ranks.extend((line, reached))
+            continue
         ranks.append(line)
     bars.append(graph.gate("rank.available", "score.rank-available", ranks))
     # Original score_tag_1 is the135x31 right-hand tag at(140,567).
@@ -325,7 +410,7 @@ def build_graph(library: Path, layout: str, prepared_font=None, *, common_family
     graph.variant(mania["id"], "layout.ruleset", {"mania": True})
     score_x, score_y = (178, 30) if graph.earlier else (183, 28)
     data = node(graph.prefix + ".data", properties={"z": -30}, slot="decoration", children=[
-        graph.number("current.value", "score.value", score_x, score_y, 92),
+        graph.score_total("current.value", "score.value", score_x, score_y, graph.score_field_width),
         graph.sprite("tag.current", "gr_p_nowsc", (135, 31), 5, 567),
         graph.gate("maximum.available", "score.maximum-available", bars),
         graph.gate("best.available", "score.personal-best-available", best), mania])
@@ -450,7 +535,7 @@ def build_graph_target(library: Path, layout: str, target: str, prepared_font, *
     difference = graph.numeric("difference", "subtract", "score.value", pace)
     header_x, header_y = (1, 54) if graph.earlier else (5, 53)
     content = [graph.sprite("header", "gr_gt_pacemaker", (162, 28) if graph.earlier else (160, 28), header_x, header_y),
-        graph.number("total", total, 178 if graph.earlier else 183, 57, 92), graph.bar("target", "target", progress),
+        graph.score_total("total", total, 178 if graph.earlier else 183, 57, graph.score_field_width), graph.bar("target", "target", progress),
         graph.sprite("tag", "gr_score_tag_2" if graph.earlier else "gr_score_tag_red", (135, 31), 5, 598),
         graph.caption("label", TARGETS[target], 9, 604, 127, 19, 15, "centre"),
         graph.gate("difference.visible", "option.graph-difference", [
@@ -486,6 +571,10 @@ def build_graph_target(library: Path, layout: str, target: str, prepared_font, *
         if common_family == "s21":
             graph.value["receipt"]["policyBasis"] = "Existing OMS policies qualified against26 software; the supplied21 artwork does not assert a reconstruction of21 target policy or per-note ghosts."
             graph.value["receipt"]["cutins"]["layers"] = "The independently examined21 caller uses native priorities58/57 for update versus mybest/target/lv_pass. The existing OMS composition was derived from the26 priorities68/67 and preserves only their relative order, with the selected original21 recorded programs. Its layer numbers, eligibility gates and score-crossing clocks remain a host adaptation."
+        if common_family == "s20":
+            graph.value["receipt"]["policyBasis"] = "Existing OMS policies qualified against26 software; the supplied20 artwork and caller geometry do not assert a reconstruction of20 target policy or per-note ghosts."
+            graph.value["receipt"]["difference"] = "Real current score minus current target pace; this auxiliary OMS readout projects the registered original20 font2 outline into shared12x20 author cells, without claiming an original20 caller for this added field."
+            graph.value["receipt"]["cutins"]["layers"] = "The independently examined20 original2013 caller uses native priorities58/57 for update versus mybest/target/lv_pass. The existing OMS composition preserves that relative order in the original280x720 panel with the selected20 recorded programs. Layer numbers, eligibility gates and score-crossing clocks remain a host adaptation."
     return graph.value
 
 

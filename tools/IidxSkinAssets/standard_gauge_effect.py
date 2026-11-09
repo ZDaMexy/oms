@@ -10,7 +10,7 @@ import argparse
 import copy
 import json
 from pathlib import Path
-from standard_source_catalog import frame_token, frame_id, package_key, source_style, SOURCE22_STYLES
+from standard_source_catalog import frame_token, frame_id, package_key, source_style, SOURCE22_STYLES, SOURCE20_STYLES
 
 from build_fullcombo_catalog import world_matrix
 from build_standard_skin import sha
@@ -62,7 +62,7 @@ def export_gauge_feedback(library, output, bemani_root, image_tools, styles=None
     qualified = source_styles(metadata(library))
     styles = qualified if styles is None else styles
     if any(style not in qualified for style in styles) or len(set(styles)) != len(styles):
-        raise ValueError("Use each qualified26 cabinet at most once")
+        raise ValueError("Use each qualified Standard cabinet at most once")
     exporter = StandardComponents(library, output, bemani_root, image_tools)
     frames, summary = {}, []
     for style in styles:
@@ -83,9 +83,16 @@ def export_gauge_feedback(library, output, bemani_root, image_tools, styles=None
             loop_node = copy.deepcopy(original["node"])
             loop_node.update(id=prefix + ".loop", animation=loop_id)
             declaration = {**original["animations"][0], "id": loop_id, "path": relative}
+            receipt = original["receipt"]
+            if style in SOURCE20_STYLES:
+                receipt = copy.deepcopy(receipt)
+                receipt["sourceSelectionBoundary"] = (
+                    "Original20 uses only its source20/gmframe0 gauge_up_1p/2p/dp movies, with the complete60 source frames and own PNG/GEO hierarchy.")
+                receipt["nativeCallerBoundary"] = (
+                    "The original20 asset timing is qualified here; Gauge restart eligibility and clear-loop placement remain explicit OMS event adaptations, not inferred20 executable call sites.")
             layouts[layout] = {"oneShot": original["node"], "loop": loop_node,
                 "resources": original["resources"], "animations": [*original["animations"], declaration],
-                "source": original["source"], "receipt": original["receipt"]}
+                "source": original["source"], "receipt": receipt}
             summary.append({"style": style, "layout": layout, "frames": 60, "fps": 60,
                 "canvas": [1280, 720], "geometricBoundsBeforeMaskAndAlpha": geometric_bounds(once),
                 "resources": len(original["resources"]), "animations": 2,

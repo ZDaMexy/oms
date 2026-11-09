@@ -42,6 +42,9 @@ def export_failure(library, output, bemani_root, image_tools):
         elif family == "s21":
             receipt.update(source="21 HDD/gameparts/miss,180 frames at60Hz,1280x720",
                 nativeBoundary="Original21 failure artwork and complete source hierarchy. Only actual OMS gameplay.fail triggers it; the OMS3000ms failure presentation is a host adaptation. Native21 exit duration and visibility of all180 frames are not inferred from the asset.")
+        elif family == "s20":
+            receipt.update(source="20 HDD/gameparts/miss,180 frames at60Hz,1280x720",
+                nativeBoundary="Original20 failure artwork, PNGs and complete source hierarchy belong only to s20/gameparts. Actual OMS gameplay.fail triggers the retained nonlooping program; the OMS3000ms presentation is a host adaptation. Native20 failure eligibility, scene exit duration and visibility of all180 frames are not inferred from the asset.")
         else:
             receipt.update(source=f"24 HDD/{'0/' if family == 's24' else ''}gameparts/miss,180 frames at60Hz,1280x720",
                 nativeBoundary="Original 24 HDD artwork and full source timeline; the OMS failure event/outro is an explicit host adaptation. This does not assert original 23 executable timing.")

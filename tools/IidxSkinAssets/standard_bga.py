@@ -14,7 +14,8 @@ import io
 import json
 import math
 from pathlib import Path
-from standard_source_catalog import frame_token, frame_id, package_key, source_style, SOURCE22_STYLES, SOURCE21_STYLES
+from standard_source_catalog import (frame_token, frame_id, package_key, source_style,
+                                     SOURCE20_STYLES, SOURCE22_STYLES, SOURCE21_STYLES)
 from urllib.parse import unquote
 import xml.etree.ElementTree as ET
 
@@ -28,13 +29,22 @@ CENTRES = ("center_frame_sp", "center_frame_wide_1p", "center_frame_wide_2p", "c
            "center_frame_dp_1p", "center_frame_dp_2p")
 COVERS = {"anime_cover": (800, 720), "anime_cover2": (932, 720)}
 COPULA_COVERS = {"anime_cover": (800, 586), "anime_cover2": (938, 720)}
+SOURCE20_COVERS = {"anime_cover": (640, 480), "anime_cover2": (768, 576)}
+
+
+def centre_movies(style):
+    return (*CENTRES[:4], "center_frame_dp") if source_style(style) in SOURCE20_STYLES else CENTRES
 
 
 def cover_sizes(family):
+    if family == 's20':
+        return SOURCE20_COVERS
     return COPULA_COVERS if family in ("s21", "s22", "s23") else COVERS
 
 
 def cover_source_frames(style):
+    if style in SOURCE20_STYLES:
+        return 180
     return 300 if style in (23, 24) or style in SOURCE22_STYLES or style in SOURCE21_STYLES else 420
 
 
@@ -185,7 +195,7 @@ def prepare_bga_geometry(library, bemani_root, image_tools):
         source_files.update(source["hashes"])
         texture_list = f"packages/contents/data/graphic/{package}/raw/tex/texturelist.xml"
         source_files[texture_list] = digest(inside(library, texture_list))
-        for movie_name in CENTRES:
+        for movie_name in centre_movies(style):
             movie = source["movies"][movie_name]
             named = {(tag.export_source_sprite, tag.object_id, tag.depth): tag.movie_name
                      for tag in all_tags(movie.tags, tools.AP2DefineSpriteTag)
@@ -281,7 +291,7 @@ def validated_geometry(library, source_geometry):
         if digest(inside(library, path)) != expected:
             raise ValueError("BGA geometry source bytes changed: " + path)
     rows = {(row["style"], row["movie"]): row for row in value["rows"]}
-    if len(rows) != len(value["rows"]) or set(rows) != {(style, movie) for style in retained_styles(data) for movie in CENTRES}:
+    if len(rows) != len(value["rows"]) or set(rows) != {(style, movie) for style in retained_styles(data) for movie in centre_movies(style)}:
         raise ValueError("BGA geometry requires all retained original cabinet hook sets")
     for (style, movie), row in rows.items():
         raw = f"packages/contents/data/graphic/{package_key(style)}/raw"
@@ -290,7 +300,7 @@ def validated_geometry(library, source_geometry):
             required_movie_files.add(raw + "/afp/bsi/" + movie)
         if not required_movie_files <= declared.keys():
             raise ValueError("BGA movie is not in the geometry source closure")
-        if "_dp_" in movie:
+        if movie.startswith("center_frame_dp"):
             if row["covers"]:
                 raise ValueError("Original DP has no qualified BGA cover hook")
         elif (row.get("constantSourceFrames") != cover_source_frames(style)
@@ -468,13 +478,14 @@ def export_bga_module(library, output, contexts, *, source_geometry):
         if len(apertures) != (2 if layout == "dp" else 1):
             raise ValueError("BGA requires the real single/dual aperture count")
         indexed[key] = {**context, "apertures": apertures}
-        if style in SOURCE21_STYLES and layout == "dp":
+        if style in (*SOURCE20_STYLES, *SOURCE21_STYLES) and layout == "dp":
             four = [rectangle(value) for value in context["dpGraphOffApertures"]]
             if len(four) != 4 or four[:2] != apertures:
-                raise ValueError("Original21 DP Graph-OFF requires its two left and two right openings")
+                version = 20 if style in SOURCE20_STYLES else 21
+                raise ValueError(f"Original{version} DP Graph-OFF requires its two left and two right openings")
             indexed[key]["dpGraphOffApertures"] = four
         elif "dpGraphOffApertures" in context:
-            raise ValueError("Four Graph-OFF openings are qualified only for original21 DP")
+            raise ValueError("Four Graph-OFF openings are qualified only for original21 DP or independently qualified original20 DP")
     expected = {(style, layout, wide) for style in frame_ids for layout, wide in
                 (("p1", False), ("p2", False), ("p1", True), ("p2", True), ("dp", False))}
     if set(indexed) != expected:
@@ -570,9 +581,10 @@ def export_bga_module(library, output, contexts, *, source_geometry):
                 write(relative, viewport_ini(layout, four).encode("utf-8"))
                 graph_off_dp.append((True, {"frame": frame_id(style), "graph-visible": False},
                                      {**contribution, "ini": relative}))
+                version = 20 if style in SOURCE20_STYLES else 21
                 receipts.append({**receipt, "graphVisible": False, "viewports": four,
                     "originalApertures": four,
-                    "dp": "Original21 Graph-OFF routes both sides' four clear source openings. Graph-ON retains the two left openings; both BGA frame choices reuse the unchanged empty scene and source art."})
+                    "dp": f"Original{version} Graph-OFF routes both sides' four clear source openings. Graph-ON retains the two left openings; both BGA frame choices reuse the unchanged empty scene and source art."})
         # More-specific SP conditions precede each frame's DP fallback.
         branches.sort(key=lambda branch: branch[0])
         default = next(contribution for dp, when, contribution in branches if dp and when["frame"] == "iidx26")
@@ -584,7 +596,7 @@ def export_bga_module(library, output, contexts, *, source_geometry):
             first_dp = next((i for i, branch in enumerate(branches) if branch[0]), len(branches))
             branches[first_dp:first_dp] = graph_off_dp
             if len(branches) > 64:
-                raise ValueError("Original21 DP Graph-OFF exceeds the 64-variant budget")
+                raise ValueError("Original DP Graph-OFF exceeds the 64-variant budget")
             checked = 0
             for style in frame_ids:
                 for layout in ("p1", "p2", "dp"):
@@ -594,14 +606,17 @@ def export_bga_module(library, output, contexts, *, source_geometry):
                             options["layout"] = layout
                         select = lambda candidates: next((part for _, when, part in candidates
                             if all(options.get(key) == value for key, value in when.items())), default)
-                        expected = (select(graph_off_dp) if style in SOURCE21_STYLES and layout == "dp" and not shown
+                        expected = (select(graph_off_dp) if style in (*SOURCE20_STYLES, *SOURCE21_STYLES) and layout == "dp" and not shown
                                     else select(previous))
                         if select(branches) != expected:
-                            raise ValueError("Original21 Graph-OFF routing changed another frame/layout")
+                            raise ValueError("Original Graph-OFF routing changed another frame/layout")
                         checked += 1
             routing.append({"choice": choice, "original21DpGraphOff": True,
                 "verifiedFrameLayoutGraphContexts": checked,
                 "equivalence": "Only original21 DP Graph-OFF selects a new four-viewport INI; every other frame/layout/Graph selection retains its exact prior contribution paths."})
+            if any(style in SOURCE20_STYLES for style in frame_ids):
+                routing[-1].update(original20DpGraphOff=True,
+                    equivalence="Original20 and21 each use their own four source openings for DP Graph-OFF. Every other frame/layout/Graph selection retains its exact prior contribution paths;20 is not aliased to21 geometry.")
         choices.append({"value": choice, "label": "Classic BGA Frame（旧式外框）" if enabled else "完整画面",
                         **default, "orderedVariants": True,
                         "variants": [{"when": when, **contribution} for _, when, contribution in branches]})

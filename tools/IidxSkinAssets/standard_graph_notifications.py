@@ -217,6 +217,15 @@ def export_graph_notifications(library, output, bemani_root, image_tools):
             receipt.update({
                 "sourceSelectionBoundary": "s21 selects the supplied original21 graph package and its own PNG/GEO resources. The four complete AFP programs and named rank-child replacement are qualified from that package. Matching22 AFP bytes do not establish matching native callers.",
                 "hostEligibilityBoundary": "Actual OMS score-crossing events use the existing positive/available gates and highest-rank rule. The67/68 ordering and1000+Graph-offset placement recorded here are retained OMS author adaptations from the26 reference, not independently qualified21 native priority/anchor/threshold rules."})
+        elif family == "s20":
+            receipt["hostNotificationModelEvidence"] = {
+                "softwareVersion": 26,
+                "anchor": receipt.pop("sourceAnchor"), "priorities": receipt.pop("sourcePriorities"),
+                "eligibility": receipt.pop("nativeEligibility")}
+            receipt.update({
+                "sourceBlend": "Original20 AFP/GEO colours and internal blend are retained. No20 caller blend or scene-sort override is inferred from later software.",
+                "sourceSelectionBoundary": "s20 selects only the supplied original20 graph package. Its four complete150-frame movies and live named rank-child replacement are independently qualified from its own PNG/GEO/AFP resources, separate from22 CUSTOM tricoro.",
+                "hostEligibilityBoundary": "Actual OMS score-crossing events retain the existing available/positive threshold gates, highest-rank rule and shared update. The hostNotificationModelEvidence describes the retained26 author placement/ordering model, not native20 priorities, anchors or eligibility."})
         families[family] = {"clips": clips, "receipt": receipt}
         research = exporter.output / f"research/sgn.f{family}"
         research.mkdir(parents=True, exist_ok=True)

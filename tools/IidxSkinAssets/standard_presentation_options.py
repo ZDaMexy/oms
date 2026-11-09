@@ -5,8 +5,8 @@ ancestor states, masks, geometry, camera, frame count and loop. Concatenating
 its visible mesh order must reproduce the original mesh order in every frame.
 The caller applies six-step RGB brightness only to lane layers. Its native
 26 caller evidence is not attributed to the separately supplied 22/23/24 art.
-The two 22 sources with a baked lane use disjoint subdivisions of that original
-mesh, with interpolated original UVs; they never tint the complete cabinet.
+Original20 and the two22 sources with a baked lane use disjoint subdivisions of
+their own original mesh, with interpolated UVs; they never tint the complete cabinet.
 """
 from __future__ import annotations
 
@@ -16,7 +16,8 @@ import hashlib
 import json
 import math
 from pathlib import Path
-from standard_source_catalog import frame_token, frame_id, package_key, source_style, SOURCE22_STYLES, SOURCE21_STYLES
+from standard_source_catalog import (frame_token, frame_id, package_key, source_style,
+                                     SOURCE20_STYLES, SOURCE22_STYLES, SOURCE21_STYLES)
 import re
 from standard_source_catalog import styles as source_styles, layout_family
 
@@ -24,6 +25,11 @@ from standard_source_catalog import styles as source_styles, layout_family
 BRIGHTNESS_OPTION = {"id": "lane-brightness", "type": "number", "label": "轨道底纹亮度",
                      "default": 1, "min": .5, "max": 1, "step": .1}
 FRAME_IDS = frozenset((3, 8, 12, 14, 16, 17, 19, 21, 25, 26))
+
+
+def lane_layer_movies(style):
+    return ("1p_frame", "2p_frame", "center_frame_dp" if source_style(style) in SOURCE20_STYLES
+            else "center_frame_dp_1p")
 
 
 def read(path):
@@ -108,10 +114,10 @@ def lane_roots(source, layout, *, style=None):
         if hooks:
             raise ValueError("Earlier lane source unexpectedly contains named lane placements")
         return earlier_lane_roots(source, layout, style)
-    if style in SOURCE22_STYLES or style in SOURCE21_STYLES:
+    if style in SOURCE20_STYLES or style in SOURCE22_STYLES or style in SOURCE21_STYLES:
         if hooks:
             raise ValueError("22 source unexpectedly contains named lane placements")
-        if source["sourceMovie"] not in ("1p_frame", "2p_frame", "center_frame_dp_1p"):
+        if source["sourceMovie"] not in lane_layer_movies(style):
             return {}
         if pendual_baked_surfaces(source, layout, style):
             raise ValueError("Baked 22 lane requires geometry partition, not whole-panel brightness")
@@ -128,32 +134,32 @@ def lane_roots(source, layout, *, style=None):
 
 
 def _pendual_lane_domains(source, layout, style):
-    from standard_lane_geometry import source_lane_regions
+    from standard_lane_geometry import lane_movie, source_lane_regions
     if source["package"] != package_key(style) or layout["package"] != source["package"]:
         raise ValueError("22 lane belongs to a different source package")
-    mode = {"1p_frame": "p1", "2p_frame": "p2", "center_frame_dp_1p": "dp"}[source["sourceMovie"]]
+    mode = {lane_movie(style, mode): mode for mode in ("p1", "p2", "dp")}[source["sourceMovie"]]
     return source_lane_regions({"package": source["package"], "common_family": layout_family(style),
                                 "layouts": {source["sourceMovie"]: layout}}, style, mode)
 
 
 def pendual_baked_surfaces(source, layout, style):
-    """Identify only the qualified 22 panel placements with embedded lanes.
+    """Identify only the qualified20/22 panel placements with embedded lanes.
 
     The local rectangle is the measured 292x484 source-plane convention also
     used by standard_lane_geometry. The native note scissor is a separate 482px
     contract. A name or a similar-looking raster alone cannot select a mesh.
     """
     movie = source["sourceMovie"]
-    if style not in SOURCE22_STYLES or movie not in ("1p_frame", "2p_frame", "center_frame_dp_1p"):
+    if style not in (*SOURCE20_STYLES, *SOURCE22_STYLES) or movie not in lane_layer_movies(style):
         return {}
-    if style != "source22-gmframe9" and not (style == "source22-gmframe8" and movie != "center_frame_dp_1p"):
+    if style not in SOURCE20_STYLES and style != "source22-gmframe9" and not (style == "source22-gmframe8" and movie != "center_frame_dp_1p"):
         return {}
     if any(h["name"] in ("lane_1p", "lane_2p") for h in layout["dynamic_instances"]):
         raise ValueError("22 baked panel unexpectedly contains named lane placements")
     domains = _pendual_lane_domains(source, layout, style)
     result = {}
     for group, _ in enumerate(domains):
-        right = group == 1 if movie == "center_frame_dp_1p" else movie == "2p_frame"
+        right = group == 1 if movie == lane_layer_movies(style)[2] else movie == "2p_frame"
         player = "2p" if right else "1p"
         if style == "source22-gmframe8":
             texture, left = "sp_frame_" + player, 16 if right else 48
@@ -517,7 +523,15 @@ def export_lane_layers(library, research, style, movie, output):
                           "sourceRootSHA256": digest(folder / "source-root.json"), "laneRoots": roots,
                           "pngBytesPreserved": True, "perFrameDrawOrderPreserved": True,
                           "limits": "Source layers only; final public CLI and actual Player budgets/visuals are separate checks."}}
-    if style in SOURCE21_STYLES:
+    if style in SOURCE20_STYLES:
+        result['receipt']['laneIdentification'] = 'Exact original20 baked panel GEO and complete placement path; disjoint lane subdivision'
+        result['receipt']['brightnessEvidence'] = (
+            'Original20 source pixels and its own eight-movie research. The single center_frame_dp contains both lane panels. '
+            'The six-step OMS brightness control and 292x484 component plane are explicit author mappings, '
+            'not later26 colour callers or native20 note-scissor claims.')
+        if baked:
+            result['receipt']['sourceGeometrySHA256'] = digest(folder / 'source-geometry.json')
+    elif style in SOURCE21_STYLES:
         result["receipt"]["laneIdentification"] = "Exact original21 package-local unnamed sp_lane GEO and complete placement path"
         result["receipt"]["brightnessEvidence"] = (
             "Original21 meshes and source pixels; existing OMS six-step brightness author option. "
@@ -616,10 +630,10 @@ if __name__ == "__main__":
     for name in ("library", "research", "output"):
         parser.add_argument("--" + name, type=Path, required=True)
     parser.add_argument("--styles", type=source_style, nargs="+", required=True)
-    parser.add_argument("--movies", nargs="+", default=["1p_frame", "2p_frame", "center_frame_dp_1p"])
+    parser.add_argument("--movies", nargs="+")
     args = parser.parse_args()
     for style in args.styles:
-        for movie in args.movies:
+        for movie in args.movies or lane_layer_movies(style):
             exported = export_lane_layers(args.library, args.research, style, movie, args.output)
             print(json.dumps({"style": style, "movie": movie,
                               **{mode: exported[mode]["receipt"] for mode in ("motion", "steady")}}, ensure_ascii=False), flush=True)

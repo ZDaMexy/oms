@@ -170,6 +170,31 @@ def all_of(expressions: list[str]) -> Lua | None:
     return Lua("function() return " + " and ".join("(" + e + ")" for e in expressions) + " end") if expressions else None
 
 
+BPM_EXTREMA_INTEGER_ADAPTATION = (
+    "Official beatoraja0.8.9 SongData truncates model BPM extrema to integers; public number90/91 "
+    "expose those integers and float_number has no BPM-extrema property. This gate compares the "
+    "actual public integer extrema. Distinct fractional BPMs within one integer, such as128.01 "
+    "and128.99, remain indistinguishable and hide the MIN/MAX group. No exact fractional span "
+    "or reconstructed chart metadata is claimed."
+)
+
+
+def binary_numeric_opacity_condition(track: dict[str, Any], expression: tuple[str, str] | None) -> str:
+    """The source20 MIN/MAX container's sole0/1 numeric step becomes a draw gate.
+
+    Ordinary sprite fades and arbitrary numeric animation remain outside this
+    narrow route. An unresolved source never becomes visible source artwork.
+    """
+    keys = track.get("keyframes", [])
+    if (track.get("type") != "tween" or track.get("property") != "opacity"
+            or track.get("easing") != "step" or track.get("loop", False)
+            or [(key.get("time"), key.get("value")) for key in keys] != [(0, 0), (1, 1)]):
+        raise ValueError("Numeric art opacity requires the original nonlooping0/1 step gate")
+    if expression is None or expression[1] != "number":
+        raise ValueError("Numeric art opacity has an unmapped numeric source or operation")
+    return f"({expression[0]}) >= 1"
+
+
 def native_song_expression(source: str) -> str | None:
     """Use actual BMS metadata; difficulty 5 remains INSANE, not LEGGENDARIA."""
     if source == "song.difficulty":

@@ -26,8 +26,8 @@ import zlib
 
 STYLES = (3, 8, 12, 14, 16, 17, 19, 21, 25, 26)
 from standard_source_catalog import (frame_token, layout_family, package_key, source_style,
-                                     styles as source_styles, SOURCE21_STYLES, SOURCE22_STYLES)
-from standard_lane_geometry import source_lane_regions
+                                     styles as source_styles, SOURCE20_STYLES, SOURCE21_STYLES, SOURCE22_STYLES)
+from standard_lane_geometry import lane_movie, source_lane_regions
 KEY_HEIGHT = 80  # The explicit OMS key-area host in build_standard_skin.py.
 WIDTHS = (60, 34, 26, 34, 26, 34, 26, 34)
 COLOURS = ("scratch", "white", "black", "white", "black", "white", "black", "white")
@@ -194,23 +194,39 @@ def _source21_keys(draws, style, right):
                         (46, 7, 20, 40) if right else (128, 7, 18, 40))
 
 
+def _source20_keys(draws, style, right):
+    """Own20 baked caps; all fourteen cap borders were measured independently."""
+    name = 'frame_lane_' + ('2p' if right else '1p')
+    draw = only([d for d in draws if d['texture'] == name], '20 original TRICORO key panel')
+    vertices = [{'x': x, 'y': y, 'z': 0} for x, y in ((0, 0), (354, 0), (0, 609), (354, 609))]
+    if (draw['asset']['package'] != package_key(style)
+            or (draw['asset']['width'], draw['asset']['height']) != (354, 609)
+            or draw['source_vertices'] != vertices):
+        raise ValueError('20 key panel identity, dimensions or original GEO changed')
+    x = 10 if right else 124
+    return _raster_keys(draw, (x, 494, 28, 47), (x + 36, 489, 20, 40))
+
+
 def cabinet_keys(reference, style, layout, group):
     """Seven left-to-right caps with their own source draw, not a guessed key hook.
 
     03..19 store the caps in their full original frame raster. 21, 23 and 26
     store them in a panel raster. 24 and 25 supply independent AFP key_w/key_b
-    geometry. Raster anchors are inspected in each qualified source image;
+    geometry. Original20 uses its own baked frame_lane panel and single DP
+    centre movie. Raster anchors are inspected in each qualified source image;
     they are not a scale conversion from another cabinet or source family.
     """
     style = source_style(style)
-    movie = "center_frame_dp_1p" if layout == "dp" else "2p_frame" if layout == "p2" else "1p_frame"
+    movie = lane_movie(style, layout)
     right = group == 1 if layout == "dp" else layout == "p2"
     draws = reference["layouts"][movie]["draws"]
     regions = source_lane_regions(reference, style, layout)
     if not 0 <= group < len(regions):
         raise ValueError("Control group does not belong to this source layout")
     field = regions[group]
-    if style in SOURCE21_STYLES:
+    if style in SOURCE20_STYLES:
+        keys = _source20_keys(draws, style, right)
+    elif style in SOURCE21_STYLES:
         keys = _source21_keys(draws, style, right)
     elif style in SOURCE22_STYLES:
         keys = _source22_keys(draws, style, layout, group, right)
@@ -413,6 +429,11 @@ def build_controls(library, frame_map, *, style, layout, contexts):
             "21 controls consume only s21/gameparts and the source21/gmframe0 panel, preserving its measured caps and original affine rotation. "
             "The 484px OMS component plane follows its own original lane GEO; the separately evidenced482px cover clip does not establish native note-coordinate parity. "
             "Input-gated additive glows remain an explicit OMS adaptation, not a native21 press/release timeline.")
+    if style in SOURCE20_STYLES:
+        result['receipt']['limits'].append(
+            '20 controls consume only s20/gameparts lights and their own source20/gmframe0 baked panels. '
+            'The single center_frame_dp supplies both stage panels; no later split-DP movie is substituted. '
+            'The 484px component plane and input-gated additive glows are explicit OMS mappings, not native20 scissor or press/release claims.')
     if style == 23:
         result["receipt"]["limits"].append(
             "copula kenban_light_big/mini are retained in the cabinet entry movie (before its loop); "

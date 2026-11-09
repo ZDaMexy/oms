@@ -147,9 +147,11 @@ Time Freeze先核实际`-patchcfgpath`和最终日志，不能只看默认配置
 
 取景工具的短谱常量不能充当长条谱的计分事件上限。一次原生判定可能经Accuracy、TotalScore及帧级统计分别发通知；预算须从实际转换后的根物件和嵌套head/tail/tick节点计算，逐play累加并保留初始化同步、逐条记录和超额拒绝。只扩大固定常量或清空前一局历史会掩盖规模和PB双局问题。诊断失败与皮肤运行故障分别取证，工具修复后重新冻结取景宿主并验实际长条场景；不要求玩家为Capture变动更新游戏引擎。
 
-BGA外框完整不等于所有窗口实际收到视频。原21 DP Graph OFF曾沿旧双窗口适配，仅左两窗有视频而右两框仍为底纹；来源的四孔必须各自测透明区，不能镜像猜界。作者路由只对source21的DP/Graph OFF增加四窗，保持SP优先匹配、Graph ON两窗与旧主题原贡献；随后核真实运行中的viewport、drawn surface和各窗测试图，不能只凭CLI成功、目录声明或外框截图签收。修复与验证范围取[Standard记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)。
+BGA外框完整不等于所有窗口实际收到视频。原21 DP Graph OFF曾仅左两窗有视频，原20接入时旧双窗配方也漏掉右侧两孔，直到原20自身Graph OFF实图才纠正；不能把21的观察直接当20资格。新来源须实际切Graph ON/OFF分别数孔，再从自己的centre/side合成图测透明区，并沿实际catalog→INI核消费。20又是单`dp_frame`加单`center_frame_dp`，不能用21的电影名或重绘两遍补窗。最后仍须核宿主viewport、drawn surface和各窗测试图，CLI与原机图不代签宿主实绘；本次依据回[20记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#2026-11-09-20-原版来源接入)。
 
-Time Freeze的补丁名称不证明所有页面都停表。按实际DLL版本和原字节核目标分支，再分别观察guest入口、选模式与选曲；一个场景的计数停止不能外推另一计时器，更不能当作歌曲暂停。小文件备份和补丁前后边界保留，不能在补丁后重跑部署前CRC清单并把预期差异误报损坏。
+Time Freeze的补丁名称不证明所有页面都停表。20提供物中的2012主包程序与2013附加原件必须分开记录，2013运行成功不能为2012的ACCESS_VIOLATION补签；PE日期、同文件名或网上补丁标题也不代替原字节核对。本次核实的普通Time Freeze为独立单字节分支改动，仅对匹配程序应用，再分别观察guest入口、选模式与选曲；一个场景停表不能外推另一计时器或歌曲暂停。只备份涉及的小文件，补丁后不拿部署前CRC清单把预期差异误报损坏，程序边界取[20记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#2026-11-09-20-原版来源接入)。
+
+20原机API导航先读当次buttons/analogs清单。本次成功模拟轴name是`Turntable P1`，不能改写成猜测的`P1 Turntable`或数字按钮名；另一侧也须按实际返回值选择。服务菜单本次SW1向下、SW2向上；18～34ms短press可能漏采，发送成功不等于界面已变化。按实际画面延长并明确松开，再确认当前菜单；跨场景持续held的Start可能被下一页当作确认。按钮、轴和页内方向都不按代数推广，出处仍取[20记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#2026-11-09-20-原版来源接入)。
 
 原电影的 named instance 不全是待替换数字：剔除 game-controlled 节点后，应逐名核原调用方、父容器变换、图层及显隐状态。22 的 `sco_waku_1p/2p` 是各侧原成绩底板，`bpm_waku` 是 `pm_bpm2` 的 MIN/BPM/MAX 标签；数字正常不代表这些底板已经恢复。恢复时须保留自身源图与完整 UV，并在真实读数下面绘制。原型、动态重绘和缺少宿主状态的节点不能按静态图一概补回；例如 BPM 范围恒显与原版相等时隐藏、DP 最终位置与原入场父层运动应分别记为适配。来源及实际范围仍取 [Standard记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)，不能从 named 数量直接推出原机机能完整。
 
@@ -157,15 +159,17 @@ Time Freeze的补丁名称不证明所有页面都停表。按实际DLL版本和
 
 相同PNG不证明同一动画：24的`fcombo00`与26共像素，但AFP/GEO不同，须保留独立来源；不能按PNG摘要去掉旧FC。原文件逐字节保全、atlas解码像素一致、GEO/AFP调用资格各是不同证明。依据取[24来源接入](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#2026-11-07-24-来源接入)，不在记忆复制素材数量或成品版本。
 
-早期来源缺少专用Normal预览美术，不等于OMS没有原生预览。21/22/23/24分支不声明后来的小窗或首排cue；`HasAuthoredNormalSpeedPreview=false`时，Start前按原生资格显示轨内预览。诊断同时核选中的来源、真实publication、缺少对应作者节点及实际音符纹理/位置；不能把26的断言直接套到旧源，也不能用“旧源缺图”为其它来源跳过检查。真实取景条件见[Reading用例](../../tools/StandardSkinCapture/TestSceneStandardSkinCapture.Reading.cs)。同理，23沿24调用方的中心平移/Graph标尺只是保留美术适配，不证明23原软件相同；来源边界仍取上方作品记录。
+早期来源缺少专用Normal预览美术，不等于OMS没有原生预览。独立20/21、合格22和23/24分支不声明后来的小窗或首排cue；`HasAuthoredNormalSpeedPreview=false`时，Start前按原生资格显示轨内预览。诊断同时核选中的来源、真实publication、缺少对应作者节点及实际音符纹理/位置；不能把26的断言直接套到旧源，也不能用“旧源缺图”为其它来源跳过检查。真实取景条件见[Reading用例](../../tools/StandardSkinCapture/TestSceneStandardSkinCapture.Reading.cs)。同理，23沿24调用方的中心平移/Graph标尺只是保留美术适配，不证明23原软件相同；来源边界仍取上方作品记录。
 
 已选包和成品引用闭包不能证明整份HDD素材穷尽；还须查全目录、包内电影索引、原加载链与未选来源。26演奏主题表没有gmframe25，但其残留框体仍可作为作品来源；同理，当前程序不调用不能直接排除另一族的失败演出。`1/common`曾因一个非法文本名称整包解码失败，原名称字节的MD5却能精确定位纹理；无损恢复时保留bytes与存储标识，像素相同只能登记alias，不能猜名重写。`0/1`也不能凭目录数字当分辨率重复，原标题、实际像素、电影和调用资格应分别查。具体缺口与恢复材料取[Standard查漏](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#素材查漏与未采用范围)。
+
+IFS异常后的Win145不一定是素材或Windows删不干净。本机缓存ifstools曾在任一worker异常后无条件`shutdown(wait=False)`，其它已运行writer仍写目录，随后archive.close及测试cleanup形成竞态；普通失败须先排空正在运行的工作，再关闭源句柄。普通IFS构造还曾在无效名称抛错时泄漏已开文件，失败发生于`extract_copy`获得archive之前，已有finally覆盖不到。局部依赖修补及合成复现只在私有`artifacts/standard-model-20-20261109/ifs-runtime-fix-r2/`留证，不代表上游或新pip环境自动包含；来源结论回[20记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#2026-11-09-20-原版来源接入)。
 
 26 原版单人画面不可只枚举 `center_frame_sp`：同源还存在 `center_frame_wide_1p/2p`，Graph 开关使用不同中心电影与数字锚点。源电影名不等于已观察到的游戏分支；先比较实际开口、SCORE/MAXCOMBO 位置和原动态实例，再决定选择与宿主平移。`apertures()`若已合成平移后的全局画布，写 BgaViewports 时不得再次加偏移。逐代来源与实际资格取 [Standard 26 记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)，不能借 Lightning 的宿主偏移填空。
 
 26 游客能进入标题但选模式回标题时，须分清基础 e-amusement 服务与游戏专用协议；只有 services/pcbtracker/facility 正常不证明 IIDX 配置已返回。Copula 以后还依赖服务发现的 `local2`，漏项会使游戏专用请求根本不发出。对未知请求只记录已校验的模块/方法，不打印账号、请求体或完整启动参数；空日志也不能证明无错误。该诊断不授予使用真实卡或存档的权限。
 
-spice2x 启动器可能重新启动管理员子进程；仅等待启动器 PID 退出会错误宣称游戏已经停止。取实际 API 监听 PID，并在正常 control.exit 后确认该子进程停止，再备份运行后差异和恢复小文件。对 Suppress 材料记录使用 `TryGetMaterial`，不能无条件读取 `Material`；实际渲染已准备成功时，诊断器自身取空载荷也会中止取景，不能归为作者包故障。
+spice2x 启动器可能重新启动管理员子进程；仅等待启动器PID退出会错误宣称游戏已停止。`control.exit`等待回复时的Win10054可能是目标已关闭连接；只捕获RuntimeError的helper不会处理网络层的ConnectionResetError。既不能记作收到成功回复，也不能据helper异常判进程仍活着。须独立核实际API监听PID退出、API及WebSocket端口监听消失，再整理运行后差异和小文件；20实例依据取[20记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#2026-11-09-20-原版来源接入)。对Suppress材料记录使用`TryGetMaterial`，不能无条件读取`Material`；诊断器自身取空载荷也可能中止已经准备成功的取景，不能归为作者包故障。
 
 BMS 作者 BGA 还受公共 solver 的全宽底部 8% HUD 保留区约束，即使那里不与轨道相交。DP 原下窗到 670px 并不意味着可以原样声明；越界会使整组窗口 unavailable。先保存完整原开口，再把 720px 画布的实际窗口裁至 662px 内，并用谱面真实加载的图片验证 viewport/content-state/纹理及 framebuffer；默认背景不能证明 BGA 成功。DP 上下窗应按真实 qpro hook 分区测量，不能全栏只取最大的透明矩形。
 
@@ -194,3 +198,5 @@ BGA原图可能同时包含中央透明窗和边缘装饰孔，alpha==0的全局
 静态框体与运动片段若只是同一原电影的不同采样，不必占两个program；复用前须核实际draw及全部祖先、mask、camera、颜色和层序，不能只比较纹理或局部矩阵。常量clock也占numericSources预算；NEXT等整数表达式精简须覆盖门槛前/等于/后、奇数半档和大整数边界，不能把“某个场景少了程序”当成整组合预算通过。PB实景取证则须让普通Player保存第一局再由第二局原生查询，转换后的临时beatmap wrapper ID不是working map或保存成绩的身份。复跑入口见[取景工具](../../tools/StandardSkinCapture/README.md)。
 
 跨来源可能让直接 sprite 与录制电影引用同一张原 PNG，但不同资源声明共用路径仍会被作者 CLI 拒绝。直接图与录制图应保留独立命名空间，不能改像素或把两个 owner 合并来绕过重复路径检查。作者 ID 压缩须包含真实 `stateMachines[].states[].set[].target`，只改 `assignments` 会漏掉现行 schema；保留诊断语义 ID，并以逆向重写核对全部其它字段，再跑正式 CLI 与同包 Player。来源接入取[Standard 记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#2026-11-07-24-来源接入)。
+
+数字slot数和advance不能代替填零资格：须核实际caller、商归零后的绘制循环及零位alpha。外补原零字形时，零位局部grid还须同步原数字的满分字号fit，否则大谱低分会错位。颜色setter的四实参不能直接按RGBA猜；先追默认工厂的alpha传递和实际setter，再核动态阈值。派生value-clock通过frame-colour语法/采样器不代表能创建runtime，默认恢复白名单不含colour；用原纹理蓝/黄两sprite的互斥opacity保留阈值语义。来源与本次废弃候选见[20接入](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#2026-11-09-20-原版来源接入)。

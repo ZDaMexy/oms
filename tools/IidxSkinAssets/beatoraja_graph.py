@@ -156,6 +156,137 @@ def _font_sizes(track):
     return result
 
 
+def _source20_zero_field(node, contribution, presentation, fonts):
+    """Qualify just original20's two four-cell bright-zero fields."""
+    if contribution.module == "graph-target":
+        choice = contribution.choice
+        if choice not in ("aaa", "aa", "a", "custom", "next", "next-plus"):
+            return None
+        text_id = f"standard.graph.fs20.target.{choice}.{presentation}.total"
+        source = ({"aaa": "score.rank-aaa", "aa": "score.rank-aa", "a": "score.rank-a"}.get(choice)
+                  or f"value.standard.graph.fs20.target.{choice}.{presentation}.value."
+                  + ("selected.l2.n0" if choice == "next" else "target"))
+        native = "main_state.exscore_rival()"
+    elif contribution.module in ("base", "frame"):
+        text_id = f"standard.graph.fs20.{presentation}.current.value"
+        source, native = "score.value", "main_state.exscore()"
+    else:
+        return None
+    if node["id"] != text_id + ".fixed-cells" or node["type"] != "container" or node.get("properties"):
+        return None
+    children = node.get("children", [])
+    if len(children) != 2:
+        return None
+    text, grid = children
+    font = fonts.get("standard.graph.fs20.font.score", {})
+    zero = next((g for g in font.get("glyphs", []) if g["character"] == "0"), None)
+    if (text["id"] != text_id or text["type"] != "text" or grid["id"] != text_id + ".leading-zeros"
+            or grid["type"] != "container" or zero is None or zero["advance"] != 22 or font.get("lineHeight") != 22):
+        return None
+    props = text.get("properties", {})
+    if (props.get("bitmap-font") != font["id"] or props.get("format") != "integer"
+            or props.get("alignment") != "right" or props.get("colour") != "#ffffffff"
+            or not math.isclose(props.get("width", 0), 89 / 1280, abs_tol=1e-10)
+            or not math.isclose(props.get("height", 0), 22 / 720, abs_tol=1e-10)):
+        return None
+    bindings = [b for b in contribution.scene.get("bindings", []) if b["target"] == text_id and b["property"] == "text"]
+    if len(bindings) != 1 or bindings[0]["source"] != source:
+        return None
+    grid_props = grid.get("properties", {})
+    expected = {"x": props.get("x", 0) + props["width"], "y": props.get("y", 0) + props["height"] / 2,
+                "width": props["width"], "height": props["height"]}
+    if (set(grid_props) != {*expected, "origin"} or grid_props["origin"] != "centre-right"
+            or any(not math.isclose(grid_props[key], value, abs_tol=1e-10) for key, value in expected.items())):
+        return None
+    tracks = contribution.scene.get("tracks", [])
+    fits = [t for t in tracks if t["target"] == text_id and t["property"] == "font-size"]
+    if len(fits) != 1:
+        return None
+    fit = fits[0]
+    times = [0, 10_000, 100_000, 1_000_000, 10_000_000]
+    factors = [1, *(min(1, 89 / (22 * (digits - 1) + 23)) for digits in (5, 6, 7, 10))]
+    base_size = 22 * 768 / 720
+    if (fit.get("type", "tween") != "tween" or fit.get("clock") != "score.maximum"
+            or fit.get("easing") != "step" or fit.get("loop", False)
+            or [p["time"] for p in fit["keyframes"]] != times
+            or any(not math.isclose(p["value"], factor * base_size, abs_tol=1e-9)
+                   for p, factor in zip(fit["keyframes"], factors))):
+        return None
+    scales = [t for t in tracks if t["target"] == grid["id"]]
+    if len(scales) != 2 or {t["property"] for t in scales} != {"scale-x", "scale-y"}:
+        return None
+    for track in scales:
+        if (track.get("type", "tween") != "tween" or track.get("clock") != "score.maximum"
+                or track.get("easing") != "step" or track.get("loop", False)
+                or [p["time"] for p in track["keyframes"]] != times
+                or any(not math.isclose(p["value"], factor, abs_tol=1e-9)
+                       for p, factor in zip(track["keyframes"], factors))):
+            return None
+    zeros = grid.get("children", [])
+    if [z["id"] for z in zeros] != [text_id + f".leading-zero.n{i}" for i in (2, 1, 0)]:
+        return None
+    gates = {}
+    for column, sprite in zip((2, 1, 0), zeros):
+        prop = sprite.get("properties", {})
+        gate = [t for t in tracks if t["target"] == sprite["id"]]
+        threshold = 10 ** (3 - column)
+        if (sprite["type"] != "sprite" or sprite.get("resource") != zero["resource"]
+                or sprite.get("children") or sprite.get("effects") or sprite.get("blend", "inherit") != "inherit"
+                or set(prop) != {"x", "width", "height"}
+                or any(not math.isclose(prop.get(key, -1), value, abs_tol=1e-10) for key, value in
+                       (("x", column * 22 / 89), ("width", 23 / 89), ("height", 1)))
+                or len(gate) != 1):
+            return None
+        gate = gate[0]
+        if (gate.get("type", "tween") != "tween" or gate.get("property") != "opacity" or gate.get("clock") != source
+                or gate.get("loop", False) or gate.get("easing") != "step"
+                or [(p["time"], p["value"]) for p in gate["keyframes"]] != [(0, 1), (threshold, 0)]):
+            return None
+        gates[sprite["id"]] = {"track": gate["id"], "condition": f"{native} < {threshold}", "column": column}
+    return {"grid": grid["id"], "number": text_id, "scale": scales[0], "scaleTracks": {t["id"] for t in scales}, "gates": gates}
+
+
+def _source20_rank_states(node, contribution, presentation, numeric, nodes):
+    prefix = f"standard.graph.fs20.{presentation}"
+    rank = node["id"].removeprefix(prefix + ".line.")
+    if (contribution.module not in ("base", "frame") or rank not in ("a", "aa", "aaa")
+            or node["id"] != prefix + ".line." + rank or node["type"] != "sprite"
+            or node.get("resource") != "standard.graph.fs20.texture.gr-line-" + rank
+            or node.get("properties", {}).get("colour") != "#8787ffff"
+            or node.get("properties", {}).get("opacity") != 1):
+        return None
+    reached = nodes.get(node["id"] + ".reached")
+    if (reached is None or reached["type"] != "sprite" or reached.get("resource") != node.get("resource")
+            or reached.get("properties", {}).get("colour") != "#ffff00ff"
+            or reached.get("properties", {}).get("opacity") != 0
+            or {k: v for k, v in reached["properties"].items() if k not in ("colour", "opacity")}
+               != {k: v for k, v in node["properties"].items() if k not in ("colour", "opacity")}):
+        return None
+    clock = prefix + ".value.rank-colour-" + rank
+    source = numeric.get(clock, {})
+    if (source.get("operation") != "subtract" or source.get("left") != "score.rank-" + rank
+            or source.get("right") != "score.value"):
+        return None
+    states = {}
+    threshold = f"math.ceil({_MAXIMUM} * {_RANKS['score.rank-' + rank + '-progress']} / 9)"
+    for sprite, values, comparison in ((node, [(0, 0), (1, 1)], "<"), (reached, [(0, 1), (1, 0)], ">=")):
+        tracks = [t for t in contribution.scene.get("tracks", []) if t["target"] == sprite["id"]]
+        if len(tracks) != 2 or {t["property"] for t in tracks} != {"y", "opacity"}:
+            return None
+        track = next(t for t in tracks if t["property"] == "opacity")
+        if (track.get("type", "tween") != "tween" or track.get("clock") != "value." + clock
+                or track.get("loop", False) or track.get("easing") != "step"
+                or [(p["time"], p["value"]) for p in track["keyframes"]] != values):
+            return None
+        y_track = next(t for t in tracks if t["property"] == "y")
+        if (y_track.get("type", "tween") != "tween" or y_track.get("clock") != "score.rank-" + rank + "-progress"
+                or y_track.get("loop", False) or y_track.get("easing", "linear") != "linear"
+                or [(p["time"], p["value"]) for p in y_track["keyframes"]] != [(0, 529 / 720), (1, 79 / 720)]):
+            return None
+        states[sprite["id"]] = {"track": track["id"], "condition": f"main_state.exscore() {comparison} {threshold}"}
+    return states
+
+
 def _target_art_roles(family, contribution):
     """Identify the selected source's readouts, not its original target policy.
 
@@ -369,7 +500,47 @@ def export_graph(author: AuthorPackage, options: dict[str, Any], keymode: str,
         last = {(o["target"], o["property"]): o["id"] for kind in ("bindings", "variants")
                 for o in contribution.scene.get(kind, [])}
 
-        def visit(node, matrix, size, rgba, conditions, scale, reveal=None, blend="alpha", clip=None):
+        grids, zero_gates, rank_states, invalid_fields = {}, {}, {}, {}
+        if author.family == "standard" and options.get("frame") == "source20-gmframe0":
+            expected = {f"standard.graph.fs20.{presentation}.current.value.fixed-cells",
+                        f"standard.graph.fs20.target.{contribution.choice}.{presentation}.total.fixed-cells"}
+            for item in walk_nodes(root):
+                if item["id"] not in expected:
+                    continue
+                field = _source20_zero_field(item, contribution, presentation, fonts)
+                if field is None:
+                    invalid_fields[item["id"]] = "unqualified-original20-leading-zero-field"
+                else:
+                    grids[field["grid"]] = field
+                    zero_gates.update(field["gates"])
+            nodes = {item["id"]: item for item in walk_nodes(root)}
+            for item in nodes.values():
+                if item["id"] not in {f"standard.graph.fs20.{presentation}.line.{rank}" for rank in ("a", "aa", "aaa")}:
+                    continue
+                states = _source20_rank_states(item, contribution, presentation, numeric, nodes)
+                if states is None:
+                    for identifier in (item["id"], item["id"] + ".reached"):
+                        invalid_fields[identifier] = "unqualified-original20-rank-state"
+                else:
+                    rank_states.update(states)
+
+        def visit(node, matrix, size, rgba, conditions, scale, reveal=None, blend="alpha", clip=None, fit_branch=None):
+            if node["id"] in invalid_fields:
+                gap(contribution, node["id"], invalid_fields[node["id"]])
+                return
+            if node["id"] in grids and fit_branch is None:
+                field = grids[node["id"]]
+                for index, (factor, interval) in enumerate(_font_sizes(field["scale"])):
+                    own_conditions = list(conditions)
+                    if interval:
+                        low, high = interval
+                        if low is not None:
+                            own_conditions.append(f"{_MAXIMUM} >= {lua(low)}")
+                        if high is not None:
+                            own_conditions.append(f"{_MAXIMUM} < {lua(high)}")
+                    visit(node, matrix, size, rgba, own_conditions, scale, reveal, blend, clip,
+                          (field["grid"], factor, index))
+                return
             prop, operations = scene_properties(node, contribution.scene, context)
             operations = [o for o in operations if last[o["target"], o["property"]] == o["id"]]
             visible = next((o for o in operations if o["property"] == "visible"), None)
@@ -391,7 +562,15 @@ def export_graph(author: AuthorPackage, options: dict[str, Any], keymode: str,
                 if track["target"] != node["id"]:
                     continue
                 clock = track.get("clock")
-                if clock in context:
+                if node["id"] in rank_states and track["id"] == rank_states[node["id"]]["track"]:
+                    prop["opacity"] = 1
+                    own_conditions.append(rank_states[node["id"]]["condition"])
+                elif (fit_branch is not None and node["id"] == fit_branch[0]
+                        and track["id"] in grids[node["id"]]["scaleTracks"]):
+                    prop[track["property"]] = fit_branch[1]
+                elif node["id"] in zero_gates and track["id"] == zero_gates[node["id"]]["track"]:
+                    own_conditions.append(zero_gates[node["id"]]["condition"])
+                elif clock in context:
                     prop[track["property"]] = _sample_track(track, float(context[clock]))
                 elif clock in _RANKS and track["property"] == "y":
                     rank_track = track
@@ -447,7 +626,7 @@ def export_graph(author: AuthorPackage, options: dict[str, Any], keymode: str,
                     return
                 src = sink.add_source(resource["path"])
                 sw, sh = sink.dimensions[src]
-                identifier = f"graph.{contribution.module}.{node['id']}"
+                identifier = f"graph.{contribution.module}.{node['id']}" + (f".fit{fit_branch[2]}" if fit_branch else "")
                 item = {"id": identifier, "src": src, "x": 0, "y": 0, "w": sw, "h": sh}
                 ref = graph_ref if graph_ref is not None else own_reveal
                 stretch = graph_ref is not None and own_reveal is None
@@ -474,6 +653,21 @@ def export_graph(author: AuthorPackage, options: dict[str, Any], keymode: str,
                     base_y = height - rect[1] - rect[3]
                     y_expression = f"math.floor({lua(base_y)} - {lua(size[1] * (end - start))} * {rate} + 0.5)"
                 entry = destination(identifier, rect, own_rgba, own_blend, own_conditions, y_expression)
+                if fit_branch is not None and node["id"] in zero_gates:
+                    # Match the actual native integer's rounded cells, not a
+                    # second independent rounding of the source-size grid.
+                    number_id = f"graph.{contribution.module}.{grids[fit_branch[0]]['number']}.{fit_branch[2]}"
+                    number = next((v for v in arrays["value"] if v["id"] == number_id), None)
+                    main = next((d for d in output["destination"] if d["id"] == number_id), None)
+                    if number is None or main is None or (number["align"], number["digit"], number["padding"]) != (0, 10, 0):
+                        output["destination"].remove(entry)
+                        gap(contribution, node["id"], "unqualified-original20-native-number-cells")
+                        return
+                    cell = main["dst"][0]
+                    step = cell["w"] + number["space"]
+                    column = zero_gates[node["id"]]["column"]
+                    entry["dst"][0].update(x=cell["x"] + (number["digit"] - 4 + column) * step,
+                                          y=cell["y"], w=cell["w"], h=cell["h"])
                 if clip is not None:
                     entry["dst"][0].update({"clip_" + k: v for k, v in native_rect(clip, height).items()})
                 if stretch:
@@ -515,7 +709,7 @@ def export_graph(author: AuthorPackage, options: dict[str, Any], keymode: str,
                 gap(contribution, node["id"], "unsupported-graph-node", type=node["type"])
                 return
             for child in sorted(node.get("children", []), key=lambda n: -n.get("properties", {}).get("z", 0)):
-                visit(child, node_matrix, node_size, own_rgba, own_conditions, own_scale, own_reveal, own_blend, clip)
+                visit(child, node_matrix, node_size, own_rgba, own_conditions, own_scale, own_reveal, own_blend, clip, fit_branch)
 
         visit(root, _IDENTITY, (width, height), (1, 1, 1, 1), [], (1, 1))
 
