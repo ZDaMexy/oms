@@ -33,3 +33,5 @@ NoteSet外层destination颜色不会传给音符；Judge外层颜色也不会替
 大动画索引的JSON字节数不是进程占用：解析树还受缓存持有链影响。`read_bakes`须在逐项选定身份后释放大树，保留小元数据和文件摘要，使用时只缓存当前项；切换前先释放，重读校验冻结字节。只给读取器限缓存还不够，Cover的对象缓存若强引用index仍会让全部树常驻。保留像素/帧结果缓存即可复用重排；membership、选择优先级、覆盖顺序、源校验与换项重载取[索引测试](../../tools/IidxSkinAssets/tests/test_beatoraja_bakes.py)。只读选择的峰值不代签完整导出或原生宿主。
 
 安装器只需名称/族别时，先对整个大侧车`ConvertFrom-Json`会让PowerShell对象树与后续Python完整验包同时驻留。[独立安装器](../../tools/IidxSkinAssets/Install-BeatorajaOmni.ps1)让短命Python输出这两个字段，检查退出码后只解析小结果；原三次完整核验不省略。Python自身仍有一次完整JSON解析峰值，不能把子进程退出称为流式解析或内存上限。
+
+交付消费者释放大审计树、仅保留精简身份时，仍须保留后续真实验证器需要的`contract`。原21交付准备曾漏掉它，实际`bind_cases`因此拒绝合法Standard包；只用替身绑定器的夹具未覆盖这条调用。修订保留字段后，实际候选的15场绑定须与冻结计划一致，缺字段及错误族仍拒绝；包和游玩证据不因消费者修订而重建。具体边界取[适配记录](../../doc_md/other/BEATORAJA_IIDX_SKINS_20261107.md)。

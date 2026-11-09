@@ -1,18 +1,14 @@
 # Standard Model Skin Omni Until 26：独立作品记录
 
-当前 OMS 已私下交付 **Standard Model Skin Omni Until 26.v26110900**，共18套主题：21原版SPADA、22 PENDUAL PRESENT/FUTURE、22 CUSTOM LINCLE/TRICORO/SPADA、23保留、24、25保留、26，以及八款26 ARC SCORE复刻。这是来源分类，不是早期某代至26的连续原版覆盖。当前同包证据见[21来源OMS交付](#21-来源-oms-交付)，beatoraja独立状态取[宿主记录](BEATORAJA_IIDX_SKINS_20261107.md)。旧版身份与证据保留，未识别容器等缺口保持，不宣称整盘素材穷尽。当前状态由 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)引用本记录，复跑工具入口为 [IidxSkinAssets](../../tools/IidxSkinAssets/README.md)。
+当前 OMS 与 beatoraja 均已私下交付 **Standard Model Skin Omni Until 26.v26110900**，共18套主题：21原版SPADA、22 PENDUAL PRESENT/FUTURE、22 CUSTOM LINCLE/TRICORO/SPADA、23保留、24、25保留、26，以及八款26 ARC SCORE复刻。这是来源分类，不是早期某代至26的连续原版覆盖。当前同包证据见[21来源OMS交付](#21-来源-oms-交付)，beatoraja独立状态取[宿主记录](BEATORAJA_IIDX_SKINS_20261107.md)。旧版身份与证据保留，未识别容器等缺口保持，不宣称整盘素材穷尽。当前状态由 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)引用本记录，复跑工具入口为 [IidxSkinAssets](../../tools/IidxSkinAssets/README.md)。
 
-六个22框体来源完整保留，其中五个进入可生成主题，裸 `gmframe0` 仅供归档研究。新增[21原版来源](#2026-11-08-21-原版来源接入)使用独立身份及本代共用素材；菜单的“21 SPADA (Original)”、“SPADA (22 CUSTOM)”和“21 SPADA”（26 ARC SCORE）分别保留，不因同名合并。OMS新版已完成下述验收；beatoraja的21增量已完成独立15场运行检查，原图复核尚未完成，尚未安装或交付；当前按用户要求暂停，不由OMS结果代签。
+六个22框体来源完整保留，其中五个进入可生成主题，裸 `gmframe0` 仅供归档研究。新增[21原版来源](#2026-11-08-21-原版来源接入)使用独立身份及本代共用素材；菜单的“21 SPADA (Original)”、“SPADA (22 CUSTOM)”和“21 SPADA”（26 ARC SCORE）分别保留，不因同名合并。两宿主分别完成同包运行与原图审查，OMS取[下述交付](#21-来源-oms-交付)，beatoraja的安装、保全与ZIP取[宿主交付](BEATORAJA_IIDX_SKINS_20261107.md#21-来源-standard-增量交付)，不互相代签。
 
 ## 2026-11-08 暂停与续接
 
-11月9日按用户要求尽快收束并再次暂停。OMS新版已完成[21来源交付](#21-来源-oms-交付)；beatoraja的18主题／90布局构建和同包15场运行检查已完成，原图审查尚未闭合，未安装或交付新版。当前唯一续接证据为本机`artifacts/standard-model-21-20261108/pause-r2/checkpoint.json`，逐项固定已完成结果、候选与证据摘要、剩余门。11月8日的`pause-r1`仅保留历史，不再代表当前状态。
+本节保留两次历史暂停：11月8日停止于候选准备，11月9日停止于OMS已交付、beatoraja同包运行通过但审图未闭合。检查点分别为本机`artifacts/standard-model-21-20261108/pause-r1/checkpoint.json`与`pause-r2/checkpoint.json`，不再代表当前待办。用户随后恢复，已沿最终author-r4与既有18/15场结果完成余下审查、安全安装和交付；当前两宿主结果分别取[OMS](#21-来源-oms-交付)与[beatoraja](BEATORAJA_IIDX_SKINS_20261107.md#21-来源-standard-增量交付)。
 
-- 无相关游戏、取景或构建进程继续运行。原21本体、下载源、author-r4、两宿主最终候选及原始运行证据保留；无需重新解包、烘焙或补跑已经通过的同包矩阵，除非输入变化或新问题要求复验。
-- beatoraja从`beatoraja-capture/standard21-r1/runs/native-r2/completed.json`的15场结果接续，使用`preparation-r3`；已有部分审图记录不能当成全场通过。继续直接审看原PNG，尤其03的Graph ON两窗与15的OFF四窗；完整90布局CPU检查和运行通过不代替画面验收。
-- 恢复并完成审图后，按当时日期选择新版本，重新建立当前玩家保全基线，再创建新修订的交付绑定。`delivery-r4`与旧基线保留历史，不要求暂停期间玩家文件不变。只添加新skin子目录，安装后逐文件复核，再交付ZIP和同步文档；不得恢复旧用户数据来消除差异。
-
-四窗口修正冻结于`author-r4`，原21 DP Graph开启时左侧两窗、关闭时四窗，旧17主题保持。旧`author-r3`候选及不完整/失败矩阵均保留为被替代证据，不计入新包通过项。Lightning独立边界不变。
+原21本体、下载源、作者和运行原件保留；暂停前基线只作历史，实际安装另取当时玩家文件。旧author-r3四窗缺项、早期不完整/失败矩阵保留为被替代证据，不计入最终通过。Lightning独立边界不变。
 
 ## 身份与来源
 
@@ -55,7 +51,7 @@
 
 普通演奏组件按21自身素材处理：原数字取`s21/gameparts`，SCORE/MAXCOMBO底板和MIN/BPM/MAX标签取自身框体，窄SP采用本代已核的±35px目标位置；宽SP、DP使用各自电影。源程序在BPM极值相等时隐藏范围读数，作者仍沿既有宿主恒显范围与标签的明确适配。21所供DF平成Gothic W7与保留22/24字体逐字节一致，且本代font2注册已独立确认；这不使宿主数字字格、Preset分页或完整Start算法自动等价。当前绿数沿自己的原钩子，未加入后代端点范围；未发现专用Normal预览窗与首排cue原图，作者不从26借图补齐。原Ready、Gauge、失败、通知及BGA程序保持源帧、几何和资源，宿主生命周期、目标政策与尚未确认的原调用时序分别记为适配。
 
-原机游客参照已取得P1/P2宽、窄SP的演奏、Graph开关、Start及开场画面，以及DP的Graph开关、Start和两侧分屏BGA；主代理直接审看13张原图，范围绑定`reference-r2/native-visual-review-r1.json`。Start样本可见原十一档倍率列表和当前绿数，不能据此签完整读谱算法。Hard自然漏音后的Stage Failed也已实际取到，证据为`reference-r2/captures/p2-wide-hard-032.jpg`中的齿轮关门、白字与粉色线条；此前只到Results的序列不作为失败动画证据。普通Play Style与Song Select倒计时分别取得实际Time Freeze窗口，Guest入口计时未冻结。游戏通过API正常退出，相关监听已释放，本体仍部署；没有取得变速BPM演奏画面，不声明60Hz、全曲、持续性能或实体设备校准。OMS成品的独立同包验收见下节，beatoraja仍须完成自身验证与交付。
+原机游客参照已取得P1/P2宽、窄SP的演奏、Graph开关、Start及开场画面，以及DP的Graph开关、Start和两侧分屏BGA；主代理直接审看13张原图，范围绑定`reference-r2/native-visual-review-r1.json`。Start样本可见原十一档倍率列表和当前绿数，不能据此签完整读谱算法。Hard自然漏音后的Stage Failed也已实际取到，证据为`reference-r2/captures/p2-wide-hard-032.jpg`中的齿轮关门、白字与粉色线条；此前只到Results的序列不作为失败动画证据。普通Play Style与Song Select倒计时分别取得实际Time Freeze窗口，Guest入口计时未冻结。游戏通过API正常退出，相关监听已释放，本体仍部署；没有取得变速BPM演奏画面，不声明60Hz、全曲、持续性能或实体设备校准。OMS成品的独立同包验收见下节，beatoraja的独立结果取[宿主交付](BEATORAJA_IIDX_SKINS_20261107.md#21-来源-standard-增量交付)。
 
 保留两个明确缺口：`effect/playm_ef_rev3`由原程序按名称动态重绑，`common`与`gameparts`有不同原图，最终资源owner尚未确认；研究保留两候选，命名占位不按尺寸或截图猜选静态图。`txt_tutorial`需要单独的原教程包，普通演奏选中库未提取它，也不宣称教程已接入。Stage/Premium Free/Qpro等没有对应宿主状态的部件继续按实际合同界定，原资产可解析不等于原软件机能完整复刻。
 

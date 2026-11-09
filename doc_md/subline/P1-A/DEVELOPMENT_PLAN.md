@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-11-09（Standard按用户要求暂停）
+> 最后核对：2026-11-09（Standard21来源闭环后的维护）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -15,7 +15,7 @@
 
 ### Standard Model Skin Omni Until 26
 
-按用户11月9日要求暂停，当前结果与剩余门取[冻结检查点](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-08-暂停与续接)。OMS21增量已交付；恢复后从beatoraja最终15场的原图审查接续，完成新当前玩家基线、安全安装和ZIP交付，不重复已闭合研究与验证。22/24/26原机复测须重取本体，更早代须真实来源，ARC SCORE不扩代。两作品独立，优先CLI/API。
+Standard21来源的双宿主制作、同包审查与保全交付已完成，当前结果取[STATUS](DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)。后续只按真实反馈或新增可靠来源维护，不重复已过研究与验证；22/24/26原机复测须重取本体，更早代须真实来源，ARC SCORE不扩代。两作品独立，优先CLI/API。
 
 ### Lightning Model Skin Omni Until 33（停止自动推进）
 

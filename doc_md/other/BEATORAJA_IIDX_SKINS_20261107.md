@@ -1,8 +1,8 @@
 # beatoraja IIDX 双作品适配记录
 
-本页记录2026-11-07开始的独立宿主工作；截至11月8日，Standard的22来源增量与Lightning首版均已安装、保全并交付ZIP，当前两者各为`v26110800`。不提升OMS旧包、来源原软件或发行验收。调度取[P1-A维护计划](../subline/P1-A/IIDX_SKIN_MAINTENANCE.md)，状态取[STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)。
+本页记录2026-11-07开始的独立宿主工作；当前Standard的21来源增量`v26110900`已安装、保全并交付ZIP，Lightning保持11月8日的首版`v26110800`。各自实际范围见下方记录，不提升来源原软件或发行验收。调度取[P1-A维护计划](../subline/P1-A/IIDX_SKIN_MAINTENANCE.md)，状态取[STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)。
 
-21原版增量于11月9日完成18主题／90布局官方CPU检查及同包15场原生运行，原图审查尚未完成；按用户要求再次暂停，尚未安装或交付新版本。结果固定于本机`artifacts/beatoraja-capture/standard21-r1/runs/native-r2/completed.json`；候选、部分审图、重新建立玩家基线及下一步取[唯一续接记录](STANDARD_MODEL_SKIN_20261105.md#2026-11-08-暂停与续接)。
+21原版增量的来源、组成与OMS成品取[Standard独立记录](STANDARD_MODEL_SKIN_20261105.md#2026-11-08-21-原版来源接入)，本宿主的当前成品及独立验收取[21来源交付](#21-来源-standard-增量交付)。原版SPADA、22 CUSTOM及26 ARC SCORE同名主题保留各自身份，不合并素材。
 
 ## 授权、名称与来源
 
@@ -45,7 +45,25 @@
 
 实现入口为[素材工具](../../tools/IidxSkinAssets/README.md)、[GPU烘焙工具](../../tools/IidxSkinBake/README.md)和[原生取景工具](../../tools/BeatorajaSkinCapture/README.md)。没有移植OMS运行时，也不改beatoraja判定、计分或用户的客户端JAR。
 
+## 21 来源 Standard 增量交付
+
+2026-11-09 Standard已交付并安装`v26110900`，新增独立`21 SPADA (Original) / source21-gmframe0`，共18主题；`SPADA (22 CUSTOM)`和26 ARC SCORE的`21 SPADA`保持独立。来源不是连续21～26原版覆盖，23/25仍仅有后代保留美术。完整来源资格和未采用范围见[21来源记录](STANDARD_MODEL_SKIN_20261105.md#2026-11-08-21-原版来源接入)，Lightning未重建或刷新验收。
+
+最终原生包来自21专用父目录的`author-r4`及`beatoraja-packages-r2/standard`，12313文件、4043 PNG、2,591,191,319字节。1598项完整源动画身份全部闭合；r4的四窗BGA修订不改原帧。官方0.8.9发现恰为三个Lua入口，263次装配、8225片段及18主题×5布局共90项CPU加载通过。保持原生5KEYS/7KEYS两侧及14KEYS DP，没有10KEYS作者入口；CPU资格不冒称本轮每个主题都实际游玩。
+
+同一最终包完成15场官方原生Replay，覆盖原21 P1/P2、宽SP、DP、Graph开关、两侧5KEYS、真实Start读数、Position B FAST/SLOW、Judgement OFF自然失败、稳态框体及HCN断持恢复；另选ARC SCORE SPADA、22 CUSTOM SPADA、Rootage DP和copula P2作同包回归。1125份PNG完整性与48份原图样本直接审看通过（47种图像摘要），未确认待修复的视觉缺陷；抽样不等于逐帧人工检查。原21 DP Graph ON的左两窗与OFF的左右四窗均通过实际原生装配、8帧色条像素检查；两组各指定的两张原PNG还分别直接审看，不能用四个装饰外框代签内容显示。
+
+实际画面保留宿主差异：JUDGE统计面板可覆盖下左BGA的一部分；恒定BPM时MIN/MAX仍常显；HUD和Graph在和弦附近可能短帧不同步，后续抽样收敛。源Graph通知入场/扩张可超出自身画布，不当作稳态缺字。21和22共用的CN美术沿c22提供，没有虚构c21选项；HCN由beatoraja真实状态驱动，非原21专有机制或美术。Start只签原生互动与当前绿数，完整原调速面板、目标算法、实体输入、真实玩家保存/IR、整曲视频和长期性能沿[实现边界](#宿主研究与实现边界)保留。
+
+安装前重新建立当时玩家基线，未沿用暂停前摘要。实际安装目录为`D:/beatoraja/skin/Standard Model Skin Omni Until 26.v26110900`，当前选择保持；源包、暂存及安装三份完整清单一致，新增仅本版12313文件。安装后复核38项受保护文件、10个DB、10个官方文件和58362个旧skin文件、1678个旧目录，字节及路径一致。未恢复旧数据来消除用户变化，未读取SQL行或启动正式玩家作验证。
+
+实际矩阵为本机`artifacts/beatoraja-capture/standard21-r1/runs/native-r2/completed.json`；审图、当前基线绑定、安装三份清单与交付证据在同任务`delivery-r5/`，保全为`artifacts/standard-model-21-20261108/player-preservation-r1/after-install-r1.json`。安装前真实消费器检查曾因精简身份漏掉`contract`而拒绝；仅补回该字段，实际15场绑定与冻结计划一致，缺字段/错误族仍拒绝，皮肤及既有运行证据未改。
+
+总工作区`deliverables/skins/beatoraja/Standard Model Skin Omni Until 26.v26110900/`含一个ZIP及外层README、SHA256、VALIDATION。全部12313归档成员与冻结原包逐项核长度及摘要，字体许可和`.json.txt`侧车保持，ZIP内文件与安装字节相同；没有另放展开副本。私有素材、来源哈希、原始运行与玩家保全清单不入Git。
+
 ## 22 来源 Standard 增量交付
+
+本节保留11月8日的22来源历史版本；当前Standard取[21来源交付](#21-来源-standard-增量交付)。
 
 2026-11-08 Standard已交付并安装`v26110800`。源作者为D盘22来源专用父目录的`author-r5`，生成与适配源码冻结于`9fd03c8e`；新原生包为`beatoraja-packages-r4/standard`。新增PENDUAL PRESENT/FUTURE和三款22 CUSTOM，与旧十二款合计17主题；完整来源与非连续代数边界取[Standard记录](STANDARD_MODEL_SKIN_20261105.md#2026-11-08-22-来源接入)。Lightning及旧Standard保持原包、原验收日期，未借新增主题刷新结论。
 
@@ -61,7 +79,7 @@
 
 ## 本轮同包验收
 
-以下保留两族首版及其合并验收历史；Standard当前增量取[新交付](#22-来源-standard-增量交付)，Lightning仍沿本节首版结果。
+以下保留两族首版及其合并验收历史；Standard当前增量取[新交付](#21-来源-standard-增量交付)，Lightning仍沿本节首版结果。
 
 两族独立交付：Standard为`v26110700`，Lightning为`v26110800`。Standard来源解析与导出工具冻结于`36c90ab`，Lightning冻结于`ded2df3c`，各自精确源码快照保存在构建证据中；后续安装器优化和文档整理不更换包身份。构建源分别位于D盘约定父目录的`packages-r1/standard`与`packages-r2/lightning`，不是早期组件切片。
 
