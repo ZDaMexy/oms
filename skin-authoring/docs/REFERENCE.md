@@ -506,6 +506,7 @@ operand只能是有限JSON数值或下表的来源字符串，不能是嵌套表
 | 既有目标数值 | `score.personal-best`、`score.personal-best-progress`、`score.pacemaker-next`、`score.pacemaker-next-progress`、`score.rank-aaa/aa/a`及其`-progress` |
 | 连击 | `combo.value`、`combo.maximum`、`combo.breaks` |
 | 血槽 | `gauge.value`、`gauge.maximum`、`gauge.clear-threshold` |
+| 谱面BPM范围 | `timing.bpm-min`、`timing.bpm-max`，使用已发布的全局音乐BPM范围并保留小数；不开放当前BPM、滚速或时钟作为operand |
 | 统计 | `judgement.count.perfect/great/good/ok/meh/miss/fast/slow` |
 | 数字配置 | 已声明的`option.<id>`，只接受number；toggle的0/1绑定能力不适用于此处 |
 | 前置结果 | 同一场景`numericSources`数组中更早声明的`value.<id>` |

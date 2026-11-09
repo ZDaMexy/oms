@@ -75,6 +75,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
         [TestCase("\"arrival.time\"")]
         [TestCase("\"judgement.offset\"")]
         [TestCase("\"timing.elapsed\"")]
+        [TestCase("\"timing.bpm\"")]
         [TestCase("\"value.self\"")]
         [TestCase("\"unknown\"")]
         public void TestRejectsBooleanLocalClockUnknownAndSelfOperands(string operand)
@@ -214,6 +215,44 @@ namespace osu.Game.Tests.NonVisual.Skinning
                 ["right"] = 1,
             }));
             Assert.That(decode(sceneWithSources(declarations.ToString())).Status, Is.EqualTo(expected));
+        }
+
+        [TestCase(128, 128, 0)]
+        [TestCase(128.01, 128.99, 1)]
+        [TestCase(128, 128.0000001, 1)]
+        [TestCase(120, 240, 1)]
+        public void TestPublishedBpmRangePreservesFractionsForPresentation(double minimum, double maximum, double expected)
+        {
+            GameplaySkinSceneDocument document = decode(sceneWithSources("""
+                [{"id":"span","operation":"subtract","left":"timing.bpm-max","right":"timing.bpm-min"},
+                 {"id":"positive","operation":"ceil","left":"value.span"},
+                 {"id":"visible","operation":"min","left":"value.positive","right":1}]
+                """)).Value!;
+            Assert.That(document, Is.Not.Null);
+            Assert.That(document.NumericSources[0].Left.IsInteger, Is.False);
+            Assert.That(document.NumericSources[0].Right!.IsInteger, Is.False);
+            var runtime = new GameplaySkinNumericSourceRuntime(document.NumericSources);
+            double? upper = maximum;
+            Func<GameplaySkinNumericOperand, double?> read = operand => operand.SourceId switch
+            {
+                "timing.bpm-min" => minimum,
+                "timing.bpm-max" => upper,
+                _ => throw new InvalidOperationException(),
+            };
+            runtime.Evaluate(read);
+            Assert.That(runtime.TryGetValue(0, out double span), Is.True);
+            Assert.That(span, Is.EqualTo(maximum - minimum));
+            Assert.That(runtime.TryGetValue(2, out double visible), Is.True);
+            Assert.That(visible, Is.EqualTo(expected));
+
+            upper = null;
+            runtime.Evaluate(read);
+            Assert.That(runtime.TryGetValue(2, out _), Is.False);
+            upper = maximum;
+            runtime.Evaluate(read);
+            Assert.That(runtime.TryGetValue(2, out visible), Is.True);
+            Assert.That(visible, Is.EqualTo(expected));
+            Assert.That(decode(JObject.Parse(GameplaySkinSceneCodec.EncodeScene(document))).Status, Is.EqualTo(GameplaySkinSceneDecodeStatus.Valid));
         }
 
         private static GameplaySkinSceneManifest manifest() => new GameplaySkinSceneManifest(Array.Empty<GameplaySkinSceneResource>());

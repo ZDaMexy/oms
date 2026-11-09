@@ -116,6 +116,7 @@ namespace osu.Game.Skinning.Gameplay
             or GameplaySkinSceneBindingSource.ScoreRankAaaProgress or GameplaySkinSceneBindingSource.ScoreRankAaProgress or GameplaySkinSceneBindingSource.ScoreRankAProgress
             or GameplaySkinSceneBindingSource.ComboValue or GameplaySkinSceneBindingSource.ComboMaximum or GameplaySkinSceneBindingSource.ComboBreaks
             or GameplaySkinSceneBindingSource.GaugeValue or GameplaySkinSceneBindingSource.GaugeMaximum or GameplaySkinSceneBindingSource.GaugeClearThreshold
+            or GameplaySkinSceneBindingSource.TimingBpmMinimum or GameplaySkinSceneBindingSource.TimingBpmMaximum
             or GameplaySkinSceneBindingSource.JudgementCountPerfect or GameplaySkinSceneBindingSource.JudgementCountGreat
             or GameplaySkinSceneBindingSource.JudgementCountGood or GameplaySkinSceneBindingSource.JudgementCountOk
             or GameplaySkinSceneBindingSource.JudgementCountMeh or GameplaySkinSceneBindingSource.JudgementCountMiss
@@ -125,7 +126,8 @@ namespace osu.Game.Skinning.Gameplay
             (GameplaySkinSceneBindingSource.ScoreProgress or GameplaySkinSceneBindingSource.ScoreAccuracy
             or GameplaySkinSceneBindingSource.ScorePersonalBestProgress or GameplaySkinSceneBindingSource.ScorePacemakerNextProgress
             or GameplaySkinSceneBindingSource.ScoreRankAaaProgress or GameplaySkinSceneBindingSource.ScoreRankAaProgress or GameplaySkinSceneBindingSource.ScoreRankAProgress
-            or GameplaySkinSceneBindingSource.GaugeValue or GameplaySkinSceneBindingSource.GaugeMaximum or GameplaySkinSceneBindingSource.GaugeClearThreshold);
+            or GameplaySkinSceneBindingSource.GaugeValue or GameplaySkinSceneBindingSource.GaugeMaximum or GameplaySkinSceneBindingSource.GaugeClearThreshold
+            or GameplaySkinSceneBindingSource.TimingBpmMinimum or GameplaySkinSceneBindingSource.TimingBpmMaximum);
 
         internal static bool TryCalculate(GameplaySkinNumericOperation operation, double left, double right, out double result)
         {

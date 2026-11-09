@@ -1,5 +1,11 @@
 # P1-A 变动日志
 
+## 2026-11-09皮肤派生数值读取谱面BPM范围
+
+声明式数值表达式允许读取既有公开的`timing.bpm-min/bpm-max`，仍取publication实际SongInformation，保留小数；未提供曲目信息时两项为0。首个消费者是20原版Standard的MIN/MAX组，以真实范围差决定显示，当前BPM、滚动和经过时间仍不属于这一数值操作数集合。字段完整合同取[作者参考](../../../skin-authoring/docs/REFERENCE.md#动画状态机绑定变体模板)。
+
+本轮55项数值/实际runtime专项与581项包含数值、实际scene host和归档读取的回归通过；Desktop、SkinAuthoring与StandardSkinCapture的Release构建均0警告0错误。小数同整数区间、极小正范围、恒定值和缺失元数据已覆盖。此引擎资格不代签尚在制作的20作者、两宿主运行或成品，当前来源阶段取[20接入记录](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-09-20-原版来源接入)。
+
 
 ## 2026-11-09SPADA本体与下载源退役
 

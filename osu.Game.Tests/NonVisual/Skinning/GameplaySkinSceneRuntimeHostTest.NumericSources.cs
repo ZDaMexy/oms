@@ -83,6 +83,44 @@ namespace osu.Game.Tests.NonVisual.Skinning
             Assert.That(host.RuntimeFaults, Is.Empty);
         }
 
+        [TestCase(128, 128, "0")]
+        [TestCase(128.01, 128.99, "1")]
+        [TestCase(128, 128.0000001, "1")]
+        [TestCase(120, 240, "1")]
+        public void TestDerivedBpmRangeReadsPublishedSongInformation(double minimum, double maximum, string expected)
+        {
+            using Texture texture = new DummyRenderer().CreateTexture(8, 8);
+            JObject scene = numericScene();
+            scene["numericSources"] = JArray.Parse("""
+                [{"id":"span","operation":"subtract","left":"timing.bpm-max","right":"timing.bpm-min"},
+                 {"id":"positive","operation":"ceil","left":"value.span"},
+                 {"id":"ratio","operation":"min","left":"value.positive","right":1}]
+                """);
+            using GameplaySkinLayoutPublication publication = pacemakerPublication(texture, scene);
+            var information = new GameplaySkinSongInformation("Range", "Artist", "NORMAL", "2", minimum, maximum);
+            using var stream = new GameplaySkinEventStream(publication, 0, songVariantSnapshot(publication, information));
+            using var host = new GameplaySkinSceneRuntimeHost(publication, stream);
+            host.ProcessFrame();
+            Assert.That(pacemakerText(host, "next.value"), Is.EqualTo(expected));
+            Assert.That(host.RuntimeFaults, Is.Empty);
+        }
+
+        [Test]
+        public void TestDerivedBpmRangeWithoutSongInformationIsHidden()
+        {
+            using Texture texture = new DummyRenderer().CreateTexture(8, 8);
+            JObject scene = numericScene();
+            scene["numericSources"] = JArray.Parse("""
+                [{"id":"ratio","operation":"subtract","left":"timing.bpm-max","right":"timing.bpm-min"}]
+                """);
+            using GameplaySkinLayoutPublication publication = pacemakerPublication(texture, scene);
+            using var stream = new GameplaySkinEventStream(publication, 0, songVariantSnapshot(publication, null));
+            using var host = new GameplaySkinSceneRuntimeHost(publication, stream);
+            host.ProcessFrame();
+            Assert.That(pacemakerText(host, "next.value"), Is.EqualTo("0"));
+            Assert.That(host.RuntimeFaults, Is.Empty);
+        }
+
         private static GameplaySkinEventStateSnapshot numericSnapshot(GameplaySkinLayoutPublication publication, long score, int combo)
         {
             GameplaySkinEventStateSnapshot initial = publication.PreparedScene.InitialEventState;

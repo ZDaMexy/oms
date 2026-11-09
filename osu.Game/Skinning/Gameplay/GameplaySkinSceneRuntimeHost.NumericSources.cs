@@ -144,6 +144,8 @@ namespace osu.Game.Skinning.Gameplay
             GameplaySkinSceneBindingSource.GaugeValue => scoreState.Gauge,
             GameplaySkinSceneBindingSource.GaugeMaximum => scoreState.GaugeState.Maximum,
             GameplaySkinSceneBindingSource.GaugeClearThreshold => scoreState.GaugeState.ClearThreshold,
+            GameplaySkinSceneBindingSource.TimingBpmMinimum => songInformation?.MinimumBpm ?? 0,
+            GameplaySkinSceneBindingSource.TimingBpmMaximum => songInformation?.MaximumBpm ?? 0,
             GameplaySkinSceneBindingSource.JudgementCountPerfect => scoreState.Statistics.Perfect,
             GameplaySkinSceneBindingSource.JudgementCountGreat => scoreState.Statistics.Great,
             GameplaySkinSceneBindingSource.JudgementCountGood => scoreState.Statistics.Good,
