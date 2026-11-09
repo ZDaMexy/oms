@@ -15,7 +15,7 @@
 
 ### Standard Model Skin Omni Until 26
 
-Standard21来源的双宿主制作、同包审查与保全交付已完成，当前结果取[STATUS](DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)。后续只按真实反馈或新增可靠来源维护，不重复已过研究与验证；22/24/26原机复测须重取本体，更早代须真实来源，ARC SCORE不扩代。两作品独立，优先CLI/API。
+Standard21来源的双宿主制作、同包审查与保全交付已完成，当前结果取[STATUS](DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)。后续只按真实反馈或新增可靠来源维护，不重复已过研究与验证；21/22/24/26原机复测须重取本体；下一份建议优先20 tricoro原版，取得前不登记已获得或保证新增内容。更早代须真实来源，ARC SCORE不扩代。两作品独立，优先CLI/API。
 
 ### Lightning Model Skin Omni Until 33（停止自动推进）
 

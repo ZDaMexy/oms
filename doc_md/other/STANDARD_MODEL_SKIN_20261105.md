@@ -8,7 +8,7 @@
 
 本节保留两次历史暂停：11月8日停止于候选准备，11月9日停止于OMS已交付、beatoraja同包运行通过但审图未闭合。检查点分别为本机`artifacts/standard-model-21-20261108/pause-r1/checkpoint.json`与`pause-r2/checkpoint.json`，不再代表当前待办。用户随后恢复，已沿最终author-r4与既有18/15场结果完成余下审查、安全安装和交付；当前两宿主结果分别取[OMS](#21-来源-oms-交付)与[beatoraja](BEATORAJA_IIDX_SKINS_20261107.md#21-来源-standard-增量交付)。
 
-原21本体、下载源、作者和运行原件保留；暂停前基线只作历史，实际安装另取当时玩家文件。旧author-r3四窗缺项、早期不完整/失败矩阵保留为被替代证据，不计入最终通过。Lightning独立边界不变。
+作者、提取库和运行原件保留；原21本体与下载源的退役取[本地来源现状](#本地来源现状)。暂停前基线只作历史，实际安装另取当时玩家文件。旧author-r3四窗缺项、早期不完整/失败矩阵保留为被替代证据，不计入最终通过。Lightning独立边界不变。
 
 ## 身份与来源
 
@@ -30,7 +30,9 @@
 
 2026-11-08两宿主交付后，按用户要求退役22本体`D:/OMS-Development/sources/PENDUAL-20261108/Beatmania iidx 22 pendual`与下载目录`E:/Files IN E/⭐22 PENDUAL`；实际两目标均已删除，约91.74GiB逻辑内容。删除前逐份核对四个提取库的52份原始素材副本，并额外保全14个未知130字节文件、当前DLL、字体与小型研究输入，共37文件、31.18MiB。裸`gmframe0`原包已在pilot库保留；225份原版参照、截图、配置及修改前备份仍位于部署父目录的`reference-r1/r2/r3`，删除后摘要不变。保全新增文件位于来源父目录的`retirement-retained-r1`；清单与执行回执取本机`artifacts/standard-model-22-20261108/retirement-r1/`。提取库、作者源、成品、已装皮肤和玩家数据不在删除目标内。
 
-22/24/26 后续工作可使用已保留的提取素材、作者源和证据；如需重新进入这些原游戏或读取未保留的原始文件，须重新取得相应 HDD。下方22/24/26的安装、游客测查与 Time Freeze 均是本体退役前的历史证据；22参照配置仍保留，但已不能直接启动被删除的游戏。新21部署与取景独立记录在下一节，不继承这些旧本体的可运行状态。已有来源缺口和 Lightning 独立边界保持，不因删除本体改写旧验证，也不宣称素材穷尽。
+2026-11-09两宿主21增量交付后，按用户要求退役21本体`D:/OMS-Development/sources/SPADA-20261108/Beatmania iidx 21 spada`与下载目录`E:/Files IN E/⭐21 SPADA`，两目标均已删除，约80.23GiB逻辑内容。删除前后核对155份已提取原包副本，并新增保全程序、配置、九份字体、小容器及tutorial原包等46文件、约49.30MiB，位于21来源专用父目录的`retirement-retained-r1`。部署父目录的`reference-r1/r2`共302份参照、配置和备份，以及12份当前双宿主交付文件，删除后摘要一致；素材库、作者、已装皮肤和玩家数据保持。精确目标、保全与执行/复核回执取本机`artifacts/standard-model-21-20261108/retirement-r1/`。
+
+21/22/24/26 后续工作可使用已保留的提取素材、作者源和证据；如需重新进入这些原游戏或读取未保留的原始文件，须重新取得相应 HDD。下方各代安装、游客测查与 Time Freeze 均为本体退役前的历史证据；保留参照配置不表示当前仍可启动原游戏。已有来源缺口和 Lightning 独立边界保持，删除本体不改写旧验证，也不宣称素材穷尽。
 
 ## 2026-11-08 21 原版来源接入
 
@@ -51,9 +53,9 @@
 
 普通演奏组件按21自身素材处理：原数字取`s21/gameparts`，SCORE/MAXCOMBO底板和MIN/BPM/MAX标签取自身框体，窄SP采用本代已核的±35px目标位置；宽SP、DP使用各自电影。源程序在BPM极值相等时隐藏范围读数，作者仍沿既有宿主恒显范围与标签的明确适配。21所供DF平成Gothic W7与保留22/24字体逐字节一致，且本代font2注册已独立确认；这不使宿主数字字格、Preset分页或完整Start算法自动等价。当前绿数沿自己的原钩子，未加入后代端点范围；未发现专用Normal预览窗与首排cue原图，作者不从26借图补齐。原Ready、Gauge、失败、通知及BGA程序保持源帧、几何和资源，宿主生命周期、目标政策与尚未确认的原调用时序分别记为适配。
 
-原机游客参照已取得P1/P2宽、窄SP的演奏、Graph开关、Start及开场画面，以及DP的Graph开关、Start和两侧分屏BGA；主代理直接审看13张原图，范围绑定`reference-r2/native-visual-review-r1.json`。Start样本可见原十一档倍率列表和当前绿数，不能据此签完整读谱算法。Hard自然漏音后的Stage Failed也已实际取到，证据为`reference-r2/captures/p2-wide-hard-032.jpg`中的齿轮关门、白字与粉色线条；此前只到Results的序列不作为失败动画证据。普通Play Style与Song Select倒计时分别取得实际Time Freeze窗口，Guest入口计时未冻结。游戏通过API正常退出，相关监听已释放，本体仍部署；没有取得变速BPM演奏画面，不声明60Hz、全曲、持续性能或实体设备校准。OMS成品的独立同包验收见下节，beatoraja的独立结果取[宿主交付](BEATORAJA_IIDX_SKINS_20261107.md#21-来源-standard-增量交付)。
+原机游客参照已取得P1/P2宽、窄SP的演奏、Graph开关、Start及开场画面，以及DP的Graph开关、Start和两侧分屏BGA；主代理直接审看13张原图，范围绑定`reference-r2/native-visual-review-r1.json`。Start样本可见原十一档倍率列表和当前绿数，不能据此签完整读谱算法。Hard自然漏音后的Stage Failed也已实际取到，证据为`reference-r2/captures/p2-wide-hard-032.jpg`中的齿轮关门、白字与粉色线条；此前只到Results的序列不作为失败动画证据。普通Play Style与Song Select倒计时分别取得实际Time Freeze窗口，Guest入口计时未冻结。游戏通过API正常退出，相关监听已释放；本体随后退役，取[本地来源现状](#本地来源现状)。没有取得变速BPM演奏画面，不声明60Hz、全曲、持续性能或实体设备校准。OMS成品的独立同包验收见下节，beatoraja的独立结果取[宿主交付](BEATORAJA_IIDX_SKINS_20261107.md#21-来源-standard-增量交付)。
 
-保留两个明确缺口：`effect/playm_ef_rev3`由原程序按名称动态重绑，`common`与`gameparts`有不同原图，最终资源owner尚未确认；研究保留两候选，命名占位不按尺寸或截图猜选静态图。`txt_tutorial`需要单独的原教程包，普通演奏选中库未提取它，也不宣称教程已接入。Stage/Premium Free/Qpro等没有对应宿主状态的部件继续按实际合同界定，原资产可解析不等于原软件机能完整复刻。
+保留两个明确缺口：`effect/playm_ef_rev3`由原程序按名称动态重绑，`common`与`gameparts`有不同原图，最终资源owner尚未确认；研究保留两候选，命名占位不按尺寸或截图猜选静态图。`txt_tutorial`需要单独的原教程包；退役时已保留其原始tutorial.ifs，但普通演奏选中库未解析它，也不宣称教程已接入。Stage/Premium Free/Qpro等没有对应宿主状态的部件继续按实际合同界定，原资产可解析不等于原软件机能完整复刻。
 
 本轮提取、合成研究、组件及新作者输入位于 `D:/OMS-Development/sources/OMS-Standard-Model-21-20261108/`；私有来源比较、原程序静态证据和输入资格回执位于本机 `artifacts/standard-model-21-20261108/{source-audit,native-static}/`，原机参照留在部署父目录的`reference-r2`。流水线参数见[工具入口](../../tools/IidxSkinAssets/README.md#独立-standard-时期作品)。原22/24/26作者、正式成品和Lightning未覆盖；来源资格与下述OMS成品验收分别记证。
 
