@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-11-08（Standard交付与归档合同；其它产品及发行证据沿各自原日期）
+> 最后核对：2026-11-09（Standard交付与用户要求暂停；其它产品及发行证据沿各自原日期）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -15,7 +15,7 @@ Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，具
 
 游玩判定/结果及性能取[10月19日深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)；设备入口、输入时间、轴用途、长皿与校准接续取[10月21日输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)。前台帧时间与实体设备仍待验收。
 
-Standard两宿主正式版仍为22增量`v26110800`；21原版的18主题作者及四窗口修正已冻结，新包未交付或安装，现按用户恢复指令[继续验证](../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-08-暂停与续接)。OMS包需包含32MiB归档门的客户端重编重启。旧版与玩家数据保留，Lightning的OMS停止边界、产品/设备/发行门不变。
+Standard21增量OMS版`v26110900`已交付；beatoraja正式版仍为`v26110800`，新候选运行检查完成，审图、安装与ZIP待完成，现按用户要求[暂停并保存续接](../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-08-暂停与续接)。OMS包仍需包含32MiB归档门的客户端重编重启。旧版与玩家数据保留，Lightning的OMS停止边界、产品/设备/发行门不变。
 
 玩家直接登录固定OMSIR，保存后新局上传；新闻 / 帮助 / 排行 / 玩家沿原生页面。谱面列表先选模式：BMS 仅 Ginger Rush / 616，osu!mania 仅 Sayobot，恢复上次 BMS 来源；紧凑筛选、原生卡片和各来源阅读状态保持。正常OMS窗口的lazer体验仍待签收，隔离内容宽度检查不代签；源码 / 软件及剩余门取[P3-IR状态](../subline/P3-IR/DEVELOPMENT_STATUS.md)。社交后续，旧ppy关闭；Phase1.x原门保持。
 
@@ -53,7 +53,7 @@ Standard两宿主正式版仍为22增量`v26110800`；21原版的18主题作者�
 
 ## 最近一次验证
 
-2026-11-08 Standard双宿主22来源增量、归档边界回归及实际交付核验完成，范围取[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)。旧产品宽测及Lightning的OMS已验包仍按原日期记录，不借本次刷新其验收。
+2026-11-09 Standard21增量OMS同包、审图与交付完成；beatoraja新候选运行通过，未完成审图或安装，当前按用户要求暂停。实际范围取[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md#最近一次验证)；旧22交付、产品宽测和Lightning保留各自原日期，不借本次刷新验收。
 
 2026-10-11转谱补算、Debug读取及旧失败对照保留原日期，范围与未验项取[P1-H](../subline/P1-H/DEVELOPMENT_STATUS.md#最近一次验证)。
 

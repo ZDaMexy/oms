@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 核对：2026-11-09（Standard原21增量恢复验证）
+> 核对：2026-11-09（Standard OMS交付、beatoraja运行验证与用户要求暂停）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -16,9 +16,9 @@
 | 作品 | 宿主 | 推进状态与证据 |
 | --- | --- | --- |
 | Lightning Model Skin Omni Until 33 | OMS | 自动推进停止，完整形态未完成；最新[.v26102902](CHANGELOG.md#2026-10-29omniv52私下交付)，历史Lighting文件名保留；缺口取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md) |
-| Standard Model Skin Omni Until 26 | OMS | 正式版仍为v26110800；21的18主题作者及四窗修正已冻结，已从[检查点](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-08-暂停与续接)恢复同包验证，未交付 |
+| Standard Model Skin Omni Until 26 | OMS | v26110900已交付，18主题；同包18场与原图审查完成，见[21来源交付](../../other/STANDARD_MODEL_SKIN_20261105.md#21-来源-oms-交付) |
 | Lightning Until33 | beatoraja | v26110800已安装、保全并交付ZIP |
-| Standard Until26 | beatoraja | 正式版仍为v26110800；21动画闭包完成，现恢复完整构建与验证，尚未安装；来源和检查点取上方记录 |
+| Standard Until26 | beatoraja | 正式版仍为v26110800；21候选完成90布局与同包15场，审图未闭合、未安装；按用户要求[暂停并保留续接](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-08-暂停与续接) |
 
 安装与缺口取[适配记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md)。OMS选曲/Results沿[原界面决定](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
 
@@ -46,7 +46,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-11-08：21的来源、限定原机参照与18主题作者已核；实绘暴露的DP四框双视频问题已修到author-r4，新两宿主尚未签收。用户要求暂停，冻结输入、失败证据及下一步统一取[续接记录](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-08-暂停与续接)。
+2026-11-09：21增量OMS正式v26110900完成同包18场、176PNG完整性与39原图审查及交付，范围取[21来源OMS交付](../../other/STANDARD_MODEL_SKIN_20261105.md#21-来源-oms-交付)。beatoraja完成18主题／90布局CPU与同包15场，审图、安装和ZIP仍待完成；按用户要求暂停，冻结结果和下一步取[续接记录](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-08-暂停与续接)。
 
 2026-11-08：Standard的22增量完成OMS同包24场与beatoraja原生22场、原图抽样审看、交付及保全；范围分别取[OMS](../../other/STANDARD_MODEL_SKIN_20261105.md#22-来源-oms-交付)与[beatoraja](../../other/BEATORAJA_IIDX_SKINS_20261107.md#22-来源-standard-增量交付)。Lightning首版、资源和未验门保持[原记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md#本轮同包验收)。
 
