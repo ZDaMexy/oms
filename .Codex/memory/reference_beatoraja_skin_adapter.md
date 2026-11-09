@@ -35,3 +35,5 @@ NoteSet外层destination颜色不会传给音符；Judge外层颜色也不会替
 安装器只需名称/族别时，先对整个大侧车`ConvertFrom-Json`会让PowerShell对象树与后续Python完整验包同时驻留。[独立安装器](../../tools/IidxSkinAssets/Install-BeatorajaOmni.ps1)让短命Python输出这两个字段，检查退出码后只解析小结果；原三次完整核验不省略。Python自身仍有一次完整JSON解析峰值，不能把子进程退出称为流式解析或内存上限。
 
 交付消费者释放大审计树、仅保留精简身份时，仍须保留后续真实验证器需要的`contract`。原21交付准备曾漏掉它，实际`bind_cases`因此拒绝合法Standard包；只用替身绑定器的夹具未覆盖这条调用。修订保留字段后，实际候选的15场绑定须与冻结计划一致，缺字段及错误族仍拒绝；包和游玩证据不因消费者修订而重建。具体边界取[适配记录](../../doc_md/other/BEATORAJA_IIDX_SKINS_20261107.md)。
+
+源动画闭包齐全不证明导出显示段已装入Lua。`blocking_gaps`也控制真正的selection路径；已证明的20 BPM整数与progress intro适配曾被当成阻断项，HUD/decorations虽生成却没有装配。应核实际coverage的available、shard及最终selection引用，不只看末尾blocking-review。仅按具名适配、明确informational布尔值及已资格来源/阶段登记，未知或缺flag仍阻断；失败输出须新建完整包复验，不能删报告或手改available补签。来源与宿主边界取[20增量](../../doc_md/other/BEATORAJA_IIDX_SKINS_20261107.md#20-来源-standard-增量)。

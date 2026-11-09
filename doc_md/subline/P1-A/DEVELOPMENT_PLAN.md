@@ -15,7 +15,7 @@
 
 ### Standard Model Skin Omni Until 26
 
-按[20来源记录](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-09-20-原版来源接入)完成两宿主同包验收、旧18保全和交付。20原版与22 CUSTOM分开核资格，更早代须有真实来源；保持作品隔离，优先CLI/API。
+OMS20已交付，beatoraja20按用户要求暂停。用户明确继续后，从[冻结检查点](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-10-暂停与续接)进入fresh native-r3、完整95布局CPU、同包实跑、原图审查、当时玩家保全与交付。20原版与22 CUSTOM分开，更早代须有真实来源；保持作品隔离，优先CLI/API。
 
 ### Lightning Model Skin Omni Until 33（停止自动推进）
 

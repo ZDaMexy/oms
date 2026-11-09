@@ -399,7 +399,15 @@ def scan_cap_height(author: AuthorPackage, modes: list[str], frames: list[str], 
 def blocking_gaps(gaps: list[dict], module: str) -> list[dict]:
     """Known host semantic limits stay visible; absent artwork is not advertised."""
     def retained(gap):
-        if gap.get("code", gap.get("feature")) in NONBLOCKING:
+        kind = gap.get("code", gap.get("feature"))
+        if kind == "native-bpm-extrema-integer-adaptation":
+            return (gap.get("informational") is True and module in ("hud", "decorations")
+                    and gap.get("node") in {"std.f20-gmframe0." + layout + ".bpm-range"
+                                           for layout in ("p1", "p2", "dp", "p1.wide", "p2.wide")})
+        if kind == "native-progress-intro-adaptation":
+            # Only the qualified own20 sine/Slider route emits this notice.
+            return gap.get("informational") is True and module == "decorations"
+        if kind in NONBLOCKING:
             return True
         if module == "graph-target" and gap.get("feature") == "graph":
             return gap.get("reason") in ("native-target-selection", "native-pb-existence-unavailable",

@@ -45,6 +45,14 @@
 
 实现入口为[素材工具](../../tools/IidxSkinAssets/README.md)、[GPU烘焙工具](../../tools/IidxSkinBake/README.md)和[原生取景工具](../../tools/BeatorajaSkinCapture/README.md)。没有移植OMS运行时，也不改beatoraja判定、计分或用户的客户端JAR。
 
+## 20 来源 Standard 增量
+
+20原版tricoro使用独立`source20-gmframe0`，目标共19主题，与22 CUSTOM TRICORO分别保留；26 ARC SCORE仍是原八款，没有ARC tricoro或`iidx20`条目。素材、原程序测查、CN同包复用与OMS已交付结果取[20来源记录](STANDARD_MODEL_SKIN_20261105.md#2026-11-09-20-原版来源接入)。当前本宿主正式成品仍取下述21版本，20增量尚未安装或交付。
+
+R7的1753项完整源动画已闭合，旧1598身份资格复用与新155身份/34程序完整GPU输出均保留实际验证链。当前Game二进制与旧producer不同，以渲染相关源码核对及51个新GPU见证证明复用资格，未把旧新摘要强行改成相等。新分类下重新计算的完整源需求与已闭合R7计划逐字节一致，无需重复烘焙。
+
+首轮原生包已展开95布局，但其BPM整数精度与进度intro两项具名适配被误当阻断项，导致部分HUD/decorations没有写入实际selection；该包保留为失败，未给handoff或用于安装。仅修正这两个已资格、明确标为informational的分类，未知项仍阻断，原适配说明保留。11月10日按用户要求安全暂停native-r2，停在5p2，仅86条导出完成记录；官方95布局CPU、同包实跑、安装和ZIP均未执行。partial不作正式包，恢复须fresh native-r3完整重建；唯一续接入口取[暂停记录](STANDARD_MODEL_SKIN_20261105.md#2026-11-10-暂停与续接)。来源闭包与已交付OMS保持原资格，不能代签尚未完成的原生包。
+
 ## 21 来源 Standard 增量交付
 
 2026-11-09 Standard已交付并安装`v26110900`，新增独立`21 SPADA (Original) / source21-gmframe0`，共18主题；`SPADA (22 CUSTOM)`和26 ARC SCORE的`21 SPADA`保持独立。来源不是连续21～26原版覆盖，23/25仍仅有后代保留美术。完整来源资格和未采用范围见[21来源记录](STANDARD_MODEL_SKIN_20261105.md#2026-11-08-21-原版来源接入)，Lightning未重建或刷新验收。

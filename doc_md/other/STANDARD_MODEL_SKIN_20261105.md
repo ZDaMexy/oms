@@ -1,28 +1,42 @@
 # Standard Model Skin Omni Until 26：独立作品记录
 
-当前 OMS 与 beatoraja 均已私下交付 **Standard Model Skin Omni Until 26.v26110900**，共18套主题：21原版SPADA、22 PENDUAL PRESENT/FUTURE、22 CUSTOM LINCLE/TRICORO/SPADA、23保留、24、25保留、26，以及八款26 ARC SCORE复刻。这是来源分类，不是早期某代至26的连续原版覆盖。当前同包证据见[21来源OMS交付](#21-来源-oms-交付)，beatoraja独立状态取[宿主记录](BEATORAJA_IIDX_SKINS_20261107.md)。旧版身份与证据保留，未识别容器等缺口保持，不宣称整盘素材穷尽。当前状态由 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)引用本记录，复跑工具入口为 [IidxSkinAssets](../../tools/IidxSkinAssets/README.md)。
+OMS已私下交付 **Standard Model Skin Omni Until 26.v26111000**，共19套主题；beatoraja当前已安装与交付的仍为21来源`v26110900`、18主题，20增量正在重建和验收。19主题为20原版tricoro、21原版SPADA、22 PENDUAL PRESENT/FUTURE、22 CUSTOM LINCLE/TRICORO/SPADA、23保留、24、25保留、26，以及八款26 ARC SCORE复刻。这是来源分类，不是20～26或更早的连续原版覆盖。OMS证据见[20来源交付](#20-来源-oms-交付)，beatoraja取[宿主记录](BEATORAJA_IIDX_SKINS_20261107.md)。未识别来源等缺口保留，不宣称整盘素材穷尽；当前状态由[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)引用，复跑工具入口为[IidxSkinAssets](../../tools/IidxSkinAssets/README.md)。
 
-六个22框体来源完整保留，其中五个进入可生成主题，裸 `gmframe0` 仅供归档研究。新增[21原版来源](#2026-11-08-21-原版来源接入)使用独立身份及本代共用素材；菜单的“21 SPADA (Original)”、“SPADA (22 CUSTOM)”和“21 SPADA”（26 ARC SCORE）分别保留，不因同名合并。两宿主分别完成同包运行与原图审查，OMS取[下述交付](#21-来源-oms-交付)，beatoraja的安装、保全与ZIP取[宿主交付](BEATORAJA_IIDX_SKINS_20261107.md#21-来源-standard-增量交付)，不互相代签。
+六个22框体来源完整保留，其中五个可生成，裸`gmframe0`仅归档研究。原版20、22 CUSTOM TRICORO分别使用自身来源；原版21、22 CUSTOM SPADA和26 ARC SCORE SPADA也各自独立。两个宿主分别验收，旧成品与Lightning保持原身份。
 
 ## 2026-11-09 20 原版来源接入
 
 用户提供20 tricoro并授权装到D盘、继续利用本代来源。主包已单次解包到`D:/OMS-Development/sources/TRICORO-20261109/Beatmania iidx 20 tricoro`，2772文件、约34.02GiB全部通过归档CRC复核；没有建立完整HDD副本。独立提取、研究、作者与候选使用`D:/OMS-Development/sources/OMS-Standard-Model-20-20261109/`。Omnimix歌曲与修改DLL、解锁DLL和ffdshow均未叠加或安装；附加包只定向保全另一份提供者标为`orig`的程序及启动批处理，程序身份另行记录。
 
-1612个IFS均完成元数据读取，选定110包、2149个UV sprite进入20专属素材库。六个本代核心包独立保全；104个CUSTOM中101个原包与既有来源相同，beam00的33个实际源帧像素相同，notes00仅为已有默认素材子集，turn00则保留本代25×25蓝色内盘。研究接入独立`source20-gmframe0`，与`source22-gmframe9`的22 CUSTOM TRICORO分开；19主题作者已生成并保全旧18，其两宿主验收尚在推进，不能据研究完成签收成品。
+1612个IFS均完成元数据读取，选定110包、2149个UV sprite进入20专属素材库。六个本代核心包独立保全；104个CUSTOM中101个原包与既有来源相同，beam00的33个实际源帧像素相同，notes00仅为已有默认素材子集，turn00则保留本代25×25蓝色内盘。`notes_cn00.ifs`与`lnote00.ifs`又分别与保留的22原包完全相同，包含CN纹理与六支AFP/BSI电影及GEO，因此沿`c22`身份复用。研究接入独立`source20-gmframe0`，与`source22-gmframe9`的22 CUSTOM TRICORO分开；19主题作者已生成并保全旧18，各宿主资格分别登记。
 
 原版测查使用附加包提供的2013-08-30程序变体，经核对该程序自身指令后仅启用普通Time Freeze与音量修复；主包的2012程序及两份未补丁原件均保留。游客R3已取得P1宽框、PACEMAKER AAA窄框、P2演奏与Start、DP Graph OFF四视频窗及ON左二视频窗/右Graph和中央Start读数，并取得四首STANDARD曲目的自然FAILED Results。选曲倒计时无输入20秒后仍为45，捕获时间戳相差20034ms。R2曾在原2012程序中发生ACCESS_VIOLATION，其退出不记为正常API关闭。所有过程使用spice2x API，没有使用computer use或真实卡账号。R3最后请求官方API `control.exit`，等待回执时收到Win10054；随后独立确认PID及两API监听均退出，没有强制结束。当前证据不代表实体机、原机刷新率或全布局矩阵验收。
 
 原版DP取景揭示早期19作者只输出两视频窗的遗漏，已据20自身四孔修正为Graph OFF四窗、ON两窗。早期R3候选虽通过正式作者检查及13场Player，原图审查仍发现Graph总值漏四位全亮前导零；修复后R6正式打包又发现NEXT的65项数值声明超过64上限。这些失败候选和矩阵均保留为被替代证据，不作交付资格。
 
-最终`author-r7`已补本代ID15的亮零、源调用链的蓝紫/黄色rank线，并仅复用两份相同固定时钟解决组合预算，Graph与引擎预算不变。旧18的6077文件无缺失、6054字节同一，其余为受限新增路由，216个旧BGA上下文语义保全。R7的4231组贡献集合预算不超过64，另有29个真实CLI组合与665项工具回归通过；完整新OSK及两宿主实际验收仍在继续。
+最终`author-r7`已补本代ID15的亮零、源调用链的蓝紫/黄色rank线，并仅复用两份相同固定时钟解决组合预算，Graph与引擎预算不变。旧18的6077文件无缺失、6054字节同一，其余为受限新增路由，216个旧BGA上下文语义保全。按manifest/scene/INI三路径去重的4233组预算均不超过64；早期4231报告只按scene计数，少两个仅INI不同的BGA组，保留为历史。OMS正式资格取下述交付；beatoraja继续独立验收。
 
 20自己的Graph没有后代`customize`挂点，Graph Area固定原面板。beatoraja导出已补精确blank别名资格，19主题实际投影保留176款共用菜单并在20选项提示固定面板；该投影不代替整包验收。OMS共用菜单的此限制写在交付说明中。Start/Cover字体单格12×20为宿主适配，原GDI自然字距未签；进度采用本代66×72源图、原位置/路径和additive，时相仍须按宿主边界验收。OMS数值读取谱面BPM范围的引擎要求自`b40ee0ce`起；beatoraja官方0.8.9把MIN/MAX存为整数，小数变化落在同一整数内时不能据其API恢复精确范围。
 
-当前交付仍取上方21增量两宿主`v26110900`；20阶段未交付新包。逐项部署与研究证据保存在本仓忽略目录`artifacts/standard-model-20-20261109/`，后续来源门须保持旧18主题及两个作品的隔离边界。
+当前20本体与下载源均保留，逐项部署、研究和两宿主证据取本仓忽略目录`artifacts/standard-model-20-20261109/`及对应D盘专用父目录。未进入新的来源阶段，作品隔离边界保持。
+
+### 20 来源 OMS 交付
+
+2026-11-10已交付`Standard Model Skin Omni Until 26.v26111000.osk`，120,379,097字节。最终`author-r7-compact-r1`的5763成员全部与归档长度、摘要一致，正式CLI通过4233组代表组合，普通SkinArchiveReader读取及CRC通过；配置23,983,655字节，低于32MiB上限。须重编并重启包含`b40ee0ce`或更新代码的OMS，才能使用本版新增的谱面BPM范围数值表达式；本轮没有部署客户端安装包。
+
+同一最终OSK完成33场实际隔离Player，覆盖19主题、新20的P1/P2、宽SP、Graph ON/OFF双打、Start三模式、两侧5K、mania8/16、百万分与COMBO1040、PB208到224、自然Hazard失败及CN/HCN松开复抓。326张PNG完整性与47张原图抽样审查通过，未确认待修复的渲染缺陷；抽样不等于逐帧人工检查。Graph总值四位亮零、主分数六位暗高零、原rank线蓝紫到黄色及源通告已实际观察；DP四窗还用原图四区裁片与像素确认内容，保留宿主JUDGE面板遮挡左下窗一角的边界。
+
+版本目录`deliverables/skins/Standard Model Skin Omni Until 26.v26111000/`包含同一OSK、说明、验证、校验及六张已审看原图预览，共10文件。实际矩阵取`artifacts/standard-model-20-20261109/oms-player-r1/runs/matrix-r2/matrix-result.json`，原图审查与交付证据在同任务`delivery-r1/`，正式包门在`author-build-r4/author-pack-r1.json`。字体字距、进度时相、长数字缩放、HCN与Graph附加信息沿上方宿主适配边界；不据合成谱和软件输入签收实体设备、原机全等价、整曲视频或长期性能。beatoraja继续按[独立记录](BEATORAJA_IIDX_SKINS_20261107.md#20-来源-standard-增量)推进。
+
+### 2026-11-10 暂停与续接
+
+按用户要求尽快收束并暂停。OMS v26111000已经正式交付，33场、326PNG与47原图结果保持；R7作者、完整源动画及已通过工具检查均保留。beatoraja native-r2在5p2阶段安全停止，只有86条导出完成记录，未执行官方95布局CPU、实际新包游玩、安装或ZIP交付。失败r1与partial r2均保留，不能直接安装或补签；实际播放器、旧皮肤和当前选择未改。
+
+唯一续接检查点为本机`artifacts/standard-model-20-20261109/pause-r1/checkpoint.json`，原生编排细项另取同任务`bake-execution-r1/PAUSED-20261110.json`及`.txt`；矩阵准备为`artifacts/beatoraja-capture/standard20-r1/preparation-r2/PAUSED-HANDOFF.json`。用户明确继续后，先核冻结源码、R7与1753项完整动画资格；从fresh native-r3完整95布局重建，再完成实际同包矩阵、原图审查、当时玩家保全及ZIP。已通过OMS、源烘焙和669项工具回归不因续接重复执行，只有输入变化、失败或新风险才补跑。beatoraja版本取实际交付日与新序号，不沿未执行草稿强用11月10日；OMS现有版本不改名或覆盖。
 
 ## 2026-11-08 暂停与续接
 
-本节保留两次历史暂停：11月8日停止于候选准备，11月9日停止于OMS已交付、beatoraja同包运行通过但审图未闭合。检查点分别为本机`artifacts/standard-model-21-20261108/pause-r1/checkpoint.json`与`pause-r2/checkpoint.json`，不再代表当前待办。用户随后恢复，已沿最终author-r4与既有18/15场结果完成余下审查、安全安装和交付；当前两宿主结果分别取[OMS](#21-来源-oms-交付)与[beatoraja](BEATORAJA_IIDX_SKINS_20261107.md#21-来源-standard-增量交付)。
+本节保留两次历史暂停：11月8日停止于候选准备，11月9日停止于OMS已交付、beatoraja同包运行通过但审图未闭合。检查点分别为本机`artifacts/standard-model-21-20261108/pause-r1/checkpoint.json`与`pause-r2/checkpoint.json`，不再代表当前待办。用户随后恢复，已沿最终author-r4与既有18/15场结果完成余下审查、安全安装和交付；该21增量结果分别取[OMS](#21-来源-oms-交付)与[beatoraja](BEATORAJA_IIDX_SKINS_20261107.md#21-来源-standard-增量交付)。
 
 作者、提取库和运行原件保留；原21本体与下载源的退役取[本地来源现状](#本地来源现状)。暂停前基线只作历史，实际安装另取当时玩家文件。旧author-r3四窗缺项、早期不完整/失败矩阵保留为被替代证据，不计入最终通过。Lightning独立边界不变。
 
@@ -32,7 +46,7 @@
 
 已交付 v02 提供 **25 CANNON BALLERS 与 26 Rootage** 的框体主题，来源均为当时的 26 HDD；共用软件表现以 26 为依据，不代表另外取得并复刻了 25 的软件。另有八款 **26 ARC SCORE 的旧作复刻主题**：3rd style、8th style、HAPPY SKY、GOLD、EMPRESS、SIRIUS、Lincle、SPADA。它们对应 `gmframe03/08/12/14/16/17/19/21`，与 `gmframe25/26` 合计十款，但不能合称“实际覆盖 3～26 代”或“十代原版框体”。26 的演奏主题索引只映射 Rootage 加八款 ARC SCORE；`gmframe25` 是该 HDD 保留并被本作品采用的旧主题资源，不是已确认的 26 原生可选框体。2026-11-07版本新增 24 HDD 中的 23 copula 保留美术与 24 SINOBUZ，该版十二款应表述为“23 保留、24、25 保留、26，加八款 ARC SCORE 复刻”，仍不是 3～26 的完整原版覆盖。
 
-2026-11-05 用户指出代数口径错误后，重新核对 [Rootage 官方 ARC SCORE 活动](https://p.eagate.573.jp/game/2dx/26/event/arc_score/index.html)、[当年 3rd style 主题获取记录](https://purotora.com/log/20190601.html)与本地源包，撤回此前把最小资源编号 03 当作实际原版覆盖起点的结论。编号确实指向旧作主题，但这些是 Rootage 内的活动复刻，不能证明已取得相应旧版 HDD 或保全了该版完整框体及软件表现。当时“24 及更早等待下一份 HDD”的状态已由后续 24、22、21 来源接入更新；尚未取得的更早软件及主题仍须按实际来源确认，不把复刻主题或保留美术当成已取得该版原程序。该次口径更正仅改变来源说明；后续 v02 另行制作和验收，已交付 v00/v01 的包字节与原测试身份保留。
+2026-11-05 用户指出代数口径错误后，重新核对 [Rootage 官方 ARC SCORE 活动](https://p.eagate.573.jp/game/2dx/26/event/arc_score/index.html)、[当年 3rd style 主题获取记录](https://purotora.com/log/20190601.html)与本地源包，撤回此前把最小资源编号 03 当作实际原版覆盖起点的结论。编号确实指向旧作主题，但这些是 Rootage 内的活动复刻，不能证明已取得相应旧版 HDD 或保全了该版完整框体及软件表现。当时“24 及更早等待下一份 HDD”的状态已由后续 24、22、21、20 来源接入更新；尚未取得的更早软件及主题仍须按实际来源确认，不把复刻主题或保留美术当成已取得该版原程序。该次口径更正仅改变来源说明；后续 v02 另行制作和验收，已交付 v00/v01 的包字节与原测试身份保留。
 
 原图按 XML/UV 解包，AFP/GEO 按真实父子变换、相机、遮罩和循环指令解析；不描摹、重画或从截图替代原始部件。v01 原构建选取 283 个小型 IFS，合计约 197.53 MiB；当时 `1/common.ifs` 被 ifstools 的名称文本解码拒绝，复跑选择文件保留其余 282 个包、4373 张 UV 图。该失败是历史事实，不能再写成整包纹理损坏或无法提取：查漏已按原名称字节恢复全部 266 张图，后续制作链通过显式 `--preserve-raw-texture-names` 形成新的 283 包、4639 张 UV 图完整选中库，保留原名称字节、XML 与实际 entry 对照。旧库、作者收据和成品不覆盖；恢复完整选中库不代表整份 HDD 每张图都被作品使用。
 
@@ -132,7 +146,7 @@
 
 ### 22 来源 OMS 交付
 
-本节保留2026-11-08的22来源版本历史；当前OMS版本取[21来源交付](#21-来源-oms-交付)，不沿用本节数字签收新包。
+本节保留2026-11-08的22来源版本历史；当前OMS版本取[20来源交付](#20-来源-oms-交付)，不沿用本节数字签收新包。
 
 2026-11-08已交付 `Standard Model Skin Omni Until 26.v26110800.osk`，114,268,052字节。冻结`author-r5-compact-r1`的5300文件全部与包内成员长度、摘要一致，普通SkinArchiveReader读取和CRC通过；正式作者CLI通过4113组代表组合，不代表全部配置排列。完整配置21,408,979字节，**必须重编并重启包含`67e8ca24`或更新代码的OMS后导入**；仅导入新OSK不能补齐32MiB归档配置门。本阶段未生成客户端安装包。
 
@@ -228,7 +242,7 @@ v02 的部件和研究出口来自 26：`standard_presentation_options.py` 导�
 
 ## 本轮验证与交付
 
-本节保留2026-11-07的24来源版本历史；当前OMS成品取[21来源交付](#21-来源-oms-交付)，不沿用本节数字签收新包。
+本节保留2026-11-07的24来源版本历史；当前OMS成品取[20来源交付](#20-来源-oms-交付)，不沿用本节数字签收新包。
 
 最终 `candidate-r8.osk` 已原样交付为 `.v26110700`，约 101MiB；4343 个归档成员与冻结作者源逐字节一致，2329 张 PNG、CRC、独立 Standard 身份与无页面扩展检查通过。配置保持在既有 16MiB 内，选中资源与其它运行预算未提高。作者 CLI 正式检查并打包通过 3770 个代表组合，不展开全部排列；现为 13 模块、31 项设置、11 类 612 款美术和 278 张独立小预览。
 
