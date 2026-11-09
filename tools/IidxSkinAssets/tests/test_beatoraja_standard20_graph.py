@@ -12,7 +12,7 @@ import unittest
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from beatoraja_author import Contribution
+from beatoraja_author import Contribution, walk_nodes
 from beatoraja_graph import export_graph
 from beatoraja_native import AssetSink, lua
 from standard_graph import _Graph, _target_value, node, TARGETS, LOGICAL
@@ -53,9 +53,12 @@ class GraphAuthor:
                                               if name.startswith("gr_line_") else "own20.digit0")
             return value
         def part(module, graph, children, target=None, ini=""):
-            inner = node(graph.prefix + ".available", children=children)
+            # Actual source keeps YOU outside maximum.available, while its
+            # rank lines and the target total require that available maximum.
+            inner = node(graph.prefix + ".available", children=children[1:] if module == "frame" else children)
             graph.bind(inner["id"], "visible", "score.maximum-available")
-            outer = node(graph.prefix + ".data", properties={"z": -30}, children=[inner])
+            outer = node(graph.prefix + ".data", properties={"z": -30},
+                         children=[children[0], inner] if module == "frame" else [inner])
             graph.bind(outer["id"], "visible", "option.graph-visible")
             return Contribution(module, target or module, "synthetic/manifest.json", "synthetic/scene.json", "synthetic/frame.ini",
                 {"resources": resources, "bitmapFonts": fonts},
@@ -148,7 +151,7 @@ class Original20NativeGraphTests(unittest.TestCase):
             next(t for t in tracks(author) if t["property"] == "scale-x")["keyframes"][1]["value"] *= .9
         def wrong_glyph(author):
             root = author.parts["frame"].scene["templates"][0]["root"]
-            root["children"][0]["children"][0]["children"][1]["children"][0]["resource"] = "own20.digit1"
+            next(n for n in walk_nodes(root) if n["id"].endswith(".leading-zero.n2"))["resource"] = "own20.digit1"
         for change in (wrong_clock, wrong_threshold, wrong_fit, wrong_glyph):
             result, _ = self.case(change=change)
             with self.subTest(change=change):

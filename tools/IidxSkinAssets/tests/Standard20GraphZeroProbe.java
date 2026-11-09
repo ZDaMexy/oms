@@ -132,7 +132,7 @@ public final class Standard20GraphZeroProbe {
                             boolean isTarget = destination.id.contains(".target.");
                             int actual = isTarget ? target : current;
                             int threshold = new int[] {1000, 100, 10}[column];
-                            boolean expected = notes > 0 && maximum >= LIMITS[fit]
+                            boolean expected = (!isTarget || notes > 0) && maximum >= LIMITS[fit]
                                 && (fit == 4 || maximum < LIMITS[fit + 1]) && actual < threshold;
                             boolean visible = destination.draw == null || destination.draw.get(null);
                             if (visible != expected)
@@ -182,7 +182,7 @@ public final class Standard20GraphZeroProbe {
                             if (destination.dst[0].a != 255) throw new AssertionError("Zero was dimmed");
                             geometryChecks++;
                         }
-                        int expectedCurrent = notes == 0 ? 0 : Math.max(0, 4 - Integer.toString(current).length());
+                        int expectedCurrent = Math.max(0, 4 - Integer.toString(current).length());
                         int expectedTarget = notes == 0 ? 0 : Math.max(0, 4 - Integer.toString(target).length());
                         if (activeCurrent != expectedCurrent || activeTarget != expectedTarget)
                             throw new AssertionError(name + " wrong displayed zero prefix");

@@ -446,6 +446,7 @@ class Frame:
     def background(self):
         children = []
         preparation = 0
+        steady_clocks = {}
         for movie, dx in ((self.centre, self.dx), (self.side, 0)):
             source_export = self.research / 'recorded' / movie / 'export.json'
             original = read(source_export)
@@ -469,8 +470,15 @@ class Frame:
                 proof['sourceRootSHA256'] = exported['receipt']['sourceRootSHA256']
             self.evidence.append({'steadyProgramReuse': proof})
             fixed_clock = self.prefix + '.m-' + movie.replace('_', '-') + '.steady-time'
-            self.scene.setdefault('numericSources', []).append(
-                {'id': fixed_clock, 'operation': 'add', 'left': proof['fixedClockMs'], 'right': 0})
+            # Original20's two movies sample the same immutable time. Sharing
+            # that literal leaves room for its NEXT target in the64-source
+            # composed-scene budget; distinct source times remain independent.
+            if self.style in SOURCE20_STYLES and proof['fixedClockMs'] in steady_clocks:
+                fixed_clock = steady_clocks[proof['fixedClockMs']]
+            else:
+                self.scene.setdefault('numericSources', []).append(
+                    {'id': fixed_clock, 'operation': 'add', 'left': proof['fixedClockMs'], 'right': 0})
+                steady_clocks[proof['fixedClockMs']] = fixed_clock
             # Both branches use the complete original motion. Only the inactive
             # entry choice changes; its steady branch samples an immutable time.
             for branch in layers:

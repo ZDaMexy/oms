@@ -143,15 +143,17 @@ class Standard20AuthorTests(unittest.TestCase):
             self.assertEqual(two, context['apertures'])
             self.assertEqual(four, context['dpGraphOffApertures'])
 
-    def test_dp_background_consumes_each_of_its_two_real_movies_once(self):
+    def background_frame(self, fixed_times=(1000, 1000), style=STYLE):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             frame = Source20Frame('dp')
+            frame.style = style
             frame.research = root / 'research'
             frame.owner.presentation_assets = root / 'presentation'
             frame.map['stage'] = {'fps': 60}
             frame.owner.copy = lambda *args: None
-            frame.template = lambda name, *args: name
+            roots = []
+            frame.template = lambda name, root, slot: roots.append(root) or name
             inputs = []
             for movie in (frame.centre, frame.side):
                 source = frame.research / 'recorded' / movie / 'export.json'
@@ -171,13 +173,29 @@ class Standard20AuthorTests(unittest.TestCase):
                 inputs.append((original['source']['movie'], split))
                 branch = {'files': [], 'resources': [], 'animations': [], 'bindings': [],
                           'node': {'id': 'fixture.original', 'blend': 'normal'}}
-                return [branch], {'fixedClockMs': 1000}
+                return [branch], {'fixedClockMs': fixed_times[len(inputs) - 1]}
 
             with patch('build_standard_skin.steady_program_reuse', side_effect=reuse):
                 self.assertEqual('background', frame.background())
             self.assertEqual([('center_frame_dp', True), ('dp_frame', False)], inputs)
-            self.assertEqual(2, len(frame.scene['numericSources']))
-            self.assertFalse(any('_1p' in item['id'] or '_2p' in item['id'] for item in frame.scene['numericSources']))
+            return frame, roots[0]
+
+    def test_dp_background_consumes_each_movie_once_and_shares_equal_steady_time(self):
+        frame, root = self.background_frame()
+        self.assertEqual(1, len(frame.scene['numericSources']))
+        self.assertFalse(any('_1p' in item['id'] or '_2p' in item['id'] for item in frame.scene['numericSources']))
+        steady = [item['children'][0]['clock'] for item in root['children'] if item['id'].endswith('.steady.gate')]
+        self.assertEqual(['value.' + frame.scene['numericSources'][0]['id']] * 2, steady)
+
+    def test_unequal_movie_steady_times_keep_independent_sampling(self):
+        frame, root = self.background_frame((1000, 1500))
+        self.assertEqual([1000, 1500], [item['left'] for item in frame.scene['numericSources']])
+        steady = [item['children'][0]['clock'] for item in root['children'] if item['id'].endswith('.steady.gate')]
+        self.assertEqual(['value.' + item['id'] for item in frame.scene['numericSources']], steady)
+
+    def test_clock_sharing_does_not_rewrite_retained_earlier_themes(self):
+        frame, _ = self.background_frame(style='source21-gmframe0')
+        self.assertEqual(2, len(frame.scene['numericSources']))
 
     def test_difficulty_preserves_each_source_png_size_without_later_level_art(self):
         frame = Source20Frame()
