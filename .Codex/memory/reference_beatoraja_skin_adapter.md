@@ -8,6 +8,8 @@ Lua皮肤header与body分别执行；require缓存会保留返回表，被合并
 
 观察本组件包最终Lua时，裸作者ID的整串正则会漏掉带合法工厂namespace的实际对象。分别留存actual id、sourceNodeId与namespace，验证目标角色唯一、同一单层namespace且属于已核shard，不把实际ID改成预想值。Java JSON探针将整数Number写成double时，crop的23.0须在本地像素索引前经有限、排除bool和精确整数校验后转int；保留原selection字节，不能用floor接纳真正分数或改写几何。实际Graph取证仍须独立运行与原图核对，静态角色齐全不代签视觉。
 
+Graph rank线的颜色取证须先排除实际柱图可能遮挡的几何区域。20的首轮实际矩阵中，目标柱覆盖AA/A的部分固定取样点，使正确源色被误判；应从最终Lua和官方装配取得current/best/target三柱的完整可能矩形，仅在rank线剩余可见区域均匀取样，保留最小样本数、原颜色与误差门。不能按画面颜色搜点、挑通过帧或放宽阈值。官方探针对未设置angle/clip输出的MIN sentinel须结合原始字段存在性判定，不能把默认占位当真实旋转/裁切。保留旧失败并用新冻结准备重跑同包矩阵，证据回链[20宿主记录](../../doc_md/other/BEATORAJA_IIDX_SKINS_20261107.md#20-来源-standard-增量)。
+
 官方Skin配置会递归扫描全部`.json`，未知字段被忽略不代表文件不会完整解析。大型审计清单应使用`package-receipt.json.txt`，不能把仅直接加载`.luaskin`成功当成菜单扫描通过；独立发现门见[官方扫描探针](../../tools/IidxSkinAssets/tests/SkinDiscoveryProbe.java)。历史旧名只读保留，正式安装不能继续投放旧JSON侧车。
 
 5KEYS必须使用独立type1和六路NoteSet，不能套用LR2的7转5菜单兼容。作者P2五键位于原七键靠皿侧，按实际5K layout读取，不能取前六列；逻辑scratch的timer身份也不能硬写第八路。缓存同时保留keymode与presentation，避免相同框体/素材误用八路片段；诊断取[六路来源测试](../../tools/IidxSkinAssets/tests/test_beatoraja_five_keys.py)。
@@ -37,6 +39,8 @@ NoteSet外层destination颜色不会传给音符；Judge外层颜色也不会替
 大动画索引的JSON字节数不是进程占用：解析树还受缓存持有链影响。`read_bakes`须在逐项选定身份后释放大树，保留小元数据和文件摘要，使用时只缓存当前项；切换前先释放，重读校验冻结字节。只给读取器限缓存还不够，Cover的对象缓存若强引用index仍会让全部树常驻。保留像素/帧结果缓存即可复用重排；membership、选择优先级、覆盖顺序、源校验与换项重载取[索引测试](../../tools/IidxSkinAssets/tests/test_beatoraja_bakes.py)。只读选择的峰值不代签完整导出或原生宿主。
 
 安装器只需名称/族别时，先对整个大侧车`ConvertFrom-Json`会让PowerShell对象树与后续Python完整验包同时驻留。[独立安装器](../../tools/IidxSkinAssets/Install-BeatorajaOmni.ps1)让短命Python输出这两个字段，检查退出码后只解析小结果；原三次完整核验不省略。Python自身仍有一次完整JSON解析峰值，不能把子进程退出称为流式解析或内存上限。
+
+播放器保全的范围选择与全树枚举成本要分开。大型曲库中，对每个不属于保护范围的歌曲文件反复构造Path，会使只读基线耗时显著增加；可以每目录判一次skin归属，按文件名先筛数据库/配置后再构造路径。优化仍须遍历未知子树、拒绝reparse并保持原hash/stat/mtime、目录身份、进程空闲与前后比较语义，不能为提速跳过可能的新数据库。先用实际文件树证明选中集合与旧实现一致，并核非inventory代码未变；不可沿用过期玩家基线或用恢复旧数据抹去期间变化。实际安装和保全取[宿主记录](../../doc_md/other/BEATORAJA_IIDX_SKINS_20261107.md#20-来源-standard-增量)。
 
 交付消费者释放大审计树、仅保留精简身份时，仍须保留后续真实验证器需要的`contract`。原21交付准备曾漏掉它，实际`bind_cases`因此拒绝合法Standard包；只用替身绑定器的夹具未覆盖这条调用。修订保留字段后，实际候选的15场绑定须与冻结计划一致，缺字段及错误族仍拒绝；包和游玩证据不因消费者修订而重建。具体边界取[适配记录](../../doc_md/other/BEATORAJA_IIDX_SKINS_20261107.md)。
 

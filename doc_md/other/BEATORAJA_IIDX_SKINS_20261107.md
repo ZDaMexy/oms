@@ -1,8 +1,8 @@
 # beatoraja IIDX 双作品适配记录
 
-本页记录2026-11-07开始的独立宿主工作；当前Standard的21来源增量`v26110900`已安装、保全并交付ZIP，Lightning保持11月8日的首版`v26110800`。各自实际范围见下方记录，不提升来源原软件或发行验收。调度取[P1-A维护计划](../subline/P1-A/IIDX_SKIN_MAINTENANCE.md)，状态取[STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)。
+本页记录2026-11-07开始的独立宿主工作；当前Standard的20来源增量`v26111500`已安装、保全并交付ZIP，Lightning保持11月8日的首版`v26110800`。各自实际范围见下方记录，不提升来源原软件或发行验收。调度取[P1-A维护计划](../subline/P1-A/IIDX_SKIN_MAINTENANCE.md)，状态取[STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)。
 
-21原版增量的来源、组成与OMS成品取[Standard独立记录](STANDARD_MODEL_SKIN_20261105.md#2026-11-08-21-原版来源接入)，本宿主的当前成品及独立验收取[21来源交付](#21-来源-standard-增量交付)。原版SPADA、22 CUSTOM及26 ARC SCORE同名主题保留各自身份，不合并素材。
+20原版增量的来源、组成与OMS成品取[Standard独立记录](STANDARD_MODEL_SKIN_20261105.md#2026-11-09-20-原版来源接入)，本宿主的当前成品及独立验收取[20来源交付](#20-来源-standard-增量)。原版20 tricoro、22 CUSTOM TRICORO，以及原版SPADA、22 CUSTOM与26 ARC SCORE同名主题保留各自身份，不合并素材。
 
 ## 授权、名称与来源
 
@@ -47,15 +47,29 @@
 
 ## 20 来源 Standard 增量
 
-20原版tricoro使用独立`source20-gmframe0`，目标共19主题，与22 CUSTOM TRICORO分别保留；26 ARC SCORE仍是原八款，没有ARC tricoro或`iidx20`条目。素材、原程序测查、CN同包复用与OMS已交付结果取[20来源记录](STANDARD_MODEL_SKIN_20261105.md#2026-11-09-20-原版来源接入)。当前本宿主正式成品仍取下述21版本，20增量尚未安装或交付。
+2026-11-15已安装并交付`Standard Model Skin Omni Until 26.v26111500`。20原版tricoro使用独立`source20-gmframe0`，共19主题，与22 CUSTOM TRICORO分别保留；26 ARC SCORE仍是原八款，没有ARC tricoro或`iidx20`条目。素材、原程序测查、CN同包复用与OMS已交付结果取[20来源记录](STANDARD_MODEL_SKIN_20261105.md#2026-11-09-20-原版来源接入)。23/25仍为后代保留美术，不是20～26连续原版覆盖；Lightning未改。
 
 R7的1753项完整源动画已闭合，旧1598身份资格复用与新155身份/34程序完整GPU输出均保留实际验证链。当前Game二进制与旧producer不同，以渲染相关源码核对及51个新GPU见证证明复用资格，未把旧新摘要强行改成相等。新分类下重新计算的完整源需求与已闭合R7计划逐字节一致，无需重复烘焙。
 
-首轮原生包已展开95布局，但其BPM整数精度与进度intro两项具名适配被误当阻断项，导致部分HUD/decorations没有写入实际selection；该包保留为失败，未给handoff或用于安装。仅修正这两个已资格、明确标为informational的分类，未知项仍阻断，原适配说明保留。11月10日的native-r2、11月15日的native-r3均按用户暂停而保留partial，不能作正式包。用户随后明确恢复，fresh native-r4已完成19主题、95布局的官方CPU加载检查，三个实际入口、8574片段及268次原生装配通过；同包实跑、安装和ZIP仍待完成。恢复历史取[冻结与续接记录](STANDARD_MODEL_SKIN_20261105.md#2026-11-15-再次暂停与续接)。
+首轮原生包已展开95布局，但其BPM整数精度与进度intro两项具名适配被误当阻断项，导致部分HUD/decorations没有写入实际selection；该包保留为失败，未给handoff或用于安装。仅修正这两个已资格、明确标为informational的分类，未知项仍阻断，原适配说明保留。11月10日的native-r2、11月15日的native-r3均按用户暂停而保留partial，不能作正式包。用户随后明确恢复，fresh native-r4完成19主题、95布局的官方CPU加载检查，三个实际入口、8574片段及268次原生装配通过，并用于下述同包实跑和交付。恢复历史取[冻结与续接记录](STANDARD_MODEL_SKIN_20261105.md#2026-11-15-再次暂停与续接)。
 
 旧18保全保留了真实字节差异：108630条coverage及8270个工厂严格相同，另360条coverage只涉及九对CN工厂的内容寻址名称变化。实际官方Lua和原生转换器解码、独立复核确认，这九对仅`image`声明数组顺序不同；完整图片对象、Note与source有序引用及所有其它数组相同，ID非空唯一、引用闭合且全局命名空间无碰撞。4251个实际资产文件字节相同。原严格字节门失败记录保留，新证明明确`byteExact=false`，不把有序绘制或任意Lua差异纳入例外。证据取本机20任务`beatoraja-work-r1/native-conservation-r2/`与本仓忽略目录的`bake-execution-r1/independent-native-conservation-review-r1.json`；该资格不代签实际游玩或视觉。
 
+最终原生包为20专用父目录的`beatoraja-packages-r4/standard`，12836文件、2,657,902,881字节，保留5KEYS/7KEYS两侧及14KEYS DP三个Lua入口，没有10KEYS入口。Graph Area全部176款仍供原18主题选择；原版20使用本代固定panel。20蓝色小转盘独立接入，也通过显式与26框体混选的实际运动检查，未借22 CUSTOM或Lightning素材替换。
+
+同一最终包完成16场官方0.8.9原生Replay，覆盖20的P1/P2、宽SP、DP、两侧5KEYS、HCN断持恢复、自然FAILED、Start/Timing和稳态框体，另验26 ARC SCORE SPADA、22 CUSTOM TRICORO、Rootage DP、copula P2及转盘混选。1199张实际PNG完整性通过，直接审看56张不同原图，未确认尚待修复的视觉缺陷；没有把完整性当作逐帧目视。DP Graph ON左两窗、OFF左右四窗通过实际装配及各8帧内容像素检查，两组各两张指定原PNG也直接审看。Graph四位亮零、三档rank的未达蓝紫/达标黄色及目标读数均按实际EX检查；它们不是原程序全部目标算法的等价证明。
+
+首轮实际矩阵曾因rank取样点被实际目标柱遮挡而拒绝，失败保留。只修订私有取证准备：按最终Lua/官方装配的三柱最大几何排除遮挡区，保留原颜色误差及通过率门，不按像素颜色搜点；随后从新目录完整重跑16场，原生包字节未改。实绘还保留明确宿主差异：JUDGE统计面板可遮住下左BGA一角，Start字体为12×20整数格适配；公开MIN/MAX BPM取整数、进度入场和节拍阶梯及完整Start面板差异沿包内说明。CN美术用于beatoraja真实HCN状态，不声称原20具有HCN；实体输入、长期性能、真实玩家存分/IR、整曲视频与原机全等价未由本矩阵签收。
+
+安装前重新建立当时玩家基线，实际只添加`D:/beatoraja/skin/Standard Model Skin Omni Until 26.v26111500`，当前选择保持。源包、暂存与安装三份完整清单一致；安装后38项受保护文件、10个DB、10个官方文件、70675份旧skin文件及1683个旧目录均保持字节和路径，唯一新增为本版12836文件。未读取SQL行、回滚期间用户数据或启动正式玩家环境作验证。只读清单枚举优化先核与原实现的选中集合一致，hash/stat/mtime和进程等其它保护语义不变。
+
+实际矩阵为`D:/OMS-Development/sources/OMS-Standard-Model-20-20261109/beatoraja-capture-20261115-r1/runs/matrix-r2/completed.json`；冻结准备为本仓`artifacts/beatoraja-capture/standard20-r1/preparation-r7/`，交付绑定、56原图审查、安装与实际ZIP转移证据在同任务`delivery-r1/`；玩家后保全为`artifacts/standard-model-20-20261109/player-preservation-r1/after-install-20261115-r1.json`。原生handoff取20专用父目录的`beatoraja-work-r1/native-build-r4/`，旧失败与暂停记录不冒充完成证据。
+
+成品目录`deliverables/skins/beatoraja/Standard Model Skin Omni Until 26.v26111500/`含一个ZIP及外层README、VALIDATION、SHA256。ZIP为2,268,628,022字节，全部12836成员与冻结原包逐项核长度、CRC及SHA；D盘暂存及F盘实际落盘整文件摘要一致后原子改名，保留字体许可、`.json.txt`侧车和安装字节。F盘不另存展开副本。三份安装临时清单已核摘要保全到D盘；删除原临时副本的命令被自动审批以`blocked by policy`拒绝，未执行或换方式重试，约8.66MiB原临时文件保留，回执为`delivery-r1/install-inventory-retention-r1.json`。私有素材、完整源码绑定、原图和玩家清单不入Git。
+
 ## 21 来源 Standard 增量交付
+
+本节保留11月9日的21来源历史版本；当前Standard取[20来源交付](#20-来源-standard-增量)。
 
 2026-11-09 Standard已交付并安装`v26110900`，新增独立`21 SPADA (Original) / source21-gmframe0`，共18主题；`SPADA (22 CUSTOM)`和26 ARC SCORE的`21 SPADA`保持独立。来源不是连续21～26原版覆盖，23/25仍仅有后代保留美术。完整来源资格和未采用范围见[21来源记录](STANDARD_MODEL_SKIN_20261105.md#2026-11-08-21-原版来源接入)，Lightning未重建或刷新验收。
 
@@ -73,7 +87,7 @@ R7的1753项完整源动画已闭合，旧1598身份资格复用与新155身份/
 
 ## 22 来源 Standard 增量交付
 
-本节保留11月8日的22来源历史版本；当前Standard取[21来源交付](#21-来源-standard-增量交付)。
+本节保留11月8日的22来源历史版本；当前Standard取[20来源交付](#20-来源-standard-增量)。
 
 2026-11-08 Standard已交付并安装`v26110800`。源作者为D盘22来源专用父目录的`author-r5`，生成与适配源码冻结于`9fd03c8e`；新原生包为`beatoraja-packages-r4/standard`。新增PENDUAL PRESENT/FUTURE和三款22 CUSTOM，与旧十二款合计17主题；完整来源与非连续代数边界取[Standard记录](STANDARD_MODEL_SKIN_20261105.md#2026-11-08-22-来源接入)。Lightning及旧Standard保持原包、原验收日期，未借新增主题刷新结论。
 
@@ -89,7 +103,7 @@ R7的1753项完整源动画已闭合，旧1598身份资格复用与新155身份/
 
 ## 本轮同包验收
 
-以下保留两族首版及其合并验收历史；Standard当前增量取[新交付](#21-来源-standard-增量交付)，Lightning仍沿本节首版结果。
+以下保留两族首版及其合并验收历史；Standard当前增量取[20来源交付](#20-来源-standard-增量)，Lightning仍沿本节首版结果。
 
 两族独立交付：Standard为`v26110700`，Lightning为`v26110800`。Standard来源解析与导出工具冻结于`36c90ab`，Lightning冻结于`ded2df3c`，各自精确源码快照保存在构建证据中；后续安装器优化和文档整理不更换包身份。构建源分别位于D盘约定父目录的`packages-r1/standard`与`packages-r2/lightning`，不是早期组件切片。
 

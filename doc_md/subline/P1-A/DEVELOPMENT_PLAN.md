@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-11-15（Standard20恢复制作与剩余交付门）
+> 最后核对：2026-11-15（Standard20交付后按真实反馈或新来源维护）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -15,7 +15,7 @@
 
 ### Standard Model Skin Omni Until 26
 
-OMS20已交付，beatoraja20已恢复。从[冻结检查点](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-15-再次暂停与续接)进入fresh native-r4，完成95布局CPU、旧18保全与handoff，再作同包实跑、原图审查、当时玩家保全及交付。先解决取景与ZIP空间，不绑定partial，不沿草稿日期。20原版与22 CUSTOM分开；更早代须有真实来源，优先CLI/API。
+按实际游玩反馈定位配置、谱面与宿主，再修复及补必要同包回归；已有结果取[20来源闭环](../../other/STANDARD_MODEL_SKIN_20261105.md#20-来源双宿主闭环)。更早代须先取得可靠来源并独立分类；20原版、22 CUSTOM与26 ARC SCORE保持身份。设备、长期体验及完整Start等差异沿[维护门](IIDX_SKIN_MAINTENANCE.md#beatoraja首版后的维护与扩展门)，优先CLI/API。
 
 ### Lightning Model Skin Omni Until 33（停止自动推进）
 
