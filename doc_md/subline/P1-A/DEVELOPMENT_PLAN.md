@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-11-09（Standard20主包部署与独立来源接入）
+> 最后核对：2026-11-15（Standard20再次按用户暂停与续接顺序）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -15,7 +15,7 @@
 
 ### Standard Model Skin Omni Until 26
 
-OMS20已交付，beatoraja20按用户要求暂停。用户明确继续后，从[冻结检查点](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-10-暂停与续接)进入fresh native-r3、完整95布局CPU、同包实跑、原图审查、当时玩家保全与交付。20原版与22 CUSTOM分开，更早代须有真实来源；保持作品隔离，优先CLI/API。
+OMS20已交付，beatoraja20按用户要求暂停。明确恢复后从[冻结检查点](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-15-再次暂停与续接)进入fresh native-r4，完成95布局CPU、旧18保全与handoff，再作同包实跑、原图审查、当时玩家保全及交付。先解决取景与ZIP空间，不绑定partial，不沿草稿日期。20原版与22 CUSTOM分开；更早代须有真实来源，优先CLI/API。
 
 ### Lightning Model Skin Omni Until 33（停止自动推进）
 

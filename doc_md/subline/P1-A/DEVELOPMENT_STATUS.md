@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 核对：2026-11-10（Standard20 OMS交付；beatoraja增量按用户暂停）
+> 核对：2026-11-15（Standard20续接核对后再次按用户暂停；产品验收日期不变）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -18,7 +18,7 @@
 | Lightning Model Skin Omni Until 33 | OMS | 自动推进停止，完整形态未完成；最新[.v26102902](CHANGELOG.md#2026-10-29omniv52私下交付)，历史Lighting文件名保留；缺口取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md) |
 | Standard Model Skin Omni Until 26 | OMS | v26111000已交付，19主题；同包33场与原图审查完成，见[20来源交付](../../other/STANDARD_MODEL_SKIN_20261105.md#20-来源-oms-交付) |
 | Lightning Until33 | beatoraja | v26110800已安装、保全并交付ZIP |
-| Standard Until26 | beatoraja | v26110900已安装并交付，18主题；20增量[按用户暂停](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-10-暂停与续接)，尚未安装或交付 |
+| Standard Until26 | beatoraja | v26110900已安装并交付，18主题；20增量[再次按用户暂停](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-15-再次暂停与续接)，尚未安装或交付 |
 
 安装与缺口取[适配记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md)。OMS选曲/Results沿[原界面决定](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
 
@@ -46,7 +46,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-11-10：Standard20的OMS v26111000已交付，33场同包、326PNG完整性及47原图抽样审查完成，完整资格取[OMS记录](../../other/STANDARD_MODEL_SKIN_20261105.md#20-来源-oms-交付)。beatoraja20按用户暂停，恢复后仍须fresh整包、同包运行与保全，见[暂停记录](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-10-暂停与续接)；已安装的21版本与11月9日证据保持原日期。当前669项制作工具CPU回归通过，实际beatoraja20仍待新包门；原软件、实体设备与发行门不变。
+2026-11-10：Standard20的OMS v26111000已交付，33场同包、326PNG完整性及47原图抽样审查完成，完整资格取[OMS记录](../../other/STANDARD_MODEL_SKIN_20261105.md#20-来源-oms-交付)。669项制作工具CPU回归通过；11月15日续接只核冻结文件和校验未变，未重复产品验收。beatoraja20再次按用户暂停，恢复后仍须fresh整包、同包运行与保全，见[当前暂停记录](../../other/STANDARD_MODEL_SKIN_20261105.md#2026-11-15-再次暂停与续接)；已安装的21版本与11月9日证据保持原日期。原软件、实体设备与发行门不变。
 
 Lightning的10月29日候选、产品回归和Release保持[原记录](CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)；[.v26102902交付](CHANGELOG.md#2026-10-29omniv52私下交付)与候选同字节，Standard不刷新其验证日期。
 
