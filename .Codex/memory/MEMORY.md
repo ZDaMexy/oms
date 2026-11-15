@@ -15,7 +15,7 @@
 
 ## 皮肤恢复与存储
 
-- [beatoraja原生适配](reference_beatoraja_skin_adapter.md) — Lua缓存与菜单JSON扫描、5KEYS/P2靠皿布局、零clip/负时钟/P2镜像、字体整数余差、原生offset、DP开场分组、Judge owner与Replay读数、动画挡板grid选格、文件映射释放、索引持有链、安装身份读取与精简交付契约字段、具名适配分类及实际selection缺段。
+- [beatoraja原生适配](reference_beatoraja_skin_adapter.md) — Lua缓存与菜单JSON扫描、CN声明顺序与有序引用保全、5KEYS/P2靠皿布局、零clip/负时钟/P2镜像、字体整数余差、原生offset、DP开场分组、Judge owner与Replay读数、动画挡板grid选格、文件映射释放、索引持有链、安装身份读取与精简交付契约字段、具名适配分类及实际selection缺段。
 
 - [机台底板与跨拓扑 scene](reference_skin_cabinet_surfaces.md) — Global/Stage继承、目录结构与归档配置的独立预算、冻结ID与跨拓扑几何；原字形/字体、横排行宽和透明padding；原生Preview生命周期、挡板/LIFT、失败前景、Gauge与真实PB；Spice时钟、Time Freeze历史范围、教学页资格、实际子进程退出、Hi-Speed/Classic与Demo取景；0/1来源查漏、原名称字节、ARC SCORE复刻/残留美术/组成别名的资格、来源路由、独立DP四窗、数字填零/满分fit与颜色setter、派生clock默认恢复及分场景停表，旧源缺专用预览与原生能力的区别；named底板遗漏与动态实例资格、BGA透明孔/镜像及四框双视频漏检、长条计分诊断预算、静帧program/固定clock复用与组合三路径去重、共像素异动画/双owner路径与state.set压缩引用。
 
@@ -37,7 +37,7 @@
 
 ## 构建、存储与产品面参考
 
-- [构建与测试](reference_build_and_test.md) — 开发磁盘、硬链接/实际分配量与原位无损压缩、缓存空目录重建、占用句柄下的同卷目录归并、清理后历史运行时还原与当前源码重编、宿主deps/satellite所有权与空ENV、TRX跳过计数、音轨跳时/桌面GC、普通/回放Player取景及converted/stored身份、OSR录制收尾/零计数省略、步骤注册捕获与完整计分键、同一步准时输入、初始关闭内门与静态纹理、ruleset共享源码、formatter与输出锁、作者组合异常修正、品牌贴图、退休fixture与混合谱包/Realm快照、内存峰值、许可/审计误判、公钥导入及MSBuild元数据。
+- [构建与测试](reference_build_and_test.md) — 开发磁盘、硬链接/实际分配量、原位无损压缩与ZIP落盘摘要、缓存空目录重建、占用句柄下的同卷目录归并、清理后历史运行时还原与当前源码重编、宿主deps/satellite所有权与空ENV、TRX跳过计数、音轨跳时/桌面GC、普通/回放Player取景及converted/stored身份、OSR录制收尾/零计数省略、步骤注册捕获与完整计分键、同一步准时输入、初始关闭内门与静态纹理、ruleset共享源码、formatter与输出锁、作者组合异常修正、品牌贴图、退休fixture与混合谱包/Realm快照、内存峰值、许可/审计误判、公钥导入及MSBuild元数据。
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱库路径身份与历史保全](reference_filesystem_library_identity.md) — 同内容不同目录、失效与物删分离、多文件改名、重复素材枚举与增量查询放大器。
 - [谱面构成过滤](reference_bms_composition_filter.md) — 单轨上限、共享额度、零宽入口及无解条件。

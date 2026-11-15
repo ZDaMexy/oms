@@ -4,6 +4,10 @@
 
 Lua皮肤header与body分别执行；require缓存会保留返回表，被合并过的片段必须由factory每次返回新表。字符串对象ID需要整体命名空间，数值timer/ref/offset不能顺带改名。相同custom timer ID只能复用相同定义，否则后者会覆盖前者；参考[组件包](../../tools/IidxSkinAssets/beatoraja_package.py)。
 
+内容寻址的工厂改名不直接证明画面变化。仅对实际Lua及官方converter解出的静态CN片段，在image ID非空唯一、完整对象相同、Note/source有序引用闭合且全局namespace无碰撞时，可按唯一ID映射比较image声明；不能重排destination、Note列、source或其它数组。原始树另核字段存在性及native keys枚举原序，避免导出器替数组排序后伪造等价。保留严格字节门失败，报告明确byteExact=false及窄范围，不能扩大成所有Lua的顺序例外。实际受限证明见[20来源增量](../../doc_md/other/BEATORAJA_IIDX_SKINS_20261107.md#20-来源-standard-增量)。
+
+观察本组件包最终Lua时，裸作者ID的整串正则会漏掉带合法工厂namespace的实际对象。分别留存actual id、sourceNodeId与namespace，验证目标角色唯一、同一单层namespace且属于已核shard，不把实际ID改成预想值。Java JSON探针将整数Number写成double时，crop的23.0须在本地像素索引前经有限、排除bool和精确整数校验后转int；保留原selection字节，不能用floor接纳真正分数或改写几何。实际Graph取证仍须独立运行与原图核对，静态角色齐全不代签视觉。
+
 官方Skin配置会递归扫描全部`.json`，未知字段被忽略不代表文件不会完整解析。大型审计清单应使用`package-receipt.json.txt`，不能把仅直接加载`.luaskin`成功当成菜单扫描通过；独立发现门见[官方扫描探针](../../tools/IidxSkinAssets/tests/SkinDiscoveryProbe.java)。历史旧名只读保留，正式安装不能继续投放旧JSON侧车。
 
 5KEYS必须使用独立type1和六路NoteSet，不能套用LR2的7转5菜单兼容。作者P2五键位于原七键靠皿侧，按实际5K layout读取，不能取前六列；逻辑scratch的timer身份也不能硬写第八路。缓存同时保留keymode与presentation，避免相同框体/素材误用八路片段；诊断取[六路来源测试](../../tools/IidxSkinAssets/tests/test_beatoraja_five_keys.py)。

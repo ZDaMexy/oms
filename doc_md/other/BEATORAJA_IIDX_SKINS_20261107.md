@@ -51,7 +51,9 @@
 
 R7的1753项完整源动画已闭合，旧1598身份资格复用与新155身份/34程序完整GPU输出均保留实际验证链。当前Game二进制与旧producer不同，以渲染相关源码核对及51个新GPU见证证明复用资格，未把旧新摘要强行改成相等。新分类下重新计算的完整源需求与已闭合R7计划逐字节一致，无需重复烘焙。
 
-首轮原生包已展开95布局，但其BPM整数精度与进度intro两项具名适配被误当阻断项，导致部分HUD/decorations没有写入实际selection；该包保留为失败，未给handoff或用于安装。仅修正这两个已资格、明确标为informational的分类，未知项仍阻断，原适配说明保留。11月10日按用户要求暂停native-r2，仅86条导出记录；11月15日fresh native-r3完成P1的19条主题导出即再次按用户要求暂停。用户随后明确恢复，当前fresh native-r4正在完整重建；官方95布局CPU、同包实跑、安装和ZIP仍未完成，partial不作正式包。恢复入口取[冻结与续接记录](STANDARD_MODEL_SKIN_20261105.md#2026-11-15-再次暂停与续接)。来源闭包与已交付OMS保持原资格，不能代签尚未完成的原生包。
+首轮原生包已展开95布局，但其BPM整数精度与进度intro两项具名适配被误当阻断项，导致部分HUD/decorations没有写入实际selection；该包保留为失败，未给handoff或用于安装。仅修正这两个已资格、明确标为informational的分类，未知项仍阻断，原适配说明保留。11月10日的native-r2、11月15日的native-r3均按用户暂停而保留partial，不能作正式包。用户随后明确恢复，fresh native-r4已完成19主题、95布局的官方CPU加载检查，三个实际入口、8574片段及268次原生装配通过；同包实跑、安装和ZIP仍待完成。恢复历史取[冻结与续接记录](STANDARD_MODEL_SKIN_20261105.md#2026-11-15-再次暂停与续接)。
+
+旧18保全保留了真实字节差异：108630条coverage及8270个工厂严格相同，另360条coverage只涉及九对CN工厂的内容寻址名称变化。实际官方Lua和原生转换器解码、独立复核确认，这九对仅`image`声明数组顺序不同；完整图片对象、Note与source有序引用及所有其它数组相同，ID非空唯一、引用闭合且全局命名空间无碰撞。4251个实际资产文件字节相同。原严格字节门失败记录保留，新证明明确`byteExact=false`，不把有序绘制或任意Lua差异纳入例外。证据取本机20任务`beatoraja-work-r1/native-conservation-r2/`与本仓忽略目录的`bake-execution-r1/independent-native-conservation-review-r1.json`；该资格不代签实际游玩或视觉。
 
 ## 21 来源 Standard 增量交付
 

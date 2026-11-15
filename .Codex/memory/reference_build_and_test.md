@@ -69,6 +69,7 @@ metadata:
 - 仓库在非系统盘不代表开发零占用系统盘：旧工作副本有独立 bin/obj，默认 NuGet/TEMP 与 Codex 聊天也分开存放。每个新 shell 按 [开发磁盘约束](../../AGENTS.md#开发磁盘约束)加载 `UseDevelopmentStorage.ps1`；进程环境不跨工具调用保留，旧 assets 的绝对 packageFolders 也不会随环境变量自动重写，切换后先 restore。运行数据和验收资料不能因位于 bin/artifacts/AppData 就认定为垃圾；清理被策略拦截时不能记为已释放。
 - 清理构建输出前须查看真实内容：Desktop的`bin/.../data`可能含正在使用的Realm、谱库和配置，应保护整个运行目录；Game的`obj/canonical`还可能残留退役皮肤包，先按内容摘要确认独立保留副本，不能仅凭`bin/obj`名或忽略规则删除。清除`obj`后需正常restore / build；容量复核区分文件逻辑大小与磁盘可用空间差值。实例和边界取[清理日志](../../doc_md/mainline/CHANGELOG.md#确认后清理构建输出)。
 - 动画复用树的逻辑大小可能重复计算同一硬链接，先按device/file ID与link count核物理身份；删除一个名字不能释放仍被引用的载荷。未压缩文件的实际簇分配用`GetFileInformationByHandleEx(FileStandardInfo).AllocationSize`，不要将`GetCompressedFileSizeW`返回的逻辑量当分配量。已确认独有的冷JSON可按固定清单原位NTFS压缩，须逐文件核内容SHA、长度、身份、mtime及除Compressed外的属性，producer身份不重写；原件和目录不删除。压缩收益取前后分配量，ZIP发布另按实际ZIP字节与余量核算。实例见[P1-A恢复记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-11-15tricoro恢复与生成记录原位压缩)。
+- 复制循环同时算SHA只证明源读流，不证明目标落盘字节；ZIP成员及CRC全过仍可能有额外尾部或可变头字段差异。转移后须实读目标整文件长度/SHA并核全部成员，再原子改名；回执记录实际目标摘要。低空间时可先在已核任务目录生成和完整验证ZIP，再按实际归档大小及余量发布到成品盘，保留失败partial和完整stage，不能仅凭ZIP存在签成功。原缺口及反例见同一恢复记录。
 - JavaScript 字符串调用 PowerShell regex 有两层转义；普通 template literal 可能吞掉 `\[`，`String.raw` 仍会插值 `${...}`。优先运行已审查脚本，不能把带错误的 `BROKEN 0` 当作结果。
 - `rg --files` 默认不包含 hidden memory；枚举要包括 `.Codex` 并排除 `.git`。根目录 Markdown 的 parent 也须正确解析。链接以文件所在目录为准，不从仓库根再猜一次。
 - `dotnet --info` 曾在 workload `InstallerBase` 初始化失败，但同环境实际 Release build/test 可运行。诊断命令失败不等于产品构建失败，不据此修改 SDK、安装 workload 或加 runtime fallback。
