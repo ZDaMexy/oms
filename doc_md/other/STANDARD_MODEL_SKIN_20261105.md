@@ -1,6 +1,6 @@
 # Standard Model Skin Omni Until 26：独立作品记录
 
-OMS已私下交付 **Standard Model Skin Omni Until 26.v26111000**，共19套主题；beatoraja当前已安装与交付的仍为21来源`v26110900`、18主题，20增量于11月15日再次按用户要求暂停，见[当前续接点](#2026-11-15-再次暂停与续接)。19主题为20原版tricoro、21原版SPADA、22 PENDUAL PRESENT/FUTURE、22 CUSTOM LINCLE/TRICORO/SPADA、23保留、24、25保留、26，以及八款26 ARC SCORE复刻。这是来源分类，不是20～26或更早的连续原版覆盖。OMS证据见[20来源交付](#20-来源-oms-交付)，beatoraja取[宿主记录](BEATORAJA_IIDX_SKINS_20261107.md)。未识别来源等缺口保留，不宣称整盘素材穷尽；当前状态由[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)引用，复跑工具入口为[IidxSkinAssets](../../tools/IidxSkinAssets/README.md)。
+OMS已私下交付 **Standard Model Skin Omni Until 26.v26111000**，共19套主题；beatoraja当前已安装与交付的仍为21来源`v26110900`、18主题，20增量已于11月15日按用户指令恢复，正在完成原生整包与实际验收。19主题为20原版tricoro、21原版SPADA、22 PENDUAL PRESENT/FUTURE、22 CUSTOM LINCLE/TRICORO/SPADA、23保留、24、25保留、26，以及八款26 ARC SCORE复刻。这是来源分类，不是20～26或更早的连续原版覆盖。OMS证据见[20来源交付](#20-来源-oms-交付)，beatoraja取[宿主记录](BEATORAJA_IIDX_SKINS_20261107.md)。未识别来源等缺口保留，不宣称整盘素材穷尽；当前状态由[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)引用，复跑工具入口为[IidxSkinAssets](../../tools/IidxSkinAssets/README.md)。
 
 六个22框体来源完整保留，其中五个可生成，裸`gmframe0`仅归档研究。原版20、22 CUSTOM TRICORO分别使用自身来源；原版21、22 CUSTOM SPADA和26 ARC SCORE SPADA也各自独立。两个宿主分别验收，旧成品与Lightning保持原身份。
 
@@ -32,9 +32,9 @@ OMS已私下交付 **Standard Model Skin Omni Until 26.v26111000**，共19套主
 
 用户恢复后，已核11月10日的冻结证据、238份工具源码与OMS交付校验一致，原669项工具回归及OMS实跑保留原日期和范围，没有重复烘焙或提升验收。fresh native-r3只完成P1的19条主题导出记录，随后按用户要求尽快暂停；已核命令行并仅停止自有构建进程，未启动官方Java/95布局CPU、同包游玩、安装或ZIP。r1失败、r2和r3 partial均保留，不能绑定或安装。播放器、既有皮肤及选择未写入，Lightning未改。
 
-当前唯一续接检查点为本机`artifacts/standard-model-20-20261109/pause-r2/checkpoint.json`；原生细项取同任务`bake-execution-r1/PAUSED-20261115.json`与`.txt`，实际矩阵准备取`artifacts/beatoraja-capture/standard20-r1/resume-20261115-r1/PAUSED-20261115.json`。私有交付工具已改指r3并通过31项合成门，但r3未验收，该绑定仍不可执行。下次明确恢复后，先核冻结文件并以fresh native-r4完成全部95布局、官方CPU、旧18保全及真实handoff，再绑定16场矩阵、完成原图和BGA/Graph像素审查，最后建立当时玩家基线、添加新版本并交付ZIP；不得沿用未执行草稿的版本日期。
+本次暂停的冻结检查点为本机`artifacts/standard-model-20-20261109/pause-r2/checkpoint.json`；原生细项取同任务`bake-execution-r1/PAUSED-20261115.json`与`.txt`，实际矩阵准备取`artifacts/beatoraja-capture/standard20-r1/resume-20261115-r1/PAUSED-20261115.json`。私有交付工具当时已改指r3并通过31项合成门，但r3未验收，该绑定不可执行。用户随后明确恢复，已核检查点与冻结源码未变，fresh native-r4从新目录继续；恢复实核保存在同任务`resume-20261115-r2/resume.json`。后续仍须全部95布局、官方CPU、旧18保全及真实handoff，再绑定16场矩阵、完成原图和BGA/Graph像素审查，最后建立当时玩家基线、添加新版本并交付ZIP；不得沿用未执行草稿的版本日期。
 
-本次只读空间核查没有执行清理：F盘约余3.39GiB，两套动画复用目录的PNG已为硬链接，逻辑大小不能视为可释放量。16场取景预计需约1GiB，宜在既有D盘20任务父目录使用新输出；私有取景入口目前仍限F，该路径调整尚未实施或验证。容量证据保存在本任务`space-review-20261115-r1.json`及上述矩阵续接目录。已通过的OMS、R7、1753项源动画及51/155项资格只在输入变化、失败或新风险时补验，不因暂停重做。
+暂停当时的只读空间核查没有执行清理：F盘约余3.39GiB，两套动画复用目录的PNG已为硬链接，逻辑大小不能视为可释放量；旧取景入口当时仍限F。恢复后已另行完成私有D盘输出准备及生成JSON的原位无损压缩，实际结果取[恢复与压缩记录](../subline/P1-A/CHANGELOG.md#2026-11-15tricoro恢复与生成记录原位压缩)。已通过的OMS、R7、1753项源动画及51/155项资格只在输入变化、失败或新风险时补验，不因暂停重做。
 
 ### 2026-11-10 暂停与续接
 
