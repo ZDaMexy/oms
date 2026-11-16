@@ -67,6 +67,8 @@ R7的1753项完整源动画已闭合，旧1598身份资格复用与新155身份/
 
 成品目录`deliverables/skins/beatoraja/Standard Model Skin Omni Until 26.v26111500/`含一个ZIP及外层README、VALIDATION、SHA256。ZIP为2,268,628,022字节，全部12836成员与冻结原包逐项核长度、CRC及SHA；D盘暂存及F盘实际落盘整文件摘要一致后原子改名，保留字体许可、`.json.txt`侧车和安装字节。F盘不另存展开副本。三份安装临时清单已核摘要保全到D盘；删除原临时副本的命令被自动审批以`blocked by policy`拒绝，未执行或换方式重试，约8.66MiB原临时文件保留，回执为`delivery-r1/install-inventory-retention-r1.json`。私有素材、完整源码绑定、原图和玩家清单不入Git。
 
+11月16日交付后清理已将20游戏本体和下载源退役，保留提取库、字体、程序备份和原版参照，见[来源现状](STANDARD_MODEL_SKIN_20261105.md#本地来源现状)。旧失败/暂停候选的重复assets、22旧隔离运行时的部分公共文件及D盘暂存ZIP已按逐文件映射去重；正式r4、F盘ZIP、旧独有文件、报告和实际玩家安装保持。历史候选/隔离运行时/暂存复跑前须按映射恢复原路径的同字节文件；清理不是重新执行本节产品验收，准确范围取[清理记录](../mainline/CHANGELOG.md#2026-11-16工作区清理与tricoro来源退役)。
+
 ## 21 来源 Standard 增量交付
 
 本节保留11月9日的21来源历史版本；当前Standard取[20来源交付](#20-来源-standard-增量)。

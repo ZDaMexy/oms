@@ -6,7 +6,7 @@ OMS已私下交付 **Standard Model Skin Omni Until 26.v26111000**；beatoraja�
 
 ## 2026-11-09 20 原版来源接入
 
-用户提供20 tricoro并授权装到D盘、继续利用本代来源。主包已单次解包到`D:/OMS-Development/sources/TRICORO-20261109/Beatmania iidx 20 tricoro`，2772文件、约34.02GiB全部通过归档CRC复核；没有建立完整HDD副本。独立提取、研究、作者与候选使用`D:/OMS-Development/sources/OMS-Standard-Model-20-20261109/`。Omnimix歌曲与修改DLL、解锁DLL和ffdshow均未叠加或安装；附加包只定向保全另一份提供者标为`orig`的程序及启动批处理，程序身份另行记录。
+用户提供20 tricoro并授权装到D盘、继续利用本代来源。主包曾单次解包到`D:/OMS-Development/sources/TRICORO-20261109/Beatmania iidx 20 tricoro`，2772文件、约34.02GiB全部通过归档CRC复核；没有建立完整HDD副本。本体后来已按[来源现状](#本地来源现状)退役。独立提取、研究、作者与候选使用`D:/OMS-Development/sources/OMS-Standard-Model-20-20261109/`。Omnimix歌曲与修改DLL、解锁DLL和ffdshow均未叠加或安装；附加包只定向保全另一份提供者标为`orig`的程序及启动批处理，程序身份另行记录。
 
 1612个IFS均完成元数据读取，选定110包、2149个UV sprite进入20专属素材库。六个本代核心包独立保全；104个CUSTOM中101个原包与既有来源相同，beam00的33个实际源帧像素相同，notes00仅为已有默认素材子集，turn00则保留本代25×25蓝色内盘。`notes_cn00.ifs`与`lnote00.ifs`又分别与保留的22原包完全相同，包含CN纹理与六支AFP/BSI电影及GEO，因此沿`c22`身份复用。研究接入独立`source20-gmframe0`，与`source22-gmframe9`的22 CUSTOM TRICORO分开；19主题作者已生成并保全旧18，各宿主资格分别登记。
 
@@ -14,11 +14,11 @@ OMS已私下交付 **Standard Model Skin Omni Until 26.v26111000**；beatoraja�
 
 原版DP取景揭示早期19作者只输出两视频窗的遗漏，已据20自身四孔修正为Graph OFF四窗、ON两窗。早期R3候选虽通过正式作者检查及13场Player，原图审查仍发现Graph总值漏四位全亮前导零；修复后R6正式打包又发现NEXT的65项数值声明超过64上限。这些失败候选和矩阵均保留为被替代证据，不作交付资格。
 
-最终`author-r7`已补本代ID15的亮零、源调用链的蓝紫/黄色rank线，并仅复用两份相同固定时钟解决组合预算，Graph与引擎预算不变。旧18的6077文件无缺失、6054字节同一，其余为受限新增路由，216个旧BGA上下文语义保全。按manifest/scene/INI三路径去重的4233组预算均不超过64；早期4231报告只按scene计数，少两个仅INI不同的BGA组，保留为历史。OMS正式资格取下述交付；beatoraja继续独立验收。
+最终`author-r7`已补本代ID15的亮零、源调用链的蓝紫/黄色rank线，并仅复用两份相同固定时钟解决组合预算，Graph与引擎预算不变。旧18的6077文件无缺失、6054字节同一，其余为受限新增路由，216个旧BGA上下文语义保全。按manifest/scene/INI三路径去重的4233组预算均不超过64；早期4231报告只按scene计数，少两个仅INI不同的BGA组，保留为历史。OMS正式资格取下述交付；beatoraja结果取[独立宿主记录](BEATORAJA_IIDX_SKINS_20261107.md#20-来源-standard-增量)。
 
 20自己的Graph没有后代`customize`挂点，Graph Area固定原面板。beatoraja导出已补精确blank别名资格，19主题实际投影保留176款共用菜单并在20选项提示固定面板；该投影不代替整包验收。OMS共用菜单的此限制写在交付说明中。Start/Cover字体单格12×20为宿主适配，原GDI自然字距未签；进度采用本代66×72源图、原位置/路径和additive，时相仍须按宿主边界验收。OMS数值读取谱面BPM范围的引擎要求自`b40ee0ce`起；beatoraja官方0.8.9把MIN/MAX存为整数，小数变化落在同一整数内时不能据其API恢复精确范围。
 
-当前20本体与下载源均保留，逐项部署、研究和两宿主证据取本仓忽略目录`artifacts/standard-model-20-20261109/`及对应D盘专用父目录。未进入新的来源阶段，作品隔离边界保持。
+20本体与下载源已于11月16日退役，保留范围取[本地来源现状](#本地来源现状)。原部署、研究和两宿主证据仍取本仓忽略目录`artifacts/standard-model-20-20261109/`及对应D盘专用父目录；退役回执另存E盘。未进入新的来源阶段，作品隔离边界保持。
 
 ### 20 来源 OMS 交付
 
@@ -30,7 +30,7 @@ OMS已私下交付 **Standard Model Skin Omni Until 26.v26111000**；beatoraja�
 
 ### 20 来源双宿主闭环
 
-2026-11-15，20来源在当前普通演奏皮肤范围内已完成素材分类、作者接入、两宿主同包验收和版本化交付。beatoraja的fresh native-r4、实际16场、原图抽样、玩家保全与ZIP资格取[宿主记录](BEATORAJA_IIDX_SKINS_20261107.md#20-来源-standard-增量)；OMS保持11月10日成品及原验收日期。原版20与22 CUSTOM TRICORO独立，既有主题、旧版和Lightning保留。20本体及下载源尚未退役；源外状态、未确认调用与整盘素材穷尽不在本次完成结论内，更早代须有新的可靠来源。
+2026-11-15，20来源在当前普通演奏皮肤范围内已完成素材分类、作者接入、两宿主同包验收和版本化交付。beatoraja的fresh native-r4、实际16场、原图抽样、玩家保全与ZIP资格取[宿主记录](BEATORAJA_IIDX_SKINS_20261107.md#20-来源-standard-增量)；OMS保持11月10日成品及原验收日期。原版20与22 CUSTOM TRICORO独立，既有主题、旧版和Lightning保留。本体及下载源现状取[本地来源](#本地来源现状)；源外状态、未确认调用与整盘素材穷尽不在本次完成结论内，更早代须有新的可靠来源。
 
 ### 2026-11-15 再次暂停与续接
 
@@ -76,7 +76,9 @@ OMS已私下交付 **Standard Model Skin Omni Until 26.v26111000**；beatoraja�
 
 2026-11-09两宿主21增量交付后，按用户要求退役21本体`D:/OMS-Development/sources/SPADA-20261108/Beatmania iidx 21 spada`与下载目录`E:/Files IN E/⭐21 SPADA`，两目标均已删除，约80.23GiB逻辑内容。删除前后核对155份已提取原包副本，并新增保全程序、配置、九份字体、小容器及tutorial原包等46文件、约49.30MiB，位于21来源专用父目录的`retirement-retained-r1`。部署父目录的`reference-r1/r2`共302份参照、配置和备份，以及12份当前双宿主交付文件，删除后摘要一致；素材库、作者、已装皮肤和玩家数据保持。精确目标、保全与执行/复核回执取本机`artifacts/standard-model-21-20261108/retirement-r1/`。
 
-21/22/24/26 后续工作可使用已保留的提取素材、作者源和证据；如需重新进入这些原游戏或读取未保留的原始文件，须重新取得相应 HDD。下方各代安装、游客测查与 Time Freeze 均为本体退役前的历史证据；保留参照配置不表示当前仍可启动原游戏。已有来源缺口和 Lightning 独立边界保持，删除本体不改写旧验证，也不宣称素材穷尽。
+2026-11-16，在20双宿主交付后按用户本地清理要求，删除20游戏子目录`D:/OMS-Development/sources/TRICORO-20261109/Beatmania iidx 20 tricoro`及下载目录`E:/Files IN E/⭐20 tricoro`，共2803文件、约74.30GiB逻辑量。先复核110份已提取原IFS，另保全程序/运行库、全部字体、配置、小型研究输入及tutorial等50文件、约47.21MiB，放在20专用来源目录的`retirement-retained-r1`。部署父目录没有删除，300份原版参照、配置和两套原DLL备份保持；当前两宿主14份交付文件删除前后SHA一致，播放器未作删除目标。当前组成库/作者/原生包的有界引用检查只发现字体来源溯源路径，它有独立保留字体且摘要相同；冻结来源身份不改写。目标、保全和实际执行/后验取本机`E:/OMS-Development/evidence/workspace-cleanup-20261116/root-audit/`，独立原审查在同父目录`tricoro-audit/`。未保留的其它HDD内容不据此宣称已穷尽。
+
+20/21/22/24/26 后续工作可使用已保留的提取素材、作者源和证据；如需重新进入这些原游戏或读取未保留的原始文件，须重新取得相应 HDD。下方各代安装、游客测查与 Time Freeze 均为本体退役前的历史证据；保留参照配置不表示当前仍可启动原游戏。已有来源缺口和 Lightning 独立边界保持，删除本体不改写旧验证，也不宣称素材穷尽。
 
 ## 2026-11-08 21 原版来源接入
 
