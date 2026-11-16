@@ -55,7 +55,7 @@
 
 `build_standard_skin.py` 消费来源明确的 Standard 素材库、研究输出及组件目录，基础名称为 **Standard Model Skin Omni Until 26**。来源链区分26、24/26、22/24/26、21/22/24/26及20/21/22/24/26组成库。22来源保留六份框体档案，只有PRESENT、FUTURE及LINCLE/tricoro/SPADA三个CUSTOM主题具备可生成的闭包；22的裸`gmframe0`缺必要字形且没有已证原生加载入口，只留作研究。原21和原20分别使用`source21-gmframe0`/`s21`与`source20-gmframe0`/`s20`独立身份；20组成库的工具枚举为19个可生成主题、20份来源档案，作者生成、打包与各宿主验收仍须分别通过。23 copula与25 CANNON BALLERS仍是后代HDD保留美术，八款26 ARC SCORE仍是活动复刻，不能称3～26连续原版覆盖。来源分类、实际程序身份与未识别边界只在[作品记录](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md)维护，不以生成清单代替成品验收或HDD素材穷尽。
 
-既有v00/v01/v02保留各自历史身份和验证边界；已交付v02取[历史验收](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#v02-验证与交付历史)。24来源候选的作者生成不代表CLI、OSK或Player验收完成，当前状态取[本轮验证](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#本轮验证与交付)。复跑须重新核对同包身份，不能沿用旧包结论。工具只复用中立解析及公开合同，不读取Lightning作者包或以其素材补缺。
+既有版本保留各自历史身份和验证边界，v00/v01/v02取[早期验收](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#v02-验证与交付历史)；当前双宿主交付取[P1-A维护状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)。作者生成、正式CLI、归档和Player验收分别成立，复跑须重新核对同包身份，不能沿用旧包结论。工具只复用中立解析及公开合同，不读取Lightning作者包或以其素材补缺。
 
 25框体配对26 HDD的family1 Graph、失败和Classic BGA外框，原十框体中的其余九款使用family0；23/24分别使用24 HDD根族/0族的`s23`/`s24`别名。22独立使用`source22/`框体与组件以及`s22/`公共素材；21使用`source21/gmframe0`和`s21/`五个共用包，20使用`source20/gmframe0`和`s20/`五个共用包。`compose_standard_sources.py`保留原24/26接口，22扩展收固定24个别名，21扩展追加六个core包并保存149个CUSTOM原包与既有来源的严格相等证明。20扩展保留自己的core及三个独立CUSTOM输入；相同像素、素材子集和不同原图分别判定，不因原包不同便复制选项。`source20-turn00`保留本代蓝色内盘，既有Turntable默认`t00`只在20框体中读取该原图，旧主题默认不变。原IFS/AFP/GEO/PNG字节不改，旧组成清单逐层保留。`retained_styles()`与`styles()`按实际输入枚举档案和可生成身份：完整20组成库为20/19，21为19/18，22为18/17。数字`21`始终指既有26 ARC SCORE，不是原21；同名、同图或相同画布不合并来源，也不证明原调用、默认组合或时序一致。
 
@@ -111,7 +111,7 @@ dotnet run --project tools/SkinAuthoring -- pack "$taskStandardRoot/author-compa
 
 纯26复跑仍可使用合格283包库及匹配研究，不经过组成步骤；需重提取时，先重新取得26 HDD，再以 `--graphic-root contents/data/graphic --selection tools/IidxSkinAssets/selection-26-hdd.json --preserve-raw-texture-names` 生成新库。异常名恢复按原始bytes寻找精确MD5条目，使用安全落盘名并保存 `texturelist.original.bin` 与 `texturelist.name-map.json`，不猜字符、不替换原IFS；正常名称沿原解码行为，其它错误仍明确失败。恢复名字不等于这些图已被作品采用。
 
-21追加从已完整核验的155包`library21-r1`和旧22组成库开始；本轮选择文件与`audit_ifs.py`属于本地来源审计，公仓没有可直接套用的`selection-21-hdd.json`。需要重新提取时，先对实际21 HDD重新确认选择、原包身份及解析结果，不能把22选单或脚本参数当作21资格。存储边界取[AGENTS](../../AGENTS.md#开发磁盘约束)：本体和原机参照在`D:/OMS-Development/sources/SPADA-20261108/`，提取、研究、作者与宿主候选在独立的`OMS-Standard-Model-21-20261108/`父目录，旧22/24/26来源和Lightning保持原位。
+21追加从已完整核验的155包`library21-r1`和旧22组成库开始；本轮选择文件与`audit_ifs.py`属于本地来源审计，公仓没有可直接套用的`selection-21-hdd.json`。21本体已按[来源现状](../../doc_md/other/STANDARD_MODEL_SKIN_20261105.md#本地来源现状)退役；需要重新提取时，先重新取得21 HDD并确认选择、原包身份及解析结果，不能把22选单或脚本参数当作21资格。存储边界取[AGENTS](../../AGENTS.md#开发磁盘约束)：保留的原机参照在`D:/OMS-Development/sources/SPADA-20261108/`，提取、研究、作者与宿主候选在独立的`OMS-Standard-Model-21-20261108/`父目录，旧22/24/26来源和Lightning保持原位。
 
 以下仅追加来源及研究；变量指向本机已保留的输入，输出必须全新。完成后，用新的`$taskLibrary`、`$taskStandardRoot/research/frame-maps.json`及下列18个`$taskStyles`继续上方从`standard_components.py`开始的组件、分层、Ready、Gauge、Failure、通知、BGA及作者流程。所有贡献必须重新绑定新组成库，不能直接把旧目录当作新库导出；Source21新增只使用自己的图片与几何，既有17主题输出另做等价核对。
 

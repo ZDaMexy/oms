@@ -1,6 +1,6 @@
 # P1-A 当前计划：Skin V1、产品面与 release gate
 
-> 最后核对：2026-11-15（Standard20交付后按真实反馈或新来源维护）
+> 最后核对：2026-11-16（依赖补验回链具名原记录；Standard20维护门保持）
 > 全局顺序见[主线计划](../../mainline/DEVELOPMENT_PLAN.md)，当前事实见[STATUS](DEVELOPMENT_STATUS.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 子线目标
@@ -40,7 +40,7 @@ SD的BGA与原机布局仍有缺口，恢复后也不放宽HUD通用避让门。
 
 ## 下载维护与回归
 
-安全依赖版本、合法许可及10月24日完整BMS补验取[STATUS](DEVELOPMENT_STATUS.md#最近一次验证)，没有新改动或失败时不重复补跑已过门；进程内FFmpeg完整从零重编及发行输出复验仍取[P1-L计划](../P1-L/DEVELOPMENT_PLAN.md#当前执行顺序)。后续触及解码/归档库须验证坏包终止、实际导入及ZIP/回放读写；不跨net10、绕许可或只改版本号制造假修复。
+依赖版本与正规许可取[STATUS](DEVELOPMENT_STATUS.md)，完整BMS补验取[10月24日记录](CHANGELOG.md#2026-10-24omni持续背景与原版参照边界)；无新改动或失败不重跑。最终FFmpeg从零重编/发行输出取[P1-L计划](../P1-L/DEVELOPMENT_PLAN.md#当前执行顺序)。后续改解码/归档库须验坏包终止、实际导入及ZIP/回放读写；不跨net10、绕许可或只改版本号。
 
 改动归档库或下载路径时，按真实坏包复验失败/重试/退出、路径与谱文本声明/实际预算、ZIP资源完整性、RAR/7z取消后释放、旧库保全及原目标打开；不扩大manager捕获来掩盖程序错误。稳定边界见下载合同，已交付结果只在[STATUS](DEVELOPMENT_STATUS.md)和历史记录维护。
 
@@ -105,7 +105,7 @@ P1-A拥有浏览产品面，P1-H/P1-K提供谱库及导入合同；两源授权�
 
 **面向产品的实施重点：** 用户恢复迭代时只交付和打磨 `oms-simple`，形成高质量、可完整游玩的 beatmania style 外观，并让作者走通“修改 → 检查 → 打包 → 导入 → 验证”。静线是唯一内置、首次默认与最终保底；complex 与 C6 Momentum 仅保留历史验证身份，不再作为当前成品或默认候选。
 
-**已完成工程输入：** canonical普通包接管、作者源/制作工具、安装恢复与跨版本更新保留[C7证据](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)；9月30日已补齐随套件完整手册及三个实际检查/打包/挂载的练习，见[作者能力记录](../../other/BGA_SKIN_AUTHORING_20260930.md)。不重复开发，不把较早安装包的验收套用到后续运行时与作者源改动；最终发行复验归[P1-F](../P1-F/DEVELOPMENT_STATUS.md)。旧双包及[WORKSHOP](../../../skin-authoring/docs/WORKSHOP.md)只保留各自历史身份。
+**已完成工程输入：** canonical接管、作者/安装/更新链及手册练习分别取[C7证据](../../other/SKIN_SYSTEM_C7_VALIDATION_20260909.md)与[作者能力记录](../../other/BGA_SKIN_AUTHORING_20260930.md)，恢复后不重复开发。旧双包、较早安装包与[WORKSHOP](../../../skin-authoring/docs/WORKSHOP.md)只保留各自历史身份，不能签收后续运行时或作者源改动；最终发行复验归[P1-F](../P1-F/DEVELOPMENT_STATUS.md)。
 
 **静线迭代与后续验收：** 当前按用户决定暂停继续打磨，以下为恢复后仍需满足的验收条件；星轨已放弃，不再列入后续作品修改或签收。围绕完整可玩的静线尽早提供可评审结果，沿既有“修改 → 检查 → 打包 → 导入 → 验证”路径迭代，必要系统修改须对应真实使用问题，不重做已完成能力或扩成可视化编辑器。修改后按影响范围复验，并使用[集中验收包](../../../skin-c7-acceptance/README.md)观察两玩法的键数/样式、单双舞台、缩放、宽高比、必要信息、BGA 区域、授权拒绝/撤销和组合演出；真实设备、音频与长期体验仍要另取实际证据。V-001～V-004 仍 0/4、V-005 未签收；局部改进认可和暂停打磨不代表上述每格已运行或整体签收。旧 OmsSkin 物理删除仍待原实机门。Skin V1 和 release 未完成。后续提交与推送取[现行协作规则](../../../AGENTS.md#工作流)，不从历史收尾文字推断当前授权。
 

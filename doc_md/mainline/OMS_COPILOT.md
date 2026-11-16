@@ -499,7 +499,7 @@ public enum OmsAction
 Consumes resolved lazer `KeyCombination` state and maps complete keyboard combinations to `OmsAction`. On Windows, raw keyboard events are additionally fed through `WindowsRawKeyboardSource -> IOmsKeyboardEventSource -> IOmsKeyboardEventSink -> BmsInputManager` so the gameplay path is not limited to framework-level key events.
 
 **`OmsHidDeviceHandler`:**  
-Current implementation uses a provider-backed polling path for HID buttons and axes. Windows defaults to a DirectInput backend for enumeration/polling/capture, while `HidSharp` remains the non-Windows path and an opt-in Windows diagnostic backend behind `OMS_ENABLE_HIDSHARP=1`; this avoids the historical `DeviceList.Local` `RegisterClass failed` crash path while preserving a fallback for investigation. Remaining work is device coverage validation and richer cross-device semantics rather than the core Windows backend swap itself.
+Consumes HID buttons and axes through the provider-backed polling path described in §8.1. Implemented shared-action ownership and motion semantics are defined in [P1-B](../subline/P1-B/TECHNICAL_CONSTRAINTS.md); remaining ordinary-window and physical-device acceptance belongs to [P1-B](../subline/P1-B/DEVELOPMENT_PLAN.md) and [P1-D](../subline/P1-D/DEVELOPMENT_PLAN.md).
 
 **`OmsXInputButtonInputHandler`:**  
 For Xbox-compatible controllers / framework joystick buttons. Maps button indices to `OmsAction`, supports shared-action reference counting, and now participates in both default binding export and joystick-only persisted keybinding round-trips.
@@ -1019,7 +1019,7 @@ On 2026-10-03 the user explicitly authorised a small request-driven OMS IR, then
 
 Use the independent OMSIR origin `https://oms.zdamexy.work/`, session and HTTP consumer. Direct OMS login enables submission of supported new plays; there is no address field, IR switch or saved-connection step. Do not enable the old `IAPIProvider`, SoloPlayer legacy gate, realtime hubs or default EndpointConfiguration to obtain IR. Desktop access/refresh tokens belong in the Windows credential store. Browser sessions use HttpOnly cookies in the external Website.
 
-Client implementation, failure behaviour and gates are owned by [P3-IR](../subline/P3-IR/TECHNICAL_CONSTRAINTS.md). The full cross-end v1 contract is maintained externally at `F:\zdamexy-workspace\oms-server\dev_bridge_md\doc_md\subline\oms-ir\constraints.md`.
+Client implementation, failure behaviour and gates are owned by [P3-IR](../subline/P3-IR/TECHNICAL_CONSTRAINTS.md). The full cross-end v1 contract is maintained in [Dev Bridge](../../../oms-server/dev_bridge_md/doc_md/subline/oms-ir/constraints.md).
 
 ### 14.2 Adopted IR v1
 

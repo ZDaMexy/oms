@@ -60,7 +60,7 @@
 
 只在存在当前服务 / 账号的有效待交时启动有限重试；普通网络失败按 5 / 15 / 45 / 120 秒等待，最多五次后保全并提示手动重试。422 / 409 保留失败原因，重试沿同一 UUID 与原 body；没有闲置轮询、presence 或常驻连接。每次主动参考查询读取当前来源列表再读榜；有原会话时 v2 携带 Bearer，错误 / 过期凭据沿原刷新流程或明确失败，不退匿名。端内响应回到更新线程，账号 / 选谱 / 关闭或来源范围变化后取消旧请求并清空旧列表，迟到响应不能重现旧账号或旧范围。
 
-跨端 v1 正式合同在外部 `F:\zdamexy-workspace\oms-server\dev_bridge_md\doc_md\subline\oms-ir\constraints.md`，多来源合同为同目录 `multisource-contract.md`；本文件只约束客户端消费，实施变更须同步事实桥、Dev Bridge、Backend 和 Website 的实际落点。来源是否已获目标版本 / 玩法真人验证取 registry 与正式验收进展，不能由接入通道、合成样例或插件构建推导完整支持。
+跨端 v1 正式合同取[Dev Bridge](../../../../oms-server/dev_bridge_md/doc_md/subline/oms-ir/constraints.md)，多来源取[正式合同](../../../../oms-server/dev_bridge_md/doc_md/subline/oms-ir/multisource-contract.md)；本文件只约束客户端消费，实施变更须同步事实桥、Dev Bridge、Backend 和 Website 的实际落点。来源是否已获目标版本 / 玩法真人验证取 registry 与正式验收进展，不能由接入通道、合成样例或插件构建推导完整支持。
 
 ## 软件证据和实际运行范围
 

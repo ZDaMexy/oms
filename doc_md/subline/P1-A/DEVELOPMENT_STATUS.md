@@ -1,11 +1,11 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 核对：2026-11-15（Standard20双宿主闭环；OMS与beatoraja证据分别沿实际日期）
+> 核对：2026-11-16（文档复核；OMS与beatoraja产品证据分别沿实际日期）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
 
-本地导入、外链与依赖修复已入树，旧在线保持关闭。BMS将Sudden/Hidden/Lift与Hi-Speed统一到“读谱设置”，局内调整按单一开关成组记忆。当前构建和回归取[最近一次验证](#最近一次验证)，依赖取[原记录](CHANGELOG.md#2026-10-22客户端依赖安全修复接入)。
+本地导入、外链与依赖修复已入树，旧在线保持关闭。BMS将Sudden/Hidden/Lift与Hi-Speed统一到“读谱设置”，局内调整按单一开关成组记忆。构建、回归与依赖取[最近一次验证](#最近一次验证)。
 
 静线为唯一内置、首次默认与保底；complex已退役，历史作者文件和用户包保留。静线打磨按用户决定暂停。BMS/mania各有模式默认和键数覆盖，旧全局配置首次迁移；游玩按最终键数应用。原V-001～V-005、设备和长期体验未签收，Skin V1/release未完成。C1～C7证据不重计，OmsSkin物理删除仍待原实机门。
 
@@ -52,7 +52,7 @@ Lightning的10月29日候选、产品回归和Release保持[原记录](CHANGELOG
 
 原版参照的精度、有限运动与退出/保全边界沿[10月29日原记录](CHANGELOG.md#2026-10-29原版demo自然运动标尺)；不代签新候选或完整原机行为。
 
-五条已解释ImageSharp旧索引警告不抑制，版本与正规许可取[原记录](CHANGELOG.md#2026-10-22客户端依赖安全修复接入)。正常工作区、图库前台FPS/长期内存、原机精确时序和原生最终配方从零重编未由软件或隔离结果代签；媒体剩余门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)。
+依赖/正规许可及五条未抑制的旧索引告警取[10月22日记录](CHANGELOG.md#2026-10-22客户端依赖安全修复接入)，完整BMS补验取[10月24日记录](CHANGELOG.md#2026-10-24omni持续背景与原版参照边界)。正常窗口、前台性能/长期内存、原机精确时序与原生从零重编未签；媒体门取[P1-L](../P1-L/DEVELOPMENT_STATUS.md)。
 
 10月1～3日下载证据取[日志](CHANGELOG.md)，不代签真实包、大包、听感或发行；谱库保全取[扫描审查](../../other/LIBRARY_SCAN_REVIEW_20261010.md)。
 

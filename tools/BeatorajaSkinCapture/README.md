@@ -97,4 +97,4 @@ HCN恢复自测使用同一官方安装、SP1/default skin/HARD，真实44 notes
 
 Timing自测使用官方default DP/HCN，开头两侧各8颗交替提前/延后50ms；两个原生Judge region均观察到FAST/SLOW，真实非满EX FC和MusicResult，56张PNG完整且正常dispose。证据在`artifacts/beatoraja-capture/timing-selftest/`；`firstTimingJudgeOriginsUs`与每帧`timingFeedback`记录资格、符号和首个判定年龄，不把目标50ms截图当作精确50ms。单曲Gauge选择后来已在官方default的Normal Gauge运行中通过，沿[开发阶段记录](../../doc_md/other/BEATORAJA_IIDX_SKINS_20261107.md#开发阶段验证历史)取证。
 
-工具自测不代签作品成品；各包实际矩阵取[本轮同包验收](../../doc_md/other/BEATORAJA_IIDX_SKINS_20261107.md#本轮同包验收)，产品状态取[P1-A](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)。重开、PB/Target历史数据、未覆盖的挡板交互、视频BGA、物理设备与正常PLAY存分仍须各自验证。
+工具自测不代签作品成品；当前交付与对应矩阵从[P1-A维护状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)进入，Standard的20来源取[增量验收](../../doc_md/other/BEATORAJA_IIDX_SKINS_20261107.md#20-来源-standard-增量)，Lightning取[首版同包验收](../../doc_md/other/BEATORAJA_IIDX_SKINS_20261107.md#本轮同包验收)。重开、PB/Target历史数据、未覆盖的挡板交互、视频BGA、物理设备与正常PLAY存分仍须各自验证。
