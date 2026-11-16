@@ -14,6 +14,8 @@
 
 首版完整动画队列与最终原生构建包按[开发磁盘约束](../../AGENTS.md#开发磁盘约束)的本轮例外写`D:/OMS-Development/sources/OMS-Beatoraja-Bakes-20261107/`，保留空间门和独立输出验证；原E盘作者与已完成F盘证据不迁移，不为此复制HDD或玩家安装。交付只在F盘保存版本化ZIP、说明与校验，避免再存一份解包目录。
 
+2026-11-16的[D盘进一步精简](../mainline/CHANGELOG.md#2026-11-16d盘生成资料再精简)已将三个历史正式Standard展开包的重复assets及Lightning闭包外旧PNG副本退役，大生成索引原位无损压缩。当前正式源包、已装皮肤、源作者、有效原帧及全部旧ZIP保留；旧展开包/中间件须先按逐文件或ZIP成员映射恢复再复跑，不能沿历史完整包描述直接启动精简后的旧目录。纯存储处理不重签两族原产品验收。
+
 ## 官方0.8.9更新与数据保全
 
 官方版本取[0.8.9发布](https://github.com/exch-bms2/beatoraja/releases/tag/0.8.9)及[官方分发页](https://www.mocha-repository.info/download.php)。研究源码固定标签提交`83574048ba489082eb46df7fe9806b464bf1f526`；执行验证使用实际官方发行JAR。源码标签与发行包的默认skin路径有差异，不能假定两者完全同一打包布局。
