@@ -1,7 +1,7 @@
 # P1-G 当前状态：Phase 1.x 人工验收汇总
 
 > 最后核对：2026-10-13（补齐客户端品牌与候选验收导航；无新增人工签收）
-> 全局状态与待人工项见 [../../mainline/DEVELOPMENT_STATUS.md](../../mainline/DEVELOPMENT_STATUS.md)，执行清单见 [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md)。
+> [全局状态与待人工项](../../mainline/DEVELOPMENT_STATUS.md) · [执行清单](DEVELOPMENT_PLAN.md) · [人工反馈如何归线、哪些结果可签收](TECHNICAL_CONSTRAINTS.md)
 
 ## 当前阶段
 
