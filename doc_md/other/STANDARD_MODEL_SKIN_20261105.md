@@ -356,6 +356,15 @@ r11 的29局软件路径通过后，逐图复核发现长 COMBO 的横排行超�
 
 最终包原样复制为 `.v26110500.osk`，与七张原实景、README、VALIDATION 和 SHA256 共11个文件，收存于本机 `deliverables/skins/Standard Model Skin Omni Until 26.v26110500`。详细身份与审图记录保存在私有 evidence 的 `player/final-r12-acceptance.json`、三份视觉报告及 `delivery-r12-receipt.json`。源码制作阶段为 `efd0f70c` / `35fb5b31`，交付需使用已验证基线或后续兼容 OMS；旧窗口先重启再导入。正常工作区长期体验、实体设备、原机完全等价与公开发行未签收；既有 Lightning、静线及原产品门不因此提升。
 
+## 历次专项存储授权
+
+以下为 2026 年 11 月 7～9 日各次许可的具体范围。下次使用前按[本地来源现状](#本地来源现状)核实资料是否仍在。
+
+- 本次beatoraja完整动画因E盘余量不足，新增烘焙和原生皮肤构建允许写入既有`D:\OMS-Development\sources\OMS-Beatoraja-Bakes-20261107\`专用父目录；输出和跨卷复用逐项核路径与摘要。此例外只承接生成的动画、构建包与证明文件，不搬原作者、玩家安装或已有F盘证据，不建junction；后续路径与来源引用取实际清单。版本化ZIP仍放`deliverables/`，安装只向实际播放器添加新版本skin子目录。
+- 2026-11-08 用户提供22 PENDUAL并授权装到D盘、继续制作Standard。本轮本体直接一次解包到`D:\OMS-Development\sources\PENDUAL-20261108\`，必要原件备份、独立游客启动配置与运行证据留在该专用父目录；提取、研究、组成库、新作者及必要生成物允许放在`D:\OMS-Development\sources\OMS-Standard-Model-22-20261108\`，不建立完整HDD副本。原24/26作者、已交付Standard及Lightning来源和成品保持原身份，不覆盖或迁移；此存储例外不替代独立验收，也不把归档保留的来源自动列为可生成主题。来源资格与实际运行边界取[Standard记录](#2026-11-08-22-来源接入)，版本化成品仍按下方`deliverables/`约定保存。
+- 同日用户继续提供21 SPADA并授权装到D盘、利用本代来源。本体单次部署使用`D:\OMS-Development\sources\SPADA-20261108\`，必要小文件备份及游客参照仍留在该父目录；提取、独立来源身份、新作者、烘焙及宿主候选使用`D:\OMS-Development\sources\OMS-Standard-Model-21-20261108\`。原22/24/26库和成品不覆盖，21原版、22 CUSTOM及26 ARC SCORE同名主题分别判定；附带Omnimix独立盘点，不默认叠加为原版依据，不创建完整HDD副本。
+- 2026-11-09用户提供20 tricoro并授权装到D盘、继续利用本代来源。本体单次部署使用`D:\OMS-Development\sources\TRICORO-20261109\`，小文件备份、独立游客配置与原版测查留在该父目录；提取、研究、作者、烘焙与宿主候选使用`D:\OMS-Development\sources\OMS-Standard-Model-20-20261109\`。20主包、附带Omnimix与22 CUSTOM TRICORO分别核来源和软件资格，不覆盖21/22/24/26库、旧成品或玩家安装，不创建完整HDD副本。
+
 ## 存储与收尾边界
 
 以下保留 v00～v02 的收尾事实，不代表本轮 24 来源接入已执行相同清理。
