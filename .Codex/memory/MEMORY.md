@@ -37,7 +37,7 @@
 
 ## 构建、存储与产品面参考
 
-- [构建与测试](reference_build_and_test.md) — 开发磁盘、硬链接/Windows缓存inode/实际分配量、原位无损压缩与ZIP落盘摘要、缓存空目录重建、占用句柄下的同卷目录归并、精简旧展开树/历史运行时还原与当前源码重编、宿主deps/satellite所有权与空ENV、TRX跳过计数、音轨跳时/桌面GC、普通/回放Player取景及converted/stored身份、OSR录制收尾/零计数省略、步骤注册捕获与完整计分键、同一步准时输入、初始关闭内门与静态纹理、ruleset共享源码、formatter与输出锁、作者组合异常修正、品牌贴图、退休fixture与混合谱包/Realm快照、内存峰值、许可/审计误判、公钥导入及MSBuild元数据。
+- [构建与测试](reference_build_and_test.md) — 开发磁盘、硬链接/Windows缓存inode/实际分配量、原位无损压缩与ZIP落盘摘要、缓存空目录重建、占用句柄下的同卷目录归并、外置清单引用与历史运行时按同字节映射还原、宿主deps/satellite所有权与空ENV、TRX跳过计数、音轨跳时/桌面GC、普通/回放Player取景及converted/stored身份、OSR录制收尾/零计数省略、步骤注册捕获与完整计分键、同一步准时输入、初始关闭内门与静态纹理、ruleset共享源码、formatter与输出锁、作者组合异常修正、品牌贴图、退休fixture与混合谱包/Realm快照、内存峰值、许可/审计误判、公钥导入及MSBuild元数据。
 - [大曲库选歌性能](reference_song_select_perf.md)
 - [谱库路径身份与历史保全](reference_filesystem_library_identity.md) — 同内容不同目录、失效与物删分离、多文件改名、重复素材枚举与增量查询放大器。
 - [谱面构成过滤](reference_bms_composition_filter.md) — 单轨上限、共享额度、零宽入口及无解条件。

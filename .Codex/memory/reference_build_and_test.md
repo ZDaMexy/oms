@@ -69,6 +69,7 @@ metadata:
 - 仓库在非系统盘不代表开发零占用系统盘：旧工作副本有独立 bin/obj，默认 NuGet/TEMP 与 Codex 聊天也分开存放。每个新 shell 按 [开发磁盘约束](../../AGENTS.md#开发磁盘约束)加载 `UseDevelopmentStorage.ps1`；进程环境不跨工具调用保留，旧 assets 的绝对 packageFolders 也不会随环境变量自动重写，切换后先 restore。运行数据和验收资料不能因位于 bin/artifacts/AppData 就认定为垃圾；清理被策略拦截时不能记为已释放。
 - 清理构建输出前须查看真实内容：Desktop的`bin/.../data`可能含正在使用的Realm、谱库和配置，应保护整个运行目录；Game的`obj/canonical`还可能残留退役皮肤包，先按内容摘要确认独立保留副本，不能仅凭`bin/obj`名或忽略规则删除。清除`obj`后需正常restore / build；容量复核区分文件逻辑大小与磁盘可用空间差值。实例和边界取[清理日志](../../doc_md/mainline/CHANGELOG.md#确认后清理构建输出)。
 - 动画复用树按device/file ID与link count核物理身份，同一个硬链接文件在多个路径下会反复计入逻辑量。删除某一路径后，其余链接仍占同一份载荷。实际簇分配取`GetFileInformationByHandleEx(FileStandardInfo).AllocationSize`。单链接冷记录原位NTFS压缩后，按原路径核SHA、长度、身份、mtime及除Compressed外的属性，收益取前后分配差。单次操作被拦截时，目标状态以实际回执和只读复核为准。实例见[11月19日存储记录](../../doc_md/mainline/CHANGELOG.md#2026-11-19本机存储复核与冷记录压缩)。
+- 临时目录仍可能被外盘的烘焙任务清单或交付回执以绝对路径固定。清理前查实际引用与采样源，先识别复制进旧 Windows 宿主的非目标平台运行库；逐相对路径与摘要核同字节留存件，区分该类库与仍有证据价值的取景文件。复跑旧宿主前按映射还原。具名正反例见[11月22日存储记录](../../doc_md/mainline/CHANGELOG.md#2026-11-22客户端存储清理与文档记忆复核)。
 
 - Windows `DirEntry.stat()`的目录缓存可能给出零`st_ino/st_nlink`，据此按device/inode去重会把不相同文件错误归为同一实体。粗盘只签文件数与逻辑量；物理盘账改用直接`Path.stat/os.stat`并拒绝零身份，再用Win32句柄取link count/AllocationSize。保留错误粗盘并明确撤销其物理合计，不能只换标题使其变成可执行清单；具名案例见[11月16日清理](../../doc_md/mainline/CHANGELOG.md#2026-11-16工作区清理与tricoro来源退役)。
 - 复制循环同时算SHA只证明源读流，不证明目标落盘字节；ZIP成员及CRC全过仍可能有额外尾部或可变头字段差异。转移后须实读目标整文件长度/SHA并核全部成员，再原子改名；回执记录实际目标摘要。低空间时可先在已核任务目录生成和完整验证ZIP，再按实际归档大小及余量发布到成品盘，保留失败partial和完整stage，不能仅凭ZIP存在签成功。原缺口及反例见同一恢复记录。
