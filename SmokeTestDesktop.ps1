@@ -10,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 3.0
 
 $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$desktopOutput = Join-Path $repoRoot "osu.Desktop\\bin\\$Configuration\\net8.0"
+$desktopOutput = Join-Path $repoRoot "osu.Desktop\\bin\\$Configuration\\net10.0"
 $executable = Join-Path $desktopOutput 'osu!.exe'
 
 if (-not (Test-Path $executable))

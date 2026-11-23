@@ -7,11 +7,11 @@
   <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <LangVersion>12.0</LangVersion>
     <OutputPath>../../.dev-cache/temp/iidx-bake-dev/bin/</OutputPath>
-    <BakeRuntimeDirectory Condition="'$(BakeRuntimeDirectory)' == ''">$(MSBuildThisFileDirectory)../../osu.Desktop/bin/Release/net8.0</BakeRuntimeDirectory>
+    <BakeRuntimeDirectory Condition="'$(BakeRuntimeDirectory)' == ''">$(MSBuildThisFileDirectory)../../osu.Desktop/bin/Release/net10.0</BakeRuntimeDirectory>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="osu.Framework;osu.Game;osuTK;SixLabors.ImageSharp;Newtonsoft.Json;JetBrains.Annotations">

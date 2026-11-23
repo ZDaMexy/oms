@@ -45,6 +45,8 @@ $desktopDir = Join-Path $repoRoot 'osu.Desktop'
 $authoringDir = Join-Path $repoRoot 'skin-authoring'
 $acceptanceDir = Join-Path $repoRoot 'skin-c7-acceptance'
 $legacyDir = Join-Path $acceptanceDir 'legacy'
+# Both executables carry their own runtime. Use the maintained patch even with an older .NET 10 SDK.
+$runtimeFrameworkVersion = '10.0.15'
 # Fixed original acceptance inputs are part of the source checkout; never depend on untracked artifacts.
 Assert-OrdinaryDeliveryEntry $legacyDir
 $legacyHashes = @{}
@@ -63,7 +65,7 @@ while ($authoringAncestor) {
     if ((Test-Path -LiteralPath $authoringAncestor) -and (((Get-Item -LiteralPath $authoringAncestor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)) { throw 'Authoring publish output cannot use a redirected ancestor.' }
     $authoringAncestor = [IO.Path]::GetDirectoryName($authoringAncestor)
 }
-dotnet publish (Join-Path $repoRoot 'tools/SkinAuthoring') -c Release -r $Runtime --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o $authoringPublishDir
+dotnet publish (Join-Path $repoRoot 'tools/SkinAuthoring') -c Release -r $Runtime --self-contained true "-p:RuntimeFrameworkVersion=$runtimeFrameworkVersion" -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o $authoringPublishDir
 if ($LASTEXITCODE -ne 0) { throw 'The standalone authoring tool could not be published.' }
 if (-not (Test-Path -LiteralPath (Join-Path $authoringPublishDir 'SkinAuthoring.exe') -PathType Leaf)) { throw 'The new standalone authoring publication is incomplete.' }
 foreach ($required in @('Author.ps1', 'sources/oms-simple/skin.ini', 'dist/aurora-study.osk')) {
@@ -100,6 +102,7 @@ $publishArgs = @(
     '-c', 'Release',
     '-r', $Runtime,
     '--self-contained',
+    "-p:RuntimeFrameworkVersion=$runtimeFrameworkVersion",
     '-o', $publishDir,
     '-p:OmsReleasePackaging=true',
     # Complete extraction relocates AppContext.BaseDirectory and defeats portable.ini and canonical paths.

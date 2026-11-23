@@ -23,6 +23,8 @@
 
 在非系统盘 checkout 的仓库根目录打开 PowerShell；每个新进程先按[开发磁盘约束](../../AGENTS.md#开发磁盘约束)加载存储入口，首次切换后重新 restore 对应工程。
 
+以 [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) 构建。游戏和独立作者工具的自包含运行时补丁在 [build-release.ps1](../../build-release.ps1) 同一处指定。新包验收在无 SDK 环境检查两者实际启动与运行时，再从旧版的便携或自定义根副本进行覆盖更新。
+
 构建环境须提供适用`osu.Game`的合法图片许可并经过厂商正常检查，配置见[P1-A依赖记录](../subline/P1-A/CHANGELOG.md#2026-10-22客户端依赖安全修复接入)；私有许可原文件不加入发行载荷。当前补丁依赖的开发Release结果不等于新发行候选已验证，后续载荷门取[P1-F](../subline/P1-F/DEVELOPMENT_PLAN.md#当前剩余验收)。
 
 ```powershell

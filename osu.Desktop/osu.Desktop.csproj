@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup Label="Project">
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <OutputType>WinExe</OutputType>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Description>A free-to-win rhythm game. Rhythm is just a *click* away!</Description>
@@ -22,7 +22,7 @@
     <ProjectReference Include="..\oms.Input\oms.Input.csproj" />
   </ItemGroup>
   <ItemGroup Label="Package References">
-    <PackageReference Include="System.IO.Packaging" Version="9.0.2" />
+    <PackageReference Include="System.IO.Packaging" Version="10.0.15" />
     <PackageReference Include="DiscordRichPresence" Version="1.2.1.24" />
     <PackageReference Include="Velopack" Version="0.0.1298" />
   </ItemGroup>

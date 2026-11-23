@@ -8,7 +8,7 @@ Set-StrictMode -Version 3.0
 
 $repoRoot = $PSScriptRoot
 $project = Join-Path $repoRoot 'osu.Game.Rulesets.Bms.Tests\osu.Game.Rulesets.Bms.Tests.csproj'
-$executable = Join-Path $repoRoot "osu.Game.Rulesets.Bms.Tests\bin\$Configuration\net8.0\osu.Game.Rulesets.Bms.Tests.exe"
+$executable = Join-Path $repoRoot "osu.Game.Rulesets.Bms.Tests\bin\$Configuration\net10.0\osu.Game.Rulesets.Bms.Tests.exe"
 $scene = 'osu.Game.Rulesets.Bms.Tests.Skinning.TestSceneBmsManagedPackageNoteVisualGate'
 
 dotnet build $project -p:Configuration=$Configuration -p:GenerateFullPaths=true -verbosity:minimal

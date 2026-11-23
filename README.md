@@ -40,7 +40,7 @@ OMS 从 [osu!lazer](https://github.com/ppy/osu) 出发，移除了 osu!、Taiko�
 ## 系统要求
 
 - Windows 10 22H2 或更高版本
-- 基于 .NET 8 / DesktopGL / osu-framework
+- 基于 .NET 10 / DesktopGL / osu-framework
 
 ## 安装
 
@@ -83,7 +83,7 @@ BMS 游玩时，皮肤可设置最多 16 个 BGA 窗口的位置、大小和完�
 
 ## 从源码构建
 
-需要 [.NET 8 SDK](https://dotnet.microsoft.com/download)，以及 Visual Studio、JetBrains Rider 或 Visual Studio Code 之一。优先打开 `osu.Desktop.slnf`。
+需要 [.NET 10 SDK](https://dotnet.microsoft.com/download)，以及 Visual Studio、JetBrains Rider 或 Visual Studio Code 之一。优先打开 `osu.Desktop.slnf`。
 
 在非系统盘目录克隆；每个新 PowerShell 在构建、测试、打包或开发检查前加载开发存储入口。首次切换缓存后重新 restore 对应工程，不复用旧 assets；完整约定见[开发磁盘约束](AGENTS.md#开发磁盘约束)。
 

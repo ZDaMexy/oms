@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 if (-not $Source) { $Source = Join-Path $PSScriptRoot 'sources/oms-simple' }
 $tool = Join-Path $PSScriptRoot 'bin/SkinAuthoring.exe'
 if (-not (Test-Path -LiteralPath $tool)) {
-    $tool = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../tools/SkinAuthoring/bin/Release/net8.0/SkinAuthoring.exe'))
+    $tool = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../tools/SkinAuthoring/bin/Release/net10.0/SkinAuthoring.exe'))
 }
 if (-not (Test-Path -LiteralPath $tool)) {
     throw '缺少作者工具。请使用完整制作套件，或先按 README 在仓库编译一次工具。'

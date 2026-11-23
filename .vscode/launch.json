@@ -7,7 +7,7 @@
             "request": "launch",
             "program": "dotnet",
             "args": [
-                "${workspaceRoot}/osu.Desktop/bin/Debug/net8.0/osu!.dll"
+                "${workspaceRoot}/osu.Desktop/bin/Debug/net10.0/osu!.dll"
             ],
             "cwd": "${workspaceRoot}",
             "preLaunchTask": "Build osu! (Debug)",
@@ -19,7 +19,7 @@
             "request": "launch",
             "program": "dotnet",
             "args": [
-                "${workspaceRoot}/osu.Desktop/bin/Release/net8.0/osu!.dll"
+                "${workspaceRoot}/osu.Desktop/bin/Release/net10.0/osu!.dll"
             ],
             "cwd": "${workspaceRoot}",
             "preLaunchTask": "Build osu! (Release)",

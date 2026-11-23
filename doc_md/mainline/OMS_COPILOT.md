@@ -16,7 +16,7 @@
 | **Project Name** | OMS |
 | **Base** | osu!lazer (locked commit, see [UPSTREAM.md](../other/UPSTREAM.md)) |
 | **Target Platform** | Windows only (Win10 22H2+) |
-| **Runtime** | .NET 8, DesktopGL via osu-framework |
+| **Runtime** | .NET 10, DesktopGL via osu-framework |
 | **Language** | C# 12 |
 | **Primary Game Modes** | `OsuMania` (retained), `BMS` (new) |
 | **Removed Modes** | `Osu` (standard), `Taiko`, `Catch` — fully deleted |
@@ -54,7 +54,7 @@ Use the current project and production entry points below; implementation invent
 | Input | `oms.Input/OmsInputRouter.cs`, `Devices/`; BMS input bridge | P1-B / P1-D |
 | Desktop/release | `osu.Desktop/Program.cs`, `OsuGameDesktop.cs`, `build-release.ps1` | P1-F / P1-G |
 
-The build entry is `osu.Desktop.slnf`; core tests live in the separate `osu.Game.Tests` project. Product and test projects target .NET 8; the upstream template packaging project targets `netstandard2.1`. `global.json` permits a newer stable SDK via `latestMajor`. No dedicated `oms.Server` project or P1-M player implementation is implied by the planned contracts below.
+The build entry is `osu.Desktop.slnf`. Core tests live in the separate `osu.Game.Tests` project. Game, tools, tests and sample rulesets target .NET 10. The template packaging project targets `netstandard2.1`. `global.json` selects a stable .NET 10 SDK with `latestFeature`.
 
 ---
 

@@ -35,28 +35,16 @@ namespace osu.Desktop
             // last time has been fixed, let's not tempt fate.
             setupVelopack(args);
 
-            if (OperatingSystem.IsWindows())
+            if (!OperatingSystem.IsWindowsVersionAtLeast(10))
             {
-                var windowsVersion = Environment.OSVersion.Version;
-
-                // While .NET 8 only supports Windows 10 and above, running on Windows 7/8.1 may still work. We are limited by realm currently, as they choose to only support 8.1 and higher.
-                // See https://www.mongodb.com/docs/realm/sdk/dotnet/compatibility/
-                if (windowsVersion.Major < 6 || (windowsVersion.Major == 6 && windowsVersion.Minor <= 2))
+                unsafe
                 {
-                    unsafe
-                    {
-                        // If users running in compatibility mode becomes more of a common thing, we may want to provide better guidance or even consider
-                        // disabling it ourselves.
-                        // We could also better detect compatibility mode if required:
-                        // https://stackoverflow.com/questions/10744651/how-i-can-detect-if-my-application-is-running-under-compatibility-mode#comment58183249_10744730
-                        SDL3.SDL_ShowSimpleMessageBox(SDL_MessageBoxFlags.SDL_MESSAGEBOX_ERROR,
-                            "Your operating system is too old to run osu!"u8,
-                            "This version of osu! requires at least Windows 8.1 to run.\n"u8
-                            + "Please upgrade your operating system or consider using an older version of osu!.\n\n"u8
-                            + "If you are running a newer version of windows, please check you don't have \"Compatibility mode\" turned on for osu!"u8, null);
-                        return;
-                    }
+                    SDL3.SDL_ShowSimpleMessageBox(SDL_MessageBoxFlags.SDL_MESSAGEBOX_ERROR,
+                        "OMS requires Windows 10 or later"u8,
+                        "On a newer version of Windows, turn off Compatibility mode for OMS and try again."u8, null);
                 }
+
+                return;
             }
 
             // NVIDIA profiles are based on the executable name of a process.

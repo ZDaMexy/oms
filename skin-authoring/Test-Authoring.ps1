@@ -2,7 +2,7 @@
 $ErrorActionPreference = 'Stop'
 if (-not $Tool) {
     $Tool = Join-Path $PSScriptRoot 'bin/SkinAuthoring.exe'
-    if (-not (Test-Path -LiteralPath $Tool)) { $Tool = Join-Path $PSScriptRoot '../tools/SkinAuthoring/bin/Release/net8.0/SkinAuthoring.exe' }
+    if (-not (Test-Path -LiteralPath $Tool)) { $Tool = Join-Path $PSScriptRoot '../tools/SkinAuthoring/bin/Release/net10.0/SkinAuthoring.exe' }
 }
 $toolPath = [IO.Path]::GetFullPath($Tool)
 if (-not (Test-Path -LiteralPath $toolPath)) { throw '找不到已编译的作者工具。' }

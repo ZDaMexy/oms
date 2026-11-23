@@ -40,7 +40,7 @@ OMS starts from [osu!lazer](https://github.com/ppy/osu), removes osu!, Taiko and
 ## Requirements
 
 - Windows 10 22H2 or later
-- Built on .NET 8 / DesktopGL / osu-framework
+- Built on .NET 10 / DesktopGL / osu-framework
 
 ## Installation
 
@@ -83,7 +83,7 @@ Then keep "ffmpeg完整BGA支持" (full BGA support via ffmpeg) enabled in the B
 
 ## Building from source
 
-You need the [.NET 8 SDK](https://dotnet.microsoft.com/download) and one of Visual Studio, JetBrains Rider or Visual Studio Code. Prefer opening `osu.Desktop.slnf`.
+You need the [.NET 10 SDK](https://dotnet.microsoft.com/download) and one of Visual Studio, JetBrains Rider or Visual Studio Code. Prefer opening `osu.Desktop.slnf`.
 
 Clone on a non-system drive. Load the development storage entry in each new PowerShell before building, testing, packaging or running development checks. Restore the relevant projects after first switching caches instead of reusing old assets; see the [development storage rules](AGENTS.md#开发磁盘约束).
 
