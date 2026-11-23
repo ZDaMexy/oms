@@ -17,7 +17,7 @@
   <ItemGroup>
     <Compile Include="Program.cs;TestSceneStandardSkinCapture.cs;TestSceneStandardSkinCapture.LongNotes.cs;TestSceneStandardSkinCapture.AutoScratch.cs;TestSceneStandardSkinCapture.Reading.cs;TestSceneStandardSkinCapture.Failure.cs;TestSceneStandardSkinCapture.PersonalBest.cs;TestSceneStandardSkinCapture.Graph.cs;BgaCaptureWorkingBeatmap.cs" />
     <Compile Include="../../osu.Game/Tests/VisualTestRunner.cs" Link="ExactVisualTestRunner.cs" />
-    <Reference Include="osu.Framework;osu.Game;osu.Game.Rulesets.Bms;osu.Game.Rulesets.Mania;oms.Input;osuTK;Realm;nunit.framework;SixLabors.ImageSharp;Newtonsoft.Json;JetBrains.Annotations;System.Text.Json;System.Text.Encodings.Web;System.Diagnostics.DiagnosticSource;System.Threading.Channels">
+    <Reference Include="osu.Framework;osu.Game;osu.Game.Rulesets.Bms;osu.Game.Rulesets.Mania;oms.Input;osuTK;Realm;nunit.framework;SixLabors.ImageSharp;Newtonsoft.Json;JetBrains.Annotations">
       <HintPath>$(CaptureRuntimeDirectory)/%(Identity).dll</HintPath>
       <Private>true</Private>
     </Reference>

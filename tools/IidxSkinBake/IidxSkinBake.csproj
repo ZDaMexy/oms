@@ -18,10 +18,6 @@
       <HintPath>$(BakeRuntimeDirectory)/%(Identity).dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <Reference Include="System.Text.Json;System.Text.Encodings.Web;System.Diagnostics.DiagnosticSource;System.Threading.Channels">
-      <HintPath>$(BakeRuntimeDirectory)/%(Identity).dll</HintPath>
-      <Private>true</Private>
-    </Reference>
   </ItemGroup>
   <Target Name="RequireRuntime" BeforeTargets="ResolveReferences">
     <Error Condition="!Exists('$(BakeRuntimeDirectory)/osu.Game.dll')" Text="Build OMS first and supply the matching BakeRuntimeDirectory." />
