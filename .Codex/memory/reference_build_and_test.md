@@ -80,6 +80,8 @@ metadata:
 - ImageSharp的v3补丁需对照维护者公告与实际DLL来源；过宽NuGet范围不要求盲跨v4，亦不能靠屏蔽审计制造零风险。restore成功后还须真实Release与适用程序集许可检查，初次许可失败不能写成升级完成。正规文件只通过`SixLaborsLicenseFile`提供，不改引用形状绕检查；实际已完成结果和CI文件前提取[依赖迁移记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-22客户端依赖安全修复接入)，记忆不另存密钥或当前告警清单。
 - GPG首次导入公钥显示“imported”后仍可因自动启动secret-key agent失败返回2。纯公钥验签使用`--no-options --no-autostart --no-auto-key-retrieve`，仍严格检查退出码、固定指纹及`VALIDSIG`；给子命令超时并保留有界stderr，不能接受exit2后继续或跳过签名。无原始Content项的MSBuild工程必须从有身份的source item解析`Filename`，否则旁带源码/许可会被复制到空文件名目标。两类故障及正反验证取[原生媒体记录](../../doc_md/subline/P1-L/CHANGELOG.md#2026-10-22进程内ffmpeg原生依赖升级)。
 - VS Code 的“无调试运行”不是构建配置名；以实际 launch/task 与用户构建输出区分 Debug/Release，不能由保存目录推断程序位置。NU1902 在 restore/build 重复显示不是多份独立漏洞；保留 advisory 身份，修补真实依赖，不屏蔽类别。
+
+- 切换目标框架也会换 Debug/Release 程序目录。旧开发目录带便携标记时，先确认原 bootstrap 是否有自定义指针，在新程序旁沿现有 `portable.ini` 与 `data/storage.ini` 延续已确认资料根，保留原文件和缓存位置的区别。自包含打包的默认 runtime patch 取 SDK 知道的版本，运行时列表里装了更新补丁也不会替代 SDK 选择。两处都按实际入口检查，见[上游整合记录](../../doc_md/mainline/CHANGELOG.md#2026-11-24-osulazer-底层升级实施)。
 - restore 成功或不再发告警不等于完整依赖审计清洁。还需按范围核 `dotnet list ... package --vulnerable --include-transitive`，保留具名例外和传递依赖实情；实际修复版本、边界与兼容检查见 [C7 启动反馈](../../doc_md/other/SKIN_SYSTEM_C7_VALIDATION_20260909.md#交付后默认皮肤提示与构建警告修复)。
 
 - 读谱重进夹具明确拥有完整dependency tree时，先用立即移除/释放结束其callbacks，再dispose manager；只等layout owner退役不能证明drawable已离开全局异步释放队列。每例prepare也须清理失败前例，不能依赖可能跳过的TearDownSteps。确定性后台保存/同帧重建红绿证据取[P1-A记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29读谱夹具快照与原字体来源)。

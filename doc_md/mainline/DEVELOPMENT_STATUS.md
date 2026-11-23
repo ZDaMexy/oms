@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-11-24（本机存储与文档记忆；产品证据沿各自原日期）
+> 最后核对：2026-11-24（上游修复与 .NET 10；其他产品证据沿各自原日期）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -11,7 +11,7 @@ Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，具
 
 ## 产品与仓库基线
 
-现行依赖与回归取[P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)，原生重编与发行待验。.NET 8 已结束支持，迁移与上游候选验证见[专项](../other/UPSTREAM_AUDIT_20261124.md)。
+.NET 10 与首批上游修复已接入，正常窗口、旧库与发行待验。见[整合记录](CHANGELOG.md#2026-11-24-osulazer-底层升级实施)。原生重编仍待。
 
 游玩判定/结果及性能取[10月19日深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)；设备入口、输入时间、轴用途、长皿与校准接续取[10月21日输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)。前台帧时间与实体设备仍待验收。
 

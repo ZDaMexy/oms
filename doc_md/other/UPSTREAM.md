@@ -5,6 +5,7 @@
 | 上游原始基线 | [ppy/osu 2026.305.0-lazer](https://github.com/ppy/osu/releases/tag/2026.305.0-lazer)，`bb289363a2b8e6bf62be355f8570def018f0d7be` |
 | OMS 初始快照 | `0b97bbdd4348de47e1d597a65f0a7734ad184000`，单独起算的 Git 历史 |
 | 最近一次评估 | [2026-11-24 专项审查](UPSTREAM_AUDIT_20261124.md)，评估终点为 `2026.1117.0-lazer` |
+| 最近一次采用 | [2026-11-24 底层升级](../mainline/CHANGELOG.md#2026-11-24-osulazer-底层升级实施)，包含已落地补丁、测试和保留的兼容边界 |
 
 ## 选择性同步
 

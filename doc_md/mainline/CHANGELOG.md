@@ -1,5 +1,26 @@
 # OMS 更新日志
 
+## 2026-11-24 osu!lazer 底层升级实施
+
+从 `83cafcc725` 接续，在上一轮固定的 [`2026.1117.0-lazer`](https://github.com/ppy/osu/releases/tag/2026.1117.0-lazer) 内选取收益，保留现有 OMS 两玩法、谱库直读、现行存档和离线边界。原评估及复跑命令见[上游维护](../other/UPSTREAM.md)。
+
+| 采用方式 | 上游来源 | OMS 行为 |
+| --- | --- | --- |
+| 直接采用 | [#38514](https://github.com/ppy/osu/pull/38514) | 返回选歌时，大谱集更新只同步复核当前选中的难度。迟到的删除不进入重选，BMS 难度表广播仍走原更新链。 |
+| 直接采用 | [#38505](https://github.com/ppy/osu/pull/38505)、[#38817](https://github.com/ppy/osu/pull/38817) | 解析异常 storyboard 定义和零时长循环时可以结束加载，原生 BMS 演出仍走其自有路径。 |
+| 直接采用 | [#38792](https://github.com/ppy/osu/pull/38792) | 通用归档导入会在写入前拒绝仅大小写不同的重名条目。BMS 下载和 Sayobot 仍由各自入口校验。 |
+| 直接采用 | [#37668](https://github.com/ppy/osu/pull/37668) | mania 编辑器能够表示双侧高键数，改键数需确认，取消恢复原选择。 |
+| 适配后采用 | [#37256](https://github.com/ppy/osu/pull/37256)、[#38367](https://github.com/ppy/osu/pull/38367) | 以轨道中心写出 mania 谱面，覆盖原生 14K 保存后重读串轨。编辑器接受合法的 `.MP3` 等大写扩展名，并以标准扩展名保存导入资源。 |
+| 独立适配 | [#38039](https://github.com/ppy/osu/pull/38039) | OMS、测试、样例工程及作者工具迁移至 .NET 10，Microsoft SignalR、SQLite 托管接口等升级至 10.0.15。保留现有 osu-framework、Realm 58 与已修补的原生 FFmpeg。两种自包含发行由同一入口选择 10.0.15 补丁。 |
+
+本机 VS Code 的旧 Debug 输出使用便携资料。新输出通过便携标记和 `storage.ini` 指回原资料根，重建 Debug 后已复核标记和指向。其它开发副本切换框架前应检查实际便携标记与自定义位置。正式覆盖继续使用 [P1-F](../subline/P1-F/DEVELOPMENT_PLAN.md#当前剩余验收)。
+
+**此次保留的边界。** 最新 osu-framework 在对齐 NUnit 4、C# 14、Newtonsoft.Json 与渲染设置后可编译，隔离 BMS 160 项及 mania 113 项通过，原生四个 FFmpeg DLL 与 OMS 补丁库一致。同一合法 PNG 两边可读，但带 `.png` 扩展名的旧 TIFF 纹理仅当前框架可读，新框架返回 `UnknownImageFormatException`。该变化会影响依赖这类素材的旧 mania 长条皮肤，保留当前框架，独立键音音量随其前置一起后置。20K 转谱搜索补丁适用上游通用转换器，OMS 的 BMS→mania 沿固定赛道映射，沿用 [P1-K](../subline/P1-K/TECHNICAL_CONSTRAINTS.md#k9bms---mania-单向转谱约束)。新的数据库结构、评分版本、线上系统和默认皮肤没有进入本轮。其它候选继续取[评估清单](../other/UPSTREAM_AUDIT_20261124.md#下一批可取得的收益与条件)。
+
+归档尺寸补丁按上游谱面站预算设置 200 MiB 单文件上限，且只检查声明值。OMS 的皮肤、BMS 下载及 Sayobot 各有入口约束，本地 ZIP 的大体积 BGA 和零声明大小分支需要一并兼容。按哈希查询本地最佳需验证旧成绩与 OMS 玩法分组，冻结谱库释放需验证隔离根移动及订阅恢复。回放加速属于独立体验变更，需要覆盖 BMS 音频、BGA 和手柄输入。继续以评估表中的对应条件推进。
+
+**本轮验证。** `osu.sln` Release 通过，只有原 BMS 测试工程的 `CS8600` / `CA2007`。桌面 Debug / Release 与两项取景烘焙工具的后续构建无警告。Core 专项 75 项通过，涵盖选歌、storyboard、归档、SQLite 实际库、SignalR 序列化和 Realm 订阅。BMS 全量 3340 通过、19 跳过，mania 全量 1008 通过、2 跳过，均无失败。作者工具按工作区入口检查静线通过，两条烘焙脚本帮助入口通过。两项发行工程均成功还原 Windows x64 自包含运行时 10.0.15。原始日志与对照补丁在 `artifacts/upstream-integration-20261124/`。正常用户窗口、实体控制器、真实旧库覆盖和正式发行仍沿各自入口验证。
+
 ## 2026-11-24 osu!lazer 上游整合评估
 
 固定当前 OMS 与上游 3 月原始基线、11 月正式发布。完成目录筛查、三方合并模拟、具名补丁检查，以及 mania 保存串轨、大谱集选歌和单独 .NET 10 运行时的隔离验证。维护入口改用固定 tag 和现行 OMS 合同，具体结论、证据及后续验收见[专项审查](../other/UPSTREAM_AUDIT_20261124.md)。本轮提交为评估和文档，软件结果限于独立试件。

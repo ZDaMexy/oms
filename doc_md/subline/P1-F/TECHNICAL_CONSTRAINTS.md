@@ -2,7 +2,7 @@
 
 内置静线随 build/publish 从当前作者源文件生成，摘要随本次程序集同步；发行作者套件从本次安装原件复制同名包，不能复用旧 dist。见[构建更新记录](../../other/SKIN_BUILTIN_BUILD_20260912.md)。
 
-0. 发行作者套件只携带 `sources/oms-simple` 与 `aurora-study`；complex 源与 dist 只留仓库历史参考，固定 C6 历史证据保留。跨构建器比较 `.osk` 应核 ZIP 条目集合与逐文件摘要，不能要求 PowerShell 5 与 .NET 8 压缩字节相同。
+0. 发行作者套件只携带 `sources/oms-simple` 与 `aurora-study`；complex 源与 dist 只留仓库历史参考，固定 C6 历史证据保留。跨构建器比较 `.osk` 应核 ZIP 条目集合与逐文件摘要，不能要求 PowerShell 5 与 .NET 作者工具压缩字节相同。
 0a. 当前发行仅包含静线内置原件并构建其源；星轨不是安装完整性或启动依赖，历史作者文件只作参考。旧固定内置星轨选择迁回静线，普通导入皮肤与用户文件不清除，静线保持唯一保底。
 0b. 进程内视频四库以Windows x64整套匹配ABI交付；包含该依赖的实际publish、ZIP及single-file作者工具都保留完整`licenses/ffmpeg/`对应源码、签名、配方和运行库许可，不能以开发输出通过代签发行载荷或混回旧NuGet媒体文件。外部转码器`ffmpeg.exe`仍由用户自备。图片构建须通过适用程序集许可的正常检查，私有许可原文件不作为Content/Pack/发行文件；配置来源取[P1-A依赖记录](../P1-A/CHANGELOG.md#2026-10-22客户端依赖安全修复接入)，原生来源取[依赖入口](../../../native/ffmpeg/README.md)。
 1. 不得借发行验收之名重新打开在线更新、旧 osu! API endpoint 或上游官网的旧在线链。固定 OMSIR 的直接登录、保存后上传与匿名公开查榜，以及已采用玩家网站范围沿 [P3-IR](../P3-IR/TECHNICAL_CONSTRAINTS.md)；旧 API 地址空 / 在线总开关 false，原 Phase 1.x 门保留。用户主动添加公共 BMS 难度表 URL、已授权的 Ginger Rush / 616 BMS 浏览下载和 Sayobot 原生 mania 镜像下载仍为独立窄例外，边界由 P1-A [BMS](../P1-A/TECHNICAL_CONSTRAINTS.md#第三方-bms-浏览下载) / [mania](../P1-A/TECHNICAL_CONSTRAINTS.md#sayobot-mania-浏览下载)维护；发行验收不扩张这些范围。
