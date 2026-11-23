@@ -149,7 +149,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--existing-list", type=Path, action="append", default=[])
     parser.add_argument("--existing-index", type=Path, action="append", default=[])
-    parser.add_argument("--runtime", type=Path, default=REPOSITORY / "osu.Desktop/bin/Release/net8.0")
+    parser.add_argument("--runtime", type=Path, default=REPOSITORY / "osu.Desktop/bin/Release/net10.0")
     args = parser.parse_args()
     output = args.output.resolve()
     if not output.is_relative_to(DEV.resolve()):

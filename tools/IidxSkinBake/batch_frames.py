@@ -469,8 +469,8 @@ def main():
     parser.add_argument("--existing-list", type=Path, action="append", default=[])
     parser.add_argument("--existing-index", type=Path, action="append", default=[])
     parser.add_argument("--execute", type=Path)
-    parser.add_argument("--runtime", type=Path, default=REPOSITORY / "osu.Desktop/bin/Release/net8.0")
-    parser.add_argument("--baker", type=Path, default=DEV / "bin/net8.0/IidxSkinBake.dll")
+    parser.add_argument("--runtime", type=Path, default=REPOSITORY / "osu.Desktop/bin/Release/net10.0")
+    parser.add_argument("--baker", type=Path, default=DEV / "bin/net10.0/IidxSkinBake.dll")
     args = parser.parse_args()
     if args.execute:
         execute(args.execute.resolve(strict=True), args.runtime.resolve(strict=True), args.baker.resolve(strict=True),

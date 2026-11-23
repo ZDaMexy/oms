@@ -9,8 +9,8 @@
 ```powershell
 . .\UseDevelopmentStorage.ps1
 dotnet build tools\IidxSkinBake\IidxSkinBake.csproj -c Release
-dotnet .dev-cache\temp\iidx-bake-dev\bin\net8.0\IidxSkinBake.dll `
-  --runtime osu.Desktop\bin\Release\net8.0 `
+dotnet .dev-cache\temp\iidx-bake-dev\bin\net10.0\IidxSkinBake.dll `
+  --runtime osu.Desktop\bin\Release\net10.0 `
   --author <独立作品的冻结作者目录> `
   --manifest <相对该目录的manifest.json> `
   --animation <manifest内animation-ID> `
@@ -56,8 +56,8 @@ dotnet .dev-cache\temp\iidx-bake-dev\bin\net8.0\IidxSkinBake.dll `
 完整画布动画可能 PNG 很小、解码显存却很大。可对已通过验证的原始 bake 索引分块，不重新渲染、不降帧、不缩图：
 
 ```powershell
-dotnet .dev-cache\temp\iidx-bake-dev\bin\net8.0\IidxSkinBake.dll `
-  --runtime osu.Desktop\bin\Release\net8.0 `
+dotnet .dev-cache\temp\iidx-bake-dev\bin\net10.0\IidxSkinBake.dll `
+  --runtime osu.Desktop\bin\Release\net10.0 `
   --tile-index <已通过的原始index.json> `
   --tile-size 256 `
   --output .dev-cache\temp\iidx-bake-dev\<全新分块目录>
