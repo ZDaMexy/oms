@@ -14,6 +14,7 @@
 - [BMS_GIMMICK_CHART_RENDERING.md](BMS_GIMMICK_CHART_RENDERING.md)：演出谱视觉机理与方案，当前门归 P1-L。
 - [IIDX_REFERENCE_AUDIT.md](IIDX_REFERENCE_AUDIT.md)：外部判定/训练反馈参考。
 - [UPSTREAM.md](UPSTREAM.md)：上游锁定点、选择性 cherry-pick 与风险边界。
+- [2026-11-24 osu!lazer 上游整合评估](UPSTREAM_AUDIT_20261124.md)：三方模拟、候选及两个修复与 .NET 10 的隔离验证。
 
 ## 恢复与视觉验收
 
