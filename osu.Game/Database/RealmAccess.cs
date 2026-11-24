@@ -817,7 +817,20 @@ namespace osu.Game.Database
 
                 realm_instances_created.Value++;
 
-                return Realm.GetInstance(getConfiguration());
+                if (ThreadSafety.IsUpdateThread || SynchronizationContext.Current is not { } context)
+                    return Realm.GetInstance(getConfiguration());
+
+                // A short-lived worker Realm cannot deliver notifications. Registering its native scheduler
+                // with an ambient context such as NUnit's thread-pool context can dispatch after disposal.
+                SynchronizationContext.SetSynchronizationContext(null);
+                try
+                {
+                    return Realm.GetInstance(getConfiguration());
+                }
+                finally
+                {
+                    SynchronizationContext.SetSynchronizationContext(context);
+                }
             }
             finally
             {
