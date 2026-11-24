@@ -40,6 +40,11 @@ namespace osu.Game.Screens.Play
             Precision = 0.01,
         };
 
+        internal double EffectiveUserPlaybackRate => effectiveUserPlaybackRate.Value;
+
+        private readonly BindableDouble effectiveUserPlaybackRate = new BindableDouble(1);
+        private bool fastForwardingReplay;
+
         /// <summary>
         /// Whether the audio playback rate should be validated.
         /// Mostly disabled for tests.
@@ -85,9 +90,20 @@ namespace osu.Game.Screens.Play
             track = working.Track;
             playBeatmapTrack = shouldPlayBeatmapTrack(working);
 
+            UserPlaybackRate.BindValueChanged(_ => updateEffectiveUserPlaybackRate(), true);
+
             GameplayStartTime = gameplayStartTime;
             StartTime = findEarliestStartTime(gameplayStartTime, beatmap, working.Storyboard);
         }
+
+        internal void SetReplayFastForwarding(bool active)
+        {
+            fastForwardingReplay = active;
+            updateEffectiveUserPlaybackRate();
+        }
+
+        private void updateEffectiveUserPlaybackRate()
+            => effectiveUserPlaybackRate.Value = fastForwardingReplay ? Math.Min(UserPlaybackRate.Value * 2, UserPlaybackRate.MaxValue) : UserPlaybackRate.Value;
 
         /// <summary>
         /// Whether the beatmap's own audio track should be heard during gameplay, as declared by the beatmap's ruleset.
@@ -238,7 +254,7 @@ namespace osu.Game.Screens.Play
             musicController.ResetTrackAdjustments();
 
             track.BindAdjustments(AdjustmentsFromMods);
-            track.AddAdjustment(AdjustableProperty.Frequency, UserPlaybackRate);
+            track.AddAdjustment(AdjustableProperty.Frequency, effectiveUserPlaybackRate);
 
             // Added after ResetTrackAdjustments (which clears volume adjustments) so the mute survives. Rulesets whose
             // gameplay audio is self-contained mute the beatmap track here rather than dropping it as the clock source,
@@ -255,7 +271,7 @@ namespace osu.Game.Screens.Play
                 return;
 
             track.UnbindAdjustments(AdjustmentsFromMods);
-            track.RemoveAdjustment(AdjustableProperty.Frequency, UserPlaybackRate);
+            track.RemoveAdjustment(AdjustableProperty.Frequency, effectiveUserPlaybackRate);
 
             if (!playBeatmapTrack)
                 track.RemoveAdjustment(AdjustableProperty.Volume, trackMuteAdjustment);

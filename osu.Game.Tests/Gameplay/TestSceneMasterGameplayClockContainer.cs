@@ -146,7 +146,7 @@ namespace osu.Game.Tests.Gameplay
             AddStep("seek before the offset is loaded", () =>
             {
                 localConfig.SetValue(OsuSetting.AudioOffset, 200.0);
-                clock = new FramedBeatmapClock(applyOffsets: true, requireDecoupling: true);
+                clock = new FramedBeatmapClock(applyOffsets: true, requireDecoupling: true, source: new StopwatchClock());
                 Assert.That(clock.Seek(5000), Is.True);
                 Assert.That(clock.CurrentTime, Is.EqualTo(5000));
                 Assert.That(clock.InputTime, Is.Null);

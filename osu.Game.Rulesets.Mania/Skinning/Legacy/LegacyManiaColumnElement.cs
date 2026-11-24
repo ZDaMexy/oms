@@ -4,10 +4,12 @@
 using System;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
+using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Game.Rulesets.Mania.UI;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
+using osu.Game.Utils;
 
 namespace osu.Game.Rulesets.Mania.Skinning.Legacy
 {
@@ -51,5 +53,14 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
 
         protected IBindable<T>? GetColumnSkinConfig<T>(ISkin skin, LegacyManiaSkinConfigurationLookups lookup) where T : notnull
             => skin.GetManiaSkinConfig<T>(lookup, Column.Index);
+
+        protected static Colour4 GetHoldNoteColour(double? missingStartTime, double currentTime)
+        {
+            const double fade_duration = 60;
+
+            return missingStartTime is double start
+                ? LegacyUtils.InterpolateNonLinear(currentTime, Colour4.White, Colour4.DarkGray, start, start + fade_duration)
+                : Colour4.White;
+        }
     }
 }

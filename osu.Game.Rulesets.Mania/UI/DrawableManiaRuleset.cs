@@ -12,7 +12,6 @@ using osu.Framework.Extensions.IEnumerableExtensions;
 using osu.Framework.Graphics;
 using osu.Framework.Input;
 using osu.Framework.Platform;
-using osu.Framework.Utils;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.ControlPoints;
 using osu.Game.Input.Handlers;
@@ -70,8 +69,6 @@ namespace osu.Game.Rulesets.Mania.UI
         private readonly Bindable<bool> touchOverlay = new Bindable<bool>();
 
         public double TargetTimeRange { get; protected set; }
-
-        private double currentTimeRange;
 
         private static readonly Type? bms_drawable_factory_type = Type.GetType($"{bms_to_mania_drawable_factory_type}, {bms_ruleset_assembly}", throwOnError: false);
         private static readonly Action<Column>? bms_register_drawable_pools = createFactoryDelegate<Action<Column>>("RegisterPools");
@@ -239,9 +236,6 @@ namespace osu.Game.Rulesets.Mania.UI
         // Stores the current speed adjustment active in gameplay.
         private readonly Track speedAdjustmentTrack = new TrackVirtual(0);
 
-        [Resolved]
-        private GameHost gameHost { get; set; } = null!;
-
         public DrawableManiaRuleset(Ruleset ruleset, IBeatmap beatmap, IReadOnlyList<Mod>? mods = null)
             : base(ruleset, beatmap, mods)
         {
@@ -291,7 +285,7 @@ namespace osu.Game.Rulesets.Mania.UI
                 TargetTimeRange = ComputeScrollTime(speed.NewValue);
             });
 
-            TimeRange.Value = TargetTimeRange = currentTimeRange = ComputeScrollTime(configScrollSpeed.Value);
+            TimeRange.Value = TargetTimeRange = ComputeScrollTime(configScrollSpeed.Value);
 
             Config.BindWith(ManiaRulesetSetting.MobileLayout, mobileLayout);
             mobileLayout.BindValueChanged(_ => updateMobileLayout(), true);
@@ -834,9 +828,7 @@ namespace osu.Game.Rulesets.Mania.UI
             // This scaling factor preserves the scroll speed as the scroll length varies from changes to the hit position.
             float scale = resolvedScrollLength / defaultScrollLength;
 
-            // we're intentionally using the game host's update clock here to decouple the time range tween from the gameplay clock (which can be arbitrarily paused, or even rewinding)
-            currentTimeRange = Interpolation.DampContinuously(currentTimeRange, TargetTimeRange, 50, gameHost.UpdateThread.Clock.ElapsedFrameTime);
-            TimeRange.Value = currentTimeRange * speedAdjustmentTrack.AggregateTempo.Value * speedAdjustmentTrack.AggregateFrequency.Value * scale;
+            TimeRange.Value = TargetTimeRange * speedAdjustmentTrack.AggregateTempo.Value * speedAdjustmentTrack.AggregateFrequency.Value * scale;
         }
 
         /// <summary>

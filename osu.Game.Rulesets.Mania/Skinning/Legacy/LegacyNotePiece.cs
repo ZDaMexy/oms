@@ -8,6 +8,8 @@ using osu.Framework.Graphics.Animations;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Graphics.Textures;
+using osu.Game.Rulesets.Mania.Objects.Drawables;
+using osu.Game.Rulesets.Objects.Drawables;
 using osu.Game.Rulesets.UI.Scrolling;
 using osu.Game.Skinning;
 using osuTK;
@@ -21,6 +23,9 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
         internal bool UsesPreparedMaterial => preparedMaterial != null;
 
         private readonly IBindable<ScrollingDirection> direction = new Bindable<ScrollingDirection>();
+
+        [Resolved(canBeNull: true)]
+        private DrawableHitObject? drawableObject { get; set; }
 
         private Container directionContainer = null!;
 
@@ -65,6 +70,9 @@ namespace osu.Game.Rulesets.Mania.Skinning.Legacy
         protected override void Update()
         {
             base.Update();
+
+            if (drawableObject is DrawableHoldNoteHead or DrawableHoldNoteTail)
+                Colour = GetHoldNoteColour((drawableObject.ParentHitObject as DrawableHoldNote)?.MissingStartTime, Time.Current);
 
             Texture? texture = null;
 

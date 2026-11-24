@@ -40,6 +40,8 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
 
         private readonly Bindable<bool> isHolding = new Bindable<bool>();
 
+        internal double? MissingStartTime { get; private set; }
+
         public DrawableHoldNoteHead Head => headContainer.Child;
         public DrawableHoldNoteTail Tail => tailContainer.Child;
         public DrawableHoldNoteBody Body => bodyContainer.Child;
@@ -287,6 +289,13 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
         {
             base.Update();
 
+            double? missingStart = Head.Judged && !Head.IsHit ? Head.Result.TimeAbsolute : null;
+            if (Body.HasHoldBreak)
+                missingStart = Math.Min(missingStart ?? double.PositiveInfinity, Body.Result.RawTime ?? Body.Result.TimeAbsolute);
+            if (Tail.Judged && !Tail.IsHit)
+                missingStart = Math.Min(missingStart ?? double.PositiveInfinity, Tail.Result.TimeAbsolute);
+
+            MissingStartTime = missingStart;
             isHolding.Value = Result.IsHolding(Time.Current);
             bool restoring = double.IsNaN(lastSkinStateTime) || Time.Current < lastSkinStateTime
                              || Clock is IGameplayClock { IsRewinding: true };
@@ -473,6 +482,8 @@ namespace osu.Game.Rulesets.Mania.Objects.Drawables
 
         protected override void OnFree()
         {
+            MissingStartTime = null;
+
             if (AllJudged && Clock is not IGameplayClock { IsRewinding: true })
             {
                 longNoteEffect?.Finish();

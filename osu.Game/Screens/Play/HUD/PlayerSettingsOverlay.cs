@@ -30,7 +30,12 @@ namespace osu.Game.Screens.Play.HUD
         private const int fade_duration = 200;
 
         public override void Show() => this.FadeIn(fade_duration);
-        public override void Hide() => this.FadeOut(fade_duration);
+
+        public override void Hide()
+        {
+            releaseFocus();
+            this.FadeOut(fade_duration);
+        }
 
         // we'll handle this ourselves because we have slightly custom logic.
         protected override bool ExpandOnHover => false;
@@ -94,6 +99,11 @@ namespace osu.Game.Screens.Play.HUD
             base.LoadComplete();
 
             inputManager = GetContainingInputManager()!;
+            Expanded.BindValueChanged(expanded =>
+            {
+                if (!expanded.NewValue)
+                    releaseFocus();
+            });
         }
 
         public override bool ReceivePositionalInputAt(Vector2 screenSpacePos) =>
@@ -127,6 +137,12 @@ namespace osu.Game.Screens.Play.HUD
                 (screenMouseX >= button.ScreenSpaceDrawQuad.TopLeft.X && screenMouseX <= ToScreenSpace(new Vector2(DrawWidth + EXPANDED_WIDTH, 0)).X)
                 // Stay expanded if the user is dragging a slider.
                 || inputManager.DraggedDrawable != null;
+        }
+
+        private void releaseFocus()
+        {
+            if (inputManager?.FocusedDrawable?.IsRootedAt(this) == true)
+                GetContainingFocusManager()?.ChangeFocus(null);
         }
 
         protected override void OnHoverLost(HoverLostEvent e)

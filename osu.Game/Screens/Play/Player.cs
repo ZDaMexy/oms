@@ -95,6 +95,8 @@ namespace osu.Game.Screens.Play
 
         private readonly IBindable<bool> gameActive = new Bindable<bool>(true);
 
+        protected IBindable<bool> GameActive => gameActive;
+
         private readonly Bindable<bool> samplePlaybackDisabled = new();
 
         /// <summary>

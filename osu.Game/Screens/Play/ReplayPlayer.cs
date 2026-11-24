@@ -44,6 +44,10 @@ namespace osu.Game.Screens.Play
         private ReplayFailIndicator? failIndicator;
         private PlaybackSettings? playbackSettings;
 
+        private MasterGameplayClockContainer? masterClock => GameplayClockContainer as MasterGameplayClockContainer;
+
+        private double playbackRate => masterClock?.EffectiveUserPlaybackRate ?? playbackSettings!.UserPlaybackRate.Value;
+
         protected override bool CheckModsAllowFailure()
         {
             // autoplay should be able to fail if the beatmap is not humanly beatable
@@ -93,7 +97,7 @@ namespace osu.Game.Screens.Play
                 Expanded = { BindTarget = config.GetBindable<bool>(OsuSetting.ReplayPlaybackControlsExpanded) }
             };
 
-            if (GameplayClockContainer is MasterGameplayClockContainer master)
+            if (masterClock is { } master)
                 playbackSettings.UserPlaybackRate.BindTo(master.UserPlaybackRate);
 
             HUDOverlay.PlayerSettingsOverlay.AddAtStart(playbackSettings);
@@ -110,6 +114,17 @@ namespace osu.Game.Screens.Play
                         this.Push(new SoloResultsScreen(Score.ScoreInfo));
                     }
                 }
+            });
+        }
+
+        protected override void LoadComplete()
+        {
+            base.LoadComplete();
+
+            GameActive.BindValueChanged(active =>
+            {
+                if (!active.NewValue)
+                    masterClock?.SetReplayFastForwarding(false);
             });
         }
 
@@ -147,11 +162,11 @@ namespace osu.Game.Screens.Play
                     return true;
 
                 case GlobalAction.SeekReplayBackward:
-                    SeekInDirection(-5 * (float)playbackSettings!.UserPlaybackRate.Value);
+                    SeekInDirection(-5 * (float)playbackRate);
                     return true;
 
                 case GlobalAction.SeekReplayForward:
-                    SeekInDirection(5 * (float)playbackSettings!.UserPlaybackRate.Value);
+                    SeekInDirection(5 * (float)playbackRate);
                     return true;
 
                 case GlobalAction.TogglePauseReplay:
@@ -159,6 +174,15 @@ namespace osu.Game.Screens.Play
                         GameplayClockContainer.Start();
                     else
                         GameplayClockContainer.Stop();
+                    return true;
+
+                case GlobalAction.FastForwardReplay:
+                    if (!GameActive.Value || masterClock is not { } master)
+                        return false;
+
+                    if (!e.Repeat)
+                        master.SetReplayFastForwarding(true);
+
                     return true;
             }
 
@@ -189,6 +213,8 @@ namespace osu.Game.Screens.Play
 
         public void OnReleased(KeyBindingReleaseEvent<GlobalAction> e)
         {
+            if (e.Action == GlobalAction.FastForwardReplay)
+                masterClock?.SetReplayFastForwarding(false);
         }
 
         protected override void PerformFail()
@@ -206,6 +232,7 @@ namespace osu.Game.Screens.Play
 
         public override bool OnExiting(ScreenExitEvent e)
         {
+            masterClock?.SetReplayFastForwarding(false);
             // safety against filters or samples from the indicator playing long after the screen is exited
             failIndicator?.RemoveAndDisposeImmediately();
             return base.OnExiting(e);
@@ -216,8 +243,9 @@ namespace osu.Game.Screens.Play
             // safety against filters or samples from the indicator playing long after the screen is exited
             failIndicator?.RemoveAndDisposeImmediately();
 
-            if (GameplayClockContainer is MasterGameplayClockContainer master)
+            if (masterClock is { } master)
             {
+                master.SetReplayFastForwarding(false);
                 playbackSettings?.UserPlaybackRate.UnbindFrom(master.UserPlaybackRate);
                 master.UserPlaybackRate.SetDefault();
             }

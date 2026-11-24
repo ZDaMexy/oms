@@ -187,6 +187,7 @@ namespace osu.Game.Input.Bindings
         private static IEnumerable<KeyBinding> replayKeyBindings => new[]
         {
             new KeyBinding(InputKey.Space, GlobalAction.TogglePauseReplay),
+            new KeyBinding(InputKey.Shift, GlobalAction.FastForwardReplay),
             new KeyBinding(InputKey.Left, GlobalAction.SeekReplayBackward),
             new KeyBinding(InputKey.Right, GlobalAction.SeekReplayForward),
             new KeyBinding(InputKey.Comma, GlobalAction.StepReplayBackward),
@@ -526,6 +527,9 @@ namespace osu.Game.Input.Bindings
 
         [LocalisableDescription(typeof(GlobalActionKeyBindingStrings), nameof(GlobalActionKeyBindingStrings.NextSkin))]
         NextSkin,
+
+        [LocalisableDescription(typeof(GlobalActionKeyBindingStrings), nameof(GlobalActionKeyBindingStrings.FastForwardReplay))]
+        FastForwardReplay,
     }
 
     public enum GlobalActionCategory
