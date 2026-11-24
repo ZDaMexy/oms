@@ -67,16 +67,16 @@ namespace osu.Game.Database
                 {
                     try
                     {
-                        realm.Run(_ =>
-                        {
-                            var detached = frozenSets.Detach();
+                        // The frozen collection owns a separate Realm. Holding a live Realm
+                        // here can block its own storage maintenance while this snapshot is detached.
+                        using var frozenRealm = frozenSets.Realm;
+                        var detached = frozenSets.Detach();
 
-                            lock (detachedBeatmapSets)
-                            {
-                                detachedBeatmapSets.Clear();
-                                detachedBeatmapSets.AddRange(detached);
-                            }
-                        });
+                        lock (detachedBeatmapSets)
+                        {
+                            detachedBeatmapSets.Clear();
+                            detachedBeatmapSets.AddRange(detached);
+                        }
                     }
                     finally
                     {

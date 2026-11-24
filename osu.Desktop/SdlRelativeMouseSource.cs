@@ -48,8 +48,8 @@ namespace osu.Desktop
             window = host.Window;
             mouse = host.AvailableInputHandlers.OfType<MouseHandler>().FirstOrDefault() ?? throw new InvalidOperationException("The existing framework MouseHandler is required for high-precision mouse input.");
 
-            // ppy.osu.Framework 2026.303.0 exposes this existing SDL stream through an internal
-            // interface. Bind its exact verified contract once; no reflection runs per input event.
+            // The existing SDL stream is on an internal interface. Bind its contract once
+            // rather than looking up members for each input event.
             Type? sdlContract = typeof(GameHost).Assembly.GetType("osu.Framework.Platform.ISDLWindow");
             var relativeEvent = sdlContract?.GetEvent("MouseMoveRelative");
             var relativeGetter = sdlContract?.GetProperty("RelativeMouseMode")?.GetMethod;
@@ -57,7 +57,7 @@ namespace osu.Desktop
                 || relativeEvent.AddMethod == null || relativeEvent.RemoveMethod == null
                 || relativeGetter == null || relativeGetter.ReturnType != typeof(bool) || relativeGetter.GetParameters().Length != 0)
             {
-                throw new InvalidOperationException("The pinned osu!framework SDL relative mouse input contract is unavailable. Expected ISDLWindow.MouseMoveRelative and RelativeMouseMode from ppy.osu.Framework 2026.303.0.");
+                throw new InvalidOperationException($"The osu!framework {typeof(GameHost).Assembly.GetName().Version} SDL relative mouse input contract is unavailable. Expected ISDLWindow.MouseMoveRelative and RelativeMouseMode.");
             }
 
             relativeMouseObserver = onRelativeMove;

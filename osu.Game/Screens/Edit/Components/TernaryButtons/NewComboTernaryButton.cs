@@ -61,7 +61,20 @@ namespace osu.Game.Screens.Edit.Components.TernaryButtons
                     {
                         Current = Current,
                         Description = "New combo",
-                        CreateIcon = () => new SpriteIcon { Icon = OsuIcon.EditorNewComboA },
+                        CreateIcon = () => new Container
+                        {
+                            Children = new Drawable[]
+                            {
+                                new SpriteIcon
+                                {
+                                    Anchor = Anchor.BottomLeft,
+                                    Origin = Anchor.BottomLeft,
+                                    Icon = OsuIcon.EditorNote,
+                                    Size = new Vector2(15),
+                                },
+                                new SpriteIcon { Icon = OsuIcon.EditorNewComboSparkles, Size = new Vector2(20) },
+                            },
+                        },
                     },
                 },
                 pickerButton = new ColourPickerButton

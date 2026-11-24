@@ -9,8 +9,9 @@ using osu.Framework.Audio;
 using osu.Framework.Bindables;
 using osu.Framework.Testing;
 using osu.Framework.Timing;
+using osu.Game.Beatmaps;
 using osu.Game.Configuration;
-using osu.Game.Rulesets.Osu;
+using osu.Game.Rulesets.Mania;
 using osu.Game.Screens.Play;
 using osu.Game.Tests.Visual;
 
@@ -25,6 +26,8 @@ namespace osu.Game.Tests.Gameplay
         private void load()
         {
             Dependencies.Cache(localConfig = new OsuConfigManager(LocalStorage));
+            Dependencies.Cache(Realm);
+            Dependencies.CacheAs<IBindable<WorkingBeatmap>>(new Bindable<WorkingBeatmap>(CreateWorkingBeatmap(new ManiaRuleset().RulesetInfo)));
         }
 
         [SetUpSteps]
@@ -40,7 +43,7 @@ namespace osu.Game.Tests.Gameplay
 
             AddStep("create container", () =>
             {
-                var working = CreateWorkingBeatmap(new OsuRuleset().RulesetInfo);
+                var working = CreateWorkingBeatmap(new ManiaRuleset().RulesetInfo);
                 Child = gameplayClockContainer = new MasterGameplayClockContainer(working, 0);
             });
 
@@ -55,7 +58,7 @@ namespace osu.Game.Tests.Gameplay
 
             AddStep("create container", () =>
             {
-                var working = CreateWorkingBeatmap(new OsuRuleset().RulesetInfo);
+                var working = CreateWorkingBeatmap(new ManiaRuleset().RulesetInfo);
                 Child = gameplayClockContainer = new MasterGameplayClockContainer(working, 0);
             });
 
@@ -90,7 +93,7 @@ namespace osu.Game.Tests.Gameplay
 
             AddStep("create container", () =>
             {
-                working = new ClockBackedTestWorkingBeatmap(new OsuRuleset().RulesetInfo, new FramedClock(new ManualClock()), Audio);
+                working = new ClockBackedTestWorkingBeatmap(new ManiaRuleset().RulesetInfo, new FramedClock(new ManualClock()), Audio);
                 Child = gameplayClockContainer = new MasterGameplayClockContainer(working, 0);
 
                 gameplayClockContainer.Reset(startClock: !whileStopped);
@@ -117,7 +120,7 @@ namespace osu.Game.Tests.Gameplay
 
             AddStep("create container", () =>
             {
-                working = new ClockBackedTestWorkingBeatmap(new OsuRuleset().RulesetInfo, new FramedClock(new ManualClock()), Audio);
+                working = new ClockBackedTestWorkingBeatmap(new ManiaRuleset().RulesetInfo, new FramedClock(new ManualClock()), Audio);
                 Child = gameplayClockContainer = new MasterGameplayClockContainer(working, 0);
 
                 gameplayClockContainer.Reset(startClock: true);
@@ -134,6 +137,22 @@ namespace osu.Game.Tests.Gameplay
         {
             localConfig?.Dispose();
             base.Dispose(isDisposing);
+        }
+
+        [Test]
+        public void TestSeekBeforeLoadingAppliesConfiguredOffset()
+        {
+            FramedBeatmapClock clock = null;
+            AddStep("seek before the offset is loaded", () =>
+            {
+                localConfig.SetValue(OsuSetting.AudioOffset, 200.0);
+                clock = new FramedBeatmapClock(applyOffsets: true, requireDecoupling: true);
+                Assert.That(clock.Seek(5000), Is.True);
+                Assert.That(clock.CurrentTime, Is.EqualTo(5000));
+                Assert.That(clock.InputTime, Is.Null);
+                Child = clock;
+            });
+            AddAssert("loaded clock stays at requested time", () => clock.CurrentTime, () => Is.EqualTo(5000).Within(1));
         }
     }
 }

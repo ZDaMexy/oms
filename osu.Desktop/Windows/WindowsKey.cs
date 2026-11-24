@@ -3,6 +3,8 @@
 
 using System;
 using System.Runtime.InteropServices;
+using osu.Framework;
+using SDL;
 
 // ReSharper disable IdentifierTypo
 
@@ -12,7 +14,7 @@ namespace osu.Desktop.Windows
     {
         private delegate int LowLevelKeyboardProcDelegate(int nCode, int wParam, ref KdDllHookStruct lParam);
 
-        private static bool isBlocked;
+        private static bool blockedThroughSdl;
 
         private const int wh_keyboard_ll = 13;
         private const int wm_keydown = 256;
@@ -49,17 +51,27 @@ namespace osu.Desktop.Windows
 
         internal static void Disable()
         {
-            if (keyHook != IntPtr.Zero || isBlocked)
+            if (keyHook != IntPtr.Zero || blockedThroughSdl)
                 return;
 
-            keyHook = setWindowsHookEx(wh_keyboard_ll, (keyboardHookDelegate = lowLevelKeyboardProc), getModuleHandle(null), 0);
+            if (FrameworkEnvironment.UseSDL3 && SDL3.SDL_GetHintBoolean(SDL3.SDL_HINT_WINDOWS_RAW_KEYBOARD, false))
+            {
+                blockedThroughSdl = SDL3.SDL_SetHint(SDL3.SDL_HINT_WINDOWS_RAW_KEYBOARD_EXCLUDE_HOTKEYS, "1");
+                return;
+            }
 
-            isBlocked = true;
+            keyHook = setWindowsHookEx(wh_keyboard_ll, (keyboardHookDelegate = lowLevelKeyboardProc), getModuleHandle(null), 0);
         }
 
         internal static void Enable()
         {
-            if (keyHook == IntPtr.Zero || !isBlocked)
+            if (blockedThroughSdl)
+            {
+                blockedThroughSdl = !SDL3.SDL_SetHint(SDL3.SDL_HINT_WINDOWS_RAW_KEYBOARD_EXCLUDE_HOTKEYS, "0");
+                return;
+            }
+
+            if (keyHook == IntPtr.Zero)
                 return;
 
             keyHook = unhookWindowsHookEx(keyHook);
@@ -67,7 +79,6 @@ namespace osu.Desktop.Windows
 
             keyHook = IntPtr.Zero;
 
-            isBlocked = false;
         }
 
         [DllImport(@"user32.dll", EntryPoint = @"SetWindowsHookExA")]

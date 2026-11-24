@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using osu.Framework.Audio;
 using osu.Framework.Graphics.Rendering;
@@ -109,6 +110,28 @@ namespace osu.Game.Tests.NonVisual.Skinning
             Assert.IsNull(texture);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestLegacyManiaSpriteWithTiffContents(bool highResolution)
+        {
+            using var source = new Image<Rgba32>(24, 48);
+            using var encoded = new MemoryStream();
+            source.SaveAsTiff(encoded);
+            byte[] bytes = encoded.ToArray();
+            string file = highResolution ? "mania-note1L@2x.png" : "mania-note1L.png";
+
+            var store = new Mock<IResourceStore<byte[]>>();
+            store.Setup(s => s.GetStream(file)).Returns(() => new MemoryStream(bytes, writable: false));
+            using var frameworkLoader = new TextureLoaderStore(store.Object);
+            Assert.That(frameworkLoader.Get(file), Is.Null);
+
+            var skin = new TestLegacySkin(frameworkLoader);
+            var sprite = skin.GetTexture("mania-note1L");
+            Assert.That(sprite, Is.Not.Null);
+            Assert.That((sprite.Width, sprite.Height), Is.EqualTo((24, 48)));
+            Assert.That(sprite.ScaleAdjust, Is.EqualTo(highResolution ? 2 : 1));
+        }
+
         [Test]
         public void TestDisallowHighResolutionSprites()
         {
@@ -191,7 +214,7 @@ namespace osu.Game.Tests.NonVisual.Skinning
 
             public Task<TextureUpload> GetAsync(string name, CancellationToken cancellationToken = new CancellationToken()) => Task.FromResult(Get(name));
 
-            public Stream GetStream(string name) => throw new NotImplementedException();
+            public Stream GetStream(string name) => null;
 
             public IEnumerable<string> GetAvailableResources() => throw new NotImplementedException();
 

@@ -33,10 +33,7 @@ namespace osu.Game.Overlays.Settings.Sections.Graphics
                 {
                     Caption = GraphicsSettingsStrings.Renderer,
                     Current = renderer,
-                    Items = host.GetPreferredRenderersForCurrentPlatform().Order()
-#pragma warning disable CS0612 // Type or member is obsolete
-                                .Where(t => t != RendererType.Vulkan && t != RendererType.OpenGLLegacy),
-#pragma warning restore CS0612 // Type or member is obsolete
+                    Items = host.GetPreferredRenderersForCurrentPlatform().Order().Where(t => t != RendererType.Vulkan),
                 })
                 {
                     Keywords = new[] { @"compatibility", @"directx" },

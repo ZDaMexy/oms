@@ -46,6 +46,17 @@ namespace osu.Game.Skinning
             Configuration.ConfigDictionary[@"AllowSliderBallTint"] = "0";
             Configuration.ConfigDictionary[@"CursorTrailRotate"] = "0";
             Configuration.ConfigDictionary[@"Version"] = "1";
+            Configuration.ConfigDictionary[@"CursorRotate"] = "1";
+            Configuration.ConfigDictionary[@"CursorExpand"] = "1";
+            Configuration.ConfigDictionary[@"CursorCentre"] = "1";
+            Configuration.ConfigDictionary[@"HitCircleOverlayAboveNumber"] = "1";
+            Configuration.ConfigDictionary[@"SpinnerFrequencyModulate"] = "1";
+            Configuration.ConfigDictionary[@"LayeredHitSounds"] = "1";
+            Configuration.ConfigDictionary[@"SpinnerFadePlayfield"] = "1";
+            Configuration.ConfigDictionary[@"SpinnerNoBlink"] = "0";
+            Configuration.ConfigDictionary[@"ComboBurstRandom"] = "0";
+            Configuration.ConfigDictionary[@"SliderStyle"] = "1";
+            Configuration.CustomColours[@"SpinnerApproachCircle"] = new Color4(77, 139, 217, 255);
 
             Configuration.CustomComboColours =
             [

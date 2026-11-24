@@ -39,6 +39,7 @@ namespace osu.Game.Beatmaps
 
         private readonly DecouplingFramedClock decoupledTrack;
         private readonly InterpolatingFramedClock interpolatedTrack;
+        private double? initialSeek;
 
         [Resolved]
         private OsuConfigManager config { get; set; } = null!;
@@ -109,6 +110,12 @@ namespace osu.Game.Beatmaps
                         userBeatmapOffsetClock.Offset = val;
                     });
             }
+
+            if (initialSeek is double position)
+            {
+                initialSeek = null;
+                Seek(position);
+            }
         }
 
         protected override void Update()
@@ -150,6 +157,7 @@ namespace osu.Game.Beatmaps
         public void Reset()
         {
             invalidateInputTime();
+            initialSeek = null;
             decoupledTrack.Reset();
             finalClockSource.ProcessFrame();
             captureInputTime();
@@ -174,6 +182,14 @@ namespace osu.Game.Beatmaps
         public bool Seek(double position)
         {
             invalidateInputTime();
+
+            // Editor difficulty switches can seek before the configured offsets are loaded.
+            if (applyOffsets && !IsLoaded)
+            {
+                initialSeek = position;
+                return true;
+            }
+
             bool success = decoupledTrack.Seek(position - TotalAppliedOffset);
             finalClockSource.ProcessFrame();
             captureInputTime();
@@ -198,6 +214,9 @@ namespace osu.Game.Beatmaps
 
         private void captureInputTime()
         {
+            if (initialSeek.HasValue)
+                return;
+
             // Pair the timestamp here, immediately after the authority clock is processed. Taking it later
             // in an input manager would include hierarchy/update overhead in every event's judgement time.
             long timestamp = Stopwatch.GetTimestamp();
@@ -218,7 +237,7 @@ namespace osu.Game.Beatmaps
 
         #region Delegation of IFrameBasedClock to clock with all offsets applied
 
-        public double CurrentTime => finalClockSource.CurrentTime;
+        public double CurrentTime => initialSeek ?? finalClockSource.CurrentTime;
 
         public bool IsRunning => finalClockSource.IsRunning;
 

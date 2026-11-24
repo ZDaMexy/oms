@@ -21,6 +21,40 @@ namespace osu.Game.Tests.Visual.SongSelect
         private void load() => Dependencies.Cache(Realm);
 
         [Test]
+        public void TestLibrarySubscriptionsResumeAfterRepeatedMaintenance()
+        {
+            RealmDetachedBeatmapStore store = null!;
+            IBindableList<BeatmapSetInfo> sets = null!;
+            var original = TestResources.CreateTestBeatmapSetInfo(2);
+            var inserted = TestResources.CreateTestBeatmapSetInfo();
+            Guid originalId = original.ID;
+            Guid insertedId = inserted.ID;
+            AddStep("load library", () =>
+            {
+                Realm.Write(r => r.Add(original, update: true));
+                Child = store = new RealmDetachedBeatmapStore();
+            });
+            AddUntilStep("store is loaded", () => store.IsLoaded);
+            AddStep("observe the library", () => sets = store.GetBeatmapSets(null));
+            AddUntilStep("initial library visible", () => sets.Any(s => s.ID == originalId));
+            AddStep("run maintenance and reopen the library", () =>
+            {
+                using (Realm.BlockAllOperations("first maintenance"))
+                    Realm.CreateBackup("maintenance-first.realm");
+            });
+            AddWaitStep("settle reopened library", 3);
+            AddStep("run maintenance a second time", () =>
+            {
+                using (Realm.BlockAllOperations("second maintenance"))
+                    Realm.CreateBackup("maintenance-second.realm");
+            });
+            AddWaitStep("settle reopened library", 3);
+            AddStep("add another set", () => Realm.Write(r => r.Add(inserted, update: true)));
+            AddUntilStep("subscription continues to publish changes", () => sets.Any(s => s.ID == insertedId));
+            AddAssert("original set and its difficulties are still available", () => sets.Single(s => s.ID == originalId).Beatmaps.Count, () => Is.EqualTo(2));
+        }
+
+        [Test]
         public void TestCommittedBatchUpdatesExistingSnapshotAndRetainsUnavailableHistory()
         {
             RealmDetachedBeatmapStore store = null!;

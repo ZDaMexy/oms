@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
+using osu.Framework;
 using osu.Framework.Allocation;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
@@ -14,6 +15,7 @@ using osu.Framework.Logging;
 using osu.Framework.Platform;
 using osu.Game.Input;
 using osu.Game.Screens.Play;
+using SDL;
 
 namespace osu.Desktop.Windows
 {
@@ -112,6 +114,7 @@ namespace osu.Desktop.Windows
         private volatile bool rawInputEnabled;
         private volatile bool windowHasKeyboardFocus = true;
         private bool rawInputInitialisationAttempted;
+        private bool suspendedSdlRawKeyboard;
         private IntPtr windowHandle;
         private IntPtr originalWindowProc;
         private WndProcDelegate? windowProcDelegate;
@@ -266,6 +269,18 @@ namespace osu.Desktop.Windows
                 return;
             }
 
+            // Only one target per raw-input device class can own registration in this process.
+            // SDL still supplies ordinary keyboard events to the interface and IME.
+            if (FrameworkEnvironment.UseSDL3 && SDL3.SDL_GetHintBoolean(SDL3.SDL_HINT_WINDOWS_RAW_KEYBOARD, false))
+            {
+                suspendedSdlRawKeyboard = SDL3.SDL_SetHint(SDL3.SDL_HINT_WINDOWS_RAW_KEYBOARD, "0");
+                if (!suspendedSdlRawKeyboard)
+                {
+                    Logger.Log("Could not transfer the Windows raw keyboard from SDL to OMS.", LoggingTarget.Runtime, LogLevel.Important);
+                    return;
+                }
+            }
+
             windowProcDelegate ??= windowProc;
 
             Marshal.GetLastWin32Error();
@@ -273,6 +288,7 @@ namespace osu.Desktop.Windows
 
             if (originalWindowProc == IntPtr.Zero && Marshal.GetLastWin32Error() != 0)
             {
+                restoreSdlRawKeyboard();
                 Logger.Log("Could not subclass the game window for Windows raw keyboard input.", LoggingTarget.Runtime, LogLevel.Important);
                 return;
             }
@@ -280,6 +296,7 @@ namespace osu.Desktop.Windows
             if (!registerKeyboardRawInput(windowHandle))
             {
                 restoreWindowProc();
+                restoreSdlRawKeyboard();
                 Logger.Log("Could not register the game window for Windows raw keyboard input.", LoggingTarget.Runtime, LogLevel.Important);
                 return;
             }
@@ -295,9 +312,20 @@ namespace osu.Desktop.Windows
             Volatile.Read(ref sink)?.ResetRawKeyboardState();
             unregisterKeyboardRawInput();
             restoreWindowProc();
+            restoreSdlRawKeyboard();
 
             rawInputEnabled = false;
             windowHandle = IntPtr.Zero;
+        }
+
+        private void restoreSdlRawKeyboard()
+        {
+            if (!suspendedSdlRawKeyboard)
+                return;
+
+            if (!SDL3.SDL_SetHint(SDL3.SDL_HINT_WINDOWS_RAW_KEYBOARD, "1"))
+                Logger.Log("Could not restore the SDL raw keyboard setting.", LoggingTarget.Runtime, LogLevel.Important);
+            suspendedSdlRawKeyboard = false;
         }
 
         private void restoreWindowProc()
