@@ -235,7 +235,7 @@ namespace osu.Game.Screens.Select
                 Shadow = true,
                 Font = OsuFont.Style.Title,
             };
-            titleLink.Action = () => songSelect?.Search(titleText.GetPreferred(localisation.CurrentParameters.Value.PreferOriginalScript));
+            titleLink.Action = () => songSelect?.AddToSearch(titleText.GetPreferred(localisation.CurrentParameters.Value.PreferOriginalScript));
             DisplayedTitle = titleText.ToString();
 
             var artistText = new RomanisableString(BeatmapLocalMetadataDisplayResolver.GetDisplayArtistUnicode(beatmapInfo), BeatmapLocalMetadataDisplayResolver.GetDisplayArtist(beatmapInfo));
@@ -245,7 +245,7 @@ namespace osu.Game.Screens.Select
                 Shadow = true,
                 Font = OsuFont.Style.Heading2,
             };
-            artistLink.Action = () => songSelect?.Search(artistText.GetPreferred(localisation.CurrentParameters.Value.PreferOriginalScript));
+            artistLink.Action = () => songSelect?.AddToSearch(artistText.GetPreferred(localisation.CurrentParameters.Value.PreferOriginalScript));
             DisplayedArtist = artistText.ToString();
 
             updateLengthAndBpmStatistics();

@@ -64,5 +64,8 @@ namespace osu.Game.Screens.Select.Filter
 
         [LocalisableDescription(typeof(OmsSongSelectStrings), nameof(OmsSongSelectStrings.InternalLibrary))]
         InternalLibrary,
+
+        [LocalisableDescription(typeof(OmsSongSelectStrings), nameof(OmsSongSelectStrings.Keys))]
+        Keys,
     }
 }

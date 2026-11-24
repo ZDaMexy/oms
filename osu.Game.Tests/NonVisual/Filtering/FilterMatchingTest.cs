@@ -19,6 +19,19 @@ namespace osu.Game.Tests.NonVisual.Filtering
     [TestFixture]
     public class FilterMatchingTest
     {
+        [TestCase("song (Extended Mix)", "\"Extended Mix\"", true)]
+        [TestCase("song Extended Mixer", "\"Extended Mix\"", false)]
+        [TestCase("song (+PLUS) mix", "\"+PLUS\"", true)]
+        [TestCase("song Extended Mix", "\"Extended Mix\"!", false)]
+        public void TestQuotedPhraseAtPunctuation(string title, string search, bool matches)
+        {
+            var beatmap = getExampleBeatmap();
+            beatmap.Metadata.Title = title;
+
+            var criteria = new FilterCriteria { SearchText = search };
+            Assert.That(BeatmapCarouselFilterMatching.CheckCriteriaMatch(beatmap, criteria), Is.EqualTo(matches));
+        }
+
         private BeatmapInfo getExampleBeatmap() => new BeatmapInfo
         {
             Ruleset = new RulesetInfo

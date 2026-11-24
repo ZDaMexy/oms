@@ -51,5 +51,16 @@ namespace osu.Game.Tests.Visual.SongSelect
             AddAssert("clearing restores unrelated title", () => BeatmapCarouselFilterMatching.CheckCriteriaMatch(
                 new BeatmapInfo(Ruleset.Value.Clone(), new BeatmapDifficulty(), new BeatmapMetadata { Title = "another song" }), filterControl.CreateCriteria()));
         }
+
+        [Test]
+        public void TestMetadataSearchAppendsToExistingText()
+        {
+            AddStep("start with whitespace", () => filterControl.Search("  "));
+            AddStep("append the first term", () => filterControl.AddToSearch("song"));
+            AddAssert("no leading separator", () => filterControl.CreateCriteria().SearchText, () => Is.EqualTo("song"));
+            AddStep("append an artist", () => filterControl.AddToSearch("artist"));
+            AddStep("click the same term again", () => filterControl.AddToSearch("ARTIST"));
+            AddAssert("original terms and appended term retained once", () => filterControl.CreateCriteria().SearchText, () => Is.EqualTo("song artist"));
+        }
     }
 }

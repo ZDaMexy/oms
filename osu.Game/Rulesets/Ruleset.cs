@@ -585,7 +585,7 @@ namespace osu.Game.Rulesets
         /// Returns the song select grouping modes that should be exposed for this ruleset.
         /// </summary>
         public virtual IReadOnlyList<GroupMode> GetAvailableSongSelectGroupModes()
-            => Enum.GetValues<GroupMode>().Where(mode => mode is not GroupMode.DifficultyTable and not GroupMode.ExternalLibrary and not GroupMode.InternalLibrary).ToArray();
+            => Enum.GetValues<GroupMode>().Where(mode => mode is not GroupMode.DifficultyTable and not GroupMode.ExternalLibrary and not GroupMode.InternalLibrary and not GroupMode.Keys).ToArray();
 
         /// <summary>
         /// Whether the specified song select grouping is ruleset-specific hierarchical grouping.

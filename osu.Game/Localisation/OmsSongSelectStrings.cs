@@ -24,6 +24,11 @@ namespace osu.Game.Localisation
         public static LocalisableString InternalLibrary => new TranslatableString(getKey(@"internal_library"), @"Internal Library");
 
         /// <summary>
+        /// "Keys"
+        /// </summary>
+        public static LocalisableString Keys => new TranslatableString(getKey(@"keys"), @"Keys");
+
+        /// <summary>
         /// "Unmapped External Library"
         /// </summary>
         public static LocalisableString UnmappedExternalLibrary => new TranslatableString(getKey(@"unmapped_external_library"), @"Unmapped External Library");

@@ -275,6 +275,18 @@ namespace osu.Game.Screens.Select
                     return getGroupsBy(b => defineGroupByFavourites(b, favouriteBeatmapSets), items);
                 }
 
+                case GroupMode.Keys:
+                {
+                    if (criteria.Ruleset?.CreateInstance() is not ILegacyRuleset ruleset)
+                        goto case GroupMode.None;
+
+                    return getGroupsBy(beatmap =>
+                    {
+                        int keys = ruleset.GetKeyCount(beatmap);
+                        return new GroupDefinition(keys, $"{keys}K").Yield();
+                    }, items);
+                }
+
                 default:
                     throw new ArgumentOutOfRangeException();
             }
@@ -480,9 +492,9 @@ namespace osu.Game.Screens.Select
             {
                 var beatmap = (BeatmapInfo)item.Model;
 
-                // as a side note, even reading the `MD5Hash` off a realm model is slow if done enough times,
-                // so it definitely helps that thanks to the mapping it needs to only be retrieved once
-                if (md5ToCollectionsMap.TryGetValue(beatmap.MD5Hash, out var collections))
+                // Read the Realm property only once and keep hashless local charts visible.
+                string hash = beatmap.MD5Hash;
+                if (!string.IsNullOrEmpty(hash) && md5ToCollectionsMap.TryGetValue(hash, out var collections))
                 {
                     foreach (var collection in collections)
                         groupMappings[collection].ItemsInGroup.Add(item);

@@ -6,11 +6,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using osu.Framework.Extensions;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Testing;
 using osu.Framework.Utils;
 using osu.Game.Beatmaps;
 using osu.Game.Collections;
+using osu.Game.Configuration;
 using osu.Game.Extensions;
 using osu.Game.Models;
 using osu.Game.Online.API;
@@ -22,6 +24,7 @@ using osu.Game.Scoring;
 using osu.Game.Screens.Select;
 using osu.Game.Screens.Select.Filter;
 using osu.Game.Tests.Resources;
+using CollectionDropdown = osu.Game.Screens.Select.CollectionDropdown;
 
 namespace osu.Game.Tests.Visual.SongSelect
 {
@@ -44,6 +47,45 @@ namespace osu.Game.Tests.Visual.SongSelect
         }
 
         #region Collection grouping
+
+        [Test]
+        public void TestSavedCollectionFiltersOnOpenAndFollowsMembershipChanges()
+        {
+            ImportBeatmapForModes(_ => { }, 1, "mania");
+            ImportBeatmapForModes(_ => { }, 1, "mania");
+
+            Guid collectionId = Guid.Empty;
+            string secondHash = string.Empty;
+
+            AddStep("save a collection filter before opening song select", () =>
+            {
+                var beatmaps = Beatmaps.GetAllUsableBeatmapSets().SelectMany(set => set.Beatmaps).ToArray();
+                secondHash = beatmaps[1].MD5Hash;
+                var collection = new BeatmapCollection("Saved collection", [beatmaps[0].MD5Hash]);
+                collectionId = collection.ID;
+                Realm.Write(r => r.Add(collection));
+
+                Config.SetValue(OsuSetting.SongSelectCollectionFilter, collectionId.ToString());
+                Config.Save();
+                using var reopenedConfig = new OsuConfigManager(LocalStorage);
+                Assert.That(reopenedConfig.Get<string>(OsuSetting.SongSelectCollectionFilter), Is.EqualTo(collectionId.ToString()));
+            });
+
+            LoadSongSelect();
+            checkMatchedBeatmaps(1);
+            AddUntilStep("restore the selected collection in the dropdown", () =>
+                SongSelect.ChildrenOfType<CollectionDropdown>().Single().Current.Value?.Collection?.ID, () => Is.EqualTo(collectionId));
+            AddAssert("creating the criteria does not copy the collection on the update thread", () =>
+                SongSelect.ChildrenOfType<FilterControl>().Single().CreateCriteria().SelectedCollectionMembership?.IsValueCreated == false);
+
+            AddStep("change the selected collection's contents", () => Realm.Write(r =>
+                r.Find<BeatmapCollection>(collectionId)!.BeatmapMD5Hashes.Add(secondHash)));
+            checkMatchedBeatmaps(2);
+
+            AddStep("remove the selected collection", () => Realm.Write(r => r.Remove(r.Find<BeatmapCollection>(collectionId)!)));
+            AddUntilStep("fall back to all beatmaps", () => Config.Get<string>(OsuSetting.SongSelectCollectionFilter), () => Is.Empty);
+            checkMatchedBeatmaps(2);
+        }
 
         [Test]
         public void TestCollectionGrouping()

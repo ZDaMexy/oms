@@ -7,7 +7,6 @@ using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using osu.Game.Beatmaps;
-using osu.Game.Collections;
 using osu.Game.Configuration;
 using osu.Game.Rulesets;
 using osu.Game.Rulesets.Filter;
@@ -138,10 +137,12 @@ namespace osu.Game.Screens.Select
             }
         }
 
+        internal Lazy<IReadOnlySet<string>?>? SelectedCollectionMembership { get; init; }
+
         /// <summary>
-        /// Hashes from the <see cref="BeatmapCollection"/> to filter to.
+        /// Snapshot the selected collection when the filtering worker first needs its membership.
         /// </summary>
-        public IEnumerable<string>? CollectionBeatmapMD5Hashes { get; set; }
+        public IReadOnlySet<string>? CollectionBeatmapMD5Hashes => SelectedCollectionMembership?.Value;
 
         public IRulesetFilterCriteria? RulesetCriteria { get; set; }
 
@@ -246,7 +247,7 @@ namespace osu.Game.Screens.Select
                         break;
 
                     case MatchMode.IsolatedPhrase:
-                        result = Regex.IsMatch(value, $@"(^|\s){Regex.Escape(searchTerm)}($|\s)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+                        result = Regex.IsMatch(value, $@"(?<!\w){Regex.Escape(searchTerm)}(?!\w)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
                         break;
 
                     case MatchMode.FullPhrase:

@@ -605,6 +605,7 @@ namespace osu.Game.Rulesets.Mania
             // is explained by NoResultsPlaceholder. Placed right after "No grouping" for prominence.
             var modes = base.GetAvailableSongSelectGroupModes().ToList();
             modes.Insert(Math.Min(1, modes.Count), GroupMode.DifficultyTable);
+            modes.Add(GroupMode.Keys);
             return modes;
         }
 

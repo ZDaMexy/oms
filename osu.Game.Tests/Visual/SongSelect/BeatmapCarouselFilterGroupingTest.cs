@@ -50,6 +50,63 @@ namespace osu.Game.Tests.Visual.SongSelect
 
         #endregion
 
+        [Test]
+        public async Task TestManiaKeyGroupsIncludeNativeAndConvertedDifficulties()
+        {
+            var mania = new ManiaRuleset().RulesetInfo;
+            var bms = new RulesetInfo { ShortName = BmsStarRatingResolver.RulesetShortName };
+            var beatmapSets = new List<BeatmapSetInfo>();
+
+            addBeatmapSet(set =>
+            {
+                foreach (var beatmap in set.Beatmaps)
+                {
+                    beatmap.Ruleset = mania;
+                    beatmap.Difficulty.CircleSize = 9;
+                }
+            }, beatmapSets, out var native);
+
+            addBeatmapSet(set =>
+            {
+                foreach (var beatmap in set.Beatmaps)
+                {
+                    beatmap.Ruleset = bms;
+                    beatmap.Difficulty.CircleSize = 9;
+                }
+            }, beatmapSets, out var converted9);
+
+            addBeatmapSet(set =>
+            {
+                foreach (var beatmap in set.Beatmaps)
+                {
+                    beatmap.Ruleset = bms;
+                    beatmap.Difficulty.CircleSize = 14;
+                }
+            }, beatmapSets, out var converted14);
+
+            var results = await runGrouping(new FilterCriteria { Group = GroupMode.Keys, Ruleset = mania }, beatmapSets);
+            int total = 0;
+            assertGroup(results, 0, "9K", native.Beatmaps.Concat(converted9.Beatmaps), ref total);
+            assertGroup(results, 1, "14K", converted14.Beatmaps, ref total);
+            assertTotal(results, total);
+        }
+
+        [Test]
+        public async Task TestCollectionGroupingRetainsChartsWithoutAHash()
+        {
+            var beatmapSets = new List<BeatmapSetInfo>();
+            addBeatmapSet(set =>
+            {
+                foreach (var beatmap in set.Beatmaps)
+                    beatmap.MD5Hash = null!;
+            }, beatmapSets, out var hashless);
+
+            var results = await runGrouping(GroupMode.Collections, beatmapSets);
+            int total = 0;
+            assertGroup(results, 0, "Not in collection", hashless.Beatmaps, ref total);
+            assertTotal(results, total);
+        }
+
         #region Alphabetical grouping
 
         [Test]

@@ -284,6 +284,26 @@ namespace osu.Game.Beatmaps
             });
         }
 
+        /// <summary>
+        /// Restore all hidden difficulties in one set together.
+        /// </summary>
+        public void Restore(BeatmapSetInfo beatmapSetInfo)
+        {
+            Realm.Run(r =>
+            {
+                using var transaction = r.BeginWrite();
+
+                var storedSet = r.Find<BeatmapSetInfo>(beatmapSetInfo.ID);
+                if (storedSet == null || storedSet.DeletePending)
+                    return;
+
+                foreach (var beatmap in storedSet.Beatmaps.Where(b => b.Hidden))
+                    beatmap.Hidden = false;
+
+                transaction.Commit();
+            });
+        }
+
         public void RestoreAll()
         {
             Realm.Run(r =>

@@ -21,6 +21,7 @@ using osu.Framework.Input;
 using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osu.Framework.Platform;
+using osu.Framework.Threading;
 using osu.Game.Beatmaps;
 using osu.Game.Collections;
 using osu.Game.Configuration;
@@ -50,7 +51,10 @@ namespace osu.Game.Screens.Select
         public const float HEIGHT_FROM_SCREEN_TOP = 141 - corner_radius;
 
         private const float corner_radius = 10;
+        private const int slider_filter_delay = 50;
         private const string bms_ruleset_short_name = "bms";
+
+        private ScheduledDelegate? pendingSliderFilter;
 
         // The sole conversion target in OMS (BMS → mania). "Converts only" is only meaningful here.
         private const string mania_ruleset_short_name = "mania";
@@ -73,7 +77,7 @@ namespace osu.Game.Screens.Select
         private readonly List<BmsKeyCountToggleButton> bmsKeyCountButtons = new List<BmsKeyCountToggleButton>();
         private ShearedDropdown<SortMode> sortDropdown = null!;
         private ShearedDropdown<GroupMode> groupDropdown = null!;
-        private CollectionDropdown collectionDropdown = null!;
+        private readonly Bindable<string> collectionFilter = new Bindable<string>();
         private SortMode? sortModeBeforeLockedGrouping;
 
         // BMS-only "display level" control: persisted user preference, plus a guard used while we
@@ -229,7 +233,7 @@ namespace osu.Game.Screens.Select
                                         Alpha = 0,
                                     },
                                     Empty(),
-                                    collectionDropdown = new CollectionDropdown
+                                    new CollectionDropdown
                                     {
                                         RelativeSizeAxes = Axes.X,
                                     },
@@ -263,6 +267,7 @@ namespace osu.Game.Screens.Select
             config.BindWith(OsuSetting.ConvertedBeatmapsDisplay, convertedBeatmapsDisplay);
             config.BindWith(OsuSetting.SongSelectSortingMode, sortDropdown.Current);
             config.BindWith(OsuSetting.SongSelectGroupMode, groupDropdown.Current);
+            config.BindWith(OsuSetting.SongSelectCollectionFilter, collectionFilter);
             config.BindWith(OsuSetting.BmsSongSelectDisplayLevel, displayLevelSetting);
 
             // The standard (mania) layout exposes the full tri-state (Hidden / Shown / ConvertedOnly).
@@ -315,8 +320,8 @@ namespace osu.Game.Screens.Select
             });
 
             searchTextBox.Current.BindValueChanged(_ => updateCriteria());
-            difficultyRangeSlider.LowerBound.BindValueChanged(_ => updateCriteria());
-            difficultyRangeSlider.UpperBound.BindValueChanged(_ => updateCriteria());
+            difficultyRangeSlider.LowerBound.BindValueChanged(_ => queueSliderFilter());
+            difficultyRangeSlider.UpperBound.BindValueChanged(_ => queueSliderFilter());
             convertedBeatmapsDisplay.BindValueChanged(_ =>
             {
                 if (!updateAvailableGroupingModes())
@@ -326,7 +331,7 @@ namespace osu.Game.Screens.Select
             foreach (var row in bmsCompositionFilter.Rows)
             {
                 row.Enabled.BindValueChanged(_ => updateCriteria());
-                row.UpperBound.BindValueChanged(_ => updateCriteria());
+                row.UpperBound.BindValueChanged(_ => queueSliderFilter());
             }
 
             foreach (var button in bmsKeyCountButtons)
@@ -364,18 +369,15 @@ namespace osu.Game.Screens.Select
 
                 displayLevelSetting.Value = displayLevelDropdown.Current.Value;
             });
-            collectionDropdown.Current.BindValueChanged(v =>
-            {
-                // The hope would be that this never arrives here, but due to bindings receiving changes before
-                // local ValueChanged events, that's not the case (see https://github.com/ppy/osu-framework/pull/1545).
-                if (v.NewValue is ManageCollectionsFilterMenuItem || v.OldValue is ManageCollectionsFilterMenuItem)
-                    return;
-
-                updateCriteria();
-            });
+            collectionFilter.BindValueChanged(_ => updateCriteria());
             collectionsSubscription = realm.RegisterForNotifications(r => r.All<BeatmapCollection>(), (collections, changeSet) =>
             {
-                if (changeSet != null && groupDropdown.Current.Value == GroupMode.Collections)
+                if (changeSet == null)
+                    return;
+
+                if (groupDropdown.Current.Value == GroupMode.Collections
+                    || (Guid.TryParse(collectionFilter.Value, out Guid collectionId)
+                        && changeSet.NewModifiedIndices.Any(index => collections[index].ID == collectionId)))
                     updateCriteria();
             });
 
@@ -400,6 +402,7 @@ namespace osu.Game.Screens.Select
         {
             string query = searchTextBox.Current.Value;
             bool isValidUser = localUser.Value.Id > 1;
+            bool hasCollectionFilter = Guid.TryParse(collectionFilter.Value, out Guid collectionId);
 
             var convertedDisplay = convertedBeatmapsDisplay.Value;
 
@@ -416,7 +419,9 @@ namespace osu.Game.Screens.Select
                 ConvertedBeatmaps = convertedDisplay,
                 Ruleset = ruleset.Value,
                 Mods = mods.Value,
-                CollectionBeatmapMD5Hashes = collectionDropdown.Current.Value?.Collection?.PerformRead(c => c.BeatmapMD5Hashes).ToImmutableHashSet(),
+                SelectedCollectionMembership = hasCollectionFilter
+                    ? new Lazy<IReadOnlySet<string>?>(() => realm.Run(r => r.Find<BeatmapCollection>(collectionId)?.BeatmapMD5Hashes.ToImmutableHashSet()))
+                    : null,
                 LocalUserId = isValidUser ? localUser.Value.Id : null,
                 LocalUserUsername = isValidUser ? localUser.Value.Username : null,
             };
@@ -449,8 +454,21 @@ namespace osu.Game.Screens.Select
             return criteria;
         }
 
+        private void queueSliderFilter()
+        {
+            pendingSliderFilter?.Cancel();
+            pendingSliderFilter = Scheduler.AddDelayed(() =>
+            {
+                pendingSliderFilter = null;
+                updateCriteria();
+            }, slider_filter_delay);
+        }
+
         private void updateCriteria(bool clearScopedSet = true)
         {
+            pendingSliderFilter?.Cancel();
+            pendingSliderFilter = null;
+
             if (clearScopedSet && ScopedBeatmapSet.Value != null)
             {
                 songSelect?.UnscopeBeatmapSet();
@@ -470,6 +488,15 @@ namespace osu.Game.Screens.Select
         public void Search(string query)
         {
             searchTextBox.Current.Value = query;
+        }
+
+        public void AddToSearch(string query)
+        {
+            string existingQuery = searchTextBox.Current.Value;
+            if (existingQuery.Contains(query, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            Search(string.IsNullOrWhiteSpace(existingQuery) ? query : $"{existingQuery.Trim()} {query}");
         }
 
         private Drawable createStandardFilters()

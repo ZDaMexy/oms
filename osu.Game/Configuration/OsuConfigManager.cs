@@ -58,6 +58,7 @@ namespace osu.Game.Configuration
 
             SetDefault(OsuSetting.SongSelectGroupMode, GroupMode.None);
             SetDefault(OsuSetting.SongSelectSortingMode, SortMode.Title);
+            SetDefault(OsuSetting.SongSelectCollectionFilter, string.Empty);
             SetDefault(OsuSetting.BmsSongSelectDisplayLevel, DisplayLevel.Songs);
 
             SetDefault(OsuSetting.RandomSelectAlgorithm, RandomSelectAlgorithm.RandomPermutation);
@@ -552,5 +553,7 @@ namespace osu.Game.Configuration
 
         /// <summary>Sparse per-key skin assignments which inherit the BMS/mania mode defaults.</summary>
         SkinKeyOverrides,
+
+        SongSelectCollectionFilter,
     }
 }

@@ -143,10 +143,11 @@ namespace osu.Game.Beatmaps
                 Value = getInitialDifficulty(beatmapInfo, currentRuleset.Value, currentMods.Value)
             };
 
-            updateBindable(bindable, currentRuleset.Value, currentMods.Value, cancellationToken, computationDelay);
-
             lock (bindableUpdateLock)
+            {
                 trackedBindables.Add(bindable);
+                updateBindable(bindable, currentRuleset.Value, currentMods.Value, computationDelay);
+            }
 
             return bindable;
         }
@@ -241,12 +242,7 @@ namespace osu.Game.Beatmaps
                 cancelTrackedBindableUpdate();
 
                 foreach (var b in trackedBindables)
-                {
-                    var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(trackedUpdateCancellationSource.Token, b.CancellationToken);
-                    linkedCancellationSources.Add(linkedSource);
-
-                    updateBindable(b, currentRuleset.Value, currentMods.Value, linkedSource.Token);
-                }
+                    updateBindable(b, currentRuleset.Value, currentMods.Value);
             }
         }
 
@@ -261,6 +257,7 @@ namespace osu.Game.Beatmaps
                 debouncedModSettingsChange = null;
 
                 trackedUpdateCancellationSource.Cancel();
+                trackedUpdateCancellationSource.Dispose();
                 trackedUpdateCancellationSource = new CancellationTokenSource();
 
                 foreach (var c in linkedCancellationSources)
@@ -276,10 +273,13 @@ namespace osu.Game.Beatmaps
         /// <param name="bindable">The <see cref="BindableStarDifficulty"/> to update.</param>
         /// <param name="rulesetInfo">The <see cref="IRulesetInfo"/> to update with.</param>
         /// <param name="mods">The <see cref="Mod"/>s to update with.</param>
-        /// <param name="cancellationToken">A token that may be used to cancel this update.</param>
         /// <param name="computationDelay">In the case a cached lookup was not possible, a value in milliseconds of to wait until performing potentially intensive lookup.</param>
-        private void updateBindable(BindableStarDifficulty bindable, IRulesetInfo? rulesetInfo, IEnumerable<Mod>? mods, CancellationToken cancellationToken = default, int computationDelay = 0)
+        private void updateBindable(BindableStarDifficulty bindable, IRulesetInfo? rulesetInfo, IEnumerable<Mod>? mods, int computationDelay = 0)
         {
+            var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(trackedUpdateCancellationSource.Token, bindable.CancellationToken);
+            linkedCancellationSources.Add(linkedSource);
+            var cancellationToken = linkedSource.Token;
+
             // GetDifficultyAsync will fall back to existing data from IBeatmapInfo if not locally available
             // (contrary to GetAsync)
             GetDifficultyAsync(bindable.BeatmapInfo, rulesetInfo, mods, cancellationToken, computationDelay)
@@ -288,15 +288,21 @@ namespace osu.Game.Beatmaps
                     // We're on a threadpool thread, but we should exit back to the update thread so consumers can safely handle value-changed events.
                     Schedule(() =>
                     {
-                        if (cancellationToken.IsCancellationRequested)
-                            return;
-
-                        StarDifficulty? starDifficulty = task.GetResultSafely();
-
-                        if (starDifficulty != null)
-                            bindable.Value = starDifficulty.Value;
+                        try
+                        {
+                            if (!cancellationToken.IsCancellationRequested && task.GetResultSafely() is StarDifficulty difficulty)
+                                bindable.Value = difficulty;
+                        }
+                        finally
+                        {
+                            lock (bindableUpdateLock)
+                            {
+                                if (linkedCancellationSources.Remove(linkedSource))
+                                    linkedSource.Dispose();
+                            }
+                        }
                     });
-                }, cancellationToken);
+                }, CancellationToken.None);
         }
 
         /// <summary>

@@ -1,7 +1,6 @@
 // Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
-using System;
 using osu.Framework.Allocation;
 using osu.Framework.Audio.Track;
 using osu.Framework.Bindables;
@@ -203,7 +202,7 @@ namespace osu.Game.Screens.Select
             {
                 base.OnNewBeat(beatIndex, timingPoint, effectPoint, amplitudes);
 
-                if (beatIndex % Math.Pow(2, FlashOffset) != 0)
+                if (beatIndex % getFlashInterval(timingPoint.TimeSignature.Numerator) != 0)
                     return;
 
                 double length = timingPoint.BeatLength;
@@ -215,6 +214,36 @@ namespace osu.Game.Screens.Select
                     .FadeTo(0.8f, 40, Easing.Out)
                     .Then()
                     .FadeTo(0.4f, length, Easing.Out);
+            }
+
+            private long getFlashInterval(int beatsPerBar)
+            {
+                long interval = 1;
+
+                // Use the bar's factors first, so the slower layers stay aligned with the faster ones.
+                for (int depth = 0; depth < FlashOffset; depth++)
+                {
+                    int factor = smallestPrimeFactor(beatsPerBar);
+                    if (factor <= 1)
+                        factor = 2;
+
+                    interval *= factor;
+                    if (beatsPerBar % factor == 0)
+                        beatsPerBar /= factor;
+                }
+
+                return interval;
+            }
+
+            private static int smallestPrimeFactor(int value)
+            {
+                for (int factor = 2; factor <= value / factor; factor++)
+                {
+                    if (value % factor == 0)
+                        return factor;
+                }
+
+                return value;
             }
         }
 
@@ -281,7 +310,10 @@ namespace osu.Game.Screens.Select
 
         protected override bool OnClick(ClickEvent e)
         {
-            carousel?.Activate(Item!);
+            // The carousel clears the item before fading out a recycled panel.
+            if (item != null)
+                carousel?.Activate(item);
+
             return true;
         }
 

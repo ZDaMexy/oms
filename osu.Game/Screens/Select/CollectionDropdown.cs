@@ -15,6 +15,7 @@ using osu.Framework.Input.Events;
 using osu.Framework.Localisation;
 using osu.Game.Beatmaps;
 using osu.Game.Collections;
+using osu.Game.Configuration;
 using osu.Game.Database;
 using osu.Game.Graphics.Containers;
 using osu.Game.Graphics.UserInterface;
@@ -37,6 +38,9 @@ namespace osu.Game.Screens.Select
         protected virtual bool ShowManageCollectionsItem => true;
 
         private readonly BindableList<CollectionFilterMenuItem> filters = new BindableList<CollectionFilterMenuItem>();
+        private readonly Bindable<string> collectionFilter = new Bindable<string>();
+
+        private bool applyingRealmChanges;
 
         [Resolved]
         private ManageCollectionsDialog? manageCollectionsDialog { get; set; }
@@ -57,16 +61,59 @@ namespace osu.Game.Screens.Select
             AlwaysShowSearchBar = true;
         }
 
+        [BackgroundDependencyLoader]
+        private void load(OsuConfigManager config) => config.BindWith(OsuSetting.SongSelectCollectionFilter, collectionFilter);
+
         protected override void LoadComplete()
         {
             base.LoadComplete();
 
-            realmSubscription = realm.RegisterForNotifications(r => r.All<BeatmapCollection>().OrderBy(c => c.Name), collectionsChanged);
-
             Current.BindValueChanged(selectionChanged);
+            collectionFilter.BindValueChanged(_ => restoreConfiguredSelection());
+            realmSubscription = realm.RegisterForNotifications(r => r.All<BeatmapCollection>().OrderBy(c => c.Name), collectionsChanged);
         }
 
         private void collectionsChanged(IRealmCollection<BeatmapCollection> collections, ChangeSet? changes)
+        {
+            if (collections is RealmResetEmptySet<BeatmapCollection>)
+                return;
+
+            applyingRealmChanges = true;
+
+            try
+            {
+                updateItems(collections, changes);
+
+                if (changes == null)
+                    restoreConfiguredSelection();
+            }
+            finally
+            {
+                applyingRealmChanges = false;
+            }
+
+            if (Guid.TryParse(collectionFilter.Value, out Guid selectedId) && !filters.Any(item => item.Collection?.ID == selectedId))
+                collectionFilter.Value = string.Empty;
+        }
+
+        private void restoreConfiguredSelection()
+        {
+            bool wasApplyingChanges = applyingRealmChanges;
+            applyingRealmChanges = true;
+
+            try
+            {
+                Current.Value = Guid.TryParse(collectionFilter.Value, out Guid id)
+                    ? filters.SingleOrDefault(item => item.Collection?.ID == id) ?? allBeatmapsItem
+                    : allBeatmapsItem;
+            }
+            finally
+            {
+                applyingRealmChanges = wasApplyingChanges;
+            }
+        }
+
+        private void updateItems(IRealmCollection<BeatmapCollection> collections, ChangeSet? changes)
         {
             if (changes == null)
             {
@@ -104,7 +151,7 @@ namespace osu.Game.Screens.Select
                         Schedule(() =>
                         {
                             // current may have changed before the scheduled call is run.
-                            if (Current.Value != allBeatmapsItem)
+                            if (Current.Value != allBeatmapsItem || !Guid.TryParse(collectionFilter.Value, out Guid id) || id != selectedItem.Collection?.ID)
                                 return;
 
                             Current.Value = filters.SingleOrDefault(f => f.Collection?.ID == selectedItem.Collection?.ID) ?? filters[0];
@@ -119,7 +166,7 @@ namespace osu.Game.Screens.Select
         private void selectionChanged(ValueChangedEvent<CollectionFilterMenuItem> filter)
         {
             // May be null during .Clear().
-            if (filter.NewValue.IsNull())
+            if (applyingRealmChanges || filter.NewValue.IsNull())
                 return;
 
             // Never select the manage collection filter - rollback to the previous filter.
@@ -128,7 +175,10 @@ namespace osu.Game.Screens.Select
             {
                 Current.Value = filter.OldValue;
                 manageCollectionsDialog?.Show();
+                return;
             }
+
+            collectionFilter.Value = filter.NewValue.Collection?.ID.ToString() ?? string.Empty;
         }
 
         protected override void Dispose(bool isDisposing)

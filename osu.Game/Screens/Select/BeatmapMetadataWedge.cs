@@ -391,12 +391,12 @@ namespace osu.Game.Screens.Select
                 creator.Data = (string.IsNullOrWhiteSpace(displayCreator) ? "-" : displayCreator, null);
 
             if (!string.IsNullOrEmpty(metadata.Source))
-                source.Data = (metadata.Source, () => songSelect?.Search(metadata.Source));
+                source.Data = (metadata.Source, () => songSelect?.AddToSearch(metadata.Source));
             else
                 source.Data = ("-", null);
 
             if (displayMapperTags.Length > 0)
-                mapperTags.Tags = (displayMapperTags, t => songSelect?.Search(t));
+                mapperTags.Tags = (displayMapperTags, t => songSelect?.AddToSearch(t));
             else
                 mapperTags.Tags = (Array.Empty<string>(), _ => { });
 
@@ -457,8 +457,8 @@ namespace osu.Game.Screens.Select
                 var onlineBeatmapSet = onlineLookupResult.Value.Result;
                 var onlineBeatmap = onlineBeatmapSet.Beatmaps.SingleOrDefault(b => b.OnlineID == beatmapInfo.OnlineID);
 
-                genre.Data = (onlineBeatmapSet.Genre.Name, () => songSelect?.Search(onlineBeatmapSet.Genre.Name));
-                language.Data = (onlineBeatmapSet.Language.Name, () => songSelect?.Search(onlineBeatmapSet.Language.Name));
+                genre.Data = (onlineBeatmapSet.Genre.Name, () => songSelect?.AddToSearch(onlineBeatmapSet.Genre.Name));
+                language.Data = (onlineBeatmapSet.Language.Name, () => songSelect?.AddToSearch(onlineBeatmapSet.Language.Name));
 
                 if (onlineBeatmap != null)
                 {
@@ -478,7 +478,7 @@ namespace osu.Game.Screens.Select
             string? localGenre = BeatmapLocalMetadataDisplayResolver.GetDisplayGenre(beatmap.Value.BeatmapInfo);
 
             if (!string.IsNullOrWhiteSpace(localGenre))
-                genre.Data = (localGenre, () => songSelect?.Search(localGenre));
+                genre.Data = (localGenre, () => songSelect?.AddToSearch(localGenre));
             else
                 genre.Data = showLoadingWhenMissing ? null : ("-", null);
         }
@@ -513,7 +513,7 @@ namespace osu.Game.Screens.Select
                     }
 
                     userTags.FadeIn(transition_duration, Easing.OutQuint);
-                    userTags.Tags = (tags, tag => songSelect?.Search($@"tag=""{tag}""!"));
+                    userTags.Tags = (tags, tag => songSelect?.AddToSearch($@"tag=""{tag}""!"));
                 });
             }, token);
         }
