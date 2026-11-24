@@ -36,7 +36,7 @@ namespace osu.Game.Beatmaps.Formats
             FormatVersion = version;
         }
 
-        protected override void ParseStreamInto(LineBufferedReader stream, T output)
+        protected override void ParseStreamInto(LineBufferedReader stream, bool isPrimaryStream, T output)
         {
             Section section = Section.General;
 

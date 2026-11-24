@@ -189,6 +189,21 @@ namespace osu.Game.Localisation
         public static LocalisableString AudioTrack => new TranslatableString(getKey(@"audio_track"), @"Audio Track");
 
         /// <summary>
+        /// "Video"
+        /// </summary>
+        public static LocalisableString Video => new TranslatableString(getKey(@"video"), @"Video");
+
+        /// <summary>
+        /// "Click to select a video"
+        /// </summary>
+        public static LocalisableString ClickToSelectVideo => new TranslatableString(getKey(@"click_to_select_video"), @"Click to select a video");
+
+        /// <summary>
+        /// "Changes the video for this difficulty. Shared storyboards and difficulties with multiple videos can be edited externally."
+        /// </summary>
+        public static LocalisableString VideoScope => new TranslatableString(getKey(@"oms_video_scope"), @"Changes the video for this difficulty. Shared storyboards and difficulties with multiple videos can be edited externally.");
+
+        /// <summary>
         /// "Custom sample sets"
         /// </summary>
         public static LocalisableString CustomSampleSets => new TranslatableString(getKey(@"custom_sample_sets"), @"Custom sample sets");

@@ -10,7 +10,12 @@ namespace osu.Game.Storyboards
     public class StoryboardVideo : StoryboardSprite
     {
         public StoryboardVideo(string path, double offset)
-            : base(path, Anchor.Centre, Vector2.Zero)
+            : this(StoryboardElementSource.Beatmap, path, offset)
+        {
+        }
+
+        public StoryboardVideo(StoryboardElementSource source, string path, double offset)
+            : base(source, path, Anchor.Centre, Vector2.Zero)
         {
             // This is just required to get a valid StartTime based on the incoming offset.
             // Actual fades are handled inside DrawableStoryboardVideo for now.
@@ -20,6 +25,13 @@ namespace osu.Game.Storyboards
         public override double StartTime { get; }
 
         public override bool IsDrawable => true;
+
+        internal StoryboardVideo WithPath(string path)
+        {
+            var video = (StoryboardVideo)MemberwiseClone();
+            video.Path = path;
+            return video;
+        }
 
         public override Drawable CreateDrawable() => new DrawableStoryboardVideo(this);
     }

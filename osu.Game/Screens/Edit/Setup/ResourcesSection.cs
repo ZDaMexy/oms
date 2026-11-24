@@ -10,19 +10,28 @@ using osu.Framework.Graphics;
 using osu.Framework.Localisation;
 using osu.Framework.Logging;
 using osu.Game.Beatmaps;
+using osu.Game.Graphics.UserInterfaceV2;
 using osu.Game.Localisation;
 using osu.Game.Models;
 using osu.Game.Overlays;
 using osu.Game.Screens.Backgrounds;
 using osu.Game.Screens.Edit.Components;
+using osu.Game.Storyboards;
 using osu.Game.Utils;
 
 namespace osu.Game.Screens.Edit.Setup
 {
     public partial class ResourcesSection : SetupSection
     {
+        // Match the asset size allowed for mania packages installed through the client.
+        private const long maximum_video_bytes = 2L * 1024 * 1024 * 1024;
+
+        // Only advertise containers that the editor's metadata reader can validate before saving.
+        private static readonly string[] video_import_extensions = [".mp4", ".m4v", ".avi", ".mpg", ".wmv"];
+
         private FormBeatmapFileSelector audioTrackChooser = null!;
         private FormBeatmapFileSelector backgroundChooser = null!;
+        private FormFileSelector videoChooser = null!;
 
         private readonly Bindable<EditorBeatmapSkin.SampleSet?> currentSampleSet = new Bindable<EditorBeatmapSkin.SampleSet?>();
 
@@ -63,6 +72,13 @@ namespace osu.Game.Screens.Edit.Setup
                     Caption = GameplaySettingsStrings.BackgroundHeader,
                     PlaceholderText = EditorSetupStrings.ClickToSelectBackground,
                 },
+                videoChooser = new FormFileSelector(video_import_extensions)
+                {
+                    Caption = EditorSetupStrings.Video,
+                    PlaceholderText = EditorSetupStrings.ClickToSelectVideo,
+                    HintText = EditorSetupStrings.VideoScope,
+                    AllowClear = true,
+                },
                 audioTrackChooser = new FormBeatmapFileSelector(beatmapHasMultipleDifficulties, SupportedExtensions.AUDIO_EXTENSIONS)
                 {
                     Caption = EditorSetupStrings.AudioTrack,
@@ -99,8 +115,14 @@ namespace osu.Game.Screens.Edit.Setup
             if (!string.IsNullOrEmpty(working.Value.Metadata.AudioFile))
                 audioTrackChooser.Current.Value = new FileInfo(working.Value.Metadata.AudioFile);
 
+            var videoLayer = Beatmap.Storyboard.GetLayer("Video");
+            if (videoLayer.Elements.OfType<StoryboardVideo>().FirstOrDefault() is StoryboardVideo video)
+                videoChooser.Current.Value = new FileInfo(video.Path);
+            videoChooser.Current.Disabled = !canEditVideo(videoLayer);
+
             backgroundChooser.Current.BindValueChanged(backgroundChanged);
             audioTrackChooser.Current.BindValueChanged(audioTrackChanged);
+            videoChooser.Current.BindValueChanged(videoChanged);
         }
 
         public bool ChangeBackgroundImage(FileInfo source, bool applyToAllDifficulties)
@@ -163,6 +185,84 @@ namespace osu.Game.Screens.Edit.Setup
             return true;
         }
 
+        public bool ChangeVideo(FileInfo? source)
+        {
+            var set = working.Value.BeatmapSetInfo;
+            var layer = Beatmap.Storyboard.GetLayer("Video");
+
+            if (editor == null || !canEditVideo(layer))
+                return false;
+
+            var originalElements = layer.Elements;
+            var existing = originalElements.OfType<StoryboardVideo>().SingleOrDefault();
+            int index = existing == null ? originalElements.Count : originalElements.IndexOf(existing);
+            StoryboardVideo? replacement = null;
+
+            if (source != null)
+            {
+                string extension = source.Extension.ToLowerInvariant();
+                if (!video_import_extensions.Contains(extension))
+                    return false;
+
+                string filename = NamingUtils.GetNextBestFilename(set.Files.Select(file => file.Filename), $"video{extension}");
+
+                try
+                {
+                    using var input = source.OpenRead();
+                    if (input.Length is <= 0 or > maximum_video_bytes)
+                        return false;
+
+                    using (var metadata = TagLibUtils.GetTagLibFile(source.FullName))
+                    {
+                        if (metadata.Properties.VideoWidth <= 0 || metadata.Properties.VideoHeight <= 0)
+                            return false;
+                    }
+
+                    beatmaps.AddFile(set, input, filename);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or TagLib.CorruptFileException or TagLib.UnsupportedFormatException)
+                {
+                    Logger.Error(ex, "The selected video could not be read.");
+                    return false;
+                }
+
+                replacement = existing?.WithPath(filename) ?? new StoryboardVideo(filename, 0);
+            }
+
+            // A pending background load can still be iterating the original storyboard elements.
+            var updatedElements = originalElements.ToList();
+            if (existing != null)
+                updatedElements.RemoveAt(index);
+            if (replacement != null)
+                updatedElements.Insert(index, replacement);
+            layer.Elements = updatedElements;
+
+            if (!editor.Save())
+            {
+                layer.Elements = originalElements;
+                if (replacement != null && set.GetFile(replacement.Path) is RealmNamedFileUsage added)
+                    beatmaps.DeleteFile(set, added);
+                return false;
+            }
+
+            // The old file may still be referenced by a sibling difficulty or the shared .osb.
+            editor.ApplyToBackground(bg => ((EditorBackgroundScreen)bg).RefreshBackground());
+            return true;
+        }
+
+        private bool canEditVideo(StoryboardLayer layer)
+        {
+            if (editor?.CanSaveBeatmap != true || working.Value.BeatmapSetInfo.IsExternalFilesystemStorage || Beatmap.Storyboard.HasUnsupportedBeatmapEvents)
+                return false;
+
+            return layer.Elements.OfType<StoryboardVideo>().Take(2).ToArray() switch
+            {
+                [] => true,
+                [{ Source: StoryboardElementSource.Beatmap }] => true,
+                _ => false,
+            };
+        }
+
         private void changeResource(FileInfo source, bool applyToAllDifficulties, string baseFilename, Func<BeatmapMetadata, string> readFilename, Action<BeatmapMetadata, string> writeMetadata)
         {
             var set = working.Value.BeatmapSetInfo;
@@ -217,7 +317,7 @@ namespace osu.Game.Screens.Edit.Setup
                     // note that this triggers a full save flow, including triggering a difficulty calculation.
                     // this is not a cheap operation and should be reconsidered in the future.
                     var beatmapWorking = beatmaps.GetWorkingBeatmap(b);
-                    beatmaps.Save(b, beatmapWorking.GetPlayableBeatmap(b.Ruleset), beatmapWorking.GetSkin());
+                    beatmaps.Save(b, beatmapWorking.GetPlayableBeatmap(b.Ruleset), beatmapWorking.GetSkin(), beatmapWorking.Storyboard);
                 }
             }
 
@@ -237,6 +337,7 @@ namespace osu.Game.Screens.Edit.Setup
         // (or at least cleaned them up properly themselves) if they return `false`.
         private bool rollingBackBackgroundChange;
         private bool rollingBackAudioChange;
+        private bool rollingBackVideoChange;
 
         private void backgroundChanged(ValueChangedEvent<FileInfo?> file)
         {
@@ -262,6 +363,16 @@ namespace osu.Game.Screens.Edit.Setup
                 audioTrackChooser.Current.Value = file.OldValue;
                 rollingBackAudioChange = false;
             }
+        }
+
+        private void videoChanged(ValueChangedEvent<FileInfo?> file)
+        {
+            if (rollingBackVideoChange || ChangeVideo(file.NewValue))
+                return;
+
+            rollingBackVideoChange = true;
+            videoChooser.Current.Value = file.OldValue;
+            rollingBackVideoChange = false;
         }
     }
 }

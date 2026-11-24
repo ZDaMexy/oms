@@ -9,6 +9,7 @@ using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Mods;
 using osu.Game.Storyboards.Drawables;
 using osu.Game.Utils;
+using osuTK;
 
 namespace osu.Game.Storyboards
 {
@@ -24,6 +25,12 @@ namespace osu.Game.Storyboards
         /// Whether the storyboard should prefer textures from the current skin before using local storyboard textures.
         /// </summary>
         public bool UseSkinSprites { get; set; }
+
+        public Vector2 BackgroundOffset { get; set; }
+
+        internal bool HasUnsupportedBeatmapEvents { get; set; }
+
+        internal IReadOnlyList<KeyValuePair<string, string>> PreservedBeatmapVariables { get; set; } = Array.Empty<KeyValuePair<string, string>>();
 
         public bool HasDrawable => Layers.Any(l => l.Elements.Any(e => e.IsDrawable));
 

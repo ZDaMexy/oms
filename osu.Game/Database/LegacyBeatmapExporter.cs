@@ -18,8 +18,10 @@ using osu.Game.Overlays.Notifications;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Rulesets.Objects.Types;
 using osu.Game.Skinning;
+using osu.Game.Storyboards;
 using osu.Game.Utils;
 using osuTK;
+using Decoder = osu.Game.Beatmaps.Formats.Decoder;
 
 namespace osu.Game.Database
 {
@@ -67,12 +69,19 @@ namespace osu.Game.Database
                 Configuration = new LegacySkinDecoder().Decode(skinStreamReader)
             };
 
+            using var storyboardStream = base.GetFileContents(model, file);
+            if (storyboardStream == null)
+                return null;
+
+            using var storyboardReader = new LineBufferedReader(storyboardStream);
+            var storyboard = Decoder.GetDecoder<Storyboard>(storyboardReader).Decode(storyboardReader);
+
             MutateBeatmap(model, playableBeatmap);
 
             // Encode to legacy format
             var stream = new MemoryStream();
             using (var sw = new StreamWriter(stream, Encoding.UTF8, 1024, true))
-                new LegacyBeatmapEncoder(playableBeatmap, beatmapSkin).Encode(sw);
+                new LegacyBeatmapEncoder(playableBeatmap, beatmapSkin, storyboard).Encode(sw);
 
             stream.Seek(0, SeekOrigin.Begin);
 

@@ -27,6 +27,7 @@ using osu.Game.Online.API.Requests.Responses;
 using osu.Game.Overlays.Notifications;
 using osu.Game.Rulesets;
 using osu.Game.Skinning;
+using osu.Game.Storyboards;
 using osu.Game.Utils;
 using Realms;
 
@@ -156,6 +157,7 @@ namespace osu.Game.Beatmaps
         /// <param name="rulesetInfo">The ruleset with which the new difficulty should be created.</param>
         public virtual WorkingBeatmap CreateNewDifficulty(BeatmapSetInfo targetBeatmapSet, WorkingBeatmap referenceWorkingBeatmap, RulesetInfo rulesetInfo)
         {
+            var referenceBeatmap = referenceWorkingBeatmap.Beatmap;
             var newBeatmapInfo = new BeatmapInfo(rulesetInfo, new BeatmapDifficulty(), referenceWorkingBeatmap.Metadata.DeepClone())
             {
                 DifficultyName = NamingUtils.GetNextBestName(targetBeatmapSet.Beatmaps.Select(b => b.DifficultyName), "New Difficulty")
@@ -163,13 +165,15 @@ namespace osu.Game.Beatmaps
             var newBeatmap = new Beatmap
             {
                 BeatmapInfo = newBeatmapInfo,
-                Bookmarks = referenceWorkingBeatmap.Beatmap.Bookmarks.ToArray()
+                Bookmarks = referenceBeatmap.Bookmarks.ToArray(),
+                WidescreenStoryboard = referenceBeatmap.WidescreenStoryboard,
+                UnhandledEventLines = referenceBeatmap.UnhandledEventLines.ToList(),
             };
 
-            foreach (var timingPoint in referenceWorkingBeatmap.Beatmap.ControlPointInfo.TimingPoints)
+            foreach (var timingPoint in referenceBeatmap.ControlPointInfo.TimingPoints)
                 newBeatmap.ControlPointInfo.Add(timingPoint.Time, timingPoint.DeepClone());
 
-            foreach (var effectPoint in referenceWorkingBeatmap.Beatmap.ControlPointInfo.EffectPoints)
+            foreach (var effectPoint in referenceBeatmap.ControlPointInfo.EffectPoints)
             {
                 var clonedEffectPoint = (EffectControlPoint)effectPoint.DeepClone();
 
@@ -179,7 +183,7 @@ namespace osu.Game.Beatmaps
                 newBeatmap.ControlPointInfo.Add(clonedEffectPoint.Time, clonedEffectPoint);
             }
 
-            return addDifficultyToSet(targetBeatmapSet, newBeatmap, referenceWorkingBeatmap.Skin);
+            return addDifficultyToSet(targetBeatmapSet, newBeatmap, referenceWorkingBeatmap.Skin, referenceWorkingBeatmap.Storyboard);
         }
 
         /// <summary>
@@ -210,18 +214,20 @@ namespace osu.Game.Beatmaps
             // clear online properties.
             newBeatmapInfo.ResetOnlineInfo();
 
-            return addDifficultyToSet(targetBeatmapSet, newBeatmap, referenceWorkingBeatmap.Skin);
+            return addDifficultyToSet(targetBeatmapSet, newBeatmap, referenceWorkingBeatmap.Skin, referenceWorkingBeatmap.Storyboard);
         }
 
-        private WorkingBeatmap addDifficultyToSet(BeatmapSetInfo targetBeatmapSet, IBeatmap newBeatmap, ISkin beatmapSkin)
+        private WorkingBeatmap addDifficultyToSet(BeatmapSetInfo targetBeatmapSet, IBeatmap newBeatmap, ISkin beatmapSkin, Storyboard storyboard)
         {
+            throwIfExternalFilesystemStorage(targetBeatmapSet, "create difficulties in externally-managed beatmaps");
+
             // populate circular beatmap set info <-> beatmap info references manually.
             // several places like `Save()` or `GetWorkingBeatmap()`
             // rely on them being freely traversable in both directions for correct operation.
             targetBeatmapSet.Beatmaps.Add(newBeatmap.BeatmapInfo);
             newBeatmap.BeatmapInfo.BeatmapSet = targetBeatmapSet;
 
-            save(newBeatmap.BeatmapInfo, newBeatmap, beatmapSkin, transferCollections: false);
+            save(newBeatmap.BeatmapInfo, newBeatmap, beatmapSkin, storyboard, transferCollections: false);
 
             workingBeatmapCache.Invalidate(targetBeatmapSet);
             return GetWorkingBeatmap(newBeatmap.BeatmapInfo);
@@ -364,10 +370,11 @@ namespace osu.Game.Beatmaps
         /// <param name="beatmapInfo">The <see cref="BeatmapInfo"/> to save the content against. The file referenced by <see cref="BeatmapInfo.Path"/> will be replaced.</param>
         /// <param name="beatmapContent">The <see cref="IBeatmap"/> content to write.</param>
         /// <param name="beatmapSkin">The beatmap <see cref="ISkin"/> content to write, null if to be omitted.</param>
-        public virtual void Save(BeatmapInfo beatmapInfo, IBeatmap beatmapContent, ISkin? beatmapSkin = null)
+        /// <param name="storyboard">The storyboard to save, or null to keep the beatmap's original event lines.</param>
+        public virtual void Save(BeatmapInfo beatmapInfo, IBeatmap beatmapContent, ISkin? beatmapSkin = null, Storyboard? storyboard = null)
         {
             throwIfExternalFilesystemStorage(beatmapInfo.BeatmapSet, "save externally-managed beatmaps");
-            save(beatmapInfo, beatmapContent, beatmapSkin, transferCollections: true);
+            save(beatmapInfo, beatmapContent, beatmapSkin, storyboard, transferCollections: true);
         }
 
         public void DeleteAllVideos()
@@ -616,7 +623,7 @@ namespace osu.Game.Beatmaps
             setInfo.Status = BeatmapOnlineStatus.LocallyModified;
         }
 
-        private void save(BeatmapInfo beatmapInfo, IBeatmap beatmapContent, ISkin? beatmapSkin, bool transferCollections)
+        private void save(BeatmapInfo beatmapInfo, IBeatmap beatmapContent, ISkin? beatmapSkin, Storyboard? storyboard, bool transferCollections)
         {
             var setInfo = beatmapInfo.BeatmapSet;
             Debug.Assert(setInfo != null);
@@ -640,7 +647,7 @@ namespace osu.Game.Beatmaps
             {
                 using var stream = new MemoryStream();
                 using (var sw = new StreamWriter(stream, Encoding.UTF8, 1024, true))
-                    new LegacyBeatmapEncoder(beatmapContent, beatmapSkin).Encode(sw);
+                    new LegacyBeatmapEncoder(beatmapContent, beatmapSkin, storyboard).Encode(sw);
 
                 stream.Seek(0, SeekOrigin.Begin);
 

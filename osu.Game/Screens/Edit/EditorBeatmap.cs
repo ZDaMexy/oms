@@ -19,6 +19,7 @@ using osu.Game.Beatmaps.Timing;
 using osu.Game.Rulesets.Edit;
 using osu.Game.Rulesets.Objects;
 using osu.Game.Skinning;
+using osu.Game.Storyboards;
 
 namespace osu.Game.Screens.Edit
 {
@@ -94,9 +95,12 @@ namespace osu.Game.Screens.Edit
 
         private readonly Dictionary<HitObject, Bindable<double>> startTimeBindables = new Dictionary<HitObject, Bindable<double>>();
 
-        public EditorBeatmap(IBeatmap playableBeatmap, ISkin beatmapSkin = null, BeatmapInfo beatmapInfo = null)
+        public Storyboard Storyboard { get; }
+
+        public EditorBeatmap(IBeatmap playableBeatmap, ISkin beatmapSkin = null, BeatmapInfo beatmapInfo = null, Storyboard storyboard = null)
         {
             PlayableBeatmap = playableBeatmap;
+            Storyboard = storyboard ?? new Storyboard();
             PlayableBeatmap.ControlPointInfo = ConvertControlPoints(PlayableBeatmap.ControlPointInfo);
 
             this.beatmapInfo = beatmapInfo ?? playableBeatmap.BeatmapInfo;

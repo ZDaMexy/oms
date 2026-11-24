@@ -21,9 +21,11 @@ using osu.Framework.Localisation;
 using osu.Framework.Platform;
 using osu.Game.Database;
 using osu.Game.Graphics.Sprites;
+using osu.Game.Graphics.UserInterface;
 using osu.Game.Overlays;
 using osuTK;
 using osuTK.Graphics;
+using CommonStrings = osu.Game.Resources.Localisation.Web.CommonStrings;
 
 namespace osu.Game.Graphics.UserInterfaceV2
 {
@@ -66,6 +68,8 @@ namespace osu.Game.Graphics.UserInterfaceV2
         /// Text displayed in the selector when no file is selected.
         /// </summary>
         public LocalisableString PlaceholderText { get; init; }
+
+        public bool AllowClear { get; init; }
 
         public Container PreviewContainer { get; private set; } = null!;
 
@@ -180,7 +184,7 @@ namespace osu.Game.Graphics.UserInterfaceV2
 
         private void onFileSelected()
         {
-            if (Current.Value != null)
+            if (Current.Value != null || AllowClear)
                 this.HidePopover();
 
             initialChooserPath = Current.Value?.DirectoryName;
@@ -239,7 +243,7 @@ namespace osu.Game.Graphics.UserInterfaceV2
         Task ICanAcceptFiles.Import(ImportTask[] tasks, ImportParameters parameters) => throw new NotImplementedException();
 
         protected virtual FileChooserPopover CreatePopover(string[] handledExtensions, Bindable<FileInfo?> current, string? chooserPath) =>
-            new FileChooserPopover(handledExtensions, current, chooserPath);
+            new FileChooserPopover(handledExtensions, current, chooserPath, AllowClear);
 
         public Popover GetPopover()
         {
@@ -258,22 +262,43 @@ namespace osu.Game.Graphics.UserInterfaceV2
 
             protected OsuFileSelector FileSelector;
 
-            public FileChooserPopover(string[] handledExtensions, Bindable<FileInfo?> current, string? chooserPath)
+            public FileChooserPopover(string[] handledExtensions, Bindable<FileInfo?> current, string? chooserPath, bool allowClear = false)
                 : base(false)
             {
-                Child = new Container
+                var content = new Container
                 {
                     Size = new Vector2(600, 400),
                     // simplest solution to avoid underlying text to bleed through the bottom border
                     // https://github.com/ppy/osu/pull/30005#issuecomment-2378884430
                     Padding = new MarginPadding { Bottom = 1 },
-                    Child = FileSelector = new OsuFileSelector(chooserPath, handledExtensions)
+                    Child = new Container
                     {
                         RelativeSizeAxes = Axes.Both,
+                        Padding = new MarginPadding { Bottom = allowClear ? 42 : 0 },
+                        Child = FileSelector = new OsuFileSelector(chooserPath, handledExtensions)
+                        {
+                            RelativeSizeAxes = Axes.Both,
+                        },
                     },
                 };
 
                 this.current.BindTo(current);
+                if (allowClear)
+                {
+                    content.Add(new DangerousRoundedButton
+                    {
+                        Text = CommonStrings.ButtonsClear,
+                        Enabled = { Value = current.Value != null },
+                        Anchor = Anchor.BottomRight,
+                        Origin = Anchor.BottomRight,
+                        Width = 80,
+                        Height = 32,
+                        Margin = new MarginPadding(5),
+                        Action = () => this.current.Value = null,
+                    });
+                }
+
+                Child = content;
             }
 
             [BackgroundDependencyLoader]

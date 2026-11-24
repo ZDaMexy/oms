@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using osu.Framework.Extensions;
@@ -81,7 +82,7 @@ namespace osu.Game.Beatmaps.Formats
             return templateBeatmap;
         }
 
-        protected override void ParseStreamInto(LineBufferedReader stream, Beatmap beatmap)
+        protected override void ParseStreamInto(LineBufferedReader stream, bool isPrimaryStream, Beatmap beatmap)
         {
             this.beatmap = beatmap;
             this.beatmap.BeatmapVersion = FormatVersion;
@@ -89,7 +90,7 @@ namespace osu.Game.Beatmaps.Formats
 
             ApplyLegacyDefaults(this.beatmap);
 
-            base.ParseStreamInto(stream, beatmap);
+            base.ParseStreamInto(stream, isPrimaryStream, beatmap);
 
             applyDifficultyRestrictions(beatmap.Difficulty, beatmap);
 
@@ -316,7 +317,7 @@ namespace osu.Game.Beatmaps.Formats
                 case @"Bookmarks":
                     beatmap.Bookmarks = pair.Value.Split(',').Select(v =>
                     {
-                        bool result = int.TryParse(v, out int val);
+                        bool result = int.TryParse(v, NumberStyles.Integer, CultureInfo.InvariantCulture, out int val);
                         return new { result, val };
                     }).Where(p => p.result).Select(p => p.val).ToArray();
                     break;
@@ -430,8 +431,7 @@ namespace osu.Game.Beatmaps.Formats
         {
             string[] split = line.Split(',');
 
-            // Until we have full storyboard encoder coverage, let's track any lines which aren't handled
-            // and store them to a temporary location such that they aren't lost on editor save / export.
+            // Retain event text for legacy events the structured storyboard encoder cannot round-trip.
             bool lineSupportedByEncoder = false;
 
             if (Enum.TryParse(split[0], out LegacyEventType type))
@@ -445,7 +445,6 @@ namespace osu.Game.Beatmaps.Formats
                         if (string.IsNullOrEmpty(beatmap.BeatmapInfo.Metadata.BackgroundFile))
                         {
                             beatmap.BeatmapInfo.Metadata.BackgroundFile = CleanFilename(split[3]);
-                            lineSupportedByEncoder = true;
                         }
 
                         break;

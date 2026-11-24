@@ -20,6 +20,7 @@ namespace osu.Game.Beatmaps.Formats
     {
         private StoryboardSprite? storyboardSprite;
         private StoryboardCommandGroup? currentCommandsGroup;
+        private StoryboardElementSource source;
 
         private Storyboard storyboard = null!;
 
@@ -40,6 +41,7 @@ namespace osu.Game.Beatmaps.Formats
 
         protected override Storyboard CreateTemplateObject()
         {
+            variables.Clear();
             var sb = base.CreateTemplateObject();
 
             var beatmap = new Beatmap();
@@ -49,10 +51,16 @@ namespace osu.Game.Beatmaps.Formats
             return sb;
         }
 
-        protected override void ParseStreamInto(LineBufferedReader stream, Storyboard storyboard)
+        protected override void ParseStreamInto(LineBufferedReader stream, bool isPrimaryStream, Storyboard storyboard)
         {
             this.storyboard = storyboard;
-            base.ParseStreamInto(stream, storyboard);
+            source = isPrimaryStream ? StoryboardElementSource.Beatmap : StoryboardElementSource.Shared;
+            storyboardSprite = null;
+            currentCommandsGroup = null;
+            base.ParseStreamInto(stream, isPrimaryStream, storyboard);
+
+            if (isPrimaryStream && storyboard.HasUnsupportedBeatmapEvents)
+                storyboard.PreservedBeatmapVariables = variables.ToArray();
         }
 
         protected override void ParseLine(Storyboard storyboard, Section section, string line)
@@ -64,7 +72,17 @@ namespace osu.Game.Beatmaps.Formats
                     return;
 
                 case Section.Events:
-                    handleEvents(line);
+                    try
+                    {
+                        handleEvents(line);
+                    }
+                    catch (Exception) when (source == StoryboardElementSource.Beatmap)
+                    {
+                        // Keep the original events on save when decoding ignored a line.
+                        storyboard.HasUnsupportedBeatmapEvents = true;
+                        throw;
+                    }
+
                     return;
 
                 case Section.Variables:
@@ -118,6 +136,19 @@ namespace osu.Game.Beatmaps.Formats
 
                 switch (type)
                 {
+                    case LegacyEventType.Background:
+                        if (source == StoryboardElementSource.Beatmap)
+                        {
+                            storyboard.BackgroundOffset = split.Length > 4
+                                ? new Vector2(Parsing.ParseFloat(split[3]), Parsing.ParseFloat(split[4]))
+                                : Vector2.Zero;
+                        }
+
+                        break;
+
+                    case LegacyEventType.Break:
+                        break;
+
                     case LegacyEventType.Video:
                     {
                         int offset = Parsing.ParseInt(split[1]);
@@ -131,7 +162,7 @@ namespace osu.Game.Beatmaps.Formats
                         if (!SupportedExtensions.VIDEO_EXTENSIONS.Contains(Path.GetExtension(path).ToLowerInvariant()))
                             break;
 
-                        storyboard.GetLayer("Video").Add(storyboardSprite = new StoryboardVideo(path, offset));
+                        storyboard.GetLayer("Video").Add(storyboardSprite = new StoryboardVideo(source, path, offset));
                         break;
                     }
 
@@ -142,7 +173,7 @@ namespace osu.Game.Beatmaps.Formats
                         string path = CleanFilename(split[3]);
                         float x = Parsing.ParseFloat(split[4], Parsing.MAX_COORDINATE_VALUE);
                         float y = Parsing.ParseFloat(split[5], Parsing.MAX_COORDINATE_VALUE);
-                        storyboardSprite = new StoryboardSprite(path, origin, new Vector2(x, y));
+                        storyboardSprite = new StoryboardSprite(source, path, origin, new Vector2(x, y));
                         storyboard.GetLayer(layer).Add(storyboardSprite);
                         break;
                     }
@@ -162,7 +193,7 @@ namespace osu.Game.Beatmaps.Formats
                             frameDelay = Math.Round(0.015 * frameDelay) * 1.186 * (1000 / 60f);
 
                         var loopType = split.Length > 8 ? parseAnimationLoopType(split[8]) : AnimationLoopType.LoopForever;
-                        storyboardSprite = new StoryboardAnimation(path, origin, new Vector2(x, y), frameCount, frameDelay, loopType);
+                        storyboardSprite = new StoryboardAnimation(source, path, origin, new Vector2(x, y), frameCount, frameDelay, loopType);
                         storyboard.GetLayer(layer).Add(storyboardSprite);
                         break;
                     }
@@ -173,9 +204,14 @@ namespace osu.Game.Beatmaps.Formats
                         string layer = parseLayer(split[2]);
                         string path = CleanFilename(split[3]);
                         float volume = split.Length > 4 ? Parsing.ParseFloat(split[4]) : 100;
-                        storyboard.GetLayer(layer).Add(new StoryboardSampleInfo(path, time, (int)volume));
+                        storyboard.GetLayer(layer).Add(new StoryboardSampleInfo(source, path, time, (int)volume));
                         break;
                     }
+
+                    default:
+                        if (source == StoryboardElementSource.Beatmap)
+                            storyboard.HasUnsupportedBeatmapEvents = true;
+                        break;
                 }
             }
             else
@@ -190,9 +226,10 @@ namespace osu.Game.Beatmaps.Formats
                     case "T":
                     {
                         string triggerName = split[1];
-                        double startTime = split.Length > 2 ? Parsing.ParseDouble(split[2]) : double.MinValue;
-                        double endTime = split.Length > 3 ? Parsing.ParseDouble(split[3]) : double.MaxValue;
-                        int groupNumber = split.Length > 4 ? Parsing.ParseInt(split[4]) : 0;
+                        double startTime = split.Length > 2 && split[2].Length > 0 ? Parsing.ParseDouble(split[2]) : double.MinValue;
+                        double endTime = split.Length > 3 && split[3].Length > 0 ? Parsing.ParseDouble(split[3]) : double.MaxValue;
+                        // Legacy triggers store the negated internal group number.
+                        int groupNumber = split.Length > 4 ? -Parsing.ParseInt(split[4]) : 0;
                         currentCommandsGroup = storyboardSprite?.AddTriggerGroup(triggerName, startTime, endTime, groupNumber);
                         break;
                     }
@@ -308,6 +345,11 @@ namespace osu.Game.Beatmaps.Formats
 
                                     case "V":
                                         currentCommandsGroup?.AddFlipV(easing, startTime, endTime, true, startTime == endTime);
+                                        break;
+
+                                    default:
+                                        if (source == StoryboardElementSource.Beatmap)
+                                            storyboard.HasUnsupportedBeatmapEvents = true;
                                         break;
                                 }
 
