@@ -5,7 +5,18 @@
 | 上游原始基线 | [ppy/osu 2026.305.0-lazer](https://github.com/ppy/osu/releases/tag/2026.305.0-lazer)，`bb289363a2b8e6bf62be355f8570def018f0d7be` |
 | OMS 初始快照 | `0b97bbdd4348de47e1d597a65f0a7734ad184000`，单独起算的 Git 历史 |
 | 最近一次评估 | [2026-11-24 专项审查](UPSTREAM_AUDIT_20261124.md)，评估终点为 `2026.1117.0-lazer` |
-| 最近一次采用 | [2026-11-24 底层升级](../mainline/CHANGELOG.md#2026-11-24-osulazer-底层升级实施)，包含已落地补丁、测试和保留的兼容边界 |
+| 最近一次采用 | [2026-11-25 十一月底座接续](../mainline/CHANGELOG.md#2026-11-25-osulazer-十一月底座接续)，与前一日 .NET 10 和首批修复共用固定发布目标 |
+
+## 十一月目标采用范围
+
+| 子系统 | 上游来源与 OMS 采用边界 |
+| --- | --- |
+| 框架与资源 | [框架 2026.1117.0](https://github.com/ppy/osu-framework/releases/tag/2026.1117.0)、[资源 2026.1112.1](https://github.com/ppy/osu-resources/releases/tag/2026.1112.1)。带上 Windows 游戏键 [#35727](https://github.com/ppy/osu/pull/35727) 的适配、资源图标 [#37848](https://github.com/ppy/osu/pull/37848) 和 Retro 配置 [#39165](https://github.com/ppy/osu/pull/39165)；旧 TIFF 局部边界、SDL 所有权与 FFmpeg 采用记录见当日主线。 |
+| 谱库与选歌 | 谱库冻结引用 [#38572](https://github.com/ppy/osu/pull/38572)、本地最佳 [#37666](https://github.com/ppy/osu/pull/37666) / [#37722](https://github.com/ppy/osu/pull/37722) / [#37711](https://github.com/ppy/osu/pull/37711)、筛选 [#37701](https://github.com/ppy/osu/pull/37701)、键数 [#37285](https://github.com/ppy/osu/pull/37285)、收藏 [#38549](https://github.com/ppy/osu/pull/38549)、难度 [#37178](https://github.com/ppy/osu/pull/37178)。另接入搜索条件、复用面板、整套恢复、选歌焦点与旧选择纠错。 |
+| 游玩与回放 | 滚速 [#37149](https://github.com/ppy/osu/pull/37149) 及[更正](https://github.com/ppy/osu/commit/b3c15339d0)、长条 [#37008](https://github.com/ppy/osu/pull/37008)、回放 [#38006](https://github.com/ppy/osu/pull/38006) / [#38898](https://github.com/ppy/osu/pull/38898)、Mod 组合 [#38267](https://github.com/ppy/osu/pull/38267)、原生 mania 击键音量 [#38990](https://github.com/ppy/osu/pull/38990) / [#39208](https://github.com/ppy/osu/pull/39208)。 |
+| 谱面编辑 | Storyboard 保存 [#37790](https://github.com/ppy/osu/pull/37790) / [#38877](https://github.com/ppy/osu/pull/38877) / [#38895](https://github.com/ppy/osu/pull/38895) / [#38332](https://github.com/ppy/osu/pull/38332)、背景偏移 [#37841](https://github.com/ppy/osu/pull/37841)、视频 [#37857](https://github.com/ppy/osu/pull/37857)、Kiai [#38107](https://github.com/ppy/osu/pull/38107)、书签区域格式 [#38451](https://github.com/ppy/osu/pull/38451)、切换难度时钟 [#38042](https://github.com/ppy/osu/pull/38042)。 |
+
+后续判断仍取原[候选条件](UPSTREAM_AUDIT_20261124.md#下一批可取得的收益与条件)和已实施记录。上游 Windows 音频偏移修复以 WASAPI 默认切换为前置。OMS 已有 15 ms Windows 偏移，强制切换前须测既有外设上的听感和判定。归档 200 MiB 单条目补丁源于上游谱面站策略，OMS 的 BMS 大体积 BGA、文件夹谱库及现有包预算走各自实际入口。新的 storyboard 命中触发、回放血条数据和历史成绩重算须各自覆盖现有谱、成绩和回放。官方线上系统与已移除的模式依本页底线处理。
 
 ## 选择性同步
 
