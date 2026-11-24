@@ -51,6 +51,14 @@ namespace osu.Game.Overlays.Settings.Sections.Audio
                     DisplayAsPercentage = true,
                     PlaySamplesOnAdjust = false,
                 }),
+                new SettingsItemV2(new FormSliderBar<double>
+                {
+                    Caption = AudioSettingsStrings.ManiaHitsoundVolume,
+                    Current = config.GetBindable<double>(OsuSetting.ManiaHitsoundVolume),
+                    KeyboardStep = 0.01f,
+                    DisplayAsPercentage = true,
+                    PlaySamplesOnAdjust = false,
+                }),
             };
         }
     }

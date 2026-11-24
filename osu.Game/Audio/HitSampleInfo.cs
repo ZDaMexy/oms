@@ -15,6 +15,9 @@ namespace osu.Game.Audio
     [Serializable]
     public class HitSampleInfo : ISampleInfo, IEquatable<HitSampleInfo>
     {
+        [JsonIgnore]
+        public virtual bool IsHitsound => true;
+
         public const string HIT_NORMAL = @"hitnormal";
         public const string HIT_WHISTLE = @"hitwhistle";
         public const string HIT_FINISH = @"hitfinish";

@@ -50,6 +50,11 @@ namespace osu.Game.Localisation
         public static LocalisableString EffectVolume => new TranslatableString(getKey(@"effect_volume"), @"Effect");
 
         /// <summary>
+        /// "osu!mania Hitsounds"
+        /// </summary>
+        public static LocalisableString ManiaHitsoundVolume => new TranslatableString(getKey(@"mania_hitsound_volume"), @"osu!mania Hitsounds");
+
+        /// <summary>
         /// "Music"
         /// </summary>
         public static LocalisableString MusicVolume => new TranslatableString(getKey(@"music_volume"), @"Music");

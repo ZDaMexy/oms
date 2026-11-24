@@ -44,6 +44,15 @@ namespace osu.Game.Skinning
         /// </summary>
         protected internal ISampleStore? Samples { get; private set; }
 
+        private ISampleStore? hitsounds;
+        private readonly Lazy<ISampleStore?> resourceHitsounds;
+
+        protected ISample? GetSampleFromSkinFiles(string name, ISampleInfo sample)
+            => (sample.IsHitsound ? hitsounds : Samples)?.Get(name);
+
+        protected ISample? GetSampleFromResourceFiles(string name, ISampleInfo sample)
+            => (sample.IsHitsound ? resourceHitsounds.Value : resources?.AudioManager?.Samples)?.Get(name);
+
         public readonly Live<SkinInfo> SkinInfo;
 
         public SkinConfiguration Configuration { get; set; }
@@ -284,6 +293,7 @@ namespace osu.Game.Skinning
             bool useExactPackageStore)
         {
             this.resources = resources;
+            resourceHitsounds = new Lazy<ISampleStore?>(() => resources?.AudioManager?.GetSampleStore(applyGlobalAdjustments: false));
 
             GameplaySkinDocument = decodeGameplaySkinDocument(ReadOnlyMemory<byte>.Empty);
 
@@ -385,8 +395,15 @@ namespace osu.Game.Skinning
         public void RecycleSamples()
         {
             Samples?.Dispose();
+            hitsounds?.Dispose();
 
-            var samples = resources?.AudioManager?.GetSampleStore(store);
+            Samples = createSampleStore(applyGlobalAdjustments: true);
+            hitsounds = createSampleStore(applyGlobalAdjustments: false);
+        }
+
+        private ISampleStore? createSampleStore(bool applyGlobalAdjustments)
+        {
+            var samples = resources?.AudioManager?.GetSampleStore(store, applyGlobalAdjustments: applyGlobalAdjustments);
 
             if (samples != null)
             {
@@ -397,7 +414,7 @@ namespace osu.Game.Skinning
                 samples.AddExtension(@"ogg");
             }
 
-            Samples = samples;
+            return samples;
         }
 
         protected virtual IResourceStore<TextureUpload> CreateTextureLoaderStore(IStorageResourceProvider resources, IResourceStore<byte[]> storage)
@@ -613,6 +630,9 @@ namespace osu.Game.Skinning
 
             Textures?.Dispose();
             Samples?.Dispose();
+            hitsounds?.Dispose();
+            if (resourceHitsounds.IsValueCreated)
+                resourceHitsounds.Value?.Dispose();
             FallbackStore?.Dispose();
 
             store.Dispose();

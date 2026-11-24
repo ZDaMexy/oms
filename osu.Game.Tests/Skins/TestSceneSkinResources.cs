@@ -17,6 +17,7 @@ using osu.Framework.Graphics.Textures;
 using osu.Framework.IO.Stores;
 using osu.Framework.Testing;
 using osu.Game.Audio;
+using osu.Game.Configuration;
 using osu.Game.Database;
 using osu.Game.IO;
 using osu.Game.Skinning;
@@ -30,6 +31,71 @@ namespace osu.Game.Tests.Skins
     {
         [Resolved]
         private SkinManager skins { get; set; } = null!;
+
+        [Resolved]
+        private OsuConfigManager config { get; set; } = null!;
+
+        [Test]
+        public void TestManiaHitsoundsAndEffectsHaveIndependentVolume()
+        {
+            PoolableSkinnableSample hitsound = null!;
+            PoolableSkinnableSample effect = null!;
+            SampleChannel hitsoundChannel = null!;
+            SampleChannel effectChannel = null!;
+            double originalMaster = 0;
+            double originalEffects = 0;
+            double originalHitsounds = 0;
+
+            AddStep("load a hitsound and effect from the same skin asset", () =>
+            {
+                originalMaster = Audio.Volume.Value;
+                originalEffects = Audio.VolumeSample.Value;
+                originalHitsounds = config.Get<double>(OsuSetting.ManiaHitsoundVolume);
+
+                var skin = importSkinFromArchives(@"ogg-skin.osk");
+                Add(new SkinProvidingContainer(skin)
+                {
+                    Children = new[]
+                    {
+                        hitsound = new PoolableSkinnableSample(new TestHitSampleInfo(@"sample", 50)),
+                        effect = new PoolableSkinnableSample(new SampleInfo(@"sample")),
+                    },
+                });
+            });
+
+            AddUntilStep("both samples are loaded", () => hitsound.Sample != null && effect.Sample != null);
+            AddStep("start both playback channels and set separate volumes", () =>
+            {
+                hitsoundChannel = hitsound.Sample.GetChannel();
+                effectChannel = effect.Sample.GetChannel();
+                hitsoundChannel.Looping = effectChannel.Looping = true;
+                hitsoundChannel.Play();
+                effectChannel.Play();
+
+                Audio.Volume.Value = 0.8;
+                Audio.VolumeSample.Value = 0.2;
+                config.SetValue(OsuSetting.ManiaHitsoundVolume, 0.3);
+            });
+            AddUntilStep("hitsound uses master, hitsound and per-object volume", () => hitsoundChannel.AggregateVolume.Value, () => Is.EqualTo(0.12).Within(0.001));
+            AddUntilStep("effect uses master and effect volume", () => effectChannel.AggregateVolume.Value, () => Is.EqualTo(0.16).Within(0.001));
+
+            AddStep("mute effects and turn up the hitsounds", () =>
+            {
+                Audio.VolumeSample.Value = 0;
+                config.SetValue(OsuSetting.ManiaHitsoundVolume, 0.7);
+            });
+            AddUntilStep("effect is muted", () => effectChannel.AggregateVolume.Value, () => Is.EqualTo(0));
+            AddAssert("hitsound keeps playing on its own control", () => hitsoundChannel.AggregateVolume.Value, () => Is.EqualTo(0.28).Within(0.001));
+
+            AddStep("restore fixture volumes", () =>
+            {
+                hitsoundChannel.Stop();
+                effectChannel.Stop();
+                Audio.Volume.Value = originalMaster;
+                Audio.VolumeSample.Value = originalEffects;
+                config.SetValue(OsuSetting.ManiaHitsoundVolume, originalHitsounds);
+            });
+        }
 
         [Test]
         public void TestRetrieveOggSample()
@@ -105,6 +171,16 @@ namespace osu.Game.Tests.Skins
             public override IBindable<TValue> GetConfig<TLookup, TValue>(TLookup lookup) => throw new NotImplementedException();
 
             public override ISample GetSample(ISampleInfo sampleInfo) => Samples.AsNonNull().Get(SAMPLE_NAME);
+        }
+
+        private sealed class TestHitSampleInfo : HitSampleInfo
+        {
+            public TestHitSampleInfo(string name, int volume)
+                : base(name, volume: volume)
+            {
+            }
+
+            public override IEnumerable<string> LookupNames => [Name];
         }
     }
 }

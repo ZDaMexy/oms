@@ -20,11 +20,13 @@ namespace osu.Game.Skinning
     {
         private readonly TextureStore textures;
         private readonly ISampleStore samples;
+        private readonly ISampleStore hitsounds;
 
         public ResourceStoreBackedSkin(IResourceStore<byte[]> resources, GameHost host, AudioManager audio)
         {
             textures = new TextureStore(host.Renderer, host.CreateTextureLoaderStore(new NamespacedResourceStore<byte[]>(resources, @"Textures")));
             samples = audio.GetSampleStore(new NamespacedResourceStore<byte[]>(resources, @"Samples"));
+            hitsounds = audio.GetSampleStore(new NamespacedResourceStore<byte[]>(resources, @"Samples"), applyGlobalAdjustments: false);
         }
 
         public Drawable? GetDrawableComponent(ISkinComponentLookup lookup) => null;
@@ -33,9 +35,11 @@ namespace osu.Game.Skinning
 
         public ISample? GetSample(ISampleInfo sampleInfo)
         {
+            ISampleStore store = sampleInfo.IsHitsound ? hitsounds : samples;
+
             foreach (string lookup in sampleInfo.LookupNames)
             {
-                ISample? sample = samples.Get(lookup);
+                ISample? sample = store.Get(lookup);
                 if (sample != null)
                     return sample;
             }
@@ -55,6 +59,7 @@ namespace osu.Game.Skinning
         {
             textures.Dispose();
             samples.Dispose();
+            hitsounds.Dispose();
         }
     }
 }

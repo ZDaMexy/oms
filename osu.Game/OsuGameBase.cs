@@ -306,6 +306,8 @@ namespace osu.Game
         [BackgroundDependencyLoader]
         private void load(ReadableKeyCombinationProvider keyCombinationProvider, FrameworkConfigManager frameworkConfig)
         {
+            LocalConfig.MigrateManiaHitsoundVolume(frameworkConfig.Get<double>(FrameworkSetting.VolumeEffect));
+
             try
             {
                 string versionHashSource = Environment.ProcessPath ?? string.Empty;

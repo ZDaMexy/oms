@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
+using osu.Framework.Allocation;
 using osu.Framework.Audio;
 using osu.Framework.Audio.Sample;
 using osu.Framework.Bindables;
@@ -18,6 +19,7 @@ using osu.Framework.Graphics.Audio;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Threading;
 using osu.Game.Audio;
+using osu.Game.Configuration;
 
 namespace osu.Game.Skinning
 {
@@ -144,6 +146,9 @@ namespace osu.Game.Skinning
 
         private readonly AudioContainer<DrawableSample> sampleContainer;
         private ISampleInfo sampleInfo;
+
+        [Resolved(canBeNull: true)]
+        private OsuConfigManager config { get; set; }
         private SampleChannel activeChannel;
         private readonly List<ActiveRevisionChannel> revisionChannels = new List<ActiveRevisionChannel>();
         private PendingSampleSwap pendingSampleSwap;
@@ -307,7 +312,22 @@ namespace osu.Game.Skinning
             Volume.Value = sampleInfo.Volume / 100.0;
 
             if (LoadState >= LoadState.Ready)
+            {
+                bindHitsoundVolume();
                 updateSample();
+            }
+        }
+
+        protected override void LoadAsyncComplete()
+        {
+            bindHitsoundVolume();
+            base.LoadAsyncComplete();
+        }
+
+        private void bindHitsoundVolume()
+        {
+            if (sampleInfo?.IsHitsound == true && config != null)
+                sampleContainer.AddAdjustment(AdjustableProperty.Volume, config.ManiaHitsoundVolume);
         }
 
         protected override void SkinChanged(ISkinSource skin)

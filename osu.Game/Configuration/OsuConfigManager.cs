@@ -30,10 +30,20 @@ namespace osu.Game.Configuration
 {
     public class OsuConfigManager : IniConfigManager<OsuSetting>, IGameplaySettings
     {
+        private bool migrateManiaHitsoundVolume;
+
         public OsuConfigManager(Storage storage)
             : base(storage)
         {
             Migrate();
+
+            var volume = (BindableDouble)GetOriginalBindable<double>(OsuSetting.ManiaHitsoundVolume);
+            migrateManiaHitsoundVolume = volume.Value < 0;
+            volume.Default = 0.6;
+            if (migrateManiaHitsoundVolume)
+                volume.SetDefault();
+
+            volume.MinValue = 0;
         }
 
         protected override void InitialiseDefaults()
@@ -110,6 +120,8 @@ namespace osu.Game.Configuration
 
             // Audio
             SetDefault(OsuSetting.VolumeInactive, 0.25, 0, 1, 0.01);
+            // A load-only sentinel keeps an explicitly saved value, even when equal to the usual default.
+            SetDefault(OsuSetting.ManiaHitsoundVolume, -1.0, -1, 1, 0.01);
 
             SetDefault(OsuSetting.MenuMusic, true);
             SetDefault(OsuSetting.MenuTips, true);
@@ -290,6 +302,17 @@ namespace osu.Game.Configuration
                     GetBindable<float>(OsuSetting.UIScale).SetDefault();
             }
         }
+
+        internal void MigrateManiaHitsoundVolume(double effectVolume)
+        {
+            if (!migrateManiaHitsoundVolume)
+                return;
+
+            SetValue(OsuSetting.ManiaHitsoundVolume, effectVolume);
+            migrateManiaHitsoundVolume = false;
+        }
+
+        internal IBindable<double> ManiaHitsoundVolume => GetOriginalBindable<double>(OsuSetting.ManiaHitsoundVolume);
 
         private static bool tryParseComparableVersion(string rawVersion, out int combined)
         {
@@ -555,5 +578,6 @@ namespace osu.Game.Configuration
         SkinKeyOverrides,
 
         SongSelectCollectionFilter,
+        ManiaHitsoundVolume,
     }
 }

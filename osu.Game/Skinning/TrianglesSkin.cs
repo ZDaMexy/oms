@@ -32,8 +32,6 @@ namespace osu.Game.Skinning
             InstantiationInfo = typeof(TrianglesSkin).GetInvariantInstantiationInfo()
         };
 
-        private readonly IStorageResourceProvider resources;
-
         public TrianglesSkin(IStorageResourceProvider resources)
             : this(CreateInfo(), resources)
         {
@@ -43,7 +41,6 @@ namespace osu.Game.Skinning
         public TrianglesSkin(SkinInfo skin, IStorageResourceProvider resources)
             : base(skin, resources)
         {
-            this.resources = resources;
         }
 
         public override Texture? GetTexture(string componentName, WrapMode wrapModeS, WrapMode wrapModeT) => Textures?.Get(componentName, wrapModeS, wrapModeT);
@@ -52,7 +49,7 @@ namespace osu.Game.Skinning
         {
             foreach (string lookup in sampleInfo.LookupNames)
             {
-                var sample = Samples?.Get(lookup) ?? resources.AudioManager?.Samples.Get(lookup);
+                var sample = GetSampleFromSkinFiles(lookup, sampleInfo) ?? GetSampleFromResourceFiles(lookup, sampleInfo);
                 if (sample != null)
                     return sample;
             }

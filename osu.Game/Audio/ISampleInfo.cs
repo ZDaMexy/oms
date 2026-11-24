@@ -13,5 +13,8 @@ namespace osu.Game.Audio
         IEnumerable<string> LookupNames { get; }
 
         int Volume { get; }
+
+        /// <summary>Whether the sample uses the dedicated mania hit sound volume.</summary>
+        bool IsHitsound => false;
     }
 }

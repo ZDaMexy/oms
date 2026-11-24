@@ -16,6 +16,8 @@ namespace osu.Game.Rulesets.Bms.Audio
 
         public string Filename { get; }
 
+        public override bool IsHitsound => false;
+
         public BmsKeysoundSampleInfo(string filename, int volume = 100)
             : this(normaliseFilename(filename), volume, true)
         {
