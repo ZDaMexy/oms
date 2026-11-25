@@ -1,5 +1,9 @@
 # P1-A 变动日志
 
+## 2026-11-25 beatoraja 无损重包
+
+Lightning 和 Standard 各交付独立 `v26112500` ZIP。整包图像逐张验证，正式 ZIP 回读每一成员，官方 0.8.9 复验代表性演奏。原安装版本与更早验收沿各自记录。体积、证据与边界取[无损重包记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md#2026-11-25-无损重包)。
+
 ## 2026-11-15tricoro beatoraja交付与本代闭环
 
 按用户明确继续，fresh native-r4完成19主题/95布局官方CPU与旧18保全资格，实际同包16场、1199PNG完整性及56原图抽样通过。原版20、22 CUSTOM TRICORO与26 ARC SCORE身份分开，Graph ON两窗/OFF四窗均检查真实内容；私有取证曾把柱图遮挡误判为rank源色错误，保留旧失败、按实际三柱几何修订取样后完整重跑，未改已验原生包。候选、适配、实际矩阵与原图证据统一取[20宿主记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md#20-来源-standard-增量)。

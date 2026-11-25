@@ -1,6 +1,6 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 核对：2026-11-16（文档复核；OMS与beatoraja产品证据分别沿实际日期）
+> 核对：2026-11-25（beatoraja 无损重包。其余产品证据沿实际日期）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -17,8 +17,8 @@
 | --- | --- | --- |
 | Lightning Model Skin Omni Until 33 | OMS | 自动推进停止，完整形态未完成；最新[.v26102902](CHANGELOG.md#2026-10-29omniv52私下交付)，历史Lighting文件名保留；缺口取[作品记录](../../other/OMNI_GAMEPLAY_COMPLETION_20261026.md) |
 | Standard Model Skin Omni Until 26 | OMS | v26111000已交付，19主题；同包33场与原图审查完成，见[20来源交付](../../other/STANDARD_MODEL_SKIN_20261105.md#20-来源-oms-交付) |
-| Lightning Until33 | beatoraja | v26110800已安装、保全并交付ZIP |
-| Standard Until26 | beatoraja | v26111500已安装、保全并交付ZIP，19主题；同包16场及原图抽样通过，见[20来源交付](../../other/BEATORAJA_IIDX_SKINS_20261107.md#20-来源-standard-增量) |
+| Lightning Until33 | beatoraja | `v26112500` 已交付[无损重包](../../other/BEATORAJA_IIDX_SKINS_20261107.md#2026-11-25-无损重包)。实装记录为 `v26110800` |
+| Standard Until26 | beatoraja | 19 主题。`v26112500` 已交付[无损重包](../../other/BEATORAJA_IIDX_SKINS_20261107.md#2026-11-25-无损重包)。实装记录为 `v26111500`，见[20 来源交付](../../other/BEATORAJA_IIDX_SKINS_20261107.md#20-来源-standard-增量) |
 
 安装与缺口取[适配记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md)。OMS选曲/Results沿[原界面决定](CHANGELOG.md#2026-10-28omni两页拟真硬门)。
 
@@ -46,7 +46,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-11-15：Standard20的beatoraja v26111500完成95布局官方CPU、16场同包、1199PNG完整性和56原图抽样，安装后原玩家数据/旧皮肤保全及ZIP全部12836成员核验通过，完整资格与适配取[宿主记录](../../other/BEATORAJA_IIDX_SKINS_20261107.md#20-来源-standard-增量)。公开源码未变，原669项制作工具回归及11月10日OMS的33场/326PNG/47原图保持原日期和范围，见[OMS记录](../../other/STANDARD_MODEL_SKIN_20261105.md#20-来源-oms-交付)。本代已在当前皮肤范围闭环，原软件全等价、实体设备与发行门不变。
+2026-11-25，beatoraja 两款重包的逐图核对、ZIP 回读与隔离回放通过。[体积与验证](../../other/BEATORAJA_IIDX_SKINS_20261107.md#2026-11-25-无损重包)。
 
 Lightning的10月29日候选、产品回归和Release保持[原记录](CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)；[.v26102902交付](CHANGELOG.md#2026-10-29omniv52私下交付)与候选同字节，Standard不刷新其验证日期。
 

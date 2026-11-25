@@ -1,8 +1,21 @@
 # beatoraja IIDX 双作品适配记录
 
-本页记录2026-11-07开始的独立宿主工作；当前Standard的20来源增量`v26111500`已安装、保全并交付ZIP，Lightning保持11月8日的首版`v26110800`。各自实际范围见下方记录，不提升来源原软件或发行验收。调度取[P1-A维护计划](../subline/P1-A/IIDX_SKIN_MAINTENANCE.md)，状态取[STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)。
+本页记录 2026-11-07 开始的独立宿主工作。Lightning 与 Standard 的当前本地 ZIP 都为 [v26112500 无损重包](#2026-11-25-无损重包)。安装记录分别沿 11 月 8 日 Lightning `v26110800` 和 11 月 15 日 Standard `v26111500`。调度取[P1-A维护计划](../subline/P1-A/IIDX_SKIN_MAINTENANCE.md)，状态取[STATUS](../subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)。
 
-20原版增量的来源、组成与OMS成品取[Standard独立记录](STANDARD_MODEL_SKIN_20261105.md#2026-11-09-20-原版来源接入)，本宿主的当前成品及独立验收取[20来源交付](#20-来源-standard-增量)。原版20 tricoro、22 CUSTOM TRICORO，以及原版SPADA、22 CUSTOM与26 ARC SCORE同名主题保留各自身份，不合并素材。
+20原版增量的来源、组成与OMS成品取[Standard独立记录](STANDARD_MODEL_SKIN_20261105.md#2026-11-09-20-原版来源接入)，本宿主的 20 来源交付及独立验收取[20来源交付](#20-来源-standard-增量)。原版20 tricoro、22 CUSTOM TRICORO，以及原版SPADA、22 CUSTOM与26 ARC SCORE同名主题保留各自身份，不合并素材。
+
+## 2026-11-25 无损重包
+
+两族各交付独立的 `v26112500` ZIP。安装时从新版本目录选择对应键数的入口，旧版可用于回退。
+
+| 作品 | 来源版 | 解包文件体积 | ZIP 体积 |
+| --- | --- | --- | --- |
+| Lightning | v26110800 | 6.85 GiB → 6.15 GiB | 6.20 GiB → 5.45 GiB（减少 12.0%） |
+| Standard | v26111500 | 2.48 GiB → 2.26 GiB | 2.11 GiB → 1.90 GiB（减少 10.3%） |
+
+OxiPNG 仅重压图像数据，逐张核对尺寸、颜色模式、所有采样值及其余 PNG 块，包含全透明像素的 RGB。位图字体和字图沿用原文件。新图片沿既有内容摘要命名，Lua 反向替换图片路径后与旧文件逐字节一致。审计收据使用紧凑编码并更新文件摘要。文件数、主题、选项身份、层序、动画和纹理尺寸沿来源版。
+
+官方 0.8.9 原生布局检查覆盖 Lightning 的 75 个及 Standard 的 95 个布局。每族在独立合成玩家中完成 5KEYS 右侧、7KEYS 左侧、14KEYS DP 回放及自然结算。ZIP 全部成员解压回读和成品落盘 SHA-256 通过。录制证据在本机 `artifacts/beatoraja-capture/lossless-v26112500/`，逐图及归档回执在 `E:/OMS-Development/evidence/beatoraja-lossless-20261125/`。本轮验证限于重包结果，选中纹理的解码和显存规模按原资源计算，正常启动挂起仍需现场定位。
 
 ## 授权、名称与来源
 
