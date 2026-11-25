@@ -16,6 +16,8 @@ metadata:
 
 - 当前 `osu.sln` 不包含 Core 测试工程。首次运行用 `dotnet test osu.Game.Tests/osu.Game.Tests.csproj -c Release` 或先显式 build 同工程。确认 TRX 有本轮新增用例后再引用结果，避免 `--no-build` 静默使用上次 DLL。以同一配置重建依赖后，可只重建测试工程再验收测试源修改。
 
+- 跨目标框架升级后，同一个 `bin` 可并存历史测试产物、现行产物和仍在使用的旧便携资料。判定清理范围前，先读取正常启动入口及 `data/storage.ini` 的实际指向，再用测试工程的目标框架和现行产物定位可再生输出。十一月切换实例见[开发环境](../../doc_md/mainline/DEVELOPMENT_STATUS.md#工作区与开发环境)。
+
 - 清理后核对目标残留时，`UseDevelopmentStorage.ps1`会重新创建已配置的缓存空目录；路径存在不代表旧内容残留。按原清单条目、实际内容与执行回执核对，不能因此重删共享缓存。实例取[空间回收记录](../../doc_md/mainline/CHANGELOG.md#2026-10-29工作区空间清查与待执行回收)。
 
 - `AddStep`/`AddUntilStep`注册时就会求描述、参数和method group；后续步骤才赋值的字段仍是null或上一实例。`AddStep(..., overlay.Hide)`会捕获旧overlay，跨实例动作须用lambda在执行时读取。固定预期从scenario或Program已初始化的`CaptureSettings.Current`取得，需等执行才可观察的状态用委托；不能用空值回退或删除真实模式/publication断言掩盖时序。具体来源见[P1-A收尾记录](../../doc_md/subline/P1-A/CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)与[Standard取景工具](../../tools/StandardSkinCapture/README.md)。
