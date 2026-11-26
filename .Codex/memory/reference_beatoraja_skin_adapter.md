@@ -2,7 +2,7 @@
 
 当前作品、来源、安装和验收只读[适配记录](../../doc_md/other/BEATORAJA_IIDX_SKINS_20261107.md)及[P1-A状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)。这里保留移植时容易产生假成功的原因，不保存推进账本。
 
-启动黑屏且日志最后是 BGM Set 统计时，先在活体抓主进程与 MinIR 子进程线程栈。若 `LWJGL Application` 在 `BarManager.init → getTableDatas → destroyProcess → BufferedReader.close` 等锁，对照 IR 读线程是否在 `readLine` 持有同一锁。确认子进程仍在读取难度表再单独结束它，并观察原进程是否进入选曲绘制。真实超时与恢复见[现场记录](../../doc_md/other/BEATORAJA_IIDX_SKINS_20261107.md#2026-11-26-minir-启动黑屏)。
+启动黑屏且日志最后是 BGM Set 统计时，先在活体抓主进程与 MinIR 子进程线程栈。若 `LWJGL Application` 在 `BarManager.init → getTableDatas → destroyProcess → BufferedReader.close` 等锁，对照 IR 读线程是否在 `readLine` 持有同一锁。确认子进程仍在读取难度表再单独结束它，并观察原进程是否进入选曲绘制。注册入口所用的真实宿主版本、实际工作进程与启动取表分别核对；账号新接入的隔离探针通过后，正常启动与实际账号仍分别留证。真实超时与恢复见[现场记录](../../doc_md/other/BEATORAJA_IIDX_SKINS_20261107.md#2026-11-26-minir-启动黑屏)。
 
 Lua皮肤header与body分别执行；require缓存会保留返回表，被合并过的片段必须由factory每次返回新表。字符串对象ID需要整体命名空间，数值timer/ref/offset不能顺带改名。相同custom timer ID只能复用相同定义，否则后者会覆盖前者；参考[组件包](../../tools/IidxSkinAssets/beatoraja_package.py)。
 

@@ -46,7 +46,7 @@ C2～C6共享同一 package/layout/material/scene publication、lease/detach 与
 
 ## 最近一次验证
 
-2026-11-25，beatoraja 两款重包的逐图核对、ZIP 回读与隔离回放通过。[体积与验证](../../other/BEATORAJA_IIDX_SKINS_20261107.md#2026-11-25-无损重包)。
+11 月 25 日，两款 beatoraja [无损重包](../../other/BEATORAJA_IIDX_SKINS_20261107.md#2026-11-25-无损重包)通过逐图、ZIP 回读和隔离回放。次日确认 MinIR 取表导致黑屏，恢复与 OMS-IR 接续见[启动现场](../../other/BEATORAJA_IIDX_SKINS_20261107.md#2026-11-26-minir-启动黑屏)。
 
 Lightning的10月29日候选、产品回归和Release保持[原记录](CHANGELOG.md#2026-10-29omni候选核验收尾与停止推进)；[.v26102902交付](CHANGELOG.md#2026-10-29omniv52私下交付)与候选同字节，Standard不刷新其验证日期。
 

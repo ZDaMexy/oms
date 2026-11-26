@@ -17,6 +17,8 @@ OxiPNG 仅重压图像数据，逐张核对尺寸、颜色模式、所有采样�
 
 官方 0.8.9 原生布局检查覆盖 Lightning 的 75 个及 Standard 的 95 个布局。每族在独立合成玩家中完成 5KEYS 右侧、7KEYS 左侧、14KEYS DP 回放及自然结算。ZIP 全部成员解压回读和成品落盘 SHA-256 通过。录制证据在本机 `artifacts/beatoraja-capture/lossless-v26112500/`，逐图及归档回执在 `E:/OMS-Development/evidence/beatoraja-lossless-20261125/`。本轮验证限于重包结果，选中纹理的解码和显存规模按原资源计算。随后复现的黑屏取[启动诊断](#2026-11-26-minir-启动黑屏)。
 
+11 月 26 日已释放 E 盘的同字节临时副本。复跑 11 月 25 日的准备脚本前，先从 F 盘两份交付 ZIP 按[恢复映射入口](../mainline/CHANGELOG.md#2026-11-26-本机空间与文档记忆复核)恢复脚本需要的路径。原逐图与回放验收沿上段。
+
 ## 2026-11-26 MinIR 启动黑屏
 
 实际 beatoraja 0.8.9 主窗口黑屏无响应。最新日志停在 BGM 与音效检测。活体线程栈显示选曲初始化经 `BarManager.init` 同步调用 MinIR 的 `getTableDatas`。子进程卡在 HTTPS 难度表响应体读取。宿主 30 秒超时后先关闭读管道，再尝试结束子进程，导致渲染线程等待读线程仍持有的锁。
