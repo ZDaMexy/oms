@@ -1,17 +1,17 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-11-25（十一月底座接续；其他产品证据沿各自原日期）
+> 最后核对：2026-11-26（Windows 候选、六月升级和真实下载验证）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
 
-OMS处于Phase 1.x后段，原生 BMS 与转谱游玩已完成热路径优化。静线是 BMS/mania 唯一内置、默认与保底，皮肤按模式和键数选择；固定目录刷新和原组件编辑器可保存独立副本。星轨已退役，静线外观打磨仍暂停。整体画面、真实设备与长期体验尚未签收，Skin V1 与 release 未完成。下载、BGA 作者能力和剩余门见 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)，性能与听感见 [P1-J](../subline/P1-J/DEVELOPMENT_STATUS.md)。
+OMS 处于 Phase 1.x 后段。静线是 BMS/mania 唯一内置、默认与保底，支持按模式与键数选择。星轨已退役，静线外观打磨暂停。真实设备、长期体验、Skin V1 与正式发行待签收。下载与 BGA 作者能力见 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)，性能与听感见 [P1-J](../subline/P1-J/DEVELOPMENT_STATUS.md)。
 
 Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，具名证据取[P1-A修复记录](../subline/P1-A/CHANGELOG.md#2026-10-22autoplay跳转与omni反馈修复)；正常窗口剩余门由其STATUS维护，先前重进或开场测试不代签。
 
 ## 产品与仓库基线
 
-十一月框架、资源、选歌、回放和编辑改动见[接续记录](CHANGELOG.md#2026-11-25-osulazer-十一月底座接续)。正常窗口、设备、旧库与发行待验。原生重编仍待。
+[十一月底座](CHANGELOG.md#2026-11-25-osulazer-十一月底座接续)形成 [Windows 候选](../subline/P1-F/CHANGELOG.md#2026-11-26-windows-候选及六月升级)，已验六月升级回退、BMS 重建成绩、实际媒体和公开镜像样本。公开仍为 20260626。
 
 游玩判定/结果及性能取[10月19日深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)；设备入口、输入时间、轴用途、长皿与校准接续取[10月21日输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)。前台帧时间与实体设备仍待验收。
 

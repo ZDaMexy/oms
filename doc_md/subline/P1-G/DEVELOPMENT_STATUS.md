@@ -1,6 +1,6 @@
 # P1-G 当前状态：Phase 1.x 人工验收汇总
 
-> 最后核对：2026-10-13（补齐客户端品牌与候选验收导航；无新增人工签收）
+> 最后核对：2026-11-26（候选软件与桌面演练；设备、听感与原账号由用户暂缓）
 > [全局状态与待人工项](../../mainline/DEVELOPMENT_STATUS.md) · [执行清单](DEVELOPMENT_PLAN.md) · [人工反馈如何归线、哪些结果可签收](TECHNICAL_CONSTRAINTS.md)
 
 ## 当前阶段
@@ -14,7 +14,7 @@ P1-G 仍处于分项收集与最终汇总待闭合阶段。它不实现功能，
 ## 已有分项证据
 
 - 2026-07-14 无外部皮肤、`.osk`、partial fallback、BMS 5K/7K/9K/14K、14K 双皿与 mania/BMS 资源隔离已通过。
-- P1-F 旧候选保留真实跨版本证据，2026-10-03 新候选另有便携/自定义根、恢复与同包覆盖的自动启动记录；生成物随后按用户要求删除，原结果仍在。新记录不代签 Windows Shell 解包、跨版本、新作者演练、下载或整体真人体验；非便携独立账户及画面/设备/长期门仍待验，见 [P1-F 状态](../P1-F/DEVELOPMENT_STATUS.md)。
+- [11 月 26 日候选](../P1-F/CHANGELOG.md#2026-11-26-windows-候选及六月升级)已完成标准解压、两种保存布局的六月升级回退、同包恢复、作者制作与三个公共来源实际入库。隔离 Windows 桌面已绘制 BMS 7K 静线、真实 Xecus SHD 的 BGA 及 mania 7K 长条。
 - P1-J 普通密度主要音频故障已有历史用户实机结论；最终跨谱音频清单仍未汇总闭门。
 
 这些分项结论不等于 Phase 1.x 人工 release checklist 已完成。独立 IR 的真实游玩、断网重启与账号归属验收沿 [P3-IR](../P3-IR/DEVELOPMENT_PLAN.md)，不由本矩阵代签。
@@ -27,10 +27,10 @@ P1-G 仍处于分项收集与最终汇总待闭合阶段。它不实现功能，
 | 皮肤 | 星轨退役，不再要求签收；静线既有调整获用户接受并暂止打磨，`V-001`～`V-004` 仍 0/4、`V-005` 未签收，当前单内置与第三方的具体矩阵继续待验 | P1-A |
 | 输入/控制器 | analog scratch、跨设备 edge/hold、deadzone/sensitivity、真实 HID | P1-B/P1-D |
 | gameplay/长条/音频 | LN/CN/HCN、手动转谱长条、长 BGM 暂停保位与 seek/retry 清旧声、dense keysound、empty-strike；两模式自动键音开关听感见 [P1-J](../P1-J/DEVELOPMENT_PLAN.md#0-用户指定自动键音2026-09-29) | P1-C/P1-E/P1-J |
-| Song Select/导入 | 单轨筛选手感与窄窗口、大库分组/搜索、当前页难度表刷新；隔离根重扫/缺失恢复/解除后文件与历史保全 | P1-H/P1-I |
-| 公共下载 | 两源 BMS 修复后首次完成与精确打开、真实大包/网络/完整歌曲；Sayobot 实际包成功、稳定入库与打开；软件/历史实站证据和未签收范围见 [P1-A](../P1-A/DEVELOPMENT_STATUS.md) | P1-A |
+| Song Select/导入 | 单轨筛选手感与窄窗口、大库分组/搜索、当前页难度表刷新；真实大库交互与不同现场的缺失/解除恢复 | P1-H/P1-I |
+| 公共下载 | 两源 BMS 修复后首次完成与精确打开、真实大包/网络/完整歌曲；Sayobot 实站实际页面首次入库后打开；软件/历史实站证据和未签收范围见 [P1-A](../P1-A/DEVELOPMENT_STATUS.md) | P1-A |
 | Gimmick/BGA | 实谱叠层/ARGB、图序列、POOR、seek、老视频与长时解码；作者窗口在不同尺寸/DPI 下的 Fit/Fill/Stretch、零窗与信息区，代表 Gimmick 谱及默认 14K 布局 | P1-L/P1-A |
-| 发行 | fresh extract、portable/custom root、覆盖更新与公开口径；当前完整候选承接公共下载与离线启动组合 | P1-F/P1-A |
+| 发行 | 无 SDK 的独立 Windows 环境、非便携独立账户与公开前最终确认 | P1-F/P1-A |
 
 ## 当前边界
 

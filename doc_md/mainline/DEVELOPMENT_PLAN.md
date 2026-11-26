@@ -1,13 +1,13 @@
 # OMS 当前开发规划
 
-> 最后核对：2026-11-25（十一月底座接续；正常入口、设备和发行继续验收）
+> 最后核对：2026-11-26（正式候选出包，剩余现场验收与正式发行确认）
 > 本页维护全局顺序、跨线依赖和改动验收；当前事实见[STATUS](DEVELOPMENT_STATUS.md)，专项动作从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 当前目标
 
 十一月框架、资源和客户端改动取[接续记录](CHANGELOG.md#2026-11-25-osulazer-十一月底座接续)。实际启动、旧库覆盖、实体输入与发行走 [P1-F](../subline/P1-F/DEVELOPMENT_PLAN.md#当前剩余验收)。后续候选取[维护入口](../other/UPSTREAM.md)。
 
-依赖安全迁移及10月24日完整BMS补验已作为后续输入，适用范围取[P1-A原验证](../subline/P1-A/CHANGELOG.md#2026-10-24omni持续背景与原版参照边界)，没有新改动或失败时不重跑该门；按[P1-L](../subline/P1-L/DEVELOPMENT_PLAN.md#当前执行顺序)补最终配方从零重编与原生身份检查。图片使用正规程序集许可，不能靠屏蔽审计或沿用旧发行包替代当前依赖验证；新候选的载荷/许可旁带归[P1-F](../subline/P1-F/DEVELOPMENT_PLAN.md#当前剩余验收)。
+原生媒体最终配方已完成干净重编，候选的载荷、源码和许可旁带、真实视频与两款程序的库身份取[P1-F 验证](../subline/P1-F/CHANGELOG.md#2026-11-26-windows-候选及六月升级)。后续仅在相关依赖或发行内容改变时复验对应门。
 
 Autoplay跳转、统计及Omni血条/默认FC的既有修复与保留人工门取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，不把原窗口待验列为恢复Omni自动开发的队列。其它设备、长条/键音/BGA和长期门仍沿下方P1-B/P1-E/P1-J/P1-L与P1-G。[既有游玩审查](../other/GAMEPLAY_REVIEW_20261019.md)只作输入，正常窗口、隔离宿主与发行证据分开。
 
