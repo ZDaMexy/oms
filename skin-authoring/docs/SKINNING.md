@@ -71,9 +71,9 @@ my-skin/
 | 判定、连击 | `bms/hud.png` 与场景中的文字节点 | `hud.judgement/combo` | 可绑定等级/连击或用变体换图；不是一张名叫PERFECT的图就会自动生效 |
 | 血槽 | `scene/gauge-frame.png` 768×128，`scene/gauge-cells.png` 与紫色变体均为1000×40 | `hud.gauge` | 全长暗槽上从左揭露亮层；scene 可读真实 `gauge.type/clear-state`，分段格距保持固定 |
 | 曲名、分数、BPM、统计、进度 | 场景文字；自制数字PNG可声明bitmapFonts | `hud.text` 和只读 bindings | 每项直接读游戏事实，无需脚本；数字可保留图片字形，普通长曲名可用 `text-overflow: ellipsis` |
-| 舞台背景、边框、底板 | 共用的 `scene/console-faceplate.png` 1672×941，各自的 `frame.png`、`plate.png` | `stage.background/foreground`、`playfield.backdrop/baseplate` | 通过公共素材或 scene 配置。有关 BMS 支持的字段取[作者参考](REFERENCE.md) |
+| 舞台背景、边框、底板 | `scene/cabinet.png` 1536×864、`mania/cabinet.png` 1280×720，各自的 `frame.png`、`plate.png` | `stage.background/foreground`、`playfield.backdrop/baseplate` | 通过公共素材或 scene 配置。有关 BMS 支持的字段取[作者参考](REFERENCE.md) |
 | SUDDEN+/HIDDEN+/LIFT遮挡区 | `bms/cover.png` | `playfield.lane-cover.fill/decoration` | 皮肤画填充和装饰，游戏控制真实遮挡/位移；必要填充不能关闭 |
-| BGA画面与外框 | 静线使用谱面画面，双盘声明单窗口 | `bga.viewport/frame`、`BgaViewports` | 仅原生 BMS。作者可提供外框图片，多个窗口共享同一播放内容 |
+| BGA画面与外框 | `bms/bga-frame.png`；1024×768 | `bga.viewport/frame`、`BgaViewports` | 仅原生BMS；框是皮肤图片，画面来自谱面，共享同一播放内容 |
 
 尺寸更大不自动更清晰：显示宽度由轨道/窗口决定，内存按解码像素计算。先保留模板尺寸确认效果，再扩大；阴影和辉光可先烘焙进PNG，避免把大面积模糊加在每颗音符上。
 

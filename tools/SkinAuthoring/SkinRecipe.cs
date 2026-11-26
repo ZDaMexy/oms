@@ -281,11 +281,7 @@ namespace SkinAuthoring
                 if (profile.CompactLayout && keys != 9)
                     ini.AppendLine("BlackLaneWidth: 0.7777778");
                 if (profile.CompactLayout)
-                {
-                    ini.AppendLine("KeyAreaHeight: 0.12").AppendLine("ScratchKeyWidth: 2").AppendLine("GaugeHeight: 0.07").AppendLine("BgaWidth: 0.44").AppendLine("BgaHeight: 0.45").AppendLine("BgaVerticalPosition: 0.45").AppendLine("BgaInformationHeight: 0.18");
-                    if (keys == 14)
-                        ini.AppendLine("BgaViewports: 0.018,0.322,0.157,0.215,fit");
-                }
+                    ini.AppendLine("KeyAreaHeight: 0.12").AppendLine("ScratchKeyWidth: 2").AppendLine("GaugeHeight: 0.07").AppendLine("BgaWidth: 0.60").AppendLine("BgaHeight: 0.76").AppendLine("BgaVerticalPosition: 0.45").AppendLine("BgaInformationHeight: 0.18");
                 IEnumerable<string> lanes = keys == 14 ? new[] { "S" }.Concat(Enumerable.Range(1, 14).Select(n => n.ToString())).Append("S2")
                     : keys == 9 ? Enumerable.Range(0, 9).Select(n => n.ToString()) : new[] { "S" }.Concat(Enumerable.Range(1, keys).Select(n => n.ToString()));
                 foreach (string lane in lanes)
@@ -344,11 +340,13 @@ namespace SkinAuthoring
                         string operation = !profile.Complex && quiet_slots.Contains(slot.Id, StringComparer.Ordinal) ? "Suppress"
                             : $"Provide \"{layout.Ruleset}/{asset(slot.Id, role)}\"";
                         if (profile.CompactLayout && slot.Id == "stage.background" && target.StartsWith("Target: Global", StringComparison.Ordinal))
-                            operation = "Provide \"scene/console-faceplate\"";
+                            operation = layout.Ruleset == "bms" ? "Provide \"scene/cabinet\"" : "Provide \"mania/cabinet\"";
                         if (profile.CompactLayout && layout.Ruleset == "bms")
                         {
                             if (slot.Id is "effect.key-flash" or "effect.hit-explosion")
                                 operation = $"Provide \"bms/{asset(slot.Id, role)}\"";
+                            if (slot.Id == "bga.frame")
+                                operation = "Provide \"bms/bga-frame\"";
                             if (slot.Id == "playfield.lane-surface")
                                 operation = $"Provide \"bms/lane-{role}\"";
                             if (slot.Id == "playfield.lane-divider" && role == "scratch")
@@ -576,12 +574,12 @@ namespace SkinAuthoring
                 {
                     stageTemplateNode("still.judgement.badge", "sprite", new()
                     {
-                        ["x"] = 0.24, ["y"] = 0.13, ["width"] = 0.52, ["height"] = 0.42,
+                        ["x"] = 0.18, ["y"] = 0.09, ["width"] = 0.64, ["height"] = 0.56,
                     }, resource: "texture.judgement-cool"),
                     stageTemplateNode("still.judgement.result", "text", new()
                     {
-                        ["text"] = "", ["format"] = "uppercase", ["y"] = 0.09, ["height"] = 0.49,
-                        ["font-size"] = 32, ["alignment"] = "centre", ["colour"] = "#fff2ddff",
+                        ["text"] = "", ["format"] = "uppercase", ["y"] = 0.09, ["height"] = 0.53,
+                        ["font-size"] = 36, ["alignment"] = "centre", ["colour"] = "#f2fbffff",
                     }),
                     stageTemplateNode("still.judgement.direction", "text", new()
                     {
@@ -597,7 +595,7 @@ namespace SkinAuthoring
                 {
                     stageTemplateNode("still.combo.value", "text", new()
                     {
-                        ["text"] = "0", ["font-size"] = 25, ["alignment"] = "centre", ["colour"] = "#f8cda3ff",
+                        ["text"] = "0", ["font-size"] = 26, ["alignment"] = "centre", ["colour"] = "#ecf8ffff",
                     }),
                 }, slot: "hud.combo")
                 });
@@ -610,16 +608,16 @@ namespace SkinAuthoring
                     stageTemplateNode("still.gauge.label", "text", new()
                     {
                         ["text"] = "GAUGE", ["font-size"] = 12, ["x"] = 0.035, ["y"] = 0.04, ["width"] = 0.5, ["height"] = 0.4,
-                        ["alignment"] = "left", ["colour"] = "#dcc7b4ff",
+                        ["alignment"] = "left", ["colour"] = "#b8cbd6ff",
                     }),
                     stageTemplateNode("still.gauge.value", "text", new()
                     {
                         ["text"] = "0%", ["font-size"] = 22, ["format"] = "percent", ["x"] = 0.5, ["y"] = 0.04, ["width"] = 0.46, ["height"] = 0.4,
-                        ["alignment"] = "right", ["colour"] = "#fff2ddff",
+                        ["alignment"] = "right", ["colour"] = "#f2fbffff",
                     }),
                     stageTemplateNode("still.gauge.track", "sprite", new()
                     {
-                        ["x"] = 0.025, ["y"] = 0.52, ["width"] = 0.95, ["height"] = 0.38, ["colour"] = "#493d44ff",
+                        ["x"] = 0.025, ["y"] = 0.52, ["width"] = 0.95, ["height"] = 0.38, ["colour"] = "#34434bff",
                     }, resource: "texture.gauge-cells"),
                     stageTemplateNode("still.gauge.reveal", "clip", new()
                     {
@@ -673,33 +671,32 @@ namespace SkinAuthoring
                 });
                 var information = new List<object>
                 {
-                    hudElement("still.hud.console", "sprite", new() { ["x"] = 0.194, ["width"] = 0.612, ["height"] = 0.94 }, "instrument-mania"),
-                    hudElement("still.hud.health-panel", "sprite", new() { ["x"] = 0.210, ["width"] = 0.184, ["height"] = 0.90, ["colour"] = "#ddc1f008" }),
-                    hudElement("still.hud.panel", "sprite", new() { ["x"] = 0.396, ["width"] = 0.148, ["height"] = 0.90, ["colour"] = "#ddc1f014" }),
-                    hudElement("still.hud.accuracy-panel", "sprite", new() { ["x"] = 0.546, ["width"] = 0.137, ["height"] = 0.90, ["colour"] = "#ddc1f008" }),
-                    hudElement("still.hud.bpm-panel", "sprite", new() { ["x"] = 0.685, ["width"] = 0.105, ["height"] = 0.90, ["colour"] = "#ddc1f014" }),
-                    hudLabel("still.hud.health-label", "HEALTH", 0.220, 0.04, 10, "#d6bfabff"),
+                    hudElement("still.hud.health-panel", "sprite", new() { ["x"] = 0.05, ["width"] = 0.22, ["height"] = 0.94 }, "instrument-mania"),
+                    hudElement("still.hud.panel", "sprite", new() { ["x"] = 0.28, ["width"] = 0.19, ["height"] = 0.94 }, "instrument-mania"),
+                    hudElement("still.hud.accuracy-panel", "sprite", new() { ["x"] = 0.48, ["width"] = 0.22, ["height"] = 0.94 }, "instrument-mania"),
+                    hudElement("still.hud.bpm-panel", "sprite", new() { ["x"] = 0.71, ["width"] = 0.24, ["height"] = 0.94 }, "instrument-mania"),
+                    hudLabel("still.hud.health-label", "HEALTH", 0.067, 0.04, 10, "#cad6e8ff"),
                     hudElement("still.hud.health-value", "text", new()
                     {
                         ["text"] = "0%", ["format"] = "percent", ["font-size"] = 19, ["alignment"] = "right",
-                        ["colour"] = "#fff2ddff", ["x"] = 0.288, ["y"] = 0.08, ["width"] = 0.094, ["height"] = 0.46,
+                        ["colour"] = "#f3f8ffff", ["x"] = 0.14, ["y"] = 0.08, ["width"] = 0.11, ["height"] = 0.46,
                     }),
                     hudElement("still.hud.health-track", "sprite", new()
                     {
-                        ["x"] = 0.220, ["y"] = 0.59, ["width"] = 0.160, ["height"] = 0.23, ["colour"] = "#493d52ff",
+                        ["x"] = 0.067, ["y"] = 0.59, ["width"] = 0.18, ["height"] = 0.23, ["colour"] = "#4a3f57ff",
                     }, "gauge-cells-mania"),
                     stageTemplateNode("still.hud.health-reveal", "clip", new()
                     {
-                        ["x"] = 0.220, ["y"] = 0.59, ["width"] = 0.160, ["height"] = 0.23, ["clip-mode"] = "bounds", ["reveal-x"] = 0,
+                        ["x"] = 0.067, ["y"] = 0.59, ["width"] = 0.18, ["height"] = 0.23, ["clip-mode"] = "bounds", ["reveal-x"] = 0,
                     }, new[] { stageTemplateNode("still.hud.health-fill", "sprite", new(), resource: "texture.gauge-cells-mania") }),
-                    hudLabel("still.hud.score-label", "SCORE", 0.407, 0.035, 10, "#d6bfabff"),
-                    hudLabel("still.hud.score", "0", 0.407, 0.30, 21, "#fff2ddff"),
-                    hudLabel("still.hud.accuracy-label", "ACCURACY", 0.557, 0.035, 10, "#d6bfabff"),
-                    hudLabel("still.hud.accuracy", "100.00%", 0.557, 0.30, 21, "#fff2ddff"),
-                    hudLabel("still.hud.bpm-label", "BPM", 0.696, 0.035, 10, "#d6bfabff"),
-                    hudLabel("still.hud.bpm", "0", 0.696, 0.30, 21, "#" + profile.ManiaAccent + "ff"),
-                    hudElement("still.hud.progress-track", "sprite", new() { ["y"] = 0.95, ["width"] = 1, ["height"] = 0.022, ["colour"] = "#39303aff" }),
-                    hudElement("still.hud.progress", "sprite", new() { ["y"] = 0.95, ["width"] = 0, ["height"] = 0.022, ["colour"] = "#" + profile.ManiaAccent + "ff" }),
+                    hudLabel("still.hud.score-label", "SCORE", 0.299, 0.035, 10, "#cad6e8ff"),
+                    hudLabel("still.hud.score", "0", 0.299, 0.30, 22, "#f3f8ffff"),
+                    hudLabel("still.hud.accuracy-label", "ACCURACY", 0.500, 0.035, 10, "#cad6e8ff"),
+                    hudLabel("still.hud.accuracy", "100.00%", 0.500, 0.30, 22, "#f3f8ffff"),
+                    hudLabel("still.hud.bpm-label", "BPM", 0.733, 0.035, 10, "#cad6e8ff"),
+                    hudLabel("still.hud.bpm", "0", 0.733, 0.30, 22, "#" + profile.ManiaAccent + "ff"),
+                    hudElement("still.hud.progress-track", "sprite", new() { ["y"] = 0.94, ["width"] = 1, ["height"] = 0.022, ["colour"] = "#293247ff" }),
+                    hudElement("still.hud.progress", "sprite", new() { ["y"] = 0.94, ["width"] = 0, ["height"] = 0.022, ["colour"] = "#" + profile.ManiaAccent + "ff" }),
                 };
                 // One exact global material selects each ruleset's information layout, including dual-stage play.
                 // Children of the selected template share its owned HUD area unless they name a published region.
@@ -791,9 +788,9 @@ namespace SkinAuthoring
 
         private static void addBmsInformation(List<object> templates, List<object> instances, List<object> bindings)
         {
-            const string ink = "#fff2ddff";
-            const string muted = "#cbb6aaff";
-            const string accent = "#ffb77eff";
+            const string ink = "#eef7ffff";
+            const string muted = "#a7bbcaff";
+            const string cyan = "#86d9e7ff";
             object text(string name, string value, double x, double y, double width, double height, int size, string colour = ink, string alignment = "left", string? source = null, string? format = null)
             {
                 string id = "still.bms-hud." + name;
@@ -835,11 +832,11 @@ namespace SkinAuthoring
             var judgements = new List<object>
             {
                 text("judge-label", "JUDGE", 0.07, 0.05, 0.84, 0.12, 10, muted),
-                inset("judge-rule", 0.07, 0.185, 0.84, 0.008, "#58444bff"),
+                inset("judge-rule", 0.07, 0.185, 0.84, 0.008, "#45616fff"),
             };
             string[] names = { "perfect", "great", "good", "meh", "miss", "ok", "combo-breaks" };
             string[] labels = { "PG", "GR", "GD", "BD", "PR", "EP", "CB" };
-            string[] colours = { accent, "#f3dd88ff", "#c4d6a3ff", "#e9aa77ff", "#ed8290ff", muted, ink };
+            string[] colours = { cyan, "#f3dd88ff", "#c4e789ff", "#e9aa77ff", "#ed8290ff", muted, ink };
             for (int i = 0; i < names.Length; i++)
             {
                 double y = 0.21 + i * 0.106;
@@ -850,32 +847,34 @@ namespace SkinAuthoring
             var root = stageTemplateNode("still.bms-hud", "container", new(), new[]
             {
                 region("song",
-                    text("table-classification", "", 0.06, 0.10, 0.60, 0.22, 11, accent, source: "song.table-classification"),
-                    text("level-label", "LV.", 0.68, 0.10, 0.10, 0.22, 10, muted, "right"),
-                    text("level", "", 0.80, 0.07, 0.14, 0.25, 14, ink, "right", "song.level"),
-                    text("title", "", 0.06, 0.32, 0.88, 0.33, 20, source: "song.title"),
-                    text("artist", "", 0.06, 0.69, 0.52, 0.19, 11, muted, source: "song.artist"),
-                    text("difficulty", "", 0.61, 0.69, 0.33, 0.19, 11, accent, "right", "song.difficulty")),
+                    inset("song-accent", 0.023, 0.15, 0.003, 0.68, cyan),
+                    inset("author-rule", 0.695, 0.16, 0.18, 0.012, "#45616fff"),
+                    text("table-classification", "", 0.04, 0.09, 0.63, 0.21, 14, cyan, source: "song.table-classification"),
+                    text("title", "", 0.04, 0.29, 0.63, 0.35, 24, source: "song.title"),
+                    text("artist", "", 0.04, 0.64, 0.63, 0.20, 12, muted, source: "song.artist"),
+                    text("difficulty", "", 0.69, 0.22, 0.21, 0.25, 13, cyan, "centre", "song.difficulty"),
+                    text("level-label", "LV.", 0.72, 0.58, 0.07, 0.20, 10, muted),
+                    text("level", "", 0.79, 0.51, 0.10, 0.28, 18, ink, "right", "song.level")),
                 region("judgements", judgements.ToArray()),
                 region("tempo",
-                    inset("bpm-rule", 0.38, 0.70, 0.24, 0.012, accent),
-                    inset("min-divider", 0.30, 0.30, 0.0015, 0.33, "#58444bff"),
-                    inset("max-divider", 0.70, 0.30, 0.0015, 0.33, "#58444bff"),
+                    inset("bpm-rule", 0.38, 0.70, 0.24, 0.012, cyan),
+                    inset("min-divider", 0.30, 0.30, 0.0015, 0.33, "#45616fff"),
+                    inset("max-divider", 0.70, 0.30, 0.0015, 0.33, "#45616fff"),
                     text("bpm-min-label", "MIN", 0.04, 0.17, 0.23, 0.18, 10, muted, "centre"),
-                    text("bpm-label", "BPM", 0.30, 0.10, 0.40, 0.18, 12, accent, "centre"),
+                    text("bpm-label", "BPM", 0.30, 0.10, 0.40, 0.18, 12, cyan, "centre"),
                     text("bpm-max-label", "MAX", 0.73, 0.17, 0.23, 0.18, 10, muted, "centre"),
                     text("bpm-min", "0", 0.04, 0.40, 0.23, 0.25, 18, muted, "centre", "timing.bpm-min"),
-                    text("bpm", "0", 0.30, 0.30, 0.40, 0.37, 29, accent, "centre", "timing.bpm"),
+                    text("bpm", "0", 0.30, 0.30, 0.40, 0.37, 30, cyan, "centre", "timing.bpm"),
                     text("bpm-max", "0", 0.73, 0.40, 0.23, 0.25, 18, muted, "centre", "timing.bpm-max"),
                     text("accuracy-label", "RATE", 0.35, 0.77, 0.11, 0.15, 10, muted, "right"),
                     text("accuracy", "100.00%", 0.49, 0.73, 0.20, 0.20, 14, ink, "left", "score.accuracy")),
                 region("player",
-                    inset("player-divider", 0.585, 0.23, 0.002, 0.52, "#58444bff"),
+                    inset("player-divider", 0.585, 0.23, 0.002, 0.52, "#45616fff"),
                     text("score-label", "EX SCORE", 0.06, 0.12, 0.50, 0.18, 11, muted),
                     text("score", "0", 0.06, 0.38, 0.50, 0.42, 28, source: "score.value"),
                     text("hispeed-label", "HI-SPEED", 0.62, 0.12, 0.31, 0.18, 11, muted, "right"),
-                    text("hispeed", "0.00", 0.62, 0.38, 0.31, 0.42, 28, accent, "right", "scroll.speed", "fixed-2"),
-                    stageTemplateNode("still.bms-hud.progress", "sprite", new() { ["y"] = 0.94, ["width"] = 0, ["height"] = 0.025, ["colour"] = accent }, resource: "texture.white")),
+                    text("hispeed", "0.00", 0.62, 0.38, 0.31, 0.42, 28, cyan, "right", "scroll.speed", "fixed-2"),
+                    stageTemplateNode("still.bms-hud.progress", "sprite", new() { ["y"] = 0.94, ["width"] = 0, ["height"] = 0.025, ["colour"] = cyan }, resource: "texture.white")),
             }, slot: "hud.text");
             bindings.Add(new { id = "still.bms-bind.progress", target = "still.bms-hud.progress", property = "width", source = "timing.progress" });
             templates.Add(new { id = "still.bms-information-style", root });

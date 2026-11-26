@@ -8,13 +8,11 @@ using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Allocation;
-using osu.Framework.Audio;
 using osu.Framework.Configuration;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Platform;
 using osu.Framework.Testing;
-using osu.Framework.Timing;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.DifficultyTable;
@@ -35,7 +33,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
 {
     /// <summary>
     /// Saves pixels from a desktop host running the actual PlayerLoader, canonical package and BMS renderer.
-    /// The synthetic offline charts supply repeatable notes and an optional bitmap BGA.
+    /// The synthetic offline chart supplies repeatable notes; it is not a capture of a user's song or BGA.
     /// </summary>
     [TestFixture]
     public partial class TestSceneBmsSimpleGameplayCapture : OsuGameTestScene
@@ -61,7 +59,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             string mode = Environment.GetEnvironmentVariable("OMS_SIMPLE_CAPTURE_MODE") ?? "bms7";
             string presentation = Environment.GetEnvironmentVariable("OMS_SIMPLE_CAPTURE_SIDE") ?? "p1";
             bool isBms = mode.StartsWith("bms", StringComparison.Ordinal);
-            bool withBga = mode == "bms14" && Environment.GetEnvironmentVariable("OMS_SIMPLE_CAPTURE_BGA") == "1";
             var ruleset = isBms ? (Rulesets.Ruleset)new BmsRuleset() : new ManiaRuleset();
             AddStep("require a real desktop renderer", () =>
             {
@@ -83,8 +80,7 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 if (isBms)
                     Game.Dependencies.Get<SkinOptionPreferences>().SetOverride(skins.DefaultOmsSkin.SkinInfo.ID, "bms", layout.Id, presentation);
                 Game.Ruleset.Value = ruleset.RulesetInfo;
-                IBeatmap chart = isBms ? createBmsChart((BmsRuleset)ruleset, mode, withBga) : createManiaChart((ManiaRuleset)ruleset, mode);
-                Game.Beatmap.Value = withBga ? new BgaWorkingBeatmap(chart, Clock, Audio) : CreateWorkingBeatmap(chart);
+                Game.Beatmap.Value = CreateWorkingBeatmap(isBms ? createBmsChart((BmsRuleset)ruleset, mode) : createManiaChart((ManiaRuleset)ruleset, mode));
                 Game.SelectedMods.Value = new[] { ruleset.GetAutoplayMod()! };
                 DismissAnyNotifications();
             });
@@ -144,12 +140,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Game.Notifications.Hide();
             });
             AddUntilStep("display chords and sustained notes", () => player.ChildrenOfType<GameplayClockContainer>().Single().CurrentTime >= 4050);
-            AddStep("capture real desktop framebuffer", () => capture = saveCapture(withBga));
+            AddStep("capture real desktop framebuffer", () => capture = saveCapture());
             AddUntilStep("wait for PNG write", () => capture?.IsCompleted == true);
             AddStep("propagate capture failures", () => capture!.GetAwaiter().GetResult());
         }
 
-        private async Task saveCapture(bool withBga)
+        private async Task saveCapture()
         {
             string path = Path.GetFullPath(Environment.GetEnvironmentVariable("OMS_SIMPLE_CAPTURE_PATH")
                                            ?? Path.Combine("artifacts", "simple-gameplay-capture.png"));
@@ -157,22 +153,12 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             using Image<Rgba32>? pixels = await host.TakeScreenshotAsync().ConfigureAwait(false);
             if (pixels == null || pixels.Width < 640 || pixels.Height < 360)
                 throw new InvalidOperationException("Desktop capture did not return a usable framebuffer.");
-            if (withBga)
-            {
-                // Sample the centre of the authored left DP viewport. The cyan test bitmap is
-                // deliberately unlike the warm faceplate behind it.
-                Rgba32 pixel = pixels[(int)(pixels.Width * 0.096f), (int)(pixels.Height * 0.43f)];
-                Assert.That(pixel.B, Is.GreaterThan(170), "The BGA picture must render above the shared faceplate.");
-                Assert.That(pixel.R, Is.LessThan(60));
-            }
             await pixels.SaveAsPngAsync(path).ConfigureAwait(false);
         }
 
-        private static IBeatmap createBmsChart(BmsRuleset ruleset, string mode, bool withBga)
+        private static IBeatmap createBmsChart(BmsRuleset ruleset, string mode)
         {
             var text = new StringBuilder("#TITLE Glass Current / 静線\n#ARTIST OMS Offline Studio\n#DIFFICULTY 4\n#PLAYLEVEL 12\n#BPM 138\n#BPM01 172\n#00808:01\n#01603:78\n#WAV01 note.wav\n");
-            if (withBga)
-                text.Append("#BMP01 viewport.png\n#00004:01\n");
             string[] channels = mode switch
             {
                 "bms5" => new[] { "11", "12", "13", "14", "15", "16" },
@@ -205,23 +191,6 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 },
             });
             return beatmap;
-        }
-
-        private sealed class BgaWorkingBeatmap : ClockBackedTestWorkingBeatmap
-        {
-            private readonly byte[] bitmap;
-
-            public BgaWorkingBeatmap(IBeatmap beatmap, IFrameBasedClock clock, AudioManager audio)
-                : base(beatmap, null!, clock, audio)
-            {
-                using var image = new Image<Rgba32>(64, 48, new Rgba32(25, 160, 220));
-                using var stream = new MemoryStream();
-                image.SaveAsPng(stream);
-                bitmap = stream.ToArray();
-            }
-
-            public override Stream? GetStream(string storagePath) =>
-                storagePath == "viewport.png" ? new MemoryStream(bitmap, writable: false) : base.GetStream(storagePath);
         }
 
         private static ManiaBeatmap createManiaChart(ManiaRuleset ruleset, string mode)

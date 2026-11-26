@@ -46,7 +46,7 @@ Sayobot真实纯mania及混合小包成功入库与稳定打开仍待补验，�
 当前静线质量目标、Global背景、独立转盘宽度与固定血槽合同见[机台结构记录](../other/SKIN_SIMPLE_CABINET_20260912.md)；LITONE仅作对照，后续以合格 beatmania style 的读谱、控制区与信息层级为准，不恢复complex。
 
 1. **C6已闭合**：可选脚本、真实作者入口/consumer与隔离能力、最终整包reload/G1自动门见[P1-A结果](../subline/P1-A/DEVELOPMENT_STATUS.md)。
-2. **C7 作品迭代**。静线是唯一内置、默认与保底。当前原创美术及实绘取 [P1-A 更新](../subline/P1-A/CHANGELOG.md#2026-11-27-静线整屏构图重做)，剩余签收见 [P1-A 计划](../subline/P1-A/DEVELOPMENT_PLAN.md)，既有工程和安装证据按当时版本保留。
+2. **C7 作品迭代**。静线是唯一内置、默认与保底。当前原创美术及实绘取 [P1-A 更新](../subline/P1-A/CHANGELOG.md#2026-11-27-静线原创美术更新)，剩余签收见 [P1-A 计划](../subline/P1-A/DEVELOPMENT_PLAN.md)，既有工程和安装证据按当时版本保留。
 3. 修改验证后按[集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)签收V-001～V-005及修改后的静线；自动结果不得代签实际画面与设备体验。未签收不得称Skin V1/release完成。
 
 具体source、权限、预算、回退与journal迁移条件均以[P1-A C6/C7退出门](../subline/P1-A/DEVELOPMENT_PLAN.md)为准。P1-L继续拥有BGA内容/timeline/seek；不扩大beatmap-local作者面或移植LR2/beatoraja runtime。
