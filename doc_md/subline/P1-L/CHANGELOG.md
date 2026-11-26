@@ -1,5 +1,9 @@
 # P1-L 变更日志：BMS 演出/Gimmick 谱视觉复刻
 
+## 2026-11-26 最终配方原生重编
+
+从已锁定的 FFmpeg 签名源码和五个维护补丁在空工作目录构建四个 Windows x64 原生库，实际配置包含 -static -static-libgcc，保留既有主 ABI 和 pipe 输入。正常 DNS/网络协议未启用。用随本次头文件构建的探针核对 35 个 ABI 字段和大小，逐项验证导出、格式、运行库导入及 SHA-256。新四件套与 manifest 一起替换；源码、签名、五个补丁及许可沿固定来源。证据在本机 artifacts/release-readiness-20261126 下的 ffmpeg-rebuild.log 和 ffmpeg-native-verify.log。既有库的静态重链记录保留在 10 月 22 日。
+
 ## 2026-10-29：Hi-Speed计算版本分流
 
 - Normal/Floating/Classic版本1接入原单位与float32精度，版本0回放保持旧路径；已选profile/Off原生reference继续配对，积分、Auto/硬回退、判定与零/负SCROLL边界不变。实现、验证与新候选剩余门唯一取[P1-A记录](../P1-A/CHANGELOG.md#2026-10-29原生hi-speed计算版本1)，本线只同步稳定reference合同，不以旧Normal modeScale=1解释新版本。

@@ -4,7 +4,7 @@
   "sourceLockSha256": "71497da452ae3f896d52648969c5938d9106956cbd2aa640d352d40017dfd3bc",
   "libraries": {
     "avutil-56.dll": {
-      "sha256": "ffa6e94407d140f89fd65ac1d4365ed11eaa873db1fb480761babaf19026a554",
+      "sha256": "025005b13a4a217aa0109870d96a3df1374dfe848e03539a45f80262f59b94a9",
       "version": "56.70.100",
       "imports": [
         "bcrypt.dll",
@@ -23,10 +23,10 @@
         "api-ms-win-crt-utility-l1-1-0.dll",
         "USER32.dll"
       ],
-      "configuration": "--disable-static --enable-shared --disable-all --disable-autodetect --disable-doc --disable-programs --disable-debug --enable-lto --enable-avcodec --enable-avformat --enable-swscale --enable-demuxer='avi,flv,asf' --enable-parser=mpeg4video --enable-decoder='flv,msmpeg4v1,msmpeg4v2,msmpeg4v3,mpeg4,vp6,vp6f,wmv2' --enable-demuxer='mov,matroska' --enable-parser='h264,hevc,vp8,vp9' --enable-decoder='h264,hevc,vp8,vp9' --enable-protocol=pipe --enable-w32threads --enable-dxva2 --enable-d3d11va --enable-hwaccel='h264_dxva2,h264_d3d11va,h264_d3d11va2' --enable-hwaccel='hevc_dxva2,hevc_d3d11va,hevc_d3d11va2' --enable-hwaccel='vp9_dxva2,vp9_d3d11va,vp9_d3d11va2' --enable-cross-compile --target-os=mingw32 --arch=x86_64 --cross-prefix=x86_64-w64-mingw32- --extra-ldflags=-static-libgcc --extra-version=oms.20261022 --prefix=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-4.4.8-oms-20261022-r3/install --shlibdir=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-4.4.8-oms-20261022-r3/install/bin"
+      "configuration": "--disable-static --enable-shared --disable-all --disable-autodetect --disable-doc --disable-programs --disable-debug --enable-lto --enable-avcodec --enable-avformat --enable-swscale --enable-demuxer='avi,flv,asf' --enable-parser=mpeg4video --enable-decoder='flv,msmpeg4v1,msmpeg4v2,msmpeg4v3,mpeg4,vp6,vp6f,wmv2' --enable-demuxer='mov,matroska' --enable-parser='h264,hevc,vp8,vp9' --enable-decoder='h264,hevc,vp8,vp9' --enable-protocol=pipe --enable-w32threads --enable-dxva2 --enable-d3d11va --enable-hwaccel='h264_dxva2,h264_d3d11va,h264_d3d11va2' --enable-hwaccel='hevc_dxva2,hevc_d3d11va,hevc_d3d11va2' --enable-hwaccel='vp9_dxva2,vp9_d3d11va,vp9_d3d11va2' --enable-cross-compile --target-os=mingw32 --arch=x86_64 --cross-prefix=x86_64-w64-mingw32- --extra-ldflags='-static -static-libgcc' --extra-version=oms.20261022 --prefix=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-release-20261126/install --shlibdir=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-release-20261126/install/bin"
     },
     "avcodec-58.dll": {
-      "sha256": "e939516f56a309e1d61b2b171c52ac701898b177bbc74ee3a7ae4cc531b993e0",
+      "sha256": "289883bd6e30714eed076bb2d17e72bc57c2a81e126a23b718b79759d29158eb",
       "version": "58.134.100",
       "imports": [
         "KERNEL32.dll",
@@ -42,10 +42,10 @@
         "ole32.dll",
         "avutil-56.dll"
       ],
-      "configuration": "--disable-static --enable-shared --disable-all --disable-autodetect --disable-doc --disable-programs --disable-debug --enable-lto --enable-avcodec --enable-avformat --enable-swscale --enable-demuxer='avi,flv,asf' --enable-parser=mpeg4video --enable-decoder='flv,msmpeg4v1,msmpeg4v2,msmpeg4v3,mpeg4,vp6,vp6f,wmv2' --enable-demuxer='mov,matroska' --enable-parser='h264,hevc,vp8,vp9' --enable-decoder='h264,hevc,vp8,vp9' --enable-protocol=pipe --enable-w32threads --enable-dxva2 --enable-d3d11va --enable-hwaccel='h264_dxva2,h264_d3d11va,h264_d3d11va2' --enable-hwaccel='hevc_dxva2,hevc_d3d11va,hevc_d3d11va2' --enable-hwaccel='vp9_dxva2,vp9_d3d11va,vp9_d3d11va2' --enable-cross-compile --target-os=mingw32 --arch=x86_64 --cross-prefix=x86_64-w64-mingw32- --extra-ldflags=-static-libgcc --extra-version=oms.20261022 --prefix=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-4.4.8-oms-20261022-r3/install --shlibdir=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-4.4.8-oms-20261022-r3/install/bin"
+      "configuration": "--disable-static --enable-shared --disable-all --disable-autodetect --disable-doc --disable-programs --disable-debug --enable-lto --enable-avcodec --enable-avformat --enable-swscale --enable-demuxer='avi,flv,asf' --enable-parser=mpeg4video --enable-decoder='flv,msmpeg4v1,msmpeg4v2,msmpeg4v3,mpeg4,vp6,vp6f,wmv2' --enable-demuxer='mov,matroska' --enable-parser='h264,hevc,vp8,vp9' --enable-decoder='h264,hevc,vp8,vp9' --enable-protocol=pipe --enable-w32threads --enable-dxva2 --enable-d3d11va --enable-hwaccel='h264_dxva2,h264_d3d11va,h264_d3d11va2' --enable-hwaccel='hevc_dxva2,hevc_d3d11va,hevc_d3d11va2' --enable-hwaccel='vp9_dxva2,vp9_d3d11va,vp9_d3d11va2' --enable-cross-compile --target-os=mingw32 --arch=x86_64 --cross-prefix=x86_64-w64-mingw32- --extra-ldflags='-static -static-libgcc' --extra-version=oms.20261022 --prefix=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-release-20261126/install --shlibdir=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-release-20261126/install/bin"
     },
     "avformat-58.dll": {
-      "sha256": "f090ab7f6acbd570a787869454e336d3d770398e02f34a5034130196756eb9df",
+      "sha256": "d67ea35f55925128dd5792d7b5c90aa091eb0bd315d2fb8f576b51390b458f43",
       "version": "58.76.100",
       "imports": [
         "KERNEL32.dll",
@@ -64,10 +64,10 @@
         "avcodec-58.dll",
         "avutil-56.dll"
       ],
-      "configuration": "--disable-static --enable-shared --disable-all --disable-autodetect --disable-doc --disable-programs --disable-debug --enable-lto --enable-avcodec --enable-avformat --enable-swscale --enable-demuxer='avi,flv,asf' --enable-parser=mpeg4video --enable-decoder='flv,msmpeg4v1,msmpeg4v2,msmpeg4v3,mpeg4,vp6,vp6f,wmv2' --enable-demuxer='mov,matroska' --enable-parser='h264,hevc,vp8,vp9' --enable-decoder='h264,hevc,vp8,vp9' --enable-protocol=pipe --enable-w32threads --enable-dxva2 --enable-d3d11va --enable-hwaccel='h264_dxva2,h264_d3d11va,h264_d3d11va2' --enable-hwaccel='hevc_dxva2,hevc_d3d11va,hevc_d3d11va2' --enable-hwaccel='vp9_dxva2,vp9_d3d11va,vp9_d3d11va2' --enable-cross-compile --target-os=mingw32 --arch=x86_64 --cross-prefix=x86_64-w64-mingw32- --extra-ldflags=-static-libgcc --extra-version=oms.20261022 --prefix=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-4.4.8-oms-20261022-r3/install --shlibdir=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-4.4.8-oms-20261022-r3/install/bin"
+      "configuration": "--disable-static --enable-shared --disable-all --disable-autodetect --disable-doc --disable-programs --disable-debug --enable-lto --enable-avcodec --enable-avformat --enable-swscale --enable-demuxer='avi,flv,asf' --enable-parser=mpeg4video --enable-decoder='flv,msmpeg4v1,msmpeg4v2,msmpeg4v3,mpeg4,vp6,vp6f,wmv2' --enable-demuxer='mov,matroska' --enable-parser='h264,hevc,vp8,vp9' --enable-decoder='h264,hevc,vp8,vp9' --enable-protocol=pipe --enable-w32threads --enable-dxva2 --enable-d3d11va --enable-hwaccel='h264_dxva2,h264_d3d11va,h264_d3d11va2' --enable-hwaccel='hevc_dxva2,hevc_d3d11va,hevc_d3d11va2' --enable-hwaccel='vp9_dxva2,vp9_d3d11va,vp9_d3d11va2' --enable-cross-compile --target-os=mingw32 --arch=x86_64 --cross-prefix=x86_64-w64-mingw32- --extra-ldflags='-static -static-libgcc' --extra-version=oms.20261022 --prefix=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-release-20261126/install --shlibdir=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-release-20261126/install/bin"
     },
     "swscale-5.dll": {
-      "sha256": "8253eadd6fb52ebf6cb5fdc67adf1839154e5ce38f4740211a311a1338bc5dc0",
+      "sha256": "6bb862fecddd7c263ebe328b030e9ff44103b8676e45e94cd60142dab01ce744",
       "version": "5.9.100",
       "imports": [
         "KERNEL32.dll",
@@ -79,7 +79,7 @@
         "api-ms-win-crt-string-l1-1-0.dll",
         "avutil-56.dll"
       ],
-      "configuration": "--disable-static --enable-shared --disable-all --disable-autodetect --disable-doc --disable-programs --disable-debug --enable-lto --enable-avcodec --enable-avformat --enable-swscale --enable-demuxer='avi,flv,asf' --enable-parser=mpeg4video --enable-decoder='flv,msmpeg4v1,msmpeg4v2,msmpeg4v3,mpeg4,vp6,vp6f,wmv2' --enable-demuxer='mov,matroska' --enable-parser='h264,hevc,vp8,vp9' --enable-decoder='h264,hevc,vp8,vp9' --enable-protocol=pipe --enable-w32threads --enable-dxva2 --enable-d3d11va --enable-hwaccel='h264_dxva2,h264_d3d11va,h264_d3d11va2' --enable-hwaccel='hevc_dxva2,hevc_d3d11va,hevc_d3d11va2' --enable-hwaccel='vp9_dxva2,vp9_d3d11va,vp9_d3d11va2' --enable-cross-compile --target-os=mingw32 --arch=x86_64 --cross-prefix=x86_64-w64-mingw32- --extra-ldflags=-static-libgcc --extra-version=oms.20261022 --prefix=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-4.4.8-oms-20261022-r3/install --shlibdir=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-4.4.8-oms-20261022-r3/install/bin"
+      "configuration": "--disable-static --enable-shared --disable-all --disable-autodetect --disable-doc --disable-programs --disable-debug --enable-lto --enable-avcodec --enable-avformat --enable-swscale --enable-demuxer='avi,flv,asf' --enable-parser=mpeg4video --enable-decoder='flv,msmpeg4v1,msmpeg4v2,msmpeg4v3,mpeg4,vp6,vp6f,wmv2' --enable-demuxer='mov,matroska' --enable-parser='h264,hevc,vp8,vp9' --enable-decoder='h264,hevc,vp8,vp9' --enable-protocol=pipe --enable-w32threads --enable-dxva2 --enable-d3d11va --enable-hwaccel='h264_dxva2,h264_d3d11va,h264_d3d11va2' --enable-hwaccel='hevc_dxva2,hevc_d3d11va,hevc_d3d11va2' --enable-hwaccel='vp9_dxva2,vp9_d3d11va,vp9_d3d11va2' --enable-cross-compile --target-os=mingw32 --arch=x86_64 --cross-prefix=x86_64-w64-mingw32- --extra-ldflags='-static -static-libgcc' --extra-version=oms.20261022 --prefix=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-release-20261126/install --shlibdir=/mnt/f/zdamexy-workspace/oms/.dev-cache/temp/ffmpeg-release-20261126/install/bin"
     }
   },
   "inputProtocols": [

@@ -75,7 +75,7 @@ $receipt = [pscustomobject]@{ Format = 'oms-offline-update-receipt.v1'; State = 
 $receiptPath = Join-Path $backupRoot 'update-receipt.json'
 function Save-Receipt { [IO.File]::WriteAllText($receiptPath, ($receipt | ConvertTo-Json -Depth 5), $utf8) }
 Save-Receipt
-[IO.File]::WriteAllText((Join-Path $backupRoot '修复说明.txt'), "本目录保留更新前原文件（old/）和本次待安装文件（new/）。用户 data/、portable.ini、基础保存目录中的 storage.ini 与自定义保存目录未被操作。`r`n正式皮肤原件更新时，旧件先原样移入 old/，再放入本次新件；两步之间中断可使安装原件暂时缺失，但旧件、来源和作者文件不改。若状态不是 Completed，请退出 OMS，用同一完整新包再次运行更新工具完成覆盖；保留本目录，不要猜测删除旧文件。若需恢复旧版本，保留此目录及 update-receipt.json，按列明文件逐项恢复 old/；原先不存在的文件不据名称自动清理。`r`n", $utf8)
+[IO.File]::WriteAllText((Join-Path $backupRoot '修复说明.txt'), "本目录保留更新前原文件（old/）和本次待安装文件（new/）。用户 data/、portable.ini、基础保存目录中的 storage.ini 与自定义保存目录未被操作。`r`n正式皮肤原件更新时，旧件先原样移入 old/，再放入本次新件；两步之间中断可使安装原件暂时缺失，但旧件、来源和作者文件不改。若状态不是 Completed，请退出 OMS，用同一完整新包再次运行更新工具完成覆盖；保留本目录，不要猜测删除旧文件。若需恢复旧版本，保留此目录及 update-receipt.json，按列明文件逐项恢复 old/；原先不存在的文件不据名称自动清理。游戏首次启动可能升级本地存档。运行旧版本前请使用升级前保存目录的备份副本，并单独保管升级后的资料。`r`n", $utf8)
 try {
     foreach ($file in $files) {
         $staged = Join-Path $backupRoot ('new/' + $file.Relative)

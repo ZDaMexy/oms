@@ -181,7 +181,7 @@ OMS manual update guide / OMS 手动更新说明
 
 更新步骤：
 1. 完全退出 OMS。
-2. 下载新的 oms_YYYYMMDD(.zip)。
+2. 备份原安装目录和实际保存目录，再下载新的 oms_YYYYMMDD(.zip)。
 3. 用 Windows 资源管理器把新包解压到另一个普通本地目录，保留随包原件的只读保护，不直接覆盖旧安装。
 4. 在新包目录运行：
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Update-OMS.ps1 -UpdateSourceDirectory . -TargetDirectory "原安装目录"
@@ -195,13 +195,14 @@ OMS manual update guide / OMS 手动更新说明
 - 不删除或替换原 storage.ini、自定义保存目录、谱面或皮肤。普通手动全包覆盖会带入 portable.ini，使原非便携安装改变保存位置，请使用随包工具。
 - 更新前的程序文件与中断修复说明保留在原安装的 .oms-update-backup-*；不要猜测清理。
 - 简洁皮肤内置于游戏，随版本更新；完整源文件、可分发副本和作者工具见 skin-authoring/；集中体验说明见 skin-c7-acceptance/。
+- 首次启动可能升级本地存档。回退时让旧程序读取升级前的备份副本，并另外保管升级后的资料。
 - 正确的手动覆盖更新不会要求重新导入本地谱面或重建现有用户数据。
 
 English
 
 Steps:
 1. Exit OMS completely.
-2. Download the new oms_YYYYMMDD(.zip).
+2. Back up the existing installation and its actual data directory, then download the new oms_YYYYMMDD(.zip).
 3. Use Windows File Explorer to extract the complete package into a separate ordinary local directory, preserving the readonly installation originals.
 4. Run in that new directory:
    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Update-OMS.ps1 -UpdateSourceDirectory . -TargetDirectory "your existing install directory"
@@ -215,6 +216,7 @@ Notes:
 - User data, custom storage, charts and skins are not copied over. Plain extraction over a non-portable install would add portable.ini and switch its bootstrap storage; use the supplied updater.
 - Original program files and interruption recovery instructions remain in .oms-update-backup-* in the target installation. Do not guess which old data to remove.
 - Simple is built in and updated with the game. Its sources, distributable copy and author tools are in skin-authoring/; focused experience instructions are in skin-c7-acceptance/.
+- The first launch may upgrade local data. To roll back, open the old game with a copy of the pre-update backup and keep the upgraded data separately.
 - A correct manual overwrite update does not require re-importing local beatmaps or rebuilding existing user data.
 '@
 
