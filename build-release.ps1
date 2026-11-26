@@ -180,7 +180,7 @@ OMS manual update guide / OMS 手动更新说明
 中文
 
 更新步骤：
-1. 完全退出 OMS。
+1. 在旧版设置中打开游戏保存目录，记下实际位置，然后完全退出 OMS。
 2. 备份原安装目录和实际保存目录，再下载新的 oms_YYYYMMDD(.zip)。
 3. 用 Windows 资源管理器把新包解压到另一个普通本地目录，保留随包原件的只读保护，不直接覆盖旧安装。
 4. 在新包目录运行：
@@ -191,6 +191,7 @@ OMS manual update guide / OMS 手动更新说明
 - 不要在 OMS 仍在运行时覆盖文件。
 - 新包必须完整解压，不能只替换 osu!.exe；保底皮肤位于 Skins/Canonical/。
 - 更新工具保留原运行模式：便携模式保留 portable.ini 和 data/；非便携模式仍保持程序旁没有 portable.ini。
+- 从 2026-06-26 自解压版升级时，以旧版实际保存位置为准。即使旧 EXE 旁有 portable.ini，旧版也可能使用 %APPDATA%\oms。若旧版从这里启动（包括由这里的 storage.ini 指向自定义根），备份后移走原安装 EXE 旁的空 portable.ini，再运行更新工具。新版会继续使用系统默认保存目录和其中的指针。
 - 自定义保存位置由基础保存目录中的 storage.ini 决定：便携时在 data/storage.ini，非便携时在系统默认的游戏保存目录；它不在程序旁，也不随数据迁移到自定义目标目录。
 - 不删除或替换原 storage.ini、自定义保存目录、谱面或皮肤。普通手动全包覆盖会带入 portable.ini，使原非便携安装改变保存位置，请使用随包工具。
 - 更新前的程序文件与中断修复说明保留在原安装的 .oms-update-backup-*；不要猜测清理。
@@ -201,7 +202,7 @@ OMS manual update guide / OMS 手动更新说明
 English
 
 Steps:
-1. Exit OMS completely.
+1. Open the data folder from Settings in the old version, note its location, then exit OMS completely.
 2. Back up the existing installation and its actual data directory, then download the new oms_YYYYMMDD(.zip).
 3. Use Windows File Explorer to extract the complete package into a separate ordinary local directory, preserving the readonly installation originals.
 4. Run in that new directory:
@@ -212,6 +213,7 @@ Notes:
 - Do not overwrite files while OMS is still running.
 - Keep the complete package, including Skins/Canonical/; do not replace only osu!.exe.
 - The updater preserves the target's mode: portable.ini and data/ stay in portable installs; non-portable installs continue without a marker next to the executable.
+- When upgrading the June 26, 2026 self-extracting release, check where the old version actually stored data. It may have used %APPDATA%\oms even with portable.ini beside the executable. If it used that bootstrap folder, including a custom location set by its storage.ini, back it up and move the empty portable.ini out of the old installation before running the updater. The new version will keep using the default bootstrap folder and its saved pointer.
 - Preserve storage.ini in the bootstrap storage root: data/storage.ini in portable mode, or the host's default game storage in non-portable mode. It is neither beside the executable nor moved into the custom data root.
 - User data, custom storage, charts and skins are not copied over. Plain extraction over a non-portable install would add portable.ini and switch its bootstrap storage; use the supplied updater.
 - Original program files and interruption recovery instructions remain in .oms-update-backup-* in the target installation. Do not guess which old data to remove.
