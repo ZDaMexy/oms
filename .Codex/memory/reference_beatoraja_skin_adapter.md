@@ -2,6 +2,8 @@
 
 当前作品、来源、安装和验收只读[适配记录](../../doc_md/other/BEATORAJA_IIDX_SKINS_20261107.md)及[P1-A状态](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md#iidx-作品与平台维护状态)。这里保留移植时容易产生假成功的原因，不保存推进账本。
 
+启动黑屏且日志最后是 BGM Set 统计时，先在活体抓主进程与 MinIR 子进程线程栈。若 `LWJGL Application` 在 `BarManager.init → getTableDatas → destroyProcess → BufferedReader.close` 等锁，对照 IR 读线程是否在 `readLine` 持有同一锁。确认子进程仍在读取难度表再单独结束它，并观察原进程是否进入选曲绘制。真实超时与恢复见[现场记录](../../doc_md/other/BEATORAJA_IIDX_SKINS_20261107.md#2026-11-26-minir-启动黑屏)。
+
 Lua皮肤header与body分别执行；require缓存会保留返回表，被合并过的片段必须由factory每次返回新表。字符串对象ID需要整体命名空间，数值timer/ref/offset不能顺带改名。相同custom timer ID只能复用相同定义，否则后者会覆盖前者；参考[组件包](../../tools/IidxSkinAssets/beatoraja_package.py)。
 
 内容寻址的工厂改名不直接证明画面变化。仅对实际Lua及官方converter解出的静态CN片段，在image ID非空唯一、完整对象相同、Note/source有序引用闭合且全局namespace无碰撞时，可按唯一ID映射比较image声明；不能重排destination、Note列、source或其它数组。原始树另核字段存在性及native keys枚举原序，避免导出器替数组排序后伪造等价。保留严格字节门失败，报告明确byteExact=false及窄范围，不能扩大成所有Lua的顺序例外。实际受限证明见[20来源增量](../../doc_md/other/BEATORAJA_IIDX_SKINS_20261107.md#20-来源-standard-增量)。

@@ -15,7 +15,13 @@
 
 OxiPNG 仅重压图像数据，逐张核对尺寸、颜色模式、所有采样值及其余 PNG 块，包含全透明像素的 RGB。位图字体和字图沿用原文件。新图片沿既有内容摘要命名，Lua 反向替换图片路径后与旧文件逐字节一致。审计收据使用紧凑编码并更新文件摘要。文件数、主题、选项身份、层序、动画和纹理尺寸沿来源版。
 
-官方 0.8.9 原生布局检查覆盖 Lightning 的 75 个及 Standard 的 95 个布局。每族在独立合成玩家中完成 5KEYS 右侧、7KEYS 左侧、14KEYS DP 回放及自然结算。ZIP 全部成员解压回读和成品落盘 SHA-256 通过。录制证据在本机 `artifacts/beatoraja-capture/lossless-v26112500/`，逐图及归档回执在 `E:/OMS-Development/evidence/beatoraja-lossless-20261125/`。本轮验证限于重包结果，选中纹理的解码和显存规模按原资源计算，正常启动挂起仍需现场定位。
+官方 0.8.9 原生布局检查覆盖 Lightning 的 75 个及 Standard 的 95 个布局。每族在独立合成玩家中完成 5KEYS 右侧、7KEYS 左侧、14KEYS DP 回放及自然结算。ZIP 全部成员解压回读和成品落盘 SHA-256 通过。录制证据在本机 `artifacts/beatoraja-capture/lossless-v26112500/`，逐图及归档回执在 `E:/OMS-Development/evidence/beatoraja-lossless-20261125/`。本轮验证限于重包结果，选中纹理的解码和显存规模按原资源计算。随后复现的黑屏取[启动诊断](#2026-11-26-minir-启动黑屏)。
+
+## 2026-11-26 MinIR 启动黑屏
+
+实际 beatoraja 0.8.9 主窗口黑屏无响应。最新日志停在 BGM 与音效检测。活体线程栈显示选曲初始化经 `BarManager.init` 同步调用 MinIR 的 `getTableDatas`。子进程卡在 HTTPS 难度表响应体读取。宿主 30 秒超时后先关闭读管道，再尝试结束子进程，导致渲染线程等待读线程仍持有的锁。
+
+在确认请求只读取难度表后，结束该 MinIR 子进程。约 4 秒后原主窗口恢复响应，随后日志记录 `IR worker timeout`、选曲声音及初始化完成。原进程进入正常绘制循环。此处验证的是本次恢复，后续冷启动仍存在同一超时路径。原始线程栈、前后日志及恢复回执留在本机 `E:/OMS-Development/evidence/beatoraja-black-screen-20261126/`。
 
 ## 授权、名称与来源
 
