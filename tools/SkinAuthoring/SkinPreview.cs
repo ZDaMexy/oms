@@ -14,9 +14,6 @@ namespace SkinAuthoring
         public static void Create(string root, string output)
         {
             var profile = JsonSerializer.Deserialize<AuthorProfile>(File.ReadAllText(Path.Combine(root, "author.json")), json_options)!;
-            using var scene = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "gameplay-skin.scene.json")));
-            bool compactInformation = scene.RootElement.GetProperty("root").GetProperty("children").EnumerateArray()
-                                           .Any(node => node.GetProperty("id").GetString() == "still.hud" && !node.TryGetProperty("slot", out _));
             using var image = new Image<Rgba32>(1600, 1000, new Rgba32(7, 11, 19));
             text(image, profile.Complex ? "OMS COMPLEX / ASTRAL" : "OMS SIMPLE / STILL", 55, 45, 5, new Rgba32(233, 242, 251));
             text(image, "BMS", 65, 124, 3, new Rgba32(82, 223, 223));
@@ -48,16 +45,14 @@ namespace SkinAuthoring
                     rect(image, panel, top + fieldHeight, stageWidth, keyHeight, new Rgba32(11, 16, 25));
                 for (int lane = 0; lane < count; lane++)
                 {
-                    string role = ruleset == "bms" && lane == 0 ? "scratch" : ruleset == "mania" && lane == 3 ? "special" : lane % 2 == 0 ? "accent" : "white";
-                    // Scratch occupies one and a half normal lanes; use rounded cumulative edges to avoid drift.
-                    double units = compactBms ? count + 0.5 : count;
-                    double leftUnits = compactBms && lane > 0 ? lane + 0.5 : lane;
-                    double rightUnits = compactBms ? lane + 1.5 : lane + 1;
-                    int x = compactBms ? panel + (int)Math.Round(stageWidth * leftUnits / units) : panel + lane * (stageWidth / count);
-                    int laneWidth = compactBms ? panel + (int)Math.Round(stageWidth * rightUnits / units) - x : stageWidth / count;
+                    string role = ruleset == "bms"
+                        ? lane == 0 ? "scratch" : lane % 2 == 0 ? "accent" : "white"
+                        : lane == 3 ? "special" : Math.Min(lane, count - 1 - lane) % 2 == 0 ? "white" : "accent";
+                    int x = panel + (int)Math.Round(stageWidth * laneEdge(lane, count, compactBms));
+                    int laneWidth = panel + (int)Math.Round(stageWidth * laneEdge(lane + 1, count, compactBms)) - x;
                     string laneImage = compactBms ? $"lane-{role}.png" : "lane.png";
-                    string dividerImage = compactBms && lane == 0 ? "divider-scratch.png" : "divider.png";
-                    blit(image, Path.Combine(root, ruleset, laneImage), x, top, compactBms ? laneWidth : laneWidth - 1, fieldHeight);
+                    string dividerImage = compactBms && role != "white" ? $"divider-{role}.png" : "divider.png";
+                    blit(image, Path.Combine(root, ruleset, laneImage), x, top, laneWidth, fieldHeight);
                     blit(image, Path.Combine(root, ruleset, dividerImage), x, top, laneWidth, fieldHeight);
                     int noteY = top + 50 + lane * 61 % 420;
                     if (lane % 3 == 1)
@@ -90,21 +85,24 @@ namespace SkinAuthoring
                     const int gaugeTop = 896;
                     const int gaugeHeight = 34;
                     rect(image, panel, gaugeTop, stageWidth, gaugeHeight, new Rgba32(8, 11, 15));
-                    blit(image, Path.Combine(root, ruleset, "gauge.png"), panel, gaugeTop, stageWidth, gaugeHeight);
+                    blit(image, Path.Combine(root, "scene", "gauge-frame.png"), panel, gaugeTop, stageWidth, gaugeHeight);
+                    blit(image, Path.Combine(root, "scene", "gauge-cells.png"), panel + 10, gaugeTop + 17, stageWidth - 20, 13);
                 }
                 else
                     blit(image, Path.Combine(root, ruleset, "gauge.png"), panel, 922, stageWidth * 3 / 4, 12);
+                if (profile.CompactLayout)
+                    blit(image, Path.Combine(root, "scene", "judgement-cool.png"), panel + stageWidth / 2 - 115, 663, 230, 45);
                 text(image, "PERFECT", panel + stageWidth / 2 - 70, 675, 3, new Rgba32(243, 247, 255));
                 text(image, "128", panel + stageWidth / 2 - 27, 720, 3, new Rgba32(243, 247, 255));
                 if (!profile.Complex)
                 {
-                    int informationTop = compactInformation && ruleset == "bms" ? 937 : 159;
+                    int informationTop = compactBms ? 937 : 159;
                     rect(image, panel, informationTop, stageWidth, 35, new Rgba32(12, 18, 27));
                     text(image, "SCORE", panel + 12, informationTop + 2, 1, new Rgba32(145, 161, 185));
                     text(image, "0874200", panel + 12, informationTop + 14, 2, new Rgba32(233, 243, 255));
                     text(image, "ACCURACY", panel + 205, informationTop + 2, 1, new Rgba32(145, 161, 185));
                     text(image, "99.50%", panel + 205, informationTop + 14, 2, new Rgba32(233, 243, 255));
-                    if (!compactInformation)
+                    if (!profile.CompactLayout)
                     {
                         text(image, "COMBO", panel + 370, informationTop + 2, 1, new Rgba32(145, 161, 185));
                         text(image, "128", panel + 370, informationTop + 14, 2, new Rgba32(233, 243, 255));
@@ -124,6 +122,21 @@ namespace SkinAuthoring
             Directory.CreateDirectory(Path.GetDirectoryName(output)!);
             image.SaveAsPng(output);
             Console.WriteLine($"作者设计预览（并非游戏截图）：{output}");
+        }
+
+        private static double laneEdge(int lane, int count, bool compactBms)
+        {
+            if (!compactBms)
+                return lane / (double)count;
+
+            const double scratch = 1.7037037;
+            const double dark = 0.7777778;
+            const double total = scratch + 4 + 3 * dark;
+            if (lane == 0)
+                return 0;
+
+            int ordinary = lane - 1;
+            return (scratch + (ordinary + 1) / 2 + ordinary / 2 * dark) / total;
         }
 
         private static void rect(Image<Rgba32> target, int left, int top, int width, int height, Rgba32 colour)

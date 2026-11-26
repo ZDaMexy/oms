@@ -1,11 +1,11 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-11-26（六月升级、真实下载与稳定版界面接续）
+> 最后核对：2026-11-27（内置静线原创美术更新）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
 
-OMS 处于 Phase 1.x 后段。静线是 BMS/mania 唯一内置、默认与保底，支持按模式与键数选择。星轨已退役，静线外观打磨暂停。真实设备、长期体验、Skin V1 与正式发行待签收。下载与 BGA 作者能力见 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)，性能与听感见 [P1-J](../subline/P1-J/DEVELOPMENT_STATUS.md)。
+OMS 处于 Phase 1.x 后段。静线是 BMS/mania 唯一内置、默认与保底，支持按模式与键数选择。星轨已退役。静线两玩法的控制台和游玩信息已更新。真实设备、长期体验、Skin V1 与正式发行待签收。下载与 BGA 作者能力见 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)，性能与听感见 [P1-J](../subline/P1-J/DEVELOPMENT_STATUS.md)。
 
 Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，具名证据取[P1-A修复记录](../subline/P1-A/CHANGELOG.md#2026-10-22autoplay跳转与omni反馈修复)；正常窗口剩余门由其STATUS维护，先前重进或开场测试不代签。
 
@@ -41,7 +41,7 @@ Standard20的OMS `v26111000`已交付，beatoraja `v26111500`已安装、保全�
 
 | 顺序 | 当前事实与下一道门 | 归属 |
 | --- | --- | --- |
-| 1 | BGA 作者窗口、共享播放会话与完整手册已具软件和桌面证据；继续保留真实素材、窗口/DPI、设备与长时人工门，静线外观打磨仍暂停 | [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)、[P1-L](../subline/P1-L/DEVELOPMENT_STATUS.md) |
+| 1 | BGA 作者窗口、共享播放会话与完整手册已具软件和桌面证据；静线新画面取专项记录。真实素材、窗口/DPI、设备与长时体验待验 | [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)、[P1-L](../subline/P1-L/DEVELOPMENT_STATUS.md) |
 | 2 | canonical普通简洁包接管已实现；旧OmsSkin只保留历史/人工对照，物理删除仍待实机门 | [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md) |
 | 3 | 输入时间、轴模式与校准软件已接通；真实窗口、跨设备手感与实体HID待签收 | [P1-B](../subline/P1-B/DEVELOPMENT_STATUS.md)、[P1-D](../subline/P1-D/DEVELOPMENT_STATUS.md) |
 | 4 | 真实LN/CN/HCN、音频/特殊谱、BGA、选歌大库与发行组合仍需验收；原生/转谱热路径已优化，BGA多窗已共享内容源，证据与剩余门见记录 | [性能验证](../other/GAMEPLAY_PERFORMANCE_20260930.md) |
@@ -67,7 +67,7 @@ Standard20分别完成11月10日OMS同包/原图/交付核验及11月15日beator
 
 历史回归按原报告保留失败身份与堆栈，后续修复取owning STATUS；专项通过不代表全仓库全绿。较早谱库、偏移/TOTAL及设置/编辑证据从相应STATUS或[CHANGELOG](CHANGELOG.md)检索。
 
-静线最近一次外观修改为 2026-09-13，实绘见[轨道验证记录](../other/SKIN_SIMPLE_LANE_PROPORTIONS_20260913.md)。发行记录和待验门取 [P1-F](../subline/P1-F/DEVELOPMENT_STATUS.md#最近一次验证)。
+静线当前原创美术与实绘取[P1-A 更新](../subline/P1-A/CHANGELOG.md#2026-11-27-静线原创美术更新)。发行记录和待验门取 [P1-F](../subline/P1-F/DEVELOPMENT_STATUS.md#最近一次验证)。
 
 ## 文档治理验证
 

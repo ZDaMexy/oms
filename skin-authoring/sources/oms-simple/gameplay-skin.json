@@ -49,6 +49,11 @@
       "path": "scene/instrument.png"
     },
     {
+      "id": "texture.instrument-mania",
+      "type": "texture",
+      "path": "scene/instrument-mania.png"
+    },
+    {
       "id": "texture.gauge-frame",
       "type": "texture",
       "path": "scene/gauge-frame.png"
@@ -57,6 +62,26 @@
       "id": "texture.gauge-cells",
       "type": "texture",
       "path": "scene/gauge-cells.png"
+    },
+    {
+      "id": "texture.gauge-cells-mania",
+      "type": "texture",
+      "path": "scene/gauge-cells-mania.png"
+    },
+    {
+      "id": "texture.judgement-cool",
+      "type": "texture",
+      "path": "scene/judgement-cool.png"
+    },
+    {
+      "id": "texture.judgement-warm",
+      "type": "texture",
+      "path": "scene/judgement-warm.png"
+    },
+    {
+      "id": "texture.judgement-fault",
+      "type": "texture",
+      "path": "scene/judgement-fault.png"
     }
   ]
 }

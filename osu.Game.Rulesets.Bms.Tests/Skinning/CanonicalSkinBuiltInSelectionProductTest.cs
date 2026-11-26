@@ -61,8 +61,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     Assert.That(bms.TryGetRuntimeNode(stage.InstanceId, out _), Is.True);
                     Assert.That(stage.Children.All(child => child.Rect.Equals(stage.Rect)), Is.True,
                         "Material template children must stay in their HUD surface, not cover the playfield.");
-                    Assert.That(mania.PreparedScene.Roots.Any(node => node.Source.Id == id), Is.False);
+                    Assert.That(mania.PreparedScene.Roots.Any(node => node.Source.Id == id), Is.EqualTo(id == "still.judgement"));
                 }
+                Assert.That(mania.TryGetRuntimeNode(authoredInformationId(mania, "still.hud.health-value"), out _), Is.True);
                 for (int time = 1_050; time <= 1_950; time += 50)
                     clock.Sample(time);
             });
@@ -92,9 +93,10 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 Assert.That(bms.TryGetRuntimeNode(value.InstanceId, out var gaugeText), Is.True);
                 Assert.That(((SpriteText)gaugeText!.ContentDrawable).Text.ToString(), Does.EndWith("%"));
                 var judgement = bms.PreparedScene.Roots.Single(node => node.Source.Id == "still.judgement");
-                var result = judgement.Children.Single();
+                var result = judgement.Children.Single(node => node.Source.Id == "still.judgement.result");
                 Assert.That(bms.TryGetRuntimeNode(result.InstanceId, out var resultText), Is.True);
                 Assert.That(((SpriteText)resultText!.ContentDrawable).Text.ToString(), Is.EqualTo("PERFECT"));
+                Assert.That(authoredInformationValue(mania, "still.hud.health-value"), Does.EndWith("%"));
                 c6Input(renderer, false);
                 Assert.That(bms.RuntimeFaults, Is.Empty);
                 Assert.That(mania.RuntimeFaults, Is.Empty);

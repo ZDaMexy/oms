@@ -17,9 +17,7 @@
           "kind": "global"
         },
         "blend": "alpha",
-        "properties": {
-          "colour": "#adb6c0ff"
-        },
+        "properties": {},
         "effects": [],
         "children": [],
         "slot": "stage.background"
@@ -73,6 +71,12 @@
       "source": "judgement.result"
     },
     {
+      "id": "still.stage-bind.judgement.direction.text",
+      "target": "still.judgement.direction",
+      "property": "text",
+      "source": "judgement.timing-direction"
+    },
+    {
       "id": "still.stage-bind.combo.value.text",
       "target": "still.combo.value",
       "property": "text",
@@ -119,6 +123,18 @@
       "target": "still.hud.progress",
       "property": "width",
       "source": "timing.progress"
+    },
+    {
+      "id": "still.bind.health-value",
+      "target": "still.hud.health-value",
+      "property": "text",
+      "source": "gauge.value"
+    },
+    {
+      "id": "still.bind.health-reveal",
+      "target": "still.hud.health-reveal",
+      "property": "reveal-x",
+      "source": "gauge.value"
     },
     {
       "id": "still.bms-bind.count-perfect",
@@ -235,7 +251,56 @@
       "source": "timing.progress"
     }
   ],
-  "variants": [],
+  "variants": [
+    {
+      "id": "still.judgement.badge.tone",
+      "target": "still.judgement.badge",
+      "property": "resource",
+      "source": "judgement.result",
+      "default": "texture.judgement-cool",
+      "cases": [
+        {
+          "id": "still.judgement.good-tone",
+          "key": "good",
+          "resource": "texture.judgement-warm"
+        },
+        {
+          "id": "still.judgement.ok-tone",
+          "key": "ok",
+          "resource": "texture.judgement-warm"
+        },
+        {
+          "id": "still.judgement.meh-tone",
+          "key": "meh",
+          "resource": "texture.judgement-fault"
+        },
+        {
+          "id": "still.judgement.miss-tone",
+          "key": "miss",
+          "resource": "texture.judgement-fault"
+        }
+      ]
+    },
+    {
+      "id": "still.judgement.direction.visibility",
+      "target": "still.judgement.direction",
+      "property": "visible",
+      "source": "judgement.timing-direction",
+      "default": false,
+      "cases": [
+        {
+          "id": "still.judgement.direction.fast",
+          "key": "fast",
+          "value": true
+        },
+        {
+          "id": "still.judgement.direction.slow",
+          "key": "slow",
+          "value": true
+        }
+      ]
+    }
+  ],
   "templates": [
     {
       "id": "still.judgement-style",
@@ -252,6 +317,23 @@
         "effects": [],
         "children": [
           {
+            "id": "still.judgement.badge",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "x": 0.18,
+              "y": 0.09,
+              "width": 0.64,
+              "height": 0.56
+            },
+            "effects": [],
+            "children": [],
+            "resource": "texture.judgement-cool"
+          },
+          {
             "id": "still.judgement.result",
             "type": "text",
             "target": {
@@ -261,9 +343,31 @@
             "properties": {
               "text": "",
               "format": "uppercase",
-              "font-size": 32,
+              "y": 0.09,
+              "height": 0.53,
+              "font-size": 36,
               "alignment": "centre",
-              "colour": "#eaf8ffff"
+              "colour": "#f2fbffff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "still.judgement.direction",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "",
+              "format": "uppercase",
+              "y": -0.29,
+              "height": 0.33,
+              "font-size": 16,
+              "alignment": "centre",
+              "colour": "#efba91ff",
+              "visible": false
             },
             "effects": [],
             "children": []
@@ -295,9 +399,9 @@
             "blend": "alpha",
             "properties": {
               "text": "0",
-              "font-size": 22,
+              "font-size": 26,
               "alignment": "centre",
-              "colour": "#a7e6f0ff"
+              "colour": "#ecf8ffff"
             },
             "effects": [],
             "children": []
@@ -437,7 +541,7 @@
         "effects": [],
         "children": [
           {
-            "id": "still.hud.panel",
+            "id": "still.hud.health-panel",
             "type": "sprite",
             "target": {
               "kind": "global"
@@ -445,12 +549,28 @@
             "blend": "alpha",
             "properties": {
               "x": 0.05,
-              "width": 0.25,
+              "width": 0.22,
               "height": 0.94
             },
             "effects": [],
             "children": [],
-            "resource": "texture.instrument"
+            "resource": "texture.instrument-mania"
+          },
+          {
+            "id": "still.hud.panel",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "x": 0.28,
+              "width": 0.19,
+              "height": 0.94
+            },
+            "effects": [],
+            "children": [],
+            "resource": "texture.instrument-mania"
           },
           {
             "id": "still.hud.accuracy-panel",
@@ -460,13 +580,13 @@
             },
             "blend": "alpha",
             "properties": {
-              "x": 0.375,
-              "width": 0.25,
+              "x": 0.48,
+              "width": 0.22,
               "height": 0.94
             },
             "effects": [],
             "children": [],
-            "resource": "texture.instrument"
+            "resource": "texture.instrument-mania"
           },
           {
             "id": "still.hud.bpm-panel",
@@ -476,13 +596,100 @@
             },
             "blend": "alpha",
             "properties": {
-              "x": 0.7,
-              "width": 0.25,
+              "x": 0.71,
+              "width": 0.24,
               "height": 0.94
             },
             "effects": [],
             "children": [],
-            "resource": "texture.instrument"
+            "resource": "texture.instrument-mania"
+          },
+          {
+            "id": "still.hud.health-label",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "HEALTH",
+              "x": 0.067,
+              "y": 0.04,
+              "font-size": 10,
+              "colour": "#cad6e8ff"
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "still.hud.health-value",
+            "type": "text",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "text": "0%",
+              "format": "percent",
+              "font-size": 19,
+              "alignment": "right",
+              "colour": "#f3f8ffff",
+              "x": 0.14,
+              "y": 0.08,
+              "width": 0.11,
+              "height": 0.46
+            },
+            "effects": [],
+            "children": []
+          },
+          {
+            "id": "still.hud.health-track",
+            "type": "sprite",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "x": 0.067,
+              "y": 0.59,
+              "width": 0.18,
+              "height": 0.23,
+              "colour": "#4a3f57ff"
+            },
+            "effects": [],
+            "children": [],
+            "resource": "texture.gauge-cells-mania"
+          },
+          {
+            "id": "still.hud.health-reveal",
+            "type": "clip",
+            "target": {
+              "kind": "global"
+            },
+            "blend": "alpha",
+            "properties": {
+              "x": 0.067,
+              "y": 0.59,
+              "width": 0.18,
+              "height": 0.23,
+              "clip-mode": "bounds",
+              "reveal-x": 0
+            },
+            "effects": [],
+            "children": [
+              {
+                "id": "still.hud.health-fill",
+                "type": "sprite",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {},
+                "effects": [],
+                "children": [],
+                "resource": "texture.gauge-cells-mania"
+              }
+            ]
           },
           {
             "id": "still.hud.score-label",
@@ -493,10 +700,10 @@
             "blend": "alpha",
             "properties": {
               "text": "SCORE",
-              "x": 0.067,
-              "y": 0.03,
+              "x": 0.299,
+              "y": 0.035,
               "font-size": 10,
-              "colour": "#9eafbdff"
+              "colour": "#cad6e8ff"
             },
             "effects": [],
             "children": []
@@ -510,9 +717,9 @@
             "blend": "alpha",
             "properties": {
               "text": "0",
-              "x": 0.067,
-              "y": 0.32,
-              "font-size": 24,
+              "x": 0.299,
+              "y": 0.3,
+              "font-size": 22,
               "colour": "#f3f8ffff"
             },
             "effects": [],
@@ -527,10 +734,10 @@
             "blend": "alpha",
             "properties": {
               "text": "ACCURACY",
-              "x": 0.392,
-              "y": 0.03,
+              "x": 0.5,
+              "y": 0.035,
               "font-size": 10,
-              "colour": "#9eafbdff"
+              "colour": "#cad6e8ff"
             },
             "effects": [],
             "children": []
@@ -544,9 +751,9 @@
             "blend": "alpha",
             "properties": {
               "text": "100.00%",
-              "x": 0.392,
-              "y": 0.32,
-              "font-size": 24,
+              "x": 0.5,
+              "y": 0.3,
+              "font-size": 22,
               "colour": "#f3f8ffff"
             },
             "effects": [],
@@ -561,10 +768,10 @@
             "blend": "alpha",
             "properties": {
               "text": "BPM",
-              "x": 0.717,
-              "y": 0.03,
+              "x": 0.733,
+              "y": 0.035,
               "font-size": 10,
-              "colour": "#9eafbdff"
+              "colour": "#cad6e8ff"
             },
             "effects": [],
             "children": []
@@ -578,10 +785,10 @@
             "blend": "alpha",
             "properties": {
               "text": "0",
-              "x": 0.717,
-              "y": 0.32,
-              "font-size": 24,
-              "colour": "#86d9e7ff"
+              "x": 0.733,
+              "y": 0.3,
+              "font-size": 22,
+              "colour": "#b7a3ffff"
             },
             "effects": [],
             "children": []
@@ -596,8 +803,8 @@
             "properties": {
               "y": 0.94,
               "width": 1,
-              "height": 0.025,
-              "colour": "#263444ff"
+              "height": 0.022,
+              "colour": "#293247ff"
             },
             "effects": [],
             "children": [],
@@ -613,8 +820,8 @@
             "properties": {
               "y": 0.94,
               "width": 0,
-              "height": 0.025,
-              "colour": "#86d9e7ff"
+              "height": 0.022,
+              "colour": "#b7a3ffff"
             },
             "effects": [],
             "children": [],
@@ -769,9 +976,9 @@
                 "blend": "alpha",
                 "properties": {
                   "text": "",
-                  "x": 0.71,
+                  "x": 0.69,
                   "y": 0.22,
-                  "width": 0.15,
+                  "width": 0.21,
                   "height": 0.25,
                   "font-size": 13,
                   "colour": "#86d9e7ff",
@@ -789,10 +996,10 @@
                 },
                 "blend": "alpha",
                 "properties": {
-                  "text": "CHART LV",
-                  "x": 0.71,
+                  "text": "LV.",
+                  "x": 0.72,
                   "y": 0.58,
-                  "width": 0.1,
+                  "width": 0.07,
                   "height": 0.2,
                   "font-size": 10,
                   "colour": "#a7bbcaff",
@@ -810,9 +1017,9 @@
                 "blend": "alpha",
                 "properties": {
                   "text": "",
-                  "x": 0.81,
+                  "x": 0.79,
                   "y": 0.51,
-                  "width": 0.05,
+                  "width": 0.1,
                   "height": 0.28,
                   "font-size": 18,
                   "colour": "#eef7ffff",
@@ -1581,6 +1788,14 @@
       "material": {
         "slot": "hud.gauge",
         "resource": "bms/gauge"
+      }
+    },
+    {
+      "id": "still.judgement-mania-stage",
+      "template": "still.judgement-style",
+      "material": {
+        "slot": "hud.judgement",
+        "resource": "mania/hud"
       }
     },
     {

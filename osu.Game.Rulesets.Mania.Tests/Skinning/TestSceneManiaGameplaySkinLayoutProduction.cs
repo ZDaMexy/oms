@@ -1868,6 +1868,7 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
             int judgementResetAttempts = 0;
             int judgementDisplayAttempts = 0;
             Drawable judgementVisual = null!;
+            GameplaySkinSceneRuntimeNode judgementPresentation = null!;
             double judgementAppliedTime = 0;
 
             void diagnoseJudgement(string phase, int attempt, bool ready)
@@ -2353,10 +2354,18 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 Assert.That(scene.MaterialSet.TryGet(key, out GameplaySkinResolvedMaterialEntry? entry), Is.True);
                 Assert.That(entry!.Source.Kind, Is.EqualTo(GameplaySkinResolvedMaterialSourceKind.SelectedPackage));
                 Assert.That(entry.GetMaterial<GameplaySkinPublicSlotMaterial>().ResourceName, Is.EqualTo("mania/hud"));
-                Assert.That(containsTexture(judgementVisual, entry.GetMaterial<GameplaySkinPublicSlotMaterial>().Texture!), Is.True);
                 Assert.That(scene.TryGetVisualGate(key, out GameplaySkinSceneHostedSlot? gate), Is.True);
-                Assert.That(gate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Semantic));
+                Assert.That(gate!.Route, Is.EqualTo(GameplaySkinSceneHostRoute.Scene));
                 Assert.That(gate.SuppressesProgrammaticVisual, Is.True);
+                var authoredJudgement = gate.RoutedNodes.Single(node => node.Source.Id == "still.judgement");
+                Assert.That(scene.TryGetRuntimeNode(authoredJudgement.InstanceId, out judgementPresentation!), Is.True);
+                var badge = authoredJudgement.Children.Single(node => node.Source.Id == "still.judgement.badge");
+                Assert.That(badge.Resource!.Id, Is.EqualTo("texture.judgement-cool"));
+                Assert.That(containsTexture(judgementVisual, badge.ResolvedTexture!), Is.True);
+                var result = authoredJudgement.Children.Single(node => node.Source.Id == "still.judgement.result");
+                Assert.That(scene.TryGetRuntimeNode(result.InstanceId, out var resultText), Is.True);
+                Assert.That(((SpriteText)resultText!.ContentDrawable).Text.ToString(), Is.EqualTo("PERFECT"));
+                Assert.That(judgementPresentation.TransformDrawable.Alpha, Is.GreaterThan(0));
                 Assert.That(judgementVisual.Position, Is.EqualTo(new Vector2(gate.PreparedRect.X, gate.PreparedRect.Y)));
                 Assert.That(judgementVisual.Size, Is.EqualTo(new Vector2(gate.PreparedRect.Width, gate.PreparedRect.Height)));
                 Assert.That(getPrivateField<Drawable>(drawableRuleset.Playfield.Stages[0], "judgements").Alpha, Is.Zero);
@@ -2367,7 +2376,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                 exactClock.Start();
             });
             AddUntilStep("the package judgement retires after its real display window", () =>
-                judgementInput.Clock.CurrentTime > judgementAppliedTime + GameplaySkinEventBudgets.JUDGEMENT_DISPLAY_DURATION && judgementVisual.Alpha == 0);
+                judgementInput.Clock.CurrentTime > judgementAppliedTime + GameplaySkinEventBudgets.JUDGEMENT_DISPLAY_DURATION
+                && judgementPresentation.TransformDrawable.Alpha == 0);
 
             AddStep("change direction setting after publication", () => config.SetValue(ManiaRulesetSetting.ScrollDirection, ManiaScrollingDirection.Up));
             AddAssert("root keeps published direction", () => drawableRuleset.LayoutSnapshot.Context.ScrollDirection == GameplaySkinScrollDirection.Down

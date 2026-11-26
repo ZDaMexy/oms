@@ -62,16 +62,16 @@ my-skin/
 | 普通短音符 | `bms/note-white.png`、`note-accent.png`；128×24；mania同类也为128×24 | `NoteImage{lane}` / `object.note` | 支持连续编号帧；按车道宽度显示，过多透明边会使可见音符显得细窄 |
 | 长条头与尾 | `head-white.png`、`tail-white.png`；128×24 | `NoteImage{lane}H/T` / `object.long-note.head/tail` | 各自独立图或编号帧；尾部可显式关闭，头不能关闭 |
 | 长条身体 | `body-white.png`；128×128 | `NoteImage{lane}L` / `object.long-note.body` | 身体随真实长条长度显示，BMS相对宽度由 `LongNoteBodyWidth` 控制；scene可按真实LN/CN/HCN与保持/断持状态换图 |
-| 白键/黑键/转盘轨道底色 | `bms/lane-white.png` 等；256×32 | `playfield.lane-surface` | 铺在车道区域，底色与音符应有足够对比；分隔线单独画 |
+| 白键/黑键/转盘轨道底色 | `bms/lane-white.png`、`mania/lane.png` 等；256×64 | `playfield.lane-surface` | 铺在车道区域，底色与音符应有足够对比；分隔线单独画 |
 | 轨道分隔、小节线、判定线 | `bms/divider.png`、`bar.png`、`target.png`；后两者256×32 | `playfield.lane-divider/bar-line/judgement-line/hit-target` | 厚度和位置由真实布局处理；皮肤不能平移实际判定时刻 |
-| 键帽松开/按下 | `bms/key-white.png` 128×128、`pressed-white.png` 128×72；mania键图128×72 | `KeyImage{lane}`、`KeyImage{lane}D` / `playfield.key` | 两张图片响应真实按键；应保留相同视觉中心，避免按下时跳动 |
-| 转盘控制图 | `bms/scratch-platter.png`；1254×1254 | BMS `KeyImageS`，独立键区配 `ScratchKeyWidth` | 正方形画布适合圆盘；独立键区按原图比例居中。装饰转盘/光束另有 `playfield.turntable/laser` |
-| 命中闪光 | `bms/explosion.png`；256×256；`flash.png` | `effect.hit-explosion/key-flash` | 真实输入/命中控制生存期；击打scene可用 `trigger: judgement.hit` 从首帧播放，可选项可关闭 |
+| 键帽松开/按下 | BMS 键图均为128×128，mania 键图均为128×72 | `KeyImage{lane}`、`KeyImage{lane}D` / `playfield.key` | 两张图片响应真实按键；应保留相同视觉中心，避免按下时跳动 |
+| 转盘控制图 | `bms/scratch-platter.png`；512×512 | BMS `KeyImageS`，独立键区配 `ScratchKeyWidth` | 正方形画布适合圆盘；独立键区按原图比例居中。装饰转盘/光束另有 `playfield.turntable/laser` |
+| 命中闪光 | `bms/explosion.png` 192×192，`bms/flash.png` 192×256 | `effect.hit-explosion/key-flash` | 真实输入/命中控制生存期；击打scene可用 `trigger: judgement.hit` 从首帧播放，可选项可关闭 |
 | 地雷 | `bms/mine.png`；128×256 | `object.mine` | 原生BMS适用；mania无此对象表现。不要用长条尾图替代地雷 |
 | 判定、连击 | `bms/hud.png` 与场景中的文字节点 | `hud.judgement/combo` | 可绑定等级/连击或用变体换图；不是一张名叫PERFECT的图就会自动生效 |
-| 血槽 | `bms/gauge.png`；1024×96 | `hud.gauge` | 纯图片以全长暗槽加从左揭露的亮层显示；scene可读真实 `gauge.type/clear-state`，分段格距不应随血量压缩 |
+| 血槽 | `scene/gauge-frame.png` 768×128，`scene/gauge-cells.png` 与紫色变体均为1000×40 | `hud.gauge` | 全长暗槽上从左揭露亮层；scene 可读真实 `gauge.type/clear-state`，分段格距保持固定 |
 | 曲名、分数、BPM、统计、进度 | 场景文字；自制数字PNG可声明bitmapFonts | `hud.text` 和只读 bindings | 每项直接读游戏事实，无需脚本；数字可保留图片字形，普通长曲名可用 `text-overflow: ellipsis` |
-| 舞台背景、边框、底板 | `scene/cabinet.png` 1536×1024，`bms/frame.png`、`plate.png` | `stage.background/foreground`、`playfield.backdrop/baseplate` | 可用公共素材或scene；不要用老的 `Stage*` 字段猜BMS支持情况 |
+| 舞台背景、边框、底板 | `scene/cabinet.png` 1536×864、`mania/cabinet.png` 1280×720，各自的 `frame.png`、`plate.png` | `stage.background/foreground`、`playfield.backdrop/baseplate` | 通过公共素材或 scene 配置。有关 BMS 支持的字段取[作者参考](REFERENCE.md) |
 | SUDDEN+/HIDDEN+/LIFT遮挡区 | `bms/cover.png` | `playfield.lane-cover.fill/decoration` | 皮肤画填充和装饰，游戏控制真实遮挡/位移；必要填充不能关闭 |
 | BGA画面与外框 | `bms/bga-frame.png`；1024×768 | `bga.viewport/frame`、`BgaViewports` | 仅原生BMS；框是皮肤图片，画面来自谱面，共享同一播放内容 |
 

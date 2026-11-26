@@ -3,17 +3,24 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using osu.Framework.Allocation;
+using osu.Framework.Configuration;
+using osu.Framework.Graphics;
+using osu.Framework.Graphics.Containers;
 using osu.Framework.Platform;
 using osu.Framework.Testing;
 using osu.Game.Beatmaps;
 using osu.Game.Rulesets.Bms.Beatmaps;
 using osu.Game.Rulesets.Bms.DifficultyTable;
-using osu.Game.Rulesets.Bms.UI;
+using osu.Game.Rulesets.Mania;
+using osu.Game.Rulesets.Mania.Beatmaps;
+using osu.Game.Rulesets.Mania.Objects;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.UI;
 using osu.Game.Screens.Play;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
@@ -49,21 +56,31 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
         public void CaptureCanonicalSimplePlayer()
         {
             Player player = null!;
-            var ruleset = new BmsRuleset();
+            string mode = Environment.GetEnvironmentVariable("OMS_SIMPLE_CAPTURE_MODE") ?? "bms7";
+            string presentation = Environment.GetEnvironmentVariable("OMS_SIMPLE_CAPTURE_SIDE") ?? "p1";
+            bool isBms = mode.StartsWith("bms", StringComparison.Ordinal);
+            var ruleset = isBms ? (Rulesets.Ruleset)new BmsRuleset() : new ManiaRuleset();
             AddStep("require a real desktop renderer", () =>
             {
                 if (host is HeadlessGameHost)
                     Assert.Ignore("Pixel evidence requires the isolated desktop --exact-test runner.");
             });
-            AddStep("select installed simple and a repeatable 7K chart", () =>
+            AddStep("select installed simple and a repeatable chart", () =>
             {
+                var framework = Game.Dependencies.Get<FrameworkConfigManager>();
+                framework.SetValue(FrameworkSetting.WindowMode, WindowMode.Windowed);
+                var resolution = Environment.GetEnvironmentVariable("OMS_SIMPLE_CAPTURE_SIZE") == "4:3"
+                    ? new System.Drawing.Size(1280, 960)
+                    : new System.Drawing.Size(1920, 1080);
+                framework.SetValue(FrameworkSetting.WindowedSize, resolution);
                 var skins = Game.Dependencies.Get<SkinManager>();
                 Assert.That(CanonicalSkinPackage.IsCanonicalSkin(skins.DefaultOmsSkin), Is.True);
                 skins.CurrentSkinInfo.Value = skins.DefaultOmsSkin.SkinInfo;
                 GameplaySkinOptionDefinition layout = skins.DefaultOmsSkin.GameplayOptions.Single(option => option.Effect == GameplaySkinOptionEffect.Presentation);
-                Game.Dependencies.Get<SkinOptionPreferences>().SetOverride(skins.DefaultOmsSkin.SkinInfo.ID, "bms", layout.Id, "p1");
+                if (isBms)
+                    Game.Dependencies.Get<SkinOptionPreferences>().SetOverride(skins.DefaultOmsSkin.SkinInfo.ID, "bms", layout.Id, presentation);
                 Game.Ruleset.Value = ruleset.RulesetInfo;
-                Game.Beatmap.Value = CreateWorkingBeatmap(createChart(ruleset));
+                Game.Beatmap.Value = CreateWorkingBeatmap(isBms ? createBmsChart((BmsRuleset)ruleset, mode) : createManiaChart((ManiaRuleset)ruleset, mode));
                 Game.SelectedMods.Value = new[] { ruleset.GetAutoplayMod()! };
                 DismissAnyNotifications();
             });
@@ -74,30 +91,55 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                 DismissAnyNotifications();
                 return player != null && ReferenceEquals(Game.ScreenStack.CurrentScreen, player)
                                       && player.IsLoaded && player.LoadedBeatmapSuccessfully
-                                      && player.ChildrenOfType<DrawableBmsRuleset>().SingleOrDefault()?.IsLoaded == true;
+                                      && player.ChildrenOfType<DrawableRuleset>().SingleOrDefault() is IGameplaySkinSceneRuntimeSource { GameplaySkinSceneRuntime.IsSceneReady: true };
             });
             AddStep("verify renderer owns the installed package", () =>
             {
                 var skins = Game.Dependencies.Get<SkinManager>();
-                DrawableBmsRuleset renderer = player.ChildrenOfType<DrawableBmsRuleset>().Single();
+                DrawableRuleset renderer = player.ChildrenOfType<DrawableRuleset>().Single();
                 var owner = renderer.Dependencies.Get<GameplaySkinLayoutRevisionOwner>();
                 Assert.That(owner.CurrentPublication, Is.Not.Null);
                 Assert.That(owner.PackageRevision.RetainsExact(skins.CurrentRevision), Is.True);
                 Assert.That(CanonicalSkinPackage.IsCanonicalSkin(skins.CurrentSkin.Value), Is.True);
-                bool receivedInformation = false;
-                using var observer = renderer.GameplaySkinEventRuntime!.EventStream.Subscribe();
-                observer.DrainFrame(envelope =>
+                if (isBms)
                 {
-                    if (envelope.Payload is GameplaySkinStateEventPayload state)
+                    bool receivedInformation = false;
+                    using var observer = renderer.Dependencies.Get<GameplaySkinEventRuntimeHost>().EventStream.Subscribe();
+                    observer.DrainFrame(envelope =>
                     {
-                        receivedInformation = true;
-                        Assert.That(state.State.SongInformation!.TableClassification, Is.EqualTo("Satellite sl4 / 発狂BMS ★8"));
-                        Assert.That(state.State.SongInformation.Level, Is.EqualTo("12"));
-                    }
-                });
-                Assert.That(receivedInformation, Is.True);
+                        if (envelope.Payload is GameplaySkinStateEventPayload state)
+                        {
+                            receivedInformation = true;
+                            Assert.That(state.State.SongInformation!.TableClassification, Is.EqualTo("Satellite sl4 / 発狂BMS ★8"));
+                            Assert.That(state.State.SongInformation.Level, Is.EqualTo("12"));
+                        }
+                    });
+                    Assert.That(receivedInformation, Is.True);
+                }
+
+                // The test's automation remains alive while the actual game renders at the full viewport.
+                OsuGameBase? outer = null;
+                for (Drawable? ancestor = Parent; ancestor != null; ancestor = ancestor.Parent)
+                {
+                    if (ancestor is not OsuGameBase game)
+                        continue;
+                    outer = game;
+                    break;
+                }
+                Assert.That(outer, Is.Not.Null);
+                var content = (Container<Drawable>)typeof(OsuGameBase)
+                    .GetProperty("Content", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)!.GetValue(outer)!;
+                AlwaysPresent = true;
+                Remove(Game, false);
+                foreach (Drawable chrome in content.Children)
+                {
+                    chrome.Alpha = 0;
+                    chrome.AlwaysPresent = true;
+                }
+                content.Add(Game);
+                Game.Notifications.Hide();
             });
-            AddWaitStep("allow live notes and draw frames", 12);
+            AddUntilStep("display chords and sustained notes", () => player.ChildrenOfType<GameplayClockContainer>().Single().CurrentTime >= 4050);
             AddStep("capture real desktop framebuffer", () => capture = saveCapture());
             AddUntilStep("wait for PNG write", () => capture?.IsCompleted == true);
             AddStep("propagate capture failures", () => capture!.GetAwaiter().GetResult());
@@ -114,15 +156,30 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             await pixels.SaveAsPngAsync(path).ConfigureAwait(false);
         }
 
-        private static IBeatmap createChart(BmsRuleset ruleset)
+        private static IBeatmap createBmsChart(BmsRuleset ruleset, string mode)
         {
-            var text = new StringBuilder("#TITLE Simple information / 実機検証\n#ARTIST OMS Offline Studio\n#DIFFICULTY 4\n#PLAYLEVEL 12\n#BPM 138\n#BPM01 172\n#00808:01\n#01603:78\n#WAV01 note.wav\n");
-            string[] channels = { "11", "12", "13", "14", "15", "18", "19", "16" };
+            var text = new StringBuilder("#TITLE Glass Current / 静線\n#ARTIST OMS Offline Studio\n#DIFFICULTY 4\n#PLAYLEVEL 12\n#BPM 138\n#BPM01 172\n#00808:01\n#01603:78\n#WAV01 note.wav\n");
+            string[] channels = mode switch
+            {
+                "bms5" => new[] { "11", "12", "13", "14", "15", "16" },
+                "bms7" => new[] { "11", "12", "13", "14", "15", "18", "19", "16" },
+                "bms9" => new[] { "11", "12", "13", "14", "15", "16", "17", "18", "19" },
+                "bms14" => new[] { "11", "12", "13", "14", "15", "18", "19", "16", "21", "22", "23", "24", "25", "28", "29", "26" },
+                _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unknown BMS capture mode."),
+            };
             for (int measure = 1; measure <= 32; measure++)
                 for (int lane = 0; lane < channels.Length; lane++)
+                {
+                    if (measure % 2 == 0 && lane % 5 == 0)
+                    {
+                        string hold = (channels[lane][0] == '1' ? "5" : "6") + channels[lane][1];
+                        text.Append('#').Append(measure.ToString("000")).Append(hold).Append(":0100000000000100\n");
+                        continue;
+                    }
                     text.Append('#').Append(measure.ToString("000")).Append(channels[lane]).Append(':')
                         .Append(lane % 2 == 0 ? "0100000001000000" : "0000010000000100").Append('\n');
-            var decoded = new BmsBeatmapDecoder().DecodeText(text.ToString(), "simple-gameplay-capture.bme");
+                }
+            var decoded = new BmsBeatmapDecoder().DecodeText(text.ToString(), mode == "bms9" ? "simple-gameplay-capture.pms" : "simple-gameplay-capture.bme");
             var beatmap = new BmsDecodedBeatmap(decoded) { BeatmapInfo = { Ruleset = ruleset.RulesetInfo } };
             // Synthetic offline memberships exercise the same persisted read path as imported enabled tables.
             beatmap.BeatmapInfo.Metadata.SetRulesetData(new BmsBeatmapMetadataData
@@ -133,6 +190,42 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
                     new BmsDifficultyTableEntry("Satellite", "sl", 4, "sl4", "", 0),
                 },
             });
+            return beatmap;
+        }
+
+        private static ManiaBeatmap createManiaChart(ManiaRuleset ruleset, string mode)
+        {
+            int keys = mode switch
+            {
+                "mania4" => 4,
+                "mania7" => 7,
+                "mania14" => 14,
+                "mania20" => 20,
+                _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, "Unknown mania capture mode."),
+            };
+            var beatmap = new ManiaBeatmap(new StageDefinition(keys > 10 ? keys / 2 : keys))
+            {
+                BeatmapInfo =
+                {
+                    Ruleset = ruleset.RulesetInfo,
+                    Metadata = new BeatmapMetadata { Title = "Glass Current / 静線", Artist = "OMS Offline Studio" },
+                },
+                Difficulty = { CircleSize = keys, OverallDifficulty = 5 },
+            };
+            if (keys > 10)
+                beatmap.Stages.Add(new StageDefinition(keys / 2));
+
+            for (int beat = 0; beat < 70; beat++)
+            {
+                double time = 1800 + beat * 420;
+                for (int column = beat % 2; column < keys; column += 2)
+                {
+                    if (beat % 4 == 2 && column % 3 == 0)
+                        beatmap.HitObjects.Add(new HoldNote { StartTime = time, Duration = 580, Column = column });
+                    else
+                        beatmap.HitObjects.Add(new Note { StartTime = time, Column = column });
+                }
+            }
             return beatmap;
         }
     }
