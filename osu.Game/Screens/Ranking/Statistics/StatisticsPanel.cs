@@ -33,7 +33,7 @@ namespace osu.Game.Screens.Ranking.Statistics
 {
     public partial class StatisticsPanel : VisibilityContainer
     {
-        public const float SIDE_PADDING = 30;
+        public const float SIDE_PADDING = 20;
 
         public readonly Bindable<ScoreInfo?> Score = new Bindable<ScoreInfo?>();
 
@@ -81,7 +81,7 @@ namespace osu.Game.Screens.Ranking.Statistics
                 RelativeSizeAxes = Axes.Both,
                 Padding = compact ? default : new MarginPadding
                 {
-                    Left = ScorePanel.EXPANDED_WIDTH + SIDE_PADDING * 3,
+                    Left = ScorePanel.EXPANDED_WIDTH + SIDE_PADDING * 2,
                     Right = SIDE_PADDING,
                     Top = SIDE_PADDING,
                     Bottom = 50 // Approximate padding to the bottom of the score panel.
@@ -179,8 +179,7 @@ namespace osu.Game.Screens.Ranking.Statistics
                             {
                                 RelativeSizeAxes = Axes.X,
                                 AutoSizeAxes = Axes.Y,
-                                Spacing = new Vector2(30, 15),
-                                Direction = FillDirection.Full,
+                                Direction = FillDirection.Vertical,
                             }
                         }
                     };

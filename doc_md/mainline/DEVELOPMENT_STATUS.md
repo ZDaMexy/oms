@@ -1,6 +1,6 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-11-26（Windows 候选、六月升级和真实下载验证）
+> 最后核对：2026-11-26（六月升级、真实下载与稳定版界面接续）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
@@ -11,7 +11,7 @@ Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，具
 
 ## 产品与仓库基线
 
-[十一月底座](CHANGELOG.md#2026-11-25-osulazer-十一月底座接续)形成 [Windows 候选](../subline/P1-F/CHANGELOG.md#2026-11-26-windows-候选及六月升级)，已验六月升级回退、BMS 重建成绩、实际媒体和公开镜像样本。公开仍为 20260626。
+[十一月底座](CHANGELOG.md#2026-11-25-osulazer-十一月底座接续)形成 [Windows 候选](../subline/P1-F/CHANGELOG.md#2026-11-26-windows-候选及六月升级)，已验六月升级回退、BMS 重建成绩、实际媒体和公开镜像样本。后续的[界面接续](CHANGELOG.md#2026-11-26-稳定版界面接续)当前在开发版可见，11 月 26 日 ZIP 早于该改动。公开仍为 20260626。
 
 游玩判定/结果及性能取[10月19日深审](../other/GAMEPLAY_PERFORMANCE_JUDGEMENT_20261019.md)；设备入口、输入时间、轴用途、长皿与校准接续取[10月21日输入审查](../other/INPUT_SIGNAL_REVIEW_20261021.md)。前台帧时间与实体设备仍待验收。
 
@@ -67,7 +67,7 @@ Standard20分别完成11月10日OMS同包/原图/交付核验及11月15日beator
 
 历史回归按原报告保留失败身份与堆栈，后续修复取owning STATUS；专项通过不代表全仓库全绿。较早谱库、偏移/TOTAL及设置/编辑证据从相应STATUS或[CHANGELOG](CHANGELOG.md)检索。
 
-最近一次静线外观修改仍为 2026-09-13 的 `234ce1f`，实绘见[轨道验证记录](../other/SKIN_SIMPLE_LANE_PROPORTIONS_20260913.md)。发行最新已有证据为 2026-10-03 候选的同包隔离启动/恢复/覆盖；生成物随后按用户要求删除，历史结果保留。范围与跨版本、设备/长期等剩余门只取 [P1-F](../subline/P1-F/DEVELOPMENT_STATUS.md#最近一次验证)，不据此新签收产品体验。
+静线最近一次外观修改为 2026-09-13，实绘见[轨道验证记录](../other/SKIN_SIMPLE_LANE_PROPORTIONS_20260913.md)。发行记录和待验门取 [P1-F](../subline/P1-F/DEVELOPMENT_STATUS.md#最近一次验证)。
 
 ## 文档治理验证
 

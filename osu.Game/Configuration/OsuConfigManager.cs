@@ -157,6 +157,7 @@ namespace osu.Game.Configuration
             SetDefault(OsuSetting.CursorRotation, true);
 
             SetDefault(OsuSetting.MenuParallax, true);
+            SetDefault(OsuSetting.MenuParallaxScale, -1.0f, -1.0f, 2.0f, 0.1f);
 
             // See https://stackoverflow.com/a/63307411 for default sourcing.
             SetDefault(OsuSetting.Prefer24HourTime, !CultureInfoHelper.SystemCulture.DateTimeFormat.ShortTimePattern.Contains(@"tt"));
@@ -276,6 +277,14 @@ namespace osu.Game.Configuration
 
         public void Migrate()
         {
+            var menuParallaxScale = (BindableFloat)GetOriginalBindable<float>(OsuSetting.MenuParallaxScale);
+            menuParallaxScale.Default = 1;
+
+            if (menuParallaxScale.Value < 0)
+                menuParallaxScale.Value = Get<bool>(OsuSetting.MenuParallax) ? 1 : 0;
+
+            menuParallaxScale.MinValue = 0;
+
             var automaticOffsetStyle = GetOriginalBindable<AutomaticOffsetStyle>(OsuSetting.AutomaticOffsetStyle);
             automaticOffsetStyle.Default = AutomaticOffsetStyle.Off;
 
@@ -455,6 +464,7 @@ namespace osu.Game.Configuration
         MenuTips,
         CursorRotation,
         MenuParallax,
+        MenuParallaxScale,
         Prefer24HourTime,
         BeatmapDetailTab,
         BeatmapLeaderboardSortMode,

@@ -4,9 +4,11 @@
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Colour;
 using osu.Framework.Graphics.Containers;
+using osu.Framework.Graphics.Effects;
 using osu.Framework.Graphics.Shapes;
 using osu.Framework.Localisation;
 using osu.Game.Graphics;
+using osuTK;
 
 namespace osu.Game.Screens.Ranking.Statistics
 {
@@ -24,7 +26,7 @@ namespace osu.Game.Screens.Ranking.Statistics
             RelativeSizeAxes = Axes.X;
             AutoSizeAxes = Axes.Y;
 
-            Padding = new MarginPadding(5);
+            Padding = new MarginPadding { Vertical = 5 };
 
             if (LocalisableString.IsNullOrEmpty(item.Name))
             {
@@ -44,7 +46,15 @@ namespace osu.Game.Screens.Ranking.Statistics
                 RelativeSizeAxes = Axes.X,
                 AutoSizeAxes = Axes.Y,
                 Masking = true,
-                CornerRadius = 6,
+                CornerRadius = 20,
+                CornerExponent = 2.5f,
+                EdgeEffect = new EdgeEffectParameters
+                {
+                    Type = EdgeEffectType.Shadow,
+                    Colour = OsuColour.Gray(0.18f),
+                    Radius = 2,
+                    Hollow = true,
+                },
                 Children = new Drawable[]
                 {
                     new Box
@@ -56,23 +66,17 @@ namespace osu.Game.Screens.Ranking.Statistics
                         Alpha = 0.95f,
                         RelativeSizeAxes = Axes.Both,
                     },
-                    new Container
+                    new FillFlowContainer
                     {
                         RelativeSizeAxes = Axes.X,
                         AutoSizeAxes = Axes.Y,
-                        Padding = new MarginPadding(5),
-                        Children = new[]
+                        Direction = FillDirection.Vertical,
+                        Spacing = new Vector2(0, 8),
+                        Padding = new MarginPadding { Horizontal = 15, Vertical = 10 },
+                        Children = new Drawable[]
                         {
-                            LocalisableString.IsNullOrEmpty(item.Name)
-                                ? Empty()
-                                : new StatisticItemHeader { Text = item.Name },
-                            new Container
-                            {
-                                RelativeSizeAxes = Axes.X,
-                                AutoSizeAxes = Axes.Y,
-                                Padding = new MarginPadding(10) { Top = 30 },
-                                Child = item.CreateContent()
-                            }
+                            new StatisticItemHeader { Text = item.Name },
+                            item.CreateContent(),
                         }
                     },
                 }

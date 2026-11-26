@@ -5,7 +5,7 @@
 
 ## 当前目标
 
-十一月框架、资源和客户端改动取[接续记录](CHANGELOG.md#2026-11-25-osulazer-十一月底座接续)。实际启动、旧库覆盖、实体输入与发行走 [P1-F](../subline/P1-F/DEVELOPMENT_PLAN.md#当前剩余验收)。后续候选取[维护入口](../other/UPSTREAM.md)。
+十一月框架、资源和客户端改动取[底座接续](CHANGELOG.md#2026-11-25-osulazer-十一月底座接续)及[界面接续](CHANGELOG.md#2026-11-26-稳定版界面接续)。当前界面已有开发版入口。实际启动、旧库覆盖、实体输入与发行走 [P1-F](../subline/P1-F/DEVELOPMENT_PLAN.md#当前剩余验收)。继续按[维护入口](../other/UPSTREAM.md)核对未采用项。
 
 原生媒体最终配方已完成干净重编，候选的载荷、源码和许可旁带、真实视频与两款程序的库身份取[P1-F 验证](../subline/P1-F/CHANGELOG.md#2026-11-26-windows-候选及六月升级)。后续仅在相关依赖或发行内容改变时复验对应门。
 

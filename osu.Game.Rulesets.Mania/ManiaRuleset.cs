@@ -9,6 +9,7 @@ using System.Threading;
 using osu.Framework.Allocation;
 using osu.Framework.Extensions;
 using osu.Framework.Graphics;
+using osu.Framework.Graphics.Containers;
 using osu.Framework.Graphics.Sprites;
 using osu.Framework.Input.Bindings;
 using osu.Framework.Localisation;
@@ -50,6 +51,7 @@ using osu.Game.Screens.Select;
 using osu.Game.Screens.Select.Filter;
 using osu.Game.Skinning;
 using osu.Game.Skinning.Gameplay;
+using osuTK;
 
 namespace osu.Game.Rulesets.Mania
 {
@@ -517,16 +519,26 @@ namespace osu.Game.Rulesets.Mania
                 RelativeSizeAxes = Axes.X,
                 AutoSizeAxes = Axes.Y
             }),
-            new StatisticItem("Timing Distribution", () => new HitEventTimingDistributionGraph(score.HitEvents)
+            new StatisticItem("Timing Distribution", () => new FillFlowContainer
             {
                 RelativeSizeAxes = Axes.X,
-                Height = 250
-            }, true),
-            new StatisticItem("Statistics", () => new SimpleStatisticTable(2, new SimpleStatisticItem[]
-            {
-                new AverageHitError(score.HitEvents),
-                new UnstableRate(score.HitEvents)
-            }), true)
+                AutoSizeAxes = Axes.Y,
+                Direction = FillDirection.Vertical,
+                Spacing = new Vector2(0, 15),
+                Children = new Drawable[]
+                {
+                    new HitEventTimingDistributionGraph(score.HitEvents)
+                    {
+                        RelativeSizeAxes = Axes.X,
+                        Height = 150,
+                    },
+                    new SimpleStatisticTable(1, new SimpleStatisticItem[]
+                    {
+                        new AverageHitError(score.HitEvents),
+                        new UnstableRate(score.HitEvents),
+                    }),
+                },
+            }, requiresHitEvents: true)
         };
 
         /// <seealso cref="ManiaHitWindows"/>

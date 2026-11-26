@@ -1,8 +1,9 @@
-﻿// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
+// Copyright (c) ppy Pty Ltd <contact@ppy.sh>. Licensed under the MIT Licence.
 // See the LICENCE file in the repository root for full licence text.
 
 #nullable disable
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using osu.Framework.Allocation;
@@ -18,6 +19,7 @@ using osu.Game.Localisation;
 using osu.Game.Overlays.Settings;
 using osu.Game.Overlays.Settings.Sections;
 using osu.Game.Overlays.Settings.Sections.Input;
+using osu.Game.Rulesets;
 using osuTK.Graphics;
 
 namespace osu.Game.Overlays
@@ -27,25 +29,6 @@ namespace osu.Game.Overlays
         public IconUsage Icon => OsuIcon.Settings;
         public LocalisableString Title => SettingsStrings.HeaderTitle;
         public LocalisableString Description => SettingsStrings.HeaderDescription;
-
-        protected override IEnumerable<SettingsSection> CreateSections()
-        {
-            return new List<SettingsSection>
-            {
-                // This list should be kept in sync with ScreenBehaviour.
-                new GeneralSection(),
-                new SkinSection(),
-                new InputSection(createSubPanel(new KeyBindingPanel())),
-                new UserInterfaceSection(),
-                new GameplaySection(),
-                new RulesetSection(),
-                new AudioSection(),
-                new GraphicsSection(),
-                new OnlineSection(),
-                new MaintenanceSection(),
-                new DebugSection()
-            };
-        }
 
         private readonly List<SettingsSubPanel> subPanels = new List<SettingsSubPanel>();
 
@@ -125,8 +108,33 @@ namespace osu.Game.Overlays
         protected override float ExpandedPosition => lastOpenedSubPanel?.State.Value == Visibility.Visible ? -PANEL_WIDTH : base.ExpandedPosition;
 
         [BackgroundDependencyLoader]
-        private void load()
+        private void load(RulesetStore rulesets)
         {
+            AddSection(new GeneralSection());
+            AddSection(new SkinSection());
+            AddSection(new InputSection(createSubPanel(new KeyBindingPanel())));
+            AddSection(new UserInterfaceSection());
+            AddSection(new GameplaySection());
+
+            foreach (Ruleset ruleset in rulesets.AvailableRulesets.Select(info => info.CreateInstance()))
+            {
+                try
+                {
+                    if (ruleset.CreateSettings() is SettingsSubsection section)
+                        AddSection(new RulesetSection(ruleset, section));
+                }
+                catch (Exception exception)
+                {
+                    RulesetStore.LogRulesetFailure(ruleset.RulesetInfo, exception);
+                }
+            }
+
+            AddSection(new AudioSection());
+            AddSection(new GraphicsSection());
+            AddSection(new OnlineSection());
+            AddSection(new MaintenanceSection());
+            AddSection(new DebugSection());
+
             foreach (var s in subPanels)
                 ContentContainer.Add(s);
         }
