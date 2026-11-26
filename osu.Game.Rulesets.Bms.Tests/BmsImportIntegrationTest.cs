@@ -938,6 +938,7 @@ SliderTickRate: 1
         {
             using var storage = new TemporaryNativeStorage($"bms-rebuild-identity-{Guid.NewGuid():N}");
             string directory = createImportSource(storage, "chartbms/set");
+            string otherDirectory = createImportSource(storage, "chartbms/other");
             string secondChart = Path.Combine(directory, "second.bms");
             string secondText = buildChartText().Replace("Filesystem Test", "Second difficulty");
             File.WriteAllText(secondChart, secondText);
@@ -952,31 +953,42 @@ SliderTickRate: 1
                 var importer = new BmsFolderImporter(storage, realm);
                 var result = await importer.RegisterManagedDirectory(directory).ConfigureAwait(false);
                 originalId = result.ImportedBeatmapSet!.PerformRead(s => s.ID);
-                originalBeatmapId = result.ImportedBeatmapSet.PerformRead(s => s.Beatmaps[0].ID);
+                originalBeatmapId = result.ImportedBeatmapSet.PerformRead(s => s.Beatmaps.Single(b => b.LocalFilePath == "chart.bms").ID);
+                Guid removedBeatmapId = result.ImportedBeatmapSet.PerformRead(s => s.Beatmaps.Single(b => b.LocalFilePath == "second.bms").ID);
+                var other = await importer.RegisterManagedDirectory(otherDirectory).ConfigureAwait(false);
+                Guid otherBeatmapId = other.ImportedBeatmapSet!.PerformRead(s => s.Beatmaps.Single().ID);
                 var ids = realm.Write(r =>
                 {
                     var beatmap = r.Find<BeatmapInfo>(originalBeatmapId)!;
                     var score = new ScoreInfo(beatmap, beatmap.Ruleset);
+                    var removedScore = new ScoreInfo(r.Find<BeatmapInfo>(removedBeatmapId)!, beatmap.Ruleset);
+                    var otherScore = new ScoreInfo(r.Find<BeatmapInfo>(otherBeatmapId)!, beatmap.Ruleset);
                     var collection = new BeatmapCollection("kept", new[] { beatmap.MD5Hash });
                     r.Add(score);
+                    r.Add(removedScore);
+                    r.Add(otherScore);
                     r.Add(collection);
-                    return (score.ID, collection.ID);
+                    return (Local: score.ID, Removed: removedScore.ID, Other: otherScore.ID, Collection: collection.ID);
                 });
-                scoreId = ids.Item1;
-                collectionId = ids.Item2;
+                scoreId = ids.Local;
+                collectionId = ids.Collection;
 
                 File.Delete(secondChart);
                 var changed = await importer.RegisterManagedDirectory(directory).ConfigureAwait(false);
                 Assert.That(changed.ImportedBeatmapSet!.PerformRead(s => s.Beatmaps.Count), Is.EqualTo(1));
+                Guid changedBeatmapId = changed.ImportedBeatmapSet.PerformRead(s => s.Beatmaps.Single().ID);
+                Assert.That(changedBeatmapId, Is.Not.EqualTo(originalBeatmapId));
                 Assert.That(realm.Run(r => r.Find<BeatmapSetInfo>(originalId)!.FilesystemUnavailable), Is.True);
-                Assert.That(realm.Run(r => r.Find<ScoreInfo>(scoreId)!.BeatmapInfo!.ID), Is.EqualTo(originalBeatmapId));
+                Assert.That(realm.Run(r => r.Find<ScoreInfo>(scoreId)!.BeatmapInfo!.ID), Is.EqualTo(changedBeatmapId));
+                Assert.That(realm.Run(r => r.Find<ScoreInfo>(ids.Removed)!.BeatmapInfo!.ID), Is.EqualTo(removedBeatmapId));
+                Assert.That(realm.Run(r => r.Find<ScoreInfo>(ids.Other)!.BeatmapInfo!.ID), Is.EqualTo(otherBeatmapId));
                 Assert.That(realm.Run(r => r.Find<BeatmapCollection>(collectionId)!.BeatmapMD5Hashes.Count), Is.EqualTo(1));
 
                 File.WriteAllText(secondChart, secondText);
                 var restored = await importer.RegisterManagedDirectory(directory).ConfigureAwait(false);
                 Assert.That(restored.ImportedBeatmapSet!.PerformRead(s => s.ID), Is.EqualTo(originalId));
                 Assert.That(restored.ImportedBeatmapSet.PerformRead(s => s.FilesystemUnavailable), Is.False);
-                Assert.That(realm.Run(r => r.All<BeatmapSetInfo>().Count(s => !s.FilesystemUnavailable && !s.DeletePending)), Is.EqualTo(1));
+                Assert.That(realm.Run(r => r.All<BeatmapSetInfo>().Count(s => !s.FilesystemUnavailable && !s.DeletePending)), Is.EqualTo(2));
             }
 
             using (var reopened = new RealmAccess(storage, OsuGameBase.CLIENT_DATABASE_FILENAME))

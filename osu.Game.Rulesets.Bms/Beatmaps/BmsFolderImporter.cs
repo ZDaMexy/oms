@@ -219,6 +219,8 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
                 {
                     foreach (var beatmap in managedExisting.Beatmaps)
                         beatmap.LocalFilePath = preparedBeatmapSet.Beatmaps.First(b => b.Hash == beatmap.Hash).LocalFilePath;
+
+                    relinkUnchangedScores(realm, managedExisting);
                 }
                 transaction.Commit();
 
@@ -282,10 +284,38 @@ namespace osu.Game.Rulesets.Bms.Beatmaps
 
                 FilesystemBeatmapIndex.SupersedeDirectory(realm, beatmapSet);
                 realm.Add(beatmapSet);
+                relinkUnchangedScores(realm, beatmapSet);
                 transaction.Commit();
 
                 return beatmapSet.ToLive(realmAccess);
             });
+
+        private static void relinkUnchangedScores(Realm realm, BeatmapSetInfo current)
+        {
+            // A rebuild can change which difficulties make up a set, including after a decoder upgrade.
+            // Scores for unchanged chart bytes still belong to the same playable chart in this directory.
+            var retired = realm.All<BeatmapSetInfo>()
+                               .Filter("FilesystemStoragePath ==[c] $0 AND IsExternalFilesystemStorage == $1 AND DeletePending == false AND FilesystemUnavailable == true",
+                                   current.FilesystemStoragePath, current.IsExternalFilesystemStorage)
+                               .ToArray();
+
+            if (retired.Length == 0)
+                return;
+
+            var currentCharts = current.Beatmaps.ToDictionary(beatmap => beatmap.Hash, StringComparer.Ordinal);
+
+            foreach (var previous in retired.SelectMany(set => set.Beatmaps))
+            {
+                string hash = previous.Hash;
+
+                if (previous.Ruleset.ShortName != BmsRuleset.SHORT_NAME || string.IsNullOrEmpty(hash)
+                    || !currentCharts.TryGetValue(hash, out var replacement))
+                    continue;
+
+                foreach (var score in previous.Scores.Where(score => !score.DeletePending && score.BeatmapHash == hash).ToArray())
+                    score.BeatmapInfo = replacement;
+            }
+        }
 
         private PreparedBeatmapSet createBeatmapSet(DirectoryArchiveReader reader, CancellationToken cancellationToken)
         {

@@ -468,8 +468,10 @@ namespace SkinAuthoring
             {
                 foreach (var slot in GameplaySkinSlotCatalog.All)
                 {
-                    // The template provides no lift artwork. Leave these optional BMS slots to authors.
-                    if (slot == GameplaySkinSlotCatalog.LiftFill || slot == GameplaySkinSlotCatalog.LiftDecoration)
+                    // These optional slots have no artwork in the recipes. Do not populate them with HUD placeholder art.
+                    if (slot == GameplaySkinSlotCatalog.LiftFill || slot == GameplaySkinSlotCatalog.LiftDecoration
+                        || slot == GameplaySkinSlotCatalog.AuxiliaryDisplay || slot == GameplaySkinSlotCatalog.AuxiliaryConcentrationDisplay
+                        || slot == GameplaySkinSlotCatalog.LongNoteEffect)
                         continue;
                     if (layout.Ruleset == "mania" && slot.Id is "object.mine" or "playfield.turntable" or "playfield.laser" or "bga.viewport" or "bga.frame")
                         continue;
