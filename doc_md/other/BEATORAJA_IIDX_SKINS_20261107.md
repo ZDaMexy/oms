@@ -23,6 +23,8 @@ OxiPNG 仅重压图像数据，逐张核对尺寸、颜色模式、所有采样�
 
 在确认请求只读取难度表后，结束该 MinIR 子进程。约 4 秒后原主窗口恢复响应，随后日志记录 `IR worker timeout`、选曲声音及初始化完成。原进程进入正常绘制循环。此处验证的是本次恢复，后续冷启动仍存在同一超时路径。原始线程栈、前后日志及恢复回执留在本机 `E:/OMS-Development/evidence/beatoraja-black-screen-20261126/`。
 
+后续本机按用户要求停用 MinIR，原配置保全。官方 0.8.9 的 OMS-IR 适配器已发布，启动取表直接返回，实际登录与游玩取[接入记录](../../../websites/oms-web/doc_md/beatoraja-089-20261126.md)。
+
 ## 授权、名称与来源
 
 用户本轮明确要求调研并制作Standard与Lightning的beatoraja皮肤，更新其实际播放器，保全玩家数据，推进可验证产物。基础名称仍为`Standard Model Skin Omni Until 26`与`Lightning Model Skin Omni Until 33`。Lightning在OMS的停止自动推进不变；本轮授权是新的beatoraja消费者，不能据此恢复OMS旧缺口队列。
