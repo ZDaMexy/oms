@@ -30,6 +30,7 @@ using osu.Game.Online.Matchmaking;
 using osu.Game.Online.Multiplayer;
 using osu.Game.Overlays;
 using osu.Game.Rulesets;
+using osu.Game.Screens.Footer;
 using osu.Game.Screens.OnlinePlay.Matchmaking.Match;
 using osuTK;
 
@@ -40,8 +41,6 @@ namespace osu.Game.Screens.OnlinePlay.Matchmaking.Queue
     /// </summary>
     public partial class ScreenQueue : OsuScreen
     {
-        public override bool ShowFooter => true;
-
         public override bool? ApplyModTrackAdjustments => false;
 
         private Container mainContent = null!;
@@ -160,6 +159,11 @@ namespace osu.Game.Screens.OnlinePlay.Matchmaking.Queue
                 // Default to the user's ruleset for the initial pool selection.
                 selectedPool.Value = pools.FirstOrDefault(p => p.RulesetId == ruleset.Value.OnlineID) ?? pools.FirstOrDefault();
             });
+        }
+
+        public ScreenQueue()
+        {
+            FooterContent.Value = ScreenFooterContent.Argon();
         }
 
         [BackgroundDependencyLoader]

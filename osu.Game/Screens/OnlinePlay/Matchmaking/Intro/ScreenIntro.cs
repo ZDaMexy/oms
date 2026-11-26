@@ -12,6 +12,7 @@ using osu.Framework.Screens;
 using osu.Game.Graphics;
 using osu.Game.Graphics.Sprites;
 using osu.Game.Overlays;
+using osu.Game.Screens.Footer;
 using osu.Game.Screens.OnlinePlay.Matchmaking.Match;
 using osu.Game.Screens.OnlinePlay.Matchmaking.Queue;
 
@@ -25,8 +26,6 @@ namespace osu.Game.Screens.OnlinePlay.Matchmaking.Intro
         public override bool DisallowExternalBeatmapRulesetChanges => false;
 
         public override bool? ApplyModTrackAdjustments => true;
-
-        public override bool ShowFooter => true;
 
         private Container introContent = null!;
 
@@ -57,6 +56,7 @@ namespace osu.Game.Screens.OnlinePlay.Matchmaking.Intro
         public ScreenIntro()
         {
             ValidForResume = false;
+            FooterContent.Value = ScreenFooterContent.Argon();
         }
 
         [BackgroundDependencyLoader]

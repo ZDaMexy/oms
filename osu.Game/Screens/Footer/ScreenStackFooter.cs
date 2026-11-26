@@ -2,6 +2,8 @@
 // See the LICENCE file in the repository root for full licence text.
 
 using System;
+using System.Diagnostics;
+using System.Linq;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics;
 using osu.Framework.Graphics.Containers;
@@ -33,9 +35,9 @@ namespace osu.Game.Screens.Footer
         public readonly ScreenFooter Footer;
 
         /// <summary>
-        /// Whether the legacy back button is currently displayed.
+        /// Describes the footer content to be displayed, as requested by the current <see cref="IOsuScreen"/>.
         /// </summary>
-        private readonly IBindable<bool> backButtonVisibility = new BindableBool();
+        private readonly Bindable<ScreenFooterContent> footerContent = new Bindable<ScreenFooterContent>(ScreenFooterContent.None);
 
         private readonly ScreenStackTracker screenTracker;
 
@@ -61,21 +63,25 @@ namespace osu.Game.Screens.Footer
             screenTracker = new ScreenStackTracker(screenStack);
             screenTracker.ScreenChanged += onScreenChanged;
 
-            backButtonVisibility.ValueChanged += onBackButtonVisibilityChanged;
+            footerContent.BindValueChanged(_ => Scheduler.AddOnce(footerContentChanged));
         }
 
         private void onScreenChanged(IScreen lastScreen, IScreen newScreen)
         {
             unbindScreen(lastScreen);
             bindScreen(newScreen);
+            Scheduler.AddOnce(footerContentChanged);
         }
 
-        private void onBackButtonVisibilityChanged(ValueChangedEvent<bool> visible)
+        private void bindScreen(IScreen screen)
         {
-            if (visible.NewValue)
-                BackButton.Show();
-            else
-                BackButton.Hide();
+            if (screen is not OsuScreen osuScreen)
+            {
+                footerContent.Value = screen == null ? ScreenFooterContent.None : ScreenFooterContent.Legacy(showBackButton: true);
+                return;
+            }
+
+            footerContent.BindTo(osuScreen.FooterContent);
         }
 
         private void unbindScreen(IScreen screen)
@@ -83,54 +89,58 @@ namespace osu.Game.Screens.Footer
             if (screen is not OsuScreen osuScreen)
                 return;
 
-            backButtonVisibility.UnbindFrom(osuScreen.BackButtonVisibility);
+            footerContent.UnbindFrom(osuScreen.FooterContent);
         }
 
-        private void bindScreen(IScreen screen)
+        private void footerContentChanged()
         {
-            if (screen is not OsuScreen osuScreen)
+            var content = footerContent.Value;
+
+            switch (content.Mode)
             {
-                ((BindableBool)backButtonVisibility).Value = true;
-
-                Footer.SetButtons([]);
-                Footer.Hide();
-                return;
-            }
-
-            if (osuScreen.ShowFooter)
-            {
-                // the legacy back button should never display while the new footer is in use, as it
-                // contains its own local back button.
-                ((BindableBool)backButtonVisibility).Value = false;
-
-                Footer.Show();
-
-                if (osuScreen.IsLoaded)
-                    updateFooterButtons();
-                else
-                {
-                    // ensure the current buttons are immediately disabled on screen change (so they can't be pressed).
+                case ScreenFooterContent.FooterMode.None:
                     Footer.SetButtons([]);
+                    Footer.Hide();
+                    BackButton.Hide();
+                    break;
 
-                    osuScreen.OnLoadComplete += _ => updateFooterButtons();
-                }
+                case ScreenFooterContent.FooterMode.Legacy:
+                    Footer.SetButtons([]);
+                    Footer.Hide();
+                    BackButton.State.Value = content.BackButton ? Visibility.Visible : Visibility.Hidden;
+                    break;
 
-                void updateFooterButtons()
-                {
-                    var buttons = osuScreen.CreateFooterButtons();
-
-                    osuScreen.LoadComponentsAgainstScreenDependencies(buttons);
-
-                    Footer.SetButtons(buttons);
+                case ScreenFooterContent.FooterMode.Argon:
+                    BackButton.State.Value = Visibility.Hidden;
                     Footer.Show();
-                }
-            }
-            else
-            {
-                backButtonVisibility.BindTo(osuScreen.BackButtonVisibility);
 
-                Footer.SetButtons([]);
-                Footer.Hide();
+                    var osuScreen = screenTracker.LeadingScreen as OsuScreen;
+                    Debug.Assert(osuScreen != null);
+
+                    if (osuScreen.IsLoaded)
+                        updateFooterButtons(osuScreen);
+                    else
+                    {
+                        // ensure the current buttons are immediately disabled on screen change (so they can't be pressed).
+                        Footer.SetButtons([]);
+
+                        osuScreen.OnLoadComplete += _ => updateFooterButtons(osuScreen);
+                    }
+
+                    break;
+            }
+
+            void updateFooterButtons(OsuScreen osuScreen)
+            {
+                if (!ReferenceEquals(screenTracker.LeadingScreen, osuScreen) || !ReferenceEquals(footerContent.Value, content))
+                    return;
+
+                var buttons = content.LeftButtons?.Invoke().ToArray() ?? [];
+
+                osuScreen.LoadComponentsAgainstScreenDependencies(buttons);
+
+                Footer.SetButtons(buttons);
+                Footer.Show();
             }
         }
 
@@ -139,6 +149,7 @@ namespace osu.Game.Screens.Footer
             base.Dispose(isDisposing);
 
             screenTracker.Dispose();
+            footerContent.UnbindAll();
         }
 
         /// <summary>
@@ -170,8 +181,7 @@ namespace osu.Game.Screens.Footer
             /// <summary>
             /// The screen which should be bound to the screen footer - the most nested subscreen.
             /// </summary>
-            // ReSharper disable once FunctionRecursiveOnAllPaths (TODO: remove after fixed https://youtrack.jetbrains.com/issue/RIDER-135036/Incorrect-recursive-on-all-execution-paths-inspection)
-            private IScreen leadingScreen => subScreenTracker?.leadingScreen ?? stack.CurrentScreen;
+            public IScreen LeadingScreen => subScreenTracker?.LeadingScreen ?? stack.CurrentScreen;
 
             public ScreenStackTracker(ScreenStack stack)
             {
@@ -184,7 +194,7 @@ namespace osu.Game.Screens.Footer
             private void onParentScreenChanged(IScreen lastScreen, IScreen newScreen)
             {
                 // The screen which we will be UNBINDING from the screen footer later on.
-                IScreen lastLeadingScreen = subScreenTracker?.leadingScreen ?? lastScreen;
+                IScreen lastLeadingScreen = subScreenTracker?.LeadingScreen ?? lastScreen;
 
                 // Subscreens are attached to a parent screen, so when the parent changes the subscreen must also.
                 subScreenTracker?.Dispose();
@@ -197,12 +207,12 @@ namespace osu.Game.Screens.Footer
                     subScreenTracker.ScreenChanged += onSubScreenScreenChanged;
                 }
 
-                ScreenChanged?.Invoke(lastLeadingScreen, leadingScreen);
+                ScreenChanged?.Invoke(lastLeadingScreen, LeadingScreen);
             }
 
             private void onSubScreenScreenChanged(IScreen lastScreen, IScreen newScreen)
             {
-                ScreenChanged?.Invoke(lastScreen, newScreen);
+                ScreenChanged?.Invoke(lastScreen ?? stack.CurrentScreen, newScreen ?? stack.CurrentScreen);
             }
 
             public void Dispose()
