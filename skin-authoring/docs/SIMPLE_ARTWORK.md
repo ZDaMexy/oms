@@ -2,11 +2,17 @@
 
 ## 当前素材（2026-11-27）
 
-内置静线的控制台、转盘、轨道、短音符和长条、HUD、血槽及命中图由 `tools/SkinAuthoring/SkinRecipe.CompactArtwork.cs` 离线绘制。BMS 使用冷青仪表和玫红皿轨，mania 使用紫色仪表和暖色中键。借鉴的是既有作品的键面层次、读数位置和反馈层级，随软件发布的是新绘的独立图形。配方使用 `author.json` 中的配色，无外部美术输入。
+内置静线共用 [console-faceplate.png](../sources/oms-simple/scene/console-faceplate.png) 作为底板。底板为 1672×941 的原创生成图，输入只有下方提示词，保存原图。转盘、轨道、音符、键帽、仪表、血槽和命中图由 `tools/SkinAuthoring/SkinRecipe.CompactArtwork.cs` 离线绘制。既有作品提供键面层次、读数位置和反馈的设计参考。全部交付图形无 HDD 原素材输入。
 
-正常构建打包现有源文件。完成自定义美术的作者可直接运行 `Author.ps1 check` 与 `pack`。准备重绘配方素材时，可在副本上执行 `Author.ps1 generate`，它会重建受配方管理的 PNG 和配置。引擎只读取普通皮肤资源，不调用绘图代码。判定、早晚、血量及曲目信息沿现有事实绑定。
+正常构建打包现有源文件。完成自定义美术的作者可直接运行 `Author.ps1 check` 与 `pack`。在副本上执行 `Author.ps1 generate` 会重建配方管理的 PNG 和配置，并保留已有的共享底板。判定、早晚、血量及曲目信息继续读取真实状态。
 
-当前[素材拼合预览](../dist/oms-simple-preview.png)来自同一组 PNG。实际截图与验证范围取 [P1-A](../../doc_md/subline/P1-A/CHANGELOG.md#2026-11-27-静线原创美术更新)。
+当前[素材拼合预览](../dist/oms-simple-preview.png)来自同一组 PNG。实际画面取 [P1-A](../../doc_md/subline/P1-A/CHANGELOG.md#2026-11-27-静线整屏构图重做)。
+
+### 共享底板生成提示词
+
+```text
+Use case: stylized-concept. Production raster background plate for an original desktop rhythm game. A wide 16:9 landscape, perfectly front-on, edge-to-edge graphic of a physically engineered boutique audio console chassis in warm black graphite, dusky aubergine and amber. Authentic product-design proportions, not a UI mockup: very dark porous anodized aluminum, finely engraved wavy concentric lines like a pressed record and signal traces concentrated in two groups at 20% and 80% horizontal position, low contrast center, restrained warm burnt-orange accents tracing an asymmetric machined edge. A few matte ivory ceramic mechanical inlays and subtle ribbed vents near the outer edges only. Give the left and right fields memorable forms instead of blank rectangles; use long precisely angled structural cuts and obvious optical hierarchy, not miniature clutter. Tight editorial contrast with one or two warm accents, grounded materials, subtle grain and lighting, flat orthographic 2D layout, no camera perspective. No game lanes, screens, controls, dials, UI cards, indicators, fake text, lettering, numbers, logos, characters, or branding. No cyan neon, no HUD graphics, no science fiction holograms or glossy chrome. Keep the artwork subdued enough to sit underneath moving game information. Designed entirely from this prompt with no external visual input.
+```
 
 ## 2026 年 9 月旧版素材记录
 
@@ -28,7 +34,7 @@ Use case: stylized-concept. Asset type: production 2D game skin sprite, a single
 
 ## 完整底板与精细仪表
 
-新原创素材位于 [scene/cabinet.png](../sources/oms-simple/scene/cabinet.png)：通过内置 imagegen 生成金属面板，没有输入外部参考图片，保存生成原图，不改写前述外部图片凭据。原始生成文件为 `exec-dcd5ecdf-092d-4aa0-a10d-437f686b49f4.png`，1536×1024，原样复制，不裁剪或改色，生成配方不覆盖。完整实际提示词：
+9 月的 `scene/cabinet.png` 由内置 imagegen 根据文字生成。原始文件为 `exec-dcd5ecdf-092d-4aa0-a10d-437f686b49f4.png`，1536×1024，当时原样保存。实际提示词如下。
 
 ```text
 Create one production-ready ORIGINAL game UI texture asset, not a mockup or screenshot. A seamless-looking dark brushed graphite anodized metal console panel, perfectly flat front orthographic view, rectangular 3:2 landscape image. Full opaque background, edge to edge material. Premium Japanese rhythm arcade cabinet industrial finish: extremely fine horizontal brushed metal grain, restrained cool silver illumination along the very top, subtle charcoal geometric inset panel seams near the outer corners, tiny countersunk screws at four corners, one slim muted ice-cyan horizontal accent inset near the lower edge. Overall very dark (near #10151d to #242d37), sophisticated understated precision-machined finish. Center 80 percent must remain quiet uniform dark metal to support separately composited game controls and numbers. No text, no logos, no numbers, no buttons, no screen, no keyboard, no turntable, no existing brands, no perspective, no scene, no shadow outside panel. Asset must be useful as a scalable game console background with tasteful metallic detail rather than a complete game interface. Crisp clean high-resolution game production artwork.

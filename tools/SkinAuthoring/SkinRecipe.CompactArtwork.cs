@@ -6,22 +6,33 @@ namespace SkinAuthoring
 {
     internal static partial class SkinRecipe
     {
-        private static readonly Rgba32 carbon = new(8, 13, 21);
-        private static readonly Rgba32 bezel = new(31, 45, 61);
-        private static readonly Rgba32 steel = new(113, 141, 164);
-        private static readonly Rgba32 porcelain = new(239, 250, 255);
-        private static readonly Rgba32 copper = new(240, 167, 106);
-        private static readonly Rgba32 scratch = new(250, 106, 131);
+        private static readonly Rgba32 carbon = new(13, 11, 15);
+        private static readonly Rgba32 bezel = new(48, 36, 40);
+        private static readonly Rgba32 steel = new(148, 126, 123);
+        private static readonly Rgba32 porcelain = new(255, 239, 213);
+        private static readonly Rgba32 copper = new(255, 177, 99);
+        private static readonly Rgba32 scratch = new(253, 105, 118);
 
         private static void drawCompactStage(string root, AuthorProfile profile)
         {
             Rgba32 bms = colour(profile.BmsAccent);
             Rgba32 mania = colour(profile.ManiaAccent);
             string scene = Path.Combine(root, "scene");
-            draw(Path.Combine(scene, "cabinet.png"), 1536, 864, (x, y, w, h) => cabinet(x, y, w, h, bms, true));
-            draw(Path.Combine(root, "mania", "cabinet.png"), 1280, 720, (x, y, w, h) => cabinet(x, y, w, h, mania, false));
+            string faceplate = Path.Combine(scene, "console-faceplate.png");
+            if (!File.Exists(faceplate))
+            {
+                // New compact recipes can still be generated from author.json alone. A supplied
+                // faceplate is ordinary hand-authored input and is preserved verbatim.
+                draw(faceplate, 1536, 864, (x, y, w, h) =>
+                {
+                    double radial = Math.Sqrt(Math.Pow((x - w * 0.5) / w, 2) + Math.Pow((y - h * 0.32) / h, 2));
+                    if (y is >= 6 and < 9 || y >= h - 9 && y < h - 6)
+                        return mix(bezel, bms, 0.48);
+                    return mix(carbon, bezel, 0.36 * Math.Max(0, 1 - radial * 1.75));
+                });
+            }
             draw(Path.Combine(scene, "instrument.png"), 640, 128, (x, y, w, h) => instrument(x, y, w, h, bms, false));
-            draw(Path.Combine(scene, "instrument-mania.png"), 384, 112, (x, y, w, h) => instrument(x, y, w, h, mania, false));
+            draw(Path.Combine(scene, "instrument-mania.png"), 640, 112, (x, y, w, h) => instrument(x, y, w, h, mania, false));
             draw(Path.Combine(scene, "gauge-frame.png"), 768, 128, (x, y, w, h) => instrument(x, y, w, h, bms, true));
             draw(Path.Combine(scene, "gauge-cells.png"), 1000, 40, (x, y, w, h) => gaugeCell(x, y, w, h, bms));
             draw(Path.Combine(scene, "gauge-cells-mania.png"), 1000, 40, (x, y, w, h) => gaugeCell(x, y, w, h, mania));
@@ -62,7 +73,6 @@ namespace SkinAuthoring
             }
 
             draw(Path.Combine(assets, "stage.png"), 256, 256, (_, y, _, h) => mix(carbon, bezel, y < h * 0.70 ? 0.07 : 0.36));
-            draw(Path.Combine(assets, "bga-frame.png"), 1024, 768, (x, y, w, h) => videoBezel(x, y, w, h, accent));
             draw(Path.Combine(assets, "scratch-platter.png"), 512, 512, (x, y, w, _) => platter(x, y, w, accent, false));
             draw(Path.Combine(assets, "flash.png"), 192, 256, (x, y, w, h) => keyLight(x, y, w, h, accent));
             draw(Path.Combine(assets, "explosion.png"), 192, 192, (x, y, w, _) => hitSpark(x, y, w, accent));
@@ -117,7 +127,7 @@ namespace SkinAuthoring
             if (y is < 2 || y >= h - 2)
                 return carbon;
             if (y < 5 || y >= h - 6)
-                return mix(bezel, steel, y < 5 ? 0.53 : 0.28);
+                return mix(bezel, steel, y < 5 ? 0.62 : 0.30);
             if (y < faceTop || y >= faceBottom)
             {
                 if (centre < 27 && y >= faceBottom + 4 && y < faceBottom + 9)
@@ -130,15 +140,17 @@ namespace SkinAuthoring
             int edge = chamferedEdge(x - 8, y - faceTop, w - 16, faceBottom - faceTop, 7);
             if (edge < 0) return carbon;
             if (edge < 3) return mix(carbon, steel, 0.42);
-            if (edge < 7) return mix(bezel, pressed ? signal : steel, y < h / 3 ? 0.76 : 0.34);
+            if (edge < 7) return mix(bezel, pressed ? signal : steel, y < h / 3 ? 0.82 : 0.39);
             double depth = (y - faceTop) / (double)(faceBottom - faceTop);
             if (y >= faceBottom - 13 && y < faceBottom - 10 && centre < 14)
                 return mix(carbon, signal, dark || pressed ? 0.86 : 0.48);
+            if (edge < 10 && y > faceBottom - h / 7)
+                return mix(bezel, signal, dark ? 0.20 : 0.43);
             if (pressed)
                 return mix(bezel, signal, dark ? 0.44 + (1 - depth) * 0.37 : 0.63 + (1 - depth) * 0.30);
             return dark
-                ? mix(carbon, steel, 0.42 - depth * 0.22)
-                : mix(steel, role == "special" ? mix(porcelain, signal, 0.28) : porcelain, 0.95 - depth * 0.45);
+                ? mix(carbon, steel, 0.40 - depth * 0.23)
+                : mix(steel, role == "special" ? mix(porcelain, signal, 0.30) : porcelain, 0.99 - depth * 0.37);
         }
 
         private static Rgba32 platter(int x, int y, int w, Rgba32 accent, bool pressed)
@@ -168,39 +180,13 @@ namespace SkinAuthoring
             return pixel;
         }
 
-        private static Rgba32 cabinet(int x, int y, int w, int h, Rgba32 accent, bool bms)
-        {
-            double u = x / (double)w, v = y / (double)h;
-            double dx = Math.Min(u, 1 - u), dy = Math.Min(v, 1 - v);
-            double light = Math.Clamp(1 - Math.Sqrt(Math.Pow((u - 0.54) * 1.55, 2) + Math.Pow((v - 0.14) * 1.22, 2)), 0, 1);
-            Rgba32 matte = mix(carbon, bezel, 0.10 + light * (bms ? 0.47 : 0.33) + (y % 4 == 0 ? 0.023 : 0));
-            double cut = Math.Min(dx + dy, Math.Min(dx * 2.2, dy));
-            if (cut < 0.004) return carbon;
-            if (cut < 0.006) return mix(carbon, steel, 0.48);
-            if (cut < 0.025)
-            {
-                double shoulder = Math.Abs(dx * 0.70 - dy);
-                if (cut < 0.014 && (dy < 0.016 ? dx > 0.065 && dx < 0.31 : dy > 0.30))
-                    return mix(bezel, accent, v < 0.5 ? 0.65 : 0.42);
-                return mix(carbon, bezel, 0.64 + (shoulder < 0.006 ? 0.20 : 0));
-            }
-            if (dy < 0.076 && dx < (0.070 - dy * 0.61))
-                return mix(matte, steel, ((x + y) % 11 < 2 ? 0.26 : 0.12));
-            if (v > 0.922 && dx > 0.15 && dx < 0.45)
-            {
-                if (v is > 0.946 and < 0.950) return mix(matte, accent, 0.38);
-                if (v is > 0.954 and < 0.967 && x % 18 < 7) return mix(matte, steel, 0.26);
-            }
-            return matte;
-        }
-
         private static Rgba32 laneSurface(int x, int y, int w, int h, string role, Rgba32 accent)
         {
             double horizontal = 1 - Math.Abs((2.0 * x / (w - 1)) - 1);
             double bottom = y / (double)(h - 1);
             Rgba32 led = role is "scratch" ? scratch : role is "special" ? copper : accent;
             double body = role == "white" ? 0.44 : role == "accent" ? 0.13 : 0.23;
-            Rgba32 matte = mix(carbon, bezel, body + horizontal * 0.11);
+            Rgba32 matte = mix(carbon, bezel, body * 0.88 + horizontal * 0.09);
             if (x is < 3 || x >= w - 3)
                 return mix(matte, led, 0.06 + bottom * 0.17);
             return mix(matte, led, Math.Pow(bottom, 12) * (role is "scratch" or "special" ? 0.13 : 0.07));
@@ -237,31 +223,22 @@ namespace SkinAuthoring
             return mix(carbon, bezel, 0.38 + 0.37 * (1 - y / (double)h));
         }
 
-        private static Rgba32 videoBezel(int x, int y, int w, int h, Rgba32 accent)
-        {
-            int dx = Math.Min(x, w - 1 - x), dy = Math.Min(y, h - 1 - y);
-            int edge = Math.Min(dx, dy);
-            if (edge > 11 && dx + dy > 36) return default;
-            if (edge < 2 || dx + dy is >= 33 and <= 36) return carbon;
-            if (edge < 4) return mix(bezel, steel, 0.61);
-            if (dy < 8 && dx is > 18 and < 88) return mix(bezel, accent, 0.72);
-            if (edge < 9 || dx + dy < 32) return bezel;
-            return mix(carbon, steel, 0.29);
-        }
-
         private static Rgba32 instrument(int x, int y, int w, int h, Rgba32 accent, bool gauge)
         {
             int edge = chamferedEdge(x, y, w, h, gauge ? 20 : 22);
             if (edge < 0) return default;
-            if (edge < 2) return carbon;
-            if (edge < 5) return mix(bezel, steel, y < h / 2 ? 0.76 : 0.44);
-            if (edge < 9) return mix(carbon, bezel, 0.76);
+            int shoulder = Math.Min(x, w - 1 - x);
+            if (edge < 3) return carbon;
+            if (edge < 6) return mix(bezel, steel, y < h / 2 ? 0.78 : 0.43);
+            if (shoulder < 14)
+                return mix(bezel, steel, 0.28 + 0.30 * (1 - y / (double)h));
             if (gauge && y > h * 0.44)
-                return y < h * 0.47 ? mix(bezel, steel, 0.43) : carbon;
-            if (y is >= 9 and <= 12 && x > 27 && x < w * 0.31) return mix(bezel, accent, 0.65);
-            if (y >= h - 14 && y < h - 9 && x > w * 0.81 && x < w - 28)
-                return x % 13 < 7 ? mix(carbon, accent, 0.44) : bezel;
-            return mix(carbon, bezel, 0.13 + 0.55 * (1 - y / (double)h));
+                return y < h * 0.47 ? mix(bezel, steel, 0.55) : carbon;
+            if (x is > 16 and < 21 && y is > 24 && y < h - 24)
+                return mix(bezel, accent, 0.82);
+            if (y > h - 12)
+                return mix(carbon, bezel, 0.64);
+            return mix(carbon, bezel, 0.16 + 0.56 * (1 - y / (double)h));
         }
 
         private static Rgba32 gaugeCell(int x, int y, int w, int h, Rgba32 accent)
@@ -278,17 +255,18 @@ namespace SkinAuthoring
         {
             int edge = chamferedEdge(x, y, w, h, 24);
             if (edge < 0) return default;
-            if (edge < 3) return mix(bezel, accent, 0.35, 175);
-            if (edge < 9 && (x < 48 || x > w - 49)) return mix(bezel, accent, 0.72, 220);
-            return mix(carbon, accent, 0.085, 143);
+            if (x >= 42 && x < w - 42) return default;
+            if (edge < 6 && y > 10 && y < h - 10)
+                return mix(bezel, accent, 0.85, 231);
+            return default;
         }
 
         private static Rgba32 keyLight(int x, int y, int w, int h, Rgba32 accent)
         {
             double across = 1 - Math.Abs((2.0 * x / w) - 1);
-            double length = Math.Pow(Math.Clamp(1 - y / (double)h, 0, 1), 3);
+            double length = Math.Pow(Math.Clamp(1 - y / (double)h, 0, 1), 4.4);
             double opacity = Math.Pow(across, 2.4) * length;
-            return mix(accent, porcelain, Math.Pow(across, 10) * 0.45, (byte)(112 * opacity));
+            return mix(accent, porcelain, Math.Pow(across, 10) * 0.45, (byte)(98 * opacity));
         }
 
         private static Rgba32 hitSpark(int x, int y, int w, Rgba32 accent)

@@ -67,7 +67,7 @@ Standard20分别完成11月10日OMS同包/原图/交付核验及11月15日beator
 
 历史回归按原报告保留失败身份与堆栈，后续修复取owning STATUS；专项通过不代表全仓库全绿。较早谱库、偏移/TOTAL及设置/编辑证据从相应STATUS或[CHANGELOG](CHANGELOG.md)检索。
 
-静线当前原创美术与实绘取[P1-A 更新](../subline/P1-A/CHANGELOG.md#2026-11-27-静线原创美术更新)。发行记录和待验门取 [P1-F](../subline/P1-F/DEVELOPMENT_STATUS.md#最近一次验证)。
+静线当前原创美术与实绘取[P1-A 更新](../subline/P1-A/CHANGELOG.md#2026-11-27-静线整屏构图重做)。发行记录和待验门取 [P1-F](../subline/P1-F/DEVELOPMENT_STATUS.md#最近一次验证)。
 
 ## 文档治理验证
 
