@@ -468,6 +468,9 @@ namespace SkinAuthoring
             {
                 foreach (var slot in GameplaySkinSlotCatalog.All)
                 {
+                    // The template provides no lift artwork. Leave these optional BMS slots to authors.
+                    if (slot == GameplaySkinSlotCatalog.LiftFill || slot == GameplaySkinSlotCatalog.LiftDecoration)
+                        continue;
                     if (layout.Ruleset == "mania" && slot.Id is "object.mine" or "playfield.turntable" or "playfield.laser" or "bga.viewport" or "bga.frame")
                         continue;
                     if (layout.Keymode.StartsWith("9k", StringComparison.Ordinal) && slot.Id is "playfield.turntable" or "playfield.laser")

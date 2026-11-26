@@ -58,7 +58,7 @@ public static class OmsC7OwnedGameWindow
         var windowTitle = new StringBuilder(256);
         return GetClassName(window, windowClass, windowClass.Capacity) > 0 &&
                GetWindowText(window, windowTitle, windowTitle.Capacity) > 0 &&
-               windowClass.ToString() == "SDL_app" && windowTitle.ToString() == "osu!";
+               windowClass.ToString() == "SDL_app" && windowTitle.ToString() == "OMS";
     }
 
     private static void AssertOwnedProcess(Process process, string expectedExecutable)
@@ -87,7 +87,7 @@ public static class OmsC7OwnedGameWindow
             throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not enumerate the acceptance window.");
         GC.KeepAlive(callback);
         if (windows.Count != 1)
-            throw new InvalidOperationException("Expected one owned SDL_app / osu! window, found " + windows.Count + ".");
+            throw new InvalidOperationException("Expected one owned SDL_app / OMS window, found " + windows.Count + ".");
 
         IntPtr target = windows[0];
         AssertOwnedProcess(process, expectedExecutable);
@@ -100,7 +100,7 @@ public static class OmsC7OwnedGameWindow
         {
             WindowHandle = "0x" + target.ToInt64().ToString("x"),
             WindowClass = "SDL_app",
-            WindowTitle = "osu!",
+            WindowTitle = "OMS",
             ProcessId = process.Id,
             Posted = true
         };
