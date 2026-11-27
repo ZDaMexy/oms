@@ -185,6 +185,12 @@
       "source": "song.table-classification"
     },
     {
+      "id": "still.bms-bind.level",
+      "target": "still.bms-hud.level",
+      "property": "text",
+      "source": "song.level"
+    },
+    {
       "id": "still.bms-bind.title",
       "target": "still.bms-hud.title",
       "property": "text",
@@ -201,12 +207,6 @@
       "target": "still.bms-hud.difficulty",
       "property": "text",
       "source": "song.difficulty"
-    },
-    {
-      "id": "still.bms-bind.level",
-      "target": "still.bms-hud.level",
-      "property": "text",
-      "source": "song.level"
     },
     {
       "id": "still.bms-bind.bpm-min",
@@ -537,25 +537,12 @@
           "kind": "global"
         },
         "blend": "alpha",
-        "properties": {},
+        "properties": {
+          "x": 0.2,
+          "width": 0.6
+        },
         "effects": [],
         "children": [
-          {
-            "id": "still.hud.health-panel",
-            "type": "sprite",
-            "target": {
-              "kind": "global"
-            },
-            "blend": "alpha",
-            "properties": {
-              "x": 0.05,
-              "width": 0.22,
-              "height": 0.94
-            },
-            "effects": [],
-            "children": [],
-            "resource": "texture.instrument-mania"
-          },
           {
             "id": "still.hud.panel",
             "type": "sprite",
@@ -564,40 +551,6 @@
             },
             "blend": "alpha",
             "properties": {
-              "x": 0.28,
-              "width": 0.19,
-              "height": 0.94
-            },
-            "effects": [],
-            "children": [],
-            "resource": "texture.instrument-mania"
-          },
-          {
-            "id": "still.hud.accuracy-panel",
-            "type": "sprite",
-            "target": {
-              "kind": "global"
-            },
-            "blend": "alpha",
-            "properties": {
-              "x": 0.48,
-              "width": 0.22,
-              "height": 0.94
-            },
-            "effects": [],
-            "children": [],
-            "resource": "texture.instrument-mania"
-          },
-          {
-            "id": "still.hud.bpm-panel",
-            "type": "sprite",
-            "target": {
-              "kind": "global"
-            },
-            "blend": "alpha",
-            "properties": {
-              "x": 0.71,
-              "width": 0.24,
               "height": 0.94
             },
             "effects": [],
@@ -788,7 +741,7 @@
               "x": 0.733,
               "y": 0.3,
               "font-size": 22,
-              "colour": "#b7a3ffff"
+              "colour": "#ff9bcaff"
             },
             "effects": [],
             "children": []
@@ -821,7 +774,7 @@
               "y": 0.94,
               "width": 0,
               "height": 0.022,
-              "colour": "#b7a3ffff"
+              "colour": "#ff9bcaff"
             },
             "effects": [],
             "children": [],
@@ -869,42 +822,6 @@
                 "resource": "texture.instrument"
               },
               {
-                "id": "still.bms-hud.song-accent",
-                "type": "sprite",
-                "target": {
-                  "kind": "global"
-                },
-                "blend": "alpha",
-                "properties": {
-                  "x": 0.023,
-                  "y": 0.15,
-                  "width": 0.003,
-                  "height": 0.68,
-                  "colour": "#86d9e7ff"
-                },
-                "effects": [],
-                "children": [],
-                "resource": "texture.white"
-              },
-              {
-                "id": "still.bms-hud.author-rule",
-                "type": "sprite",
-                "target": {
-                  "kind": "global"
-                },
-                "blend": "alpha",
-                "properties": {
-                  "x": 0.695,
-                  "y": 0.16,
-                  "width": 0.18,
-                  "height": 0.012,
-                  "colour": "#45616fff"
-                },
-                "effects": [],
-                "children": [],
-                "resource": "texture.white"
-              },
-              {
                 "id": "still.bms-hud.table-classification",
                 "type": "text",
                 "target": {
@@ -913,13 +830,54 @@
                 "blend": "alpha",
                 "properties": {
                   "text": "",
-                  "x": 0.04,
-                  "y": 0.09,
-                  "width": 0.63,
-                  "height": 0.21,
-                  "font-size": 14,
+                  "x": 0.05,
+                  "y": 0.1,
+                  "width": 0.64,
+                  "height": 0.22,
+                  "font-size": 11,
                   "colour": "#86d9e7ff",
                   "alignment": "left",
+                  "text-overflow": "ellipsis"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.level-label",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "LV.",
+                  "x": 0.7,
+                  "y": 0.1,
+                  "width": 0.1,
+                  "height": 0.22,
+                  "font-size": 10,
+                  "colour": "#a7bbcaff",
+                  "alignment": "right"
+                },
+                "effects": [],
+                "children": []
+              },
+              {
+                "id": "still.bms-hud.level",
+                "type": "text",
+                "target": {
+                  "kind": "global"
+                },
+                "blend": "alpha",
+                "properties": {
+                  "text": "",
+                  "x": 0.82,
+                  "y": 0.08,
+                  "width": 0.13,
+                  "height": 0.25,
+                  "font-size": 14,
+                  "colour": "#eef7ffff",
+                  "alignment": "right",
                   "text-overflow": "ellipsis"
                 },
                 "effects": [],
@@ -934,11 +892,11 @@
                 "blend": "alpha",
                 "properties": {
                   "text": "",
-                  "x": 0.04,
-                  "y": 0.29,
-                  "width": 0.63,
-                  "height": 0.35,
-                  "font-size": 24,
+                  "x": 0.05,
+                  "y": 0.32,
+                  "width": 0.9,
+                  "height": 0.33,
+                  "font-size": 19,
                   "colour": "#eef7ffff",
                   "alignment": "left",
                   "text-overflow": "ellipsis"
@@ -955,11 +913,11 @@
                 "blend": "alpha",
                 "properties": {
                   "text": "",
-                  "x": 0.04,
-                  "y": 0.64,
-                  "width": 0.63,
-                  "height": 0.2,
-                  "font-size": 12,
+                  "x": 0.05,
+                  "y": 0.69,
+                  "width": 0.53,
+                  "height": 0.19,
+                  "font-size": 11,
                   "colour": "#a7bbcaff",
                   "alignment": "left",
                   "text-overflow": "ellipsis"
@@ -976,53 +934,12 @@
                 "blend": "alpha",
                 "properties": {
                   "text": "",
-                  "x": 0.69,
-                  "y": 0.22,
-                  "width": 0.21,
-                  "height": 0.25,
-                  "font-size": 13,
+                  "x": 0.6,
+                  "y": 0.69,
+                  "width": 0.35,
+                  "height": 0.19,
+                  "font-size": 11,
                   "colour": "#86d9e7ff",
-                  "alignment": "centre",
-                  "text-overflow": "ellipsis"
-                },
-                "effects": [],
-                "children": []
-              },
-              {
-                "id": "still.bms-hud.level-label",
-                "type": "text",
-                "target": {
-                  "kind": "global"
-                },
-                "blend": "alpha",
-                "properties": {
-                  "text": "LV.",
-                  "x": 0.72,
-                  "y": 0.58,
-                  "width": 0.07,
-                  "height": 0.2,
-                  "font-size": 10,
-                  "colour": "#a7bbcaff",
-                  "alignment": "left"
-                },
-                "effects": [],
-                "children": []
-              },
-              {
-                "id": "still.bms-hud.level",
-                "type": "text",
-                "target": {
-                  "kind": "global"
-                },
-                "blend": "alpha",
-                "properties": {
-                  "text": "",
-                  "x": 0.79,
-                  "y": 0.51,
-                  "width": 0.1,
-                  "height": 0.28,
-                  "font-size": 18,
-                  "colour": "#eef7ffff",
                   "alignment": "right",
                   "text-overflow": "ellipsis"
                 },

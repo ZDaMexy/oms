@@ -2,11 +2,13 @@
 
 ## 当前素材（2026-11-27）
 
-内置静线的控制台、转盘、轨道、短音符和长条、HUD、血槽及命中图由 `tools/SkinAuthoring/SkinRecipe.CompactArtwork.cs` 离线绘制。BMS 使用冷青仪表和玫红皿轨，mania 使用紫色仪表和暖色中键。借鉴的是既有作品的键面层次、读数位置和反馈层级，随软件发布的是新绘的独立图形。配方使用 `author.json` 中的配色，无外部美术输入。
+静线的音符、长条和键面取 team osu! 的 Classic mania 素材，源文件来自 `ppy.osu.Game.Resources` 的 `Skins/Legacy`。mania 的音符和长条保留原图，键面缩放到键区。BMS 配方按既有判定末行适配音符和长条，白键沿原图，短黑键与皿轨使用淡蓝和粉色。
+
+转盘、分段血槽、暗色底板和读数面板由普通离线配方绘制，配色取 `author.json`。上游素材和变更说明随作者包保存。所有新文件无 HDD 原素材输入。[作者包来源及授权](../sources/oms-simple/README.md)
 
 正常构建打包现有源文件。完成自定义美术的作者可直接运行 `Author.ps1 check` 与 `pack`。准备重绘配方素材时，可在副本上执行 `Author.ps1 generate`，它会重建受配方管理的 PNG 和配置。引擎只读取普通皮肤资源，不调用绘图代码。判定、早晚、血量及曲目信息沿现有事实绑定。
 
-当前[素材拼合预览](../dist/oms-simple-preview.png)来自同一组 PNG。实际截图与验证范围取 [P1-A](../../doc_md/subline/P1-A/CHANGELOG.md#2026-11-27-静线原创美术更新)。
+当前[素材拼合预览](../dist/oms-simple-preview.png)来自同一组 PNG。实际截图与验证范围取 [P1-A](../../doc_md/subline/P1-A/CHANGELOG.md#2026-11-27-静线采用经典素材)。
 
 ## 2026 年 9 月旧版素材记录
 

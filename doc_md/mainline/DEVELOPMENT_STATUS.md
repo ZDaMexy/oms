@@ -1,11 +1,11 @@
 # OMS 当前开发状态
 
-> 最后核对：2026-11-27（内置静线回到前版）
+> 最后核对：2026-11-27（内置静线采用经典素材）
 > 本页只保留全局状态与风险。执行顺序见[当前计划](DEVELOPMENT_PLAN.md)，专项事实从[子线路由](../subline/README.md)进入，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
 
-OMS 处于 Phase 1.x 后段。静线是 BMS/mania 唯一内置、默认与保底，支持按模式与键数选择。星轨已退役。静线恢复到整屏铜纹方案之前的版本，外观待调整。真实设备、长期体验、Skin V1 与正式发行待签收。下载与 BGA 作者能力见 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)，性能与听感见 [P1-J](../subline/P1-J/DEVELOPMENT_STATUS.md)。
+OMS 处于 Phase 1.x 后段。静线是 BMS/mania 唯一内置、默认与保底，支持按模式与键数选择。星轨已退役。静线采用 Classic 音符和键面，BMS 专用组件由 OMS 定制。真实设备、长期体验、Skin V1 与正式发行待签收。下载与 BGA 作者能力见 [P1-A](../subline/P1-A/DEVELOPMENT_STATUS.md)，性能与听感见 [P1-J](../subline/P1-J/DEVELOPMENT_STATUS.md)。
 
 Autoplay连续跳转、详细窗统计及独立Omni血条/33默认FC已修，具名证据取[P1-A修复记录](../subline/P1-A/CHANGELOG.md#2026-10-22autoplay跳转与omni反馈修复)；正常窗口剩余门由其STATUS维护，先前重进或开场测试不代签。
 
@@ -67,7 +67,7 @@ Standard20分别完成11月10日OMS同包/原图/交付核验及11月15日beator
 
 历史回归按原报告保留失败身份与堆栈，后续修复取owning STATUS；专项通过不代表全仓库全绿。较早谱库、偏移/TOTAL及设置/编辑证据从相应STATUS或[CHANGELOG](CHANGELOG.md)检索。
 
-静线当前外观取 [P1-A 回退记录](../subline/P1-A/CHANGELOG.md#2026-11-27-撤回静线整屏构图方案)。发行记录和待验门取 [P1-F](../subline/P1-F/DEVELOPMENT_STATUS.md#最近一次验证)。
+静线当前外观取 [P1-A 更新](../subline/P1-A/CHANGELOG.md#2026-11-27-静线采用经典素材)。发行记录和待验门取 [P1-F](../subline/P1-F/DEVELOPMENT_STATUS.md#最近一次验证)。
 
 ## 文档治理验证
 

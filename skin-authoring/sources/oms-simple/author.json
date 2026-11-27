@@ -3,8 +3,9 @@
   "author": "OMS contributors",
   "complex": false,
   "compactLayout": true,
-  "bmsAccent": "58d3ea",
-  "maniaAccent": "b7a3ff",
-  "highlight": "f3ca78",
-  "background": "0b1019"
+  "classicArtwork": true,
+  "bmsAccent": "8cc9ff",
+  "maniaAccent": "ff9bca",
+  "highlight": "ffd66e",
+  "background": "17151e"
 }

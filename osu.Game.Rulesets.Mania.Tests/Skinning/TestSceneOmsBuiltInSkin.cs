@@ -516,8 +516,8 @@ namespace osu.Game.Rulesets.Mania.Tests.Skinning
                     Assert.That(entry.Source.ContentRevision, Is.EqualTo((authoredNote ? skinManager.CurrentSkin.Value : skinManager.DefaultOmsSkin).GameplaySkinDocument.Identity.ContentRevision));
                     if (authoredNote)
                         Assert.That(entry.Source.StableId, Is.EqualTo("selected-legacy-mania"), "Ordinary conventional note assets retain selected-author priority.");
-                    Assert.That(frame.Width, Is.EqualTo(authoredNote ? 11 : 128));
-                    Assert.That(frame.Height, Is.EqualTo(authoredNote ? 13 : body ? 128 : 24));
+                    Assert.That(frame.Width, Is.EqualTo(authoredNote ? 11 : 512));
+                    Assert.That(frame.Height, Is.EqualTo(authoredNote ? 13 : 164));
                     Assert.That(hasTexture(visual, frame), Is.True, "The live note must display the exact prepared material, including its texture region.");
                     Assert.That(visual.DrawSize.X, Is.GreaterThan(0));
                     Assert.That(visual.DrawSize.Y, Is.GreaterThan(0));
