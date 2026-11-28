@@ -1,13 +1,13 @@
 # P1-A 当前状态：Skin V1、产品面与 release gate
 
-> 核对：2026-11-28（静线纠正经典素材来源）
+> 核对：2026-11-29（静线本机候选画面比例）
 > 全局见[主线状态](../../mainline/DEVELOPMENT_STATUS.md)，后续门见[PLAN](DEVELOPMENT_PLAN.md)，稳定合同见[TECHNICAL_CONSTRAINTS](TECHNICAL_CONSTRAINTS.md)，历史见[CHANGELOG](CHANGELOG.md)。
 
 ## 一句话状态
 
 本地导入、外链与依赖修复已入树，旧在线保持关闭。BMS将Sudden/Hidden/Lift与Hi-Speed统一到“读谱设置”，局内调整按单一开关成组记忆。构建、回归与依赖取[最近一次验证](#最近一次验证)。
 
-静线为唯一内置、首次默认与保底；complex已退役。公开内置恢复前版，IIDX 素材适配见[本机候选](CHANGELOG.md#2026-11-28-更正静线经典素材方向)。BMS/mania各有模式默认和键数覆盖，旧全局配置首次迁移；游玩按最终键数应用。原V-001～V-005、设备和长期体验未签收，Skin V1/release未完成。C1～C7证据不重计，OmsSkin物理删除仍待原实机门。
+静线为唯一内置、首次默认与保底；complex已退役。公开内置恢复前版，IIDX 素材适配与复拍见[本机候选](CHANGELOG.md#2026-11-29-静线本机候选的转盘与音符比例)。BMS/mania各有模式默认和键数覆盖，旧全局配置首次迁移；游玩按最终键数应用。原V-001～V-005、设备和长期体验未签收，Skin V1/release未完成。C1～C7证据不重计，OmsSkin物理删除仍待原实机门。
 
 ## IIDX 作品与平台维护状态
 

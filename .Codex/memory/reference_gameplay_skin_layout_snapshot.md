@@ -10,6 +10,10 @@ metadata:
 
 完整 context/snapshot、consumer 矩阵与验证面见 [P1-A CONSTRAINTS](../../doc_md/subline/P1-A/TECHNICAL_CONSTRAINTS.md)；当前门读 [STATUS](../../doc_md/subline/P1-A/DEVELOPMENT_STATUS.md)。这里保存为什么不能恢复第二套 geometry 权威。
 
+## 盘位与长条端头的截图判读
+
+两层转盘同心时，整个转盘仍可能偏到键组外侧。比较同尺寸下的 1P 与 2P，用画面宽减一再减去右盘中心横坐标，与左盘中心横坐标核对。mania 的 LegacyHoldNoteTailPiece 会额外翻转尾图。接入已画出上下端的素材时，对照游玩中两端和条身的接缝，避免首尾出现同一朝向。
+
 ## 判断是否同一结果
 
 - 显式作者stage/lanes是同一solver的输入，不是新拓扑；按真实group-local logical顺序映射，空槽不进lane集合。BMS不得重建field时丢authorTop，旧BGA退让也不能重新移动作者field；键区/默认血槽越safe应整profile诊断回退，不留半套几何。
