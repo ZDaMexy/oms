@@ -18,21 +18,6 @@ namespace SkinAuthoring
             Rgba32 bms = colour(profile.BmsAccent);
             Rgba32 mania = colour(profile.ManiaAccent);
             string scene = Path.Combine(root, "scene");
-            if (profile.ClassicArtwork)
-            {
-                Rgba32 background = colour(profile.Background);
-                foreach (string path in new[] { Path.Combine(scene, "cabinet.png"), Path.Combine(root, "mania", "cabinet.png") })
-                    draw(path, 160, 90, (x, y, w, h) => classicBackdrop(x, y, w, h, background));
-                draw(Path.Combine(scene, "instrument.png"), 640, 128, classicInstrument);
-                draw(Path.Combine(scene, "instrument-mania.png"), 640, 112, classicInstrument);
-                draw(Path.Combine(scene, "gauge-frame.png"), 768, 128, classicInstrument);
-                draw(Path.Combine(scene, "gauge-cells.png"), 1000, 40, (x, y, _, h) => classicGaugeCell(x, y, h, bms));
-                draw(Path.Combine(scene, "gauge-cells-mania.png"), 1000, 40, (x, y, _, h) => classicGaugeCell(x, y, h, mania));
-                foreach ((string name, Rgba32 accent) in new[] { ("cool", bms), ("warm", colour(profile.Highlight)), ("fault", classicScratch) })
-                    draw(Path.Combine(scene, $"judgement-{name}.png"), 384, 84, (x, y, w, _) =>
-                        y is >= 75 and <= 81 && Math.Abs(x - w / 2) < 46 ? accent : default);
-                return;
-            }
             draw(Path.Combine(scene, "cabinet.png"), 1536, 864, (x, y, w, h) => cabinet(x, y, w, h, bms, true));
             draw(Path.Combine(root, "mania", "cabinet.png"), 1280, 720, (x, y, w, h) => cabinet(x, y, w, h, mania, false));
             draw(Path.Combine(scene, "instrument.png"), 640, 128, (x, y, w, h) => instrument(x, y, w, h, bms, false));
@@ -44,29 +29,29 @@ namespace SkinAuthoring
                 draw(Path.Combine(scene, $"judgement-{name}.png"), 384, 84, (x, y, w, h) => judgementPlate(x, y, w, h, accent));
         }
 
-        private static void drawCompactDeck(string assets, bool bms, Rgba32 accent, bool classic)
+        private static void drawCompactDeck(string assets, bool bms, Rgba32 accent)
         {
             if (bms)
             {
                 foreach (string role in new[] { "white", "accent", "scratch" })
-                    draw(Path.Combine(assets, $"lane-{role}.png"), 256, 64, (x, y, w, h) => classic ? classicLane(role) : laneSurface(x, y, w, h, role, accent));
+                    draw(Path.Combine(assets, $"lane-{role}.png"), 256, 64, (x, y, w, h) => laneSurface(x, y, w, h, role, accent));
             }
             else
             {
-                draw(Path.Combine(assets, "lane.png"), 256, 64, (x, y, w, h) => classic ? classicLane("white") : laneSurface(x, y, w, h, "white", accent));
+                draw(Path.Combine(assets, "lane.png"), 256, 64, (x, y, w, h) => laneSurface(x, y, w, h, "white", accent));
             }
 
             var dividers = bms ? new[] { ("divider", 10), ("divider-accent", 13), ("divider-scratch", 6) } : new[] { ("divider", 10) };
             foreach ((string name, int edge) in dividers)
                 draw(Path.Combine(assets, name + ".png"), 256, 32, (x, _, _, _) =>
-                    x < edge ? (classic ? classicRim : mix(steel, accent, x == 0 ? 0.37 : 0.10, x == 0 ? (byte)200 : (byte)125)) : default);
+                    x < edge ? mix(steel, accent, x == 0 ? 0.37 : 0.10, x == 0 ? (byte)200 : (byte)125) : default);
 
             draw(Path.Combine(assets, "target.png"), 256, 32, (x, y, w, _) => hitLine(x, y, w, bms ? scratch : accent));
             draw(Path.Combine(assets, "bar.png"), 256, 32, (x, y, w, _) => y == 15
                 ? mix(steel, accent, x is < 24 || x >= w - 24 ? 0.40 : 0.08, 105)
                 : default);
             draw(Path.Combine(assets, "frame.png"), 256, 256, (x, y, w, h) => deckRail(x, y, w, h, accent));
-            draw(Path.Combine(assets, "plate.png"), 256, 96, (x, y, w, h) => classic ? classicInstrument(x, y, w, h) : deckBase(x, y, w, h, accent));
+            draw(Path.Combine(assets, "plate.png"), 256, 96, (x, y, w, h) => deckBase(x, y, w, h, accent));
             if (!bms)
             {
                 // The legacy stage gauge projects across each lane group. Keep it as a fine lower-edge
@@ -76,10 +61,9 @@ namespace SkinAuthoring
                 return;
             }
 
-            draw(Path.Combine(assets, "stage.png"), 256, 256, (_, y, _, h) => classic ? classicBlack : mix(carbon, bezel, y < h * 0.70 ? 0.07 : 0.36));
-            if (!classic)
-                draw(Path.Combine(assets, "bga-frame.png"), 1024, 768, (x, y, w, h) => videoBezel(x, y, w, h, accent));
-            draw(Path.Combine(assets, "scratch-platter.png"), 512, 512, (x, y, w, _) => classic ? classicPlatter(x, y, w, accent, false) : platter(x, y, w, accent, false));
+            draw(Path.Combine(assets, "stage.png"), 256, 256, (_, y, _, h) => mix(carbon, bezel, y < h * 0.70 ? 0.07 : 0.36));
+            draw(Path.Combine(assets, "bga-frame.png"), 1024, 768, (x, y, w, h) => videoBezel(x, y, w, h, accent));
+            draw(Path.Combine(assets, "scratch-platter.png"), 512, 512, (x, y, w, _) => platter(x, y, w, accent, false));
             draw(Path.Combine(assets, "flash.png"), 192, 256, (x, y, w, h) => keyLight(x, y, w, h, accent));
             draw(Path.Combine(assets, "explosion.png"), 192, 192, (x, y, w, _) => hitSpark(x, y, w, accent));
             draw(Path.Combine(assets, "gauge.png"), 512, 80, (x, y, w, h) => instrument(x, y, w, h, accent, true));

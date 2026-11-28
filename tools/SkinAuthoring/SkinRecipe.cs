@@ -36,19 +36,11 @@ namespace SkinAuthoring
                     Rgba32 roleColour = role switch { "white" => new Rgba32(234, 241, 247), "accent" => accent, "special" => highlight, _ => new Rgba32(251, 119, 127) };
                     foreach (string part in new[] { "note", "head", "body", "tail", "key", "pressed" })
                     {
-                        string path = Path.Combine(assets, $"{part}-{role}.png");
-                        if (profile.ClassicArtwork && !(bms && role == "scratch" && part is "key" or "pressed"))
-                        {
-                            drawClassicPart(path, part, role, accent, bms);
-                            continue;
-                        }
                         int height = part == "body" || profile.CompactLayout && bms && part is "key" or "pressed"
                             ? 128 : part is "key" or "pressed" ? 72 : 24;
-                        draw(path, 128, height,
+                        draw(Path.Combine(assets, $"{part}-{role}.png"), 128, height,
                             (x, y, w, h) => profile.CompactLayout
-                                ? profile.ClassicArtwork
-                                    ? classicPlatter(x, y, w, accent, part == "pressed")
-                                    : compactPart(x, y, w, h, part, role, accent, bms)
+                                ? compactPart(x, y, w, h, part, role, accent, bms)
                                 : note(x, y, w, h, part, roleColour, background, profile.Complex, 0));
                         if (profile.Complex && part is "note" or "head" or "body" or "tail")
                             for (int frame = 0; frame < 12; frame++)
@@ -65,7 +57,7 @@ namespace SkinAuthoring
                         (x, y, w, h) => surface(x, y, w, h, name, accent, background, highlight, profile.Complex));
 
                 if (profile.CompactLayout)
-                    drawCompactDeck(assets, bms, accent, profile.ClassicArtwork);
+                    drawCompactDeck(assets, bms, accent);
             }
 
             Directory.CreateDirectory(Path.Combine(root, "scene"));
@@ -289,10 +281,7 @@ namespace SkinAuthoring
                 if (profile.CompactLayout && keys != 9)
                     ini.AppendLine("BlackLaneWidth: 0.7777778");
                 if (profile.CompactLayout)
-                    ini.AppendLine("KeyAreaHeight: 0.12").AppendLine("ScratchKeyWidth: 2").AppendLine("GaugeHeight: 0.07")
-                        .AppendLine($"BgaWidth: {(profile.ClassicArtwork ? "0.44" : "0.60")}")
-                        .AppendLine($"BgaHeight: {(profile.ClassicArtwork ? "0.45" : "0.76")}")
-                        .AppendLine("BgaVerticalPosition: 0.45").AppendLine("BgaInformationHeight: 0.18");
+                    ini.AppendLine("KeyAreaHeight: 0.12").AppendLine("ScratchKeyWidth: 2").AppendLine("GaugeHeight: 0.07").AppendLine("BgaWidth: 0.60").AppendLine("BgaHeight: 0.76").AppendLine("BgaVerticalPosition: 0.45").AppendLine("BgaInformationHeight: 0.18");
                 IEnumerable<string> lanes = keys == 14 ? new[] { "S" }.Concat(Enumerable.Range(1, 14).Select(n => n.ToString())).Append("S2")
                     : keys == 9 ? Enumerable.Range(0, 9).Select(n => n.ToString()) : new[] { "S" }.Concat(Enumerable.Range(1, keys).Select(n => n.ToString()));
                 foreach (string lane in lanes)
@@ -356,7 +345,7 @@ namespace SkinAuthoring
                         {
                             if (slot.Id is "effect.key-flash" or "effect.hit-explosion")
                                 operation = $"Provide \"bms/{asset(slot.Id, role)}\"";
-                            if (slot.Id == "bga.frame" && !profile.ClassicArtwork)
+                            if (slot.Id == "bga.frame")
                                 operation = "Provide \"bms/bga-frame\"";
                             if (slot.Id == "playfield.lane-surface")
                                 operation = $"Provide \"bms/lane-{role}\"";
@@ -682,6 +671,10 @@ namespace SkinAuthoring
                 });
                 var information = new List<object>
                 {
+                    hudElement("still.hud.health-panel", "sprite", new() { ["x"] = 0.05, ["width"] = 0.22, ["height"] = 0.94 }, "instrument-mania"),
+                    hudElement("still.hud.panel", "sprite", new() { ["x"] = 0.28, ["width"] = 0.19, ["height"] = 0.94 }, "instrument-mania"),
+                    hudElement("still.hud.accuracy-panel", "sprite", new() { ["x"] = 0.48, ["width"] = 0.22, ["height"] = 0.94 }, "instrument-mania"),
+                    hudElement("still.hud.bpm-panel", "sprite", new() { ["x"] = 0.71, ["width"] = 0.24, ["height"] = 0.94 }, "instrument-mania"),
                     hudLabel("still.hud.health-label", "HEALTH", 0.067, 0.04, 10, "#cad6e8ff"),
                     hudElement("still.hud.health-value", "text", new()
                     {
@@ -705,23 +698,12 @@ namespace SkinAuthoring
                     hudElement("still.hud.progress-track", "sprite", new() { ["y"] = 0.94, ["width"] = 1, ["height"] = 0.022, ["colour"] = "#293247ff" }),
                     hudElement("still.hud.progress", "sprite", new() { ["y"] = 0.94, ["width"] = 0, ["height"] = 0.022, ["colour"] = "#" + profile.ManiaAccent + "ff" }),
                 };
-                if (profile.ClassicArtwork)
-                    information.Insert(0, hudElement("still.hud.panel", "sprite", new() { ["height"] = 0.94 }, "instrument-mania"));
-                else
-                    information.InsertRange(0, new[]
-                    {
-                        hudElement("still.hud.health-panel", "sprite", new() { ["x"] = 0.05, ["width"] = 0.22, ["height"] = 0.94 }, "instrument-mania"),
-                        hudElement("still.hud.panel", "sprite", new() { ["x"] = 0.28, ["width"] = 0.19, ["height"] = 0.94 }, "instrument-mania"),
-                        hudElement("still.hud.accuracy-panel", "sprite", new() { ["x"] = 0.48, ["width"] = 0.22, ["height"] = 0.94 }, "instrument-mania"),
-                        hudElement("still.hud.bpm-panel", "sprite", new() { ["x"] = 0.71, ["width"] = 0.24, ["height"] = 0.94 }, "instrument-mania"),
-                    });
                 // One exact global material selects each ruleset's information layout, including dual-stage play.
                 // Children of the selected template share its owned HUD area unless they name a published region.
                 var maniaInformation = information.Cast<Dictionary<string, object>>().ToArray();
                 foreach (var node in maniaInformation)
                     node.Remove("slot");
-                Dictionary<string, object> hudBounds = profile.ClassicArtwork ? new() { ["x"] = 0.20, ["width"] = 0.60 } : new();
-                templates.Add(new { id = "still.mania-information-style", root = stageTemplateNode("still.hud", "container", hudBounds, maniaInformation.Cast<object>().ToArray(), slot: "hud.text") });
+                templates.Add(new { id = "still.mania-information-style", root = stageTemplateNode("still.hud", "container", new(), maniaInformation.Cast<object>().ToArray(), slot: "hud.text") });
                 instances.Add(new { id = "still.mania-information", template = "still.mania-information-style", material = new { slot = "hud.text", resource = "mania/hud" } });
                 foreach ((string target, string property, string source) in new[]
                          {
@@ -730,7 +712,7 @@ namespace SkinAuthoring
                              ("health-value", "text", "gauge.value"), ("health-reveal", "reveal-x", "gauge.value"),
                          })
                     bindings.Add(new { id = "still.bind." + target, target = "still.hud." + target, property, source });
-                addBmsInformation(templates, instances, bindings, profile.ClassicArtwork);
+                addBmsInformation(templates, instances, bindings);
             }
             if (profile.Complex)
             {
@@ -804,7 +786,7 @@ namespace SkinAuthoring
                 File.WriteAllText(Path.Combine(root, GameplaySkinSceneContracts.SCRIPT_FILE_NAME), script(), utf8);
         }
 
-        private static void addBmsInformation(List<object> templates, List<object> instances, List<object> bindings, bool classic)
+        private static void addBmsInformation(List<object> templates, List<object> instances, List<object> bindings)
         {
             const string ink = "#eef7ffff";
             const string muted = "#a7bbcaff";
@@ -862,15 +844,9 @@ namespace SkinAuthoring
                 judgements.Add(text("count-" + names[i] + "-label", labels[i], 0.07, y, 0.23, 0.095, 11, colours[i]));
                 judgements.Add(text("count-" + names[i], "0", 0.32, y, 0.59, 0.095, 11, ink, "right", source));
             }
-            object song = classic
-                ? region("song",
-                    text("table-classification", "", 0.05, 0.10, 0.64, 0.22, 11, cyan, source: "song.table-classification"),
-                    text("level-label", "LV.", 0.70, 0.10, 0.10, 0.22, 10, muted, "right"),
-                    text("level", "", 0.82, 0.08, 0.13, 0.25, 14, ink, "right", "song.level"),
-                    text("title", "", 0.05, 0.32, 0.90, 0.33, 19, source: "song.title"),
-                    text("artist", "", 0.05, 0.69, 0.53, 0.19, 11, muted, source: "song.artist"),
-                    text("difficulty", "", 0.60, 0.69, 0.35, 0.19, 11, cyan, "right", "song.difficulty"))
-                : region("song",
+            var root = stageTemplateNode("still.bms-hud", "container", new(), new[]
+            {
+                region("song",
                     inset("song-accent", 0.023, 0.15, 0.003, 0.68, cyan),
                     inset("author-rule", 0.695, 0.16, 0.18, 0.012, "#45616fff"),
                     text("table-classification", "", 0.04, 0.09, 0.63, 0.21, 14, cyan, source: "song.table-classification"),
@@ -878,10 +854,7 @@ namespace SkinAuthoring
                     text("artist", "", 0.04, 0.64, 0.63, 0.20, 12, muted, source: "song.artist"),
                     text("difficulty", "", 0.69, 0.22, 0.21, 0.25, 13, cyan, "centre", "song.difficulty"),
                     text("level-label", "LV.", 0.72, 0.58, 0.07, 0.20, 10, muted),
-                    text("level", "", 0.79, 0.51, 0.10, 0.28, 18, ink, "right", "song.level"));
-            var root = stageTemplateNode("still.bms-hud", "container", new(), new[]
-            {
-                song,
+                    text("level", "", 0.79, 0.51, 0.10, 0.28, 18, ink, "right", "song.level")),
                 region("judgements", judgements.ToArray()),
                 region("tempo",
                     inset("bpm-rule", 0.38, 0.70, 0.24, 0.012, cyan),

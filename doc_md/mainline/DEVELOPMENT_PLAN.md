@@ -11,7 +11,7 @@
 
 Autoplay跳转、统计及Omni血条/默认FC的既有修复与保留人工门取[P1-A状态](../subline/P1-A/DEVELOPMENT_STATUS.md)，不把原窗口待验列为恢复Omni自动开发的队列。其它设备、长条/键音/BGA和长期门仍沿下方P1-B/P1-E/P1-J/P1-L与P1-G。[既有游玩审查](../other/GAMEPLAY_REVIEW_20261019.md)只作输入，正常窗口、隔离宿主与发行证据分开。
 
-独立Standard Model Skin Omni Until 26以[P1-A已交付状态](../subline/P1-A/DEVELOPMENT_STATUS.md)为输入，后续按实际反馈或新来源继续，未解来源和更早HDD边界取[P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。Lightning仍按10月29日要求停止，两作品不混合素材或交付；SongSelect/Results 沿 OMS 界面和通用 PageAPI。静线的素材适配及游玩体验由 P1-A 验收。
+独立Standard Model Skin Omni Until 26以[P1-A已交付状态](../subline/P1-A/DEVELOPMENT_STATUS.md)为输入，后续按实际反馈或新来源继续，未解来源和更早HDD边界取[P1-A计划](../subline/P1-A/DEVELOPMENT_PLAN.md#iidx-历代皮肤作品)。Lightning仍按10月29日要求停止，两作品不混合素材或交付；SongSelect/Results 沿 OMS 界面和通用 PageAPI。静线原创美术及后续体验由 P1-A 验收。
 
 先按[P3-IR 原生页面接续计划](../subline/P3-IR/CLIENT_NATIVE_SERVICES_PLAN.md)在用户正常OMS窗口对标lazer，验已交付模式→所属来源、BMS来源恢复、加载中关闭与阅读体验。按已授权的独立IR与完整玩家网站范围，沿[P3-IR真人接续](../subline/P3-IR/DEVELOPMENT_PLAN.md#原版官网部署后的接续)验收原账号、保存后的新局 / 断网补交、网站公开最佳可见记录及同谱同来源 / 条件，先完成OMS＋全量历史＋ED7K的P，再完成指定宿主与玩法的C；继续维护备份、增长和同库回退，不重复未变已过门。用户通过VS Code非调试启动当前工作区，发行构建自行执行，不生成额外Windows包或安装副本；旧 osu! API endpoint 与下方Phase 1.x门不变。
 
@@ -35,7 +35,7 @@ Sayobot真实纯mania及混合小包成功入库与稳定打开仍待补验，�
 
 ## 强制执行顺序
 
-恢复与数据安全`SV1-0`、Skin C1～C7既有工程结果作为后续输入保留，不重复开发；星轨最新总体体验不通过，历史关闭记录不表示作品修改已完成。静线经典素材及配套定制已覆盖两玩法；设置页收简、按模式皮肤选择、固定目录刷新与原组件编辑功能恢复已完成，作为后续输入，不自行进入视觉下一阶段。星轨已放弃，仅保留历史参考，详见 P1-A 状态。P1-A的**七个持久campaign预算、共同执行规则和剩余人工退出门**只在[P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md#七个持久campaign预算与剩余退出门)维护；不重计、不拆新阶段。
+恢复与数据安全`SV1-0`、Skin C1～C7既有工程结果作为后续输入保留，不重复开发；星轨最新总体体验不通过，历史关闭记录不表示作品修改已完成。静线原创美术自 2026-11-27 接续至两玩法；设置页收简、按模式皮肤选择、固定目录刷新与原组件编辑功能恢复已完成，作为后续输入，不自行进入视觉下一阶段。星轨已放弃，仅保留历史参考，详见 P1-A 状态。P1-A的**七个持久campaign预算、共同执行规则和剩余人工退出门**只在[P1-A PLAN](../subline/P1-A/DEVELOPMENT_PLAN.md#七个持久campaign预算与剩余退出门)维护；不重计、不拆新阶段。
 
 ### R3：`SV1-2` G1 存储与 revision 冻结输入
 
@@ -46,7 +46,7 @@ Sayobot真实纯mania及混合小包成功入库与稳定打开仍待补验，�
 当前静线质量目标、Global背景、独立转盘宽度与固定血槽合同见[机台结构记录](../other/SKIN_SIMPLE_CABINET_20260912.md)；LITONE仅作对照，后续以合格 beatmania style 的读谱、控制区与信息层级为准，不恢复complex。
 
 1. **C6已闭合**：可选脚本、真实作者入口/consumer与隔离能力、最终整包reload/G1自动门见[P1-A结果](../subline/P1-A/DEVELOPMENT_STATUS.md)。
-2. **C7 作品迭代**。静线是唯一内置、默认与保底。当前经典素材方案及实绘取 [P1-A 更新](../subline/P1-A/CHANGELOG.md#2026-11-27-静线采用经典素材)，剩余签收见 [P1-A 计划](../subline/P1-A/DEVELOPMENT_PLAN.md)，既有工程和安装证据按当时版本保留。
+2. **C7 作品迭代**。静线是唯一内置、默认与保底。当前原创美术及实绘取 [P1-A 更新](../subline/P1-A/CHANGELOG.md#2026-11-27-静线原创美术更新)，剩余签收见 [P1-A 计划](../subline/P1-A/DEVELOPMENT_PLAN.md)，既有工程和安装证据按当时版本保留。
 3. 修改验证后按[集中清单](../other/SKIN_V1_VISUAL_ACCEPTANCE_CHECKLIST.md)签收V-001～V-005及修改后的静线；自动结果不得代签实际画面与设备体验。未签收不得称Skin V1/release完成。
 
 具体source、权限、预算、回退与journal迁移条件均以[P1-A C6/C7退出门](../subline/P1-A/DEVELOPMENT_PLAN.md)为准。P1-L继续拥有BGA内容/timeline/seek；不扩大beatmap-local作者面或移植LR2/beatoraja runtime。

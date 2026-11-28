@@ -219,6 +219,9 @@ namespace osu.Game.Rulesets.Bms.Tests.Skinning
             string[] fields = compact ? new[] { "score", "accuracy", "bpm" } : new[] { "score", "accuracy", "combo", "bpm" };
             for (int index = 0; index < fields.Length; index++)
             {
+                if (compact)
+                    panelBounds = authoredInformationNode(scene, prefix + (index == 0 ? ".panel" : "." + fields[index] + "-panel"))
+                        .ContentDrawable.ScreenSpaceDrawQuad.AABBFloat;
                 GameplaySkinSceneRuntimeNode node = authoredInformationNode(scene, prefix + "." + fields[index]);
                 SpriteText text = (SpriteText)node.ContentDrawable;
                 var bounds = text.ScreenSpaceDrawQuad.AABBFloat;

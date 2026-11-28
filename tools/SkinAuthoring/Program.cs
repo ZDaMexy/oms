@@ -618,7 +618,6 @@ namespace SkinAuthoring
         public string Author { get; set; } = "OMS contributors";
         public bool Complex { get; set; }
         public bool CompactLayout { get; set; }
-        public bool ClassicArtwork { get; set; }
         public string BmsAccent { get; set; } = "58d3ea";
         public string ManiaAccent { get; set; } = "b7a3ff";
         public string Highlight { get; set; } = "f3ca78";
